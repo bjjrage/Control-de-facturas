@@ -1,15 +1,16 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { roundCents } from "./reconciliation";
+import { roundCents, OVERBILL_TOLERANCE_PCT } from "./reconciliation";
 import { logAudit } from "./audit";
 
 /**
- * Deterministic auto-match: if this provider has exactly one authorized order,
- * not yet linked to any invoice, whose total coincides (to the cent) with the
- * invoice total, link it automatically. Ambiguous (0 or 2+ candidates) cases
- * are left for manual matching via the "Vincular orden" dialog.
+ * Auto-match para entregas parciales (1 factura -> 1 OC). De las OC del
+ * proveedor con saldo sin facturar (`total_price - facturado_amount > 0`), si
+ * hay exactamente una y el total de la factura entra dentro de ese saldo (más
+ * la tolerancia de sobrefacturación), se vincula sola. Casos ambiguos (0 o 2+
+ * OC con saldo) quedan para el "Vincular orden" manual.
  *
- * Used by both the single-invoice form (app/(internal)/invoices/actions.ts)
- * and the batch photo upload (app/(internal)/invoices/bulk-actions.ts).
+ * Usado por el alta individual (app/(internal)/invoices/actions.ts) y el alta
+ * masiva por foto (app/(internal)/invoices/bulk-actions.ts).
  */
 export async function autoMatchInvoiceByAmount(
   supabase: SupabaseClient,
@@ -17,34 +18,32 @@ export async function autoMatchInvoiceByAmount(
 ): Promise<string | null> {
   const { invoiceId, providerId, total, empresaId } = params;
 
-  const { data: matchedRows } = await supabase
-    .from("invoice_order_matches")
-    .select("authorized_order_id")
-    .eq("empresa_id", empresaId);
-  const matchedIds = new Set((matchedRows ?? []).map((m) => m.authorized_order_id as string));
-
   const { data: providerOrders } = await supabase
     .from("authorized_orders")
-    .select("id, total_price")
+    .select("id, total_price, facturado_amount")
     .eq("empresa_id", empresaId)
     .eq("provider_id", providerId);
 
-  const candidates = (providerOrders ?? []).filter(
-    (o) => !matchedIds.has(o.id) && roundCents(o.total_price) === roundCents(total)
+  const withBalance = (providerOrders ?? []).filter(
+    (o) => roundCents(o.total_price) - roundCents(o.facturado_amount ?? 0) > 0
   );
+  if (withBalance.length !== 1) return null;
 
-  if (candidates.length !== 1) return null;
+  const order = withBalance[0];
+  const remaining = roundCents(order.total_price) - roundCents(order.facturado_amount ?? 0);
+  const maxAllowed = roundCents(remaining * (1 + OVERBILL_TOLERANCE_PCT / 100));
+  if (roundCents(total) > maxAllowed) return null;
 
   const { error: matchError } = await supabase
     .from("invoice_order_matches")
-    .insert({ invoice_id: invoiceId, authorized_order_id: candidates[0].id, empresa_id: empresaId });
+    .insert({ invoice_id: invoiceId, authorized_order_id: order.id, empresa_id: empresaId });
   if (matchError) return null;
 
   await logAudit(supabase, {
     action: "invoice.order_auto_matched",
     invoiceId,
-    authorizedOrderId: candidates[0].id,
+    authorizedOrderId: order.id,
   });
 
-  return candidates[0].id as string;
+  return order.id as string;
 }

@@ -1,10 +1,14 @@
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { AuthorizedOrder } from "@/lib/types";
-import { StatusBadge } from "@/components/ui/badge";
+import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Input, Label } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { formatDate, formatMoney, formatNumber } from "@/lib/format";
+import { orderRemaining, orderFulfillmentStatus } from "@/lib/reconciliation";
+
+const FULFILLMENT_LABEL = { pendiente: "Pendiente", parcial: "Parcial", completa: "Completa" } as const;
+const FULFILLMENT_TONE = { pendiente: "neutral", parcial: "warn", completa: "ok" } as const;
 
 export default async function CostsPage({
   searchParams,
@@ -51,6 +55,9 @@ export default async function CostsPage({
               <th className="num">Cantidad</th>
               <th className="num">Precio unit.</th>
               <th className="num">Total</th>
+              <th className="num">Facturado</th>
+              <th className="num">Saldo</th>
+              <th>Entrega</th>
               <th>Más económica</th>
               <th>Estado</th>
               <th>Autorizada</th>
@@ -67,6 +74,14 @@ export default async function CostsPage({
                 </td>
                 <td className="num">{formatMoney(o.unit_price, o.currency)}</td>
                 <td className="num">{formatMoney(o.total_price, o.currency)}</td>
+                <td className="num">{formatMoney(o.facturado_amount, o.currency)}</td>
+                <td className="num">{formatMoney(orderRemaining(o.total_price, o.facturado_amount), o.currency)}</td>
+                <td>
+                  {(() => {
+                    const f = orderFulfillmentStatus(o.total_price, o.facturado_amount);
+                    return <Badge tone={FULFILLMENT_TONE[f]}>{FULFILLMENT_LABEL[f]}</Badge>;
+                  })()}
+                </td>
                 <td>{o.is_cheapest ? "Sí" : o.selection_reason ?? "-"}</td>
                 <td>
                   <StatusBadge status={o.status} />
@@ -76,7 +91,7 @@ export default async function CostsPage({
             ))}
             {(orders ?? []).length === 0 ? (
               <tr>
-                <td colSpan={9} className="text-center text-[var(--muted)] py-6">
+                <td colSpan={12} className="text-center text-[var(--muted)] py-6">
                   No hay órdenes autorizadas todavía.
                 </td>
               </tr>

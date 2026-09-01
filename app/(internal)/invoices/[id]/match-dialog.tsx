@@ -7,7 +7,14 @@ import { formatMoney } from "@/lib/format";
 import { CurrencyCode } from "@/lib/types";
 import { matchOrder } from "./actions";
 
-type Candidate = { id: string; rfq_code: string; product: string; total_price: number; currency: string };
+type Candidate = {
+  id: string;
+  rfq_code: string;
+  product: string;
+  total_price: number;
+  remaining: number;
+  currency: string;
+};
 
 export function MatchDialog({
   invoiceId,
@@ -33,7 +40,7 @@ export function MatchDialog({
         ) : null}
         {candidates.length === 0 ? (
           <p className="text-[13px] text-[var(--muted)]">
-            No hay órdenes autorizadas de este proveedor disponibles para vincular.
+            No hay órdenes de este proveedor con saldo sin facturar.
           </p>
         ) : (
           <div className="divide-y divide-[var(--border)] border border-[var(--border)] rounded-md max-h-80 overflow-y-auto">
@@ -44,7 +51,12 @@ export function MatchDialog({
                   <div className="text-[var(--muted)]">{c.product}</div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="num">{formatMoney(c.total_price, c.currency as CurrencyCode)}</span>
+                  <div className="text-right">
+                    <div className="num">{formatMoney(c.total_price, c.currency as CurrencyCode)}</div>
+                    <div className="num text-[11px] text-[var(--muted)]">
+                      saldo {formatMoney(c.remaining, c.currency as CurrencyCode)}
+                    </div>
+                  </div>
                   <Button
                     className="h-6 px-2 text-[12px]"
                     disabled={pending === c.id}

@@ -5,7 +5,7 @@ import { AuthorizedOrder, Invoice, InvoiceException, Provider } from "@/lib/type
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
-import { canMarkAptoParaPago, canMarkPagado, differenceAmount, differencePct } from "@/lib/reconciliation";
+import { canMarkAptoParaPago, canMarkPagado, isOverbilled, orderRemaining, roundCents } from "@/lib/reconciliation";
 import { MatchDialog } from "./match-dialog";
 import { ExceptionDialog } from "./exception-dialog";
 import { AttachmentLink } from "./attachment-link";
@@ -33,21 +33,26 @@ export default async function InvoiceDetailPage({
     .eq("id", invoice.provider_id)
     .single<Provider>();
 
-  const { data: matches } = await supabase
+  // 1 factura -> 1 OC (entregas parciales): a lo sumo un match.
+  const { data: match } = await supabase
     .from("invoice_order_matches")
     .select("id, authorized_orders(*)")
     .eq("invoice_id", id)
-    .returns<{ id: string; authorized_orders: AuthorizedOrder }[]>();
+    .maybeSingle<{ id: string; authorized_orders: AuthorizedOrder }>();
+  const linkedOrder = match?.authorized_orders ?? null;
 
-  const { data: allMatchedIds } = await supabase.from("invoice_order_matches").select("authorized_order_id");
-  const matchedOrderIds = new Set((allMatchedIds ?? []).map((m) => m.authorized_order_id));
-
+  // Candidatos: OC del proveedor con saldo sin facturar.
   const { data: candidateOrders } = await supabase
     .from("authorized_orders")
-    .select("id, rfq_code, product, total_price, currency")
+    .select("id, rfq_code, product, total_price, facturado_amount, currency")
     .eq("provider_id", invoice.provider_id)
-    .returns<{ id: string; rfq_code: string; product: string; total_price: number; currency: string }[]>();
-  const candidates = (candidateOrders ?? []).filter((c) => !matchedOrderIds.has(c.id));
+    .returns<
+      { id: string; rfq_code: string; product: string; total_price: number; facturado_amount: number; currency: string }[]
+    >();
+  const candidates = (candidateOrders ?? [])
+    .map((c) => ({ ...c, remaining: roundCents(c.total_price - (c.facturado_amount ?? 0)) }))
+    .filter((c) => c.remaining > 0)
+    .sort((a, b) => b.remaining - a.remaining);
 
   const { data: exceptions } = await supabase
     .from("invoice_exceptions")
@@ -56,9 +61,10 @@ export default async function InvoiceDetailPage({
     .order("created_at", { ascending: false })
     .returns<InvoiceException[]>();
 
-  const authorizedSum = (matches ?? []).reduce((sum, m) => sum + m.authorized_orders.total_price, 0);
-  const diffAmount = differenceAmount(invoice.total, authorizedSum);
-  const diffPct = differencePct(invoice.total, authorizedSum);
+  const orderTotal = linkedOrder?.total_price ?? 0;
+  const orderFacturado = linkedOrder?.facturado_amount ?? 0;
+  const orderSaldo = orderRemaining(orderTotal, orderFacturado);
+  const overbilled = linkedOrder ? isOverbilled(orderTotal, orderFacturado) : false;
 
   let attachment: { bucket: string; path: string; file_name: string } | null = null;
   if (invoice.attachment_id) {
@@ -146,55 +152,61 @@ export default async function InvoiceDetailPage({
 
       <div>
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-[14px] font-semibold">Órdenes vinculadas</h2>
-          <MatchDialog invoiceId={invoice.id} candidates={candidates} trigger={<Button variant="secondary">Vincular orden</Button>} />
+          <h2 className="text-[14px] font-semibold">Orden vinculada</h2>
+          {!linkedOrder ? (
+            <MatchDialog
+              invoiceId={invoice.id}
+              candidates={candidates}
+              trigger={<Button variant="secondary">Vincular orden</Button>}
+            />
+          ) : null}
         </div>
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
-          <table>
-            <thead>
-              <tr>
-                <th>RFQ</th>
-                <th>Producto</th>
-                <th className="num">Total</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {(matches ?? []).map((m) => (
-                <tr key={m.id}>
-                  <td>{m.authorized_orders.rfq_code}</td>
-                  <td>{m.authorized_orders.product}</td>
-                  <td className="num">{formatMoney(m.authorized_orders.total_price, m.authorized_orders.currency)}</td>
-                  <td>
-                    <form
-                      action={async () => {
-                        "use server";
-                        await unmatchOrder(invoice.id, m.id, m.authorized_orders.id);
-                      }}
-                    >
-                      <Button variant="ghost" className="h-6 px-2 text-[12px]" type="submit">
-                        Desvincular
-                      </Button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
-              {(matches ?? []).length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="text-center text-[var(--muted)] py-6">
-                    No hay órdenes vinculadas todavía.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex justify-end gap-4 mt-2 text-[12px] text-[var(--muted)]">
-          <span>Autorizado: {formatMoney(authorizedSum, invoice.currency)}</span>
-          <span>
-            Diferencia: {formatMoney(diffAmount, invoice.currency)} ({diffPct.toFixed(2)}%)
-          </span>
-        </div>
+        {linkedOrder ? (
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="font-medium text-[13px]">{linkedOrder.rfq_code}</div>
+                <div className="text-[12px] text-[var(--muted)]">{linkedOrder.product}</div>
+              </div>
+              <form
+                action={async () => {
+                  "use server";
+                  await unmatchOrder(invoice.id, match!.id, linkedOrder.id);
+                }}
+              >
+                <Button variant="ghost" className="h-6 px-2 text-[12px]" type="submit">
+                  Desvincular
+                </Button>
+              </form>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-3 text-[13px] border-t border-[var(--border)] pt-3">
+              <div>
+                <div className="text-[11px] text-[var(--muted)] mb-0.5">Monto de la orden</div>
+                <div className="num">{formatMoney(orderTotal, linkedOrder.currency)}</div>
+              </div>
+              <div>
+                <div className="text-[11px] text-[var(--muted)] mb-0.5">Facturado (con esta)</div>
+                <div className="num">{formatMoney(orderFacturado, linkedOrder.currency)}</div>
+              </div>
+              <div>
+                <div className="text-[11px] text-[var(--muted)] mb-0.5">Saldo</div>
+                <div className={`num ${overbilled ? "text-[var(--error)]" : ""}`}>
+                  {formatMoney(orderSaldo, linkedOrder.currency)}
+                </div>
+              </div>
+            </div>
+            {overbilled ? (
+              <div className="mt-3 rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
+                Lo facturado en esta orden supera su monto autorizado más la tolerancia. Aprobá la excepción
+                para poder marcarla apta para pago.
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] py-6 text-center text-[13px] text-[var(--muted)]">
+            Esta factura no está vinculada a ninguna orden.
+          </div>
+        )}
       </div>
 
       {(exceptions ?? []).length > 0 ? (

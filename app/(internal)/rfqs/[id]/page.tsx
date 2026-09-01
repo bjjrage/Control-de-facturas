@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { formatDate, formatDateTime, formatMoney, formatNumber } from "@/lib/format";
 import { isRfqOpen, canReopenRfq, rfqClosedReason } from "@/lib/rfq-status";
+import { orderRemaining } from "@/lib/reconciliation";
 import { InviteDialog } from "./invite-dialog";
 import { SelectOfferDialog } from "./select-offer-dialog";
 import { AttachmentLink } from "./attachment-link";
@@ -223,6 +224,13 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
           <p>
             {authorizedOrder.provider_name} · {formatMoney(authorizedOrder.total_price, authorizedOrder.currency)}
             {authorizedOrder.is_cheapest ? " · oferta más económica" : ` · motivo: ${authorizedOrder.selection_reason}`}
+          </p>
+          <p className="text-[12px] mt-1">
+            Facturado: {formatMoney(authorizedOrder.facturado_amount, authorizedOrder.currency)} · Saldo:{" "}
+            {formatMoney(
+              orderRemaining(authorizedOrder.total_price, authorizedOrder.facturado_amount),
+              authorizedOrder.currency
+            )}
           </p>
           <p className="text-[11px] text-[var(--muted)] mt-1">
             Autorizada el {formatDateTime(authorizedOrder.authorized_at)}

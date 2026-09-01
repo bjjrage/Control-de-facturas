@@ -180,6 +180,7 @@ export interface AuthorizedOrder {
   unit: string;
   unit_price: number;
   total_price: number;
+  facturado_amount: number;
   currency: CurrencyCode;
   vat_included: boolean;
   authorized_by: string;

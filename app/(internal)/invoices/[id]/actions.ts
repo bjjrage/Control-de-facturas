@@ -14,7 +14,14 @@ export async function matchOrder(invoiceId: string, authorizedOrderId: string) {
   const { error } = await supabase
     .from("invoice_order_matches")
     .insert({ invoice_id: invoiceId, authorized_order_id: authorizedOrderId });
-  if (error) return { error: error.message };
+  if (error) {
+    return {
+      error:
+        error.code === "23505"
+          ? "Esta factura ya está vinculada a una orden. Desvinculala primero."
+          : error.message,
+    };
+  }
 
   await logAudit(supabase, {
     action: "invoice.order_matched",
@@ -41,22 +48,23 @@ export async function approveException(invoiceId: string, reason: string, commen
   const { data: invoice } = await supabase.from("invoices").select("*").eq("id", invoiceId).single();
   if (!invoice) return { error: "Factura no encontrada." };
 
-  const { data: matches } = await supabase
+  // Diferencia = sobrefacturación de la OC (acumulado facturado vs monto de la OC).
+  const { data: match } = await supabase
     .from("invoice_order_matches")
-    .select("authorized_orders(total_price)")
-    .eq("invoice_id", invoiceId);
-  const authorizedSum = (matches ?? []).reduce(
-    (sum, m) => sum + ((m as unknown as { authorized_orders: { total_price: number } }).authorized_orders?.total_price ?? 0),
-    0
-  );
+    .select("authorized_orders(total_price, facturado_amount)")
+    .eq("invoice_id", invoiceId)
+    .maybeSingle();
+  const order = (match as unknown as { authorized_orders: { total_price: number; facturado_amount: number } } | null)
+    ?.authorized_orders;
+  if (!order) return { error: "La factura no está vinculada a ninguna orden." };
 
   const { error } = await supabase.from("invoice_exceptions").insert({
     invoice_id: invoiceId,
     approved_by: profile.id,
     reason,
     comment,
-    difference_amount: differenceAmount(invoice.total, authorizedSum),
-    difference_pct: differencePct(invoice.total, authorizedSum),
+    difference_amount: differenceAmount(order.facturado_amount, order.total_price),
+    difference_pct: differencePct(order.facturado_amount, order.total_price),
   });
   if (error) return { error: error.message };
 
