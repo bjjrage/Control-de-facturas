@@ -19,3 +19,15 @@ export async function requireProfile(allowed?: UserRole[]): Promise<Profile> {
   if (allowed && !allowed.includes(profile.role)) redirect("/dashboard");
   return profile;
 }
+
+/**
+ * Every internal request belongs to one empresa (multi-tenant). Server actions
+ * that use the service-role client — which bypasses RLS — must scope their
+ * queries with this id explicitly. Redirects to /login if the profile somehow
+ * has no empresa (shouldn't happen after the 0011 migration backfill).
+ */
+export async function requireEmpresaId(allowed?: UserRole[]): Promise<string> {
+  const profile = await requireProfile(allowed);
+  if (!profile.empresa_id) redirect("/login");
+  return profile.empresa_id;
+}

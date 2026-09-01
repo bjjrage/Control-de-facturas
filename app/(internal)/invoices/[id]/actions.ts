@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireProfile } from "@/lib/auth";
+import { requireProfile, requireEmpresaId } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { differenceAmount, differencePct } from "@/lib/reconciliation";
 import { revalidatePath } from "next/cache";
@@ -95,26 +95,35 @@ export async function markPagado(invoiceId: string) {
  * so test/duplicate data can be cleared without needing DB access.
  */
 export async function deleteInvoice(invoiceId: string) {
-  await requireProfile(["admin"]);
+  const empresaId = await requireEmpresaId(["admin"]);
   const admin = createAdminClient();
 
-  const { data: invoice } = await admin.from("invoices").select("attachment_id").eq("id", invoiceId).maybeSingle();
+  // Scope the lookup to the caller's empresa — the admin client bypasses RLS,
+  // so without this an admin could delete another tenant's invoice by id.
+  const { data: invoice } = await admin
+    .from("invoices")
+    .select("attachment_id")
+    .eq("id", invoiceId)
+    .eq("empresa_id", empresaId)
+    .maybeSingle();
+  if (!invoice) return { error: "Factura no encontrada." };
 
-  await admin.from("invoice_order_matches").delete().eq("invoice_id", invoiceId);
-  await admin.from("invoice_exceptions").delete().eq("invoice_id", invoiceId);
-  await admin.from("audit_logs").delete().eq("invoice_id", invoiceId);
+  await admin.from("invoice_order_matches").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
+  await admin.from("invoice_exceptions").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
+  await admin.from("audit_logs").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
 
-  const { error } = await admin.from("invoices").delete().eq("id", invoiceId);
+  const { error } = await admin.from("invoices").delete().eq("id", invoiceId).eq("empresa_id", empresaId);
   if (error) return { error: error.message };
 
-  if (invoice?.attachment_id) {
+  if (invoice.attachment_id) {
     const { data: attachment } = await admin
       .from("attachments")
       .select("bucket, path")
       .eq("id", invoice.attachment_id)
+      .eq("empresa_id", empresaId)
       .maybeSingle();
     if (attachment) await admin.storage.from(attachment.bucket).remove([attachment.path]);
-    await admin.from("attachments").delete().eq("id", invoice.attachment_id);
+    await admin.from("attachments").delete().eq("id", invoice.attachment_id).eq("empresa_id", empresaId);
   }
 
   revalidatePath("/invoices");

@@ -18,6 +18,15 @@ export async function uploadRfqAttachments(rfqId: string, files: File[]) {
   const profile = await requireProfile(["comercial", "admin"]);
   const admin = createAdminClient();
 
+  // admin client bypasses RLS — confirm the RFQ is in the caller's empresa.
+  const { data: rfq } = await admin
+    .from("rfqs")
+    .select("id")
+    .eq("id", rfqId)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (!rfq) return { error: "Solicitud no encontrada." };
+
   for (const file of files) {
     if (!file || file.size === 0) continue;
     if (file.size > MAX_FILE_BYTES) return { error: `${file.name}: no puede superar los 20MB.` };
@@ -29,6 +38,7 @@ export async function uploadRfqAttachments(rfqId: string, files: File[]) {
     if (uploadError) return { error: `${file.name}: ${uploadError.message}` };
 
     const { error: attachmentError } = await admin.from("attachments").insert({
+      empresa_id: profile.empresa_id,
       bucket: "rfq-attachments",
       path,
       file_name: file.name,

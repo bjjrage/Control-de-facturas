@@ -59,17 +59,27 @@ export const SELECTION_REASON_LABELS: Record<SelectionReason, string> = {
   OTRO: "Otro",
 };
 
+export interface Empresa {
+  id: string;
+  nombre: string;
+  slug: string | null;
+  active: boolean;
+  created_at: string;
+}
+
 export interface Profile {
   id: string;
   email: string;
   full_name: string;
   role: UserRole;
   active: boolean;
+  empresa_id: string;
   created_at: string;
 }
 
 export interface Provider {
   id: string;
+  empresa_id: string;
   name: string;
   contact_name: string | null;
   email: string | null;
@@ -81,6 +91,7 @@ export interface Provider {
 
 export interface Rfq {
   id: string;
+  empresa_id: string;
   code: string;
   created_by: string;
   client_name: string | null;
@@ -101,6 +112,7 @@ export interface Rfq {
 
 export interface RfqProvider {
   id: string;
+  empresa_id: string;
   rfq_id: string;
   provider_id: string;
   token: string;
@@ -113,6 +125,7 @@ export interface RfqProvider {
 
 export interface Attachment {
   id: string;
+  empresa_id: string;
   bucket: string;
   path: string;
   file_name: string;
@@ -127,12 +140,14 @@ export interface Attachment {
 
 export interface Quote {
   id: string;
+  empresa_id: string;
   rfq_provider_id: string;
   created_at: string;
 }
 
 export interface QuoteVersion {
   id: string;
+  empresa_id: string;
   quote_id: string;
   version_number: number;
   budget_number: string;
@@ -152,6 +167,7 @@ export interface QuoteVersion {
 
 export interface AuthorizedOrder {
   id: string;
+  empresa_id: string;
   rfq_id: string;
   provider_id: string;
   quote_version_id: string;
@@ -176,6 +192,7 @@ export interface AuthorizedOrder {
 
 export interface Invoice {
   id: string;
+  empresa_id: string;
   provider_id: string;
   invoice_number: string;
   invoice_date: string;
@@ -194,6 +211,7 @@ export interface Invoice {
 
 export interface InvoiceOrderMatch {
   id: string;
+  empresa_id: string;
   invoice_id: string;
   authorized_order_id: string;
   created_at: string;
@@ -201,6 +219,7 @@ export interface InvoiceOrderMatch {
 
 export interface InvoiceException {
   id: string;
+  empresa_id: string;
   invoice_id: string;
   approved_by: string;
   approved_at: string;
@@ -213,6 +232,7 @@ export interface InvoiceException {
 
 export interface AuditLog {
   id: string;
+  empresa_id: string | null;
   actor_id: string | null;
   actor_type: "internal" | "provider" | "system";
   actor_label: string | null;

@@ -38,6 +38,7 @@ export async function createInvoice(formData: FormData) {
   if (total === null || total <= 0) return { error: "El total debe ser mayor a cero." };
 
   const admin = createAdminClient();
+  const empresaId = profile.empresa_id;
   let attachmentId: string | null = null;
 
   if (file && file.size > 0) {
@@ -51,6 +52,7 @@ export async function createInvoice(formData: FormData) {
     const { data: attachment, error: attachmentError } = await admin
       .from("attachments")
       .insert({
+        empresa_id: empresaId,
         bucket: "invoice-files",
         path,
         file_name: file.name,
@@ -93,6 +95,7 @@ export async function createInvoice(formData: FormData) {
     invoiceId: invoice.id,
     providerId,
     total,
+    empresaId,
   });
 
   revalidatePath("/invoices");

@@ -19,7 +19,7 @@ function fail(error: string): { data: null; error: string } {
 export async function extractInvoiceFromPhoto(
   formData: FormData
 ): Promise<{ data: ExtractedInvoiceData | null; error: string | null }> {
-  await requireProfile(["administracion", "admin"]);
+  const profile = await requireProfile(["administracion", "admin"]);
 
   const file = formData.get("file") as File | null;
   if (!file || file.size === 0) return fail("Elegí una foto o PDF de la factura.");
@@ -33,7 +33,7 @@ export async function extractInvoiceFromPhoto(
   if (error || !parsed) return fail(error ?? "No se pudo leer la factura. Completá los datos a mano.");
 
   const supabase = await createClient();
-  const provider = await findProviderByTaxId(supabase, parsed.provider_tax_id);
+  const provider = await findProviderByTaxId(supabase, parsed.provider_tax_id, profile.empresa_id);
 
   return { data: { ...parsed, provider_id: provider?.id ?? null }, error: null };
 }

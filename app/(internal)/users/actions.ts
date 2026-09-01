@@ -9,7 +9,7 @@ import { revalidatePath } from "next/cache";
 const ROLES: UserRole[] = ["comercial", "administracion", "admin"];
 
 export async function createUser(formData: FormData) {
-  await requireProfile(["admin"]);
+  const creator = await requireProfile(["admin"]);
 
   const email = String(formData.get("email") ?? "").trim();
   const fullName = String(formData.get("full_name") ?? "").trim();
@@ -37,6 +37,7 @@ export async function createUser(formData: FormData) {
     full_name: fullName,
     role,
     active: true,
+    empresa_id: creator.empresa_id,
   });
 
   if (profileError) {

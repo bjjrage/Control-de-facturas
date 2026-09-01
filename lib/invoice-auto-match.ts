@@ -13,16 +13,20 @@ import { logAudit } from "./audit";
  */
 export async function autoMatchInvoiceByAmount(
   supabase: SupabaseClient,
-  params: { invoiceId: string; providerId: string; total: number }
+  params: { invoiceId: string; providerId: string; total: number; empresaId: string }
 ): Promise<string | null> {
-  const { invoiceId, providerId, total } = params;
+  const { invoiceId, providerId, total, empresaId } = params;
 
-  const { data: matchedRows } = await supabase.from("invoice_order_matches").select("authorized_order_id");
+  const { data: matchedRows } = await supabase
+    .from("invoice_order_matches")
+    .select("authorized_order_id")
+    .eq("empresa_id", empresaId);
   const matchedIds = new Set((matchedRows ?? []).map((m) => m.authorized_order_id as string));
 
   const { data: providerOrders } = await supabase
     .from("authorized_orders")
     .select("id, total_price")
+    .eq("empresa_id", empresaId)
     .eq("provider_id", providerId);
 
   const candidates = (providerOrders ?? []).filter(
@@ -33,7 +37,7 @@ export async function autoMatchInvoiceByAmount(
 
   const { error: matchError } = await supabase
     .from("invoice_order_matches")
-    .insert({ invoice_id: invoiceId, authorized_order_id: candidates[0].id });
+    .insert({ invoice_id: invoiceId, authorized_order_id: candidates[0].id, empresa_id: empresaId });
   if (matchError) return null;
 
   await logAudit(supabase, {

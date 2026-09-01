@@ -23,6 +23,7 @@ export async function submitQuote(token: string, formData: FormData) {
     .maybeSingle();
 
   if (!rfqProvider) return { error: "Enlace inválido." };
+  const empresaId = (rfqProvider as unknown as { empresa_id: string }).empresa_id;
   const rfq = (rfqProvider as unknown as { rfqs: { id: string; status: "BORRADOR" | "COTIZANDO" | "OFERTAS_RECIBIDAS" | "AUTORIZADO" | "CANCELADO"; expires_at: string } }).rfqs;
   const providerName = (rfqProvider as unknown as { providers: { name: string } }).providers.name;
 
@@ -63,6 +64,7 @@ export async function submitQuote(token: string, formData: FormData) {
   const { data: attachment, error: attachmentError } = await admin
     .from("attachments")
     .insert({
+      empresa_id: empresaId,
       bucket: "quote-pdfs",
       path,
       file_name: file.name,
@@ -83,7 +85,7 @@ export async function submitQuote(token: string, formData: FormData) {
   if (!quote) {
     const { data: newQuote, error: quoteError } = await admin
       .from("quotes")
-      .insert({ rfq_provider_id: rfqProvider.id })
+      .insert({ rfq_provider_id: rfqProvider.id, empresa_id: empresaId })
       .select("id")
       .single();
     if (quoteError || !newQuote) return { error: "No se pudo registrar la cotización." };
@@ -98,6 +100,7 @@ export async function submitQuote(token: string, formData: FormData) {
 
   const { error: versionError } = await admin.from("quote_versions").insert({
     quote_id: quote.id,
+    empresa_id: empresaId,
     version_number: versionNumber,
     budget_number: budgetNumber,
     unit_price: unitPrice,

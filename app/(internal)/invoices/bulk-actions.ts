@@ -57,7 +57,8 @@ export async function processInvoicePhoto(formData: FormData): Promise<BulkFileR
   }
 
   const supabase = await createClient();
-  const provider = await findProviderByTaxId(supabase, parsed.provider_tax_id);
+  const empresaId = profile.empresa_id;
+  const provider = await findProviderByTaxId(supabase, parsed.provider_tax_id, empresaId);
   const providerId = provider?.id ?? null;
   const providerName = provider?.name ?? parsed.provider_name;
 
@@ -89,6 +90,7 @@ export async function processInvoicePhoto(formData: FormData): Promise<BulkFileR
   const { data: attachment } = await admin
     .from("attachments")
     .insert({
+      empresa_id: empresaId,
       bucket: "invoice-files",
       path,
       file_name: file.name,
@@ -130,6 +132,7 @@ export async function processInvoicePhoto(formData: FormData): Promise<BulkFileR
     invoiceId: invoice.id,
     providerId,
     total: parsed.total,
+    empresaId,
   });
 
   revalidatePath("/invoices");

@@ -11,13 +11,18 @@ export function normalizeTaxId(value: string): string {
 
 export async function findProviderByTaxId(
   supabase: SupabaseClient,
-  taxId: string | null
+  taxId: string | null,
+  empresaId: string
 ): Promise<{ id: string; name: string } | null> {
   if (!taxId) return null;
   const target = normalizeTaxId(taxId);
   if (!target) return null;
 
-  const { data: providers } = await supabase.from("providers").select("id, name, tax_id").not("tax_id", "is", null);
+  const { data: providers } = await supabase
+    .from("providers")
+    .select("id, name, tax_id")
+    .eq("empresa_id", empresaId)
+    .not("tax_id", "is", null);
   for (const p of providers ?? []) {
     if (p.tax_id && normalizeTaxId(p.tax_id) === target) return { id: p.id, name: p.name };
   }
