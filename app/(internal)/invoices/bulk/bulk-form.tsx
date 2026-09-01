@@ -1,43 +1,64 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/format";
-import { processInvoicePhoto, BulkFileResult } from "../bulk-actions";
+import { sanitizeFileName } from "@/lib/storage";
+import { createClient } from "@/lib/supabase/browser";
+import { InvoiceJob, InvoiceJobStatus, InvoiceJobOutcome } from "@/lib/types";
 
-const CONCURRENCY = 3;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 
-const OUTCOME_TONE: Record<BulkFileResult["outcome"], "ok" | "warn" | "error"> = {
+const STATUS_LABEL: Record<InvoiceJobStatus, string> = {
+  queued: "En cola",
+  processing: "Leyendo…",
+  done: "Listo",
+  needs_review: "Revisar a mano",
+  failed: "Error",
+};
+
+const OUTCOME_TONE: Record<InvoiceJobOutcome, "ok" | "warn" | "error"> = {
   matched: "ok",
   created_unmatched: "warn",
   needs_manual: "warn",
   error: "error",
 };
-
-const OUTCOME_LABEL: Record<BulkFileResult["outcome"], string> = {
+const OUTCOME_LABEL: Record<InvoiceJobOutcome, string> = {
   matched: "Conciliada",
   created_unmatched: "Cargada sin match",
   needs_manual: "Revisar a mano",
   error: "Error",
 };
 
-type Row = { fileName: string; status: "pending" | "done"; result?: BulkFileResult };
+function rowTone(job: InvoiceJob): "ok" | "warn" | "error" | "neutral" {
+  if (job.status === "done" || job.status === "needs_review" || job.status === "failed") {
+    return job.outcome ? OUTCOME_TONE[job.outcome] : job.status === "failed" ? "error" : "warn";
+  }
+  return "neutral";
+}
+function rowLabel(job: InvoiceJob): string {
+  if (job.status === "done" || job.status === "needs_review") {
+    return job.outcome ? OUTCOME_LABEL[job.outcome] : STATUS_LABEL[job.status];
+  }
+  return STATUS_LABEL[job.status];
+}
 
-export function BulkUploadForm() {
+export function BulkUploadForm({ empresaId, userId }: { empresaId: string; userId: string }) {
+  const supabase = useMemo(() => createClient(), []);
   const [files, setFiles] = useState<File[]>([]);
   const [batchDate, setBatchDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [rows, setRows] = useState<Row[]>([]);
-  const [running, setRunning] = useState(false);
+  const [jobs, setJobs] = useState<InvoiceJob[]>([]);
+  const [jobIds, setJobIds] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Safety net: a file dropped even slightly outside the drop zone (but still
-  // somewhere on this page) would otherwise make the browser navigate to it
-  // and open it as its own tab. Block that globally while this page is open.
+  // Un archivo soltado un poco fuera de la zona haría que el navegador lo abra
+  // como pestaña. Bloqueamos eso a nivel ventana mientras esta página está abierta.
   useEffect(() => {
     const block = (e: DragEvent) => e.preventDefault();
     window.addEventListener("dragover", block);
@@ -48,50 +69,89 @@ export function BulkUploadForm() {
     };
   }, []);
 
+  // Realtime: seguir el estado de los jobs de este lote a medida que el worker los procesa.
+  useEffect(() => {
+    if (jobIds.length === 0) return;
+    const idSet = new Set(jobIds);
+    const channel = supabase
+      .channel(`invoice_jobs_${jobIds[0]}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "invoice_jobs" },
+        (payload) => {
+          const row = payload.new as InvoiceJob;
+          if (!row?.id || !idSet.has(row.id)) return;
+          setJobs((prev) => prev.map((j) => (j.id === row.id ? row : j)));
+        }
+      )
+      .subscribe();
+
+    // Fallback por si se pierde algún evento: refetch cada 4s hasta que todos terminen.
+    const poll = setInterval(async () => {
+      const { data } = await supabase.from("invoice_jobs").select("*").in("id", jobIds);
+      if (data) setJobs(data as InvoiceJob[]);
+    }, 4000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(poll);
+    };
+  }, [jobIds, supabase]);
+
   function addFiles(list: FileList | File[]) {
     const incoming = Array.from(list).filter((f) => ACCEPTED_TYPES.includes(f.type));
-    if (incoming.length === 0) return;
-    setFiles((prev) => [...prev, ...incoming]);
+    if (incoming.length > 0) setFiles((prev) => [...prev, ...incoming]);
   }
 
-  async function runBatch() {
-    setRunning(true);
-    const initialRows: Row[] = files.map((f) => ({ fileName: f.name, status: "pending" }));
-    setRows(initialRows);
-
-    let nextIndex = 0;
-    async function worker() {
-      while (nextIndex < files.length) {
-        const i = nextIndex++;
-        const fd = new FormData();
-        fd.set("file", files[i]);
-        fd.set("batch_date", batchDate);
-        let res: BulkFileResult;
-        try {
-          res = await processInvoicePhoto(fd);
-        } catch {
-          // A network hiccup or a server timeout must never leave this file
-          // (or the rest of this worker's queue) stuck at "Leyendo…" forever.
-          res = {
-            fileName: files[i].name,
-            outcome: "error",
-            message: "Se cortó la conexión al leerla (puede haber tardado demasiado) — probala de nuevo.",
-          };
+  async function upload() {
+    setUploading(true);
+    setUploadError(null);
+    const created: InvoiceJob[] = [];
+    try {
+      for (const file of files) {
+        const path = `${empresaId}/inbox/${crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
+        const up = await supabase.storage
+          .from("invoice-files")
+          .upload(path, file, { contentType: file.type || undefined });
+        if (up.error) {
+          setUploadError(`${file.name}: ${up.error.message}`);
+          continue;
         }
-        setRows((prev) => prev.map((r, idx) => (idx === i ? { fileName: res.fileName, status: "done", result: res } : r)));
+        const { data, error } = await supabase
+          .from("invoice_jobs")
+          .insert({
+            empresa_id: empresaId,
+            created_by: userId,
+            storage_path: path,
+            file_name: file.name,
+            mime_type: file.type || "application/octet-stream",
+            batch_date: batchDate,
+          })
+          .select("*")
+          .single();
+        if (error || !data) {
+          setUploadError(`${file.name}: ${error?.message ?? "no se pudo encolar"}`);
+          continue;
+        }
+        created.push(data as InvoiceJob);
       }
+    } finally {
+      setUploading(false);
     }
-    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, files.length) }, worker));
-    setRunning(false);
+    if (created.length > 0) {
+      setJobs((prev) => [...prev, ...created]);
+      setJobIds((prev) => [...prev, ...created.map((j) => j.id)]);
+      setFiles([]);
+    }
   }
 
-  const doneCount = rows.filter((r) => r.status === "done").length;
-  const summary = rows.reduce(
-    (acc, r) => {
-      if (r.result) acc[r.result.outcome] = (acc[r.result.outcome] ?? 0) + 1;
+  const pending = jobs.filter((j) => j.status === "queued" || j.status === "processing").length;
+  const summary = jobs.reduce(
+    (acc, j) => {
+      if (j.outcome) acc[j.outcome] = (acc[j.outcome] ?? 0) + 1;
       return acc;
     },
-    {} as Partial<Record<BulkFileResult["outcome"], number>>
+    {} as Partial<Record<InvoiceJobOutcome, number>>
   );
 
   return (
@@ -105,34 +165,36 @@ export function BulkUploadForm() {
             value={batchDate}
             onChange={(e) => setBatchDate(e.target.value)}
             className="w-40"
-            disabled={running}
+            disabled={uploading}
           />
         </div>
 
         <div>
           <Label>Fotos de las facturas</Label>
           <div
-            onClick={() => !running && fileInputRef.current?.click()}
+            onClick={() => !uploading && fileInputRef.current?.click()}
             onDragOver={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              if (!running) setDragOver(true);
+              if (!uploading) setDragOver(true);
             }}
             onDragLeave={() => setDragOver(false)}
             onDrop={(e) => {
               e.preventDefault();
               e.stopPropagation();
               setDragOver(false);
-              if (!running) addFiles(e.dataTransfer.files);
+              if (!uploading) addFiles(e.dataTransfer.files);
             }}
             className={`rounded-lg border-2 border-dashed p-8 text-center text-[13px] cursor-pointer transition-colors ${
               dragOver ? "border-[var(--primary)] bg-[var(--primary-bg)]" : "border-[var(--border)] bg-[var(--panel-2)]"
-            } ${running ? "opacity-50 pointer-events-none" : ""}`}
+            } ${uploading ? "opacity-50 pointer-events-none" : ""}`}
           >
             <p className="font-medium mb-1">Arrastrá acá las facturas, o hacé clic para elegirlas</p>
-            <p className="text-[var(--muted)]">Fotos (JPG, PNG, WEBP) o PDF de factura electrónica — podés soltar varias juntas</p>
+            <p className="text-[var(--muted)]">
+              Fotos (JPG, PNG, WEBP) o PDF de factura electrónica — podés soltar varias juntas
+            </p>
             {files.length > 0 ? (
-              <p className="mt-2 text-[var(--primary)] font-medium">{files.length} archivo(s) listos</p>
+              <p className="mt-2 text-[var(--primary)] font-medium">{files.length} archivo(s) listos para subir</p>
             ) : null}
           </div>
           <input
@@ -140,7 +202,7 @@ export function BulkUploadForm() {
             type="file"
             multiple
             accept="image/jpeg,image/png,image/webp,application/pdf"
-            disabled={running}
+            disabled={uploading}
             className="hidden"
             onChange={(e) => {
               if (e.target.files) addFiles(e.target.files);
@@ -149,28 +211,44 @@ export function BulkUploadForm() {
           />
         </div>
 
+        {uploadError ? (
+          <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
+            {uploadError}
+          </div>
+        ) : null}
+
         <div className="flex items-center gap-2">
-          <Button type="button" disabled={files.length === 0 || running} onClick={runBatch}>
-            {running ? `Procesando ${doneCount}/${files.length}…` : `Procesar ${files.length || ""} factura${files.length === 1 ? "" : "s"}`}
+          <Button type="button" disabled={files.length === 0 || uploading} onClick={upload}>
+            {uploading ? "Subiendo…" : `Subir ${files.length || ""} factura${files.length === 1 ? "" : "s"}`}
           </Button>
-          {files.length > 0 && !running ? (
+          {files.length > 0 && !uploading ? (
             <Button type="button" variant="ghost" onClick={() => setFiles([])}>
               Vaciar
             </Button>
           ) : null}
         </div>
+        <p className="text-[11px] text-[var(--muted)]">
+          Se procesan en segundo plano — no hace falta esperar acá, las filas de abajo se actualizan solas.
+        </p>
       </div>
 
-      {rows.length > 0 ? (
+      {jobs.length > 0 ? (
         <div className="space-y-2">
-          {rows.length === doneCount ? (
+          {pending === 0 ? (
             <div className="flex gap-3 text-[12px] text-[var(--muted)]">
               <span>✅ Conciliadas: {summary.matched ?? 0}</span>
               <span>🟡 Sin match: {summary.created_unmatched ?? 0}</span>
-              <span>✋ A mano: {summary.needs_manual ?? 0}</span>
+              <span>✋ A revisar: {summary.needs_manual ?? 0}</span>
               <span>❌ Errores: {summary.error ?? 0}</span>
+              {(summary.needs_manual ?? 0) > 0 ? (
+                <Link href="/invoices/revision" className="text-[var(--primary)] hover:underline">
+                  Ir a revisión →
+                </Link>
+              ) : null}
             </div>
-          ) : null}
+          ) : (
+            <div className="text-[12px] text-[var(--muted)]">Procesando {jobs.length - pending}/{jobs.length}…</div>
+          )}
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
             <table>
               <thead>
@@ -183,25 +261,25 @@ export function BulkUploadForm() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r, i) => (
-                  <tr key={i}>
-                    <td>{r.fileName}</td>
-                    <td>{r.result?.providerName ?? "-"}</td>
-                    <td className="num">{r.result?.total ? formatMoney(r.result.total, "PYG") : "-"}</td>
+                {jobs.map((j) => (
+                  <tr key={j.id}>
+                    <td>{j.file_name}</td>
+                    <td>{j.extracted?.provider_name ?? "-"}</td>
+                    <td className="num">{j.extracted?.total ? formatMoney(j.extracted.total, "PYG") : "-"}</td>
                     <td>
-                      {r.status === "pending" ? (
-                        <span className="text-[12px] text-[var(--muted)]">Leyendo…</span>
+                      {j.status === "queued" || j.status === "processing" ? (
+                        <span className="text-[12px] text-[var(--muted)]">{STATUS_LABEL[j.status]}</span>
                       ) : (
-                        <Badge tone={OUTCOME_TONE[r.result!.outcome]}>{OUTCOME_LABEL[r.result!.outcome]}</Badge>
+                        <Badge tone={rowTone(j)}>{rowLabel(j)}</Badge>
                       )}
                     </td>
                     <td className="text-[12px] text-[var(--muted)]">
-                      {r.result?.invoiceId ? (
-                        <Link href={`/invoices/${r.result.invoiceId}`} className="hover:underline">
-                          {r.result.message}
+                      {j.invoice_id ? (
+                        <Link href={`/invoices/${j.invoice_id}`} className="hover:underline">
+                          {j.message}
                         </Link>
                       ) : (
-                        (r.result?.message ?? "")
+                        j.message ?? ""
                       )}
                     </td>
                   </tr>

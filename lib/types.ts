@@ -232,6 +232,42 @@ export interface InvoiceException {
   created_at: string;
 }
 
+export type InvoiceJobStatus = "queued" | "processing" | "done" | "needs_review" | "failed";
+export type InvoiceJobOutcome = "matched" | "created_unmatched" | "needs_manual" | "error";
+
+export interface ExtractedInvoiceFields {
+  provider_name: string | null;
+  provider_tax_id: string | null;
+  invoice_number: string | null;
+  invoice_date: string | null;
+  subtotal: number | null;
+  vat: number | null;
+  total: number | null;
+  timbrado: string | null;
+}
+
+export interface InvoiceJob {
+  id: string;
+  empresa_id: string;
+  created_by: string;
+  storage_bucket: string;
+  storage_path: string;
+  file_name: string;
+  mime_type: string;
+  batch_date: string;
+  status: InvoiceJobStatus;
+  attempts: number;
+  extracted: ExtractedInvoiceFields | null;
+  provider_id: string | null;
+  invoice_id: string | null;
+  outcome: InvoiceJobOutcome | null;
+  message: string | null;
+  error: string | null;
+  locked_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AuditLog {
   id: string;
   empresa_id: string | null;

@@ -66,7 +66,10 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
   if (providerId) query = query.eq("provider_id", providerId);
   if (status) query = query.eq("status", status);
 
-  const { data: invoices } = await query.returns<Invoice[]>();
+  const [{ data: invoices }, { count: reviewCount }] = await Promise.all([
+    query.returns<Invoice[]>(),
+    supabase.from("invoice_jobs").select("id", { count: "exact", head: true }).in("status", ["needs_review", "failed"]),
+  ]);
   const hasExtraFilters = !!(q || providerId || status);
 
   function withParams(overrides: Partial<Filters>) {
@@ -89,6 +92,14 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
       <div className="flex items-center justify-between">
         <h1 className="text-[17px] font-semibold">Facturas</h1>
         <div className="flex gap-2">
+          {reviewCount && reviewCount > 0 ? (
+            <Link
+              href="/invoices/revision"
+              className="inline-flex items-center justify-center gap-1.5 rounded-md border px-3 h-8 text-[13px] font-medium transition-colors bg-[var(--warn-bg)] text-[var(--warn)] border-transparent hover:opacity-80"
+            >
+              Revisión ({reviewCount})
+            </Link>
+          ) : null}
           <Link
             href="/invoices/bulk"
             className="inline-flex items-center justify-center gap-1.5 rounded-md border px-3 h-8 text-[13px] font-medium transition-colors bg-[var(--panel)] text-[var(--foreground)] hover:bg-[var(--hover)] border-[var(--border)]"
