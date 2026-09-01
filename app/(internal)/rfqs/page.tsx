@@ -24,12 +24,6 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
   const { q, product, open, from, to } = filters;
   const hasFilters = !!(q || product || open || from || to);
 
-  // Distinct product values for the dropdown — pulled from what's actually on
-  // file, so the filter always matches real data (like Excel's "filter by
-  // values present in this column").
-  const { data: allRfqs } = await supabase.from("rfqs").select("product");
-  const products = [...new Set((allRfqs ?? []).map((r) => r.product))].sort();
-
   let query = supabase.from("rfqs").select("*").order("created_at", { ascending: false });
   if (q?.trim()) {
     const term = q.trim().replace(/[%,]/g, "");
@@ -45,7 +39,13 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
     query = query.lt("created_at", toExclusive.toISOString().slice(0, 10));
   }
 
-  const { data: allMatching } = await query.returns<Rfq[]>();
+  // Valores de producto para el dropdown — sacados de lo que hay cargado, para
+  // que el filtro siempre matchee data real. Va en paralelo con la query principal.
+  const [{ data: allMatching }, { data: allRfqs }] = await Promise.all([
+    query.returns<Rfq[]>(),
+    supabase.from("rfqs").select("product"),
+  ]);
+  const products = [...new Set((allRfqs ?? []).map((r) => r.product))].sort();
   // "Abierta/Cerrada" depends on expires_at, not just a DB column, so this
   // last filter runs in JS rather than as a query condition.
   const rfqs = (allMatching ?? []).filter((r) => {

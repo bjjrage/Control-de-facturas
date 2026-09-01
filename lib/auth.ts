@@ -1,10 +1,16 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Profile, UserRole } from "@/lib/types";
 
 export type CurrentProfile = Profile & { empresa_active: boolean };
 
-export async function getCurrentProfile(): Promise<CurrentProfile | null> {
+/**
+ * Deduped per request: the layout and the page both call requireProfile(), and
+ * without cache() that's two auth.getUser() round-trips + two profile queries on
+ * every single navigation.
+ */
+export const getCurrentProfile = cache(async function getCurrentProfile(): Promise<CurrentProfile | null> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -20,7 +26,7 @@ export async function getCurrentProfile(): Promise<CurrentProfile | null> {
 
   const empresaActive = (data as unknown as { empresas: { active: boolean } | null }).empresas?.active ?? true;
   return { ...(data as Profile), empresa_active: empresaActive };
-}
+});
 
 export async function requireProfile(allowed?: UserRole[]): Promise<CurrentProfile> {
   const profile = await getCurrentProfile();

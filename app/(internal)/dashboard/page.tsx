@@ -52,42 +52,47 @@ export default async function DashboardPage() {
 
   const stats: { label: string; value: number; href: string; icon: LucideIcon; color: StatColor }[] = [];
 
-  if (profile.role === "comercial" || profile.role === "admin") {
-    const [{ data: biddingRfqs }, { count: awaitingSelection }] = await Promise.all([
-      supabase.from("rfqs").select("status, expires_at").in("status", ["BORRADOR", "COTIZANDO", "OFERTAS_RECIBIDAS"]),
-      supabase
-        .from("rfqs")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "OFERTAS_RECIBIDAS"),
-    ]);
+  const showRfqStats = profile.role === "comercial" || profile.role === "admin";
+  const showInvoiceStats = profile.role === "administracion" || profile.role === "admin";
+  const noop = Promise.resolve({ data: null, count: null } as { data: null; count: number | null });
+
+  // Una sola tanda de queries en paralelo en vez de 2-3 tandas secuenciales.
+  const [
+    { data: biddingRfqs },
+    { count: awaitingSelection },
+    { count: pending },
+    { count: review },
+    { count: apto },
+    { data: recentRfqs },
+  ] = await Promise.all([
+    showRfqStats
+      ? supabase.from("rfqs").select("status, expires_at").in("status", ["BORRADOR", "COTIZANDO", "OFERTAS_RECIBIDAS"])
+      : noop,
+    showRfqStats
+      ? supabase.from("rfqs").select("id", { count: "exact", head: true }).eq("status", "OFERTAS_RECIBIDAS")
+      : noop,
+    showInvoiceStats
+      ? supabase.from("invoices").select("id", { count: "exact", head: true }).eq("status", "PENDIENTE")
+      : noop,
+    showInvoiceStats
+      ? supabase.from("invoices").select("id", { count: "exact", head: true }).eq("status", "REQUIERE_REVISION")
+      : noop,
+    showInvoiceStats
+      ? supabase.from("invoices").select("id", { count: "exact", head: true }).eq("status", "APTO_PARA_PAGO")
+      : noop,
+    supabase.from("rfqs").select("*").order("created_at", { ascending: false }).limit(8).returns<Rfq[]>(),
+  ]);
+
+  if (showRfqStats) {
     const open = (biddingRfqs ?? []).filter(isRfqOpen).length;
     stats.push({ label: "Solicitudes abiertas", value: open, href: "/rfqs?open=1", icon: FileText, color: "primary" });
     stats.push({ label: "Con ofertas para elegir", value: awaitingSelection ?? 0, href: "/rfqs", icon: Tag, color: "teal" });
   }
-
-  if (profile.role === "administracion" || profile.role === "admin") {
-    const [{ count: pending }, { count: review }, { count: apto }] = await Promise.all([
-      supabase.from("invoices").select("id", { count: "exact", head: true }).eq("status", "PENDIENTE"),
-      supabase
-        .from("invoices")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "REQUIERE_REVISION"),
-      supabase
-        .from("invoices")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "APTO_PARA_PAGO"),
-    ]);
+  if (showInvoiceStats) {
     stats.push({ label: "Facturas pendientes", value: pending ?? 0, href: "/invoices", icon: FileText, color: "purple" });
     stats.push({ label: "Requieren revisión", value: review ?? 0, href: "/invoices", icon: AlertCircle, color: "orange" });
     stats.push({ label: "Aptas para pago", value: apto ?? 0, href: "/invoices", icon: CheckCircle2, color: "ok" });
   }
-
-  const { data: recentRfqs } = await supabase
-    .from("rfqs")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(8)
-    .returns<Rfq[]>();
 
   return (
     <div className="max-w-5xl space-y-6">
