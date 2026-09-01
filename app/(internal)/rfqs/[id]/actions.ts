@@ -86,11 +86,20 @@ export async function selectAndAuthorizeOffer(params: {
     .select("id, quotes(quote_versions(currency, total_price, version_number))")
     .eq("rfq_id", params.rfqId);
 
+  // Supabase devuelve las relaciones anidadas como objeto o array según cómo
+  // infiera la cardinalidad, así que normalizamos todo a array antes de iterar.
+  const toArray = <T,>(v: T | T[] | null | undefined): T[] =>
+    Array.isArray(v) ? v : v ? [v] : [];
+
+  type QuoteVersionRow = { currency: string; total_price: number; version_number: number };
+
   let isCheapest = true;
   for (const rp of allResponded ?? []) {
-    const quotes = (rp as unknown as { quotes: { quote_versions: { currency: string; total_price: number; version_number: number }[] }[] }).quotes;
-    for (const q of quotes ?? []) {
-      const versions = q.quote_versions ?? [];
+    const quotes = toArray(
+      (rp as unknown as { quotes: { quote_versions: QuoteVersionRow | QuoteVersionRow[] } | { quote_versions: QuoteVersionRow | QuoteVersionRow[] }[] | null }).quotes,
+    );
+    for (const q of quotes) {
+      const versions = toArray(q.quote_versions);
       if (versions.length === 0) continue;
       const latest = versions.reduce((a, b) => (b.version_number > a.version_number ? b : a));
       if (
