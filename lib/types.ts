@@ -74,6 +74,7 @@ export interface Profile {
   role: UserRole;
   active: boolean;
   empresa_id: string;
+  is_super_admin: boolean;
   created_at: string;
 }
 

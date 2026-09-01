@@ -10,6 +10,7 @@ import {
   Wallet,
   Truck,
   Users,
+  Building2,
   ChevronsLeft,
   ChevronsRight,
   ImagePlus,
@@ -21,22 +22,39 @@ import { logout } from "@/app/(internal)/actions";
 import { uploadLogo } from "./branding-actions";
 import { LOGO_STORAGE_PATH } from "./branding-constants";
 
-const NAV: { href: string; label: string; roles: UserRole[]; icon: typeof LayoutDashboard }[] = [
+const NAV: {
+  href: string;
+  label: string;
+  roles: UserRole[];
+  icon: typeof LayoutDashboard;
+  superAdmin?: boolean;
+}[] = [
   { href: "/dashboard", label: "Dashboard", roles: ["comercial", "administracion", "admin"], icon: LayoutDashboard },
   { href: "/rfqs", label: "Solicitudes", roles: ["comercial", "admin"], icon: FileText },
   { href: "/invoices", label: "Facturas", roles: ["administracion", "admin"], icon: Receipt },
   { href: "/costs", label: "Costos", roles: ["comercial", "admin"], icon: Wallet },
   { href: "/providers", label: "Proveedores", roles: ["admin"], icon: Truck },
   { href: "/users", label: "Usuarios", roles: ["admin"], icon: Users },
+  { href: "/empresas", label: "Empresas", roles: [], icon: Building2, superAdmin: true },
 ];
 
 const logoBucketUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/branding/${LOGO_STORAGE_PATH}`
   : null;
 
-export function Sidebar({ role, fullName }: { role: UserRole; fullName: string }) {
+export function Sidebar({
+  role,
+  fullName,
+  isSuperAdmin = false,
+}: {
+  role: UserRole;
+  fullName: string;
+  isSuperAdmin?: boolean;
+}) {
   const pathname = usePathname();
-  const items = NAV.filter((item) => item.roles.includes(role));
+  const items = NAV.filter(
+    (item) => item.roles.includes(role) || (item.superAdmin && isSuperAdmin)
+  );
   const [collapsed, setCollapsed] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
   const [logoVersion, setLogoVersion] = useState(0);

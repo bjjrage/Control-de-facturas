@@ -2,20 +2,31 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Profile, UserRole } from "@/lib/types";
 
-export async function getCurrentProfile(): Promise<Profile | null> {
+export type CurrentProfile = Profile & { empresa_active: boolean };
+
+export async function getCurrentProfile(): Promise<CurrentProfile | null> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-  return (data as Profile) ?? null;
+  const { data } = await supabase
+    .from("profiles")
+    .select("*, empresas(active)")
+    .eq("id", user.id)
+    .single();
+  if (!data) return null;
+
+  const empresaActive = (data as unknown as { empresas: { active: boolean } | null }).empresas?.active ?? true;
+  return { ...(data as Profile), empresa_active: empresaActive };
 }
 
-export async function requireProfile(allowed?: UserRole[]): Promise<Profile> {
+export async function requireProfile(allowed?: UserRole[]): Promise<CurrentProfile> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
+  // A user whose empresa was deactivated is locked out (super-admins excepted).
+  if (!profile.empresa_active && !profile.is_super_admin) redirect("/suspendido");
   if (allowed && !allowed.includes(profile.role)) redirect("/dashboard");
   return profile;
 }
@@ -30,4 +41,14 @@ export async function requireEmpresaId(allowed?: UserRole[]): Promise<string> {
   const profile = await requireProfile(allowed);
   if (!profile.empresa_id) redirect("/login");
   return profile.empresa_id;
+}
+
+/**
+ * Gate for the cross-tenant /empresas section. Super-admins manage the list of
+ * companies and seed each one's first admin user.
+ */
+export async function requireSuperAdmin(): Promise<CurrentProfile> {
+  const profile = await requireProfile();
+  if (!profile.is_super_admin) redirect("/dashboard");
+  return profile;
 }
