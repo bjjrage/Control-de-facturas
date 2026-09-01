@@ -1,0 +1,129 @@
+"use server";
+
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireProfile } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
+import { differenceAmount, differencePct } from "@/lib/reconciliation";
+import { revalidatePath } from "next/cache";
+
+export async function matchOrder(invoiceId: string, authorizedOrderId: string) {
+  await requireProfile(["administracion", "admin"]);
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("invoice_order_matches")
+    .insert({ invoice_id: invoiceId, authorized_order_id: authorizedOrderId });
+  if (error) return { error: error.message };
+
+  await logAudit(supabase, {
+    action: "invoice.order_matched",
+    invoiceId,
+    authorizedOrderId,
+  });
+
+  revalidatePath(`/invoices/${invoiceId}`);
+  return { error: null };
+}
+
+export async function unmatchOrder(invoiceId: string, matchId: string, authorizedOrderId: string) {
+  await requireProfile(["administracion", "admin"]);
+  const supabase = await createClient();
+  await supabase.from("invoice_order_matches").delete().eq("id", matchId);
+  await logAudit(supabase, { action: "invoice.order_unmatched", invoiceId, authorizedOrderId });
+  revalidatePath(`/invoices/${invoiceId}`);
+}
+
+export async function approveException(invoiceId: string, reason: string, comment: string | null) {
+  const profile = await requireProfile(["administracion", "admin"]);
+  const supabase = await createClient();
+
+  const { data: invoice } = await supabase.from("invoices").select("*").eq("id", invoiceId).single();
+  if (!invoice) return { error: "Factura no encontrada." };
+
+  const { data: matches } = await supabase
+    .from("invoice_order_matches")
+    .select("authorized_orders(total_price)")
+    .eq("invoice_id", invoiceId);
+  const authorizedSum = (matches ?? []).reduce(
+    (sum, m) => sum + ((m as unknown as { authorized_orders: { total_price: number } }).authorized_orders?.total_price ?? 0),
+    0
+  );
+
+  const { error } = await supabase.from("invoice_exceptions").insert({
+    invoice_id: invoiceId,
+    approved_by: profile.id,
+    reason,
+    comment,
+    difference_amount: differenceAmount(invoice.total, authorizedSum),
+    difference_pct: differencePct(invoice.total, authorizedSum),
+  });
+  if (error) return { error: error.message };
+
+  await supabase.rpc("recompute_invoice_status", { p_invoice_id: invoiceId });
+  await logAudit(supabase, { action: "invoice.exception_approved", invoiceId, detail: { reason } });
+
+  revalidatePath(`/invoices/${invoiceId}`);
+  return { error: null };
+}
+
+export async function markAptoParaPago(invoiceId: string) {
+  await requireProfile(["administracion", "admin"]);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("mark_invoice_apto_para_pago", { p_invoice_id: invoiceId });
+  if (error) return { error: error.message };
+  await logAudit(supabase, { action: "invoice.marked_apto_para_pago", invoiceId });
+  revalidatePath(`/invoices/${invoiceId}`);
+  return { error: null };
+}
+
+export async function markPagado(invoiceId: string) {
+  await requireProfile(["administracion", "admin"]);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("mark_invoice_pagado", { p_invoice_id: invoiceId });
+  if (error) return { error: error.message };
+  await logAudit(supabase, { action: "invoice.marked_pagado", invoiceId });
+  revalidatePath(`/invoices/${invoiceId}`);
+  return { error: null };
+}
+
+/**
+ * Hard-deletes an invoice: matches, exceptions, audit trail, the attachment
+ * file, and the row itself. Admin-only, and deliberately not exposed to
+ * "administracion" — this is a genuine hard delete (no undo), unlike the
+ * cancel/void pattern used elsewhere in this system, kept around specifically
+ * so test/duplicate data can be cleared without needing DB access.
+ */
+export async function deleteInvoice(invoiceId: string) {
+  await requireProfile(["admin"]);
+  const admin = createAdminClient();
+
+  const { data: invoice } = await admin.from("invoices").select("attachment_id").eq("id", invoiceId).maybeSingle();
+
+  await admin.from("invoice_order_matches").delete().eq("invoice_id", invoiceId);
+  await admin.from("invoice_exceptions").delete().eq("invoice_id", invoiceId);
+  await admin.from("audit_logs").delete().eq("invoice_id", invoiceId);
+
+  const { error } = await admin.from("invoices").delete().eq("id", invoiceId);
+  if (error) return { error: error.message };
+
+  if (invoice?.attachment_id) {
+    const { data: attachment } = await admin
+      .from("attachments")
+      .select("bucket, path")
+      .eq("id", invoice.attachment_id)
+      .maybeSingle();
+    if (attachment) await admin.storage.from(attachment.bucket).remove([attachment.path]);
+    await admin.from("attachments").delete().eq("id", invoice.attachment_id);
+  }
+
+  revalidatePath("/invoices");
+}
+
+export async function getSignedInvoiceAttachmentUrl(bucket: string, path: string) {
+  await requireProfile(["administracion", "admin"]);
+  const supabase = await createClient();
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 120);
+  if (error || !data) return { url: null, error: error?.message ?? "No se pudo generar el enlace." };
+  return { url: data.signedUrl, error: null };
+}

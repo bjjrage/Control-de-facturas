@@ -1,0 +1,122 @@
+[
+  {
+    "fileName": "factura-A-001-001-3000.png",
+    "expected": "Debería conciliar sola (matchea orden 1)",
+    "provider": "Cartones del Paraguay SA",
+    "total": 2450000
+  },
+  {
+    "fileName": "factura-A-001-001-3001.png",
+    "expected": "Debería conciliar sola (matchea orden 2)",
+    "provider": "Cartones del Paraguay SA",
+    "total": 1180000
+  },
+  {
+    "fileName": "factura-A-001-001-3002.png",
+    "expected": "Sin orden que coincida (queda pendiente)",
+    "provider": "Cartones del Paraguay SA",
+    "total": 1470000
+  },
+  {
+    "fileName": "factura-A-001-001-3003.png",
+    "expected": "Sin orden que coincida (queda pendiente)",
+    "provider": "Cartones del Paraguay SA",
+    "total": 1652000
+  },
+  {
+    "fileName": "factura-B-001-001-3004.png",
+    "expected": "Debería conciliar sola (matchea orden 1)",
+    "provider": "Adhesivos y Insumos SRL",
+    "total": 875000
+  },
+  {
+    "fileName": "factura-B-001-001-3005.png",
+    "expected": "Debería conciliar sola (matchea orden 2)",
+    "provider": "Adhesivos y Insumos SRL",
+    "total": 3200000
+  },
+  {
+    "fileName": "factura-B-001-001-3006.png",
+    "expected": "Sin orden que coincida (queda pendiente)",
+    "provider": "Adhesivos y Insumos SRL",
+    "total": 525000
+  },
+  {
+    "fileName": "factura-B-001-001-3007.png",
+    "expected": "Sin orden que coincida (queda pendiente)",
+    "provider": "Adhesivos y Insumos SRL",
+    "total": 4480000
+  },
+  {
+    "fileName": "factura-C-001-001-3008.png",
+    "expected": "Debería conciliar sola (matchea orden 1)",
+    "provider": "Transportes Ñandutí SRL",
+    "total": 1650000
+  },
+  {
+    "fileName": "factura-C-001-001-3009.png",
+    "expected": "Debería conciliar sola (matchea orden 2)",
+    "provider": "Transportes Ñandutí SRL",
+    "total": 4100000
+  },
+  {
+    "fileName": "factura-C-001-001-3010.png",
+    "expected": "Sin orden que coincida (queda pendiente)",
+    "provider": "Transportes Ñandutí SRL",
+    "total": 990000
+  },
+  {
+    "fileName": "factura-C-001-001-3011.png",
+    "expected": "Sin orden que coincida (queda pendiente)",
+    "provider": "Transportes Ñandutí SRL",
+    "total": 5740000
+  },
+  {
+    "fileName": "factura-D-001-001-3012.png",
+    "expected": "Debería conciliar sola (matchea orden 1)",
+    "provider": "Tintas y Gráfica Asunción SA",
+    "total": 990000
+  },
+  {
+    "fileName": "factura-D-001-001-3013.png",
+    "expected": "Debería conciliar sola (matchea orden 2)",
+    "provider": "Tintas y Gráfica Asunción SA",
+    "total": 2750000
+  },
+  {
+    "fileName": "factura-D-001-001-3014.png",
+    "expected": "Sin orden que coincida (queda pendiente)",
+    "provider": "Tintas y Gráfica Asunción SA",
+    "total": 594000
+  },
+  {
+    "fileName": "factura-D-001-001-3015.png",
+    "expected": "Sin orden que coincida (queda pendiente)",
+    "provider": "Tintas y Gráfica Asunción SA",
+    "total": 3850000
+  },
+  {
+    "fileName": "factura-E-001-001-3016.png",
+    "expected": "Debería conciliar sola (matchea orden 1)",
+    "provider": "Repuestos Industriales del Este SRL",
+    "total": 3600000
+  },
+  {
+    "fileName": "factura-E-001-001-3017.png",
+    "expected": "Debería conciliar sola (matchea orden 2)",
+    "provider": "Repuestos Industriales del Este SRL",
+    "total": 1320000
+  },
+  {
+    "fileName": "factura-E-001-001-3018.png",
+    "expected": "Sin orden que coincida (queda pendiente)",
+    "provider": "Repuestos Industriales del Este SRL",
+    "total": 2160000
+  },
+  {
+    "fileName": "factura-E-001-001-3019.png",
+    "expected": "Sin orden que coincida (queda pendiente)",
+    "provider": "Repuestos Industriales del Este SRL",
+    "total": 1848000
+  }
+]
