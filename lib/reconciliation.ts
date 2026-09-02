@@ -49,8 +49,12 @@ export function orderFulfillmentStatus(orderTotal: number, facturadoAmount: numb
   return "completa";
 }
 
-/** Etapa de la OC en el pipeline: 0 Autorizada · 1 Facturando · 2 Facturada · 3 Pagada. */
-export const ORDER_STEPS = ["Autorizada", "Facturando", "Facturada", "Pagada"] as const;
+/**
+ * Etapa de la OC en el pipeline. La factura siempre la emite el proveedor y
+ * nosotros la recibimos, así que los labels lo dejan explícito:
+ * 0 Autorizada (OC emitida, sin factura) · 1 Factura parcial · 2 Factura total · 3 Pagada.
+ */
+export const ORDER_STEPS = ["Autorizada", "Factura parcial", "Factura total", "Pagada"] as const;
 
 export function orderStep(params: { status: string; totalPrice: number; facturadoAmount: number }): 0 | 1 | 2 | 3 {
   const { status, totalPrice, facturadoAmount } = params;
