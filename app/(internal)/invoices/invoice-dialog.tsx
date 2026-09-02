@@ -97,7 +97,7 @@ export function InvoiceDialog({
             }
             setError(null);
             setOpen(false);
-            router.push(`/invoices/${result.id}${result.autoMatched ? "?autoMatched=1" : ""}`);
+            router.push(`/invoices/${result.id}?${result.autoMatched ? "autoMatched=1" : "created=1"}`);
           }}
         >
           {error ? (

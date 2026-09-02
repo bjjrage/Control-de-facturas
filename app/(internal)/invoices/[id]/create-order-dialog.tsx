@@ -31,7 +31,7 @@ export function CreateOrderFromInvoiceDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent title="Crear orden con los datos de esta factura">
+      <DialogContent title="Crear OC con esta factura">
         <div className="space-y-3">
           {error ? (
             <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
@@ -39,7 +39,7 @@ export function CreateOrderFromInvoiceDialog({
             </div>
           ) : null}
           <p className="text-[12px] text-[var(--muted)]">
-            Se crea una orden por {formatMoney(total, currency as CurrencyCode)} para este proveedor y la factura
+            Se crea una OC por {formatMoney(total, currency as CurrencyCode)} para este proveedor y la factura
             queda vinculada. Usá esto cuando la compra no pasó por una solicitud de presupuesto.
           </p>
           <div>
@@ -86,7 +86,7 @@ export function CreateOrderFromInvoiceDialog({
                 else router.refresh();
               }}
             >
-              {pending ? "Creando…" : "Crear orden"}
+              {pending ? "Creando…" : "Crear OC"}
             </Button>
           </div>
         </div>

@@ -72,6 +72,19 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
     query.returns<Invoice[]>(),
     supabase.from("invoice_jobs").select("id", { count: "exact", head: true }).in("status", ["needs_review", "failed"]),
   ]);
+
+  // Si el mes elegido no tiene nada, avisamos cuántas facturas hay fuera de ese
+  // mes: el filtro va por fecha de factura, así que lo recién cargado "desaparece"
+  // si la factura es de otro mes.
+  let outsideMonthCount = 0;
+  if (month && (invoices ?? []).length === 0) {
+    let outside = supabase.from("invoices").select("id", { count: "exact", head: true });
+    if (q?.trim()) outside = outside.ilike("invoice_number", `%${q.trim().replace(/[%,]/g, "")}%`);
+    if (providerId) outside = outside.eq("provider_id", providerId);
+    if (status) outside = outside.eq("status", status);
+    const { count } = await outside;
+    outsideMonthCount = count ?? 0;
+  }
   const hasExtraFilters = !!(q || providerId || status);
 
   function withParams(overrides: Partial<Filters>) {
@@ -163,7 +176,15 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
 
       {groups.length === 0 ? (
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] text-center text-[var(--muted)] py-10 text-[13px]">
-          No hay facturas para estos filtros.
+          {month ? `No hay facturas con fecha en ${month}.` : "No hay facturas para estos filtros."}
+          {outsideMonthCount > 0 ? (
+            <div className="mt-2">
+              Hay {outsideMonthCount} factura{outsideMonthCount === 1 ? "" : "s"} en otros meses.{" "}
+              <Link href={withParams({ month: "all" })} className="text-[var(--primary)] hover:underline">
+                Ver todas
+              </Link>
+            </div>
+          ) : null}
         </div>
       ) : (
         groups.map((g) => (

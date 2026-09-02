@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -18,10 +20,10 @@ export default async function InvoiceDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ autoMatched?: string }>;
+  searchParams: Promise<{ autoMatched?: string; created?: string }>;
 }) {
   const { id } = await params;
-  const { autoMatched } = await searchParams;
+  const { autoMatched, created } = await searchParams;
   const profile = await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
 
@@ -79,9 +81,21 @@ export default async function InvoiceDetailPage({
 
   return (
     <div className="max-w-4xl space-y-5">
+      <Link
+        href="/invoices"
+        className="inline-flex items-center gap-1 text-[12px] text-[var(--muted)] hover:text-[var(--foreground)]"
+      >
+        <ArrowLeft size={13} /> Volver a Facturas
+      </Link>
       {autoMatched === "1" ? (
         <div className="rounded border border-[var(--ok)]/30 bg-[var(--ok-bg)] px-2.5 py-1.5 text-[12px] text-[var(--ok)]">
-          Vinculada automáticamente: el monto coincidió con una única orden autorizada pendiente de este proveedor.
+          Factura guardada y vinculada automáticamente: el monto coincidió con una única orden autorizada pendiente de
+          este proveedor.
+        </div>
+      ) : created === "1" ? (
+        <div className="rounded border border-[var(--ok)]/30 bg-[var(--ok-bg)] px-2.5 py-1.5 text-[12px] text-[var(--ok)]">
+          Factura guardada. No coincidió automáticamente con ninguna orden autorizada de este proveedor: vinculála a una
+          orden acá abajo, o dejala en <strong>Pendientes de vincular</strong> y seguí — ya está registrada.
         </div>
       ) : null}
       <div className="flex items-start justify-between">
@@ -165,7 +179,7 @@ export default async function InvoiceDetailPage({
                 invoiceId={invoice.id}
                 total={invoice.total}
                 currency={invoice.currency}
-                trigger={<Button variant="secondary">Crear orden con estos datos</Button>}
+                trigger={<Button variant="secondary">Crear OC con esta factura</Button>}
               />
             </div>
           ) : null}

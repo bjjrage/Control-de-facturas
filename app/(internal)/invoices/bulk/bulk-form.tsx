@@ -245,6 +245,9 @@ export function BulkUploadForm({ empresaId, userId }: { empresaId: string; userI
                   Ir a revisión →
                 </Link>
               ) : null}
+              <Link href="/invoices" className="text-[var(--primary)] hover:underline ml-auto">
+                Ver todas las facturas →
+              </Link>
             </div>
           ) : (
             <div className="text-[12px] text-[var(--muted)]">Procesando {jobs.length - pending}/{jobs.length}…</div>
