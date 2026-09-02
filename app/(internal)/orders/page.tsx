@@ -2,12 +2,11 @@ import Link from "next/link";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { AuthorizedOrder, Provider } from "@/lib/types";
-import { Input, Label } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { formatDate, formatMoney } from "@/lib/format";
-import { orderRemaining } from "@/lib/reconciliation";
+import { orderRemaining, orderStep, ORDER_STEPS } from "@/lib/reconciliation";
 import { OrderDialog } from "./order-dialog";
 import { OrderPipeline } from "./order-pipeline";
+import { OrdersFilters } from "./orders-filters";
 
 function ProgressBar({ facturado, total }: { facturado: number; total: number }) {
   const pct = total > 0 ? Math.min(100, Math.round((facturado / total) * 100)) : 0;
@@ -28,21 +27,36 @@ function ProgressBar({ facturado, total }: { facturado: number; total: number })
 export default async function OrdersPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ product?: string; provider?: string; status?: string; nueva?: string }>;
+  searchParams?: Promise<{ product?: string; provider?: string; etapa?: string; nueva?: string }>;
 }) {
   await requireProfile(["comercial", "administracion", "admin"]);
   const supabase = await createClient();
   const params = (await searchParams) ?? {};
 
-  let query = supabase.from("authorized_orders").select("*").order("authorized_at", { ascending: false });
-  if (params.product) query = query.ilike("product", `%${params.product}%`);
-  if (params.provider) query = query.ilike("provider_name", `%${params.provider}%`);
-  if (params.status) query = query.eq("status", params.status);
-
-  const [{ data: orders }, { data: providers }] = await Promise.all([
-    query.returns<AuthorizedOrder[]>(),
+  const [{ data: allOrders }, { data: providers }] = await Promise.all([
+    supabase
+      .from("authorized_orders")
+      .select("*")
+      .order("authorized_at", { ascending: false })
+      .returns<AuthorizedOrder[]>(),
     supabase.from("providers").select("*").eq("active", true).order("name").returns<Provider[]>(),
   ]);
+
+  const orders = allOrders ?? [];
+
+  // Valores presentes en la data para los dropdowns (estilo filtro de Excel).
+  const productOptions = [...new Set(orders.map((o) => o.product))].sort((a, b) => a.localeCompare(b, "es"));
+  const providerOptions = [...new Set(orders.map((o) => o.provider_name))].sort((a, b) => a.localeCompare(b, "es"));
+
+  const filtered = orders.filter((o) => {
+    if (params.product && o.product !== params.product) return false;
+    if (params.provider && o.provider_name !== params.provider) return false;
+    if (params.etapa) {
+      const step = orderStep({ status: o.status, totalPrice: o.total_price, facturadoAmount: o.facturado_amount });
+      if (ORDER_STEPS[step] !== params.etapa) return false;
+    }
+    return true;
+  });
 
   return (
     <div className="max-w-5xl space-y-4">
@@ -59,24 +73,7 @@ export default async function OrdersPage({
         defaultOpen={params.nueva === "1"}
       />
 
-      <form className="flex flex-wrap items-end gap-3" method="get">
-        <div>
-          <Label htmlFor="product">Producto</Label>
-          <Input id="product" name="product" defaultValue={params.product ?? ""} className="w-48" />
-        </div>
-        <div>
-          <Label htmlFor="provider">Proveedor</Label>
-          <Input id="provider" name="provider" defaultValue={params.provider ?? ""} className="w-48" />
-        </div>
-        <Button type="submit" variant="secondary">
-          Filtrar
-        </Button>
-        {(params.product || params.provider || params.status) ? (
-          <Link href="/orders" className="text-[12px] text-[var(--muted)] hover:underline pb-1.5">
-            Limpiar
-          </Link>
-        ) : null}
-      </form>
+      <OrdersFilters products={productOptions} providers={providerOptions} />
 
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
         <div className="overflow-x-auto">
@@ -93,40 +90,40 @@ export default async function OrdersPage({
               </tr>
             </thead>
             <tbody>
-              {(orders ?? []).map((o) => {
-                return (
-                  <tr key={o.id} className="hover:bg-[var(--hover)]">
-                    <td>
-                      <Link href={`/orders/${o.id}`} className="font-medium hover:underline">
-                        {o.code}
-                      </Link>
-                    </td>
-                    <td>{o.product}</td>
-                    <td className="text-[var(--muted)]">{o.provider_name}</td>
-                    <td className="num">{formatMoney(o.total_price, o.currency)}</td>
-                    <td>
-                      <div className="flex items-center gap-2">
-                        <ProgressBar facturado={o.facturado_amount} total={o.total_price} />
-                        <span className="text-[11px] text-[var(--muted)] num">
-                          saldo {formatMoney(orderRemaining(o.total_price, o.facturado_amount), o.currency)}
-                        </span>
-                      </div>
-                    </td>
-                    <td>
-                      <OrderPipeline
-                        status={o.status}
-                        totalPrice={o.total_price}
-                        facturadoAmount={o.facturado_amount}
-                      />
-                    </td>
-                    <td className="text-[var(--muted)]">{formatDate(o.authorized_at)}</td>
-                  </tr>
-                );
-              })}
-              {(orders ?? []).length === 0 ? (
+              {filtered.map((o) => (
+                <tr key={o.id} className="hover:bg-[var(--hover)]">
+                  <td>
+                    <Link href={`/orders/${o.id}`} className="font-medium hover:underline">
+                      {o.code}
+                    </Link>
+                  </td>
+                  <td>{o.product}</td>
+                  <td className="text-[var(--muted)]">{o.provider_name}</td>
+                  <td className="num">{formatMoney(o.total_price, o.currency)}</td>
+                  <td>
+                    <div className="flex items-center gap-2">
+                      <ProgressBar facturado={o.facturado_amount} total={o.total_price} />
+                      <span className="text-[11px] text-[var(--muted)] num">
+                        saldo {formatMoney(orderRemaining(o.total_price, o.facturado_amount), o.currency)}
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <OrderPipeline
+                      status={o.status}
+                      totalPrice={o.total_price}
+                      facturadoAmount={o.facturado_amount}
+                    />
+                  </td>
+                  <td className="text-[var(--muted)]">{formatDate(o.authorized_at)}</td>
+                </tr>
+              ))}
+              {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center text-[var(--muted)] py-8">
-                    No hay órdenes todavía. Empezá una compra con &quot;Nueva compra&quot; arriba a la derecha.
+                    {orders.length === 0
+                      ? 'No hay órdenes todavía. Empezá una compra con "Nueva compra" arriba a la derecha.'
+                      : "Ninguna orden coincide con los filtros."}
                   </td>
                 </tr>
               ) : null}
