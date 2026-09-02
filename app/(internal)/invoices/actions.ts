@@ -120,12 +120,26 @@ export async function createInvoice(formData: FormData) {
 
   await logAudit(supabase, { action: "invoice.created", invoiceId: invoice.id });
 
-  const autoMatchedOrderId = await autoMatchInvoiceByAmount(supabase, {
-    invoiceId: invoice.id,
-    providerId,
-    total,
-    empresaId,
-  });
+  // Si viene de "Cargar factura para esta orden", se vincula directo a esa OC;
+  // si no, se intenta la conciliación automática por monto.
+  const linkOrderId = str(formData, "link_order_id");
+  let autoMatchedOrderId: string | null = null;
+  if (linkOrderId) {
+    const { error: matchError } = await supabase
+      .from("invoice_order_matches")
+      .insert({ invoice_id: invoice.id, authorized_order_id: linkOrderId, empresa_id: empresaId });
+    if (!matchError) {
+      autoMatchedOrderId = linkOrderId;
+      revalidatePath(`/orders/${linkOrderId}`);
+    }
+  } else {
+    autoMatchedOrderId = await autoMatchInvoiceByAmount(supabase, {
+      invoiceId: invoice.id,
+      providerId,
+      total,
+      empresaId,
+    });
+  }
 
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoice.id}`);

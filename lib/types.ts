@@ -166,13 +166,16 @@ export interface QuoteVersion {
   created_at: string;
 }
 
+export type OrderOrigin = "rfq" | "manual" | "invoice";
+
 export interface AuthorizedOrder {
   id: string;
   empresa_id: string;
-  rfq_id: string;
+  rfq_id: string | null;
   provider_id: string;
-  quote_version_id: string;
-  rfq_code: string;
+  quote_version_id: string | null;
+  code: string;
+  created_from: OrderOrigin;
   provider_name: string;
   client_name: string | null;
   product: string;

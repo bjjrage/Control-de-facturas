@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import { canMarkAptoParaPago, canMarkPagado, isOverbilled, orderRemaining, roundCents } from "@/lib/reconciliation";
 import { MatchDialog } from "./match-dialog";
+import { CreateOrderFromInvoiceDialog } from "./create-order-dialog";
 import { ExceptionDialog } from "./exception-dialog";
 import { AttachmentLink } from "./attachment-link";
 import { unmatchOrder, markAptoParaPago, markPagado } from "./actions";
@@ -44,10 +45,10 @@ export default async function InvoiceDetailPage({
   // Candidatos: OC del proveedor con saldo sin facturar.
   const { data: candidateOrders } = await supabase
     .from("authorized_orders")
-    .select("id, rfq_code, product, total_price, facturado_amount, currency")
+    .select("id, code, product, total_price, facturado_amount, currency")
     .eq("provider_id", invoice.provider_id)
     .returns<
-      { id: string; rfq_code: string; product: string; total_price: number; facturado_amount: number; currency: string }[]
+      { id: string; code: string; product: string; total_price: number; facturado_amount: number; currency: string }[]
     >();
   const candidates = (candidateOrders ?? [])
     .map((c) => ({ ...c, remaining: roundCents(c.total_price - (c.facturado_amount ?? 0)) }))
@@ -154,18 +155,26 @@ export default async function InvoiceDetailPage({
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-[14px] font-semibold">Orden vinculada</h2>
           {!linkedOrder ? (
-            <MatchDialog
-              invoiceId={invoice.id}
-              candidates={candidates}
-              trigger={<Button variant="secondary">Vincular orden</Button>}
-            />
+            <div className="flex gap-2">
+              <MatchDialog
+                invoiceId={invoice.id}
+                candidates={candidates}
+                trigger={<Button variant="secondary">Vincular orden</Button>}
+              />
+              <CreateOrderFromInvoiceDialog
+                invoiceId={invoice.id}
+                total={invoice.total}
+                currency={invoice.currency}
+                trigger={<Button variant="secondary">Crear orden con estos datos</Button>}
+              />
+            </div>
           ) : null}
         </div>
         {linkedOrder ? (
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
             <div className="flex items-start justify-between">
               <div>
-                <div className="font-medium text-[13px]">{linkedOrder.rfq_code}</div>
+                <div className="font-medium text-[13px]">{linkedOrder.code}</div>
                 <div className="text-[12px] text-[var(--muted)]">{linkedOrder.product}</div>
               </div>
               <form

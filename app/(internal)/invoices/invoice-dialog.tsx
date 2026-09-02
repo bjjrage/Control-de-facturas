@@ -11,7 +11,18 @@ import { extractInvoiceFromPhoto } from "./extract-actions";
 
 const READABLE_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 
-export function InvoiceDialog({ providers, trigger }: { providers: Provider[]; trigger: React.ReactNode }) {
+export function InvoiceDialog({
+  providers,
+  trigger,
+  linkOrderId,
+  defaultProviderId,
+}: {
+  providers: Provider[];
+  trigger: React.ReactNode;
+  /** Si se pasa, la factura creada se vincula directo a esa OC. */
+  linkOrderId?: string;
+  defaultProviderId?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -94,6 +105,7 @@ export function InvoiceDialog({ providers, trigger }: { providers: Provider[]; t
               {error}
             </div>
           ) : null}
+          {linkOrderId ? <input type="hidden" name="link_order_id" value={linkOrderId} /> : null}
 
           <div>
             <Label htmlFor="file">Foto o PDF de la factura</Label>
@@ -115,7 +127,7 @@ export function InvoiceDialog({ providers, trigger }: { providers: Provider[]; t
 
           <div>
             <Label htmlFor="provider_id">Proveedor</Label>
-            <Select id="provider_id" name="provider_id" required defaultValue="" ref={providerRef}>
+            <Select id="provider_id" name="provider_id" required defaultValue={defaultProviderId ?? ""} ref={providerRef}>
               <option value="" disabled>
                 Elegí un proveedor
               </option>

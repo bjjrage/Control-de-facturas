@@ -33,17 +33,17 @@ export async function GET(request: Request) {
     supabase.from("providers").select("*").returns<Provider[]>(),
     supabase
       .from("invoice_order_matches")
-      .select("invoice_id, authorized_orders(rfq_code)")
-      .returns<{ invoice_id: string; authorized_orders: { rfq_code: string } | null }[]>(),
+      .select("invoice_id, authorized_orders(code)")
+      .returns<{ invoice_id: string; authorized_orders: { code: string } | null }[]>(),
   ]);
 
   const providerById = new Map((providers ?? []).map((p) => [p.id, p]));
-  const rfqCodesByInvoice = new Map<string, string[]>();
+  const orderCodesByInvoice = new Map<string, string[]>();
   for (const m of matches ?? []) {
     if (!m.authorized_orders) continue;
-    const list = rfqCodesByInvoice.get(m.invoice_id) ?? [];
-    list.push(m.authorized_orders.rfq_code);
-    rfqCodesByInvoice.set(m.invoice_id, list);
+    const list = orderCodesByInvoice.get(m.invoice_id) ?? [];
+    list.push(m.authorized_orders.code);
+    orderCodesByInvoice.set(m.invoice_id, list);
   }
 
   const header = [
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     "Total",
     "Moneda",
     "Estado",
-    "RFQ vinculada(s)",
+    "Orden(es) vinculada(s)",
   ];
 
   const rows = (invoices ?? []).map((i) => {
@@ -73,7 +73,7 @@ export async function GET(request: Request) {
       i.total,
       i.currency,
       i.status,
-      (rfqCodesByInvoice.get(i.id) ?? []).join(", "),
+      (orderCodesByInvoice.get(i.id) ?? []).join(", "),
     ];
   });
 

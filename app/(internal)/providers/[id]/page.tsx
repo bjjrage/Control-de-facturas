@@ -72,7 +72,9 @@ export default async function ProviderDetailPage({ params }: { params: Promise<{
     .from("authorized_orders")
     .select("id, quote_version_id")
     .eq("provider_id", id);
-  const orderIdByVersionId = new Map((providerOrders ?? []).map((o) => [o.quote_version_id, o.id]));
+  const orderIdByVersionId = new Map(
+    (providerOrders ?? []).filter((o) => o.quote_version_id).map((o) => [o.quote_version_id, o.id])
+  );
   const wonVersionIds = new Set(orderIdByVersionId.keys());
 
   // Whether each RFQ this provider was invited to has *any* winner yet

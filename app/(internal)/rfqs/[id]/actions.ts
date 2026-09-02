@@ -122,7 +122,8 @@ export async function selectAndAuthorizeOffer(params: {
       rfq_id: rfq.id,
       provider_id: rfqProvider.provider_id,
       quote_version_id: quoteVersion.id,
-      rfq_code: rfq.code,
+      code: rfq.code,
+      created_from: "rfq",
       provider_name: (rfqProvider as unknown as { providers: { name: string } }).providers.name,
       product: rfq.product,
       quantity: rfq.quantity,
@@ -155,7 +156,7 @@ export async function selectAndAuthorizeOffer(params: {
   });
 
   revalidatePath(`/rfqs/${rfq.id}`);
-  revalidatePath("/costs");
+  revalidatePath("/orders");
   return { error: null };
 }
 
