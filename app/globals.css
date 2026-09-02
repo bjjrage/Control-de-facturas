@@ -98,6 +98,20 @@ input, select, textarea {
   color-scheme: dark;
 }
 
+/* Tailwind v4 Preflight quita el cursor:pointer de los botones — lo devolvemos
+   para que se note qué es clickeable. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+select:not(:disabled),
+summary {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 input::placeholder, textarea::placeholder {
   color: #6b7180;
 }

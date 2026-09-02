@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -219,8 +220,11 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       {authorizedOrder ? (
-        <div className="rounded-lg border border-[var(--ok)]/30 bg-[var(--ok-bg)] p-4 text-[13px]">
-          <div className="font-medium mb-1">Orden autorizada</div>
+        <Link
+          href={`/orders/${authorizedOrder.id}`}
+          className="block rounded-lg border border-[var(--ok)]/30 bg-[var(--ok-bg)] p-4 text-[13px] hover:border-[var(--ok)]/60"
+        >
+          <div className="font-medium mb-1">Orden autorizada →</div>
           <p>
             {authorizedOrder.provider_name} · {formatMoney(authorizedOrder.total_price, authorizedOrder.currency)}
             {authorizedOrder.is_cheapest ? " · oferta más económica" : ` · motivo: ${authorizedOrder.selection_reason}`}
@@ -235,7 +239,7 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
           <p className="text-[11px] text-[var(--muted)] mt-1">
             Autorizada el {formatDateTime(authorizedOrder.authorized_at)}
           </p>
-        </div>
+        </Link>
       ) : null}
 
       <div>
