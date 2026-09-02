@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -69,7 +69,21 @@ export function BulkUploadForm({ empresaId, userId }: { empresaId: string; userI
     };
   }, []);
 
-  // Realtime: seguir el estado de los jobs de este lote a medida que el worker los procesa.
+  // Dispara el parseo en el servidor (route handler) sin solapar llamadas.
+  const kicking = useRef(false);
+  const kickProcessing = useCallback(async () => {
+    if (kicking.current) return;
+    kicking.current = true;
+    try {
+      await fetch("/api/invoices/process-jobs", { method: "POST" });
+    } catch {
+      /* el poll y el cron de respaldo lo reintentan */
+    } finally {
+      kicking.current = false;
+    }
+  }, []);
+
+  // Realtime: seguir el estado de los jobs de este lote a medida que se procesan.
   useEffect(() => {
     if (jobIds.length === 0) return;
     const idSet = new Set(jobIds);
@@ -86,17 +100,25 @@ export function BulkUploadForm({ empresaId, userId }: { empresaId: string; userI
       )
       .subscribe();
 
-    // Fallback por si se pierde algún evento: refetch cada 4s hasta que todos terminen.
+    // Arranca el parseo ya, y lo re-dispara mientras queden jobs sin terminar.
+    // El refetch cada 4s es el fallback por si se pierde algún evento realtime.
+    kickProcessing();
     const poll = setInterval(async () => {
       const { data } = await supabase.from("invoice_jobs").select("*").in("id", jobIds);
-      if (data) setJobs(data as InvoiceJob[]);
+      if (data) {
+        setJobs(data as InvoiceJob[]);
+        const pendientes = (data as InvoiceJob[]).some(
+          (j) => j.status === "queued" || j.status === "processing"
+        );
+        if (pendientes) kickProcessing();
+      }
     }, 4000);
 
     return () => {
       supabase.removeChannel(channel);
       clearInterval(poll);
     };
-  }, [jobIds, supabase]);
+  }, [jobIds, supabase, kickProcessing]);
 
   function addFiles(list: FileList | File[]) {
     const incoming = Array.from(list).filter((f) => ACCEPTED_TYPES.includes(f.type));
