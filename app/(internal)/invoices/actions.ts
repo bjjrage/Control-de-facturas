@@ -10,6 +10,35 @@ import { revalidatePath } from "next/cache";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
+/**
+ * Reintenta la conciliación automática sobre todas las facturas pendientes de
+ * vincular. Útil después de autorizar órdenes nuevas, o de corregir montos.
+ */
+export async function reconcilePendingInvoices() {
+  const profile = await requireProfile(["administracion", "admin"]);
+  const supabase = await createClient();
+  const empresaId = profile.empresa_id;
+
+  const { data: pending } = await supabase
+    .from("invoices")
+    .select("id, provider_id, total")
+    .eq("status", "PENDIENTE");
+
+  let matched = 0;
+  for (const inv of pending ?? []) {
+    const orderId = await autoMatchInvoiceByAmount(supabase, {
+      invoiceId: inv.id,
+      providerId: inv.provider_id,
+      total: inv.total,
+      empresaId,
+    });
+    if (orderId) matched++;
+  }
+
+  revalidatePath("/invoices");
+  return { matched, total: (pending ?? []).length };
+}
+
 function str(formData: FormData, key: string) {
   const v = formData.get(key);
   return typeof v === "string" && v.trim() !== "" ? v.trim() : null;

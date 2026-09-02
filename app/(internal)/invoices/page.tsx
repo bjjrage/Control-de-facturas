@@ -9,6 +9,7 @@ import { formatDate, formatMoney } from "@/lib/format";
 import { currentMonth, monthRange } from "@/lib/month-range";
 import { InvoiceDialog } from "./invoice-dialog";
 import { MonthFilter } from "./month-filter";
+import { ReconcileButton } from "./reconcile-button";
 import { DeleteInvoiceButton } from "./[id]/delete-button";
 
 // The "Nueva factura" dialog on this page reads photos/PDFs via OpenAI/pdf-parse,
@@ -173,10 +174,13 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
                 <h2 className="text-[13px] font-semibold">{STATUS_LABELS[g.status]}</h2>
                 <span className="text-[12px] text-[var(--muted)]">({g.invoices.length})</span>
               </div>
-              <div className="text-[12px] text-[var(--muted)]">
-                {sumByCurrency(g.invoices)
-                  .map(([currency, total]) => formatMoney(total, currency as Invoice["currency"]))
-                  .join(" · ")}
+              <div className="flex items-center gap-3">
+                {g.status === "PENDIENTE" ? <ReconcileButton /> : null}
+                <div className="text-[12px] text-[var(--muted)]">
+                  {sumByCurrency(g.invoices)
+                    .map(([currency, total]) => formatMoney(total, currency as Invoice["currency"]))
+                    .join(" · ")}
+                </div>
               </div>
             </div>
             <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden mb-4">
