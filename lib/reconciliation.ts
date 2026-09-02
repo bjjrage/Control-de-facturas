@@ -49,6 +49,19 @@ export function orderFulfillmentStatus(orderTotal: number, facturadoAmount: numb
   return "completa";
 }
 
+/** Etapa de la OC en el pipeline: 0 Autorizada · 1 Facturando · 2 Facturada · 3 Pagada. */
+export const ORDER_STEPS = ["Autorizada", "Facturando", "Facturada", "Pagada"] as const;
+
+export function orderStep(params: { status: string; totalPrice: number; facturadoAmount: number }): 0 | 1 | 2 | 3 {
+  const { status, totalPrice, facturadoAmount } = params;
+  if (status === "PAGADO") return 3;
+  if (status === "APTO_PARA_PAGO") return 2;
+  const facturado = roundCents(facturadoAmount);
+  if (status === "FACTURADO" || facturado >= roundCents(totalPrice)) return 2;
+  if (facturado > 0) return 1;
+  return 0;
+}
+
 /** Diferencia (monto y %) de lo facturado en la OC contra su saldo previo. */
 export function differenceAmount(invoiceTotal: number, orderRemainingBefore: number) {
   return roundCents(invoiceTotal - orderRemainingBefore);

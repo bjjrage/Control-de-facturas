@@ -15,6 +15,7 @@ type Filters = {
   open?: string; // "1" | "0"
   from?: string;
   to?: string;
+  nueva?: string;
 };
 
 export default async function RfqsPage({ searchParams }: { searchParams: Promise<Filters> }) {
@@ -58,7 +59,11 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
     <div className="max-w-5xl">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-[17px] font-semibold">Solicitudes de cotización</h1>
-        <RfqDialog trigger={<Button>Nueva solicitud</Button>} />
+        <RfqDialog
+          key={filters.nueva === "1" ? "open" : "closed"}
+          trigger={<Button>Nueva solicitud</Button>}
+          defaultOpen={filters.nueva === "1"}
+        />
       </div>
 
       <form className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3 mb-4 space-y-3" method="get">

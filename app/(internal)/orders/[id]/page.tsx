@@ -4,16 +4,15 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { AuthorizedOrder, Invoice, Provider } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Badge, StatusBadge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/badge";
 import { formatDate, formatMoney, formatNumber } from "@/lib/format";
-import { orderRemaining, orderFulfillmentStatus, isOverbilled } from "@/lib/reconciliation";
+import { orderRemaining, isOverbilled } from "@/lib/reconciliation";
 import { unmatchOrder } from "@/app/(internal)/invoices/[id]/actions";
 import { InvoiceDialog } from "@/app/(internal)/invoices/invoice-dialog";
 import { LinkInvoiceDialog } from "./link-invoice-dialog";
+import { OrderPipeline } from "../order-pipeline";
 
 const ORIGIN_LABEL = { rfq: "Desde solicitud", manual: "Carga manual", invoice: "Desde factura" } as const;
-const FULFILLMENT_LABEL = { pendiente: "Pendiente", parcial: "Parcial", completa: "Completa" } as const;
-const FULFILLMENT_TONE = { pendiente: "neutral", parcial: "warn", completa: "ok" } as const;
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -44,7 +43,6 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
   const saldo = orderRemaining(order.total_price, order.facturado_amount);
   const over = isOverbilled(order.total_price, order.facturado_amount);
-  const fulfillment = orderFulfillmentStatus(order.total_price, order.facturado_amount);
   const pct =
     order.total_price > 0 ? Math.min(100, Math.round((order.facturado_amount / order.total_price) * 100)) : 0;
 
@@ -57,7 +55,6 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         <div className="flex items-center gap-2 mt-1">
           <h1 className="text-[17px] font-semibold">{order.code}</h1>
           <StatusBadge status={order.status} />
-          <Badge tone={FULFILLMENT_TONE[fulfillment]}>{FULFILLMENT_LABEL[fulfillment]}</Badge>
         </div>
         <p className="text-[13px] text-[var(--muted)] mt-1">
           {order.provider_name} · {order.product} · {formatNumber(order.quantity, 2)} {order.unit} ×{" "}
@@ -76,6 +73,15 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           {" · autorizada el "}
           {formatDate(order.authorized_at)}
         </p>
+      </div>
+
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+        <OrderPipeline
+          status={order.status}
+          totalPrice={order.total_price}
+          facturadoAmount={order.facturado_amount}
+          size="full"
+        />
       </div>
 
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">

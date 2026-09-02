@@ -8,8 +8,16 @@ import { Input, Label, Select } from "@/components/ui/input";
 import { Provider } from "@/lib/types";
 import { createManualOrder } from "./actions";
 
-export function OrderDialog({ providers, trigger }: { providers: Provider[]; trigger: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
+export function OrderDialog({
+  providers,
+  trigger,
+  defaultOpen,
+}: {
+  providers: Provider[];
+  trigger?: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen ?? false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const router = useRouter();
@@ -36,10 +44,11 @@ export function OrderDialog({ providers, trigger }: { providers: Provider[]; tri
         if (!next) {
           setError(null);
           setTotalTouched(false);
+          if (window.location.search.includes("nueva=")) window.history.replaceState(null, "", "/orders");
         }
       }}
     >
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
       <DialogContent title="Nueva orden de compra">
         <form
           className="space-y-3"

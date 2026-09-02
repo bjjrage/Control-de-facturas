@@ -7,14 +7,22 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { createRfq } from "./actions";
 
-export function RfqDialog({ trigger }: { trigger: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
+export function RfqDialog({ trigger, defaultOpen }: { trigger: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen ?? false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const router = useRouter();
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next && window.location.search.includes("nueva=")) {
+          window.history.replaceState(null, "", "/rfqs");
+        }
+      }}
+    >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent title="Nueva solicitud de cotización">
         <form

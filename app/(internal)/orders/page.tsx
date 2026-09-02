@@ -2,15 +2,12 @@ import Link from "next/link";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { AuthorizedOrder, Provider } from "@/lib/types";
-import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Input, Label } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { formatDate, formatMoney } from "@/lib/format";
-import { orderRemaining, orderFulfillmentStatus } from "@/lib/reconciliation";
+import { orderRemaining } from "@/lib/reconciliation";
 import { OrderDialog } from "./order-dialog";
-
-const FULFILLMENT_LABEL = { pendiente: "Pendiente", parcial: "Parcial", completa: "Completa" } as const;
-const FULFILLMENT_TONE = { pendiente: "neutral", parcial: "warn", completa: "ok" } as const;
+import { OrderPipeline } from "./order-pipeline";
 
 function ProgressBar({ facturado, total }: { facturado: number; total: number }) {
   const pct = total > 0 ? Math.min(100, Math.round((facturado / total) * 100)) : 0;
@@ -31,7 +28,7 @@ function ProgressBar({ facturado, total }: { facturado: number; total: number })
 export default async function OrdersPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ product?: string; provider?: string; status?: string }>;
+  searchParams?: Promise<{ product?: string; provider?: string; status?: string; nueva?: string }>;
 }) {
   await requireProfile(["comercial", "administracion", "admin"]);
   const supabase = await createClient();
@@ -49,10 +46,18 @@ export default async function OrdersPage({
 
   return (
     <div className="max-w-5xl space-y-4">
-      <div className="flex items-center justify-between">
+      <div>
         <h1 className="text-[17px] font-semibold">Órdenes de compra</h1>
-        <OrderDialog providers={providers ?? []} trigger={<Button>Nueva orden</Button>} />
+        <p className="text-[12px] text-[var(--muted)] mt-0.5">
+          Todas tus compras y en qué etapa están. Para registrar una nueva, usá{" "}
+          <span className="font-medium text-[var(--foreground)]">Nueva compra</span> arriba a la derecha.
+        </p>
       </div>
+      <OrderDialog
+        key={params.nueva === "1" ? "open" : "closed"}
+        providers={providers ?? []}
+        defaultOpen={params.nueva === "1"}
+      />
 
       <form className="flex flex-wrap items-end gap-3" method="get">
         <div>
@@ -83,14 +88,12 @@ export default async function OrdersPage({
                 <th>Proveedor</th>
                 <th className="num">Total</th>
                 <th>Facturado</th>
-                <th>Entrega</th>
-                <th>Estado</th>
+                <th>Etapa</th>
                 <th>Autorizada</th>
               </tr>
             </thead>
             <tbody>
               {(orders ?? []).map((o) => {
-                const f = orderFulfillmentStatus(o.total_price, o.facturado_amount);
                 return (
                   <tr key={o.id} className="hover:bg-[var(--hover)]">
                     <td>
@@ -110,10 +113,11 @@ export default async function OrdersPage({
                       </div>
                     </td>
                     <td>
-                      <Badge tone={FULFILLMENT_TONE[f]}>{FULFILLMENT_LABEL[f]}</Badge>
-                    </td>
-                    <td>
-                      <StatusBadge status={o.status} />
+                      <OrderPipeline
+                        status={o.status}
+                        totalPrice={o.total_price}
+                        facturadoAmount={o.facturado_amount}
+                      />
                     </td>
                     <td className="text-[var(--muted)]">{formatDate(o.authorized_at)}</td>
                   </tr>
@@ -121,9 +125,8 @@ export default async function OrdersPage({
               })}
               {(orders ?? []).length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center text-[var(--muted)] py-8">
-                    No hay órdenes todavía. Creá una con &quot;Nueva orden&quot;, o autorizá una oferta desde
-                    Solicitudes.
+                  <td colSpan={7} className="text-center text-[var(--muted)] py-8">
+                    No hay órdenes todavía. Empezá una compra con &quot;Nueva compra&quot; arriba a la derecha.
                   </td>
                 </tr>
               ) : null}
