@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { formatDate, formatMoney } from "@/lib/format";
 import { currentMonth, monthRange } from "@/lib/month-range";
 import { InvoiceDialog } from "./invoice-dialog";
+import { MonthFilter } from "./month-filter";
 import { DeleteInvoiceButton } from "./[id]/delete-button";
 
 // The "Nueva factura" dialog on this page reads photos/PDFs via OpenAI/pdf-parse,
@@ -116,10 +117,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
           <Input id="q" name="q" defaultValue={q ?? ""} placeholder="ej: 001-001-2019" className="w-64" />
         </div>
         <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <Label htmlFor="month">Mes</Label>
-            <Input id="month" name="month" type="month" defaultValue={month ?? ""} className="w-40" />
-          </div>
+          <MonthFilter month={month} />
           <div>
             <Label htmlFor="provider">Proveedor</Label>
             <Select id="provider" name="provider" defaultValue={providerId ?? ""} className="w-52">
@@ -145,15 +143,6 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
           <Button type="submit" variant="secondary">
             Filtrar
           </Button>
-          {month ? (
-            <Link href={withParams({ month: "all" })} className="text-[12px] text-[var(--muted)] hover:underline pb-1.5">
-              Ver todas (histórico completo)
-            </Link>
-          ) : (
-            <Link href={withParams({ month: currentMonth() })} className="text-[12px] text-[var(--muted)] hover:underline pb-1.5">
-              Volver al mes actual
-            </Link>
-          )}
           {hasExtraFilters ? (
             <Link
               href={withParams({ q: undefined, provider: undefined, status: undefined })}
