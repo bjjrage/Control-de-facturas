@@ -43,3 +43,7 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# facturas de prueba locales / scripts de datos ad-hoc
+/facturas/
+/scripts/_*.mjs
