@@ -161,7 +161,7 @@ export interface QuoteVersion {
   offer_validity: string;
   payment_terms: string | null;
   observations: string | null;
-  pdf_attachment_id: string;
+  pdf_attachment_id: string | null;
   submitted_at: string;
   created_at: string;
 }

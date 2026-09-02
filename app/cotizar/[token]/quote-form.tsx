@@ -3,12 +3,20 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { formatNumber } from "@/lib/format";
 import { submitQuote } from "./actions";
 
-export function QuoteForm({ token }: { token: string }) {
+export function QuoteForm({ token, quantity, unit }: { token: string; quantity: number; unit: string }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
+  const [unitPrice, setUnitPrice] = useState("");
+
+  const qtyLabel = `${Number.isInteger(Number(quantity)) ? formatNumber(quantity, 0) : formatNumber(quantity, 2)} ${unit}`;
+
+  const parsedUnit = Number(unitPrice);
+  const totalPrice =
+    Number.isFinite(parsedUnit) && parsedUnit > 0 ? Math.round(parsedUnit * quantity * 100) / 100 : 0;
 
   if (done) {
     return (
@@ -54,12 +62,35 @@ export function QuoteForm({ token }: { token: string }) {
           </Select>
         </div>
         <div>
+          <Label htmlFor="quantity_display">Cantidad</Label>
+          <Input id="quantity_display" value={qtyLabel} readOnly disabled />
+        </div>
+        <div />
+        <div>
           <Label htmlFor="unit_price">Precio unitario</Label>
-          <Input id="unit_price" name="unit_price" type="number" step="0.0001" min="0.0001" required />
+          <Input
+            id="unit_price"
+            name="unit_price"
+            type="number"
+            step="0.0001"
+            min="0.0001"
+            required
+            value={unitPrice}
+            onChange={(e) => setUnitPrice(e.target.value)}
+          />
         </div>
         <div>
-          <Label htmlFor="total_price">Precio total</Label>
-          <Input id="total_price" name="total_price" type="number" step="0.01" min="0.01" required />
+          <Label htmlFor="total_price">Precio total (automático)</Label>
+          <Input
+            id="total_price"
+            name="total_price"
+            type="number"
+            step="0.01"
+            value={totalPrice || ""}
+            readOnly
+            tabIndex={-1}
+          />
+          <p className="text-[11px] text-[var(--muted)] mt-1">Precio unitario × {qtyLabel}</p>
         </div>
         <div>
           <Label htmlFor="delivery_time">Plazo de entrega</Label>
@@ -89,13 +120,12 @@ export function QuoteForm({ token }: { token: string }) {
         <Textarea id="observations" name="observations" />
       </div>
       <div>
-        <Label htmlFor="pdf">PDF del presupuesto</Label>
+        <Label htmlFor="pdf">PDF del presupuesto (opcional)</Label>
         <input
           id="pdf"
           name="pdf"
           type="file"
           accept="application/pdf"
-          required
           className="block w-full text-[13px]"
         />
       </div>

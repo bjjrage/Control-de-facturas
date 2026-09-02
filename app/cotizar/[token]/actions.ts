@@ -24,7 +24,7 @@ export async function submitQuote(token: string, formData: FormData) {
 
   if (!rfqProvider) return { error: "Enlace inválido." };
   const empresaId = (rfqProvider as unknown as { empresa_id: string }).empresa_id;
-  const rfq = (rfqProvider as unknown as { rfqs: { id: string; status: "BORRADOR" | "COTIZANDO" | "OFERTAS_RECIBIDAS" | "AUTORIZADO" | "CANCELADO"; expires_at: string } }).rfqs;
+  const rfq = (rfqProvider as unknown as { rfqs: { id: string; quantity: number; status: "BORRADOR" | "COTIZANDO" | "OFERTAS_RECIBIDAS" | "AUTORIZADO" | "CANCELADO"; expires_at: string } }).rfqs;
   const providerName = (rfqProvider as unknown as { providers: { name: string } }).providers.name;
 
   if (!isRfqOpen(rfq)) {
@@ -33,7 +33,9 @@ export async function submitQuote(token: string, formData: FormData) {
 
   const budgetNumber = str(formData, "budget_number");
   const unitPrice = Number(formData.get("unit_price"));
-  const totalPrice = Number(formData.get("total_price"));
+  // El total es siempre unitario × cantidad de la solicitud — no se confía en
+  // lo que mande el cliente.
+  const totalPrice = Number.isFinite(unitPrice) ? Math.round(unitPrice * rfq.quantity * 100) / 100 : NaN;
   const currency = str(formData, "currency");
   const deliveryTime = str(formData, "delivery_time");
   const offerValidity = str(formData, "offer_validity");
@@ -45,36 +47,40 @@ export async function submitQuote(token: string, formData: FormData) {
   if (!Number.isFinite(unitPrice) || unitPrice <= 0 || !Number.isFinite(totalPrice) || totalPrice <= 0) {
     return { error: "Los precios deben ser mayores a cero." };
   }
-  if (!file || file.size === 0) {
-    return { error: "Adjuntá el PDF del presupuesto." };
-  }
-  if (file.type !== "application/pdf") {
-    return { error: "El adjunto debe ser un archivo PDF." };
-  }
-  if (file.size > MAX_PDF_BYTES) {
-    return { error: "El PDF no puede superar los 20MB." };
-  }
+  // El PDF es opcional: el proveedor puede cotizar solo con los datos del form.
+  const hasFile = !!file && file.size > 0;
+  let attachmentId: string | null = null;
 
-  const path = `${rfq.id}/${rfqProvider.id}/${Date.now()}-${sanitizeFileName(file.name)}`;
-  const { error: uploadError } = await admin.storage
-    .from("quote-pdfs")
-    .upload(path, file, { contentType: file.type });
-  if (uploadError) return { error: "No se pudo subir el archivo: " + uploadError.message };
+  if (hasFile) {
+    if (file!.type !== "application/pdf") {
+      return { error: "El adjunto debe ser un archivo PDF." };
+    }
+    if (file!.size > MAX_PDF_BYTES) {
+      return { error: "El PDF no puede superar los 20MB." };
+    }
 
-  const { data: attachment, error: attachmentError } = await admin
-    .from("attachments")
-    .insert({
-      empresa_id: empresaId,
-      bucket: "quote-pdfs",
-      path,
-      file_name: file.name,
-      mime_type: file.type,
-      size_bytes: file.size,
-      rfq_provider_id: rfqProvider.id,
-    })
-    .select("id")
-    .single();
-  if (attachmentError || !attachment) return { error: "No se pudo registrar el adjunto." };
+    const path = `${rfq.id}/${rfqProvider.id}/${Date.now()}-${sanitizeFileName(file!.name)}`;
+    const { error: uploadError } = await admin.storage
+      .from("quote-pdfs")
+      .upload(path, file!, { contentType: file!.type });
+    if (uploadError) return { error: "No se pudo subir el archivo: " + uploadError.message };
+
+    const { data: attachment, error: attachmentError } = await admin
+      .from("attachments")
+      .insert({
+        empresa_id: empresaId,
+        bucket: "quote-pdfs",
+        path,
+        file_name: file!.name,
+        mime_type: file!.type,
+        size_bytes: file!.size,
+        rfq_provider_id: rfqProvider.id,
+      })
+      .select("id")
+      .single();
+    if (attachmentError || !attachment) return { error: "No se pudo registrar el adjunto." };
+    attachmentId = attachment.id;
+  }
 
   let { data: quote } = await admin
     .from("quotes")
@@ -112,7 +118,7 @@ export async function submitQuote(token: string, formData: FormData) {
     offer_validity: offerValidity,
     payment_terms: str(formData, "payment_terms"),
     observations: str(formData, "observations"),
-    pdf_attachment_id: attachment.id,
+    pdf_attachment_id: attachmentId,
   });
   if (versionError) return { error: "No se pudo guardar la cotización: " + versionError.message };
 

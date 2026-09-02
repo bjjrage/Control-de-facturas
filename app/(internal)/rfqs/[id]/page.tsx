@@ -81,7 +81,10 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
         const rpId = quoteIdToRfqProvider.get(v.quote_id);
         if (!rpId) continue;
         if (!latestByRfqProvider.has(rpId)) {
-          latestByRfqProvider.set(rpId, { ...v, attachment: attachmentById.get(v.pdf_attachment_id) ?? null });
+          latestByRfqProvider.set(rpId, {
+            ...v,
+            attachment: v.pdf_attachment_id ? attachmentById.get(v.pdf_attachment_id) ?? null : null,
+          });
         }
       }
     }

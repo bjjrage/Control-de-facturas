@@ -153,7 +153,7 @@ export default async function CotizarPage({ params }: { params: Promise<{ token:
             <h2 className="text-[14px] font-semibold mb-3">
               {latestSubmission ? "Enviar una nueva versión" : "Enviar cotización"}
             </h2>
-            <QuoteForm token={token} />
+            <QuoteForm token={token} quantity={rfq.quantity} unit={rfq.unit} />
           </div>
         ) : (
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 text-[13px] text-[var(--muted)]">
