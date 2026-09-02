@@ -91,3 +91,64 @@ export async function toggleEmpresaActive(empresaId: string, active: boolean) {
   revalidatePath("/empresas");
   return { error: null };
 }
+
+// --- Acciones sobre usuarios (super-admin) ---
+
+export async function resetUserPassword(userId: string, password: string) {
+  await requireSuperAdmin();
+  if (password.length < 6) return { error: "La contraseña debe tener al menos 6 caracteres." };
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(userId, { password });
+  if (error) return { error: error.message };
+  return { error: null };
+}
+
+export async function toggleUserActive(userId: string, active: boolean) {
+  const me = await requireSuperAdmin();
+  if (userId === me.id) return { error: "No podés desactivarte a vos mismo." };
+  const admin = createAdminClient();
+  const { error } = await admin.from("profiles").update({ active }).eq("id", userId);
+  if (error) return { error: error.message };
+  revalidatePath("/empresas");
+  return { error: null };
+}
+
+export async function deleteUser(userId: string) {
+  const me = await requireSuperAdmin();
+  if (userId === me.id) return { error: "No podés eliminarte a vos mismo." };
+
+  const admin = createAdminClient();
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("empresa_id, role, is_super_admin")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!profile) return { error: "Usuario no encontrado." };
+
+  if (profile.role === "admin") {
+    const { count } = await admin
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("empresa_id", profile.empresa_id)
+      .eq("role", "admin")
+      .eq("active", true)
+      .neq("id", userId);
+    if (!count) {
+      return { error: "Es el único admin activo de su empresa — asigná otro admin antes de eliminarlo." };
+    }
+  }
+
+  const { error: profileError } = await admin.from("profiles").delete().eq("id", userId);
+  if (profileError) {
+    return {
+      error:
+        profileError.code === "23503"
+          ? "Este usuario ya registró operaciones en el sistema — no se puede borrar, pero podés desactivarlo."
+          : profileError.message,
+    };
+  }
+  await admin.auth.admin.deleteUser(userId);
+
+  revalidatePath("/empresas");
+  return { error: null };
+}

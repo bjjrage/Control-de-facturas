@@ -6,9 +6,10 @@ import { formatDate } from "@/lib/format";
 import { EmpresaDialog } from "./empresa-dialog";
 import { EmpresaAdminDialog } from "./empresa-admin-dialog";
 import { EmpresaActiveToggle } from "./empresa-active-toggle";
+import { UserRowActions } from "./user-row-actions";
 
 type EmpresaRow = { id: string; nombre: string; slug: string | null; active: boolean; created_at: string };
-type ProfileRow = { empresa_id: string; full_name: string; email: string; role: string; active: boolean };
+type ProfileRow = { id: string; empresa_id: string; full_name: string; email: string; role: string; active: boolean };
 
 export default async function EmpresasPage() {
   const me = await requireSuperAdmin();
@@ -16,7 +17,11 @@ export default async function EmpresasPage() {
 
   const [{ data: empresas }, { data: profiles }] = await Promise.all([
     admin.from("empresas").select("id, nombre, slug, active, created_at").order("created_at").returns<EmpresaRow[]>(),
-    admin.from("profiles").select("empresa_id, full_name, email, role, active").order("full_name").returns<ProfileRow[]>(),
+    admin
+      .from("profiles")
+      .select("id, empresa_id, full_name, email, role, active")
+      .order("full_name")
+      .returns<ProfileRow[]>(),
   ]);
 
   const usersByEmpresa = new Map<string, ProfileRow[]>();
@@ -79,12 +84,20 @@ export default async function EmpresasPage() {
                   <table>
                     <tbody>
                       {users.map((u) => (
-                        <tr key={u.email}>
+                        <tr key={u.id}>
                           <td className="font-medium">{u.full_name}</td>
                           <td className="text-[var(--muted)]">{u.email}</td>
                           <td className="capitalize text-[var(--muted)]">{u.role}</td>
                           <td>
                             <Badge tone={u.active ? "ok" : "neutral"}>{u.active ? "Activo" : "Inactivo"}</Badge>
+                          </td>
+                          <td>
+                            <UserRowActions
+                              userId={u.id}
+                              email={u.email}
+                              active={u.active}
+                              isSelf={u.id === me.id}
+                            />
                           </td>
                         </tr>
                       ))}
