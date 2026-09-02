@@ -31,8 +31,8 @@ const NAV: {
 }[] = [
   { href: "/dashboard", label: "Dashboard", roles: ["comercial", "administracion", "admin"], icon: LayoutDashboard },
   { href: "/rfqs", label: "Solicitudes", roles: ["comercial", "admin"], icon: FileText },
+  { href: "/orders", label: "Órdenes de compra", roles: ["comercial", "administracion", "admin"], icon: Package },
   { href: "/invoices", label: "Facturas", roles: ["administracion", "admin"], icon: Receipt },
-  { href: "/orders", label: "Órdenes", roles: ["comercial", "administracion", "admin"], icon: Package },
   { href: "/providers", label: "Proveedores", roles: ["admin"], icon: Truck },
   { href: "/users", label: "Usuarios", roles: ["admin"], icon: Users },
   { href: "/empresas", label: "Empresas", roles: [], icon: Building2, superAdmin: true },
