@@ -13,9 +13,14 @@ export default async function InternalLayout({ children }: { children: React.Rea
 
   return (
     <div className="flex min-h-screen bg-[var(--background)]">
-      <Sidebar role={profile.role} fullName={profile.full_name} isSuperAdmin={profile.is_super_admin} />
+      <Sidebar
+        role={profile.role}
+        fullName={profile.full_name}
+        isSuperAdmin={profile.is_super_admin}
+        modules={{ compras: profile.modulo_compras, ventas: profile.modulo_ventas }}
+      />
       <div className="flex-1 min-w-0 flex flex-col">
-        <Topbar initial={initial} role={profile.role} />
+        <Topbar initial={initial} role={profile.role} showCompraDirecta={profile.modulo_compras} />
         <main className="flex-1 min-w-0 p-5">{children}</main>
       </div>
     </div>

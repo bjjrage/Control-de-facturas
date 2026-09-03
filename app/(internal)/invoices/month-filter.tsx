@@ -24,7 +24,7 @@ function shift(ym: string, delta: number) {
   return toYm(d.getFullYear(), d.getMonth() + 1);
 }
 
-export function MonthFilter({ month }: { month: string | null }) {
+export function MonthFilter({ month, basePath = "/invoices" }: { month: string | null; basePath?: string }) {
   const router = useRouter();
   const params = useSearchParams();
   const now = new Date();
@@ -55,7 +55,7 @@ export function MonthFilter({ month }: { month: string | null }) {
     // "all" explícito: sin el parámetro, la página asume el mes actual.
     p.set("month", next);
     setOpen(false);
-    router.push(`/invoices?${p.toString()}`);
+    router.push(`${basePath}?${p.toString()}`);
   }
 
   const label = selected

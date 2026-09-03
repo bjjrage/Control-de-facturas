@@ -3,7 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Profile, UserRole } from "@/lib/types";
 
-export type CurrentProfile = Profile & { empresa_active: boolean };
+export type CurrentProfile = Profile & {
+  empresa_active: boolean;
+  modulo_compras: boolean;
+  modulo_ventas: boolean;
+};
 
 /**
  * Deduped per request: the layout and the page both call requireProfile(), and
@@ -17,15 +21,24 @@ export const getCurrentProfile = cache(async function getCurrentProfile(): Promi
   } = await supabase.auth.getUser();
   if (!user) return null;
 
+  // `empresas(*)` en vez de columnas explícitas: si la migración 0020 todavía
+  // no corrió, modulo_* llega undefined y caemos al default, sin romper el login.
   const { data } = await supabase
     .from("profiles")
-    .select("*, empresas(active)")
+    .select("*, empresas(*)")
     .eq("id", user.id)
     .single();
   if (!data) return null;
 
-  const empresaActive = (data as unknown as { empresas: { active: boolean } | null }).empresas?.active ?? true;
-  return { ...(data as Profile), empresa_active: empresaActive };
+  const empresa = (data as unknown as {
+    empresas: { active: boolean; modulo_compras: boolean; modulo_ventas: boolean } | null;
+  }).empresas;
+  return {
+    ...(data as Profile),
+    empresa_active: empresa?.active ?? true,
+    modulo_compras: empresa?.modulo_compras ?? true,
+    modulo_ventas: empresa?.modulo_ventas ?? false,
+  };
 });
 
 export async function requireProfile(allowed?: UserRole[]): Promise<CurrentProfile> {
@@ -47,6 +60,20 @@ export async function requireEmpresaId(allowed?: UserRole[]): Promise<string> {
   const profile = await requireProfile(allowed);
   if (!profile.empresa_id) redirect("/login");
   return profile.empresa_id;
+}
+
+/**
+ * Gate para las secciones de un módulo opcional (SaaS: cada empresa habilita
+ * lo que paga). Redirige al dashboard si el módulo está apagado.
+ */
+export async function requireModule(
+  module: "compras" | "ventas",
+  allowed?: UserRole[]
+): Promise<CurrentProfile> {
+  const profile = await requireProfile(allowed);
+  const on = module === "compras" ? profile.modulo_compras : profile.modulo_ventas;
+  if (!on && !profile.is_super_admin) redirect("/dashboard");
+  return profile;
 }
 
 /**

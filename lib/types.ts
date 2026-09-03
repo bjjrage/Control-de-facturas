@@ -64,6 +64,8 @@ export interface Empresa {
   nombre: string;
   slug: string | null;
   active: boolean;
+  modulo_compras: boolean;
+  modulo_ventas: boolean;
   created_at: string;
 }
 
@@ -283,5 +285,76 @@ export interface AuditLog {
   invoice_id: string | null;
   authorized_order_id: string | null;
   detail: Record<string, unknown> | null;
+  created_at: string;
+}
+
+// ============================================================================
+// Módulo Ventas / Facturación (migración 0020)
+// ============================================================================
+
+export type SalesDocType = "PROFORMA" | "NOTA_VENTA" | "FACTURA";
+export type SalesDocStatus = "BORRADOR" | "EMITIDA" | "COBRADA_PARCIAL" | "COBRADA" | "ANULADA";
+export type ReceiptMethod = "EFECTIVO" | "TRANSFERENCIA" | "CHEQUE" | "TARJETA" | "OTRO";
+
+export interface Client {
+  id: string;
+  empresa_id: string;
+  name: string;
+  tax_id: string | null;
+  contact_name: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  payment_terms: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SalesDocument {
+  id: string;
+  empresa_id: string;
+  client_id: string;
+  code: string;
+  doc_type: SalesDocType;
+  issue_date: string;
+  due_date: string | null;
+  currency: CurrencyCode;
+  subtotal: number;
+  vat_amount: number;
+  total: number;
+  cobrado_amount: number;
+  status: SalesDocStatus;
+  notes: string | null;
+  cdc: string | null;
+  xml_url: string | null;
+  kude_url: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SalesDocumentItem {
+  id: string;
+  empresa_id: string;
+  sales_document_id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  vat_rate: 0 | 5 | 10;
+  line_total: number;
+  created_at: string;
+}
+
+export interface SalesReceipt {
+  id: string;
+  empresa_id: string;
+  sales_document_id: string;
+  amount: number;
+  receipt_date: string;
+  method: ReceiptMethod;
+  reference: string | null;
+  notes: string | null;
+  created_by: string;
   created_at: string;
 }

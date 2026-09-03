@@ -15,6 +15,8 @@ import {
   ChevronsRight,
   ImagePlus,
   ChevronDown,
+  ReceiptText,
+  Contact,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -22,18 +24,23 @@ import { logout } from "@/app/(internal)/actions";
 import { uploadLogo } from "./branding-actions";
 import { LOGO_STORAGE_PATH } from "./branding-constants";
 
+type Module = "compras" | "ventas";
+
 const NAV: {
   href: string;
   label: string;
   roles: UserRole[];
   icon: typeof LayoutDashboard;
   superAdmin?: boolean;
+  module?: Module;
 }[] = [
   { href: "/dashboard", label: "Dashboard", roles: ["comercial", "administracion", "admin"], icon: LayoutDashboard },
-  { href: "/rfqs", label: "Solicitudes", roles: ["comercial", "admin"], icon: FileText },
-  { href: "/orders", label: "Órdenes de compra", roles: ["comercial", "administracion", "admin"], icon: Package },
-  { href: "/invoices", label: "Facturas", roles: ["administracion", "admin"], icon: Receipt },
-  { href: "/providers", label: "Proveedores", roles: ["admin"], icon: Truck },
+  { href: "/rfqs", label: "Solicitudes", roles: ["comercial", "admin"], icon: FileText, module: "compras" },
+  { href: "/orders", label: "Órdenes de compra", roles: ["comercial", "administracion", "admin"], icon: Package, module: "compras" },
+  { href: "/invoices", label: "Facturas", roles: ["administracion", "admin"], icon: Receipt, module: "compras" },
+  { href: "/providers", label: "Proveedores", roles: ["admin"], icon: Truck, module: "compras" },
+  { href: "/ventas", label: "Ventas", roles: ["administracion", "admin"], icon: ReceiptText, module: "ventas" },
+  { href: "/clientes", label: "Clientes", roles: ["administracion", "admin"], icon: Contact, module: "ventas" },
   { href: "/users", label: "Usuarios", roles: ["admin"], icon: Users },
   { href: "/empresas", label: "Empresas", roles: [], icon: Building2, superAdmin: true },
 ];
@@ -46,15 +53,20 @@ export function Sidebar({
   role,
   fullName,
   isSuperAdmin = false,
+  modules,
 }: {
   role: UserRole;
   fullName: string;
   isSuperAdmin?: boolean;
+  modules: { compras: boolean; ventas: boolean };
 }) {
   const pathname = usePathname();
-  const items = NAV.filter(
-    (item) => item.roles.includes(role) || (item.superAdmin && isSuperAdmin)
-  );
+  const items = NAV.filter((item) => {
+    if (item.superAdmin) return isSuperAdmin;
+    if (!item.roles.includes(role)) return false;
+    if (item.module && !modules[item.module] && !isSuperAdmin) return false;
+    return true;
+  });
   const [collapsed, setCollapsed] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
   const [logoVersion, setLogoVersion] = useState(0);

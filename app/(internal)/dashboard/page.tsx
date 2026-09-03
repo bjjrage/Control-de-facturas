@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileText, Tag, AlertCircle, CheckCircle2, LucideIcon } from "lucide-react";
+import { FileText, Tag, AlertCircle, CheckCircle2, Wallet, CalendarClock, LucideIcon } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Rfq } from "@/lib/types";
@@ -52,8 +52,11 @@ export default async function DashboardPage() {
 
   const stats: { label: string; value: number; href: string; icon: LucideIcon; color: StatColor }[] = [];
 
-  const showRfqStats = profile.role === "comercial" || profile.role === "admin";
-  const showInvoiceStats = profile.role === "administracion" || profile.role === "admin";
+  const isAdminOrAdministracion = profile.role === "administracion" || profile.role === "admin";
+  const showRfqStats = (profile.role === "comercial" || profile.role === "admin") && profile.modulo_compras;
+  const showInvoiceStats = isAdminOrAdministracion && profile.modulo_compras;
+  const showSalesStats = isAdminOrAdministracion && profile.modulo_ventas;
+  const today = new Date().toISOString().slice(0, 10);
   const noop = Promise.resolve({ data: null, count: null } as { data: null; count: number | null });
 
   // Una sola tanda de queries en paralelo en vez de 2-3 tandas secuenciales.
@@ -64,6 +67,8 @@ export default async function DashboardPage() {
     { count: review },
     { count: apto },
     { data: recentRfqs },
+    { count: porCobrar },
+    { count: vencidas },
   ] = await Promise.all([
     showRfqStats
       ? supabase.from("rfqs").select("status, expires_at").in("status", ["BORRADOR", "COTIZANDO", "OFERTAS_RECIBIDAS"])
@@ -80,7 +85,19 @@ export default async function DashboardPage() {
     showInvoiceStats
       ? supabase.from("invoices").select("id", { count: "exact", head: true }).eq("status", "APTO_PARA_PAGO")
       : noop,
-    supabase.from("rfqs").select("*").order("created_at", { ascending: false }).limit(8).returns<Rfq[]>(),
+    profile.modulo_compras
+      ? supabase.from("rfqs").select("*").order("created_at", { ascending: false }).limit(8).returns<Rfq[]>()
+      : noop,
+    showSalesStats
+      ? supabase.from("sales_documents").select("id", { count: "exact", head: true }).in("status", ["EMITIDA", "COBRADA_PARCIAL"])
+      : noop,
+    showSalesStats
+      ? supabase
+          .from("sales_documents")
+          .select("id", { count: "exact", head: true })
+          .in("status", ["EMITIDA", "COBRADA_PARCIAL"])
+          .lt("due_date", today)
+      : noop,
   ]);
 
   if (showRfqStats) {
@@ -95,6 +112,10 @@ export default async function DashboardPage() {
     stats.push({ label: "Requieren revisión", value: review ?? 0, href: "/invoices?month=all&status=REQUIERE_REVISION", icon: AlertCircle, color: "orange" });
     stats.push({ label: "Aptas para pago", value: apto ?? 0, href: "/invoices?month=all&status=APTO_PARA_PAGO", icon: CheckCircle2, color: "ok" });
   }
+  if (showSalesStats) {
+    stats.push({ label: "Ventas por cobrar", value: porCobrar ?? 0, href: "/ventas?month=all&status=EMITIDA", icon: Wallet, color: "teal" });
+    stats.push({ label: "Ventas vencidas", value: vencidas ?? 0, href: "/ventas?month=all&status=EMITIDA", icon: CalendarClock, color: "orange" });
+  }
 
   return (
     <div className="max-w-5xl space-y-6">
@@ -107,6 +128,7 @@ export default async function DashboardPage() {
         </div>
       ) : null}
 
+      {profile.modulo_compras ? (
       <div>
         <h2 className="text-[14px] font-semibold mb-2">Solicitudes recientes</h2>
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
@@ -150,6 +172,7 @@ export default async function DashboardPage() {
           </table>
         </div>
       </div>
+      ) : null}
     </div>
   );
 }

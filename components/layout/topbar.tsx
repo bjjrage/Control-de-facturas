@@ -5,7 +5,15 @@ import { NuevaCompraButton } from "./nueva-compra-button";
 // Visual shell only for now — search/notifications aren't wired to real data
 // yet. Kept as a separate component so that's a contained follow-up, not a
 // rewrite of the header.
-export function Topbar({ initial, role }: { initial: string; role: UserRole }) {
+export function Topbar({
+  initial,
+  role,
+  showCompraDirecta = true,
+}: {
+  initial: string;
+  role: UserRole;
+  showCompraDirecta?: boolean;
+}) {
   return (
     <header className="h-14 shrink-0 border-b border-[var(--border)] bg-[var(--panel)] px-4 flex items-center gap-3 sticky top-0 z-10">
       <div className="flex-1 max-w-md">
@@ -19,7 +27,7 @@ export function Topbar({ initial, role }: { initial: string; role: UserRole }) {
         </div>
       </div>
       <div className="flex items-center gap-1.5 ml-auto">
-        <NuevaCompraButton role={role} />
+        {showCompraDirecta ? <NuevaCompraButton role={role} /> : null}
         <button
           disabled
           className="h-9 w-9 rounded-full flex items-center justify-center text-[var(--muted)] hover:bg-[var(--hover)] disabled:hover:bg-transparent disabled:opacity-60"
