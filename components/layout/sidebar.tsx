@@ -44,7 +44,7 @@ const GLOBAL_ITEMS: NavItem[] = [
 ];
 
 const COMPRAS_ITEMS: NavItem[] = [
-  { href: "/rfqs", label: "Solicitudes", roles: ["comercial", "admin"], icon: FileText, module: "compras" },
+  { href: "/rfqs", label: "Cotizaciones", roles: ["comercial", "admin"], icon: FileText, module: "compras" },
   { href: "/orders", label: "Órdenes de compra", roles: ["comercial", "administracion", "admin"], icon: Package, module: "compras" },
   { href: "/invoices", label: "Facturas", roles: ["administracion", "admin"], icon: Receipt, module: "compras" },
   { href: "/providers", label: "Proveedores", roles: ["admin"], icon: Truck, module: "compras" },

@@ -20,7 +20,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
         modules={{ compras: profile.modulo_compras, ventas: profile.modulo_ventas }}
       />
       <div className="flex-1 min-w-0 flex flex-col">
-        <Topbar initial={initial} role={profile.role} showCompraDirecta={profile.modulo_compras} />
+        <Topbar initial={initial} role={profile.role} />
         <main className="flex-1 min-w-0 p-5">{children}</main>
       </div>
     </div>

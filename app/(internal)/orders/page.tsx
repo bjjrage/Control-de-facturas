@@ -60,12 +60,19 @@ export default async function OrdersPage({
 
   return (
     <div className="max-w-5xl space-y-4">
-      <div>
-        <h1 className="text-[17px] font-semibold">Órdenes de compra</h1>
-        <p className="text-[12px] text-[var(--muted)] mt-0.5">
-          Todas tus compras y en qué etapa están. Para registrar una nueva, usá{" "}
-          <span className="font-medium text-[var(--foreground)]">Nueva compra</span> arriba a la derecha.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-[17px] font-semibold">Órdenes de compra</h1>
+          <p className="text-[12px] text-[var(--muted)] mt-0.5">
+            Todas tus compras y en qué etapa están.
+          </p>
+        </div>
+        <Link
+          href="/orders?nueva=1"
+          className="shrink-0 h-9 inline-flex items-center gap-1.5 rounded-lg bg-[var(--primary)] px-4 text-[13px] font-medium text-white hover:bg-[var(--primary-hover)]"
+        >
+          + Nueva compra
+        </Link>
       </div>
       <OrderDialog
         key={params.nueva === "1" ? "open" : "closed"}
@@ -122,7 +129,7 @@ export default async function OrdersPage({
                 <tr>
                   <td colSpan={7} className="text-center text-[var(--muted)] py-8">
                     {orders.length === 0
-                      ? 'No hay órdenes todavía. Empezá una compra con "Nueva compra" arriba a la derecha.'
+                      ? 'No hay órdenes todavía. Usá "+ Nueva compra" para registrar la primera.'
                       : "Ninguna orden coincide con los filtros."}
                   </td>
                 </tr>
