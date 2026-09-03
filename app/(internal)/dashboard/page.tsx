@@ -145,7 +145,7 @@ export default async function DashboardPage() {
               {(recentRfqs ?? []).map((r) => (
                 <tr key={r.id}>
                   <td>
-                    <Link href={`/rfqs/${r.id}`} className="font-medium hover:underline">
+                    <Link href={`/rfqs/${r.id}`} className="text-action font-medium">
                       {r.code}
                     </Link>
                   </td>

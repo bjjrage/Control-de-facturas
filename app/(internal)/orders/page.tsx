@@ -100,7 +100,7 @@ export default async function OrdersPage({
               {filtered.map((o) => (
                 <tr key={o.id} className="hover:bg-[var(--hover)]">
                   <td>
-                    <Link href={`/orders/${o.id}`} className="font-medium hover:underline">
+                    <Link href={`/orders/${o.id}`} className="text-action font-medium">
                       {o.code}
                     </Link>
                   </td>

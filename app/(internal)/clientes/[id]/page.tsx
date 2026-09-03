@@ -83,11 +83,11 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             <Link
               href={`/clientes/${client.id}/estado-cuenta`}
               target="_blank"
-              className="text-[12px] text-[var(--muted)] hover:text-[var(--foreground)] hover:underline"
+              className="text-action text-[12px] text-[var(--muted)]"
             >
               Estado de cuenta ↗
             </Link>
-            <Link href={`/proformas/nueva?client=${client.id}`} className="text-[12px] text-[var(--primary)] hover:underline">
+            <Link href={`/proformas/nueva?client=${client.id}`} className="text-action text-[12px] text-[var(--primary)]">
               Nueva proforma →
             </Link>
           </div>
@@ -111,7 +111,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                 return (
                   <tr key={d.id}>
                     <td>
-                      <Link href={`/ventas/${d.id}`} className="font-medium hover:underline">
+                      <Link href={`/ventas/${d.id}`} className="text-action font-medium">
                         {d.code}
                       </Link>
                     </td>

@@ -25,7 +25,7 @@ export default async function RevisionPage() {
   return (
     <div className="max-w-4xl space-y-4">
       <div>
-        <Link href="/invoices" className="text-[12px] text-[var(--muted)] hover:underline">
+        <Link href="/invoices" className="text-action text-[12px] text-[var(--muted)]">
           ← Volver a Facturas
         </Link>
         <h1 className="text-[17px] font-semibold mt-1">Revisión manual</h1>

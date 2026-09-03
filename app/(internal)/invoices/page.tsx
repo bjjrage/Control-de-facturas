@@ -160,14 +160,14 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
           {hasExtraFilters ? (
             <Link
               href={withParams({ q: undefined, provider: undefined, status: undefined })}
-              className="text-[12px] text-[var(--muted)] hover:underline pb-1.5"
+              className="text-action text-[12px] text-[var(--muted)] pb-1.5"
             >
               Limpiar proveedor/estado/búsqueda
             </Link>
           ) : null}
           <a
             href={`/invoices/export?month=${month ?? "all"}`}
-            className="text-[12px] text-[var(--muted)] hover:underline pb-1.5 ml-auto"
+            className="text-action text-[12px] text-[var(--muted)] pb-1.5 ml-auto"
           >
             Exportar CSV (contabilidad)
           </a>
@@ -180,7 +180,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
           {outsideMonthCount > 0 ? (
             <div className="mt-2">
               Hay {outsideMonthCount} factura{outsideMonthCount === 1 ? "" : "s"} en otros meses.{" "}
-              <Link href={withParams({ month: "all" })} className="text-[var(--primary)] hover:underline">
+              <Link href={withParams({ month: "all" })} className="text-action text-[var(--primary)]">
                 Ver todas
               </Link>
             </div>
@@ -219,7 +219,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
                   {g.invoices.map((i) => (
                     <tr key={i.id}>
                       <td>
-                        <Link href={`/invoices/${i.id}`} className="font-medium hover:underline">
+                        <Link href={`/invoices/${i.id}`} className="text-action font-medium">
                           {i.invoice_number}
                         </Link>
                       </td>

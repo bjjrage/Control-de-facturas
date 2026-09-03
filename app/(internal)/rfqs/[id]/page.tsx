@@ -132,7 +132,7 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="max-w-4xl space-y-5">
-      <Link href="/rfqs" className="inline-flex items-center gap-1 text-[12px] text-[var(--muted)] hover:text-[var(--foreground)]">
+      <Link href="/rfqs" className="text-action text-[12px] text-[var(--muted)]">
         ← Volver a Cotizaciones
       </Link>
       <div className="flex items-start justify-between">

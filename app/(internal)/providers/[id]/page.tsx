@@ -116,7 +116,7 @@ export default async function ProviderDetailPage({ params }: { params: Promise<{
   return (
     <div className="max-w-5xl space-y-5">
       <div>
-        <Link href="/providers" className="text-[12px] text-[var(--muted)] hover:underline">
+        <Link href="/providers" className="text-action text-[12px] text-[var(--muted)]">
           ← Proveedores
         </Link>
         <div className="flex items-center gap-2 mt-1">
@@ -162,7 +162,7 @@ export default async function ProviderDetailPage({ params }: { params: Promise<{
                   <tr key={v.id}>
                     <td>
                       {rp ? (
-                        <Link href={`/rfqs/${rp.rfq_id}`} className="hover:underline">
+                        <Link href={`/rfqs/${rp.rfq_id}`} className="text-action">
                           {rp.rfqs.code}
                         </Link>
                       ) : (

@@ -69,7 +69,7 @@ export function OrdersFilters({ products, providers }: { products: string[]; pro
         <button
           type="button"
           onClick={() => router.push("/orders")}
-          className="text-[12px] text-[var(--muted)] hover:underline pb-1.5"
+          className="text-action text-[12px] text-[var(--muted)] pb-1.5"
         >
           Limpiar filtros
         </button>

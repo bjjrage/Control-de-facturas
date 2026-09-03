@@ -103,7 +103,7 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
             Filtrar
           </Button>
           {hasFilters ? (
-            <Link href="/rfqs" className="text-[12px] text-[var(--muted)] hover:underline pb-1.5">
+            <Link href="/rfqs" className="text-action text-[12px] text-[var(--muted)] pb-1.5">
               Limpiar filtros
             </Link>
           ) : null}
@@ -129,7 +129,7 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
               return (
                 <tr key={r.id}>
                   <td>
-                    <Link href={`/rfqs/${r.id}`} className="font-medium text-[var(--foreground)] hover:underline">
+                    <Link href={`/rfqs/${r.id}`} className="text-action font-medium text-[var(--foreground)]">
                       {r.code}
                     </Link>
                   </td>

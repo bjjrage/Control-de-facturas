@@ -264,7 +264,7 @@ export function Sidebar({
         </div>
         {!collapsed ? (
           <form action={logout} className="mt-2">
-            <button className="text-[11px] text-[var(--muted)] hover:text-[var(--foreground)] underline">
+            <button className="text-action text-[11px] text-[var(--muted)]">
               Cerrar sesión
             </button>
           </form>

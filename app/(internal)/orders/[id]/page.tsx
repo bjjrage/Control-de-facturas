@@ -49,7 +49,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   return (
     <div className="max-w-3xl space-y-5">
       <div>
-        <Link href="/orders" className="text-[12px] text-[var(--muted)] hover:underline">
+        <Link href="/orders" className="text-action text-[12px] text-[var(--muted)]">
           ← Volver a Órdenes
         </Link>
         <div className="flex items-center gap-2 mt-1">
@@ -65,7 +65,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           {order.rfq_id ? (
             <>
               {" · "}
-              <Link href={`/rfqs/${order.rfq_id}`} className="hover:underline">
+              <Link href={`/rfqs/${order.rfq_id}`} className="text-action">
                 ver solicitud
               </Link>
             </>
@@ -154,7 +154,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               {(matches ?? []).map((m) => (
                 <tr key={m.id}>
                   <td>
-                    <Link href={`/invoices/${m.invoices.id}`} className="font-medium hover:underline">
+                    <Link href={`/invoices/${m.invoices.id}`} className="text-action font-medium">
                       {m.invoices.invoice_number}
                     </Link>
                   </td>

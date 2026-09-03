@@ -39,7 +39,7 @@ export default async function ProvidersPage() {
             {(providers ?? []).map((p) => (
               <tr key={p.id}>
                 <td className="font-medium">
-                  <Link href={`/providers/${p.id}`} className="hover:underline">
+                  <Link href={`/providers/${p.id}`} className="text-action">
                     {p.name}
                   </Link>
                 </td>

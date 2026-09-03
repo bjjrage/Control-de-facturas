@@ -108,7 +108,7 @@ export default async function CobrosPage({
     return (
       <tr key={d.id}>
         <td>
-          <Link href={`/ventas/${d.id}`} className="font-medium hover:underline">
+          <Link href={`/ventas/${d.id}`} className="text-action font-medium">
             {d.code}
           </Link>
         </td>
@@ -259,7 +259,7 @@ export default async function CobrosPage({
                       <td>
                         <Link
                           href={`/clientes/${row.clientId}`}
-                          className="hover:underline"
+                          className="text-action"
                         >
                           {row.clientName}
                         </Link>

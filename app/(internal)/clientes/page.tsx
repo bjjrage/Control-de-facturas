@@ -35,7 +35,7 @@ export default async function ClientesPage() {
             {(clients ?? []).map((c) => (
               <tr key={c.id}>
                 <td className="font-medium">
-                  <Link href={`/clientes/${c.id}`} className="hover:underline">
+                  <Link href={`/clientes/${c.id}`} className="text-action">
                     {c.name}
                   </Link>
                 </td>

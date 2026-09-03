@@ -122,7 +122,7 @@ export async function SalesList({
             Filtrar
           </Button>
           {q || clientId || status ? (
-            <Link href={withParams({ q: undefined, client: undefined, status: undefined })} className="text-[12px] text-[var(--muted)] hover:underline pb-1.5">
+            <Link href={withParams({ q: undefined, client: undefined, status: undefined })} className="text-action text-[12px] text-[var(--muted)] pb-1.5">
               Limpiar
             </Link>
           ) : null}
@@ -169,7 +169,7 @@ export async function SalesList({
                     return (
                       <tr key={d.id}>
                         <td>
-                          <Link href={`/ventas/${d.id}`} className="font-medium hover:underline">
+                          <Link href={`/ventas/${d.id}`} className="text-action font-medium">
                             {d.code}
                           </Link>
                         </td>

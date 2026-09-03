@@ -301,11 +301,11 @@ export function BulkUploadForm({ empresaId, userId }: { empresaId: string; userI
               <span>✋ A revisar: {summary.needs_manual ?? 0}</span>
               <span>❌ Errores: {summary.error ?? 0}</span>
               {(summary.needs_manual ?? 0) > 0 ? (
-                <Link href="/invoices/revision" className="text-[var(--primary)] hover:underline">
+                <Link href="/invoices/revision" className="text-action text-[var(--primary)]">
                   Ir a revisión →
                 </Link>
               ) : null}
-              <Link href="/invoices" className="text-[var(--primary)] hover:underline ml-auto">
+              <Link href="/invoices" className="text-action text-[var(--primary)] ml-auto">
                 Ver todas las facturas →
               </Link>
             </div>
@@ -338,7 +338,7 @@ export function BulkUploadForm({ empresaId, userId }: { empresaId: string; userI
                     </td>
                     <td className="text-[12px] text-[var(--muted)]">
                       {j.invoice_id ? (
-                        <Link href={`/invoices/${j.invoice_id}`} className="hover:underline">
+                        <Link href={`/invoices/${j.invoice_id}`} className="text-action">
                           {j.message}
                         </Link>
                       ) : (

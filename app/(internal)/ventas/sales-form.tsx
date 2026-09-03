@@ -212,7 +212,7 @@ export function SalesForm({
         <button
           type="button"
           onClick={() => setRows((prev) => [...prev, { ...emptyRow }])}
-          className="mt-2 text-[12px] text-[var(--primary)] hover:underline"
+          className="mt-2 text-action text-[12px] text-[var(--primary)]"
         >
           + Agregar ítem
         </button>

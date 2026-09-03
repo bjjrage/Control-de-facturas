@@ -39,7 +39,7 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
 
   return (
     <div className="max-w-4xl space-y-5">
-      <Link href={SALES_DOC_PANEL_PATH[doc.doc_type]} className="inline-flex items-center gap-1 text-[12px] text-[var(--muted)] hover:text-[var(--foreground)]">
+      <Link href={SALES_DOC_PANEL_PATH[doc.doc_type]} className="text-action text-[12px] text-[var(--muted)]">
         <ArrowLeft size={13} /> Volver a {SALES_DOC_PANEL_TITLE[doc.doc_type]}
       </Link>
 
@@ -53,7 +53,7 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
             <span className="text-[12px] text-[var(--muted)]">{SALES_DOC_TYPE_LABELS[doc.doc_type]}</span>
           </div>
           <p className="text-[13px] text-[var(--muted)]">
-            <Link href={`/clientes/${doc.client_id}`} className="hover:underline">
+            <Link href={`/clientes/${doc.client_id}`} className="text-action">
               {client?.name}
             </Link>{" "}
             · Emitida {formatDate(doc.issue_date)}
@@ -195,7 +195,7 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
               docId={doc.id}
               saldo={saldo}
               currency={doc.currency}
-              trigger={<button className="text-[12px] text-[var(--primary)] hover:underline">+ Registrar cobro</button>}
+              trigger={<button className="text-action text-[12px] text-[var(--primary)]">+ Registrar cobro</button>}
             />
           ) : null}
         </div>
