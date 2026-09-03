@@ -17,6 +17,8 @@ import {
   ChevronDown,
   ReceiptText,
   Contact,
+  FileClock,
+  ClipboardList,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -26,22 +28,38 @@ import { LOGO_STORAGE_PATH } from "./branding-constants";
 
 type Module = "compras" | "ventas";
 
-const NAV: {
+type NavItem = {
   href: string;
   label: string;
   roles: UserRole[];
   icon: typeof LayoutDashboard;
   superAdmin?: boolean;
   module?: Module;
-}[] = [
+};
+
+const GLOBAL_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", roles: ["comercial", "administracion", "admin"], icon: LayoutDashboard },
+];
+
+const COMPRAS_ITEMS: NavItem[] = [
   { href: "/rfqs", label: "Solicitudes", roles: ["comercial", "admin"], icon: FileText, module: "compras" },
   { href: "/orders", label: "Órdenes de compra", roles: ["comercial", "administracion", "admin"], icon: Package, module: "compras" },
   { href: "/invoices", label: "Facturas", roles: ["administracion", "admin"], icon: Receipt, module: "compras" },
   { href: "/providers", label: "Proveedores", roles: ["admin"], icon: Truck, module: "compras" },
-  { href: "/ventas", label: "Ventas", roles: ["administracion", "admin"], icon: ReceiptText, module: "ventas" },
+];
+
+const VENTAS_ITEMS: NavItem[] = [
+  { href: "/proformas", label: "Proformas", roles: ["administracion", "admin"], icon: FileClock, module: "ventas" },
+  { href: "/remisiones", label: "Remisiones", roles: ["administracion", "admin"], icon: ClipboardList, module: "ventas" },
+  { href: "/facturas-venta", label: "Facturas de Venta", roles: ["administracion", "admin"], icon: ReceiptText, module: "ventas" },
   { href: "/clientes", label: "Clientes", roles: ["administracion", "admin"], icon: Contact, module: "ventas" },
+];
+
+const ADMIN_ITEMS: NavItem[] = [
   { href: "/users", label: "Usuarios", roles: ["admin"], icon: Users },
+];
+
+const SUPER_ADMIN_ITEMS: NavItem[] = [
   { href: "/empresas", label: "Empresas", roles: [], icon: Building2, superAdmin: true },
 ];
 
@@ -61,12 +79,6 @@ export function Sidebar({
   modules: { compras: boolean; ventas: boolean };
 }) {
   const pathname = usePathname();
-  const items = NAV.filter((item) => {
-    if (item.superAdmin) return isSuperAdmin;
-    if (!item.roles.includes(role)) return false;
-    if (item.module && !modules[item.module] && !isSuperAdmin) return false;
-    return true;
-  });
   const [collapsed, setCollapsed] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
   const [logoVersion, setLogoVersion] = useState(0);
@@ -74,6 +86,21 @@ export function Sidebar({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isAdmin = role === "admin";
   const initial = fullName.trim().charAt(0).toUpperCase() || "?";
+
+  function filterItems(items: NavItem[]) {
+    return items.filter((item) => {
+      if (item.superAdmin) return isSuperAdmin;
+      if (!item.roles.includes(role)) return false;
+      if (item.module && !modules[item.module] && !isSuperAdmin) return false;
+      return true;
+    });
+  }
+
+  const globalItems = filterItems(GLOBAL_ITEMS);
+  const comprasItems = filterItems(COMPRAS_ITEMS);
+  const ventasItems = filterItems(VENTAS_ITEMS);
+  const adminItems = filterItems(ADMIN_ITEMS);
+  const superAdminItems = isSuperAdmin ? SUPER_ADMIN_ITEMS : [];
 
   async function handleLogoFile(file: File | null) {
     if (!file) return;
@@ -89,12 +116,48 @@ export function Sidebar({
         setLogoVersion((v) => v + 1);
       }
     } catch {
-      // A dropped connection or server error must never leave the button
-      // stuck on "Subiendo…" forever.
       alert("Se cortó la conexión al subir el logo — probá de nuevo.");
     } finally {
       setUploading(false);
     }
+  }
+
+  function renderLink(item: NavItem) {
+    const active = pathname === item.href || pathname.startsWith(item.href + "/");
+    const Icon = item.icon;
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        title={collapsed ? item.label : undefined}
+        className={cn(
+          "flex items-center gap-2.5 h-9 rounded-lg text-[13px] transition-colors",
+          collapsed ? "justify-center px-0" : "px-3",
+          active
+            ? "bg-[var(--primary)] text-white font-medium"
+            : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+        )}
+      >
+        <Icon size={16} className="shrink-0" />
+        {!collapsed ? <span className="truncate">{item.label}</span> : null}
+      </Link>
+    );
+  }
+
+  function renderSection(label: string, items: NavItem[]) {
+    if (items.length === 0) return null;
+    return (
+      <div className="space-y-0.5">
+        {!collapsed ? (
+          <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">
+            {label}
+          </div>
+        ) : (
+          <div className="border-t border-[var(--border)] my-1.5" />
+        )}
+        {items.map(renderLink)}
+      </div>
+    );
   }
 
   return (
@@ -169,28 +232,17 @@ export function Sidebar({
         </button>
       ) : null}
 
-      <nav className="flex-1 py-3 px-2 space-y-0.5">
-        {items.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(item.href + "/");
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={collapsed ? item.label : undefined}
-              className={cn(
-                "flex items-center gap-2.5 h-9 rounded-lg text-[13px] transition-colors",
-                collapsed ? "justify-center px-0" : "px-3",
-                active
-                  ? "bg-[var(--primary)] text-white font-medium"
-                  : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
-              )}
-            >
-              <Icon size={16} className="shrink-0" />
-              {!collapsed ? <span className="truncate">{item.label}</span> : null}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
+        {globalItems.map(renderLink)}
+        {renderSection("Compras", comprasItems)}
+        {renderSection("Ventas", ventasItems)}
+        {adminItems.length > 0 ? (
+          <div className="space-y-0.5">
+            <div className="border-t border-[var(--border)] my-1.5" />
+            {adminItems.map(renderLink)}
+          </div>
+        ) : null}
+        {superAdminItems.map(renderLink)}
       </nav>
 
       <div className="border-t border-[var(--border)] p-3">

@@ -58,7 +58,7 @@ export async function createSalesDocument(formData: FormData) {
   const supabase = await createClient();
 
   const client_id = str(formData, "client_id");
-  const doc_type = (str(formData, "doc_type") ?? "NOTA_VENTA") as SalesDocType;
+  const doc_type = (str(formData, "doc_type") ?? "REMISION") as SalesDocType;
   if (!client_id) return { error: "Elegí un cliente." };
 
   const items = parseItems(formData);

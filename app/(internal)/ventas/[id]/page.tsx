@@ -13,6 +13,8 @@ import {
   RECEIPT_METHOD_LABELS,
   SALES_DOC_STATUS_LABELS,
   SALES_DOC_TYPE_LABELS,
+  SALES_DOC_PANEL_PATH,
+  SALES_DOC_PANEL_TITLE,
 } from "@/lib/sales";
 import { ReceiptDialog } from "./receipt-dialog";
 import { emitSalesDocument, voidSalesDocument, deleteSalesDocument, deleteReceipt } from "../actions";
@@ -37,8 +39,8 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
 
   return (
     <div className="max-w-4xl space-y-5">
-      <Link href="/ventas" className="inline-flex items-center gap-1 text-[12px] text-[var(--muted)] hover:text-[var(--foreground)]">
-        <ArrowLeft size={13} /> Volver a Ventas
+      <Link href={SALES_DOC_PANEL_PATH[doc.doc_type]} className="inline-flex items-center gap-1 text-[12px] text-[var(--muted)] hover:text-[var(--foreground)]">
+        <ArrowLeft size={13} /> Volver a {SALES_DOC_PANEL_TITLE[doc.doc_type]}
       </Link>
 
       <div className="flex items-start justify-between">

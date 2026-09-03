@@ -18,12 +18,14 @@ export function SalesForm({
   doc,
   items,
   action,
+  fixedDocType,
 }: {
   clients: Pick<Client, "id" | "name">[];
   defaultClientId?: string;
   doc?: SalesDocument;
   items?: SalesDocumentItem[];
   action: (formData: FormData) => Promise<{ error: string | null; id?: string }>;
+  fixedDocType?: SalesDocType;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -107,13 +109,22 @@ export function SalesForm({
         </div>
         <div>
           <Label htmlFor="doc_type">Tipo de documento</Label>
-          <Select id="doc_type" name="doc_type" defaultValue={(doc?.doc_type ?? "NOTA_VENTA") as SalesDocType}>
-            {(Object.keys(SALES_DOC_TYPE_LABELS) as SalesDocType[]).map((t) => (
-              <option key={t} value={t}>
-                {SALES_DOC_TYPE_LABELS[t]}
-              </option>
-            ))}
-          </Select>
+          {fixedDocType ? (
+            <>
+              <input type="hidden" name="doc_type" value={fixedDocType} />
+              <div className="h-9 flex items-center px-2.5 rounded-md border border-[var(--border)] bg-[var(--hover)] text-[13px] text-[var(--muted)]">
+                {SALES_DOC_TYPE_LABELS[fixedDocType]}
+              </div>
+            </>
+          ) : (
+            <Select id="doc_type" name="doc_type" defaultValue={(doc?.doc_type ?? "REMISION") as SalesDocType}>
+              {(Object.keys(SALES_DOC_TYPE_LABELS) as SalesDocType[]).map((t) => (
+                <option key={t} value={t}>
+                  {SALES_DOC_TYPE_LABELS[t]}
+                </option>
+              ))}
+            </Select>
+          )}
         </div>
         <div>
           <Label htmlFor="issue_date">Fecha de emisión</Label>
