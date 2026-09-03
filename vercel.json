@@ -1,5 +1,0 @@
-{
-  "crons": [
-    { "path": "/api/invoices/process-jobs", "schedule": "0 * * * *" }
-  ]
-}
