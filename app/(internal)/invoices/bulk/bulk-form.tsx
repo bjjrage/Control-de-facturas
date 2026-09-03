@@ -171,6 +171,18 @@ export function BulkUploadForm({ empresaId, userId }: { empresaId: string; userI
 
         <div>
           <Label>Fotos de las facturas</Label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            disabled={uploading}
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files) addFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
           <div
             onClick={() => !uploading && fileInputRef.current?.click()}
             onDragOver={(e) => {
@@ -185,30 +197,78 @@ export function BulkUploadForm({ empresaId, userId }: { empresaId: string; userI
               setDragOver(false);
               if (!uploading) addFiles(e.dataTransfer.files);
             }}
-            className={`rounded-lg border-2 border-dashed p-8 text-center text-[13px] cursor-pointer transition-colors ${
-              dragOver ? "border-[var(--primary)] bg-[var(--primary-bg)]" : "border-[var(--border)] bg-[var(--panel-2)]"
-            } ${uploading ? "opacity-50 pointer-events-none" : ""}`}
+            className={[
+              "rounded-lg border-2 border-dashed p-6 text-center text-[13px] transition-colors",
+              uploading ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
+              dragOver
+                ? "border-[var(--primary)] bg-[var(--primary-bg)]"
+                : files.length > 0
+                  ? "border-[var(--primary)]/40 bg-[var(--primary-bg)]/30"
+                  : "border-[var(--border)] bg-[var(--panel-2)] hover:border-[var(--primary)]/50 hover:bg-[var(--hover)]",
+            ].join(" ")}
           >
-            <p className="font-medium mb-1">Arrastrá acá las facturas, o hacé clic para elegirlas</p>
-            <p className="text-[var(--muted)]">
-              Fotos (JPG, PNG, WEBP) o PDF de factura electrónica — podés soltar varias juntas
-            </p>
+            <svg
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="mx-auto mb-2 text-[var(--muted)]"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
             {files.length > 0 ? (
-              <p className="mt-2 text-[var(--primary)] font-medium">{files.length} archivo(s) listos para subir</p>
-            ) : null}
+              <>
+                <p className="font-medium text-[var(--primary)]">
+                  {files.length} archivo{files.length !== 1 ? "s" : ""} seleccionado{files.length !== 1 ? "s" : ""}
+                </p>
+                <p className="text-[12px] text-[var(--muted)] mt-0.5">Clic para agregar más</p>
+              </>
+            ) : (
+              <>
+                <p className="font-medium">Arrastrá acá las facturas, o hacé clic para elegirlas</p>
+                <p className="text-[12px] text-[var(--muted)] mt-0.5">
+                  Fotos (JPG, PNG, WEBP) o PDF — podés soltar varias juntas
+                </p>
+              </>
+            )}
           </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/jpeg,image/png,image/webp,application/pdf"
-            disabled={uploading}
-            className="hidden"
-            onChange={(e) => {
-              if (e.target.files) addFiles(e.target.files);
-              e.target.value = "";
-            }}
-          />
+
+          {/* Lista de archivos seleccionados */}
+          {files.length > 0 && !uploading ? (
+            <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
+              {files.map((f, i) => (
+                <div
+                  key={`${f.name}-${i}`}
+                  className="flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--panel)] px-2.5 py-1.5 text-[12px]"
+                >
+                  <span className="text-[var(--muted)] shrink-0">
+                    {f.type === "application/pdf" ? "📄" : "🖼️"}
+                  </span>
+                  <span className="flex-1 truncate">{f.name}</span>
+                  <span className="text-[11px] text-[var(--muted)] shrink-0">
+                    {f.size > 1024 * 1024
+                      ? `${(f.size / 1024 / 1024).toFixed(1)} MB`
+                      : `${Math.round(f.size / 1024)} KB`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFiles((prev) => prev.filter((_, j) => j !== i));
+                    }}
+                    className="text-[var(--muted)] hover:text-[var(--error)] shrink-0 leading-none"
+                    title="Quitar"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         {uploadError ? (

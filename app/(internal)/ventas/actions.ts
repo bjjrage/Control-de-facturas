@@ -197,6 +197,7 @@ export async function addReceipt(docId: string, formData: FormData) {
   if (error) return { error: error.message };
   revalidatePath("/ventas");
   revalidatePath(`/ventas/${docId}`);
+  revalidatePath("/cobros");
   return { error: null };
 }
 
@@ -207,6 +208,7 @@ export async function deleteReceipt(receiptId: string, docId: string) {
   if (error) return { error: error.message };
   revalidatePath("/ventas");
   revalidatePath(`/ventas/${docId}`);
+  revalidatePath("/cobros");
   return { error: null };
 }
 

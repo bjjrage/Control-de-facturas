@@ -113,8 +113,8 @@ export default async function DashboardPage() {
     stats.push({ label: "Aptas para pago", value: apto ?? 0, href: "/invoices?month=all&status=APTO_PARA_PAGO", icon: CheckCircle2, color: "ok" });
   }
   if (showSalesStats) {
-    stats.push({ label: "Ventas por cobrar", value: porCobrar ?? 0, href: "/ventas?month=all&status=EMITIDA", icon: Wallet, color: "teal" });
-    stats.push({ label: "Ventas vencidas", value: vencidas ?? 0, href: "/ventas?month=all&status=EMITIDA", icon: CalendarClock, color: "orange" });
+    stats.push({ label: "Ventas por cobrar", value: porCobrar ?? 0, href: "/cobros", icon: Wallet, color: "teal" });
+    stats.push({ label: "Ventas vencidas", value: vencidas ?? 0, href: "/cobros", icon: CalendarClock, color: "orange" });
   }
 
   return (

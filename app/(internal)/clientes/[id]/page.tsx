@@ -79,9 +79,18 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
       <div>
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-[14px] font-semibold">Documentos de venta</h2>
-          <Link href={`/ventas/nueva?client=${client.id}`} className="text-[12px] text-[var(--primary)] hover:underline">
-            Nueva venta →
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/clientes/${client.id}/estado-cuenta`}
+              target="_blank"
+              className="text-[12px] text-[var(--muted)] hover:text-[var(--foreground)] hover:underline"
+            >
+              Estado de cuenta ↗
+            </Link>
+            <Link href={`/proformas/nueva?client=${client.id}`} className="text-[12px] text-[var(--primary)] hover:underline">
+              Nueva proforma →
+            </Link>
+          </div>
         </div>
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
           <table>

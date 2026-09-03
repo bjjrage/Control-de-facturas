@@ -20,6 +20,7 @@ import {
   FileClock,
   ClipboardList,
   Settings,
+  Banknote,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -53,6 +54,7 @@ const VENTAS_ITEMS: NavItem[] = [
   { href: "/proformas", label: "Proformas", roles: ["administracion", "admin"], icon: FileClock, module: "ventas" },
   { href: "/remisiones", label: "Remisiones", roles: ["administracion", "admin"], icon: ClipboardList, module: "ventas" },
   { href: "/facturas-venta", label: "Facturas de Venta", roles: ["administracion", "admin"], icon: ReceiptText, module: "ventas" },
+  { href: "/cobros", label: "Cobros", roles: ["administracion", "admin"], icon: Banknote, module: "ventas" },
   { href: "/clientes", label: "Clientes", roles: ["administracion", "admin"], icon: Contact, module: "ventas" },
 ];
 
