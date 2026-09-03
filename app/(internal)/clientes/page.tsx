@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ClientDialog } from "./client-dialog";
 import { createClientRecord, updateClientRecord, toggleClientActive } from "./actions";
+import { BackButton } from "@/components/ui/back-button";
 
 export default async function ClientesPage() {
   await requireModule("ventas", ["administracion", "admin"]);
@@ -14,7 +15,8 @@ export default async function ClientesPage() {
 
   return (
     <div className="max-w-4xl">
-      <div className="flex items-center justify-between mb-4">
+      <BackButton />
+      <div className="flex items-center justify-between mt-1 mb-4">
         <h1 className="text-[17px] font-semibold">Clientes</h1>
         <ClientDialog action={createClientRecord} trigger={<Button>Nuevo cliente</Button>} />
       </div>

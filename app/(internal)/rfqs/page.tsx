@@ -8,6 +8,7 @@ import { Input, Label, Select } from "@/components/ui/input";
 import { formatDate, formatNumber } from "@/lib/format";
 import { isRfqOpen, rfqClosedReason } from "@/lib/rfq-status";
 import { RfqDialog } from "./rfq-dialog";
+import { BackButton } from "@/components/ui/back-button";
 
 type Filters = {
   q?: string;
@@ -57,7 +58,8 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
 
   return (
     <div className="max-w-5xl">
-      <div className="flex items-center justify-between mb-4">
+      <BackButton />
+      <div className="flex items-center justify-between mt-1 mb-4">
         <h1 className="text-[17px] font-semibold">Cotizaciones</h1>
         <RfqDialog
           key={filters.nueva === "1" ? "open" : "closed"}

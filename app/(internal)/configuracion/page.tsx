@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Empresa } from "@/lib/types";
 import { EmpresaForm } from "./empresa-form";
 import { TemplateEditor } from "./template-editor";
+import { BackButton } from "@/components/ui/back-button";
 
 export default async function ConfiguracionPage() {
   const profile = await requireProfile(["admin"]);
@@ -18,7 +19,10 @@ export default async function ConfiguracionPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <h1 className="text-[17px] font-semibold">Configuración</h1>
+      <div>
+        <BackButton />
+        <h1 className="text-[17px] font-semibold mt-1">Configuración</h1>
+      </div>
 
       <EmpresaForm empresa={empresa} />
 

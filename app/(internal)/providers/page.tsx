@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ProviderDialog } from "./provider-dialog";
 import { createProvider, updateProvider, toggleProviderActive } from "./actions";
+import { BackButton } from "@/components/ui/back-button";
 
 export default async function ProvidersPage() {
   await requireProfile(["admin"]);
@@ -18,7 +19,8 @@ export default async function ProvidersPage() {
 
   return (
     <div className="max-w-4xl">
-      <div className="flex items-center justify-between mb-4">
+      <BackButton />
+      <div className="flex items-center justify-between mt-1 mb-4">
         <h1 className="text-[17px] font-semibold">Proveedores</h1>
         <ProviderDialog action={createProvider} trigger={<Button>Nuevo proveedor</Button>} />
       </div>

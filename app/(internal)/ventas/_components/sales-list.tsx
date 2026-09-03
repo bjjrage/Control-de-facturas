@@ -8,6 +8,7 @@ import { formatDate, formatMoney } from "@/lib/format";
 import { currentMonth, monthRange } from "@/lib/month-range";
 import { MonthFilter } from "@/app/(internal)/invoices/month-filter";
 import { docSaldo, isOverdue, SALES_DOC_STATUS_LABELS, SALES_STATUS_ORDER } from "@/lib/sales";
+import { BackButton } from "@/components/ui/back-button";
 
 type Filters = { month?: string; q?: string; client?: string; status?: string };
 
@@ -74,7 +75,8 @@ export async function SalesList({
 
   return (
     <div className="max-w-5xl space-y-5">
-      <div className="flex items-center justify-between">
+      <BackButton />
+      <div className="flex items-center justify-between -mt-4">
         <h1 className="text-[17px] font-semibold">{title}</h1>
         <div className="flex gap-2">
           <Link

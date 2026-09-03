@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ReceiptDialog } from "@/app/(internal)/ventas/[id]/receipt-dialog";
 import { CobrosFilter } from "./cobros-filter";
+import { BackButton } from "@/components/ui/back-button";
 
 function daysDiff(dateStr: string): number {
   const now = new Date();
@@ -157,7 +158,8 @@ export default async function CobrosPage({
 
   return (
     <div className="max-w-6xl space-y-6">
-      <div className="flex items-center justify-between">
+      <BackButton />
+      <div className="flex items-center justify-between -mt-4">
         <div>
           <h1 className="text-[17px] font-semibold">Cobros pendientes</h1>
           <p className="text-[13px] text-[var(--muted)] mt-0.5">

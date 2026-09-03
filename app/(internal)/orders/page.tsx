@@ -7,6 +7,7 @@ import { orderRemaining, orderStep, ORDER_STEPS } from "@/lib/reconciliation";
 import { OrderDialog } from "./order-dialog";
 import { OrderPipeline } from "./order-pipeline";
 import { OrdersFilters } from "./orders-filters";
+import { BackButton } from "@/components/ui/back-button";
 
 function ProgressBar({ facturado, total }: { facturado: number; total: number }) {
   const pct = total > 0 ? Math.min(100, Math.round((facturado / total) * 100)) : 0;
@@ -60,7 +61,8 @@ export default async function OrdersPage({
 
   return (
     <div className="max-w-5xl space-y-4">
-      <div className="flex items-start justify-between gap-4">
+      <BackButton />
+      <div className="flex items-start justify-between gap-4 mt-1">
         <div>
           <h1 className="text-[17px] font-semibold">Órdenes de compra</h1>
           <p className="text-[12px] text-[var(--muted)] mt-0.5">

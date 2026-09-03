@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/format";
 import { UserDialog } from "./user-dialog";
 import { RoleSelect } from "./role-select";
 import { createUser, updateUserRole, toggleUserActive } from "./actions";
+import { BackButton } from "@/components/ui/back-button";
 
 export default async function UsersPage() {
   const me = await requireProfile(["admin"]);
@@ -19,7 +20,8 @@ export default async function UsersPage() {
 
   return (
     <div className="max-w-4xl">
-      <div className="flex items-center justify-between mb-4">
+      <BackButton />
+      <div className="flex items-center justify-between mt-1 mb-4">
         <h1 className="text-[17px] font-semibold">Usuarios</h1>
         <UserDialog action={createUser} trigger={<Button>Nuevo usuario</Button>} />
       </div>

@@ -11,6 +11,7 @@ import { InvoiceDialog } from "./invoice-dialog";
 import { MonthFilter } from "./month-filter";
 import { ReconcileButton } from "./reconcile-button";
 import { DeleteInvoiceButton } from "./[id]/delete-button";
+import { BackButton } from "@/components/ui/back-button";
 
 // The "Nueva factura" dialog on this page reads photos/PDFs via OpenAI/pdf-parse,
 // which can outlast the platform's default serverless timeout (10s on Vercel's
@@ -104,7 +105,8 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="max-w-5xl space-y-5">
-      <div className="flex items-center justify-between">
+      <BackButton />
+      <div className="flex items-center justify-between mt-1">
         <h1 className="text-[17px] font-semibold">Facturas</h1>
         <div className="flex gap-2">
           {reviewCount && reviewCount > 0 ? (
