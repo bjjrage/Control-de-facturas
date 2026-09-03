@@ -99,6 +99,18 @@ export function MonthFilter({ month }: { month: string | null }) {
         >
           <ChevronRight size={15} />
         </Button>
+
+        <button
+          type="button"
+          onClick={() => go(selected ? "all" : currentYm)}
+          className={`h-8 rounded-md border px-3 text-[12px] font-medium transition-colors ${
+            !selected
+              ? "border-[var(--primary)] bg-[var(--primary)] text-white"
+              : "border-[var(--border)] bg-[var(--panel-2)] hover:border-[var(--primary)]"
+          }`}
+        >
+          Todas
+        </button>
       </div>
 
       {open ? (
