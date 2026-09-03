@@ -214,8 +214,6 @@ export async function getCandidateOrders(invoiceId: string): Promise<{
     else if (sameProvider) { score = 2; scoreLabel = "Mismo proveedor"; }
     else if (within5) { score = 1; scoreLabel = "Monto similar"; }
 
-    if (score === 0) continue;
-
     candidates.push({
       id: o.id as string,
       code: o.code as string,
@@ -236,7 +234,7 @@ export async function getCandidateOrders(invoiceId: string): Promise<{
 
   return {
     error: null,
-    candidates: candidates.slice(0, 25),
+    candidates: candidates.slice(0, 50),
     invoiceProvider: providerRow?.name ?? "—",
     invoiceTotal: target,
     invoiceCurrency: invoice.currency as string,

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatDate } from "@/lib/format";
 import { getCandidateOrders, linkInvoiceToOrder, type OrderCandidate } from "./actions";
 
-const SCORE_TONE: Record<number, "ok" | "warn" | "neutral"> = { 3: "ok", 2: "warn", 1: "neutral" };
+const SCORE_TONE: Record<number, "ok" | "warn" | "neutral"> = { 3: "ok", 2: "warn", 1: "neutral", 0: "neutral" };
 
 export function LinkOrderDialog({
   invoiceId,
@@ -82,8 +82,7 @@ export function LinkOrderDialog({
 
           {!loading && result && candidates.length === 0 && (
             <p className="text-[13px] text-[var(--muted)] py-6 text-center">
-              No hay órdenes con saldo disponible que coincidan.<br />
-              <span className="text-[12px]">Podés ir a la OC directamente y vincular desde ahí.</span>
+              No hay órdenes con saldo disponible.
             </p>
           )}
 
@@ -106,7 +105,11 @@ export function LinkOrderDialog({
                       key={c.id}
                       className="flex items-center gap-2.5 rounded-md border border-[var(--border)] bg-[var(--panel)] px-2.5 py-2"
                     >
-                      <Badge tone={SCORE_TONE[c.score]}>{c.scoreLabel}</Badge>
+                      {c.score > 0 ? (
+                        <Badge tone={SCORE_TONE[c.score]}>{c.scoreLabel}</Badge>
+                      ) : (
+                        <span className="text-[10px] text-[var(--muted)] shrink-0 w-16 text-center">Con saldo</span>
+                      )}
                       <div className="flex-1 min-w-0 text-[12px]">
                         <div className="font-medium truncate">{c.code} — {c.product}</div>
                         <div className="text-[var(--muted)] truncate">
@@ -125,7 +128,7 @@ export function LinkOrderDialog({
                 )}
               </div>
               <p className="text-[11px] text-[var(--muted)]">
-                {candidates.length} orden{candidates.length !== 1 ? "es" : ""} candidata{candidates.length !== 1 ? "s" : ""} · La lista prioriza mismo proveedor y monto cercano.
+                {candidates.length} orden{candidates.length !== 1 ? "es" : ""} con saldo · Las resaltadas coinciden con proveedor o monto.
               </p>
             </>
           )}
