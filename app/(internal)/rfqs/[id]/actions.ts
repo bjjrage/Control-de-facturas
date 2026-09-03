@@ -9,12 +9,12 @@ import { revalidatePath } from "next/cache";
 
 export async function inviteProviders(rfqId: string, providerIds: string[]) {
   await requireProfile(["comercial", "admin"]);
-  if (providerIds.length === 0) return { error: "Elegí al menos un proveedor." };
+  if (providerIds.length === 0) return { error: "ElegÃ­ al menos un proveedor." };
   const supabase = await createClient();
 
   const { data: rfq } = await supabase.from("rfqs").select("status, expires_at").eq("id", rfqId).single();
   if (!rfq || !isRfqOpen(rfq)) {
-    return { error: "Esta solicitud está cerrada. Reabrila para poder invitar más proveedores." };
+    return { error: "Esta solicitud estÃ¡ cerrada. Reabrila para poder invitar mÃ¡s proveedores." };
   }
 
   const { error } = await supabase
@@ -79,15 +79,15 @@ export async function selectAndAuthorizeOffer(params: {
     .select("*")
     .eq("id", params.quoteVersionId)
     .single();
-  if (!quoteVersion) return { error: "Cotización no encontrada." };
+  if (!quoteVersion) return { error: "CotizaciÃ³n no encontrada." };
 
   const { data: allResponded } = await supabase
     .from("rfq_providers")
     .select("id, quotes(quote_versions(currency, total_price, version_number))")
     .eq("rfq_id", params.rfqId);
 
-  // Supabase devuelve las relaciones anidadas como objeto o array según cómo
-  // infiera la cardinalidad, así que normalizamos todo a array antes de iterar.
+  // Supabase devuelve las relaciones anidadas como objeto o array segÃºn cÃ³mo
+  // infiera la cardinalidad, asÃ­ que normalizamos todo a array antes de iterar.
   const toArray = <T,>(v: T | T[] | null | undefined): T[] =>
     Array.isArray(v) ? v : v ? [v] : [];
 
@@ -113,7 +113,7 @@ export async function selectAndAuthorizeOffer(params: {
   }
 
   if (!isCheapest && !params.selectionReason) {
-    return { error: "Esta no es la oferta más económica: indicá el motivo de selección." };
+    return { error: "Esta no es la oferta mÃ¡s econÃ³mica: indicÃ¡ el motivo de selecciÃ³n." };
   }
 
   const { data: order, error: orderError } = await supabase
@@ -122,7 +122,7 @@ export async function selectAndAuthorizeOffer(params: {
       rfq_id: rfq.id,
       provider_id: rfqProvider.provider_id,
       quote_version_id: quoteVersion.id,
-      code: rfq.code,
+      // code omitido → el trigger set_order_code() genera 'OC-YYYY-NNNN' automáticamente
       created_from: "rfq",
       provider_name: (rfqProvider as unknown as { providers: { name: string } }).providers.name,
       product: rfq.product,
@@ -175,7 +175,7 @@ export async function cancelRfq(rfqId: string) {
 /**
  * Manually reopens a closed RFQ (expired without a decision, or cancelled)
  * for another DEFAULT_RFQ_WINDOW_HOURS. Never available once a winner was
- * authorized — that's a done deal, not something to reopen.
+ * authorized â that's a done deal, not something to reopen.
  */
 export async function reopenRfq(rfqId: string) {
   await requireProfile(["comercial", "admin"]);
