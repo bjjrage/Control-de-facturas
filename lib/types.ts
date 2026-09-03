@@ -103,6 +103,7 @@ export interface Rfq {
   id: string;
   empresa_id: string;
   code: string;
+  quote_type: "RFQ" | "COT";
   created_by: string;
   client_name: string | null;
   mostrar_cliente_al_proveedor: boolean;

@@ -61,14 +61,25 @@ export async function createRfq(formData: FormData) {
   const product = str(formData, "product");
   const quantity = Number(formData.get("quantity"));
   const unit = str(formData, "unit");
+  const quoteType = formData.get("quote_type") === "COT" ? "COT" : "RFQ";
 
   if (!product || !unit || !Number.isFinite(quantity) || quantity <= 0) {
     return { error: "Completá producto, unidad y una cantidad válida.", id: null };
   }
 
+  // Para COT generamos el código manualmente; RFQ usa el DEFAULT de la tabla.
+  let cotCode: string | undefined;
+  if (quoteType === "COT") {
+    const { data: codeData, error: codeError } = await supabase.rpc("next_cot_code");
+    if (codeError || !codeData) return { error: "No se pudo generar el código COT.", id: null };
+    cotCode = codeData as string;
+  }
+
   const { data, error } = await supabase
     .from("rfqs")
     .insert({
+      ...(cotCode ? { code: cotCode } : {}),
+      quote_type: quoteType,
       created_by: profile.id,
       product,
       quantity,

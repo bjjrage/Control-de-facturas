@@ -58,10 +58,10 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
   return (
     <div className="max-w-5xl">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-[17px] font-semibold">Solicitudes de cotización</h1>
+        <h1 className="text-[17px] font-semibold">Cotizaciones</h1>
         <RfqDialog
           key={filters.nueva === "1" ? "open" : "closed"}
-          trigger={<Button>Nueva solicitud</Button>}
+          trigger={<Button>+ Nueva cotización</Button>}
           defaultOpen={filters.nueva === "1"}
         />
       </div>
@@ -115,6 +115,7 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
           <thead>
             <tr>
               <th>Código</th>
+              <th>Tipo</th>
               <th>Producto</th>
               <th>Cantidad</th>
               <th>Estado</th>
@@ -131,6 +132,11 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
                     <Link href={`/rfqs/${r.id}`} className="font-medium text-[var(--foreground)] hover:underline">
                       {r.code}
                     </Link>
+                  </td>
+                  <td>
+                    <Badge tone={r.quote_type === "COT" ? "neutral" : "ok"}>
+                      {r.quote_type === "COT" ? "Cotización" : "RFQ"}
+                    </Badge>
                   </td>
                   <td>{r.product}</td>
                   <td className="num">
@@ -149,7 +155,7 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
             {rfqs.length === 0 ? (
               <tr>
                 <td colSpan={5} className="text-center text-[var(--muted)] py-6">
-                  {hasFilters ? "Sin resultados para estos filtros." : "No hay solicitudes todavía."}
+                  {hasFilters ? "Sin resultados para estos filtros." : "No hay cotizaciones todavía."}
                 </td>
               </tr>
             ) : null}
