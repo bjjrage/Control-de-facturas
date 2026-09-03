@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireModule } from "@/lib/auth";
 import { lineTotal, docSaldo } from "@/lib/sales";
-import { SalesDocType, ReceiptMethod } from "@/lib/types";
+import { SalesDocType, SalesDocument, SalesDocumentItem, ReceiptMethod } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 
 function str(fd: FormData, k: string) {
@@ -101,7 +101,7 @@ export async function updateSalesDocument(id: string, formData: FormData) {
     .from("sales_documents")
     .update({
       client_id: str(formData, "client_id") ?? undefined,
-      doc_type: (str(formData, "doc_type") ?? "NOTA_VENTA") as SalesDocType,
+      doc_type: (str(formData, "doc_type") ?? "REMISION") as SalesDocType,
       issue_date: str(formData, "issue_date") ?? undefined,
       due_date: str(formData, "due_date"),
       currency: str(formData, "currency") ?? "PYG",
@@ -208,4 +208,56 @@ export async function deleteReceipt(receiptId: string, docId: string) {
   revalidatePath("/ventas");
   revalidatePath(`/ventas/${docId}`);
   return { error: null };
+}
+
+export async function convertSalesDocument(fromId: string, toType: SalesDocType) {
+  const profile = await requireModule("ventas", ["administracion", "admin"]);
+  const supabase = await createClient();
+
+  const { data: source } = await supabase
+    .from("sales_documents")
+    .select("*")
+    .eq("id", fromId)
+    .single<SalesDocument>();
+  if (!source) return { error: "Documento no encontrado." };
+
+  const { data: sourceItems } = await supabase
+    .from("sales_document_items")
+    .select("*")
+    .eq("sales_document_id", fromId)
+    .order("created_at")
+    .returns<SalesDocumentItem[]>();
+
+  const baseNote = source.notes ? `\n\n${source.notes}` : "";
+  const { data: newDoc, error } = await supabase
+    .from("sales_documents")
+    .insert({
+      client_id: source.client_id,
+      doc_type: toType,
+      issue_date: new Date().toISOString().slice(0, 10),
+      due_date: source.due_date,
+      currency: source.currency,
+      notes: `Generado desde ${source.code}${baseNote}`,
+      created_by: profile.id,
+    })
+    .select("id")
+    .single();
+  if (error || !newDoc) return { error: error?.message ?? "No se pudo crear el documento." };
+
+  if (sourceItems && sourceItems.length > 0) {
+    const itemsError = await writeItems(
+      supabase,
+      newDoc.id,
+      sourceItems.map((it) => ({
+        description: it.description,
+        quantity: it.quantity,
+        unit_price: it.unit_price,
+        vat_rate: it.vat_rate,
+      }))
+    );
+    if (itemsError) return { error: itemsError.message };
+  }
+
+  revalidatePath("/ventas");
+  return { error: null, id: newDoc.id as string };
 }

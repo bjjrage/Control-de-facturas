@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, Printer } from "lucide-react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireModule } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Client, SalesDocument, SalesDocumentItem, SalesReceipt } from "@/lib/types";
@@ -17,7 +17,7 @@ import {
   SALES_DOC_PANEL_TITLE,
 } from "@/lib/sales";
 import { ReceiptDialog } from "./receipt-dialog";
-import { emitSalesDocument, voidSalesDocument, deleteSalesDocument, deleteReceipt } from "../actions";
+import { emitSalesDocument, voidSalesDocument, deleteSalesDocument, deleteReceipt, convertSalesDocument } from "../actions";
 
 export default async function VentaDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const profile = await requireModule("ventas", ["administracion", "admin"]);
@@ -65,7 +65,7 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
             ) : null}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap justify-end">
           <Link
             href={`/ventas/${doc.id}/imprimir`}
             target="_blank"
@@ -73,6 +73,28 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
           >
             <Printer size={14} /> Imprimir
           </Link>
+          {doc.doc_type === "PROFORMA" ? (
+            <form
+              action={async () => {
+                "use server";
+                const result = await convertSalesDocument(doc.id, "REMISION");
+                if (result.id) redirect(`/ventas/${result.id}`);
+              }}
+            >
+              <Button variant="secondary" type="submit">→ Generar Remisión</Button>
+            </form>
+          ) : null}
+          {doc.doc_type === "PROFORMA" || doc.doc_type === "REMISION" ? (
+            <form
+              action={async () => {
+                "use server";
+                const result = await convertSalesDocument(doc.id, "FACTURA");
+                if (result.id) redirect(`/ventas/${result.id}`);
+              }}
+            >
+              <Button variant="secondary" type="submit">→ Generar Factura</Button>
+            </form>
+          ) : null}
           {isDraft ? (
             <Link href={`/ventas/${doc.id}/editar`}>
               <Button variant="secondary">Editar</Button>
