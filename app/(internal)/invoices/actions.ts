@@ -145,3 +145,137 @@ export async function createInvoice(formData: FormData) {
   revalidatePath(`/invoices/${invoice.id}`);
   return { error: null, id: invoice.id as string, autoMatched: autoMatchedOrderId !== null };
 }
+
+export type OrderCandidate = {
+  id: string;
+  code: string;
+  product: string;
+  provider_id: string;
+  provider_name: string;
+  total_price: number;
+  saldo: number;
+  currency: string;
+  status: string;
+  authorized_at: string;
+  score: number;
+  scoreLabel: string;
+};
+
+/**
+ * Busca órdenes de compra candidatas para vincular manualmente a una factura
+ * PENDIENTE. Scoring fuzzy:
+ *   3 = mismo proveedor + monto dentro de ±20%
+ *   2 = mismo proveedor (cualquier monto)
+ *   1 = proveedor distinto pero monto muy cercano (±5%) → posible error de LLM
+ */
+export async function getCandidateOrders(invoiceId: string): Promise<{
+  error: string | null;
+  candidates: OrderCandidate[];
+  invoiceProvider: string;
+  invoiceTotal: number;
+  invoiceCurrency: string;
+}> {
+  const profile = await requireProfile(["administracion", "admin"]);
+  const supabase = await createClient();
+  const empresaId = profile.empresa_id;
+
+  const { data: invoice } = await supabase
+    .from("invoices")
+    .select("id, provider_id, total, currency")
+    .eq("id", invoiceId)
+    .eq("empresa_id", empresaId)
+    .single();
+  if (!invoice) return { error: "Factura no encontrada.", candidates: [], invoiceProvider: "", invoiceTotal: 0, invoiceCurrency: "PYG" };
+
+  const { data: providerRow } = await supabase.from("providers").select("name").eq("id", invoice.provider_id).single();
+
+  const { data: orders } = await supabase
+    .from("authorized_orders")
+    .select("id, code, product, provider_id, provider_name, total_price, facturado_amount, currency, status, authorized_at")
+    .eq("empresa_id", empresaId)
+    .order("authorized_at", { ascending: false });
+
+  const target = invoice.total as number;
+  const candidates: OrderCandidate[] = [];
+
+  for (const o of orders ?? []) {
+    const saldo = (o.total_price as number) - ((o.facturado_amount as number) ?? 0);
+    if (saldo <= 0) continue;
+
+    const sameProvider = o.provider_id === invoice.provider_id;
+    const ref = Math.max(saldo, target);
+    const diff = Math.abs(saldo - target) / ref;
+    const within20 = diff <= 0.20;
+    const within5 = diff <= 0.05;
+
+    let score = 0;
+    let scoreLabel = "";
+    if (sameProvider && within20) { score = 3; scoreLabel = "Coincidencia alta"; }
+    else if (sameProvider) { score = 2; scoreLabel = "Mismo proveedor"; }
+    else if (within5) { score = 1; scoreLabel = "Monto similar"; }
+
+    if (score === 0) continue;
+
+    candidates.push({
+      id: o.id as string,
+      code: o.code as string,
+      product: o.product as string,
+      provider_id: o.provider_id as string,
+      provider_name: o.provider_name as string,
+      total_price: o.total_price as number,
+      saldo,
+      currency: o.currency as string,
+      status: o.status as string,
+      authorized_at: o.authorized_at as string,
+      score,
+      scoreLabel,
+    });
+  }
+
+  candidates.sort((a, b) => b.score - a.score || new Date(b.authorized_at).getTime() - new Date(a.authorized_at).getTime());
+
+  return {
+    error: null,
+    candidates: candidates.slice(0, 25),
+    invoiceProvider: providerRow?.name ?? "—",
+    invoiceTotal: target,
+    invoiceCurrency: invoice.currency as string,
+  };
+}
+
+/** Vincula manualmente una factura PENDIENTE a una OC y la pasa a MATCH. */
+export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Promise<{ error: string | null }> {
+  const profile = await requireProfile(["administracion", "admin"]);
+  const supabase = await createClient();
+  const empresaId = profile.empresa_id;
+
+  const { data: invoice } = await supabase
+    .from("invoices")
+    .select("id, status")
+    .eq("id", invoiceId)
+    .eq("empresa_id", empresaId)
+    .single();
+  if (!invoice) return { error: "Factura no encontrada." };
+  if (invoice.status !== "PENDIENTE") return { error: "Solo se pueden vincular facturas en estado Pendiente." };
+
+  const { data: existing } = await supabase
+    .from("invoice_order_matches")
+    .select("id")
+    .eq("invoice_id", invoiceId)
+    .maybeSingle();
+  if (existing) return { error: "Esta factura ya tiene una OC vinculada." };
+
+  const { error: matchError } = await supabase
+    .from("invoice_order_matches")
+    .insert({ invoice_id: invoiceId, authorized_order_id: orderId, empresa_id: empresaId });
+  if (matchError) return { error: "No se pudo vincular: " + matchError.message };
+
+  await supabase.from("invoices").update({ status: "MATCH" }).eq("id", invoiceId).eq("empresa_id", empresaId);
+
+  await logAudit(supabase, { action: "invoice.order_manual_matched", invoiceId, authorizedOrderId: orderId });
+
+  revalidatePath("/invoices");
+  revalidatePath(`/invoices/${invoiceId}`);
+  revalidatePath(`/orders/${orderId}`);
+  return { error: null };
+}
