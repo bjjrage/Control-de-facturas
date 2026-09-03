@@ -9,7 +9,6 @@ import { formatDate, formatMoney } from "@/lib/format";
 import { currentMonth, monthRange } from "@/lib/month-range";
 import { InvoiceDialog } from "./invoice-dialog";
 import { MonthFilter } from "./month-filter";
-import { ReconcileButton } from "./reconcile-button";
 import { DeleteInvoiceButton } from "./[id]/delete-button";
 import { BackButton } from "@/components/ui/back-button";
 import { LinkOrderDialog } from "./link-order-dialog";
@@ -199,7 +198,6 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
                 <span className="text-[12px] text-[var(--muted)]">({g.invoices.length})</span>
               </div>
               <div className="flex items-center gap-3">
-                {g.status === "PENDIENTE" ? <ReconcileButton /> : null}
                 <div className="text-[12px] text-[var(--muted)]">
                   {sumByCurrency(g.invoices)
                     .map(([currency, total]) => formatMoney(total, currency as Invoice["currency"]))
