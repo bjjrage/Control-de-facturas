@@ -67,6 +67,13 @@ export interface Empresa {
   modulo_compras: boolean;
   modulo_ventas: boolean;
   created_at: string;
+  ruc: string | null;
+  direccion: string | null;
+  telefono: string | null;
+  email_empresa: string | null;
+  template_proforma: string | null;
+  template_remision: string | null;
+  template_factura: string | null;
 }
 
 export interface Profile {

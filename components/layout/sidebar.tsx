@@ -19,6 +19,7 @@ import {
   Contact,
   FileClock,
   ClipboardList,
+  Settings,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -56,6 +57,7 @@ const VENTAS_ITEMS: NavItem[] = [
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
+  { href: "/configuracion", label: "Configuración", roles: ["admin"], icon: Settings },
   { href: "/users", label: "Usuarios", roles: ["admin"], icon: Users },
 ];
 
