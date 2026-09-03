@@ -89,9 +89,11 @@ export default async function DashboardPage() {
     stats.push({ label: "Con ofertas para elegir", value: awaitingSelection ?? 0, href: "/rfqs", icon: Tag, color: "teal" });
   }
   if (showInvoiceStats) {
-    stats.push({ label: "Facturas pendientes", value: pending ?? 0, href: "/invoices", icon: FileText, color: "purple" });
-    stats.push({ label: "Requieren revisión", value: review ?? 0, href: "/invoices", icon: AlertCircle, color: "orange" });
-    stats.push({ label: "Aptas para pago", value: apto ?? 0, href: "/invoices", icon: CheckCircle2, color: "ok" });
+    // month=all: el KPI cuenta todas las facturas del estado sin importar la
+    // fecha, así que el link debe llevar a la misma vista (sin filtro de mes).
+    stats.push({ label: "Facturas pendientes", value: pending ?? 0, href: "/invoices?month=all&status=PENDIENTE", icon: FileText, color: "purple" });
+    stats.push({ label: "Requieren revisión", value: review ?? 0, href: "/invoices?month=all&status=REQUIERE_REVISION", icon: AlertCircle, color: "orange" });
+    stats.push({ label: "Aptas para pago", value: apto ?? 0, href: "/invoices?month=all&status=APTO_PARA_PAGO", icon: CheckCircle2, color: "ok" });
   }
 
   return (
