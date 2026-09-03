@@ -52,8 +52,8 @@ export function MonthFilter({ month }: { month: string | null }) {
 
   function go(next: string | "all") {
     const p = new URLSearchParams(params.toString());
-    if (next === "all") p.delete("month");
-    else p.set("month", next);
+    // "all" explícito: sin el parámetro, la página asume el mes actual.
+    p.set("month", next);
     setOpen(false);
     router.push(`/invoices?${p.toString()}`);
   }
@@ -64,6 +64,8 @@ export function MonthFilter({ month }: { month: string | null }) {
 
   return (
     <div ref={wrapRef} className="relative">
+      {/* Preserva el mes cuando se envía el form de filtros (q/proveedor/estado). */}
+      <input type="hidden" name="month" value={selected ?? "all"} />
       <label className="text-[12px] font-medium text-[var(--muted)] mb-1 block">Mes</label>
       <div className="flex items-center gap-1">
         <Button
