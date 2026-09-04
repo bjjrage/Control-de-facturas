@@ -24,12 +24,14 @@ const OUTCOME_TONE: Record<InvoiceJobOutcome, "ok" | "warn" | "error"> = {
   matched: "ok",
   created_unmatched: "warn",
   needs_manual: "warn",
+  duplicate: "warn",
   error: "error",
 };
 const OUTCOME_LABEL: Record<InvoiceJobOutcome, string> = {
   matched: "Conciliada",
   created_unmatched: "Cargada sin match",
   needs_manual: "Revisar a mano",
+  duplicate: "Duplicada",
   error: "Error",
 };
 

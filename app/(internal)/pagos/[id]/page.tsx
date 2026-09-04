@@ -77,7 +77,20 @@ export default async function PaymentOrderDetailPage({ params }: { params: Promi
             {op.executed_at ? ` · Ejecutada ${formatDate(op.executed_at)}` : ""}
           </p>
         </div>
-        {op.status === "EMITIDA" ? <ExecuteButton opId={op.id} /> : null}
+        <div className="flex items-center gap-2">
+          <a
+            href={`/pagos/${op.id}/imprimir`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 h-8 rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 text-[12px] font-medium text-[var(--foreground)] hover:bg-[var(--panel-2)] transition-colors"
+          >
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M4 5V2h8v3M4 11H2V7h12v4h-2M4 11v3h8v-3M4 11h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Ver OP
+          </a>
+          {op.status === "EMITIDA" ? <ExecuteButton opId={op.id} /> : null}
+        </div>
       </div>
 
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
