@@ -136,7 +136,7 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
                     </Link>
                   </td>
                   <td>
-                    <Badge tone={r.quote_type === "COT" ? "neutral" : "ok"}>
+                    <Badge tone={r.quote_type === "COT" ? "warn" : "ok"}>
                       {r.quote_type === "COT" ? "Cotización" : "RFQ"}
                     </Badge>
                   </td>
