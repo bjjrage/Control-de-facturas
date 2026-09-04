@@ -11,6 +11,7 @@ export function QuoteForm({ token, quantity, unit }: { token: string; quantity: 
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
   const [unitPrice, setUnitPrice] = useState("");
+  const [paymentType, setPaymentType] = useState<"contado" | "plazo">("plazo");
 
   const qtyLabel = `${Number.isInteger(Number(quantity)) ? formatNumber(quantity, 0) : formatNumber(quantity, 2)} ${unit}`;
 
@@ -93,17 +94,49 @@ export function QuoteForm({ token, quantity, unit }: { token: string; quantity: 
           <p className="text-[11px] text-[var(--muted)] mt-1">Precio unitario × {qtyLabel}</p>
         </div>
         <div>
-          <Label htmlFor="delivery_time">Plazo de entrega</Label>
-          <Input id="delivery_time" name="delivery_time" required />
+          <Label>Plazo de entrega</Label>
+          <div className="flex gap-2">
+            <Input name="delivery_time_value" type="number" min="1" step="1" required className="w-24" placeholder="15" />
+            <Select name="delivery_time_unit" defaultValue="dias">
+              <option value="dias">días</option>
+              <option value="semanas">semanas</option>
+              <option value="meses">meses</option>
+            </Select>
+          </div>
         </div>
         <div>
-          <Label htmlFor="offer_validity">Validez de la oferta</Label>
-          <Input id="offer_validity" name="offer_validity" required />
+          <Label>Validez de la oferta</Label>
+          <div className="flex gap-2">
+            <Input name="offer_validity_value" type="number" min="1" step="1" required className="w-24" placeholder="30" />
+            <Select name="offer_validity_unit" defaultValue="dias">
+              <option value="dias">días</option>
+              <option value="semanas">semanas</option>
+              <option value="meses">meses</option>
+            </Select>
+          </div>
         </div>
       </div>
       <div>
-        <Label htmlFor="payment_terms">Condiciones de pago</Label>
-        <Input id="payment_terms" name="payment_terms" />
+        <Label>Condiciones de pago</Label>
+        <div className="flex gap-2">
+          <Select
+            name="payment_terms_type"
+            value={paymentType}
+            onChange={(e) => setPaymentType(e.target.value as "contado" | "plazo")}
+          >
+            <option value="contado">Contado</option>
+            <option value="plazo">A plazo</option>
+          </Select>
+          {paymentType === "plazo" ? (
+            <>
+              <Input name="payment_terms_value" type="number" min="1" step="1" required className="w-24" placeholder="30" />
+              <Select name="payment_terms_unit" defaultValue="dias">
+                <option value="dias">días</option>
+                <option value="meses">meses</option>
+              </Select>
+            </>
+          ) : null}
+        </div>
       </div>
       <div className="flex gap-4">
         <label className="flex items-center gap-2 text-[12px]">

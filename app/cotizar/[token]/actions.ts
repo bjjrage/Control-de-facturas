@@ -37,8 +37,13 @@ export async function submitQuote(token: string, formData: FormData) {
   // lo que mande el cliente.
   const totalPrice = Number.isFinite(unitPrice) ? Math.round(unitPrice * rfq.quantity * 100) / 100 : NaN;
   const currency = str(formData, "currency");
-  const deliveryTime = str(formData, "delivery_time");
-  const offerValidity = str(formData, "offer_validity");
+  const deliveryTimeValue = formData.get("delivery_time_value");
+  const deliveryTimeUnit = formData.get("delivery_time_unit") as string | null;
+  const deliveryTime = deliveryTimeValue ? `${deliveryTimeValue} ${deliveryTimeUnit ?? "dias"}` : null;
+
+  const offerValidityValue = formData.get("offer_validity_value");
+  const offerValidityUnit = formData.get("offer_validity_unit") as string | null;
+  const offerValidity = offerValidityValue ? `${offerValidityValue} ${offerValidityUnit ?? "dias"}` : null;
   const file = formData.get("pdf") as File | null;
 
   if (!budgetNumber || !currency || !deliveryTime || !offerValidity) {
@@ -116,7 +121,11 @@ export async function submitQuote(token: string, formData: FormData) {
     vat_included: formData.get("vat_included") === "on",
     delivery_time: deliveryTime,
     offer_validity: offerValidity,
-    payment_terms: str(formData, "payment_terms"),
+    payment_terms: formData.get("payment_terms_type") === "contado"
+      ? "Contado"
+      : formData.get("payment_terms_value")
+        ? `${formData.get("payment_terms_value")} ${formData.get("payment_terms_unit") ?? "dias"}`
+        : null,
     observations: str(formData, "observations"),
     pdf_attachment_id: attachmentId,
   });
