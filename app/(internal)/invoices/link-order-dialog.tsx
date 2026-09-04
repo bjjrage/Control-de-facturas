@@ -27,9 +27,11 @@ export function LinkOrderDialog({
   } | null>(null);
   const [q, setQ] = useState("");
   const [linking, setLinking] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   async function handleOpenChange(isOpen: boolean) {
     setOpen(isOpen);
+    if (!isOpen) { setShowAll(false); setQ(""); }
     if (isOpen && result === null) {
       setLoading(true);
       const res = await getCandidateOrders(invoiceId);
@@ -49,12 +51,19 @@ export function LinkOrderDialog({
   }
 
   const candidates = result?.candidates ?? [];
+  const sameProviderCandidates = candidates.filter((c) => c.score >= 2);
+  const otherCandidates = candidates.filter((c) => c.score < 2);
+
+  // Por defecto mostrar solo mismo proveedor; mostrar todas si no hay o el user lo pide
+  const noSameProvider = sameProviderCandidates.length === 0;
+  const visibleBase = (showAll || noSameProvider) ? candidates : sameProviderCandidates;
+
   const filtered = q.trim()
     ? candidates.filter((c) => {
         const t = q.toLowerCase();
         return c.code.toLowerCase().includes(t) || c.product.toLowerCase().includes(t) || c.provider_name.toLowerCase().includes(t);
       })
-    : candidates;
+    : visibleBase;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -127,9 +136,24 @@ export function LinkOrderDialog({
                   ))
                 )}
               </div>
-              <p className="text-[11px] text-[var(--muted)]">
-                {candidates.length} orden{candidates.length !== 1 ? "es" : ""} con saldo · Las resaltadas coinciden con proveedor o monto.
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] text-[var(--muted)]">
+                  {noSameProvider
+                    ? `Sin OCs del mismo proveedor · ${candidates.length} con saldo en total`
+                    : !showAll && !q.trim()
+                      ? `${sameProviderCandidates.length} OC${sameProviderCandidates.length !== 1 ? "s" : ""} del mismo proveedor`
+                      : `${candidates.length} orden${candidates.length !== 1 ? "es" : ""} con saldo`}
+                </p>
+                {!noSameProvider && otherCandidates.length > 0 && !q.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAll((v) => !v)}
+                    className="text-[11px] text-[var(--primary)] hover:underline shrink-0"
+                  >
+                    {showAll ? "Ver solo este proveedor" : `Ver también ${otherCandidates.length} de otros proveedores`}
+                  </button>
+                )}
+              </div>
             </>
           )}
         </div>
