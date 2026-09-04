@@ -120,7 +120,7 @@ export default async function OrdersPage({
                   <td>
                     {orderRemaining(o.total_price, o.facturado_amount) > 0
                       ? <Badge tone="ok">Abierta</Badge>
-                      : <Badge tone="neutral">Cerrada</Badge>}
+                      : <Badge tone="error">Cerrada</Badge>}
                   </td>
                   <td className="text-[var(--muted)]">{formatDate(o.authorized_at)}</td>
                 </tr>
