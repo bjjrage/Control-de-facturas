@@ -53,11 +53,11 @@ const COMPRAS_ITEMS: NavItem[] = [
 ];
 
 const VENTAS_ITEMS: NavItem[] = [
+  { href: "/clientes", label: "Clientes", roles: ["administracion", "admin"], icon: Contact, module: "ventas" },
   { href: "/proformas", label: "Proformas", roles: ["administracion", "admin"], icon: FileClock, module: "ventas" },
   { href: "/remisiones", label: "Remisiones", roles: ["administracion", "admin"], icon: ClipboardList, module: "ventas" },
   { href: "/facturas-venta", label: "Facturas de Venta", roles: ["administracion", "admin"], icon: ReceiptText, module: "ventas" },
   { href: "/cobros", label: "Cobros", roles: ["administracion", "admin"], icon: Banknote, module: "ventas" },
-  { href: "/clientes", label: "Clientes", roles: ["administracion", "admin"], icon: Contact, module: "ventas" },
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
