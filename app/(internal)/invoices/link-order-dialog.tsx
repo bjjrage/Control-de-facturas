@@ -114,7 +114,7 @@ export function LinkOrderDialog({
                     >
                       <Badge tone={SCORE_TONE[c.score]}>{c.scoreLabel}</Badge>
                       <div className="flex-1 min-w-0 text-[12px]">
-                        <div className="font-medium truncate">{c.code} — {c.product}</div>
+                        <div className="font-medium">{c.code} — {c.product}</div>
                         <div className="text-[var(--muted)] truncate">
                           saldo <span className="num">{formatMoney(c.saldo, c.currency as never)}</span> · {formatDate(c.authorized_at)}
                         </div>
