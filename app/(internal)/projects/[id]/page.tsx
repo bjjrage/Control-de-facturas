@@ -9,6 +9,7 @@ import { AddBudgetItemForm } from "./add-budget-item-form";
 import { AddExecutionEntryForm } from "./add-execution-entry-form";
 import { ProjectStatusSelect } from "./project-status-select";
 import { ProjectGantt } from "./project-gantt";
+import { ProjectReports } from "./reports";
 
 const TABS = [
   { key: "presupuesto", label: "Presupuesto" },
@@ -239,9 +240,7 @@ export default async function ProjectDetailPage({
       ) : null}
 
       {tab === "informes" ? (
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] py-12 text-center text-[13px] text-[var(--muted)]">
-          Gráficas y exportes — próximamente (Checkpoint 5).
-        </div>
+        <ProjectReports project={project} budgetItems={items} execEntries={entries} orders={ocs} />
       ) : null}
     </div>
   );
