@@ -128,7 +128,10 @@ export async function addBudgetItem(projectId: string, formData: FormData): Prom
   return { error: null };
 }
 
-export async function addExecutionEntry(projectId: string, formData: FormData): Promise<{ error: string | null }> {
+export async function addExecutionEntry(
+  projectId: string,
+  formData: FormData
+): Promise<{ error: string | null; entryId?: string }> {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
   const empresaId = profile.empresa_id;
@@ -149,18 +152,52 @@ export async function addExecutionEntry(projectId: string, formData: FormData): 
   if (!budgetItemId) return { error: "Seleccioná un ítem del presupuesto." };
   if (!(quantityExecuted > 0)) return { error: "La cantidad ejecutada debe ser mayor a cero." };
 
-  const { error } = await supabase.from("execution_entries").insert({
+  const { data: entry, error } = await supabase.from("execution_entries").insert({
     project_id: projectId,
     budget_item_id: budgetItemId,
     entry_date: entryDate,
     quantity_executed: quantityExecuted,
     notes,
     recorded_by: profile.id,
-  });
+  }).select("id").single();
 
-  if (error) return { error: "No se pudo registrar el avance." };
+  if (error || !entry) return { error: "No se pudo registrar el avance." };
 
   revalidatePath(`/projects/${projectId}`);
+  return { error: null, entryId: entry.id as string };
+}
+
+/**
+ * Persiste las rutas de fotos DESPUÉS de que el cliente ya las subió a
+ * Storage (bucket execution-photos, ruta {project_id}/{entry_id}/{n}.jpg).
+ * Separado de addExecutionEntry porque el entry_id recién existe después del
+ * insert — el flujo real es: insertar entrada -> subir fotos -> guardar rutas.
+ * Si esto falla, la entrada de avance ya está guardada igual; solo se pierden
+ * las fotos, nunca el dato de ejecución.
+ */
+export async function updateExecutionEntryPhotos(
+  entryId: string,
+  photoPaths: string[]
+): Promise<{ error: string | null }> {
+  await requirePlan("pro", ["administracion", "admin"]);
+  const supabase = await createClient();
+
+  // execution_entries no tiene empresa_id propio: RLS ya filtra por
+  // project_id IN (SELECT id FROM projects WHERE empresa_id = current_empresa_id()).
+  const { data: entry } = await supabase
+    .from("execution_entries")
+    .select("id")
+    .eq("id", entryId)
+    .single();
+  if (!entry) return { error: "Entrada no encontrada." };
+
+  const { error } = await supabase
+    .from("execution_entries")
+    .update({ photo_paths: photoPaths })
+    .eq("id", entryId);
+
+  if (error) return { error: "No se pudieron guardar las fotos." };
+
   return { error: null };
 }
 

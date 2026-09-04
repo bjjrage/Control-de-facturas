@@ -427,6 +427,7 @@ export interface ExecutionEntry {
   entry_date: string;
   quantity_executed: number;
   notes: string | null;
+  photo_paths: string[];
   recorded_by: string | null;
   created_at: string;
 }

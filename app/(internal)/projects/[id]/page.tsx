@@ -11,6 +11,7 @@ import { AddExecutionEntryForm } from "./add-execution-entry-form";
 import { ProjectStatusSelect } from "./project-status-select";
 import { ProjectGantt } from "./project-gantt";
 import { ProjectReports } from "./reports";
+import { ExecutionPhotosLightbox } from "./execution-photos-lightbox";
 
 const TABS = [
   { key: "presupuesto", label: "Presupuesto" },
@@ -55,6 +56,18 @@ export default async function ProjectDetailPage({
   const execByItem = new Map<string, number>();
   for (const e of entries) {
     execByItem.set(e.budget_item_id, (execByItem.get(e.budget_item_id) ?? 0) + e.quantity_executed);
+  }
+
+  // URLs firmadas para las fotos — el bucket es privado, no hay URL pública.
+  const allPhotoPaths = entries.flatMap((e) => e.photo_paths);
+  const photoUrlByPath = new Map<string, string>();
+  if (allPhotoPaths.length > 0) {
+    const { data: signed } = await supabase.storage
+      .from("execution-photos")
+      .createSignedUrls(allPhotoPaths, 3600);
+    for (const s of signed ?? []) {
+      if (s.signedUrl) photoUrlByPath.set(s.path ?? "", s.signedUrl);
+    }
   }
 
   const presupuestoTotal = items.reduce((s, i) => s + i.subtotal, 0);
@@ -186,20 +199,23 @@ export default async function ProjectDetailPage({
                   <th>Ítem</th>
                   <th className="num">Cant. ejecutada</th>
                   <th>Notas</th>
+                  <th>Fotos</th>
                 </tr>
               </thead>
               <tbody>
                 {entries.length === 0 ? (
-                  <tr><td colSpan={4} className="text-center text-[var(--muted)] py-6">Sin avance registrado.</td></tr>
+                  <tr><td colSpan={5} className="text-center text-[var(--muted)] py-6">Sin avance registrado.</td></tr>
                 ) : (
                   entries.map((e) => {
                     const item = items.find((i) => i.id === e.budget_item_id);
+                    const photoUrls = e.photo_paths.map((p) => photoUrlByPath.get(p)).filter((u): u is string => !!u);
                     return (
                       <tr key={e.id}>
                         <td>{formatDate(e.entry_date)}</td>
                         <td>{item ? `${item.code} — ${item.description}` : "—"}</td>
                         <td className="num">{e.quantity_executed} {item?.unit ?? ""}</td>
                         <td className="text-[var(--muted)]">{e.notes ?? "—"}</td>
+                        <td><ExecutionPhotosLightbox urls={photoUrls} /></td>
                       </tr>
                     );
                   })
