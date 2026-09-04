@@ -75,19 +75,21 @@ export async function SalesList({
 
   return (
     <div className="max-w-5xl space-y-5">
-      <BackButton />
-      <div className="flex items-center justify-between -mt-4">
-        <h1 className="text-[17px] font-semibold">{title}</h1>
-        <div className="flex gap-2">
-          <Link
-            href="/ventas/export"
-            className="inline-flex items-center justify-center rounded-md border px-3 h-8 text-[13px] font-medium bg-[var(--panel)] hover:bg-[var(--hover)] border-[var(--border)]"
-          >
-            Exportar CSV
-          </Link>
-          <Link href={`${basePath}/nueva`}>
-            <Button>{newLabel}</Button>
-          </Link>
+      <div>
+        <BackButton />
+        <div className="flex items-center justify-between mt-1">
+          <h1 className="text-[17px] font-semibold">{title}</h1>
+          <div className="flex gap-2">
+            <Link
+              href="/ventas/export"
+              className="inline-flex items-center justify-center rounded-md border px-3 h-8 text-[13px] font-medium bg-[var(--panel)] hover:bg-[var(--hover)] border-[var(--border)]"
+            >
+              Exportar CSV
+            </Link>
+            <Link href={`${basePath}/nueva`}>
+              <Button>{newLabel}</Button>
+            </Link>
+          </div>
         </div>
       </div>
 
