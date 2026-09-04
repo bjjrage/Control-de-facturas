@@ -32,28 +32,89 @@ export function ProjectReports({
     [project.code, presupuestoTotal, comprasTotal]
   );
 
-  // Curva S: avance ponderado por costo, acumulado en el tiempo. Sumar
-  // quantity_executed crudo entre ítems mezclaría unidades distintas (m2, m3,
-  // u) — no es una medida válida. Se pondera cada entrada por el peso en
-  // costo del ítem dentro del presupuesto total.
-  const sCurveData = useMemo(() => {
-    if (presupuestoTotal <= 0) return [];
-    const itemById = new Map(budgetItems.map((i) => [i.id, i]));
-    const contribByDate = new Map<string, number>();
-    for (const e of execEntries) {
-      const item = itemById.get(e.budget_item_id);
-      if (!item || !item.quantity || item.quantity <= 0) continue;
-      const fractionOfItem = Math.min(1, e.quantity_executed / item.quantity);
-      const contribution = (fractionOfItem * item.subtotal) / presupuestoTotal;
-      contribByDate.set(e.entry_date, (contribByDate.get(e.entry_date) ?? 0) + contribution);
+  // Curva S real: planificado (derivado de las fechas del Gantt, repartido
+  // linealmente entre start_date y end_date de cada ítem) vs real (costo de
+  // lo efectivamente ejecutado, quantity_executed * unit_price). La distancia
+  // vertical entre las dos curvas es el atraso o adelanto de obra — esa
+  // comparación es lo que hace que sea una Curva S de verdad, no solo un
+  // acumulado de avance.
+  const DAY_MS = 86400000;
+  const sCurve = useMemo(() => {
+    const withDates = budgetItems.filter((i) => i.start_date && i.end_date);
+    if (withDates.length === 0) return { series: [] as { date: string; planificado: number; real: number | null }[], summary: null };
+
+    const parseDate = (s: string) => new Date(`${s}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const minStart = withDates.reduce<Date>((min, i) => {
+      const d = parseDate(i.start_date!);
+      return d < min ? d : min;
+    }, parseDate(withDates[0].start_date!));
+    const maxEndRaw = withDates.reduce<Date>((max, i) => {
+      const d = parseDate(i.end_date!);
+      return d > max ? d : max;
+    }, parseDate(withDates[0].end_date!));
+    const axisEnd = maxEndRaw > today ? maxEndRaw : today;
+
+    const axisDates: Date[] = [];
+    for (let t = minStart.getTime(); t <= axisEnd.getTime(); t += 7 * DAY_MS) {
+      axisDates.push(new Date(t));
     }
-    const dates = [...contribByDate.keys()].sort();
-    let acc = 0;
-    return dates.map((d) => {
-      acc += contribByDate.get(d)!;
-      return { date: formatDate(d), avance: Math.round(Math.min(1, acc) * 1000) / 10 };
-    });
-  }, [budgetItems, execEntries, presupuestoTotal]);
+    if (axisDates.length === 0 || axisDates[axisDates.length - 1].getTime() !== axisEnd.getTime()) {
+      axisDates.push(axisEnd);
+    }
+
+    function planificadoAt(d: Date): number {
+      let total = 0;
+      for (const item of withDates) {
+        const s = parseDate(item.start_date!);
+        const e = parseDate(item.end_date!);
+        const diasTotales = Math.max(1, Math.round((e.getTime() - s.getTime()) / DAY_MS));
+        const diasCorridos = Math.min(diasTotales, Math.max(0, Math.round((d.getTime() - s.getTime()) / DAY_MS)));
+        total += item.subtotal * (diasCorridos / diasTotales);
+      }
+      return total;
+    }
+
+    const itemById = new Map(budgetItems.map((i) => [i.id, i]));
+    const realEvents = execEntries
+      .map((e) => {
+        const item = itemById.get(e.budget_item_id);
+        if (!item || item.unit_price == null) return null;
+        return { date: parseDate(e.entry_date), cost: e.quantity_executed * item.unit_price };
+      })
+      .filter((x): x is { date: Date; cost: number } => x !== null)
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    function realAt(d: Date): number {
+      let total = 0;
+      for (const ev of realEvents) {
+        if (ev.date > d) break;
+        total += ev.cost;
+      }
+      return total;
+    }
+
+    // La línea Real se corta en hoy — no se proyecta hacia adelante.
+    const series = axisDates.map((d) => ({
+      date: formatDate(d.toISOString().slice(0, 10)),
+      planificado: Math.round(planificadoAt(d)),
+      real: d <= today ? Math.round(realAt(d)) : null,
+    }));
+
+    const lastReal = [...series].reverse().find((p) => p.real !== null);
+    const summary = lastReal
+      ? {
+          planificado: lastReal.planificado,
+          real: lastReal.real as number,
+          diff: (lastReal.real as number) - lastReal.planificado,
+          pct: lastReal.planificado > 0 ? Math.round((((lastReal.real as number) - lastReal.planificado) / lastReal.planificado) * 1000) / 10 : 0,
+        }
+      : null;
+
+    return { series, summary };
+  }, [budgetItems, execEntries]);
 
   const pieData = useMemo(
     () =>
@@ -138,6 +199,45 @@ export function ProjectReports({
         </Button>
       </div>
 
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+        <div className="text-[13px] font-semibold mb-3">Curva S — avance planificado vs real</div>
+        {sCurve.series.length === 0 ? (
+          <div className="h-[240px] flex flex-col items-center justify-center gap-2 text-[12px] text-[var(--muted)]">
+            <span>Cargá fechas de inicio y fin en los ítems del presupuesto para ver la Curva S.</span>
+          </div>
+        ) : (
+          <>
+            <ResponsiveContainer width="100%" height={240}>
+              <LineChart data={sCurve.series}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="var(--muted)" />
+                <YAxis
+                  tick={{ fontSize: 11 }}
+                  stroke="var(--muted)"
+                  width={60}
+                  tickFormatter={(v: number) => `Gs ${(v / 1_000_000).toFixed(1)}M`}
+                />
+                <Tooltip
+                  contentStyle={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+                  formatter={(v, name) => [v == null ? "—" : formatMoney(Number(v), "PYG"), name]}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Line type="monotone" dataKey="planificado" name="Planificado" stroke="#8a8278" strokeDasharray="5 4" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="real" name="Real" stroke="#1d4ed8" strokeWidth={2} dot={false} connectNulls={false} />
+              </LineChart>
+            </ResponsiveContainer>
+            {sCurve.summary ? (
+              <p className={`text-[12px] mt-2 ${sCurve.summary.diff < 0 ? "text-[var(--error)]" : "text-[var(--ok)]"}`}>
+                Al {formatDate(new Date().toISOString().slice(0, 10))}: planificado {formatMoney(sCurve.summary.planificado, "PYG")} ·
+                {" "}ejecutado {formatMoney(sCurve.summary.real, "PYG")} ·{" "}
+                {sCurve.summary.diff < 0 ? "atraso" : "adelanto"} de {formatMoney(Math.abs(sCurve.summary.diff), "PYG")}
+                {" "}({Math.abs(sCurve.summary.pct)}%)
+              </p>
+            ) : null}
+          </>
+        )}
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
           <div className="text-[13px] font-semibold mb-3">Presupuesto vs. compras</div>
@@ -180,30 +280,6 @@ export function ProjectReports({
           )}
         </div>
 
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 col-span-2">
-          <div className="text-[13px] font-semibold mb-1">Avance acumulado (curva S)</div>
-          <div className="text-[11px] text-[var(--muted)] mb-3">
-            Ponderado por costo — no suma cantidades crudas entre ítems de distinta unidad.
-          </div>
-          {sCurveData.length === 0 ? (
-            <div className="h-[220px] flex items-center justify-center text-[12px] text-[var(--muted)]">
-              Sin avance registrado todavía.
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={sCurveData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="var(--muted)" />
-                <YAxis tick={{ fontSize: 11 }} stroke="var(--muted)" width={40} unit="%" domain={[0, 100]} />
-                <Tooltip
-                  contentStyle={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-                  formatter={(v) => `${v}%`}
-                />
-                <Line type="monotone" dataKey="avance" name="Avance" stroke="#16a34a" strokeWidth={2} dot={{ r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </div>
       </div>
     </div>
   );
