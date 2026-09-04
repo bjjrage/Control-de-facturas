@@ -182,6 +182,20 @@ async function processJob(job: InvoiceJob) {
 async function main() {
   log(`worker arrancado — polling cada ${POLL_MS}ms`);
   while (!stopping) {
+    // Reencolar jobs huérfanos antes de reclamar uno nuevo.
+    // Si el worker murió a mitad de un job, locked_at queda viejo; esta llamada
+    // los devuelve a 'queued' (o a 'failed' si ya agotaron MAX_ATTEMPTS).
+    try {
+      const { data: stale, error: staleErr } = await db.rpc("requeue_stale_invoice_jobs", {
+        timeout_minutes: 30,  // locked_at no se actualiza durante el procesamiento → este es el tiempo máximo de un job
+        max_attempts: MAX_ATTEMPTS,
+      });
+      if (staleErr) log("requeue_stale error:", staleErr.message);
+      else if (stale && stale > 0) log(`requeue_stale: ${stale} job(s) recuperados`);
+    } catch (e) {
+      log("requeue_stale throw:", (e as Error).message);
+    }
+
     let job: InvoiceJob | null = null;
     try {
       const { data, error } = await db.rpc("claim_invoice_job");
