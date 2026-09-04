@@ -1,77 +1,128 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { roundCents, OVERBILL_TOLERANCE_PCT } from "./reconciliation";
+import { roundCents } from "./reconciliation";
 import { logAudit } from "./audit";
 
 /**
- * Auto-match para entregas parciales (1 factura -> 1 OC). De las OC del
- * proveedor con saldo sin facturar, se elige por prioridad:
+ * Auto-match 2-de-3: Proveedor (base) + N° OC + Producto.
  *
- *   1. La única cuyo SALDO coincide exacto con el total de la factura
- *      (entrega que completa la OC, o factura única = monto de la OC).
- *   2. La única cuyo MONTO TOTAL coincide exacto y todavía no tiene facturas
- *      (el caso clásico factura = orden).
- *   3. Si hay una sola OC con saldo y la factura entra (saldo + tolerancia).
+ * Con el proveedor ya identificado por RUC, busca OCs abiertas de ese proveedor
+ * y puntúa cada una:
+ *   +1 si el código de OC aparece textualmente en order_reference de la factura
+ *   +1 si el producto de la OC aparece en product_description de la factura
  *
- * Cualquier caso ambiguo (varias candidatas, o ninguna clara) queda para el
- * "Vincular orden" manual.
+ * score=2 (ambas) → match automático directo
+ * score=1 (una)   → match automático si es la única candidata con ese score
+ * score=0         → ninguna OC coincide; queda PENDIENTE para vincular a mano
  *
- * Usado por el alta individual (app/(internal)/invoices/actions.ts) y el worker
- * del bulk (worker/index.ts).
+ * Si no se pasan order_reference/product_description (facturas cargadas sin esos
+ * datos), cae al match por saldo exacto como fallback para no romper el flujo
+ * existente.
  */
-export async function autoMatchInvoiceByAmount(
+export async function autoMatchInvoice(
   supabase: SupabaseClient,
-  params: { invoiceId: string; providerId: string; total: number; empresaId: string }
+  params: {
+    invoiceId: string;
+    providerId: string;
+    total: number;
+    empresaId: string;
+    orderReference?: string | null;
+    productDescription?: string | null;
+  }
 ): Promise<string | null> {
-  const { invoiceId, providerId, total, empresaId } = params;
-  const target = roundCents(total);
-  const maxFactor = 1 + OVERBILL_TOLERANCE_PCT / 100;
+  const { invoiceId, providerId, total, empresaId, orderReference, productDescription } = params;
 
   const { data: providerOrders } = await supabase
     .from("authorized_orders")
-    .select("id, total_price, facturado_amount")
+    .select("id, code, product, total_price, facturado_amount")
     .eq("empresa_id", empresaId)
     .eq("provider_id", providerId);
 
-  const orders = (providerOrders ?? []).map((o) => ({
-    id: o.id as string,
-    total: roundCents(o.total_price),
-    facturado: roundCents(o.facturado_amount ?? 0),
-    saldo: roundCents(o.total_price - (o.facturado_amount ?? 0)),
-  }));
+  const orders = (providerOrders ?? [])
+    .map((o) => ({
+      id: o.id as string,
+      code: o.code as string,
+      product: o.product as string,
+      total: roundCents(o.total_price),
+      saldo: roundCents((o.total_price as number) - ((o.facturado_amount as number) ?? 0)),
+    }))
+    .filter((o) => o.saldo > 0);
 
-  const withBalance = orders.filter((o) => o.saldo > 0);
-  if (withBalance.length === 0) return null;
+  if (orders.length === 0) return null;
 
-  const pick = (() => {
-    // 1. saldo exacto
-    const bySaldo = withBalance.filter((o) => o.saldo === target);
-    if (bySaldo.length === 1) return bySaldo[0];
-    if (bySaldo.length > 1) return null;
+  const refNorm = orderReference?.trim().toUpperCase() ?? null;
+  const prodNorm = productDescription?.trim().toLowerCase() ?? null;
 
-    // 2. monto de la orden exacto y sin facturar aún
-    const byTotal = withBalance.filter((o) => o.total === target && o.facturado === 0);
-    if (byTotal.length === 1) return byTotal[0];
-    if (byTotal.length > 1) return null;
+  // Puntuar cada OC abierta del proveedor
+  const scored = orders.map((o) => {
+    let score = 0;
+    // Criterio OC: el código de la OC aparece en la referencia extraída
+    if (refNorm && o.code.toUpperCase().includes(refNorm.replace(/\s/g, ""))) score++;
+    // También si la referencia contiene el código exacto
+    if (refNorm && refNorm.includes(o.code.toUpperCase())) score++;
+    if (score > 1) score = 1; // máximo 1 por criterio
 
-    // 3. única OC con saldo, y la factura entra
-    if (withBalance.length === 1 && target <= roundCents(withBalance[0].saldo * maxFactor)) {
-      return withBalance[0];
+    // Criterio Producto: palabras clave del producto de la OC aparecen en la descripción
+    if (prodNorm) {
+      const ocWords = o.product.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+      const matches = ocWords.filter((w) => prodNorm.includes(w));
+      if (matches.length > 0 && matches.length >= Math.ceil(ocWords.length / 2)) score++;
     }
+    return { ...o, score };
+  });
+
+  const best = Math.max(...scored.map((o) => o.score));
+
+  // Si no hay ningún campo contextual, fallback a saldo exacto
+  if (!refNorm && !prodNorm) {
+    const bySaldo = orders.filter((o) => o.saldo === roundCents(total));
+    if (bySaldo.length === 1) return doMatch(supabase, invoiceId, bySaldo[0].id, empresaId);
+    const byTotal = orders.filter((o) => o.total === roundCents(total) && o.saldo === o.total);
+    if (byTotal.length === 1) return doMatch(supabase, invoiceId, byTotal[0].id, empresaId);
+    if (orders.length === 1) return doMatch(supabase, invoiceId, orders[0].id, empresaId);
     return null;
-  })();
+  }
 
-  if (!pick) return null;
+  // 2 de 3 (score=2): match directo
+  if (best >= 2) {
+    const top = scored.filter((o) => o.score >= 2);
+    if (top.length === 1) return doMatch(supabase, invoiceId, top[0].id, empresaId);
+    // Ambigüedad: varias con score 2, no auto-matchear
+    return null;
+  }
 
-  const { error: matchError } = await supabase
+  // 1 de 3 (score=1): auto-match solo si hay una única candidata
+  if (best === 1) {
+    const top = scored.filter((o) => o.score === 1);
+    if (top.length === 1) return doMatch(supabase, invoiceId, top[0].id, empresaId);
+    return null;
+  }
+
+  return null;
+}
+
+async function doMatch(
+  supabase: SupabaseClient,
+  invoiceId: string,
+  orderId: string,
+  empresaId: string
+): Promise<string | null> {
+  const { error } = await supabase
     .from("invoice_order_matches")
-    .insert({ invoice_id: invoiceId, authorized_order_id: pick.id, empresa_id: empresaId });
-  if (matchError) return null;
+    .insert({ invoice_id: invoiceId, authorized_order_id: orderId, empresa_id: empresaId });
+  if (error) return null;
 
   await logAudit(supabase, {
     action: "invoice.order_auto_matched",
     invoiceId,
-    authorizedOrderId: pick.id,
+    authorizedOrderId: orderId,
   });
+  return orderId;
+}
 
-  return pick.id;
+/** @deprecated Usar autoMatchInvoice con orderReference/productDescription */
+export async function autoMatchInvoiceByAmount(
+  supabase: SupabaseClient,
+  params: { invoiceId: string; providerId: string; total: number; empresaId: string }
+): Promise<string | null> {
+  return autoMatchInvoice(supabase, params);
 }

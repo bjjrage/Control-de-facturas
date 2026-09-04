@@ -28,6 +28,8 @@ export type ExtractedInvoiceFields = {
   vat: number | null;
   total: number | null;
   timbrado: string | null;
+  order_reference: string | null;
+  product_description: string | null;
 };
 
 const EXTRACTION_SCHEMA = {
@@ -41,6 +43,8 @@ const EXTRACTION_SCHEMA = {
     vat: { type: ["number", "null"] },
     total: { type: "number", description: "Monto total en guaraníes, sin puntos ni separadores de miles" },
     timbrado: { type: ["string", "null"] },
+    order_reference: { type: ["string", "null"], description: "Número de orden de compra mencionado en la descripción, ej: 'OC-2026-0008'. Null si no aparece." },
+    product_description: { type: ["string", "null"], description: "Descripción del producto o servicio principal de la factura (primera línea del detalle)." },
   },
   required: [
     "provider_name",
@@ -51,6 +55,8 @@ const EXTRACTION_SCHEMA = {
     "vat",
     "total",
     "timbrado",
+    "order_reference",
+    "product_description",
   ],
   additionalProperties: false,
 };

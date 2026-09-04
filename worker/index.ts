@@ -17,7 +17,7 @@ import { config } from "dotenv";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { extractInvoiceFieldsFromFile } from "../lib/invoice-extraction";
 import { findProviderByTaxId } from "../lib/provider-lookup";
-import { autoMatchInvoiceByAmount } from "../lib/invoice-auto-match";
+import { autoMatchInvoice } from "../lib/invoice-auto-match";
 import { logAudit } from "../lib/audit";
 import { sanitizeFileName } from "../lib/storage";
 
@@ -158,11 +158,13 @@ async function processJob(job: InvoiceJob) {
 
   await logAudit(db, { action: "invoice.created", invoiceId: invoice.id, detail: { source: "bulk_worker" } });
 
-  const matchedOrderId = await autoMatchInvoiceByAmount(db, {
+  const matchedOrderId = await autoMatchInvoice(db, {
     invoiceId: invoice.id,
     providerId: provider.id,
     total: parsed.total,
     empresaId: job.empresa_id,
+    orderReference: parsed.order_reference,
+    productDescription: parsed.product_description,
   });
 
   return finish(job.id, {
