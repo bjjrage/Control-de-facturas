@@ -121,11 +121,7 @@ export async function submitQuote(token: string, formData: FormData) {
     vat_included: formData.get("vat_included") === "on",
     delivery_time: deliveryTime,
     offer_validity: offerValidity,
-    payment_terms: formData.get("payment_terms_type") === "contado"
-      ? "Contado"
-      : formData.get("payment_terms_value")
-        ? `${formData.get("payment_terms_value")} ${formData.get("payment_terms_unit") ?? "dias"}`
-        : null,
+    payment_terms: null,
     observations: str(formData, "observations"),
     pdf_attachment_id: attachmentId,
   });

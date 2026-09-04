@@ -11,7 +11,6 @@ export function QuoteForm({ token, quantity, unit }: { token: string; quantity: 
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
   const [unitPrice, setUnitPrice] = useState("");
-  const [paymentType, setPaymentType] = useState<"contado" | "plazo">("plazo");
 
   const qtyLabel = `${Number.isInteger(Number(quantity)) ? formatNumber(quantity, 0) : formatNumber(quantity, 2)} ${unit}`;
 
@@ -114,28 +113,6 @@ export function QuoteForm({ token, quantity, unit }: { token: string; quantity: 
               <option value="meses">meses</option>
             </Select>
           </div>
-        </div>
-      </div>
-      <div>
-        <Label>Condiciones de pago</Label>
-        <div className="flex gap-2">
-          <Select
-            name="payment_terms_type"
-            value={paymentType}
-            onChange={(e) => setPaymentType(e.target.value as "contado" | "plazo")}
-          >
-            <option value="contado">Contado</option>
-            <option value="plazo">A plazo</option>
-          </Select>
-          {paymentType === "plazo" ? (
-            <>
-              <Input name="payment_terms_value" type="number" min="1" step="1" required className="w-24" placeholder="30" />
-              <Select name="payment_terms_unit" defaultValue="dias">
-                <option value="dias">días</option>
-                <option value="meses">meses</option>
-              </Select>
-            </>
-          ) : null}
         </div>
       </div>
       <div className="flex gap-4">
