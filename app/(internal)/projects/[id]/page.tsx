@@ -8,6 +8,7 @@ import { formatDate, formatMoney } from "@/lib/format";
 import { AddBudgetItemForm } from "./add-budget-item-form";
 import { AddExecutionEntryForm } from "./add-execution-entry-form";
 import { ProjectStatusSelect } from "./project-status-select";
+import { ProjectGantt } from "./project-gantt";
 
 const TABS = [
   { key: "presupuesto", label: "Presupuesto" },
@@ -166,9 +167,7 @@ export default async function ProjectDetailPage({
       ) : null}
 
       {tab === "cronograma" ? (
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] py-12 text-center text-[13px] text-[var(--muted)]">
-          Cronograma Gantt — próximamente (Checkpoint 4).
-        </div>
+        <ProjectGantt projectId={project.id} budgetItems={items} execEntries={entries} />
       ) : null}
 
       {tab === "ejecucion" ? (
