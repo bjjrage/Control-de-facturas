@@ -25,7 +25,7 @@ export function RevisionDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent title={`Completar — ${job.file_name}`}>
-        {job.outcome === "duplicate" ? (
+        {(job.outcome === "duplicate" || job.message?.startsWith("Ya existe")) ? (
           <div className="space-y-4">
             <div className="rounded border border-[var(--warn)]/30 bg-[var(--warn-bg)] px-3 py-2.5 text-[13px] text-[var(--warn)]">
               {job.message}
