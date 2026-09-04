@@ -1,12 +1,15 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { Profile, UserRole } from "@/lib/types";
+
+export type EmpresaPlan = "basico" | "pro" | "caterpillar";
 
 export type CurrentProfile = Profile & {
   empresa_active: boolean;
   modulo_compras: boolean;
   modulo_ventas: boolean;
+  plan: EmpresaPlan;
 };
 
 /**
@@ -31,13 +34,14 @@ export const getCurrentProfile = cache(async function getCurrentProfile(): Promi
   if (!data) return null;
 
   const empresa = (data as unknown as {
-    empresas: { active: boolean; modulo_compras: boolean; modulo_ventas: boolean } | null;
+    empresas: { active: boolean; modulo_compras: boolean; modulo_ventas: boolean; plan: EmpresaPlan } | null;
   }).empresas;
   return {
     ...(data as Profile),
     empresa_active: empresa?.active ?? true,
     modulo_compras: empresa?.modulo_compras ?? true,
     modulo_ventas: empresa?.modulo_ventas ?? false,
+    plan: empresa?.plan ?? "basico",
   };
 });
 
@@ -73,6 +77,20 @@ export async function requireModule(
   const profile = await requireProfile(allowed);
   const on = module === "compras" ? profile.modulo_compras : profile.modulo_ventas;
   if (!on && !profile.is_super_admin) redirect("/dashboard");
+  return profile;
+}
+
+const PLAN_RANK: Record<EmpresaPlan, number> = { basico: 0, pro: 1, caterpillar: 2 };
+
+/**
+ * Gate para las rutas del módulo Construcción. Jerárquico: 'pro' habilita
+ * también a las empresas en 'caterpillar'. Un cliente en 'basico' que
+ * escribe la URL a mano recibe 404 — no debe poder detectar que el módulo
+ * existe.
+ */
+export async function requirePlan(minPlan: EmpresaPlan, allowed?: UserRole[]): Promise<CurrentProfile> {
+  const profile = await requireProfile(allowed);
+  if (PLAN_RANK[profile.plan] < PLAN_RANK[minPlan] && !profile.is_super_admin) notFound();
   return profile;
 }
 

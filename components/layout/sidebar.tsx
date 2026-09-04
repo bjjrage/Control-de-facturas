@@ -22,8 +22,10 @@ import {
   Settings,
   Banknote,
   Wallet,
+  HardHat,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
+import { EmpresaPlan } from "@/lib/auth";
 import { cn } from "@/lib/cn";
 import { logout } from "@/app/(internal)/actions";
 import { uploadLogo } from "./branding-actions";
@@ -60,6 +62,15 @@ const VENTAS_ITEMS: NavItem[] = [
   { href: "/cobros", label: "Cobros", roles: ["administracion", "admin"], icon: Banknote, module: "ventas" },
 ];
 
+// Construcción (plan pro/caterpillar): "Proyectos" va justo después de
+// Dashboard, es el ítem principal para ese tipo de cliente.
+const PROYECTOS_ITEM: NavItem = {
+  href: "/projects",
+  label: "Proyectos",
+  roles: ["administracion", "admin"],
+  icon: HardHat,
+};
+
 const ADMIN_ITEMS: NavItem[] = [
   { href: "/configuracion", label: "Configuración", roles: ["admin"], icon: Settings },
   { href: "/users", label: "Usuarios", roles: ["admin"], icon: Users },
@@ -78,11 +89,13 @@ export function Sidebar({
   fullName,
   isSuperAdmin = false,
   modules,
+  plan = "basico",
 }: {
   role: UserRole;
   fullName: string;
   isSuperAdmin?: boolean;
   modules: { compras: boolean; ventas: boolean };
+  plan?: EmpresaPlan;
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -102,9 +115,18 @@ export function Sidebar({
     });
   }
 
+  // Pro/Caterpillar: sidebar pensado para obra. Proyectos pasa a ser el ítem
+  // principal (justo después de Dashboard) y Cotizaciones/Ventas se ocultan
+  // — una constructora no las usa y ensucian la vista. No es cosmético: las
+  // rutas ocultas además tienen su propio guard (requirePlan) contra acceso
+  // directo por URL.
+  const isConstruccion = plan === "pro" || plan === "caterpillar";
   const globalItems = filterItems(GLOBAL_ITEMS);
-  const comprasItems = filterItems(COMPRAS_ITEMS);
-  const ventasItems = filterItems(VENTAS_ITEMS);
+  const proyectosItems = isConstruccion ? filterItems([PROYECTOS_ITEM]) : [];
+  const comprasItems = filterItems(
+    isConstruccion ? COMPRAS_ITEMS.filter((i) => i.href !== "/rfqs") : COMPRAS_ITEMS
+  );
+  const ventasItems = isConstruccion ? [] : filterItems(VENTAS_ITEMS);
   const adminItems = filterItems(ADMIN_ITEMS);
   const superAdminItems = isSuperAdmin ? SUPER_ADMIN_ITEMS : [];
 
@@ -240,6 +262,7 @@ export function Sidebar({
 
       <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
         {globalItems.map(renderLink)}
+        {proyectosItems.map(renderLink)}
         {renderSection("Compras", comprasItems)}
         {renderSection("Ventas", ventasItems)}
         {adminItems.length > 0 ? (

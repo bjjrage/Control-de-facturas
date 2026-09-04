@@ -382,6 +382,55 @@ export interface PaymentOrderInvoice {
   created_at: string;
 }
 
+// ============================================================================
+// Módulo Construcción (migración 0028)
+// ============================================================================
+
+export type ProjectStatus = "ACTIVO" | "PAUSADO" | "COMPLETADO" | "CANCELADO";
+
+export interface Project {
+  id: string;
+  empresa_id: string;
+  name: string;
+  code: string;
+  client: string | null;
+  location: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  status: ProjectStatus;
+  budget_total: number;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface BudgetItem {
+  id: string;
+  project_id: string;
+  parent_id: string | null;
+  code: string;
+  description: string;
+  unit: string | null;
+  quantity: number | null;
+  unit_price: number | null;
+  subtotal: number;
+  sort_order: number;
+  start_date: string | null;
+  end_date: string | null;
+  depends_on: string | null;
+  created_at: string;
+}
+
+export interface ExecutionEntry {
+  id: string;
+  project_id: string;
+  budget_item_id: string;
+  entry_date: string;
+  quantity_executed: number;
+  notes: string | null;
+  recorded_by: string | null;
+  created_at: string;
+}
+
 export interface SalesReceipt {
   id: string;
   empresa_id: string;
