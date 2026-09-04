@@ -54,9 +54,9 @@ export function LinkOrderDialog({
   const sameProviderCandidates = candidates.filter((c) => c.score >= 2);
   const otherCandidates = candidates.filter((c) => c.score < 2);
 
-  // Por defecto mostrar solo mismo proveedor; mostrar todas si no hay o el user lo pide
+  // Por defecto mostrar solo mismo proveedor; el usuario decide si quiere ver otros
   const noSameProvider = sameProviderCandidates.length === 0;
-  const visibleBase = (showAll || noSameProvider) ? candidates : sameProviderCandidates;
+  const visibleBase = showAll ? candidates : sameProviderCandidates;
 
   const filtered = q.trim()
     ? candidates.filter((c) => {
@@ -95,18 +95,36 @@ export function LinkOrderDialog({
             </p>
           )}
 
+          {!loading && result && noSameProvider && !showAll && !q.trim() && candidates.length > 0 && (
+            <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-4 text-center space-y-2">
+              <p className="text-[13px] text-[var(--muted)]">
+                No hay OCs abiertas de este proveedor.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowAll(true)}
+                className="text-[13px] text-[var(--primary)] hover:underline"
+              >
+                Ver {candidates.length} OC{candidates.length !== 1 ? "s" : ""} de otros proveedores
+              </button>
+            </div>
+          )}
+
           {!loading && result && candidates.length > 0 && (
+            <input
+              type="text"
+              placeholder="Buscar por código, producto o proveedor…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="w-full h-8 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 text-[13px] outline-none focus:border-[var(--primary)]"
+              autoFocus
+            />
+          )}
+
+          {!loading && result && filtered.length > 0 && (
             <>
-              <input
-                type="text"
-                placeholder="Buscar por código, producto o proveedor…"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                className="w-full h-8 rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 text-[13px] outline-none focus:border-[var(--primary)]"
-                autoFocus
-              />
               <div className="space-y-1.5 max-h-80 overflow-y-auto pr-0.5">
-                {filtered.length === 0 ? (
+                {q.trim() && filtered.length === 0 ? (
                   <p className="text-[12px] text-[var(--muted)] text-center py-4">Sin resultados para &quot;{q}&quot;</p>
                 ) : (
                   filtered.map((c) => (
@@ -138,13 +156,11 @@ export function LinkOrderDialog({
               </div>
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[11px] text-[var(--muted)]">
-                  {noSameProvider
-                    ? `Sin OCs del mismo proveedor · ${candidates.length} con saldo en total`
-                    : !showAll && !q.trim()
-                      ? `${sameProviderCandidates.length} OC${sameProviderCandidates.length !== 1 ? "s" : ""} del mismo proveedor`
-                      : `${candidates.length} orden${candidates.length !== 1 ? "es" : ""} con saldo`}
+                  {!showAll && !q.trim()
+                    ? `${sameProviderCandidates.length} OC${sameProviderCandidates.length !== 1 ? "s" : ""} del mismo proveedor`
+                    : `${candidates.length} orden${candidates.length !== 1 ? "es" : ""} con saldo`}
                 </p>
-                {!noSameProvider && otherCandidates.length > 0 && !q.trim() && (
+                {otherCandidates.length > 0 && !q.trim() && (
                   <button
                     type="button"
                     onClick={() => setShowAll((v) => !v)}
