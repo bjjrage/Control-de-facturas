@@ -4,8 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { AuthorizedOrder, Provider } from "@/lib/types";
 import { formatDate, formatMoney } from "@/lib/format";
 import { orderRemaining, orderStep, ORDER_STEPS } from "@/lib/reconciliation";
+import { Badge } from "@/components/ui/badge";
 import { OrderDialog } from "./order-dialog";
-import { OrderPipeline } from "./order-pipeline";
 import { OrdersFilters } from "./orders-filters";
 import { BackButton } from "@/components/ui/back-button";
 
@@ -94,7 +94,7 @@ export default async function OrdersPage({
                 <th>Proveedor</th>
                 <th className="num">Total</th>
                 <th>Facturado</th>
-                <th>Etapa</th>
+                <th>Estado</th>
                 <th>Autorizada</th>
               </tr>
             </thead>
@@ -118,11 +118,9 @@ export default async function OrdersPage({
                     </div>
                   </td>
                   <td>
-                    <OrderPipeline
-                      status={o.status}
-                      totalPrice={o.total_price}
-                      facturadoAmount={o.facturado_amount}
-                    />
+                    {orderRemaining(o.total_price, o.facturado_amount) > 0
+                      ? <Badge tone="ok">Abierta</Badge>
+                      : <Badge tone="neutral">Cerrada</Badge>}
                   </td>
                   <td className="text-[var(--muted)]">{formatDate(o.authorized_at)}</td>
                 </tr>
