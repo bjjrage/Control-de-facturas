@@ -189,10 +189,12 @@ export async function getCandidateOrders(invoiceId: string): Promise<{
 
   const { data: providerRow } = await supabase.from("providers").select("name").eq("id", invoice.provider_id).single();
 
+  // Solo OCs del mismo proveedor — nunca mezclar con otros proveedores.
   const { data: orders } = await supabase
     .from("authorized_orders")
     .select("id, code, product, provider_id, provider_name, total_price, facturado_amount, currency, status, authorized_at")
     .eq("empresa_id", empresaId)
+    .eq("provider_id", invoice.provider_id)
     .order("authorized_at", { ascending: false });
 
   const target = invoice.total as number;
@@ -202,17 +204,12 @@ export async function getCandidateOrders(invoiceId: string): Promise<{
     const saldo = (o.total_price as number) - ((o.facturado_amount as number) ?? 0);
     if (saldo <= 0) continue;
 
-    const sameProvider = o.provider_id === invoice.provider_id;
     const ref = Math.max(saldo, target);
     const diff = Math.abs(saldo - target) / ref;
     const within20 = diff <= 0.20;
-    const within5 = diff <= 0.05;
 
-    let score = 0;
-    let scoreLabel = "";
-    if (sameProvider && within20) { score = 3; scoreLabel = "Coincidencia alta"; }
-    else if (sameProvider) { score = 2; scoreLabel = "Mismo proveedor"; }
-    else if (within5) { score = 1; scoreLabel = "Monto similar"; }
+    const score = within20 ? 2 : 1;
+    const scoreLabel = within20 ? "Monto coincide" : "OC abierta";
 
     candidates.push({
       id: o.id as string,
