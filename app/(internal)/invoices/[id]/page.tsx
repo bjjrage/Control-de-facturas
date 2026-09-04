@@ -7,8 +7,8 @@ import { AuthorizedOrder, Invoice, InvoiceException, Provider } from "@/lib/type
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
-import { canMarkAptoParaPago, canMarkPagado, isOverbilled, orderRemaining, roundCents } from "@/lib/reconciliation";
-import { MatchDialog } from "./match-dialog";
+import { canMarkAptoParaPago, canMarkPagado, isOverbilled, orderRemaining } from "@/lib/reconciliation";
+import { LinkOrderDialog } from "@/app/(internal)/invoices/link-order-dialog";
 import { CreateOrderFromInvoiceDialog } from "./create-order-dialog";
 import { ExceptionDialog } from "./exception-dialog";
 import { AttachmentLink } from "./attachment-link";
@@ -44,19 +44,6 @@ export default async function InvoiceDetailPage({
     .eq("invoice_id", id)
     .maybeSingle<{ id: string; authorized_orders: AuthorizedOrder }>();
   const linkedOrder = match?.authorized_orders ?? null;
-
-  // Candidatos: OC del proveedor con saldo sin facturar.
-  const { data: candidateOrders } = await supabase
-    .from("authorized_orders")
-    .select("id, code, product, total_price, facturado_amount, currency")
-    .eq("provider_id", invoice.provider_id)
-    .returns<
-      { id: string; code: string; product: string; total_price: number; facturado_amount: number; currency: string }[]
-    >();
-  const candidates = (candidateOrders ?? [])
-    .map((c) => ({ ...c, remaining: roundCents(c.total_price - (c.facturado_amount ?? 0)) }))
-    .filter((c) => c.remaining > 0)
-    .sort((a, b) => b.remaining - a.remaining);
 
   const { data: exceptions } = await supabase
     .from("invoice_exceptions")
@@ -187,10 +174,9 @@ export default async function InvoiceDetailPage({
           <h2 className="text-[14px] font-semibold">Orden vinculada</h2>
           {!linkedOrder ? (
             <div className="flex gap-2">
-              <MatchDialog
+              <LinkOrderDialog
                 invoiceId={invoice.id}
-                candidates={candidates}
-                trigger={<Button variant="secondary">Vincular orden</Button>}
+                trigger={<Button variant="secondary">Vincular OC</Button>}
               />
               <CreateOrderFromInvoiceDialog
                 invoiceId={invoice.id}

@@ -11,7 +11,6 @@ import { InvoiceDialog } from "./invoice-dialog";
 import { MonthFilter } from "./month-filter";
 import { DeleteInvoiceButton } from "./[id]/delete-button";
 import { BackButton } from "@/components/ui/back-button";
-import { LinkOrderDialog } from "./link-order-dialog";
 
 // The "Nueva factura" dialog on this page reads photos/PDFs via OpenAI/pdf-parse,
 // which can outlast the platform's default serverless timeout (10s on Vercel's
@@ -213,7 +212,6 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
                     <th>Proveedor</th>
                     <th>Fecha</th>
                     <th className="num">Total</th>
-                    {g.status === "PENDIENTE" ? <th></th> : null}
                     {profile.role === "admin" ? <th></th> : null}
                   </tr>
                 </thead>
@@ -228,18 +226,6 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
                       <td>{providerById.get(i.provider_id) ?? "-"}</td>
                       <td>{formatDate(i.invoice_date)}</td>
                       <td className="num">{formatMoney(i.total, i.currency)}</td>
-                      {g.status === "PENDIENTE" ? (
-                        <td>
-                          <LinkOrderDialog
-                            invoiceId={i.id}
-                            trigger={
-                              <button className="text-action text-[12px] text-[var(--primary)]">
-                                Vincular OC →
-                              </button>
-                            }
-                          />
-                        </td>
-                      ) : null}
                       {profile.role === "admin" ? (
                         <td>
                           <DeleteInvoiceButton invoiceId={i.id} compact />
