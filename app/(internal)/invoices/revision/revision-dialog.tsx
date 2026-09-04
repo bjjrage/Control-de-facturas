@@ -25,6 +25,16 @@ export function RevisionDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent title={`Completar — ${job.file_name}`}>
+        {job.outcome === "duplicate" ? (
+          <div className="space-y-4">
+            <div className="rounded border border-[var(--warn)]/30 bg-[var(--warn-bg)] px-3 py-2.5 text-[13px] text-[var(--warn)]">
+              {job.message}
+            </div>
+            <div className="flex justify-end">
+              <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cerrar</Button>
+            </div>
+          </div>
+        ) : (
         <form
           className="space-y-3"
           action={async (formData: FormData) => {
@@ -116,6 +126,7 @@ export function RevisionDialog({
             </Button>
           </div>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );

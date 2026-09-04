@@ -147,8 +147,8 @@ async function processJob(job: InvoiceJob) {
   if (invoiceError || !invoice) {
     const dup = invoiceError?.code === "23505";
     return finish(job.id, {
-      status: dup ? "needs_review" : "failed",
-      outcome: dup ? "needs_manual" : "error",
+      status: "needs_review",
+      outcome: dup ? "duplicate" : "error",
       extracted: parsed,
       provider_id: provider.id,
       error: invoiceError?.message,

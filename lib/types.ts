@@ -246,7 +246,7 @@ export interface InvoiceException {
 }
 
 export type InvoiceJobStatus = "queued" | "processing" | "done" | "needs_review" | "failed";
-export type InvoiceJobOutcome = "matched" | "created_unmatched" | "needs_manual" | "error";
+export type InvoiceJobOutcome = "matched" | "created_unmatched" | "needs_manual" | "duplicate" | "error";
 
 export interface ExtractedInvoiceFields {
   provider_name: string | null;
@@ -257,6 +257,8 @@ export interface ExtractedInvoiceFields {
   vat: number | null;
   total: number | null;
   timbrado: string | null;
+  order_reference: string | null;
+  product_description: string | null;
 }
 
 export interface InvoiceJob {
