@@ -21,7 +21,7 @@ function daysDiff(dateStr: string): number {
 type AgingRow = {
   clientId: string;
   clientName: string;
-  currency: string;
+  currency: CurrencyCode;
   corriente: number;
   b130: number;
   b3160: number;

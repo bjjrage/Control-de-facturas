@@ -51,7 +51,8 @@ export default async function PaymentOrderDetailPage({ params }: { params: Promi
 
   const ocByInvoice = new Map<string, { id: string; code: string }>();
   for (const m of matches ?? []) {
-    const order = m.authorized_orders as { id: string; code: string } | null;
+    const raw = m.authorized_orders;
+    const order = (Array.isArray(raw) ? raw[0] : raw) as { id: string; code: string } | null | undefined;
     if (order) ocByInvoice.set(m.invoice_id as string, order);
   }
 

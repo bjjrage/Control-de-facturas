@@ -31,7 +31,8 @@ export default async function PagosPage({ searchParams }: { searchParams: Promis
   const totalsMap: TotalsMap = new Map();
   for (const row of opInvoiceRows ?? []) {
     const opId = row.payment_order_id as string;
-    const inv = row.invoices as { total: number; currency: string } | null;
+    const rawInv = row.invoices;
+    const inv = (Array.isArray(rawInv) ? rawInv[0] : rawInv) as { total: number; currency: string } | null | undefined;
     if (!totalsMap.has(opId)) totalsMap.set(opId, { count: 0, byCurrency: new Map() });
     const entry = totalsMap.get(opId)!;
     entry.count++;

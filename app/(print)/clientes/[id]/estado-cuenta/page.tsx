@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireModule } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { Client, Empresa, SalesDocument, SalesReceipt } from "@/lib/types";
+import { Client, CurrencyCode, Empresa, SalesDocument, SalesReceipt } from "@/lib/types";
 import { formatDate, formatMoney } from "@/lib/format";
 import { docSaldo, SALES_DOC_TYPE_LABELS, SALES_DOC_STATUS_LABELS } from "@/lib/sales";
 import { LOGO_STORAGE_PATH } from "@/components/layout/branding-constants";
@@ -68,7 +68,7 @@ export default async function EstadoCuentaPage({
   });
 
   // Totals by currency for pending docs
-  const pendingByCurrency = new Map<string, number>();
+  const pendingByCurrency = new Map<CurrencyCode, number>();
   for (const d of allDocs) {
     if (d.status !== "EMITIDA" && d.status !== "COBRADA_PARCIAL") continue;
     const saldo = docSaldo(d.total, d.cobrado_amount);

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import "frappe-gantt/dist/frappe-gantt.css";
+import "@/styles/frappe-gantt.css";
 import type { GanttTaskInput, default as GanttType } from "frappe-gantt";
 import { BudgetItem, ExecutionEntry } from "@/lib/types";
 import { updateBudgetItemSchedule } from "../actions";

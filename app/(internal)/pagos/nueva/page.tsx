@@ -55,7 +55,8 @@ export default async function NuevaOpPage({ searchParams }: { searchParams: Prom
 
       const ocByInvoice = new Map<string, string>();
       for (const m of matches ?? []) {
-        const order = m.authorized_orders as { code: string } | null;
+        const raw = m.authorized_orders;
+        const order = (Array.isArray(raw) ? raw[0] : raw) as { code: string } | null | undefined;
         if (order) ocByInvoice.set(m.invoice_id as string, order.code);
       }
 
