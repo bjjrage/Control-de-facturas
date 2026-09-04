@@ -7,6 +7,7 @@ import { Project, BudgetItem, ExecutionEntry, AuthorizedOrder } from "@/lib/type
 import { formatDate, formatMoney } from "@/lib/format";
 import { AddBudgetItemForm } from "./add-budget-item-form";
 import { ImportBudgetDialog } from "./import-budget-dialog";
+import { DuplicateBudgetDialog } from "./duplicate-budget-dialog";
 import { AddExecutionEntryForm } from "./add-execution-entry-form";
 import { ProjectStatusSelect } from "./project-status-select";
 import { ProjectGantt } from "./project-gantt";
@@ -52,6 +53,29 @@ export default async function ProjectDetailPage({
   const items = budgetItems ?? [];
   const entries = execEntries ?? [];
   const ocs = orders ?? [];
+
+  // Proyectos candidatos para "Copiar de otro proyecto" — solo se ofrece si
+  // este proyecto todavía no tiene ítems (no ensuciar un presupuesto ya armado).
+  let duplicateSources: { id: string; code: string; name: string; itemCount: number }[] = [];
+  if (items.length === 0) {
+    const { data: otherProjects } = await supabase
+      .from("projects")
+      .select("id, code, name")
+      .eq("empresa_id", empresaId)
+      .neq("id", id)
+      .returns<Pick<Project, "id" | "code" | "name">[]>();
+    const otherIds = (otherProjects ?? []).map((p) => p.id);
+    const { data: otherItems } = otherIds.length > 0
+      ? await supabase.from("budget_items").select("project_id").in("project_id", otherIds)
+      : { data: [] };
+    const countByProject = new Map<string, number>();
+    for (const b of otherItems ?? []) {
+      countByProject.set(b.project_id as string, (countByProject.get(b.project_id as string) ?? 0) + 1);
+    }
+    duplicateSources = (otherProjects ?? [])
+      .map((p) => ({ ...p, itemCount: countByProject.get(p.id) ?? 0 }))
+      .filter((p) => p.itemCount > 0);
+  }
 
   const execByItem = new Map<string, number>();
   for (const e of entries) {
@@ -135,6 +159,7 @@ export default async function ProjectDetailPage({
           <div className="flex flex-wrap gap-2">
             <AddBudgetItemForm projectId={project.id} />
             <ImportBudgetDialog projectId={project.id} />
+            <DuplicateBudgetDialog targetProjectId={project.id} sources={duplicateSources} />
           </div>
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
             <table>

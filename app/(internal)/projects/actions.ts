@@ -329,3 +329,160 @@ export async function updateBudgetItemSchedule(
   revalidatePath(`/projects/${item.project_id}`);
   return { error: null };
 }
+
+export type DuplicateBudgetOptions = {
+  quantities: boolean;
+  prices: boolean;
+  dates: boolean;
+};
+
+/**
+ * Copia el cómputo métrico de un proyecto a otro. Remapea parent_id por id
+ * real (no por código, a diferencia de importBudgetItems) — acá ya tenemos
+ * la jerarquía exacta de la DB, no hay que inferirla.
+ *
+ * Inserta UN ítem A LA VEZ (no en batch): un insert masivo con .select() no
+ * garantiza que las filas devueltas vengan en el mismo orden que el array
+ * insertado, así que no hay forma confiable de mapear id-viejo -> id-nuevo
+ * por posición si se insertan varios juntos. Uno a la vez es más lento pero
+ * inequívoco. Procesa por niveles (BFS desde parent_id null) para que el
+ * padre siempre exista en el mapa antes de insertar sus hijos.
+ *
+ * depends_on se remapea recién al final, cuando todos los ids nuevos existen
+ * — son ids de budget_items del proyecto origen, sin remapear quedarían
+ * apuntando a filas que no existen en el proyecto destino.
+ */
+export async function duplicateBudgetFromProject(
+  sourceProjectId: string,
+  targetProjectId: string,
+  opts: DuplicateBudgetOptions
+): Promise<{ copied: number; error: string | null }> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const supabase = await createClient();
+  const empresaId = profile.empresa_id;
+
+  const { data: projects } = await supabase
+    .from("projects")
+    .select("id")
+    .in("id", [sourceProjectId, targetProjectId])
+    .eq("empresa_id", empresaId);
+  if ((projects ?? []).length !== 2) {
+    return { copied: 0, error: "Uno de los proyectos no existe o no pertenece a tu empresa." };
+  }
+
+  const { data: sourceItems } = await supabase
+    .from("budget_items")
+    .select("*")
+    .eq("project_id", sourceProjectId)
+    .order("sort_order")
+    .returns<import("@/lib/types").BudgetItem[]>();
+
+  const items = sourceItems ?? [];
+  if (items.length === 0) return { copied: 0, error: "El proyecto origen no tiene ítems." };
+
+  const { data: maxRow } = await supabase
+    .from("budget_items")
+    .select("sort_order")
+    .eq("project_id", targetProjectId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  let nextSortOrder = (maxRow?.sort_order ?? 0) + 1;
+
+  const oldToNewId = new Map<string, string>();
+  let copiedCount = 0;
+  let lastError: string | null = null;
+
+  let pending = items;
+  let guard = 0; // corta si queda algo huérfano que nunca resuelve (no debería pasar)
+  while (pending.length > 0 && guard < 50 && !lastError) {
+    guard++;
+    const ready = pending.filter((i) => i.parent_id === null || oldToNewId.has(i.parent_id));
+    const notReady = pending.filter((i) => !(i.parent_id === null || oldToNewId.has(i.parent_id)));
+    if (ready.length === 0) break; // huérfanos reales — se insertan planos abajo
+
+    for (const item of ready) {
+      const { data: inserted, error } = await supabase
+        .from("budget_items")
+        .insert({
+          project_id: targetProjectId,
+          parent_id: item.parent_id ? oldToNewId.get(item.parent_id) ?? null : null,
+          code: item.code,
+          description: item.description,
+          unit: item.unit,
+          quantity: opts.quantities ? item.quantity : null,
+          unit_price: opts.prices ? item.unit_price : null,
+          start_date: opts.dates ? item.start_date : null,
+          end_date: opts.dates ? item.end_date : null,
+          sort_order: nextSortOrder++,
+        })
+        .select("id")
+        .single();
+
+      if (error || !inserted) {
+        lastError = error?.message ?? "Error insertando ítem.";
+        break;
+      }
+      oldToNewId.set(item.id, inserted.id as string);
+      copiedCount++;
+    }
+    pending = notReady;
+  }
+
+  // Huérfanos que nunca resolvieron parent (no debería pasar dentro del
+  // mismo proyecto, pero por las dudas se insertan planos, no se pierden).
+  for (const item of pending) {
+    if (lastError) break;
+    const { data: inserted, error } = await supabase
+      .from("budget_items")
+      .insert({
+        project_id: targetProjectId,
+        parent_id: null,
+        code: item.code,
+        description: item.description,
+        unit: item.unit,
+        quantity: opts.quantities ? item.quantity : null,
+        unit_price: opts.prices ? item.unit_price : null,
+        start_date: opts.dates ? item.start_date : null,
+        end_date: opts.dates ? item.end_date : null,
+        sort_order: nextSortOrder++,
+      })
+      .select("id")
+      .single();
+    if (error || !inserted) {
+      lastError = error?.message ?? "Error insertando ítem.";
+      break;
+    }
+    oldToNewId.set(item.id, inserted.id as string);
+    copiedCount++;
+  }
+
+  if (lastError) {
+    return { copied: copiedCount, error: `Se copiaron ${copiedCount} ítems antes de un error: ${lastError}` };
+  }
+
+  // Ahora que todos los ids nuevos existen, remapeamos depends_on.
+  if (opts.dates) {
+    for (const item of items) {
+      if (!item.depends_on) continue;
+      const newId = oldToNewId.get(item.id);
+      if (!newId) continue;
+      const remapped = item.depends_on
+        .split(",")
+        .map((oldDepId) => oldToNewId.get(oldDepId.trim()))
+        .filter((x): x is string => !!x)
+        .join(",");
+      if (remapped) {
+        await supabase.from("budget_items").update({ depends_on: remapped }).eq("id", newId);
+      }
+    }
+  }
+
+  await logAudit(supabase, {
+    action: "project.budget_duplicated",
+    detail: { source_project_id: sourceProjectId, target_project_id: targetProjectId, copied: copiedCount },
+  });
+
+  revalidatePath(`/projects/${targetProjectId}`);
+  return { copied: copiedCount, error: null };
+}
