@@ -14,6 +14,7 @@ import { ExceptionDialog } from "./exception-dialog";
 import { AttachmentLink } from "./attachment-link";
 import { unmatchOrder, markAptoParaPago, markPagado } from "./actions";
 import { DeleteInvoiceButton } from "./delete-button";
+import { CreateOpButton } from "./create-op-button";
 
 export default async function InvoiceDetailPage({
   params,
@@ -63,6 +64,14 @@ export default async function InvoiceDetailPage({
     .eq("invoice_id", id)
     .order("created_at", { ascending: false })
     .returns<InvoiceException[]>();
+
+  // OP vinculada (si existe)
+  const { data: opLink } = await supabase
+    .from("payment_order_invoices")
+    .select("payment_orders(id, code)")
+    .eq("invoice_id", id)
+    .maybeSingle<{ payment_orders: { id: string; code: string } }>();
+  const linkedOp = opLink?.payment_orders ?? null;
 
   const orderTotal = linkedOrder?.total_price ?? 0;
   const orderFacturado = linkedOrder?.facturado_amount ?? 0;
@@ -121,6 +130,14 @@ export default async function InvoiceDetailPage({
             >
               <Button type="submit">Marcar apto para pago</Button>
             </form>
+          ) : null}
+          {invoice.status === "APTO_PARA_PAGO" && !linkedOp ? (
+            <CreateOpButton invoiceId={invoice.id} />
+          ) : null}
+          {invoice.status === "APTO_PARA_PAGO" && linkedOp ? (
+            <Link href={`/pagos/${linkedOp.id}`} className="text-action text-[13px] text-[var(--primary)]">
+              OP: {linkedOp.code} →
+            </Link>
           ) : null}
           {canMarkPagado(invoice.status) ? (
             <form

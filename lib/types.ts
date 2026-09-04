@@ -354,6 +354,32 @@ export interface SalesDocumentItem {
   created_at: string;
 }
 
+// ============================================================================
+// Módulo Pagos / Órdenes de Pago (migración 0025)
+// ============================================================================
+
+export type PaymentOrderStatus = "EMITIDA" | "EJECUTADA";
+
+export interface PaymentOrder {
+  id: string;
+  empresa_id: string;
+  code: string;
+  provider_id: string;
+  status: PaymentOrderStatus;
+  notes: string | null;
+  created_by: string;
+  created_at: string;
+  executed_at: string | null;
+}
+
+export interface PaymentOrderInvoice {
+  id: string;
+  empresa_id: string;
+  payment_order_id: string;
+  invoice_id: string;
+  created_at: string;
+}
+
 export interface SalesReceipt {
   id: string;
   empresa_id: string;
