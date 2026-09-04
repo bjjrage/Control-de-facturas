@@ -164,6 +164,105 @@ export async function addExecutionEntry(projectId: string, formData: FormData): 
   return { error: null };
 }
 
+export type ImportedBudgetItem = {
+  code: string;
+  description: string;
+  unit: string | null;
+  quantity: number | null;
+  unit_price: number | null;
+};
+
+/**
+ * Inserta ítems importados de Excel, resolviendo jerarquía por código
+ * ("1.1" cuelga de "1", "2.3.1" cuelga de "2.3"). Inserta por niveles de
+ * profundidad — todos los padres de un nivel deben existir en la DB (y en
+ * codeToId) antes de insertar sus hijos, si no el parent_id quedaría mal
+ * resuelto dentro del mismo chunk. Un código cuyo padre no está en el
+ * archivo se inserta plano (parent_id null), no falla el import entero.
+ */
+export async function importBudgetItems(
+  projectId: string,
+  items: ImportedBudgetItem[]
+): Promise<{ inserted: number; skipped: number; error: string | null }> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const supabase = await createClient();
+  const empresaId = profile.empresa_id;
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("empresa_id", empresaId)
+    .single();
+  if (!project) return { inserted: 0, skipped: 0, error: "Proyecto no encontrado." };
+
+  const valid = items.filter((i) => i.code.trim() && i.description.trim());
+  const skipped = items.length - valid.length;
+  if (valid.length === 0) return { inserted: 0, skipped, error: "Ningún ítem válido para importar." };
+
+  const { data: maxRow } = await supabase
+    .from("budget_items")
+    .select("sort_order")
+    .eq("project_id", projectId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  let nextSortOrder = (maxRow?.sort_order ?? 0) + 1;
+
+  const depthOf = (code: string) => (code.match(/\./g) ?? []).length;
+  const maxDepth = Math.max(0, ...valid.map((i) => depthOf(i.code)));
+
+  const codeToId = new Map<string, string>();
+  let insertedCount = 0;
+  let lastError: string | null = null;
+  const CHUNK = 100;
+
+  for (let depth = 0; depth <= maxDepth && !lastError; depth++) {
+    const levelItems = valid.filter((i) => depthOf(i.code) === depth);
+    if (levelItems.length === 0) continue;
+
+    for (let i = 0; i < levelItems.length; i += CHUNK) {
+      const chunk = levelItems.slice(i, i + CHUNK);
+      const rows = chunk.map((item) => {
+        const dotIdx = item.code.lastIndexOf(".");
+        const parentCode = dotIdx >= 0 ? item.code.slice(0, dotIdx) : null;
+        const parentId = parentCode ? codeToId.get(parentCode) ?? null : null;
+        return {
+          project_id: projectId,
+          parent_id: parentId,
+          code: item.code,
+          description: item.description,
+          unit: item.unit,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          sort_order: nextSortOrder++,
+        };
+      });
+
+      const { data: insertedRows, error } = await supabase
+        .from("budget_items")
+        .insert(rows)
+        .select("id, code");
+
+      if (error) {
+        lastError = error.message;
+        break;
+      }
+      for (const row of insertedRows ?? []) {
+        codeToId.set(row.code as string, row.id as string);
+      }
+      insertedCount += (insertedRows ?? []).length;
+    }
+  }
+
+  if (lastError) {
+    return { inserted: insertedCount, skipped, error: `Se importaron ${insertedCount} ítems antes de un error: ${lastError}` };
+  }
+
+  revalidatePath(`/projects/${projectId}`);
+  return { inserted: insertedCount, skipped, error: null };
+}
+
 export async function updateBudgetItemSchedule(
   itemId: string,
   startDate: string | null,

@@ -6,6 +6,7 @@ import { BackButton } from "@/components/ui/back-button";
 import { Project, BudgetItem, ExecutionEntry, AuthorizedOrder } from "@/lib/types";
 import { formatDate, formatMoney } from "@/lib/format";
 import { AddBudgetItemForm } from "./add-budget-item-form";
+import { ImportBudgetDialog } from "./import-budget-dialog";
 import { AddExecutionEntryForm } from "./add-execution-entry-form";
 import { ProjectStatusSelect } from "./project-status-select";
 import { ProjectGantt } from "./project-gantt";
@@ -118,7 +119,10 @@ export default async function ProjectDetailPage({
 
       {tab === "presupuesto" ? (
         <div className="space-y-3">
-          <AddBudgetItemForm projectId={project.id} />
+          <div className="flex flex-wrap gap-2">
+            <AddBudgetItemForm projectId={project.id} />
+            <ImportBudgetDialog projectId={project.id} />
+          </div>
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
             <table>
               <thead>
