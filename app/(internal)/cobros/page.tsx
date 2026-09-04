@@ -43,6 +43,7 @@ export default async function CobrosPage({
       .from("sales_documents")
       .select("*")
       .in("status", ["EMITIDA", "COBRADA_PARCIAL"])
+      .in("doc_type", ["FACTURA", "NOTA_VENTA"])
       .order("issue_date", { ascending: false })
       .returns<SalesDocument[]>(),
     supabase
@@ -159,7 +160,7 @@ export default async function CobrosPage({
   return (
     <div className="max-w-6xl space-y-6">
       <BackButton />
-      <div className="flex items-center justify-between -mt-4">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-[17px] font-semibold">Cobros pendientes</h1>
           <p className="text-[13px] text-[var(--muted)] mt-0.5">
