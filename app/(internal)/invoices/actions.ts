@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { sanitizeFileName } from "@/lib/storage";
-import { autoMatchInvoiceByAmount } from "@/lib/invoice-auto-match";
+import { autoMatchInvoice } from "@/lib/invoice-auto-match";
 import { revalidatePath } from "next/cache";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -26,7 +26,7 @@ export async function reconcilePendingInvoices() {
 
   let matched = 0;
   for (const inv of pending ?? []) {
-    const orderId = await autoMatchInvoiceByAmount(supabase, {
+    const orderId = await autoMatchInvoice(supabase, {
       invoiceId: inv.id,
       providerId: inv.provider_id,
       total: inv.total,
@@ -133,11 +133,13 @@ export async function createInvoice(formData: FormData) {
       revalidatePath(`/orders/${linkOrderId}`);
     }
   } else {
-    autoMatchedOrderId = await autoMatchInvoiceByAmount(supabase, {
+    autoMatchedOrderId = await autoMatchInvoice(supabase, {
       invoiceId: invoice.id,
       providerId,
       total,
       empresaId,
+      orderReference: str(formData, "order_reference"),
+      productDescription: str(formData, "product_description"),
     });
   }
 

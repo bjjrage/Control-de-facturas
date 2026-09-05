@@ -37,6 +37,8 @@ export function InvoiceDialog({
   const vatRef = useRef<HTMLInputElement>(null);
   const totalRef = useRef<HTMLInputElement>(null);
   const timbradoRef = useRef<HTMLInputElement>(null);
+  const orderReferenceRef = useRef<HTMLInputElement>(null);
+  const productDescriptionRef = useRef<HTMLInputElement>(null);
 
   async function handleFileChange(file: File | null) {
     setScanNotice(null);
@@ -59,6 +61,8 @@ export function InvoiceDialog({
       if (vatRef.current && d.vat !== null) vatRef.current.value = String(d.vat);
       if (totalRef.current && d.total !== null) totalRef.current.value = String(d.total);
       if (timbradoRef.current && d.timbrado) timbradoRef.current.value = d.timbrado;
+      if (orderReferenceRef.current) orderReferenceRef.current.value = d.order_reference ?? "";
+      if (productDescriptionRef.current) productDescriptionRef.current.value = d.product_description ?? "";
 
       if (d.provider_id && providerRef.current) {
         providerRef.current.value = d.provider_id;
@@ -106,6 +110,8 @@ export function InvoiceDialog({
             </div>
           ) : null}
           {linkOrderId ? <input type="hidden" name="link_order_id" value={linkOrderId} /> : null}
+          <input type="hidden" name="order_reference" ref={orderReferenceRef} />
+          <input type="hidden" name="product_description" ref={productDescriptionRef} />
 
           <div>
             <Label htmlFor="file">Foto o PDF de la factura</Label>
