@@ -39,7 +39,7 @@ export default async function ProjectsPage() {
   const projectIds = list.map((p) => p.id);
   const isCaterpillar = profile.plan === "caterpillar";
 
-  const [{ data: budgetItems }, { data: orders }, { data: execEntries }] = await Promise.all([
+  const [{ data: budgetItems }, { data: orders }, { data: execEntries }, { count: certCount }] = await Promise.all([
     projectIds.length > 0
       ? supabase.from("budget_items").select("project_id, quantity, subtotal").in("project_id", projectIds)
       : Promise.resolve({ data: [] }),
@@ -53,6 +53,9 @@ export default async function ProjectsPage() {
     projectIds.length > 0
       ? supabase.from("execution_entries").select("project_id, budget_item_id, quantity_executed").in("project_id", projectIds)
       : Promise.resolve({ data: [] }),
+    isCaterpillar && projectIds.length > 0
+      ? supabase.from("subcontractor_certificates").select("id", { count: "exact", head: true }).in("project_id", projectIds).eq("status", "PENDIENTE")
+      : Promise.resolve({ data: null, count: 0 }),
   ]);
 
   const subtotalByProject = new Map<string, number>();
@@ -89,15 +92,7 @@ export default async function ProjectsPage() {
     return { project: p, presupuesto, compras, comprasPct, avancePct, enAlerta };
   });
 
-  let certificadosPendientes = 0;
-  if (isCaterpillar && projectIds.length > 0) {
-    const { count } = await supabase
-      .from("subcontractor_certificates")
-      .select("id", { count: "exact", head: true })
-      .in("project_id", projectIds)
-      .eq("status", "PENDIENTE");
-    certificadosPendientes = count ?? 0;
-  }
+  const certificadosPendientes = certCount ?? 0;
 
   const proyectosActivos = list.filter((p) => p.status === "ACTIVO").length;
   const presupuestoTotal = rows.reduce((s, r) => s + r.presupuesto, 0);
