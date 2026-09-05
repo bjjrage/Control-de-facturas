@@ -160,8 +160,6 @@ export default async function ProjectsPage() {
         ) : null}
       </div>
 
-      {chartData.length > 0 ? <ProjectsChart data={chartData} /> : null}
-
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
         {rows.length === 0 ? (
           <div className="text-center text-[var(--muted)] py-10 text-[13px]">
@@ -209,6 +207,8 @@ export default async function ProjectsPage() {
           </div>
         )}
       </div>
+
+      {chartData.length > 0 ? <ProjectsChart data={chartData} /> : null}
     </div>
   );
 }
