@@ -594,3 +594,28 @@ export async function duplicateBudgetFromProject(
   revalidatePath(`/projects/${targetProjectId}`);
   return { copied: copiedCount, error: null };
 }
+
+/**
+ * Info mínima para el sidebar cuando el usuario está "dentro" de un proyecto
+ * (modo carpeta): nombre + código para el banner. No usa requirePlan/notFound
+ * a propósito — el Sidebar necesita degradar en silencio (volver al nav
+ * global) si el proyecto no existe o el usuario no tiene plan, en vez de
+ * romper toda la navegación.
+ */
+export async function getProjectNavInfo(
+  projectId: string
+): Promise<{ id: string; name: string; code: string } | null> {
+  try {
+    const profile = await requirePlan("pro", ["administracion", "admin"]);
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("projects")
+      .select("id, name, code")
+      .eq("id", projectId)
+      .eq("empresa_id", profile.empresa_id)
+      .single();
+    return data ?? null;
+  } catch {
+    return null;
+  }
+}

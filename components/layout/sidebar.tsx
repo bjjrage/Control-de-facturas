@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   FileText,
@@ -20,6 +20,12 @@ import {
   Banknote,
   Wallet,
   HardHat,
+  ClipboardCheck,
+  GanttChartSquare,
+  Hammer,
+  Users,
+  FolderOpen,
+  X,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { EmpresaPlan } from "@/lib/auth";
@@ -27,6 +33,25 @@ import { cn } from "@/lib/cn";
 import { logout } from "@/app/(internal)/actions";
 import { uploadLogo } from "./branding-actions";
 import { LOGO_STORAGE_PATH } from "./branding-constants";
+import { getProjectNavInfo } from "@/app/(internal)/projects/actions";
+
+// Sub-secciones de un proyecto — mismas tabs que /projects/[id]?tab=X, pero
+// como items de sidebar cuando estás "adentro" del proyecto (modo carpeta).
+const PROJECT_TABS: { key: string; label: string; icon: typeof LayoutDashboard; caterpillarOnly?: boolean }[] = [
+  { key: "presupuesto", label: "Presupuesto", icon: ClipboardCheck },
+  { key: "cronograma", label: "Cronograma", icon: GanttChartSquare },
+  { key: "ejecucion", label: "Ejecución", icon: Hammer },
+  { key: "compras", label: "Compras", icon: Package },
+  { key: "facturas", label: "Facturas", icon: Receipt },
+  { key: "pagos", label: "Pagos", icon: Wallet },
+  { key: "personal", label: "Personal", icon: Users, caterpillarOnly: true },
+  { key: "subcontratistas", label: "Subcontratistas", icon: Truck, caterpillarOnly: true },
+  { key: "informes", label: "Informes", icon: FileText },
+];
+
+// UUID v4-ish: alcanza para distinguir /projects/{id} de /projects (lista) y
+// /projects/nuevo si algún día existiera esa ruta.
+const PROJECT_ID_RE = /^\/projects\/([0-9a-f-]{20,})/i;
 
 type Module = "compras" | "ventas";
 
@@ -96,6 +121,32 @@ export function Sidebar({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isAdmin = role === "admin";
   const initial = fullName.trim().charAt(0).toUpperCase() || "?";
+
+  // Modo "carpeta": adentro de un proyecto, todo el nav de la izquierda pasa
+  // a ser sub-secciones de ESE proyecto (Compras/Facturas/Pagos incluidos)
+  // en vez del listado global de la empresa entera.
+  const projectMatch = pathname.match(PROJECT_ID_RE);
+  const activeProjectId = projectMatch?.[1] ?? null;
+  const [projectInfo, setProjectInfo] = useState<{ id: string; name: string; code: string } | null>(null);
+
+  useEffect(() => {
+    if (!activeProjectId) {
+      setProjectInfo(null);
+      return;
+    }
+    let cancelled = false;
+    getProjectNavInfo(activeProjectId).then((info) => {
+      if (!cancelled) setProjectInfo(info);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeProjectId]);
+
+  const inProjectMode = activeProjectId !== null && projectInfo !== null && projectInfo.id === activeProjectId;
+  const isCaterpillarPlan = plan === "caterpillar";
+  const searchParams = useSearchParams();
+  const currentTab = searchParams.get("tab") ?? "presupuesto";
 
   function filterItems(items: NavItem[]) {
     return items.filter((item) => {
@@ -244,11 +295,70 @@ export function Sidebar({
         </button>
       ) : null}
 
+      {inProjectMode && projectInfo ? (
+        <div className={cn("border-b border-[var(--border)] bg-[var(--panel-2)]", collapsed ? "px-1.5 py-2" : "px-3 py-2.5")}>
+          {!collapsed ? (
+            <>
+              <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--primary)]">
+                <FolderOpen size={12} />
+                Proyecto
+              </div>
+              <div className="text-[13px] font-medium truncate mt-0.5" title={projectInfo.name}>
+                {projectInfo.name}
+              </div>
+              <div className="flex items-center justify-between mt-0.5">
+                <span className="text-[11px] text-[var(--muted)] font-mono">{projectInfo.code}</span>
+                <Link
+                  href="/projects"
+                  className="flex items-center gap-0.5 text-[11px] text-[var(--muted)] hover:text-[var(--foreground)]"
+                  title="Salir del proyecto"
+                >
+                  <X size={11} /> Salir
+                </Link>
+              </div>
+            </>
+          ) : (
+            <Link href="/projects" title={`Salir de ${projectInfo.name}`} className="flex justify-center text-[var(--primary)]">
+              <FolderOpen size={16} />
+            </Link>
+          )}
+        </div>
+      ) : null}
+
       <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
-        {globalItems.map(renderLink)}
-        {proyectosItems.map(renderLink)}
-        {renderSection("Compras", comprasItems)}
-        {renderSection("Ventas", ventasItems)}
+        {inProjectMode ? (
+          <>
+            {globalItems.map(renderLink)}
+            {PROJECT_TABS.filter((t) => !t.caterpillarOnly || isCaterpillarPlan).map((t) => {
+              const Icon = t.icon;
+              const active = currentTab === t.key;
+              return (
+                <Link
+                  key={t.key}
+                  href={`/projects/${activeProjectId}?tab=${t.key}`}
+                  title={collapsed ? t.label : undefined}
+                  className={cn(
+                    "flex items-center gap-2.5 h-9 rounded-lg text-[13px] transition-colors",
+                    collapsed ? "justify-center px-0" : "px-3",
+                    active
+                      ? "bg-[var(--primary)] text-white font-medium"
+                      : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+                  )}
+                >
+                  <Icon size={16} className="shrink-0" />
+                  {!collapsed ? <span className="truncate">{t.label}</span> : null}
+                </Link>
+              );
+            })}
+          </>
+        ) : (
+          <>
+            {globalItems.map(renderLink)}
+            {proyectosItems.map(renderLink)}
+            {renderSection("Compras", comprasItems)}
+            {renderSection("Ventas", ventasItems)}
+          </>
+        )}
       </nav>
 
       <div className="border-t border-[var(--border)] p-3">

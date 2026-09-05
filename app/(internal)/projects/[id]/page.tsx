@@ -24,12 +24,17 @@ import { EjecucionTable } from "./ejecucion-table";
 import { PersonalTable } from "./personal-table";
 import { ProyectoComprasTable } from "./proyecto-compras-table";
 import { SubcontratistasTable } from "./subcontratistas-table";
+import { ProyectoFacturasTable } from "./proyecto-facturas-table";
+import { ProyectoPagosTable } from "./proyecto-pagos-table";
+import { Invoice, PaymentOrder, Provider } from "@/lib/types";
 
 const BASE_TABS = [
   { key: "presupuesto", label: "Presupuesto" },
   { key: "cronograma", label: "Cronograma" },
   { key: "ejecucion", label: "Ejecución" },
   { key: "compras", label: "Compras" },
+  { key: "facturas", label: "Facturas" },
+  { key: "pagos", label: "Pagos" },
   { key: "informes", label: "Informes" },
 ] as const;
 
@@ -96,6 +101,44 @@ export default async function ProjectDetailPage({
   const items = budgetItems ?? [];
   const entries = execEntries ?? [];
   const ocs = orders ?? [];
+
+  // Facturas del proyecto: no tienen project_id propio, se derivan vía la OC
+  // vinculada (invoice_order_matches). Una OC matchea a lo sumo una factura.
+  const orderIds = ocs.map((o) => o.id);
+  let projectInvoices: Invoice[] = [];
+  let projectPaymentOrders: PaymentOrder[] = [];
+  let providerNameById = new Map<string, string>();
+  if (orderIds.length > 0) {
+    const { data: matches } = await supabase
+      .from("invoice_order_matches")
+      .select("invoice_id")
+      .in("authorized_order_id", orderIds);
+    const invoiceIds = (matches ?? []).map((m) => m.invoice_id as string);
+    if (invoiceIds.length > 0) {
+      const [{ data: invoiceRows }, { data: providerRows }] = await Promise.all([
+        supabase.from("invoices").select("*").in("id", invoiceIds).order("invoice_date", { ascending: false }).returns<Invoice[]>(),
+        supabase.from("providers").select("id, name").returns<Pick<Provider, "id" | "name">[]>(),
+      ]);
+      projectInvoices = invoiceRows ?? [];
+      providerNameById = new Map((providerRows ?? []).map((p) => [p.id, p.name]));
+
+      // Pagos: OPs que incluyan al menos una factura de este proyecto.
+      const { data: poInvoices } = await supabase
+        .from("payment_order_invoices")
+        .select("payment_order_id")
+        .in("invoice_id", invoiceIds);
+      const paymentOrderIds = [...new Set((poInvoices ?? []).map((p) => p.payment_order_id as string))];
+      if (paymentOrderIds.length > 0) {
+        const { data: poRows } = await supabase
+          .from("payment_orders")
+          .select("*")
+          .in("id", paymentOrderIds)
+          .order("created_at", { ascending: false })
+          .returns<PaymentOrder[]>();
+        projectPaymentOrders = poRows ?? [];
+      }
+    }
+  }
   const laborRows = laborEntries ?? [];
   const laborHoursTotal = laborRows.reduce((s, l) => s + l.hours, 0);
   const laborCostTotal = laborRows.reduce((s, l) => s + l.labor_cost, 0);
@@ -299,6 +342,14 @@ export default async function ProjectDetailPage({
       ) : null}
 
       {tab === "compras" ? <ProyectoComprasTable rows={ocs} /> : null}
+
+      {tab === "facturas" ? (
+        <ProyectoFacturasTable rows={projectInvoices} providerNameById={providerNameById} />
+      ) : null}
+
+      {tab === "pagos" ? (
+        <ProyectoPagosTable rows={projectPaymentOrders} providerNameById={providerNameById} />
+      ) : null}
 
       {tab === "informes" ? (
         <ProjectReports project={project} budgetItems={items} execEntries={entries} orders={ocs} />
