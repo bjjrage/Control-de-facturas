@@ -26,12 +26,17 @@ function ProgressBar({ facturado, total }: { facturado: number; total: number })
   );
 }
 
+function getParam(key: string) {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get(key) ?? "";
+}
+
 export function OrdersSection({ initialData }: { initialData: OrdersSectionData }) {
   const { orders, providers } = initialData;
-  const [filterProduct, setFilterProduct] = useState("");
-  const [filterProvider, setFilterProvider] = useState("");
-  const [filterEtapa, setFilterEtapa] = useState("");
-  const [filterEstado, setFilterEstado] = useState("");
+  const [filterProduct, setFilterProduct] = useState(() => getParam("product"));
+  const [filterProvider, setFilterProvider] = useState(() => getParam("provider"));
+  const [filterEtapa, setFilterEtapa] = useState(() => getParam("etapa"));
+  const [filterEstado, setFilterEstado] = useState(() => getParam("estado"));
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const filtersRef = useRef({ filterProduct, filterProvider, filterEtapa, filterEstado });
