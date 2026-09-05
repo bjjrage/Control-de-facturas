@@ -93,7 +93,7 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
         }
         return true;
       }),
-    [orders, filterProduct, filterProvider, filterEtapa]
+    [orders, filterProduct, filterProvider, filterEtapa, filterEstado]
   );
 
   const hasFilters = !!(filterProduct || filterProvider || filterEtapa || filterEstado);
