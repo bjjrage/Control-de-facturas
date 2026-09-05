@@ -31,26 +31,26 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
   const [filterProduct, setFilterProduct] = useState("");
   const [filterProvider, setFilterProvider] = useState("");
   const [filterEtapa, setFilterEtapa] = useState("");
+  const [filterEstado, setFilterEstado] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const filtersRef = useRef({ filterProduct, filterProvider, filterEtapa });
-  filtersRef.current = { filterProduct, filterProvider, filterEtapa };
+  const filtersRef = useRef({ filterProduct, filterProvider, filterEtapa, filterEstado });
+  filtersRef.current = { filterProduct, filterProvider, filterEtapa, filterEstado };
 
   function buildParams(f: typeof filtersRef.current) {
     const p = new URLSearchParams();
     if (f.filterProduct) p.set("product", f.filterProduct);
     if (f.filterProvider) p.set("provider", f.filterProvider);
     if (f.filterEtapa) p.set("etapa", f.filterEtapa);
+    if (f.filterEstado) p.set("estado", f.filterEstado);
     return p.toString();
   }
 
   useEffect(() => {
-    // Solo la sección visible puede tocar la URL (las precargadas en
-    // background también montan este efecto).
     if (window.location.pathname !== "/orders") return;
-    const qs = buildParams({ filterProduct, filterProvider, filterEtapa });
+    const qs = buildParams({ filterProduct, filterProvider, filterEtapa, filterEstado });
     window.history.replaceState({}, "", qs ? `/orders?${qs}` : "/orders");
-  }, [filterProduct, filterProvider, filterEtapa]);
+  }, [filterProduct, filterProvider, filterEtapa, filterEstado]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -86,12 +86,17 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
           });
           if (ORDER_STEPS[step] !== filterEtapa) return false;
         }
+        if (filterEstado) {
+          const abierta = orderRemaining(o.total_price, o.facturado_amount) > 0;
+          if (filterEstado === "Abierta" && !abierta) return false;
+          if (filterEstado === "Cerrada" && abierta) return false;
+        }
         return true;
       }),
     [orders, filterProduct, filterProvider, filterEtapa]
   );
 
-  const hasFilters = !!(filterProduct || filterProvider || filterEtapa);
+  const hasFilters = !!(filterProduct || filterProvider || filterEtapa || filterEstado);
 
   return (
     <div className="max-w-5xl space-y-4">
@@ -159,9 +164,22 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
             ))}
           </Select>
         </div>
+        <div>
+          <Label htmlFor="ord-estado">Estado</Label>
+          <Select
+            id="ord-estado"
+            value={filterEstado}
+            onChange={(e) => setFilterEstado((e.target as HTMLSelectElement).value)}
+            className="w-36"
+          >
+            <option value="">Todos</option>
+            <option value="Abierta">Abierta</option>
+            <option value="Cerrada">Cerrada</option>
+          </Select>
+        </div>
         {hasFilters ? (
           <button
-            onClick={() => { setFilterProduct(""); setFilterProvider(""); setFilterEtapa(""); }}
+            onClick={() => { setFilterProduct(""); setFilterProvider(""); setFilterEtapa(""); setFilterEstado(""); }}
             className="text-[12px] text-[var(--muted)] pb-1.5 hover:text-[var(--foreground)]"
           >
             Limpiar filtros
