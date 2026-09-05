@@ -25,6 +25,7 @@ export async function proxy(request: NextRequest) {
 
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
@@ -36,6 +37,17 @@ export async function proxy(request: NextRequest) {
     path.startsWith("/_next") ||
     path.startsWith("/api/cotizar") ||
     path === "/favicon.ico";
+
+  console.log(
+    "[proxy]",
+    path,
+    "user=",
+    user?.id ?? null,
+    "err=",
+    userError?.message ?? null,
+    "cookies=",
+    request.cookies.getAll().map((c) => c.name)
+  );
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
