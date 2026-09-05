@@ -108,13 +108,12 @@ export default async function InvoiceDetailPage({
           {invoice.status === "REQUIERE_REVISION" ? (
             <ExceptionDialog invoiceId={invoice.id} trigger={<Button variant="secondary">Aprobar por excepción</Button>} />
           ) : null}
-          {invoice.status === "APTO_PARA_PAGO" && !linkedOp ? (
-            <CreateOpButton invoiceId={invoice.id} />
-          ) : null}
-          {invoice.status === "APTO_PARA_PAGO" && linkedOp ? (
-            <Link href={`/pagos/${linkedOp.id}`} className="text-action text-[13px] text-[var(--primary)]">
-              OP: {linkedOp.code} →
+          {linkedOp ? (
+            <Link href={`/pagos/${linkedOp.id}`}>
+              <Button>Registrar pago →</Button>
             </Link>
+          ) : invoice.status === "MATCH" || invoice.status === "APTO_PARA_PAGO" ? (
+            <CreateOpButton invoiceId={invoice.id} />
           ) : null}
           {profile.role === "admin" ? <DeleteInvoiceButton invoiceId={invoice.id} redirectTo="/invoices" /> : null}
         </div>
