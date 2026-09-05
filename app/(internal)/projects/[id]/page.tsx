@@ -13,8 +13,9 @@ import { ProjectStatusSelect } from "./project-status-select";
 import { ProjectGantt } from "./project-gantt";
 import { ProjectReports } from "./reports";
 import { ExecutionPhotosLightbox } from "./execution-photos-lightbox";
-import { DailyLaborEntry } from "@/lib/types";
+import { DailyLaborEntry, Subcontractor, SubcontractorContract, SubcontractorCertificate } from "@/lib/types";
 import { AddLaborEntryForm } from "./add-labor-entry-form";
+import { AddSubcontractorContractDialog } from "./add-subcontractor-contract-dialog";
 
 const BASE_TABS = [
   { key: "presupuesto", label: "Presupuesto" },
@@ -24,8 +25,11 @@ const BASE_TABS = [
   { key: "informes", label: "Informes" },
 ] as const;
 
-// Caterpillar agrega Personal (y luego Subcontratistas) — no visibles en Pro.
-const CATERPILLAR_TABS = [{ key: "personal", label: "Personal" }] as const;
+// Caterpillar agrega Personal y Subcontratistas — no visibles en Pro.
+const CATERPILLAR_TABS = [
+  { key: "personal", label: "Personal" },
+  { key: "subcontratistas", label: "Subcontratistas" },
+] as const;
 
 export default async function ProjectDetailPage({
   params,
@@ -60,12 +64,55 @@ export default async function ProjectDetailPage({
       : Promise.resolve({ data: [] as DailyLaborEntry[] }),
   ]);
 
+  let subcontractorCatalog: Subcontractor[] = [];
+  let contracts: SubcontractorContract[] = [];
+  let certificates: SubcontractorCertificate[] = [];
+  if (isCaterpillar) {
+    const [{ data: subs }, { data: contractRows }] = await Promise.all([
+      supabase.from("subcontractors").select("*").eq("empresa_id", empresaId).order("name").returns<Subcontractor[]>(),
+      supabase.from("subcontractor_contracts").select("*").eq("project_id", id).order("created_at", { ascending: false }).returns<SubcontractorContract[]>(),
+    ]);
+    subcontractorCatalog = subs ?? [];
+    contracts = contractRows ?? [];
+    if (contracts.length > 0) {
+      const { data: certRows } = await supabase
+        .from("subcontractor_certificates")
+        .select("*")
+        .in("contract_id", contracts.map((c) => c.id))
+        .returns<SubcontractorCertificate[]>();
+      certificates = certRows ?? [];
+    }
+  }
+
   const items = budgetItems ?? [];
   const entries = execEntries ?? [];
   const ocs = orders ?? [];
   const laborRows = laborEntries ?? [];
   const laborHoursTotal = laborRows.reduce((s, l) => s + l.hours, 0);
   const laborCostTotal = laborRows.reduce((s, l) => s + l.labor_cost, 0);
+
+  // Por contrato: suma de certificados aprobados/pagados + los pendientes,
+  // para la alerta de techo (>90% del monto contratado entre aprobado y
+  // pendiente cuenta como riesgo, no solo lo ya aprobado).
+  const certsByContract = new Map<string, SubcontractorCertificate[]>();
+  for (const c of certificates) {
+    const list = certsByContract.get(c.contract_id) ?? [];
+    list.push(c);
+    certsByContract.set(c.contract_id, list);
+  }
+  function contractSummary(contractId: string) {
+    const certs = certsByContract.get(contractId) ?? [];
+    const approvedAmount = certs
+      .filter((c) => c.status === "APROBADO" || c.status === "PAGADO")
+      .reduce((s, c) => s + (c.approved_amount ?? 0), 0);
+    const pendingAmount = certs
+      .filter((c) => c.status === "PENDIENTE")
+      .reduce((s, c) => s + c.claimed_amount, 0);
+    const retentionAccum = certs
+      .filter((c) => c.status === "APROBADO" || c.status === "PAGADO")
+      .reduce((s, c) => s + c.retention_amount, 0);
+    return { approvedAmount, pendingAmount, retentionAccum, certCount: certs.length };
+  }
 
   // Proyectos candidatos para "Copiar de otro proyecto" — solo se ofrece si
   // este proyecto todavía no tiene ítems (no ensuciar un presupuesto ya armado).
@@ -354,6 +401,66 @@ export default async function ProjectDetailPage({
                   </tr>
                 </tfoot>
               ) : null}
+            </table>
+          </div>
+        </div>
+      ) : null}
+
+      {tab === "subcontratistas" && isCaterpillar ? (
+        <div className="space-y-3">
+          <AddSubcontractorContractDialog
+            projectId={project.id}
+            subcontractors={subcontractorCatalog}
+            budgetItems={items}
+          />
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+            <table>
+              <thead>
+                <tr>
+                  <th>Subcontratista</th>
+                  <th>Rubro</th>
+                  <th className="num">Contratado</th>
+                  <th className="num">Certificado aprobado</th>
+                  <th className="num">Retención acum.</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {contracts.length === 0 ? (
+                  <tr><td colSpan={6} className="text-center text-[var(--muted)] py-6">Sin contratos cargados.</td></tr>
+                ) : (
+                  contracts.map((c) => {
+                    const sub = subcontractorCatalog.find((s) => s.id === c.subcontractor_id);
+                    const item = items.find((i) => i.id === c.budget_item_id);
+                    const summary = contractSummary(c.id);
+                    const usedPct = c.contracted_amount > 0
+                      ? Math.round(((summary.approvedAmount + summary.pendingAmount) / c.contracted_amount) * 100)
+                      : 0;
+                    return (
+                      <tr key={c.id}>
+                        <td className="font-medium">{sub?.name ?? "—"}</td>
+                        <td className="text-[var(--muted)]">{item ? `${item.code} — ${item.description}` : "—"}</td>
+                        <td className="num">{formatMoney(c.contracted_amount, "PYG")}</td>
+                        <td className="num">{formatMoney(summary.approvedAmount, "PYG")}</td>
+                        <td className="num text-[var(--muted)]">{formatMoney(summary.retentionAccum, "PYG")}</td>
+                        <td>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] text-[var(--muted)]">{c.status}</span>
+                            {usedPct > 90 ? (
+                              <span
+                                className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-[var(--error-bg)] text-[var(--error)]"
+                                title={`${usedPct}% del monto contratado entre aprobado y pendiente`}
+                              >
+                                ⚠ {usedPct}%
+                              </span>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
             </table>
           </div>
         </div>
