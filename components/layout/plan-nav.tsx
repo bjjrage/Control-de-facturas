@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Settings, Users, Building2 } from "lucide-react";
+import { Settings, Users, Building2, SignalLow, SignalMedium, SignalHigh } from "lucide-react";
 import { EmpresaPlan } from "@/lib/auth";
 import { UserRole } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -20,10 +20,15 @@ const SUPER_ADMIN_ITEMS: NavLink[] = [
   { href: "/empresas", label: "Empresas", roles: [], icon: Building2, superAdmin: true },
 ];
 
-const PLANS: { value: EmpresaPlan; label: string }[] = [
-  { value: "basico", label: "Básico" },
-  { value: "pro", label: "Pro" },
-  { value: "caterpillar", label: "Caterpillar" },
+// Íconos de señal (barras crecientes) para que el nivel se lea de un
+// vistazo, no solo por el texto — Básico/Pro/Caterpillar son un orden
+// jerárquico, no tres opciones sueltas. Color propio por nivel en vez del
+// --primary genérico para todo: gris neutro, azul, y el naranja de --warn
+// (evoca CAT/construcción) para el tope.
+const PLANS: { value: EmpresaPlan; label: string; icon: typeof SignalLow; activeBg: string; activeText: string }[] = [
+  { value: "basico", label: "Básico", icon: SignalLow, activeBg: "var(--muted)", activeText: "#fff" },
+  { value: "pro", label: "Pro", icon: SignalMedium, activeBg: "var(--primary)", activeText: "#fff" },
+  { value: "caterpillar", label: "Caterpillar", icon: SignalHigh, activeBg: "var(--warn)", activeText: "#1a1300" },
 ];
 
 // Nav derecho = pura configuración (planes, administración, super admin).
@@ -104,28 +109,26 @@ export function PlanNav({
           ? renderSection(
               "Planes",
               <div className="space-y-0.5">
-                {PLANS.map((p) => (
-                  <button
-                    key={p.value}
-                    type="button"
-                    disabled={pending}
-                    onClick={() => handlePlanClick(p.value)}
-                    className={cn(
-                      "w-full flex items-center gap-2.5 h-9 px-3 rounded-lg text-[13px] transition-colors text-left disabled:opacity-60",
-                      currentPlan === p.value
-                        ? "bg-[var(--primary)] text-white font-medium"
-                        : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
-                    )}
-                  >
-                    <span
+                {PLANS.map((p) => {
+                  const Icon = p.icon;
+                  const active = currentPlan === p.value;
+                  return (
+                    <button
+                      key={p.value}
+                      type="button"
+                      disabled={pending}
+                      onClick={() => handlePlanClick(p.value)}
+                      style={active ? { background: p.activeBg, color: p.activeText } : undefined}
                       className={cn(
-                        "h-1.5 w-1.5 rounded-full shrink-0",
-                        currentPlan === p.value ? "bg-white" : "bg-[var(--border)]"
+                        "w-full flex items-center gap-2.5 h-9 px-3 rounded-lg text-[13px] transition-colors text-left disabled:opacity-60",
+                        active ? "font-semibold" : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
                       )}
-                    />
-                    <span className="truncate">{p.label}</span>
-                  </button>
-                ))}
+                    >
+                      <Icon size={15} className="shrink-0" strokeWidth={2.25} />
+                      <span className="truncate">{p.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             )
           : null}
