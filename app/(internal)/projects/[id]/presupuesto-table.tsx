@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { ColumnFilter, uniqueValues, passesColumnFilter } from "@/components/ui/column-filter";
 import { formatMoney } from "@/lib/format";
+import { EditBudgetItemDialog } from "./edit-budget-item-dialog";
 
 type Row = {
   id: string;
@@ -16,22 +17,35 @@ type Row = {
   execPct: number | null;
 };
 
-type ColKey = "code" | "description" | "unit";
+const unitLabel = (r: Row) => r.unit ?? "—";
+const qtyLabel = (r: Row) => (r.quantity ?? "—").toString();
+const priceLabel = (r: Row) => (r.unitPrice != null ? formatMoney(r.unitPrice, "PYG") : "—");
+const subtotalLabel = (r: Row) => formatMoney(r.subtotal, "PYG");
+const execLabel = (r: Row) => (r.execPct !== null ? `${r.execPct}%` : "—");
 
-export function PresupuestoTable({ rows, total }: { rows: Row[]; total: number }) {
+type ColKey = "code" | "description" | "unit" | "quantity" | "unitPrice" | "subtotal" | "execPct";
+
+export function PresupuestoTable({ rows, total, projectId }: { rows: Row[]; total: number; projectId: string }) {
   const [q, setQ] = useState("");
   const [colFilters, setColFilters] = useState<Record<ColKey, Set<string> | null>>({
     code: null,
     description: null,
     unit: null,
+    quantity: null,
+    unitPrice: null,
+    subtotal: null,
+    execPct: null,
   });
 
-  const unitLabel = (r: Row) => r.unit ?? "—";
   const uniques = useMemo(
     () => ({
       code: uniqueValues(rows, (r) => r.code),
       description: uniqueValues(rows, (r) => r.description),
       unit: uniqueValues(rows, unitLabel),
+      quantity: uniqueValues(rows, qtyLabel),
+      unitPrice: uniqueValues(rows, priceLabel),
+      subtotal: uniqueValues(rows, subtotalLabel),
+      execPct: uniqueValues(rows, execLabel),
     }),
     [rows]
   );
@@ -46,6 +60,10 @@ export function PresupuestoTable({ rows, total }: { rows: Row[]; total: number }
       if (!passesColumnFilter(r.code, colFilters.code)) return false;
       if (!passesColumnFilter(r.description, colFilters.description)) return false;
       if (!passesColumnFilter(unitLabel(r), colFilters.unit)) return false;
+      if (!passesColumnFilter(qtyLabel(r), colFilters.quantity)) return false;
+      if (!passesColumnFilter(priceLabel(r), colFilters.unitPrice)) return false;
+      if (!passesColumnFilter(subtotalLabel(r), colFilters.subtotal)) return false;
+      if (!passesColumnFilter(execLabel(r), colFilters.execPct)) return false;
       if (!term) return true;
       return r.code.toLowerCase().includes(term) || r.description.toLowerCase().includes(term);
     });
@@ -81,16 +99,29 @@ export function PresupuestoTable({ rows, total }: { rows: Row[]; total: number }
                 Unid.
                 <ColumnFilter values={uniques.unit} selected={colFilters.unit} onChange={(v) => setCol("unit", v)} />
               </th>
-              <th className="num">Cantidad</th>
-              <th className="num">P. Unit.</th>
-              <th className="num">Subtotal</th>
-              <th className="num">Ejecutado</th>
+              <th className="num">
+                Cantidad
+                <ColumnFilter values={uniques.quantity} selected={colFilters.quantity} onChange={(v) => setCol("quantity", v)} />
+              </th>
+              <th className="num">
+                P. Unit.
+                <ColumnFilter values={uniques.unitPrice} selected={colFilters.unitPrice} onChange={(v) => setCol("unitPrice", v)} />
+              </th>
+              <th className="num">
+                Subtotal
+                <ColumnFilter values={uniques.subtotal} selected={colFilters.subtotal} onChange={(v) => setCol("subtotal", v)} />
+              </th>
+              <th className="num">
+                Ejecutado
+                <ColumnFilter values={uniques.execPct} selected={colFilters.execPct} onChange={(v) => setCol("execPct", v)} />
+              </th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center text-[var(--muted)] py-6">
+                <td colSpan={8} className="text-center text-[var(--muted)] py-6">
                   {rows.length === 0 ? "Sin ítems todavía." : "Sin resultados para ese filtro."}
                 </td>
               </tr>
@@ -104,6 +135,9 @@ export function PresupuestoTable({ rows, total }: { rows: Row[]; total: number }
                   <td className="num">{r.unitPrice != null ? formatMoney(r.unitPrice, "PYG") : "—"}</td>
                   <td className="num font-medium">{formatMoney(r.subtotal, "PYG")}</td>
                   <td className="num text-[var(--muted)]">{r.execPct !== null ? `${r.execPct}%` : "—"}</td>
+                  <td>
+                    <EditBudgetItemDialog projectId={projectId} row={r} />
+                  </td>
                 </tr>
               ))
             )}
@@ -113,6 +147,7 @@ export function PresupuestoTable({ rows, total }: { rows: Row[]; total: number }
               <tr>
                 <td colSpan={5} className="text-right font-semibold">TOTAL</td>
                 <td className="num font-semibold">{formatMoney(total, "PYG")}</td>
+                <td></td>
                 <td></td>
               </tr>
             </tfoot>

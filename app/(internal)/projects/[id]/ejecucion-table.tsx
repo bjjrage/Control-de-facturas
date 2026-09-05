@@ -34,20 +34,44 @@ function withinPreset(dateStr: string, preset: Preset): boolean {
   return d >= cutoff && d <= today;
 }
 
-type ColKey = "itemLabel";
+const dateLabel = (r: Row) => formatDate(r.date);
+const qtyLabel = (r: Row) => `${r.quantityExecuted} ${r.unit}`;
+const notesLabel = (r: Row) => r.notes ?? "—";
+
+type ColKey = "date" | "itemLabel" | "quantityExecuted" | "notes";
 
 export function EjecucionTable({ rows }: { rows: Row[] }) {
   const [q, setQ] = useState("");
   const [preset, setPreset] = useState<Preset>("all");
-  const [colFilters, setColFilters] = useState<Record<ColKey, Set<string> | null>>({ itemLabel: null });
+  const [colFilters, setColFilters] = useState<Record<ColKey, Set<string> | null>>({
+    date: null,
+    itemLabel: null,
+    quantityExecuted: null,
+    notes: null,
+  });
 
-  const uniques = useMemo(() => ({ itemLabel: uniqueValues(rows, (r) => r.itemLabel) }), [rows]);
+  const uniques = useMemo(
+    () => ({
+      date: uniqueValues(rows, dateLabel),
+      itemLabel: uniqueValues(rows, (r) => r.itemLabel),
+      quantityExecuted: uniqueValues(rows, qtyLabel),
+      notes: uniqueValues(rows, notesLabel),
+    }),
+    [rows]
+  );
+
+  function setCol(key: ColKey, next: Set<string> | null) {
+    setColFilters((f) => ({ ...f, [key]: next }));
+  }
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return rows.filter((r) => {
       if (!withinPreset(r.date, preset)) return false;
+      if (!passesColumnFilter(dateLabel(r), colFilters.date)) return false;
       if (!passesColumnFilter(r.itemLabel, colFilters.itemLabel)) return false;
+      if (!passesColumnFilter(qtyLabel(r), colFilters.quantityExecuted)) return false;
+      if (!passesColumnFilter(notesLabel(r), colFilters.notes)) return false;
       if (!term) return true;
       return r.itemLabel.toLowerCase().includes(term) || (r.notes ?? "").toLowerCase().includes(term);
     });
@@ -84,17 +108,30 @@ export function EjecucionTable({ rows }: { rows: Row[] }) {
         <table>
           <thead>
             <tr>
-              <th>Fecha</th>
+              <th>
+                Fecha
+                <ColumnFilter values={uniques.date} selected={colFilters.date} onChange={(v) => setCol("date", v)} />
+              </th>
               <th>
                 Ítem
                 <ColumnFilter
                   values={uniques.itemLabel}
                   selected={colFilters.itemLabel}
-                  onChange={(v) => setColFilters((f) => ({ ...f, itemLabel: v }))}
+                  onChange={(v) => setCol("itemLabel", v)}
                 />
               </th>
-              <th className="num">Cant. ejecutada</th>
-              <th>Notas</th>
+              <th className="num">
+                Cant. ejecutada
+                <ColumnFilter
+                  values={uniques.quantityExecuted}
+                  selected={colFilters.quantityExecuted}
+                  onChange={(v) => setCol("quantityExecuted", v)}
+                />
+              </th>
+              <th>
+                Notas
+                <ColumnFilter values={uniques.notes} selected={colFilters.notes} onChange={(v) => setCol("notes", v)} />
+              </th>
               <th>Fotos</th>
             </tr>
           </thead>

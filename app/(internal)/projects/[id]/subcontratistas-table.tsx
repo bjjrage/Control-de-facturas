@@ -17,27 +17,43 @@ type Row = {
   certs: SubcontractorCertificate[];
 };
 
-type ColKey = "itemLabel" | "status";
+const contractedLabel = (r: Row) => formatMoney(r.contract.contracted_amount, "PYG");
+const approvedLabel = (r: Row) => formatMoney(r.approvedAmount, "PYG");
+
+type ColKey = "subName" | "itemLabel" | "contracted" | "approved" | "status";
 
 export function SubcontratistasTable({ rows, appUrl }: { rows: Row[]; appUrl: string }) {
   const [q, setQ] = useState("");
   const [colFilters, setColFilters] = useState<Record<ColKey, Set<string> | null>>({
+    subName: null,
     itemLabel: null,
+    contracted: null,
+    approved: null,
     status: null,
   });
 
   const uniques = useMemo(
     () => ({
+      subName: uniqueValues(rows, (r) => r.subName),
       itemLabel: uniqueValues(rows, (r) => r.itemLabel),
+      contracted: uniqueValues(rows, contractedLabel),
+      approved: uniqueValues(rows, approvedLabel),
       status: uniqueValues(rows, (r) => r.contract.status),
     }),
     [rows]
   );
 
+  function setCol(key: ColKey, next: Set<string> | null) {
+    setColFilters((f) => ({ ...f, [key]: next }));
+  }
+
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return rows.filter((r) => {
+      if (!passesColumnFilter(r.subName, colFilters.subName)) return false;
       if (!passesColumnFilter(r.itemLabel, colFilters.itemLabel)) return false;
+      if (!passesColumnFilter(contractedLabel(r), colFilters.contracted)) return false;
+      if (!passesColumnFilter(approvedLabel(r), colFilters.approved)) return false;
       if (!passesColumnFilter(r.contract.status, colFilters.status)) return false;
       if (!term) return true;
       return (
@@ -62,25 +78,38 @@ export function SubcontratistasTable({ rows, appUrl }: { rows: Row[]; appUrl: st
         <table>
           <thead>
             <tr>
-              <th>Subcontratista</th>
+              <th>
+                Subcontratista
+                <ColumnFilter values={uniques.subName} selected={colFilters.subName} onChange={(v) => setCol("subName", v)} />
+              </th>
               <th>
                 Rubro
                 <ColumnFilter
                   values={uniques.itemLabel}
                   selected={colFilters.itemLabel}
-                  onChange={(v) => setColFilters((f) => ({ ...f, itemLabel: v }))}
+                  onChange={(v) => setCol("itemLabel", v)}
                 />
               </th>
-              <th className="num">Contratado</th>
-              <th className="num">Certificado aprobado</th>
+              <th className="num">
+                Contratado
+                <ColumnFilter
+                  values={uniques.contracted}
+                  selected={colFilters.contracted}
+                  onChange={(v) => setCol("contracted", v)}
+                />
+              </th>
+              <th className="num">
+                Certificado aprobado
+                <ColumnFilter
+                  values={uniques.approved}
+                  selected={colFilters.approved}
+                  onChange={(v) => setCol("approved", v)}
+                />
+              </th>
               <th className="num">Retención acum.</th>
               <th>
                 Estado
-                <ColumnFilter
-                  values={uniques.status}
-                  selected={colFilters.status}
-                  onChange={(v) => setColFilters((f) => ({ ...f, status: v }))}
-                />
+                <ColumnFilter values={uniques.status} selected={colFilters.status} onChange={(v) => setCol("status", v)} />
               </th>
               <th></th>
             </tr>

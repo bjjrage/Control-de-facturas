@@ -10,6 +10,10 @@ import { ImportBudgetDialog } from "./import-budget-dialog";
 import { DuplicateBudgetDialog } from "./duplicate-budget-dialog";
 import { AddExecutionEntryForm } from "./add-execution-entry-form";
 import { ProjectStatusSelect } from "./project-status-select";
+import { EditProjectDialog } from "./edit-project-dialog";
+import { DeleteProjectButton } from "./delete-project-button";
+import { Pencil } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { ProjectGantt } from "./project-gantt";
 import { ProjectReports } from "./reports";
 import { DailyLaborEntry, Subcontractor, SubcontractorContract, SubcontractorCertificate } from "@/lib/types";
@@ -186,7 +190,18 @@ export default async function ProjectDetailPage({
             {project.location ? ` · ${project.location}` : ""}
           </p>
         </div>
-        <ProjectStatusSelect projectId={project.id} status={project.status} />
+        <div className="flex items-center gap-1">
+          <EditProjectDialog
+            project={project}
+            trigger={
+              <Button variant="ghost" title="Editar obra">
+                <Pencil size={15} />
+              </Button>
+            }
+          />
+          <DeleteProjectButton projectId={project.id} projectName={project.name} />
+          <ProjectStatusSelect projectId={project.id} status={project.status} />
+        </div>
       </div>
 
       <div className={`grid gap-3 ${isCaterpillar ? "grid-cols-4" : "grid-cols-3"}`}>
@@ -253,6 +268,7 @@ export default async function ProjectDetailPage({
               };
             })}
             total={itemsSubtotal}
+            projectId={project.id}
           />
         </div>
       ) : null}

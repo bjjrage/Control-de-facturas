@@ -24,20 +24,40 @@ function withinPreset(dateStr: string, preset: Preset): boolean {
   return d >= cutoff && d <= today;
 }
 
-type ColKey = "worker_name";
+const dateLabel = (l: DailyLaborEntry) => formatDate(l.entry_date);
+const taskLabel = (l: DailyLaborEntry) => l.task_description ?? "—";
+
+type ColKey = "date" | "worker_name" | "task";
 
 export function PersonalTable({ rows }: { rows: DailyLaborEntry[] }) {
   const [q, setQ] = useState("");
   const [preset, setPreset] = useState<Preset>("all");
-  const [colFilters, setColFilters] = useState<Record<ColKey, Set<string> | null>>({ worker_name: null });
+  const [colFilters, setColFilters] = useState<Record<ColKey, Set<string> | null>>({
+    date: null,
+    worker_name: null,
+    task: null,
+  });
 
-  const uniques = useMemo(() => ({ worker_name: uniqueValues(rows, (r) => r.worker_name) }), [rows]);
+  const uniques = useMemo(
+    () => ({
+      date: uniqueValues(rows, dateLabel),
+      worker_name: uniqueValues(rows, (r) => r.worker_name),
+      task: uniqueValues(rows, taskLabel),
+    }),
+    [rows]
+  );
+
+  function setCol(key: ColKey, next: Set<string> | null) {
+    setColFilters((f) => ({ ...f, [key]: next }));
+  }
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return rows.filter((r) => {
       if (!withinPreset(r.entry_date, preset)) return false;
+      if (!passesColumnFilter(dateLabel(r), colFilters.date)) return false;
       if (!passesColumnFilter(r.worker_name, colFilters.worker_name)) return false;
+      if (!passesColumnFilter(taskLabel(r), colFilters.task)) return false;
       if (!term) return true;
       return r.worker_name.toLowerCase().includes(term) || (r.task_description ?? "").toLowerCase().includes(term);
     });
@@ -77,19 +97,25 @@ export function PersonalTable({ rows }: { rows: DailyLaborEntry[] }) {
         <table>
           <thead>
             <tr>
-              <th>Fecha</th>
+              <th>
+                Fecha
+                <ColumnFilter values={uniques.date} selected={colFilters.date} onChange={(v) => setCol("date", v)} />
+              </th>
               <th>
                 Trabajador
                 <ColumnFilter
                   values={uniques.worker_name}
                   selected={colFilters.worker_name}
-                  onChange={(v) => setColFilters((f) => ({ ...f, worker_name: v }))}
+                  onChange={(v) => setCol("worker_name", v)}
                 />
               </th>
               <th className="num">Horas</th>
               <th className="num">Costo/hora</th>
               <th className="num">Total</th>
-              <th>Tarea</th>
+              <th>
+                Tarea
+                <ColumnFilter values={uniques.task} selected={colFilters.task} onChange={(v) => setCol("task", v)} />
+              </th>
             </tr>
           </thead>
           <tbody>

@@ -75,6 +75,56 @@ export async function updateProjectStatus(projectId: string, status: ProjectStat
   return { error: null };
 }
 
+export async function updateProject(projectId: string, formData: FormData): Promise<{ error: string | null }> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const supabase = await createClient();
+  const empresaId = profile.empresa_id;
+
+  const name = formData.get("name") as string | null;
+  const client = (formData.get("client") as string | null) || null;
+  const location = (formData.get("location") as string | null) || null;
+  const startDate = (formData.get("start_date") as string | null) || null;
+  const endDate = (formData.get("end_date") as string | null) || null;
+  const budgetTotal = Number(formData.get("budget_total") ?? 0);
+
+  if (!name) return { error: "El nombre es obligatorio." };
+
+  const { error } = await supabase
+    .from("projects")
+    .update({
+      name,
+      client,
+      location,
+      start_date: startDate,
+      end_date: endDate,
+      budget_total: Number.isFinite(budgetTotal) ? budgetTotal : 0,
+    })
+    .eq("id", projectId)
+    .eq("empresa_id", empresaId);
+
+  if (error) return { error: "No se pudo actualizar el proyecto." };
+
+  await logAudit(supabase, { action: "project.updated", detail: { project_id: projectId } });
+
+  revalidatePath("/projects");
+  revalidatePath(`/projects/${projectId}`);
+  return { error: null };
+}
+
+export async function deleteProject(projectId: string): Promise<{ error: string | null }> {
+  const profile = await requirePlan("pro", ["admin"]);
+  const supabase = await createClient();
+  const empresaId = profile.empresa_id;
+
+  const { error } = await supabase.from("projects").delete().eq("id", projectId).eq("empresa_id", empresaId);
+  if (error) return { error: "No se pudo eliminar el proyecto." };
+
+  await logAudit(supabase, { action: "project.deleted", detail: { project_id: projectId } });
+
+  revalidatePath("/projects");
+  return { error: null };
+}
+
 export async function addBudgetItem(projectId: string, formData: FormData): Promise<{ error: string | null }> {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
@@ -123,6 +173,64 @@ export async function addBudgetItem(projectId: string, formData: FormData): Prom
   });
 
   if (error) return { error: "No se pudo agregar el ítem." };
+
+  revalidatePath(`/projects/${projectId}`);
+  return { error: null };
+}
+
+export async function updateBudgetItem(
+  projectId: string,
+  itemId: string,
+  formData: FormData
+): Promise<{ error: string | null }> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const supabase = await createClient();
+  const empresaId = profile.empresa_id;
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("empresa_id", empresaId)
+    .single();
+  if (!project) return { error: "Proyecto no encontrado." };
+
+  const code = formData.get("code") as string | null;
+  const description = formData.get("description") as string | null;
+  const unit = (formData.get("unit") as string | null) || null;
+  const quantity = formData.get("quantity") ? Number(formData.get("quantity")) : null;
+  const unitPrice = formData.get("unit_price") ? Number(formData.get("unit_price")) : null;
+
+  if (!code) return { error: "El código es obligatorio." };
+  if (!description) return { error: "La descripción es obligatoria." };
+
+  const { error } = await supabase
+    .from("budget_items")
+    .update({ code, description, unit, quantity, unit_price: unitPrice })
+    .eq("id", itemId)
+    .eq("project_id", projectId);
+
+  if (error) return { error: "No se pudo actualizar el ítem." };
+
+  revalidatePath(`/projects/${projectId}`);
+  return { error: null };
+}
+
+export async function deleteBudgetItem(projectId: string, itemId: string): Promise<{ error: string | null }> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const supabase = await createClient();
+  const empresaId = profile.empresa_id;
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("empresa_id", empresaId)
+    .single();
+  if (!project) return { error: "Proyecto no encontrado." };
+
+  const { error } = await supabase.from("budget_items").delete().eq("id", itemId).eq("project_id", projectId);
+  if (error) return { error: "No se pudo eliminar el ítem." };
 
   revalidatePath(`/projects/${projectId}`);
   return { error: null };

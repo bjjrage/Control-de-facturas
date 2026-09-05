@@ -7,18 +7,44 @@ import { ColumnFilter, uniqueValues, passesColumnFilter } from "@/components/ui/
 import { formatDate, formatMoney } from "@/lib/format";
 import { AuthorizedOrder } from "@/lib/types";
 
-type ColKey = "provider_name";
+const totalLabel = (o: AuthorizedOrder) => formatMoney(o.total_price, o.currency);
+const dateLabel = (o: AuthorizedOrder) => formatDate(o.authorized_at);
+
+type ColKey = "code" | "product" | "provider_name" | "total" | "date";
 
 export function ProyectoComprasTable({ rows }: { rows: AuthorizedOrder[] }) {
   const [q, setQ] = useState("");
-  const [colFilters, setColFilters] = useState<Record<ColKey, Set<string> | null>>({ provider_name: null });
+  const [colFilters, setColFilters] = useState<Record<ColKey, Set<string> | null>>({
+    code: null,
+    product: null,
+    provider_name: null,
+    total: null,
+    date: null,
+  });
 
-  const uniques = useMemo(() => ({ provider_name: uniqueValues(rows, (r) => r.provider_name) }), [rows]);
+  const uniques = useMemo(
+    () => ({
+      code: uniqueValues(rows, (r) => r.code),
+      product: uniqueValues(rows, (r) => r.product),
+      provider_name: uniqueValues(rows, (r) => r.provider_name),
+      total: uniqueValues(rows, totalLabel),
+      date: uniqueValues(rows, dateLabel),
+    }),
+    [rows]
+  );
+
+  function setCol(key: ColKey, next: Set<string> | null) {
+    setColFilters((f) => ({ ...f, [key]: next }));
+  }
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return rows.filter((o) => {
+      if (!passesColumnFilter(o.code, colFilters.code)) return false;
+      if (!passesColumnFilter(o.product, colFilters.product)) return false;
       if (!passesColumnFilter(o.provider_name, colFilters.provider_name)) return false;
+      if (!passesColumnFilter(totalLabel(o), colFilters.total)) return false;
+      if (!passesColumnFilter(dateLabel(o), colFilters.date)) return false;
       if (!term) return true;
       return (
         o.code.toLowerCase().includes(term) ||
@@ -42,18 +68,30 @@ export function ProyectoComprasTable({ rows }: { rows: AuthorizedOrder[] }) {
         <table>
           <thead>
             <tr>
-              <th>Código OC</th>
-              <th>Producto</th>
+              <th>
+                Código OC
+                <ColumnFilter values={uniques.code} selected={colFilters.code} onChange={(v) => setCol("code", v)} />
+              </th>
+              <th>
+                Producto
+                <ColumnFilter values={uniques.product} selected={colFilters.product} onChange={(v) => setCol("product", v)} />
+              </th>
               <th>
                 Proveedor
                 <ColumnFilter
                   values={uniques.provider_name}
                   selected={colFilters.provider_name}
-                  onChange={(v) => setColFilters((f) => ({ ...f, provider_name: v }))}
+                  onChange={(v) => setCol("provider_name", v)}
                 />
               </th>
-              <th className="num">Total</th>
-              <th>Autorizada</th>
+              <th className="num">
+                Total
+                <ColumnFilter values={uniques.total} selected={colFilters.total} onChange={(v) => setCol("total", v)} />
+              </th>
+              <th>
+                Autorizada
+                <ColumnFilter values={uniques.date} selected={colFilters.date} onChange={(v) => setCol("date", v)} />
+              </th>
             </tr>
           </thead>
           <tbody>
