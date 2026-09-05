@@ -22,13 +22,14 @@ const SUPER_ADMIN_ITEMS: NavLink[] = [
 
 // Íconos de señal (barras crecientes) para que el nivel se lea de un
 // vistazo, no solo por el texto — Básico/Pro/Caterpillar son un orden
-// jerárquico, no tres opciones sueltas. Color propio por nivel en vez del
-// --primary genérico para todo: gris neutro, azul, y el naranja de --warn
-// (evoca CAT/construcción) para el tope.
+// jerárquico, no tres opciones sueltas. Tres colores fluor bien distintos
+// entre sí y del --primary del nav izquierdo (así el plan activo nunca se
+// confunde visualmente con un link de navegación activo). Nada de gris:
+// acá el nivel tiene que resaltar, no verse apagado.
 const PLANS: { value: EmpresaPlan; label: string; icon: typeof SignalLow; activeBg: string; activeText: string }[] = [
-  { value: "basico", label: "Básico", icon: SignalLow, activeBg: "var(--muted)", activeText: "#fff" },
-  { value: "pro", label: "Pro", icon: SignalMedium, activeBg: "var(--primary)", activeText: "#fff" },
-  { value: "caterpillar", label: "Caterpillar", icon: SignalHigh, activeBg: "var(--warn)", activeText: "#1a1300" },
+  { value: "basico", label: "Básico", icon: SignalLow, activeBg: "#39ff88", activeText: "#04210f" },
+  { value: "pro", label: "Pro", icon: SignalMedium, activeBg: "#ff2ec4", activeText: "#2b0018" },
+  { value: "caterpillar", label: "Caterpillar", icon: SignalHigh, activeBg: "#ffe600", activeText: "#241d00" },
 ];
 
 // Nav derecho = pura configuración (planes, administración, super admin).
