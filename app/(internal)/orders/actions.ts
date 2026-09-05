@@ -5,6 +5,7 @@ import { requireProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { CurrencyCode } from "@/lib/types";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 const CURRENCIES: CurrencyCode[] = ["PYG", "USD", "EUR", "BRL", "ARS"];
 
@@ -135,4 +136,40 @@ export async function createOrderFromInvoice(
   revalidatePath("/orders");
   revalidatePath(`/invoices/${invoiceId}`);
   return { error: null, id: order.id as string };
+}
+
+/**
+ * Hard-delete de una OC: solo admin, y solo si nunca se le vinculó una
+ * factura (facturado_amount = 0 y sin filas en invoice_order_matches).
+ * Pensado para limpiar duplicados de carga manual — una OC ya facturada
+ * nunca se borra, se cancela a mano si hace falta.
+ */
+export async function deleteOrder(orderId: string) {
+  await requireProfile(["admin"]);
+  const supabase = await createClient();
+
+  const { data: order } = await supabase
+    .from("authorized_orders")
+    .select("id, facturado_amount")
+    .eq("id", orderId)
+    .single();
+  if (!order) return { error: "Orden no encontrada." };
+  if (order.facturado_amount > 0) {
+    return { error: "No se puede eliminar: ya tiene facturas vinculadas." };
+  }
+
+  const { count } = await supabase
+    .from("invoice_order_matches")
+    .select("id", { count: "exact", head: true })
+    .eq("authorized_order_id", orderId);
+  if (count && count > 0) {
+    return { error: "No se puede eliminar: ya tiene facturas vinculadas." };
+  }
+
+  const { error } = await supabase.from("authorized_orders").delete().eq("id", orderId);
+  if (error) return { error: error.message };
+
+  await logAudit(supabase, { action: "order.deleted", authorizedOrderId: orderId });
+  revalidatePath("/orders");
+  redirect("/orders");
 }

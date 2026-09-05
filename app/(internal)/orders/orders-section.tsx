@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, Label } from "@/components/ui/input";
 import { OrderDialog } from "./order-dialog";
 import { OrdersSectionData } from "./section-action";
+import { DeleteOrderButton } from "./delete-order-button";
 
 function ProgressBar({ facturado, total }: { facturado: number; total: number }) {
   const pct = total > 0 ? Math.min(100, Math.round((facturado / total) * 100)) : 0;
@@ -32,7 +33,7 @@ function getParam(key: string) {
 }
 
 export function OrdersSection({ initialData }: { initialData: OrdersSectionData }) {
-  const { orders, providers } = initialData;
+  const { orders, providers, isAdmin } = initialData;
   const [filterProduct, setFilterProduct] = useState(() => getParam("product"));
   const [filterProvider, setFilterProvider] = useState(() => getParam("provider"));
   const [filterEtapa, setFilterEtapa] = useState(() => getParam("etapa"));
@@ -210,6 +211,7 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
                 <th>Facturado</th>
                 <th>Estado</th>
                 <th>Autorizada</th>
+                {isAdmin ? <th></th> : null}
               </tr>
             </thead>
             <tbody>
@@ -239,11 +241,16 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
                     )}
                   </td>
                   <td className="text-[var(--muted)]">{formatDate(o.authorized_at)}</td>
+                  {isAdmin ? (
+                    <td>
+                      {o.facturado_amount === 0 ? <DeleteOrderButton orderId={o.id} compact /> : null}
+                    </td>
+                  ) : null}
                 </tr>
               ))}
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center text-[var(--muted)] py-8">
+                  <td colSpan={isAdmin ? 8 : 7} className="text-center text-[var(--muted)] py-8">
                     {orders.length === 0
                       ? 'No hay órdenes todavía. Usá "+ Nueva compra" para registrar la primera.'
                       : "Ninguna orden coincide con los filtros."}

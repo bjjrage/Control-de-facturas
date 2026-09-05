@@ -11,12 +11,13 @@ import { unmatchOrder } from "@/app/(internal)/invoices/[id]/actions";
 import { InvoiceDialog } from "@/app/(internal)/invoices/invoice-dialog";
 import { LinkInvoiceDialog } from "./link-invoice-dialog";
 import { OrderPipeline } from "../order-pipeline";
+import { DeleteOrderButton } from "../delete-order-button";
 
 const ORIGIN_LABEL = { rfq: "Desde solicitud", manual: "Carga manual", invoice: "Desde factura" } as const;
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await requireProfile(["comercial", "administracion", "admin"]);
+  const profile = await requireProfile(["comercial", "administracion", "admin"]);
   const supabase = await createClient();
 
   const { data: order } = await supabase
@@ -45,34 +46,38 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   const over = isOverbilled(order.total_price, order.facturado_amount);
   const pct =
     order.total_price > 0 ? Math.min(100, Math.round((order.facturado_amount / order.total_price) * 100)) : 0;
+  const canDelete = profile.role === "admin" && order.facturado_amount === 0 && (matches ?? []).length === 0;
 
   return (
     <div className="max-w-3xl space-y-5">
-      <div>
-        <Link href="/orders" className="text-action text-[12px] text-[var(--muted)]">
-          ← Volver a Órdenes
-        </Link>
-        <div className="flex items-center gap-2 mt-1">
-          <h1 className="text-[17px] font-semibold">{order.code}</h1>
-          <StatusBadge status={order.status} />
+      <div className="flex items-start justify-between">
+        <div>
+          <Link href="/orders" className="text-action text-[12px] text-[var(--muted)]">
+            ← Volver a Órdenes
+          </Link>
+          <div className="flex items-center gap-2 mt-1">
+            <h1 className="text-[17px] font-semibold">{order.code}</h1>
+            <StatusBadge status={order.status} />
+          </div>
+          <p className="text-[13px] text-[var(--muted)] mt-1">
+            {order.provider_name} · {order.product} · {formatNumber(order.quantity, 2)} {order.unit} ×{" "}
+            {formatMoney(order.unit_price, order.currency)}
+          </p>
+          <p className="text-[11px] text-[var(--muted)] mt-0.5">
+            {ORIGIN_LABEL[order.created_from]}
+            {order.rfq_id ? (
+              <>
+                {" · "}
+                <Link href={`/rfqs/${order.rfq_id}`} className="text-action">
+                  ver solicitud
+                </Link>
+              </>
+            ) : null}
+            {" · autorizada el "}
+            {formatDate(order.authorized_at)}
+          </p>
         </div>
-        <p className="text-[13px] text-[var(--muted)] mt-1">
-          {order.provider_name} · {order.product} · {formatNumber(order.quantity, 2)} {order.unit} ×{" "}
-          {formatMoney(order.unit_price, order.currency)}
-        </p>
-        <p className="text-[11px] text-[var(--muted)] mt-0.5">
-          {ORIGIN_LABEL[order.created_from]}
-          {order.rfq_id ? (
-            <>
-              {" · "}
-              <Link href={`/rfqs/${order.rfq_id}`} className="text-action">
-                ver solicitud
-              </Link>
-            </>
-          ) : null}
-          {" · autorizada el "}
-          {formatDate(order.authorized_at)}
-        </p>
+        {canDelete ? <DeleteOrderButton orderId={order.id} redirectTo="/orders" /> : null}
       </div>
 
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">

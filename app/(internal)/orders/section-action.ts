@@ -7,10 +7,11 @@ import { AuthorizedOrder, Provider } from "@/lib/types";
 export type OrdersSectionData = {
   orders: AuthorizedOrder[];
   providers: Provider[];
+  isAdmin: boolean;
 };
 
 export async function getOrdersData(): Promise<OrdersSectionData> {
-  await requireProfile(["comercial", "administracion", "admin"]);
+  const profile = await requireProfile(["comercial", "administracion", "admin"]);
   const supabase = await createClient();
 
   const [{ data: orders }, { data: providers }] = await Promise.all([
@@ -30,5 +31,6 @@ export async function getOrdersData(): Promise<OrdersSectionData> {
   return {
     orders: orders ?? [],
     providers: providers ?? [],
+    isAdmin: profile.role === "admin",
   };
 }
