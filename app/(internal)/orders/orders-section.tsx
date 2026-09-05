@@ -60,6 +60,12 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
   useEffect(() => {
     const handler = (e: Event) => {
       if ((e as CustomEvent<string>).detail !== "/orders") return;
+      // Restaurar filtros desde la URL al navegar a esta sección
+      const p = new URLSearchParams(window.location.search);
+      setFilterProduct(p.get("product") ?? "");
+      setFilterProvider(p.get("provider") ?? "");
+      setFilterEtapa(p.get("etapa") ?? "");
+      setFilterEstado(p.get("estado") ?? "");
       setTimeout(() => {
         const qs = buildParams(filtersRef.current);
         window.history.replaceState({}, "", qs ? `/orders?${qs}` : "/orders");
