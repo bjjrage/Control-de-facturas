@@ -7,12 +7,12 @@ import { AuthorizedOrder, Invoice, InvoiceException, Provider } from "@/lib/type
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
-import { canMarkAptoParaPago, isOverbilled, orderRemaining } from "@/lib/reconciliation";
+import { isOverbilled, orderRemaining } from "@/lib/reconciliation";
 import { LinkOrderDialog } from "@/app/(internal)/invoices/link-order-dialog";
 import { CreateOrderFromInvoiceDialog } from "./create-order-dialog";
 import { ExceptionDialog } from "./exception-dialog";
 import { AttachmentLink } from "./attachment-link";
-import { unmatchOrder, markAptoParaPago } from "./actions";
+import { unmatchOrder } from "./actions";
 import { DeleteInvoiceButton } from "./delete-button";
 import { CreateOpButton } from "./create-op-button";
 
@@ -107,16 +107,6 @@ export default async function InvoiceDetailPage({
         <div className="flex gap-2">
           {invoice.status === "REQUIERE_REVISION" ? (
             <ExceptionDialog invoiceId={invoice.id} trigger={<Button variant="secondary">Aprobar por excepción</Button>} />
-          ) : null}
-          {canMarkAptoParaPago(invoice.status) ? (
-            <form
-              action={async () => {
-                "use server";
-                await markAptoParaPago(invoice.id);
-              }}
-            >
-              <Button type="submit">Marcar apto para pago</Button>
-            </form>
           ) : null}
           {invoice.status === "APTO_PARA_PAGO" && !linkedOp ? (
             <CreateOpButton invoiceId={invoice.id} />
