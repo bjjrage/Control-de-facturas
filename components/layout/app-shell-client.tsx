@@ -204,17 +204,30 @@ export function AppShellClient({ children }: { children: ReactNode }) {
     setMode("server");
   }, [pathname]);
 
-  // Pre-warm current section silently in background on first mount so
-  // navigating away and back is instant.
+  // Pre-warm ALL sections in background on first mount — first-click on any
+  // section will be instant. We load the current path first, then the rest.
   useEffect(() => {
-    const path = window.location.pathname as SectionKey;
-    if (isSectionPath(path) && !sectionsRef.current.has(path)) {
-      LOADERS[path]()
-        .then((node) => {
+    const currentPath = window.location.pathname as SectionKey;
+
+    async function warmAll() {
+      // Current section first so it's ready soonest.
+      const ordered = [
+        ...SHELL_PATHS.filter((p) => p === currentPath),
+        ...SHELL_PATHS.filter((p) => p !== currentPath),
+      ] as SectionKey[];
+
+      for (const path of ordered) {
+        if (sectionsRef.current.has(path)) continue;
+        try {
+          const node = await LOADERS[path]();
           if (!sectionsRef.current.has(path)) addSection(path, node);
-        })
-        .catch(() => {});
+        } catch {
+          // ignore — section will load on demand when clicked
+        }
+      }
     }
+
+    warmAll();
   }, []); // only on mount
 
   const showSections = mode === "client";
