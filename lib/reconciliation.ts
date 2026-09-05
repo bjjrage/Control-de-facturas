@@ -79,7 +79,3 @@ export function differencePct(invoiceTotal: number, orderRemainingBefore: number
 export function canMarkAptoParaPago(status: InvoiceStatus) {
   return status === "MATCH" || status === "APROBADO_EXCEPCION";
 }
-
-export function canMarkPagado(status: InvoiceStatus) {
-  return status === "APTO_PARA_PAGO";
-}

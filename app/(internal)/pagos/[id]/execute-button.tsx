@@ -9,7 +9,7 @@ export function ExecuteButton({ opId }: { opId: string }) {
   const [error, setError] = useState<string | null>(null);
 
   async function handleClick() {
-    if (!confirm("¿Confirmar que esta OP fue ejecutada? Todas sus facturas pasarán a PAGADO.")) return;
+    if (!confirm("¿Confirmar el pago de esta OP? Todas sus facturas pasarán a PAGADO.")) return;
     setLoading(true);
     setError(null);
     const result = await markPaymentOrderExecuted(opId);
@@ -20,7 +20,7 @@ export function ExecuteButton({ opId }: { opId: string }) {
   return (
     <div className="flex flex-col items-end gap-1">
       <Button onClick={handleClick} disabled={loading}>
-        {loading ? "Marcando…" : "Marcar ejecutada"}
+        {loading ? "Registrando…" : "Registrar pago"}
       </Button>
       {error ? (
         <span className="text-[12px] text-[var(--error)]">{error}</span>

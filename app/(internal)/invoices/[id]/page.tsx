@@ -7,12 +7,12 @@ import { AuthorizedOrder, Invoice, InvoiceException, Provider } from "@/lib/type
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
-import { canMarkAptoParaPago, canMarkPagado, isOverbilled, orderRemaining } from "@/lib/reconciliation";
+import { canMarkAptoParaPago, isOverbilled, orderRemaining } from "@/lib/reconciliation";
 import { LinkOrderDialog } from "@/app/(internal)/invoices/link-order-dialog";
 import { CreateOrderFromInvoiceDialog } from "./create-order-dialog";
 import { ExceptionDialog } from "./exception-dialog";
 import { AttachmentLink } from "./attachment-link";
-import { unmatchOrder, markAptoParaPago, markPagado } from "./actions";
+import { unmatchOrder, markAptoParaPago } from "./actions";
 import { DeleteInvoiceButton } from "./delete-button";
 import { CreateOpButton } from "./create-op-button";
 
@@ -125,16 +125,6 @@ export default async function InvoiceDetailPage({
             <Link href={`/pagos/${linkedOp.id}`} className="text-action text-[13px] text-[var(--primary)]">
               OP: {linkedOp.code} →
             </Link>
-          ) : null}
-          {canMarkPagado(invoice.status) ? (
-            <form
-              action={async () => {
-                "use server";
-                await markPagado(invoice.id);
-              }}
-            >
-              <Button type="submit">Marcar pagado</Button>
-            </form>
           ) : null}
           {profile.role === "admin" ? <DeleteInvoiceButton invoiceId={invoice.id} redirectTo="/invoices" /> : null}
         </div>

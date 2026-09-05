@@ -85,16 +85,6 @@ export async function markAptoParaPago(invoiceId: string) {
   return { error: null };
 }
 
-export async function markPagado(invoiceId: string) {
-  await requireProfile(["administracion", "admin"]);
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("mark_invoice_pagado", { p_invoice_id: invoiceId });
-  if (error) return { error: error.message };
-  await logAudit(supabase, { action: "invoice.marked_pagado", invoiceId });
-  revalidatePath(`/invoices/${invoiceId}`);
-  return { error: null };
-}
-
 /**
  * Hard-deletes an invoice: matches, exceptions, audit trail, the attachment
  * file, and the row itself. Admin-only, and deliberately not exposed to
