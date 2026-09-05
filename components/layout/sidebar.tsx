@@ -54,11 +54,11 @@ const PROYECTOS_ITEM: NavItem = {
 };
 
 const COMPRAS_ITEMS: NavItem[] = [
+  { href: "/providers", label: "Proveedores", roles: ["admin"], icon: Truck, module: "compras" },
   { href: "/rfqs", label: "Cotizaciones", roles: ["comercial", "admin"], icon: FileText, module: "compras" },
   { href: "/orders", label: "Órdenes de compra", roles: ["comercial", "administracion", "admin"], icon: Package, module: "compras" },
   { href: "/invoices", label: "Facturas", roles: ["administracion", "admin"], icon: Receipt, module: "compras" },
   { href: "/pagos", label: "Pagos", roles: ["administracion", "admin"], icon: Wallet, module: "compras" },
-  { href: "/providers", label: "Proveedores", roles: ["admin"], icon: Truck, module: "compras" },
 ];
 
 const VENTAS_ITEMS: NavItem[] = [
