@@ -295,22 +295,6 @@ export default async function ProjectDetailPage({
         ) : null}
       </div>
 
-      <div className="border-b border-[var(--border)] flex gap-1">
-        {TABS.map((t) => (
-          <Link
-            key={t.key}
-            href={tabHref(t.key)}
-            className={`px-3 py-2 text-[13px] font-medium border-b-2 -mb-px transition-colors ${
-              tab === t.key
-                ? "border-[var(--primary)] text-[var(--foreground)]"
-                : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
-            }`}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </div>
-
       {tab === "presupuesto" ? (
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
