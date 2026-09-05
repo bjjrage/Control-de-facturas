@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Rfq } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,36 @@ export function RfqsSection({ initialData }: { initialData: RfqsSectionData }) {
   const [filterOpen, setFilterOpen] = useState("");
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
+
+  const filtersRef = useRef({ q, filterProduct, filterOpen, filterFrom, filterTo });
+  filtersRef.current = { q, filterProduct, filterOpen, filterFrom, filterTo };
+
+  function buildParams(f: typeof filtersRef.current) {
+    const p = new URLSearchParams();
+    if (f.q) p.set("q", f.q);
+    if (f.filterProduct) p.set("product", f.filterProduct);
+    if (f.filterOpen) p.set("open", f.filterOpen);
+    if (f.filterFrom) p.set("from", f.filterFrom);
+    if (f.filterTo) p.set("to", f.filterTo);
+    return p.toString();
+  }
+
+  useEffect(() => {
+    const qs = buildParams({ q, filterProduct, filterOpen, filterFrom, filterTo });
+    window.history.replaceState({}, "", qs ? `/rfqs?${qs}` : "/rfqs");
+  }, [q, filterProduct, filterOpen, filterFrom, filterTo]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      if ((e as CustomEvent<string>).detail !== "/rfqs") return;
+      setTimeout(() => {
+        const qs = buildParams(filtersRef.current);
+        window.history.replaceState({}, "", qs ? `/rfqs?${qs}` : "/rfqs");
+      }, 0);
+    };
+    window.addEventListener("niupack:navigate", handler);
+    return () => window.removeEventListener("niupack:navigate", handler);
+  }, []);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();

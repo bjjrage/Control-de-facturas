@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { AuthorizedOrder, Provider } from "@/lib/types";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -32,6 +32,34 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
   const [filterProvider, setFilterProvider] = useState("");
   const [filterEtapa, setFilterEtapa] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  const filtersRef = useRef({ filterProduct, filterProvider, filterEtapa });
+  filtersRef.current = { filterProduct, filterProvider, filterEtapa };
+
+  function buildParams(f: typeof filtersRef.current) {
+    const p = new URLSearchParams();
+    if (f.filterProduct) p.set("product", f.filterProduct);
+    if (f.filterProvider) p.set("provider", f.filterProvider);
+    if (f.filterEtapa) p.set("etapa", f.filterEtapa);
+    return p.toString();
+  }
+
+  useEffect(() => {
+    const qs = buildParams({ filterProduct, filterProvider, filterEtapa });
+    window.history.replaceState({}, "", qs ? `/orders?${qs}` : "/orders");
+  }, [filterProduct, filterProvider, filterEtapa]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      if ((e as CustomEvent<string>).detail !== "/orders") return;
+      setTimeout(() => {
+        const qs = buildParams(filtersRef.current);
+        window.history.replaceState({}, "", qs ? `/orders?${qs}` : "/orders");
+      }, 0);
+    };
+    window.addEventListener("niupack:navigate", handler);
+    return () => window.removeEventListener("niupack:navigate", handler);
+  }, []);
 
   const productOptions = useMemo(
     () => [...new Set(orders.map((o) => o.product))].sort((a, b) => a.localeCompare(b, "es")),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Invoice, InvoiceStatus, Provider } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,39 @@ export function InvoicesSection({ initialData }: { initialData: InvoicesSectionD
   const [providerId, setProviderId] = useState("");
   const [status, setStatus] = useState("");
   const { providers, isAdmin } = initialData;
+
+  // Ref para que el handler de niupack:navigate lea siempre el estado actual.
+  const filtersRef = useRef({ month, q, providerId, status });
+  filtersRef.current = { month, q, providerId, status };
+
+  function buildParams(f: typeof filtersRef.current) {
+    const p = new URLSearchParams();
+    if (f.month === null) p.set("month", "all");
+    else if (f.month) p.set("month", f.month);
+    if (f.q) p.set("q", f.q);
+    if (f.providerId) p.set("provider", f.providerId);
+    if (f.status) p.set("status", f.status);
+    return p.toString();
+  }
+
+  // Refleja filtros en la URL sin crear entradas de historial.
+  useEffect(() => {
+    const qs = buildParams({ month, q, providerId, status });
+    window.history.replaceState({}, "", qs ? `/invoices?${qs}` : "/invoices");
+  }, [month, q, providerId, status]);
+
+  // Cuando el AppShell hace pushState("/invoices"), restaura los params.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      if ((e as CustomEvent<string>).detail !== "/invoices") return;
+      setTimeout(() => {
+        const qs = buildParams(filtersRef.current);
+        window.history.replaceState({}, "", qs ? `/invoices?${qs}` : "/invoices");
+      }, 0);
+    };
+    window.addEventListener("niupack:navigate", handler);
+    return () => window.removeEventListener("niupack:navigate", handler);
+  }, []);
 
   const providerById = useMemo(
     () => new Map(providers.map((p) => [p.id, p.name])),

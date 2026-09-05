@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { PaymentOrder, Provider } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,33 @@ export function PagosSection({ initialData }: { initialData: PagosSectionData })
   const { ops, providers, opTotals } = initialData;
   const [filterStatus, setFilterStatus] = useState("");
   const [filterProvider, setFilterProvider] = useState("");
+
+  const filtersRef = useRef({ filterStatus, filterProvider });
+  filtersRef.current = { filterStatus, filterProvider };
+
+  function buildParams(f: typeof filtersRef.current) {
+    const p = new URLSearchParams();
+    if (f.filterStatus) p.set("status", f.filterStatus);
+    if (f.filterProvider) p.set("provider", f.filterProvider);
+    return p.toString();
+  }
+
+  useEffect(() => {
+    const qs = buildParams({ filterStatus, filterProvider });
+    window.history.replaceState({}, "", qs ? `/pagos?${qs}` : "/pagos");
+  }, [filterStatus, filterProvider]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      if ((e as CustomEvent<string>).detail !== "/pagos") return;
+      setTimeout(() => {
+        const qs = buildParams(filtersRef.current);
+        window.history.replaceState({}, "", qs ? `/pagos?${qs}` : "/pagos");
+      }, 0);
+    };
+    window.addEventListener("niupack:navigate", handler);
+    return () => window.removeEventListener("niupack:navigate", handler);
+  }, []);
 
   const providerById = useMemo(
     () => new Map(providers.map((p) => [p.id, p.name])),
