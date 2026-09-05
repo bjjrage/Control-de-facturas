@@ -9,8 +9,6 @@ import {
   Receipt,
   Package,
   Truck,
-  Users,
-  Building2,
   ChevronsLeft,
   ChevronsRight,
   ImagePlus,
@@ -19,7 +17,6 @@ import {
   Contact,
   FileClock,
   ClipboardList,
-  Settings,
   Banknote,
   Wallet,
 } from "lucide-react";
@@ -58,15 +55,6 @@ const VENTAS_ITEMS: NavItem[] = [
   { href: "/remisiones", label: "Remisiones", roles: ["administracion", "admin"], icon: ClipboardList, module: "ventas" },
   { href: "/facturas-venta", label: "Facturas de Venta", roles: ["administracion", "admin"], icon: ReceiptText, module: "ventas" },
   { href: "/cobros", label: "Cobros", roles: ["administracion", "admin"], icon: Banknote, module: "ventas" },
-];
-
-const ADMIN_ITEMS: NavItem[] = [
-  { href: "/configuracion", label: "Configuración", roles: ["admin"], icon: Settings },
-  { href: "/users", label: "Usuarios", roles: ["admin"], icon: Users },
-];
-
-const SUPER_ADMIN_ITEMS: NavItem[] = [
-  { href: "/empresas", label: "Empresas", roles: [], icon: Building2, superAdmin: true },
 ];
 
 const logoBucketUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -108,8 +96,6 @@ export function Sidebar({
   const globalItems = filterItems(GLOBAL_ITEMS);
   const comprasItems = filterItems(COMPRAS_ITEMS);
   const ventasItems = filterItems(VENTAS_ITEMS);
-  const adminItems = filterItems(ADMIN_ITEMS);
-  const superAdminItems = isSuperAdmin ? SUPER_ADMIN_ITEMS : [];
 
   async function handleLogoFile(file: File | null) {
     if (!file) return;
@@ -245,13 +231,6 @@ export function Sidebar({
         {globalItems.map(renderLink)}
         {renderSection("Compras", comprasItems)}
         {renderSection("Ventas", ventasItems)}
-        {adminItems.length > 0 ? (
-          <div className="space-y-0.5">
-            <div className="border-t border-[var(--border)] my-1.5" />
-            {adminItems.map(renderLink)}
-          </div>
-        ) : null}
-        {superAdminItems.map(renderLink)}
       </nav>
 
       <div className="border-t border-[var(--border)] p-3">

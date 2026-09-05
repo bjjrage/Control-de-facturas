@@ -24,7 +24,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
         <Topbar initial={initial} role={profile.role} />
         <main className="flex-1 min-w-0 p-5">{children}</main>
       </div>
-      <PlanNav role={profile.role} plan={profile.plan} />
+      <PlanNav role={profile.role} plan={profile.plan} isSuperAdmin={profile.is_super_admin} />
     </div>
   );
 }
