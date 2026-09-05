@@ -4,7 +4,7 @@ import { requirePlan } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { BackButton } from "@/components/ui/back-button";
 import { Project, BudgetItem, ExecutionEntry, AuthorizedOrder } from "@/lib/types";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
 import { AddBudgetItemForm } from "./add-budget-item-form";
 import { ImportBudgetDialog } from "./import-budget-dialog";
 import { DuplicateBudgetDialog } from "./duplicate-budget-dialog";
@@ -12,11 +12,14 @@ import { AddExecutionEntryForm } from "./add-execution-entry-form";
 import { ProjectStatusSelect } from "./project-status-select";
 import { ProjectGantt } from "./project-gantt";
 import { ProjectReports } from "./reports";
-import { ExecutionPhotosLightbox } from "./execution-photos-lightbox";
 import { DailyLaborEntry, Subcontractor, SubcontractorContract, SubcontractorCertificate } from "@/lib/types";
 import { AddLaborEntryForm } from "./add-labor-entry-form";
 import { AddSubcontractorContractDialog } from "./add-subcontractor-contract-dialog";
-import { ContractCertificatesDialog } from "./contract-certificates-dialog";
+import { PresupuestoTable } from "./presupuesto-table";
+import { EjecucionTable } from "./ejecucion-table";
+import { PersonalTable } from "./personal-table";
+import { ProyectoComprasTable } from "./proyecto-compras-table";
+import { SubcontratistasTable } from "./subcontratistas-table";
 
 const BASE_TABS = [
   { key: "presupuesto", label: "Presupuesto" },
@@ -234,51 +237,23 @@ export default async function ProjectDetailPage({
             <ImportBudgetDialog projectId={project.id} />
             <DuplicateBudgetDialog targetProjectId={project.id} sources={duplicateSources} />
           </div>
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
-            <table>
-              <thead>
-                <tr>
-                  <th>Código</th>
-                  <th>Descripción</th>
-                  <th>Unid.</th>
-                  <th className="num">Cantidad</th>
-                  <th className="num">P. Unit.</th>
-                  <th className="num">Subtotal</th>
-                  <th className="num">Ejecutado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center text-[var(--muted)] py-6">Sin ítems todavía.</td></tr>
-                ) : (
-                  items.map((i) => {
-                    const exec = execByItem.get(i.id) ?? 0;
-                    const pct = i.quantity && i.quantity > 0 ? Math.min(100, Math.round((exec / i.quantity) * 100)) : null;
-                    return (
-                      <tr key={i.id}>
-                        <td className="font-medium">{i.code}</td>
-                        <td>{i.description}</td>
-                        <td className="text-[var(--muted)]">{i.unit ?? "—"}</td>
-                        <td className="num">{i.quantity ?? "—"}</td>
-                        <td className="num">{i.unit_price != null ? formatMoney(i.unit_price, "PYG") : "—"}</td>
-                        <td className="num font-medium">{formatMoney(i.subtotal, "PYG")}</td>
-                        <td className="num text-[var(--muted)]">{pct !== null ? `${pct}%` : "—"}</td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-              {items.length > 0 ? (
-                <tfoot>
-                  <tr>
-                    <td colSpan={5} className="text-right font-semibold">TOTAL</td>
-                    <td className="num font-semibold">{formatMoney(itemsSubtotal, "PYG")}</td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              ) : null}
-            </table>
-          </div>
+          <PresupuestoTable
+            rows={items.map((i) => {
+              const exec = execByItem.get(i.id) ?? 0;
+              const pct = i.quantity && i.quantity > 0 ? Math.min(100, Math.round((exec / i.quantity) * 100)) : null;
+              return {
+                id: i.id,
+                code: i.code,
+                description: i.description,
+                unit: i.unit,
+                quantity: i.quantity,
+                unitPrice: i.unit_price,
+                subtotal: i.subtotal,
+                execPct: pct,
+              };
+            })}
+            total={itemsSubtotal}
+          />
         </div>
       ) : null}
 
@@ -289,73 +264,25 @@ export default async function ProjectDetailPage({
       {tab === "ejecucion" ? (
         <div className="space-y-3">
           <AddExecutionEntryForm projectId={project.id} budgetItems={items} />
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
-            <table>
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Ítem</th>
-                  <th className="num">Cant. ejecutada</th>
-                  <th>Notas</th>
-                  <th>Fotos</th>
-                </tr>
-              </thead>
-              <tbody>
-                {entries.length === 0 ? (
-                  <tr><td colSpan={5} className="text-center text-[var(--muted)] py-6">Sin avance registrado.</td></tr>
-                ) : (
-                  entries.map((e) => {
-                    const item = items.find((i) => i.id === e.budget_item_id);
-                    const photoUrls = e.photo_paths.map((p) => photoUrlByPath.get(p)).filter((u): u is string => !!u);
-                    return (
-                      <tr key={e.id}>
-                        <td>{formatDate(e.entry_date)}</td>
-                        <td>{item ? `${item.code} — ${item.description}` : "—"}</td>
-                        <td className="num">{e.quantity_executed} {item?.unit ?? ""}</td>
-                        <td className="text-[var(--muted)]">{e.notes ?? "—"}</td>
-                        <td><ExecutionPhotosLightbox urls={photoUrls} /></td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+          <EjecucionTable
+            rows={entries.map((e) => {
+              const item = items.find((i) => i.id === e.budget_item_id);
+              const photoUrls = e.photo_paths.map((p) => photoUrlByPath.get(p)).filter((u): u is string => !!u);
+              return {
+                id: e.id,
+                date: e.entry_date,
+                itemLabel: item ? `${item.code} — ${item.description}` : "—",
+                unit: item?.unit ?? "",
+                quantityExecuted: e.quantity_executed,
+                notes: e.notes,
+                photoUrls,
+              };
+            })}
+          />
         </div>
       ) : null}
 
-      {tab === "compras" ? (
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
-          <table>
-            <thead>
-              <tr>
-                <th>Código OC</th>
-                <th>Producto</th>
-                <th>Proveedor</th>
-                <th className="num">Total</th>
-                <th>Autorizada</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ocs.length === 0 ? (
-                <tr><td colSpan={5} className="text-center text-[var(--muted)] py-6">Sin OCs vinculadas.</td></tr>
-              ) : (
-                ocs.map((o) => (
-                  <tr key={o.id}>
-                    <td>
-                      <Link href={`/orders/${o.id}`} className="text-action font-medium">{o.code}</Link>
-                    </td>
-                    <td>{o.product}</td>
-                    <td>{o.provider_name}</td>
-                    <td className="num">{formatMoney(o.total_price, o.currency)}</td>
-                    <td>{formatDate(o.authorized_at)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
+      {tab === "compras" ? <ProyectoComprasTable rows={ocs} /> : null}
 
       {tab === "informes" ? (
         <ProjectReports project={project} budgetItems={items} execEntries={entries} orders={ocs} />
@@ -364,47 +291,7 @@ export default async function ProjectDetailPage({
       {tab === "personal" && isCaterpillar ? (
         <div className="space-y-3">
           <AddLaborEntryForm projectId={project.id} />
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
-            <table>
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Trabajador</th>
-                  <th className="num">Horas</th>
-                  <th className="num">Costo/hora</th>
-                  <th className="num">Total</th>
-                  <th>Tarea</th>
-                </tr>
-              </thead>
-              <tbody>
-                {laborRows.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center text-[var(--muted)] py-6">Sin partes diarios registrados.</td></tr>
-                ) : (
-                  laborRows.map((l) => (
-                    <tr key={l.id}>
-                      <td>{formatDate(l.entry_date)}</td>
-                      <td className="font-medium">{l.worker_name}</td>
-                      <td className="num">{l.hours}</td>
-                      <td className="num">{formatMoney(l.hourly_cost, "PYG")}</td>
-                      <td className="num font-medium">{formatMoney(l.labor_cost, "PYG")}</td>
-                      <td className="text-[var(--muted)]">{l.task_description ?? "—"}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-              {laborRows.length > 0 ? (
-                <tfoot>
-                  <tr>
-                    <td colSpan={2} className="text-right font-semibold">TOTAL</td>
-                    <td className="num font-semibold">{laborHoursTotal}</td>
-                    <td></td>
-                    <td className="num font-semibold">{formatMoney(laborCostTotal, "PYG")}</td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              ) : null}
-            </table>
-          </div>
+          <PersonalTable rows={laborRows} />
         </div>
       ) : null}
 
@@ -415,61 +302,26 @@ export default async function ProjectDetailPage({
             subcontractors={subcontractorCatalog}
             budgetItems={items}
           />
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
-            <table>
-              <thead>
-                <tr>
-                  <th>Subcontratista</th>
-                  <th>Rubro</th>
-                  <th className="num">Contratado</th>
-                  <th className="num">Certificado aprobado</th>
-                  <th className="num">Retención acum.</th>
-                  <th>Estado</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {contracts.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center text-[var(--muted)] py-6">Sin contratos cargados.</td></tr>
-                ) : (
-                  contracts.map((c) => {
-                    const sub = subcontractorCatalog.find((s) => s.id === c.subcontractor_id);
-                    const item = items.find((i) => i.id === c.budget_item_id);
-                    const summary = contractSummary(c.id);
-                    const usedPct = c.contracted_amount > 0
-                      ? Math.round(((summary.approvedAmount + summary.pendingAmount) / c.contracted_amount) * 100)
-                      : 0;
-                    const contractCerts = certificates.filter((cert) => cert.contract_id === c.id);
-                    return (
-                      <tr key={c.id}>
-                        <td className="font-medium">{sub?.name ?? "—"}</td>
-                        <td className="text-[var(--muted)]">{item ? `${item.code} — ${item.description}` : "—"}</td>
-                        <td className="num">{formatMoney(c.contracted_amount, "PYG")}</td>
-                        <td className="num">{formatMoney(summary.approvedAmount, "PYG")}</td>
-                        <td className="num text-[var(--muted)]">{formatMoney(summary.retentionAccum, "PYG")}</td>
-                        <td>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] text-[var(--muted)]">{c.status}</span>
-                            {usedPct > 90 ? (
-                              <span
-                                className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-[var(--error-bg)] text-[var(--error)]"
-                                title={`${usedPct}% del monto contratado entre aprobado y pendiente`}
-                              >
-                                ⚠ {usedPct}%
-                              </span>
-                            ) : null}
-                          </div>
-                        </td>
-                        <td>
-                          <ContractCertificatesDialog contract={c} certificates={contractCerts} appUrl={appUrl} />
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+          <SubcontratistasTable
+            appUrl={appUrl}
+            rows={contracts.map((c) => {
+              const sub = subcontractorCatalog.find((s) => s.id === c.subcontractor_id);
+              const item = items.find((i) => i.id === c.budget_item_id);
+              const summary = contractSummary(c.id);
+              const usedPct = c.contracted_amount > 0
+                ? Math.round(((summary.approvedAmount + summary.pendingAmount) / c.contracted_amount) * 100)
+                : 0;
+              return {
+                contract: c,
+                subName: sub?.name ?? "—",
+                itemLabel: item ? `${item.code} — ${item.description}` : "—",
+                approvedAmount: summary.approvedAmount,
+                retentionAccum: summary.retentionAccum,
+                usedPct,
+                certs: certificates.filter((cert) => cert.contract_id === c.id),
+              };
+            })}
+          />
         </div>
       ) : null}
     </div>
