@@ -6,6 +6,7 @@ import { logAudit } from "@/lib/audit";
 import { SelectionReason } from "@/lib/types";
 import { isRfqOpen, canReopenRfq, DEFAULT_RFQ_WINDOW_HOURS } from "@/lib/rfq-status";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 export async function inviteProviders(rfqId: string, providerIds: string[]) {
   await requireProfile(["comercial", "admin"]);
@@ -200,4 +201,26 @@ export async function reopenRfq(rfqId: string) {
   revalidatePath(`/rfqs/${rfqId}`);
   revalidatePath("/rfqs");
   return { error: null };
+}
+
+/** Hard-delete: solo admin, solo cuando está CANCELADO o BORRADOR (nunca si ya tiene OC autorizada). */
+export async function deleteRfq(rfqId: string) {
+  await requireProfile(["admin"]);
+  const supabase = await createClient();
+
+  const { data: rfq } = await supabase
+    .from("rfqs")
+    .select("status")
+    .eq("id", rfqId)
+    .single();
+
+  if (!rfq) return { error: "No encontrada." };
+  if (!["CANCELADO", "BORRADOR"].includes(rfq.status)) {
+    return { error: "Solo se pueden eliminar cotizaciones canceladas o en borrador." };
+  }
+
+  await supabase.from("rfqs").delete().eq("id", rfqId);
+  await logAudit(supabase, { action: "rfq.deleted", rfqId });
+  revalidatePath("/rfqs");
+  redirect("/rfqs");
 }

@@ -20,7 +20,7 @@ import { SelectOfferDialog } from "./select-offer-dialog";
 import { AttachmentLink } from "./attachment-link";
 import { CopyLinkButton } from "./copy-link-button";
 import { AddAttachmentDialog } from "./add-attachment-dialog";
-import { cancelRfq, reopenRfq } from "./actions";
+import { cancelRfq, reopenRfq, deleteRfq } from "./actions";
 
 export default async function RfqDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -127,6 +127,7 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
   const canInvite = canManage && open;
   const canSelect = canManage && ["COTIZANDO", "OFERTAS_RECIBIDAS"].includes(rfq.status);
   const canCancel = canManage && ["BORRADOR", "COTIZANDO", "OFERTAS_RECIBIDAS"].includes(rfq.status);
+  const canDelete = profile.role === "admin" && ["CANCELADO", "BORRADOR"].includes(rfq.status);
   const canReopen = canManage && canReopenRfq(rfq);
   const actuallyExpired = new Date(rfq.expires_at).getTime() <= Date.now();
 
@@ -173,6 +174,18 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
             >
               <Button variant="danger" type="submit">
                 Cancelar solicitud
+              </Button>
+            </form>
+          ) : null}
+          {canDelete ? (
+            <form
+              action={async () => {
+                "use server";
+                await deleteRfq(rfq.id);
+              }}
+            >
+              <Button variant="danger" type="submit">
+                Eliminar
               </Button>
             </form>
           ) : null}
