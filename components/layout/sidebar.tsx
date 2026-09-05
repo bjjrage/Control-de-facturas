@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   FileText,
@@ -148,8 +148,18 @@ export function Sidebar({
 
   const inProjectMode = activeProjectId !== null && projectInfo !== null && projectInfo.id === activeProjectId;
   const isCaterpillarPlan = plan === "caterpillar";
-  const searchParams = useSearchParams();
-  const currentTab = searchParams.get("tab") ?? "presupuesto";
+
+  // Tab activo en modo proyecto — se sincroniza sin Next.js navigation para
+  // que los clicks del sidebar no disparen re-renders del servidor.
+  const [currentTab, setCurrentTab] = useState("presupuesto");
+  useEffect(() => {
+    setCurrentTab(new URLSearchParams(window.location.search).get("tab") ?? "presupuesto");
+  }, [pathname]);
+  useEffect(() => {
+    const handler = (e: Event) => setCurrentTab((e as CustomEvent<string>).detail);
+    window.addEventListener("niupack:tab", handler);
+    return () => window.removeEventListener("niupack:tab", handler);
+  }, []);
 
   function filterItems(items: NavItem[]) {
     return items.filter((item) => {
@@ -336,12 +346,16 @@ export function Sidebar({
               const Icon = t.icon;
               const active = currentTab === t.key;
               return (
-                <Link
+                <button
                   key={t.key}
-                  href={`/projects/${activeProjectId}?tab=${t.key}`}
                   title={collapsed ? t.label : undefined}
+                  onClick={() => {
+                    const url = `/projects/${activeProjectId}?tab=${t.key}`;
+                    window.history.pushState({}, "", url);
+                    window.dispatchEvent(new CustomEvent("niupack:tab", { detail: t.key }));
+                  }}
                   className={cn(
-                    "flex items-center gap-2.5 h-9 rounded-lg text-[13px] transition-colors",
+                    "w-full flex items-center gap-2.5 h-9 rounded-lg text-[13px] transition-colors",
                     collapsed ? "justify-center px-0" : "px-3",
                     active
                       ? "bg-[var(--primary)] text-white font-medium"
@@ -350,7 +364,7 @@ export function Sidebar({
                 >
                   <Icon size={16} className="shrink-0" />
                   {!collapsed ? <span className="truncate">{t.label}</span> : null}
-                </Link>
+                </button>
               );
             })}
           </>
