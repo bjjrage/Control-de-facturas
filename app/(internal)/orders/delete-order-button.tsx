@@ -10,14 +10,22 @@ import { deleteOrder } from "./actions";
  * Admin-only hard delete. La server action ya valida que no tenga facturas
  * vinculadas — acá solo se oculta el botón cuando facturado_amount > 0 para
  * no invitar a un click que va a fallar.
+ *
+ * `onDeleted` es el camino preferido cuando el botón vive dentro de una
+ * sección del AppShell (keep-alive): esas secciones son un snapshot fijo en
+ * memoria, así que router.refresh() no las actualiza — hay que sacar la fila
+ * del estado local a mano. `redirectTo` sigue disponible para la página de
+ * detalle, donde sí tiene sentido navegar de vuelta a la lista.
  */
 export function DeleteOrderButton({
   orderId,
   redirectTo,
+  onDeleted,
   compact,
 }: {
   orderId: string;
   redirectTo?: string;
+  onDeleted?: () => void;
   compact?: boolean;
 }) {
   const [pending, setPending] = useState(false);
@@ -32,6 +40,10 @@ export function DeleteOrderButton({
     if (result?.error) {
       setError(result.error);
       setPending(false);
+      return;
+    }
+    if (onDeleted) {
+      onDeleted();
       return;
     }
     if (redirectTo) {

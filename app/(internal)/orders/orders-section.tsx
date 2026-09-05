@@ -33,7 +33,8 @@ function getParam(key: string) {
 }
 
 export function OrdersSection({ initialData }: { initialData: OrdersSectionData }) {
-  const { orders, providers, isAdmin } = initialData;
+  const { providers, isAdmin } = initialData;
+  const [orders, setOrders] = useState(initialData.orders);
   const [filterProduct, setFilterProduct] = useState(() => getParam("product"));
   const [filterProvider, setFilterProvider] = useState(() => getParam("provider"));
   const [filterEtapa, setFilterEtapa] = useState(() => getParam("etapa"));
@@ -243,7 +244,13 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
                   <td className="text-[var(--muted)]">{formatDate(o.authorized_at)}</td>
                   {isAdmin ? (
                     <td>
-                      {o.facturado_amount === 0 ? <DeleteOrderButton orderId={o.id} compact /> : null}
+                      {o.facturado_amount === 0 ? (
+                        <DeleteOrderButton
+                          orderId={o.id}
+                          compact
+                          onDeleted={() => setOrders((prev) => prev.filter((x) => x.id !== o.id))}
+                        />
+                      ) : null}
                     </td>
                   ) : null}
                 </tr>

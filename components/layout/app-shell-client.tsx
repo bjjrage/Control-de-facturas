@@ -194,14 +194,37 @@ export function AppShellClient({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("popstate", handler);
   }, []); // stable: only refs + state setters
 
-  // Detect real Next.js navigations (e.g. clicking a detail page <Link>).
-  // usePathname() updates only on Next.js router navigations, not on pushState.
+  // Detect real Next.js navigations: <Link> clicks (e.g. "← Volver a
+  // Órdenes"), router.push, or redirect() from a server action (e.g. after
+  // deleting something and returning to the list). usePathname() updates
+  // only for these, never for our own pushState.
+  //
+  // If the destination is a shell path, load its live client section instead
+  // of falling back to the plain server-rendered page — that copy is a
+  // separate, older implementation kept only for direct/first-load access,
+  // and can be stale right after a mutation (e.g. a delete redirecting back
+  // to the list wouldn't reflect the removed row). Always re-fetch rather
+  // than reuse a cached copy, since a real navigation here usually means
+  // something just changed server-side.
   useEffect(() => {
     if (isOurNavRef.current) {
       isOurNavRef.current = false;
       return;
     }
-    setMode("server");
+    if (!isSectionPath(pathname)) {
+      setMode("server");
+      return;
+    }
+    const path = pathname;
+    setMode("loading");
+    setActivePath(path);
+    LOADERS[path]()
+      .then((node) => {
+        sectionsRef.current.set(path, node);
+        setSections(new Map(sectionsRef.current));
+        setMode("client");
+      })
+      .catch(() => setMode("server"));
   }, [pathname]);
 
   // Pre-warm ALL sections in background on first mount — first-click on any
@@ -220,7 +243,18 @@ export function AppShellClient({ children }: { children: ReactNode }) {
         if (sectionsRef.current.has(path)) continue;
         try {
           const node = await LOADERS[path]();
-          if (!sectionsRef.current.has(path)) addSection(path, node);
+          if (!sectionsRef.current.has(path)) {
+            addSection(path, node);
+            // La ruta actual: en cuanto su data fresca está lista, reemplaza
+            // el HTML server-rendered (que puede haber quedado desactualizado
+            // — un refresh directo se quedaba pegado en "server" para
+            // siempre, porque nada más dispara la transición a "client")
+            // por el componente vivo del shell.
+            if (path === currentPath) {
+              setActivePath(path);
+              setMode("client");
+            }
+          }
         } catch {
           // ignore — section will load on demand when clicked
         }

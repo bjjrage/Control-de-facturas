@@ -5,7 +5,6 @@ import { requireProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { CurrencyCode } from "@/lib/types";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 const CURRENCIES: CurrencyCode[] = ["PYG", "USD", "EUR", "BRL", "ARS"];
 
@@ -171,5 +170,5 @@ export async function deleteOrder(orderId: string) {
 
   await logAudit(supabase, { action: "order.deleted", authorizedOrderId: orderId });
   revalidatePath("/orders");
-  redirect("/orders");
+  return { error: null };
 }
