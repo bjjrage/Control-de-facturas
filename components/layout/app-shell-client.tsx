@@ -8,12 +8,18 @@ import { getOrdersData } from "@/app/(internal)/orders/section-action";
 import { getPagosData } from "@/app/(internal)/pagos/section-action";
 import { getProvidersData } from "@/app/(internal)/providers/section-action";
 import { getRfqsData } from "@/app/(internal)/rfqs/section-action";
+import { getClientesData } from "@/app/(internal)/clientes/section-action";
+import { getCobrosData } from "@/app/(internal)/cobros/section-action";
+import { getSalesListData } from "@/app/(internal)/ventas/_components/sales-list-section-action";
 import { DashboardSection } from "@/app/(internal)/dashboard/dashboard-section";
 import { InvoicesSection } from "@/app/(internal)/invoices/invoices-section";
 import { OrdersSection } from "@/app/(internal)/orders/orders-section";
 import { PagosSection } from "@/app/(internal)/pagos/pagos-section";
 import { ProvidersSection } from "@/app/(internal)/providers/providers-section";
 import { RfqsSection } from "@/app/(internal)/rfqs/rfqs-section";
+import { ClientesSection } from "@/app/(internal)/clientes/clientes-section";
+import { CobrosSection } from "@/app/(internal)/cobros/cobros-section";
+import { SalesListSection } from "@/app/(internal)/ventas/_components/sales-list-section";
 
 // Paths that AppShell manages client-side (keep-alive + instant navigation).
 // Must match the nav items in sidebar.tsx that dispatch niupack:navigate.
@@ -24,6 +30,11 @@ export const SHELL_PATHS = [
   "/pagos",
   "/providers",
   "/rfqs",
+  "/clientes",
+  "/proformas",
+  "/remisiones",
+  "/facturas-venta",
+  "/cobros",
 ] as const;
 
 type SectionKey = (typeof SHELL_PATHS)[number];
@@ -58,6 +69,26 @@ const LOADERS: Record<SectionKey, SectionLoader> = {
   "/rfqs": async () => {
     const data = await getRfqsData();
     return <RfqsSection initialData={data} />;
+  },
+  "/clientes": async () => {
+    const data = await getClientesData();
+    return <ClientesSection initialData={data} />;
+  },
+  "/proformas": async () => {
+    const data = await getSalesListData("PROFORMA");
+    return <SalesListSection initialData={data} docType="PROFORMA" basePath="/proformas" title="Proformas" newLabel="Nueva proforma" />;
+  },
+  "/remisiones": async () => {
+    const data = await getSalesListData("REMISION");
+    return <SalesListSection initialData={data} docType="REMISION" basePath="/remisiones" title="Remisiones" newLabel="Nueva remisión" />;
+  },
+  "/facturas-venta": async () => {
+    const data = await getSalesListData("FACTURA");
+    return <SalesListSection initialData={data} docType="FACTURA" basePath="/facturas-venta" title="Facturas de Venta" newLabel="Nueva factura" />;
+  },
+  "/cobros": async () => {
+    const data = await getCobrosData();
+    return <CobrosSection initialData={data} />;
   },
 };
 
