@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/format";
 import { NewProjectDialog } from "./new-project-dialog";
 import { ProjectsChart } from "./projects-chart";
+import { ProjectRowActions } from "./project-row-actions";
 import { Button } from "@/components/ui/button";
 
 const STATUS_TONE = {
@@ -168,41 +169,40 @@ export default async function ProjectsPage() {
         ) : (
           <div className="divide-y divide-[var(--border)]">
             {rows.map((r) => (
-              <Link
-                key={r.project.id}
-                href={`/projects/${r.project.id}`}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--hover)] transition-colors"
-              >
-                <span
-                  className="h-2 w-2 rounded-full shrink-0"
-                  style={{
-                    background: r.enAlerta ? "var(--error)" : r.project.status === "PAUSADO" ? "var(--warn)" : "var(--ok)",
-                  }}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-medium truncate">{r.project.name}</div>
-                  <div className="text-[11px] text-[var(--muted)] truncate">
-                    {r.project.client ? `Cliente: ${r.project.client}` : "Sin cliente"}
-                    {r.enAlerta ? " · ⚠ Compras superan presupuesto" : ""}
+              <div key={r.project.id} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--hover)] transition-colors">
+                <Link href={`/projects/${r.project.id}`} className="flex items-center gap-3 flex-1 min-w-0">
+                  <span
+                    className="h-2 w-2 rounded-full shrink-0"
+                    style={{
+                      background: r.enAlerta ? "var(--error)" : r.project.status === "PAUSADO" ? "var(--warn)" : "var(--ok)",
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-medium truncate">{r.project.name}</div>
+                    <div className="text-[11px] text-[var(--muted)] truncate">
+                      {r.project.client ? `Cliente: ${r.project.client}` : "Sin cliente"}
+                      {r.enAlerta ? " · ⚠ Compras superan presupuesto" : ""}
+                    </div>
                   </div>
-                </div>
-                <div className="w-28 shrink-0">
-                  <div className="h-1.5 rounded-full bg-[var(--border)] overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${Math.min(100, r.avancePct)}%`,
-                        background: r.enAlerta ? "var(--error)" : "var(--ok)",
-                      }}
-                    />
+                  <div className="w-28 shrink-0">
+                    <div className="h-1.5 rounded-full bg-[var(--border)] overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.min(100, r.avancePct)}%`,
+                          background: r.enAlerta ? "var(--error)" : "var(--ok)",
+                        }}
+                      />
+                    </div>
+                    <div className="text-[10px] text-[var(--muted)] mt-0.5">{r.avancePct}% ejecutado</div>
                   </div>
-                  <div className="text-[10px] text-[var(--muted)] mt-0.5">{r.avancePct}% ejecutado</div>
-                </div>
-                <Badge tone={STATUS_TONE[r.project.status]}>{STATUS_LABELS[r.project.status]}</Badge>
-                <div className="w-24 text-right text-[12px] font-mono text-[var(--muted)] shrink-0">
-                  {formatMoney(r.presupuesto, "PYG")}
-                </div>
-              </Link>
+                  <Badge tone={STATUS_TONE[r.project.status]}>{STATUS_LABELS[r.project.status]}</Badge>
+                  <div className="w-24 text-right text-[12px] font-mono text-[var(--muted)] shrink-0">
+                    {formatMoney(r.presupuesto, "PYG")}
+                  </div>
+                </Link>
+                <ProjectRowActions projectId={r.project.id} projectName={r.project.name} />
+              </div>
             ))}
           </div>
         )}
