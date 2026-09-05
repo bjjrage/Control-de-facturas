@@ -19,9 +19,14 @@ function daysDiff(dateStr: string): number {
   return Math.round((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
 }
 
+function getParam(key: string) {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get(key) ?? "";
+}
+
 export function CobrosSection({ initialData }: { initialData: CobrosSectionData }) {
   const { docs, clients } = initialData;
-  const [clientFilter, setClientFilter] = useState("");
+  const [clientFilter, setClientFilter] = useState(() => getParam("client"));
   const filterRef = useRef(clientFilter);
   filterRef.current = clientFilter;
 
@@ -36,6 +41,7 @@ export function CobrosSection({ initialData }: { initialData: CobrosSectionData 
   useEffect(() => {
     const handler = (e: Event) => {
       if ((e as CustomEvent<string>).detail !== "/cobros") return;
+      setClientFilter(new URLSearchParams(window.location.search).get("client") ?? "");
       setTimeout(() => {
         const qs = filterRef.current ? `client=${filterRef.current}` : "";
         window.history.replaceState({}, "", qs ? `/cobros?${qs}` : "/cobros");

@@ -54,14 +54,19 @@ function nextMonth(m: string): string {
   return d.toISOString().slice(0, 7);
 }
 
+function getParam(key: string) {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get(key) ?? "";
+}
+
 export function InvoicesSection({ initialData }: { initialData: InvoicesSectionData }) {
   const [invoices, setInvoices] = useState(initialData.invoices);
   const [reviewCount, setReviewCount] = useState(initialData.reviewCount);
   const [month, setMonth] = useState<string | null>(initialData.month);
   const [loading, setLoading] = useState(false);
-  const [q, setQ] = useState("");
-  const [providerId, setProviderId] = useState("");
-  const [status, setStatus] = useState("");
+  const [q, setQ] = useState(() => getParam("q"));
+  const [providerId, setProviderId] = useState(() => getParam("provider"));
+  const [status, setStatus] = useState(() => getParam("status"));
   const { providers, isAdmin } = initialData;
 
   // Ref para que el handler de niupack:navigate lea siempre el estado actual.
@@ -91,6 +96,10 @@ export function InvoicesSection({ initialData }: { initialData: InvoicesSectionD
   useEffect(() => {
     const handler = (e: Event) => {
       if ((e as CustomEvent<string>).detail !== "/invoices") return;
+      const p = new URLSearchParams(window.location.search);
+      setQ(p.get("q") ?? "");
+      setProviderId(p.get("provider") ?? "");
+      setStatus(p.get("status") ?? "");
       setTimeout(() => {
         const qs = buildParams(filtersRef.current);
         window.history.replaceState({}, "", qs ? `/invoices?${qs}` : "/invoices");

@@ -11,13 +11,18 @@ import { isRfqOpen, rfqClosedReason } from "@/lib/rfq-status";
 import { RfqDialog } from "./rfq-dialog";
 import { RfqsSectionData } from "./section-action";
 
+function getParam(key: string) {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get(key) ?? "";
+}
+
 export function RfqsSection({ initialData }: { initialData: RfqsSectionData }) {
   const { rfqs, products } = initialData;
-  const [q, setQ] = useState("");
-  const [filterProduct, setFilterProduct] = useState("");
-  const [filterOpen, setFilterOpen] = useState("");
-  const [filterFrom, setFilterFrom] = useState("");
-  const [filterTo, setFilterTo] = useState("");
+  const [q, setQ] = useState(() => getParam("q"));
+  const [filterProduct, setFilterProduct] = useState(() => getParam("product"));
+  const [filterOpen, setFilterOpen] = useState(() => getParam("open"));
+  const [filterFrom, setFilterFrom] = useState(() => getParam("from"));
+  const [filterTo, setFilterTo] = useState(() => getParam("to"));
 
   const filtersRef = useRef({ q, filterProduct, filterOpen, filterFrom, filterTo });
   filtersRef.current = { q, filterProduct, filterOpen, filterFrom, filterTo };
@@ -43,6 +48,12 @@ export function RfqsSection({ initialData }: { initialData: RfqsSectionData }) {
   useEffect(() => {
     const handler = (e: Event) => {
       if ((e as CustomEvent<string>).detail !== "/rfqs") return;
+      const p = new URLSearchParams(window.location.search);
+      setQ(p.get("q") ?? "");
+      setFilterProduct(p.get("product") ?? "");
+      setFilterOpen(p.get("open") ?? "");
+      setFilterFrom(p.get("from") ?? "");
+      setFilterTo(p.get("to") ?? "");
       setTimeout(() => {
         const qs = buildParams(filtersRef.current);
         window.history.replaceState({}, "", qs ? `/rfqs?${qs}` : "/rfqs");

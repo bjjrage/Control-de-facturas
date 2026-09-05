@@ -12,10 +12,15 @@ import { PagosSectionData } from "./section-action";
 const STATUS_TONE = { EMITIDA: "warn", EJECUTADA: "ok" } as const;
 const STATUS_LABELS = { EMITIDA: "Emitida", EJECUTADA: "Ejecutada" };
 
+function getParam(key: string) {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get(key) ?? "";
+}
+
 export function PagosSection({ initialData }: { initialData: PagosSectionData }) {
   const { ops, providers, opTotals } = initialData;
-  const [filterStatus, setFilterStatus] = useState("");
-  const [filterProvider, setFilterProvider] = useState("");
+  const [filterStatus, setFilterStatus] = useState(() => getParam("status"));
+  const [filterProvider, setFilterProvider] = useState(() => getParam("provider"));
 
   const filtersRef = useRef({ filterStatus, filterProvider });
   filtersRef.current = { filterStatus, filterProvider };
@@ -38,6 +43,9 @@ export function PagosSection({ initialData }: { initialData: PagosSectionData })
   useEffect(() => {
     const handler = (e: Event) => {
       if ((e as CustomEvent<string>).detail !== "/pagos") return;
+      const p = new URLSearchParams(window.location.search);
+      setFilterStatus(p.get("status") ?? "");
+      setFilterProvider(p.get("provider") ?? "");
       setTimeout(() => {
         const qs = buildParams(filtersRef.current);
         window.history.replaceState({}, "", qs ? `/pagos?${qs}` : "/pagos");

@@ -10,6 +10,11 @@ import { formatDate, formatMoney } from "@/lib/format";
 import { docSaldo, isOverdue, SALES_DOC_STATUS_LABELS, SALES_STATUS_ORDER } from "@/lib/sales";
 import { getSalesListData, SalesListData } from "./sales-list-section-action";
 
+function getParam(key: string) {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get(key) ?? "";
+}
+
 type StatusTone = "ok" | "warn" | "neutral";
 const STATUS_TONE: Record<string, StatusTone> = {
   EMITIDA: "warn",
@@ -59,9 +64,9 @@ export function SalesListSection({
   const [docs, setDocs] = useState(initialData.docs);
   const [month, setMonth] = useState<string | null>(initialData.month);
   const [loading, setLoading] = useState(false);
-  const [q, setQ] = useState("");
-  const [clientId, setClientId] = useState("");
-  const [status, setStatus] = useState("");
+  const [q, setQ] = useState(() => getParam("q"));
+  const [clientId, setClientId] = useState(() => getParam("client"));
+  const [status, setStatus] = useState(() => getParam("status"));
   const { clients } = initialData;
 
   const filtersRef = useRef({ month, q, clientId, status });
@@ -88,6 +93,10 @@ export function SalesListSection({
   useEffect(() => {
     const handler = (e: Event) => {
       if ((e as CustomEvent<string>).detail !== basePath) return;
+      const p = new URLSearchParams(window.location.search);
+      setQ(p.get("q") ?? "");
+      setClientId(p.get("client") ?? "");
+      setStatus(p.get("status") ?? "");
       setTimeout(() => {
         const qs = buildParams(filtersRef.current);
         window.history.replaceState({}, "", qs ? `${basePath}?${qs}` : basePath);
