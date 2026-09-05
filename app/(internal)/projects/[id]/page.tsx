@@ -26,13 +26,17 @@ import { ProyectoComprasTable } from "./proyecto-compras-table";
 import { SubcontratistasTable } from "./subcontratistas-table";
 import { ProyectoFacturasTable } from "./proyecto-facturas-table";
 import { ProyectoPagosTable } from "./proyecto-pagos-table";
-import { Invoice, PaymentOrder, Provider } from "@/lib/types";
+import { ProyectoRfqsTable } from "./proyecto-rfqs-table";
+import { ProyectoProveedoresTable } from "./proyecto-proveedores-table";
+import { Invoice, PaymentOrder, Provider, Rfq } from "@/lib/types";
 
 const BASE_TABS = [
   { key: "presupuesto", label: "Presupuesto" },
   { key: "cronograma", label: "Cronograma" },
   { key: "ejecucion", label: "Ejecución" },
   { key: "compras", label: "Compras" },
+  { key: "cotizaciones", label: "Cotizaciones" },
+  { key: "proveedores", label: "Proveedores" },
   { key: "facturas", label: "Facturas" },
   { key: "pagos", label: "Pagos" },
   { key: "informes", label: "Informes" },
@@ -102,9 +106,28 @@ export default async function ProjectDetailPage({
   const entries = execEntries ?? [];
   const ocs = orders ?? [];
 
+  // Cotizaciones y proveedores del proyecto: derivados de las OCs (authorized_orders).
+  // Una OC tiene rfq_id y provider_id, ambos los heredamos para "modo carpeta".
+  const orderIds = ocs.map((o) => o.id);
+  let projectRfqs: Rfq[] = [];
+  let projectProviders: Provider[] = [];
+  if (orderIds.length > 0) {
+    const rfqIds = [...new Set(ocs.map((o) => o.rfq_id).filter((id): id is string => !!id))];
+    const providerIds = [...new Set(ocs.map((o) => o.provider_id).filter((id): id is string => !!id))];
+    const [rfqFetch, providerFetch] = await Promise.all([
+      rfqIds.length > 0
+        ? supabase.from("rfqs").select("*").in("id", rfqIds).order("created_at", { ascending: false }).returns<Rfq[]>()
+        : Promise.resolve({ data: [] as Rfq[] }),
+      providerIds.length > 0
+        ? supabase.from("providers").select("*").in("id", providerIds).order("name").returns<Provider[]>()
+        : Promise.resolve({ data: [] as Provider[] }),
+    ]);
+    projectRfqs = rfqFetch.data ?? [];
+    projectProviders = providerFetch.data ?? [];
+  }
+
   // Facturas del proyecto: no tienen project_id propio, se derivan vía la OC
   // vinculada (invoice_order_matches). Una OC matchea a lo sumo una factura.
-  const orderIds = ocs.map((o) => o.id);
   let projectInvoices: Invoice[] = [];
   let projectPaymentOrders: PaymentOrder[] = [];
   let providerNameById = new Map<string, string>();
@@ -342,6 +365,10 @@ export default async function ProjectDetailPage({
       ) : null}
 
       {tab === "compras" ? <ProyectoComprasTable rows={ocs} /> : null}
+
+      {tab === "cotizaciones" ? <ProyectoRfqsTable rows={projectRfqs} /> : null}
+
+      {tab === "proveedores" ? <ProyectoProveedoresTable rows={projectProviders} /> : null}
 
       {tab === "facturas" ? (
         <ProyectoFacturasTable rows={projectInvoices} providerNameById={providerNameById} />

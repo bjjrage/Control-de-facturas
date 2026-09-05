@@ -26,6 +26,7 @@ import {
   Users,
   FolderOpen,
   X,
+  MessagesSquare,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { EmpresaPlan } from "@/lib/auth";
@@ -42,6 +43,8 @@ const PROJECT_TABS: { key: string; label: string; icon: typeof LayoutDashboard; 
   { key: "cronograma", label: "Cronograma", icon: GanttChartSquare },
   { key: "ejecucion", label: "Ejecución", icon: Hammer },
   { key: "compras", label: "Compras", icon: Package },
+  { key: "cotizaciones", label: "Cotizaciones", icon: MessagesSquare },
+  { key: "proveedores", label: "Proveedores", icon: Truck },
   { key: "facturas", label: "Facturas", icon: Receipt },
   { key: "pagos", label: "Pagos", icon: Wallet },
   { key: "personal", label: "Personal", icon: Users, caterpillarOnly: true },
