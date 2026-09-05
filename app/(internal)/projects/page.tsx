@@ -36,6 +36,7 @@ export default async function ProjectsPage() {
 
   const list = projects ?? [];
   const projectIds = list.map((p) => p.id);
+  const isCaterpillar = profile.plan === "caterpillar";
 
   const [{ data: budgetItems }, { data: orders }, { data: execEntries }] = await Promise.all([
     projectIds.length > 0
@@ -87,6 +88,16 @@ export default async function ProjectsPage() {
     return { project: p, presupuesto, compras, comprasPct, avancePct, enAlerta };
   });
 
+  let certificadosPendientes = 0;
+  if (isCaterpillar && projectIds.length > 0) {
+    const { count } = await supabase
+      .from("subcontractor_certificates")
+      .select("id", { count: "exact", head: true })
+      .in("project_id", projectIds)
+      .eq("status", "PENDIENTE");
+    certificadosPendientes = count ?? 0;
+  }
+
   const proyectosActivos = list.filter((p) => p.status === "ACTIVO").length;
   const presupuestoTotal = rows.reduce((s, r) => s + r.presupuesto, 0);
   const comprasTotal = rows.reduce((s, r) => s + r.compras, 0);
@@ -113,7 +124,7 @@ export default async function ProjectsPage() {
         <NewProjectDialog trigger={<Button>Nuevo proyecto</Button>} />
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className={`grid gap-3 ${isCaterpillar ? "grid-cols-5" : "grid-cols-4"}`}>
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3.5">
           <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Proyectos activos</div>
           <div className="text-[22px] font-bold mt-1">{proyectosActivos}</div>
@@ -138,6 +149,15 @@ export default async function ProjectsPage() {
           <div className="text-[22px] font-bold mt-1 text-[var(--ok)]">{avancePromedio}%</div>
           <div className="text-[11px] text-[var(--muted)] mt-0.5">ejecución en campo</div>
         </div>
+        {isCaterpillar ? (
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3.5">
+            <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Certificados pendientes</div>
+            <div className={`text-[22px] font-bold mt-1 ${certificadosPendientes > 0 ? "text-[var(--warn)]" : ""}`}>
+              {certificadosPendientes}
+            </div>
+            <div className="text-[11px] text-[var(--muted)] mt-0.5">de aprobación</div>
+          </div>
+        ) : null}
       </div>
 
       {chartData.length > 0 ? <ProjectsChart data={chartData} /> : null}

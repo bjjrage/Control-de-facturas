@@ -125,3 +125,82 @@ export async function addSubcontractorContract(
   revalidatePath(`/projects/${projectId}`);
   return { error: null };
 }
+
+/**
+ * Aprueba un certificado. Bloquea si la suma de certificados ya aprobados/
+ * pagados de ESE contrato más este nuevo supera el monto contratado — la
+ * alerta de techo real, no solo el badge visual de la lista.
+ */
+export async function approveCertificate(
+  certificateId: string,
+  approvedPct: number,
+  approvedAmount: number,
+  notes: string | null
+): Promise<{ error: string | null }> {
+  await requirePlan("caterpillar", ["administracion", "admin"]);
+  const supabase = await createClient();
+
+  if (!(approvedPct > 0 && approvedPct <= 100)) return { error: "El % aprobado debe estar entre 1 y 100." };
+  if (!(approvedAmount > 0)) return { error: "El monto aprobado debe ser mayor a cero." };
+
+  const { data: cert } = await supabase
+    .from("subcontractor_certificates")
+    .select("id, contract_id, project_id")
+    .eq("id", certificateId)
+    .single();
+  if (!cert) return { error: "Certificado no encontrado." };
+
+  const { data: contract } = await supabase
+    .from("subcontractor_contracts")
+    .select("contracted_amount")
+    .eq("id", cert.contract_id)
+    .single();
+  if (!contract) return { error: "Contrato no encontrado." };
+
+  const { data: otherApproved } = await supabase
+    .from("subcontractor_certificates")
+    .select("approved_amount")
+    .eq("contract_id", cert.contract_id)
+    .in("status", ["APROBADO", "PAGADO"])
+    .neq("id", certificateId);
+  const alreadyApproved = (otherApproved ?? []).reduce((s, c) => s + (c.approved_amount ?? 0), 0);
+
+  if (alreadyApproved + approvedAmount > contract.contracted_amount) {
+    const disponible = contract.contracted_amount - alreadyApproved;
+    return {
+      error: `Este certificado superaría el monto contratado. Disponible: ${disponible.toLocaleString("es-PY")} Gs.`,
+    };
+  }
+
+  const { error } = await supabase
+    .from("subcontractor_certificates")
+    .update({ status: "APROBADO", approved_pct: approvedPct, approved_amount: approvedAmount, notes })
+    .eq("id", certificateId);
+
+  if (error) return { error: "No se pudo aprobar el certificado." };
+
+  revalidatePath(`/projects/${cert.project_id}`);
+  return { error: null };
+}
+
+export async function rejectCertificate(certificateId: string, notes: string | null): Promise<{ error: string | null }> {
+  await requirePlan("caterpillar", ["administracion", "admin"]);
+  const supabase = await createClient();
+
+  const { data: cert } = await supabase
+    .from("subcontractor_certificates")
+    .select("id, project_id")
+    .eq("id", certificateId)
+    .single();
+  if (!cert) return { error: "Certificado no encontrado." };
+
+  const { error } = await supabase
+    .from("subcontractor_certificates")
+    .update({ status: "RECHAZADO", notes })
+    .eq("id", certificateId);
+
+  if (error) return { error: "No se pudo rechazar el certificado." };
+
+  revalidatePath(`/projects/${cert.project_id}`);
+  return { error: null };
+}

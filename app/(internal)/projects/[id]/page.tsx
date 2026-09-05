@@ -16,6 +16,7 @@ import { ExecutionPhotosLightbox } from "./execution-photos-lightbox";
 import { DailyLaborEntry, Subcontractor, SubcontractorContract, SubcontractorCertificate } from "@/lib/types";
 import { AddLaborEntryForm } from "./add-labor-entry-form";
 import { AddSubcontractorContractDialog } from "./add-subcontractor-contract-dialog";
+import { ContractCertificatesDialog } from "./contract-certificates-dialog";
 
 const BASE_TABS = [
   { key: "presupuesto", label: "Presupuesto" },
@@ -42,6 +43,7 @@ export default async function ProjectDetailPage({
   const { id } = await params;
   const { tab: rawTab } = await searchParams;
   const isCaterpillar = profile.plan === "caterpillar";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
   const TABS = isCaterpillar ? [...BASE_TABS, ...CATERPILLAR_TABS] : BASE_TABS;
   const tab = TABS.some((t) => t.key === rawTab) ? rawTab! : "presupuesto";
   const supabase = await createClient();
@@ -423,11 +425,12 @@ export default async function ProjectDetailPage({
                   <th className="num">Certificado aprobado</th>
                   <th className="num">Retención acum.</th>
                   <th>Estado</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
                 {contracts.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center text-[var(--muted)] py-6">Sin contratos cargados.</td></tr>
+                  <tr><td colSpan={7} className="text-center text-[var(--muted)] py-6">Sin contratos cargados.</td></tr>
                 ) : (
                   contracts.map((c) => {
                     const sub = subcontractorCatalog.find((s) => s.id === c.subcontractor_id);
@@ -436,6 +439,7 @@ export default async function ProjectDetailPage({
                     const usedPct = c.contracted_amount > 0
                       ? Math.round(((summary.approvedAmount + summary.pendingAmount) / c.contracted_amount) * 100)
                       : 0;
+                    const contractCerts = certificates.filter((cert) => cert.contract_id === c.id);
                     return (
                       <tr key={c.id}>
                         <td className="font-medium">{sub?.name ?? "—"}</td>
@@ -455,6 +459,9 @@ export default async function ProjectDetailPage({
                               </span>
                             ) : null}
                           </div>
+                        </td>
+                        <td>
+                          <ContractCertificatesDialog contract={c} certificates={contractCerts} appUrl={appUrl} />
                         </td>
                       </tr>
                     );
