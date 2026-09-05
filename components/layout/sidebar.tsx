@@ -138,30 +138,40 @@ export function Sidebar({
   const [projectInfo, setProjectInfo] = useState<{ id: string; name: string; code: string } | null>(
     () => (activeProjectId ? (_navCache.get(activeProjectId) ?? null) : null)
   );
+  // true mientras hay un fetch en vuelo para el proyecto actual
+  const [fetchingId, setFetchingId] = useState<string | null>(() =>
+    activeProjectId && !_navCache.has(activeProjectId) ? activeProjectId : null
+  );
 
   useEffect(() => {
     if (!activeProjectId) {
       setProjectInfo(null);
+      setFetchingId(null);
       return;
     }
-    // Sirve del cache inmediatamente para evitar el flash global→proyecto.
     const cached = _navCache.get(activeProjectId);
-    if (cached) setProjectInfo(cached);
-    // Refresca en background igual (datos pueden haber cambiado).
+    if (cached) {
+      setProjectInfo(cached);
+      setFetchingId(null);
+    } else {
+      setFetchingId(activeProjectId);
+    }
     let cancelled = false;
     getProjectNavInfo(activeProjectId).then((info) => {
-      if (!cancelled && info) {
-        _navCache.set(activeProjectId, info);
-        setProjectInfo(info);
+      if (!cancelled) {
+        if (info) {
+          _navCache.set(activeProjectId, info);
+          setProjectInfo(info);
+        }
+        setFetchingId(null); // siempre termina el loading, haya info o no
       }
     });
     return () => { cancelled = true; };
   }, [activeProjectId]);
 
   const inProjectMode = activeProjectId !== null && projectInfo !== null && projectInfo.id === activeProjectId;
-  // Mientras esperamos projectInfo: ya sabemos que estamos en un proyecto, pero
-  // no tenemos el nombre todavía. Evita mostrar el nav global como fallback.
-  const isLoadingProjectMode = activeProjectId !== null && !inProjectMode;
+  // Skeleton solo mientras hay un fetch activo para este proyecto
+  const isLoadingProjectMode = fetchingId === activeProjectId && activeProjectId !== null;
   const isCaterpillarPlan = plan === "caterpillar";
 
   // Tab activo en modo proyecto — se sincroniza sin Next.js navigation para
