@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/browser";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Input, Label } from "@/components/ui/input";
