@@ -2,6 +2,7 @@ import { requireProfile } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/sidebar";
 import { PlanNav } from "@/components/layout/plan-nav";
 import { Topbar } from "@/components/layout/topbar";
+import { AppShellClient } from "@/components/layout/app-shell-client";
 
 // The logo upload in the Sidebar (present on every page under this layout)
 // can rasterize a PDF, which may outlast the platform's default serverless
@@ -23,7 +24,9 @@ export default async function InternalLayout({ children }: { children: React.Rea
       />
       <div className="flex-1 min-w-0 flex flex-col">
         <Topbar initial={initial} role={profile.role} />
-        <main className="flex-1 min-w-0 p-5">{children}</main>
+        <main className="flex-1 min-w-0 p-5">
+          <AppShellClient>{children}</AppShellClient>
+        </main>
       </div>
       <PlanNav role={profile.role} plan={profile.plan} isSuperAdmin={profile.is_super_admin} />
     </div>

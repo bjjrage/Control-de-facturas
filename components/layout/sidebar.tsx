@@ -35,6 +35,7 @@ import { logout } from "@/app/(internal)/actions";
 import { uploadLogo } from "./branding-actions";
 import { LOGO_STORAGE_PATH } from "./branding-constants";
 import { getProjectNavInfo } from "@/app/(internal)/projects/actions";
+import { SHELL_PATHS } from "./app-shell-client";
 
 // Sub-secciones de un proyecto — mismas tabs que /projects/[id]?tab=X, pero
 // como items de sidebar cuando estás "adentro" del proyecto (modo carpeta).
@@ -122,6 +123,9 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  // Tracks the "active" path for shell-managed sections, since pushState doesn't
+  // update usePathname(). Syncs from both our custom events and real Next.js nav.
+  const [navPath, setNavPath] = useState<string | null>(null);
   const [logoFailed, setLogoFailed] = useState(false);
   const [logoVersion, setLogoVersion] = useState(0);
   const [uploading, setUploading] = useState(false);
@@ -186,6 +190,21 @@ export function Sidebar({
     return () => window.removeEventListener("niupack:tab", handler);
   }, []);
 
+  // Sync navPath from our custom navigation events and browser popstate.
+  useEffect(() => {
+    setNavPath(pathname);
+  }, [pathname]);
+  useEffect(() => {
+    const onNavigate = (e: Event) => setNavPath((e as CustomEvent<string>).detail);
+    const onPop = () => setNavPath(window.location.pathname);
+    window.addEventListener("niupack:navigate", onNavigate);
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("niupack:navigate", onNavigate);
+      window.removeEventListener("popstate", onPop);
+    };
+  }, []);
+
   function filterItems(items: NavItem[]) {
     return items.filter((item) => {
       if (item.superAdmin) return isSuperAdmin;
@@ -224,13 +243,24 @@ export function Sidebar({
   }
 
   function renderLink(item: NavItem) {
-    const active = pathname === item.href || pathname.startsWith(item.href + "/");
+    const effectivePath = navPath ?? pathname;
+    const active = effectivePath === item.href || effectivePath.startsWith(item.href + "/");
     const Icon = item.icon;
+    const isShellPath = (SHELL_PATHS as readonly string[]).includes(item.href);
+
+    function handleClick(e: React.MouseEvent) {
+      if (isShellPath) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("niupack:navigate", { detail: item.href }));
+      }
+    }
+
     return (
       <Link
         key={item.href}
         href={item.href}
         title={collapsed ? item.label : undefined}
+        onClick={handleClick}
         className={cn(
           "flex items-center gap-2.5 h-9 rounded-lg text-[13px] transition-colors",
           collapsed ? "justify-center px-0" : "px-3",
