@@ -12,7 +12,7 @@ import { LinkOrderDialog } from "@/app/(internal)/invoices/link-order-dialog";
 import { CreateOrderFromInvoiceDialog } from "./create-order-dialog";
 import { ExceptionDialog } from "./exception-dialog";
 import { AttachmentLink } from "./attachment-link";
-import { unmatchOrder } from "./actions";
+import { unmatchOrder, markAptoYCrearOp } from "./actions";
 import { DeleteInvoiceButton } from "./delete-button";
 import { CreateOpButton } from "./create-op-button";
 
@@ -110,9 +110,13 @@ export default async function InvoiceDetailPage({
           ) : null}
           {linkedOp ? (
             <Link href={`/pagos/${linkedOp.id}`}>
-              <Button>Registrar pago →</Button>
+              <Button variant="secondary">Ver OP →</Button>
             </Link>
-          ) : invoice.status === "MATCH" || invoice.status === "APTO_PARA_PAGO" ? (
+          ) : invoice.status === "MATCH" ? (
+            <form action={async () => { "use server"; await markAptoYCrearOp(invoice.id); }}>
+              <Button type="submit">Marcar apto para pago</Button>
+            </form>
+          ) : invoice.status === "APTO_PARA_PAGO" ? (
             <CreateOpButton invoiceId={invoice.id} />
           ) : null}
           {profile.role === "admin" ? <DeleteInvoiceButton invoiceId={invoice.id} redirectTo="/invoices" /> : null}

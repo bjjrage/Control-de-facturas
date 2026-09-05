@@ -6,6 +6,7 @@ import { requireProfile, requireEmpresaId } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { differenceAmount, differencePct } from "@/lib/reconciliation";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 export async function matchOrder(invoiceId: string, authorizedOrderId: string) {
   await requireProfile(["administracion", "admin"]);
@@ -83,6 +84,48 @@ export async function markAptoParaPago(invoiceId: string) {
   await logAudit(supabase, { action: "invoice.marked_apto_para_pago", invoiceId });
   revalidatePath(`/invoices/${invoiceId}`);
   return { error: null };
+}
+
+/** Marca la factura como apta para pago, crea la OP y redirige a ella — todo en un paso. */
+export async function markAptoYCrearOp(invoiceId: string) {
+  const profile = await requireProfile(["administracion", "admin"]);
+  const supabase = await createClient();
+  const empresaId = profile.empresa_id;
+
+  // 1. Cambiar estado
+  const { error: markError } = await supabase.rpc("mark_invoice_apto_para_pago", { p_invoice_id: invoiceId });
+  if (markError) return { error: markError.message };
+
+  // 2. Obtener proveedor
+  const { data: invoice } = await supabase
+    .from("invoices")
+    .select("provider_id")
+    .eq("id", invoiceId)
+    .eq("empresa_id", empresaId)
+    .single();
+  if (!invoice) return { error: "Factura no encontrada." };
+
+  // 3. Crear OP
+  const { data: code } = await supabase.rpc("next_op_code");
+  const { data: op, error: opError } = await supabase
+    .from("payment_orders")
+    .insert({ empresa_id: empresaId, code: code as string, provider_id: invoice.provider_id, status: "EMITIDA", created_by: profile.id })
+    .select("id")
+    .single();
+  if (opError || !op) return { error: "No se pudo crear la OP." };
+
+  // 4. Vincular
+  const { error: linkError } = await supabase
+    .from("payment_order_invoices")
+    .insert({ empresa_id: empresaId, payment_order_id: op.id, invoice_id: invoiceId });
+  if (linkError) {
+    await supabase.from("payment_orders").delete().eq("id", op.id);
+    return { error: "No se pudo vincular la factura." };
+  }
+
+  await logAudit(supabase, { action: "payment_order.created", detail: { op_id: op.id, from_invoice: invoiceId } });
+  revalidatePath("/pagos");
+  redirect(`/pagos/${op.id}`);
 }
 
 /**
