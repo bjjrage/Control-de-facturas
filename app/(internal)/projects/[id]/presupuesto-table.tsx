@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { ColumnFilter, uniqueValues, passesColumnFilter } from "@/components/ui/column-filter";
 import { formatMoney } from "@/lib/format";
 
 type Row = {
@@ -15,14 +16,40 @@ type Row = {
   execPct: number | null;
 };
 
+type ColKey = "code" | "description" | "unit";
+
 export function PresupuestoTable({ rows, total }: { rows: Row[]; total: number }) {
   const [q, setQ] = useState("");
+  const [colFilters, setColFilters] = useState<Record<ColKey, Set<string> | null>>({
+    code: null,
+    description: null,
+    unit: null,
+  });
+
+  const unitLabel = (r: Row) => r.unit ?? "—";
+  const uniques = useMemo(
+    () => ({
+      code: uniqueValues(rows, (r) => r.code),
+      description: uniqueValues(rows, (r) => r.description),
+      unit: uniqueValues(rows, unitLabel),
+    }),
+    [rows]
+  );
+
+  function setCol(key: ColKey, next: Set<string> | null) {
+    setColFilters((f) => ({ ...f, [key]: next }));
+  }
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
-    if (!term) return rows;
-    return rows.filter((r) => r.code.toLowerCase().includes(term) || r.description.toLowerCase().includes(term));
-  }, [rows, q]);
+    return rows.filter((r) => {
+      if (!passesColumnFilter(r.code, colFilters.code)) return false;
+      if (!passesColumnFilter(r.description, colFilters.description)) return false;
+      if (!passesColumnFilter(unitLabel(r), colFilters.unit)) return false;
+      if (!term) return true;
+      return r.code.toLowerCase().includes(term) || r.description.toLowerCase().includes(term);
+    });
+  }, [rows, q, colFilters]);
 
   return (
     <div className="space-y-2">
@@ -38,9 +65,22 @@ export function PresupuestoTable({ rows, total }: { rows: Row[]; total: number }
         <table>
           <thead>
             <tr>
-              <th>Código</th>
-              <th>Descripción</th>
-              <th>Unid.</th>
+              <th>
+                Código
+                <ColumnFilter values={uniques.code} selected={colFilters.code} onChange={(v) => setCol("code", v)} />
+              </th>
+              <th>
+                Descripción
+                <ColumnFilter
+                  values={uniques.description}
+                  selected={colFilters.description}
+                  onChange={(v) => setCol("description", v)}
+                />
+              </th>
+              <th>
+                Unid.
+                <ColumnFilter values={uniques.unit} selected={colFilters.unit} onChange={(v) => setCol("unit", v)} />
+              </th>
               <th className="num">Cantidad</th>
               <th className="num">P. Unit.</th>
               <th className="num">Subtotal</th>
@@ -51,7 +91,7 @@ export function PresupuestoTable({ rows, total }: { rows: Row[]; total: number }
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={7} className="text-center text-[var(--muted)] py-6">
-                  {rows.length === 0 ? "Sin ítems todavía." : "Sin resultados para esa búsqueda."}
+                  {rows.length === 0 ? "Sin ítems todavía." : "Sin resultados para ese filtro."}
                 </td>
               </tr>
             ) : (

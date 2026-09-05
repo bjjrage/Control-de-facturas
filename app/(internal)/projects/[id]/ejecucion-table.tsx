@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { ColumnFilter, uniqueValues, passesColumnFilter } from "@/components/ui/column-filter";
 import { formatDate } from "@/lib/format";
 import { ExecutionPhotosLightbox } from "./execution-photos-lightbox";
 
@@ -33,18 +34,24 @@ function withinPreset(dateStr: string, preset: Preset): boolean {
   return d >= cutoff && d <= today;
 }
 
+type ColKey = "itemLabel";
+
 export function EjecucionTable({ rows }: { rows: Row[] }) {
   const [q, setQ] = useState("");
   const [preset, setPreset] = useState<Preset>("all");
+  const [colFilters, setColFilters] = useState<Record<ColKey, Set<string> | null>>({ itemLabel: null });
+
+  const uniques = useMemo(() => ({ itemLabel: uniqueValues(rows, (r) => r.itemLabel) }), [rows]);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return rows.filter((r) => {
       if (!withinPreset(r.date, preset)) return false;
+      if (!passesColumnFilter(r.itemLabel, colFilters.itemLabel)) return false;
       if (!term) return true;
       return r.itemLabel.toLowerCase().includes(term) || (r.notes ?? "").toLowerCase().includes(term);
     });
-  }, [rows, q, preset]);
+  }, [rows, q, preset, colFilters]);
 
   return (
     <div className="space-y-2">
@@ -78,7 +85,14 @@ export function EjecucionTable({ rows }: { rows: Row[] }) {
           <thead>
             <tr>
               <th>Fecha</th>
-              <th>Ítem</th>
+              <th>
+                Ítem
+                <ColumnFilter
+                  values={uniques.itemLabel}
+                  selected={colFilters.itemLabel}
+                  onChange={(v) => setColFilters((f) => ({ ...f, itemLabel: v }))}
+                />
+              </th>
               <th className="num">Cant. ejecutada</th>
               <th>Notas</th>
               <th>Fotos</th>

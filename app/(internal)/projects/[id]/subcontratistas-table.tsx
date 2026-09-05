@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { ColumnFilter, uniqueValues, passesColumnFilter } from "@/components/ui/column-filter";
 import { formatMoney } from "@/lib/format";
 import { SubcontractorContract, SubcontractorCertificate } from "@/lib/types";
 import { ContractCertificatesDialog } from "./contract-certificates-dialog";
@@ -16,19 +17,36 @@ type Row = {
   certs: SubcontractorCertificate[];
 };
 
+type ColKey = "itemLabel" | "status";
+
 export function SubcontratistasTable({ rows, appUrl }: { rows: Row[]; appUrl: string }) {
   const [q, setQ] = useState("");
+  const [colFilters, setColFilters] = useState<Record<ColKey, Set<string> | null>>({
+    itemLabel: null,
+    status: null,
+  });
+
+  const uniques = useMemo(
+    () => ({
+      itemLabel: uniqueValues(rows, (r) => r.itemLabel),
+      status: uniqueValues(rows, (r) => r.contract.status),
+    }),
+    [rows]
+  );
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
-    if (!term) return rows;
-    return rows.filter(
-      (r) =>
+    return rows.filter((r) => {
+      if (!passesColumnFilter(r.itemLabel, colFilters.itemLabel)) return false;
+      if (!passesColumnFilter(r.contract.status, colFilters.status)) return false;
+      if (!term) return true;
+      return (
         r.subName.toLowerCase().includes(term) ||
         r.itemLabel.toLowerCase().includes(term) ||
         r.contract.status.toLowerCase().includes(term)
-    );
-  }, [rows, q]);
+      );
+    });
+  }, [rows, q, colFilters]);
 
   return (
     <div className="space-y-2">
@@ -45,11 +63,25 @@ export function SubcontratistasTable({ rows, appUrl }: { rows: Row[]; appUrl: st
           <thead>
             <tr>
               <th>Subcontratista</th>
-              <th>Rubro</th>
+              <th>
+                Rubro
+                <ColumnFilter
+                  values={uniques.itemLabel}
+                  selected={colFilters.itemLabel}
+                  onChange={(v) => setColFilters((f) => ({ ...f, itemLabel: v }))}
+                />
+              </th>
               <th className="num">Contratado</th>
               <th className="num">Certificado aprobado</th>
               <th className="num">Retención acum.</th>
-              <th>Estado</th>
+              <th>
+                Estado
+                <ColumnFilter
+                  values={uniques.status}
+                  selected={colFilters.status}
+                  onChange={(v) => setColFilters((f) => ({ ...f, status: v }))}
+                />
+              </th>
               <th></th>
             </tr>
           </thead>
@@ -57,7 +89,7 @@ export function SubcontratistasTable({ rows, appUrl }: { rows: Row[]; appUrl: st
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={7} className="text-center text-[var(--muted)] py-6">
-                  {rows.length === 0 ? "Sin contratos cargados." : "Sin resultados para esa búsqueda."}
+                  {rows.length === 0 ? "Sin contratos cargados." : "Sin resultados para ese filtro."}
                 </td>
               </tr>
             ) : (

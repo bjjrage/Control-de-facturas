@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { ColumnFilter, uniqueValues, passesColumnFilter } from "@/components/ui/column-filter";
 import { formatDate, formatMoney } from "@/lib/format";
 import { DailyLaborEntry } from "@/lib/types";
 
@@ -23,18 +24,24 @@ function withinPreset(dateStr: string, preset: Preset): boolean {
   return d >= cutoff && d <= today;
 }
 
+type ColKey = "worker_name";
+
 export function PersonalTable({ rows }: { rows: DailyLaborEntry[] }) {
   const [q, setQ] = useState("");
   const [preset, setPreset] = useState<Preset>("all");
+  const [colFilters, setColFilters] = useState<Record<ColKey, Set<string> | null>>({ worker_name: null });
+
+  const uniques = useMemo(() => ({ worker_name: uniqueValues(rows, (r) => r.worker_name) }), [rows]);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return rows.filter((r) => {
       if (!withinPreset(r.entry_date, preset)) return false;
+      if (!passesColumnFilter(r.worker_name, colFilters.worker_name)) return false;
       if (!term) return true;
       return r.worker_name.toLowerCase().includes(term) || (r.task_description ?? "").toLowerCase().includes(term);
     });
-  }, [rows, q, preset]);
+  }, [rows, q, preset, colFilters]);
 
   const hoursTotal = filtered.reduce((s, l) => s + l.hours, 0);
   const costTotal = filtered.reduce((s, l) => s + l.labor_cost, 0);
@@ -71,7 +78,14 @@ export function PersonalTable({ rows }: { rows: DailyLaborEntry[] }) {
           <thead>
             <tr>
               <th>Fecha</th>
-              <th>Trabajador</th>
+              <th>
+                Trabajador
+                <ColumnFilter
+                  values={uniques.worker_name}
+                  selected={colFilters.worker_name}
+                  onChange={(v) => setColFilters((f) => ({ ...f, worker_name: v }))}
+                />
+              </th>
               <th className="num">Horas</th>
               <th className="num">Costo/hora</th>
               <th className="num">Total</th>
