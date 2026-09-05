@@ -13,14 +13,19 @@ import { ProjectStatusSelect } from "./project-status-select";
 import { ProjectGantt } from "./project-gantt";
 import { ProjectReports } from "./reports";
 import { ExecutionPhotosLightbox } from "./execution-photos-lightbox";
+import { DailyLaborEntry } from "@/lib/types";
+import { AddLaborEntryForm } from "./add-labor-entry-form";
 
-const TABS = [
+const BASE_TABS = [
   { key: "presupuesto", label: "Presupuesto" },
   { key: "cronograma", label: "Cronograma" },
   { key: "ejecucion", label: "Ejecución" },
   { key: "compras", label: "Compras" },
   { key: "informes", label: "Informes" },
 ] as const;
+
+// Caterpillar agrega Personal (y luego Subcontratistas) — no visibles en Pro.
+const CATERPILLAR_TABS = [{ key: "personal", label: "Personal" }] as const;
 
 export default async function ProjectDetailPage({
   params,
@@ -32,6 +37,8 @@ export default async function ProjectDetailPage({
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const { id } = await params;
   const { tab: rawTab } = await searchParams;
+  const isCaterpillar = profile.plan === "caterpillar";
+  const TABS = isCaterpillar ? [...BASE_TABS, ...CATERPILLAR_TABS] : BASE_TABS;
   const tab = TABS.some((t) => t.key === rawTab) ? rawTab! : "presupuesto";
   const supabase = await createClient();
   const empresaId = profile.empresa_id;
@@ -44,15 +51,21 @@ export default async function ProjectDetailPage({
     .single<Project>();
   if (!project) notFound();
 
-  const [{ data: budgetItems }, { data: execEntries }, { data: orders }] = await Promise.all([
+  const [{ data: budgetItems }, { data: execEntries }, { data: orders }, { data: laborEntries }] = await Promise.all([
     supabase.from("budget_items").select("*").eq("project_id", id).order("sort_order").returns<BudgetItem[]>(),
     supabase.from("execution_entries").select("*").eq("project_id", id).order("entry_date", { ascending: false }).returns<ExecutionEntry[]>(),
     supabase.from("authorized_orders").select("*").eq("project_id", id).order("authorized_at", { ascending: false }).returns<AuthorizedOrder[]>(),
+    isCaterpillar
+      ? supabase.from("daily_labor_entries").select("*").eq("project_id", id).order("entry_date", { ascending: false }).returns<DailyLaborEntry[]>()
+      : Promise.resolve({ data: [] as DailyLaborEntry[] }),
   ]);
 
   const items = budgetItems ?? [];
   const entries = execEntries ?? [];
   const ocs = orders ?? [];
+  const laborRows = laborEntries ?? [];
+  const laborHoursTotal = laborRows.reduce((s, l) => s + l.hours, 0);
+  const laborCostTotal = laborRows.reduce((s, l) => s + l.labor_cost, 0);
 
   // Proyectos candidatos para "Copiar de otro proyecto" — solo se ofrece si
   // este proyecto todavía no tiene ítems (no ensuciar un presupuesto ya armado).
@@ -124,7 +137,7 @@ export default async function ProjectDetailPage({
         <ProjectStatusSelect projectId={project.id} status={project.status} />
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className={`grid gap-3 ${isCaterpillar ? "grid-cols-4" : "grid-cols-3"}`}>
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3.5">
           <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Presupuesto total</div>
           <div className="text-[16px] font-bold mt-1">{formatMoney(presupuestoTotal, "PYG")}</div>
@@ -140,6 +153,13 @@ export default async function ProjectDetailPage({
           <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Ítems / entradas de avance</div>
           <div className="text-[16px] font-bold mt-1">{items.length} / {entries.length}</div>
         </div>
+        {isCaterpillar ? (
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3.5">
+            <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Costo M. de Obra</div>
+            <div className="text-[16px] font-bold mt-1">{formatMoney(laborCostTotal, "PYG")}</div>
+            <div className="text-[11px] text-[var(--muted)] mt-0.5">{laborHoursTotal} h totales</div>
+          </div>
+        ) : null}
       </div>
 
       <div className="border-b border-[var(--border)] flex gap-1">
@@ -290,6 +310,53 @@ export default async function ProjectDetailPage({
 
       {tab === "informes" ? (
         <ProjectReports project={project} budgetItems={items} execEntries={entries} orders={ocs} />
+      ) : null}
+
+      {tab === "personal" && isCaterpillar ? (
+        <div className="space-y-3">
+          <AddLaborEntryForm projectId={project.id} />
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Trabajador</th>
+                  <th className="num">Horas</th>
+                  <th className="num">Costo/hora</th>
+                  <th className="num">Total</th>
+                  <th>Tarea</th>
+                </tr>
+              </thead>
+              <tbody>
+                {laborRows.length === 0 ? (
+                  <tr><td colSpan={6} className="text-center text-[var(--muted)] py-6">Sin partes diarios registrados.</td></tr>
+                ) : (
+                  laborRows.map((l) => (
+                    <tr key={l.id}>
+                      <td>{formatDate(l.entry_date)}</td>
+                      <td className="font-medium">{l.worker_name}</td>
+                      <td className="num">{l.hours}</td>
+                      <td className="num">{formatMoney(l.hourly_cost, "PYG")}</td>
+                      <td className="num font-medium">{formatMoney(l.labor_cost, "PYG")}</td>
+                      <td className="text-[var(--muted)]">{l.task_description ?? "—"}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+              {laborRows.length > 0 ? (
+                <tfoot>
+                  <tr>
+                    <td colSpan={2} className="text-right font-semibold">TOTAL</td>
+                    <td className="num font-semibold">{laborHoursTotal}</td>
+                    <td></td>
+                    <td className="num font-semibold">{formatMoney(laborCostTotal, "PYG")}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              ) : null}
+            </table>
+          </div>
+        </div>
       ) : null}
     </div>
   );

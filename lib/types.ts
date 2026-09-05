@@ -432,6 +432,75 @@ export interface ExecutionEntry {
   created_at: string;
 }
 
+// ============================================================================
+// Módulo Construcción — Caterpillar (migración 0030)
+// ============================================================================
+
+export interface DailyLaborEntry {
+  id: string;
+  project_id: string;
+  entry_date: string;
+  worker_name: string;
+  hours: number;
+  hourly_cost: number;
+  labor_cost: number;
+  task_description: string | null;
+  recorded_by: string | null;
+  created_at: string;
+}
+
+export interface Subcontractor {
+  id: string;
+  empresa_id: string;
+  name: string;
+  ruc: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  specialty: string | null;
+  created_at: string;
+}
+
+export type SubcontractorContractStatus = "ACTIVO" | "CERRADO" | "CANCELADO";
+
+export interface SubcontractorContract {
+  id: string;
+  project_id: string;
+  subcontractor_id: string;
+  budget_item_id: string | null;
+  contracted_amount: number;
+  retention_pct: number;
+  description: string | null;
+  signed_date: string | null;
+  status: SubcontractorContractStatus;
+  public_token: string;
+  created_at: string;
+}
+
+export type SubcontractorCertificateStatus = "PENDIENTE" | "APROBADO" | "RECHAZADO" | "PAGADO";
+
+export interface SubcontractorCertificate {
+  id: string;
+  contract_id: string;
+  project_id: string;
+  certificate_number: number;
+  submitted_at: string;
+  period_start: string | null;
+  period_end: string | null;
+  claimed_pct: number;
+  claimed_amount: number;
+  approved_pct: number | null;
+  approved_amount: number | null;
+  retention_pct: number;
+  retention_amount: number;
+  net_payable: number;
+  status: SubcontractorCertificateStatus;
+  ai_flags: { flags: string[]; risk_level: "low" | "medium" | "high"; summary: string } | null;
+  notes: string | null;
+  submitted_by_portal: boolean;
+  created_at: string;
+}
+
 export interface SalesReceipt {
   id: string;
   empresa_id: string;
