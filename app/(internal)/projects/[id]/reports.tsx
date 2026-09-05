@@ -252,13 +252,14 @@ export function ProjectReports({
               <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="var(--muted)" />
               <YAxis tick={{ fontSize: 11 }} stroke="var(--muted)" width={70} />
               <Tooltip
-                cursor={{ fill: "var(--hover)" }}
+                cursor={false}
+                isAnimationActive={false}
                 contentStyle={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
                 formatter={(v) => Number(v).toLocaleString("es-PY")}
               />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="presupuesto" name="Presupuesto" fill="#1d4ed8" radius={[4, 4, 0, 0]} maxBarSize={80} />
-              <Bar dataKey="compras" name="Compras" fill="#d4711a" radius={[4, 4, 0, 0]} maxBarSize={80} />
+              <Bar dataKey="presupuesto" name="Presupuesto" fill="#1d4ed8" radius={[4, 4, 0, 0]} maxBarSize={80} isAnimationActive={false} />
+              <Bar dataKey="compras" name="Compras" fill="#d4711a" radius={[4, 4, 0, 0]} maxBarSize={80} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         </div>
