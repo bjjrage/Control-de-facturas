@@ -56,6 +56,10 @@ const PROJECT_TABS: { key: string; label: string; icon: typeof LayoutDashboard; 
 // /projects/nuevo si algún día existiera esa ruta.
 const PROJECT_ID_RE = /^\/projects\/([0-9a-f-]{20,})/i;
 
+// Cache a nivel módulo: persiste durante la sesión de browser y evita el flash
+// global→proyecto cuando el usuario vuelve a un proyecto que ya visitó.
+const _navCache = new Map<string, { id: string; name: string; code: string }>();
+
 type Module = "compras" | "ventas";
 
 type NavItem = {
@@ -130,23 +134,34 @@ export function Sidebar({
   // en vez del listado global de la empresa entera.
   const projectMatch = pathname.match(PROJECT_ID_RE);
   const activeProjectId = projectMatch?.[1] ?? null;
-  const [projectInfo, setProjectInfo] = useState<{ id: string; name: string; code: string } | null>(null);
+  // Cache module-level para que el sidebar aparezca sin flash en visitas repetidas.
+  const [projectInfo, setProjectInfo] = useState<{ id: string; name: string; code: string } | null>(
+    () => (activeProjectId ? (_navCache.get(activeProjectId) ?? null) : null)
+  );
 
   useEffect(() => {
     if (!activeProjectId) {
       setProjectInfo(null);
       return;
     }
+    // Sirve del cache inmediatamente para evitar el flash global→proyecto.
+    const cached = _navCache.get(activeProjectId);
+    if (cached) setProjectInfo(cached);
+    // Refresca en background igual (datos pueden haber cambiado).
     let cancelled = false;
     getProjectNavInfo(activeProjectId).then((info) => {
-      if (!cancelled) setProjectInfo(info);
+      if (!cancelled && info) {
+        _navCache.set(activeProjectId, info);
+        setProjectInfo(info);
+      }
     });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [activeProjectId]);
 
   const inProjectMode = activeProjectId !== null && projectInfo !== null && projectInfo.id === activeProjectId;
+  // Mientras esperamos projectInfo: ya sabemos que estamos en un proyecto, pero
+  // no tenemos el nombre todavía. Evita mostrar el nav global como fallback.
+  const isLoadingProjectMode = activeProjectId !== null && !inProjectMode;
   const isCaterpillarPlan = plan === "caterpillar";
 
   // Tab activo en modo proyecto — se sincroniza sin Next.js navigation para
@@ -336,6 +351,12 @@ export function Sidebar({
             </Link>
           )}
         </div>
+      ) : isLoadingProjectMode && !collapsed ? (
+        <div className="border-b border-[var(--border)] bg-[var(--panel-2)] px-3 py-2.5 space-y-1.5">
+          <div className="h-2 w-14 rounded bg-[var(--hover)]" />
+          <div className="h-3.5 w-36 rounded bg-[var(--hover)]" />
+          <div className="h-2 w-20 rounded bg-[var(--hover)]" />
+        </div>
       ) : null}
 
       <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
@@ -368,6 +389,18 @@ export function Sidebar({
               );
             })}
           </>
+        ) : isLoadingProjectMode ? (
+          <div className="space-y-1">
+            {[...Array(7)].map((_, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "h-9 rounded-lg bg-[var(--hover)]",
+                  collapsed ? "w-9 mx-auto" : "w-full"
+                )}
+              />
+            ))}
+          </div>
         ) : (
           <>
             {globalItems.map(renderLink)}
