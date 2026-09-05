@@ -19,8 +19,10 @@ import {
   ClipboardList,
   Banknote,
   Wallet,
+  HardHat,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
+import { EmpresaPlan } from "@/lib/auth";
 import { cn } from "@/lib/cn";
 import { logout } from "@/app/(internal)/actions";
 import { uploadLogo } from "./branding-actions";
@@ -40,6 +42,16 @@ type NavItem = {
 const GLOBAL_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", roles: ["comercial", "administracion", "admin"], icon: LayoutDashboard },
 ];
+
+// Proyectos va justo debajo de Dashboard — es una acción/módulo de trabajo,
+// no una configuración, así que vive en el nav izquierdo con todo lo demás.
+// Gateado por plan (Pro o superior), no por module: no depende de compras/ventas.
+const PROYECTOS_ITEM: NavItem = {
+  href: "/projects",
+  label: "Proyectos",
+  roles: ["administracion", "admin"],
+  icon: HardHat,
+};
 
 const COMPRAS_ITEMS: NavItem[] = [
   { href: "/rfqs", label: "Cotizaciones", roles: ["comercial", "admin"], icon: FileText, module: "compras" },
@@ -61,16 +73,20 @@ const logoBucketUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/branding/${LOGO_STORAGE_PATH}`
   : null;
 
+const PLAN_RANK: Record<EmpresaPlan, number> = { basico: 0, pro: 1, caterpillar: 2 };
+
 export function Sidebar({
   role,
   fullName,
   isSuperAdmin = false,
   modules,
+  plan = "basico",
 }: {
   role: UserRole;
   fullName: string;
   isSuperAdmin?: boolean;
   modules: { compras: boolean; ventas: boolean };
+  plan?: EmpresaPlan;
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -94,6 +110,7 @@ export function Sidebar({
   // no reemplazan ni ocultan Compras/Ventas. Un plan más alto nunca debe
   // sacar funciones que la empresa ya usaba en Básico.
   const globalItems = filterItems(GLOBAL_ITEMS);
+  const proyectosItems = PLAN_RANK[plan] >= PLAN_RANK.pro ? filterItems([PROYECTOS_ITEM]) : [];
   const comprasItems = filterItems(COMPRAS_ITEMS);
   const ventasItems = filterItems(VENTAS_ITEMS);
 
@@ -229,6 +246,7 @@ export function Sidebar({
 
       <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
         {globalItems.map(renderLink)}
+        {proyectosItems.map(renderLink)}
         {renderSection("Compras", comprasItems)}
         {renderSection("Ventas", ventasItems)}
       </nav>
