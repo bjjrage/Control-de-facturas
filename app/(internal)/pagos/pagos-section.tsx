@@ -28,6 +28,9 @@ export function PagosSection({ initialData }: { initialData: PagosSectionData })
   }
 
   useEffect(() => {
+    // Solo la sección visible puede tocar la URL (las precargadas en
+    // background también montan este efecto).
+    if (window.location.pathname !== "/pagos") return;
     const qs = buildParams({ filterStatus, filterProvider });
     window.history.replaceState({}, "", qs ? `/pagos?${qs}` : "/pagos");
   }, [filterStatus, filterProvider]);

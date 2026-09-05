@@ -33,6 +33,9 @@ export function RfqsSection({ initialData }: { initialData: RfqsSectionData }) {
   }
 
   useEffect(() => {
+    // Solo la sección visible puede tocar la URL (las precargadas en
+    // background también montan este efecto).
+    if (window.location.pathname !== "/rfqs") return;
     const qs = buildParams({ q, filterProduct, filterOpen, filterFrom, filterTo });
     window.history.replaceState({}, "", qs ? `/rfqs?${qs}` : "/rfqs");
   }, [q, filterProduct, filterOpen, filterFrom, filterTo]);

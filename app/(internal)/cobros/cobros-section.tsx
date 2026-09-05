@@ -26,6 +26,9 @@ export function CobrosSection({ initialData }: { initialData: CobrosSectionData 
   filterRef.current = clientFilter;
 
   useEffect(() => {
+    // Solo la sección visible puede tocar la URL (las precargadas en
+    // background también montan este efecto).
+    if (window.location.pathname !== "/cobros") return;
     const qs = clientFilter ? `client=${clientFilter}` : "";
     window.history.replaceState({}, "", qs ? `/cobros?${qs}` : "/cobros");
   }, [clientFilter]);

@@ -78,6 +78,9 @@ export function SalesListSection({
   }
 
   useEffect(() => {
+    // Solo la sección visible puede tocar la URL (las precargadas en
+    // background también montan este efecto).
+    if (window.location.pathname !== basePath) return;
     const qs = buildParams({ month, q, clientId, status });
     window.history.replaceState({}, "", qs ? `${basePath}?${qs}` : basePath);
   }, [month, q, clientId, status, basePath]);

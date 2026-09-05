@@ -45,6 +45,9 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
   }
 
   useEffect(() => {
+    // Solo la sección visible puede tocar la URL (las precargadas en
+    // background también montan este efecto).
+    if (window.location.pathname !== "/orders") return;
     const qs = buildParams({ filterProduct, filterProvider, filterEtapa });
     window.history.replaceState({}, "", qs ? `/orders?${qs}` : "/orders");
   }, [filterProduct, filterProvider, filterEtapa]);

@@ -80,6 +80,9 @@ export function InvoicesSection({ initialData }: { initialData: InvoicesSectionD
 
   // Refleja filtros en la URL sin crear entradas de historial.
   useEffect(() => {
+    // Solo la sección visible puede tocar la URL (las precargadas en
+    // background también montan este efecto).
+    if (window.location.pathname !== "/invoices") return;
     const qs = buildParams({ month, q, providerId, status });
     window.history.replaceState({}, "", qs ? `/invoices?${qs}` : "/invoices");
   }, [month, q, providerId, status]);
