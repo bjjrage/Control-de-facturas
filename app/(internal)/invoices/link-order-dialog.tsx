@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatMoney, formatDate } from "@/lib/format";
+import { formatMoney, formatDate, formatNumber } from "@/lib/format";
 import { getCandidateOrders, linkInvoiceToOrder, type OrderCandidate } from "./actions";
 
 const SCORE_TONE: Record<number, "ok" | "warn" | "neutral"> = { 2: "ok", 1: "neutral" };
@@ -110,22 +110,44 @@ export function LinkOrderDialog({
                   filtered.map((c) => (
                     <div
                       key={c.id}
-                      className="flex items-center gap-2.5 rounded-md border border-[var(--border)] bg-[var(--panel)] px-2.5 py-2"
+                      className="rounded-md border border-[var(--border)] bg-[var(--panel)] px-2.5 py-2 space-y-1.5"
                     >
-                      <Badge tone={SCORE_TONE[c.score]}>{c.scoreLabel}</Badge>
-                      <div className="flex-1 min-w-0 text-[12px]">
-                        <div className="font-medium">{c.code} — {c.product}</div>
-                        <div className="text-[var(--muted)] truncate">
-                          saldo <span className="num">{formatMoney(c.saldo, c.currency as never)}</span> · {formatDate(c.authorized_at)}
+                      <div className="flex items-center gap-2.5">
+                        <Badge tone={SCORE_TONE[c.score]}>{c.scoreLabel}</Badge>
+                        <div className="flex-1 min-w-0 text-[12px]">
+                          <div className="font-medium truncate">{c.code} — {c.product}</div>
+                        </div>
+                        <a
+                          href={`/orders/${c.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] text-[var(--primary)] hover:underline shrink-0"
+                        >
+                          Ver OC ↗
+                        </a>
+                        <Button
+                          className="h-6 px-2.5 text-[12px] shrink-0"
+                          disabled={linking !== null}
+                          onClick={() => handleLink(c.id)}
+                        >
+                          {linking === c.id ? "…" : "Vincular"}
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-[var(--muted)] pl-0.5">
+                        <div>
+                          {formatNumber(c.quantity)} {c.unit} × {formatMoney(c.unit_price, c.currency as never)}
+                        </div>
+                        <div>{formatDate(c.authorized_at)}</div>
+                        <div>
+                          Total OC: <span className="num text-[var(--foreground)]">{formatMoney(c.total_price, c.currency as never)}</span>
+                        </div>
+                        <div>
+                          Ya facturado: <span className="num text-[var(--foreground)]">{formatMoney(c.facturado_amount, c.currency as never)}</span>
+                        </div>
+                        <div className="col-span-2">
+                          Saldo disponible: <span className="num font-medium text-[var(--foreground)]">{formatMoney(c.saldo, c.currency as never)}</span>
                         </div>
                       </div>
-                      <Button
-                        className="h-6 px-2.5 text-[12px] shrink-0"
-                        disabled={linking !== null}
-                        onClick={() => handleLink(c.id)}
-                      >
-                        {linking === c.id ? "…" : "Vincular"}
-                      </Button>
                     </div>
                   ))
                 )}

@@ -152,7 +152,11 @@ export type OrderCandidate = {
   product: string;
   provider_id: string;
   provider_name: string;
+  quantity: number;
+  unit: string;
+  unit_price: number;
   total_price: number;
+  facturado_amount: number;
   saldo: number;
   currency: string;
   status: string;
@@ -192,7 +196,7 @@ export async function getCandidateOrders(invoiceId: string): Promise<{
   // Solo OCs del mismo proveedor — nunca mezclar con otros proveedores.
   const { data: orders } = await supabase
     .from("authorized_orders")
-    .select("id, code, product, provider_id, provider_name, total_price, facturado_amount, currency, status, authorized_at")
+    .select("id, code, product, provider_id, provider_name, quantity, unit, unit_price, total_price, facturado_amount, currency, status, authorized_at")
     .eq("empresa_id", empresaId)
     .eq("provider_id", invoice.provider_id)
     .order("authorized_at", { ascending: false });
@@ -217,7 +221,11 @@ export async function getCandidateOrders(invoiceId: string): Promise<{
       product: o.product as string,
       provider_id: o.provider_id as string,
       provider_name: o.provider_name as string,
+      quantity: o.quantity as number,
+      unit: o.unit as string,
+      unit_price: o.unit_price as number,
       total_price: o.total_price as number,
+      facturado_amount: (o.facturado_amount as number) ?? 0,
       saldo,
       currency: o.currency as string,
       status: o.status as string,
