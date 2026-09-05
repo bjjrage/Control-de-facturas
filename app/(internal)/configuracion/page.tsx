@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Empresa } from "@/lib/types";
 import { EmpresaForm } from "./empresa-form";
 import { TemplateEditor } from "./template-editor";
+import { PlanSelector } from "./plan-selector";
 import { BackButton } from "@/components/ui/back-button";
 
 export default async function ConfiguracionPage() {
@@ -25,6 +26,8 @@ export default async function ConfiguracionPage() {
       </div>
 
       <EmpresaForm empresa={empresa} />
+
+      <PlanSelector currentPlan={empresa.plan} />
 
       <div className="space-y-2">
         <h2 className="text-[15px] font-semibold">Plantillas de documentos</h2>

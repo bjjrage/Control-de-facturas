@@ -1,5 +1,6 @@
 import { requireProfile } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/sidebar";
+import { PlanNav } from "@/components/layout/plan-nav";
 import { Topbar } from "@/components/layout/topbar";
 
 // The logo upload in the Sidebar (present on every page under this layout)
@@ -18,12 +19,12 @@ export default async function InternalLayout({ children }: { children: React.Rea
         fullName={profile.full_name}
         isSuperAdmin={profile.is_super_admin}
         modules={{ compras: profile.modulo_compras, ventas: profile.modulo_ventas }}
-        plan={profile.plan}
       />
       <div className="flex-1 min-w-0 flex flex-col">
         <Topbar initial={initial} role={profile.role} />
         <main className="flex-1 min-w-0 p-5">{children}</main>
       </div>
+      <PlanNav role={profile.role} plan={profile.plan} />
     </div>
   );
 }

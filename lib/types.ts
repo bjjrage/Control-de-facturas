@@ -74,6 +74,7 @@ export interface Empresa {
   template_proforma: string | null;
   template_remision: string | null;
   template_factura: string | null;
+  plan: "basico" | "pro" | "caterpillar";
 }
 
 export interface Profile {

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { SalesDocType } from "@/lib/types";
+import { EmpresaPlan } from "@/lib/auth";
 import { generateTemplateFromImage } from "@/lib/template-gen";
 import { revalidatePath } from "next/cache";
 
@@ -26,6 +27,20 @@ export async function updateEmpresaFields(formData: FormData) {
 
   if (error) return { error: error.message };
   revalidatePath("/configuracion");
+  return { error: null };
+}
+
+export async function updateEmpresaPlan(plan: EmpresaPlan): Promise<{ error: string | null }> {
+  const profile = await requireProfile(["admin"]);
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("empresas")
+    .update({ plan })
+    .eq("id", profile.empresa_id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/", "layout");
   return { error: null };
 }
 
