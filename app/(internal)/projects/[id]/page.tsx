@@ -94,7 +94,11 @@ export default async function ProjectDetailPage({
     }
   }
 
-  const presupuestoTotal = items.reduce((s, i) => s + i.subtotal, 0);
+  const itemsSubtotal = items.reduce((s, i) => s + i.subtotal, 0);
+  // KPI y % de compras usan "el mayor" (estimado inicial vs. ítems reales),
+  // mismo criterio que el dashboard general — la tabla de ítems sigue usando
+  // itemsSubtotal puro, porque su fila TOTAL debe ser la suma de lo listado.
+  const presupuestoTotal = Math.max(project.budget_total, itemsSubtotal);
   const comprasTotal = ocs.filter((o) => o.currency === "PYG").reduce((s, o) => s + o.total_price, 0);
   const comprasPct = presupuestoTotal > 0 ? Math.round((comprasTotal / presupuestoTotal) * 100) : 0;
 
@@ -199,7 +203,7 @@ export default async function ProjectDetailPage({
                 <tfoot>
                   <tr>
                     <td colSpan={5} className="text-right font-semibold">TOTAL</td>
-                    <td className="num font-semibold">{formatMoney(presupuestoTotal, "PYG")}</td>
+                    <td className="num font-semibold">{formatMoney(itemsSubtotal, "PYG")}</td>
                     <td></td>
                   </tr>
                 </tfoot>

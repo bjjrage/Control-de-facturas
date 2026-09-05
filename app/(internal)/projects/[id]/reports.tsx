@@ -24,7 +24,12 @@ export function ProjectReports({
 }) {
   const [exportingPdf, setExportingPdf] = useState(false);
 
-  const presupuestoTotal = budgetItems.reduce((s, i) => s + i.subtotal, 0);
+  // "El mayor" entre el presupuesto estimado al crear el proyecto y la suma
+  // real de ítems cargados — mismo criterio que el dashboard general, para
+  // no mostrar 0 cuando todavía no se cargó el cómputo métrico pero sí hay
+  // una estimación inicial.
+  const itemsSubtotal = budgetItems.reduce((s, i) => s + i.subtotal, 0);
+  const presupuestoTotal = Math.max(project.budget_total, itemsSubtotal);
   const comprasTotal = orders.filter((o) => o.currency === "PYG").reduce((s, o) => s + o.total_price, 0);
 
   const totalsBarData = useMemo(
@@ -242,17 +247,18 @@ export function ProjectReports({
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
           <div className="text-[13px] font-semibold mb-3">Presupuesto vs. compras</div>
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={totalsBarData}>
+            <BarChart data={totalsBarData} barCategoryGap="40%">
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="var(--muted)" />
               <YAxis tick={{ fontSize: 11 }} stroke="var(--muted)" width={70} />
               <Tooltip
+                cursor={{ fill: "var(--hover)" }}
                 contentStyle={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
                 formatter={(v) => Number(v).toLocaleString("es-PY")}
               />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="presupuesto" name="Presupuesto" fill="#1d4ed8" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="compras" name="Compras" fill="#d4711a" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="presupuesto" name="Presupuesto" fill="#1d4ed8" radius={[4, 4, 0, 0]} maxBarSize={80} />
+              <Bar dataKey="compras" name="Compras" fill="#d4711a" radius={[4, 4, 0, 0]} maxBarSize={80} />
             </BarChart>
           </ResponsiveContainer>
         </div>
