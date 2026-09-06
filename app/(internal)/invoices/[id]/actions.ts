@@ -30,6 +30,7 @@ export async function matchOrder(invoiceId: string, authorizedOrderId: string) {
     authorizedOrderId,
   });
 
+  revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoiceId}`);
   return { error: null };
 }
@@ -39,6 +40,7 @@ export async function unmatchOrder(invoiceId: string, matchId: string, authorize
   const supabase = await createClient();
   await supabase.from("invoice_order_matches").delete().eq("id", matchId);
   await logAudit(supabase, { action: "invoice.order_unmatched", invoiceId, authorizedOrderId });
+  revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoiceId}`);
 }
 
@@ -72,6 +74,7 @@ export async function approveException(invoiceId: string, reason: string, commen
   await supabase.rpc("recompute_invoice_status", { p_invoice_id: invoiceId });
   await logAudit(supabase, { action: "invoice.exception_approved", invoiceId, detail: { reason } });
 
+  revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoiceId}`);
   return { error: null };
 }
@@ -82,6 +85,7 @@ export async function markAptoParaPago(invoiceId: string) {
   const { error } = await supabase.rpc("mark_invoice_apto_para_pago", { p_invoice_id: invoiceId });
   if (error) return { error: error.message };
   await logAudit(supabase, { action: "invoice.marked_apto_para_pago", invoiceId });
+  revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoiceId}`);
   return { error: null };
 }
@@ -124,6 +128,7 @@ export async function markAptoYCrearOp(invoiceId: string) {
   }
 
   await logAudit(supabase, { action: "payment_order.created", detail: { op_id: op.id, from_invoice: invoiceId } });
+  revalidatePath("/invoices");
   revalidatePath("/pagos");
   redirect(`/pagos/${op.id}`);
 }
