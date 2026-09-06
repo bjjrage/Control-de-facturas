@@ -6,7 +6,6 @@ import { AuthorizedOrder, Provider } from "@/lib/types";
 import { formatDate, formatMoney } from "@/lib/format";
 import { orderRemaining, orderStep, ORDER_STEPS } from "@/lib/reconciliation";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Select, Label } from "@/components/ui/input";
 import { OrderDialog } from "./order-dialog";
 import { OrdersSectionData } from "./section-action";
@@ -127,9 +126,12 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
             Todas tus compras y en qué etapa están.
           </p>
         </div>
-        <Button onClick={() => setDialogOpen(true)} className="shrink-0 h-9 rounded-lg px-4">
+        <button
+          onClick={() => setDialogOpen(true)}
+          className="shrink-0 h-9 inline-flex items-center gap-1.5 rounded-lg bg-[var(--primary)] px-4 text-[13px] font-medium text-white hover:bg-[var(--primary-hover)]"
+        >
           + Nueva compra
-        </Button>
+        </button>
       </div>
 
       <OrderDialog

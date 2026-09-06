@@ -3,8 +3,6 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { submitAvance } from "./actions";
-import { primaryButtonClass } from "@/components/ui/button";
-import { cn } from "@/lib/cn";
 
 const MAX_PHOTOS = 5;
 
@@ -222,7 +220,7 @@ export function AvanceForm({ token, budgetItems }: { token: string; budgetItems:
       <button
         type="submit"
         disabled={pending}
-        className={cn("w-full h-9 rounded-md text-[13px] font-medium border disabled:opacity-50 disabled:pointer-events-none", primaryButtonClass)}
+        className="w-full h-9 rounded-md bg-[var(--primary)] text-white text-[13px] font-medium disabled:opacity-50"
       >
         {pending ? "Registrando…" : "Registrar avance"}
       </button>

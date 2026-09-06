@@ -3,8 +3,6 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { submitCertificate } from "./actions";
-import { primaryButtonClass } from "@/components/ui/button";
-import { cn } from "@/lib/cn";
 
 export function CertificateForm({ token }: { token: string }) {
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +72,7 @@ export function CertificateForm({ token }: { token: string }) {
       <button
         type="submit"
         disabled={pending}
-        className={cn("w-full h-9 rounded-md text-[13px] font-medium border disabled:opacity-50 disabled:pointer-events-none", primaryButtonClass)}
+        className="w-full h-9 rounded-md bg-[var(--primary)] text-white text-[13px] font-medium disabled:opacity-50"
       >
         {pending ? "Enviando…" : "Enviar certificado"}
       </button>
