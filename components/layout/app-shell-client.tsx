@@ -142,6 +142,11 @@ export function AppShellClient({ children }: { children: ReactNode }) {
       isOurNavRef.current = true;
       window.history.pushState({}, "", path);
 
+      if (sectionsRef.current.has(path)) {
+        setActivePath(path);
+        setMode("client");
+        return;
+      }
       setMode("loading");
       setActivePath(path);
       try {
