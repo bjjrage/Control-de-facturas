@@ -1,7 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireProfile, requireEmpresaId } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { SelectionReason } from "@/lib/types";
 import { isRfqOpen, canReopenRfq, DEFAULT_RFQ_WINDOW_HOURS } from "@/lib/rfq-status";
@@ -203,24 +204,46 @@ export async function reopenRfq(rfqId: string) {
   return { error: null };
 }
 
-/** Hard-delete: solo admin, solo cuando está CANCELADO o BORRADOR (nunca si ya tiene OC autorizada). */
+/**
+ * Hard-delete: solo admin, solo cuando está CANCELADO o BORRADOR (nunca si ya
+ * tiene OC autorizada).
+ *
+ * Usa el admin client a propósito: rfqs no tiene policy de DELETE en RLS
+ * (igual que authorized_orders/invoices — ver 0004_rls.sql), así que un
+ * delete con el cliente normal no falla, simplemente no borra nada (0 filas
+ * afectadas, sin error). rfq_providers/quotes/quote_versions/attachments
+ * cascadean solos al borrar la fila; audit_logs.rfq_id NO tiene cascade
+ * (toda RFQ tiene al menos el log de creación), así que se limpia a mano
+ * antes — igual que deleteInvoice.
+ */
 export async function deleteRfq(rfqId: string) {
-  await requireProfile(["admin"]);
-  const supabase = await createClient();
+  const empresaId = await requireEmpresaId(["admin"]);
+  const supabase = await createClient(); // solo para el audit log — necesita auth.uid()
+  const admin = createAdminClient();
 
-  const { data: rfq } = await supabase
+  const { data: rfq } = await admin
     .from("rfqs")
     .select("status")
     .eq("id", rfqId)
-    .single();
+    .eq("empresa_id", empresaId)
+    .maybeSingle();
 
   if (!rfq) return { error: "No encontrada." };
   if (!["CANCELADO", "BORRADOR"].includes(rfq.status)) {
     return { error: "Solo se pueden eliminar cotizaciones canceladas o en borrador." };
   }
 
-  await supabase.from("rfqs").delete().eq("id", rfqId);
-  await logAudit(supabase, { action: "rfq.deleted", rfqId });
+  await admin.from("audit_logs").delete().eq("rfq_id", rfqId).eq("empresa_id", empresaId);
+
+  const { error, count } = await admin
+    .from("rfqs")
+    .delete({ count: "exact" })
+    .eq("id", rfqId)
+    .eq("empresa_id", empresaId);
+  if (error) return { error: error.message };
+  if (!count) return { error: "No se pudo eliminar la solicitud." };
+
+  await logAudit(supabase, { action: "rfq.deleted", detail: { rfq_id: rfqId } });
   revalidatePath("/rfqs");
   redirect("/rfqs");
 }

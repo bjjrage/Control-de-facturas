@@ -1,7 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireProfile, requireEmpresaId } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { CurrencyCode } from "@/lib/types";
 import { revalidatePath } from "next/cache";
@@ -142,33 +143,48 @@ export async function createOrderFromInvoice(
  * factura (facturado_amount = 0 y sin filas en invoice_order_matches).
  * Pensado para limpiar duplicados de carga manual — una OC ya facturada
  * nunca se borra, se cancela a mano si hace falta.
+ *
+ * Usa el admin client a propósito: authorized_orders no tiene policy de
+ * DELETE en RLS (es un registro de auditoría, ver 0004_rls.sql), así que un
+ * delete con el cliente normal no falla — simplemente no borra nada (0 filas
+ * afectadas, sin error). Por eso acá se scopea cada query a mano por
+ * empresa_id, igual que deleteInvoice.
  */
 export async function deleteOrder(orderId: string) {
-  await requireProfile(["admin"]);
-  const supabase = await createClient();
+  const empresaId = await requireEmpresaId(["admin"]);
+  const supabase = await createClient(); // solo para el audit log — necesita auth.uid()
+  const admin = createAdminClient();
 
-  const { data: order } = await supabase
+  const { data: order } = await admin
     .from("authorized_orders")
     .select("id, facturado_amount")
     .eq("id", orderId)
-    .single();
+    .eq("empresa_id", empresaId)
+    .maybeSingle();
   if (!order) return { error: "Orden no encontrada." };
   if (order.facturado_amount > 0) {
     return { error: "No se puede eliminar: ya tiene facturas vinculadas." };
   }
 
-  const { count } = await supabase
+  const { count } = await admin
     .from("invoice_order_matches")
     .select("id", { count: "exact", head: true })
-    .eq("authorized_order_id", orderId);
+    .eq("authorized_order_id", orderId)
+    .eq("empresa_id", empresaId);
   if (count && count > 0) {
     return { error: "No se puede eliminar: ya tiene facturas vinculadas." };
   }
 
-  const { error } = await supabase.from("authorized_orders").delete().eq("id", orderId);
+  const { error, count: deletedCount } = await admin
+    .from("authorized_orders")
+    .delete({ count: "exact" })
+    .eq("id", orderId)
+    .eq("empresa_id", empresaId);
   if (error) return { error: error.message };
+  if (!deletedCount) return { error: "No se pudo eliminar la orden." };
 
-  await logAudit(supabase, { action: "order.deleted", authorizedOrderId: orderId });
+  // authorized_order_id ya no existe tras el delete — se loguea el código en detail.
+  await logAudit(supabase, { action: "order.deleted", detail: { order_id: orderId } });
   revalidatePath("/orders");
   return { error: null };
 }
