@@ -2,14 +2,36 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { ColumnFilter, uniqueValues, passesColumnFilter } from "@/components/ui/column-filter";
 import { Provider } from "@/lib/types";
+import { unlinkProviderFromProject } from "./provider-actions";
 
 type ColKey = "name" | "contact" | "email" | "phone";
 
-export function ProyectoProveedoresTable({ rows }: { rows: Provider[] }) {
+export function ProyectoProveedoresTable({
+  rows,
+  projectId,
+  removableIds,
+}: {
+  rows: Provider[];
+  projectId: string;
+  /** ids que se agregaron a mano y todavía no tienen ninguna OC — se pueden sacar. */
+  removableIds: string[];
+}) {
   const [q, setQ] = useState("");
+  const removable = useMemo(() => new Set(removableIds), [removableIds]);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const router = useRouter();
+
+  async function handleRemove(providerId: string) {
+    if (!confirm("¿Sacar este proveedor de la obra?")) return;
+    setRemovingId(providerId);
+    await unlinkProviderFromProject(projectId, providerId);
+    setRemovingId(null);
+    router.refresh();
+  }
 
   const [colFilters, setColFilters] = useState<Record<ColKey, Set<string> | null>>({
     name: null,
@@ -78,14 +100,15 @@ export function ProyectoProveedoresTable({ rows }: { rows: Provider[] }) {
                 Teléfono
                 <ColumnFilter values={uniques.phone} selected={colFilters.phone} onChange={(v) => setCol("phone", v)} />
               </th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={4} className="text-center text-[var(--muted)] py-6">
+                <td colSpan={5} className="text-center text-[var(--muted)] py-6">
                   {rows.length === 0
-                    ? "Sin proveedores con OCs en este proyecto."
+                    ? 'Todavía no hay proveedores en esta obra. Usá "+ Agregar proveedor".'
                     : "Sin resultados para ese filtro."}
                 </td>
               </tr>
@@ -100,6 +123,18 @@ export function ProyectoProveedoresTable({ rows }: { rows: Provider[] }) {
                   <td>{r.contact_name ?? "—"}</td>
                   <td>{r.email ? <a href={`mailto:${r.email}`} className="text-action">{r.email}</a> : "—"}</td>
                   <td>{r.phone ?? "—"}</td>
+                  <td>
+                    {removable.has(r.id) ? (
+                      <button
+                        type="button"
+                        disabled={removingId === r.id}
+                        onClick={() => handleRemove(r.id)}
+                        className="text-[12px] text-[var(--muted)] hover:text-[var(--error)] disabled:opacity-50"
+                      >
+                        {removingId === r.id ? "Sacando…" : "Quitar"}
+                      </button>
+                    ) : null}
+                  </td>
                 </tr>
               ))
             )}
@@ -108,7 +143,7 @@ export function ProyectoProveedoresTable({ rows }: { rows: Provider[] }) {
       </div>
       {rows.length > 0 ? (
         <p className="text-[11px] text-[var(--muted)]">
-          Proveedores que tienen al menos una OC vinculada a esta obra.
+          Incluye los que ya tienen una OC en esta obra y los que agregaste a mano.
         </p>
       ) : null}
     </div>

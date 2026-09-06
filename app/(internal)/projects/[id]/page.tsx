@@ -151,6 +151,24 @@ export default async function ProjectDetailPage({
     projectProviders = providerFetch.data ?? [];
   }
 
+  // Proveedores agregados a mano a la obra (shortlist, sin OC todavía) — se
+  // suman a los derivados de OCs de arriba. `manualProviderIds` sirve para
+  // saber cuáles se pueden sacar de la obra (los que ya tienen una OC se
+  // quedan sí o sí, la fila representa una compra real).
+  const { data: linkedProviderRows } = await supabase
+    .from("project_providers")
+    .select("provider_id, providers(*)")
+    .eq("project_id", id);
+  const manualProviderIds = new Set((linkedProviderRows ?? []).map((r) => r.provider_id as string));
+  const ocProviderIds = new Set(projectProviders.map((p) => p.id));
+  const manualOnlyProviders = (linkedProviderRows ?? [])
+    .map((r) => r.providers as unknown as Provider)
+    .filter((p): p is Provider => !!p && !ocProviderIds.has(p.id));
+  projectProviders = [...projectProviders, ...manualOnlyProviders].sort((a, b) =>
+    a.name.localeCompare(b.name, "es")
+  );
+  const removableProviderIds = [...manualProviderIds].filter((pid) => !ocProviderIds.has(pid));
+
   // Facturas y pagos: derivados via invoice_order_matches
   let projectInvoices: Invoice[] = [];
   let projectPaymentOrders: PaymentOrder[] = [];
@@ -254,6 +272,7 @@ export default async function ProjectDetailPage({
       allProviders={allProviders}
       projectRfqs={projectRfqs}
       projectProviders={projectProviders}
+      removableProviderIds={removableProviderIds}
       projectInvoices={projectInvoices}
       projectPaymentOrders={projectPaymentOrders}
       providerNameById={providerNameById}

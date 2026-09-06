@@ -40,6 +40,7 @@ import { ProyectoPagosTable } from "./proyecto-pagos-table";
 import { ProyectoRfqsTable } from "./proyecto-rfqs-table";
 import { RfqDialog } from "@/app/(internal)/rfqs/rfq-dialog";
 import { OrderDialog } from "@/app/(internal)/orders/order-dialog";
+import { AddProjectProviderDialog } from "./add-project-provider-dialog";
 import { ProyectoProveedoresTable } from "./proyecto-proveedores-table";
 
 type Props = {
@@ -54,6 +55,7 @@ type Props = {
   allProviders: Provider[];
   projectRfqs: Rfq[];
   projectProviders: Provider[];
+  removableProviderIds: string[];
   projectInvoices: Invoice[];
   projectPaymentOrders: PaymentOrder[];
   providerNameById: Record<string, string>;
@@ -82,6 +84,7 @@ export function ProjectTabsClient({
   allProviders,
   projectRfqs,
   projectProviders,
+  removableProviderIds,
   projectInvoices,
   projectPaymentOrders,
   providerNameById: providerNameByIdRecord,
@@ -115,6 +118,11 @@ export function ProjectTabsClient({
     () => new Map(Object.entries(photoUrlByPath)),
     [photoUrlByPath]
   );
+
+  const availableProvidersToAdd = useMemo(() => {
+    const already = new Set(projectProviders.map((p) => p.id));
+    return allProviders.filter((p) => !already.has(p.id));
+  }, [allProviders, projectProviders]);
 
   const execByItem = useMemo(() => {
     const m = new Map<string, number>();
@@ -276,7 +284,20 @@ export function ProjectTabsClient({
         </div>
       ) : null}
 
-      {tab === "proveedores" ? <ProyectoProveedoresTable rows={projectProviders} /> : null}
+      {tab === "proveedores" ? (
+        <div className="space-y-3">
+          <AddProjectProviderDialog
+            projectId={project.id}
+            availableProviders={availableProvidersToAdd}
+            trigger={<Button>+ Agregar proveedor</Button>}
+          />
+          <ProyectoProveedoresTable
+            rows={projectProviders}
+            projectId={project.id}
+            removableIds={removableProviderIds}
+          />
+        </div>
+      ) : null}
 
       {tab === "facturas" ? (
         <ProyectoFacturasTable rows={projectInvoices} providerNameById={providerNameById} />
