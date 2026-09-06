@@ -121,7 +121,7 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
     <div className="max-w-5xl space-y-4">
       <div className="flex items-start justify-between gap-4 mt-1">
         <div>
-          <h1 className="text-[17px] font-semibold">Órdenes de compra ({orders.length})</h1>
+          <h1 className="text-[17px] font-semibold">Órdenes de compra</h1>
           <p className="text-[12px] text-[var(--muted)] mt-0.5">
             Todas tus compras y en qué etapa están.
           </p>
