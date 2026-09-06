@@ -316,7 +316,14 @@ export function InvoicesSection({ initialData }: { initialData: InvoicesSectionD
                       <td className="num">{formatMoney(i.total, i.currency)}</td>
                       {isAdmin ? (
                         <td>
-                          <DeleteInvoiceButton invoiceId={i.id} compact />
+                          <DeleteInvoiceButton
+                            invoiceId={i.id}
+                            compact
+                            onDeleted={() => {
+                              setInvoices((prev) => prev.filter((x) => x.id !== i.id));
+                              loadMonth(month);
+                            }}
+                          />
                         </td>
                       ) : null}
                     </tr>

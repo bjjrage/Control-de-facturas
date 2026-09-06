@@ -157,6 +157,9 @@ export async function deleteInvoice(invoiceId: string) {
   await admin.from("invoice_order_matches").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
   await admin.from("invoice_exceptions").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
   await admin.from("audit_logs").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
+  // payment_order_invoices tiene FK NO ACTION — sin esto el delete falla por
+  // violación de foreign key si la factura llegó a estar en una orden de pago.
+  await admin.from("payment_order_invoices").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
 
   const { error } = await admin.from("invoices").delete().eq("id", invoiceId).eq("empresa_id", empresaId);
   if (error) return { error: error.message };
@@ -173,6 +176,7 @@ export async function deleteInvoice(invoiceId: string) {
   }
 
   revalidatePath("/invoices");
+  return { error: null };
 }
 
 export async function getSignedInvoiceAttachmentUrl(bucket: string, path: string) {

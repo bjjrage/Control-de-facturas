@@ -15,10 +15,12 @@ export function DeleteInvoiceButton({
   invoiceId,
   redirectTo,
   compact,
+  onDeleted,
 }: {
   invoiceId: string;
   redirectTo?: string;
   compact?: boolean;
+  onDeleted?: () => void;
 }) {
   const [pending, setPending] = useState(false);
   const router = useRouter();
@@ -26,9 +28,17 @@ export function DeleteInvoiceButton({
   async function handleClick() {
     if (!confirm("¿Eliminar esta factura? No se puede deshacer.")) return;
     setPending(true);
-    await deleteInvoice(invoiceId);
+    const result = await deleteInvoice(invoiceId);
+    if (result?.error) {
+      alert(`No se pudo eliminar: ${result.error}`);
+      setPending(false);
+      return;
+    }
     if (redirectTo) {
       router.push(redirectTo);
+    } else if (onDeleted) {
+      onDeleted();
+      setPending(false);
     } else {
       router.refresh();
       setPending(false);
