@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
 import { Client } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,13 @@ import { ClientesSectionData } from "./section-action";
 export function ClientesSection({ initialData }: { initialData: ClientesSectionData }) {
   const [clients, setClients] = useState(initialData.clients);
   const [pending, startTransition] = useTransition();
+
+  // Sección keep-alive del AppShell: al volver de otra pantalla, el AppShell
+  // trae `initialData` fresco pero el componente sigue montado y su useState
+  // no lo relee solo — sin esto un cliente se veía desactualizado al volver.
+  useEffect(() => {
+    setClients(initialData.clients);
+  }, [initialData]);
 
   function handleToggle(c: Client) {
     startTransition(async () => {

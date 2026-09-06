@@ -69,6 +69,17 @@ export function InvoicesSection({ initialData }: { initialData: InvoicesSectionD
   const [status, setStatus] = useState(() => getParam("status"));
   const { providers, isAdmin } = initialData;
 
+  // Esta sección queda montada (keep-alive) mientras el usuario navega a otras
+  // secciones del AppShell. Cuando vuelve, el AppShell trae `initialData`
+  // fresco del servidor, pero como el componente nunca se desmonta el
+  // useState de arriba no lo vuelve a leer — sin este efecto se seguía
+  // viendo la factura en su estado viejo (ej. "conciliada" después de
+  // marcarla como apta para pago en otra pantalla).
+  useEffect(() => {
+    setInvoices(initialData.invoices);
+    setReviewCount(initialData.reviewCount);
+  }, [initialData]);
+
   // Ref para que el handler de niupack:navigate lea siempre el estado actual.
   const filtersRef = useRef({ month, q, providerId, status });
   filtersRef.current = { month, q, providerId, status };

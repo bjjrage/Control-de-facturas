@@ -35,6 +35,12 @@ function getParam(key: string) {
 export function OrdersSection({ initialData }: { initialData: OrdersSectionData }) {
   const { providers, isAdmin } = initialData;
   const [orders, setOrders] = useState(initialData.orders);
+  // Sección keep-alive del AppShell: al volver de otra pantalla, el AppShell
+  // trae `initialData` fresco pero el componente sigue montado y su useState
+  // no lo relee solo — sin esto una orden se veía desactualizada al volver.
+  useEffect(() => {
+    setOrders(initialData.orders);
+  }, [initialData]);
   const [filterProduct, setFilterProduct] = useState(() => getParam("product"));
   const [filterProvider, setFilterProvider] = useState(() => getParam("provider"));
   const [filterEtapa, setFilterEtapa] = useState(() => getParam("etapa"));

@@ -63,6 +63,12 @@ export function SalesListSection({
 }) {
   const [docs, setDocs] = useState(initialData.docs);
   const [month, setMonth] = useState<string | null>(initialData.month);
+  // Sección keep-alive del AppShell: al volver de otra pantalla, el AppShell
+  // trae `initialData` fresco pero el componente sigue montado y su useState
+  // no lo relee solo — sin esto un documento se veía desactualizado al volver.
+  useEffect(() => {
+    setDocs(initialData.docs);
+  }, [initialData]);
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState(() => getParam("q"));
   const [clientId, setClientId] = useState(() => getParam("client"));
