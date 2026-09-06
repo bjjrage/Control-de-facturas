@@ -39,6 +39,7 @@ export function OrdersFilters({ products, providers }: { products: string[]; pro
 
   return (
     <div className="space-y-2">
+      <div style={{background:"red",color:"white",padding:"4px 8px",fontSize:"11px",borderRadius:"4px"}}>TEST v3 - si ves esto el deploy funciona</div>
       {/* Buscador — fila superior */}
       <input
         type="search"
