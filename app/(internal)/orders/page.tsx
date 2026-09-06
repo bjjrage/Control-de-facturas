@@ -5,6 +5,8 @@ import { AuthorizedOrder, Provider } from "@/lib/types";
 import { formatDate, formatMoney } from "@/lib/format";
 import { orderRemaining, orderStep, ORDER_STEPS } from "@/lib/reconciliation";
 import { Badge } from "@/components/ui/badge";
+import { primaryButtonClass } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
 import { OrderDialog } from "./order-dialog";
 import { OrdersFilters } from "./orders-filters";
 import { BackButton } from "@/components/ui/back-button";
@@ -71,7 +73,7 @@ export default async function OrdersPage({
         </div>
         <Link
           href="/orders?nueva=1"
-          className="shrink-0 h-9 inline-flex items-center gap-1.5 rounded-lg bg-[var(--primary)] px-4 text-[13px] font-medium text-white hover:bg-[var(--primary-hover)]"
+          className={cn("shrink-0 h-9 inline-flex items-center gap-1.5 rounded-lg px-4 text-[13px] font-medium border", primaryButtonClass)}
         >
           + Nueva compra
         </Link>
