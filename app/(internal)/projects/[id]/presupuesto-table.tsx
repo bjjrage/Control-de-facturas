@@ -1,10 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { ColumnFilter, uniqueValues, passesColumnFilter } from "@/components/ui/column-filter";
 import { formatMoney, formatDate } from "@/lib/format";
 import { EditBudgetItemDialog } from "./edit-budget-item-dialog";
+import { deleteBudgetItems } from "../actions";
 
 type Row = {
   id: string;
@@ -29,6 +32,9 @@ type ColKey = "code" | "description" | "unit" | "quantity" | "unitPrice" | "subt
 
 export function PresupuestoTable({ rows, total, projectId }: { rows: Row[]; total: number; projectId: string }) {
   const [q, setQ] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const router = useRouter();
   const [colFilters, setColFilters] = useState<Record<ColKey, Set<string> | null>>({
     code: null,
     description: null,
@@ -71,8 +77,53 @@ export function PresupuestoTable({ rows, total, projectId }: { rows: Row[]; tota
     });
   }, [rows, q, colFilters]);
 
+  const allFilteredSelected = filtered.length > 0 && filtered.every((r) => selected.has(r.id));
+
+  function toggleAll() {
+    setSelected((prev) => {
+      if (allFilteredSelected) {
+        const next = new Set(prev);
+        filtered.forEach((r) => next.delete(r.id));
+        return next;
+      }
+      const next = new Set(prev);
+      filtered.forEach((r) => next.add(r.id));
+      return next;
+    });
+  }
+
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleDeleteSelected() {
+    if (selected.size === 0) return;
+    if (!confirm(`¿Eliminar ${selected.size} ítem${selected.size === 1 ? "" : "s"} del presupuesto? No se puede deshacer.`)) return;
+    setDeleting(true);
+    await deleteBudgetItems(projectId, [...selected]);
+    setDeleting(false);
+    setSelected(new Set());
+    router.refresh();
+  }
+
   return (
     <div className="space-y-2">
+      {selected.size > 0 ? (
+        <div className="flex items-center gap-2 rounded-lg border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2">
+          <span className="text-[12px] text-[var(--error)]">{selected.size} seleccionado{selected.size === 1 ? "" : "s"}</span>
+          <Button type="button" variant="secondary" onClick={() => setSelected(new Set())}>
+            Deseleccionar
+          </Button>
+          <Button type="button" onClick={handleDeleteSelected} disabled={deleting} className="ml-auto">
+            {deleting ? "Eliminando…" : "Eliminar seleccionados"}
+          </Button>
+        </div>
+      ) : null}
       {rows.length > 5 ? (
         <Input
           placeholder="Buscar por código o descripción…"
@@ -85,6 +136,14 @@ export function PresupuestoTable({ rows, total, projectId }: { rows: Row[]; tota
         <table>
           <thead>
             <tr>
+              <th className="w-8">
+                <input
+                  type="checkbox"
+                  checked={allFilteredSelected}
+                  onChange={toggleAll}
+                  aria-label="Seleccionar todo"
+                />
+              </th>
               <th>
                 Código
                 <ColumnFilter values={uniques.code} selected={colFilters.code} onChange={(v) => setCol("code", v)} />
@@ -124,13 +183,21 @@ export function PresupuestoTable({ rows, total, projectId }: { rows: Row[]; tota
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={9} className="text-center text-[var(--muted)] py-6">
+                <td colSpan={10} className="text-center text-[var(--muted)] py-6">
                   {rows.length === 0 ? "Sin ítems todavía." : "Sin resultados para ese filtro."}
                 </td>
               </tr>
             ) : (
               filtered.map((r) => (
                 <tr key={r.id}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(r.id)}
+                      onChange={() => toggleOne(r.id)}
+                      aria-label={`Seleccionar ${r.code}`}
+                    />
+                  </td>
                   <td className="font-medium">{r.code}</td>
                   <td>{r.description}</td>
                   <td className="text-[var(--muted)]">{r.unit ?? "—"}</td>
@@ -151,7 +218,7 @@ export function PresupuestoTable({ rows, total, projectId }: { rows: Row[]; tota
           {rows.length > 0 ? (
             <tfoot>
               <tr>
-                <td colSpan={5} className="text-right font-semibold">TOTAL</td>
+                <td colSpan={6} className="text-right font-semibold">TOTAL</td>
                 <td className="num font-semibold">{formatMoney(total, "PYG")}</td>
                 <td></td>
                 <td></td>

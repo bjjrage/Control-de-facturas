@@ -249,6 +249,38 @@ export async function deleteBudgetItem(projectId: string, itemId: string): Promi
   return { error: null };
 }
 
+/** Borra varios ítems de una — usado por "Seleccionar todo" en Presupuesto.
+ *  ON DELETE CASCADE en budget_items.parent_id se encarga de los sub-ítems
+ *  de cualquiera que quede seleccionado junto a su padre. */
+export async function deleteBudgetItems(
+  projectId: string,
+  itemIds: string[]
+): Promise<{ error: string | null }> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const supabase = await createClient();
+  const empresaId = profile.empresa_id;
+
+  if (itemIds.length === 0) return { error: null };
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("empresa_id", empresaId)
+    .single();
+  if (!project) return { error: "Proyecto no encontrado." };
+
+  const { error } = await supabase
+    .from("budget_items")
+    .delete()
+    .in("id", itemIds)
+    .eq("project_id", projectId);
+  if (error) return { error: "No se pudieron eliminar los ítems." };
+
+  revalidatePath(`/projects/${projectId}`);
+  return { error: null };
+}
+
 export async function addExecutionEntry(
   projectId: string,
   formData: FormData
