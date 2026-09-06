@@ -278,14 +278,15 @@ export function ProjectReports({
         }
       />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 items-stretch">
         <ChartCard
           title="Presupuesto vs. compras"
           smallHeight={300}
           largeHeight={480}
-          renderChart={(height) => (
-            <div style={{ filter: "drop-shadow(0 6px 10px rgba(0,0,0,.22))" }}>
-              <ResponsiveContainer width="100%" height={height}>
+          stretch
+          renderChart={(height, mode) => (
+            <div style={{ filter: "drop-shadow(0 6px 10px rgba(0,0,0,.22))", height: mode === "large" ? height : "100%" }}>
+              <ResponsiveContainer width="100%" height={mode === "large" ? height : "100%"}>
                 <BarChart data={totalsBarData} barCategoryGap="15%" barGap={10}>
                   <defs>
                     <linearGradient id="gradPresupuesto" x1="0" y1="0" x2="0" y2="1">
