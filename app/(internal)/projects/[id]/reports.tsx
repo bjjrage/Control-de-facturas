@@ -6,10 +6,13 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { Button } from "@/components/ui/button";
+import { ChartCard } from "./chart-card";
 import { Project, BudgetItem, ExecutionEntry, AuthorizedOrder } from "@/lib/types";
 import { formatMoney, formatDate } from "@/lib/format";
 
-const PIE_COLORS = ["#1d4ed8", "#d4711a", "#16a34a", "#7c3aed", "#dc2626", "#0891b2", "#ca8a04", "#db2777"];
+// Paleta con más contraste entre sí (evita dos tonos de azul o dos de rojo
+// seguidos, que era parte de por qué la torta se veía "de los 90").
+const PIE_COLORS = ["#2563eb", "#f97316", "#16a34a", "#a855f7", "#ef4444", "#06b6d4", "#eab308", "#ec4899", "#64748b", "#14b8a6"];
 
 export function ProjectReports({
   project,
@@ -121,13 +124,30 @@ export function ProjectReports({
     return { series, summary };
   }, [budgetItems, execEntries]);
 
-  const pieData = useMemo(
-    () =>
-      budgetItems
-        .filter((i) => !i.parent_id && i.subtotal > 0)
-        .map((i) => ({ name: `${i.code}`, value: i.subtotal })),
-    [budgetItems]
-  );
+  // Agrupa por código raíz ("1.1", "1.2" → rubro "1"), igual que el Gantt
+  // (project-gantt.tsx) — el importador de Excel no siempre completa
+  // parent_id, así que agrupar por ese campo dejaba la torta desagregada
+  // ítem por ítem en vez de por rubro.
+  const pieData = useMemo(() => {
+    const rootOf = (code: string) => code.split(".")[0];
+    const totals = new Map<string, number>();
+    for (const item of budgetItems) {
+      if (item.subtotal <= 0) continue;
+      const root = rootOf(item.code);
+      totals.set(root, (totals.get(root) ?? 0) + item.subtotal);
+    }
+    const descOf = new Map(budgetItems.filter((i) => i.code === rootOf(i.code)).map((i) => [i.code, i.description]));
+    const grandTotal = [...totals.values()].reduce((s, v) => s + v, 0);
+    return [...totals.entries()]
+      .map(([code, value]) => ({
+        code,
+        name: descOf.get(code) ?? `Rubro ${code}`,
+        value,
+        pct: grandTotal > 0 ? Math.round((value / grandTotal) * 1000) / 10 : 0,
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [budgetItems]);
+  const pieTotal = pieData.reduce((s, d) => s + d.value, 0);
 
   async function exportExcel() {
     const XLSX = await import("xlsx");
@@ -204,15 +224,27 @@ export function ProjectReports({
         </Button>
       </div>
 
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-        <div className="text-[13px] font-semibold mb-3">Curva S — avance planificado vs real</div>
-        {sCurve.series.length === 0 ? (
-          <div className="h-[240px] flex flex-col items-center justify-center gap-2 text-[12px] text-[var(--muted)]">
-            <span>Cargá fechas de inicio y fin en los ítems del presupuesto para ver la Curva S.</span>
-          </div>
-        ) : (
-          <>
-            <ResponsiveContainer width="100%" height={240}>
+      <ChartCard
+        title="Curva S — avance planificado vs real"
+        smallHeight={240}
+        largeHeight={420}
+        extra={
+          sCurve.summary ? (
+            <p className={`text-[12px] mt-2 ${sCurve.summary.diff < 0 ? "text-[var(--error)]" : "text-[var(--ok)]"}`}>
+              Al {formatDate(new Date().toISOString().slice(0, 10))}: planificado {formatMoney(sCurve.summary.planificado, "PYG")} ·
+              {" "}ejecutado {formatMoney(sCurve.summary.real, "PYG")} ·{" "}
+              {sCurve.summary.diff < 0 ? "atraso" : "adelanto"} de {formatMoney(Math.abs(sCurve.summary.diff), "PYG")}
+              {" "}({Math.abs(sCurve.summary.pct)}%)
+            </p>
+          ) : null
+        }
+        renderChart={(height) =>
+          sCurve.series.length === 0 ? (
+            <div style={{ height }} className="flex flex-col items-center justify-center gap-2 text-[12px] text-[var(--muted)]">
+              <span>Cargá fechas de inicio y fin en los ítems del presupuesto para ver la Curva S.</span>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={height}>
               <LineChart data={sCurve.series}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="var(--muted)" />
@@ -231,62 +263,119 @@ export function ProjectReports({
                 <Line type="monotone" dataKey="real" name="Real" stroke="#1d4ed8" strokeWidth={2} dot={false} connectNulls={false} />
               </LineChart>
             </ResponsiveContainer>
-            {sCurve.summary ? (
-              <p className={`text-[12px] mt-2 ${sCurve.summary.diff < 0 ? "text-[var(--error)]" : "text-[var(--ok)]"}`}>
-                Al {formatDate(new Date().toISOString().slice(0, 10))}: planificado {formatMoney(sCurve.summary.planificado, "PYG")} ·
-                {" "}ejecutado {formatMoney(sCurve.summary.real, "PYG")} ·{" "}
-                {sCurve.summary.diff < 0 ? "atraso" : "adelanto"} de {formatMoney(Math.abs(sCurve.summary.diff), "PYG")}
-                {" "}({Math.abs(sCurve.summary.pct)}%)
-              </p>
-            ) : null}
-          </>
-        )}
-      </div>
+          )
+        }
+      />
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-          <div className="text-[13px] font-semibold mb-3">Presupuesto vs. compras</div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={totalsBarData} barCategoryGap="40%">
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="var(--muted)" />
-              <YAxis tick={{ fontSize: 11 }} stroke="var(--muted)" width={70} />
-              <Tooltip
-                cursor={false}
-                isAnimationActive={false}
-                contentStyle={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-                formatter={(v) => Number(v).toLocaleString("es-PY")}
-              />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="presupuesto" name="Presupuesto" fill="#1d4ed8" radius={[4, 4, 0, 0]} maxBarSize={80} isAnimationActive={false} />
-              <Bar dataKey="compras" name="Compras" fill="#d4711a" radius={[4, 4, 0, 0]} maxBarSize={80} isAnimationActive={false} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-          <div className="text-[13px] font-semibold mb-3">Distribución del presupuesto por rubro</div>
-          {pieData.length === 0 ? (
-            <div className="h-[220px] flex items-center justify-center text-[12px] text-[var(--muted)]">
-              Sin rubros cargados.
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={{ fontSize: 11 }}>
-                  {pieData.map((_, idx) => (
-                    <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
+        <ChartCard
+          title="Presupuesto vs. compras"
+          smallHeight={220}
+          largeHeight={420}
+          renderChart={(height) => (
+            <ResponsiveContainer width="100%" height={height}>
+              <BarChart data={totalsBarData} barCategoryGap="40%">
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="var(--muted)" />
+                <YAxis
+                  tick={{ fontSize: 11 }}
+                  stroke="var(--muted)"
+                  width={70}
+                  tickFormatter={(v: number) => v.toLocaleString("es-PY")}
+                />
                 <Tooltip
+                  cursor={false}
+                  isAnimationActive={false}
                   contentStyle={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
                   formatter={(v) => formatMoney(Number(v), "PYG")}
                 />
-              </PieChart>
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="presupuesto" name="Presupuesto" fill="#1d4ed8" radius={[4, 4, 0, 0]} maxBarSize={80} isAnimationActive={false} />
+                <Bar dataKey="compras" name="Compras" fill="#d4711a" radius={[4, 4, 0, 0]} maxBarSize={80} isAnimationActive={false} />
+              </BarChart>
             </ResponsiveContainer>
           )}
-        </div>
+        />
 
+        <ChartCard
+          title="Distribución del presupuesto por rubro"
+          smallHeight={220}
+          largeHeight={420}
+          extra={
+            pieData.length > 0 ? (
+              <div className="mt-3 space-y-1.5 max-h-40 overflow-y-auto">
+                {pieData.map((d, idx) => (
+                  <div key={d.code} className="flex items-center gap-2 text-[11.5px]">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ background: PIE_COLORS[idx % PIE_COLORS.length] }}
+                    />
+                    <span className="truncate flex-1" title={`${d.code} — ${d.name}`}>
+                      {d.code} — {d.name}
+                    </span>
+                    <span className="text-[var(--muted)] shrink-0">{d.pct}%</span>
+                    <span className="font-mono font-medium shrink-0 w-28 text-right">
+                      {formatMoney(d.value, "PYG")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : null
+          }
+          renderChart={(height) =>
+            pieData.length === 0 ? (
+              <div style={{ height }} className="flex items-center justify-center text-[12px] text-[var(--muted)]">
+                Sin rubros cargados.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={height}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius="55%"
+                    outerRadius="80%"
+                    paddingAngle={2}
+                    cornerRadius={4}
+                    label={({ payload }) => `${payload.pct}%`}
+                    labelLine={false}
+                  >
+                    {pieData.map((_, idx) => (
+                      <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} stroke="var(--panel)" strokeWidth={2} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+                    formatter={(v, _n, item) => [formatMoney(Number(v), "PYG"), item.payload.code + " — " + item.payload.name]}
+                  />
+                  <text
+                    x="50%"
+                    y="47%"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    className="fill-[var(--foreground)]"
+                    style={{ fontSize: 11, fontWeight: 600 }}
+                  >
+                    Total
+                  </text>
+                  <text
+                    x="50%"
+                    y="57%"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    className="fill-[var(--muted)]"
+                    style={{ fontSize: 10 }}
+                  >
+                    {formatMoney(pieTotal, "PYG")}
+                  </text>
+                </PieChart>
+              </ResponsiveContainer>
+            )
+          }
+        />
       </div>
     </div>
   );
