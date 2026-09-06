@@ -20,24 +20,48 @@ function num(fd: FormData, k: string) {
   return Number.isFinite(n) ? n : null;
 }
 
+type OrderItemInput = {
+  product: string;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  total_price: number;
+};
+
 /** OC manual: compra directa, sin pasar por RFQ. */
 export async function createManualOrder(formData: FormData) {
   const profile = await requireProfile(["comercial", "administracion", "admin"]);
   const supabase = await createClient();
 
   const providerId = str(formData, "provider_id");
-  const product = str(formData, "product");
-  const unit = str(formData, "unit");
   const currency = (str(formData, "currency") ?? "PYG") as CurrencyCode;
-  const quantity = num(formData, "quantity");
-  const unitPrice = num(formData, "unit_price");
-  const totalPrice = num(formData, "total_price");
 
-  if (!providerId || !product || !unit) return { error: "Completá proveedor, producto y unidad." };
-  if (quantity === null || quantity <= 0) return { error: "La cantidad debe ser mayor a cero." };
-  if (unitPrice === null || unitPrice <= 0) return { error: "El precio unitario debe ser mayor a cero." };
-  if (totalPrice === null || totalPrice <= 0) return { error: "El total debe ser mayor a cero." };
+  if (!providerId) return { error: "Elegí un proveedor." };
   if (!CURRENCIES.includes(currency)) return { error: "Moneda inválida." };
+
+  // Parse items sent from the multi-row form.
+  let items: OrderItemInput[] = [];
+  const itemsRaw = str(formData, "items");
+  if (itemsRaw) {
+    try {
+      items = JSON.parse(itemsRaw) as OrderItemInput[];
+    } catch {
+      return { error: "Error al leer los ítems de la orden." };
+    }
+  }
+
+  if (!items.length) return { error: "Agregá al menos un ítem." };
+  for (const item of items) {
+    if (!item.product?.trim()) return { error: "Completá la descripción de todos los ítems." };
+    if (!item.quantity || item.quantity <= 0) return { error: "Todas las cantidades deben ser mayores a cero." };
+    if (!item.unit?.trim()) return { error: "Completá la unidad de todos los ítems." };
+    if (item.unit_price < 0) return { error: "El precio unitario no puede ser negativo." };
+    if (!item.total_price || item.total_price <= 0) return { error: "El total de cada ítem debe ser mayor a cero." };
+  }
+
+  const grandTotal = items.reduce((s, r) => s + r.total_price, 0);
+  // Legacy columns: use first item (keeps backward compat with existing OC detail/list pages).
+  const first = items[0];
 
   const { data: provider } = await supabase
     .from("providers")
@@ -53,11 +77,11 @@ export async function createManualOrder(formData: FormData) {
     .insert({
       provider_id: providerId,
       provider_name: provider.name,
-      product,
-      quantity,
-      unit,
-      unit_price: unitPrice,
-      total_price: totalPrice,
+      product: first.product.trim(),
+      quantity: first.quantity,
+      unit: first.unit.trim(),
+      unit_price: first.unit_price,
+      total_price: grandTotal,
       currency,
       vat_included: formData.get("vat_included") === "on",
       authorized_by: profile.id,
@@ -69,6 +93,24 @@ export async function createManualOrder(formData: FormData) {
     .single();
 
   if (error || !order) return { error: error?.message ?? "No se pudo crear la orden." };
+
+  // Insert all line items into authorized_order_items.
+  const itemRows = items.map((item, idx) => ({
+    order_id: order.id,
+    empresa_id: profile.empresa_id,
+    product: item.product.trim(),
+    quantity: item.quantity,
+    unit: item.unit.trim(),
+    unit_price: item.unit_price,
+    total_price: item.total_price,
+    sort_order: idx,
+  }));
+  const { error: itemsError } = await supabase.from("authorized_order_items").insert(itemRows);
+  if (itemsError) {
+    // Roll back the order header to avoid orphan — best effort.
+    await supabase.from("authorized_orders").delete().eq("id", order.id);
+    return { error: `Error al guardar los ítems: ${itemsError.message}` };
+  }
 
   await logAudit(supabase, { action: "order.created_manual", authorizedOrderId: order.id });
   revalidatePath("/orders");

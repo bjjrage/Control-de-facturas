@@ -179,6 +179,42 @@ export interface QuoteVersion {
 
 export type OrderOrigin = "rfq" | "manual" | "invoice";
 
+export interface AuthorizedOrderItem {
+  id: string;
+  order_id: string;
+  empresa_id: string;
+  product: string;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+  total_price: number;
+  quantity_invoiced: number;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface InvoiceItem {
+  id: string;
+  invoice_id: string;
+  empresa_id: string;
+  product_description: string;
+  quantity: number | null;
+  unit: string | null;
+  unit_price: number | null;
+  subtotal: number | null;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface InvoiceItemMatch {
+  id: string;
+  invoice_item_id: string;
+  order_item_id: string;
+  empresa_id: string;
+  quantity_matched: number;
+  created_at: string;
+}
+
 export interface AuthorizedOrder {
   id: string;
   empresa_id: string;

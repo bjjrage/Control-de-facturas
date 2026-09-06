@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { AuthorizedOrder, Invoice, Provider } from "@/lib/types";
+import { AuthorizedOrder, AuthorizedOrderItem, Invoice, Provider } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { formatDate, formatMoney, formatNumber } from "@/lib/format";
@@ -27,20 +27,27 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     .single<AuthorizedOrder>();
   if (!order) notFound();
 
-  const [{ data: provider }, { data: matches }, { data: candidateInvoices }] = await Promise.all([
-    supabase.from("providers").select("*").eq("id", order.provider_id).single<Provider>(),
-    supabase
-      .from("invoice_order_matches")
-      .select("id, invoices(*)")
-      .eq("authorized_order_id", id)
-      .returns<{ id: string; invoices: Invoice }[]>(),
-    supabase
-      .from("invoices")
-      .select("id, invoice_number, invoice_date, total, currency")
-      .eq("provider_id", order.provider_id)
-      .eq("status", "PENDIENTE")
-      .returns<Pick<Invoice, "id" | "invoice_number" | "invoice_date" | "total" | "currency">[]>(),
-  ]);
+  const [{ data: provider }, { data: matches }, { data: candidateInvoices }, { data: orderItems }] =
+    await Promise.all([
+      supabase.from("providers").select("*").eq("id", order.provider_id).single<Provider>(),
+      supabase
+        .from("invoice_order_matches")
+        .select("id, invoices(*)")
+        .eq("authorized_order_id", id)
+        .returns<{ id: string; invoices: Invoice }[]>(),
+      supabase
+        .from("invoices")
+        .select("id, invoice_number, invoice_date, total, currency")
+        .eq("provider_id", order.provider_id)
+        .eq("status", "PENDIENTE")
+        .returns<Pick<Invoice, "id" | "invoice_number" | "invoice_date" | "total" | "currency">[]>(),
+      supabase
+        .from("authorized_order_items")
+        .select("*")
+        .eq("order_id", id)
+        .order("sort_order")
+        .returns<AuthorizedOrderItem[]>(),
+    ]);
 
   const saldo = orderRemaining(order.total_price, order.facturado_amount);
   const over = isOverbilled(order.total_price, order.facturado_amount);
@@ -116,6 +123,48 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           </p>
         ) : null}
       </div>
+
+      {orderItems && orderItems.length > 0 ? (
+        <div>
+          <h2 className="text-[14px] font-semibold mb-2">Ítems de la orden</h2>
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+            <table>
+              <thead>
+                <tr>
+                  <th>Producto / Servicio</th>
+                  <th className="num">Cantidad</th>
+                  <th>Unidad</th>
+                  <th className="num">P. Unitario</th>
+                  <th className="num">Total</th>
+                  <th className="num">Facturado</th>
+                  <th className="num">Pendiente</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orderItems.map((item) => {
+                  const pendiente = Math.max(0, item.quantity - item.quantity_invoiced);
+                  const overItem = item.quantity_invoiced > item.quantity;
+                  return (
+                    <tr key={item.id}>
+                      <td className="font-medium">{item.product}</td>
+                      <td className="num">{formatNumber(item.quantity, 2)}</td>
+                      <td className="text-[var(--muted)]">{item.unit}</td>
+                      <td className="num">{formatMoney(item.unit_price, order.currency)}</td>
+                      <td className="num">{formatMoney(item.total_price, order.currency)}</td>
+                      <td className={`num ${overItem ? "text-[var(--error)]" : ""}`}>
+                        {formatNumber(item.quantity_invoiced, 2)}
+                      </td>
+                      <td className={`num ${overItem ? "text-[var(--error)]" : pendiente === 0 ? "text-[var(--muted)]" : ""}`}>
+                        {overItem ? "Excedido" : pendiente === 0 ? "Completo" : formatNumber(pendiente, 2)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
 
       <div>
         <div className="flex items-center justify-between mb-2">

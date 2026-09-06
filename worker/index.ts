@@ -18,6 +18,7 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { extractInvoiceFieldsFromFile } from "../lib/invoice-extraction";
 import { findProviderByTaxId } from "../lib/provider-lookup";
 import { autoMatchInvoice } from "../lib/invoice-auto-match";
+import { matchInvoiceItemsToOrderItems } from "../lib/invoice-item-match";
 import { logAudit } from "../lib/audit";
 import { sanitizeFileName } from "../lib/storage";
 
@@ -158,6 +159,30 @@ async function processJob(job: InvoiceJob) {
 
   await logAudit(db, { action: "invoice.created", invoiceId: invoice.id, detail: { source: "bulk_worker" } });
 
+  // Guardar líneas de detalle extraídas por el AI.
+  const invoiceItemIds: { id: string; idx: number }[] = [];
+  if (parsed.items && parsed.items.length > 0) {
+    for (let i = 0; i < parsed.items.length; i++) {
+      const item = parsed.items[i];
+      if (!item.description?.trim()) continue;
+      const { data: ii } = await db
+        .from("invoice_items")
+        .insert({
+          invoice_id: invoice.id,
+          empresa_id: job.empresa_id,
+          product_description: item.description.trim(),
+          quantity: item.quantity,
+          unit: item.unit,
+          unit_price: item.unit_price,
+          subtotal: item.subtotal,
+          sort_order: i,
+        })
+        .select("id")
+        .single();
+      if (ii) invoiceItemIds.push({ id: ii.id as string, idx: i });
+    }
+  }
+
   const matchedOrderId = await autoMatchInvoice(db, {
     invoiceId: invoice.id,
     providerId: provider.id,
@@ -167,6 +192,44 @@ async function processJob(job: InvoiceJob) {
     productDescription: parsed.product_description,
   });
 
+  // Si se matcheó la OC y hay ítems en ambos lados, hacer matching semántico de líneas.
+  if (matchedOrderId && invoiceItemIds.length > 0) {
+    const { data: orderItems } = await db
+      .from("authorized_order_items")
+      .select("id, product, quantity, unit, quantity_invoiced")
+      .eq("order_id", matchedOrderId)
+      .order("sort_order");
+
+    if (orderItems && orderItems.length > 0) {
+      const invoiceItemsForMatch = invoiceItemIds.map(({ id, idx }) => ({
+        id,
+        description: parsed.items[idx].description,
+        quantity: parsed.items[idx].quantity,
+        unit: parsed.items[idx].unit,
+      }));
+
+      const itemMatches = await matchInvoiceItemsToOrderItems(
+        orderItems.map((o) => ({
+          id: o.id as string,
+          product: o.product as string,
+          quantity: o.quantity as number,
+          unit: o.unit as string,
+          quantity_invoiced: o.quantity_invoiced as number,
+        })),
+        invoiceItemsForMatch
+      );
+
+      for (const m of itemMatches) {
+        await db.from("invoice_item_matches").insert({
+          invoice_item_id: m.invoice_item_id,
+          order_item_id: m.order_item_id,
+          empresa_id: job.empresa_id,
+          quantity_matched: m.quantity_matched,
+        });
+      }
+    }
+  }
+
   return finish(job.id, {
     status: "done",
     outcome: matchedOrderId ? "matched" : "created_unmatched",
@@ -175,7 +238,7 @@ async function processJob(job: InvoiceJob) {
     invoice_id: invoice.id,
     message: matchedOrderId
       ? "Conciliada automáticamente."
-      : "Cargada, pero ninguna orden pendiente coincide en monto — vinculala a mano.",
+      : "Cargada, pero ninguna orden pendiente coincide — vinculala a mano.",
   });
 }
 

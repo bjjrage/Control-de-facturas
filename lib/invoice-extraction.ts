@@ -19,6 +19,14 @@ export const MAX_INVOICE_FILE_BYTES = 20 * 1024 * 1024;
 export const ACCEPTED_INVOICE_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export const ACCEPTED_INVOICE_FILE_TYPES = [...ACCEPTED_INVOICE_IMAGE_TYPES, "application/pdf"];
 
+export type ExtractedInvoiceItem = {
+  description: string;
+  quantity: number | null;
+  unit: string | null;
+  unit_price: number | null;
+  subtotal: number | null;
+};
+
 export type ExtractedInvoiceFields = {
   provider_name: string | null;
   provider_tax_id: string | null;
@@ -30,6 +38,7 @@ export type ExtractedInvoiceFields = {
   timbrado: string | null;
   order_reference: string | null;
   product_description: string | null;
+  items: ExtractedInvoiceItem[];
 };
 
 const EXTRACTION_SCHEMA = {
@@ -44,7 +53,23 @@ const EXTRACTION_SCHEMA = {
     total: { type: "number", description: "Monto total en guaraníes, sin puntos ni separadores de miles" },
     timbrado: { type: ["string", "null"] },
     order_reference: { type: ["string", "null"], description: "Número de orden de compra mencionado en la descripción, ej: 'OC-2026-0008'. Null si no aparece." },
-    product_description: { type: ["string", "null"], description: "Descripción del producto o servicio principal de la factura (primera línea del detalle)." },
+    product_description: { type: ["string", "null"], description: "Descripción del producto o servicio principal (primera línea del detalle)." },
+    items: {
+      type: "array",
+      description: "Todas las líneas del detalle de la factura. Excluí las filas de subtotal, IVA y total.",
+      items: {
+        type: "object",
+        properties: {
+          description: { type: "string", description: "Descripción del ítem tal como aparece en la factura" },
+          quantity: { type: ["number", "null"], description: "Cantidad. Null si no aparece." },
+          unit: { type: ["string", "null"], description: "Unidad de medida (kg, m², unid, bolsa…). Null si no aparece." },
+          unit_price: { type: ["number", "null"], description: "Precio unitario en guaraníes, sin separadores de miles. Null si no aparece." },
+          subtotal: { type: ["number", "null"], description: "Subtotal de la línea (qty × unit_price) en guaraníes. Null si no aparece." },
+        },
+        required: ["description", "quantity", "unit", "unit_price", "subtotal"],
+        additionalProperties: false,
+      },
+    },
   },
   required: [
     "provider_name",
@@ -57,6 +82,7 @@ const EXTRACTION_SCHEMA = {
     "timbrado",
     "order_reference",
     "product_description",
+    "items",
   ],
   additionalProperties: false,
 };
