@@ -6,7 +6,7 @@ import { AuthorizedOrder, Provider } from "@/lib/types";
 import { formatDate, formatMoney } from "@/lib/format";
 import { orderRemaining, orderStep, ORDER_STEPS } from "@/lib/reconciliation";
 import { Badge } from "@/components/ui/badge";
-import { Select, Label } from "@/components/ui/input";
+import { Input, Select, Label } from "@/components/ui/input";
 import { OrderDialog } from "./order-dialog";
 import { OrdersSectionData } from "./section-action";
 import { DeleteOrderButton } from "./delete-order-button";
@@ -45,10 +45,13 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
   const [filterProvider, setFilterProvider] = useState(() => getParam("provider"));
   const [filterEtapa, setFilterEtapa] = useState(() => getParam("etapa"));
   const [filterEstado, setFilterEstado] = useState(() => getParam("estado"));
+  const [filterQ, setFilterQ] = useState(() => getParam("q"));
+  const [filterFrom, setFilterFrom] = useState(() => getParam("from"));
+  const [filterTo, setFilterTo] = useState(() => getParam("to"));
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const filtersRef = useRef({ filterProduct, filterProvider, filterEtapa, filterEstado });
-  filtersRef.current = { filterProduct, filterProvider, filterEtapa, filterEstado };
+  const filtersRef = useRef({ filterProduct, filterProvider, filterEtapa, filterEstado, filterQ, filterFrom, filterTo });
+  filtersRef.current = { filterProduct, filterProvider, filterEtapa, filterEstado, filterQ, filterFrom, filterTo };
 
   function buildParams(f: typeof filtersRef.current) {
     const p = new URLSearchParams();
@@ -56,14 +59,17 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
     if (f.filterProvider) p.set("provider", f.filterProvider);
     if (f.filterEtapa) p.set("etapa", f.filterEtapa);
     if (f.filterEstado) p.set("estado", f.filterEstado);
+    if (f.filterQ) p.set("q", f.filterQ);
+    if (f.filterFrom) p.set("from", f.filterFrom);
+    if (f.filterTo) p.set("to", f.filterTo);
     return p.toString();
   }
 
   useEffect(() => {
     if (window.location.pathname !== "/orders") return;
-    const qs = buildParams({ filterProduct, filterProvider, filterEtapa, filterEstado });
+    const qs = buildParams({ filterProduct, filterProvider, filterEtapa, filterEstado, filterQ, filterFrom, filterTo });
     window.history.replaceState({}, "", qs ? `/orders?${qs}` : "/orders");
-  }, [filterProduct, filterProvider, filterEtapa, filterEstado]);
+  }, [filterProduct, filterProvider, filterEtapa, filterEstado, filterQ, filterFrom, filterTo]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -74,6 +80,9 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
       setFilterProvider(p.get("provider") ?? "");
       setFilterEtapa(p.get("etapa") ?? "");
       setFilterEstado(p.get("estado") ?? "");
+      setFilterQ(p.get("q") ?? "");
+      setFilterFrom(p.get("from") ?? "");
+      setFilterTo(p.get("to") ?? "");
       setTimeout(() => {
         const qs = buildParams(filtersRef.current);
         window.history.replaceState({}, "", qs ? `/orders?${qs}` : "/orders");
@@ -82,6 +91,8 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
     window.addEventListener("niupack:navigate", handler);
     return () => window.removeEventListener("niupack:navigate", handler);
   }, []);
+
+
 
   const productOptions = useMemo(
     () => [...new Set(orders.map((o) => o.product))].sort((a, b) => a.localeCompare(b, "es")),
@@ -92,30 +103,38 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
     [orders]
   );
 
-  const filtered = useMemo(
-    () =>
-      orders.filter((o) => {
-        if (filterProduct && o.product !== filterProduct) return false;
-        if (filterProvider && o.provider_name !== filterProvider) return false;
-        if (filterEtapa) {
-          const step = orderStep({
-            status: o.status,
-            totalPrice: o.total_price,
-            facturadoAmount: o.facturado_amount,
-          });
-          if (ORDER_STEPS[step] !== filterEtapa) return false;
-        }
-        if (filterEstado) {
-          const abierta = orderRemaining(o.total_price, o.facturado_amount) > 0;
-          if (filterEstado === "Abierta" && !abierta) return false;
-          if (filterEstado === "Cerrada" && abierta) return false;
-        }
-        return true;
-      }),
-    [orders, filterProduct, filterProvider, filterEtapa, filterEstado]
-  );
+  const filtered = useMemo(() => {
+    const term = filterQ.trim().toLowerCase();
+    return orders.filter((o) => {
+      if (filterProduct && o.product !== filterProduct) return false;
+      if (filterProvider && o.provider_name !== filterProvider) return false;
+      if (filterEtapa) {
+        const step = orderStep({
+          status: o.status,
+          totalPrice: o.total_price,
+          facturadoAmount: o.facturado_amount,
+        });
+        if (ORDER_STEPS[step] !== filterEtapa) return false;
+      }
+      if (filterEstado) {
+        const abierta = orderRemaining(o.total_price, o.facturado_amount) > 0;
+        if (filterEstado === "Abierta" && !abierta) return false;
+        if (filterEstado === "Cerrada" && abierta) return false;
+      }
+      if (filterFrom && o.authorized_at && o.authorized_at.slice(0, 10) < filterFrom) return false;
+      if (filterTo && o.authorized_at && o.authorized_at.slice(0, 10) > filterTo) return false;
+      if (term) {
+        return (
+          o.code.toLowerCase().includes(term) ||
+          o.product.toLowerCase().includes(term) ||
+          o.provider_name.toLowerCase().includes(term)
+        );
+      }
+      return true;
+    });
+  }, [orders, filterProduct, filterProvider, filterEtapa, filterEstado, filterQ, filterFrom, filterTo]);
 
-  const hasFilters = !!(filterProduct || filterProvider || filterEtapa || filterEstado);
+  const hasFilters = !!(filterProduct || filterProvider || filterEtapa || filterEstado || filterQ || filterFrom || filterTo);
 
   return (
     <div className="max-w-5xl space-y-4">
@@ -141,6 +160,17 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
       />
 
       <div className="flex flex-wrap items-end gap-3 rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+        <div>
+          <Label htmlFor="ord-q">Buscar</Label>
+          <Input
+            id="ord-q"
+            type="search"
+            placeholder="Código, producto, proveedor…"
+            value={filterQ}
+            onChange={(e) => setFilterQ((e.target as HTMLInputElement).value)}
+            className="w-56"
+          />
+        </div>
         <div>
           <Label htmlFor="ord-product">Producto</Label>
           <Select
@@ -196,9 +226,29 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
             <option value="Cerrada">Cerrada</option>
           </Select>
         </div>
+        <div>
+          <Label htmlFor="ord-from">Autorizada desde</Label>
+          <Input
+            id="ord-from"
+            type="date"
+            value={filterFrom}
+            onChange={(e) => setFilterFrom((e.target as HTMLInputElement).value)}
+            className="w-36"
+          />
+        </div>
+        <div>
+          <Label htmlFor="ord-to">Autorizada hasta</Label>
+          <Input
+            id="ord-to"
+            type="date"
+            value={filterTo}
+            onChange={(e) => setFilterTo((e.target as HTMLInputElement).value)}
+            className="w-36"
+          />
+        </div>
         {hasFilters ? (
           <button
-            onClick={() => { setFilterProduct(""); setFilterProvider(""); setFilterEtapa(""); setFilterEstado(""); }}
+            onClick={() => { setFilterProduct(""); setFilterProvider(""); setFilterEtapa(""); setFilterEstado(""); setFilterQ(""); setFilterFrom(""); setFilterTo(""); }}
             className="text-[12px] text-[var(--muted)] pb-1.5 hover:text-[var(--foreground)]"
           >
             Limpiar filtros

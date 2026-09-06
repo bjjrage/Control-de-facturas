@@ -7,7 +7,7 @@ import { docSaldo, SALES_DOC_TYPE_LABELS } from "@/lib/sales";
 import { formatDate, formatMoney } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Label, Select } from "@/components/ui/input";
+import { Input, Label, Select } from "@/components/ui/input";
 import { ReceiptDialog } from "@/app/(internal)/ventas/[id]/receipt-dialog";
 import { CobrosSectionData } from "./section-action";
 
@@ -27,23 +27,43 @@ function getParam(key: string) {
 export function CobrosSection({ initialData }: { initialData: CobrosSectionData }) {
   const { docs, clients } = initialData;
   const [clientFilter, setClientFilter] = useState(() => getParam("client"));
-  const filterRef = useRef(clientFilter);
-  filterRef.current = clientFilter;
+  const [statusFilter, setStatusFilter] = useState(() => getParam("status"));
+  const [qFilter, setQFilter] = useState(() => getParam("q"));
+  const [fromFilter, setFromFilter] = useState(() => getParam("from"));
+  const [toFilter, setToFilter] = useState(() => getParam("to"));
+
+  const filtersRef = useRef({ clientFilter, statusFilter, qFilter, fromFilter, toFilter });
+  filtersRef.current = { clientFilter, statusFilter, qFilter, fromFilter, toFilter };
+
+  function buildParams(f: typeof filtersRef.current) {
+    const p = new URLSearchParams();
+    if (f.clientFilter) p.set("client", f.clientFilter);
+    if (f.statusFilter) p.set("status", f.statusFilter);
+    if (f.qFilter) p.set("q", f.qFilter);
+    if (f.fromFilter) p.set("from", f.fromFilter);
+    if (f.toFilter) p.set("to", f.toFilter);
+    return p.toString();
+  }
 
   useEffect(() => {
     // Solo la sección visible puede tocar la URL (las precargadas en
     // background también montan este efecto).
     if (window.location.pathname !== "/cobros") return;
-    const qs = clientFilter ? `client=${clientFilter}` : "";
+    const qs = buildParams({ clientFilter, statusFilter, qFilter, fromFilter, toFilter });
     window.history.replaceState({}, "", qs ? `/cobros?${qs}` : "/cobros");
-  }, [clientFilter]);
+  }, [clientFilter, statusFilter, qFilter, fromFilter, toFilter]);
 
   useEffect(() => {
     const handler = (e: Event) => {
       if ((e as CustomEvent<string>).detail !== "/cobros") return;
-      setClientFilter(new URLSearchParams(window.location.search).get("client") ?? "");
+      const p = new URLSearchParams(window.location.search);
+      setClientFilter(p.get("client") ?? "");
+      setStatusFilter(p.get("status") ?? "");
+      setQFilter(p.get("q") ?? "");
+      setFromFilter(p.get("from") ?? "");
+      setToFilter(p.get("to") ?? "");
       setTimeout(() => {
-        const qs = filterRef.current ? `client=${filterRef.current}` : "";
+        const qs = buildParams(filtersRef.current);
         window.history.replaceState({}, "", qs ? `/cobros?${qs}` : "/cobros");
       }, 0);
     };
@@ -54,10 +74,17 @@ export function CobrosSection({ initialData }: { initialData: CobrosSectionData 
   const today = new Date().toISOString().slice(0, 10);
   const clientById = useMemo(() => new Map(clients.map((c) => [c.id, c.name])), [clients]);
 
-  const filtered = useMemo(
-    () => (clientFilter ? docs.filter((d) => d.client_id === clientFilter) : docs),
-    [docs, clientFilter]
-  );
+  const filtered = useMemo(() => {
+    const term = qFilter.trim().toLowerCase();
+    return docs.filter((d) => {
+      if (clientFilter && d.client_id !== clientFilter) return false;
+      if (statusFilter && d.status !== statusFilter) return false;
+      if (fromFilter && d.issue_date.slice(0, 10) < fromFilter) return false;
+      if (toFilter && d.issue_date.slice(0, 10) > toFilter) return false;
+      if (term && !d.code.toLowerCase().includes(term)) return false;
+      return true;
+    });
+  }, [docs, clientFilter, statusFilter, qFilter, fromFilter, toFilter]);
 
   const overdueDocs = useMemo(
     () => filtered.filter((d) => d.due_date && d.due_date < today).sort((a, b) => a.due_date!.localeCompare(b.due_date!)),
@@ -126,9 +153,11 @@ export function CobrosSection({ initialData }: { initialData: CobrosSectionData 
     );
   }
 
+  const hasFilters = !!(clientFilter || statusFilter || qFilter || fromFilter || toFilter);
+
   return (
-    <div className="max-w-6xl space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="max-w-6xl space-y-5">
+      <div className="flex items-center justify-between mt-1">
         <div>
           <h1 className="text-[17px] font-semibold">Cobros pendientes</h1>
           <p className="text-[13px] text-[var(--muted)] mt-0.5">
@@ -138,19 +167,76 @@ export function CobrosSection({ initialData }: { initialData: CobrosSectionData 
               : ""}
           </p>
         </div>
-        <div>
-          <Label htmlFor="cobros-client">Filtrar por cliente</Label>
-          <Select
-            id="cobros-client"
-            value={clientFilter}
-            onChange={(e) => setClientFilter((e.target as HTMLSelectElement).value)}
-            className="w-52"
-          >
-            <option value="">Todos</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </Select>
+      </div>
+
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <Label htmlFor="cob-q">Buscar</Label>
+            <Input
+              id="cob-q"
+              type="search"
+              placeholder="Código…"
+              value={qFilter}
+              onChange={(e) => setQFilter((e.target as HTMLInputElement).value)}
+              className="w-44"
+            />
+          </div>
+          <div>
+            <Label htmlFor="cob-client">Cliente</Label>
+            <Select
+              id="cob-client"
+              value={clientFilter}
+              onChange={(e) => setClientFilter((e.target as HTMLSelectElement).value)}
+              className="w-52"
+            >
+              <option value="">Todos</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="cob-status">Estado</Label>
+            <Select
+              id="cob-status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter((e.target as HTMLSelectElement).value)}
+              className="w-36"
+            >
+              <option value="">Todos</option>
+              <option value="EMITIDA">Emitida</option>
+              <option value="COBRADA_PARCIAL">Pago parcial</option>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="cob-from">Emisión desde</Label>
+            <Input
+              id="cob-from"
+              type="date"
+              value={fromFilter}
+              onChange={(e) => setFromFilter((e.target as HTMLInputElement).value)}
+              className="w-36"
+            />
+          </div>
+          <div>
+            <Label htmlFor="cob-to">Emisión hasta</Label>
+            <Input
+              id="cob-to"
+              type="date"
+              value={toFilter}
+              onChange={(e) => setToFilter((e.target as HTMLInputElement).value)}
+              className="w-36"
+            />
+          </div>
+          {hasFilters ? (
+            <button
+              onClick={() => { setClientFilter(""); setStatusFilter(""); setQFilter(""); setFromFilter(""); setToFilter(""); }}
+              className="text-[12px] text-[var(--muted)] pb-1.5 hover:text-[var(--foreground)]"
+            >
+              Limpiar
+            </button>
+          ) : null}
         </div>
       </div>
 

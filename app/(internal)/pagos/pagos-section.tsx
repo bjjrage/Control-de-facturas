@@ -5,7 +5,7 @@ import Link from "next/link";
 import { PaymentOrder, Provider } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Label, Select } from "@/components/ui/input";
+import { Input, Label, Select } from "@/components/ui/input";
 import { formatDate, formatMoney } from "@/lib/format";
 import { PagosSectionData } from "./section-action";
 
@@ -21,14 +21,20 @@ export function PagosSection({ initialData }: { initialData: PagosSectionData })
   const { ops, providers, opTotals } = initialData;
   const [filterStatus, setFilterStatus] = useState(() => getParam("status"));
   const [filterProvider, setFilterProvider] = useState(() => getParam("provider"));
+  const [filterQuery, setFilterQuery] = useState(() => getParam("q"));
+  const [filterFrom, setFilterFrom] = useState(() => getParam("from"));
+  const [filterTo, setFilterTo] = useState(() => getParam("to"));
 
-  const filtersRef = useRef({ filterStatus, filterProvider });
-  filtersRef.current = { filterStatus, filterProvider };
+  const filtersRef = useRef({ filterStatus, filterProvider, filterQuery, filterFrom, filterTo });
+  filtersRef.current = { filterStatus, filterProvider, filterQuery, filterFrom, filterTo };
 
   function buildParams(f: typeof filtersRef.current) {
     const p = new URLSearchParams();
     if (f.filterStatus) p.set("status", f.filterStatus);
     if (f.filterProvider) p.set("provider", f.filterProvider);
+    if (f.filterQuery) p.set("q", f.filterQuery);
+    if (f.filterFrom) p.set("from", f.filterFrom);
+    if (f.filterTo) p.set("to", f.filterTo);
     return p.toString();
   }
 
@@ -36,9 +42,9 @@ export function PagosSection({ initialData }: { initialData: PagosSectionData })
     // Solo la sección visible puede tocar la URL (las precargadas en
     // background también montan este efecto).
     if (window.location.pathname !== "/pagos") return;
-    const qs = buildParams({ filterStatus, filterProvider });
+    const qs = buildParams({ filterStatus, filterProvider, filterQuery, filterFrom, filterTo });
     window.history.replaceState({}, "", qs ? `/pagos?${qs}` : "/pagos");
-  }, [filterStatus, filterProvider]);
+  }, [filterStatus, filterProvider, filterQuery, filterFrom, filterTo]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -46,6 +52,9 @@ export function PagosSection({ initialData }: { initialData: PagosSectionData })
       const p = new URLSearchParams(window.location.search);
       setFilterStatus(p.get("status") ?? "");
       setFilterProvider(p.get("provider") ?? "");
+      setFilterQuery(p.get("q") ?? "");
+      setFilterFrom(p.get("from") ?? "");
+      setFilterTo(p.get("to") ?? "");
       setTimeout(() => {
         const qs = buildParams(filtersRef.current);
         window.history.replaceState({}, "", qs ? `/pagos?${qs}` : "/pagos");
@@ -64,10 +73,20 @@ export function PagosSection({ initialData }: { initialData: PagosSectionData })
     let list = ops;
     if (filterStatus) list = list.filter((op) => op.status === filterStatus);
     if (filterProvider) list = list.filter((op) => op.provider_id === filterProvider);
+    const q = filterQuery.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (op) =>
+          op.code.toLowerCase().includes(q) ||
+          (providerById.get(op.provider_id) ?? "").toLowerCase().includes(q)
+      );
+    }
+    if (filterFrom) list = list.filter((op) => op.created_at.slice(0, 10) >= filterFrom);
+    if (filterTo) list = list.filter((op) => op.created_at.slice(0, 10) <= filterTo);
     return list;
-  }, [ops, filterStatus, filterProvider]);
+  }, [ops, filterStatus, filterProvider, filterQuery, filterFrom, filterTo, providerById]);
 
-  const hasFilters = !!(filterStatus || filterProvider);
+  const hasFilters = !!(filterStatus || filterProvider || filterQuery || filterFrom || filterTo);
 
   return (
     <div className="max-w-5xl space-y-5">
@@ -80,6 +99,17 @@ export function PagosSection({ initialData }: { initialData: PagosSectionData })
 
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
         <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <Label htmlFor="pag-q">Buscar</Label>
+            <Input
+              id="pag-q"
+              type="search"
+              placeholder="Código o proveedor…"
+              value={filterQuery}
+              onChange={(e) => setFilterQuery((e.target as HTMLInputElement).value)}
+              className="w-56"
+            />
+          </div>
           <div>
             <Label htmlFor="pag-provider">Proveedor</Label>
             <Select
@@ -107,9 +137,35 @@ export function PagosSection({ initialData }: { initialData: PagosSectionData })
               <option value="EJECUTADA">Ejecutada</option>
             </Select>
           </div>
+          <div>
+            <Label htmlFor="pag-from">Emitida desde</Label>
+            <Input
+              id="pag-from"
+              type="date"
+              value={filterFrom}
+              onChange={(e) => setFilterFrom((e.target as HTMLInputElement).value)}
+              className="w-36"
+            />
+          </div>
+          <div>
+            <Label htmlFor="pag-to">Emitida hasta</Label>
+            <Input
+              id="pag-to"
+              type="date"
+              value={filterTo}
+              onChange={(e) => setFilterTo((e.target as HTMLInputElement).value)}
+              className="w-36"
+            />
+          </div>
           {hasFilters ? (
             <button
-              onClick={() => { setFilterStatus(""); setFilterProvider(""); }}
+              onClick={() => {
+                setFilterStatus("");
+                setFilterProvider("");
+                setFilterQuery("");
+                setFilterFrom("");
+                setFilterTo("");
+              }}
               className="text-[12px] text-[var(--muted)] pb-1.5 hover:text-[var(--foreground)]"
             >
               Limpiar

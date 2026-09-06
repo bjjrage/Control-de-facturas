@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Client } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input, Label, Select } from "@/components/ui/input";
 import { ClientDialog } from "./client-dialog";
 import { createClientRecord, updateClientRecord, toggleClientActive } from "./actions";
 import { ClientesSectionData } from "./section-action";
@@ -12,6 +13,8 @@ import { ClientesSectionData } from "./section-action";
 export function ClientesSection({ initialData }: { initialData: ClientesSectionData }) {
   const [clients, setClients] = useState(initialData.clients);
   const [pending, startTransition] = useTransition();
+  const [q, setQ] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
 
   // Sección keep-alive del AppShell: al volver de otra pantalla, el AppShell
   // trae `initialData` fresco pero el componente sigue montado y su useState
@@ -29,12 +32,67 @@ export function ClientesSection({ initialData }: { initialData: ClientesSectionD
     });
   }
 
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    return clients.filter((c) => {
+      if (filterStatus === "active" && !c.active) return false;
+      if (filterStatus === "inactive" && c.active) return false;
+      if (!term) return true;
+      return (
+        c.name.toLowerCase().includes(term) ||
+        (c.tax_id ?? "").toLowerCase().includes(term) ||
+        (c.email ?? "").toLowerCase().includes(term) ||
+        (c.contact_name ?? "").toLowerCase().includes(term)
+      );
+    });
+  }, [clients, q, filterStatus]);
+
+  const hasFilters = !!(q || filterStatus);
+
   return (
-    <div className="max-w-4xl">
-      <div className="flex items-center justify-between mt-1 mb-4">
+    <div className="max-w-4xl space-y-4">
+      <div className="flex items-center justify-between mt-1">
         <h1 className="text-[17px] font-semibold">Clientes</h1>
         <ClientDialog action={createClientRecord} trigger={<Button>Nuevo cliente</Button>} />
       </div>
+
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <Label htmlFor="cli-q">Buscar</Label>
+            <Input
+              id="cli-q"
+              type="search"
+              placeholder="Nombre, RUC/CI, email…"
+              value={q}
+              onChange={(e) => setQ((e.target as HTMLInputElement).value)}
+              className="w-60"
+            />
+          </div>
+          <div>
+            <Label htmlFor="cli-status">Estado</Label>
+            <Select
+              id="cli-status"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus((e.target as HTMLSelectElement).value)}
+              className="w-36"
+            >
+              <option value="">Todos</option>
+              <option value="active">Activo</option>
+              <option value="inactive">Inactivo</option>
+            </Select>
+          </div>
+          {hasFilters ? (
+            <button
+              onClick={() => { setQ(""); setFilterStatus(""); }}
+              className="text-[12px] text-[var(--muted)] pb-1.5 hover:text-[var(--foreground)]"
+            >
+              Limpiar
+            </button>
+          ) : null}
+        </div>
+      </div>
+
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
         <table>
           <thead>
@@ -49,7 +107,7 @@ export function ClientesSection({ initialData }: { initialData: ClientesSectionD
             </tr>
           </thead>
           <tbody>
-            {clients.map((c) => (
+            {filtered.map((c) => (
               <tr key={c.id}>
                 <td className="font-medium">
                   <Link href={`/clientes/${c.id}`} className="text-action">
@@ -88,10 +146,10 @@ export function ClientesSection({ initialData }: { initialData: ClientesSectionD
                 </td>
               </tr>
             ))}
-            {clients.length === 0 ? (
+            {filtered.length === 0 ? (
               <tr>
                 <td colSpan={7} className="text-center text-[var(--muted)] py-6">
-                  No hay clientes cargados.
+                  {clients.length === 0 ? "No hay clientes cargados." : "Ningún cliente coincide con los filtros."}
                 </td>
               </tr>
             ) : null}
