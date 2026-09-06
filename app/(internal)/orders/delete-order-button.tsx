@@ -40,6 +40,9 @@ export function DeleteOrderButton({
     if (result?.error) {
       setError(result.error);
       setPending(false);
+      // El ícono compacto no tiene lugar para un mensaje visible en línea —
+      // sin esto un error se ve idéntico a "no pasó nada".
+      if (compact) alert(result.error);
       return;
     }
     if (onDeleted) {

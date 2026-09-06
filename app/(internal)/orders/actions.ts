@@ -148,7 +148,10 @@ export async function createOrderFromInvoice(
  * DELETE en RLS (es un registro de auditoría, ver 0004_rls.sql), así que un
  * delete con el cliente normal no falla — simplemente no borra nada (0 filas
  * afectadas, sin error). Por eso acá se scopea cada query a mano por
- * empresa_id, igual que deleteInvoice.
+ * empresa_id, igual que deleteInvoice. También hay que limpiar audit_logs
+ * primero: toda orden manual queda logueada (order.created_manual) y esa FK
+ * no tiene cascade, así que sin este paso el delete real fallaba por
+ * violación de foreign key.
  */
 export async function deleteOrder(orderId: string) {
   const empresaId = await requireEmpresaId(["admin"]);
@@ -174,6 +177,8 @@ export async function deleteOrder(orderId: string) {
   if (count && count > 0) {
     return { error: "No se puede eliminar: ya tiene facturas vinculadas." };
   }
+
+  await admin.from("audit_logs").delete().eq("authorized_order_id", orderId).eq("empresa_id", empresaId);
 
   const { error, count: deletedCount } = await admin
     .from("authorized_orders")
