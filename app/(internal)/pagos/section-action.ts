@@ -1,5 +1,7 @@
 "use server";
 
+import { unstable_noStore as noStore } from "next/cache";
+
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { PaymentOrder, Provider } from "@/lib/types";
@@ -16,6 +18,7 @@ export type PagosSectionData = {
 };
 
 export async function getPagosData(): Promise<PagosSectionData> {
+  noStore();
   await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
 

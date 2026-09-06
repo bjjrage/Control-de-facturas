@@ -1,5 +1,7 @@
 "use server";
 
+import { unstable_noStore as noStore } from "next/cache";
+
 import { requireModule } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Client } from "@/lib/types";
@@ -9,6 +11,7 @@ export type ClientesSectionData = {
 };
 
 export async function getClientesData(): Promise<ClientesSectionData> {
+  noStore();
   await requireModule("ventas", ["administracion", "admin"]);
   const supabase = await createClient();
   const { data: clients } = await supabase

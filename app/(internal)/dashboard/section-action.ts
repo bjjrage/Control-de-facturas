@@ -1,5 +1,7 @@
 "use server";
 
+import { unstable_noStore as noStore } from "next/cache";
+
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Rfq } from "@/lib/types";
@@ -24,6 +26,7 @@ export type DashboardData = {
 };
 
 export async function getDashboardData(): Promise<DashboardData> {
+  noStore();
   const profile = await requireProfile();
   const supabase = await createClient();
 

@@ -1,5 +1,7 @@
 "use server";
 
+import { unstable_noStore as noStore } from "next/cache";
+
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Invoice, Provider } from "@/lib/types";
@@ -14,6 +16,7 @@ export type InvoicesSectionData = {
 };
 
 export async function getInvoicesData(monthParam?: string | null): Promise<InvoicesSectionData> {
+  noStore();
   const profile = await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
   const month = monthParam === "all" ? null : (monthParam ?? currentMonth());

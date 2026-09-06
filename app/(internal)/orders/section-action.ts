@@ -1,5 +1,6 @@
 "use server";
 
+import { unstable_noStore as noStore } from "next/cache";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { AuthorizedOrder, Provider } from "@/lib/types";
@@ -11,6 +12,7 @@ export type OrdersSectionData = {
 };
 
 export async function getOrdersData(): Promise<OrdersSectionData> {
+  noStore();
   const profile = await requireProfile(["comercial", "administracion", "admin"]);
   const supabase = await createClient();
 
