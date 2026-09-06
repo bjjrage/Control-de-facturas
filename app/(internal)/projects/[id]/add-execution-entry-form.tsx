@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
@@ -66,6 +66,7 @@ export function AddExecutionEntryForm({
   const router = useRouter();
   const supabase = createClient();
   const today = new Date().toISOString().slice(0, 10);
+  const submittingRef = useRef(false);
 
   const eligible = budgetItems.filter((i) => i.unit && i.quantity != null);
   const selectedItem = eligible.find((i) => i.id === selectedItemId) ?? null;
@@ -114,11 +115,14 @@ export function AddExecutionEntryForm({
     <form
       className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-3 space-y-3"
       action={async (formData: FormData) => {
+        if (submittingRef.current) return;
+        submittingRef.current = true;
         setPending(true);
         setError(null);
         const result = await addExecutionEntry(projectId, formData);
         if (result.error || !result.entryId) {
           setPending(false);
+          submittingRef.current = false;
           setError(result.error);
           return;
         }

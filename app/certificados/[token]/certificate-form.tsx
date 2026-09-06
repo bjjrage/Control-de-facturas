@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { submitCertificate } from "./actions";
 
@@ -9,6 +9,11 @@ export function CertificateForm({ token }: { token: string }) {
   const [pending, setPending] = useState(false);
   const [sent, setSent] = useState(false);
   const router = useRouter();
+  // Un doble click/tap dispara dos veces la action antes de que el estado
+  // `pending` llegue a re-renderizar el botón deshabilitado — este ref se
+  // chequea de forma síncrona, sin esperar ningún render, y por eso sí
+  // bloquea el segundo envío. Así se duplicó un certificado en producción.
+  const submittingRef = useRef(false);
 
   if (sent) {
     return (
@@ -22,11 +27,14 @@ export function CertificateForm({ token }: { token: string }) {
     <form
       className="space-y-3"
       action={async (formData: FormData) => {
+        if (submittingRef.current) return;
+        submittingRef.current = true;
         setPending(true);
         setError(null);
         const result = await submitCertificate(token, formData);
         setPending(false);
         if (result.error) {
+          submittingRef.current = false;
           setError(result.error);
           return;
         }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { submitAvance } from "./actions";
 
@@ -55,6 +55,9 @@ export function AvanceForm({ token, budgetItems }: { token: string; budgetItems:
   const [formKey, setFormKey] = useState(0); // fuerza reset de los <input> nativos
   const [selectedItemId, setSelectedItemId] = useState("");
   const router = useRouter();
+  // Guard síncrono contra doble click/tap — ver certificate-form.tsx, donde
+  // este mismo hueco duplicó un envío en producción.
+  const submittingRef = useRef(false);
   const today = new Date().toISOString().slice(0, 10);
 
   const selectedItem = budgetItems.find((i) => i.id === selectedItemId) ?? null;
@@ -111,11 +114,14 @@ export function AvanceForm({ token, budgetItems }: { token: string; budgetItems:
       key={formKey}
       className="space-y-3"
       action={async (formData: FormData) => {
+        if (submittingRef.current) return;
+        submittingRef.current = true;
         setPending(true);
         setError(null);
         photos.forEach((p) => formData.append("photos", p));
         const result = await submitAvance(token, formData);
         setPending(false);
+        submittingRef.current = false;
         if (result.error) {
           setError(result.error);
           return;
