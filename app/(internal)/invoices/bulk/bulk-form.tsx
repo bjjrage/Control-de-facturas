@@ -55,9 +55,13 @@ export function BulkUploadForm({ empresaId, userId }: { empresaId: string; userI
   const [jobs, setJobs] = useState<InvoiceJob[]>([]);
   const [jobIds, setJobIds] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Se chequea entre archivo y archivo del loop de subida — permite frenar
+  // una carga en curso sin dejar el estado a medio insertar.
+  const cancelRequestedRef = useRef(false);
 
   // Un archivo soltado un poco fuera de la zona haría que el navegador lo abra
   // como pestaña. Bloqueamos eso a nivel ventana mientras esta página está abierta.
@@ -108,9 +112,13 @@ export function BulkUploadForm({ empresaId, userId }: { empresaId: string; userI
   async function upload() {
     setUploading(true);
     setUploadError(null);
+    cancelRequestedRef.current = false;
     const created: InvoiceJob[] = [];
+    let processed = 0;
     try {
       for (const file of files) {
+        if (cancelRequestedRef.current) break;
+        processed++;
         const path = `${empresaId}/inbox/${crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
         const up = await supabase.storage
           .from("invoice-files")
@@ -140,10 +148,33 @@ export function BulkUploadForm({ empresaId, userId }: { empresaId: string; userI
     } finally {
       setUploading(false);
     }
+    // Los archivos que ya se llegaron a subir y encolar quedan procesándose
+    // igual — cancelar solo corta los que faltaban en el loop. Los que
+    // faltaron por procesar los deja en `files` para reintentar o vaciar.
+    const remaining = cancelRequestedRef.current ? files.slice(processed) : [];
     if (created.length > 0) {
       setJobs((prev) => [...prev, ...created]);
       setJobIds((prev) => [...prev, ...created.map((j) => j.id)]);
-      setFiles([]);
+    }
+    setFiles(remaining);
+  }
+
+  // Corta una carga en curso (loop de subida) o descarta los jobs ya
+  // encolados que el worker todavía no terminó de procesar.
+  async function cancelUpload() {
+    if (uploading) {
+      cancelRequestedRef.current = true;
+      return;
+    }
+    const idsToCancel = jobs.filter((j) => j.status === "queued" || j.status === "processing").map((j) => j.id);
+    if (idsToCancel.length === 0) return;
+    setCancelling(true);
+    try {
+      await supabase.from("invoice_jobs").delete().in("id", idsToCancel);
+      setJobs((prev) => prev.filter((j) => !idsToCancel.includes(j.id)));
+      setJobIds((prev) => prev.filter((id) => !idsToCancel.includes(id)));
+    } finally {
+      setCancelling(false);
     }
   }
 
@@ -283,36 +314,56 @@ export function BulkUploadForm({ empresaId, userId }: { empresaId: string; userI
           <Button type="button" disabled={files.length === 0 || uploading} onClick={upload}>
             {uploading ? "Subiendo…" : `Subir ${files.length || ""} factura${files.length === 1 ? "" : "s"}`}
           </Button>
-          {files.length > 0 && !uploading ? (
+          {uploading ? (
+            <Button type="button" variant="ghost" onClick={cancelUpload}>
+              Cancelar
+            </Button>
+          ) : files.length > 0 ? (
             <Button type="button" variant="ghost" onClick={() => setFiles([])}>
-              Vaciar
+              Cancelar
             </Button>
           ) : null}
         </div>
         <p className="text-[11px] text-[var(--muted)]">
-          Se procesan en segundo plano — no hace falta esperar acá, las filas de abajo se actualizan solas.
+          Una vez que aparecen abajo ya quedaron guardadas — se procesan en segundo plano, no hace falta esperar acá
+          ni tener la pestaña abierta.
         </p>
       </div>
 
       {jobs.length > 0 ? (
         <div className="space-y-2">
           {pending === 0 ? (
-            <div className="flex gap-3 text-[12px] text-[var(--muted)]">
-              <span>✅ Conciliadas: {summary.matched ?? 0}</span>
-              <span>🟡 Sin match: {summary.created_unmatched ?? 0}</span>
-              <span>✋ A revisar: {summary.needs_manual ?? 0}</span>
-              <span>❌ Errores: {summary.error ?? 0}</span>
-              {(summary.needs_manual ?? 0) > 0 ? (
-                <Link href="/invoices/revision" className="text-action text-[var(--primary)]">
-                  Ir a revisión →
-                </Link>
-              ) : null}
-              <Link href="/invoices" className="text-action text-[var(--primary)] ml-auto">
-                Ver todas las facturas →
+            <div className="flex items-center gap-3">
+              <div className="flex gap-3 text-[12px] text-[var(--muted)] flex-wrap">
+                <span>✅ Conciliadas: {summary.matched ?? 0}</span>
+                <span>🟡 Sin match: {summary.created_unmatched ?? 0}</span>
+                <span>✋ A revisar: {summary.needs_manual ?? 0}</span>
+                <span>❌ Errores: {summary.error ?? 0}</span>
+                {(summary.needs_manual ?? 0) > 0 ? (
+                  <Link href="/invoices/revision" className="text-action text-[var(--primary)]">
+                    Ir a revisión →
+                  </Link>
+                ) : null}
+              </div>
+              <Link href="/invoices" className="ml-auto">
+                <Button type="button">Guardar y volver a Facturas →</Button>
               </Link>
             </div>
           ) : (
-            <div className="text-[12px] text-[var(--muted)]">Procesando {jobs.length - pending}/{jobs.length}…</div>
+            <div className="flex items-center gap-3">
+              <div className="text-[12px] text-[var(--muted)]">
+                Procesando {jobs.length - pending}/{jobs.length}…
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={cancelling}
+                onClick={cancelUpload}
+                className="ml-auto"
+              >
+                {cancelling ? "Cancelando…" : "Cancelar restantes"}
+              </Button>
+            </div>
           )}
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
             <table>
