@@ -55,6 +55,32 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     order.total_price > 0 ? Math.min(100, Math.round((order.facturado_amount / order.total_price) * 100)) : 0;
   const canDelete = profile.role === "admin" && order.facturado_amount === 0 && (matches ?? []).length === 0;
 
+  // Ítems: si la OC tiene detalle (authorized_order_items) lo usamos; si no,
+  // una única línea sintética con los campos del encabezado (OCs viejas).
+  const hasLineItems = !!(orderItems && orderItems.length > 0);
+  const lines = hasLineItems
+    ? orderItems!.map((it) => ({
+        key: it.id,
+        product: it.product,
+        quantity: it.quantity,
+        unit: it.unit,
+        unit_price: it.unit_price,
+        total_price: it.total_price,
+        quantity_invoiced: it.quantity_invoiced as number,
+      }))
+    : [
+        {
+          key: "header",
+          product: order.product,
+          quantity: order.quantity,
+          unit: order.unit,
+          unit_price: order.unit_price,
+          total_price: order.total_price,
+          quantity_invoiced: null as number | null,
+        },
+      ];
+  const itemsSum = lines.reduce((s, l) => s + l.total_price, 0);
+
   return (
     <div className="max-w-3xl space-y-5">
       <div className="flex items-start justify-between">
@@ -66,10 +92,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             <h1 className="text-[17px] font-semibold">{order.code}</h1>
             <StatusBadge status={order.status} />
           </div>
-          <p className="text-[13px] text-[var(--muted)] mt-1">
-            {order.provider_name} · {order.product} · {formatNumber(order.quantity, 2)} {order.unit} ×{" "}
-            {formatMoney(order.unit_price, order.currency)}
-          </p>
+          <p className="text-[13px] mt-1">{order.provider_name}</p>
           <p className="text-[11px] text-[var(--muted)] mt-0.5">
             {ORIGIN_LABEL[order.created_from]}
             {order.rfq_id ? (
@@ -87,15 +110,65 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         {canDelete ? <DeleteOrderButton orderId={order.id} redirectTo="/orders" /> : null}
       </div>
 
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-        <OrderPipeline
-          status={order.status}
-          totalPrice={order.total_price}
-          facturadoAmount={order.facturado_amount}
-          size="full"
-        />
+      {/* Detalle de la orden — lo primero que se ve, formato factura */}
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+        <div className="overflow-x-auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Producto / Servicio</th>
+                <th className="num">Cant.</th>
+                <th>Unidad</th>
+                <th className="num">P. Unitario</th>
+                <th className="num">Total</th>
+                {hasLineItems ? <th className="num">Facturado</th> : null}
+                {hasLineItems ? <th className="num">Pendiente</th> : null}
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((l) => {
+                const inv = l.quantity_invoiced ?? 0;
+                const pendiente = Math.max(0, l.quantity - inv);
+                const overItem = inv > l.quantity;
+                return (
+                  <tr key={l.key}>
+                    <td className="font-medium">{l.product}</td>
+                    <td className="num">{formatNumber(l.quantity, 2)}</td>
+                    <td className="text-[var(--muted)]">{l.unit}</td>
+                    <td className="num">{formatMoney(l.unit_price, order.currency)}</td>
+                    <td className="num">{formatMoney(l.total_price, order.currency)}</td>
+                    {hasLineItems ? (
+                      <td className={`num ${overItem ? "text-[var(--error)]" : ""}`}>
+                        {formatNumber(inv, 2)}
+                      </td>
+                    ) : null}
+                    {hasLineItems ? (
+                      <td
+                        className={`num ${
+                          overItem
+                            ? "text-[var(--error)]"
+                            : pendiente === 0
+                              ? "text-[var(--muted)]"
+                              : ""
+                        }`}
+                      >
+                        {overItem ? "Excedido" : pendiente === 0 ? "Completo" : formatNumber(pendiente, 2)}
+                      </td>
+                    ) : null}
+                  </tr>
+                );
+              })}
+              <tr className="border-t-2 border-[var(--border)] font-semibold">
+                <td colSpan={4}>Total de la orden</td>
+                <td className="num">{formatMoney(itemsSum, order.currency)}</td>
+                {hasLineItems ? <td colSpan={2} /> : null}
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
+      {/* Resumen financiero */}
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
         <div className="grid grid-cols-3 gap-3 text-[13px]">
           <div>
@@ -124,47 +197,14 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         ) : null}
       </div>
 
-      {orderItems && orderItems.length > 0 ? (
-        <div>
-          <h2 className="text-[14px] font-semibold mb-2">Ítems de la orden</h2>
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
-            <table>
-              <thead>
-                <tr>
-                  <th>Producto / Servicio</th>
-                  <th className="num">Cantidad</th>
-                  <th>Unidad</th>
-                  <th className="num">P. Unitario</th>
-                  <th className="num">Total</th>
-                  <th className="num">Facturado</th>
-                  <th className="num">Pendiente</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orderItems.map((item) => {
-                  const pendiente = Math.max(0, item.quantity - item.quantity_invoiced);
-                  const overItem = item.quantity_invoiced > item.quantity;
-                  return (
-                    <tr key={item.id}>
-                      <td className="font-medium">{item.product}</td>
-                      <td className="num">{formatNumber(item.quantity, 2)}</td>
-                      <td className="text-[var(--muted)]">{item.unit}</td>
-                      <td className="num">{formatMoney(item.unit_price, order.currency)}</td>
-                      <td className="num">{formatMoney(item.total_price, order.currency)}</td>
-                      <td className={`num ${overItem ? "text-[var(--error)]" : ""}`}>
-                        {formatNumber(item.quantity_invoiced, 2)}
-                      </td>
-                      <td className={`num ${overItem ? "text-[var(--error)]" : pendiente === 0 ? "text-[var(--muted)]" : ""}`}>
-                        {overItem ? "Excedido" : pendiente === 0 ? "Completo" : formatNumber(pendiente, 2)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : null}
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+        <OrderPipeline
+          status={order.status}
+          totalPrice={order.total_price}
+          facturadoAmount={order.facturado_amount}
+          size="full"
+        />
+      </div>
 
       <div>
         <div className="flex items-center justify-between mb-2">

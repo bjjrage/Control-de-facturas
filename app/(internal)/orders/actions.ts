@@ -75,6 +75,10 @@ export async function createManualOrder(formData: FormData) {
   const { data: order, error } = await supabase
     .from("authorized_orders")
     .insert({
+      // empresa_id explícito: el trigger que genera el `code` (next_doc_code)
+      // corre ANTES que el trigger que setea empresa_id (orden alfabético de
+      // nombres), así que sin esto falla con "p_empresa_id es null".
+      empresa_id: profile.empresa_id,
       provider_id: providerId,
       provider_name: provider.name,
       product: first.product.trim(),
@@ -150,6 +154,7 @@ export async function createOrderFromInvoice(
   const { data: order, error } = await supabase
     .from("authorized_orders")
     .insert({
+      empresa_id: empresaId, // ver nota en createManualOrder
       provider_id: invoice.provider_id,
       provider_name: providerName,
       product: fields.product.trim(),
