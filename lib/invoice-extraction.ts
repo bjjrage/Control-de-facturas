@@ -45,7 +45,7 @@ const EXTRACTION_SCHEMA = {
   type: "object",
   properties: {
     provider_name: { type: ["string", "null"] },
-    provider_tax_id: { type: ["string", "null"], description: "RUC del emisor. Solo la parte base, sin puntos, sin guiones y SIN el dígito verificador final (ej: '80023456-7' -> '80023456')." },
+    provider_tax_id: { type: ["string", "null"], description: "RUC del emisor, tal como aparece pero sin puntos ni guiones (ej: '80023456-7' -> '800234567')." },
     invoice_number: { type: ["string", "null"] },
     invoice_date: { type: ["string", "null"], description: "Formato YYYY-MM-DD" },
     subtotal: { type: ["number", "null"] },
