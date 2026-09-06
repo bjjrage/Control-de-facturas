@@ -281,8 +281,8 @@ export function ProjectReports({
       <div className="grid grid-cols-2 gap-4">
         <ChartCard
           title="Presupuesto vs. compras"
-          smallHeight={220}
-          largeHeight={420}
+          smallHeight={300}
+          largeHeight={480}
           renderChart={(height) => (
             <div style={{ filter: "drop-shadow(0 6px 10px rgba(0,0,0,.22))" }}>
               <ResponsiveContainer width="100%" height={height}>
@@ -322,7 +322,7 @@ export function ProjectReports({
 
         <ChartCard
           title="Distribución del presupuesto por rubro"
-          smallHeight={220}
+          smallHeight={260}
           largeHeight={420}
           extra={
             pieData.length > 0 ? (
