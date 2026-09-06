@@ -14,6 +14,17 @@ import { formatMoney, formatDate } from "@/lib/format";
 // seguidos, que era parte de por qué la torta se veía "de los 90").
 const PIE_COLORS = ["#2563eb", "#f97316", "#16a34a", "#a855f7", "#ef4444", "#06b6d4", "#eab308", "#ec4899", "#64748b", "#14b8a6"];
 
+// Mezcla un hex con blanco para el highlight superior del gradiente de cada
+// porción — le da un aire "glossy"/con volumen sin ser un pie 3D de verdad
+// (esos distorsionan la lectura de proporciones, por eso se evitan).
+function lighten(hex: string, amt: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.min(255, ((n >> 16) & 255) + Math.round((255 - ((n >> 16) & 255)) * amt));
+  const g = Math.min(255, ((n >> 8) & 255) + Math.round((255 - ((n >> 8) & 255)) * amt));
+  const b = Math.min(255, (n & 255) + Math.round((255 - (n & 255)) * amt));
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+}
+
 export function ProjectReports({
   project,
   budgetItems,
@@ -273,27 +284,39 @@ export function ProjectReports({
           smallHeight={220}
           largeHeight={420}
           renderChart={(height) => (
-            <ResponsiveContainer width="100%" height={height}>
-              <BarChart data={totalsBarData} barCategoryGap="40%">
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="var(--muted)" />
-                <YAxis
-                  tick={{ fontSize: 11 }}
-                  stroke="var(--muted)"
-                  width={70}
-                  tickFormatter={(v: number) => v.toLocaleString("es-PY")}
-                />
-                <Tooltip
-                  cursor={false}
-                  isAnimationActive={false}
-                  contentStyle={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-                  formatter={(v) => formatMoney(Number(v), "PYG")}
-                />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="presupuesto" name="Presupuesto" fill="#1d4ed8" radius={[4, 4, 0, 0]} maxBarSize={80} isAnimationActive={false} />
-                <Bar dataKey="compras" name="Compras" fill="#d4711a" radius={[4, 4, 0, 0]} maxBarSize={80} isAnimationActive={false} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div style={{ filter: "drop-shadow(0 6px 10px rgba(0,0,0,.22))" }}>
+              <ResponsiveContainer width="100%" height={height}>
+                <BarChart data={totalsBarData} barCategoryGap="15%" barGap={10}>
+                  <defs>
+                    <linearGradient id="gradPresupuesto" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3b82f6" />
+                      <stop offset="100%" stopColor="#1d4ed8" />
+                    </linearGradient>
+                    <linearGradient id="gradCompras" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#fb923c" />
+                      <stop offset="100%" stopColor="#c2410c" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="var(--muted)" />
+                  <YAxis
+                    tick={{ fontSize: 11 }}
+                    stroke="var(--muted)"
+                    width={70}
+                    tickFormatter={(v: number) => v.toLocaleString("es-PY")}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "var(--hover)" }}
+                    isAnimationActive={false}
+                    contentStyle={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+                    formatter={(v) => formatMoney(Number(v), "PYG")}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="presupuesto" name="Presupuesto" fill="url(#gradPresupuesto)" radius={[6, 6, 0, 0]} maxBarSize={140} isAnimationActive={false} />
+                  <Bar dataKey="compras" name="Compras" fill="url(#gradCompras)" radius={[6, 6, 0, 0]} maxBarSize={140} isAnimationActive={false} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           )}
         />
 
@@ -328,8 +351,20 @@ export function ProjectReports({
                 Sin rubros cargados.
               </div>
             ) : (
+              <div style={{ filter: "drop-shadow(0 8px 14px rgba(0,0,0,.3))" }}>
               <ResponsiveContainer width="100%" height={height}>
                 <PieChart>
+                  <defs>
+                    {pieData.map((_, idx) => {
+                      const color = PIE_COLORS[idx % PIE_COLORS.length];
+                      return (
+                        <radialGradient key={idx} id={`pieGrad${idx}`} cx="35%" cy="30%" r="75%">
+                          <stop offset="0%" stopColor={lighten(color, 0.45)} />
+                          <stop offset="100%" stopColor={color} />
+                        </radialGradient>
+                      );
+                    })}
+                  </defs>
                   <Pie
                     data={pieData}
                     dataKey="value"
@@ -344,7 +379,7 @@ export function ProjectReports({
                     labelLine={false}
                   >
                     {pieData.map((_, idx) => (
-                      <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} stroke="var(--panel)" strokeWidth={2} />
+                      <Cell key={idx} fill={`url(#pieGrad${idx})`} stroke="var(--panel)" strokeWidth={2} />
                     ))}
                   </Pie>
                   <Tooltip
@@ -373,6 +408,7 @@ export function ProjectReports({
                   </text>
                 </PieChart>
               </ResponsiveContainer>
+              </div>
             )
           }
         />
