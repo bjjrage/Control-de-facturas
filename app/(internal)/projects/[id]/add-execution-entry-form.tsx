@@ -62,11 +62,13 @@ export function AddExecutionEntryForm({
   const [progress, setProgress] = useState<string | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  const [selectedItemId, setSelectedItemId] = useState("");
   const router = useRouter();
   const supabase = createClient();
   const today = new Date().toISOString().slice(0, 10);
 
   const eligible = budgetItems.filter((i) => i.unit && i.quantity != null);
+  const selectedItem = eligible.find((i) => i.id === selectedItemId) ?? null;
 
   async function handlePhotoSelect(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -96,6 +98,7 @@ export function AddExecutionEntryForm({
     setPhotos([]);
     setPreviews([]);
     setProgress(null);
+    setSelectedItemId("");
     setOpen(false);
   }
 
@@ -150,7 +153,13 @@ export function AddExecutionEntryForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
           <Label htmlFor="ee_item">Ítem del presupuesto</Label>
-          <Select id="ee_item" name="budget_item_id" required>
+          <Select
+            id="ee_item"
+            name="budget_item_id"
+            required
+            value={selectedItemId}
+            onChange={(e) => setSelectedItemId((e.target as HTMLSelectElement).value)}
+          >
             <option value="">Seleccioná un ítem…</option>
             {eligible.map((i) => (
               <option key={i.id} value={i.id}>
@@ -160,8 +169,16 @@ export function AddExecutionEntryForm({
           </Select>
         </div>
         <div>
-          <Label htmlFor="ee_qty">Cantidad ejecutada</Label>
-          <Input id="ee_qty" name="quantity_executed" type="number" step="any" min="0.001" required />
+          <Label htmlFor="ee_qty">Cantidad ejecutada{selectedItem?.unit ? ` (${selectedItem.unit})` : ""}</Label>
+          <Input
+            id="ee_qty"
+            name="quantity_executed"
+            type="number"
+            step="any"
+            min="0.001"
+            required
+            placeholder={selectedItem?.unit ? `en ${selectedItem.unit}` : undefined}
+          />
         </div>
         <div>
           <Label htmlFor="ee_date">Fecha</Label>

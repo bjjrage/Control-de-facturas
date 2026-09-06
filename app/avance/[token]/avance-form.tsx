@@ -53,8 +53,11 @@ export function AvanceForm({ token, budgetItems }: { token: string; budgetItems:
   const [photos, setPhotos] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [formKey, setFormKey] = useState(0); // fuerza reset de los <input> nativos
+  const [selectedItemId, setSelectedItemId] = useState("");
   const router = useRouter();
   const today = new Date().toISOString().slice(0, 10);
+
+  const selectedItem = budgetItems.find((i) => i.id === selectedItemId) ?? null;
 
   async function handlePhotoSelect(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -82,6 +85,7 @@ export function AvanceForm({ token, budgetItems }: { token: string; budgetItems:
     previews.forEach((p) => URL.revokeObjectURL(p));
     setPhotos([]);
     setPreviews([]);
+    setSelectedItemId("");
     setFormKey((k) => k + 1);
   }
 
@@ -130,6 +134,8 @@ export function AvanceForm({ token, budgetItems }: { token: string; budgetItems:
         <select
           name="budget_item_id"
           required
+          value={selectedItemId}
+          onChange={(e) => setSelectedItemId(e.target.value)}
           className="h-9 w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
         >
           <option value="">Seleccioná un ítem…</option>
@@ -142,13 +148,16 @@ export function AvanceForm({ token, budgetItems }: { token: string; budgetItems:
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-[12px] font-medium text-[var(--muted)] mb-1 block">Cantidad ejecutada</label>
+          <label className="text-[12px] font-medium text-[var(--muted)] mb-1 block">
+            Cantidad ejecutada{selectedItem?.unit ? ` (${selectedItem.unit})` : ""}
+          </label>
           <input
             name="quantity_executed"
             type="number"
             step="any"
             min="0.001"
             required
+            placeholder={selectedItem?.unit ? `en ${selectedItem.unit}` : undefined}
             className="h-9 w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
           />
         </div>
