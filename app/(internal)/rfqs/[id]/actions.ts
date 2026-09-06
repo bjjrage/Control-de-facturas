@@ -138,6 +138,7 @@ export async function selectAndAuthorizeOffer(params: {
       is_cheapest: isCheapest,
       selection_reason: isCheapest ? null : params.selectionReason,
       selection_reason_detail: params.selectionReasonDetail,
+      project_id: rfq.project_id ?? null,
     })
     .select("id")
     .single();
@@ -159,6 +160,7 @@ export async function selectAndAuthorizeOffer(params: {
 
   revalidatePath(`/rfqs/${rfq.id}`);
   revalidatePath("/orders");
+  if (rfq.project_id) revalidatePath(`/projects/${rfq.project_id}`);
   return { error: null };
 }
 

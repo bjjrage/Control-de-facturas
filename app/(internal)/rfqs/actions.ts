@@ -88,6 +88,7 @@ export async function createRfq(formData: FormData) {
       required_date: str(formData, "required_date"),
       internal_reference: str(formData, "internal_reference"),
       observations: str(formData, "observations"),
+      project_id: str(formData, "project_id") || null,
     })
     .select("id")
     .single();
@@ -106,5 +107,7 @@ export async function createRfq(formData: FormData) {
   }
 
   revalidatePath("/rfqs");
+  const projectId = str(formData, "project_id");
+  if (projectId) revalidatePath(`/projects/${projectId}`);
   return { error: null, id: data.id as string };
 }

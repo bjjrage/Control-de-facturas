@@ -22,7 +22,7 @@ const TYPE_CONFIG: Record<QuoteType, { label: string; description: string; submi
   },
 };
 
-export function RfqDialog({ trigger, defaultOpen }: { trigger: React.ReactNode; defaultOpen?: boolean }) {
+export function RfqDialog({ trigger, defaultOpen, projectId }: { trigger: React.ReactNode; defaultOpen?: boolean; projectId?: string }) {
   const [open, setOpen] = useState(defaultOpen ?? false);
   const [quoteType, setQuoteType] = useState<QuoteType>("RFQ");
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +78,7 @@ export function RfqDialog({ trigger, defaultOpen }: { trigger: React.ReactNode; 
             ))}
           </div>
           <input type="hidden" name="quote_type" value={quoteType} />
+          {projectId ? <input type="hidden" name="project_id" value={projectId} /> : null}
 
           {error ? (
             <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">

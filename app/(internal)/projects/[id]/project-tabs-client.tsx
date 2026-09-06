@@ -38,6 +38,7 @@ import { SubcontratistasTable } from "./subcontratistas-table";
 import { ProyectoFacturasTable } from "./proyecto-facturas-table";
 import { ProyectoPagosTable } from "./proyecto-pagos-table";
 import { ProyectoRfqsTable } from "./proyecto-rfqs-table";
+import { RfqDialog } from "@/app/(internal)/rfqs/rfq-dialog";
 import { ProyectoProveedoresTable } from "./proyecto-proveedores-table";
 
 type Props = {
@@ -251,9 +252,25 @@ export function ProjectTabsClient({
         </div>
       ) : null}
 
-      {tab === "compras" ? <ProyectoComprasTable rows={ocs} /> : null}
+      {tab === "compras" ? (
+        <div className="space-y-3">
+          <RfqDialog
+            projectId={project.id}
+            trigger={<Button size="sm">+ Nueva cotización / OC</Button>}
+          />
+          <ProyectoComprasTable rows={ocs} />
+        </div>
+      ) : null}
 
-      {tab === "cotizaciones" ? <ProyectoRfqsTable rows={projectRfqs} /> : null}
+      {tab === "cotizaciones" ? (
+        <div className="space-y-3">
+          <RfqDialog
+            projectId={project.id}
+            trigger={<Button size="sm">+ Nueva cotización</Button>}
+          />
+          <ProyectoRfqsTable rows={projectRfqs} />
+        </div>
+      ) : null}
 
       {tab === "proveedores" ? <ProyectoProveedoresTable rows={projectProviders} /> : null}
 
