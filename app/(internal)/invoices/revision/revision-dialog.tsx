@@ -10,11 +10,9 @@ import { resolveInvoiceJob } from "./actions";
 export function RevisionDialog({
   job,
   providers,
-  trigger,
 }: {
   job: InvoiceJob;
   providers: Provider[];
-  trigger: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +21,9 @@ export function RevisionDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogTrigger asChild>
+        <Button className="h-6 px-2 text-[12px]">Completar</Button>
+      </DialogTrigger>
       <DialogContent title={`Completar — ${job.file_name}`}>
         {(job.outcome === "duplicate" || job.message?.startsWith("Ya existe")) ? (
           <div className="space-y-4">

@@ -64,9 +64,6 @@ export default async function RevisionPage() {
                     <RevisionDialog
                       job={j}
                       providers={providers ?? []}
-                      trigger={
-                        <Button className="h-6 px-2 text-[12px]">Completar</Button>
-                      }
                     />
                     {j.status === "failed" ? (
                       <form
