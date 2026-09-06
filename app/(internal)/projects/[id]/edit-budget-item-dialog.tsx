@@ -15,6 +15,8 @@ type Row = {
   unit: string | null;
   quantity: number | null;
   unitPrice: number | null;
+  startDate: string | null;
+  endDate: string | null;
 };
 
 export function EditBudgetItemDialog({ projectId, row }: { projectId: string; row: Row }) {
@@ -85,6 +87,16 @@ export function EditBudgetItemDialog({ projectId, row }: { projectId: string; ro
               <div>
                 <Label htmlFor="ebi_unit_price">Precio unitario</Label>
                 <Input id="ebi_unit_price" name="unit_price" type="number" step="any" min="0" defaultValue={row.unitPrice ?? ""} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="ebi_start">Fecha inicio (cronograma)</Label>
+                <Input id="ebi_start" name="start_date" type="date" defaultValue={row.startDate ?? ""} />
+              </div>
+              <div>
+                <Label htmlFor="ebi_end">Fecha fin (cronograma)</Label>
+                <Input id="ebi_end" name="end_date" type="date" defaultValue={row.endDate ?? ""} />
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-1">

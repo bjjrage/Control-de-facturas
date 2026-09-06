@@ -230,6 +230,8 @@ export function ProjectTabsClient({
                 unitPrice: i.unit_price,
                 subtotal: i.subtotal,
                 execPct: pct,
+                startDate: i.start_date,
+                endDate: i.end_date,
               };
             })}
             total={itemsSubtotal}

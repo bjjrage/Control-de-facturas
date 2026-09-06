@@ -200,13 +200,26 @@ export async function updateBudgetItem(
   const unit = (formData.get("unit") as string | null) || null;
   const quantity = formData.get("quantity") ? Number(formData.get("quantity")) : null;
   const unitPrice = formData.get("unit_price") ? Number(formData.get("unit_price")) : null;
+  const startDate = (formData.get("start_date") as string | null) || null;
+  const endDate = (formData.get("end_date") as string | null) || null;
 
   if (!code) return { error: "El código es obligatorio." };
   if (!description) return { error: "La descripción es obligatoria." };
+  if (startDate && endDate && startDate > endDate) {
+    return { error: "La fecha de inicio no puede ser posterior a la de fin." };
+  }
 
   const { error } = await supabase
     .from("budget_items")
-    .update({ code, description, unit, quantity, unit_price: unitPrice })
+    .update({
+      code,
+      description,
+      unit,
+      quantity,
+      unit_price: unitPrice,
+      start_date: startDate,
+      end_date: endDate,
+    })
     .eq("id", itemId)
     .eq("project_id", projectId);
 
@@ -315,6 +328,8 @@ export type ImportedBudgetItem = {
   unit: string | null;
   quantity: number | null;
   unit_price: number | null;
+  start_date: string | null;
+  end_date: string | null;
 };
 
 /**
@@ -380,6 +395,8 @@ export async function importBudgetItems(
           unit: item.unit,
           quantity: item.quantity,
           unit_price: item.unit_price,
+          start_date: item.start_date,
+          end_date: item.end_date,
           sort_order: nextSortOrder++,
         };
       });

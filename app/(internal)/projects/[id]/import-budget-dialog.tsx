@@ -8,7 +8,7 @@ import { Select } from "@/components/ui/input";
 import { formatMoney } from "@/lib/format";
 import { importBudgetItems, type ImportedBudgetItem } from "../actions";
 
-type FieldKey = "code" | "description" | "unit" | "quantity" | "unit_price";
+type FieldKey = "code" | "description" | "unit" | "quantity" | "unit_price" | "start_date" | "end_date";
 type ColumnAssignment = FieldKey | "ignore";
 
 const FIELD_LABELS: Record<FieldKey, string> = {
@@ -17,6 +17,8 @@ const FIELD_LABELS: Record<FieldKey, string> = {
   unit: "Unidad",
   quantity: "Cantidad",
   unit_price: "Precio unitario",
+  start_date: "Fecha inicio",
+  end_date: "Fecha fin",
 };
 
 // Variantes de encabezado conocidas para auto-detectar el mapeo. Comparadas
@@ -27,6 +29,8 @@ const HEADER_VARIANTS: Record<FieldKey, string[]> = {
   unit: ["unidad", "und", "un", "u.m.", "medida"],
   quantity: ["cantidad", "cant", "qty", "metrado", "computo"],
   unit_price: ["precio unitario", "p. unitario", "punit", "precio", "p.u.", "costo unitario"],
+  start_date: ["fecha inicio", "inicio", "f. inicio", "fecha de inicio", "start", "start date"],
+  end_date: ["fecha fin", "fin", "f. fin", "fecha de fin", "end", "end date", "fecha final"],
 };
 
 function normalize(s: string): string {
@@ -52,6 +56,29 @@ function parsePyNumber(raw: unknown): number | null {
   }
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
+}
+
+// Excel guarda fechas como número de serie (días desde 1899-12-30) cuando la
+// celda tiene formato de fecha, o como texto en dd/mm/aaaa o aaaa-mm-dd si
+// no. Devuelve siempre ISO (aaaa-mm-dd) o null si no se pudo interpretar.
+function parseDateCell(raw: unknown): string | null {
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    const ms = Math.round((raw - 25569) * 86400 * 1000); // 25569 = días entre 1899-12-30 y 1970-01-01
+    const d = new Date(ms);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toISOString().slice(0, 10);
+  }
+  if (typeof raw !== "string") return null;
+  const s = raw.trim();
+  if (!s) return null;
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return s;
+  const dmy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (dmy) {
+    const [, d, m, y] = dmy;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  return null;
 }
 
 function autoDetectMapping(headers: string[]): Record<number, ColumnAssignment> {
@@ -174,6 +201,8 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
     const unitCol = Object.entries(mapping).find(([, v]) => v === "unit")?.[0];
     const qtyCol = Object.entries(mapping).find(([, v]) => v === "quantity")?.[0];
     const priceCol = Object.entries(mapping).find(([, v]) => v === "unit_price")?.[0];
+    const startCol = Object.entries(mapping).find(([, v]) => v === "start_date")?.[0];
+    const endCol = Object.entries(mapping).find(([, v]) => v === "end_date")?.[0];
 
     return dataRows.map((row) => {
       const code = codeCol !== undefined ? String(row[Number(codeCol)] ?? "").trim() : "";
@@ -181,11 +210,17 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
       const unitRaw = unitCol !== undefined ? String(row[Number(unitCol)] ?? "").trim() : "";
       const qtyRaw = qtyCol !== undefined ? row[Number(qtyCol)] : "";
       const priceRaw = priceCol !== undefined ? row[Number(priceCol)] : "";
+      const startRaw = startCol !== undefined ? row[Number(startCol)] : "";
+      const endRaw = endCol !== undefined ? row[Number(endCol)] : "";
 
       const qtyStr = String(qtyRaw ?? "").trim();
       const priceStr = String(priceRaw ?? "").trim();
+      const startStr = String(startRaw ?? "").trim();
+      const endStr = String(endRaw ?? "").trim();
       const quantity = qtyStr ? parsePyNumber(qtyRaw) : null;
       const unit_price = priceStr ? parsePyNumber(priceRaw) : null;
+      const start_date = startStr ? parseDateCell(startRaw) : null;
+      const end_date = endStr ? parseDateCell(endRaw) : null;
 
       let valid = true;
       let reason: string | undefined;
@@ -193,9 +228,11 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
       else if (!description) { valid = false; reason = "Descripción vacía"; }
       else if (qtyStr && quantity === null) { valid = false; reason = "Cantidad no numérica"; }
       else if (priceStr && unit_price === null) { valid = false; reason = "Precio no numérico"; }
+      else if (startStr && !start_date) { valid = false; reason = "Fecha inicio no reconocida"; }
+      else if (endStr && !end_date) { valid = false; reason = "Fecha fin no reconocida"; }
 
       return {
-        item: { code, description, unit: unitRaw || null, quantity, unit_price },
+        item: { code, description, unit: unitRaw || null, quantity, unit_price, start_date, end_date },
         valid,
         reason,
       };

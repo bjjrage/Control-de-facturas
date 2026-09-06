@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { ColumnFilter, uniqueValues, passesColumnFilter } from "@/components/ui/column-filter";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatDate } from "@/lib/format";
 import { EditBudgetItemDialog } from "./edit-budget-item-dialog";
 
 type Row = {
@@ -15,6 +15,8 @@ type Row = {
   unitPrice: number | null;
   subtotal: number;
   execPct: number | null;
+  startDate: string | null;
+  endDate: string | null;
 };
 
 const unitLabel = (r: Row) => r.unit ?? "—";
@@ -115,13 +117,14 @@ export function PresupuestoTable({ rows, total, projectId }: { rows: Row[]; tota
                 Ejecutado
                 <ColumnFilter values={uniques.execPct} selected={colFilters.execPct} onChange={(v) => setCol("execPct", v)} />
               </th>
+              <th>Cronograma</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="text-center text-[var(--muted)] py-6">
+                <td colSpan={9} className="text-center text-[var(--muted)] py-6">
                   {rows.length === 0 ? "Sin ítems todavía." : "Sin resultados para ese filtro."}
                 </td>
               </tr>
@@ -135,6 +138,9 @@ export function PresupuestoTable({ rows, total, projectId }: { rows: Row[]; tota
                   <td className="num">{r.unitPrice != null ? formatMoney(r.unitPrice, "PYG") : "—"}</td>
                   <td className="num font-medium">{formatMoney(r.subtotal, "PYG")}</td>
                   <td className="num text-[var(--muted)]">{r.execPct !== null ? `${r.execPct}%` : "—"}</td>
+                  <td className="text-[12px] text-[var(--muted)]">
+                    {r.startDate && r.endDate ? `${formatDate(r.startDate)} → ${formatDate(r.endDate)}` : "Sin fecha"}
+                  </td>
                   <td>
                     <EditBudgetItemDialog projectId={projectId} row={r} />
                   </td>
@@ -147,6 +153,7 @@ export function PresupuestoTable({ rows, total, projectId }: { rows: Row[]; tota
               <tr>
                 <td colSpan={5} className="text-right font-semibold">TOTAL</td>
                 <td className="num font-semibold">{formatMoney(total, "PYG")}</td>
+                <td></td>
                 <td></td>
                 <td></td>
               </tr>
