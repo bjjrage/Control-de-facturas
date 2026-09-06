@@ -139,72 +139,61 @@ const INVOICES = [
   },
 
   // ---- MULTI-ÍTEM (nombres distintos a los de la OC, a propósito) ----------
+  // OC-MULTI-001 (Distribuidora, 13.200.000): DOS entregas parciales que la completan.
   {
-    file: "factura-multi-item-01-distribuidora",
+    file: "factura-multi-item-01a-distribuidora-parcial",
     provider: "distribuidora",
     number: "001-002-0005030",
     date: "09/09/2026",
     oc: "OC-MULTI-001",
     ocDesc: "Materiales de obra — varios ítems",
-    note: "Entrega completa de los 3 ítems. Orden de Compra OC-MULTI-001.",
+    note: "Entrega PARCIAL 1 de 2: 60 de 100 bolsas de cemento y las 20 de arena. La varilla y el resto del cemento van en la próxima. Orden de Compra OC-MULTI-001.",
     items: [
-      { d: "Cemento CP-40 x 50kg (bolsa)", q: 100, pu: 60000 },       // -> Cemento Portland tipo I 50kg
-      { d: "Varilla corrugada Ø12 x 12m", q: 40, pu: 105000 },        // -> Hierro de construcción Ø12mm barra 12m
-      { d: "Arena fina para revoque (m³)", q: 20, pu: 150000 },       // -> Arena lavada gruesa
+      { d: "Cemento CP-40 x 50kg (bolsa)", q: 60, pu: 60000 },   // -> Cemento Portland tipo I 50kg  (60 de 100)
+      { d: "Arena fina para revoque (m³)", q: 20, pu: 150000 },  // -> Arena lavada gruesa           (20 de 20)
     ],
   },
   {
-    file: "factura-multi-item-02-techoffice",
-    provider: "techoffice",
+    file: "factura-multi-item-01b-distribuidora-parcial",
+    provider: "distribuidora",
     number: "001-002-0005031",
+    date: "16/09/2026",
+    oc: "OC-MULTI-001",
+    ocDesc: "Materiales de obra — varios ítems",
+    note: "Entrega PARCIAL 2 de 2: las 40 bolsas de cemento restantes y las 40 varillas. Completa la Orden de Compra OC-MULTI-001.",
+    items: [
+      { d: "Cemento CP-40 x 50kg (bolsa)", q: 40, pu: 60000 },   // -> Cemento Portland tipo I 50kg  (40 restantes)
+      { d: "Varilla corrugada Ø12 x 12m", q: 40, pu: 105000 },   // -> Hierro de construcción Ø12mm barra 12m (40 de 40)
+    ],
+  },
+  // OC-MULTI-002 (TechOffice, 36.300.000): UNA entrega completa.
+  {
+    file: "factura-multi-item-02-techoffice-completa",
+    provider: "techoffice",
+    number: "001-002-0005032",
     date: "10/09/2026",
     oc: "OC-MULTI-002",
     ocDesc: "Equipamiento informático — varios ítems",
-    note: "Entrega completa de los 3 ítems. Orden de Compra OC-MULTI-002.",
+    note: "Entrega COMPLETA de los 3 ítems. Orden de Compra OC-MULTI-002.",
     items: [
       { d: "Laptop Dell Latitude 5540 Core i5 16GB", q: 5, pu: 5000000 },        // -> Notebook Dell Latitude 15" i5 16GB
       { d: "Pantalla 24\" 1920x1080 IPS", q: 8, pu: 1200000 },                   // -> Monitor LED 24" Full HD
       { d: "Combo teclado + ratón inalámbrico Logitech", q: 10, pu: 170000 },    // -> Kit teclado + mouse inalámbrico
     ],
   },
+  // OC-MULTI-003 (Muebles, 31.400.000): entrega con FALTANTE — llegan 8 sillas de 10.
   {
-    file: "factura-multi-item-03-muebles",
+    file: "factura-multi-item-03-muebles-con-faltante",
     provider: "muebles",
-    number: "001-002-0005032",
+    number: "001-002-0005033",
     date: "11/09/2026",
     oc: "OC-MULTI-003",
     ocDesc: "Mobiliario de oficina — varios ítems",
-    note: "Entrega completa de los 3 ítems. Orden de Compra OC-MULTI-003.",
+    note: "Entrega con FALTANTE: llegan 8 sillas de las 10 pedidas (backorder de 2). Escritorios y estantes completos. Orden de Compra OC-MULTI-003.",
     items: [
-      { d: "Mesa de oficina en L 1.60 x 1.40 m", q: 4, pu: 2900000 },            // -> Escritorio ejecutivo en L 160x140
-      { d: "Sillón operativo respaldo mesh con brazos", q: 10, pu: 1500000 },    // -> Silla ergonómica malla con apoyabrazos
-      { d: "Estantería metálica 5 estantes 2.00 x 0.90", q: 6, pu: 800000 },     // -> Estante metálico 5 niveles 200x90
-    ],
-  },
-  {
-    file: "factura-multi-item-04-distribuidora-parcial",
-    provider: "distribuidora",
-    number: "001-002-0005033",
-    date: "12/09/2026",
-    oc: "OC-MULTI-001",
-    ocDesc: "Materiales de obra — varios ítems",
-    note: "Entrega PARCIAL: 60 de 100 bolsas de cemento y las 20 de arena. La varilla queda pendiente. Orden de Compra OC-MULTI-001.",
-    items: [
-      { d: "Cemento CP-40 x 50kg (bolsa)", q: 60, pu: 60000 },   // parcial: 60 de 100
-      { d: "Arena fina para revoque (m³)", q: 20, pu: 150000 },  // completo
-    ],
-  },
-  {
-    file: "factura-multi-item-05-techoffice-parcial",
-    provider: "techoffice",
-    number: "001-002-0005034",
-    date: "13/09/2026",
-    oc: "OC-MULTI-002",
-    ocDesc: "Equipamiento informático — varios ítems",
-    note: "Entrega PARCIAL: 2 de 5 notebooks y los 8 monitores. El kit de teclado/mouse queda pendiente. Orden de Compra OC-MULTI-002.",
-    items: [
-      { d: "Laptop Dell Latitude 5540 Core i5 16GB", q: 2, pu: 5000000 },  // parcial: 2 de 5
-      { d: "Pantalla 24\" 1920x1080 IPS", q: 8, pu: 1200000 },             // completo
+      { d: "Mesa de oficina en L 1.60 x 1.40 m", q: 4, pu: 2900000 },            // -> Escritorio ejecutivo en L 160x140 (4 de 4)
+      { d: "Sillón operativo respaldo mesh con brazos", q: 8, pu: 1500000 },     // -> Silla ergonómica malla con apoyabrazos (8 de 10 — faltan 2)
+      { d: "Estantería metálica 5 estantes 2.00 x 0.90", q: 6, pu: 800000 },     // -> Estante metálico 5 niveles 200x90 (6 de 6)
     ],
   },
 ];

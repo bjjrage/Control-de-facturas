@@ -50,14 +50,17 @@ Set de prueba para el **parseo automático** y el **matching por ítem** (worker
 ### Multi-ítem — varias líneas, nombres DISTINTOS a los de la OC
 Prueban el matching semántico: el proveedor factura "Cemento CP-40" y la OC dice
 "Cemento Portland tipo I". El worker (segundo llamado a GPT) tiene que emparejarlos.
+Cada OC-MULTI tiene un escenario coherente (no se sobre-factura):
 
 | Archivo | OC | Ítems | Total | Escenario |
 |---------|----|----|----|-----------|
-| `factura-multi-item-01-distribuidora.pdf` | OC-MULTI-001 | 3 | 13.200.000 | entrega completa |
-| `factura-multi-item-02-techoffice.pdf` | OC-MULTI-002 | 3 | 36.300.000 | entrega completa |
-| `factura-multi-item-03-muebles.pdf` | OC-MULTI-003 | 3 | 31.400.000 | entrega completa |
-| `factura-multi-item-04-distribuidora-parcial.pdf` | OC-MULTI-001 | 2 | 6.600.000 | parcial: 60/100 cemento + 20/20 arena, varilla pendiente |
-| `factura-multi-item-05-techoffice-parcial.pdf` | OC-MULTI-002 | 2 | 19.600.000 | parcial: 2/5 notebooks + 8/8 monitores, kit pendiente |
+| `factura-multi-item-01a-distribuidora-parcial.pdf` | OC-MULTI-001 | 2 | 6.600.000 | parcial 1/2: 60/100 cemento + 20/20 arena |
+| `factura-multi-item-01b-distribuidora-parcial.pdf` | OC-MULTI-001 | 2 | 6.600.000 | parcial 2/2: 40/100 cemento + 40/40 varilla → completa la OC |
+| `factura-multi-item-02-techoffice-completa.pdf` | OC-MULTI-002 | 3 | 36.300.000 | entrega completa de los 3 ítems |
+| `factura-multi-item-03-muebles-con-faltante.pdf` | OC-MULTI-003 | 3 | 28.400.000 | faltante: llegan 8 sillas de 10 (backorder), OC queda abierta con 2 pendientes |
+
+> **OC-MULTI-001** hay que subirla en dos pasos: primero la `01a`, después la
+> `01b`. Cada línea de cemento debe acumular (60 + 40 = 100) en `quantity_invoiced`.
 
 ### Equivalencias de nombres (OC ↔ factura)
 
