@@ -41,6 +41,7 @@ import { ProyectoRfqsTable } from "./proyecto-rfqs-table";
 import { RfqDialog } from "@/app/(internal)/rfqs/rfq-dialog";
 import { OrderDialog } from "@/app/(internal)/orders/order-dialog";
 import { AddProjectProviderDialog } from "./add-project-provider-dialog";
+import { ExecutionLinkDialog } from "./execution-link-dialog";
 import { ProyectoProveedoresTable } from "./proyecto-proveedores-table";
 
 type Props = {
@@ -246,7 +247,10 @@ export function ProjectTabsClient({
 
       {tab === "ejecucion" ? (
         <div className="space-y-3">
-          <AddExecutionEntryForm projectId={project.id} budgetItems={items} />
+          <div className="flex flex-wrap gap-2">
+            <AddExecutionEntryForm projectId={project.id} budgetItems={items} />
+            <ExecutionLinkDialog appUrl={appUrl} token={project.execution_token} />
+          </div>
           <EjecucionTable
             rows={entries.map((e) => {
               const item = items.find((i) => i.id === e.budget_item_id);
@@ -259,6 +263,7 @@ export function ProjectTabsClient({
                 quantityExecuted: e.quantity_executed,
                 notes: e.notes,
                 photoUrls,
+                fromPortal: e.submitted_by_portal,
               };
             })}
           />

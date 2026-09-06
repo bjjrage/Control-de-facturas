@@ -402,6 +402,7 @@ export interface Project {
   budget_total: number;
   created_by: string | null;
   created_at: string;
+  execution_token: string;
 }
 
 export interface BudgetItem {
@@ -431,6 +432,7 @@ export interface ExecutionEntry {
   photo_paths: string[];
   recorded_by: string | null;
   created_at: string;
+  submitted_by_portal: boolean;
 }
 
 // ============================================================================

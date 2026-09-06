@@ -14,6 +14,7 @@ type Row = {
   quantityExecuted: number;
   notes: string | null;
   photoUrls: string[];
+  fromPortal: boolean;
 };
 
 type Preset = "all" | "today" | "7d" | "30d";
@@ -145,7 +146,17 @@ export function EjecucionTable({ rows }: { rows: Row[] }) {
             ) : (
               filtered.map((r) => (
                 <tr key={r.id}>
-                  <td>{formatDate(r.date)}</td>
+                  <td>
+                    {formatDate(r.date)}
+                    {r.fromPortal ? (
+                      <span
+                        title="Cargado por el capataz desde el link, sin login"
+                        className="ml-1.5 text-[10px] text-[var(--muted)]"
+                      >
+                        📱
+                      </span>
+                    ) : null}
+                  </td>
                   <td>{r.itemLabel}</td>
                   <td className="num">{r.quantityExecuted} {r.unit}</td>
                   <td className="text-[var(--muted)]">{r.notes ?? "—"}</td>
