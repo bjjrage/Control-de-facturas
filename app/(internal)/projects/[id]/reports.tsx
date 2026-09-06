@@ -46,9 +46,16 @@ export function ProjectReports({
   const presupuestoTotal = Math.max(project.budget_total, itemsSubtotal);
   const comprasTotal = orders.filter((o) => o.currency === "PYG").reduce((s, o) => s + o.total_price, 0);
 
+  // Barras horizontales, una fila por métrica — con una sola categoría
+  // ("el proyecto") las barras verticales quedaban angostas y perdidas en
+  // el medio de la tarjeta, con espacio vacío a los costados. Así cada
+  // barra usa todo el ancho disponible, proporcional a su valor.
   const totalsBarData = useMemo(
-    () => [{ name: project.code, presupuesto: presupuestoTotal, compras: comprasTotal }],
-    [project.code, presupuestoTotal, comprasTotal]
+    () => [
+      { name: "Presupuesto", value: presupuestoTotal },
+      { name: "Compras", value: comprasTotal },
+    ],
+    [presupuestoTotal, comprasTotal]
   );
 
   // Curva S real: planificado (derivado de las fechas del Gantt, repartido
@@ -286,34 +293,35 @@ export function ProjectReports({
           renderChart={(height) => (
             <div style={{ filter: "drop-shadow(0 6px 10px rgba(0,0,0,.22))" }}>
               <ResponsiveContainer width="100%" height={height}>
-                <BarChart data={totalsBarData} barCategoryGap="15%" barGap={10}>
+                <BarChart data={totalsBarData} layout="vertical" barCategoryGap="30%">
                   <defs>
-                    <linearGradient id="gradPresupuesto" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="gradPresupuesto" x1="0" y1="0" x2="1" y2="0">
                       <stop offset="0%" stopColor="#3b82f6" />
                       <stop offset="100%" stopColor="#1d4ed8" />
                     </linearGradient>
-                    <linearGradient id="gradCompras" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="gradCompras" x1="0" y1="0" x2="1" y2="0">
                       <stop offset="0%" stopColor="#fb923c" />
                       <stop offset="100%" stopColor="#c2410c" />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="var(--muted)" />
-                  <YAxis
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                  <XAxis
+                    type="number"
                     tick={{ fontSize: 11 }}
                     stroke="var(--muted)"
-                    width={70}
                     tickFormatter={(v: number) => v.toLocaleString("es-PY")}
                   />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} stroke="var(--muted)" width={90} />
                   <Tooltip
                     cursor={{ fill: "var(--hover)" }}
                     isAnimationActive={false}
                     contentStyle={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
                     formatter={(v) => formatMoney(Number(v), "PYG")}
                   />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="presupuesto" name="Presupuesto" fill="url(#gradPresupuesto)" radius={[6, 6, 0, 0]} maxBarSize={140} isAnimationActive={false} />
-                  <Bar dataKey="compras" name="Compras" fill="url(#gradCompras)" radius={[6, 6, 0, 0]} maxBarSize={140} isAnimationActive={false} />
+                  <Bar dataKey="value" radius={[0, 6, 6, 0]} isAnimationActive={false} barSize={Math.round(height * 0.22)}>
+                    <Cell fill="url(#gradPresupuesto)" />
+                    <Cell fill="url(#gradCompras)" />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
