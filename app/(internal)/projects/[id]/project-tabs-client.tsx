@@ -256,7 +256,7 @@ export function ProjectTabsClient({
         <div className="space-y-3">
           <RfqDialog
             projectId={project.id}
-            trigger={<Button size="sm">+ Nueva cotización / OC</Button>}
+            trigger={<Button>+ Nueva cotización / OC</Button>}
           />
           <ProyectoComprasTable rows={ocs} />
         </div>
@@ -266,7 +266,7 @@ export function ProjectTabsClient({
         <div className="space-y-3">
           <RfqDialog
             projectId={project.id}
-            trigger={<Button size="sm">+ Nueva cotización</Button>}
+            trigger={<Button>+ Nueva cotización</Button>}
           />
           <ProyectoRfqsTable rows={projectRfqs} />
         </div>
