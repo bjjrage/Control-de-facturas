@@ -142,22 +142,26 @@ export function AppShellClient({ children }: { children: ReactNode }) {
       isOurNavRef.current = true;
       window.history.pushState({}, "", path);
 
-      if (sectionsRef.current.has(path)) {
-        setActivePath(path);
-        setMode("client");
-        return;
-      }
-      setMode("loading");
+      // Stale-while-revalidate: si ya tenemos la sección, se muestra al
+      // instante (sin skeleton) y igual se re-fetcha por detrás; cuando llega
+      // la data fresca se reemplaza el nodo. Así la navegación se siente
+      // inmediata sin quedar mostrando datos viejos — p. ej. una factura que
+      // se marcó apta para pago desde otra pantalla.
+      const cached = sectionsRef.current.has(path);
       setActivePath(path);
+      setMode(cached ? "client" : "loading");
       try {
         const node = await LOADERS[path]();
         sectionsRef.current.set(path, node);
         setSections(new Map(sectionsRef.current));
         setMode("client");
       } catch {
-        // On error fall back to letting Next.js re-render the page normally.
-        setMode("server");
-        window.location.href = path;
+        // Si ya había algo en pantalla lo dejamos; si no, que Next.js
+        // renderice la página normalmente.
+        if (!cached) {
+          setMode("server");
+          window.location.href = path;
+        }
       }
     };
     window.addEventListener("niupack:navigate", handler);
@@ -170,20 +174,17 @@ export function AppShellClient({ children }: { children: ReactNode }) {
       const path = window.location.pathname;
       isOurNavRef.current = true;
       if (isSectionPath(path)) {
-        if (sectionsRef.current.has(path)) {
-          setActivePath(path);
+        // Mismo stale-while-revalidate que en niupack:navigate.
+        const cached = sectionsRef.current.has(path);
+        setActivePath(path);
+        setMode(cached ? "client" : "loading");
+        try {
+          const node = await LOADERS[path]();
+          sectionsRef.current.set(path, node);
+          setSections(new Map(sectionsRef.current));
           setMode("client");
-        } else {
-          setMode("loading");
-          setActivePath(path);
-          try {
-            const node = await LOADERS[path]();
-            sectionsRef.current.set(path, node);
-            setSections(new Map(sectionsRef.current));
-            setMode("client");
-          } catch {
-            setMode("server");
-          }
+        } catch {
+          if (!cached) setMode("server");
         }
       } else {
         // Not a shell path — let Next.js handle it properly.
