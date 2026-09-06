@@ -82,6 +82,18 @@ export async function autoMatchInvoice(
     return null;
   }
 
+  // score=0: ninguna OC coincidió en producto/referencia → fallback por monto
+  // (igual que el caso sin campos contextuales, pero aplicado cuando los campos
+  // existen pero no matchearon nada útil).
+  if (best === 0) {
+    const bySaldo = orders.filter((o) => o.saldo === roundCents(total));
+    if (bySaldo.length === 1) return doMatch(supabase, invoiceId, bySaldo[0].id, empresaId);
+    const byTotal = orders.filter((o) => o.total === roundCents(total) && o.saldo === o.total);
+    if (byTotal.length === 1) return doMatch(supabase, invoiceId, byTotal[0].id, empresaId);
+    if (orders.length === 1) return doMatch(supabase, invoiceId, orders[0].id, empresaId);
+    return null;
+  }
+
   // 2 de 3 (score=2): match directo
   if (best >= 2) {
     const top = scored.filter((o) => o.score >= 2);
