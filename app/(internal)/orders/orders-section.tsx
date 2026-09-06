@@ -47,11 +47,10 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
   const [filterEstado, setFilterEstado] = useState(() => getParam("estado"));
   const [filterQ, setFilterQ] = useState(() => getParam("q"));
   const [filterFrom, setFilterFrom] = useState(() => getParam("from"));
-  const [filterTo, setFilterTo] = useState(() => getParam("to"));
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const filtersRef = useRef({ filterProduct, filterProvider, filterEtapa, filterEstado, filterQ, filterFrom, filterTo });
-  filtersRef.current = { filterProduct, filterProvider, filterEtapa, filterEstado, filterQ, filterFrom, filterTo };
+  const filtersRef = useRef({ filterProduct, filterProvider, filterEtapa, filterEstado, filterQ, filterFrom });
+  filtersRef.current = { filterProduct, filterProvider, filterEtapa, filterEstado, filterQ, filterFrom };
 
   function buildParams(f: typeof filtersRef.current) {
     const p = new URLSearchParams();
@@ -61,15 +60,14 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
     if (f.filterEstado) p.set("estado", f.filterEstado);
     if (f.filterQ) p.set("q", f.filterQ);
     if (f.filterFrom) p.set("from", f.filterFrom);
-    if (f.filterTo) p.set("to", f.filterTo);
     return p.toString();
   }
 
   useEffect(() => {
     if (window.location.pathname !== "/orders") return;
-    const qs = buildParams({ filterProduct, filterProvider, filterEtapa, filterEstado, filterQ, filterFrom, filterTo });
+    const qs = buildParams({ filterProduct, filterProvider, filterEtapa, filterEstado, filterQ, filterFrom });
     window.history.replaceState({}, "", qs ? `/orders?${qs}` : "/orders");
-  }, [filterProduct, filterProvider, filterEtapa, filterEstado, filterQ, filterFrom, filterTo]);
+  }, [filterProduct, filterProvider, filterEtapa, filterEstado, filterQ, filterFrom]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -82,7 +80,6 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
       setFilterEstado(p.get("estado") ?? "");
       setFilterQ(p.get("q") ?? "");
       setFilterFrom(p.get("from") ?? "");
-      setFilterTo(p.get("to") ?? "");
       setTimeout(() => {
         const qs = buildParams(filtersRef.current);
         window.history.replaceState({}, "", qs ? `/orders?${qs}` : "/orders");
@@ -122,7 +119,6 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
         if (filterEstado === "Cerrada" && abierta) return false;
       }
       if (filterFrom && o.authorized_at && o.authorized_at.slice(0, 10) < filterFrom) return false;
-      if (filterTo && o.authorized_at && o.authorized_at.slice(0, 10) > filterTo) return false;
       if (term) {
         return (
           o.code.toLowerCase().includes(term) ||
@@ -132,9 +128,9 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
       }
       return true;
     });
-  }, [orders, filterProduct, filterProvider, filterEtapa, filterEstado, filterQ, filterFrom, filterTo]);
+  }, [orders, filterProduct, filterProvider, filterEtapa, filterEstado, filterQ, filterFrom]);
 
-  const hasFilters = !!(filterProduct || filterProvider || filterEtapa || filterEstado || filterQ || filterFrom || filterTo);
+  const hasFilters = !!(filterProduct || filterProvider || filterEtapa || filterEstado || filterQ || filterFrom);
 
   return (
     <div className="max-w-5xl space-y-4">
@@ -159,7 +155,7 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
         key={dialogOpen ? "open" : "closed"}
       />
 
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+      <div className="space-y-3 rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
         <div>
           <Label htmlFor="ord-q">Buscar</Label>
           <Input
@@ -168,9 +164,11 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
             placeholder="Código, producto, proveedor…"
             value={filterQ}
             onChange={(e) => setFilterQ((e.target as HTMLInputElement).value)}
-            className="w-56"
+            className="w-full"
           />
         </div>
+
+        <div className="flex flex-wrap items-end gap-3">
         <div>
           <Label htmlFor="ord-product">Producto</Label>
           <Select
@@ -236,24 +234,15 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
             className="w-36"
           />
         </div>
-        <div>
-          <Label htmlFor="ord-to">Autorizada hasta</Label>
-          <Input
-            id="ord-to"
-            type="date"
-            value={filterTo}
-            onChange={(e) => setFilterTo((e.target as HTMLInputElement).value)}
-            className="w-36"
-          />
-        </div>
         {hasFilters ? (
           <button
-            onClick={() => { setFilterProduct(""); setFilterProvider(""); setFilterEtapa(""); setFilterEstado(""); setFilterQ(""); setFilterFrom(""); setFilterTo(""); }}
+            onClick={() => { setFilterProduct(""); setFilterProvider(""); setFilterEtapa(""); setFilterEstado(""); setFilterQ(""); setFilterFrom(""); }}
             className="text-[12px] text-[var(--muted)] pb-1.5 hover:text-[var(--foreground)]"
           >
             Limpiar filtros
           </button>
         ) : null}
+        </div>
       </div>
 
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">

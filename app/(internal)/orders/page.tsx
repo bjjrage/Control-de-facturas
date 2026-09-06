@@ -28,15 +28,7 @@ function ProgressBar({ facturado, total }: { facturado: number; total: number })
 export default async function OrdersPage({
   searchParams,
 }: {
-  searchParams?: Promise<{
-    q?: string;
-    product?: string;
-    provider?: string;
-    etapa?: string;
-    estado?: string;
-    desde?: string;
-    nueva?: string;
-  }>;
+  searchParams?: Promise<{ product?: string; provider?: string; etapa?: string; nueva?: string }>;
 }) {
   await requireProfile(["comercial", "administracion", "admin"]);
   const supabase = await createClient();
@@ -58,23 +50,12 @@ export default async function OrdersPage({
   const providerOptions = [...new Set(orders.map((o) => o.provider_name))].sort((a, b) => a.localeCompare(b, "es"));
 
   const filtered = orders.filter((o) => {
-    if (params.q) {
-      const q = params.q.toLowerCase();
-      const match =
-        o.code.toLowerCase().includes(q) ||
-        o.product.toLowerCase().includes(q) ||
-        o.provider_name.toLowerCase().includes(q);
-      if (!match) return false;
-    }
     if (params.product && o.product !== params.product) return false;
     if (params.provider && o.provider_name !== params.provider) return false;
     if (params.etapa) {
       const step = orderStep({ status: o.status, totalPrice: o.total_price, facturadoAmount: o.facturado_amount });
       if (ORDER_STEPS[step] !== params.etapa) return false;
     }
-    if (params.estado === "abierta" && orderRemaining(o.total_price, o.facturado_amount) <= 0) return false;
-    if (params.estado === "cerrada" && orderRemaining(o.total_price, o.facturado_amount) > 0) return false;
-    if (params.desde && o.authorized_at < params.desde) return false;
     return true;
   });
 
