@@ -251,7 +251,10 @@ export function AppShellClient({ children }: { children: ReactNode }) {
             // — un refresh directo se quedaba pegado en "server" para
             // siempre, porque nada más dispara la transición a "client")
             // por el componente vivo del shell.
-            if (path === currentPath) {
+            // Guard: solo activar si el usuario no navegó a otro path mientras
+            // warmAll corría en background (evita sobrescribir una navegación
+            // explícita a una ruta fuera del shell, como /invoices/revision).
+            if (path === currentPath && window.location.pathname === currentPath) {
               setActivePath(path);
               setMode("client");
             }
