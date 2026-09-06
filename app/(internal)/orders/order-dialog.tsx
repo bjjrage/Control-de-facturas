@@ -12,10 +12,12 @@ export function OrderDialog({
   providers,
   trigger,
   defaultOpen,
+  projectId,
 }: {
   providers: Provider[];
   trigger?: React.ReactNode;
   defaultOpen?: boolean;
+  projectId?: string;
 }) {
   const [open, setOpen] = useState(defaultOpen ?? false);
   const [error, setError] = useState<string | null>(null);
@@ -62,9 +64,14 @@ export function OrderDialog({
             }
             setError(null);
             setOpen(false);
+            if (projectId) {
+              router.refresh();
+              return;
+            }
             if (result.id) router.push(`/orders/${result.id}`);
           }}
         >
+          {projectId ? <input type="hidden" name="project_id" value={projectId} /> : null}
           {error ? (
             <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
               {error}

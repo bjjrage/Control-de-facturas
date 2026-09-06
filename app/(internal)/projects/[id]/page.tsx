@@ -55,7 +55,7 @@ export default async function ProjectDetailPage({
     .single<Project>();
   if (!project) notFound();
 
-  const [{ data: budgetItems }, { data: execEntries }, { data: orders }, { data: laborEntries }] =
+  const [{ data: budgetItems }, { data: execEntries }, { data: orders }, { data: laborEntries }, { data: allProvidersData }] =
     await Promise.all([
       supabase
         .from("budget_items")
@@ -83,7 +83,9 @@ export default async function ProjectDetailPage({
             .order("entry_date", { ascending: false })
             .returns<DailyLaborEntry[]>()
         : Promise.resolve({ data: [] as DailyLaborEntry[] }),
+      supabase.from("providers").select("*").eq("active", true).order("name").returns<Provider[]>(),
     ]);
+  const allProviders = allProvidersData ?? [];
 
   let subcontractorCatalog: Subcontractor[] = [];
   let contracts: SubcontractorContract[] = [];
@@ -249,6 +251,7 @@ export default async function ProjectDetailPage({
       entries={entries}
       photoUrlByPath={photoUrlByPath}
       ocs={ocs}
+      allProviders={allProviders}
       projectRfqs={projectRfqs}
       projectProviders={projectProviders}
       projectInvoices={projectInvoices}

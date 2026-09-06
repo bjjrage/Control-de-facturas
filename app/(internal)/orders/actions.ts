@@ -46,6 +46,8 @@ export async function createManualOrder(formData: FormData) {
     .maybeSingle();
   if (!provider) return { error: "Proveedor no encontrado." };
 
+  const projectId = str(formData, "project_id");
+
   const { data: order, error } = await supabase
     .from("authorized_orders")
     .insert({
@@ -61,6 +63,7 @@ export async function createManualOrder(formData: FormData) {
       authorized_by: profile.id,
       is_cheapest: false,
       created_from: "manual",
+      project_id: projectId || null,
     })
     .select("id")
     .single();
@@ -69,6 +72,7 @@ export async function createManualOrder(formData: FormData) {
 
   await logAudit(supabase, { action: "order.created_manual", authorizedOrderId: order.id });
   revalidatePath("/orders");
+  if (projectId) revalidatePath(`/projects/${projectId}`);
   return { error: null, id: order.id as string };
 }
 

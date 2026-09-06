@@ -39,6 +39,7 @@ import { ProyectoFacturasTable } from "./proyecto-facturas-table";
 import { ProyectoPagosTable } from "./proyecto-pagos-table";
 import { ProyectoRfqsTable } from "./proyecto-rfqs-table";
 import { RfqDialog } from "@/app/(internal)/rfqs/rfq-dialog";
+import { OrderDialog } from "@/app/(internal)/orders/order-dialog";
 import { ProyectoProveedoresTable } from "./proyecto-proveedores-table";
 
 type Props = {
@@ -50,6 +51,7 @@ type Props = {
   entries: ExecutionEntry[];
   photoUrlByPath: Record<string, string>;
   ocs: AuthorizedOrder[];
+  allProviders: Provider[];
   projectRfqs: Rfq[];
   projectProviders: Provider[];
   projectInvoices: Invoice[];
@@ -77,6 +79,7 @@ export function ProjectTabsClient({
   entries,
   photoUrlByPath,
   ocs,
+  allProviders,
   projectRfqs,
   projectProviders,
   projectInvoices,
@@ -254,9 +257,10 @@ export function ProjectTabsClient({
 
       {tab === "compras" ? (
         <div className="space-y-3">
-          <RfqDialog
+          <OrderDialog
+            providers={allProviders}
             projectId={project.id}
-            trigger={<Button>+ Nueva cotización / OC</Button>}
+            trigger={<Button>+ Nueva orden de compra</Button>}
           />
           <ProyectoComprasTable rows={ocs} />
         </div>
