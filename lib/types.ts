@@ -193,6 +193,28 @@ export interface AuthorizedOrderItem {
   created_at: string;
 }
 
+export interface OcRecepcionItem {
+  id: string;
+  recepcion_id: string;
+  empresa_id: string;
+  order_item_id: string;
+  cantidad_recibida: number;
+  notas: string | null;
+  created_at: string;
+}
+
+export interface OcRecepcion {
+  id: string;
+  empresa_id: string;
+  order_id: string;
+  fecha: string;
+  recibido_por: string;
+  notas: string | null;
+  created_by: string | null;
+  created_at: string;
+  oc_recepcion_items?: OcRecepcionItem[];
+}
+
 export interface InvoiceItem {
   id: string;
   invoice_id: string;

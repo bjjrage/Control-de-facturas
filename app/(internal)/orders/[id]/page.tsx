@@ -12,6 +12,8 @@ import { InvoiceDialog } from "@/app/(internal)/invoices/invoice-dialog";
 import { LinkInvoiceDialog } from "./link-invoice-dialog";
 import { OrderPipeline } from "../order-pipeline";
 import { DeleteOrderButton } from "../delete-order-button";
+import { RecepcionSection } from "./recepcion-section";
+import type { OcRecepcion } from "@/lib/types";
 
 const ORIGIN_LABEL = { rfq: "Desde solicitud", manual: "Carga manual", invoice: "Desde factura" } as const;
 
@@ -27,7 +29,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     .single<AuthorizedOrder>();
   if (!order) notFound();
 
-  const [{ data: provider }, { data: matches }, { data: candidateInvoices }, { data: orderItems }] =
+  const [{ data: provider }, { data: matches }, { data: candidateInvoices }, { data: orderItems }, { data: recepciones }] =
     await Promise.all([
       supabase.from("providers").select("*").eq("id", order.provider_id).single<Provider>(),
       supabase
@@ -47,6 +49,12 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         .eq("order_id", id)
         .order("sort_order")
         .returns<AuthorizedOrderItem[]>(),
+      supabase
+        .from("oc_recepciones")
+        .select("*, oc_recepcion_items(*)")
+        .eq("order_id", id)
+        .order("created_at", { ascending: false })
+        .returns<OcRecepcion[]>(),
     ]);
 
   const saldo = orderRemaining(order.total_price, order.facturado_amount);
@@ -282,6 +290,12 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           </table>
         </div>
       </div>
+
+      <RecepcionSection
+        orderId={order.id}
+        orderItems={orderItems ?? []}
+        recepciones={recepciones ?? []}
+      />
     </div>
   );
 }
