@@ -193,6 +193,37 @@ export interface AuthorizedOrderItem {
   created_at: string;
 }
 
+export type StockMovimientoTipo = "ENTRADA" | "SALIDA" | "AJUSTE";
+
+export interface Producto {
+  id: string;
+  empresa_id: string;
+  nombre: string;
+  descripcion: string | null;
+  unidad: string;
+  sku: string | null;
+  stock_actual: number;
+  stock_minimo: number;
+  activo: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StockMovimiento {
+  id: string;
+  empresa_id: string;
+  producto_id: string;
+  tipo: StockMovimientoTipo;
+  cantidad: number;
+  stock_resultante: number;
+  referencia_tipo: string | null;
+  referencia_id: string | null;
+  notas: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
 export interface OcRecepcionItem {
   id: string;
   recepcion_id: string;

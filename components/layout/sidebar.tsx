@@ -8,6 +8,7 @@ import {
   FileText,
   Receipt,
   Package,
+  Boxes,
   Truck,
   ChevronsLeft,
   ChevronsRight,
@@ -73,6 +74,7 @@ type NavItem = {
   icon: typeof LayoutDashboard;
   superAdmin?: boolean;
   module?: Module;
+  minPlan?: EmpresaPlan;
 };
 
 const GLOBAL_ITEMS: NavItem[] = [
@@ -95,6 +97,7 @@ const COMPRAS_ITEMS: NavItem[] = [
   { href: "/orders", label: "Órdenes de compra", roles: ["comercial", "administracion", "admin"], icon: Package, module: "compras" },
   { href: "/invoices", label: "Facturas", roles: ["administracion", "admin"], icon: Receipt, module: "compras" },
   { href: "/pagos", label: "Pagos", roles: ["administracion", "admin"], icon: Wallet, module: "compras" },
+  { href: "/stock", label: "Stock", roles: ["administracion", "admin"], icon: Boxes, module: "compras", minPlan: "pro" },
 ];
 
 const VENTAS_ITEMS: NavItem[] = [
@@ -213,6 +216,7 @@ export function Sidebar({
       if (item.superAdmin) return isSuperAdmin;
       if (!item.roles.includes(role)) return false;
       if (item.module && !modules[item.module] && !isSuperAdmin) return false;
+      if (item.minPlan && PLAN_RANK[plan] < PLAN_RANK[item.minPlan] && !isSuperAdmin) return false;
       return true;
     });
   }
