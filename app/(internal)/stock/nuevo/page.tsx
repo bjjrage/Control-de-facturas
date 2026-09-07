@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { crearProducto } from "../stock-actions";
+import { UNIDADES_COMPRA, UNIDADES_BASE } from "@/lib/stock-units";
 
 export default function NuevoProductoPage() {
   const [nombre, setNombre] = useState("");
@@ -68,14 +69,17 @@ export default function NuevoProductoPage() {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-[12px] text-[var(--muted)] mb-1">Unidad de compra *</label>
-            <input
-              type="text"
+            <select
               value={unidad}
               onChange={(e) => setUnidad(e.target.value)}
               required
-              placeholder="bolsa, caja, rollo, kg…"
               className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
-            />
+            >
+              <option value="">— seleccioná —</option>
+              {UNIDADES_COMPRA.map((u) => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-[12px] text-[var(--muted)] mb-1">SKU / Código</label>
@@ -97,20 +101,24 @@ export default function NuevoProductoPage() {
               min="0"
               step="any"
               value={contenido}
-              onChange={(e) => setContenido(e.target.value)}
+              onChange={(e) => { setContenido(e.target.value); if (!e.target.value) setUnidadBase(""); }}
               placeholder="Ej: 25"
               className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
             />
           </div>
           <div>
             <label className="block text-[12px] text-[var(--muted)] mb-1">Unidad base</label>
-            <input
-              type="text"
+            <select
               value={unidadBase}
               onChange={(e) => setUnidadBase(e.target.value)}
-              placeholder="kg, lt, m², unidad…"
-              className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
-            />
+              disabled={!contenido}
+              className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px] disabled:opacity-40"
+            >
+              <option value="">— seleccioná —</option>
+              {UNIDADES_BASE.map((u) => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
           </div>
         </div>
         {contenido && unidadBase ? (
@@ -119,7 +127,7 @@ export default function NuevoProductoPage() {
           </p>
         ) : (
           <p className="text-[11px] text-[var(--muted)] -mt-2">
-            Opcional. Permite calcular totales en unidad base (ej: bolsa × 25 kg = kg totales).
+            Opcional. Si cada unidad de compra tiene un peso/volumen fijo, el sistema calcula el total en unidad base.
           </p>
         )}
 

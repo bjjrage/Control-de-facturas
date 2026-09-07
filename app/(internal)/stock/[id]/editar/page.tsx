@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { actualizarProducto } from "../../stock-actions";
 import { createClient } from "@/lib/supabase/browser";
 import type { Producto } from "@/lib/types";
+import { UNIDADES_COMPRA, UNIDADES_BASE } from "@/lib/stock-units";
 
 export default function EditarProductoPage({ params }: { params: Promise<{ id: string }> }) {
   const [id, setId] = useState<string | null>(null);
@@ -99,14 +100,17 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-[12px] text-[var(--muted)] mb-1">Unidad de compra *</label>
-            <input
-              type="text"
+            <select
               value={unidad}
               onChange={(e) => setUnidad(e.target.value)}
               required
-              placeholder="bolsa, caja, rollo, kg…"
               className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
-            />
+            >
+              <option value="">— seleccioná —</option>
+              {UNIDADES_COMPRA.map((u) => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-[12px] text-[var(--muted)] mb-1">SKU / Código</label>
@@ -128,20 +132,24 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
               min="0"
               step="any"
               value={contenido}
-              onChange={(e) => setContenido(e.target.value)}
+              onChange={(e) => { setContenido(e.target.value); if (!e.target.value) setUnidadBase(""); }}
               placeholder="Ej: 25"
               className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
             />
           </div>
           <div>
             <label className="block text-[12px] text-[var(--muted)] mb-1">Unidad base</label>
-            <input
-              type="text"
+            <select
               value={unidadBase}
               onChange={(e) => setUnidadBase(e.target.value)}
-              placeholder="kg, lt, m², unidad…"
-              className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
-            />
+              disabled={!contenido}
+              className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px] disabled:opacity-40"
+            >
+              <option value="">— seleccioná —</option>
+              {UNIDADES_BASE.map((u) => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
           </div>
         </div>
         {contenido && unidadBase ? (
