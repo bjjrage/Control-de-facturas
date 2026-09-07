@@ -13,6 +13,8 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
   const [producto, setProducto] = useState<Producto | null>(null);
   const [nombre, setNombre] = useState("");
   const [unidad, setUnidad] = useState("");
+  const [contenido, setContenido] = useState("");
+  const [unidadBase, setUnidadBase] = useState("");
   const [sku, setSku] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [stockMinimo, setStockMinimo] = useState("");
@@ -34,6 +36,8 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
           setProducto(data);
           setNombre(data.nombre);
           setUnidad(data.unidad);
+          setContenido(data.contenido_por_unidad ? String(data.contenido_por_unidad) : "");
+          setUnidadBase(data.unidad_base ?? "");
           setSku(data.sku ?? "");
           setDescripcion(data.descripcion ?? "");
           setStockMinimo(data.stock_minimo > 0 ? String(data.stock_minimo) : "");
@@ -53,6 +57,8 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
       sku: sku || undefined,
       descripcion: descripcion || undefined,
       stock_minimo: stockMinimo ? parseFloat(stockMinimo) : 0,
+      contenido_por_unidad: contenido ? parseFloat(contenido) : null,
+      unidad_base: unidadBase || null,
     });
 
     setPending(false);
@@ -92,13 +98,13 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-[12px] text-[var(--muted)] mb-1">Unidad *</label>
+            <label className="block text-[12px] text-[var(--muted)] mb-1">Unidad de compra *</label>
             <input
               type="text"
               value={unidad}
               onChange={(e) => setUnidad(e.target.value)}
               required
-              placeholder="bolsa, kg, m², unidad…"
+              placeholder="bolsa, caja, rollo, kg…"
               className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
             />
           </div>
@@ -113,6 +119,36 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
             />
           </div>
         </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[12px] text-[var(--muted)] mb-1">Contenido por unidad</label>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value={contenido}
+              onChange={(e) => setContenido(e.target.value)}
+              placeholder="Ej: 25"
+              className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
+            />
+          </div>
+          <div>
+            <label className="block text-[12px] text-[var(--muted)] mb-1">Unidad base</label>
+            <input
+              type="text"
+              value={unidadBase}
+              onChange={(e) => setUnidadBase(e.target.value)}
+              placeholder="kg, lt, m², unidad…"
+              className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
+            />
+          </div>
+        </div>
+        {contenido && unidadBase ? (
+          <p className="text-[11px] text-[var(--muted)] -mt-2">
+            Cada {unidad || "unidad"} contiene {contenido} {unidadBase}.
+          </p>
+        ) : null}
 
         <div>
           <label className="block text-[12px] text-[var(--muted)] mb-1">Descripción</label>

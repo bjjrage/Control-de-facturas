@@ -38,6 +38,9 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
   const mov = movimientos ?? [];
   const bajo = producto.stock_minimo > 0 && producto.stock_actual <= producto.stock_minimo;
   const isAdmin = profile.role === "admin";
+  const totalBase = producto.contenido_por_unidad
+    ? producto.stock_actual * producto.contenido_por_unidad
+    : null;
 
   return (
     <div className="max-w-3xl space-y-5">
@@ -72,7 +75,7 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className={`grid gap-3 ${totalBase !== null ? "grid-cols-4" : "grid-cols-3"}`}>
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
           <div className="text-[11px] text-[var(--muted)] mb-1">Stock actual</div>
           <div className={`text-[22px] font-semibold tabular-nums ${bajo ? "text-[var(--warn)]" : ""}`}>
@@ -80,6 +83,15 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
           </div>
           <div className="text-[11px] text-[var(--muted)]">{producto.unidad}</div>
         </div>
+        {totalBase !== null ? (
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+            <div className="text-[11px] text-[var(--muted)] mb-1">Total en {producto.unidad_base}</div>
+            <div className={`text-[22px] font-semibold tabular-nums ${bajo ? "text-[var(--warn)]" : ""}`}>
+              {formatNumber(totalBase, 2)}
+            </div>
+            <div className="text-[11px] text-[var(--muted)]">{producto.unidad_base}</div>
+          </div>
+        ) : null}
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
           <div className="text-[11px] text-[var(--muted)] mb-1">Stock mínimo</div>
           <div className="text-[22px] font-semibold tabular-nums">

@@ -22,6 +22,8 @@ export async function crearProducto(data: {
   descripcion?: string;
   stock_minimo?: number;
   stock_inicial?: number;
+  contenido_por_unidad?: number;
+  unidad_base?: string;
 }): Promise<{ id?: string; error?: string }> {
   const { supabase, profile } = await getClient();
 
@@ -35,6 +37,8 @@ export async function crearProducto(data: {
       descripcion: data.descripcion?.trim() || null,
       stock_minimo: data.stock_minimo ?? 0,
       stock_actual: 0,
+      contenido_por_unidad: data.contenido_por_unidad ?? null,
+      unidad_base: data.unidad_base?.trim() || null,
       created_by: profile.id,
     })
     .select("id")
@@ -62,7 +66,7 @@ export async function crearProducto(data: {
 
 export async function actualizarProducto(
   id: string,
-  data: { nombre?: string; unidad?: string; sku?: string; descripcion?: string; stock_minimo?: number }
+  data: { nombre?: string; unidad?: string; sku?: string; descripcion?: string; stock_minimo?: number; contenido_por_unidad?: number | null; unidad_base?: string | null }
 ): Promise<{ error?: string }> {
   const { supabase } = await getClient();
 
@@ -72,6 +76,8 @@ export async function actualizarProducto(
   if (data.sku !== undefined) patch.sku = data.sku?.trim() || null;
   if (data.descripcion !== undefined) patch.descripcion = data.descripcion?.trim() || null;
   if (data.stock_minimo !== undefined) patch.stock_minimo = data.stock_minimo;
+  if (data.contenido_por_unidad !== undefined) patch.contenido_por_unidad = data.contenido_por_unidad ?? null;
+  if (data.unidad_base !== undefined) patch.unidad_base = data.unidad_base?.trim() || null;
 
   const { error } = await supabase.from("productos").update(patch).eq("id", id);
   if (error) return { error: error.message };

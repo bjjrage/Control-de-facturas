@@ -8,7 +8,9 @@ import { crearProducto } from "../stock-actions";
 
 export default function NuevoProductoPage() {
   const [nombre, setNombre] = useState("");
-  const [unidad, setUnidad] = useState("unidad");
+  const [unidad, setUnidad] = useState("");
+  const [contenido, setContenido] = useState("");
+  const [unidadBase, setUnidadBase] = useState("");
   const [sku, setSku] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [stockMinimo, setStockMinimo] = useState("");
@@ -29,6 +31,8 @@ export default function NuevoProductoPage() {
       descripcion: descripcion || undefined,
       stock_minimo: stockMinimo ? parseFloat(stockMinimo) : 0,
       stock_inicial: stockInicial ? parseFloat(stockInicial) : 0,
+      contenido_por_unidad: contenido ? parseFloat(contenido) : undefined,
+      unidad_base: unidadBase || undefined,
     });
 
     setPending(false);
@@ -63,13 +67,13 @@ export default function NuevoProductoPage() {
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-[12px] text-[var(--muted)] mb-1">Unidad *</label>
+            <label className="block text-[12px] text-[var(--muted)] mb-1">Unidad de compra *</label>
             <input
               type="text"
               value={unidad}
               onChange={(e) => setUnidad(e.target.value)}
               required
-              placeholder="bolsa, kg, m², unidad…"
+              placeholder="bolsa, caja, rollo, kg…"
               className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
             />
           </div>
@@ -84,6 +88,40 @@ export default function NuevoProductoPage() {
             />
           </div>
         </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[12px] text-[var(--muted)] mb-1">Contenido por unidad</label>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value={contenido}
+              onChange={(e) => setContenido(e.target.value)}
+              placeholder="Ej: 25"
+              className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
+            />
+          </div>
+          <div>
+            <label className="block text-[12px] text-[var(--muted)] mb-1">Unidad base</label>
+            <input
+              type="text"
+              value={unidadBase}
+              onChange={(e) => setUnidadBase(e.target.value)}
+              placeholder="kg, lt, m², unidad…"
+              className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
+            />
+          </div>
+        </div>
+        {contenido && unidadBase ? (
+          <p className="text-[11px] text-[var(--muted)] -mt-2">
+            Cada {unidad || "unidad"} contiene {contenido} {unidadBase} — el sistema calculará el total automáticamente.
+          </p>
+        ) : (
+          <p className="text-[11px] text-[var(--muted)] -mt-2">
+            Opcional. Permite calcular totales en unidad base (ej: bolsa × 25 kg = kg totales).
+          </p>
+        )}
 
         <div>
           <label className="block text-[12px] text-[var(--muted)] mb-1">Descripción</label>
@@ -135,7 +173,7 @@ export default function NuevoProductoPage() {
           <Link href="/stock">
             <Button type="button" variant="secondary">Cancelar</Button>
           </Link>
-          <Button type="submit" disabled={pending || !nombre.trim() || !unidad.trim()}>
+          <Button type="submit" disabled={pending || !nombre.trim() || !unidad.trim() || (!!contenido && !unidadBase) || (!contenido && !!unidadBase)}>
             {pending ? "Guardando…" : "Crear producto"}
           </Button>
         </div>

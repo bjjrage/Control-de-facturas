@@ -44,6 +44,7 @@ export default async function StockPage() {
               <th>SKU</th>
               <th>Unidad</th>
               <th className="num">Stock actual</th>
+              <th className="num">Total base</th>
               <th className="num">Mínimo</th>
               <th>Estado</th>
             </tr>
@@ -64,7 +65,12 @@ export default async function StockPage() {
                   <td className="text-[var(--muted)] font-mono text-[12px]">{p.sku ?? "—"}</td>
                   <td className="text-[var(--muted)]">{p.unidad}</td>
                   <td className={`num font-semibold ${bajo ? "text-[var(--warn)]" : ""}`}>
-                    {formatNumber(p.stock_actual, 2)}
+                    {formatNumber(p.stock_actual, 2)} {p.unidad}
+                  </td>
+                  <td className="num text-[var(--muted)]">
+                    {p.contenido_por_unidad && p.unidad_base
+                      ? `${formatNumber(p.stock_actual * p.contenido_por_unidad, 2)} ${p.unidad_base}`
+                      : "—"}
                   </td>
                   <td className="num text-[var(--muted)]">
                     {p.stock_minimo > 0 ? formatNumber(p.stock_minimo, 2) : "—"}

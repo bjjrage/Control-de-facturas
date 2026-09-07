@@ -201,6 +201,8 @@ export interface Producto {
   nombre: string;
   descripcion: string | null;
   unidad: string;
+  contenido_por_unidad: number | null;
+  unidad_base: string | null;
   sku: string | null;
   stock_actual: number;
   stock_minimo: number;
