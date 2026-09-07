@@ -295,6 +295,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         orderId={order.id}
         orderItems={orderItems ?? []}
         recepciones={recepciones ?? []}
+        canDelete={profile.role === "administracion" || profile.role === "admin"}
       />
     </div>
   );

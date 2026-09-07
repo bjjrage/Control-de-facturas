@@ -2,31 +2,25 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { formatDate, formatNumber } from "@/lib/format";
 import type { AuthorizedOrderItem, OcRecepcion } from "@/lib/types";
 import { registrarRecepcion, eliminarRecepcion } from "../oc-recepcion-actions";
 
-interface Props {
-  orderId: string;
-  orderItems: AuthorizedOrderItem[];
-  recepciones: OcRecepcion[];
-}
-
-function today() {
-  return new Date().toISOString().slice(0, 10);
-}
+// ─── RegistrarDialog ────────────────────────────────────────────────────────
 
 function RegistrarDialog({
   orderId,
   orderItems,
+  onDone,
 }: {
   orderId: string;
   orderItems: AuthorizedOrderItem[];
+  onDone: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [fecha, setFecha] = useState(today());
+  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [recibidoPor, setRecibidoPor] = useState("");
   const [notas, setNotas] = useState("");
   const [cantidades, setCantidades] = useState<Record<string, string>>({});
@@ -35,7 +29,7 @@ function RegistrarDialog({
   const router = useRouter();
 
   function reset() {
-    setFecha(today());
+    setFecha(new Date().toISOString().slice(0, 10));
     setRecibidoPor("");
     setNotas("");
     setCantidades({});
@@ -44,16 +38,21 @@ function RegistrarDialog({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setPending(true);
     setError(null);
 
     const items = orderItems
       .map((it) => ({
         order_item_id: it.id,
-        cantidad_recibida: parseFloat(cantidades[it.id] || "0"),
+        cantidad_recibida: parseFloat(cantidades[it.id] || "0") || 0,
       }))
       .filter((i) => i.cantidad_recibida > 0);
 
+    if (items.length === 0) {
+      setError("Ingresá al menos una cantidad recibida");
+      return;
+    }
+
+    setPending(true);
     const res = await registrarRecepcion(orderId, fecha, recibidoPor, items, notas || undefined);
     setPending(false);
 
@@ -64,61 +63,61 @@ function RegistrarDialog({
 
     setOpen(false);
     reset();
+    onDone();
     router.refresh();
   }
 
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
       <DialogTrigger asChild>
-        <Button className="h-7 px-2.5 text-[12px]">Registrar recepción</Button>
+        <Button className="h-8 px-3 text-[12px]">Registrar recepción</Button>
       </DialogTrigger>
-      <DialogContent title="Registrar recepción de mercadería" className="max-w-2xl">
+      <DialogContent title="Registrar recepción de mercadería" className="max-w-lg">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[12px] text-[var(--muted)] mb-1">Fecha de recepción</label>
+              <label className="block text-[12px] text-[var(--muted)] mb-1">Fecha *</label>
               <input
                 type="date"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
                 required
-                className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 text-[13px]"
+                className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
               />
             </div>
             <div>
-              <label className="block text-[12px] text-[var(--muted)] mb-1">Recibido por</label>
+              <label className="block text-[12px] text-[var(--muted)] mb-1">Recibido por *</label>
               <input
                 type="text"
                 value={recibidoPor}
                 onChange={(e) => setRecibidoPor(e.target.value)}
                 required
-                placeholder="Nombre y cargo"
-                className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 text-[13px]"
+                placeholder="Nombre del receptor"
+                className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
               />
             </div>
           </div>
 
           <div>
-            <p className="text-[12px] text-[var(--muted)] mb-1.5">
-              Ingresá la cantidad que llegó de cada ítem (dejá en 0 lo que no llegó).
-            </p>
-            <div className="rounded border border-[var(--border)] overflow-hidden">
-              <table className="text-[12px]">
+            <label className="block text-[12px] text-[var(--muted)] mb-1.5">
+              Cantidades recibidas
+            </label>
+            <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] overflow-hidden">
+              <table>
                 <thead>
                   <tr>
-                    <th>Producto</th>
-                    <th className="num">Cant. OC</th>
+                    <th>Ítem</th>
+                    <th className="num">Ordenado</th>
                     <th className="num w-28">Cant. recibida</th>
                   </tr>
                 </thead>
                 <tbody>
                   {orderItems.map((it) => (
                     <tr key={it.id}>
-                      <td>
-                        <span className="font-medium">{it.product}</span>
-                        {it.unit ? <span className="text-[var(--muted)] ml-1">({it.unit})</span> : null}
+                      <td className="text-[13px]">{it.product}</td>
+                      <td className="num text-[var(--muted)]">
+                        {formatNumber(it.quantity, 2)} {it.unit}
                       </td>
-                      <td className="num text-[var(--muted)]">{formatNumber(it.quantity, 2)}</td>
                       <td className="num">
                         <input
                           type="number"
@@ -128,8 +127,8 @@ function RegistrarDialog({
                           onChange={(e) =>
                             setCantidades((prev) => ({ ...prev, [it.id]: e.target.value }))
                           }
-                          className="w-24 h-7 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 text-right text-[12px]"
                           placeholder="0"
+                          className="w-full h-7 rounded border border-[var(--border)] bg-[var(--panel)] px-2 text-[13px] text-right"
                         />
                       </td>
                     </tr>
@@ -140,18 +139,18 @@ function RegistrarDialog({
           </div>
 
           <div>
-            <label className="block text-[12px] text-[var(--muted)] mb-1">Notas (opcional)</label>
-            <textarea
+            <label className="block text-[12px] text-[var(--muted)] mb-1">Notas</label>
+            <input
+              type="text"
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
-              rows={2}
-              placeholder="Observaciones sobre la entrega…"
-              className="w-full rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1.5 text-[12px]"
+              placeholder="Opcional — estado de la mercadería, remito, etc."
+              className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
             />
           </div>
 
           {error ? (
-            <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
+            <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2 text-[12px] text-[var(--error)]">
               {error}
             </div>
           ) : null}
@@ -161,7 +160,7 @@ function RegistrarDialog({
               Cancelar
             </Button>
             <Button type="submit" disabled={pending || !recibidoPor.trim()}>
-              {pending ? "Guardando…" : "Guardar recepción"}
+              {pending ? "Guardando…" : "Confirmar recepción"}
             </Button>
           </div>
         </form>
@@ -170,137 +169,70 @@ function RegistrarDialog({
   );
 }
 
+// ─── RecepcionCard ───────────────────────────────────────────────────────────
+
 function RecepcionCard({
   recepcion,
   orderItems,
+  canDelete,
   orderId,
 }: {
   recepcion: OcRecepcion;
   orderItems: AuthorizedOrderItem[];
+  canDelete: boolean;
   orderId: string;
 }) {
-  const [pending, setPending] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const router = useRouter();
-  const byItemId = new Map(
-    (recepcion.oc_recepcion_items ?? []).map((i) => [i.order_item_id, i.cantidad_recibida])
-  );
+  const items = recepcion.oc_recepcion_items ?? [];
 
   async function handleDelete() {
-    if (!confirm("¿Eliminar esta recepción?")) return;
-    setPending(true);
-    const res = await eliminarRecepcion(recepcion.id, orderId);
-    setPending(false);
-    if (res.error) alert(res.error);
-    else router.refresh();
+    if (!confirm("¿Eliminar esta recepción? La acción no se puede deshacer.")) return;
+    setDeleting(true);
+    await eliminarRecepcion(recepcion.id, orderId);
+    router.refresh();
   }
 
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3 space-y-2">
-      <div className="flex items-center justify-between">
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <span className="text-[13px] font-medium">{formatDate(recepcion.fecha)}</span>
-          <span className="text-[12px] text-[var(--muted)] ml-2">· Recibido por: {recepcion.recibido_por}</span>
-        </div>
-        <Button
-          variant="ghost"
-          className="h-6 px-2 text-[12px] text-[var(--error)]"
-          onClick={handleDelete}
-          disabled={pending}
-        >
-          Eliminar
-        </Button>
-      </div>
-
-      {recepcion.notas ? (
-        <p className="text-[12px] text-[var(--muted)]">{recepcion.notas}</p>
-      ) : null}
-
-      <table className="text-[12px]">
-        <thead>
-          <tr>
-            <th>Producto</th>
-            <th className="num">Recibido</th>
-          </tr>
-        </thead>
-        <tbody>
-          {orderItems
-            .filter((it) => byItemId.has(it.id))
-            .map((it) => (
-              <tr key={it.id}>
-                <td>{it.product}</td>
-                <td className="num font-medium">
-                  {formatNumber(byItemId.get(it.id) ?? 0, 2)} {it.unit}
-                </td>
-              </tr>
-            ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-export function RecepcionSection({ orderId, orderItems, recepciones }: Props) {
-  // Solo mostrar si la OC tiene ítems detallados
-  if (orderItems.length === 0) return null;
-
-  // Calcular totales recibidos por ítem
-  const totalesRecibidos = new Map<string, number>();
-  for (const rec of recepciones) {
-    for (const ri of rec.oc_recepcion_items ?? []) {
-      totalesRecibidos.set(ri.order_item_id, (totalesRecibidos.get(ri.order_item_id) ?? 0) + ri.cantidad_recibida);
-    }
-  }
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <h2 className="text-[14px] font-semibold">Recepciones de mercadería</h2>
-          {recepciones.length > 0 ? (
-            <p className="text-[11px] text-[var(--muted)] mt-0.5">
-              {recepciones.length} {recepciones.length === 1 ? "recepción registrada" : "recepciones registradas"}
-            </p>
+          <div className="text-[13px] font-medium">{formatDate(recepcion.fecha)}</div>
+          <div className="text-[12px] text-[var(--muted)] mt-0.5">
+            Recibido por: <span className="text-[var(--foreground)]">{recepcion.recibido_por}</span>
+          </div>
+          {recepcion.notas ? (
+            <div className="text-[12px] text-[var(--muted)] mt-0.5">{recepcion.notas}</div>
           ) : null}
         </div>
-        <RegistrarDialog orderId={orderId} orderItems={orderItems} />
+        {canDelete ? (
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="text-[11px] text-[var(--muted)] hover:text-[var(--error)] transition-colors shrink-0 disabled:opacity-50"
+          >
+            {deleting ? "Eliminando…" : "Eliminar"}
+          </button>
+        ) : null}
       </div>
 
-      {recepciones.length === 0 ? (
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-center text-[13px] text-[var(--muted)]">
-          No hay recepciones registradas. Registrá una cuando llegue la mercadería.
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {recepciones.map((r) => (
-            <RecepcionCard key={r.id} recepcion={r} orderItems={orderItems} orderId={orderId} />
-          ))}
-        </div>
-      )}
-
-      {/* Resumen de cantidades recibidas vs OC */}
-      {recepciones.length > 0 ? (
-        <div className="mt-3 rounded border border-[var(--border)] bg-[var(--panel-2)] overflow-hidden">
-          <table className="text-[12px]">
+      {items.length > 0 ? (
+        <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] overflow-hidden">
+          <table>
             <thead>
               <tr>
-                <th>Producto</th>
-                <th className="num">Cant. OC</th>
-                <th className="num">Total recibido</th>
-                <th className="num">Pendiente</th>
+                <th>Ítem</th>
+                <th className="num">Recibido</th>
               </tr>
             </thead>
             <tbody>
-              {orderItems.map((it) => {
-                const recibido = totalesRecibidos.get(it.id) ?? 0;
-                const pendiente = Math.max(0, it.quantity - recibido);
-                const completo = recibido >= it.quantity;
+              {items.map((ri) => {
+                const oi = orderItems.find((o) => o.id === ri.order_item_id);
                 return (
-                  <tr key={it.id}>
-                    <td>{it.product}</td>
-                    <td className="num text-[var(--muted)]">{formatNumber(it.quantity, 2)}</td>
-                    <td className="num font-medium">{formatNumber(recibido, 2)}</td>
-                    <td className={`num ${completo ? "text-[var(--muted)]" : "text-[var(--warn)]"}`}>
-                      {completo ? "Completo" : formatNumber(pendiente, 2)}
+                  <tr key={ri.id}>
+                    <td className="text-[13px]">{oi?.product ?? ri.order_item_id}</td>
+                    <td className="num">
+                      {formatNumber(ri.cantidad_recibida, 2)} {oi?.unit ?? ""}
                     </td>
                   </tr>
                 );
@@ -309,6 +241,106 @@ export function RecepcionSection({ orderId, orderItems, recepciones }: Props) {
           </table>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+// ─── RecepcionSection ────────────────────────────────────────────────────────
+
+export function RecepcionSection({
+  orderId,
+  orderItems,
+  recepciones,
+  canDelete = false,
+}: {
+  orderId: string;
+  orderItems: AuthorizedOrderItem[];
+  recepciones: OcRecepcion[];
+  canDelete?: boolean;
+}) {
+  const [key, setKey] = useState(0);
+
+  if (orderItems.length === 0) return null;
+
+  // Totales recibidos por ítem (suma de todas las recepciones)
+  const totalesRecibidos: Record<string, number> = {};
+  for (const rec of recepciones) {
+    for (const ri of rec.oc_recepcion_items ?? []) {
+      totalesRecibidos[ri.order_item_id] = (totalesRecibidos[ri.order_item_id] ?? 0) + ri.cantidad_recibida;
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-[14px] font-semibold">Recepción de mercadería</h2>
+        <RegistrarDialog
+          key={key}
+          orderId={orderId}
+          orderItems={orderItems}
+          onDone={() => setKey((k) => k + 1)}
+        />
+      </div>
+
+      {/* Resumen de cantidades recibidas vs ordenadas */}
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+        <table>
+          <thead>
+            <tr>
+              <th>Ítem</th>
+              <th className="num">Ordenado</th>
+              <th className="num">Recibido</th>
+              <th className="num">Pendiente</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orderItems.map((it) => {
+              const recibido = totalesRecibidos[it.id] ?? 0;
+              const pendiente = Math.max(0, it.quantity - recibido);
+              const completo = pendiente === 0;
+              const excedido = recibido > it.quantity;
+              return (
+                <tr key={it.id}>
+                  <td className="font-medium">{it.product}</td>
+                  <td className="num">{formatNumber(it.quantity, 2)} {it.unit}</td>
+                  <td className={`num ${excedido ? "text-[var(--warn)]" : recibido > 0 ? "text-[var(--ok)]" : "text-[var(--muted)]"}`}>
+                    {formatNumber(recibido, 2)} {it.unit}
+                  </td>
+                  <td className={`num ${completo ? "text-[var(--muted)]" : excedido ? "text-[var(--warn)]" : ""}`}>
+                    {excedido
+                      ? "Excedido"
+                      : completo
+                        ? <span className="text-[var(--ok)]">Completo</span>
+                        : `${formatNumber(pendiente, 2)} ${it.unit}`}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Historial de recepciones */}
+      {recepciones.length > 0 ? (
+        <div className="space-y-2">
+          <div className="text-[12px] text-[var(--muted)] font-medium uppercase tracking-wide">
+            Historial ({recepciones.length})
+          </div>
+          {recepciones.map((rec) => (
+            <RecepcionCard
+              key={rec.id}
+              recepcion={rec}
+              orderItems={orderItems}
+              canDelete={canDelete}
+              orderId={orderId}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="text-[12px] text-[var(--muted)]">
+          Todavía no se registraron recepciones para esta orden.
+        </p>
+      )}
     </div>
   );
 }
