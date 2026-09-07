@@ -557,7 +557,12 @@ export interface SubcontractorCertificate {
 // Certificados de ejecución de obra — cobro al comitente (migración 0039)
 // ============================================================================
 
-export type ProjectCertificateStatus = "BORRADOR" | "CERRADO";
+export type ProjectCertificateStatus =
+  | "BORRADOR"
+  | "ELABORADO"
+  | "VERIFICADO"
+  | "APROBADO"
+  | "FACTURADO";
 
 export interface ProjectCertificate {
   id: string;
@@ -569,6 +574,23 @@ export interface ProjectCertificate {
   monto_anterior: number;
   monto_presente: number;
   monto_acumulado: number;
+  // Facturación (migración 0040)
+  ajustes: number;
+  devolucion_anticipo: number;
+  retencion: number;
+  penalidad_avance: number;
+  penalidad_presentacion: number;
+  monto_liquido: number;
+  devolucion_anticipo_pct_snap: number | null;
+  retencion_pct_snap: number | null;
+  elaborado_por: string | null;
+  elaborado_at: string | null;
+  verificado_por: string | null;
+  verificado_at: string | null;
+  aprobado_por: string | null;
+  aprobado_at: string | null;
+  facturado_at: string | null;
+  factura_numero: string | null;
   notes: string | null;
   created_by: string | null;
   closed_at: string | null;
