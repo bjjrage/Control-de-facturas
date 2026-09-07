@@ -272,7 +272,7 @@ export function Sidebar({
           "flex items-center gap-2.5 h-9 rounded-lg text-[13px] transition-colors",
           collapsed ? "justify-center px-0" : "px-3",
           active
-            ? "nav-item-active"
+            ? "bg-[var(--nav-active)] text-white font-medium"
             : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
         )}
       >
@@ -426,7 +426,7 @@ export function Sidebar({
                     "w-full flex items-center gap-2.5 h-9 rounded-lg text-[13px] transition-colors",
                     collapsed ? "justify-center px-0" : "px-3",
                     active
-                      ? "nav-item-active"
+                      ? "bg-[var(--nav-active)] text-white font-medium"
                       : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
                   )}
                 >

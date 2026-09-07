@@ -135,15 +135,6 @@ input::placeholder, textarea::placeholder {
   box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
 }
 
-/* Ítem activo del sidebar */
-.nav-item-active {
-  background: rgba(91, 124, 250, 0.13);
-  border: 1px solid rgba(91, 124, 250, 0.28);
-  color: #fff;
-  font-weight: 500;
-  box-shadow: 0 0 12px rgba(91, 124, 250, 0.12);
-}
-
 /* Wrapper interactivo para texto clickeable: hover con fondo sutil */
 .text-action {
   display: inline-flex;
