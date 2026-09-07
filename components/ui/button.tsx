@@ -4,7 +4,7 @@ import { ButtonHTMLAttributes, forwardRef } from "react";
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] border-transparent",
+  primary: "btn-primary",
   secondary: "bg-[var(--panel-2)] text-[var(--foreground)] hover:bg-[var(--hover)] border-[var(--border)]",
   ghost: "bg-transparent text-[var(--foreground)] hover:bg-[var(--hover)] border-transparent",
   danger: "bg-[var(--panel-2)] text-[var(--error)] hover:bg-[var(--error-bg)] border-[var(--border)]",
