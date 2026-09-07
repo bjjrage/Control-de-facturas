@@ -16,6 +16,10 @@ import {
   SubcontractorCertificate,
   ProjectCertificate,
   ProjectCertificateItem,
+  ProjectCertificateStaff,
+  ProjectWeatherLog,
+  ProjectSchedulePlan,
+  ProjectSchedulePlanMonth,
 } from "@/lib/types";
 import { ProjectTabsClient } from "./project-tabs-client";
 
@@ -32,6 +36,7 @@ const ALL_TABS = [
   "personal",
   "subcontratistas",
   "certificados",
+  "avance-fisico",
 ];
 
 export default async function ProjectDetailPage({
@@ -92,27 +97,66 @@ export default async function ProjectDetailPage({
 
   let projectCertificates: ProjectCertificate[] = [];
   const certificateItemsByCert: Record<string, ProjectCertificateItem[]> = {};
+  const certificateStaffByCert: Record<string, ProjectCertificateStaff[]> = {};
+  let projectWeatherLogs: ProjectWeatherLog[] = [];
+  let projectSchedulePlans: ProjectSchedulePlan[] = [];
+  const schedulePlanMonths: Record<string, ProjectSchedulePlanMonth[]> = {};
   if (isCaterpillar) {
-    const { data: certRows } = await supabase
-      .from("project_certificates")
-      .select("*")
-      .eq("project_id", id)
-      .order("numero", { ascending: false })
-      .returns<ProjectCertificate[]>();
+    const [{ data: certRows }, { data: weatherRows }, { data: planRows }] = await Promise.all([
+      supabase
+        .from("project_certificates")
+        .select("*")
+        .eq("project_id", id)
+        .order("numero", { ascending: false })
+        .returns<ProjectCertificate[]>(),
+      supabase
+        .from("project_weather_log")
+        .select("*")
+        .eq("project_id", id)
+        .order("log_date")
+        .returns<ProjectWeatherLog[]>(),
+      supabase
+        .from("project_schedule_plans")
+        .select("*")
+        .eq("project_id", id)
+        .order("created_at")
+        .returns<ProjectSchedulePlan[]>(),
+    ]);
     projectCertificates = certRows ?? [];
+    projectWeatherLogs = weatherRows ?? [];
+    projectSchedulePlans = planRows ?? [];
+
     if (projectCertificates.length > 0) {
-      const { data: itemRows } = await supabase
-        .from("project_certificate_items")
+      const certIds = projectCertificates.map((c) => c.id);
+      const [{ data: itemRows }, { data: staffRows }] = await Promise.all([
+        supabase
+          .from("project_certificate_items")
+          .select("*")
+          .in("certificate_id", certIds)
+          .order("sort_order")
+          .returns<ProjectCertificateItem[]>(),
+        supabase
+          .from("project_certificate_staff")
+          .select("*")
+          .in("certificate_id", certIds)
+          .order("sort_order")
+          .returns<ProjectCertificateStaff[]>(),
+      ]);
+      for (const it of itemRows ?? []) (certificateItemsByCert[it.certificate_id] ??= []).push(it);
+      for (const st of staffRows ?? []) (certificateStaffByCert[st.certificate_id] ??= []).push(st);
+    }
+
+    if (projectSchedulePlans.length > 0) {
+      const { data: monthRows } = await supabase
+        .from("project_schedule_plan_months")
         .select("*")
         .in(
-          "certificate_id",
-          projectCertificates.map((c) => c.id)
+          "plan_id",
+          projectSchedulePlans.map((p) => p.id)
         )
-        .order("sort_order")
-        .returns<ProjectCertificateItem[]>();
-      for (const it of itemRows ?? []) {
-        (certificateItemsByCert[it.certificate_id] ??= []).push(it);
-      }
+        .order("month_index")
+        .returns<ProjectSchedulePlanMonth[]>();
+      for (const m of monthRows ?? []) (schedulePlanMonths[m.plan_id] ??= []).push(m);
     }
   }
 
@@ -313,6 +357,10 @@ export default async function ProjectDetailPage({
       certificates={certificates}
       projectCertificates={projectCertificates}
       certificateItemsByCert={certificateItemsByCert}
+      certificateStaffByCert={certificateStaffByCert}
+      projectWeatherLogs={projectWeatherLogs}
+      projectSchedulePlans={projectSchedulePlans}
+      schedulePlanMonths={schedulePlanMonths}
       isAdmin={profile.role === "admin"}
       duplicateSources={duplicateSources}
       itemsSubtotal={itemsSubtotal}

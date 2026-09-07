@@ -52,6 +52,7 @@ const PROJECT_TABS: { key: string; label: string; icon: typeof LayoutDashboard; 
   { key: "personal", label: "Personal", icon: Users, caterpillarOnly: true },
   { key: "subcontratistas", label: "Subcontratistas", icon: Truck, caterpillarOnly: true },
   { key: "certificados", label: "Certificados", icon: FileCheck2, caterpillarOnly: true },
+  { key: "avance-fisico", label: "Avance físico", icon: GanttChartSquare, caterpillarOnly: true },
   { key: "informes", label: "Informes", icon: FileText },
 ];
 

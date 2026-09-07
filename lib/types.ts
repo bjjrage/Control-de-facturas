@@ -617,6 +617,44 @@ export interface ProjectCertificateItem {
   created_at: string;
 }
 
+// Anexos del certificado (migración 0041)
+
+export type WeatherCode = "B" | "LL" | "HH" | "O";
+
+export interface ProjectWeatherLog {
+  id: string;
+  project_id: string;
+  log_date: string;
+  code: WeatherCode;
+  note: string | null;
+  recorded_by: string | null;
+  created_at: string;
+}
+
+export interface ProjectSchedulePlan {
+  id: string;
+  project_id: string;
+  label: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ProjectSchedulePlanMonth {
+  id: string;
+  plan_id: string;
+  month_index: number;
+  programado_pct: number;
+}
+
+export interface ProjectCertificateStaff {
+  id: string;
+  certificate_id: string;
+  nombre: string;
+  rol: string;
+  sort_order: number;
+  created_at: string;
+}
+
 export interface SalesReceipt {
   id: string;
   empresa_id: string;

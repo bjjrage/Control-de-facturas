@@ -20,6 +20,10 @@ import {
   SubcontractorCertificate,
   ProjectCertificate,
   ProjectCertificateItem,
+  ProjectCertificateStaff,
+  ProjectWeatherLog,
+  ProjectSchedulePlan,
+  ProjectSchedulePlanMonth,
 } from "@/lib/types";
 import { AddBudgetItemForm } from "./add-budget-item-form";
 import { ImportBudgetDialog } from "./import-budget-dialog";
@@ -34,6 +38,7 @@ import { AddLaborEntryForm } from "./add-labor-entry-form";
 import { AddSubcontractorContractDialog } from "./add-subcontractor-contract-dialog";
 import { AddCertificadoDialog } from "./add-certificado-dialog";
 import { CertificadosTable } from "./certificados-table";
+import { AvanceFisicoPanel } from "./avance-fisico-panel";
 import { PresupuestoTable } from "./presupuesto-table";
 import { EjecucionTable } from "./ejecucion-table";
 import { PersonalTable } from "./personal-table";
@@ -72,6 +77,10 @@ type Props = {
   certificates: SubcontractorCertificate[];
   projectCertificates: ProjectCertificate[];
   certificateItemsByCert: Record<string, ProjectCertificateItem[]>;
+  certificateStaffByCert: Record<string, ProjectCertificateStaff[]>;
+  projectWeatherLogs: ProjectWeatherLog[];
+  projectSchedulePlans: ProjectSchedulePlan[];
+  schedulePlanMonths: Record<string, ProjectSchedulePlanMonth[]>;
   isAdmin: boolean;
   duplicateSources: { id: string; code: string; name: string; itemCount: number }[];
   itemsSubtotal: number;
@@ -104,6 +113,10 @@ export function ProjectTabsClient({
   certificates,
   projectCertificates,
   certificateItemsByCert,
+  certificateStaffByCert,
+  projectWeatherLogs,
+  projectSchedulePlans,
+  schedulePlanMonths,
   isAdmin,
   duplicateSources,
   itemsSubtotal,
@@ -392,9 +405,20 @@ export function ProjectTabsClient({
             project={project}
             certificates={projectCertificates}
             itemsByCert={certificateItemsByCert}
+            staffByCert={certificateStaffByCert}
             isAdmin={isAdmin}
           />
         </div>
+      ) : null}
+
+      {tab === "avance-fisico" && isCaterpillar ? (
+        <AvanceFisicoPanel
+          project={project}
+          certificates={projectCertificates}
+          weatherLogs={projectWeatherLogs}
+          schedulePlans={projectSchedulePlans}
+          planMonths={schedulePlanMonths}
+        />
       ) : null}
     </div>
   );

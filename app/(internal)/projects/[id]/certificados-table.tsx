@@ -11,7 +11,9 @@ import type {
   ProjectCertificate,
   ProjectCertificateItem,
   ProjectCertificateStatus,
+  ProjectCertificateStaff,
 } from "@/lib/types";
+import { CertificateStaffSection } from "./certificate-staff-section";
 import {
   updateCertificateItem,
   updateCertificateDeductions,
@@ -58,11 +60,13 @@ export function CertificadosTable({
   project,
   certificates,
   itemsByCert,
+  staffByCert,
   isAdmin,
 }: {
   project: Project;
   certificates: ProjectCertificate[];
   itemsByCert: Record<string, ProjectCertificateItem[]>;
+  staffByCert: Record<string, ProjectCertificateStaff[]>;
   isAdmin: boolean;
 }) {
   const [expanded, setExpanded] = useState<string | null>(certificates[0]?.id ?? null);
@@ -146,6 +150,7 @@ export function CertificadosTable({
           project={project}
           certificate={certificates.find((c) => c.id === expanded)!}
           items={itemsByCert[expanded] ?? []}
+          staff={staffByCert[expanded] ?? []}
           isAdmin={isAdmin}
         />
       ) : null}
@@ -157,11 +162,13 @@ function CertificadoDetalle({
   project,
   certificate: c,
   items,
+  staff,
   isAdmin,
 }: {
   project: Project;
   certificate: ProjectCertificate;
   items: ProjectCertificateItem[];
+  staff: ProjectCertificateStaff[];
   isAdmin: boolean;
 }) {
   const router = useRouter();
@@ -332,6 +339,12 @@ function CertificadoDetalle({
           </tfoot>
         </table>
       </div>
+
+      <CertificateStaffSection
+        certificateId={c.id}
+        staff={staff}
+        editable={c.status !== "FACTURADO"}
+      />
 
       {editableQty ? (
         <p className="text-[11px] text-[var(--muted)]">
