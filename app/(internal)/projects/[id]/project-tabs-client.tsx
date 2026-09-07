@@ -18,6 +18,8 @@ import {
   Subcontractor,
   SubcontractorContract,
   SubcontractorCertificate,
+  ProjectCertificate,
+  ProjectCertificateItem,
 } from "@/lib/types";
 import { AddBudgetItemForm } from "./add-budget-item-form";
 import { ImportBudgetDialog } from "./import-budget-dialog";
@@ -30,6 +32,8 @@ import { ProjectGantt } from "./project-gantt";
 import { ProjectReports } from "./reports";
 import { AddLaborEntryForm } from "./add-labor-entry-form";
 import { AddSubcontractorContractDialog } from "./add-subcontractor-contract-dialog";
+import { AddCertificadoDialog } from "./add-certificado-dialog";
+import { CertificadosTable } from "./certificados-table";
 import { PresupuestoTable } from "./presupuesto-table";
 import { EjecucionTable } from "./ejecucion-table";
 import { PersonalTable } from "./personal-table";
@@ -66,6 +70,9 @@ type Props = {
   subcontractorCatalog: Subcontractor[];
   contracts: SubcontractorContract[];
   certificates: SubcontractorCertificate[];
+  projectCertificates: ProjectCertificate[];
+  certificateItemsByCert: Record<string, ProjectCertificateItem[]>;
+  isAdmin: boolean;
   duplicateSources: { id: string; code: string; name: string; itemCount: number }[];
   itemsSubtotal: number;
   presupuestoTotal: number;
@@ -95,6 +102,9 @@ export function ProjectTabsClient({
   subcontractorCatalog,
   contracts,
   certificates,
+  projectCertificates,
+  certificateItemsByCert,
+  isAdmin,
   duplicateSources,
   itemsSubtotal,
   presupuestoTotal,
@@ -175,6 +185,7 @@ export function ProjectTabsClient({
         <div className="flex items-center gap-1">
           <EditProjectDialog
             project={project}
+            showContract={isCaterpillar}
             trigger={
               <Button variant="ghost" title="Editar obra">
                 <Pencil size={15} />
@@ -354,6 +365,34 @@ export function ProjectTabsClient({
                 certs: certificates.filter((cert) => cert.contract_id === c.id),
               };
             })}
+          />
+        </div>
+      ) : null}
+
+      {tab === "certificados" && isCaterpillar ? (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[12px] text-[var(--muted)]">
+              Certificados de ejecución para cobrar al comitente. El acumulado anterior sale de los
+              certificados cerrados; el presente, del avance del período.
+            </p>
+            <AddCertificadoDialog
+              projectId={project.id}
+              nextNumero={(projectCertificates[0]?.numero ?? 0) + 1}
+              suggestedStart={
+                projectCertificates[0]?.period_end
+                  ? new Date(new Date(projectCertificates[0].period_end).getTime() + 86400000)
+                      .toISOString()
+                      .slice(0, 10)
+                  : project.orden_inicio_date ?? project.start_date
+              }
+            />
+          </div>
+          <CertificadosTable
+            project={project}
+            certificates={projectCertificates}
+            itemsByCert={certificateItemsByCert}
+            isAdmin={isAdmin}
           />
         </div>
       ) : null}

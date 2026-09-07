@@ -27,6 +27,7 @@ import {
   FolderOpen,
   X,
   MessagesSquare,
+  FileCheck2,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { EmpresaPlan } from "@/lib/auth";
@@ -50,6 +51,7 @@ const PROJECT_TABS: { key: string; label: string; icon: typeof LayoutDashboard; 
   { key: "pagos", label: "Pagos", icon: Wallet },
   { key: "personal", label: "Personal", icon: Users, caterpillarOnly: true },
   { key: "subcontratistas", label: "Subcontratistas", icon: Truck, caterpillarOnly: true },
+  { key: "certificados", label: "Certificados", icon: FileCheck2, caterpillarOnly: true },
   { key: "informes", label: "Informes", icon: FileText },
 ];
 

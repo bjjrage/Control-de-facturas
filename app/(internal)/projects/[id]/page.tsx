@@ -14,6 +14,8 @@ import {
   Subcontractor,
   SubcontractorContract,
   SubcontractorCertificate,
+  ProjectCertificate,
+  ProjectCertificateItem,
 } from "@/lib/types";
 import { ProjectTabsClient } from "./project-tabs-client";
 
@@ -29,6 +31,7 @@ const ALL_TABS = [
   "informes",
   "personal",
   "subcontratistas",
+  "certificados",
 ];
 
 export default async function ProjectDetailPage({
@@ -86,6 +89,32 @@ export default async function ProjectDetailPage({
       supabase.from("providers").select("*").eq("active", true).order("name").returns<Provider[]>(),
     ]);
   const allProviders = allProvidersData ?? [];
+
+  let projectCertificates: ProjectCertificate[] = [];
+  const certificateItemsByCert: Record<string, ProjectCertificateItem[]> = {};
+  if (isCaterpillar) {
+    const { data: certRows } = await supabase
+      .from("project_certificates")
+      .select("*")
+      .eq("project_id", id)
+      .order("numero", { ascending: false })
+      .returns<ProjectCertificate[]>();
+    projectCertificates = certRows ?? [];
+    if (projectCertificates.length > 0) {
+      const { data: itemRows } = await supabase
+        .from("project_certificate_items")
+        .select("*")
+        .in(
+          "certificate_id",
+          projectCertificates.map((c) => c.id)
+        )
+        .order("sort_order")
+        .returns<ProjectCertificateItem[]>();
+      for (const it of itemRows ?? []) {
+        (certificateItemsByCert[it.certificate_id] ??= []).push(it);
+      }
+    }
+  }
 
   let subcontractorCatalog: Subcontractor[] = [];
   let contracts: SubcontractorContract[] = [];
@@ -282,6 +311,9 @@ export default async function ProjectDetailPage({
       subcontractorCatalog={subcontractorCatalog}
       contracts={contracts}
       certificates={certificates}
+      projectCertificates={projectCertificates}
+      certificateItemsByCert={certificateItemsByCert}
+      isAdmin={profile.role === "admin"}
       duplicateSources={duplicateSources}
       itemsSubtotal={itemsSubtotal}
       presupuestoTotal={presupuestoTotal}

@@ -89,6 +89,29 @@ export async function updateProject(projectId: string, formData: FormData): Prom
 
   if (!name) return { error: "El nombre es obligatorio." };
 
+  // Datos de contrato (obra pública) — solo se envían desde el bloque plegable
+  // del formulario. Si el form no los trae, no se tocan.
+  const num = (key: string, fallback: number): number => {
+    if (!formData.has(key)) return fallback;
+    const v = Number(formData.get(key));
+    return Number.isFinite(v) ? v : fallback;
+  };
+  const contractPatch = formData.has("contract_amount")
+    ? {
+        comitente: (formData.get("comitente") as string | null) || null,
+        contract_number: (formData.get("contract_number") as string | null) || null,
+        contract_amount: num("contract_amount", 0),
+        plazo_dias: formData.get("plazo_dias") ? num("plazo_dias", 0) : null,
+        orden_inicio_date: (formData.get("orden_inicio_date") as string | null) || null,
+        fiscalizacion_nombre: (formData.get("fiscalizacion_nombre") as string | null) || null,
+        fiscalizacion_contrato: (formData.get("fiscalizacion_contrato") as string | null) || null,
+        anticipo_pct: num("anticipo_pct", 30),
+        devolucion_anticipo_pct: num("devolucion_anticipo_pct", 40),
+        retencion_pct: num("retencion_pct", 5),
+        iva_pct: num("iva_pct", 10),
+      }
+    : {};
+
   const { error } = await supabase
     .from("projects")
     .update({
@@ -98,6 +121,7 @@ export async function updateProject(projectId: string, formData: FormData): Prom
       start_date: startDate,
       end_date: endDate,
       budget_total: Number.isFinite(budgetTotal) ? budgetTotal : 0,
+      ...contractPatch,
     })
     .eq("id", projectId)
     .eq("empresa_id", empresaId);

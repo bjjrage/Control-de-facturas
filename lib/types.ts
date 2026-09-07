@@ -439,6 +439,19 @@ export interface Project {
   created_by: string | null;
   created_at: string;
   execution_token: string;
+  // Datos de contrato (obra pública) — migración 0039. Todos opcionales; solo
+  // se usan si la obra certifica al comitente.
+  comitente: string | null;
+  contract_number: string | null;
+  contract_amount: number;
+  plazo_dias: number | null;
+  orden_inicio_date: string | null;
+  fiscalizacion_nombre: string | null;
+  fiscalizacion_contrato: string | null;
+  anticipo_pct: number;
+  devolucion_anticipo_pct: number;
+  retencion_pct: number;
+  iva_pct: number;
 }
 
 export interface BudgetItem {
@@ -537,6 +550,48 @@ export interface SubcontractorCertificate {
   ai_flags: { flags: string[]; risk_level: "low" | "medium" | "high"; summary: string } | null;
   notes: string | null;
   submitted_by_portal: boolean;
+  created_at: string;
+}
+
+// ============================================================================
+// Certificados de ejecución de obra — cobro al comitente (migración 0039)
+// ============================================================================
+
+export type ProjectCertificateStatus = "BORRADOR" | "CERRADO";
+
+export interface ProjectCertificate {
+  id: string;
+  project_id: string;
+  numero: number;
+  period_start: string;
+  period_end: string;
+  status: ProjectCertificateStatus;
+  monto_anterior: number;
+  monto_presente: number;
+  monto_acumulado: number;
+  notes: string | null;
+  created_by: string | null;
+  closed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectCertificateItem {
+  id: string;
+  certificate_id: string;
+  budget_item_id: string | null;
+  codigo: string | null;
+  descripcion: string;
+  unidad: string | null;
+  qty_contractual: number;
+  precio_unitario: number;
+  qty_anterior: number;
+  qty_presente: number;
+  qty_acumulada: number;
+  monto_anterior: number;
+  monto_presente: number;
+  monto_acumulado: number;
+  sort_order: number;
   created_at: string;
 }
 
