@@ -212,6 +212,50 @@ export async function createCertificate(
   return { error: null, id: cert.id as string };
 }
 
+/**
+ * Carga masiva de la columna "presente" — pegando el avance del mes desde el
+ * Excel de medición. `values` viene ya alineado línea-por-línea desde el
+ * cliente (cada entrada trae el id de la línea y la cantidad). Solo en BORRADOR.
+ */
+export async function bulkSetCertificatePresente(
+  certificateId: string,
+  values: { itemId: string; qty_presente: number }[]
+): Promise<{ error: string | null; updated: number }> {
+  const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
+  const supabase = await createClient();
+
+  const cert = await loadOwnedCertificate(supabase, certificateId, profile.empresa_id);
+  if (!cert) return { error: "Certificado no encontrado.", updated: 0 };
+  if (cert.status !== "BORRADOR") {
+    return { error: "El certificado ya está elaborado y no se puede editar.", updated: 0 };
+  }
+
+  const { data: items } = await supabase
+    .from("project_certificate_items")
+    .select("id")
+    .eq("certificate_id", certificateId);
+  const validIds = new Set((items ?? []).map((i) => i.id as string));
+
+  let updated = 0;
+  for (const v of values) {
+    if (!validIds.has(v.itemId)) continue;
+    if (!Number.isFinite(v.qty_presente) || v.qty_presente < 0) continue;
+    const { error } = await supabase
+      .from("project_certificate_items")
+      .update({ qty_presente: v.qty_presente })
+      .eq("id", v.itemId);
+    if (!error) updated++;
+  }
+
+  await recomputeCertificateTotals(supabase, certificateId);
+  await logAudit(supabase, {
+    action: "project_certificate.bulk_presente",
+    detail: { project_id: cert.project_id, certificate_id: cert.id, numero: cert.numero, updated },
+  });
+  revalidatePath(`/projects/${cert.project_id}`);
+  return { error: null, updated };
+}
+
 /** Ajusta qty_anterior / qty_presente de una línea. Solo en BORRADOR. */
 export async function updateCertificateItem(
   itemId: string,

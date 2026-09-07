@@ -14,6 +14,7 @@ import type {
   ProjectCertificateStaff,
 } from "@/lib/types";
 import { CertificateStaffSection } from "./certificate-staff-section";
+import { PasteAvanceDialog } from "./paste-avance-dialog";
 import {
   updateCertificateItem,
   updateCertificateDeductions,
@@ -278,6 +279,14 @@ function CertificadoDetalle({
       </div>
 
       {/* Líneas por rubro */}
+      {editableQty ? (
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-[var(--muted)]">
+            Cargá la columna &quot;presente&quot; a mano, o pegala desde el Excel de medición →
+          </span>
+          <PasteAvanceDialog certificateId={c.id} items={items} />
+        </div>
+      ) : null}
       <div className="overflow-x-auto rounded border border-[var(--border)]">
         <table className="text-[12px]">
           <thead>
