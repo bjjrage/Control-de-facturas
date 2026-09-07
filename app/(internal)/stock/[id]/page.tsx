@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/format";
 import type { Producto, StockMovimiento } from "@/lib/types";
 import { MovimientoDialog } from "./movimiento-dialog";
+import { Button } from "@/components/ui/button";
 
 const TIPO_LABEL: Record<string, string> = { ENTRADA: "Entrada", SALIDA: "Salida", AJUSTE: "Ajuste" };
 const TIPO_COLOR: Record<string, string> = {
@@ -60,7 +61,14 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
             <p className="text-[12px] text-[var(--muted)] mt-0.5">{producto.descripcion}</p>
           ) : null}
         </div>
-        <MovimientoDialog productoId={producto.id} unidad={producto.unidad} stockActual={producto.stock_actual} />
+        <div className="flex items-center gap-2">
+          {isAdmin ? (
+            <Link href={`/stock/${producto.id}/editar`}>
+              <Button variant="secondary" className="h-8 px-3 text-[12px]">Editar</Button>
+            </Link>
+          ) : null}
+          <MovimientoDialog productoId={producto.id} unidad={producto.unidad} stockActual={producto.stock_actual} />
+        </div>
       </div>
 
       {/* KPIs */}
@@ -138,22 +146,39 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
         </div>
       </div>
 
-      {isAdmin && producto.activo ? (
+      {isAdmin ? (
         <div className="flex justify-end">
-          <form
-            action={async () => {
-              "use server";
-              const { desactivarProducto } = await import("../stock-actions");
-              await desactivarProducto(id);
-            }}
-          >
-            <button
-              type="submit"
-              className="text-[12px] text-[var(--muted)] hover:text-[var(--error)] transition-colors"
+          {producto.activo ? (
+            <form
+              action={async () => {
+                "use server";
+                const { desactivarProducto } = await import("../stock-actions");
+                await desactivarProducto(id);
+              }}
             >
-              Desactivar producto
-            </button>
-          </form>
+              <button
+                type="submit"
+                className="text-[12px] text-[var(--muted)] hover:text-[var(--error)] transition-colors"
+              >
+                Desactivar producto
+              </button>
+            </form>
+          ) : (
+            <form
+              action={async () => {
+                "use server";
+                const { reactivarProducto } = await import("../stock-actions");
+                await reactivarProducto(id);
+              }}
+            >
+              <button
+                type="submit"
+                className="text-[12px] text-[var(--muted)] hover:text-[var(--ok)] transition-colors"
+              >
+                Reactivar producto
+              </button>
+            </form>
+          )}
         </div>
       ) : null}
     </div>

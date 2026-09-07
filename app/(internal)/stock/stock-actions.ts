@@ -95,6 +95,20 @@ export async function desactivarProducto(id: string): Promise<{ error?: string }
   return {};
 }
 
+export async function reactivarProducto(id: string): Promise<{ error?: string }> {
+  const { supabase } = await getClient();
+
+  const { error } = await supabase
+    .from("productos")
+    .update({ activo: true, updated_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/stock");
+  revalidatePath(`/stock/${id}`);
+  return {};
+}
+
 // ──────────────────────────────────────────────
 // Movimientos
 // ──────────────────────────────────────────────
