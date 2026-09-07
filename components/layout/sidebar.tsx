@@ -13,7 +13,6 @@ import {
   ChevronsLeft,
   ChevronsRight,
   ImagePlus,
-  ChevronDown,
   ReceiptText,
   Contact,
   FileClock,
@@ -33,7 +32,6 @@ import {
 import { UserRole } from "@/lib/types";
 import { EmpresaPlan } from "@/lib/auth";
 import { cn } from "@/lib/cn";
-import { logout } from "@/app/(internal)/actions";
 import { uploadLogo } from "./branding-actions";
 import { LOGO_STORAGE_PATH } from "./branding-constants";
 import { getProjectNavInfo } from "@/app/(internal)/projects/actions";
@@ -458,27 +456,6 @@ export function Sidebar({
         )}
       </nav>
 
-      <div className="border-t border-[var(--border)] p-3">
-        <div className={cn("flex items-center gap-2", collapsed && "justify-center")}>
-          <div className="h-8 w-8 rounded-full bg-[var(--primary)] text-white flex items-center justify-center text-[13px] font-semibold shrink-0">
-            {initial}
-          </div>
-          {!collapsed ? (
-            <div className="min-w-0 flex-1">
-              <div className="text-[12px] font-medium truncate">{fullName}</div>
-              <div className="text-[11px] text-[var(--muted)] capitalize truncate">{role}</div>
-            </div>
-          ) : null}
-          {!collapsed ? <ChevronDown size={14} className="text-[var(--muted)] shrink-0" /> : null}
-        </div>
-        {!collapsed ? (
-          <form action={logout} className="mt-2">
-            <button className="text-action text-[11px] text-[var(--muted)]">
-              Cerrar sesión
-            </button>
-          </form>
-        ) : null}
-      </div>
     </aside>
   );
 }

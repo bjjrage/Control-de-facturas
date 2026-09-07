@@ -23,7 +23,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
         plan={profile.plan}
       />
       <div className="flex-1 min-w-0 flex flex-col">
-        <Topbar initial={initial} role={profile.role} />
+        <Topbar initial={initial} fullName={profile.full_name} role={profile.role} />
         <main className="flex-1 min-w-0 p-5">
           <AppShellClient>{children}</AppShellClient>
         </main>
