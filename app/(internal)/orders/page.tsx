@@ -71,7 +71,7 @@ export default async function OrdersPage({
         </div>
         <Link
           href="/orders?nueva=1"
-          className="shrink-0 h-9 inline-flex items-center gap-1.5 rounded-lg bg-[var(--primary)] px-4 text-[13px] font-medium text-white hover:bg-[var(--primary-hover)]"
+          className="btn-primary shrink-0 h-9 inline-flex items-center gap-1.5 rounded-lg px-4 text-[13px]"
         >
           + Nueva compra
         </Link>

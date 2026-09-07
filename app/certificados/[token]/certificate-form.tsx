@@ -72,7 +72,7 @@ export function CertificateForm({ token }: { token: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="w-full h-9 rounded-md bg-[var(--primary)] text-white text-[13px] font-medium disabled:opacity-50"
+        className="btn-primary w-full h-9 rounded-md text-[13px] disabled:opacity-50"
       >
         {pending ? "Enviando…" : "Enviar certificado"}
       </button>

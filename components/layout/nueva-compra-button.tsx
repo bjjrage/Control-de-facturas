@@ -14,7 +14,7 @@ export function NuevaCompraButton({ role }: { role: UserRole }) {
   return (
     <Link
       href="/orders?nueva=1"
-      className="h-9 inline-flex items-center gap-1.5 rounded-full bg-[var(--primary)] px-3.5 text-[13px] font-medium text-white hover:bg-[var(--primary-hover)]"
+      className="btn-primary h-9 inline-flex items-center gap-1.5 rounded-full px-3.5 text-[13px] font-medium"
     >
       <ShoppingCart size={15} />
       Compra directa
