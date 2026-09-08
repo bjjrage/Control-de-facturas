@@ -6,6 +6,7 @@ import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ProjectCertificateStatus } from "@/lib/types";
+import type { ProjectUnit } from "@/lib/types";
 
 const FROZEN_STATES: ProjectCertificateStatus[] = ["ELABORADO", "VERIFICADO", "APROBADO", "FACTURADO"];
 const round0 = (n: number) => Math.round(n);
@@ -518,6 +519,189 @@ export async function deleteCertificate(certificateId: string): Promise<{ error:
     action: "project_certificate.deleted",
     detail: { project_id: cert.project_id, certificate_id: cert.id, numero: cert.numero },
   });
+  revalidatePath(`/projects/${cert.project_id}`);
+  return { error: null };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Unidades físicas del proyecto (viviendas, locales, etc.)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export async function createProjectUnit(
+  projectId: string,
+  nombre: string
+): Promise<{ id?: string; error?: string }> {
+  const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
+  const supabase = await createClient();
+
+  const { data: proj } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("empresa_id", profile.empresa_id)
+    .single();
+  if (!proj) return { error: "Proyecto no encontrado." };
+
+  const { data: last } = await supabase
+    .from("project_units")
+    .select("sort_order")
+    .eq("project_id", projectId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { data, error } = await supabase
+    .from("project_units")
+    .insert({ project_id: projectId, nombre: nombre.trim(), sort_order: (last?.sort_order ?? -1) + 1 })
+    .select("id")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") return { error: "Ya existe una unidad con ese nombre." };
+    return { error: error.message };
+  }
+  revalidatePath(`/projects/${projectId}`);
+  return { id: data.id };
+}
+
+export async function deleteProjectUnit(unitId: string, projectId: string): Promise<{ error?: string }> {
+  const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
+  const supabase = await createClient();
+
+  const { data: unit } = await supabase
+    .from("project_units")
+    .select("id, project_id")
+    .eq("id", unitId)
+    .single<ProjectUnit>();
+  if (!unit) return { error: "Unidad no encontrada." };
+
+  const { data: proj } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", unit.project_id)
+    .eq("empresa_id", profile.empresa_id)
+    .single();
+  if (!proj) return { error: "Proyecto no encontrado." };
+
+  const { error } = await supabase.from("project_units").delete().eq("id", unitId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/projects/${projectId}`);
+  return {};
+}
+
+export async function updateBudgetItemQuantityPerUnit(
+  itemId: string,
+  quantityPerUnit: number | null
+): Promise<{ error?: string }> {
+  const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
+  const supabase = await createClient();
+
+  const { data: item } = await supabase
+    .from("budget_items")
+    .select("id, project_id")
+    .eq("id", itemId)
+    .single<{ id: string; project_id: string }>();
+  if (!item) return { error: "Rubro no encontrado." };
+
+  const { data: proj } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", item.project_id)
+    .eq("empresa_id", profile.empresa_id)
+    .single();
+  if (!proj) return { error: "Proyecto no encontrado." };
+
+  const { error } = await supabase
+    .from("budget_items")
+    .update({ quantity_per_unit: quantityPerUnit ?? null })
+    .eq("id", itemId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/projects/${item.project_id}`);
+  return {};
+}
+
+export async function upsertCertificateUnitProgress(
+  certificateId: string,
+  values: { unit_id: string; pct_avance: number }[]
+): Promise<{ error?: string }> {
+  const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
+  const supabase = await createClient();
+
+  const cert = await loadOwnedCertificate(supabase, certificateId, profile.empresa_id);
+  if (!cert) return { error: "Certificado no encontrado." };
+  if (cert.status !== "BORRADOR") return { error: "El certificado ya está elaborado." };
+
+  for (const v of values) {
+    if (v.pct_avance < 0 || v.pct_avance > 100) continue;
+    await supabase
+      .from("project_certificate_unit_progress")
+      .upsert(
+        { certificate_id: certificateId, unit_id: v.unit_id, pct_avance: v.pct_avance, updated_at: new Date().toISOString() },
+        { onConflict: "certificate_id,unit_id" }
+      );
+  }
+
+  revalidatePath(`/projects/${cert.project_id}`);
+  return {};
+}
+
+/**
+ * Rellena qty_presente de cada línea del certificado usando el avance por unidad.
+ * qty_presente[rubro] = Σ (pct_avance[unidad]/100 × quantity_per_unit[rubro])
+ * Solo en BORRADOR.
+ */
+export async function autoFillCertificateFromUnits(certificateId: string): Promise<{ error: string | null }> {
+  const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
+  const supabase = await createClient();
+
+  const cert = await loadOwnedCertificate(supabase, certificateId, profile.empresa_id);
+  if (!cert) return { error: "Certificado no encontrado." };
+  if (cert.status !== "BORRADOR") return { error: "El certificado ya está elaborado." };
+
+  const [{ data: items }, { data: progress }] = await Promise.all([
+    supabase
+      .from("project_certificate_items")
+      .select("id, budget_item_id")
+      .eq("certificate_id", certificateId),
+    supabase
+      .from("project_certificate_unit_progress")
+      .select("unit_id, pct_avance")
+      .eq("certificate_id", certificateId),
+  ]);
+
+  if (!items || items.length === 0) return { error: null };
+
+  const budgetItemIds = (items ?? []).map((i) => i.budget_item_id).filter(Boolean) as string[];
+  const { data: budgetItems } = await supabase
+    .from("budget_items")
+    .select("id, quantity_per_unit")
+    .in("id", budgetItemIds);
+
+  const qpuById = new Map<string, number>();
+  for (const bi of budgetItems ?? []) {
+    if (bi.quantity_per_unit != null) qpuById.set(bi.id, Number(bi.quantity_per_unit));
+  }
+
+  const totalPct = (progress ?? []).reduce((s, p) => s + Number(p.pct_avance), 0);
+
+  for (const it of items) {
+    if (!it.budget_item_id) continue;
+    const qpu = qpuById.get(it.budget_item_id);
+    if (qpu == null) continue;
+    const qty_presente = (progress ?? []).reduce(
+      (s, p) => s + (Number(p.pct_avance) / 100) * qpu,
+      0
+    );
+    await supabase
+      .from("project_certificate_items")
+      .update({ qty_presente: Math.round(qty_presente * 10000) / 10000 })
+      .eq("id", it.id);
+  }
+
+  void totalPct;
+  await recomputeCertificateTotals(supabase, certificateId);
   revalidatePath(`/projects/${cert.project_id}`);
   return { error: null };
 }

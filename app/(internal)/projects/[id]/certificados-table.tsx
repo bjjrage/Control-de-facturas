@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +13,12 @@ import type {
   ProjectCertificateItem,
   ProjectCertificateStatus,
   ProjectCertificateStaff,
+  ProjectUnit,
+  ProjectCertificateUnitProgress,
 } from "@/lib/types";
 import { CertificateStaffSection } from "./certificate-staff-section";
 import { PasteAvanceDialog } from "./paste-avance-dialog";
+import { ProjectUnitsDialog } from "./project-units-dialog";
 import {
   updateCertificateItem,
   updateCertificateDeductions,
@@ -25,6 +29,8 @@ import {
   revertCertificate,
   deleteCertificate,
   resyncCertificateFromExecution,
+  upsertCertificateUnitProgress,
+  autoFillCertificateFromUnits,
 } from "../certificado-actions";
 
 const STATUS_LABEL: Record<ProjectCertificateStatus, string> = {
@@ -62,12 +68,16 @@ export function CertificadosTable({
   certificates,
   itemsByCert,
   staffByCert,
+  projectUnits,
+  unitProgressByCert,
   isAdmin,
 }: {
   project: Project;
   certificates: ProjectCertificate[];
   itemsByCert: Record<string, ProjectCertificateItem[]>;
   staffByCert: Record<string, ProjectCertificateStaff[]>;
+  projectUnits: ProjectUnit[];
+  unitProgressByCert: Record<string, ProjectCertificateUnitProgress[]>;
   isAdmin: boolean;
 }) {
   const [expanded, setExpanded] = useState<string | null>(certificates[0]?.id ?? null);
@@ -92,6 +102,11 @@ export function CertificadosTable({
 
   return (
     <div className="space-y-3">
+      {isAdmin ? (
+        <div className="flex justify-end">
+          <ProjectUnitsDialog projectId={project.id} units={projectUnits} />
+        </div>
+      ) : null}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Kpi
           label="Avance certificado"
@@ -152,6 +167,8 @@ export function CertificadosTable({
           certificate={certificates.find((c) => c.id === expanded)!}
           items={itemsByCert[expanded] ?? []}
           staff={staffByCert[expanded] ?? []}
+          projectUnits={projectUnits}
+          unitProgress={unitProgressByCert[expanded] ?? []}
           isAdmin={isAdmin}
         />
       ) : null}
@@ -164,12 +181,16 @@ function CertificadoDetalle({
   certificate: c,
   items,
   staff,
+  projectUnits,
+  unitProgress,
   isAdmin,
 }: {
   project: Project;
   certificate: ProjectCertificate;
   items: ProjectCertificateItem[];
   staff: ProjectCertificateStaff[];
+  projectUnits: ProjectUnit[];
+  unitProgress: ProjectCertificateUnitProgress[];
   isAdmin: boolean;
 }) {
   const router = useRouter();
@@ -207,7 +228,15 @@ function CertificadoDetalle({
             {formatDate(c.period_start)} — {formatDate(c.period_end)}
           </div>
         </div>
-        <WorkflowBar
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/api/projects/${project.id}/certificado/${c.id}/pdf`}
+            target="_blank"
+            className="text-[12px] text-action"
+          >
+            Descargar PDF
+          </Link>
+          <WorkflowBar
           status={c.status}
           pending={pending}
           isAdmin={isAdmin}
@@ -223,6 +252,7 @@ function CertificadoDetalle({
             window.confirm(`¿Eliminar el certificado N° ${c.numero}?`) && run(() => deleteCertificate(c.id))
           }
         />
+        </div>
       </div>
 
       {error ? (
@@ -348,6 +378,17 @@ function CertificadoDetalle({
           </tfoot>
         </table>
       </div>
+
+      {projectUnits.length > 0 ? (
+        <UnitAvanceSection
+          certificateId={c.id}
+          units={projectUnits}
+          progress={unitProgress}
+          editable={editableQty}
+          pending={pending}
+          onAutoFill={() => run(() => autoFillCertificateFromUnits(c.id))}
+        />
+      ) : null}
 
       <CertificateStaffSection
         certificateId={c.id}
@@ -527,6 +568,97 @@ function Kpi({ label, value, sub }: { label: string; value: string; sub?: string
       <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">{label}</div>
       <div className="mt-0.5 text-[13px] font-semibold">{value}</div>
       {sub ? <div className="text-[10px] text-[var(--muted)]">{sub}</div> : null}
+    </div>
+  );
+}
+
+function UnitAvanceSection({
+  certificateId,
+  units,
+  progress,
+  editable,
+  pending,
+  onAutoFill,
+}: {
+  certificateId: string;
+  units: ProjectUnit[];
+  progress: ProjectCertificateUnitProgress[];
+  editable: boolean;
+  pending: boolean;
+  onAutoFill: () => void;
+}) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+  const [localPct, setLocalPct] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const p of progress) init[p.unit_id] = String(p.pct_avance);
+    return init;
+  });
+
+  const progressByUnit = new Map(progress.map((p) => [p.unit_id, p]));
+
+  function saveUnit(unitId: string, raw: string) {
+    const v = parseFloat(raw);
+    if (!Number.isFinite(v) || v < 0 || v > 100) return;
+    const current = progressByUnit.get(unitId)?.pct_avance ?? 0;
+    if (v === current) return;
+    startTransition(async () => {
+      await upsertCertificateUnitProgress(certificateId, [{ unit_id: unitId, pct_avance: v }]);
+      router.refresh();
+    });
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[13px] font-medium">Avance por unidad</span>
+        {editable ? (
+          <Button variant="secondary" className="h-7 px-2.5 text-[12px]" disabled={pending} onClick={onAutoFill}>
+            Calcular rubros desde unidades
+          </Button>
+        ) : null}
+      </div>
+      <div className="overflow-x-auto rounded border border-[var(--border)]">
+        <table className="text-[12px]">
+          <thead>
+            <tr>
+              <th>Unidad</th>
+              <th className="num">% avance este período</th>
+            </tr>
+          </thead>
+          <tbody>
+            {units.map((u) => {
+              const pct = localPct[u.id] ?? String(progressByUnit.get(u.id)?.pct_avance ?? 0);
+              return (
+                <tr key={u.id}>
+                  <td>{u.nombre}</td>
+                  <td className="num">
+                    {editable ? (
+                      <input
+                        type="number"
+                        step="any"
+                        min="0"
+                        max="100"
+                        value={pct}
+                        onChange={(e) => setLocalPct((prev) => ({ ...prev, [u.id]: e.target.value }))}
+                        onBlur={(e) => saveUnit(u.id, e.target.value)}
+                        className="w-20 rounded border border-[var(--border)] bg-[var(--panel-2)] px-1.5 py-0.5 text-right"
+                      />
+                    ) : (
+                      `${progressByUnit.get(u.id)?.pct_avance ?? 0}%`
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {editable ? (
+        <p className="mt-1 text-[11px] text-[var(--muted)]">
+          Ingresá el avance de cada unidad en este período y luego usá &ldquo;Calcular rubros desde unidades&rdquo; para rellenar las cantidades presentes.
+        </p>
+      ) : null}
     </div>
   );
 }

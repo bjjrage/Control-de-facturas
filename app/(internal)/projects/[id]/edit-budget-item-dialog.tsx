@@ -17,6 +17,7 @@ type Row = {
   unitPrice: number | null;
   startDate: string | null;
   endDate: string | null;
+  quantityPerUnit: number | null;
 };
 
 export function EditBudgetItemDialog({ projectId, row }: { projectId: string; row: Row }) {
@@ -98,6 +99,18 @@ export function EditBudgetItemDialog({ projectId, row }: { projectId: string; ro
                 <Label htmlFor="ebi_end">Fecha fin (cronograma)</Label>
                 <Input id="ebi_end" name="end_date" type="date" defaultValue={row.endDate ?? ""} />
               </div>
+            </div>
+            <div>
+              <Label htmlFor="ebi_qty_per_unit">Cantidad por unidad (certificación proporcional)</Label>
+              <Input
+                id="ebi_qty_per_unit"
+                name="quantity_per_unit"
+                type="number"
+                step="any"
+                min="0"
+                defaultValue={row.quantityPerUnit ?? ""}
+                placeholder="Opcional — ej: 1 (puerta), 15 (m² piso)"
+              />
             </div>
             <div className="flex justify-end gap-2 pt-1">
               <Button type="button" variant="secondary" onClick={() => setOpen(false)}>

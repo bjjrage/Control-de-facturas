@@ -24,6 +24,8 @@ import {
   ProjectWeatherLog,
   ProjectSchedulePlan,
   ProjectSchedulePlanMonth,
+  ProjectUnit,
+  ProjectCertificateUnitProgress,
 } from "@/lib/types";
 import { AddBudgetItemForm } from "./add-budget-item-form";
 import { ImportBudgetDialog } from "./import-budget-dialog";
@@ -78,6 +80,8 @@ type Props = {
   projectCertificates: ProjectCertificate[];
   certificateItemsByCert: Record<string, ProjectCertificateItem[]>;
   certificateStaffByCert: Record<string, ProjectCertificateStaff[]>;
+  projectUnits: ProjectUnit[];
+  unitProgressByCert: Record<string, ProjectCertificateUnitProgress[]>;
   projectWeatherLogs: ProjectWeatherLog[];
   projectSchedulePlans: ProjectSchedulePlan[];
   schedulePlanMonths: Record<string, ProjectSchedulePlanMonth[]>;
@@ -114,6 +118,8 @@ export function ProjectTabsClient({
   projectCertificates,
   certificateItemsByCert,
   certificateStaffByCert,
+  projectUnits,
+  unitProgressByCert,
   projectWeatherLogs,
   projectSchedulePlans,
   schedulePlanMonths,
@@ -257,6 +263,7 @@ export function ProjectTabsClient({
                 execPct: pct,
                 startDate: i.start_date,
                 endDate: i.end_date,
+                quantityPerUnit: i.quantity_per_unit ?? null,
               };
             })}
             total={itemsSubtotal}
@@ -406,6 +413,8 @@ export function ProjectTabsClient({
             certificates={projectCertificates}
             itemsByCert={certificateItemsByCert}
             staffByCert={certificateStaffByCert}
+            projectUnits={projectUnits}
+            unitProgressByCert={unitProgressByCert}
             isAdmin={isAdmin}
           />
         </div>

@@ -226,6 +226,8 @@ export async function updateBudgetItem(
   const unitPrice = formData.get("unit_price") ? Number(formData.get("unit_price")) : null;
   const startDate = (formData.get("start_date") as string | null) || null;
   const endDate = (formData.get("end_date") as string | null) || null;
+  const rawQpu = formData.get("quantity_per_unit") as string | null;
+  const quantityPerUnit = rawQpu ? Number(rawQpu) : null;
 
   if (!code) return { error: "El código es obligatorio." };
   if (!description) return { error: "La descripción es obligatoria." };
@@ -243,6 +245,7 @@ export async function updateBudgetItem(
       unit_price: unitPrice,
       start_date: startDate,
       end_date: endDate,
+      quantity_per_unit: quantityPerUnit,
     })
     .eq("id", itemId)
     .eq("project_id", projectId);

@@ -562,6 +562,7 @@ export interface BudgetItem {
   start_date: string | null;
   end_date: string | null;
   depends_on: string | null;
+  quantity_per_unit: number | null;
   created_at: string;
 }
 
@@ -747,6 +748,25 @@ export interface ProjectCertificateStaff {
   rol: string;
   sort_order: number;
   created_at: string;
+}
+
+export interface ProjectUnit {
+  id: string;
+  project_id: string;
+  nombre: string;
+  sort_order: number;
+  activo: boolean;
+  created_at: string;
+}
+
+export interface ProjectCertificateUnitProgress {
+  id: string;
+  certificate_id: string;
+  unit_id: string;
+  pct_avance: number;
+  notas: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface SalesReceipt {

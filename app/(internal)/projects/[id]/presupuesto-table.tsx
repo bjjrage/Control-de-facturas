@@ -20,6 +20,7 @@ type Row = {
   execPct: number | null;
   startDate: string | null;
   endDate: string | null;
+  quantityPerUnit: number | null;
 };
 
 const unitLabel = (r: Row) => r.unit ?? "—";

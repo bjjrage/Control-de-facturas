@@ -20,6 +20,8 @@ import {
   ProjectWeatherLog,
   ProjectSchedulePlan,
   ProjectSchedulePlanMonth,
+  ProjectUnit,
+  ProjectCertificateUnitProgress,
 } from "@/lib/types";
 import { ProjectTabsClient } from "./project-tabs-client";
 
@@ -98,11 +100,13 @@ export default async function ProjectDetailPage({
   let projectCertificates: ProjectCertificate[] = [];
   const certificateItemsByCert: Record<string, ProjectCertificateItem[]> = {};
   const certificateStaffByCert: Record<string, ProjectCertificateStaff[]> = {};
+  let projectUnits: ProjectUnit[] = [];
+  const unitProgressByCert: Record<string, ProjectCertificateUnitProgress[]> = {};
   let projectWeatherLogs: ProjectWeatherLog[] = [];
   let projectSchedulePlans: ProjectSchedulePlan[] = [];
   const schedulePlanMonths: Record<string, ProjectSchedulePlanMonth[]> = {};
   if (isCaterpillar) {
-    const [{ data: certRows }, { data: weatherRows }, { data: planRows }] = await Promise.all([
+    const [{ data: certRows }, { data: weatherRows }, { data: planRows }, { data: unitRows }] = await Promise.all([
       supabase
         .from("project_certificates")
         .select("*")
@@ -121,14 +125,22 @@ export default async function ProjectDetailPage({
         .eq("project_id", id)
         .order("created_at")
         .returns<ProjectSchedulePlan[]>(),
+      supabase
+        .from("project_units")
+        .select("*")
+        .eq("project_id", id)
+        .eq("activo", true)
+        .order("sort_order")
+        .returns<ProjectUnit[]>(),
     ]);
     projectCertificates = certRows ?? [];
     projectWeatherLogs = weatherRows ?? [];
     projectSchedulePlans = planRows ?? [];
+    projectUnits = unitRows ?? [];
 
     if (projectCertificates.length > 0) {
       const certIds = projectCertificates.map((c) => c.id);
-      const [{ data: itemRows }, { data: staffRows }] = await Promise.all([
+      const [{ data: itemRows }, { data: staffRows }, { data: progressRows }] = await Promise.all([
         supabase
           .from("project_certificate_items")
           .select("*")
@@ -141,9 +153,15 @@ export default async function ProjectDetailPage({
           .in("certificate_id", certIds)
           .order("sort_order")
           .returns<ProjectCertificateStaff[]>(),
+        supabase
+          .from("project_certificate_unit_progress")
+          .select("*")
+          .in("certificate_id", certIds)
+          .returns<ProjectCertificateUnitProgress[]>(),
       ]);
       for (const it of itemRows ?? []) (certificateItemsByCert[it.certificate_id] ??= []).push(it);
       for (const st of staffRows ?? []) (certificateStaffByCert[st.certificate_id] ??= []).push(st);
+      for (const pr of progressRows ?? []) (unitProgressByCert[pr.certificate_id] ??= []).push(pr);
     }
 
     if (projectSchedulePlans.length > 0) {
@@ -358,6 +376,8 @@ export default async function ProjectDetailPage({
       projectCertificates={projectCertificates}
       certificateItemsByCert={certificateItemsByCert}
       certificateStaffByCert={certificateStaffByCert}
+      projectUnits={projectUnits}
+      unitProgressByCert={unitProgressByCert}
       projectWeatherLogs={projectWeatherLogs}
       projectSchedulePlans={projectSchedulePlans}
       schedulePlanMonths={schedulePlanMonths}
