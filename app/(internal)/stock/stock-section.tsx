@@ -9,6 +9,7 @@ import { Input, Label, Select } from "@/components/ui/input";
 import { formatMoney, formatNumber } from "@/lib/format";
 import { CategoriasDialog } from "./categorias-dialog";
 import { DepositosDialog } from "./depositos-dialog";
+import { ImportarDialog } from "./importar-dialog";
 
 const SIN_CATEGORIA = "__sin__";
 
@@ -205,6 +206,7 @@ export function StockSection({
         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
           <CategoriasDialog categorias={categorias} productos={productos} />
           <DepositosDialog depositos={depositos} />
+          <ImportarDialog categorias={categorias} />
           <Link href="/stock/nuevo">
             <Button>Nuevo producto</Button>
           </Link>
@@ -474,6 +476,7 @@ function Tabla({
           <Th label="Valor" col="valor" num {...sp} />
           <Th label="Situación" col="situacion" {...sp} />
           <th>Estado</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -526,6 +529,14 @@ function Tabla({
               </td>
               <td>
                 <Badge tone={p.activo ? "ok" : "neutral"}>{p.activo ? "Activo" : "Inactivo"}</Badge>
+              </td>
+              <td className="whitespace-nowrap">
+                <Link
+                  href={`/stock/${p.id}/editar`}
+                  className="text-[12px] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                >
+                  Editar
+                </Link>
               </td>
             </tr>
           );

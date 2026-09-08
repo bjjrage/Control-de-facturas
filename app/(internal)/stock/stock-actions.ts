@@ -304,3 +304,104 @@ export async function crearCategoriasSugeridas(): Promise<{ creadas?: number; er
   revalidatePath("/stock");
   return { creadas: faltan.length };
 }
+
+// ──────────────────────────────────────────────
+// Importación masiva
+// ──────────────────────────────────────────────
+
+export type FilaImport = {
+  nombre: string;
+  sku?: string;
+  categoria_nombre?: string;
+  unidad: string;
+  contenido_por_unidad?: number;
+  unidad_base?: string;
+  descripcion?: string;
+  stock_minimo?: number;
+  stock_inicial?: number;
+  costo_inicial?: number;
+};
+
+export type ResultadoImport = {
+  creados: number;
+  errores: { fila: number; nombre: string; mensaje: string }[];
+};
+
+export async function importarProductos(filas: FilaImport[]): Promise<ResultadoImport> {
+  const { supabase, profile } = await getClient();
+
+  // Categorías existentes: mapa nombre lowercase → id
+  const { data: cats } = await supabase
+    .from("categorias_producto")
+    .select("id, nombre")
+    .eq("empresa_id", profile.empresa_id);
+  const catMap = new Map<string, string>();
+  for (const c of cats ?? []) catMap.set(c.nombre.toLowerCase().trim(), c.id);
+
+  let creados = 0;
+  const errores: ResultadoImport["errores"] = [];
+
+  for (let i = 0; i < filas.length; i++) {
+    const f = filas[i];
+    const nombre = f.nombre?.trim();
+    const unidad = f.unidad?.trim();
+
+    if (!nombre) {
+      errores.push({ fila: i + 2, nombre: nombre || "—", mensaje: "Nombre requerido" });
+      continue;
+    }
+    if (!unidad) {
+      errores.push({ fila: i + 2, nombre, mensaje: "Unidad requerida" });
+      continue;
+    }
+
+    const categoria_id = f.categoria_nombre
+      ? (catMap.get(f.categoria_nombre.toLowerCase().trim()) ?? null)
+      : null;
+
+    const { data: producto, error: pErr } = await supabase
+      .from("productos")
+      .insert({
+        empresa_id: profile.empresa_id,
+        nombre,
+        unidad,
+        sku: f.sku?.trim() || null,
+        descripcion: f.descripcion?.trim() || null,
+        categoria_id,
+        stock_minimo: f.stock_minimo ?? 0,
+        stock_actual: 0,
+        contenido_por_unidad: f.contenido_por_unidad ?? null,
+        unidad_base: f.unidad_base?.trim() || null,
+        created_by: profile.id,
+      })
+      .select("id")
+      .single();
+
+    if (pErr) {
+      errores.push({ fila: i + 2, nombre, mensaje: pErr.message });
+      continue;
+    }
+
+    if (f.stock_inicial && f.stock_inicial > 0) {
+      const { error: movErr } = await supabase.rpc("registrar_stock_movimiento", {
+        p_empresa_id: profile.empresa_id,
+        p_producto_id: producto.id,
+        p_tipo: "ENTRADA",
+        p_cantidad: f.stock_inicial,
+        p_costo_unitario: f.costo_inicial && f.costo_inicial > 0 ? f.costo_inicial : null,
+        p_notas: "Stock inicial (importación)",
+        p_created_by: profile.id,
+      });
+      if (movErr) {
+        errores.push({ fila: i + 2, nombre, mensaje: `Producto creado, error en stock inicial: ${movErr.message}` });
+        creados++;
+        continue;
+      }
+    }
+
+    creados++;
+  }
+
+  revalidatePath("/stock");
+  return { creados, errores };
+}
