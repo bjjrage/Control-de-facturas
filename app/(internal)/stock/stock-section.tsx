@@ -14,6 +14,12 @@ const SIN_CATEGORIA = "__sin__";
 type EstadoFiltro = "activos" | "inactivos" | "todos";
 type Situacion = "" | "bajo" | "sin" | "ok";
 
+const SIT_LABEL: Record<"sin" | "bajo" | "ok", string> = {
+  sin: "Sin stock",
+  bajo: "Bajo mínimo",
+  ok: "En nivel",
+};
+
 function situacionDe(p: Producto): "sin" | "bajo" | "ok" {
   if (p.stock_actual <= 0) return "sin";
   if (p.stock_minimo > 0 && p.stock_actual <= p.stock_minimo) return "bajo";
@@ -31,9 +37,19 @@ export function StockSection({
   const [catFilter, setCatFilter] = useState("");
   const [estado, setEstado] = useState<EstadoFiltro>("activos");
   const [situacion, setSituacion] = useState<Situacion>("");
+  const [agrupar, setAgrupar] = useState(true);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
-  const catIds = useMemo(() => new Set(categorias.map((c) => c.id)), [categorias]);
+  const catById = useMemo(() => {
+    const m = new Map<string, CategoriaProducto>();
+    for (const c of categorias) m.set(c.id, c);
+    return m;
+  }, [categorias]);
+
+  function nombreCategoria(p: Producto): string {
+    if (p.categoria_id && catById.has(p.categoria_id)) return catById.get(p.categoria_id)!.nombre;
+    return "Sin categoría";
+  }
 
   const activos = useMemo(() => productos.filter((p) => p.activo), [productos]);
   const kpiBajo = useMemo(() => activos.filter((p) => situacionDe(p) === "bajo").length, [activos]);
@@ -46,7 +62,7 @@ export function StockSection({
       if (estado === "inactivos" && p.activo) return false;
 
       if (catFilter === SIN_CATEGORIA) {
-        if (p.categoria_id && catIds.has(p.categoria_id)) return false;
+        if (p.categoria_id && catById.has(p.categoria_id)) return false;
       } else if (catFilter && p.categoria_id !== catFilter) {
         return false;
       }
@@ -62,12 +78,12 @@ export function StockSection({
       }
       return true;
     });
-  }, [productos, q, catFilter, estado, situacion, catIds]);
+  }, [productos, q, catFilter, estado, situacion, catById]);
 
   const grupos = useMemo(() => {
     const map = new Map<string, Producto[]>();
     for (const p of filtered) {
-      const key = p.categoria_id && catIds.has(p.categoria_id) ? p.categoria_id : SIN_CATEGORIA;
+      const key = p.categoria_id && catById.has(p.categoria_id) ? p.categoria_id : SIN_CATEGORIA;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(p);
     }
@@ -79,9 +95,27 @@ export function StockSection({
     const sin = map.get(SIN_CATEGORIA);
     if (sin) out.push({ id: SIN_CATEGORIA, nombre: "Sin categoría", items: sin });
     return out;
-  }, [filtered, categorias, catIds]);
+  }, [filtered, categorias, catById]);
 
-  const hasFilters = !!(q || catFilter || situacion || estado !== "activos");
+  const activeChips: { label: string; clear: () => void }[] = [];
+  if (q.trim()) activeChips.push({ label: `Búsqueda: "${q.trim()}"`, clear: () => setQ("") });
+  if (catFilter) {
+    const nombre =
+      catFilter === SIN_CATEGORIA ? "Sin categoría" : catById.get(catFilter)?.nombre ?? "—";
+    activeChips.push({ label: `Categoría: ${nombre}`, clear: () => setCatFilter("") });
+  }
+  if (situacion)
+    activeChips.push({
+      label: `Situación: ${SIT_LABEL[situacion]}`,
+      clear: () => setSituacion(""),
+    });
+  if (estado !== "activos")
+    activeChips.push({
+      label: `Estado: ${estado === "inactivos" ? "Inactivos" : "Todos"}`,
+      clear: () => setEstado("activos"),
+    });
+
+  const hasFilters = activeChips.length > 0;
 
   function toggle(id: string) {
     setCollapsed((prev) => {
@@ -98,6 +132,8 @@ export function StockSection({
     setEstado("activos");
     setSituacion("");
   }
+
+  const mostrarColCategoria = !agrupar || grupos.length !== 1;
 
   return (
     <div className="max-w-6xl space-y-4">
@@ -154,7 +190,7 @@ export function StockSection({
       ) : null}
 
       {/* Filtros */}
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3 space-y-2.5">
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <Label htmlFor="stk-q">Buscar</Label>
@@ -211,23 +247,44 @@ export function StockSection({
               <option value="todos">Todos</option>
             </Select>
           </div>
-          {hasFilters ? (
-            <button
-              onClick={limpiar}
-              className="text-[12px] text-[var(--muted)] pb-1.5 hover:text-[var(--foreground)]"
-            >
-              Limpiar
-            </button>
-          ) : null}
+          <label className="flex items-center gap-1.5 text-[12px] text-[var(--muted)] pb-1.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={agrupar}
+              onChange={(e) => setAgrupar(e.target.checked)}
+            />
+            Agrupar por categoría
+          </label>
         </div>
-        {hasFilters ? (
-          <p className="text-[11px] text-[var(--muted)] mt-2">
-            {filtered.length} {filtered.length === 1 ? "producto" : "productos"} coinciden
-          </p>
+
+        {(hasFilters || filtered.length !== productos.length) ? (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {activeChips.map((chip) => (
+              <button
+                key={chip.label}
+                onClick={chip.clear}
+                className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--panel-2)] px-2 py-0.5 text-[11px] text-[var(--muted)] hover:text-[var(--foreground)]"
+              >
+                {chip.label}
+                <span className="text-[13px] leading-none">×</span>
+              </button>
+            ))}
+            <span className="text-[11px] text-[var(--muted)] ml-0.5">
+              {filtered.length} {filtered.length === 1 ? "producto" : "productos"}
+            </span>
+            {hasFilters ? (
+              <button
+                onClick={limpiar}
+                className="text-[11px] text-[var(--muted)] underline hover:text-[var(--foreground)] ml-1"
+              >
+                Limpiar todo
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </div>
 
-      {/* Lista agrupada */}
+      {/* Lista */}
       {grupos.length === 0 ? (
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] py-10 text-center text-[13px] text-[var(--muted)]">
           {productos.length === 0 ? (
@@ -241,7 +298,7 @@ export function StockSection({
             "Ningún producto coincide con los filtros."
           )}
         </div>
-      ) : (
+      ) : agrupar ? (
         <div className="space-y-2">
           {grupos.map((g) => {
             const isCollapsed = collapsed.has(g.id);
@@ -274,85 +331,106 @@ export function StockSection({
 
                 {!isCollapsed ? (
                   <div className="overflow-x-auto border-t border-[var(--border)]">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Producto</th>
-                          <th>SKU</th>
-                          <th className="num">Stock actual</th>
-                          <th className="num">Total base</th>
-                          <th className="num">Mínimo</th>
-                          <th>Estado</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {g.items.map((p) => {
-                          const s = situacionDe(p);
-                          const alerta = p.activo && (s === "bajo" || s === "sin");
-                          return (
-                            <tr key={p.id}>
-                              <td>
-                                <Link
-                                  href={`/stock/${p.id}`}
-                                  className="text-action font-medium"
-                                >
-                                  {p.nombre}
-                                </Link>
-                                {p.descripcion ? (
-                                  <div className="text-[11px] text-[var(--muted)] truncate max-w-[280px]">
-                                    {p.descripcion}
-                                  </div>
-                                ) : null}
-                              </td>
-                              <td className="text-[var(--muted)] font-mono text-[12px]">
-                                {p.sku ?? "—"}
-                              </td>
-                              <td
-                                className={`num font-semibold ${
-                                  alerta ? "text-[var(--warn)]" : ""
-                                }`}
-                              >
-                                {formatNumber(p.stock_actual, 2)} {p.unidad}
-                              </td>
-                              <td className="num text-[var(--muted)]">
-                                {p.contenido_por_unidad && p.unidad_base
-                                  ? `${formatNumber(
-                                      p.stock_actual * p.contenido_por_unidad,
-                                      2
-                                    )} ${p.unidad_base}`
-                                  : "—"}
-                              </td>
-                              <td className="num text-[var(--muted)]">
-                                {p.stock_minimo > 0 ? formatNumber(p.stock_minimo, 2) : "—"}
-                              </td>
-                              <td>
-                                {!p.activo ? (
-                                  <span className="text-[11px] text-[var(--muted)]">Inactivo</span>
-                                ) : s === "sin" ? (
-                                  <span className="text-[11px] font-medium text-[var(--error)]">
-                                    Sin stock
-                                  </span>
-                                ) : s === "bajo" ? (
-                                  <span className="text-[11px] font-medium text-[var(--warn)]">
-                                    Bajo mínimo
-                                  </span>
-                                ) : (
-                                  <span className="text-[11px] text-[var(--ok)]">OK</span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                    <Tabla items={g.items} nombreCategoria={nombreCategoria} showCategoria={false} />
                   </div>
                 ) : null}
               </div>
             );
           })}
         </div>
+      ) : (
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+          <div className="overflow-x-auto">
+            <Tabla items={filtered} nombreCategoria={nombreCategoria} showCategoria={mostrarColCategoria} />
+          </div>
+        </div>
       )}
     </div>
+  );
+}
+
+function Tabla({
+  items,
+  nombreCategoria,
+  showCategoria,
+}: {
+  items: Producto[];
+  nombreCategoria: (p: Producto) => string;
+  showCategoria: boolean;
+}) {
+  return (
+    <table>
+      <thead>
+        <tr>
+          <th>Producto</th>
+          {showCategoria ? <th>Categoría</th> : null}
+          <th>SKU</th>
+          <th className="num">Stock actual</th>
+          <th className="num">Total base</th>
+          <th className="num">Mínimo</th>
+          <th>Situación</th>
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((p) => {
+          const s = situacionDe(p);
+          const alerta = p.activo && (s === "bajo" || s === "sin");
+          return (
+            <tr key={p.id}>
+              <td>
+                <div className="flex items-center gap-1.5">
+                  <Link href={`/stock/${p.id}`} className="text-action font-medium">
+                    {p.nombre}
+                  </Link>
+                  {!p.activo ? (
+                    <span className="text-[10px] text-[var(--muted)] border border-[var(--border)] rounded px-1 py-0.5">
+                      Inactivo
+                    </span>
+                  ) : null}
+                </div>
+                {p.descripcion ? (
+                  <div className="text-[11px] text-[var(--muted)] truncate max-w-[280px]">
+                    {p.descripcion}
+                  </div>
+                ) : null}
+              </td>
+              {showCategoria ? (
+                <td className="text-[var(--muted)] text-[12px]">{nombreCategoria(p)}</td>
+              ) : null}
+              <td className="text-[var(--muted)] font-mono text-[12px]">{p.sku ?? "—"}</td>
+              <td className={`num font-semibold ${alerta ? "text-[var(--warn)]" : ""}`}>
+                {formatNumber(p.stock_actual, 2)} {p.unidad}
+              </td>
+              <td className="num text-[var(--muted)]">
+                {p.contenido_por_unidad && p.unidad_base
+                  ? `${formatNumber(p.stock_actual * p.contenido_por_unidad, 2)} ${p.unidad_base}`
+                  : "—"}
+              </td>
+              <td className="num text-[var(--muted)]">
+                {p.stock_minimo > 0 ? formatNumber(p.stock_minimo, 2) : "—"}
+              </td>
+              <td>
+                {!p.activo ? (
+                  <span className="text-[11px] text-[var(--muted)]">—</span>
+                ) : (
+                  <span
+                    className={`text-[11px] font-medium ${
+                      s === "sin"
+                        ? "text-[var(--error)]"
+                        : s === "bajo"
+                          ? "text-[var(--warn)]"
+                          : "text-[var(--ok)]"
+                    }`}
+                  >
+                    {SIT_LABEL[s]}
+                  </span>
+                )}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 
