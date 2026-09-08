@@ -233,6 +233,8 @@ export interface StockMovimiento {
   costo_unitario: number | null;
   costo_total: number | null;
   costo_promedio_resultante: number | null;
+  project_id: string | null;
+  budget_item_id: string | null;
   referencia_tipo: string | null;
   referencia_id: string | null;
   notas: string | null;
@@ -245,6 +247,7 @@ export interface OcRecepcionItem {
   recepcion_id: string;
   empresa_id: string;
   order_item_id: string;
+  producto_id: string | null;
   cantidad_recibida: number;
   notas: string | null;
   created_at: string;

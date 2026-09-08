@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatMoney, formatNumber } from "@/lib/format";
+import { createClient } from "@/lib/supabase/browser";
+import type { BudgetItem } from "@/lib/types";
 import { registrarMovimiento } from "../stock-actions";
 
 type Tipo = "ENTRADA" | "SALIDA" | "AJUSTE";
+type ProjectLite = { id: string; name: string; code: string };
 
 export function MovimientoDialog({
   productoId,
@@ -25,15 +28,58 @@ export function MovimientoDialog({
   const [cantidad, setCantidad] = useState("");
   const [costo, setCosto] = useState("");
   const [notas, setNotas] = useState("");
+  const [projectId, setProjectId] = useState("");
+  const [budgetItemId, setBudgetItemId] = useState("");
+  const [projects, setProjects] = useState<ProjectLite[]>([]);
+  const [rubros, setRubros] = useState<BudgetItem[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  // Proyectos activos — para imputar la salida a una obra
+  useEffect(() => {
+    if (!open) return;
+    const supabase = createClient();
+    supabase
+      .from("projects")
+      .select("id, name, code")
+      .eq("status", "ACTIVO")
+      .order("name")
+      .then(({ data }) => setProjects((data as ProjectLite[]) ?? []));
+  }, [open]);
+
+  // Rubros del proyecto elegido
+  useEffect(() => {
+    if (!projectId) return;
+    let cancelled = false;
+    const supabase = createClient();
+    supabase
+      .from("budget_items")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("sort_order")
+      .order("code")
+      .returns<BudgetItem[]>()
+      .then(({ data }) => {
+        if (!cancelled) setRubros(data ?? []);
+      });
+    return () => { cancelled = true; };
+  }, [projectId]);
+
+  function cambiarProyecto(id: string) {
+    setProjectId(id);
+    setBudgetItemId("");
+    if (!id) setRubros([]);
+  }
 
   function reset() {
     setTipo("ENTRADA");
     setCantidad("");
     setCosto("");
     setNotas("");
+    setProjectId("");
+    setBudgetItemId("");
+    setRubros([]);
     setError(null);
   }
 
@@ -74,6 +120,8 @@ export function MovimientoDialog({
     const res = await registrarMovimiento(productoId, tipo, cantidadNum, {
       notas: notas || undefined,
       costo_unitario: costoNum > 0 ? costoNum : undefined,
+      project_id: tipo === "SALIDA" && projectId ? projectId : null,
+      budget_item_id: tipo === "SALIDA" && projectId && budgetItemId ? budgetItemId : null,
     });
     setPending(false);
 
@@ -168,6 +216,38 @@ export function MovimientoDialog({
               </p>
             ) : null}
           </div>
+
+          {tipo === "SALIDA" ? (
+            <div className="space-y-2 rounded border border-[var(--border)] bg-[var(--panel-2)] p-2.5">
+              <div className="text-[11px] text-[var(--muted)]">Imputar a obra (opcional)</div>
+              <select
+                value={projectId}
+                onChange={(e) => cambiarProyecto(e.target.value)}
+                className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel)] px-2.5 text-[13px]"
+              >
+                <option value="">— sin imputar —</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.code ? `${p.code} · ` : ""}{p.name}
+                  </option>
+                ))}
+              </select>
+              {projectId ? (
+                <select
+                  value={budgetItemId}
+                  onChange={(e) => setBudgetItemId(e.target.value)}
+                  className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel)] px-2.5 text-[13px]"
+                >
+                  <option value="">Rubro (opcional)</option>
+                  {rubros.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.code} · {r.description}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+            </div>
+          ) : null}
 
           {cantidadNum > 0 ? (
             <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-[12px] space-y-1">

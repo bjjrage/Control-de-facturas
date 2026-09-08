@@ -312,6 +312,37 @@ test.describe("Caterpillar — Stock / Inventario", () => {
     await expect(page.locator("table:visible th").getByText(/Costo unit\./i)).toBeVisible();
   });
 
+  test("kardex muestra la obra imputada en una salida (requiere seed)", async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto("/stock");
+    await page.waitForLoadState("networkidle", { timeout: 20_000 });
+
+    const cemento = page.locator("table:visible td").getByText(/Cemento Portland/i).first();
+    if (await cemento.count() === 0) { test.skip(); return; }
+    await cemento.click();
+    await page.waitForLoadState("networkidle", { timeout: 20_000 });
+
+    // La salida del seed está imputada a "Edificio Residencial Norte"
+    await expect(
+      page.locator("table:visible td").getByText(/Edificio Residencial Norte/i).first()
+    ).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("diálogo de movimiento — SALIDA permite imputar a obra", async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto("/stock");
+    await page.waitForLoadState("networkidle", { timeout: 20_000 });
+
+    const firstLink = page.locator("table:visible tbody tr").first().getByRole("link").first();
+    if (await firstLink.count() === 0) { test.skip(); return; }
+    await firstLink.click();
+    await page.waitForLoadState("networkidle", { timeout: 20_000 });
+
+    await page.getByRole("button", { name: /Registrar movimiento/i }).click();
+    await page.getByRole("button", { name: /^Salida$/i }).click();
+    await expect(page.getByText(/Imputar a obra/i)).toBeVisible({ timeout: 10_000 });
+  });
+
   test("detalle muestra KPIs de stock (stock actual y mínimo)", async ({ page }) => {
     test.setTimeout(60_000);
     await page.goto("/stock");

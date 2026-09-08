@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { formatDate, formatNumber } from "@/lib/format";
+import { createClient } from "@/lib/supabase/browser";
 import type { AuthorizedOrderItem, OcRecepcion } from "@/lib/types";
 import { registrarRecepcion, eliminarRecepcion } from "../oc-recepcion-actions";
+
+type ProductoLite = { id: string; nombre: string; unidad: string };
 
 // ─── RegistrarDialog ────────────────────────────────────────────────────────
 
@@ -24,15 +27,29 @@ function RegistrarDialog({
   const [recibidoPor, setRecibidoPor] = useState("");
   const [notas, setNotas] = useState("");
   const [cantidades, setCantidades] = useState<Record<string, string>>({});
+  const [productoPorItem, setProductoPorItem] = useState<Record<string, string>>({});
+  const [productos, setProductos] = useState<ProductoLite[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    if (!open) return;
+    const supabase = createClient();
+    supabase
+      .from("productos")
+      .select("id, nombre, unidad")
+      .eq("activo", true)
+      .order("nombre")
+      .then(({ data }) => setProductos((data as ProductoLite[]) ?? []));
+  }, [open]);
 
   function reset() {
     setFecha(new Date().toISOString().slice(0, 10));
     setRecibidoPor("");
     setNotas("");
     setCantidades({});
+    setProductoPorItem({});
     setError(null);
   }
 
@@ -44,6 +61,7 @@ function RegistrarDialog({
       .map((it) => ({
         order_item_id: it.id,
         cantidad_recibida: parseFloat(cantidades[it.id] || "0") || 0,
+        producto_id: productoPorItem[it.id] || null,
       }))
       .filter((i) => i.cantidad_recibida > 0);
 
@@ -108,7 +126,8 @@ function RegistrarDialog({
                   <tr>
                     <th>Ítem</th>
                     <th className="num">Ordenado</th>
-                    <th className="num w-28">Cant. recibida</th>
+                    <th className="num w-24">Recibida</th>
+                    <th className="w-40">Producto de stock</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -131,11 +150,29 @@ function RegistrarDialog({
                           className="w-full h-7 rounded border border-[var(--border)] bg-[var(--panel)] px-2 text-[13px] text-right"
                         />
                       </td>
+                      <td>
+                        <select
+                          value={productoPorItem[it.id] ?? ""}
+                          onChange={(e) =>
+                            setProductoPorItem((prev) => ({ ...prev, [it.id]: e.target.value }))
+                          }
+                          className="w-full h-7 rounded border border-[var(--border)] bg-[var(--panel)] px-1.5 text-[12px]"
+                        >
+                          <option value="">— no cargar a stock —</option>
+                          {productos.map((p) => (
+                            <option key={p.id} value={p.id}>{p.nombre}</option>
+                          ))}
+                        </select>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            <p className="text-[11px] text-[var(--muted)] mt-1">
+              Elegí un producto para que la recepción genere la entrada de stock automáticamente,
+              al precio unitario de la OC.
+            </p>
           </div>
 
           <div>

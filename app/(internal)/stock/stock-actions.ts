@@ -128,7 +128,14 @@ export async function registrarMovimiento(
   producto_id: string,
   tipo: "ENTRADA" | "SALIDA" | "AJUSTE",
   cantidad: number,
-  opts?: { referencia_tipo?: string; referencia_id?: string; notas?: string; costo_unitario?: number }
+  opts?: {
+    referencia_tipo?: string;
+    referencia_id?: string;
+    notas?: string;
+    costo_unitario?: number;
+    project_id?: string | null;
+    budget_item_id?: string | null;
+  }
 ): Promise<{ stock_nuevo?: number; error?: string }> {
   const { supabase, profile } = await getClient();
 
@@ -142,6 +149,8 @@ export async function registrarMovimiento(
     p_referencia_id: opts?.referencia_id ?? null,
     p_notas: opts?.notas ?? null,
     p_created_by: profile.id,
+    p_project_id: opts?.project_id || null,
+    p_budget_item_id: opts?.budget_item_id || null,
   });
 
   if (error) return { error: error.message };

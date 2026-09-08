@@ -515,7 +515,51 @@ ON CONFLICT (empresa_id, sku)
                 costo_promedio = EXCLUDED.costo_promedio;
 
 -- -----------------------------------------------------------------------------
--- 11. Verificación rápida �?" cantidad de registros insertados
+-- 11. Movimientos de stock demo
+--     ENTRADA inicial por producto + un par de SALIDA imputadas a la obra 1
+-- -----------------------------------------------------------------------------
+DELETE FROM public.stock_movimientos
+ WHERE empresa_id = 'bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd'
+   AND producto_id IN (
+     'b2000001-0000-0000-0000-000000000001','b2000002-0000-0000-0000-000000000002',
+     'b2000003-0000-0000-0000-000000000003','b2000004-0000-0000-0000-000000000004',
+     'b2000005-0000-0000-0000-000000000005','b2000006-0000-0000-0000-000000000006');
+
+INSERT INTO public.stock_movimientos
+  (empresa_id, producto_id, tipo, cantidad, stock_resultante,
+   costo_unitario, costo_total, costo_promedio_resultante,
+   project_id, budget_item_id, notas, created_by, created_at)
+VALUES
+  -- Entradas iniciales (stock_resultante = stock actual de cada producto)
+  ('bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd', 'b2000001-0000-0000-0000-000000000001', 'ENTRADA', 150, 150,
+   47500, 7125000, 47500, NULL, NULL, 'Stock inicial', '83a3c4b5-d674-426c-8bf1-3d71d8351a59', now() - interval '90 days'),
+  ('bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd', 'b2000002-0000-0000-0000-000000000002', 'ENTRADA', 100, 100,
+   92000, 9200000, 92000, NULL, NULL, 'Stock inicial', '83a3c4b5-d674-426c-8bf1-3d71d8351a59', now() - interval '85 days'),
+  ('bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd', 'b2000003-0000-0000-0000-000000000003', 'ENTRADA', 25, 25,
+   135000, 3375000, 135000, NULL, NULL, 'Stock inicial', '83a3c4b5-d674-426c-8bf1-3d71d8351a59', now() - interval '80 days'),
+  ('bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd', 'b2000004-0000-0000-0000-000000000004', 'ENTRADA', 2400, 2400,
+   2900, 6960000, 2900, NULL, NULL, 'Stock inicial', '83a3c4b5-d674-426c-8bf1-3d71d8351a59', now() - interval '75 days'),
+  ('bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd', 'b2000005-0000-0000-0000-000000000005', 'ENTRADA', 14, 14,
+   385000, 5390000, 385000, NULL, NULL, 'Stock inicial', '83a3c4b5-d674-426c-8bf1-3d71d8351a59', now() - interval '40 days'),
+  ('bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd', 'b2000006-0000-0000-0000-000000000006', 'ENTRADA', 30, 30,
+   52000, 1560000, 52000, NULL, NULL, 'Stock inicial', '83a3c4b5-d674-426c-8bf1-3d71d8351a59', now() - interval '70 days'),
+
+  -- Salidas imputadas a "Edificio Residencial Norte"
+  ('bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd', 'b2000001-0000-0000-0000-000000000001', 'SALIDA', 30, 120,
+   47500, -1425000, 47500,
+   'c1000001-0000-0000-0000-000000000001', 'b1000005-0000-0000-0000-000000000005',
+   'Hormigón de fundación', '83a3c4b5-d674-426c-8bf1-3d71d8351a59', now() - interval '30 days'),
+  ('bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd', 'b2000003-0000-0000-0000-000000000003', 'SALIDA', 7, 18,
+   135000, -945000, 135000,
+   'c1000001-0000-0000-0000-000000000001', 'b1000005-0000-0000-0000-000000000005',
+   'Arena para mezcla', '83a3c4b5-d674-426c-8bf1-3d71d8351a59', now() - interval '28 days'),
+  ('bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd', 'b2000002-0000-0000-0000-000000000002', 'SALIDA', 15, 85,
+   92000, -1380000, 92000,
+   'c1000001-0000-0000-0000-000000000001', 'b1000006-0000-0000-0000-000000000006',
+   'Armadura de columnas', '83a3c4b5-d674-426c-8bf1-3d71d8351a59', now() - interval '20 days');
+
+-- -----------------------------------------------------------------------------
+-- 12. Verificación rápida �?" cantidad de registros insertados
 -- -----------------------------------------------------------------------------
 SELECT
   (SELECT COUNT(*) FROM public.projects

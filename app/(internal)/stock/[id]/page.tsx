@@ -44,6 +44,21 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
     .returns<StockMovimiento[]>();
 
   const mov = movimientos ?? [];
+
+  // Nombres de obra / rubro para las salidas imputadas
+  const projectIds = [...new Set(mov.map((m) => m.project_id).filter(Boolean))] as string[];
+  const budgetItemIds = [...new Set(mov.map((m) => m.budget_item_id).filter(Boolean))] as string[];
+  const [{ data: projRows }, { data: biRows }] = await Promise.all([
+    projectIds.length
+      ? supabase.from("projects").select("id, name, code").in("id", projectIds)
+      : Promise.resolve({ data: [] as { id: string; name: string; code: string }[] }),
+    budgetItemIds.length
+      ? supabase.from("budget_items").select("id, code, description").in("id", budgetItemIds)
+      : Promise.resolve({ data: [] as { id: string; code: string; description: string }[] }),
+  ]);
+  const projById = new Map((projRows ?? []).map((p) => [p.id, p]));
+  const biById = new Map((biRows ?? []).map((b) => [b.id, b]));
+
   const bajo = producto.stock_minimo > 0 && producto.stock_actual <= producto.stock_minimo;
   const isAdmin = profile.role === "admin";
   const totalBase = producto.contenido_por_unidad
@@ -182,7 +197,20 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
                     {m.costo_total != null && m.costo_total !== 0 ? formatMoney(m.costo_total) : "—"}
                   </td>
                   <td className="text-[11px] text-[var(--muted)]">
-                    {m.referencia_tipo ? `${m.referencia_tipo}` : "—"}
+                    {m.project_id && projById.has(m.project_id) ? (
+                      <>
+                        {projById.get(m.project_id)!.name}
+                        {m.budget_item_id && biById.has(m.budget_item_id) ? (
+                          <span className="block text-[10px]">
+                            {biById.get(m.budget_item_id)!.code} · {biById.get(m.budget_item_id)!.description}
+                          </span>
+                        ) : null}
+                      </>
+                    ) : m.referencia_tipo ? (
+                      m.referencia_tipo
+                    ) : (
+                      "—"
+                    )}
                   </td>
                   <td className="text-[12px] text-[var(--muted)]">{m.notas ?? "—"}</td>
                 </tr>
