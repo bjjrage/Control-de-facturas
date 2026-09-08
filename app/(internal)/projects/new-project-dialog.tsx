@@ -69,6 +69,11 @@ export function NewProjectDialog({ trigger }: { trigger: React.ReactNode }) {
             </div>
           </div>
 
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" name="crear_panol" value="1" defaultChecked className="h-4 w-4 rounded border-[var(--border)]" />
+            <span className="text-[13px]">Crear depósito/pañol para esta obra</span>
+          </label>
+
           <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
               Cancelar

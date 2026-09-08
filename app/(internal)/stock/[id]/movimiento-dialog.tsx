@@ -141,7 +141,7 @@ export function MovimientoDialog({
     const res = await registrarMovimiento(productoId, tipo, cantidadNum, {
       notas: notas || undefined,
       costo_unitario: costoNum > 0 ? costoNum : undefined,
-      project_id: tipo === "SALIDA" && projectId ? projectId : null,
+      project_id: (tipo === "SALIDA" || tipo === "ENTRADA") && projectId ? projectId : null,
       budget_item_id: tipo === "SALIDA" && projectId && budgetItemId ? budgetItemId : null,
       deposito_id: depositoId || null,
       deposito_destino_id: tipo === "TRANSFERENCIA" && depositoDestinoId ? depositoDestinoId : null,
@@ -294,9 +294,11 @@ export function MovimientoDialog({
             </div>
           ) : null}
 
-          {tipo === "SALIDA" ? (
+          {(tipo === "SALIDA" || tipo === "ENTRADA") ? (
             <div className="space-y-2 rounded border border-[var(--border)] bg-[var(--panel-2)] p-2.5">
-              <div className="text-[11px] text-[var(--muted)]">Imputar a obra (opcional)</div>
+              <div className="text-[11px] text-[var(--muted)]">
+                {tipo === "ENTRADA" ? "Compra para obra (opcional)" : "Imputar a obra (opcional)"}
+              </div>
               <select
                 value={projectId}
                 onChange={(e) => cambiarProyecto(e.target.value)}
@@ -309,7 +311,7 @@ export function MovimientoDialog({
                   </option>
                 ))}
               </select>
-              {projectId ? (
+              {projectId && tipo === "SALIDA" ? (
                 <select
                   value={budgetItemId}
                   onChange={(e) => setBudgetItemId(e.target.value)}
