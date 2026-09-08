@@ -338,6 +338,30 @@ export async function importarProductos(filas: FilaImport[]): Promise<ResultadoI
   const catMap = new Map<string, string>();
   for (const c of cats ?? []) catMap.set(c.nombre.toLowerCase().trim(), c.id);
 
+  // Crear categorías nuevas que vengan en el archivo pero no existan todavía
+  const newCatNames = new Map<string, string>(); // lc → original case
+  for (const f of filas) {
+    if (f.categoria_nombre) {
+      const lc = f.categoria_nombre.toLowerCase().trim();
+      if (!catMap.has(lc) && !newCatNames.has(lc)) {
+        newCatNames.set(lc, f.categoria_nombre.trim());
+      }
+    }
+  }
+  if (newCatNames.size > 0) {
+    const baseOrden = cats?.length ?? 0;
+    const toInsert = [...newCatNames.entries()].map(([, nombre], i) => ({
+      empresa_id: profile.empresa_id,
+      nombre,
+      orden: baseOrden + i,
+    }));
+    const { data: created } = await supabase
+      .from("categorias_producto")
+      .insert(toInsert)
+      .select("id, nombre");
+    for (const c of created ?? []) catMap.set(c.nombre.toLowerCase().trim(), c.id);
+  }
+
   let creados = 0;
   const errores: ResultadoImport["errores"] = [];
 

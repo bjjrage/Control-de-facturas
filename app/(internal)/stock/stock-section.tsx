@@ -206,7 +206,7 @@ export function StockSection({
         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
           <CategoriasDialog categorias={categorias} productos={productos} />
           <DepositosDialog depositos={depositos} />
-          <ImportarDialog categorias={categorias} />
+          <ImportarDialog />
           <Link href="/stock/nuevo">
             <Button>Nuevo producto</Button>
           </Link>

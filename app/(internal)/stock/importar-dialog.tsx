@@ -2,148 +2,148 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import type { CategoriaProducto } from "@/lib/types";
 import { importarProductos, type FilaImport } from "./stock-actions";
 
-// Columnas del CSV — también se genera la plantilla con este orden
-const COLUMNAS = [
-  "Nombre",
-  "SKU",
-  "Categoría",
-  "Unidad",
-  "Contenido por unidad",
-  "Unidad base",
-  "Descripción",
-  "Stock mínimo",
-  "Stock inicial",
-  "Costo inicial",
+// Campos del sistema → columna del archivo
+const CAMPOS = [
+  { key: "nombre",               label: "Nombre",               required: true  },
+  { key: "unidad",               label: "Unidad",               required: true  },
+  { key: "sku",                  label: "SKU / Código",          required: false },
+  { key: "categoria_nombre",     label: "Categoría",            required: false },
+  { key: "descripcion",          label: "Descripción",          required: false },
+  { key: "stock_inicial",        label: "Stock inicial",        required: false },
+  { key: "costo_inicial",        label: "Costo inicial",        required: false },
+  { key: "stock_minimo",         label: "Stock mínimo",         required: false },
+  { key: "contenido_por_unidad", label: "Contenido por unidad", required: false },
+  { key: "unidad_base",          label: "Unidad base",          required: false },
 ] as const;
 
-type FilaRaw = {
-  nombre: string;
-  sku: string;
-  categoria_nombre: string;
-  unidad: string;
-  contenido_por_unidad: string;
-  unidad_base: string;
-  descripcion: string;
-  stock_minimo: string;
-  stock_inicial: string;
-  costo_inicial: string;
-  _ok: boolean;
-  _error: string;
-};
+type CampoKey = (typeof CAMPOS)[number]["key"];
+type Mapping = Record<CampoKey, number>; // índice de columna, -1 = no usar
+type Step = "upload" | "map" | "done";
 
-function parseCsv(text: string): FilaRaw[] {
+function parseCsvRaw(text: string): { headers: string[]; rows: string[][] } {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
-  if (lines.length < 2) return [];
+  if (lines.length < 2) return { headers: [], rows: [] };
+  const delim = lines[0].includes(";") ? ";" : ",";
 
-  // Auto-detect delimiter: ; o ,
-  const firstLine = lines[0];
-  const delim = firstLine.includes(";") ? ";" : ",";
-
-  function splitLine(line: string): string[] {
+  function split(line: string): string[] {
     const result: string[] = [];
     let cur = "";
-    let inQuote = false;
+    let inQ = false;
     for (let i = 0; i < line.length; i++) {
       const ch = line[i];
       if (ch === '"') {
-        if (inQuote && line[i + 1] === '"') { cur += '"'; i++; }
-        else inQuote = !inQuote;
-      } else if (ch === delim && !inQuote) {
-        result.push(cur.trim());
-        cur = "";
-      } else {
-        cur += ch;
-      }
+        if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+        else inQ = !inQ;
+      } else if (ch === delim && !inQ) { result.push(cur.trim()); cur = ""; }
+      else cur += ch;
     }
     result.push(cur.trim());
     return result;
   }
 
-  const headers = splitLine(lines[0]).map((h) => h.toLowerCase().replace(/[^a-záéíóúüñ ]/gi, "").trim());
-
-  const idx = (name: string) => headers.findIndex((h) => h.includes(name.toLowerCase()));
-  const iNombre    = Math.max(idx("nombre"), 0);
-  const iSku       = idx("sku");
-  const iCat       = idx("categor");
-  const iUnidad    = idx("unidad de compra") !== -1 ? idx("unidad de compra") : idx("unidad");
-  const iContenido = idx("contenido");
-  const iUnidadB   = idx("unidad base");
-  const iDesc      = idx("descrip");
-  const iMinimo    = idx("mínimo") !== -1 ? idx("mínimo") : idx("minimo");
-  const iInicial   = idx("stock inicial") !== -1 ? idx("stock inicial") : idx("inicial");
-  const iCosto     = idx("costo");
-
-  const get = (cols: string[], i: number) => (i >= 0 && i < cols.length ? cols[i] : "");
-
-  const rows: FilaRaw[] = [];
+  const headers = split(lines[0]).map((h) => h.replace(/^"|"$/g, "").trim());
+  const rows: string[][] = [];
   for (let r = 1; r < lines.length; r++) {
-    const cols = splitLine(lines[r]);
-    const nombre = get(cols, iNombre).replace(/^"|"$/g, "");
-    if (!nombre) continue;
-
-    const unidad = get(cols, iUnidad).replace(/^"|"$/g, "");
-    const error = !nombre ? "Nombre requerido" : !unidad ? "Unidad requerida" : "";
-
-    rows.push({
-      nombre,
-      sku: get(cols, iSku).replace(/^"|"$/g, ""),
-      categoria_nombre: get(cols, iCat).replace(/^"|"$/g, ""),
-      unidad,
-      contenido_por_unidad: get(cols, iContenido).replace(/^"|"$/g, ""),
-      unidad_base: get(cols, iUnidadB).replace(/^"|"$/g, ""),
-      descripcion: get(cols, iDesc).replace(/^"|"$/g, ""),
-      stock_minimo: get(cols, iMinimo).replace(/^"|"$/g, ""),
-      stock_inicial: get(cols, iInicial).replace(/^"|"$/g, ""),
-      costo_inicial: get(cols, iCosto).replace(/^"|"$/g, ""),
-      _ok: !error,
-      _error: error,
-    });
+    const cols = split(lines[r]).map((c) => c.replace(/^"|"$/g, "").trim());
+    if (cols.some((c) => c)) rows.push(cols);
   }
-  return rows;
+  return { headers, rows };
 }
 
-function filaToImport(f: FilaRaw): FilaImport {
+function parseXlsxRaw(buffer: ArrayBuffer): { headers: string[]; rows: string[][] } {
+  const wb = XLSX.read(buffer, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const all = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, defval: "" });
+  if (all.length < 2) return { headers: [], rows: [] };
+  const headers = all[0].map((h) => String(h ?? "").trim());
+  const rows = all
+    .slice(1)
+    .filter((r) => r.some((c) => String(c ?? "").trim()))
+    .map((r) => r.map((c) => String(c ?? "").trim()));
+  return { headers, rows };
+}
+
+function autoDetect(headers: string[]): Mapping {
+  const find = (...kw: string[]) => {
+    const i = headers.findIndex((h) => {
+      const hl = h.toLowerCase();
+      return kw.some((k) => hl.includes(k));
+    });
+    return i;
+  };
+
   return {
-    nombre: f.nombre,
-    sku: f.sku || undefined,
-    categoria_nombre: f.categoria_nombre || undefined,
-    unidad: f.unidad,
-    contenido_por_unidad: f.contenido_por_unidad ? parseFloat(f.contenido_por_unidad) : undefined,
-    unidad_base: f.unidad_base || undefined,
-    descripcion: f.descripcion || undefined,
-    stock_minimo: f.stock_minimo ? parseFloat(f.stock_minimo) : undefined,
-    stock_inicial: f.stock_inicial ? parseFloat(f.stock_inicial) : undefined,
-    costo_inicial: f.costo_inicial ? parseFloat(f.costo_inicial) : undefined,
+    nombre:               find("nombre", "name", "product", "producto"),
+    unidad:               find("unidad de compra", "unidad_compra") >= 0
+                            ? find("unidad de compra", "unidad_compra")
+                            : find("unidad", "unit"),
+    sku:                  find("sku", "código", "codigo", "code", "ref", "cod"),
+    categoria_nombre:     find("categor"),
+    descripcion:          find("descrip", "detalle", "obs", "nota"),
+    stock_inicial:        find("stock inicial", "stock_inicial", "inicial", "initial", "existencia"),
+    costo_inicial:        find("costo", "precio", "price", "cost"),
+    stock_minimo:         find("mínimo", "minimo", "min stock", "min_stock", "alerta"),
+    contenido_por_unidad: find("contenido", "content", "peso"),
+    unidad_base:          find("unidad base", "unidad_base", "base unit"),
   };
 }
 
-function generarPlantilla(categorias: CategoriaProducto[]): string {
-  const header = COLUMNAS.join(";");
-  const ejCat = categorias[0]?.nombre ?? "Áridos y agregados";
-  const ejemplos = [
-    `Arena gruesa;ARE-GRU;${ejCat};m³;;;;;18;135000`,
-    `Cemento Portland 50kg;CEM-50KG;${ejCat};bolsa;50;kg;;20;120;47500`,
-    `Hierro 10mm barra 12m;HIE-10-12;${ejCat};unidad;;;;5;40;92000`,
-  ];
-  return [header, ...ejemplos].join("\n");
+function buildFilas(rows: string[][], mapping: Mapping): FilaImport[] {
+  const get = (row: string[], key: CampoKey) => {
+    const i = mapping[key];
+    return i >= 0 && i < row.length ? row[i] : "";
+  };
+  return rows
+    .filter((row) => get(row, "nombre").trim())
+    .map((row) => ({
+      nombre:               get(row, "nombre").trim(),
+      sku:                  get(row, "sku").trim() || undefined,
+      categoria_nombre:     get(row, "categoria_nombre").trim() || undefined,
+      unidad:               get(row, "unidad").trim() || "unidad",
+      contenido_por_unidad: get(row, "contenido_por_unidad")
+                              ? parseFloat(get(row, "contenido_por_unidad"))
+                              : undefined,
+      unidad_base:          get(row, "unidad_base").trim() || undefined,
+      descripcion:          get(row, "descripcion").trim() || undefined,
+      stock_minimo:         get(row, "stock_minimo")
+                              ? parseFloat(get(row, "stock_minimo"))
+                              : undefined,
+      stock_inicial:        get(row, "stock_inicial")
+                              ? parseFloat(get(row, "stock_inicial"))
+                              : undefined,
+      costo_inicial:        get(row, "costo_inicial")
+                              ? parseFloat(get(row, "costo_inicial"))
+                              : undefined,
+    }));
 }
 
-export function ImportarDialog({ categorias }: { categorias: CategoriaProducto[] }) {
-  const [open, setOpen] = useState(false);
-  const [filas, setFilas] = useState<FilaRaw[]>([]);
-  const [resultado, setResultado] = useState<{ creados: number; errores: { fila: number; nombre: string; mensaje: string }[] } | null>(null);
-  const [pending, startTransition] = useTransition();
+const EMPTY_MAPPING = Object.fromEntries(CAMPOS.map((c) => [c.key, -1])) as Mapping;
+
+export function ImportarDialog() {
+  const [open, setOpen]           = useState(false);
+  const [step, setStep]           = useState<Step>("upload");
+  const [headers, setHeaders]     = useState<string[]>([]);
+  const [rows, setRows]           = useState<string[][]>([]);
+  const [mapping, setMapping]     = useState<Mapping>(EMPTY_MAPPING);
+  const [resultado, setResultado] = useState<{
+    creados: number;
+    errores: { fila: number; nombre: string; mensaje: string }[];
+  } | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
-  const router = useRouter();
+  const router  = useRouter();
 
   function reset() {
-    setFilas([]);
+    setStep("upload");
+    setHeaders([]);
+    setRows([]);
+    setMapping(EMPTY_MAPPING);
     setResultado(null);
     setParseError(null);
     if (fileRef.current) fileRef.current.value = "";
@@ -153,182 +153,224 @@ export function ImportarDialog({ categorias }: { categorias: CategoriaProducto[]
     const file = e.target.files?.[0];
     if (!file) return;
     setParseError(null);
-    setResultado(null);
-
+    const isExcel = /\.(xlsx|xls)$/i.test(file.name);
     const reader = new FileReader();
+
     reader.onload = (ev) => {
-      const text = ev.target?.result as string;
       try {
-        const rows = parseCsv(text);
-        if (rows.length === 0) {
-          setParseError("No se encontraron filas. Verificá que el archivo tenga encabezados y al menos una fila de datos.");
-          setFilas([]);
-        } else {
-          setFilas(rows);
+        const parsed = isExcel
+          ? parseXlsxRaw(ev.target!.result as ArrayBuffer)
+          : parseCsvRaw(ev.target!.result as string);
+
+        if (!parsed.headers.length || !parsed.rows.length) {
+          setParseError(
+            "No se encontraron datos. El archivo debe tener encabezados en la primera fila y al menos una fila de datos."
+          );
+          return;
         }
+        setHeaders(parsed.headers);
+        setRows(parsed.rows);
+        setMapping(autoDetect(parsed.headers));
+        setStep("map");
       } catch {
-        setParseError("No se pudo leer el archivo. Asegurate de que sea CSV (UTF-8).");
+        setParseError("No se pudo leer el archivo. Probá con CSV (UTF-8) o Excel (.xlsx).");
       }
     };
-    reader.readAsText(file, "UTF-8");
-  }
 
-  function descargarPlantilla() {
-    const csv = generarPlantilla(categorias);
-    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "plantilla-stock.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+    if (isExcel) reader.readAsArrayBuffer(file);
+    else reader.readAsText(file, "UTF-8");
   }
-
-  const validas = filas.filter((f) => f._ok);
-  const invalidas = filas.filter((f) => !f._ok);
 
   function importar() {
-    if (validas.length === 0) return;
+    const filas = buildFilas(rows, mapping);
+    if (!filas.length) return;
     startTransition(async () => {
-      const res = await importarProductos(validas.map(filaToImport));
+      const res = await importarProductos(filas);
       setResultado(res);
+      setStep("done");
       router.refresh();
     });
   }
 
+  const canImport = mapping.nombre >= 0 && mapping.unidad >= 0;
+  const totalFilas = rows.filter((r) => {
+    const i = mapping.nombre;
+    return i >= 0 && r[i]?.trim();
+  }).length;
+  const previewRows = rows.slice(0, 5);
+  const mappedCampos = CAMPOS.filter((c) => mapping[c.key] >= 0);
+
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
       <DialogTrigger asChild>
-        <Button variant="secondary">Importar CSV</Button>
+        <Button variant="secondary">Importar</Button>
       </DialogTrigger>
-      <DialogContent title="Importar productos desde CSV" className="max-w-2xl">
+      <DialogContent title="Importar productos" className="max-w-2xl">
         <div className="space-y-4">
 
-          {resultado ? (
-            <div className="space-y-3">
-              <div className={`rounded border px-3 py-2 text-[13px] ${resultado.creados > 0 ? "border-[var(--ok)]/30 bg-[var(--ok-bg)] text-[var(--ok)]" : "border-[var(--border)] text-[var(--muted)]"}`}>
-                {resultado.creados} {resultado.creados === 1 ? "producto creado" : "productos creados"} correctamente.
-              </div>
-              {resultado.errores.length > 0 ? (
-                <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2 text-[12px] text-[var(--error)] space-y-1">
-                  <div className="font-medium">{resultado.errores.length} con error:</div>
-                  {resultado.errores.map((e) => (
-                    <div key={e.fila}>Fila {e.fila} — {e.nombre}: {e.mensaje}</div>
-                  ))}
-                </div>
-              ) : null}
-              <div className="flex justify-end gap-2">
-                <Button variant="secondary" onClick={reset}>Importar otro</Button>
-                <Button onClick={() => { setOpen(false); reset(); }}>Cerrar</Button>
-              </div>
-            </div>
-          ) : (
+          {/* ── STEP: upload ── */}
+          {step === "upload" && (
             <>
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-[12px] text-[var(--muted)]">
-                  Archivo CSV con encabezados. Separador: <code className="font-mono">,</code> o <code className="font-mono">;</code>. Codificación: UTF-8.
-                </div>
-                <button
-                  onClick={descargarPlantilla}
-                  className="text-[12px] text-action whitespace-nowrap shrink-0"
-                >
-                  Descargar plantilla
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept=".csv,.txt"
-                  onChange={handleFile}
-                  className="flex-1 text-[13px] file:mr-3 file:rounded file:border file:border-[var(--border)] file:bg-[var(--panel-2)] file:px-2.5 file:py-1 file:text-[12px] file:text-[var(--foreground)] file:cursor-pointer"
-                />
-                {filas.length > 0 ? (
-                  <button onClick={reset} className="text-[12px] text-[var(--muted)] hover:text-[var(--foreground)]">
-                    Limpiar
-                  </button>
-                ) : null}
-              </div>
-
-              {parseError ? (
+              <p className="text-[12px] text-[var(--muted)]">
+                Subí un archivo CSV o Excel con tus productos. El sistema detecta las columnas
+                automáticamente — podés ajustar el mapeo antes de importar. No hace falta ningún
+                formato especial: sirve cualquier planilla que ya tengas.
+              </p>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".csv,.txt,.xlsx,.xls"
+                onChange={handleFile}
+                className="w-full text-[13px] file:mr-3 file:rounded file:border file:border-[var(--border)] file:bg-[var(--panel-2)] file:px-2.5 file:py-1 file:text-[12px] file:text-[var(--foreground)] file:cursor-pointer"
+              />
+              {parseError && (
                 <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2 text-[12px] text-[var(--error)]">
                   {parseError}
                 </div>
-              ) : null}
+              )}
+              <div className="rounded border border-dashed border-[var(--border)] px-4 py-5 text-center text-[12px] text-[var(--muted)] space-y-1">
+                <div>Formatos: <b>CSV</b> (separador <code>,</code> o <code>;</code>) · <b>Excel</b> (.xlsx, .xls)</div>
+                <div>La primera fila debe tener los nombres de las columnas.</div>
+              </div>
+            </>
+          )}
 
-              {filas.length > 0 ? (
-                <>
-                  <div className="text-[12px] text-[var(--muted)]">
-                    {filas.length} {filas.length === 1 ? "fila" : "filas"} detectadas —{" "}
-                    <span className="text-[var(--ok)]">{validas.length} válidas</span>
-                    {invalidas.length > 0 ? (
-                      <>, <span className="text-[var(--error)]">{invalidas.length} con error</span></>
-                    ) : null}
+          {/* ── STEP: map ── */}
+          {step === "map" && (
+            <>
+              <div className="flex items-center justify-between text-[12px] text-[var(--muted)]">
+                <span>
+                  <b>{rows.length}</b> filas · <b>{headers.length}</b> columnas detectadas
+                </span>
+                <button onClick={reset} className="text-action">
+                  ← Cambiar archivo
+                </button>
+              </div>
+
+              {/* Mapping */}
+              <div className="rounded border border-[var(--border)] overflow-hidden">
+                <table className="text-[12px] w-full">
+                  <thead>
+                    <tr className="border-b border-[var(--border)] bg-[var(--panel-2)]">
+                      <th className="text-left px-3 py-2 font-medium text-[var(--muted)] w-1/2">
+                        Campo del sistema
+                      </th>
+                      <th className="text-left px-3 py-2 font-medium text-[var(--muted)]">
+                        Columna del archivo
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {CAMPOS.map(({ key, label, required }) => (
+                      <tr key={key} className="border-b border-[var(--border)] last:border-0">
+                        <td className="px-3 py-1.5 font-medium">
+                          {label}
+                          {required && <span className="text-[var(--error)] ml-0.5">*</span>}
+                        </td>
+                        <td className="px-3 py-1.5">
+                          <select
+                            value={mapping[key]}
+                            onChange={(e) =>
+                              setMapping((m) => ({ ...m, [key]: parseInt(e.target.value) }))
+                            }
+                            className="w-full rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-[12px] text-[var(--foreground)]"
+                          >
+                            <option value={-1}>— No usar —</option>
+                            {headers.map((h, i) => (
+                              <option key={i} value={i}>
+                                {h || `Columna ${i + 1}`}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Preview */}
+              {mappedCampos.length > 0 && previewRows.length > 0 && (
+                <div>
+                  <div className="text-[11px] text-[var(--muted)] mb-1">
+                    Vista previa — primeras {previewRows.length} filas con el mapeo actual:
                   </div>
-
-                  <div className="max-h-64 overflow-auto rounded border border-[var(--border)]">
-                    <table className="text-[12px]">
+                  <div className="overflow-x-auto rounded border border-[var(--border)]">
+                    <table className="text-[11px]">
                       <thead>
                         <tr>
-                          <th>#</th>
-                          <th>Nombre</th>
-                          <th>SKU</th>
-                          <th>Categoría</th>
-                          <th>Unidad</th>
-                          <th className="num">Stock inicial</th>
-                          <th className="num">Costo inicial</th>
-                          <th></th>
+                          {mappedCampos.map((c) => (
+                            <th key={c.key}>{c.label}</th>
+                          ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {filas.map((f, i) => (
-                          <tr key={i} className={!f._ok ? "opacity-50" : ""}>
-                            <td className="text-[var(--muted)]">{i + 2}</td>
-                            <td className="font-medium">{f.nombre || <span className="text-[var(--error)]">—</span>}</td>
-                            <td className="text-[var(--muted)] font-mono">{f.sku || "—"}</td>
-                            <td className="text-[var(--muted)]">{f.categoria_nombre || "—"}</td>
-                            <td>{f.unidad || <span className="text-[var(--error)]">—</span>}</td>
-                            <td className="num text-[var(--muted)]">{f.stock_inicial || "—"}</td>
-                            <td className="num text-[var(--muted)]">{f.costo_inicial || "—"}</td>
-                            <td>
-                              {!f._ok ? (
-                                <span className="text-[var(--error)] text-[11px]">{f._error}</span>
-                              ) : (
-                                <span className="text-[var(--ok)] text-[11px]">✓</span>
-                              )}
-                            </td>
+                        {previewRows.map((row, ri) => (
+                          <tr key={ri}>
+                            {mappedCampos.map((c) => (
+                              <td key={c.key} className="max-w-[130px] truncate">
+                                {row[mapping[c.key]] || (
+                                  <span className="text-[var(--muted)]">—</span>
+                                )}
+                              </td>
+                            ))}
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-
-                  {invalidas.length > 0 ? (
-                    <div className="text-[11px] text-[var(--muted)]">
-                      Las filas con error se omitirán en la importación.
-                    </div>
-                  ) : null}
-
-                  <div className="flex justify-end gap-2 pt-1">
-                    <Button variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
-                    <Button onClick={importar} disabled={pending || validas.length === 0}>
-                      {pending ? "Importando…" : `Importar ${validas.length} ${validas.length === 1 ? "producto" : "productos"}`}
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <div className="rounded border border-dashed border-[var(--border)] px-4 py-6 text-center text-[12px] text-[var(--muted)]">
-                  <div className="mb-2 text-[28px]">📄</div>
-                  Seleccioná un archivo CSV para ver la vista previa antes de importar.
-                  <div className="mt-2">
-                    <button onClick={descargarPlantilla} className="text-action">
-                      Descargar plantilla de ejemplo
-                    </button>
-                  </div>
                 </div>
               )}
+
+              {!canImport && (
+                <p className="text-[11px] text-[var(--warn)]">
+                  Asigná al menos las columnas <b>Nombre</b> y <b>Unidad</b> para continuar.
+                </p>
+              )}
+
+              <div className="flex justify-end gap-2 pt-1">
+                <Button variant="secondary" onClick={() => setOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={importar} disabled={pending || !canImport}>
+                  {pending
+                    ? "Importando…"
+                    : `Importar ${totalFilas} producto${totalFilas !== 1 ? "s" : ""}`}
+                </Button>
+              </div>
             </>
+          )}
+
+          {/* ── STEP: done ── */}
+          {step === "done" && resultado && (
+            <div className="space-y-3">
+              <div
+                className={`rounded border px-3 py-2 text-[13px] ${
+                  resultado.creados > 0
+                    ? "border-[var(--ok)]/30 bg-[var(--ok-bg)] text-[var(--ok)]"
+                    : "border-[var(--border)] text-[var(--muted)]"
+                }`}
+              >
+                {resultado.creados}{" "}
+                {resultado.creados === 1 ? "producto creado" : "productos creados"} correctamente.
+              </div>
+              {resultado.errores.length > 0 && (
+                <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2 text-[12px] text-[var(--error)] space-y-1">
+                  <div className="font-medium">{resultado.errores.length} con error:</div>
+                  {resultado.errores.map((e) => (
+                    <div key={e.fila}>
+                      Fila {e.fila} — {e.nombre}: {e.mensaje}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <Button variant="secondary" onClick={reset}>
+                  Importar otro archivo
+                </Button>
+                <Button onClick={() => { setOpen(false); reset(); }}>Cerrar</Button>
+              </div>
+            </div>
           )}
         </div>
       </DialogContent>
