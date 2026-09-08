@@ -282,7 +282,7 @@ VALUES
    'Pintura Pro Paraguay', '80-345678-9',
    'Ana LÃ³pez', '0983-456789', 'Pintura y revestimientos')
 
-ON CONFLICT (empresa_id, ruc) DO NOTHING;
+ON CONFLICT (empresa_id, ruc) WHERE ruc IS NOT NULL DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- 6. Contratos de subcontratistas â€” Proyecto 1
