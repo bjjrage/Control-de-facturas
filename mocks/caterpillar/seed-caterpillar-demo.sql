@@ -267,17 +267,17 @@ VALUES
 INSERT INTO public.subcontractors
   (id, empresa_id, name, ruc, contact_name, contact_phone, specialty)
 VALUES
-  ('s1000001-0000-0000-0000-000000000001',
+  ('e1000001-0000-0000-0000-000000000001',
    'bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd',
    'Electricidad Total SRL', '80-123456-7',
    'Roberto Acosta', '0981-234567', 'Instalaciones elÃ©ctricas'),
 
-  ('s1000002-0000-0000-0000-000000000002',
+  ('e1000002-0000-0000-0000-000000000002',
    'bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd',
    'PlomerÃ­a y Sanitarios SA', '80-234567-8',
    'Luis BenÃ­tez', '0982-345678', 'PlomerÃ­a y sanitarios'),
 
-  ('s1000003-0000-0000-0000-000000000003',
+  ('e1000003-0000-0000-0000-000000000003',
    'bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd',
    'Pintura Pro Paraguay', '80-345678-9',
    'Ana LÃ³pez', '0983-456789', 'Pintura y revestimientos')
@@ -296,7 +296,7 @@ INSERT INTO public.subcontractor_contracts
 VALUES
   ('ct000001-0000-0000-0000-000000000001',
    'c1000001-0000-0000-0000-000000000001',
-   's1000001-0000-0000-0000-000000000001',
+   'e1000001-0000-0000-0000-000000000001',
    NULL,
    18500000, 5.00,
    'InstalaciÃ³n elÃ©ctrica completa â€” Edificio Residencial Norte',
@@ -305,7 +305,7 @@ VALUES
 
   ('ct000002-0000-0000-0000-000000000002',
    'c1000001-0000-0000-0000-000000000001',
-   's1000002-0000-0000-0000-000000000002',
+   'e1000002-0000-0000-0000-000000000002',
    NULL,
    12800000, 5.00,
    'InstalaciÃ³n sanitaria y plomerÃ­a â€” Edificio Residencial Norte',
@@ -523,4 +523,5 @@ SELECT
     WHERE project_id = 'c1000001-0000-0000-0000-000000000001') AS certs_comitente,
   (SELECT COUNT(*) FROM public.productos
     WHERE empresa_id = 'bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd') AS productos;
+
 
