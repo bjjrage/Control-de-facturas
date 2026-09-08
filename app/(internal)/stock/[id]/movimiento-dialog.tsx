@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { formatNumber } from "@/lib/format";
+import { formatMoney, formatNumber } from "@/lib/format";
 import { registrarMovimiento } from "../stock-actions";
 
 type Tipo = "ENTRADA" | "SALIDA" | "AJUSTE";
@@ -13,14 +13,17 @@ export function MovimientoDialog({
   productoId,
   unidad,
   stockActual,
+  costoPromedio,
 }: {
   productoId: string;
   unidad: string;
   stockActual: number;
+  costoPromedio: number;
 }) {
   const [open, setOpen] = useState(false);
   const [tipo, setTipo] = useState<Tipo>("ENTRADA");
   const [cantidad, setCantidad] = useState("");
+  const [costo, setCosto] = useState("");
   const [notas, setNotas] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,17 +32,35 @@ export function MovimientoDialog({
   function reset() {
     setTipo("ENTRADA");
     setCantidad("");
+    setCosto("");
     setNotas("");
     setError(null);
   }
 
   const cantidadNum = parseFloat(cantidad) || 0;
-  const preview =
+  const costoNum = parseFloat(costo) || 0;
+
+  const stockPreview =
     tipo === "ENTRADA"
       ? stockActual + cantidadNum
       : tipo === "SALIDA"
         ? stockActual - cantidadNum
         : cantidadNum;
+
+  // CPP resultante segun la misma formula que la RPC
+  let cppPreview = costoPromedio;
+  if (tipo === "ENTRADA" && costoNum > 0 && stockPreview > 0) {
+    cppPreview = (stockActual * costoPromedio + cantidadNum * costoNum) / stockPreview;
+  } else if (tipo === "AJUSTE" && costoNum > 0) {
+    cppPreview = costoNum;
+  }
+
+  const valorMovimiento =
+    tipo === "ENTRADA"
+      ? cantidadNum * (costoNum > 0 ? costoNum : costoPromedio)
+      : tipo === "SALIDA"
+        ? cantidadNum * costoPromedio
+        : stockPreview * cppPreview - stockActual * costoPromedio;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -52,6 +73,7 @@ export function MovimientoDialog({
 
     const res = await registrarMovimiento(productoId, tipo, cantidadNum, {
       notas: notas || undefined,
+      costo_unitario: costoNum > 0 ? costoNum : undefined,
     });
     setPending(false);
 
@@ -117,14 +139,60 @@ export function MovimientoDialog({
             />
           </div>
 
+          <div>
+            <label className="block text-[12px] text-[var(--muted)] mb-1">
+              {tipo === "ENTRADA"
+                ? `Costo unitario de compra (por ${unidad})`
+                : tipo === "AJUSTE"
+                  ? `Costo unitario (revalorizar, opcional)`
+                  : `Costo unitario`}
+            </label>
+            {tipo === "SALIDA" ? (
+              <div className="h-8 flex items-center rounded border border-[var(--border)] bg-[var(--hover)] px-2.5 text-[13px] text-[var(--muted)]">
+                {formatMoney(costoPromedio)} <span className="text-[11px] ml-1">(costo promedio)</span>
+              </div>
+            ) : (
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={costo}
+                onChange={(e) => setCosto(e.target.value)}
+                placeholder={costoPromedio > 0 ? formatNumber(costoPromedio, 0) : "0"}
+                className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
+              />
+            )}
+            {tipo === "ENTRADA" ? (
+              <p className="text-[11px] text-[var(--muted)] mt-1">
+                Vacío = no cambia el costo promedio ({formatMoney(costoPromedio)}).
+              </p>
+            ) : null}
+          </div>
+
           {cantidadNum > 0 ? (
-            <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-[12px]">
-              <span className="text-[var(--muted)]">Stock actual: </span>
-              <span className="font-medium">{formatNumber(stockActual, 2)}</span>
-              <span className="text-[var(--muted)] mx-1.5">→</span>
-              <span className={`font-semibold ${preview < 0 ? "text-[var(--error)]" : ""}`}>
-                {formatNumber(preview, 2)} {unidad}
-              </span>
+            <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-[12px] space-y-1">
+              <div>
+                <span className="text-[var(--muted)]">Stock: </span>
+                <span className="font-medium">{formatNumber(stockActual, 2)}</span>
+                <span className="text-[var(--muted)] mx-1.5">→</span>
+                <span className={`font-semibold ${stockPreview < 0 ? "text-[var(--error)]" : ""}`}>
+                  {formatNumber(stockPreview, 2)} {unidad}
+                </span>
+              </div>
+              {(tipo === "ENTRADA" && costoNum > 0) || (tipo === "AJUSTE" && costoNum > 0) ? (
+                <div>
+                  <span className="text-[var(--muted)]">Costo prom.: </span>
+                  <span className="font-medium">{formatMoney(costoPromedio)}</span>
+                  <span className="text-[var(--muted)] mx-1.5">→</span>
+                  <span className="font-semibold">{formatMoney(cppPreview)}</span>
+                </div>
+              ) : null}
+              <div>
+                <span className="text-[var(--muted)]">
+                  {tipo === "SALIDA" ? "Valor de la salida: " : tipo === "AJUSTE" ? "Impacto en valor: " : "Valor de la entrada: "}
+                </span>
+                <span className="font-semibold">{formatMoney(valorMovimiento)}</span>
+              </div>
             </div>
           ) : null}
 

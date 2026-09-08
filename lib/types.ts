@@ -216,6 +216,7 @@ export interface Producto {
   categoria_id: string | null;
   stock_actual: number;
   stock_minimo: number;
+  costo_promedio: number;
   activo: boolean;
   created_by: string | null;
   created_at: string;
@@ -229,6 +230,9 @@ export interface StockMovimiento {
   tipo: StockMovimientoTipo;
   cantidad: number;
   stock_resultante: number;
+  costo_unitario: number | null;
+  costo_total: number | null;
+  costo_promedio_resultante: number | null;
   referencia_tipo: string | null;
   referencia_id: string | null;
   notas: string | null;

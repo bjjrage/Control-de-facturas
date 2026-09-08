@@ -454,14 +454,14 @@ ON CONFLICT (empresa_id, nombre) DO NOTHING;
 -- -----------------------------------------------------------------------------
 INSERT INTO public.productos
   (id, empresa_id, nombre, descripcion, unidad, sku, categoria_id,
-   stock_actual, stock_minimo, contenido_por_unidad, unidad_base, activo, created_by)
+   stock_actual, stock_minimo, costo_promedio, contenido_por_unidad, unidad_base, activo, created_by)
 VALUES
   ('b2000001-0000-0000-0000-000000000001',
    'bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd',
    'Cemento Portland 50kg',
    'Bolsa de cemento portland tipo I, resistencia 420 kg/cm²',
    'bolsa', 'CEM-50KG', 'ca7e0002-0000-0000-0000-000000000002',
-   120, 20,
+   120, 20, 47500,
    50, 'kg',
    true, '83a3c4b5-d674-426c-8bf1-3d71d8351a59'),
 
@@ -470,7 +470,7 @@ VALUES
    'Hierro 10mm barra 12m',
    'Barra de hierro de construcción nervurado 10mm �- 12m',
    'unidad', 'HIE-10-12', 'ca7e0003-0000-0000-0000-000000000003',
-   85, 15,
+   85, 15, 92000,
    NULL, NULL,
    true, '83a3c4b5-d674-426c-8bf1-3d71d8351a59'),
 
@@ -479,7 +479,7 @@ VALUES
    'Arena gruesa',
    'Arena de río para mezclas de hormigón',
    'm³', 'ARE-GRU', 'ca7e0001-0000-0000-0000-000000000001',
-   18, 5,
+   18, 5, 135000,
    NULL, NULL,
    true, '83a3c4b5-d674-426c-8bf1-3d71d8351a59'),
 
@@ -488,7 +488,7 @@ VALUES
    'Ladrillo hueco 15cm',
    'Ladrillo cerámico hueco 15�-20�-30cm',
    'unidad', 'LAD-15', 'ca7e0004-0000-0000-0000-000000000004',
-   2400, 500,
+   2400, 500, 2900,
    NULL, NULL,
    true, '83a3c4b5-d674-426c-8bf1-3d71d8351a59'),
 
@@ -497,7 +497,7 @@ VALUES
    'Pintura látex interior 20lt',
    'Pintura látex interior lavable blanca bidón 20 litros',
    'bidón', 'PIN-LAT-20', 'ca7e0006-0000-0000-0000-000000000006',
-   14, 3,
+   14, 3, 385000,
    20, 'lt',
    true, '83a3c4b5-d674-426c-8bf1-3d71d8351a59'),
 
@@ -506,12 +506,13 @@ VALUES
    'Caño de PVC 110mm (barra 3m)',
    'Caño sanitario PVC �~110mm �- 3m',
    'unidad', 'CAP-PVC-110', 'ca7e0005-0000-0000-0000-000000000005',
-   30, 10,
+   30, 10, 52000,
    NULL, NULL,
    false, '83a3c4b5-d674-426c-8bf1-3d71d8351a59')
 
 ON CONFLICT (empresa_id, sku)
-  DO UPDATE SET categoria_id = EXCLUDED.categoria_id;
+  DO UPDATE SET categoria_id   = EXCLUDED.categoria_id,
+                costo_promedio = EXCLUDED.costo_promedio;
 
 -- -----------------------------------------------------------------------------
 -- 11. Verificación rápida �?" cantidad de registros insertados

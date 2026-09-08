@@ -6,15 +6,17 @@ import type { Producto, CategoriaProducto } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input, Label, Select } from "@/components/ui/input";
-import { formatNumber } from "@/lib/format";
+import { formatMoney, formatNumber } from "@/lib/format";
 import { CategoriasDialog } from "./categorias-dialog";
 
 const SIN_CATEGORIA = "__sin__";
 
 type EstadoFiltro = "activos" | "inactivos" | "todos";
 type Situacion = "" | "bajo" | "sin" | "ok";
-type SortKey = "nombre" | "categoria" | "sku" | "stock" | "minimo" | "situacion";
+type SortKey = "nombre" | "categoria" | "sku" | "stock" | "minimo" | "situacion" | "costo" | "valor";
 type SortDir = "asc" | "desc";
+
+const valorDe = (p: Producto) => p.stock_actual * p.costo_promedio;
 
 const SIT_LABEL: Record<"sin" | "bajo" | "ok", string> = {
   sin: "Sin stock",
@@ -59,6 +61,10 @@ export function StockSection({
   const activos = useMemo(() => productos.filter((p) => p.activo), [productos]);
   const kpiBajo = useMemo(() => activos.filter((p) => situacionDe(p) === "bajo").length, [activos]);
   const kpiSin = useMemo(() => activos.filter((p) => situacionDe(p) === "sin").length, [activos]);
+  const valorInventario = useMemo(
+    () => activos.reduce((acc, p) => acc + valorDe(p), 0),
+    [activos]
+  );
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -108,6 +114,12 @@ export function StockSection({
           break;
         case "situacion":
           cmp = SIT_RANK[situacionDe(a)] - SIT_RANK[situacionDe(b)];
+          break;
+        case "costo":
+          cmp = a.costo_promedio - b.costo_promedio;
+          break;
+        case "valor":
+          cmp = valorDe(a) - valorDe(b);
           break;
       }
       if (cmp === 0) cmp = a.nombre.localeCompare(b.nombre, "es");
@@ -197,7 +209,11 @@ export function StockSection({
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Kpi label="Productos activos" value={activos.length} />
+        <Kpi
+          label="Valor del inventario"
+          text={valorInventario > 0 ? formatMoney(valorInventario) : "—"}
+          hint={`${activos.length} productos activos`}
+        />
         <Kpi
           label="Bajo mínimo"
           value={kpiBajo}
@@ -344,6 +360,7 @@ export function StockSection({
             const isCollapsed = collapsed.has(g.id);
             const bajo = g.items.filter((p) => p.activo && situacionDe(p) === "bajo").length;
             const sin = g.items.filter((p) => p.activo && situacionDe(p) === "sin").length;
+            const valorGrupo = g.items.reduce((acc, p) => acc + valorDe(p), 0);
             return (
               <div
                 key={g.id}
@@ -364,6 +381,11 @@ export function StockSection({
                   <span className="text-[11px] text-[var(--muted)]">
                     {g.items.length} {g.items.length === 1 ? "ítem" : "ítems"}
                   </span>
+                  {valorGrupo > 0 ? (
+                    <span className="text-[11px] text-[var(--muted)] tabular-nums">
+                      · {formatMoney(valorGrupo)}
+                    </span>
+                  ) : null}
                   <span className="flex-1" />
                   {sin > 0 ? <Badge tone="error">{sin} sin stock</Badge> : null}
                   {bajo > 0 ? <Badge tone="warn">{bajo} bajo mínimo</Badge> : null}
@@ -444,6 +466,8 @@ function Tabla({
           <Th label="Stock actual" col="stock" num {...sp} />
           <th className="num">Total base</th>
           <Th label="Mínimo" col="minimo" num {...sp} />
+          <Th label="Costo unit." col="costo" num {...sp} />
+          <Th label="Valor" col="valor" num {...sp} />
           <Th label="Situación" col="situacion" {...sp} />
           <th>Estado</th>
         </tr>
@@ -477,6 +501,12 @@ function Tabla({
               <td className="num text-[var(--muted)]">
                 {p.stock_minimo > 0 ? formatNumber(p.stock_minimo, 2) : "—"}
               </td>
+              <td className="num text-[var(--muted)] tabular-nums">
+                {p.costo_promedio > 0 ? formatMoney(p.costo_promedio) : "—"}
+              </td>
+              <td className="num tabular-nums">
+                {valorDe(p) > 0 ? formatMoney(valorDe(p)) : "—"}
+              </td>
               <td>
                 <span
                   className={`text-[11px] font-medium ${
@@ -504,11 +534,15 @@ function Tabla({
 function Kpi({
   label,
   value,
+  text,
+  hint,
   tone,
   onClick,
 }: {
   label: string;
-  value: number;
+  value?: number;
+  text?: string;
+  hint?: string;
   tone?: "warn" | "error";
   onClick?: () => void;
 }) {
@@ -521,7 +555,14 @@ function Kpi({
   const inner = (
     <>
       <div className="text-[11px] text-[var(--muted)] mb-1">{label}</div>
-      <div className={`text-[22px] font-semibold tabular-nums ${color}`}>{value}</div>
+      <div
+        className={`font-semibold tabular-nums ${color} ${
+          text ? "text-[16px]" : "text-[22px]"
+        }`}
+      >
+        {text ?? value}
+      </div>
+      {hint ? <div className="text-[11px] text-[var(--muted)] mt-0.5">{hint}</div> : null}
     </>
   );
   if (onClick) {

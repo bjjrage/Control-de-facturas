@@ -284,6 +284,34 @@ test.describe("Caterpillar — Stock / Inventario", () => {
     await expect(page.getByText(new RegExp(name!.trim(), "i")).first()).toBeVisible();
   });
 
+  test("lista muestra valorización — KPI y columnas de costo", async ({ page }) => {
+    await page.goto("/stock");
+    await page.waitForLoadState("networkidle", { timeout: 20_000 });
+
+    const rows = await page.locator("table:visible tbody tr").count();
+    if (rows === 0) { test.skip(); return; }
+
+    await expect(page.getByText(/Valor del inventario/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: /Costo unit\./i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Valor/ })).toBeVisible();
+  });
+
+  test("detalle muestra costo promedio y valor en stock (requiere seed)", async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto("/stock");
+    await page.waitForLoadState("networkidle", { timeout: 20_000 });
+
+    const cemento = page.locator("table:visible td").getByText(/Cemento Portland/i).first();
+    if (await cemento.count() === 0) { test.skip(); return; }
+    await cemento.click();
+    await page.waitForLoadState("networkidle", { timeout: 20_000 });
+
+    await expect(page.getByText(/Costo promedio/i)).toBeVisible();
+    await expect(page.getByText(/Valor en stock/i)).toBeVisible();
+    // Kardex con columnas de costo
+    await expect(page.locator("table:visible th").getByText(/Costo unit\./i)).toBeVisible();
+  });
+
   test("detalle muestra KPIs de stock (stock actual y mínimo)", async ({ page }) => {
     test.setTimeout(60_000);
     await page.goto("/stock");

@@ -23,6 +23,7 @@ export async function crearProducto(data: {
   categoria_id?: string | null;
   stock_minimo?: number;
   stock_inicial?: number;
+  costo_inicial?: number;
   contenido_por_unidad?: number;
   unidad_base?: string;
 }): Promise<{ id?: string; error?: string }> {
@@ -48,13 +49,14 @@ export async function crearProducto(data: {
 
   if (error) return { error: error.message };
 
-  // Si hay stock inicial, registrarlo como ENTRADA
+  // Si hay stock inicial, registrarlo como ENTRADA (con costo si se indicó)
   if (data.stock_inicial && data.stock_inicial > 0) {
     const { error: movErr } = await supabase.rpc("registrar_stock_movimiento", {
       p_empresa_id: profile.empresa_id,
       p_producto_id: producto.id,
       p_tipo: "ENTRADA",
       p_cantidad: data.stock_inicial,
+      p_costo_unitario: data.costo_inicial && data.costo_inicial > 0 ? data.costo_inicial : null,
       p_notas: "Stock inicial",
       p_created_by: profile.id,
     });
@@ -126,7 +128,7 @@ export async function registrarMovimiento(
   producto_id: string,
   tipo: "ENTRADA" | "SALIDA" | "AJUSTE",
   cantidad: number,
-  opts?: { referencia_tipo?: string; referencia_id?: string; notas?: string }
+  opts?: { referencia_tipo?: string; referencia_id?: string; notas?: string; costo_unitario?: number }
 ): Promise<{ stock_nuevo?: number; error?: string }> {
   const { supabase, profile } = await getClient();
 
@@ -135,6 +137,7 @@ export async function registrarMovimiento(
     p_producto_id: producto_id,
     p_tipo: tipo,
     p_cantidad: cantidad,
+    p_costo_unitario: opts?.costo_unitario && opts.costo_unitario > 0 ? opts.costo_unitario : null,
     p_referencia_tipo: opts?.referencia_tipo ?? null,
     p_referencia_id: opts?.referencia_id ?? null,
     p_notas: opts?.notas ?? null,

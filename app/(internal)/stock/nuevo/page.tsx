@@ -20,6 +20,7 @@ export default function NuevoProductoPage() {
   const [categorias, setCategorias] = useState<CategoriaProducto[]>([]);
   const [stockMinimo, setStockMinimo] = useState("");
   const [stockInicial, setStockInicial] = useState("");
+  const [costoInicial, setCostoInicial] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -48,6 +49,7 @@ export default function NuevoProductoPage() {
       categoria_id: categoriaId || null,
       stock_minimo: stockMinimo ? parseFloat(stockMinimo) : 0,
       stock_inicial: stockInicial ? parseFloat(stockInicial) : 0,
+      costo_inicial: costoInicial ? parseFloat(costoInicial) : undefined,
       contenido_por_unidad: contenido ? parseFloat(contenido) : undefined,
       unidad_base: unidadBase || undefined,
     });
@@ -206,6 +208,26 @@ export default function NuevoProductoPage() {
             <p className="text-[11px] text-[var(--muted)] mt-1">Se registra como ENTRADA inicial</p>
           </div>
         </div>
+
+        {stockInicial && parseFloat(stockInicial) > 0 ? (
+          <div>
+            <label className="block text-[12px] text-[var(--muted)] mb-1">
+              Costo unitario inicial (por {unidad || "unidad"})
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value={costoInicial}
+              onChange={(e) => setCostoInicial(e.target.value)}
+              placeholder="0"
+              className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
+            />
+            <p className="text-[11px] text-[var(--muted)] mt-1">
+              Precio de compra. Fija el costo promedio inicial del producto.
+            </p>
+          </div>
+        ) : null}
 
         {error ? (
           <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2 text-[12px] text-[var(--error)]">

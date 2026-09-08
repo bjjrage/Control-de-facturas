@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePlan } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, formatNumber } from "@/lib/format";
+import { formatDate, formatMoney, formatNumber } from "@/lib/format";
 import type { Producto, StockMovimiento } from "@/lib/types";
 import { MovimientoDialog } from "./movimiento-dialog";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,7 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
   const totalBase = producto.contenido_por_unidad
     ? producto.stock_actual * producto.contenido_por_unidad
     : null;
+  const valorStock = producto.stock_actual * producto.costo_promedio;
 
   return (
     <div className="max-w-3xl space-y-5">
@@ -85,18 +86,39 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
               <Button variant="secondary" className="h-8 px-3 text-[12px]">Editar</Button>
             </Link>
           ) : null}
-          <MovimientoDialog productoId={producto.id} unidad={producto.unidad} stockActual={producto.stock_actual} />
+          <MovimientoDialog
+            productoId={producto.id}
+            unidad={producto.unidad}
+            stockActual={producto.stock_actual}
+            costoPromedio={producto.costo_promedio}
+          />
         </div>
       </div>
 
       {/* KPIs */}
-      <div className={`grid gap-3 ${totalBase !== null ? "grid-cols-4" : "grid-cols-3"}`}>
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
           <div className="text-[11px] text-[var(--muted)] mb-1">Stock actual</div>
           <div className={`text-[22px] font-semibold tabular-nums ${bajo ? "text-[var(--warn)]" : ""}`}>
             {formatNumber(producto.stock_actual, 2)}
           </div>
           <div className="text-[11px] text-[var(--muted)]">{producto.unidad}</div>
+        </div>
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+          <div className="text-[11px] text-[var(--muted)] mb-1">Costo promedio</div>
+          <div className="text-[22px] font-semibold tabular-nums">
+            {producto.costo_promedio > 0 ? formatMoney(producto.costo_promedio) : "—"}
+          </div>
+          <div className="text-[11px] text-[var(--muted)]">por {producto.unidad}</div>
+        </div>
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+          <div className="text-[11px] text-[var(--muted)] mb-1">Valor en stock</div>
+          <div className="text-[22px] font-semibold tabular-nums">
+            {valorStock > 0 ? formatMoney(valorStock) : "—"}
+          </div>
+          <div className="text-[11px] text-[var(--muted)]">
+            {formatNumber(producto.stock_actual, 2)} × costo prom.
+          </div>
         </div>
         {totalBase !== null ? (
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
@@ -106,19 +128,15 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
             </div>
             <div className="text-[11px] text-[var(--muted)]">{producto.unidad_base}</div>
           </div>
-        ) : null}
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-          <div className="text-[11px] text-[var(--muted)] mb-1">Stock mínimo</div>
-          <div className="text-[22px] font-semibold tabular-nums">
-            {producto.stock_minimo > 0 ? formatNumber(producto.stock_minimo, 2) : "—"}
+        ) : (
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+            <div className="text-[11px] text-[var(--muted)] mb-1">Stock mínimo</div>
+            <div className="text-[22px] font-semibold tabular-nums">
+              {producto.stock_minimo > 0 ? formatNumber(producto.stock_minimo, 2) : "—"}
+            </div>
+            <div className="text-[11px] text-[var(--muted)]">{producto.unidad}</div>
           </div>
-          <div className="text-[11px] text-[var(--muted)]">{producto.unidad}</div>
-        </div>
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-          <div className="text-[11px] text-[var(--muted)] mb-1">Movimientos</div>
-          <div className="text-[22px] font-semibold tabular-nums">{mov.length}</div>
-          <div className="text-[11px] text-[var(--muted)]">registros</div>
-        </div>
+        )}
       </div>
 
       {bajo ? (
@@ -138,6 +156,8 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
                 <th>Tipo</th>
                 <th className="num">Cantidad</th>
                 <th className="num">Stock resultante</th>
+                <th className="num">Costo unit.</th>
+                <th className="num">Valor</th>
                 <th>Referencia</th>
                 <th>Notas</th>
               </tr>
@@ -155,6 +175,12 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
                     {TIPO_SIGN[m.tipo]}{formatNumber(m.cantidad, 2)}
                   </td>
                   <td className="num tabular-nums">{formatNumber(m.stock_resultante, 2)}</td>
+                  <td className="num tabular-nums text-[var(--muted)]">
+                    {m.costo_unitario != null && m.costo_unitario > 0 ? formatMoney(m.costo_unitario) : "—"}
+                  </td>
+                  <td className="num tabular-nums text-[var(--muted)]">
+                    {m.costo_total != null && m.costo_total !== 0 ? formatMoney(m.costo_total) : "—"}
+                  </td>
                   <td className="text-[11px] text-[var(--muted)]">
                     {m.referencia_tipo ? `${m.referencia_tipo}` : "—"}
                   </td>
@@ -163,7 +189,7 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
               ))}
               {mov.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center text-[var(--muted)] py-8">
+                  <td colSpan={8} className="text-center text-[var(--muted)] py-8">
                     Sin movimientos todavía.
                   </td>
                 </tr>
