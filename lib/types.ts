@@ -193,7 +193,27 @@ export interface AuthorizedOrderItem {
   created_at: string;
 }
 
-export type StockMovimientoTipo = "ENTRADA" | "SALIDA" | "AJUSTE";
+export type StockMovimientoTipo = "ENTRADA" | "SALIDA" | "AJUSTE" | "TRANSFERENCIA";
+
+export interface Deposito {
+  id: string;
+  empresa_id: string;
+  nombre: string;
+  es_principal: boolean;
+  project_id: string | null;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StockPorDeposito {
+  id: string;
+  empresa_id: string;
+  producto_id: string;
+  deposito_id: string;
+  stock_actual: number;
+  updated_at: string;
+}
 
 export interface CategoriaProducto {
   id: string;
@@ -235,6 +255,8 @@ export interface StockMovimiento {
   costo_promedio_resultante: number | null;
   project_id: string | null;
   budget_item_id: string | null;
+  deposito_id: string | null;
+  deposito_destino_id: string | null;
   referencia_tipo: string | null;
   referencia_id: string | null;
   notas: string | null;

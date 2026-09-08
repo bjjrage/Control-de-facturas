@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { Producto, CategoriaProducto } from "@/lib/types";
+import type { Producto, CategoriaProducto, Deposito } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input, Label, Select } from "@/components/ui/input";
 import { formatMoney, formatNumber } from "@/lib/format";
 import { CategoriasDialog } from "./categorias-dialog";
+import { DepositosDialog } from "./depositos-dialog";
 
 const SIN_CATEGORIA = "__sin__";
 
@@ -34,9 +35,11 @@ function situacionDe(p: Producto): "sin" | "bajo" | "ok" {
 export function StockSection({
   productos,
   categorias,
+  depositos,
 }: {
   productos: Producto[];
   categorias: CategoriaProducto[];
+  depositos: Deposito[];
 }) {
   const [q, setQ] = useState("");
   const [catFilter, setCatFilter] = useState("");
@@ -199,8 +202,9 @@ export function StockSection({
             {categorias.length} {categorias.length === 1 ? "categoría" : "categorías"}
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
           <CategoriasDialog categorias={categorias} productos={productos} />
+          <DepositosDialog depositos={depositos} />
           <Link href="/stock/nuevo">
             <Button>Nuevo producto</Button>
           </Link>

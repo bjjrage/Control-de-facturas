@@ -126,7 +126,7 @@ export async function reactivarProducto(id: string): Promise<{ error?: string }>
 
 export async function registrarMovimiento(
   producto_id: string,
-  tipo: "ENTRADA" | "SALIDA" | "AJUSTE",
+  tipo: "ENTRADA" | "SALIDA" | "AJUSTE" | "TRANSFERENCIA",
   cantidad: number,
   opts?: {
     referencia_tipo?: string;
@@ -135,6 +135,8 @@ export async function registrarMovimiento(
     costo_unitario?: number;
     project_id?: string | null;
     budget_item_id?: string | null;
+    deposito_id?: string | null;
+    deposito_destino_id?: string | null;
   }
 ): Promise<{ stock_nuevo?: number; error?: string }> {
   const { supabase, profile } = await getClient();
@@ -151,6 +153,8 @@ export async function registrarMovimiento(
     p_created_by: profile.id,
     p_project_id: opts?.project_id || null,
     p_budget_item_id: opts?.budget_item_id || null,
+    p_deposito_id: opts?.deposito_id || null,
+    p_deposito_destino_id: opts?.deposito_destino_id || null,
   });
 
   if (error) return { error: error.message };
@@ -222,6 +226,55 @@ export async function eliminarCategoria(id: string): Promise<{ error?: string }>
   const { supabase } = await getClient();
   // on delete set null en productos.categoria_id — los productos quedan sin categoría.
   const { error } = await supabase.from("categorias_producto").delete().eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/stock");
+  return {};
+}
+
+// ──────────────────────────────────────────────
+// Depósitos
+// ──────────────────────────────────────────────
+
+export async function crearDeposito(nombre: string): Promise<{ id?: string; error?: string }> {
+  const { supabase, profile } = await getClient();
+  const limpio = nombre.trim();
+  if (!limpio) return { error: "El nombre no puede estar vacío" };
+
+  const { data, error } = await supabase
+    .from("depositos")
+    .insert({ empresa_id: profile.empresa_id, nombre: limpio })
+    .select("id")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") return { error: "Ya existe un depósito con ese nombre" };
+    return { error: error.message };
+  }
+  revalidatePath("/stock");
+  return { id: data.id };
+}
+
+export async function renombrarDeposito(id: string, nombre: string): Promise<{ error?: string }> {
+  const { supabase } = await getClient();
+  const limpio = nombre.trim();
+  if (!limpio) return { error: "El nombre no puede estar vacío" };
+
+  const { error } = await supabase
+    .from("depositos")
+    .update({ nombre: limpio, updated_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) {
+    if (error.code === "23505") return { error: "Ya existe un depósito con ese nombre" };
+    return { error: error.message };
+  }
+  revalidatePath("/stock");
+  return {};
+}
+
+export async function eliminarDeposito(id: string): Promise<{ error?: string }> {
+  const { supabase } = await getClient();
+  const { error } = await supabase.from("depositos").delete().eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/stock");
   return {};

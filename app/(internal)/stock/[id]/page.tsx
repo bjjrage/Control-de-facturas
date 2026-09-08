@@ -3,17 +3,18 @@ import { notFound } from "next/navigation";
 import { requirePlan } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney, formatNumber } from "@/lib/format";
-import type { Producto, StockMovimiento } from "@/lib/types";
+import type { Producto, StockMovimiento, Deposito, StockPorDeposito } from "@/lib/types";
 import { MovimientoDialog } from "./movimiento-dialog";
 import { Button } from "@/components/ui/button";
 
-const TIPO_LABEL: Record<string, string> = { ENTRADA: "Entrada", SALIDA: "Salida", AJUSTE: "Ajuste" };
+const TIPO_LABEL: Record<string, string> = { ENTRADA: "Entrada", SALIDA: "Salida", AJUSTE: "Ajuste", TRANSFERENCIA: "Transfer." };
 const TIPO_COLOR: Record<string, string> = {
   ENTRADA: "text-[var(--ok)]",
   SALIDA: "text-[var(--error)]",
   AJUSTE: "text-[var(--accent-teal)]",
+  TRANSFERENCIA: "text-[var(--muted)]",
 };
-const TIPO_SIGN: Record<string, string> = { ENTRADA: "+", SALIDA: "−", AJUSTE: "=" };
+const TIPO_SIGN: Record<string, string> = { ENTRADA: "+", SALIDA: "−", AJUSTE: "=", TRANSFERENCIA: "⇄" };
 
 export default async function ProductoDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -36,18 +37,41 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
         .single<{ nombre: string }>()
     : { data: null };
 
-  const { data: movimientos } = await supabase
-    .from("stock_movimientos")
-    .select("*")
-    .eq("producto_id", id)
-    .order("created_at", { ascending: false })
-    .returns<StockMovimiento[]>();
+  const [{ data: movimientos }, { data: depositos }, { data: stockPorDeposito }] = await Promise.all([
+    supabase
+      .from("stock_movimientos")
+      .select("*")
+      .eq("producto_id", id)
+      .order("created_at", { ascending: false })
+      .returns<StockMovimiento[]>(),
+    supabase
+      .from("depositos")
+      .select("*")
+      .eq("activo", true)
+      .order("es_principal", { ascending: false })
+      .order("nombre")
+      .returns<Deposito[]>(),
+    supabase
+      .from("stock_por_deposito")
+      .select("*")
+      .eq("producto_id", id)
+      .returns<StockPorDeposito[]>(),
+  ]);
 
   const mov = movimientos ?? [];
+  const deps = depositos ?? [];
+  const spd = stockPorDeposito ?? [];
 
   // Nombres de obra / rubro para las salidas imputadas
   const projectIds = [...new Set(mov.map((m) => m.project_id).filter(Boolean))] as string[];
   const budgetItemIds = [...new Set(mov.map((m) => m.budget_item_id).filter(Boolean))] as string[];
+  const depositoIds = [
+    ...new Set([
+      ...mov.map((m) => m.deposito_id),
+      ...mov.map((m) => m.deposito_destino_id),
+    ].filter(Boolean))
+  ] as string[];
+
   const [{ data: projRows }, { data: biRows }] = await Promise.all([
     projectIds.length
       ? supabase.from("projects").select("id, name, code").in("id", projectIds)
@@ -58,6 +82,7 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
   ]);
   const projById = new Map((projRows ?? []).map((p) => [p.id, p]));
   const biById = new Map((biRows ?? []).map((b) => [b.id, b]));
+  const depById = new Map([...deps, ...(depositoIds.length ? [] : [])].map((d) => [d.id, d]));
 
   const bajo = producto.stock_minimo > 0 && producto.stock_actual <= producto.stock_minimo;
   const isAdmin = profile.role === "admin";
@@ -106,6 +131,7 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
             unidad={producto.unidad}
             stockActual={producto.stock_actual}
             costoPromedio={producto.costo_promedio}
+            depositos={deps}
           />
         </div>
       </div>
@@ -160,6 +186,54 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
         </div>
       ) : null}
 
+      {/* Stock por depósito */}
+      {spd.length > 0 && deps.length > 1 ? (
+        <div>
+          <h2 className="text-[14px] font-semibold mb-2">Stock por depósito</h2>
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+            <table>
+              <thead>
+                <tr>
+                  <th>Depósito</th>
+                  <th className="num">Stock</th>
+                  <th className="num">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {spd
+                  .sort((a, b) => {
+                    const da = depById.get(a.deposito_id);
+                    const db = depById.get(b.deposito_id);
+                    if (da?.es_principal && !db?.es_principal) return -1;
+                    if (!da?.es_principal && db?.es_principal) return 1;
+                    return (da?.nombre ?? "").localeCompare(db?.nombre ?? "", "es");
+                  })
+                  .map((s) => {
+                    const dep = depById.get(s.deposito_id);
+                    const valor = s.stock_actual * producto.costo_promedio;
+                    return (
+                      <tr key={s.id}>
+                        <td>
+                          {dep?.nombre ?? "—"}
+                          {dep?.es_principal ? (
+                            <span className="ml-1.5 text-[10px] text-[var(--muted)] border border-[var(--border)] rounded px-1">principal</span>
+                          ) : null}
+                        </td>
+                        <td className="num tabular-nums font-medium">
+                          {formatNumber(s.stock_actual, 2)} {producto.unidad}
+                        </td>
+                        <td className="num tabular-nums text-[var(--muted)]">
+                          {valor > 0 ? formatMoney(valor) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
+
       {/* Historial de movimientos */}
       <div>
         <h2 className="text-[14px] font-semibold mb-2">Historial de movimientos</h2>
@@ -197,7 +271,13 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
                     {m.costo_total != null && m.costo_total !== 0 ? formatMoney(m.costo_total) : "—"}
                   </td>
                   <td className="text-[11px] text-[var(--muted)]">
-                    {m.project_id && projById.has(m.project_id) ? (
+                    {m.tipo === "TRANSFERENCIA" ? (
+                      <>
+                        {depById.get(m.deposito_id ?? "")?.nombre ?? "—"}
+                        <span className="mx-1">→</span>
+                        {depById.get(m.deposito_destino_id ?? "")?.nombre ?? "—"}
+                      </>
+                    ) : m.project_id && projById.has(m.project_id) ? (
                       <>
                         {projById.get(m.project_id)!.name}
                         {m.budget_item_id && biById.has(m.budget_item_id) ? (
@@ -205,7 +285,12 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
                             {biById.get(m.budget_item_id)!.code} · {biById.get(m.budget_item_id)!.description}
                           </span>
                         ) : null}
+                        {m.deposito_id && depById.has(m.deposito_id) && deps.length > 1 ? (
+                          <span className="block text-[10px]">{depById.get(m.deposito_id)!.nombre}</span>
+                        ) : null}
                       </>
+                    ) : m.deposito_id && depById.has(m.deposito_id) && deps.length > 1 ? (
+                      depById.get(m.deposito_id)!.nombre
                     ) : m.referencia_tipo ? (
                       m.referencia_tipo
                     ) : (

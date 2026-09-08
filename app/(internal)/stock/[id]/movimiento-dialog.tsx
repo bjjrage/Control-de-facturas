@@ -6,10 +6,10 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatMoney, formatNumber } from "@/lib/format";
 import { createClient } from "@/lib/supabase/browser";
-import type { BudgetItem } from "@/lib/types";
+import type { BudgetItem, Deposito } from "@/lib/types";
 import { registrarMovimiento } from "../stock-actions";
 
-type Tipo = "ENTRADA" | "SALIDA" | "AJUSTE";
+type Tipo = "ENTRADA" | "SALIDA" | "AJUSTE" | "TRANSFERENCIA";
 type ProjectLite = { id: string; name: string; code: string };
 
 export function MovimientoDialog({
@@ -17,11 +17,13 @@ export function MovimientoDialog({
   unidad,
   stockActual,
   costoPromedio,
+  depositos,
 }: {
   productoId: string;
   unidad: string;
   stockActual: number;
   costoPromedio: number;
+  depositos: Deposito[];
 }) {
   const [open, setOpen] = useState(false);
   const [tipo, setTipo] = useState<Tipo>("ENTRADA");
@@ -30,11 +32,15 @@ export function MovimientoDialog({
   const [notas, setNotas] = useState("");
   const [projectId, setProjectId] = useState("");
   const [budgetItemId, setBudgetItemId] = useState("");
+  const [depositoId, setDepositoId] = useState("");
+  const [depositoDestinoId, setDepositoDestinoId] = useState("");
   const [projects, setProjects] = useState<ProjectLite[]>([]);
   const [rubros, setRubros] = useState<BudgetItem[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  const principal = depositos.find((d) => d.es_principal);
 
   // Proyectos activos — para imputar la salida a una obra
   useEffect(() => {
@@ -79,6 +85,8 @@ export function MovimientoDialog({
     setNotas("");
     setProjectId("");
     setBudgetItemId("");
+    setDepositoId("");
+    setDepositoDestinoId("");
     setRubros([]);
     setError(null);
   }
@@ -91,9 +99,10 @@ export function MovimientoDialog({
       ? stockActual + cantidadNum
       : tipo === "SALIDA"
         ? stockActual - cantidadNum
-        : cantidadNum;
+        : tipo === "AJUSTE"
+          ? cantidadNum
+          : stockActual; // TRANSFERENCIA no cambia el total global
 
-  // CPP resultante segun la misma formula que la RPC
   let cppPreview = costoPromedio;
   if (tipo === "ENTRADA" && costoNum > 0 && stockPreview > 0) {
     cppPreview = (stockActual * costoPromedio + cantidadNum * costoNum) / stockPreview;
@@ -106,12 +115,24 @@ export function MovimientoDialog({
       ? cantidadNum * (costoNum > 0 ? costoNum : costoPromedio)
       : tipo === "SALIDA"
         ? cantidadNum * costoPromedio
-        : stockPreview * cppPreview - stockActual * costoPromedio;
+        : tipo === "AJUSTE"
+          ? stockPreview * cppPreview - stockActual * costoPromedio
+          : 0; // TRANSFERENCIA no tiene impacto en valor
+
+  const multiDeposito = depositos.length > 1;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (cantidadNum <= 0) {
       setError("La cantidad debe ser mayor a 0");
+      return;
+    }
+    if (tipo === "TRANSFERENCIA" && !depositoDestinoId) {
+      setError("Seleccioná el depósito destino");
+      return;
+    }
+    if (tipo === "TRANSFERENCIA" && depositoId && depositoDestinoId && depositoId === depositoDestinoId) {
+      setError("El depósito origen y destino no pueden ser el mismo");
       return;
     }
     setPending(true);
@@ -122,6 +143,8 @@ export function MovimientoDialog({
       costo_unitario: costoNum > 0 ? costoNum : undefined,
       project_id: tipo === "SALIDA" && projectId ? projectId : null,
       budget_item_id: tipo === "SALIDA" && projectId && budgetItemId ? budgetItemId : null,
+      deposito_id: depositoId || null,
+      deposito_destino_id: tipo === "TRANSFERENCIA" && depositoDestinoId ? depositoDestinoId : null,
     });
     setPending(false);
 
@@ -143,23 +166,25 @@ export function MovimientoDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-[12px] text-[var(--muted)] mb-1">Tipo</label>
-            <div className="flex gap-2">
-              {(["ENTRADA", "SALIDA", "AJUSTE"] as Tipo[]).map((t) => (
+            <div className="flex gap-2 flex-wrap">
+              {(["ENTRADA", "SALIDA", "AJUSTE", "TRANSFERENCIA"] as Tipo[]).map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => setTipo(t)}
-                  className={`flex-1 h-8 rounded border text-[12px] font-medium transition-colors ${
+                  className={`flex-1 h-8 rounded border text-[12px] font-medium transition-colors min-w-[70px] ${
                     tipo === t
                       ? t === "ENTRADA"
                         ? "bg-[var(--ok-bg)] border-[var(--ok)]/40 text-[var(--ok)]"
                         : t === "SALIDA"
                           ? "bg-[var(--error-bg)] border-[var(--error)]/40 text-[var(--error)]"
-                          : "bg-[var(--accent-teal-bg)] border-[var(--accent-teal)]/40 text-[var(--accent-teal)]"
+                          : t === "AJUSTE"
+                            ? "bg-[var(--accent-teal-bg)] border-[var(--accent-teal)]/40 text-[var(--accent-teal)]"
+                            : "bg-[var(--accent-blue-bg,var(--panel-2))] border-[var(--border)] text-[var(--foreground)]"
                       : "border-[var(--border)] text-[var(--muted)] hover:bg-[var(--hover)]"
                   }`}
                 >
-                  {t === "ENTRADA" ? "Entrada" : t === "SALIDA" ? "Salida" : "Ajuste"}
+                  {t === "ENTRADA" ? "Entrada" : t === "SALIDA" ? "Salida" : t === "AJUSTE" ? "Ajuste" : "Transfer."}
                 </button>
               ))}
             </div>
@@ -167,8 +192,58 @@ export function MovimientoDialog({
               {tipo === "ENTRADA" && "Suma al stock existente."}
               {tipo === "SALIDA" && "Resta del stock existente. Falla si no hay suficiente."}
               {tipo === "AJUSTE" && "Fija el stock al valor exacto que ingreses (corrección de inventario)."}
+              {tipo === "TRANSFERENCIA" && "Mueve stock entre depósitos sin cambiar el total global."}
             </p>
           </div>
+
+          {/* Depósito origen */}
+          {multiDeposito && tipo !== "TRANSFERENCIA" ? (
+            <div>
+              <label className="block text-[12px] text-[var(--muted)] mb-1">Depósito</label>
+              <select
+                value={depositoId}
+                onChange={(e) => setDepositoId(e.target.value)}
+                className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
+              >
+                <option value="">
+                  {principal ? `${principal.nombre} (principal)` : "— depósito principal —"}
+                </option>
+                {depositos.filter((d) => !d.es_principal).map((d) => (
+                  <option key={d.id} value={d.id}>{d.nombre}</option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+
+          {/* TRANSFERENCIA: origen y destino */}
+          {tipo === "TRANSFERENCIA" ? (
+            <div className="space-y-2 rounded border border-[var(--border)] bg-[var(--panel-2)] p-2.5">
+              <div className="text-[11px] text-[var(--muted)]">Depósito origen → destino</div>
+              <select
+                value={depositoId}
+                onChange={(e) => setDepositoId(e.target.value)}
+                className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel)] px-2.5 text-[13px]"
+              >
+                <option value="">
+                  {principal ? `${principal.nombre} (principal)` : "— depósito principal —"}
+                </option>
+                {depositos.filter((d) => !d.es_principal).map((d) => (
+                  <option key={d.id} value={d.id}>{d.nombre}</option>
+                ))}
+              </select>
+              <select
+                value={depositoDestinoId}
+                onChange={(e) => setDepositoDestinoId(e.target.value)}
+                required
+                className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel)] px-2.5 text-[13px]"
+              >
+                <option value="">— seleccionar destino —</option>
+                {depositos.map((d) => (
+                  <option key={d.id} value={d.id}>{d.nombre}{d.es_principal ? " (principal)" : ""}</option>
+                ))}
+              </select>
+            </div>
+          ) : null}
 
           <div>
             <label className="block text-[12px] text-[var(--muted)] mb-1">
@@ -187,35 +262,37 @@ export function MovimientoDialog({
             />
           </div>
 
-          <div>
-            <label className="block text-[12px] text-[var(--muted)] mb-1">
-              {tipo === "ENTRADA"
-                ? `Costo unitario de compra (por ${unidad})`
-                : tipo === "AJUSTE"
-                  ? `Costo unitario (revalorizar, opcional)`
-                  : `Costo unitario`}
-            </label>
-            {tipo === "SALIDA" ? (
-              <div className="h-8 flex items-center rounded border border-[var(--border)] bg-[var(--hover)] px-2.5 text-[13px] text-[var(--muted)]">
-                {formatMoney(costoPromedio)} <span className="text-[11px] ml-1">(costo promedio)</span>
-              </div>
-            ) : (
-              <input
-                type="number"
-                min="0"
-                step="any"
-                value={costo}
-                onChange={(e) => setCosto(e.target.value)}
-                placeholder={costoPromedio > 0 ? formatNumber(costoPromedio, 0) : "0"}
-                className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
-              />
-            )}
-            {tipo === "ENTRADA" ? (
-              <p className="text-[11px] text-[var(--muted)] mt-1">
-                Vacío = no cambia el costo promedio ({formatMoney(costoPromedio)}).
-              </p>
-            ) : null}
-          </div>
+          {tipo !== "TRANSFERENCIA" ? (
+            <div>
+              <label className="block text-[12px] text-[var(--muted)] mb-1">
+                {tipo === "ENTRADA"
+                  ? `Costo unitario de compra (por ${unidad})`
+                  : tipo === "AJUSTE"
+                    ? `Costo unitario (revalorizar, opcional)`
+                    : `Costo unitario`}
+              </label>
+              {tipo === "SALIDA" ? (
+                <div className="h-8 flex items-center rounded border border-[var(--border)] bg-[var(--hover)] px-2.5 text-[13px] text-[var(--muted)]">
+                  {formatMoney(costoPromedio)} <span className="text-[11px] ml-1">(costo promedio)</span>
+                </div>
+              ) : (
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={costo}
+                  onChange={(e) => setCosto(e.target.value)}
+                  placeholder={costoPromedio > 0 ? formatNumber(costoPromedio, 0) : "0"}
+                  className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
+                />
+              )}
+              {tipo === "ENTRADA" ? (
+                <p className="text-[11px] text-[var(--muted)] mt-1">
+                  Vacío = no cambia el costo promedio ({formatMoney(costoPromedio)}).
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           {tipo === "SALIDA" ? (
             <div className="space-y-2 rounded border border-[var(--border)] bg-[var(--panel-2)] p-2.5">
@@ -251,28 +328,37 @@ export function MovimientoDialog({
 
           {cantidadNum > 0 ? (
             <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-[12px] space-y-1">
-              <div>
-                <span className="text-[var(--muted)]">Stock: </span>
-                <span className="font-medium">{formatNumber(stockActual, 2)}</span>
-                <span className="text-[var(--muted)] mx-1.5">→</span>
-                <span className={`font-semibold ${stockPreview < 0 ? "text-[var(--error)]" : ""}`}>
-                  {formatNumber(stockPreview, 2)} {unidad}
-                </span>
-              </div>
-              {(tipo === "ENTRADA" && costoNum > 0) || (tipo === "AJUSTE" && costoNum > 0) ? (
-                <div>
-                  <span className="text-[var(--muted)]">Costo prom.: </span>
-                  <span className="font-medium">{formatMoney(costoPromedio)}</span>
-                  <span className="text-[var(--muted)] mx-1.5">→</span>
-                  <span className="font-semibold">{formatMoney(cppPreview)}</span>
+              {tipo !== "TRANSFERENCIA" ? (
+                <>
+                  <div>
+                    <span className="text-[var(--muted)]">Stock: </span>
+                    <span className="font-medium">{formatNumber(stockActual, 2)}</span>
+                    <span className="text-[var(--muted)] mx-1.5">→</span>
+                    <span className={`font-semibold ${stockPreview < 0 ? "text-[var(--error)]" : ""}`}>
+                      {formatNumber(stockPreview, 2)} {unidad}
+                    </span>
+                  </div>
+                  {(tipo === "ENTRADA" && costoNum > 0) || (tipo === "AJUSTE" && costoNum > 0) ? (
+                    <div>
+                      <span className="text-[var(--muted)]">Costo prom.: </span>
+                      <span className="font-medium">{formatMoney(costoPromedio)}</span>
+                      <span className="text-[var(--muted)] mx-1.5">→</span>
+                      <span className="font-semibold">{formatMoney(cppPreview)}</span>
+                    </div>
+                  ) : null}
+                  <div>
+                    <span className="text-[var(--muted)]">
+                      {tipo === "SALIDA" ? "Valor de la salida: " : tipo === "AJUSTE" ? "Impacto en valor: " : "Valor de la entrada: "}
+                    </span>
+                    <span className="font-semibold">{formatMoney(valorMovimiento)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="text-[var(--muted)]">
+                  Se transfieren <span className="font-semibold text-[var(--foreground)]">{formatNumber(cantidadNum, 2)} {unidad}</span> entre depósitos.
+                  El total global no cambia.
                 </div>
-              ) : null}
-              <div>
-                <span className="text-[var(--muted)]">
-                  {tipo === "SALIDA" ? "Valor de la salida: " : tipo === "AJUSTE" ? "Impacto en valor: " : "Valor de la entrada: "}
-                </span>
-                <span className="font-semibold">{formatMoney(valorMovimiento)}</span>
-              </div>
+              )}
             </div>
           ) : null}
 
