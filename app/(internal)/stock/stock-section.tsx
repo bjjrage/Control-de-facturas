@@ -13,12 +13,15 @@ const SIN_CATEGORIA = "__sin__";
 
 type EstadoFiltro = "activos" | "inactivos" | "todos";
 type Situacion = "" | "bajo" | "sin" | "ok";
+type SortKey = "nombre" | "categoria" | "sku" | "stock" | "minimo" | "situacion";
+type SortDir = "asc" | "desc";
 
 const SIT_LABEL: Record<"sin" | "bajo" | "ok", string> = {
   sin: "Sin stock",
   bajo: "Bajo mínimo",
   ok: "En nivel",
 };
+const SIT_RANK: Record<"sin" | "bajo" | "ok", number> = { sin: 0, bajo: 1, ok: 2 };
 
 function situacionDe(p: Producto): "sin" | "bajo" | "ok" {
   if (p.stock_actual <= 0) return "sin";
@@ -37,8 +40,10 @@ export function StockSection({
   const [catFilter, setCatFilter] = useState("");
   const [estado, setEstado] = useState<EstadoFiltro>("activos");
   const [situacion, setSituacion] = useState<Situacion>("");
-  const [agrupar, setAgrupar] = useState(true);
+  const [agrupar, setAgrupar] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [sortKey, setSortKey] = useState<SortKey>("nombre");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   const catById = useMemo(() => {
     const m = new Map<string, CategoriaProducto>();
@@ -80,9 +85,41 @@ export function StockSection({
     });
   }, [productos, q, catFilter, estado, situacion, catById]);
 
+  const sorted = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    const arr = [...filtered];
+    arr.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case "nombre":
+          cmp = a.nombre.localeCompare(b.nombre, "es");
+          break;
+        case "categoria":
+          cmp = nombreCategoria(a).localeCompare(nombreCategoria(b), "es");
+          break;
+        case "sku":
+          cmp = (a.sku ?? "").localeCompare(b.sku ?? "", "es");
+          break;
+        case "stock":
+          cmp = a.stock_actual - b.stock_actual;
+          break;
+        case "minimo":
+          cmp = a.stock_minimo - b.stock_minimo;
+          break;
+        case "situacion":
+          cmp = SIT_RANK[situacionDe(a)] - SIT_RANK[situacionDe(b)];
+          break;
+      }
+      if (cmp === 0) cmp = a.nombre.localeCompare(b.nombre, "es");
+      return cmp * dir;
+    });
+    return arr;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, sortKey, sortDir, catById]);
+
   const grupos = useMemo(() => {
     const map = new Map<string, Producto[]>();
-    for (const p of filtered) {
+    for (const p of sorted) {
       const key = p.categoria_id && catById.has(p.categoria_id) ? p.categoria_id : SIN_CATEGORIA;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(p);
@@ -95,7 +132,7 @@ export function StockSection({
     const sin = map.get(SIN_CATEGORIA);
     if (sin) out.push({ id: SIN_CATEGORIA, nombre: "Sin categoría", items: sin });
     return out;
-  }, [filtered, categorias, catById]);
+  }, [sorted, categorias, catById]);
 
   const activeChips: { label: string; clear: () => void }[] = [];
   if (q.trim()) activeChips.push({ label: `Búsqueda: "${q.trim()}"`, clear: () => setQ("") });
@@ -105,10 +142,7 @@ export function StockSection({
     activeChips.push({ label: `Categoría: ${nombre}`, clear: () => setCatFilter("") });
   }
   if (situacion)
-    activeChips.push({
-      label: `Situación: ${SIT_LABEL[situacion]}`,
-      clear: () => setSituacion(""),
-    });
+    activeChips.push({ label: `Situación: ${SIT_LABEL[situacion]}`, clear: () => setSituacion("") });
   if (estado !== "activos")
     activeChips.push({
       label: `Estado: ${estado === "inactivos" ? "Inactivos" : "Todos"}`,
@@ -133,7 +167,15 @@ export function StockSection({
     setSituacion("");
   }
 
-  const mostrarColCategoria = !agrupar || grupos.length !== 1;
+  function sortBy(key: SortKey) {
+    if (key === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
+
+  const sortProps = { sortKey, sortDir, sortBy };
 
   return (
     <div className="max-w-6xl space-y-4">
@@ -174,8 +216,8 @@ export function StockSection({
       {categorias.length === 0 ? (
         <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--panel)] px-4 py-3 text-[12px] text-[var(--muted)] flex items-center justify-between gap-3">
           <span>
-            Todavía no hay categorías. Agrupá el inventario por rubro para que la lista no se vuelva
-            interminable.
+            Todavía no hay categorías. Agrupá el inventario por rubro para poder filtrar y que la
+            lista no se vuelva interminable.
           </span>
           <CategoriasDialog
             categorias={categorias}
@@ -257,7 +299,7 @@ export function StockSection({
           </label>
         </div>
 
-        {(hasFilters || filtered.length !== productos.length) ? (
+        {hasFilters ? (
           <div className="flex flex-wrap items-center gap-1.5">
             {activeChips.map((chip) => (
               <button
@@ -272,20 +314,18 @@ export function StockSection({
             <span className="text-[11px] text-[var(--muted)] ml-0.5">
               {filtered.length} {filtered.length === 1 ? "producto" : "productos"}
             </span>
-            {hasFilters ? (
-              <button
-                onClick={limpiar}
-                className="text-[11px] text-[var(--muted)] underline hover:text-[var(--foreground)] ml-1"
-              >
-                Limpiar todo
-              </button>
-            ) : null}
+            <button
+              onClick={limpiar}
+              className="text-[11px] text-[var(--muted)] underline hover:text-[var(--foreground)] ml-1"
+            >
+              Limpiar todo
+            </button>
           </div>
         ) : null}
       </div>
 
       {/* Lista */}
-      {grupos.length === 0 ? (
+      {sorted.length === 0 ? (
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] py-10 text-center text-[13px] text-[var(--muted)]">
           {productos.length === 0 ? (
             <>
@@ -331,7 +371,7 @@ export function StockSection({
 
                 {!isCollapsed ? (
                   <div className="overflow-x-auto border-t border-[var(--border)]">
-                    <Tabla items={g.items} nombreCategoria={nombreCategoria} showCategoria={false} />
+                    <Tabla items={g.items} nombreCategoria={nombreCategoria} {...sortProps} />
                   </div>
                 ) : null}
               </div>
@@ -341,7 +381,7 @@ export function StockSection({
       ) : (
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
           <div className="overflow-x-auto">
-            <Tabla items={filtered} nombreCategoria={nombreCategoria} showCategoria={mostrarColCategoria} />
+            <Tabla items={sorted} nombreCategoria={nombreCategoria} {...sortProps} />
           </div>
         </div>
       )}
@@ -349,26 +389,63 @@ export function StockSection({
   );
 }
 
+function Th({
+  label,
+  col,
+  num,
+  sortKey,
+  sortDir,
+  sortBy,
+}: {
+  label: string;
+  col: SortKey;
+  num?: boolean;
+  sortKey: SortKey;
+  sortDir: SortDir;
+  sortBy: (k: SortKey) => void;
+}) {
+  const active = sortKey === col;
+  return (
+    <th className={num ? "num" : undefined}>
+      <button
+        onClick={() => sortBy(col)}
+        className={`inline-flex items-center gap-1 hover:text-[var(--foreground)] ${
+          active ? "text-[var(--foreground)]" : ""
+        }`}
+      >
+        {label}
+        <span className="text-[9px] w-2">{active ? (sortDir === "asc" ? "▲" : "▼") : ""}</span>
+      </button>
+    </th>
+  );
+}
+
 function Tabla({
   items,
   nombreCategoria,
-  showCategoria,
+  sortKey,
+  sortDir,
+  sortBy,
 }: {
   items: Producto[];
   nombreCategoria: (p: Producto) => string;
-  showCategoria: boolean;
+  sortKey: SortKey;
+  sortDir: SortDir;
+  sortBy: (k: SortKey) => void;
 }) {
+  const sp = { sortKey, sortDir, sortBy };
   return (
     <table>
       <thead>
         <tr>
-          <th>Producto</th>
-          {showCategoria ? <th>Categoría</th> : null}
-          <th>SKU</th>
-          <th className="num">Stock actual</th>
+          <Th label="Producto" col="nombre" {...sp} />
+          <Th label="Categoría" col="categoria" {...sp} />
+          <Th label="SKU" col="sku" {...sp} />
+          <Th label="Stock actual" col="stock" num {...sp} />
           <th className="num">Total base</th>
-          <th className="num">Mínimo</th>
-          <th>Situación</th>
+          <Th label="Mínimo" col="minimo" num {...sp} />
+          <Th label="Situación" col="situacion" {...sp} />
+          <th>Estado</th>
         </tr>
       </thead>
       <tbody>
@@ -378,25 +455,16 @@ function Tabla({
           return (
             <tr key={p.id}>
               <td>
-                <div className="flex items-center gap-1.5">
-                  <Link href={`/stock/${p.id}`} className="text-action font-medium">
-                    {p.nombre}
-                  </Link>
-                  {!p.activo ? (
-                    <span className="text-[10px] text-[var(--muted)] border border-[var(--border)] rounded px-1 py-0.5">
-                      Inactivo
-                    </span>
-                  ) : null}
-                </div>
+                <Link href={`/stock/${p.id}`} className="text-action font-medium">
+                  {p.nombre}
+                </Link>
                 {p.descripcion ? (
                   <div className="text-[11px] text-[var(--muted)] truncate max-w-[280px]">
                     {p.descripcion}
                   </div>
                 ) : null}
               </td>
-              {showCategoria ? (
-                <td className="text-[var(--muted)] text-[12px]">{nombreCategoria(p)}</td>
-              ) : null}
+              <td className="text-[var(--muted)] text-[12px]">{nombreCategoria(p)}</td>
               <td className="text-[var(--muted)] font-mono text-[12px]">{p.sku ?? "—"}</td>
               <td className={`num font-semibold ${alerta ? "text-[var(--warn)]" : ""}`}>
                 {formatNumber(p.stock_actual, 2)} {p.unidad}
@@ -410,21 +478,20 @@ function Tabla({
                 {p.stock_minimo > 0 ? formatNumber(p.stock_minimo, 2) : "—"}
               </td>
               <td>
-                {!p.activo ? (
-                  <span className="text-[11px] text-[var(--muted)]">—</span>
-                ) : (
-                  <span
-                    className={`text-[11px] font-medium ${
-                      s === "sin"
-                        ? "text-[var(--error)]"
-                        : s === "bajo"
-                          ? "text-[var(--warn)]"
-                          : "text-[var(--ok)]"
-                    }`}
-                  >
-                    {SIT_LABEL[s]}
-                  </span>
-                )}
+                <span
+                  className={`text-[11px] font-medium ${
+                    s === "sin"
+                      ? "text-[var(--error)]"
+                      : s === "bajo"
+                        ? "text-[var(--warn)]"
+                        : "text-[var(--ok)]"
+                  }`}
+                >
+                  {SIT_LABEL[s]}
+                </span>
+              </td>
+              <td>
+                <Badge tone={p.activo ? "ok" : "neutral"}>{p.activo ? "Activo" : "Inactivo"}</Badge>
               </td>
             </tr>
           );

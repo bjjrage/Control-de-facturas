@@ -333,20 +333,43 @@ test.describe("Caterpillar — Stock / Inventario", () => {
     expect(options.some((o) => /Hierro y acero/i.test(o))).toBe(true);
   });
 
-  test("lista de stock agrupa por categoría con filtros (requiere seed)", async ({ page }) => {
+  test("lista de stock tiene columnas Categoría y Estado", async ({ page }) => {
+    await page.goto("/stock");
+    await page.waitForLoadState("networkidle", { timeout: 20_000 });
+
+    const rows = await page.locator("table:visible tbody tr").count();
+    if (rows === 0) { test.skip(); return; }
+
+    await expect(page.getByRole("button", { name: /^Categoría/ })).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator("table:visible th").getByText(/^Estado$/)).toBeVisible();
+    await expect(page.locator("table:visible th").getByText(/^Situación$/)).toBeVisible();
+  });
+
+  test("filtro de búsqueda deja solo lo que matchea (requiere seed)", async ({ page }) => {
     await page.goto("/stock");
     await page.waitForLoadState("networkidle", { timeout: 20_000 });
 
     const cementoCell = page.locator("table:visible td").getByText(/Cemento Portland/i).first();
     if (await cementoCell.count() === 0) { test.skip(); return; }
 
-    // Encabezado de grupo de categoría
-    await expect(page.getByRole("button", { name: /Cemento y aglomerantes/i })).toBeVisible({ timeout: 10_000 });
-
-    // Filtro de búsqueda deja solo lo que matchea
     await page.getByLabel(/Buscar/i).fill("Hierro");
     await expect(page.locator("table:visible td").getByText(/Hierro 10mm/i).first()).toBeVisible();
     await expect(page.locator("table:visible td").getByText(/Cemento Portland/i)).toHaveCount(0);
+
+    // Chip de filtro activo
+    await expect(page.getByText(/Búsqueda: "Hierro"/)).toBeVisible();
+  });
+
+  test("agrupar por categoría muestra los rubros del seed (requiere seed)", async ({ page }) => {
+    await page.goto("/stock");
+    await page.waitForLoadState("networkidle", { timeout: 20_000 });
+
+    const cementoCell = page.locator("table:visible td").getByText(/Cemento Portland/i).first();
+    if (await cementoCell.count() === 0) { test.skip(); return; }
+
+    await page.getByText(/Agrupar por categoría/i).click();
+    await expect(page.getByRole("button", { name: /Cemento y aglomerantes/i })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: /Hierro y acero/i })).toBeVisible();
   });
 
   test("no hay errores JS al navegar lista → detalle → lista", async ({ page }) => {
