@@ -468,14 +468,10 @@ function Tabla({
         <tr>
           <Th label="Producto" col="nombre" {...sp} />
           <Th label="Categoría" col="categoria" {...sp} />
-          <Th label="SKU" col="sku" {...sp} />
           <Th label="Stock actual" col="stock" num {...sp} />
-          <th className="num">Total base</th>
-          <Th label="Mínimo" col="minimo" num {...sp} />
-          <Th label="Costo unit." col="costo" num {...sp} />
+          <Th label="Costo prom." col="costo" num {...sp} />
           <Th label="Valor" col="valor" num {...sp} />
-          <Th label="Situación" col="situacion" {...sp} />
-          <th>Estado</th>
+          <Th label="Estado" col="situacion" {...sp} />
           <th></th>
         </tr>
       </thead>
@@ -489,24 +485,20 @@ function Tabla({
                 <Link href={`/stock/${p.id}`} className="text-action font-medium">
                   {p.nombre}
                 </Link>
-                {p.descripcion ? (
-                  <div className="text-[11px] text-[var(--muted)] truncate max-w-[280px]">
-                    {p.descripcion}
-                  </div>
+                {p.sku ? (
+                  <div className="text-[11px] text-[var(--muted)] font-mono">{p.sku}</div>
+                ) : p.descripcion ? (
+                  <div className="text-[11px] text-[var(--muted)] truncate max-w-[320px]">{p.descripcion}</div>
                 ) : null}
               </td>
               <td className="text-[var(--muted)] text-[12px]">{nombreCategoria(p)}</td>
-              <td className="text-[var(--muted)] font-mono text-[12px]">{p.sku ?? "—"}</td>
               <td className={`num font-semibold ${alerta ? "text-[var(--warn)]" : ""}`}>
                 {formatNumber(p.stock_actual, 2)} {p.unidad}
-              </td>
-              <td className="num text-[var(--muted)]">
-                {p.contenido_por_unidad && p.unidad_base
-                  ? `${formatNumber(p.stock_actual * p.contenido_por_unidad, 2)} ${p.unidad_base}`
-                  : "—"}
-              </td>
-              <td className="num text-[var(--muted)]">
-                {p.stock_minimo > 0 ? formatNumber(p.stock_minimo, 2) : "—"}
+                {p.contenido_por_unidad && p.unidad_base ? (
+                  <div className="text-[11px] text-[var(--muted)] font-normal">
+                    {formatNumber(p.stock_actual * p.contenido_por_unidad, 2)} {p.unidad_base}
+                  </div>
+                ) : null}
               </td>
               <td className="num text-[var(--muted)] tabular-nums">
                 {p.costo_promedio > 0 ? formatMoney(p.costo_promedio) : "—"}
@@ -515,25 +507,26 @@ function Tabla({
                 {valorDe(p) > 0 ? formatMoney(valorDe(p)) : "—"}
               </td>
               <td>
-                <span
-                  className={`text-[11px] font-medium ${
-                    s === "sin"
-                      ? "text-[var(--error)]"
-                      : s === "bajo"
-                        ? "text-[var(--warn)]"
-                        : "text-[var(--ok)]"
-                  }`}
-                >
-                  {SIT_LABEL[s]}
-                </span>
+                {!p.activo ? (
+                  <Badge tone="neutral">Inactivo</Badge>
+                ) : (
+                  <span
+                    className={`text-[11px] font-medium ${
+                      s === "sin"
+                        ? "text-[var(--error)]"
+                        : s === "bajo"
+                          ? "text-[var(--warn)]"
+                          : "text-[var(--ok)]"
+                    }`}
+                  >
+                    {SIT_LABEL[s]}
+                  </span>
+                )}
               </td>
               <td>
-                <Badge tone={p.activo ? "ok" : "neutral"}>{p.activo ? "Activo" : "Inactivo"}</Badge>
-              </td>
-              <td className="whitespace-nowrap">
                 <Link
                   href={`/stock/${p.id}/editar`}
-                  className="text-[12px] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                  className="text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
                 >
                   ✏️
                 </Link>
