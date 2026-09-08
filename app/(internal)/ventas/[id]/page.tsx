@@ -17,6 +17,7 @@ import {
   SALES_DOC_PANEL_TITLE,
 } from "@/lib/sales";
 import { ReceiptDialog } from "./receipt-dialog";
+import { SifenButton } from "./sifen-button";
 import { emitSalesDocument, voidSalesDocument, deleteSalesDocument, deleteReceipt, convertSalesDocument } from "../actions";
 
 export default async function VentaDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -109,6 +110,14 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
             >
               <Button type="submit">Emitir</Button>
             </form>
+          ) : null}
+          {doc.doc_type === "FACTURA" && doc.status !== "ANULADA" ? (
+            <SifenButton
+              docId={doc.id}
+              cdc={doc.cdc}
+              kudeUrl={doc.kude_url}
+              xmlUrl={doc.xml_url}
+            />
           ) : null}
           {canCollect ? (
             <ReceiptDialog docId={doc.id} saldo={saldo} currency={doc.currency} trigger={<Button>Registrar cobro</Button>} />
