@@ -1,4 +1,4 @@
-﻿?-- =============================================================================
+-- =============================================================================
 -- seed-caterpillar-demo.sql
 -- Datos de demo para testear todos los módulos del plan Caterpillar:
 --   · Proyectos (presupuesto, ejecución, cronograma, compras, personal,
