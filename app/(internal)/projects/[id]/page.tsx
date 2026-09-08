@@ -211,6 +211,21 @@ export default async function ProjectDetailPage({
     }
   }
 
+  // Consumo de materiales desde stock (SALIDA imputada a esta obra)
+  const { data: consumoRows } = await supabase
+    .from("stock_consumo_obra")
+    .select("budget_item_id, producto_id, producto, unidad, cantidad, costo_total")
+    .eq("project_id", id)
+    .eq("empresa_id", empresaId);
+  const consumo = (consumoRows ?? []) as {
+    budget_item_id: string | null;
+    producto_id: string;
+    producto: string;
+    unidad: string;
+    cantidad: number;
+    costo_total: number;
+  }[];
+
   const items = budgetItems ?? [];
   const entries = execEntries ?? [];
   const ocs = orders ?? [];
@@ -381,6 +396,7 @@ export default async function ProjectDetailPage({
       projectWeatherLogs={projectWeatherLogs}
       projectSchedulePlans={projectSchedulePlans}
       schedulePlanMonths={schedulePlanMonths}
+      consumo={consumo}
       isAdmin={profile.role === "admin"}
       duplicateSources={duplicateSources}
       itemsSubtotal={itemsSubtotal}

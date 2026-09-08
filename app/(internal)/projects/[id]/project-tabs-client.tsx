@@ -50,6 +50,7 @@ import { ProyectoFacturasTable } from "./proyecto-facturas-table";
 import { ProyectoPagosTable } from "./proyecto-pagos-table";
 import { ProyectoRfqsTable } from "./proyecto-rfqs-table";
 import { RfqDialog } from "@/app/(internal)/rfqs/rfq-dialog";
+import { ConsumoMaterialesSection, type ConsumoRow } from "./consumo-materiales-section";
 import { OrderDialog } from "@/app/(internal)/orders/order-dialog";
 import { AddProjectProviderDialog } from "./add-project-provider-dialog";
 import { ExecutionLinkDialog } from "./execution-link-dialog";
@@ -85,6 +86,7 @@ type Props = {
   projectWeatherLogs: ProjectWeatherLog[];
   projectSchedulePlans: ProjectSchedulePlan[];
   schedulePlanMonths: Record<string, ProjectSchedulePlanMonth[]>;
+  consumo: ConsumoRow[];
   isAdmin: boolean;
   duplicateSources: { id: string; code: string; name: string; itemCount: number }[];
   itemsSubtotal: number;
@@ -123,6 +125,7 @@ export function ProjectTabsClient({
   projectWeatherLogs,
   projectSchedulePlans,
   schedulePlanMonths,
+  consumo,
   isAdmin,
   duplicateSources,
   itemsSubtotal,
@@ -269,6 +272,9 @@ export function ProjectTabsClient({
             total={itemsSubtotal}
             projectId={project.id}
           />
+          {consumo.length > 0 ? (
+            <ConsumoMaterialesSection consumo={consumo} items={items} />
+          ) : null}
         </div>
       ) : null}
 
