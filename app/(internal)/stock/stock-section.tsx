@@ -535,7 +535,7 @@ function Tabla({
                   href={`/stock/${p.id}/editar`}
                   className="text-[12px] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
                 >
-                  Editar
+                  ✏️
                 </Link>
               </td>
             </tr>
