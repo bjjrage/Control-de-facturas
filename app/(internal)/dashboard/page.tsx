@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileText, Tag, AlertCircle, CheckCircle2, Wallet, CalendarClock, LucideIcon } from "lucide-react";
+import { FileText, Tag, AlertCircle, CheckCircle2, Wallet, CalendarClock, PackageX, FileX, LucideIcon } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Rfq } from "@/lib/types";
@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/format";
 import { isRfqOpen, rfqClosedReason } from "@/lib/rfq-status";
 
-type StatColor = "primary" | "teal" | "purple" | "orange" | "ok";
+type StatColor = "primary" | "teal" | "purple" | "orange" | "ok" | "warn";
 
 const STAT_COLOR_CLASSES: Record<StatColor, string> = {
   primary: "bg-[var(--primary-bg)] text-[var(--primary)]",
@@ -15,6 +15,7 @@ const STAT_COLOR_CLASSES: Record<StatColor, string> = {
   purple: "bg-[var(--accent-purple-bg)] text-[var(--accent-purple)]",
   orange: "bg-[var(--accent-orange-bg)] text-[var(--accent-orange)]",
   ok: "bg-[var(--ok-bg)] text-[var(--ok)]",
+  warn: "bg-[var(--warn-bg)] text-[var(--warn)]",
 };
 
 function StatCard({
@@ -56,6 +57,7 @@ export default async function DashboardPage() {
   const showRfqStats = (profile.role === "comercial" || profile.role === "admin") && profile.modulo_compras;
   const showInvoiceStats = isAdminOrAdministracion && profile.modulo_compras;
   const showSalesStats = isAdminOrAdministracion && profile.modulo_ventas;
+  const showStockStats = isAdminOrAdministracion && profile.modulo_compras;
   const today = new Date().toISOString().slice(0, 10);
   const noop = Promise.resolve({ data: null, count: null } as { data: null; count: number | null });
 
@@ -69,6 +71,8 @@ export default async function DashboardPage() {
     { data: recentRfqs },
     { count: porCobrar },
     { count: vencidas },
+    { count: ncSinFE },
+    { data: stockProductosBajoMinimo },
   ] = await Promise.all([
     showRfqStats
       ? supabase.from("rfqs").select("status, expires_at").in("status", ["BORRADOR", "COTIZANDO", "OFERTAS_RECIBIDAS"])
@@ -98,7 +102,25 @@ export default async function DashboardPage() {
           .in("status", ["EMITIDA", "COBRADA_PARCIAL"])
           .lt("due_date", today)
       : noop,
+    showSalesStats
+      ? supabase
+          .from("sales_documents")
+          .select("id", { count: "exact", head: true })
+          .eq("doc_type", "NOTA_CREDITO")
+          .neq("status", "ANULADA")
+          .is("cdc", null)
+      : noop,
+    showStockStats
+      ? supabase
+          .from("productos")
+          .select("stock_actual, stock_minimo")
+          .gt("stock_minimo", 0)
+      : noop,
   ]);
+
+  const stockBajoMinimo = (stockProductosBajoMinimo ?? []).filter(
+    (p: { stock_actual: number | null; stock_minimo: number }) => (p.stock_actual ?? 0) < p.stock_minimo
+  ).length;
 
   if (showRfqStats) {
     const open = (biddingRfqs ?? []).filter(isRfqOpen).length;
@@ -115,6 +137,12 @@ export default async function DashboardPage() {
   if (showSalesStats) {
     stats.push({ label: "Ventas por cobrar", value: porCobrar ?? 0, href: "/cobros", icon: Wallet, color: "teal" });
     stats.push({ label: "Ventas vencidas", value: vencidas ?? 0, href: "/cobros", icon: CalendarClock, color: "orange" });
+    if (ncSinFE !== null && ncSinFE > 0) {
+      stats.push({ label: "NC sin FE emitida", value: ncSinFE, href: "/notas-credito", icon: FileX, color: "warn" });
+    }
+  }
+  if (showStockStats && stockBajoMinimo > 0) {
+    stats.push({ label: "Productos bajo mínimo", value: stockBajoMinimo, href: "/stock?filtro=bajo_minimo", icon: PackageX, color: "orange" });
   }
 
   return (

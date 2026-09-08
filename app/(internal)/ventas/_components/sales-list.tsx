@@ -34,12 +34,14 @@ export async function SalesList({
   basePath,
   title,
   newLabel,
+  newHref,
   searchParams,
 }: {
   docType: SalesDocType;
   basePath: string;
   title: string;
   newLabel: string;
+  newHref?: string;
   searchParams: Filters;
 }) {
   const supabase = await createClient();
@@ -86,7 +88,7 @@ export async function SalesList({
             >
               Exportar CSV
             </Link>
-            <Link href={`${basePath}/nueva`}>
+            <Link href={newHref ?? `${basePath}/nueva`}>
               <Button>{newLabel}</Button>
             </Link>
           </div>

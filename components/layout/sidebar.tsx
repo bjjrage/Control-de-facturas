@@ -28,6 +28,7 @@ import {
   X,
   MessagesSquare,
   FileCheck2,
+  FileX,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { EmpresaPlan } from "@/lib/auth";
@@ -52,6 +53,7 @@ const PROJECT_TABS: { key: string; label: string; icon: typeof LayoutDashboard; 
   { key: "subcontratistas", label: "Subcontratistas", icon: Truck, caterpillarOnly: true },
   { key: "certificados", label: "Certificados", icon: FileCheck2, caterpillarOnly: true },
   { key: "avance-fisico", label: "Avance físico", icon: GanttChartSquare, caterpillarOnly: true },
+  { key: "stock", label: "Stock / Materiales", icon: Boxes },
   { key: "informes", label: "Informes", icon: FileText },
 ];
 
@@ -103,6 +105,7 @@ const VENTAS_ITEMS: NavItem[] = [
   { href: "/proformas", label: "Proformas", roles: ["administracion", "admin"], icon: FileClock, module: "ventas" },
   { href: "/remisiones", label: "Remisiones", roles: ["administracion", "admin"], icon: ClipboardList, module: "ventas" },
   { href: "/facturas-venta", label: "Facturas de Venta", roles: ["administracion", "admin"], icon: ReceiptText, module: "ventas" },
+  { href: "/notas-credito", label: "Notas de Crédito", roles: ["administracion", "admin"], icon: FileX, module: "ventas" },
   { href: "/cobros", label: "Cobros", roles: ["administracion", "admin"], icon: Banknote, module: "ventas" },
 ];
 
