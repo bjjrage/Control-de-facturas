@@ -301,7 +301,7 @@ export function ProjectTabsClient({
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
             <AddExecutionEntryForm projectId={project.id} budgetItems={items} />
-            <ExecutionLinkDialog appUrl={appUrl} token={project.execution_token} />
+            <ExecutionLinkDialog appUrl={appUrl} token={project.execution_token} projectCode={project.code} />
           </div>
           <EjecucionTable
             rows={entries.map((e) => {

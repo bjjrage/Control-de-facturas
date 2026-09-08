@@ -67,6 +67,12 @@ export default async function AvancePage({ params }: { params: Promise<{ token: 
           </div>
         )}
 
+        {isActive && items.length > 0 ? (
+          <p className="text-[11px] text-[var(--muted)] text-center px-4">
+            Tip: agregá esta página a la pantalla de inicio de tu celular para tenerla siempre a mano.
+          </p>
+        ) : null}
+
         {(recentEntries ?? []).length > 0 ? (
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
             <p className="text-[12px] font-semibold mb-2">Últimos partes cargados</p>
