@@ -40,21 +40,32 @@ import { SHELL_PATHS } from "./app-shell-client";
 
 // Sub-secciones de un proyecto — mismas tabs que /projects/[id]?tab=X, pero
 // como items de sidebar cuando estás "adentro" del proyecto (modo carpeta).
-const PROJECT_TABS: { key: string; label: string; icon: typeof LayoutDashboard; caterpillarOnly?: boolean }[] = [
-  { key: "presupuesto", label: "Presupuesto", icon: ClipboardCheck },
-  { key: "cronograma", label: "Cronograma", icon: GanttChartSquare },
-  { key: "ejecucion", label: "Ejecución", icon: Hammer },
-  { key: "proveedores", label: "Proveedores", icon: Truck },
-  { key: "cotizaciones", label: "Cotizaciones", icon: MessagesSquare },
-  { key: "compras", label: "Órdenes de Compra", icon: Package },
-  { key: "facturas", label: "Facturas", icon: Receipt },
-  { key: "pagos", label: "Pagos", icon: Wallet },
-  { key: "personal", label: "Personal", icon: Users, caterpillarOnly: true },
-  { key: "subcontratistas", label: "Subcontratistas", icon: Truck, caterpillarOnly: true },
-  { key: "certificados", label: "Certificados", icon: FileCheck2, caterpillarOnly: true },
-  { key: "avance-fisico", label: "Avance físico", icon: GanttChartSquare, caterpillarOnly: true },
-  { key: "stock", label: "Stock / Materiales", icon: Boxes },
-  { key: "informes", label: "Informes", icon: FileText },
+// Agrupadas por fase del ciclo de una obra: preparás → comprás → ejecutás →
+// certificás y controlás. El orden sigue el flujo real de trabajo.
+type ProjectTab = { key: string; label: string; icon: typeof LayoutDashboard; caterpillarOnly?: boolean };
+const PROJECT_TAB_GROUPS: { label: string; tabs: ProjectTab[] }[] = [
+  { label: "Preparar", tabs: [
+    { key: "presupuesto", label: "Presupuesto", icon: ClipboardCheck },
+    { key: "cronograma", label: "Cronograma", icon: GanttChartSquare },
+  ]},
+  { label: "Comprar", tabs: [
+    { key: "proveedores", label: "Proveedores", icon: Truck },
+    { key: "cotizaciones", label: "Cotizaciones", icon: MessagesSquare },
+    { key: "compras", label: "Órdenes de Compra", icon: Package },
+    { key: "facturas", label: "Facturas", icon: Receipt },
+    { key: "pagos", label: "Pagos", icon: Wallet },
+  ]},
+  { label: "Ejecutar", tabs: [
+    { key: "ejecucion", label: "Ejecución", icon: Hammer },
+    { key: "stock", label: "Stock / Materiales", icon: Boxes },
+    { key: "personal", label: "Personal", icon: Users, caterpillarOnly: true },
+    { key: "subcontratistas", label: "Subcontratistas", icon: Truck, caterpillarOnly: true },
+  ]},
+  { label: "Certificar y controlar", tabs: [
+    { key: "certificados", label: "Certificados", icon: FileCheck2, caterpillarOnly: true },
+    { key: "avance-fisico", label: "Avance físico", icon: GanttChartSquare, caterpillarOnly: true },
+    { key: "informes", label: "Informes", icon: FileText },
+  ]},
 ];
 
 // UUID v4-ish: alcanza para distinguir /projects/{id} de /projects (lista) y
@@ -411,29 +422,44 @@ export function Sidebar({
         {inProjectMode ? (
           <>
             {globalItems.map(renderLink)}
-            {PROJECT_TABS.filter((t) => !t.caterpillarOnly || isCaterpillarPlan).map((t) => {
-              const Icon = t.icon;
-              const active = currentTab === t.key;
+            {PROJECT_TAB_GROUPS.map((group) => {
+              const tabs = group.tabs.filter((t) => !t.caterpillarOnly || isCaterpillarPlan);
+              if (tabs.length === 0) return null;
               return (
-                <button
-                  key={t.key}
-                  title={collapsed ? t.label : undefined}
-                  onClick={() => {
-                    const url = `/projects/${activeProjectId}?tab=${t.key}`;
-                    window.history.pushState({}, "", url);
-                    window.dispatchEvent(new CustomEvent("niupack:tab", { detail: t.key }));
-                  }}
-                  className={cn(
-                    "w-full flex items-center gap-2.5 h-9 rounded-lg text-[13px] transition-colors",
-                    collapsed ? "justify-center px-0" : "px-3",
-                    active
-                      ? "bg-[var(--nav-active)] text-white font-medium"
-                      : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+                <div key={group.label} className="space-y-0.5">
+                  {!collapsed ? (
+                    <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">
+                      {group.label}
+                    </div>
+                  ) : (
+                    <div className="border-t border-[var(--border)] my-1.5" />
                   )}
-                >
-                  <Icon size={16} className="shrink-0" />
-                  {!collapsed ? <span className="truncate">{t.label}</span> : null}
-                </button>
+                  {tabs.map((t) => {
+                    const Icon = t.icon;
+                    const active = currentTab === t.key;
+                    return (
+                      <button
+                        key={t.key}
+                        title={collapsed ? t.label : undefined}
+                        onClick={() => {
+                          const url = `/projects/${activeProjectId}?tab=${t.key}`;
+                          window.history.pushState({}, "", url);
+                          window.dispatchEvent(new CustomEvent("niupack:tab", { detail: t.key }));
+                        }}
+                        className={cn(
+                          "w-full flex items-center gap-2.5 h-9 rounded-lg text-[13px] transition-colors",
+                          collapsed ? "justify-center px-0" : "px-3",
+                          active
+                            ? "bg-[var(--nav-active)] text-white font-medium"
+                            : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+                        )}
+                      >
+                        <Icon size={16} className="shrink-0" />
+                        {!collapsed ? <span className="truncate">{t.label}</span> : null}
+                      </button>
+                    );
+                  })}
+                </div>
               );
             })}
           </>
