@@ -33,6 +33,8 @@ export async function proxy(request: NextRequest) {
     path.startsWith("/reset-password") ||
     path.startsWith("/suspendido") ||
     path.startsWith("/cotizar") ||
+    path.startsWith("/certificados") ||
+    path.startsWith("/avance") ||
     path.startsWith("/_next") ||
     path.startsWith("/api/cotizar") ||
     path === "/favicon.ico";

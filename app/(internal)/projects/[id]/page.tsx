@@ -34,6 +34,7 @@ const ALL_TABS = [
   "proveedores",
   "facturas",
   "pagos",
+  "stock",
   "informes",
   "personal",
   "subcontratistas",
@@ -212,11 +213,24 @@ export default async function ProjectDetailPage({
   }
 
   // Consumo de materiales desde stock (SALIDA imputada a esta obra)
-  const { data: consumoRows } = await supabase
-    .from("stock_consumo_obra")
-    .select("budget_item_id, producto_id, producto, unidad, cantidad, costo_total")
-    .eq("project_id", id)
-    .eq("empresa_id", empresaId);
+  const [{ data: consumoRows }, { data: stockProyectoRows }, { data: panolesRows }] = await Promise.all([
+    supabase
+      .from("stock_consumo_obra")
+      .select("budget_item_id, producto_id, producto, unidad, cantidad, costo_total")
+      .eq("project_id", id)
+      .eq("empresa_id", empresaId),
+    supabase
+      .from("stock_por_proyecto")
+      .select("producto_id, producto, unidad, costo_promedio, qty_comprada, qty_consumida, qty_disponible, costo_comprado, costo_consumido")
+      .eq("project_id", id)
+      .eq("empresa_id", empresaId),
+    supabase
+      .from("depositos")
+      .select("id, nombre")
+      .eq("project_id", id)
+      .eq("empresa_id", empresaId)
+      .eq("activo", true),
+  ]);
   const consumo = (consumoRows ?? []) as {
     budget_item_id: string | null;
     producto_id: string;
@@ -339,6 +353,31 @@ export default async function ProjectDetailPage({
     );
   }
 
+  // Metadata de verificación de cada foto (cámara/archivo, GPS, timestamp)
+  let photoMetaByPath: Record<
+    string,
+    { source: string; captured_at: string | null; server_received_at: string; lat: number | null; lng: number | null; gps_accuracy_m: number | null }
+  > = {};
+  if (entries.length > 0) {
+    const { data: photoMeta } = await supabase
+      .from("execution_entry_photos")
+      .select("storage_path, source, captured_at, server_received_at, lat, lng, gps_accuracy_m")
+      .eq("project_id", id);
+    photoMetaByPath = Object.fromEntries(
+      (photoMeta ?? []).map((m) => [
+        m.storage_path as string,
+        {
+          source: m.source as string,
+          captured_at: m.captured_at as string | null,
+          server_received_at: m.server_received_at as string,
+          lat: m.lat as number | null,
+          lng: m.lng as number | null,
+          gps_accuracy_m: m.gps_accuracy_m as number | null,
+        },
+      ])
+    );
+  }
+
   // Proyectos candidatos para "Copiar de otro proyecto"
   let duplicateSources: { id: string; code: string; name: string; itemCount: number }[] = [];
   if (items.length === 0) {
@@ -374,6 +413,7 @@ export default async function ProjectDetailPage({
       items={items}
       entries={entries}
       photoUrlByPath={photoUrlByPath}
+      photoMetaByPath={photoMetaByPath}
       ocs={ocs}
       allProviders={allProviders}
       projectRfqs={projectRfqs}
@@ -397,6 +437,8 @@ export default async function ProjectDetailPage({
       projectSchedulePlans={projectSchedulePlans}
       schedulePlanMonths={schedulePlanMonths}
       consumo={consumo}
+      stockProyecto={(stockProyectoRows ?? []) as import("./proyecto-stock-section").StockProyectoRow[]}
+      panoles={(panolesRows ?? []) as { id: string; nombre: string }[]}
       isAdmin={profile.role === "admin"}
       duplicateSources={duplicateSources}
       itemsSubtotal={itemsSubtotal}

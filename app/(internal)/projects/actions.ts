@@ -43,9 +43,21 @@ export async function createProject(formData: FormData): Promise<{ error: string
     return { error: dup ? `Ya existe un proyecto con el código "${code}".` : (error?.message ?? "No se pudo crear el proyecto.") };
   }
 
+  // Crear depósito/pañol asociado al proyecto si se solicitó
+  const crearPanol = formData.get("crear_panol") === "1";
+  if (crearPanol) {
+    const nombreDeposito = `Pañol ${code} - ${name}`.slice(0, 100);
+    await supabase.from("depositos").insert({
+      empresa_id: empresaId,
+      nombre: nombreDeposito,
+      es_principal: false,
+      project_id: project.id,
+    });
+  }
+
   await logAudit(supabase, {
     action: "project.created",
-    detail: { project_id: project.id, code },
+    detail: { project_id: project.id, code, panol: crearPanol },
   });
 
   revalidatePath("/projects");
@@ -355,9 +367,18 @@ export async function addExecutionEntry(
  * Si esto falla, la entrada de avance ya está guardada igual; solo se pierden
  * las fotos, nunca el dato de ejecución.
  */
+type UploadedPhoto = {
+  path: string;
+  capturedAt?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  accuracy?: number | null;
+  source?: "camara" | "archivo";
+};
+
 export async function updateExecutionEntryPhotos(
   entryId: string,
-  photoPaths: string[]
+  photos: UploadedPhoto[]
 ): Promise<{ error: string | null }> {
   await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
@@ -366,17 +387,32 @@ export async function updateExecutionEntryPhotos(
   // project_id IN (SELECT id FROM projects WHERE empresa_id = current_empresa_id()).
   const { data: entry } = await supabase
     .from("execution_entries")
-    .select("id")
+    .select("id, project_id")
     .eq("id", entryId)
     .single();
   if (!entry) return { error: "Entrada no encontrada." };
 
   const { error } = await supabase
     .from("execution_entries")
-    .update({ photo_paths: photoPaths })
+    .update({ photo_paths: photos.map((p) => p.path) })
     .eq("id", entryId);
 
   if (error) return { error: "No se pudieron guardar las fotos." };
+
+  // Metadata de verificación — aditiva, no bloquea si falla.
+  await supabase.from("execution_entry_photos").insert(
+    photos.map((p, i) => ({
+      entry_id: entryId,
+      project_id: entry.project_id as string,
+      storage_path: p.path,
+      sort_order: i,
+      source: p.source === "archivo" ? "archivo" : "camara",
+      captured_at: p.capturedAt ?? null,
+      lat: typeof p.lat === "number" ? p.lat : null,
+      lng: typeof p.lng === "number" ? p.lng : null,
+      gps_accuracy_m: typeof p.accuracy === "number" ? p.accuracy : null,
+    }))
+  );
 
   return { error: null };
 }

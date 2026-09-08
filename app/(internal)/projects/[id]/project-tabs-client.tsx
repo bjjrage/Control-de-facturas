@@ -51,6 +51,7 @@ import { ProyectoPagosTable } from "./proyecto-pagos-table";
 import { ProyectoRfqsTable } from "./proyecto-rfqs-table";
 import { RfqDialog } from "@/app/(internal)/rfqs/rfq-dialog";
 import { ConsumoMaterialesSection, type ConsumoRow } from "./consumo-materiales-section";
+import { ProyectoStockSection, type StockProyectoRow } from "./proyecto-stock-section";
 import { OrderDialog } from "@/app/(internal)/orders/order-dialog";
 import { AddProjectProviderDialog } from "./add-project-provider-dialog";
 import { ExecutionLinkDialog } from "./execution-link-dialog";
@@ -64,6 +65,10 @@ type Props = {
   items: BudgetItem[];
   entries: ExecutionEntry[];
   photoUrlByPath: Record<string, string>;
+  photoMetaByPath: Record<
+    string,
+    { source: string; captured_at: string | null; server_received_at: string; lat: number | null; lng: number | null; gps_accuracy_m: number | null }
+  >;
   ocs: AuthorizedOrder[];
   allProviders: Provider[];
   projectRfqs: Rfq[];
@@ -87,6 +92,8 @@ type Props = {
   projectSchedulePlans: ProjectSchedulePlan[];
   schedulePlanMonths: Record<string, ProjectSchedulePlanMonth[]>;
   consumo: ConsumoRow[];
+  stockProyecto: StockProyectoRow[];
+  panoles: { id: string; nombre: string }[];
   isAdmin: boolean;
   duplicateSources: { id: string; code: string; name: string; itemCount: number }[];
   itemsSubtotal: number;
@@ -103,6 +110,7 @@ export function ProjectTabsClient({
   items,
   entries,
   photoUrlByPath,
+  photoMetaByPath,
   ocs,
   allProviders,
   projectRfqs,
@@ -126,6 +134,8 @@ export function ProjectTabsClient({
   projectSchedulePlans,
   schedulePlanMonths,
   consumo,
+  stockProyecto,
+  panoles,
   isAdmin,
   duplicateSources,
   itemsSubtotal,
@@ -150,6 +160,11 @@ export function ProjectTabsClient({
   const photoUrlMap = useMemo(
     () => new Map(Object.entries(photoUrlByPath)),
     [photoUrlByPath]
+  );
+
+  const photoMetaMap = useMemo(
+    () => new Map(Object.entries(photoMetaByPath)),
+    [photoMetaByPath]
   );
 
   const availableProvidersToAdd = useMemo(() => {
@@ -291,7 +306,20 @@ export function ProjectTabsClient({
           <EjecucionTable
             rows={entries.map((e) => {
               const item = items.find((i) => i.id === e.budget_item_id);
-              const photoUrls = e.photo_paths.map((p) => photoUrlMap.get(p)).filter((u): u is string => !!u);
+              const photos = e.photo_paths
+                .map((p) => {
+                  const url = photoUrlMap.get(p);
+                  if (!url) return null;
+                  const m = photoMetaMap.get(p);
+                  return {
+                    url,
+                    source: m?.source ?? null,
+                    capturedAt: m?.captured_at ?? null,
+                    lat: m?.lat ?? null,
+                    lng: m?.lng ?? null,
+                  };
+                })
+                .filter((x): x is NonNullable<typeof x> => !!x);
               return {
                 id: e.id,
                 date: e.entry_date,
@@ -299,7 +327,7 @@ export function ProjectTabsClient({
                 unit: item?.unit ?? "",
                 quantityExecuted: e.quantity_executed,
                 notes: e.notes,
-                photoUrls,
+                photos,
                 fromPortal: e.submitted_by_portal,
               };
             })}
@@ -349,6 +377,10 @@ export function ProjectTabsClient({
 
       {tab === "pagos" ? (
         <ProyectoPagosTable rows={projectPaymentOrders} providerNameById={providerNameById} />
+      ) : null}
+
+      {tab === "stock" ? (
+        <ProyectoStockSection rows={stockProyecto} panoles={panoles} />
       ) : null}
 
       {tab === "informes" ? (

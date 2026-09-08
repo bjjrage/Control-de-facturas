@@ -55,6 +55,22 @@ export async function submitAvance(token: string, formData: FormData): Promise<{
   // Fotos: ya llegan comprimidas del cliente (ver avance-form.tsx). Falla
   // silenciosa por foto — el parte de avance en sí ya quedó guardado.
   const files = formData.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
+
+  type PhotoMeta = {
+    capturedAt?: string | null;
+    lat?: number | null;
+    lng?: number | null;
+    accuracy?: number | null;
+    source?: "camara" | "archivo";
+  };
+  let meta: PhotoMeta[] = [];
+  try {
+    const raw = formData.get("photos_meta");
+    if (typeof raw === "string" && raw) meta = JSON.parse(raw) as PhotoMeta[];
+  } catch {
+    meta = [];
+  }
+
   const paths: string[] = [];
   for (let i = 0; i < Math.min(files.length, MAX_PHOTOS); i++) {
     const file = files[i];
@@ -63,7 +79,21 @@ export async function submitAvance(token: string, formData: FormData): Promise<{
     const up = await admin.storage
       .from("execution-photos")
       .upload(path, bytes, { contentType: file.type || "image/jpeg" });
-    if (!up.error) paths.push(path);
+    if (up.error) continue;
+    paths.push(path);
+
+    const m = meta[i] ?? {};
+    await admin.from("execution_entry_photos").insert({
+      entry_id: entry.id,
+      project_id: project.id,
+      storage_path: path,
+      sort_order: i,
+      source: m.source === "archivo" ? "archivo" : "camara",
+      captured_at: m.capturedAt ?? null,
+      lat: typeof m.lat === "number" ? m.lat : null,
+      lng: typeof m.lng === "number" ? m.lng : null,
+      gps_accuracy_m: typeof m.accuracy === "number" ? m.accuracy : null,
+    });
   }
   if (paths.length > 0) {
     await admin.from("execution_entries").update({ photo_paths: paths }).eq("id", entry.id);

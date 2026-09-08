@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { ColumnFilter, uniqueValues, passesColumnFilter } from "@/components/ui/column-filter";
 import { formatDate } from "@/lib/format";
-import { ExecutionPhotosLightbox } from "./execution-photos-lightbox";
+import { ExecutionPhotosLightbox, type LightboxPhoto } from "./execution-photos-lightbox";
 
 type Row = {
   id: string;
@@ -13,7 +13,7 @@ type Row = {
   unit: string;
   quantityExecuted: number;
   notes: string | null;
-  photoUrls: string[];
+  photos: LightboxPhoto[];
   fromPortal: boolean;
 };
 
@@ -160,7 +160,7 @@ export function EjecucionTable({ rows }: { rows: Row[] }) {
                   <td>{r.itemLabel}</td>
                   <td className="num">{r.quantityExecuted} {r.unit}</td>
                   <td className="text-[var(--muted)]">{r.notes ?? "—"}</td>
-                  <td><ExecutionPhotosLightbox urls={r.photoUrls} /></td>
+                  <td><ExecutionPhotosLightbox photos={r.photos} /></td>
                 </tr>
               ))
             )}
