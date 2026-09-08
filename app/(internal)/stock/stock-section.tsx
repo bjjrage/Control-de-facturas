@@ -207,6 +207,12 @@ export function StockSection({
           <CategoriasDialog categorias={categorias} productos={productos} />
           <DepositosDialog depositos={depositos} />
           <ImportarDialog />
+          <Link
+            href="/stock/export"
+            className="inline-flex items-center justify-center rounded-md border px-3 h-8 text-[13px] font-medium bg-[var(--panel)] hover:bg-[var(--hover)] border-[var(--border)]"
+          >
+            Exportar CSV
+          </Link>
           <Link href="/stock/nuevo">
             <Button>Nuevo producto</Button>
           </Link>
