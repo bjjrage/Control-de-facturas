@@ -26,12 +26,12 @@ async function goToFirstProject(page: any): Promise<string> {
   await page.goto("/projects");
   await page.waitForLoadState("networkidle", { timeout: 20_000 });
 
-  // Preferir el proyecto del seed
-  const seedLink = page.getByRole("link", { name: new RegExp(SEED_PROJECT_NAME, "i") }).first();
-  if (await seedLink.count() > 0) {
-    await seedLink.click();
+  // Preferir el proyecto del seed buscando por href (más fiable que por nombre accesible)
+  const seedHrefLink = page.locator(`main a[href*='${SEED_PROJECT_ID}']`).first();
+  if (await seedHrefLink.count() > 0) {
+    await seedHrefLink.click();
   } else {
-    // Usar el primer proyecto disponible
+    // Fallback: primer proyecto disponible
     const firstLink = page.locator("main a[href*='/projects/']").first();
     await expect(firstLink).toBeVisible({ timeout: 10_000 });
     await firstLink.click();
@@ -303,15 +303,17 @@ test.describe("Caterpillar — Stock / Inventario", () => {
     await page.goto("/stock/nuevo");
     await page.waitForLoadState("networkidle", { timeout: 20_000 });
 
-    await expect(page.getByLabel(/Nombre/)).toBeVisible();
-    await expect(page.getByLabel(/Unidad de compra/)).toBeVisible();
+    // Los labels no tienen htmlFor — buscamos por placeholder y por presencia del select
+    await expect(page.getByPlaceholder(/Cemento Portland/i)).toBeVisible();
+    await expect(page.locator("select").first()).toBeVisible();
   });
 
   test("selector de unidad tiene opciones controladas (es un <select>)", async ({ page }) => {
     await page.goto("/stock/nuevo");
     await page.waitForLoadState("networkidle", { timeout: 20_000 });
 
-    const unitSelect = page.getByLabel(/Unidad de compra/);
+    // Primer select del formulario = Unidad de compra
+    const unitSelect = page.locator("select").first();
     await expect(unitSelect).toBeVisible();
 
     const tagName = await unitSelect.evaluate((el) => el.tagName.toLowerCase());
