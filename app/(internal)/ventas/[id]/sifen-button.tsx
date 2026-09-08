@@ -2,16 +2,18 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { emitirFE, consultarFE } from "../sifen-actions";
+import { emitirFE, emitirNC, consultarFE } from "../sifen-actions";
+import type { SalesDocType } from "@/lib/types";
 
 interface Props {
-  docId: string;
+  docId:   string;
+  docType: SalesDocType;
   cdc:     string | null;
   kudeUrl: string | null;
   xmlUrl:  string | null;
 }
 
-export function SifenButton({ docId, cdc: initialCdc, kudeUrl: initialKude, xmlUrl: initialXml }: Props) {
+export function SifenButton({ docId, docType, cdc: initialCdc, kudeUrl: initialKude, xmlUrl: initialXml }: Props) {
   const [cdc,     setCdc]     = useState(initialCdc);
   const [kudeUrl, setKudeUrl] = useState(initialKude);
   const [xmlUrl,  setXmlUrl]  = useState(initialXml);
@@ -21,7 +23,7 @@ export function SifenButton({ docId, cdc: initialCdc, kudeUrl: initialKude, xmlU
   function emitir() {
     setError(null);
     startTransition(async () => {
-      const res = await emitirFE(docId);
+      const res = docType === "NOTA_CREDITO" ? await emitirNC(docId) : await emitirFE(docId);
       if (res.error) setError(res.error);
       else if (res.cdc) setCdc(res.cdc);
     });

@@ -19,6 +19,7 @@ export function SalesForm({
   items,
   action,
   fixedDocType,
+  extraHiddenFields,
 }: {
   clients: Pick<Client, "id" | "name">[];
   defaultClientId?: string;
@@ -26,6 +27,7 @@ export function SalesForm({
   items?: SalesDocumentItem[];
   action: (formData: FormData) => Promise<{ error: string | null; id?: string }>;
   fixedDocType?: SalesDocType;
+  extraHiddenFields?: Record<string, string>;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +89,11 @@ export function SalesForm({
         router.push(`/ventas/${result.id}`);
       }}
     >
+      {extraHiddenFields
+        ? Object.entries(extraHiddenFields).map(([k, v]) => (
+            <input key={k} type="hidden" name={k} value={v} />
+          ))
+        : null}
       {error ? (
         <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
           {error}

@@ -433,7 +433,7 @@ export interface AuditLog {
 // Módulo Ventas / Facturación (migración 0020)
 // ============================================================================
 
-export type SalesDocType = "PROFORMA" | "REMISION" | "FACTURA";
+export type SalesDocType = "PROFORMA" | "REMISION" | "FACTURA" | "NOTA_CREDITO";
 export type SalesDocStatus = "BORRADOR" | "EMITIDA" | "COBRADA_PARCIAL" | "COBRADA" | "ANULADA";
 export type ReceiptMethod = "EFECTIVO" | "TRANSFERENCIA" | "CHEQUE" | "TARJETA" | "OTRO";
 
@@ -470,6 +470,7 @@ export interface SalesDocument {
   cdc: string | null;
   xml_url: string | null;
   kude_url: string | null;
+  source_document_id: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;

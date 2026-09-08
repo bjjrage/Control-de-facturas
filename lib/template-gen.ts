@@ -2,9 +2,10 @@ import { SalesDocType } from "./types";
 import { TEMPLATE_VARIABLES } from "./template";
 
 const DOC_TYPE_NAME: Record<SalesDocType, string> = {
-  PROFORMA: "Proforma",
-  REMISION: "Remisión",
-  FACTURA: "Factura",
+  PROFORMA:     "Proforma",
+  REMISION:     "Remisión",
+  FACTURA:      "Factura",
+  NOTA_CREDITO: "Nota de Crédito",
 };
 
 function buildPrompt(docType: SalesDocType): string {

@@ -73,6 +73,7 @@ export async function createSalesDocument(formData: FormData) {
       due_date: str(formData, "due_date"),
       currency: str(formData, "currency") ?? "PYG",
       notes: str(formData, "notes"),
+      source_document_id: str(formData, "source_document_id"),
       created_by: profile.id,
     })
     .select("id")

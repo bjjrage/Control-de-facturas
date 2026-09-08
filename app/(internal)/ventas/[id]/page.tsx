@@ -111,9 +111,16 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
               <Button type="submit">Emitir</Button>
             </form>
           ) : null}
-          {doc.doc_type === "FACTURA" && doc.status !== "ANULADA" ? (
+          {doc.doc_type === "FACTURA" &&
+          (doc.status === "EMITIDA" || doc.status === "COBRADA_PARCIAL" || doc.status === "COBRADA") ? (
+            <Link href={`/ventas/nueva-nc?from=${doc.id}`}>
+              <Button variant="secondary">Emitir NC</Button>
+            </Link>
+          ) : null}
+          {(doc.doc_type === "FACTURA" || doc.doc_type === "NOTA_CREDITO") && doc.status !== "ANULADA" ? (
             <SifenButton
               docId={doc.id}
+              docType={doc.doc_type}
               cdc={doc.cdc}
               kudeUrl={doc.kude_url}
               xmlUrl={doc.xml_url}

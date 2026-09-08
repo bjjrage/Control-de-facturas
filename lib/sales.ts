@@ -17,21 +17,24 @@ export function docSaldo(total: number, cobrado: number) {
 }
 
 export const SALES_DOC_TYPE_LABELS: Record<SalesDocType, string> = {
-  PROFORMA: "Proforma",
-  REMISION: "Remisión",
-  FACTURA: "Factura",
+  PROFORMA:      "Proforma",
+  REMISION:      "Remisión",
+  FACTURA:       "Factura",
+  NOTA_CREDITO:  "Nota de Crédito",
 };
 
 export const SALES_DOC_PANEL_PATH: Record<SalesDocType, string> = {
-  PROFORMA: "/proformas",
-  REMISION: "/remisiones",
-  FACTURA: "/facturas-venta",
+  PROFORMA:     "/proformas",
+  REMISION:     "/remisiones",
+  FACTURA:      "/facturas-venta",
+  NOTA_CREDITO: "/notas-credito",
 };
 
 export const SALES_DOC_PANEL_TITLE: Record<SalesDocType, string> = {
-  PROFORMA: "Proformas",
-  REMISION: "Remisiones",
-  FACTURA: "Facturas de Venta",
+  PROFORMA:     "Proformas",
+  REMISION:     "Remisiones",
+  FACTURA:      "Facturas de Venta",
+  NOTA_CREDITO: "Notas de Crédito",
 };
 
 export const SALES_DOC_STATUS_LABELS: Record<SalesDocStatus, string> = {
