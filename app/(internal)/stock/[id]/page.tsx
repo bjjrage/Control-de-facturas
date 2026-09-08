@@ -28,6 +28,14 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
 
   if (!producto) notFound();
 
+  const { data: categoria } = producto.categoria_id
+    ? await supabase
+        .from("categorias_producto")
+        .select("nombre")
+        .eq("id", producto.categoria_id)
+        .single<{ nombre: string }>()
+    : { data: null };
+
   const { data: movimientos } = await supabase
     .from("stock_movimientos")
     .select("*")
@@ -57,9 +65,16 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
               </span>
             ) : null}
           </div>
-          {producto.sku ? (
-            <p className="text-[12px] text-[var(--muted)] font-mono mt-0.5">{producto.sku}</p>
-          ) : null}
+          <div className="flex items-center gap-2 mt-0.5">
+            {producto.sku ? (
+              <span className="text-[12px] text-[var(--muted)] font-mono">{producto.sku}</span>
+            ) : null}
+            {categoria?.nombre ? (
+              <span className="text-[11px] text-[var(--muted)] border border-[var(--border)] rounded px-1.5 py-0.5">
+                {categoria.nombre}
+              </span>
+            ) : null}
+          </div>
           {producto.descripcion ? (
             <p className="text-[12px] text-[var(--muted)] mt-0.5">{producto.descripcion}</p>
           ) : null}

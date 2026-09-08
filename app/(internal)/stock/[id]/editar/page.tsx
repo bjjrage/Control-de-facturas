@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { actualizarProducto } from "../../stock-actions";
 import { createClient } from "@/lib/supabase/browser";
-import type { Producto } from "@/lib/types";
+import type { Producto, CategoriaProducto } from "@/lib/types";
 import { UNIDADES_COMPRA, UNIDADES_BASE } from "@/lib/stock-units";
 
 export default function EditarProductoPage({ params }: { params: Promise<{ id: string }> }) {
@@ -18,15 +18,25 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
   const [unidadBase, setUnidadBase] = useState("");
   const [sku, setSku] = useState("");
   const [descripcion, setDescripcion] = useState("");
+  const [categoriaId, setCategoriaId] = useState("");
+  const [categorias, setCategorias] = useState<CategoriaProducto[]>([]);
   const [stockMinimo, setStockMinimo] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("categorias_producto")
+      .select("*")
+      .order("orden")
+      .order("nombre")
+      .returns<CategoriaProducto[]>()
+      .then(({ data }) => setCategorias(data ?? []));
+
     params.then(({ id: pid }) => {
       setId(pid);
-      const supabase = createClient();
       supabase
         .from("productos")
         .select("*")
@@ -41,6 +51,7 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
           setUnidadBase(data.unidad_base ?? "");
           setSku(data.sku ?? "");
           setDescripcion(data.descripcion ?? "");
+          setCategoriaId(data.categoria_id ?? "");
           setStockMinimo(data.stock_minimo > 0 ? String(data.stock_minimo) : "");
         });
     });
@@ -57,6 +68,7 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
       unidad,
       sku: sku || undefined,
       descripcion: descripcion || undefined,
+      categoria_id: categoriaId || null,
       stock_minimo: stockMinimo ? parseFloat(stockMinimo) : 0,
       contenido_por_unidad: contenido ? parseFloat(contenido) : null,
       unidad_base: unidadBase || null,
@@ -95,6 +107,20 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
             required
             className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
           />
+        </div>
+
+        <div>
+          <label className="block text-[12px] text-[var(--muted)] mb-1">Categoría</label>
+          <select
+            value={categoriaId}
+            onChange={(e) => setCategoriaId(e.target.value)}
+            className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
+          >
+            <option value="">Sin categoría</option>
+            {categorias.map((c) => (
+              <option key={c.id} value={c.id}>{c.nombre}</option>
+            ))}
+          </select>
         </div>
 
         <div className="grid grid-cols-2 gap-3">

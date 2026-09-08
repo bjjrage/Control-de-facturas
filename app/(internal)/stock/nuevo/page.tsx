@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { crearProducto } from "../stock-actions";
+import { createClient } from "@/lib/supabase/browser";
+import type { CategoriaProducto } from "@/lib/types";
 import { UNIDADES_COMPRA, UNIDADES_BASE } from "@/lib/stock-units";
 
 export default function NuevoProductoPage() {
@@ -14,11 +16,24 @@ export default function NuevoProductoPage() {
   const [unidadBase, setUnidadBase] = useState("");
   const [sku, setSku] = useState("");
   const [descripcion, setDescripcion] = useState("");
+  const [categoriaId, setCategoriaId] = useState("");
+  const [categorias, setCategorias] = useState<CategoriaProducto[]>([]);
   const [stockMinimo, setStockMinimo] = useState("");
   const [stockInicial, setStockInicial] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("categorias_producto")
+      .select("*")
+      .order("orden")
+      .order("nombre")
+      .returns<CategoriaProducto[]>()
+      .then(({ data }) => setCategorias(data ?? []));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -30,6 +45,7 @@ export default function NuevoProductoPage() {
       unidad,
       sku: sku || undefined,
       descripcion: descripcion || undefined,
+      categoria_id: categoriaId || null,
       stock_minimo: stockMinimo ? parseFloat(stockMinimo) : 0,
       stock_inicial: stockInicial ? parseFloat(stockInicial) : 0,
       contenido_por_unidad: contenido ? parseFloat(contenido) : undefined,
@@ -55,8 +71,10 @@ export default function NuevoProductoPage() {
 
       <form onSubmit={handleSubmit} className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 space-y-4">
         <div>
-          <label className="block text-[12px] text-[var(--muted)] mb-1">Nombre *</label>
+          <label htmlFor="p-nombre" className="block text-[12px] text-[var(--muted)] mb-1">Nombre *</label>
           <input
+            id="p-nombre"
+            name="nombre"
             type="text"
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
@@ -66,10 +84,28 @@ export default function NuevoProductoPage() {
           />
         </div>
 
+        <div>
+          <label htmlFor="p-categoria" className="block text-[12px] text-[var(--muted)] mb-1">Categoría</label>
+          <select
+            id="p-categoria"
+            name="categoria"
+            value={categoriaId}
+            onChange={(e) => setCategoriaId(e.target.value)}
+            className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
+          >
+            <option value="">Sin categoría</option>
+            {categorias.map((c) => (
+              <option key={c.id} value={c.id}>{c.nombre}</option>
+            ))}
+          </select>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-[12px] text-[var(--muted)] mb-1">Unidad de compra *</label>
+            <label htmlFor="p-unidad" className="block text-[12px] text-[var(--muted)] mb-1">Unidad de compra *</label>
             <select
+              id="p-unidad"
+              name="unidad"
               value={unidad}
               onChange={(e) => setUnidad(e.target.value)}
               required

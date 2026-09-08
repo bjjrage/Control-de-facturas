@@ -195,6 +195,15 @@ export interface AuthorizedOrderItem {
 
 export type StockMovimientoTipo = "ENTRADA" | "SALIDA" | "AJUSTE";
 
+export interface CategoriaProducto {
+  id: string;
+  empresa_id: string;
+  nombre: string;
+  orden: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Producto {
   id: string;
   empresa_id: string;
@@ -204,6 +213,7 @@ export interface Producto {
   contenido_por_unidad: number | null;
   unidad_base: string | null;
   sku: string | null;
+  categoria_id: string | null;
   stock_actual: number;
   stock_minimo: number;
   activo: boolean;

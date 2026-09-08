@@ -47,3 +47,10 @@ next-env.d.ts
 # facturas de prueba locales / scripts de datos ad-hoc
 /facturas/
 /scripts/_*.mjs
+
+# e2e / playwright — artefactos y credenciales, nunca commitear
+/playwright-report/
+/test-results/
+/tests/e2e/.auth/
+/tests/e2e/debug-*.ts
+E2E_PASSWORD*

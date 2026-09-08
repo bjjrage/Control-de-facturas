@@ -437,17 +437,30 @@ VALUES
    0, 40);
 
 -- -----------------------------------------------------------------------------
--- 9. Stock de productos
+-- 9. Categorías de stock
+-- -----------------------------------------------------------------------------
+INSERT INTO public.categorias_producto (id, empresa_id, nombre, orden)
+VALUES
+  ('ca7e0001-0000-0000-0000-000000000001', 'bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd', 'Áridos y agregados', 0),
+  ('ca7e0002-0000-0000-0000-000000000002', 'bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd', 'Cemento y aglomerantes', 1),
+  ('ca7e0003-0000-0000-0000-000000000003', 'bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd', 'Hierro y acero', 2),
+  ('ca7e0004-0000-0000-0000-000000000004', 'bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd', 'Ladrillos y bloques', 3),
+  ('ca7e0005-0000-0000-0000-000000000005', 'bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd', 'Sanitarios y plomería', 4),
+  ('ca7e0006-0000-0000-0000-000000000006', 'bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd', 'Pinturas y revestimientos', 5)
+ON CONFLICT (empresa_id, nombre) DO NOTHING;
+
+-- -----------------------------------------------------------------------------
+-- 10. Stock de productos
 -- -----------------------------------------------------------------------------
 INSERT INTO public.productos
-  (id, empresa_id, nombre, descripcion, unidad, sku,
+  (id, empresa_id, nombre, descripcion, unidad, sku, categoria_id,
    stock_actual, stock_minimo, contenido_por_unidad, unidad_base, activo, created_by)
 VALUES
   ('b2000001-0000-0000-0000-000000000001',
    'bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd',
    'Cemento Portland 50kg',
    'Bolsa de cemento portland tipo I, resistencia 420 kg/cm²',
-   'bolsa', 'CEM-50KG',
+   'bolsa', 'CEM-50KG', 'ca7e0002-0000-0000-0000-000000000002',
    120, 20,
    50, 'kg',
    true, '83a3c4b5-d674-426c-8bf1-3d71d8351a59'),
@@ -456,7 +469,7 @@ VALUES
    'bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd',
    'Hierro 10mm barra 12m',
    'Barra de hierro de construcción nervurado 10mm �- 12m',
-   'unidad', 'HIE-10-12',
+   'unidad', 'HIE-10-12', 'ca7e0003-0000-0000-0000-000000000003',
    85, 15,
    NULL, NULL,
    true, '83a3c4b5-d674-426c-8bf1-3d71d8351a59'),
@@ -465,7 +478,7 @@ VALUES
    'bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd',
    'Arena gruesa',
    'Arena de río para mezclas de hormigón',
-   'm³', 'ARE-GRU',
+   'm³', 'ARE-GRU', 'ca7e0001-0000-0000-0000-000000000001',
    18, 5,
    NULL, NULL,
    true, '83a3c4b5-d674-426c-8bf1-3d71d8351a59'),
@@ -474,7 +487,7 @@ VALUES
    'bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd',
    'Ladrillo hueco 15cm',
    'Ladrillo cerámico hueco 15�-20�-30cm',
-   'unidad', 'LAD-15',
+   'unidad', 'LAD-15', 'ca7e0004-0000-0000-0000-000000000004',
    2400, 500,
    NULL, NULL,
    true, '83a3c4b5-d674-426c-8bf1-3d71d8351a59'),
@@ -483,7 +496,7 @@ VALUES
    'bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd',
    'Pintura látex interior 20lt',
    'Pintura látex interior lavable blanca bidón 20 litros',
-   'bidón', 'PIN-LAT-20',
+   'bidón', 'PIN-LAT-20', 'ca7e0006-0000-0000-0000-000000000006',
    14, 3,
    20, 'lt',
    true, '83a3c4b5-d674-426c-8bf1-3d71d8351a59'),
@@ -492,15 +505,16 @@ VALUES
    'bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd',
    'Caño de PVC 110mm (barra 3m)',
    'Caño sanitario PVC �~110mm �- 3m',
-   'unidad', 'CAP-PVC-110',
+   'unidad', 'CAP-PVC-110', 'ca7e0005-0000-0000-0000-000000000005',
    30, 10,
    NULL, NULL,
    false, '83a3c4b5-d674-426c-8bf1-3d71d8351a59')
 
-ON CONFLICT (empresa_id, sku) DO NOTHING;
+ON CONFLICT (empresa_id, sku)
+  DO UPDATE SET categoria_id = EXCLUDED.categoria_id;
 
 -- -----------------------------------------------------------------------------
--- 10. Verificación rápida �?" cantidad de registros insertados
+-- 11. Verificación rápida �?" cantidad de registros insertados
 -- -----------------------------------------------------------------------------
 SELECT
   (SELECT COUNT(*) FROM public.projects
