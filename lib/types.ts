@@ -515,6 +515,69 @@ export interface PaymentOrderInvoice {
 }
 
 // ============================================================================
+// Tesorería (migración 0055)
+// ============================================================================
+
+export type CuentaFinancieraTipo = "BANCO" | "CAJA" | "TARJETA" | "OTRO";
+
+export type MovimientoTesoreriaTipo =
+  | "COBRO"
+  | "PAGO"
+  | "TRANSFERENCIA_IN"
+  | "TRANSFERENCIA_OUT"
+  | "INGRESO"
+  | "EGRESO"
+  | "AJUSTE"
+  | "SALDO_INICIAL";
+
+export interface CuentaFinanciera {
+  id: string;
+  empresa_id: string;
+  nombre: string;
+  tipo: CuentaFinancieraTipo;
+  banco: string | null;
+  numero_cuenta: string | null;
+  moneda: CurrencyCode;
+  saldo: number;
+  saldo_conciliado: number | null;
+  activo: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MovimientoTesoreria {
+  id: string;
+  empresa_id: string;
+  cuenta_id: string;
+  fecha: string;
+  monto: number; // + entra, - sale
+  tipo: MovimientoTesoreriaTipo;
+  motivo: string | null;
+  payment_order_id: string | null;
+  sales_receipt_id: string | null;
+  transferencia_id: string | null;
+  project_id: string | null;
+  conciliado: boolean;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface Transferencia {
+  id: string;
+  empresa_id: string;
+  cuenta_origen_id: string;
+  cuenta_destino_id: string;
+  monto_origen: number;
+  monto_destino: number;
+  tipo_cambio: number;
+  fecha: string;
+  motivo: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+// ============================================================================
 // Módulo Construcción (migración 0028)
 // ============================================================================
 

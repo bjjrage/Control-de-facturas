@@ -29,6 +29,7 @@ import {
   MessagesSquare,
   FileCheck2,
   FileX,
+  Landmark,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { EmpresaPlan } from "@/lib/auth";
@@ -109,6 +110,10 @@ const COMPRAS_ITEMS: NavItem[] = [
   { href: "/invoices", label: "Facturas", roles: ["administracion", "admin"], icon: Receipt, module: "compras" },
   { href: "/pagos", label: "Pagos", roles: ["administracion", "admin"], icon: Wallet, module: "compras" },
   { href: "/stock", label: "Stock", roles: ["administracion", "admin"], icon: Boxes, module: "compras", minPlan: "pro" },
+];
+
+const FINANZAS_ITEMS: NavItem[] = [
+  { href: "/tesoreria", label: "Tesorería", roles: ["administracion", "admin"], icon: Landmark },
 ];
 
 const VENTAS_ITEMS: NavItem[] = [
@@ -240,6 +245,7 @@ export function Sidebar({
   const proyectosItems = PLAN_RANK[plan] >= PLAN_RANK.pro ? filterItems([PROYECTOS_ITEM]) : [];
   const comprasItems = filterItems(COMPRAS_ITEMS);
   const ventasItems = filterItems(VENTAS_ITEMS);
+  const finanzasItems = filterItems(FINANZAS_ITEMS);
 
   async function handleLogoFile(file: File | null) {
     if (!file) return;
@@ -481,6 +487,7 @@ export function Sidebar({
             {proyectosItems.map(renderLink)}
             {renderSection("Comprar", comprasItems)}
             {renderSection("Vender", ventasItems)}
+            {renderSection("Finanzas", finanzasItems)}
           </>
         )}
       </nav>
