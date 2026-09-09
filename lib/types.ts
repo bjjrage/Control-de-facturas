@@ -595,6 +595,125 @@ export type GastoRecurrentePeriodicidad =
   | "SEMESTRAL"
   | "ANUAL";
 
+// ============================================================================
+// Licitaciones (migración 0058)
+// ============================================================================
+
+export type LicitacionDecision =
+  | "SIN_REVISAR"
+  | "DESCARTADA"
+  | "EN_PREPARACION"
+  | "PRESENTADA"
+  | "GANADA"
+  | "PERDIDA";
+
+export interface Licitacion {
+  id: string;
+  empresa_id: string;
+  dncp_nro: string;
+  ocid: string;
+  titulo: string;
+  comitente_nombre: string | null;
+  comitente_id: string | null;
+  categoria: string | null;
+  categoria_detalle: string | null;
+  procurement_method: string | null;
+  procurement_method_detalle: string | null;
+  award_criteria_detalle: string | null;
+  monto_referencial: number | null;
+  monto_disponible: number | null;
+  moneda: string;
+  fecha_publicacion: string | null;
+  fecha_consultas_fin: string | null;
+  fecha_entrega_ofertas: string | null;
+  fecha_apertura: string | null;
+  lugar_apertura: string | null;
+  estado: string | null;
+  estado_detalle: string | null;
+  invitada: boolean;
+  decision: LicitacionDecision;
+  decision_notas: string | null;
+  project_id: string | null;
+  synced_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LicitacionLote {
+  id: string;
+  licitacion_id: string;
+  empresa_id: string;
+  lote_dncp_id: string | null;
+  numero: number | null;
+  titulo: string | null;
+  monto_referencial: number | null;
+}
+
+export interface LicitacionItem {
+  id: string;
+  licitacion_id: string;
+  empresa_id: string;
+  lote_id: string | null;
+  codigo_catalogo: string | null;
+  codigo_unspsc: string | null;
+  descripcion: string;
+  cantidad: number | null;
+  unidad: string | null;
+  precio_unitario_referencial: number | null;
+  item_normalizado_id: string | null;
+  sort_order: number;
+}
+
+export interface LicitacionOferente {
+  id: string;
+  licitacion_id: string;
+  empresa_id: string;
+  ruc: string | null;
+  nombre: string;
+  tamano: string | null;
+  monto_ofertado: number | null;
+  gano: boolean;
+  lotes_ganados: string[] | null;
+  fuente: "API" | "ACTA_PDF" | "CUADRO_PDF" | "MANUAL";
+}
+
+export interface LicitacionDocumento {
+  id: string;
+  licitacion_id: string;
+  empresa_id: string;
+  tipo: string | null;
+  tipo_detalle: string | null;
+  titulo: string | null;
+  url_dncp: string | null;
+  storage_path: string | null;
+  descargado_at: string | null;
+}
+
+export interface LicitacionPerfil {
+  empresa_id: string;
+  codigos_catalogo: string[];
+  palabras_clave: string[];
+  monto_min: number | null;
+  monto_max: number | null;
+  departamentos: string[];
+  activo: boolean;
+  updated_at: string;
+}
+
+export interface EmpresaDocumento {
+  id: string;
+  empresa_id: string;
+  tipo: string;
+  descripcion: string | null;
+  storage_path: string | null;
+  fecha_emision: string | null;
+  fecha_vencimiento: string | null;
+  notas: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface GastoRecurrente {
   id: string;
   empresa_id: string;

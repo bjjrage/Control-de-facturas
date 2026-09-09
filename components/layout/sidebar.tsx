@@ -30,6 +30,7 @@ import {
   FileCheck2,
   FileX,
   Landmark,
+  Gavel,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { EmpresaPlan } from "@/lib/auth";
@@ -101,6 +102,13 @@ const PROYECTOS_ITEM: NavItem = {
   label: "Proyectos",
   roles: ["administracion", "admin"],
   icon: HardHat,
+};
+
+const LICITACIONES_ITEM: NavItem = {
+  href: "/licitaciones",
+  label: "Licitaciones",
+  roles: ["comercial", "administracion", "admin"],
+  icon: Gavel,
 };
 
 const COMPRAS_ITEMS: NavItem[] = [
@@ -243,7 +251,7 @@ export function Sidebar({
   // no reemplazan ni ocultan Compras/Ventas. Un plan más alto nunca debe
   // sacar funciones que la empresa ya usaba en Básico.
   const globalItems = filterItems(GLOBAL_ITEMS);
-  const proyectosItems = PLAN_RANK[plan] >= PLAN_RANK.pro ? filterItems([PROYECTOS_ITEM]) : [];
+  const proyectosItems = PLAN_RANK[plan] >= PLAN_RANK.pro ? filterItems([PROYECTOS_ITEM, LICITACIONES_ITEM]) : [];
   const comprasItems = filterItems(COMPRAS_ITEMS);
   const ventasItems = filterItems(VENTAS_ITEMS);
   const finanzasItems = filterItems(FINANZAS_ITEMS);
