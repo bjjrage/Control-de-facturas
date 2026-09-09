@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { BackButton } from "@/components/ui/back-button";
 import { requireProfile } from "@/lib/auth";
+import { matchProducto, type ProductoLite } from "@/lib/dncp/match-productos";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import type {
@@ -28,7 +29,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
     .maybeSingle<Licitacion>();
   if (!lic) notFound();
 
-  const [{ data: lotes }, { data: items }, { data: oferentes }, { data: docs }] = await Promise.all([
+  const [{ data: lotes }, { data: items }, { data: oferentes }, { data: docs }, { data: productos }] = await Promise.all([
     supabase.from("licitacion_lotes").select("*").eq("licitacion_id", id).order("numero").returns<LicitacionLote[]>(),
     supabase.from("licitacion_items").select("*").eq("licitacion_id", id).order("sort_order").returns<LicitacionItem[]>(),
     supabase
@@ -38,7 +39,21 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
       .order("gano", { ascending: false })
       .returns<LicitacionOferente[]>(),
     supabase.from("licitacion_documentos").select("*").eq("licitacion_id", id).order("tipo_detalle").returns<LicitacionDocumento[]>(),
+    supabase
+      .from("productos")
+      .select("id, nombre, unidad, costo_promedio")
+      .eq("activo", true)
+      .gt("costo_promedio", 0)
+      .returns<ProductoLite[]>(),
   ]);
+
+  // Sugerencia de costo propio (CPP) por ítem — match liviano contra el catálogo.
+  const costoPorItem = new Map<string, { nombre: string; cpp: number; score: number }>();
+  for (const it of items ?? []) {
+    const m = matchProducto(it.descripcion, productos ?? []);
+    if (m) costoPorItem.set(it.id, { nombre: m.producto.nombre, cpp: m.producto.costo_promedio, score: m.score });
+  }
+  const hayCatalogo = (productos ?? []).length > 0;
 
   const moneda = (lic.moneda ?? "PYG") as CurrencyCode;
   const loteById = new Map((lotes ?? []).map((l) => [l.id, l]));
@@ -102,7 +117,14 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
 
       {/* Planilla de ítems */}
       <section>
-        <h2 className="text-[14px] font-semibold mb-2">Planilla de ítems ({(items ?? []).length})</h2>
+        <div className="flex items-baseline justify-between mb-2">
+          <h2 className="text-[14px] font-semibold">Planilla de ítems ({(items ?? []).length})</h2>
+          {hayCatalogo && costoPorItem.size > 0 ? (
+            <span className="text-[11px] text-[var(--muted)]">
+              {costoPorItem.size} ítem{costoPorItem.size !== 1 ? "s" : ""} con costo sugerido de tu catálogo
+            </span>
+          ) : null}
+        </div>
         {(items ?? []).length === 0 ? (
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] py-8 text-center text-[13px] text-[var(--muted)]">
             La DNCP no trajo planilla itemizada para esta licitación.
@@ -113,30 +135,48 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
               <thead>
                 <tr>
                   <th>Descripción</th>
-                  <th>Catálogo</th>
                   <th className="num">Cantidad</th>
                   <th>Unidad</th>
                   <th className="num">P. unit. referencial</th>
+                  {hayCatalogo ? <th className="num">Tu costo (CPP)</th> : null}
                   {(lotes ?? []).length > 0 ? <th>Lote</th> : null}
                 </tr>
               </thead>
               <tbody>
-                {items!.map((it) => (
-                  <tr key={it.id}>
-                    <td>{it.descripcion}</td>
-                    <td className="mono text-[11px] text-[var(--muted)]">{it.codigo_catalogo ?? "—"}</td>
-                    <td className="num">{it.cantidad ?? "—"}</td>
-                    <td>{it.unidad ?? "—"}</td>
-                    <td className="num">
-                      {it.precio_unitario_referencial ? formatMoney(it.precio_unitario_referencial, moneda) : "—"}
-                    </td>
-                    {(lotes ?? []).length > 0 ? (
-                      <td className="text-[12px] text-[var(--muted)]">
-                        {it.lote_id ? loteById.get(it.lote_id)?.numero ?? "—" : "—"}
+                {items!.map((it) => {
+                  const c = costoPorItem.get(it.id);
+                  return (
+                    <tr key={it.id}>
+                      <td>
+                        {it.descripcion}
+                        {it.codigo_catalogo ? (
+                          <span className="ml-1.5 mono text-[10px] text-[var(--muted)]">{it.codigo_catalogo}</span>
+                        ) : null}
                       </td>
-                    ) : null}
-                  </tr>
-                ))}
+                      <td className="num">{it.cantidad ?? "—"}</td>
+                      <td>{it.unidad ?? "—"}</td>
+                      <td className="num">
+                        {it.precio_unitario_referencial ? formatMoney(it.precio_unitario_referencial, moneda) : "—"}
+                      </td>
+                      {hayCatalogo ? (
+                        <td className="num">
+                          {c ? (
+                            <span title={`${c.nombre} · similitud ${(c.score * 100).toFixed(0)}%`}>
+                              {formatMoney(c.cpp, moneda)}
+                            </span>
+                          ) : (
+                            <span className="text-[var(--muted)]">—</span>
+                          )}
+                        </td>
+                      ) : null}
+                      {(lotes ?? []).length > 0 ? (
+                        <td className="text-[12px] text-[var(--muted)]">
+                          {it.lote_id ? loteById.get(it.lote_id)?.numero ?? "—" : "—"}
+                        </td>
+                      ) : null}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

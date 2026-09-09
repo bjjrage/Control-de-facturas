@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileText, Tag, AlertCircle, CheckCircle2, Wallet, CalendarClock, PackageX, FileX, LucideIcon } from "lucide-react";
+import { FileText, Tag, AlertCircle, CheckCircle2, Wallet, CalendarClock, PackageX, FileX, Gavel, LucideIcon } from "lucide-react";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Rfq } from "@/lib/types";
@@ -64,6 +64,11 @@ export default async function DashboardPage() {
     d.setDate(d.getDate() + 30);
     return d.toISOString().slice(0, 10);
   })();
+  const en7dias = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().slice(0, 10);
+  })();
   const noop = Promise.resolve({ data: null, count: null } as { data: null; count: number | null });
 
   // Una sola tanda de queries en paralelo en vez de 2-3 tandas secuenciales.
@@ -79,6 +84,7 @@ export default async function DashboardPage() {
     { count: ncSinFE },
     { data: stockProductosBajoMinimo },
     { count: docsPorVencer },
+    { count: licitacionesCierran },
   ] = await Promise.all([
     showRfqStats
       ? supabase.from("rfqs").select("status, expires_at").in("status", ["BORRADOR", "COTIZANDO", "OFERTAS_RECIBIDAS"])
@@ -128,6 +134,12 @@ export default async function DashboardPage() {
           .select("id", { count: "exact", head: true })
           .lte("fecha_vencimiento", en30dias)
       : noop,
+    supabase
+      .from("licitaciones")
+      .select("id", { count: "exact", head: true })
+      .in("decision", ["SIN_REVISAR", "EN_PREPARACION"])
+      .gte("fecha_entrega_ofertas", today)
+      .lte("fecha_entrega_ofertas", en7dias),
   ]);
 
   const stockBajoMinimo = (stockProductosBajoMinimo ?? []).filter(
@@ -158,6 +170,9 @@ export default async function DashboardPage() {
   }
   if (isAdminOrAdministracion && docsPorVencer !== null && docsPorVencer > 0) {
     stats.push({ label: "Documentos por vencer", value: docsPorVencer, href: "/licitaciones/documentos", icon: CalendarClock, color: "warn" });
+  }
+  if (licitacionesCierran !== null && licitacionesCierran > 0) {
+    stats.push({ label: "Licitaciones cierran esta semana", value: licitacionesCierran, href: "/licitaciones", icon: Gavel, color: "orange" });
   }
 
   return (
