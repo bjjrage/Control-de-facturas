@@ -62,6 +62,12 @@ export function LicitacionesSection({
           </p>
         </div>
         <div className="flex gap-2">
+          <Link
+            href="/licitaciones/documentos"
+            className="inline-flex items-center h-8 rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 text-[13px] font-medium hover:bg-[var(--hover)]"
+          >
+            Documentos de la empresa
+          </Link>
           <PerfilDialog perfil={perfil} />
           <ImportarDialog />
         </div>

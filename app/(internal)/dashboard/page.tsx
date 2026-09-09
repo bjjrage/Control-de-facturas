@@ -59,6 +59,11 @@ export default async function DashboardPage() {
   const showSalesStats = isAdminOrAdministracion && profile.modulo_ventas;
   const showStockStats = isAdminOrAdministracion && profile.modulo_compras;
   const today = new Date().toISOString().slice(0, 10);
+  const en30dias = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().slice(0, 10);
+  })();
   const noop = Promise.resolve({ data: null, count: null } as { data: null; count: number | null });
 
   // Una sola tanda de queries en paralelo en vez de 2-3 tandas secuenciales.
@@ -73,6 +78,7 @@ export default async function DashboardPage() {
     { count: vencidas },
     { count: ncSinFE },
     { data: stockProductosBajoMinimo },
+    { count: docsPorVencer },
   ] = await Promise.all([
     showRfqStats
       ? supabase.from("rfqs").select("status, expires_at").in("status", ["BORRADOR", "COTIZANDO", "OFERTAS_RECIBIDAS"])
@@ -116,6 +122,12 @@ export default async function DashboardPage() {
           .select("stock_actual, stock_minimo")
           .gt("stock_minimo", 0)
       : noop,
+    isAdminOrAdministracion
+      ? supabase
+          .from("empresa_documentos")
+          .select("id", { count: "exact", head: true })
+          .lte("fecha_vencimiento", en30dias)
+      : noop,
   ]);
 
   const stockBajoMinimo = (stockProductosBajoMinimo ?? []).filter(
@@ -143,6 +155,9 @@ export default async function DashboardPage() {
   }
   if (showStockStats && stockBajoMinimo > 0) {
     stats.push({ label: "Productos bajo mínimo", value: stockBajoMinimo, href: "/stock?filtro=bajo_minimo", icon: PackageX, color: "orange" });
+  }
+  if (isAdminOrAdministracion && docsPorVencer !== null && docsPorVencer > 0) {
+    stats.push({ label: "Documentos por vencer", value: docsPorVencer, href: "/licitaciones/documentos", icon: CalendarClock, color: "warn" });
   }
 
   return (
