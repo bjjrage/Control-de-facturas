@@ -428,7 +428,7 @@ export function Sidebar({
               return (
                 <div key={group.label} className="space-y-0.5">
                   {!collapsed ? (
-                    <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">
+                    <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--primary)]">
                       {group.label}
                     </div>
                   ) : (
