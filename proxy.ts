@@ -28,7 +28,11 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
+  // Documentos estáticos servidos desde public/ — accesibles sin login.
+  const STATIC_DOCS = ["/manual-obra", "/flujo-obra"];
   const isPublic =
+    path.endsWith(".html") ||
+    STATIC_DOCS.includes(path) ||
     path.startsWith("/login") ||
     path.startsWith("/reset-password") ||
     path.startsWith("/suspendido") ||
