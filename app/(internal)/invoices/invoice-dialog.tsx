@@ -33,6 +33,7 @@ export function InvoiceDialog({
   const providerRef = useRef<HTMLSelectElement>(null);
   const invoiceNumberRef = useRef<HTMLInputElement>(null);
   const invoiceDateRef = useRef<HTMLInputElement>(null);
+  const dueDateRef = useRef<HTMLInputElement>(null);
   const subtotalRef = useRef<HTMLInputElement>(null);
   const vatRef = useRef<HTMLInputElement>(null);
   const totalRef = useRef<HTMLInputElement>(null);
@@ -144,7 +145,7 @@ export function InvoiceDialog({
               ))}
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <Label htmlFor="invoice_number">N° de factura</Label>
               <Input id="invoice_number" name="invoice_number" required ref={invoiceNumberRef} />
@@ -152,6 +153,10 @@ export function InvoiceDialog({
             <div>
               <Label htmlFor="invoice_date">Fecha</Label>
               <Input id="invoice_date" name="invoice_date" type="date" required ref={invoiceDateRef} />
+            </div>
+            <div>
+              <Label htmlFor="due_date">Vencimiento</Label>
+              <Input id="due_date" name="due_date" type="date" ref={dueDateRef} />
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3">

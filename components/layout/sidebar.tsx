@@ -114,6 +114,7 @@ const COMPRAS_ITEMS: NavItem[] = [
 
 const FINANZAS_ITEMS: NavItem[] = [
   { href: "/tesoreria", label: "Tesorería", roles: ["administracion", "admin"], icon: Landmark },
+  { href: "/flujo-caja", label: "Flujo de caja", roles: ["administracion", "admin"], icon: GanttChartSquare },
 ];
 
 const VENTAS_ITEMS: NavItem[] = [

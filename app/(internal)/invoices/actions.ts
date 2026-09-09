@@ -57,6 +57,7 @@ export async function createInvoice(formData: FormData) {
   const providerId = str(formData, "provider_id");
   const invoiceNumber = str(formData, "invoice_number");
   const invoiceDate = str(formData, "invoice_date");
+  const dueDate = str(formData, "due_date");
   const currency = str(formData, "currency");
   const total = num(formData, "total");
   const file = formData.get("file") as File | null;
@@ -102,6 +103,7 @@ export async function createInvoice(formData: FormData) {
       provider_id: providerId,
       invoice_number: invoiceNumber,
       invoice_date: invoiceDate,
+      due_date: dueDate || null,
       currency,
       subtotal: num(formData, "subtotal"),
       vat: num(formData, "vat"),

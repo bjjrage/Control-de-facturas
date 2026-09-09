@@ -350,6 +350,7 @@ export interface Invoice {
   attachment_id: string | null;
   observations: string | null;
   status: InvoiceStatus;
+  due_date: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -575,6 +576,42 @@ export interface Transferencia {
   motivo: string | null;
   created_by: string | null;
   created_at: string;
+}
+
+export type GastoRecurrenteCategoria =
+  | "ALQUILER"
+  | "SUELDOS"
+  | "SEGUROS"
+  | "PRESTAMO"
+  | "SERVICIOS"
+  | "IMPUESTOS"
+  | "HONORARIOS"
+  | "OTRO";
+
+export type GastoRecurrentePeriodicidad =
+  | "MENSUAL"
+  | "BIMESTRAL"
+  | "TRIMESTRAL"
+  | "SEMESTRAL"
+  | "ANUAL";
+
+export interface GastoRecurrente {
+  id: string;
+  empresa_id: string;
+  descripcion: string;
+  categoria: GastoRecurrenteCategoria;
+  monto_estimado: number;
+  moneda: CurrencyCode;
+  periodicidad: GastoRecurrentePeriodicidad;
+  dia_del_mes: number | null;
+  cuenta_id: string | null;
+  project_id: string | null;
+  proximo_vencimiento: string | null;
+  activo: boolean;
+  notas: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // ============================================================================
