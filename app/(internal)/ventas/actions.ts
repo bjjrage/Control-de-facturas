@@ -186,30 +186,81 @@ export async function addReceipt(docId: string, formData: FormData) {
   const saldo = docSaldo(doc.total, doc.cobrado_amount);
   if (amount - saldo > 0.01) return { error: `El cobro supera el saldo (${saldo}).` };
 
-  const { error } = await supabase.from("sales_receipts").insert({
-    sales_document_id: docId,
-    amount,
-    receipt_date: str(formData, "receipt_date") ?? new Date().toISOString().slice(0, 10),
-    method: (str(formData, "method") ?? "TRANSFERENCIA") as ReceiptMethod,
-    reference: str(formData, "reference"),
-    notes: str(formData, "notes"),
-    created_by: profile.id,
-  });
+  const cuentaId = str(formData, "cuenta_id");
+  const receiptDate = str(formData, "receipt_date") ?? new Date().toISOString().slice(0, 10);
+
+  const { data: receipt, error } = await supabase
+    .from("sales_receipts")
+    .insert({
+      sales_document_id: docId,
+      amount,
+      receipt_date: receiptDate,
+      method: (str(formData, "method") ?? "TRANSFERENCIA") as ReceiptMethod,
+      reference: str(formData, "reference"),
+      notes: str(formData, "notes"),
+      cuenta_id: cuentaId,
+      created_by: profile.id,
+    })
+    .select("id")
+    .single();
   if (error) return { error: error.message };
+
+  // Si se eligió una cuenta financiera, el cobro entra a tesorería.
+  if (cuentaId && receipt) {
+    const { error: movErr } = await supabase.rpc("registrar_movimiento_tesoreria", {
+      p_empresa_id: profile.empresa_id,
+      p_cuenta_id: cuentaId,
+      p_monto: amount,
+      p_tipo: "COBRO",
+      p_fecha: receiptDate,
+      p_motivo: `Cobro documento`,
+      p_sales_receipt_id: receipt.id,
+      p_created_by: profile.id,
+      p_permitir_negativo: true,
+    });
+    if (movErr) {
+      // El cobro quedó registrado; avisamos que el movimiento de tesorería falló.
+      return { error: `Cobro registrado, pero no se pudo asentar en tesorería: ${movErr.message}` };
+    }
+  }
+
   revalidatePath("/ventas");
   revalidatePath(`/ventas/${docId}`);
   revalidatePath("/cobros");
+  revalidatePath("/tesoreria");
   return { error: null };
 }
 
 export async function deleteReceipt(receiptId: string, docId: string) {
-  await requireModule("ventas", ["administracion", "admin"]);
+  const profile = await requireModule("ventas", ["administracion", "admin"]);
   const supabase = await createClient();
+
+  // Si el cobro asentó un movimiento en tesorería, lo revertimos con un
+  // contra-movimiento (el libro es append-only).
+  const { data: mov } = await supabase
+    .from("movimientos_tesoreria")
+    .select("id, cuenta_id, monto")
+    .eq("sales_receipt_id", receiptId)
+    .maybeSingle<{ id: string; cuenta_id: string; monto: number }>();
+
+  if (mov) {
+    await supabase.rpc("registrar_movimiento_tesoreria", {
+      p_empresa_id: profile.empresa_id,
+      p_cuenta_id: mov.cuenta_id,
+      p_monto: -mov.monto,
+      p_tipo: "AJUSTE",
+      p_motivo: "Reversa: cobro eliminado",
+      p_created_by: profile.id,
+      p_permitir_negativo: true,
+    });
+  }
+
   const { error } = await supabase.from("sales_receipts").delete().eq("id", receiptId);
   if (error) return { error: error.message };
   revalidatePath("/ventas");
   revalidatePath(`/ventas/${docId}`);
   revalidatePath("/cobros");
+  revalidatePath("/tesoreria");
   return { error: null };
 }
 

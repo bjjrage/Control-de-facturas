@@ -29,6 +29,13 @@ export default async function PaymentOrderDetailPage({ params }: { params: Promi
     .eq("id", op.provider_id)
     .single<Pick<Provider, "id" | "name">>();
 
+  const { data: cuentas } = await supabase
+    .from("cuentas_financieras")
+    .select("id, nombre, moneda")
+    .eq("activo", true)
+    .order("nombre")
+    .returns<{ id: string; nombre: string; moneda: string }[]>();
+
   // Get linked invoice IDs
   const { data: links } = await supabase
     .from("payment_order_invoices")
@@ -90,7 +97,7 @@ export default async function PaymentOrderDetailPage({ params }: { params: Promi
             </svg>
             Ver OP
           </a>
-          {op.status === "EMITIDA" ? <ExecuteButton opId={op.id} /> : null}
+          {op.status === "EMITIDA" ? <ExecuteButton opId={op.id} cuentas={cuentas ?? []} /> : null}
         </div>
       </div>
 

@@ -4,11 +4,14 @@ import { unstable_noStore as noStore } from "next/cache";
 
 import { requireModule } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { Client, SalesDocument } from "@/lib/types";
+import { Client, CurrencyCode, SalesDocument } from "@/lib/types";
+
+export type CobrosCuenta = { id: string; nombre: string; moneda: CurrencyCode };
 
 export type CobrosSectionData = {
   docs: SalesDocument[];
   clients: Pick<Client, "id" | "name">[];
+  cuentas: CobrosCuenta[];
 };
 
 export async function getCobrosData(): Promise<CobrosSectionData> {
@@ -16,7 +19,7 @@ export async function getCobrosData(): Promise<CobrosSectionData> {
   await requireModule("ventas", ["administracion", "admin"]);
   const supabase = await createClient();
 
-  const [{ data: docs }, { data: clients }] = await Promise.all([
+  const [{ data: docs }, { data: clients }, { data: cuentas }] = await Promise.all([
     supabase
       .from("sales_documents")
       .select("*")
@@ -29,10 +32,17 @@ export async function getCobrosData(): Promise<CobrosSectionData> {
       .select("id, name")
       .order("name")
       .returns<Pick<Client, "id" | "name">[]>(),
+    supabase
+      .from("cuentas_financieras")
+      .select("id, nombre, moneda")
+      .eq("activo", true)
+      .order("nombre")
+      .returns<CobrosCuenta[]>(),
   ]);
 
   return {
     docs: docs ?? [],
     clients: clients ?? [],
+    cuentas: cuentas ?? [],
   };
 }

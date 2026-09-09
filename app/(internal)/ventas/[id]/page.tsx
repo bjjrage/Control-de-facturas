@@ -28,11 +28,13 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
   const { data: doc } = await supabase.from("sales_documents").select("*").eq("id", id).single<SalesDocument>();
   if (!doc) notFound();
 
-  const [{ data: client }, { data: items }, { data: receipts }] = await Promise.all([
+  const [{ data: client }, { data: items }, { data: receipts }, { data: cuentas }] = await Promise.all([
     supabase.from("clients").select("*").eq("id", doc.client_id).single<Client>(),
     supabase.from("sales_document_items").select("*").eq("sales_document_id", id).order("created_at").returns<SalesDocumentItem[]>(),
     supabase.from("sales_receipts").select("*").eq("sales_document_id", id).order("receipt_date", { ascending: false }).returns<SalesReceipt[]>(),
+    supabase.from("cuentas_financieras").select("id, nombre, moneda").eq("activo", true).order("nombre").returns<{ id: string; nombre: string; moneda: SalesDocument["currency"] }[]>(),
   ]);
+  const cuentasList = cuentas ?? [];
 
   const saldo = docSaldo(doc.total, doc.cobrado_amount);
   const isDraft = doc.status === "BORRADOR";
@@ -127,7 +129,7 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
             />
           ) : null}
           {canCollect ? (
-            <ReceiptDialog docId={doc.id} saldo={saldo} currency={doc.currency} trigger={<Button>Registrar cobro</Button>} />
+            <ReceiptDialog docId={doc.id} saldo={saldo} currency={doc.currency} cuentas={cuentasList} trigger={<Button>Registrar cobro</Button>} />
           ) : null}
           {doc.status !== "ANULADA" && doc.status !== "COBRADA" && doc.cobrado_amount === 0 ? (
             <form
@@ -211,6 +213,7 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
               docId={doc.id}
               saldo={saldo}
               currency={doc.currency}
+              cuentas={cuentasList}
               trigger={<button className="text-action text-[12px] text-[var(--primary)]">+ Registrar cobro</button>}
             />
           ) : null}

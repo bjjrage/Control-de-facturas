@@ -25,7 +25,7 @@ function getParam(key: string) {
 }
 
 export function CobrosSection({ initialData }: { initialData: CobrosSectionData }) {
-  const { docs, clients } = initialData;
+  const { docs, clients, cuentas } = initialData;
   const [clientFilter, setClientFilter] = useState(() => getParam("client"));
   const [statusFilter, setStatusFilter] = useState(() => getParam("status"));
   const [qFilter, setQFilter] = useState(() => getParam("q"));
@@ -147,7 +147,7 @@ export function CobrosSection({ initialData }: { initialData: CobrosSectionData 
         <td className={`num font-semibold ${overdue ? "text-[var(--error)]" : ""}`}>{formatMoney(saldo, d.currency)}</td>
         <td><Badge tone={d.status === "COBRADA_PARCIAL" ? "warn" : "neutral"}>{d.status === "COBRADA_PARCIAL" ? "Parcial" : "Emitida"}</Badge></td>
         <td>
-          <ReceiptDialog docId={d.id} saldo={saldo} currency={d.currency as CurrencyCode} trigger={<Button variant="secondary">+ Cobro</Button>} />
+          <ReceiptDialog docId={d.id} saldo={saldo} currency={d.currency as CurrencyCode} cuentas={cuentas} trigger={<Button variant="secondary">+ Cobro</Button>} />
         </td>
       </tr>
     );

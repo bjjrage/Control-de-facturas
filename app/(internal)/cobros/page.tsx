@@ -38,7 +38,7 @@ export default async function CobrosPage({
   const { client: clientFilter } = await searchParams;
   const today = new Date().toISOString().slice(0, 10);
 
-  const [{ data: docs }, { data: clients }] = await Promise.all([
+  const [{ data: docs }, { data: clients }, { data: cuentas }] = await Promise.all([
     supabase
       .from("sales_documents")
       .select("*")
@@ -51,7 +51,14 @@ export default async function CobrosPage({
       .select("id, name")
       .order("name")
       .returns<Pick<Client, "id" | "name">[]>(),
+    supabase
+      .from("cuentas_financieras")
+      .select("id, nombre, moneda")
+      .eq("activo", true)
+      .order("nombre")
+      .returns<{ id: string; nombre: string; moneda: CurrencyCode }[]>(),
   ]);
+  const cuentasList = cuentas ?? [];
 
   const allDocs = docs ?? [];
   const clientById = new Map((clients ?? []).map((c) => [c.id, c.name]));
@@ -145,6 +152,7 @@ export default async function CobrosPage({
             docId={d.id}
             saldo={saldo}
             currency={d.currency as CurrencyCode}
+            cuentas={cuentasList}
             trigger={<Button variant="secondary">+ Cobro</Button>}
           />
         </td>

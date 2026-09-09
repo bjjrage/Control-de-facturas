@@ -116,7 +116,10 @@ export async function createPaymentOrderFromInvoice(invoiceId: string): Promise<
   redirect(`/pagos/${op.id}`);
 }
 
-export async function markPaymentOrderExecuted(opId: string): Promise<{ error: string | null }> {
+export async function markPaymentOrderExecuted(
+  opId: string,
+  cuentaId?: string | null
+): Promise<{ error: string | null }> {
   const profile = await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
   const empresaId = profile.empresa_id;
@@ -133,14 +136,14 @@ export async function markPaymentOrderExecuted(opId: string): Promise<{ error: s
 
   const { data: links } = await supabase
     .from("payment_order_invoices")
-    .select("invoice_id")
+    .select("invoice_id, invoices(total, currency)")
     .eq("payment_order_id", opId);
 
   const invoiceIds = (links ?? []).map((l) => l.invoice_id as string);
 
   await supabase
     .from("payment_orders")
-    .update({ status: "EJECUTADA", executed_at: new Date().toISOString() })
+    .update({ status: "EJECUTADA", executed_at: new Date().toISOString(), cuenta_id: cuentaId ?? null })
     .eq("id", opId)
     .eq("empresa_id", empresaId);
 
@@ -152,13 +155,41 @@ export async function markPaymentOrderExecuted(opId: string): Promise<{ error: s
       .eq("empresa_id", empresaId);
   }
 
+  // Si se eligió una cuenta, el pago sale de tesorería. Sumamos por moneda; si
+  // hay monedas mezcladas en la OP registramos un movimiento por cada una.
+  if (cuentaId) {
+    const porMoneda = new Map<string, number>();
+    for (const l of links ?? []) {
+      const raw = (l as { invoices: unknown }).invoices;
+      const inv = (Array.isArray(raw) ? raw[0] : raw) as { total: number; currency: string } | null;
+      if (inv) porMoneda.set(inv.currency, (porMoneda.get(inv.currency) ?? 0) + inv.total);
+    }
+    for (const [, monto] of porMoneda) {
+      if (monto <= 0) continue;
+      const { error: movErr } = await supabase.rpc("registrar_movimiento_tesoreria", {
+        p_empresa_id: empresaId,
+        p_cuenta_id: cuentaId,
+        p_monto: -monto,
+        p_tipo: "PAGO",
+        p_motivo: "Pago de orden de pago",
+        p_payment_order_id: opId,
+        p_created_by: profile.id,
+        p_permitir_negativo: true,
+      });
+      if (movErr) {
+        return { error: `OP ejecutada, pero no se pudo asentar el pago en tesorería: ${movErr.message}` };
+      }
+    }
+  }
+
   await logAudit(supabase, {
     action: "payment_order.executed",
-    detail: { op_id: opId, invoice_count: invoiceIds.length },
+    detail: { op_id: opId, invoice_count: invoiceIds.length, cuenta_id: cuentaId ?? null },
   });
 
   revalidatePath(`/pagos/${opId}`);
   revalidatePath("/pagos");
   revalidatePath("/invoices");
+  revalidatePath("/tesoreria");
   return { error: null };
 }
