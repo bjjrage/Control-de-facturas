@@ -299,7 +299,7 @@ export function Sidebar({
     return (
       <div className="space-y-0.5">
         {!collapsed ? (
-          <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">
+          <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--primary)]">
             {label}
           </div>
         ) : (
@@ -479,8 +479,8 @@ export function Sidebar({
           <>
             {globalItems.map(renderLink)}
             {proyectosItems.map(renderLink)}
-            {renderSection("Compras", comprasItems)}
-            {renderSection("Ventas", ventasItems)}
+            {renderSection("Comprar", comprasItems)}
+            {renderSection("Vender", ventasItems)}
           </>
         )}
       </nav>
