@@ -32,6 +32,7 @@ export async function getCurrentCostEstimate(params: {
   let query = supabase
     .from('cost_observations')
     .select('*')
+    .or('estado_evidencia.eq.VALIDA,estado_evidencia.is.null')
     .lte('fecha_observacion', asOfDateStr)
     .order('fecha_observacion', { ascending: false })
     .limit(100);
@@ -70,9 +71,10 @@ export async function getCurrentCostEstimate(params: {
     // tipo_cambio es solo metadato de trazabilidad y NO debe volverse a multiplicar.
     precioUnitario: Number(row.precio_unitario),
     moneda: row.moneda,
-    tipoCambio: Number(row.tipo_cambio || 1.0),
+    tipoCambio: row.tipo_cambio != null ? Number(row.tipo_cambio) : undefined,
     fechaObservacion: row.fecha_observacion,
-    esVolatil: row.es_volatil
+    esVolatil: row.es_volatil,
+    estadoEvidencia: row.estado_evidencia || 'VALIDA'
   }));
 
   return calculateCostEstimate(observations, asOfDateStr, params.config);
@@ -80,8 +82,36 @@ export async function getCurrentCostEstimate(params: {
 
 /**
  * Registra una nueva observación transaccional de costo en la base de datos
+ * Invariante canónico: precio_unitario siempre en PYG, tipo_cambio solo como metadato,
+ * sin defaults ficticios.
  */
 export async function recordCostObservation(observation: Omit<CostObservation, 'id'>): Promise<string> {
+  if (!observation.empresaId) throw new Error('empresaId es obligatorio');
+  if (!observation.descripcionItem || !observation.descripcionItem.trim()) {
+    throw new Error('descripcionItem es obligatoria');
+  }
+  if (!observation.unidad || !observation.unidad.trim()) {
+    throw new Error('unidad de medida es obligatoria y no puede inventarse ni omitirse');
+  }
+  if (!observation.cantidad || observation.cantidad <= 0) {
+    throw new Error('cantidad debe ser estrictamente mayor a cero');
+  }
+  if (!observation.fechaObservacion || !observation.fechaObservacion.trim()) {
+    throw new Error('fechaObservacion es obligatoria');
+  }
+  if (observation.precioUnitario === undefined || observation.precioUnitario === null || observation.precioUnitario < 0) {
+    throw new Error('precioUnitario no puede ser nulo ni negativo');
+  }
+
+  // Canonical PYG normalization:
+  let normalizedPricePyg = observation.precioUnitario;
+  if (observation.moneda === 'USD') {
+    if (!observation.tipoCambio || observation.tipoCambio <= 0) {
+      throw new Error('tipoCambio válido mayor a cero es obligatorio para normalizar costos en USD a PYG');
+    }
+    normalizedPricePyg = observation.precioUnitario * observation.tipoCambio;
+  }
+
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -93,15 +123,16 @@ export async function recordCostObservation(observation: Omit<CostObservation, '
       proveedor_id: observation.proveedorId || null,
       fuente: observation.fuente,
       documento_id: observation.documentoId || null,
-      descripcion_item: observation.descripcionItem,
+      descripcion_item: observation.descripcionItem.trim(),
       categoria_insumo: observation.categoriaInsumo,
       cantidad: observation.cantidad,
-      unidad: observation.unidad,
-      precio_unitario: observation.precioUnitario,
-      moneda: observation.moneda,
-      tipo_cambio: observation.tipoCambio || 1.0,
+      unidad: observation.unidad.trim().toUpperCase(),
+      precio_unitario: normalizedPricePyg,
+      moneda: 'PYG',
+      tipo_cambio: observation.tipoCambio || null,
       fecha_observacion: observation.fechaObservacion,
-      es_volatil: observation.esVolatil || false
+      es_volatil: observation.esVolatil || false,
+      estado_evidencia: observation.estadoEvidencia || 'VALIDA'
     })
     .select('id')
     .single();

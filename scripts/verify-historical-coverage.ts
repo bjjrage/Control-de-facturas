@@ -1,8 +1,12 @@
 /**
- * GATE 3: VERIFICACIÓN DE COBERTURA HISTÓRICA
+ * GATE 3: VERIFICACIÓN DE COBERTURA HISTÓRICA (2015 → 2026)
  * 
  * Audita cuantitativamente el volumen, distribución temporal y completitud
  * del warehouse de contrataciones públicas históricas.
+ * 
+ * Invariante de cobertura:
+ * El rango objetivo canónico es 2015-2026. Cualquier año con 0 registros
+ * constituye un GAP explícito, determinando un estado 'PARTIAL / COVERAGE_UNKNOWN'.
  */
 
 import * as fs from "node:fs";
@@ -27,13 +31,47 @@ interface CheckpointData {
 const CHECKPOINT_PATH = path.resolve(process.cwd(), "data", "backfill-checkpoint.json");
 const BACKFILL_DIR = path.resolve(process.cwd(), "data", "backfill");
 
+// Rango canónico objetivo obligatorio para backfill DNCP
+export const TARGET_COVERAGE_YEARS = [
+  "2015", "2016", "2017", "2018", "2019",
+  "2020", "2021", "2022", "2023", "2024",
+  "2025", "2026"
+];
+
+export function auditHistoricalCoverage(byYearData: Record<string, number>, totalIdentified: number) {
+  const gapYears: string[] = [];
+  const coveredYears: string[] = [];
+
+  for (const yr of TARGET_COVERAGE_YEARS) {
+    const count = byYearData[yr] || 0;
+    if (count === 0) {
+      gapYears.push(yr);
+    } else {
+      coveredYears.push(yr);
+    }
+  }
+
+  const isComplete = gapYears.length === 0 && totalIdentified > 0;
+  const status = isComplete ? "FULL / VERIFIED" : "PARTIAL / COVERAGE_UNKNOWN";
+
+  return {
+    targetYears: TARGET_COVERAGE_YEARS,
+    coveredYears,
+    gapYears,
+    isComplete,
+    status
+  };
+}
+
 async function verifyCoverage() {
   console.log("================================================================================");
-  console.log("GATE 3: REPORTE DE AUDITORÍA DE COBERTURA HISTÓRICA (2020 → PRESENTE)");
+  console.log("GATE 3: REPORTE DE AUDITORÍA DE COBERTURA HISTÓRICA (2015 → 2026)");
   console.log("================================================================================\n");
 
   if (!fs.existsSync(CHECKPOINT_PATH)) {
     console.error("No se encontró archivo de checkpoint en:", CHECKPOINT_PATH);
+    console.log("\nESTADO DE COBERTURA: PARTIAL / COVERAGE_UNKNOWN ⚠️");
+    console.log("VEREDICTO GATE 3: SIN ARCHIVO DE CHECKPOINT — COBERTURA NO INICIADA");
     process.exit(1);
   }
 
@@ -47,25 +85,23 @@ async function verifyCoverage() {
   console.log(`- Fecha de inicio: ${cp.start_time}`);
   console.log(`- Última sincronización registrada: ${cp.last_updated_at}\n`);
 
-  // 1. Distribución Temporal por Año
-  console.log("--- 1. Cobertura Temporal por Año ---");
-  const years = Object.keys(cp.by_year).sort();
-  let hasTemporalGaps = false;
-  
+  // 1. Distribución Temporal en el Rango Objetivo (2015-2026)
+  console.log("--- 1. Cobertura Temporal por Año (Rango Objetivo 2015 - 2026) ---");
+  const audit = auditHistoricalCoverage(cp.by_year || {}, totalIdentified);
+
   console.log("| Año | Licitaciones de Obra Identificadas | Proporción | Estado de Cobertura |");
   console.log("| :---: | :---: | :---: | :---: |");
 
-  for (const yr of years) {
-    const count = cp.by_year[yr];
+  for (const yr of audit.targetYears) {
+    const count = (cp.by_year && cp.by_year[yr]) || 0;
     const pct = ((count / Math.max(1, totalIdentified)) * 100).toFixed(1);
-    const status = count > 0 ? "COBERTURA ACTIVA ✓" : "HUECO TEMPORAL ✗";
-    if (count === 0) hasTemporalGaps = true;
+    const status = count > 0 ? "COBERTURA ACTIVA ✓" : "HUECO TEMPORAL (GAP) ✗";
     console.log(`| ${yr} | ${count} | ${pct}% | ${status} |`);
   }
 
   // 2. Distribución por Categoría de Construcción
   console.log("\n--- 2. Distribución por Categoría ---");
-  const categories = Object.entries(cp.by_category).sort((a, b) => b[1] - a[1]);
+  const categories = Object.entries(cp.by_category || {}).sort((a, b) => b[1] - a[1]);
   for (const [cat, count] of categories.slice(0, 10)) {
     const pct = ((count / Math.max(1, totalIdentified)) * 100).toFixed(1);
     console.log(`  • ${cat}: ${count} (${pct}%)`);
@@ -73,7 +109,7 @@ async function verifyCoverage() {
 
   // 3. Top Convocantes (Entidades Públicas Compradoras)
   console.log("\n--- 3. Principales Convocantes Representados ---");
-  const buyers = Object.entries(cp.top_buyers).sort((a, b) => b[1] - a[1]);
+  const buyers = Object.entries(cp.top_buyers || {}).sort((a, b) => b[1] - a[1]);
   for (const [buyer, count] of buyers.slice(0, 10)) {
     console.log(`  • ${buyer}: ${count} licitaciones`);
   }
@@ -92,12 +128,21 @@ async function verifyCoverage() {
   }
 
   console.log("\n================================================================================");
-  if (!hasTemporalGaps && totalIdentified > 0) {
-    console.log("VEREDICTO GATE 3: COBERTURA HISTÓRICA VERIFICADA SIN HUECOS TEMPORALES ✅");
+  console.log(`ESTADO DE COBERTURA: ${audit.status}`);
+  if (audit.isComplete) {
+    console.log("VEREDICTO GATE 3: COBERTURA HISTÓRICA COMPLETA Y VERIFICADA (2015-2026) ✅");
   } else {
-    console.log("VEREDICTO GATE 3: REQUIERE MAYOR INGESTA O PRESENTÓ HUECOS TEMPORALES ⚠️");
+    console.log(`VEREDICTO GATE 3: COBERTURA PARCIAL CON GAPS IDENTIFICADOS (${audit.gapYears.length} años sin datos: ${audit.gapYears.join(", ")}) ⚠️`);
   }
   console.log("================================================================================\n");
 }
 
-verifyCoverage().catch(console.error);
+const isDirectRun = process.argv[1] && (
+  process.argv[1].endsWith('verify-historical-coverage.ts') || 
+  process.argv[1].endsWith('verify-historical-coverage.js')
+);
+
+if (isDirectRun) {
+  verifyCoverage().catch(console.error);
+}
+

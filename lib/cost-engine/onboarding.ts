@@ -144,12 +144,16 @@ export function parseHistoricalSpreadsheet(
     if (options.customMapping.dateCol) mapping.date = options.customMapping.dateCol;
   }
 
-  if (!mapping.item || !mapping.price) {
-    result.errors.push(`No se pudieron mapear las columnas esenciales de Ítem y Precio Unitario (Detectadas: ${headers.join(', ')})`);
+  if (!mapping.item || !mapping.price || !mapping.qty || !mapping.unit) {
+    result.errors.push(`No se pudieron mapear las columnas obligatorias de Ítem, Precio Unitario, Cantidad y Unidad de Medida (Detectadas: ${headers.join(', ')}). No se permiten defaults ficticios.`);
     return result;
   }
 
-  const defaultDate = options.defaultDate || new Date().toISOString().split('T')[0];
+  if (!mapping.date && !options.defaultDate) {
+    result.errors.push('No se pudo mapear columna de Fecha y no se especificó defaultDate para la planilla. Se rechaza inferencia silenciosa.');
+    return result;
+  }
+
   const defaultSource = options.defaultSource || 'FACTURA';
 
   for (let i = 0; i < rawRows.length; i++) {
@@ -164,23 +168,26 @@ export function parseHistoricalSpreadsheet(
     }
     const unitPrice = Number(rawPrice);
 
-    // Limpiar cantidad
-    let rawQty = mapping.qty ? row[mapping.qty] : 1;
+    // Validar cantidad sin inventar defaults
+    let rawQty = row[mapping.qty];
     if (typeof rawQty === 'string') {
       rawQty = rawQty.replace(/\./g, '').replace(/,/g, '.').replace(/[^0-9.]/g, '');
     }
-    const qty = Number(rawQty) || 1;
+    const qty = Number(rawQty);
 
-    const unit = mapping.unit ? String(row[mapping.unit] || 'UN').trim().toUpperCase() : 'UN';
+    // Validar unidad sin inventar 'UN'
+    const unit = row[mapping.unit] ? String(row[mapping.unit]).trim().toUpperCase() : '';
 
-    // Validación básica de fila
-    if (!desc || isNaN(unitPrice) || unitPrice <= 0 || desc.length < 2) {
+    // Validar fecha sin inventar CURRENT_DATE
+    const dateStr = mapping.date && row[mapping.date] ? String(row[mapping.date]).trim() : (options.defaultDate || '');
+
+    // Validación estricta de fila (UNKNOWN != DEFAULT)
+    if (!desc || desc.length < 2 || isNaN(unitPrice) || unitPrice <= 0 || isNaN(qty) || qty <= 0 || !unit || !dateStr) {
       result.skippedRows++;
       continue;
     }
 
     const category = inferInputCategory(desc);
-    const dateStr = mapping.date && row[mapping.date] ? String(row[mapping.date]).trim() : defaultDate;
 
     result.observations.push({
       empresaId: options.empresaId,
@@ -188,12 +195,13 @@ export function parseHistoricalSpreadsheet(
       descripcionItem: desc,
       categoriaInsumo: category,
       cantidad: qty,
-      unidad: unit || 'UN',
+      unidad: unit,
       precioUnitario: unitPrice,
       moneda: 'PYG',
       tipoCambio: 1.0,
       fechaObservacion: dateStr,
-      esVolatil: category === 'COMBUSTIBLE'
+      esVolatil: category === 'COMBUSTIBLE',
+      estadoEvidencia: 'VALIDA'
     });
 
     result.inferredCategories[category]++;

@@ -78,6 +78,10 @@ export function buildProjectFromAdjudicatedTender(params: TenderToProjectParams)
     ? Math.round(params.durationMonths * 30)
     : null;
 
+  if (!params.bidItems || params.bidItems.length === 0) {
+    throw new Error('VALIDATION_ERROR: Cannot convert tender to project without budget items.');
+  }
+
   for (const item of params.bidItems) {
     if (!item.description || item.description.trim() === '') {
       throw new Error(`VALIDATION_ERROR: Bid item #${item.itemNumber} has empty description.`);

@@ -28,6 +28,7 @@ export interface CostObservation {
   tipoCambio?: number;
   fechaObservacion: string; // ISO date YYYY-MM-DD
   esVolatil?: boolean;
+  estadoEvidencia?: 'VALIDA' | 'REVISION_REQUERIDA' | 'OBSOLETA' | 'DESCARTADA';
 }
 
 export interface WeightingBreakdown {

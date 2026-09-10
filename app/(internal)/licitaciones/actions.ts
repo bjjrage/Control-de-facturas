@@ -670,7 +670,15 @@ export async function persistirEvaluacionComercial(
   const totalItemsCount = (rawItems ?? []).length;
 
   for (const it of rawItems ?? []) {
-    const qty = Number(it.cantidad || 1);
+    const qty = Number(it.cantidad);
+    const unit = it.unidad ? String(it.unidad).trim() : '';
+
+    // INVARIANTE CANÓNICO (UNKNOWN != DEFAULT):
+    // Si el ítem no tiene cantidad positiva o unidad de medida verificable,
+    // no inventar defaults ficticios (1 o 'UN') y no otorgar cobertura económica falsa.
+    if (isNaN(qty) || qty <= 0 || !unit) {
+      continue;
+    }
 
     // Prioridad 1: APU o costo unitario explícito en nuestra oferta
     if (explicitItemCosts.has(it.id)) {

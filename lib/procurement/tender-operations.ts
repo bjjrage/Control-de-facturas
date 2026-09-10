@@ -177,6 +177,9 @@ export function assembleTenderPackage(params: {
       if (it.quantity <= 0) {
         errors.push(`El ítem #${it.itemNumber} ("${it.description}") tiene cantidad nula o inválida.`);
       }
+      if (!it.unit || !it.unit.trim()) {
+        errors.push(`El ítem #${it.itemNumber} ("${it.description}") carece de unidad de medida verificable.`);
+      }
     }
   }
 
