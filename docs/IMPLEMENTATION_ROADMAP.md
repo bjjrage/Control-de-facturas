@@ -503,16 +503,26 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ## GATE 18 — Bid Analysis Snapshot
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATE 17
 * **IMPLEMENTATION**:
-  - Congelamiento inmutable de cada análisis presentado al usuario (`bid_analysis_runs`).
+  - Migración SQL [`supabase/migrations/0065_bid_analysis_snapshots.sql`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/supabase/migrations/0065_bid_analysis_snapshots.sql):
+    - Tabla `public.bid_analysis_runs` con RLS multi-tenant estricto (`empresa_id = public.current_empresa_id()`).
+    - Almacenamiento append-only e inmutable de los 5 snapshots estructurados (`compliance_snapshot`, `institution_snapshot`, `financial_snapshot`, `simulation_snapshot`, `pillars_snapshot`).
+    - Trigger de PostgreSQL `bloquear_modificacion_snapshot` que prohíbe cualquier comando `UPDATE` sobre la tabla.
+    - Firma de integridad SHA-256 (`snapshot_hash`).
+  - Módulo TypeScript [`lib/procurement/bid-snapshot.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/bid-snapshot.ts): generador de snapshots congelados y verificador criptográfico anti-adulteración.
 * **TESTS**:
-  - Reconstrucción exacta de análisis históricos tras cambios en datos de mercado.
+  - Suite de auditoría inmutable [`scripts/test-bid-snapshot.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-bid-snapshot.ts):
+    - Congelamiento exitoso con hash SHA-256 de 64 caracteres.
+    - Verificación matemática de integridad (100% match).
+    - Detección certera y rechazo ante intentos de alteración silenciosa o fraude en datos históricos.
 * **RISKS**:
-  - Crecimiento de almacenamiento por snapshots de datos y documentos.
+  - Crecimiento de almacenamiento mitigado al guardar estructuras JSON compactas sin duplicar binarios pesados.
 * **DEFINITION OF DONE**:
-  - Auditoría y trazabilidad histórica sin recálculos silenciosos.
+  - Auditoría y trazabilidad histórica sin recálculos silenciosos garantizada.
+  - Test suite ejecutada con 0 fallos.
+  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
 
 ---
 
