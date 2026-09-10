@@ -72,6 +72,17 @@ async function runTests() {
   assert(profileDesconocido.calificacionRiesgo === 'SIN_DATOS', 'Convocante sin datos calificado como SIN_DATOS (no B)');
   assert(profileDesconocido.diasPromedioPago === 0, 'Días de pago es 0/no calibrado (no 90d)');
 
+  // CASO 5: Convocante con Llamados pero sin Registro de Plazo de Pago
+  console.log('\n--- TEST 5: Convocante con Llamados pero sin Registro de Plazo de Pago ---');
+  const tendersSinPago: HistoricalInstitutionTender[] = [
+    { id: 't-1', convocante: 'ENTIDAD SIN COBROS', fechaLlamado: '2024-01-01', montoTotalAdjudicado: 1000000000, proveedorAdjudicado: 'PROVEEDOR 1', rucProveedor: '80011111-1', cantidadAdendas: 0, estado: 'ADJUDICADA' },
+    { id: 't-2', convocante: 'ENTIDAD SIN COBROS', fechaLlamado: '2024-02-01', montoTotalAdjudicado: 2000000000, proveedorAdjudicado: 'PROVEEDOR 2', rucProveedor: '80022222-2', cantidadAdendas: 1, estado: 'ADJUDICADA' }
+  ];
+  const profileSinPago = generateInstitutionProfile('ENTIDAD SIN COBROS', tendersSinPago);
+  console.log(`[SIN REGISTRO PAGO] Calificación: ${profileSinPago.calificacionRiesgo} | Días de Pago: ${profileSinPago.diasPromedioPago} | Resumen: ${profileSinPago.resumenRiesgo}`);
+  assert(profileSinPago.diasPromedioPago === 0, 'Días de pago promedio permanece 0 cuando no hay certificados de cobro');
+  assert(profileSinPago.calificacionRiesgo === 'SIN_DATOS', 'Calificación es SIN_DATOS (no inventa 90 días ni rating A o B)');
+
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 12 PASARON CON ÉXITO');
   console.log('======================================================\n');

@@ -49,6 +49,9 @@ export function calculateInstitutionRiskRating(
   tasaCancelacion: number,
   adendasRatio: number
 ): InstitutionRiskRating {
+  if (diasPago <= 0) {
+    return 'SIN_DATOS';
+  }
   // Entidad A (Excelente): paga < 60 días, cancelación < 5%, adendas < 1.0
   if (diasPago <= 60 && tasaCancelacion <= 5 && adendasRatio <= 1.0) {
     return 'A';
@@ -118,7 +121,7 @@ export function generateInstitutionProfile(
 
   const adendasRatio = Number((totalAdendas / tenders.length).toFixed(2));
   const tasaCancelacion = Number(((canceladasODesiertas / tenders.length) * 100).toFixed(2));
-  const diasPromedioPago = countDiasPago > 0 ? Math.round(sumaDiasPago / countDiasPago) : 90;
+  const diasPromedioPago = countDiasPago > 0 ? Math.round(sumaDiasPago / countDiasPago) : 0;
 
   // Concentración de los top 3 proveedores
   const sortedProveedores = Object.entries(proveedorMontos)
@@ -147,6 +150,9 @@ export function generateInstitutionProfile(
       break;
     case 'D':
       resumenRiesgo = 'Alto riesgo crediticio; mora prolongada (> 210 días) o elevada tasa de cancelaciones.';
+      break;
+    case 'SIN_DATOS':
+      resumenRiesgo = 'Plazo de mora institucional no registrado en certificados de cobro; requiere evidencia comprobable.';
       break;
   }
 

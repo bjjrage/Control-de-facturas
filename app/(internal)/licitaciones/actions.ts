@@ -548,18 +548,26 @@ export async function importarPlanillaCostosHistoricos(
  * Ejecuta y congela un análisis de decisión comercial (Gate 18: Bid Analysis Run) con hash SHA-256 inmutable
  */
 export async function persistirEvaluacionComercial(
-  licitacionId: string
+  licitacionId: string,
+  options?: { annualFinancingRatePct?: number }
 ): Promise<{ error?: string; snapshotId?: string; decision?: string; score?: number; hash?: string }> {
   const { supabase, profile } = await ctx();
   const empresaId = profile.empresa_id;
 
-  // 1. Obtener la licitación
-  const { data: lic, error: licError } = await supabase
-    .from("licitaciones")
-    .select("*")
-    .eq("id", licitacionId)
-    .eq("empresa_id", empresaId)
-    .maybeSingle();
+  // 1. Obtener la licitación y empresa
+  const [{ data: lic, error: licError }, { data: empresa }] = await Promise.all([
+    supabase
+      .from("licitaciones")
+      .select("*")
+      .eq("id", licitacionId)
+      .eq("empresa_id", empresaId)
+      .maybeSingle(),
+    supabase
+      .from("empresas")
+      .select("*")
+      .eq("id", empresaId)
+      .maybeSingle()
+  ]);
 
   if (licError || !lic) {
     return { error: "Licitación no encontrada o sin acceso." };
@@ -653,6 +661,7 @@ export async function persistirEvaluacionComercial(
 
   // 6. Análisis financiero de capital de trabajo (fail-closed si faltan variables)
   const { analyzeTenderFinancials } = await import("@/lib/procurement/financial-analysis");
+  const explicitRate = options?.annualFinancingRatePct ?? (empresa as any)?.tasa_financiamiento_anual_pct ?? null;
   const financialReport = analyzeTenderFinancials({
     tenderId: lic.id,
     offerAmountPyg,
@@ -660,7 +669,7 @@ export async function persistirEvaluacionComercial(
     estimatedIndirectCostPyg: 0,
     durationMonths: calculatedDurationMonths,
     institutionalPaymentDays: institutionProfile.diasPromedioPago > 0 ? institutionProfile.diasPromedioPago : null,
-    annualFinancingRatePct: null
+    annualFinancingRatePct: explicitRate !== null ? Number(explicitRate) : null
   });
 
   // 7. Simulación competitiva con oferentes observados o uncalibrated

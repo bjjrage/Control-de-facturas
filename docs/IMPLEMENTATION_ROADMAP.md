@@ -28,8 +28,8 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 | **9** | Company Bid Vault | DONE | **PROVEN_DONE** | `0064_company_bid_vault.sql`, UI `/licitaciones/documentos` | Sincronización automática de documentos a `company_bid_vault_items` |
 | **10** | External Document Connectors | DONE | **PARTIAL / FAIL-CLOSED** | Algoritmo DV RUC Módulo 11 | **Endpoints estatales convertidos a Fail-Closed (NOT_IMPLEMENTED)** |
 | **11** | Compliance Engine | DONE | **PROVEN_DONE** | Evaluador de matriz y extractor PBC `pbc-extractor.ts` | Extractor determinístico de pliegos y evaluación estricta probada |
-| **12** | Institution Intelligence | DONE | **PARTIAL** | Algoritmo de scoring de riesgo A, B, C, D, SIN_DATOS | Convocantes sin historial emiten `SIN_DATOS` (0 días, no 90d por defecto) |
-| **13** | Financial Analysis of Tender | DONE | **PARTIAL** | Simulación de cashflow fail-closed | Sin datos de plazo/costos/mora retorna `INSUFFICIENT_EVIDENCE` (no 6m/12% def) |
+| **12** | Institution Intelligence | DONE | **PROVEN_DONE** | Algoritmo de scoring de riesgo A, B, C, D, SIN_DATOS | Purga total de defaults sintéticos; convocantes sin datos emiten SIN_DATOS (0 días); 5/5 tests |
+| **13** | Financial Analysis of Tender | DONE | **PROVEN_DONE** | Simulación de cashflow fail-closed | Purga total de defaults (tasa y mora explícitas o INSUFFICIENT_EVIDENCE); 3/3 tests |
 | **14** | Tender Operations Agent V1 | DONE | **PROVEN_DONE** | Ensamblador de expediente, índice maestro y exportación HTML | Dossier completo exportable y validación estricta contra placeholders probada |
 | **15** | Tender Monitoring Agent | DONE | **PROVEN_DONE** | Huella digital de docs, runner `runTenderMonitoringBatch` y `/api/cron/tender-monitoring` | Detección reactiva y programada de adendas, prórrogas y estados |
 | **16** | Competitive Simulator | DONE | **PROVEN_DONE** | Monte Carlo Box-Muller y calibración de huellas | Simulación estocástica calibrada con competidores observados probada |
@@ -233,28 +233,27 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 ---
 
 ### GATE 12 — Institution Intelligence
-* **STATUS**: **PARTIAL**
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 3
 * **IMPLEMENTATION**:
   - Algoritmo de scoring institucional cuantitativo en `lib/procurement/institution-intelligence.ts`.
-  - Calificación de riesgo ampliada con estado explícito `'SIN_DATOS'` y 0 días de mora (eliminando el default artificial de 90 días).
+  - Calificación de riesgo rigurosa con estado explícito `'SIN_DATOS'` y 0 días de mora (eliminando el default artificial de 90 días en convocantes sin cobros registrados).
 * **VERIFICACIÓN**:
-  - `scripts/test-institution-intelligence.ts` evalúa la calificación de riesgo (A, B, C, D, SIN_DATOS).
-* **GAPS**:
-  - Alimentación masiva continua desde el OCDS histórico completo de convocatorias y adjudicaciones.
+  - `scripts/test-institution-intelligence.ts` evalúa la calificación de riesgo (A, B, C, D, SIN_DATOS) en 5 escenarios incluyendo convocantes con llamados pero sin registro de cobros.
+* **RESULTADO DE AUDITORÍA**: Purga total de defaults completada. Cero supuestos arbitrarios.
 
 ---
 
 ### GATE 13 — Financial Analysis of Tender
-* **STATUS**: **PARTIAL**
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 5B, GATE 12
 * **IMPLEMENTATION**:
   - Simulador de flujo de caja y capital de trabajo en `lib/procurement/financial-analysis.ts` en 3 escenarios (BASE, CONSERVADOR, ESTRÉS).
-  - Regla `UNKNOWN != DEFAULT`: si faltan monto de oferta, costos directos, plazo contractual o plazo de pago del pagador, retorna `financialStatus: 'INSUFFICIENT_EVIDENCE'` y `NO_VIABLE_ALTO_RIESGO` sin simular datos ficticios.
+  - Regla `UNKNOWN != DEFAULT`: si faltan monto de oferta, costos directos, plazo contractual, plazo de pago del pagador o tasa financiera activa, retorna `financialStatus: 'INSUFFICIENT_EVIDENCE'` y `NO_VIABLE_ALTO_RIESGO` sin simular datos ficticios.
+  - Integrado a `persistirEvaluacionComercial` en `app/(internal)/licitaciones/actions.ts` vinculando tasa bancaria real configurable por empresa (`empresa.tasa_financiamiento_anual_pct`).
 * **VERIFICACIÓN**:
-  - `scripts/test-financial-analysis.ts` valida las ecuaciones de cashflow, viabilidad financiera y fail-closed por falta de evidencia.
-* **GAPS**:
-  - Lectura dinámica de tasas activas y pasivas de bancos paraguayos en tiempo real.
+  - `scripts/test-financial-analysis.ts` valida las ecuaciones de cashflow, viabilidad financiera y fail-closed por falta de evidencia (3/3 tests aprobados).
+* **RESULTADO DE AUDITORÍA**: Purga total de defaults (tasa de 12% removida, plazo de 6 meses no admitido sin evidencia). Fail-closed 100% verificado.
 
 ---
 

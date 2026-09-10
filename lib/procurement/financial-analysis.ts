@@ -72,7 +72,7 @@ function simulateCashflowScenario(
   const totalLagDays = Math.max(30, input.institutionalPaymentDays + additionalDelayDays);
   const totalLagMonths = totalLagDays / 30;
 
-  const rate = (input.annualFinancingRatePct ?? 12.0) / 100;
+  const rate = Number(input.annualFinancingRatePct || 0) / 100;
   const monthlyRate = rate / 12;
 
   // Curva de egresos uniforme simplificada por mes
@@ -114,6 +114,9 @@ function simulateCashflowScenario(
   };
 }
 
+/**
+ * Retorna un escenario vacío cuando no hay evidencia suficiente
+ */
 function createUnsimulatedScenario(
   scenarioName: ScenarioResult['scenarioName'],
   reason: string
@@ -135,7 +138,7 @@ function createUnsimulatedScenario(
 /**
  * Ejecuta el análisis financiero integral de una licitación en los 3 escenarios.
  * INVARIANTE UNKNOWN != DEFAULT:
- * Si faltan parámetros requeridos (precio de oferta, costo directo, plazo contractual, mora del pagador),
+ * Si faltan parámetros requeridos (precio de oferta, costo directo, plazo contractual, mora del pagador, tasa financiera),
  * NO inventa constantes supletorias: retorna INSUFFICIENT_EVIDENCE fail-closed.
  */
 export function analyzeTenderFinancials(input: TenderFinancialSimulationInput): TenderFinancialReport {
@@ -146,11 +149,15 @@ export function analyzeTenderFinancials(input: TenderFinancialSimulationInput): 
   const indirectCost = Number(input.estimatedIndirectCostPyg || 0);
   const duration = Number(input.durationMonths || 0);
   const paymentDays = Number(input.institutionalPaymentDays || 0);
+  const ratePct = input.annualFinancingRatePct !== null && input.annualFinancingRatePct !== undefined
+    ? Number(input.annualFinancingRatePct)
+    : null;
 
   if (offer <= 0) missingInputs.push('Monto total de oferta económica no especificado o nulo');
   if (directCost <= 0) missingInputs.push('Costo directo de insumos no determinado');
   if (duration <= 0) missingInputs.push('Plazo de ejecución contractual no especificado en pliego');
   if (paymentDays <= 0) missingInputs.push('Plazo de pago institucional del convocante desconocido');
+  if (ratePct === null || ratePct <= 0) missingInputs.push('Tasa activa anual de financiamiento bancario no configurada');
 
   if (missingInputs.length > 0) {
     const reason = `Falta de evidencia comprobable: ${missingInputs.join(', ')}`;
