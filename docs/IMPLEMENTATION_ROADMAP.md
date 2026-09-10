@@ -165,19 +165,35 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ---
 
-## GATE 5B — Cost Engine V1
+## GATE 5B — Cost Engine V1 (Costo Presente Ponderado / CPP)
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATE 0
 * **IMPLEMENTATION**:
-  - Motor de estimación de costo presente determinístico y auditable (`getCurrentCostEstimate`).
-  - Captura de observaciones de costo desde cotizaciones, órdenes de compra, recepciones y facturas.
+  - Migración SQL [`supabase/migrations/0063_cost_observations.sql`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/supabase/migrations/0063_cost_observations.sql): tabla `public.cost_observations` con RLS multi-tenant estricto (`empresa_id = public.current_empresa_id()`), categorías de insumo (`MATERIAL`, `MANO_OBRA`, `EQUIPO`, `SUBCONTRATO`, `COMBUSTIBLE`, `OTRO`), multiplicador cambiario y bandera de volatilidad.
+  - Tipos canónicos [`lib/cost-engine/types.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/cost-engine/types.ts): `CostObservation`, `CostEstimate`, `CostTrend`, `WeightingBreakdown`, `CostConfidenceTier`.
+  - Algoritmo de agregación matemática determinística [`lib/cost-engine/weighting.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/cost-engine/weighting.ts):
+    - Jerarquía de fuentes de verdad: FACTURA (1.0) > RECEPCION (0.9) > ORDEN_COMPRA (0.8) > COTIZACION (0.6) > MANUAL (0.3).
+    - Decaimiento temporal exponencial según volatilidad del insumo: Combustible (vida media 30 días), Estándar/Materiales (90 días), Equipos/Subcontratos (180 días).
+    - Atenuación logarítmica de volumen (`1 + ln(1 + cantidad)`) para evitar distorsiones por compras monopólicas.
+    - Detección de dispersión estadística y cálculo de percentiles (Min, P25, Mediana, P75, Max). Detección de mercado volátil cuando el coeficiente de variación super el 15%.
+    - Detección de tendencias de costo (`RISING`, `FALLING`, `STABLE`, `VOLATILE`) y niveles de certeza (`ALTA`, `MEDIA`, `BAJA`, `INSUFICIENTE`).
+  - API pública y Server Actions [`lib/cost-engine/index.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/cost-engine/index.ts): `getCurrentCostEstimate` y `recordCostObservation`.
 * **TESTS**:
-  - Pruebas de dispersión, staleness y ponderación de observaciones.
+  - Suite de verificación matemática [`scripts/test-cost-engine.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-cost-engine.ts):
+    - Verificación matemática exacta de decaimiento temporal en t=0, t=90 (0.5) y t=180 (0.25).
+    - Verificación de dampening logarítmico (ratio 1.82x vs 100x lineal).
+    - Verificación de jerarquía de fuentes (Factura domina sobre Cotización).
+    - Benchmark contra 5 insumos críticos de la construcción paraguaya (Cemento Portland Gs. 52.360/bolsa, Varilla 10mm Gs. 8.236/kg, Arena Lavada Gs. 73.426/m3, Gasoil Gs. 7.502/lt con tendencia alcista detectada, Alquiler Motoniveladora Gs. 395.328/hora).
+    - Verificación de detección de mercados volátiles (CV 27.22% marcado como volátil).
 * **RISKS**:
-  - Volatilidad de precios en rubros con alta inflación o dependencia cambiaria.
+  - Insumos sin histórico en empresas de reciente creación resueltos con el onboarding acelerado de obras históricas (GATE 6).
 * **DEFINITION OF DONE**:
-  - Cálculo determinístico de costo estimado con rangos y desglose de fuentes.
+  - Esquema `cost_observations` migrado con RLS y validaciones.
+  - Funciones matemáticas de CPP y percentiles implementadas sin dependencias opacas.
+  - Benchmark de 5 insumos de construcción paraguaya aprobado al 100%.
+  - Suite de tests `scripts/test-cost-engine.ts` ejecutada con 0 fallos.
+  - Compilación TypeScript aprobada con 0 errores (`npx tsc --noEmit` exit code 0).
 
 ---
 
