@@ -38,7 +38,11 @@ export const TARGET_COVERAGE_YEARS = [
   "2025", "2026"
 ];
 
-export function auditHistoricalCoverage(byYearData: Record<string, number>, totalIdentified: number) {
+export function auditHistoricalCoverage(
+  byYearData: Record<string, number>,
+  totalIdentified: number,
+  knownUniverseTotal?: number
+) {
   const gapYears: string[] = [];
   const coveredYears: string[] = [];
 
@@ -51,14 +55,35 @@ export function auditHistoricalCoverage(byYearData: Record<string, number>, tota
     }
   }
 
-  const isComplete = gapYears.length === 0 && totalIdentified > 0;
-  const status = isComplete ? "FULL / VERIFIED" : "PARTIAL / COVERAGE_UNKNOWN";
+  const hasTemporalRange = gapYears.length === 0 && totalIdentified > 0;
+  const temporalRangeStatus = hasTemporalRange ? "TEMPORAL_RANGE_PRESENT" : "TEMPORAL_GAPS_DETECTED";
+
+  // Invariante de honestidad: tener >0 registros por año NO es cobertura completa del dataset.
+  // Sin conocer y verificar el denominador del universo total de licitaciones de obra,
+  // la cobertura del dataset jamás puede ser "FULL / VERIFIED".
+  const isUniverseDenominatorKnown = knownUniverseTotal != null && knownUniverseTotal > 0;
+  const isDatasetCoverageVerified = isUniverseDenominatorKnown && totalIdentified >= knownUniverseTotal;
+
+  const datasetCoverageStatus = isDatasetCoverageVerified
+    ? "DATASET_COVERAGE_VERIFIED"
+    : "DATASET_COVERAGE_UNVERIFIED_DENOMINATOR_UNKNOWN";
+
+  const status = (hasTemporalRange && isDatasetCoverageVerified)
+    ? "FULL / VERIFIED"
+    : hasTemporalRange
+    ? "TEMPORAL_RANGE_PRESENT / COVERAGE_UNVERIFIED"
+    : "PARTIAL / TEMPORAL_GAPS_DETECTED";
 
   return {
     targetYears: TARGET_COVERAGE_YEARS,
     coveredYears,
     gapYears,
-    isComplete,
+    hasTemporalRange,
+    temporalRangeStatus,
+    isUniverseDenominatorKnown,
+    isDatasetCoverageVerified,
+    datasetCoverageStatus,
+    isComplete: isDatasetCoverageVerified,
     status
   };
 }
@@ -128,9 +153,13 @@ async function verifyCoverage() {
   }
 
   console.log("\n================================================================================");
-  console.log(`ESTADO DE COBERTURA: ${audit.status}`);
-  if (audit.isComplete) {
+  console.log(`ESTADO TEMPORAL: ${audit.temporalRangeStatus}`);
+  console.log(`ESTADO DE COBERTURA DATASET: ${audit.datasetCoverageStatus}`);
+  console.log(`ESTADO GLOBAL: ${audit.status}`);
+  if (audit.isDatasetCoverageVerified) {
     console.log("VEREDICTO GATE 3: COBERTURA HISTÓRICA COMPLETA Y VERIFICADA (2015-2026) ✅");
+  } else if (audit.hasTemporalRange) {
+    console.log("VEREDICTO GATE 3: RANGO TEMPORAL PRESENTE (2015-2026) PERO COBERTURA NO VERIFICADA (DENOMINADOR DEL UNIVERSO DESCONOCIDO) ⚠️");
   } else {
     console.log(`VEREDICTO GATE 3: COBERTURA PARCIAL CON GAPS IDENTIFICADOS (${audit.gapYears.length} años sin datos: ${audit.gapYears.join(", ")}) ⚠️`);
   }

@@ -66,7 +66,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
   // Sugerencia de costo según Costo Promedio Ponderado de inventario por ítem
   const costoPorItem = new Map<string, { nombre: string; costoPromedioInventario: number; score: number; confidence: string }>();
   for (const it of items ?? []) {
-    const match = matchTenderItem(it.descripcion, it.unidad || "UN", catalogForMatching);
+    const match = matchTenderItem(it.descripcion, it.unidad || "", catalogForMatching);
     if (match.bestMatch) {
       const prodOriginal = (productos ?? []).find(p => p.id === match.bestMatch!.item.id);
       if (prodOriginal) {

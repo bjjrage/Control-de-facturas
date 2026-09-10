@@ -5,9 +5,9 @@
 CREATE TABLE IF NOT EXISTS public.cost_observations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     empresa_id UUID NOT NULL REFERENCES public.empresas(id) ON DELETE CASCADE,
-    producto_id UUID REFERENCES public.materiales(id) ON DELETE SET NULL,
-    project_id UUID REFERENCES public.proyectos(id) ON DELETE SET NULL,
-    proveedor_id UUID REFERENCES public.proveedores(id) ON DELETE SET NULL,
+    producto_id UUID REFERENCES public.productos(id) ON DELETE SET NULL,
+    project_id UUID REFERENCES public.projects(id) ON DELETE SET NULL,
+    proveedor_id UUID REFERENCES public.providers(id) ON DELETE SET NULL,
     fuente TEXT NOT NULL CHECK (fuente IN ('FACTURA', 'RECEPCION', 'ORDEN_COMPRA', 'COTIZACION', 'MANUAL')),
     documento_id TEXT, -- ID de referencia a la factura, orden de compra, remisión o cotización
     descripcion_item TEXT NOT NULL,

@@ -433,9 +433,9 @@ export async function convertirLicitacionAProyecto(
     ? items.map((it: any, idx: number) => ({
         itemNumber: idx + 1,
         description: it.descripcion || "Ítem de licitación",
-        quantity: Number(it.cantidad || 1),
-        unit: it.unidad || "UN",
-        unitPricePyg: Number(it.precio_unitario_estimado || (it.monto_total ? it.monto_total / (it.cantidad || 1) : 0))
+        quantity: it.cantidad != null ? Number(it.cantidad) : 0,
+        unit: it.unidad ? String(it.unidad).trim() : "",
+        unitPricePyg: Number(it.precio_unitario_estimado || (it.monto_total && it.cantidad ? it.monto_total / Number(it.cantidad) : 0))
       }))
     : [{
         itemNumber: 1,
@@ -952,8 +952,8 @@ export async function generarPliegoOfertaCompleto(
     return {
       itemNumber: idx + 1,
       description: it.descripcion,
-      unit: it.unidad || "UN",
-      quantity: Number(it.cantidad || 1),
+      unit: it.unidad ? String(it.unidad).trim() : "",
+      quantity: it.cantidad != null ? Number(it.cantidad) : 0,
       unitPricePyg: unitPrice
     };
   });

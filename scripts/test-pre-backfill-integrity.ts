@@ -9,13 +9,20 @@
  * Scenario E: Reconstrucción Histórica Económica de Contratos y Adendas
  * Scenario F: UNKNOWN != DEFAULT en Valor Contractual Final (Incompletitud)
  * Scenario G: Aislamiento Estricto de Inteligencia Competitiva (Pre vs Post Adjudicación)
- * Scenario H: Verificación de Cobertura Temporal Canónica (2015-2026)
+ * Scenario H: Verificación de Cobertura Temporal Canónica (2015-2026) y Denominador Honesto
+ * Scenario I: Representación Real DNCP de Adendas (extendsContractID + dncpAmendmentType)
+ * Scenario J: Verificación de Esquema Canónico de procurement_items (0060/0067)
+ * Scenario K: Integración Server Action Item Mapping -> assembleTenderPackage
  */
+
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 import {
   classifyAmendment,
   computeContractEconomicHistory,
   calculateCompetitorBehaviorMetrics,
+  separateContractsAndExtendsAmendments,
   ContractInput,
   AmendmentInput
 } from '../lib/procurement/contract-history';
@@ -234,7 +241,9 @@ async function runTests() {
     assert(classifyAmendment("Ampliación de Monto", 134372811, 0) === 'AMOUNT_INCREASE', "Debe clasificar como AMOUNT_INCREASE");
     assert(classifyAmendment("Disminución de Monto", -50000000, 0) === 'AMOUNT_DECREASE', "Debe clasificar como AMOUNT_DECREASE");
     assert(classifyAmendment("Prórroga de plazo de entrega", 0, 90) === 'TERM_EXTENSION', "Debe clasificar como TERM_EXTENSION");
-    assert(classifyAmendment("Aclaratoria administrativa", 0, 0) === 'ADMINISTRATIVE', "Debe clasificar como ADMINISTRATIVE");
+    assert(classifyAmendment("Reajuste de Precios", 15000000, 0) === 'PRICE_ADJUSTMENT', "Debe clasificar como PRICE_ADJUSTMENT");
+    assert(classifyAmendment("Convenio Modificatorio", 20000000, 0) === 'SCOPE_MODIFICATION', "Debe clasificar como SCOPE_MODIFICATION");
+    assert(classifyAmendment("Aclaratoria administrativa", 0, 0) === 'OTHER', "Debe clasificar como OTHER");
 
     // Reconstrucción completa
     const contract: ContractInput = {
@@ -370,7 +379,7 @@ async function runTests() {
   }
 
   // ----------------------------------------------------------------------------
-  // Scenario H: Verificación de Cobertura Temporal Canónica (2015-2026)
+  // Scenario H: Verificación de Cobertura Temporal Canónica (2015-2026) y Denominador Honesto
   // ----------------------------------------------------------------------------
   try {
     console.log("\nTesting Scenario H: Coverage Audit Engine explicit target range (2015-2026)...");
@@ -379,7 +388,7 @@ async function runTests() {
     assert(TARGET_COVERAGE_YEARS[0] === '2015', "Primer año debe ser 2015");
     assert(TARGET_COVERAGE_YEARS[11] === '2026', "Último año debe ser 2026");
 
-    // Prueba con datos parciales (como el warehouse actual)
+    // 1. Prueba con datos parciales (gaps identificados)
     const partialData = {
       "2019": 11,
       "2020": 3,
@@ -388,16 +397,271 @@ async function runTests() {
 
     const auditResult = auditHistoricalCoverage(partialData, 20);
 
-    assert(auditResult.status === 'PARTIAL / COVERAGE_UNKNOWN', "Estado debe ser PARTIAL / COVERAGE_UNKNOWN");
-    assert(auditResult.isComplete === false, "isComplete debe ser false");
+    assert(auditResult.temporalRangeStatus === 'TEMPORAL_GAPS_DETECTED', "Estado temporal debe ser TEMPORAL_GAPS_DETECTED");
+    assert(auditResult.datasetCoverageStatus === 'DATASET_COVERAGE_UNVERIFIED_DENOMINATOR_UNKNOWN', "Cobertura debe indicar denominador desconocido");
+    assert(auditResult.isDatasetCoverageVerified === false, "isDatasetCoverageVerified debe ser false");
     assert(auditResult.gapYears.length === 9, "Debe identificar exactamente 9 años con GAP (2015-2018, 2021-2023, 2025-2026)");
     assert(auditResult.gapYears.includes('2015'), "2015 debe ser un GAP explícito");
     assert(auditResult.gapYears.includes('2026'), "2026 debe ser un GAP explícito");
 
-    console.log("  ✓ Scenario H PASSED: Rango 2015-2026 auditado y gaps reportados correctamente.");
+    // 2. Invariante: Tener >0 registros en todos los años NO es FULL / VERIFIED sin denominador de universo
+    const allYearsData: Record<string, number> = {};
+    for (const yr of TARGET_COVERAGE_YEARS) {
+      allYearsData[yr] = 5;
+    }
+    const fullRangeResult = auditHistoricalCoverage(allYearsData, 60);
+    assert(fullRangeResult.hasTemporalRange === true, "Rango temporal debe estar presente");
+    assert(fullRangeResult.temporalRangeStatus === 'TEMPORAL_RANGE_PRESENT', "Estado temporal debe ser TEMPORAL_RANGE_PRESENT");
+    assert(fullRangeResult.isDatasetCoverageVerified === false, "Sin denominador de universo verificado, NO es cobertura completa");
+    assert(fullRangeResult.status !== 'FULL / VERIFIED', "El estado JAMÁS puede ser FULL / VERIFIED con denominador desconocido");
+    assert(fullRangeResult.status === 'TEMPORAL_RANGE_PRESENT / COVERAGE_UNVERIFIED', "Debe indicar rango presente pero cobertura no verificada");
+
+    console.log("  ✓ Scenario H PASSED: Rango 2015-2026 y estricta honestidad de denominador auditados.");
     passed++;
   } catch (err: any) {
     console.error("  ✗ Scenario H FAILED:", err.message);
+    failed++;
+  }
+
+  // ----------------------------------------------------------------------------
+  // Scenario I: Representación Real DNCP de Adendas (extendsContractID)
+  // ----------------------------------------------------------------------------
+  try {
+    console.log("\nTesting Scenario I: Real DNCP Amendment representation (extendsContractID)...");
+
+    // Fixture de contrato original A (monto: 824,999,752 PYG)
+    const contractA = {
+      id: 'ocds-03ad3f-183665-CTR-1',
+      dncpContractCode: 'LP-11001-19-183665',
+      title: 'Contrato Original Obras Viales',
+      value: { amount: 824999752, currency: 'PYG' },
+      period: { startDate: '2019-06-01', endDate: '2020-05-31' },
+      amendments: [] // Sin adendas embebidas OCDS
+    };
+
+    // Contrato B: Representación oficial DNCP de adenda como registro de contrato con extendsContractID
+    const contractB = {
+      id: 'ocds-03ad3f-183665-CTR-2',
+      extendsContractID: 'ocds-03ad3f-183665-CTR-1', // VINCULADO AL CONTRATO A
+      dncpContractCode: 'AC-11001-20-39005',
+      dncpAmendmentType: 'Reajuste de Precios', // EVIDENCIA PRIMARIA CRUDA
+      title: 'Reajuste de Precios por Variación de Fórmula Polinómica',
+      value: { amount: 15000000, currency: 'PYG' },
+      dateSigned: '2020-01-15'
+    };
+
+    // 1. Separación de contratos originales vs adendas extendsContractID
+    const separation = separateContractsAndExtendsAmendments([contractA, contractB]);
+    assert(separation.originalContracts.length === 1, "Debe persistir exactamente 1 contrato original");
+    assert(separation.originalContracts[0].id === contractA.id, "El contrato original debe ser A");
+    assert(separation.linkedAmendments.length === 1, "Debe vincular exactamente 1 adenda");
+
+    const amendB = separation.linkedAmendments[0];
+    assert(amendB.extendsContractId === contractA.id, "extendsContractId debe apuntar a A");
+    assert(amendB.dncpAmendmentTypeRaw === 'Reajuste de Precios', "dncpAmendmentTypeRaw debe preservar la evidencia primaria cruda");
+    assert(amendB.tipo === 'PRICE_ADJUSTMENT', "Debe clasificarse como PRICE_ADJUSTMENT (no genérico AMOUNT_INCREASE)");
+    assert(amendB.amountDelta === 15000000, "Delta de monto debe preservarse exactamente (15,000,000 PYG)");
+    assert(amendB.sourceType === 'EXTENDS_CONTRACT', "sourceType debe ser EXTENDS_CONTRACT");
+
+    // 2. Historial económico con delta conocido
+    const historyKnown = computeContractEconomicHistory(
+      {
+        id: contractA.id,
+        contractDncpId: contractA.dncpContractCode,
+        originalAmount: contractA.value.amount,
+        originalDurationDays: 365,
+        currency: 'PYG'
+      },
+      separation.linkedAmendments
+    );
+
+    assert(historyKnown.originalAmount === 824999752, "Monto original debe permanecer intacto (824,999,752 PYG)");
+    assert(historyKnown.totalAmountDelta === 15000000, "Delta total debe ser 15,000,000 PYG");
+    assert(historyKnown.finalContractAmount === 839999752, "Monto final vigente debe ser 839,999,752 PYG");
+    assert(historyKnown.hasUnresolvedAmendments === false, "hasUnresolvedAmendments debe ser false");
+
+    // 3. Caso con adenda adicional no resuelta (Contract C)
+    const contractC = {
+      id: 'ocds-03ad3f-183665-CTR-3',
+      extendsContractID: 'ocds-03ad3f-183665-CTR-1',
+      dncpContractCode: 'AC-11001-20-41000',
+      dncpAmendmentType: 'Ampliación de Monto',
+      value: null, // DELTA DESCONOCIDO / UNRESOLVED
+      dateSigned: '2020-03-20'
+    };
+
+    const separationWithUnresolved = separateContractsAndExtendsAmendments([contractA, contractB, contractC]);
+    assert(separationWithUnresolved.originalContracts.length === 1, "Aún con 2 adendas, debe haber exactamente 1 contrato original (NO un segundo contrato ficticio)");
+    assert(separationWithUnresolved.linkedAmendments.length === 2, "Debe haber exactamente 2 adendas vinculadas");
+
+    const historyUnresolved = computeContractEconomicHistory(
+      {
+        id: contractA.id,
+        contractDncpId: contractA.dncpContractCode,
+        originalAmount: contractA.value.amount,
+        originalDurationDays: 365,
+        currency: 'PYG'
+      },
+      separationWithUnresolved.linkedAmendments
+    );
+
+    assert(historyUnresolved.originalAmount === 824999752, "Monto original debe preservarse");
+    assert(historyUnresolved.hasUnresolvedAmendments === true, "hasUnresolvedAmendments debe ser true");
+    assert(historyUnresolved.finalContractAmount === null, "finalContractAmount DEBE ser null cuando el efecto económico no está resuelto");
+
+    // 4. Idempotencia exacta de re-ingesta
+    const reingestSeparation = separateContractsAndExtendsAmendments([contractA, contractB, contractC]);
+    assert(reingestSeparation.originalContracts.length === 1, "Re-ingesta: exactamente 1 contrato original");
+    assert(reingestSeparation.linkedAmendments.length === 2, "Re-ingesta: exactamente 2 adendas");
+    assert(reingestSeparation.linkedAmendments[0].amendmentDncpId === amendB.amendmentDncpId, "Identidad estable de adenda B");
+
+    console.log("  ✓ Scenario I PASSED: Estructura real DNCP de adendas procesada con fidelidad e idempotencia.");
+    passed++;
+  } catch (err: any) {
+    console.error("  ✗ Scenario I FAILED:", err.message);
+    failed++;
+  }
+
+  // ----------------------------------------------------------------------------
+  // Scenario J: Verificación de Esquema Canónico de procurement_items (0060/0067)
+  // ----------------------------------------------------------------------------
+  try {
+    console.log("\nTesting Scenario J: Verify canonical procurement_items schema...");
+
+    const migration0060Path = path.resolve(process.cwd(), 'supabase', 'migrations', '0060_procurement_evidence_foundation.sql');
+    const migration0067Path = path.resolve(process.cwd(), 'supabase', 'migrations', '0067_canonical_cost_and_contract_history.sql');
+
+    assert(fs.existsSync(migration0060Path), "0060_procurement_evidence_foundation.sql debe existir");
+    assert(fs.existsSync(migration0067Path), "0067_canonical_cost_and_contract_history.sql debe existir");
+
+    const m0060Content = fs.readFileSync(migration0060Path, 'utf8');
+    const m0067Content = fs.readFileSync(migration0067Path, 'utf8');
+
+    // 1. Columnas canónicas definidas en 0060
+    const canonicalColumns = [
+      'process_id',
+      'lot_id',
+      'codigo_catalogo',
+      'codigo_unspsc',
+      'descripcion',
+      'cantidad',
+      'unidad',
+      'precio_unitario_referencial',
+      'sort_order'
+    ];
+
+    for (const col of canonicalColumns) {
+      assert(m0060Content.includes(col), `0060 debe definir columna canónica ${col}`);
+      assert(m0067Content.includes(col), `0067 debe usar columna canónica ${col}`);
+    }
+
+    // 2. Verificar que columnas inventadas/alucinadas NO existan en 0067
+    assert(!m0067Content.includes('codigo_catalogo_padre'), "0067 NO debe referenciar codigo_catalogo_padre");
+    assert(!m0067Content.includes('precio_unitario_estimado'), "0067 NO debe referenciar precio_unitario_estimado");
+
+    // 3. Verificar agregado de item_dncp_id con índice único (process_id, item_dncp_id)
+    assert(m0067Content.includes('item_dncp_id'), "0067 debe agregar columna item_dncp_id");
+    assert(m0067Content.includes('idx_proc_items_process_dncp_id') && m0067Content.includes('(process_id, item_dncp_id)'), "0067 debe crear índice único para (process_id, item_dncp_id)");
+
+    console.log("  ✓ Scenario J PASSED: Esquema canónico de procurement_items reconciliado y verificado.");
+    passed++;
+  } catch (err: any) {
+    console.error("  ✗ Scenario J FAILED:", err.message);
+    failed++;
+  }
+
+  // ----------------------------------------------------------------------------
+  // Scenario K: Integración Server Action Item Mapping -> assembleTenderPackage
+  // ----------------------------------------------------------------------------
+  try {
+    console.log("\nTesting Scenario K: Server action item mapping blocks READY_TO_SIGN on incomplete DB items...");
+
+    // Simular filas crudas de procurement_items en la BD con especificaciones incompletas
+    const rawDbItemsFromSupabase = [
+      {
+        id: 'item-uuid-1',
+        process_id: 'proc-uuid-1',
+        lot_id: null,
+        codigo_catalogo: 'CAT-01',
+        codigo_unspsc: '72141103',
+        descripcion: 'Movimiento de Suelo y Nivelación',
+        cantidad: null, // CANTIDAD NULA EN BD
+        unidad: null,   // UNIDAD NULA EN BD
+        precio_unitario_referencial: 125000,
+        sort_order: 1
+      },
+      {
+        id: 'item-uuid-2',
+        process_id: 'proc-uuid-1',
+        lot_id: null,
+        codigo_catalogo: 'CAT-02',
+        codigo_unspsc: '72141104',
+        descripcion: 'Capa Sub-base Granular',
+        cantidad: 500,
+        unidad: '',     // UNIDAD VACÍA EN BD
+        precio_unitario_referencial: 85000,
+        sort_order: 2
+      }
+    ];
+
+    // Aplicar la lógica exacta de mapeo de generarPliegoOfertaCompleto (app/(internal)/licitaciones/actions.ts)
+    // Invariante: ¡NO FABRICAR DEFAULTS! (sin "UN" ni 1 ficticio)
+    const mappedItemsForTenderOps: TenderBidItemInput[] = rawDbItemsFromSupabase.map((it, index) => ({
+      itemNumber: it.sort_order || index + 1,
+      catalogCode: it.codigo_catalogo || undefined,
+      description: it.descripcion,
+      unit: it.unidad ? String(it.unidad).trim() : "",
+      quantity: it.cantidad != null ? Number(it.cantidad) : 0,
+      unitPricePyg: it.precio_unitario_referencial ? Number(it.precio_unitario_referencial) : 0
+    }));
+
+    // El primer ítem mapeado debe preservar la ausencia de especificación
+    assert(mappedItemsForTenderOps[0].unit === "", "Server action no debe inventar unidad 'UN'");
+    assert(mappedItemsForTenderOps[0].quantity === 0, "Server action no debe inventar cantidad 1");
+
+    // Ejecutar assembleTenderPackage con los ítems mapeados
+    const pkg = assembleTenderPackage({
+      tenderId: 'T-INCOMPLETE-1',
+      tenderTitle: 'Pavimentación Urbana',
+      buyerName: 'Municipalidad de Asunción',
+      bidderName: 'Constructora Vial S.A.',
+      bidderRuc: '80099999-1',
+      legalRepresentative: 'Ing. Rodrigo Benítez',
+      items: mappedItemsForTenderOps,
+      vaultItems: [],
+      complianceReport: {
+        tenderId: 'T-INCOMPLETE-1',
+        evidenceOrigin: 'EXTRACTED_FROM_PBC',
+        isEligibleToBid: true,
+        scoreCumplimientoPct: 100,
+        totalRequirements: 1,
+        cumplidosCount: 1,
+        generablesCount: 0,
+        faltantesCount: 0,
+        reviewRequiredCount: 0,
+        evaluations: [
+          {
+            requirementId: 'REQ-1',
+            categoria: 'LEGAL',
+            descripcion: 'Capacidad legal',
+            esExcluyente: true,
+            verdict: 'CUMPLIDO',
+            observaciones: 'Ok'
+          }
+        ]
+      }
+    });
+
+    // Validar que Tender Operations bloquea READY_TO_SIGN y determina DRAFT_INCOMPLETE
+    assert(pkg.packageStatus === 'DRAFT_INCOMPLETE', `Estado debe ser DRAFT_INCOMPLETE, recibido: ${pkg.packageStatus}`);
+    assert(pkg.validationErrors.length >= 2, "Debe registrar múltiples errores de validación de ítems");
+    assert(pkg.validationErrors.some(e => e.includes('carece de unidad de medida verificable')), "Debe detectar unidad faltante");
+    assert(pkg.validationErrors.some(e => e.includes('tiene cantidad nula o inválida')), "Debe detectar cantidad nula o inválida");
+
+    console.log("  ✓ Scenario K PASSED: Mapeo de server action bloquea READY_TO_SIGN ante datos incompletos.");
+    passed++;
+  } catch (err: any) {
+    console.error("  ✗ Scenario K FAILED:", err.message);
     failed++;
   }
 

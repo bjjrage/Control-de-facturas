@@ -11,24 +11,30 @@
  * Si existen adendas económicas pero los montos o fechas no pueden resolverse a partir de la evidencia,
  * el valor contractual final es estrictamente UNKNOWN (null). NUNCA asumir 0 ni reusar el original.
  * 
- * Invariante de competencia:
- * Separación rigurosa entre métricas pre-adjudicación (agresividad de oferta) y métricas post-adjudicación (modificaciones contractuales).
- * Cero inferencias causales especulativas sin prueba documental.
+ * Soporte dual DNCP de Adendas:
+ * A. Adendas embebidas en contracts[].amendments[]
+ * B. Registros de contrato/release vinculados mediante extendsContractID
+ * (Un contrato con extendsContractID JAMÁS se ingesta como nuevo contrato original independiente).
  */
 
 export type AmendmentType =
   | 'AMOUNT_INCREASE'
   | 'AMOUNT_DECREASE'
+  | 'PRICE_ADJUSTMENT'
+  | 'SCOPE_MODIFICATION'
   | 'TERM_EXTENSION'
   | 'TERM_REDUCTION'
-  | 'SCOPE_MODIFICATION'
-  | 'ADMINISTRATIVE'
-  | 'OTHER';
+  | 'OTHER'
+  | 'UNKNOWN';
 
 export interface AmendmentInput {
   id?: string;
   amendmentDncpId: string;
   tipo?: AmendmentType;
+  dncpAmendmentTypeRaw?: string | null;
+  extendsContractId?: string | null;
+  dncpContractCode?: string | null;
+  sourceType?: 'EMBEDDED_AMENDMENT' | 'EXTENDS_CONTRACT';
   date?: string | null;
   description?: string | null;
   amountDelta?: number | null;
@@ -50,13 +56,17 @@ export interface ContractInput {
 export interface AmendmentTimelineEntry {
   amendmentDncpId: string;
   tipo: AmendmentType;
+  dncpAmendmentTypeRaw: string | null;
+  extendsContractId: string | null;
+  dncpContractCode: string | null;
+  sourceType: 'EMBEDDED_AMENDMENT' | 'EXTENDS_CONTRACT';
   date: string | null;
   description: string;
   financialCode: string | null;
-  amountDelta: number;
-  cumulativeAmountDelta: number;
-  durationDeltaDays: number;
-  cumulativeDurationDeltaDays: number;
+  amountDelta: number | null;
+  cumulativeAmountDelta: number | null;
+  durationDeltaDays: number | null;
+  cumulativeDurationDeltaDays: number | null;
   isUnresolved: boolean;
 }
 
@@ -66,8 +76,8 @@ export interface ContractEconomicHistory {
   currency: string;
   originalAmount: number;
   originalDurationDays: number | null;
-  totalAmountDelta: number;
-  totalDurationDeltaDays: number;
+  totalAmountDelta: number | null;
+  totalDurationDeltaDays: number | null;
   finalContractAmount: number | null; // null = FINAL_VALUE_UNKNOWN
   finalDurationDays: number | null;    // null = DURATION_UNKNOWN
   amendmentCount: number;
@@ -98,49 +108,158 @@ export interface CompetitorBehaviorMetrics {
 }
 
 /**
- * Clasifica una adenda contractual en base a su descripción y deltas económicos observados
+ * Clasifica una adenda contractual en base a su evidencia cruda oficial y deltas económicos observados.
+ * Prioriza dncpAmendmentTypeRaw como evidencia primaria oficial.
  */
 export function classifyAmendment(
-  description?: string | null,
-  amountDelta?: number | null,
-  durationDeltaDays?: number | null
+  rawTypeOrDescription?: string | null,
+  descriptionOrAmountDelta?: string | number | null,
+  amountDeltaParam?: number | null,
+  durationDeltaDaysParam?: number | null
 ): AmendmentType {
-  const desc = (description || '').toLowerCase().trim();
-  const amt = amountDelta != null ? Number(amountDelta) : null;
-  const days = durationDeltaDays != null ? Number(durationDeltaDays) : null;
+  let rawType: string = '';
+  let description: string = '';
+  let amountDelta: number | null = null;
+  let durationDeltaDays: number | null = null;
 
-  if ((amt != null && amt > 0) || desc.includes('ampliación de monto') || desc.includes('ampliacion de monto') || desc.includes('aumento de monto') || desc.includes('adicional')) {
-    return 'AMOUNT_INCREASE';
+  if (typeof descriptionOrAmountDelta === 'string') {
+    rawType = (rawTypeOrDescription || '').trim().toLowerCase();
+    description = descriptionOrAmountDelta.trim().toLowerCase();
+    amountDelta = amountDeltaParam != null ? Number(amountDeltaParam) : null;
+    durationDeltaDays = durationDeltaDaysParam != null ? Number(durationDeltaDaysParam) : null;
+  } else {
+    description = (rawTypeOrDescription || '').trim().toLowerCase();
+    amountDelta = descriptionOrAmountDelta != null ? Number(descriptionOrAmountDelta) : null;
+    durationDeltaDays = amountDeltaParam != null ? Number(amountDeltaParam) : null;
   }
 
-  if ((amt != null && amt < 0) || desc.includes('disminución de monto') || desc.includes('disminucion de monto') || desc.includes('reducción de monto') || desc.includes('reduccion de monto')) {
-    return 'AMOUNT_DECREASE';
+  const combined = `${rawType} ${description}`.trim();
+
+  // 1. Reajuste de precios (Price Adjustment)
+  if (combined.includes('reajuste') || rawType.includes('reajuste')) {
+    return 'PRICE_ADJUSTMENT';
   }
 
-  if ((days != null && days > 0) || desc.includes('prórroga') || desc.includes('prorroga') || desc.includes('ampliación de plazo') || desc.includes('ampliacion de plazo') || desc.includes('extensión de plazo') || desc.includes('extension de plazo')) {
-    return 'TERM_EXTENSION';
-  }
-
-  if ((days != null && days < 0) || desc.includes('reducción de plazo') || desc.includes('reduccion de plazo')) {
-    return 'TERM_REDUCTION';
-  }
-
-  if (desc.includes('modificación') || desc.includes('modificacion') || desc.includes('ajuste') || desc.includes('alcance') || desc.includes('especificaciones')) {
+  // 2. Modificaciones de Alcance / Nuevos Ítems / Convenio Modificatorio
+  if (
+    combined.includes('modificación') ||
+    combined.includes('modificacion') ||
+    combined.includes('convenio modificatorio') ||
+    combined.includes('alcance') ||
+    combined.includes('especificaciones') ||
+    combined.includes('nuevo item') ||
+    combined.includes('nuevos items')
+  ) {
     return 'SCOPE_MODIFICATION';
   }
 
-  if (desc.includes('aclaratoria') || desc.includes('administrativ') || desc.includes('cambio de cuenta') || desc.includes('representante')) {
-    return 'ADMINISTRATIVE';
+  // 3. Ampliación de Monto
+  if (
+    combined.includes('ampliación de monto') ||
+    combined.includes('ampliacion de monto') ||
+    combined.includes('aumento de monto') ||
+    combined.includes('adicional') ||
+    (amountDelta != null && amountDelta > 0)
+  ) {
+    return 'AMOUNT_INCREASE';
+  }
+
+  // 4. Disminución de Monto
+  if (
+    combined.includes('disminución de monto') ||
+    combined.includes('disminucion de monto') ||
+    combined.includes('reducción de monto') ||
+    combined.includes('reduccion de monto') ||
+    (amountDelta != null && amountDelta < 0)
+  ) {
+    return 'AMOUNT_DECREASE';
+  }
+
+  // 5. Prórroga / Ampliación de Plazo
+  if (
+    combined.includes('prórroga') ||
+    combined.includes('prorroga') ||
+    combined.includes('ampliación de plazo') ||
+    combined.includes('ampliacion de plazo') ||
+    combined.includes('extensión de plazo') ||
+    combined.includes('extension de plazo') ||
+    (durationDeltaDays != null && durationDeltaDays > 0)
+  ) {
+    return 'TERM_EXTENSION';
+  }
+
+  // 6. Reducción de Plazo
+  if (
+    combined.includes('reducción de plazo') ||
+    combined.includes('reduccion de plazo') ||
+    (durationDeltaDays != null && durationDeltaDays < 0)
+  ) {
+    return 'TERM_REDUCTION';
+  }
+
+  if (combined === '' && amountDelta == null && durationDeltaDays == null) {
+    return 'UNKNOWN';
   }
 
   return 'OTHER';
 }
 
 /**
+ * Separa y estructura contratos originales vs contratos de adenda (extendsContractID)
+ * Regla de Oro: Un contrato con extendsContractID JAMÁS se ingesta como nuevo contrato independiente.
+ */
+export function separateContractsAndExtendsAmendments(rawContracts: any[]): {
+  originalContracts: any[];
+  linkedAmendments: AmendmentInput[];
+} {
+  const originalContracts: any[] = [];
+  const linkedAmendments: AmendmentInput[] = [];
+
+  for (const c of rawContracts || []) {
+    const extendsId = c.extendsContractID ? String(c.extendsContractID).trim() : '';
+
+    if (extendsId !== '') {
+      // Es un registro de adenda vinculado a un contrato previo
+      const rawType = c.dncpAmendmentType || c.amendmentType || c.title || '';
+      const amountVal = c.value?.amount != null ? Number(c.value.amount) : null;
+      
+      let durationDays: number | null = null;
+      if (c.period?.startDate && c.period?.endDate) {
+        const start = new Date(c.period.startDate).getTime();
+        const end = new Date(c.period.endDate).getTime();
+        if (!isNaN(start) && !isNaN(end)) {
+          durationDays = Math.round((end - start) / (1000 * 60 * 60 * 24));
+        }
+      }
+
+      linkedAmendments.push({
+        amendmentDncpId: c.id || c.dncpContractCode || `amend-${Math.random().toString(36).slice(2, 9)}`,
+        extendsContractId: extendsId,
+        dncpContractCode: c.dncpContractCode || null,
+        dncpAmendmentTypeRaw: rawType || null,
+        sourceType: 'EXTENDS_CONTRACT',
+        tipo: classifyAmendment(rawType, c.description || c.title, amountVal, durationDays),
+        date: c.dateSigned || c.period?.startDate || null,
+        description: c.description || c.title || rawType,
+        amountDelta: amountVal,
+        durationDeltaDays: durationDays,
+        financialCode: c.financialCode || null,
+        rawPayload: c
+      });
+    } else {
+      // Contrato original legítimo
+      originalContracts.push(c);
+    }
+  }
+
+  return { originalContracts, linkedAmendments };
+}
+
+/**
  * Computa la reconstrucción histórica económica estricta de un contrato público
  * Cumple con el principio UNKNOWN != DEFAULT:
- * Si una adenda declara ampliación/disminución de monto pero el valor numérico no puede ser resuelto,
- * `finalContractAmount` queda como `null` (UNKNOWN) y jamás se inventa un valor 0.
+ * Si una adenda declara ampliación/reajuste/modificación pero el valor numérico no puede ser resuelto,
+ * `finalContractAmount` queda como `null` (UNKNOWN) y jamás se inventa un valor 0 ni se reusa el original.
  */
 export function computeContractEconomicHistory(
   contract: ContractInput,
@@ -149,6 +268,8 @@ export function computeContractEconomicHistory(
   let totalAmountDelta = 0;
   let totalDurationDeltaDays = 0;
   let hasUnresolved = false;
+  let hasUnresolvedAmount = false;
+  let hasUnresolvedDuration = false;
   const timeline: AmendmentTimelineEntry[] = [];
 
   // Ordenar adendas cronológicamente si tienen fecha
@@ -159,61 +280,87 @@ export function computeContractEconomicHistory(
 
   for (const amend of sortedAmendments) {
     const rawDesc = amend.description || '';
-    const inferredType = amend.tipo || classifyAmendment(rawDesc, amend.amountDelta, amend.durationDeltaDays);
+    const rawType = amend.dncpAmendmentTypeRaw || '';
+    const inferredType = amend.tipo || classifyAmendment(rawType, rawDesc, amend.amountDelta, amend.durationDeltaDays);
     
-    let deltaAmt = 0;
-    let deltaDays = 0;
+    let deltaAmt: number | null = null;
+    let deltaDays: number | null = null;
     let entryUnresolved = false;
 
     // Verificar si la adenda implica impacto en monto
-    if (inferredType === 'AMOUNT_INCREASE' || inferredType === 'AMOUNT_DECREASE' || rawDesc.toLowerCase().includes('monto')) {
+    const affectsAmount =
+      inferredType === 'AMOUNT_INCREASE' ||
+      inferredType === 'AMOUNT_DECREASE' ||
+      inferredType === 'PRICE_ADJUSTMENT' ||
+      rawDesc.toLowerCase().includes('monto') ||
+      rawType.toLowerCase().includes('monto') ||
+      rawType.toLowerCase().includes('reajuste');
+
+    if (affectsAmount) {
       if (amend.amountDelta === undefined || amend.amountDelta === null || isNaN(amend.amountDelta)) {
         entryUnresolved = true;
         hasUnresolved = true;
+        hasUnresolvedAmount = true;
       } else {
         deltaAmt = Number(amend.amountDelta);
+        totalAmountDelta += deltaAmt;
       }
     } else if (amend.amountDelta != null && !isNaN(amend.amountDelta) && amend.amountDelta !== 0) {
       deltaAmt = Number(amend.amountDelta);
+      totalAmountDelta += deltaAmt;
     }
 
     // Verificar si la adenda implica impacto en plazo
-    if (inferredType === 'TERM_EXTENSION' || inferredType === 'TERM_REDUCTION' || rawDesc.toLowerCase().includes('plazo')) {
+    const affectsDuration =
+      inferredType === 'TERM_EXTENSION' ||
+      inferredType === 'TERM_REDUCTION' ||
+      rawDesc.toLowerCase().includes('plazo') ||
+      rawDesc.toLowerCase().includes('prorroga') ||
+      rawDesc.toLowerCase().includes('prórroga') ||
+      rawType.toLowerCase().includes('plazo') ||
+      rawType.toLowerCase().includes('prorroga') ||
+      rawType.toLowerCase().includes('prórroga');
+
+    if (affectsDuration) {
       if (amend.durationDeltaDays === undefined || amend.durationDeltaDays === null || isNaN(amend.durationDeltaDays)) {
         entryUnresolved = true;
         hasUnresolved = true;
+        hasUnresolvedDuration = true;
       } else {
         deltaDays = Number(amend.durationDeltaDays);
+        totalDurationDeltaDays += deltaDays;
       }
     } else if (amend.durationDeltaDays != null && !isNaN(amend.durationDeltaDays) && amend.durationDeltaDays !== 0) {
       deltaDays = Number(amend.durationDeltaDays);
+      totalDurationDeltaDays += deltaDays;
     }
-
-    totalAmountDelta += deltaAmt;
-    totalDurationDeltaDays += deltaDays;
 
     timeline.push({
       amendmentDncpId: amend.amendmentDncpId,
       tipo: inferredType,
+      dncpAmendmentTypeRaw: amend.dncpAmendmentTypeRaw || null,
+      extendsContractId: amend.extendsContractId || null,
+      dncpContractCode: amend.dncpContractCode || null,
+      sourceType: amend.sourceType || 'EMBEDDED_AMENDMENT',
       date: amend.date || null,
       description: rawDesc,
       financialCode: amend.financialCode || null,
       amountDelta: deltaAmt,
-      cumulativeAmountDelta: totalAmountDelta,
+      cumulativeAmountDelta: hasUnresolvedAmount ? null : totalAmountDelta,
       durationDeltaDays: deltaDays,
-      cumulativeDurationDeltaDays: totalDurationDeltaDays,
+      cumulativeDurationDeltaDays: hasUnresolvedDuration ? null : totalDurationDeltaDays,
       isUnresolved: entryUnresolved
     });
   }
 
   const originalAmt = Number(contract.originalAmount) || 0;
-  const finalAmt = hasUnresolved ? null : originalAmt + totalAmountDelta;
+  const finalAmt = hasUnresolvedAmount ? null : originalAmt + totalAmountDelta;
   const growthPct = (finalAmt !== null && originalAmt > 0)
     ? ((finalAmt - originalAmt) / originalAmt) * 100
     : null;
 
   const originalDays = contract.originalDurationDays != null ? Number(contract.originalDurationDays) : null;
-  const finalDays = (originalDays !== null && !hasUnresolved)
+  const finalDays = (originalDays !== null && !hasUnresolvedDuration)
     ? originalDays + totalDurationDeltaDays
     : null;
   const durationGrowthPct = (finalDays !== null && originalDays !== null && originalDays > 0)
@@ -226,8 +373,8 @@ export function computeContractEconomicHistory(
     currency: contract.currency || 'PYG',
     originalAmount: originalAmt,
     originalDurationDays: originalDays,
-    totalAmountDelta,
-    totalDurationDeltaDays,
+    totalAmountDelta: hasUnresolvedAmount ? null : totalAmountDelta,
+    totalDurationDeltaDays: hasUnresolvedDuration ? null : totalDurationDeltaDays,
     finalContractAmount: finalAmt,
     finalDurationDays: finalDays,
     amendmentCount: sortedAmendments.length,
@@ -302,7 +449,7 @@ export function calculateCompetitorBehaviorMetrics(
       growthPcts.push(item.history.growthPercentage);
     }
 
-    if (item.history.totalDurationDeltaDays > 0) {
+    if (item.history.totalDurationDeltaDays !== null && item.history.totalDurationDeltaDays > 0) {
       termExtensions.push(item.history.totalDurationDeltaDays);
     }
   }

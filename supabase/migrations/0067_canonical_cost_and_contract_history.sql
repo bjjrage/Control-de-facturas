@@ -3,7 +3,7 @@
 -- ==============================================================================
 
 -- ------------------------------------------------------------------------------
--- 1. CANONICAL COST_OBSERVATIONS CONTRACT
+-- 1. CANONICAL COST_OBSERVATIONS CONTRACT & LEGACY DATA RECONCILIATION
 -- ------------------------------------------------------------------------------
 
 -- 1.1 Eliminar defaults peligrosos que inventan unidades, fechas o tasas
@@ -17,7 +17,28 @@ ALTER TABLE public.cost_observations
   ADD COLUMN IF NOT EXISTS estado_evidencia TEXT NOT NULL DEFAULT 'VALIDA'
   CHECK (estado_evidencia IN ('VALIDA', 'REVISION_REQUERIDA', 'OBSOLETA', 'DESCARTADA'));
 
--- 1.3 Invariante de moneda canónica: siempre normalizada a PYG
+-- 1.3 Clasificación segura de filas preexistentes ANTES de aplicar restricciones
+-- A. Filas en USD con tipo de cambio verificado: convertir a PYG canónico
+UPDATE public.cost_observations
+SET 
+  precio_unitario = ROUND(precio_unitario * tipo_cambio),
+  moneda = 'PYG',
+  estado_evidencia = 'VALIDA'
+WHERE moneda = 'USD' AND tipo_cambio IS NOT NULL AND tipo_cambio > 0;
+
+-- B. Filas ambiguas (USD sin tipo de cambio verificado, o especificaciones corruptas)
+UPDATE public.cost_observations
+SET 
+  moneda = 'PYG',
+  estado_evidencia = 'REVISION_REQUERIDA'
+WHERE (moneda <> 'PYG' AND (tipo_cambio IS NULL OR tipo_cambio <= 0))
+   OR unidad IS NULL 
+   OR trim(unidad) = ''
+   OR cantidad IS NULL 
+   OR cantidad <= 0
+   OR precio_unitario < 0;
+
+-- 1.4 Invariante de moneda canónica: siempre normalizada a PYG
 ALTER TABLE public.cost_observations 
   DROP CONSTRAINT IF EXISTS cost_observations_moneda_check;
 
@@ -30,12 +51,20 @@ ALTER TABLE public.cost_observations
 ALTER TABLE public.cost_observations 
   ADD CONSTRAINT cost_observations_tipo_cambio_check CHECK (tipo_cambio IS NULL OR tipo_cambio > 0);
 
--- 1.4 Corregir claves foráneas obsoletas de 0063 (materiales / proyectos -> projects)
+-- 1.5 Corrección y Preservación de Claves Foráneas Canónicas (productos, projects, providers)
 DO $$ 
 BEGIN
+  -- Re-enlazar producto_id a public.productos(id)
   IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'cost_observations_producto_id_fkey') THEN
     ALTER TABLE public.cost_observations DROP CONSTRAINT cost_observations_producto_id_fkey;
   END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'productos') THEN
+    ALTER TABLE public.cost_observations 
+      ADD CONSTRAINT cost_observations_producto_id_fkey 
+      FOREIGN KEY (producto_id) REFERENCES public.productos(id) ON DELETE SET NULL;
+  END IF;
+
+  -- Re-enlazar project_id a public.projects(id)
   IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'cost_observations_project_id_fkey') THEN
     ALTER TABLE public.cost_observations DROP CONSTRAINT cost_observations_project_id_fkey;
   END IF;
@@ -44,26 +73,43 @@ BEGIN
       ADD CONSTRAINT cost_observations_project_id_fkey 
       FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE SET NULL;
   END IF;
+
+  -- Re-enlazar proveedor_id a public.providers(id)
+  IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'cost_observations_proveedor_id_fkey') THEN
+    ALTER TABLE public.cost_observations DROP CONSTRAINT cost_observations_proveedor_id_fkey;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'providers') THEN
+    ALTER TABLE public.cost_observations 
+      ADD CONSTRAINT cost_observations_proveedor_id_fkey 
+      FOREIGN KEY (proveedor_id) REFERENCES public.providers(id) ON DELETE SET NULL;
+  END IF;
 END $$;
 
--- 1.5 Marcar observaciones históricas ambiguas para revisión
-UPDATE public.cost_observations
-SET estado_evidencia = 'REVISION_REQUERIDA'
-WHERE unidad = 'UN' OR tipo_cambio IS NULL OR tipo_cambio = 1.0;
-
 -- ------------------------------------------------------------------------------
--- 2. TRAZABILIDAD ECONÓMICA DE CONTRATOS PÚBLICOS
+-- 2. RECONCILIACIÓN DEL ESQUEMA CANÓNICO DE PROCUREMENT_ITEMS
 -- ------------------------------------------------------------------------------
 
--- 2.1 Ampliar procurement_contracts para preservar el valor original vs vigente
+-- Añadir únicamente la columna de identidad de origen mínima requerida para idempotencia
+ALTER TABLE public.procurement_items
+  ADD COLUMN IF NOT EXISTS item_dncp_id TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_proc_items_process_dncp_id 
+  ON public.procurement_items(process_id, item_dncp_id)
+  WHERE item_dncp_id IS NOT NULL;
+
+-- ------------------------------------------------------------------------------
+-- 3. TRAZABILIDAD ECONÓMICA DE CONTRATOS PÚBLICOS Y ADENDAS REALES DNCP
+-- ------------------------------------------------------------------------------
+
+-- 3.1 Ampliar procurement_contracts
 ALTER TABLE public.procurement_contracts
   ADD COLUMN IF NOT EXISTS monto_contrato_original NUMERIC(18,2),
   ADD COLUMN IF NOT EXISTS monto_contrato_vigente NUMERIC(18,2),
   ADD COLUMN IF NOT EXISTS duracion_dias_original INTEGER,
   ADD COLUMN IF NOT EXISTS duracion_dias_vigente INTEGER,
   ADD COLUMN IF NOT EXISTS amendment_count INTEGER NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS total_amendment_amount_delta NUMERIC(18,2) NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS total_amendment_duration_delta_days INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS total_amendment_amount_delta NUMERIC(18,2),
+  ADD COLUMN IF NOT EXISTS total_amendment_duration_delta_days INTEGER,
   ADD COLUMN IF NOT EXISTS has_unresolved_amendments BOOLEAN NOT NULL DEFAULT false;
 
 -- Inicializar montos originales y vigentes existentes
@@ -73,23 +119,32 @@ SET
   monto_contrato_vigente = COALESCE(monto_contrato_vigente, monto_contrato)
 WHERE monto_contrato_original IS NULL OR monto_contrato_vigente IS NULL;
 
--- 2.2 Tabla canónica de Adendas y Modificaciones Contractuales
+-- 3.2 Tabla canónica de Adendas y Modificaciones Contractuales (DNCP Real Model)
 CREATE TABLE IF NOT EXISTS public.procurement_contract_amendments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   contract_id UUID NOT NULL REFERENCES public.procurement_contracts(id) ON DELETE CASCADE,
   process_id UUID NOT NULL REFERENCES public.procurement_processes(id) ON DELETE CASCADE,
   amendment_dncp_id TEXT NOT NULL,
-  tipo TEXT NOT NULL CHECK (tipo IN ('AMOUNT_INCREASE', 'AMOUNT_DECREASE', 'TERM_EXTENSION', 'TERM_REDUCTION', 'SCOPE_MODIFICATION', 'ADMINISTRATIVE', 'OTHER')),
+  tipo TEXT NOT NULL CHECK (tipo IN (
+    'AMOUNT_INCREASE', 'AMOUNT_DECREASE', 'PRICE_ADJUSTMENT',
+    'SCOPE_MODIFICATION', 'TERM_EXTENSION', 'TERM_REDUCTION',
+    'OTHER', 'UNKNOWN'
+  )),
+  dncp_amendment_type_raw TEXT, -- Evidencia primaria oficial de la DNCP
+  extends_contract_id TEXT,     -- Referencia a contrato original en releases de adenda
+  dncp_contract_code TEXT,
+  source_type TEXT NOT NULL DEFAULT 'EMBEDDED_AMENDMENT', -- 'EMBEDDED_AMENDMENT' | 'EXTENDS_CONTRACT'
   numero TEXT,
   fecha TIMESTAMPTZ,
   descripcion TEXT,
   monto_previo NUMERIC(18,2),
-  monto_delta NUMERIC(18,2) NOT NULL DEFAULT 0,
+  monto_delta NUMERIC(18,2), -- NULL si es desconocido / incalculable (UNKNOWN != DEFAULT 0)
   monto_posterior NUMERIC(18,2),
   duracion_prevista_dias_previo INTEGER,
-  duracion_dias_delta INTEGER NOT NULL DEFAULT 0,
+  duracion_dias_delta INTEGER, -- NULL si es desconocido / incalculable (UNKNOWN != DEFAULT 0)
   duracion_prevista_dias_posterior INTEGER,
   financial_code TEXT,
+  source_release_info JSONB,
   raw_payload JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (contract_id, amendment_dncp_id)
@@ -97,6 +152,7 @@ CREATE TABLE IF NOT EXISTS public.procurement_contract_amendments (
 
 CREATE INDEX IF NOT EXISTS idx_proc_amendments_contract ON public.procurement_contract_amendments(contract_id);
 CREATE INDEX IF NOT EXISTS idx_proc_amendments_process ON public.procurement_contract_amendments(process_id);
+CREATE INDEX IF NOT EXISTS idx_proc_amendments_extends ON public.procurement_contract_amendments(extends_contract_id) WHERE extends_contract_id IS NOT NULL;
 
 ALTER TABLE public.procurement_contract_amendments ENABLE ROW LEVEL SECURITY;
 
@@ -110,7 +166,7 @@ BEGIN
 END $$;
 
 -- ------------------------------------------------------------------------------
--- 3. IDEMPOTENCIA DETERMINÍSTICA DE DOCUMENTOS PÚBLICOS
+-- 4. IDEMPOTENCIA DETERMINÍSTICA CON ESCOPO DE DOCUMENTOS PÚBLICOS
 -- ------------------------------------------------------------------------------
 
 ALTER TABLE public.procurement_documents
@@ -118,7 +174,7 @@ ALTER TABLE public.procurement_documents
   ADD COLUMN IF NOT EXISTS doc_key TEXT;
 
 UPDATE public.procurement_documents
-SET doc_key = COALESCE(document_dncp_id, url_dncp, titulo, id::text)
+SET doc_key = COALESCE(doc_key, 'tender:' || COALESCE(document_dncp_id, url_dncp, id::TEXT))
 WHERE doc_key IS NULL;
 
 ALTER TABLE public.procurement_documents
@@ -128,7 +184,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_proc_documents_doc_key
   ON public.procurement_documents(process_id, doc_key);
 
 -- ------------------------------------------------------------------------------
--- 4. ENLACES RELACIONALES CANÓNICOS LICITACIÓN -> OBRA
+-- 5. ENLACES RELACIONALES CANÓNICOS LICITACIÓN -> OBRA
 -- ------------------------------------------------------------------------------
 
 ALTER TABLE public.licitaciones
@@ -137,7 +193,7 @@ ALTER TABLE public.licitaciones
 CREATE INDEX IF NOT EXISTS idx_licitaciones_project_id ON public.licitaciones(project_id);
 
 -- ------------------------------------------------------------------------------
--- 5. RPC GLOBAL OCDS: INGESTIÓN IDEMPOTENTE CON CONTRATOS, ADENDAS Y DOCUMENTOS
+-- 6. RPC GLOBAL OCDS: INGESTIÓN IDEMPOTENTE CON MODELO DNCP REAL
 -- ------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public.ingestar_proceso_ocds_global(
@@ -166,7 +222,6 @@ DECLARE
   v_monto_disp NUMERIC(18,2);
   v_moneda TEXT;
   v_item JSONB;
-  v_subitem JSONB;
   v_lot JSONB;
   v_lot_id UUID;
   v_party JSONB;
@@ -179,7 +234,9 @@ DECLARE
   v_supplier_name TEXT;
   v_supplier_scale TEXT;
   v_contract_db_id UUID;
+  v_orig_contract_id UUID;
   v_contract_dncp_id TEXT;
+  v_extends_contract_id TEXT;
   v_monto_contrato_orig NUMERIC(18,2);
   v_fecha_inicio TIMESTAMPTZ;
   v_fecha_fin TIMESTAMPTZ;
@@ -187,11 +244,21 @@ DECLARE
   v_amendment_dncp_id TEXT;
   v_amendment_desc TEXT;
   v_amendment_delta NUMERIC(18,2);
+  v_duracion_delta INTEGER;
   v_amendment_tipo TEXT;
+  v_dncp_raw_type TEXT;
+  v_item_sort_order INTEGER := 1;
+  v_doc_key TEXT;
+  v_award_dncp_id TEXT;
+  
+  -- Variables de reconciliación de adendas
   v_amend_count INTEGER;
   v_amend_total_delta NUMERIC(18,2);
   v_amend_dur_delta INTEGER;
-  v_doc_key TEXT;
+  v_has_unresolved BOOLEAN;
+  v_any_amount_amend BOOLEAN;
+  v_any_dur_amend BOOLEAN;
+  r_amend RECORD;
 BEGIN
   v_ocid := p_cr->>'ocid';
   IF v_ocid IS NULL OR trim(v_ocid) = '' THEN
@@ -309,8 +376,9 @@ BEGIN
     END LOOP;
   END IF;
 
-  -- 5. Ingestar Ítems Globales
+  -- 5. Ingestar Ítems Globales (Usa el esquema canónico de 0060 + item_dncp_id)
   IF jsonb_typeof(v_tender->'items') = 'array' THEN
+    v_item_sort_order := 1;
     FOR v_item IN SELECT * FROM jsonb_array_elements(v_tender->'items') LOOP
       v_lot_id := NULL;
       IF v_item->>'relatedLot' IS NOT NULL THEN
@@ -319,8 +387,8 @@ BEGIN
       END IF;
 
       INSERT INTO public.procurement_items (
-        process_id, lot_id, item_dncp_id, codigo_catalogo, codigo_catalogo_padre,
-        descripcion, cantidad, unidad, precio_unitario_estimado
+        process_id, lot_id, item_dncp_id, codigo_catalogo, codigo_unspsc,
+        descripcion, cantidad, unidad, precio_unitario_referencial, sort_order
       ) VALUES (
         v_process_id,
         v_lot_id,
@@ -330,13 +398,20 @@ BEGIN
         COALESCE(v_item->>'description', v_item->'classification'->>'description', '(sin descripción)'),
         (v_item->>'quantity')::NUMERIC,
         v_item->'unit'->>'name',
-        (v_item->'unit'->'value'->>'amount')::NUMERIC
+        (v_item->'unit'->'value'->>'amount')::NUMERIC,
+        COALESCE((v_item->>'id')::INTEGER, v_item_sort_order)
       )
       ON CONFLICT (process_id, item_dncp_id) DO UPDATE SET
+        lot_id = EXCLUDED.lot_id,
+        codigo_catalogo = EXCLUDED.codigo_catalogo,
+        codigo_unspsc = EXCLUDED.codigo_unspsc,
         descripcion = EXCLUDED.descripcion,
         cantidad = EXCLUDED.cantidad,
         unidad = EXCLUDED.unidad,
-        precio_unitario_estimado = EXCLUDED.precio_unitario_estimado;
+        precio_unitario_referencial = EXCLUDED.precio_unitario_referencial,
+        sort_order = EXCLUDED.sort_order;
+
+      v_item_sort_order := v_item_sort_order + 1;
     END LOOP;
   END IF;
 
@@ -422,116 +497,259 @@ BEGIN
     END LOOP;
   END IF;
 
-  -- 8. Ingestar Contratos y Adendas
+  -- 8. Ingestar Contratos y Adendas (Manejo de Contratos Originales vs Adendas extendsContractID)
   IF jsonb_typeof(p_cr->'contracts') = 'array' THEN
+    -- 8.1 PRIMER PASO: Ingestar Contratos Originales (aquellos que NO extienden otro contrato)
     FOR v_contract IN SELECT * FROM jsonb_array_elements(p_cr->'contracts') LOOP
-      v_contract_dncp_id := COALESCE(v_contract->>'id', '1');
-      v_monto_contrato_orig := (v_contract->'value'->>'amount')::NUMERIC;
-      v_fecha_inicio := (v_contract->'period'->>'startDate')::TIMESTAMPTZ;
-      v_fecha_fin := (v_contract->'period'->>'endDate')::TIMESTAMPTZ;
-      v_duracion_dias_orig := NULL;
+      v_extends_contract_id := trim(COALESCE(v_contract->>'extendsContractID', ''));
 
-      IF v_fecha_inicio IS NOT NULL AND v_fecha_fin IS NOT NULL THEN
-        v_duracion_dias_orig := extract(day from (v_fecha_fin - v_fecha_inicio))::INTEGER;
+      -- Si extendsContractID está presente, NO es un contrato original; se procesará como adenda en el paso 8.2
+      IF v_extends_contract_id = '' THEN
+        v_contract_dncp_id := COALESCE(v_contract->>'id', '1');
+        v_monto_contrato_orig := (v_contract->'value'->>'amount')::NUMERIC;
+        v_fecha_inicio := (v_contract->'period'->>'startDate')::TIMESTAMPTZ;
+        v_fecha_fin := (v_contract->'period'->>'endDate')::TIMESTAMPTZ;
+        v_duracion_dias_orig := NULL;
+
+        IF v_fecha_inicio IS NOT NULL AND v_fecha_fin IS NOT NULL THEN
+          v_duracion_dias_orig := extract(day from (v_fecha_fin - v_fecha_inicio))::INTEGER;
+        END IF;
+
+        INSERT INTO public.procurement_contracts (
+          process_id, contract_dncp_id, numero_contrato, monto_contrato,
+          monto_contrato_original, monto_contrato_vigente,
+          fecha_firma, fecha_inicio, fecha_fin, 
+          duracion_dias_original, duracion_dias_vigente,
+          status
+        ) VALUES (
+          v_process_id,
+          v_contract_dncp_id,
+          v_contract->>'title',
+          v_monto_contrato_orig,
+          v_monto_contrato_orig,
+          v_monto_contrato_orig,
+          (v_contract->>'dateSigned')::TIMESTAMPTZ,
+          v_fecha_inicio,
+          v_fecha_fin,
+          v_duracion_dias_orig,
+          v_duracion_dias_orig,
+          v_contract->>'status'
+        )
+        ON CONFLICT (process_id, contract_dncp_id) DO UPDATE SET
+          numero_contrato = COALESCE(EXCLUDED.numero_contrato, procurement_contracts.numero_contrato),
+          monto_contrato_original = COALESCE(procurement_contracts.monto_contrato_original, EXCLUDED.monto_contrato_original),
+          fecha_firma = COALESCE(EXCLUDED.fecha_firma, procurement_contracts.fecha_firma),
+          fecha_inicio = COALESCE(EXCLUDED.fecha_inicio, procurement_contracts.fecha_inicio),
+          fecha_fin = COALESCE(EXCLUDED.fecha_fin, procurement_contracts.fecha_fin),
+          duracion_dias_original = COALESCE(procurement_contracts.duracion_dias_original, EXCLUDED.duracion_dias_original),
+          status = EXCLUDED.status
+        RETURNING id INTO v_contract_db_id;
+
+        -- Ingestar adendas embebidas en contracts[].amendments
+        IF jsonb_typeof(v_contract->'amendments') = 'array' THEN
+          FOR v_amendment IN SELECT * FROM jsonb_array_elements(v_contract->'amendments') LOOP
+            v_amendment_dncp_id := COALESCE(v_amendment->>'id', v_amendment->>'financialCode', gen_random_uuid()::TEXT);
+            v_amendment_desc := v_amendment->>'description';
+            v_dncp_raw_type := COALESCE(v_amendment->>'dncpAmendmentType', v_amendment->>'amendmentType', v_amendment_desc);
+            
+            -- Delta numérico estricto: NULL si no está presente (NO COALESCE a 0)
+            v_amendment_delta := (v_amendment->'amendsAmount'->>'amount')::NUMERIC;
+            v_duracion_delta := NULL;
+
+            -- Clasificación con prioridad a evidencia cruda DNCP
+            v_amendment_tipo := 'OTHER';
+            IF lower(COALESCE(v_dncp_raw_type, '')) LIKE '%reajuste%' THEN
+              v_amendment_tipo := 'PRICE_ADJUSTMENT';
+            ELSIF lower(COALESCE(v_dncp_raw_type, '')) LIKE '%ampliaci%monto%' OR lower(COALESCE(v_dncp_raw_type, '')) LIKE '%aumento%' OR (v_amendment_delta IS NOT NULL AND v_amendment_delta > 0) THEN
+              v_amendment_tipo := 'AMOUNT_INCREASE';
+            ELSIF lower(COALESCE(v_dncp_raw_type, '')) LIKE '%disminuci%monto%' OR lower(COALESCE(v_dncp_raw_type, '')) LIKE '%reducci%monto%' OR (v_amendment_delta IS NOT NULL AND v_amendment_delta < 0) THEN
+              v_amendment_tipo := 'AMOUNT_DECREASE';
+            ELSIF lower(COALESCE(v_dncp_raw_type, '')) LIKE '%pr%rroga%' OR lower(COALESCE(v_dncp_raw_type, '')) LIKE '%ampliaci%plazo%' THEN
+              v_amendment_tipo := 'TERM_EXTENSION';
+            ELSIF lower(COALESCE(v_dncp_raw_type, '')) LIKE '%reducci%plazo%' THEN
+              v_amendment_tipo := 'TERM_REDUCTION';
+            ELSIF lower(COALESCE(v_dncp_raw_type, '')) LIKE '%modificaci%' OR lower(COALESCE(v_dncp_raw_type, '')) LIKE '%alcance%' OR lower(COALESCE(v_dncp_raw_type, '')) LIKE '%item%' THEN
+              v_amendment_tipo := 'SCOPE_MODIFICATION';
+            END IF;
+
+            INSERT INTO public.procurement_contract_amendments (
+              contract_id, process_id, amendment_dncp_id, tipo,
+              dncp_amendment_type_raw, source_type,
+              fecha, descripcion, monto_delta, duracion_dias_delta,
+              financial_code, raw_payload
+            ) VALUES (
+              v_contract_db_id,
+              v_process_id,
+              v_amendment_dncp_id,
+              v_amendment_tipo,
+              v_dncp_raw_type,
+              'EMBEDDED_AMENDMENT',
+              (v_amendment->>'date')::TIMESTAMPTZ,
+              v_amendment_desc,
+              v_amendment_delta,
+              v_duracion_delta,
+              v_amendment->>'financialCode',
+              v_amendment
+            )
+            ON CONFLICT (contract_id, amendment_dncp_id) DO UPDATE SET
+              tipo = EXCLUDED.tipo,
+              dncp_amendment_type_raw = EXCLUDED.dncp_amendment_type_raw,
+              fecha = EXCLUDED.fecha,
+              descripcion = EXCLUDED.descripcion,
+              monto_delta = EXCLUDED.monto_delta,
+              duracion_dias_delta = EXCLUDED.duracion_dias_delta,
+              financial_code = EXCLUDED.financial_code,
+              raw_payload = EXCLUDED.raw_payload;
+          END LOOP;
+        END IF;
       END IF;
+    END LOOP;
 
-      INSERT INTO public.procurement_contracts (
-        process_id, contract_dncp_id, numero_contrato, monto_contrato,
-        monto_contrato_original, monto_contrato_vigente,
-        fecha_firma, fecha_inicio, fecha_fin, 
-        duracion_dias_original, duracion_dias_vigente,
-        status
-      ) VALUES (
-        v_process_id,
-        v_contract_dncp_id,
-        v_contract->>'title',
-        v_monto_contrato_orig,
-        v_monto_contrato_orig,
-        v_monto_contrato_orig,
-        (v_contract->>'dateSigned')::TIMESTAMPTZ,
-        v_fecha_inicio,
-        v_fecha_fin,
-        v_duracion_dias_orig,
-        v_duracion_dias_orig,
-        v_contract->>'status'
-      )
-      ON CONFLICT (process_id, contract_dncp_id) DO UPDATE SET
-        numero_contrato = COALESCE(EXCLUDED.numero_contrato, procurement_contracts.numero_contrato),
-        monto_contrato_original = COALESCE(procurement_contracts.monto_contrato_original, EXCLUDED.monto_contrato_original),
-        fecha_firma = COALESCE(EXCLUDED.fecha_firma, procurement_contracts.fecha_firma),
-        fecha_inicio = COALESCE(EXCLUDED.fecha_inicio, procurement_contracts.fecha_inicio),
-        fecha_fin = COALESCE(EXCLUDED.fecha_fin, procurement_contracts.fecha_fin),
-        duracion_dias_original = COALESCE(procurement_contracts.duracion_dias_original, EXCLUDED.duracion_dias_original),
-        status = EXCLUDED.status
-      RETURNING id INTO v_contract_db_id;
+    -- 8.2 SEGUNDO PASO: Ingestar Registros de Adenda vinculados por extendsContractID
+    FOR v_contract IN SELECT * FROM jsonb_array_elements(p_cr->'contracts') LOOP
+      v_extends_contract_id := trim(COALESCE(v_contract->>'extendsContractID', ''));
 
-      -- 8.1 Ingestar Adendas del Contrato
-      IF jsonb_typeof(v_contract->'amendments') = 'array' THEN
-        FOR v_amendment IN SELECT * FROM jsonb_array_elements(v_contract->'amendments') LOOP
-          v_amendment_dncp_id := COALESCE(v_amendment->>'id', v_amendment->>'financialCode', gen_random_uuid()::TEXT);
-          v_amendment_desc := v_amendment->>'description';
-          v_amendment_delta := COALESCE((v_amendment->'amendsAmount'->>'amount')::NUMERIC, 0);
+      IF v_extends_contract_id <> '' THEN
+        -- Encontrar el contrato original vinculado
+        SELECT id INTO v_orig_contract_id
+        FROM public.procurement_contracts
+        WHERE process_id = v_process_id AND contract_dncp_id = v_extends_contract_id;
+
+        -- Si no lo encuentra por contract_dncp_id exacto, buscar el único contrato del proceso si solo hay uno
+        IF v_orig_contract_id IS NULL THEN
+          SELECT id INTO v_orig_contract_id
+          FROM public.procurement_contracts
+          WHERE process_id = v_process_id
+          LIMIT 1;
+        END IF;
+
+        IF v_orig_contract_id IS NOT NULL THEN
+          v_amendment_dncp_id := COALESCE(v_contract->>'id', v_contract->>'dncpContractCode', gen_random_uuid()::TEXT);
+          v_dncp_raw_type := COALESCE(v_contract->>'dncpAmendmentType', v_contract->>'amendmentType', v_contract->>'title', 'Adenda Contractual');
+          v_amendment_delta := (v_contract->'value'->>'amount')::NUMERIC;
+          
+          -- Calcular delta de plazo si se reportan fechas modificadas
+          v_duracion_delta := NULL;
+          IF v_contract->'period'->>'startDate' IS NOT NULL AND v_contract->'period'->>'endDate' IS NOT NULL THEN
+            v_duracion_delta := extract(day from ((v_contract->'period'->>'endDate')::TIMESTAMPTZ - (v_contract->'period'->>'startDate')::TIMESTAMPTZ))::INTEGER;
+          END IF;
 
           v_amendment_tipo := 'OTHER';
-          IF lower(v_amendment_desc) LIKE '%ampliaci%monto%' OR lower(v_amendment_desc) LIKE '%aumento%' OR v_amendment_delta > 0 THEN
+          IF lower(COALESCE(v_dncp_raw_type, '')) LIKE '%reajuste%' THEN
+            v_amendment_tipo := 'PRICE_ADJUSTMENT';
+          ELSIF lower(COALESCE(v_dncp_raw_type, '')) LIKE '%ampliaci%monto%' OR lower(COALESCE(v_dncp_raw_type, '')) LIKE '%aumento%' OR (v_amendment_delta IS NOT NULL AND v_amendment_delta > 0) THEN
             v_amendment_tipo := 'AMOUNT_INCREASE';
-          ELSIF lower(v_amendment_desc) LIKE '%disminuci%monto%' OR lower(v_amendment_desc) LIKE '%reducci%' OR v_amendment_delta < 0 THEN
+          ELSIF lower(COALESCE(v_dncp_raw_type, '')) LIKE '%disminuci%monto%' OR lower(COALESCE(v_dncp_raw_type, '')) LIKE '%reducci%monto%' OR (v_amendment_delta IS NOT NULL AND v_amendment_delta < 0) THEN
             v_amendment_tipo := 'AMOUNT_DECREASE';
-          ELSIF lower(v_amendment_desc) LIKE '%pr%rroga%' OR lower(v_amendment_desc) LIKE '%plazo%' OR lower(v_amendment_desc) LIKE '%ampliaci%plazo%' THEN
+          ELSIF lower(COALESCE(v_dncp_raw_type, '')) LIKE '%pr%rroga%' OR lower(COALESCE(v_dncp_raw_type, '')) LIKE '%ampliaci%plazo%' THEN
             v_amendment_tipo := 'TERM_EXTENSION';
-          ELSIF lower(v_amendment_desc) LIKE '%modificaci%' THEN
+          ELSIF lower(COALESCE(v_dncp_raw_type, '')) LIKE '%reducci%plazo%' THEN
+            v_amendment_tipo := 'TERM_REDUCTION';
+          ELSIF lower(COALESCE(v_dncp_raw_type, '')) LIKE '%modificaci%' OR lower(COALESCE(v_dncp_raw_type, '')) LIKE '%alcance%' OR lower(COALESCE(v_dncp_raw_type, '')) LIKE '%item%' THEN
             v_amendment_tipo := 'SCOPE_MODIFICATION';
           END IF;
 
           INSERT INTO public.procurement_contract_amendments (
             contract_id, process_id, amendment_dncp_id, tipo,
-            fecha, descripcion, monto_delta, financial_code, raw_payload
+            dncp_amendment_type_raw, extends_contract_id, dncp_contract_code,
+            source_type, fecha, descripcion, monto_delta, duracion_dias_delta,
+            financial_code, raw_payload
           ) VALUES (
-            v_contract_db_id,
+            v_orig_contract_id,
             v_process_id,
             v_amendment_dncp_id,
             v_amendment_tipo,
-            (v_amendment->>'date')::TIMESTAMPTZ,
-            v_amendment_desc,
+            v_dncp_raw_type,
+            v_extends_contract_id,
+            v_contract->>'dncpContractCode',
+            'EXTENDS_CONTRACT',
+            COALESCE((v_contract->>'dateSigned')::TIMESTAMPTZ, (v_contract->'period'->>'startDate')::TIMESTAMPTZ),
+            v_contract->>'description',
             v_amendment_delta,
-            v_amendment->>'financialCode',
-            v_amendment
+            v_duracion_delta,
+            v_contract->>'financialCode',
+            v_contract
           )
           ON CONFLICT (contract_id, amendment_dncp_id) DO UPDATE SET
             tipo = EXCLUDED.tipo,
+            dncp_amendment_type_raw = EXCLUDED.dncp_amendment_type_raw,
+            extends_contract_id = EXCLUDED.extends_contract_id,
+            dncp_contract_code = EXCLUDED.dncp_contract_code,
             fecha = EXCLUDED.fecha,
             descripcion = EXCLUDED.descripcion,
             monto_delta = EXCLUDED.monto_delta,
+            duracion_dias_delta = EXCLUDED.duracion_dias_delta,
             financial_code = EXCLUDED.financial_code,
             raw_payload = EXCLUDED.raw_payload;
-        END LOOP;
-
-        -- Reconciliar y actualizar estadísticas del contrato
-        SELECT 
-          count(*),
-          COALESCE(sum(monto_delta), 0),
-          COALESCE(sum(duracion_dias_delta), 0)
-        INTO v_amend_count, v_amend_total_delta, v_amend_dur_delta
-        FROM public.procurement_contract_amendments
-        WHERE contract_id = v_contract_db_id;
-
-        UPDATE public.procurement_contracts SET
-          amendment_count = v_amend_count,
-          total_amendment_amount_delta = v_amend_total_delta,
-          total_amendment_duration_delta_days = v_amend_dur_delta,
-          monto_contrato_vigente = COALESCE(monto_contrato_original, monto_contrato) + v_amend_total_delta,
-          monto_contrato = COALESCE(monto_contrato_original, monto_contrato) + v_amend_total_delta,
-          duracion_dias_vigente = CASE WHEN duracion_dias_original IS NOT NULL THEN duracion_dias_original + v_amend_dur_delta ELSE NULL END
-        WHERE id = v_contract_db_id;
+        END IF;
       END IF;
+    END LOOP;
+
+    -- 8.3 TERCER PASO: Reconciliar y computar estadísticas para cada contrato del proceso
+    FOR v_contract_db_id IN SELECT id FROM public.procurement_contracts WHERE process_id = v_process_id LOOP
+      v_amend_count := 0;
+      v_amend_total_delta := 0;
+      v_amend_dur_delta := 0;
+      v_has_unresolved := false;
+      v_any_amount_amend := false;
+      v_any_dur_amend := false;
+
+      FOR r_amend IN SELECT tipo, monto_delta, duracion_dias_delta, dncp_amendment_type_raw, descripcion
+                     FROM public.procurement_contract_amendments
+                     WHERE contract_id = v_contract_db_id LOOP
+        v_amend_count := v_amend_count + 1;
+
+        -- Reconciliación de impacto en Monto
+        IF r_amend.tipo IN ('AMOUNT_INCREASE', 'AMOUNT_DECREASE', 'PRICE_ADJUSTMENT')
+           OR lower(COALESCE(r_amend.dncp_amendment_type_raw, r_amend.descripcion, '')) LIKE '%monto%'
+           OR lower(COALESCE(r_amend.dncp_amendment_type_raw, r_amend.descripcion, '')) LIKE '%reajuste%' THEN
+          v_any_amount_amend := true;
+          IF r_amend.monto_delta IS NULL THEN
+            v_has_unresolved := true;
+          ELSE
+            v_amend_total_delta := v_amend_total_delta + r_amend.monto_delta;
+          END IF;
+        ELSIF r_amend.monto_delta IS NOT NULL THEN
+          v_amend_total_delta := v_amend_total_delta + r_amend.monto_delta;
+        END IF;
+
+        -- Reconciliación de impacto en Plazo
+        IF r_amend.tipo IN ('TERM_EXTENSION', 'TERM_REDUCTION')
+           OR lower(COALESCE(r_amend.dncp_amendment_type_raw, r_amend.descripcion, '')) LIKE '%plazo%'
+           OR lower(COALESCE(r_amend.dncp_amendment_type_raw, r_amend.descripcion, '')) LIKE '%pr%rroga%' THEN
+          v_any_dur_amend := true;
+          IF r_amend.duracion_dias_delta IS NULL THEN
+            v_has_unresolved := true;
+          ELSE
+            v_amend_dur_delta := v_amend_dur_delta + r_amend.duracion_dias_delta;
+          END IF;
+        ELSIF r_amend.duracion_dias_delta IS NOT NULL THEN
+          v_amend_dur_delta := v_amend_dur_delta + r_amend.duracion_dias_delta;
+        END IF;
+      END LOOP;
+
+      UPDATE public.procurement_contracts SET
+        amendment_count = v_amend_count,
+        has_unresolved_amendments = v_has_unresolved,
+        total_amendment_amount_delta = CASE WHEN v_has_unresolved AND v_any_amount_amend THEN NULL ELSE v_amend_total_delta END,
+        total_amendment_duration_delta_days = CASE WHEN v_has_unresolved AND v_any_dur_amend THEN NULL ELSE v_amend_dur_delta END,
+        monto_contrato_vigente = CASE 
+          WHEN v_has_unresolved AND v_any_amount_amend THEN NULL 
+          ELSE COALESCE(monto_contrato_original, monto_contrato) + v_amend_total_delta 
+        END,
+        duracion_dias_vigente = CASE 
+          WHEN (v_has_unresolved AND v_any_dur_amend) OR duracion_dias_original IS NULL THEN NULL 
+          ELSE duracion_dias_original + v_amend_dur_delta 
+        END
+      WHERE id = v_contract_db_id;
     END LOOP;
   END IF;
 
-  -- 9. Ingestar Documentos Públicos de forma 100% IDEMPOTENTE (Tender + Awards + Contracts)
+  -- 9. Ingestar Documentos Públicos con ESCOPO DETERMINÍSTICO (Tender + Awards + Contracts)
   -- 9.1 Tender Documents
   IF jsonb_typeof(v_tender->'documents') = 'array' THEN
     FOR v_doc IN SELECT * FROM jsonb_array_elements(v_tender->'documents') LOOP
-      v_doc_key := COALESCE(v_doc->>'id', v_doc->>'url', md5(COALESCE(v_doc->>'title', 'tender-doc')));
+      v_doc_key := 'tender:' || COALESCE(v_doc->>'id', v_doc->>'url', md5(COALESCE(v_doc->>'title', 'tender-doc')));
       INSERT INTO public.procurement_documents (
         process_id, document_dncp_id, doc_key, tipo, tipo_detalle, titulo, url_dncp, format
       ) VALUES (
@@ -555,9 +773,10 @@ BEGIN
   -- 9.2 Award Documents
   IF jsonb_typeof(p_cr->'awards') = 'array' THEN
     FOR v_award IN SELECT * FROM jsonb_array_elements(p_cr->'awards') LOOP
+      v_award_dncp_id := COALESCE(v_award->>'id', '1');
       IF jsonb_typeof(v_award->'documents') = 'array' THEN
         FOR v_doc IN SELECT * FROM jsonb_array_elements(v_award->'documents') LOOP
-          v_doc_key := COALESCE(v_doc->>'id', v_doc->>'url', md5(COALESCE(v_doc->>'title', 'award-doc')));
+          v_doc_key := 'award:' || v_award_dncp_id || ':' || COALESCE(v_doc->>'id', v_doc->>'url', md5(COALESCE(v_doc->>'title', 'award-doc')));
           INSERT INTO public.procurement_documents (
             process_id, document_dncp_id, doc_key, tipo, tipo_detalle, titulo, url_dncp, format
           ) VALUES (
@@ -583,9 +802,10 @@ BEGIN
   -- 9.3 Contract Documents
   IF jsonb_typeof(p_cr->'contracts') = 'array' THEN
     FOR v_contract IN SELECT * FROM jsonb_array_elements(p_cr->'contracts') LOOP
+      v_contract_dncp_id := COALESCE(v_contract->>'id', '1');
       IF jsonb_typeof(v_contract->'documents') = 'array' THEN
         FOR v_doc IN SELECT * FROM jsonb_array_elements(v_contract->'documents') LOOP
-          v_doc_key := COALESCE(v_doc->>'id', v_doc->>'url', md5(COALESCE(v_doc->>'title', 'contract-doc')));
+          v_doc_key := 'contract:' || v_contract_dncp_id || ':' || COALESCE(v_doc->>'id', v_doc->>'url', md5(COALESCE(v_doc->>'title', 'contract-doc')));
           INSERT INTO public.procurement_documents (
             process_id, document_dncp_id, doc_key, tipo, tipo_detalle, titulo, url_dncp, format
           ) VALUES (
@@ -613,7 +833,17 @@ END;
 $$;
 
 -- ------------------------------------------------------------------------------
--- 6. ACTUALIZACIÓN ATÓMICA DE CONVERSIÓN LICITACIÓN -> PROYECTO
+-- 7. SEGURIDAD DEL RPC GLOBAL DE INGESTIÓN (FINDING 5)
+-- Revocar ejecución de clientes web/móvil y reservar exclusivamente a service_role
+-- ------------------------------------------------------------------------------
+
+REVOKE EXECUTE ON FUNCTION public.ingestar_proceso_ocds_global(JSONB, TEXT) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.ingestar_proceso_ocds_global(JSONB, TEXT) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.ingestar_proceso_ocds_global(JSONB, TEXT) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.ingestar_proceso_ocds_global(JSONB, TEXT) TO service_role;
+
+-- ------------------------------------------------------------------------------
+-- 8. ACTUALIZACIÓN ATÓMICA DE CONVERSIÓN LICITACIÓN -> PROYECTO
 -- ------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public.convertir_licitacion_a_proyecto_atomico(
@@ -661,7 +891,7 @@ DECLARE
   v_item_unit TEXT;
   v_calculated_budget_total NUMERIC(18,2) := 0;
 BEGIN
-  -- 6.1 Seguridad Multi-Tenant
+  -- 8.1 Seguridad Multi-Tenant
   IF auth.uid() IS NOT NULL THEN
     v_current_empresa := public.current_empresa_id();
     IF v_current_empresa IS NULL OR v_current_empresa <> p_empresa_id THEN
@@ -669,12 +899,12 @@ BEGIN
     END IF;
   END IF;
 
-  -- 6.2 Validación de Items de Presupuesto: estrictamente no vacío
+  -- 8.2 Validación de Items de Presupuesto: estrictamente no vacío
   IF p_budget_items IS NULL OR jsonb_array_length(p_budget_items) = 0 THEN
     RAISE EXCEPTION 'No se puede convertir licitacion a proyecto sin items de presupuesto';
   END IF;
 
-  -- 6.3 Verificación de la Licitación de origen
+  -- 8.3 Verificación de la Licitación de origen
   IF p_tender_id IS NOT NULL AND trim(p_tender_id) <> '' THEN
     SELECT id, empresa_id, decision, project_id, process_id
     INTO v_lic_db_id, v_lic_empresa, v_lic_decision, v_lic_proj, v_lic_proc_id
@@ -707,7 +937,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- 6.4 Verificación de corrida de análisis comercial (si fue provista)
+  -- 8.4 Verificación de corrida de análisis comercial (si fue provista)
   IF p_bid_analysis_run_id IS NOT NULL THEN
     SELECT empresa_id INTO v_run_empresa
     FROM public.bid_analysis_runs
@@ -718,7 +948,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- 6.5 Idempotencia y Prevención de Colisiones por Código de Obra
+  -- 8.5 Idempotencia y Prevención de Colisiones por Código de Obra
   SELECT id, code, tender_id INTO v_project_id, v_existing_code, v_existing_tender_id
   FROM public.projects
   WHERE empresa_id = p_empresa_id AND code = p_code;
@@ -738,7 +968,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- 6.6 Validar y calcular suma reconciliada de items
+  -- 8.6 Validar y calcular suma reconciliada de items
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_budget_items) LOOP
     v_item_desc := trim(COALESCE(v_item->>'description', ''));
     v_item_unit := trim(COALESCE(v_item->>'unit', ''));
@@ -769,7 +999,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- 6.7 Insertar Proyecto
+  -- 8.7 Insertar Proyecto
   INSERT INTO public.projects (
     empresa_id,
     name,
@@ -808,7 +1038,7 @@ BEGIN
     COALESCE(p_created_by, auth.uid())
   ) RETURNING id INTO v_project_id;
 
-  -- 6.8 Insertar Budget Items de forma atómica
+  -- 8.8 Insertar Budget Items de forma atómica
   v_sort_order := 1;
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_budget_items) LOOP
     INSERT INTO public.budget_items (
@@ -831,7 +1061,7 @@ BEGIN
     v_sort_order := v_sort_order + 1;
   END LOOP;
 
-  -- 6.9 Crear Depósito / Pañol de Obra vinculado
+  -- 8.9 Crear Depósito / Pañol de Obra vinculado
   IF p_nombre_deposito IS NOT NULL AND trim(p_nombre_deposito) <> '' THEN
     SELECT project_id INTO v_existing_deposito_proj
     FROM public.depositos
@@ -856,7 +1086,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- 6.10 Actualizar Enlace Relacional Canónico en public.licitaciones
+  -- 8.10 Actualizar Enlace Relacional Canónico en public.licitaciones
   IF p_tender_id IS NOT NULL AND trim(p_tender_id) <> '' THEN
     UPDATE public.licitaciones
     SET 
