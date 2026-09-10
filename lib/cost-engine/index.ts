@@ -13,6 +13,7 @@ import { calculateCostEstimate } from './weighting';
 
 export * from './types';
 export * from './weighting';
+export * from './onboarding';
 
 /**
  * Obtiene la estimación de costo ponderado para un producto o descripción de insumo

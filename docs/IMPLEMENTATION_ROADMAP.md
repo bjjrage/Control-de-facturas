@@ -199,16 +199,25 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ## GATE 6 — Cost Cold Start / Historical Onboarding
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATE 5B
 * **IMPLEMENTATION**:
-  - Onboarding de empresas mediante carga ágil de 3 a 5 obras históricas (presupuestos, facturas, consumos).
+  - Motor de ingestión ágil [`lib/cost-engine/onboarding.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/cost-engine/onboarding.ts):
+    - Detección heurística multiformato de cabeceras de Excel/CSV (Ítem, Cómputo/Cantidad, Unidad, Precio Unitario, Fecha).
+    - Normalización de números con separadores guaraníes (puntos de miles y comas decimales).
+    - Inferencia semántica automática de categorías paraguayas (`COMBUSTIBLE`, `EQUIPO`, `MANO_OBRA`, `MATERIAL`, `SUBCONTRATO`).
+    - Conversión inmediata de planillas de cómputo en observaciones de costo (`CostObservation`).
 * **TESTS**:
-  - Ingestión de planillas Excel de cómputo y calibración del motor de costos.
+  - Suite de onboarding [`scripts/test-historical-onboarding.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-historical-onboarding.ts):
+    - Inferencia de categorías probada al 100%.
+    - Carga simulada de 3 obras históricas con esquemas de columna heterogéneos.
+    - Calibración inmediata del motor de costos: confianza pasa de `INSUFICIENTE` a `MEDIA` en segundos.
 * **RISKS**:
-  - Heterogeneidad de formatos de Excel de clientes.
+  - Planillas sin columna de precio resueltas reportando omisiones sin abortar el resto del lote.
 * **DEFINITION OF DONE**:
-  - Empresa nueva operativa en el motor de costos en menos de 1 hora.
+  - Empresa nueva operativa en el motor de costos en minutos mediante carga de 3 obras históricas.
+  - Test suite ejecutada con 0 fallos.
+  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
 
 ---
 
