@@ -29,7 +29,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
     .maybeSingle<Licitacion>();
   if (!lic) notFound();
 
-  const [{ data: lotes }, { data: items }, { data: oferentes }, { data: docs }, { data: productos }] = await Promise.all([
+  const [{ data: lotes }, { data: items }, { data: oferentes }, { data: docs }, { data: productos }, { data: snapshots }] = await Promise.all([
     supabase.from("licitacion_lotes").select("*").eq("licitacion_id", id).order("numero").returns<LicitacionLote[]>(),
     supabase.from("licitacion_items").select("*").eq("licitacion_id", id).order("sort_order").returns<LicitacionItem[]>(),
     supabase
@@ -45,7 +45,15 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
       .eq("activo", true)
       .gt("costo_promedio", 0)
       .returns<ProductoLite[]>(),
+    supabase
+      .from("bid_analysis_runs")
+      .select("id, decision, overall_score, snapshot_hash, created_at")
+      .eq("tender_id", id)
+      .order("created_at", { ascending: false })
+      .limit(1)
   ]);
+
+  const latestSnapshot = snapshots && snapshots.length > 0 ? snapshots[0] : null;
 
   // Gate 7: Item Matching Engine con lematización, stopwords y calibres paraguayos
   const { matchTenderItem } = await import("@/lib/procurement/item-matching");
@@ -130,12 +138,19 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
           <div className="flex items-center gap-2">
             <h2 className="text-[14px] font-semibold">Evaluación Comercial (Bid Engine)</h2>
             <span className={`text-[11px] font-semibold px-2 py-0.5 rounded ${
-              lic.monto_referencial && lic.monto_referencial > 0
+              latestSnapshot
                 ? "bg-[var(--ok-bg)] text-[var(--ok)]"
+                : lic.monto_referencial && lic.monto_referencial > 0
+                ? "bg-[var(--panel-2)] text-[var(--muted)]"
                 : "bg-[var(--panel-2)] text-[var(--muted)]"
             }`}>
-              {lic.monto_referencial && lic.monto_referencial > 0 ? "EVALUADO" : "PENDIENTE"}
+              {latestSnapshot ? `SNAPSHOT INMUTABLE (${latestSnapshot.decision})` : "SIN SNAPSHOT"}
             </span>
+            {latestSnapshot ? (
+              <span className="text-[10px] mono text-[var(--muted)]" title={`Hash SHA-256 completo: ${latestSnapshot.snapshot_hash}`}>
+                SHA: {latestSnapshot.snapshot_hash.slice(0, 12)}...
+              </span>
+            ) : null}
           </div>
           {lic.decision ? (
             <span className="text-[12px] font-medium text-[var(--primary)]">

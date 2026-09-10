@@ -93,3 +93,49 @@ export function summarizeVaultHealth(items: VaultItem[], asOfDateStr?: string) {
 
   return summary;
 }
+
+/**
+ * Carga los documentos de la bóveda del tenant desde Supabase
+ */
+export async function fetchCompanyVaultItems(
+  supabase: any,
+  empresaId: string
+): Promise<VaultItem[]> {
+  try {
+    const { data, error } = await supabase
+      .from('company_bid_vault_items')
+      .select('*')
+      .eq('empresa_id', empresaId)
+      .order('created_at', { ascending: false });
+
+    if (error || !data) {
+      return [];
+    }
+
+    return data.map((row: any) => ({
+      id: row.id,
+      empresaId: row.empresa_id,
+      categoria: row.categoria,
+      tipoDocumento: row.tipo_documento,
+      titulo: row.titulo,
+      descripcion: row.descripcion ?? undefined,
+      archivoUrl: row.archivo_url ?? undefined,
+      archivoStoragePath: row.archivo_storage_path ?? undefined,
+      archivoNombre: row.archivo_nombre ?? undefined,
+      archivoMimeType: row.archivo_mime_type ?? undefined,
+      archivoTamanoBytes: row.archivo_tamano_bytes != null ? Number(row.archivo_tamano_bytes) : undefined,
+      fechaEmision: row.fecha_emision ?? undefined,
+      fechaVencimiento: row.fecha_vencimiento ?? undefined,
+      esVencible: !!row.es_vencible,
+      metadatos: row.metadatos ?? {},
+      estado: row.estado,
+      version: Number(row.version ?? 1),
+      documentoPadreId: row.documento_padre_id ?? undefined,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }));
+  } catch (err) {
+    console.error('[BidVault] Error fetching vault items:', err);
+    return [];
+  }
+}

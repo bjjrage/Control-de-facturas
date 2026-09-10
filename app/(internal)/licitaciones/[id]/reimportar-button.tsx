@@ -31,6 +31,25 @@ export function ReimportarButton({ nro, id }: { nro: string; id: string }) {
           {busy ? "Sincronizando…" : "Re-sincronizar con DNCP"}
         </Button>
         <Button
+          variant="secondary"
+          disabled={busy || busyConvert}
+          onClick={async () => {
+            setBusy(true);
+            setError(null);
+            const { persistirEvaluacionComercial } = await import("../actions");
+            const res = await persistirEvaluacionComercial(id);
+            setBusy(false);
+            if (res.error) {
+              setError(res.error);
+            } else {
+              alert(`Corrida de análisis congelada con éxito:\n• Dictamen: ${res.decision}\n• Score: ${res.score}/100\n• Hash SHA-256: ${res.hash?.slice(0, 16)}...`);
+              router.refresh();
+            }
+          }}
+        >
+          {busy ? "Evaluando…" : "Congelar Análisis (SHA-256)"}
+        </Button>
+        <Button
           disabled={busy || busyConvert}
           className="bg-[var(--primary)] text-white hover:opacity-90"
           onClick={async () => {

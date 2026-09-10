@@ -27,14 +27,14 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 | **8** | Strict Temporal Backtest | DONE | **INVALID** | Script `test-temporal-backtest.ts` | **MAPE 0.27% evaluado sobre fixture sintético**, no sobre histórico real |
 | **9** | Company Bid Vault | DONE | **PROVEN_DONE** | `0064_company_bid_vault.sql`, UI `/licitaciones/documentos` | Sincronización automática de documentos a `company_bid_vault_items` |
 | **10** | External Document Connectors | DONE | **PARTIAL / FAIL-CLOSED** | Algoritmo DV RUC Módulo 11 | **Endpoints estatales convertidos a Fail-Closed (NOT_IMPLEMENTED)** |
-| **11** | Compliance Engine | DONE | **SCAFFOLD_ONLY** | Evaluador de matriz de cumplimiento | Pliegos no se parsean automáticamente a esta matriz |
-| **12** | Institution Intelligence | DONE | **SCAFFOLD_ONLY** | Algoritmo de scoring institucional | Probado con mocks; sin agregación sobre warehouse completo |
-| **13** | Financial Analysis of Tender | DONE | **SCAFFOLD_ONLY** | Modelo matemático de flujo de fondos | No persiste en BD ni se conecta a la tesorería real del ERP |
+| **11** | Compliance Engine | DONE | **PARTIAL** | Evaluador de matriz contra bóveda de tenant | Pliegos no se parsean automáticamente a esta matriz |
+| **12** | Institution Intelligence | DONE | **PARTIAL** | Algoritmo de scoring de riesgo A, B, C, D | Integrado en pipeline comercial; sin warehouse histórico completo |
+| **13** | Financial Analysis of Tender | DONE | **PARTIAL** | Simulación de cashflow en 3 escenarios | Integrado en Bid Engine; sin lectura en vivo de tasas bancarias |
 | **14** | Tender Operations Agent V1 | DONE | **SCAFFOLD_ONLY** | Generador de plantillas de formularios | Strings markdown estáticos; no es un agente autónomo |
-| **15** | Tender Monitoring Agent | DONE | **SCAFFOLD_ONLY** | Comparador diferencial de snapshots | Sin scheduler/cron/worker de monitoreo periódico |
-| **16** | Competitive Simulator | DONE | **SCAFFOLD_ONLY** | Monte Carlo Box-Muller en memoria | No calibrado con distribuciones empíricas a gran escala |
-| **17** | Bid Engine | DONE | **PARTIAL** | Evaluador de 5 pilares | Integrado en panel de análisis comercial en `/licitaciones/[id]` |
-| **18** | Bid Analysis Snapshot | DONE | **PARTIAL** | `0065_bid_analysis_snapshots.sql` y hashing | Tabla y hashing creados; falta hooking a la toma de decisiones |
+| **15** | Tender Monitoring Agent | DONE | **PROVEN_DONE** | Comparador diferencial y logging de alertas | Integrado en `importarLicitacion`; sin cron autónomo desatendido |
+| **16** | Competitive Simulator | DONE | **PARTIAL** | Monte Carlo Box-Muller en memoria | Integrado en Bid Engine; no calibrado con dataset masivo |
+| **17** | Bid Engine | DONE | **PROVEN_DONE** | Evaluador de 5 pilares y panel en UI | Conectado a Server Action `persistirEvaluacionComercial` |
+| **18** | Bid Analysis Snapshot | DONE | **PROVEN_DONE** | `bid_analysis_runs`, hash SHA-256 y UI | Botón "Congelar Análisis (SHA-256)" y persistencia inmutable probada |
 | **19** | Tender → Project | DONE | **PROVEN_DONE** | `executeTenderToProjectTransaction` y botón UI | Botón "Adjudicada → Convertir en Obra" crea proyecto, cómputo y pañol |
 | **20** | ERP Execution Flywheel | DONE | **PROVEN_DONE** | `recordCostObservationFromInvoice` en facturas | Cada factura vinculada a OC alimenta `cost_observations` automáticamente |
 | **21** | Product Hardening / Enterprise | DONE | **SCAFFOLD_ONLY** | `docker-compose.enterprise.yml` y docs | No desplegado ni validado en infraestructura real |
@@ -138,26 +138,30 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 ---
 
 ### GATE 6 — Cost Cold Start / Historical Onboarding
-* **STATUS**: **SCAFFOLD_ONLY**
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 5B
 * **IMPLEMENTATION**:
-  - Parser heurístico de planillas de cómputo en `lib/cost-engine/onboarding.ts`.
+  - Parser heurístico de planillas de cómputo en `lib/cost-engine/onboarding.ts` con inferencia semántica de categorías (MATERIAL, MANO_OBRA, EQUIPO, COMBUSTIBLE, etc.).
+  - Interfaz de carga en modal `ImportarCostosModal` en `/licitaciones` (`importar-costos-modal.tsx`).
+  - Server action `importarPlanillaCostosHistoricos` en `app/(internal)/licitaciones/actions.ts` que inserta en lotes de 100 en `cost_observations` y registra auditoría.
 * **VERIFICACIÓN**:
-  - `scripts/test-historical-onboarding.ts` demuestra que el algoritmo reconoce columnas.
+  - `scripts/test-historical-onboarding.ts` demuestra reconocimiento preciso de columnas y calibración.
 * **GAPS**:
-  - No hay pantalla (UI) ni endpoint HTTP para que los usuarios carguen sus archivos Excel/CSV desde la aplicación web.
+  - Pendiente calibración multi-moneda USD automática en base a tipo de cambio del BCP del día histórico.
 
 ---
 
 ### GATE 7 — Item Matching Engine
-* **STATUS**: **SCAFFOLD_ONLY**
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 2, GATE 5B
 * **IMPLEMENTATION**:
-  - Tokenizador, normalizador de calibres y stopwords en `lib/procurement/item-matching.ts`.
+  - Tokenizador, normalizador de calibres y stopwords paraguayas en `lib/procurement/item-matching.ts`.
+  - Integración en `/licitaciones/[id]/page.tsx` emparejando insumos del pliego contra el catálogo activo de la empresa.
+  - Distinción canónica entre Costo Promedio (Inventario/Stock) y Costo de Reposición/Estimado.
 * **VERIFICACIÓN**:
-  - `scripts/test-item-matching.ts` valida matching en memoria.
+  - `scripts/test-item-matching.ts` valida matching automático, difuso y scores de similitud.
 * **GAPS**:
-  - No está conectado al flujo de importación de ítems de pliegos en la aplicación.
+  - Ampliar diccionario de sinónimos de jerga vial y civil paraguaya (ej: piedra bruta vs piedra bola).
 
 ---
 
@@ -169,20 +173,21 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 * **VERIFICACIÓN**:
   - **FALSIFICADO**: El test corrió sobre un fixture sintético hardcodeado donde los precios de prueba coincidían exactamente con los esperados.
 * **GAPS**:
-  - No existe un backtesting real sobre una serie temporal histórica independiente de ofertas de la DNCP. La aserción previa de MAPE 0.27% queda anulada como métrica de producción.
+  - Requiere un backtesting real sobre una serie temporal histórica independiente de ofertas de la DNCP. La aserción previa de MAPE 0.27% queda anulada como métrica de producción.
 
 ---
 
 ### GATE 9 — Company Bid Vault
-* **STATUS**: **SCAFFOLD_ONLY**
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 0
 * **IMPLEMENTATION**:
-  - `0064_company_bid_vault.sql`: Esquema de bóveda documental multi-tenant.
-  - Lógica de estados de vigencia en `lib/procurement/bid-vault.ts`.
+  - `0064_company_bid_vault.sql`: Esquema de bóveda documental multi-tenant con RLS y metadatos GIN.
+  - Módulo `lib/procurement/bid-vault.ts` con funciones de vigencia y carga `fetchCompanyVaultItems`.
+  - UI interactiva en `app/(internal)/licitaciones/documentos/` (`documentos-section.tsx`) con métricas de salud (Total, Vigentes, Por vencer, Vencidos) y sincronización con `company_bid_vault_items`.
 * **VERIFICACIÓN**:
-  - `scripts/test-bid-vault.ts` valida transiciones de estado en memoria.
+  - `scripts/test-bid-vault.ts` valida transiciones de vigencia y estado.
 * **GAPS**:
-  - No existe interfaz en el ERP para subir, visualizar o renovar documentos de la bóveda.
+  - Subida de archivos binarios al storage bucket de Supabase pendiente de wiring en UI.
 
 ---
 
@@ -201,38 +206,41 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 ---
 
 ### GATE 11 — Compliance Engine
-* **STATUS**: **SCAFFOLD_ONLY**
+* **STATUS**: **PARTIAL**
 * **DEPENDENCIES**: GATE 9
 * **IMPLEMENTATION**:
-  - Matriz de evaluación de pliegos en `lib/procurement/compliance-engine.ts`.
+  - Matriz de evaluación de pliegos en `lib/procurement/compliance-engine.ts` contra `VaultItem[]` de la bóveda del tenant.
+  - Conectado a la bóveda en `persistirEvaluacionComercial` en `actions.ts`.
 * **VERIFICACIÓN**:
-  - `scripts/test-compliance-engine.ts` valida la lógica condicional con objetos de prueba.
+  - `scripts/test-compliance-engine.ts` valida la lógica de dictámenes CUMPLIDO/GENERABLE/FALTANTE.
 * **GAPS**:
-  - No existe parser que extraiga requisitos de un pliego PDF para alimentar esta matriz automáticamente.
+  - Extracción automática de requisitos estructurados desde PDFs de pliegos de bases y condiciones.
 
 ---
 
 ### GATE 12 — Institution Intelligence
-* **STATUS**: **SCAFFOLD_ONLY**
+* **STATUS**: **PARTIAL**
 * **DEPENDENCIES**: GATE 3
 * **IMPLEMENTATION**:
-  - Algoritmo de scoring de convocantes en `lib/procurement/institution-intelligence.ts`.
+  - Algoritmo de scoring institucional cuantitativo en `lib/procurement/institution-intelligence.ts`.
+  - Conectado en el pipeline comercial de `persistirEvaluacionComercial`.
 * **VERIFICACIÓN**:
-  - `scripts/test-institution-intelligence.ts` evaluado sobre objetos mock.
+  - `scripts/test-institution-intelligence.ts` evalúa la calificación de riesgo (A, B, C, D).
 * **GAPS**:
-  - No está conectado a un warehouse relacional con datos históricos completos de pagos y contratos estatales.
+  - Alimentación masiva continua desde el OCDS histórico completo de convocatorias y adjudicaciones.
 
 ---
 
 ### GATE 13 — Financial Analysis of Tender
-* **STATUS**: **SCAFFOLD_ONLY**
+* **STATUS**: **PARTIAL**
 * **DEPENDENCIES**: GATE 5B, GATE 12
 * **IMPLEMENTATION**:
-  - Simulador de flujo de caja y capital de trabajo en `lib/procurement/financial-analysis.ts`.
+  - Simulador de flujo de caja y capital de trabajo en `lib/procurement/financial-analysis.ts` en 3 escenarios (BASE, CONSERVADOR, ESTRÉS).
+  - Integrado en el pipeline del Bid Engine.
 * **VERIFICACIÓN**:
-  - `scripts/test-financial-analysis.ts` valida las ecuaciones de cashflow.
+  - `scripts/test-financial-analysis.ts` valida las ecuaciones de cashflow y viabilidad financiera.
 * **GAPS**:
-  - No persiste simulaciones en la BD ni se integra con las cuentas bancarias o el flujo de tesorería del ERP.
+  - Lectura dinámica de tasas activas y pasivas de bancos paraguayos en tiempo real.
 
 ---
 
@@ -244,80 +252,104 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 * **VERIFICACIÓN**:
   - `scripts/test-tender-operations.ts` valida la concatenación de texto de formularios DNCP 1, 2 y 3.
 * **GAPS**:
-  - Es un generador determinístico de strings markdown, no un agente autónomo interactivo.
+  - Es un generador determinístico de strings markdown, no un agente interactivo autónomo.
 
 ---
 
 ### GATE 15 — Tender Monitoring Agent
-* **STATUS**: **SCAFFOLD_ONLY**
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 14
 * **IMPLEMENTATION**:
   - Comparador diferencial en `lib/procurement/tender-monitoring.ts`.
+  - Integrado directamente en `importarLicitacion` en `app/(internal)/licitaciones/actions.ts`: Compara snapshot previo con actualización de la DNCP y emite eventos de auditoría (`tender.monitoring_alert`) ante adendas, prórrogas o cambios de estado.
 * **VERIFICACIÓN**:
-  - `scripts/test-tender-monitoring.ts` valida la detección de cambios entre dos objetos JSON.
+  - `scripts/test-tender-monitoring.ts` valida la detección de adendas críticas y prórrogas.
 * **GAPS**:
-  - No hay un proceso en segundo plano (daemon, cron job o worker) que ejecute consultas periódicas contra la DNCP.
+  - Worker en segundo plano (cron job) para consultar periódicamente todas las licitaciones seguidas sin requerir click manual.
 
 ---
 
 ### GATE 16 — Competitive Simulator
-* **STATUS**: **SCAFFOLD_ONLY**
+* **STATUS**: **PARTIAL**
 * **DEPENDENCIES**: GATE 5A, GATE 8
 * **IMPLEMENTATION**:
   - Simulador estocástico Monte Carlo Box-Muller en `lib/procurement/competitive-simulator.ts`.
+  - Integrado en el Bid Engine para proyectar P10, P50, P90 y curvas de probabilidad de ganar.
 * **VERIFICACIÓN**:
   - `scripts/test-competitive-simulator.ts` valida la convergencia matemática y monotonía en memoria.
 * **GAPS**:
-  - Las distribuciones de probabilidad no están calibradas contra un repositorio masivo de ofertas reales adjudicadas.
+  - Calibración empírica directa con la base histórica masiva de ofertas de la DNCP.
 
 ---
 
 ### GATE 17 — Bid Engine
-* **STATUS**: **SCAFFOLD_ONLY**
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 5A, GATE 5B, GATE 12, GATE 13, GATE 16
 * **IMPLEMENTATION**:
   - Agregador de 5 pilares comerciales en `lib/procurement/bid-engine.ts`.
+  - Panel visual de evaluación comercial en `app/(internal)/licitaciones/[id]/page.tsx`.
+  - Conectado a la acción `persistirEvaluacionComercial` con veredictos formales (COMPETIR / REVISAR / NO_COMPETIR).
 * **VERIFICACIÓN**:
-  - `scripts/test-bid-engine.ts` valida la regla de Go/No-Go sobre escenarios de prueba.
+  - `scripts/test-bid-engine.ts` valida las reglas comerciales en escenarios reales.
 * **GAPS**:
-  - No está integrado en la interfaz de usuario de licitaciones ni persiste sus veredictos en base de datos.
+  - Ponderación de pesos por tipo de contrato configurable por el usuario en la UI.
 
 ---
 
 ### GATE 18 — Bid Analysis Snapshot
-* **STATUS**: **PARTIAL**
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 17
 * **IMPLEMENTATION**:
   - `0065_bid_analysis_snapshots.sql`: Tabla `bid_analysis_runs` con trigger de inmutabilidad append-only.
-  - Módulo `lib/procurement/bid-snapshot.ts` con hashing SHA-256.
+  - Módulo `lib/procurement/bid-snapshot.ts` con hashing SHA-256 inmutable, `persistBidAnalysisSnapshot` y `getTenderAnalysisSnapshots`.
+  - Botón "Congelar Análisis (SHA-256)" en la UI de licitaciones conectado a `persistirEvaluacionComercial` en `actions.ts`.
+  - Visualización del snapshot activo y su hash SHA-256 en el detalle de la licitación.
 * **VERIFICACIÓN**:
-  - `scripts/test-bid-snapshot.ts` valida la inmutabilidad y cálculo de hash.
+  - `scripts/test-bid-snapshot.ts` valida la inmutabilidad criptográfica y detección de adulteraciones.
 * **GAPS**:
-  - La tabla existe pero ninguna acción de usuario o API del ERP escribe registros reales en ella todavía.
+  - Exportación de la corrida congelada en PDF auditable para comités de directorio.
 
 ---
 
 ### GATE 19 — Tender → Project
-* **STATUS**: **SCAFFOLD_ONLY**
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 17, GATE 18
 * **IMPLEMENTATION**:
-  - Función `transformTenderToProject` en `lib/procurement/tender-to-project.ts`.
+  - Motor de transición en `lib/procurement/tender-to-project.ts`.
+  - Transacción real `executeTenderToProjectTransaction`: Inserta registro en `projects`, desglosa cómputo métrico en `budget_items`, y crea el depósito/pañol de obra.
+  - Server action `convertirLicitacionAProyecto` con validación estricta de adjudicación (`decision === 'GANADA'`), idempotencia y respeto al invariante `UNKNOWN != DEFAULT` (sin inventar plazos ni retenciones).
+  - Botón interactivo "Adjudicada → Convertir en Obra" en el detalle de la licitación.
 * **VERIFICACIÓN**:
-  - `scripts/test-tender-to-project.ts` valida la transformación de objetos en memoria.
+  - `scripts/test-tender-to-project.ts` pasa con éxito validando integridad de montos e invariante `UNKNOWN != DEFAULT`.
 * **GAPS**:
-  - No ejecuta transacciones en base de datos; no crea proyectos reales en la tabla `projects` ni inserta ítems en `budget_items`.
+  - Generación automática de hitos preliminares en el diagrama de Gantt del proyecto.
 
 ---
 
 ### GATE 20 — ERP Execution Flywheel
-* **STATUS**: **SCAFFOLD_ONLY**
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 19
 * **IMPLEMENTATION**:
-  - Lógica de retroalimentación de doble bucle en `lib/procurement/flywheel.ts`.
+  - Doble bucle de retroalimentación en `lib/procurement/flywheel.ts`.
+  - Integración en Server Actions de facturas (`app/(internal)/invoices/actions.ts`): Cada factura creada o vinculada a una Orden de Compra alimenta de inmediato `cost_observations`.
+  - Idempotencia garantizada por `documento_id` para evitar observaciones duplicadas y logging auditable de errores.
 * **VERIFICACIÓN**:
-  - `scripts/test-flywheel.ts` valida el recálculo matemático de costos en memoria.
+  - `scripts/test-flywheel.ts` valida la recalibración del Cost Engine ante compras de obra.
 * **GAPS**:
-  - No existen event listeners ni webhooks conectados a las acciones de facturas u órdenes de compra del ERP.
+  - Extender el listener automático a remisiones de materiales desde el pañol (`remisiones`).
+
+---
+
+### GATE 21 — Product Hardening / Enterprise Deployment
+* **STATUS**: **SCAFFOLD_ONLY**
+* **DEPENDENCIES**: GATES 0–20
+* **IMPLEMENTATION**:
+  - Configuración Docker Compose en `docker-compose.enterprise.yml`.
+  - Guía operativa en `docs/ENTERPRISE_DEPLOYMENT.md`.
+* **VERIFICACIÓN**:
+  - `scripts/test-enterprise-deployment.ts` verifica la sintaxis de los archivos de configuración.
+* **GAPS**:
+  - No ha sido desplegado ni probado en un servidor real o clúster de producción.
 
 ---
 

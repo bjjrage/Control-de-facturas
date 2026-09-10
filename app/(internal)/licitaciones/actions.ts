@@ -82,6 +82,14 @@ export async function importarLicitacion(
     // Si la RPC no está aplicada aún en producción remota, continúa con retrocompatibilidad
   }
 
+  // Gate 15: Obtener snapshot previo si existía para detectar cambios (adendas, prórrogas, estados)
+  const { data: previousLic } = await supabase
+    .from("licitaciones")
+    .select("id, estado, fecha_entrega_ofertas, raw_json")
+    .eq("empresa_id", empresaId)
+    .eq("ocid", c.ocid || `ocds-03ad3f-${nro}`)
+    .maybeSingle();
+
   // Upsert cabecera (con process_id vinculado)
   const { data: lic, error: licErr } = await supabase
     .from("licitaciones")
@@ -203,6 +211,49 @@ export async function importarLicitacion(
         url_dncp: d.url_dncp,
       }))
     );
+  }
+
+  // Gate 15: Tender Monitoring Diff Engine (Auditoría de cambios y adendas)
+  if (previousLic) {
+    try {
+      const { compareTenderSnapshots } = await import("@/lib/procurement/tender-monitoring");
+      const prevDocCount = Array.isArray(previousLic.raw_json?.tender?.documents) ? previousLic.raw_json.tender.documents.length : 0;
+      const currDocCount = Array.isArray((compiled as any)?.tender?.documents) ? (compiled as any).tender.documents.length : 0;
+
+      const alerts = compareTenderSnapshots(
+        {
+          tenderId: licId,
+          status: previousLic.estado || "DESCONOCIDO",
+          submissionDeadline: previousLic.fecha_entrega_ofertas || "",
+          clarificationsCount: 0,
+          addendaCount: prevDocCount,
+          lastModifiedDate: ""
+        },
+        {
+          tenderId: licId,
+          status: c.estado || "DESCONOCIDO",
+          submissionDeadline: c.fecha_entrega_ofertas || "",
+          clarificationsCount: 0,
+          addendaCount: currDocCount,
+          lastModifiedDate: new Date().toISOString()
+        }
+      );
+
+      for (const alert of alerts) {
+        await logAudit(supabase, {
+          action: "tender.monitoring_alert",
+          detail: {
+            licitacion_id: licId,
+            event_type: alert.eventType,
+            severity: alert.severity,
+            title: alert.title,
+            action_required: alert.actionRequired
+          }
+        });
+      }
+    } catch (diffErr) {
+      console.error("[TenderMonitoring] Error comparing snapshots:", diffErr);
+    }
   }
 
   await logAudit(supabase, { action: "licitacion_importada", detail: { nro, lic_id: licId } });
@@ -479,4 +530,116 @@ export async function importarPlanillaCostosHistoricos(
     console.error("[Onboarding] Error processing file:", err);
     return { error: `Error al procesar el archivo: ${err.message || String(err)}` };
   }
+}
+
+/**
+ * Ejecuta y congela un análisis de decisión comercial (Gate 18: Bid Analysis Run) con hash SHA-256 inmutable
+ */
+export async function persistirEvaluacionComercial(
+  licitacionId: string
+): Promise<{ error?: string; snapshotId?: string; decision?: string; score?: number; hash?: string }> {
+  const { supabase, profile } = await ctx();
+  const empresaId = profile.empresa_id;
+
+  // 1. Obtener la licitación
+  const { data: lic, error: licError } = await supabase
+    .from("licitaciones")
+    .select("*")
+    .eq("id", licitacionId)
+    .eq("empresa_id", empresaId)
+    .maybeSingle();
+
+  if (licError || !lic) {
+    return { error: "Licitación no encontrada o sin acceso." };
+  }
+
+  // 2. Cargar documentos de la bóveda para compliance
+  const { fetchCompanyVaultItems } = await import("@/lib/procurement/bid-vault");
+  const vaultItems = await fetchCompanyVaultItems(supabase, empresaId);
+
+  // 3. Evaluar cumplimiento normativo y documental
+  const { evaluateTenderCompliance } = await import("@/lib/procurement/compliance-engine");
+  const complianceReport = evaluateTenderCompliance(
+    lic.id,
+    [
+      { id: "req-legal", categoria: "LEGAL", descripcion: "Estatutos y RUC activo", esExcluyente: true, criterio: {} },
+      { id: "req-fiscal", categoria: "FISCAL", descripcion: "Cumplimiento Tributario DNIT al día", esExcluyente: true, criterio: {} }
+    ],
+    vaultItems
+  );
+
+  // 4. Perfil institucional del convocante
+  const { generateInstitutionProfile } = await import("@/lib/procurement/institution-intelligence");
+  const institutionProfile = generateInstitutionProfile(lic.comitente_nombre || "Convocante General", []);
+
+  // 5. Análisis financiero de capital de trabajo
+  const { analyzeTenderFinancials } = await import("@/lib/procurement/financial-analysis");
+  const refBudget = Number(lic.monto_referencial || 0);
+  const financialReport = analyzeTenderFinancials({
+    tenderId: lic.id,
+    offerAmountPyg: refBudget > 0 ? refBudget * 0.95 : 1000000,
+    estimatedDirectCostPyg: refBudget > 0 ? refBudget * 0.75 : 750000,
+    estimatedIndirectCostPyg: refBudget > 0 ? refBudget * 0.05 : 50000,
+    durationMonths: 6,
+    institutionalPaymentDays: institutionProfile.diasPromedioPago || 90,
+    annualFinancingRatePct: 12.0
+  });
+
+  // 6. Simulación competitiva Monte Carlo
+  const { simulateCompetitiveBidding } = await import("@/lib/procurement/competitive-simulator");
+  const simulationResult = simulateCompetitiveBidding({
+    tenderId: lic.id,
+    referenceBudgetPyg: refBudget > 0 ? refBudget : 1000000,
+    expectedParticipantsCount: 4
+  }, 1000);
+
+  // 7. Evaluar decisión global
+  const { evaluateBidOpportunity } = await import("@/lib/procurement/bid-engine");
+  const decisionOutput = evaluateBidOpportunity({
+    tenderId: lic.id,
+    tenderTitle: lic.titulo,
+    buyerName: lic.comitente_nombre || "Entidad Convocante",
+    referenceBudgetPyg: refBudget,
+    complianceReport,
+    institutionProfile,
+    financialReport,
+    simulationResult
+  });
+
+  // 8. Crear y persistir snapshot inmutable SHA-256
+  const { createBidAnalysisSnapshot, persistBidAnalysisSnapshot } = await import("@/lib/procurement/bid-snapshot");
+  const snapshot = createBidAnalysisSnapshot(empresaId, {
+    tenderId: lic.id,
+    tenderTitle: lic.titulo,
+    buyerName: lic.comitente_nombre || "Entidad Convocante",
+    referenceBudgetPyg: refBudget,
+    complianceReport,
+    institutionProfile,
+    financialReport,
+    simulationResult
+  }, decisionOutput);
+
+  const persistResult = await persistBidAnalysisSnapshot(supabase, snapshot);
+  if (persistResult.error) {
+    return { error: persistResult.error };
+  }
+
+  await logAudit(supabase, {
+    action: "bid_engine.snapshot_created",
+    detail: {
+      licitacion_id: lic.id,
+      snapshot_id: persistResult.id,
+      decision: decisionOutput.decision,
+      score: decisionOutput.overallScore,
+      hash: snapshot.snapshotHash
+    }
+  });
+
+  revalidatePath(`/licitaciones/${licitacionId}`);
+  return {
+    snapshotId: persistResult.id,
+    decision: decisionOutput.decision,
+    score: decisionOutput.overallScore,
+    hash: snapshot.snapshotHash
+  };
 }

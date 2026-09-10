@@ -122,6 +122,26 @@ export function DocumentosSection({ documentos }: { documentos: EmpresaDocumento
         <NuevoDocumentoDialog />
       </div>
 
+      {/* Tarjetas de Salud de la Bóveda Documental */}
+      <div className="grid gap-3 sm:grid-cols-4">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+          <div className="text-[11px] text-[var(--muted)]">Total Documentos</div>
+          <div className="text-[18px] font-semibold mt-0.5">{documentos.length}</div>
+        </div>
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+          <div className="text-[11px] text-[var(--muted)]">Vigentes</div>
+          <div className="text-[18px] font-semibold text-[var(--ok)] mt-0.5">{vigentes.length + sinVenc.length}</div>
+        </div>
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+          <div className="text-[11px] text-[var(--muted)]">Por Vencer (≤30d)</div>
+          <div className="text-[18px] font-semibold text-[var(--warn)] mt-0.5">{porVencer.length}</div>
+        </div>
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
+          <div className="text-[11px] text-[var(--muted)]">Vencidos</div>
+          <div className="text-[18px] font-semibold text-[var(--error)] mt-0.5">{vencidos.length}</div>
+        </div>
+      </div>
+
       {vencidos.length > 0 ? (
         <div>
           <h2 className="text-[14px] font-semibold text-[var(--error)] mb-2">Vencidos ({vencidos.length})</h2>
