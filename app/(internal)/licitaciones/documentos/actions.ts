@@ -38,6 +38,41 @@ export async function crearDocumentoEmpresa(data: DocumentoInput): Promise<{ id?
     .single();
 
   if (error) return { error: error.message };
+
+  // Sync to Company Bid Vault (Gate 9)
+  try {
+    const tipoLower = data.tipo.toLowerCase();
+    let categoria: 'LEGAL' | 'FISCAL' | 'FINANCIERO' | 'EXPERIENCIA' | 'PERSONAL' | 'MAQUINARIA' | 'OTRO' = 'OTRO';
+    if (tipoLower.includes('tributario') || tipoLower.includes('set') || tipoLower.includes('dnit') || tipoLower.includes('ips') || tipoLower.includes('deudor') || tipoLower.includes('seguridad social')) {
+      categoria = 'FISCAL';
+    } else if (tipoLower.includes('poder') || tipoLower.includes('estatuto') || tipoLower.includes('ruc') || tipoLower.includes('patente') || tipoLower.includes('art. 40') || tipoLower.includes('proveedores del estado')) {
+      categoria = 'LEGAL';
+    } else if (tipoLower.includes('balance') || tipoLower.includes('audita') || tipoLower.includes('financier')) {
+      categoria = 'FINANCIERO';
+    } else if (tipoLower.includes('obra') || tipoLower.includes('experiencia') || tipoLower.includes('certificado de obra')) {
+      categoria = 'EXPERIENCIA';
+    } else if (tipoLower.includes('maquinaria') || tipoLower.includes('equipo') || tipoLower.includes('motoniveladora') || tipoLower.includes('camion')) {
+      categoria = 'MAQUINARIA';
+    } else if (tipoLower.includes('personal') || tipoLower.includes('cv') || tipoLower.includes('curriculum') || tipoLower.includes('matricula')) {
+      categoria = 'PERSONAL';
+    }
+
+    await supabase.from("company_bid_vault_items").insert({
+      empresa_id: profile.empresa_id,
+      categoria,
+      tipo_documento: data.tipo.trim(),
+      titulo: data.tipo.trim(),
+      descripcion: data.descripcion?.trim() || null,
+      fecha_emision: data.fecha_emision || null,
+      fecha_vencimiento: data.fecha_vencimiento || null,
+      es_vencible: !!data.fecha_vencimiento,
+      estado: data.fecha_vencimiento && new Date(data.fecha_vencimiento).getTime() < Date.now() ? 'VENCIDO' : 'VIGENTE',
+      metadatos: { origen: "empresa_documentos", ref_id: row.id }
+    });
+  } catch {
+    // Defensivo si la migración 0064 no ha sido aplicada aún
+  }
+
   revalidatePath("/licitaciones/documentos");
   revalidatePath("/dashboard");
   return { id: row.id };

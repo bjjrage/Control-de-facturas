@@ -30,6 +30,29 @@ export async function matchOrder(invoiceId: string, authorizedOrderId: string) {
     authorizedOrderId,
   });
 
+  // Cost Engine Flywheel: Alimentar observaciones de costo real
+  try {
+    const { data: inv } = await supabase
+      .from("invoices")
+      .select("empresa_id, provider_id, currency, invoice_date")
+      .eq("id", invoiceId)
+      .maybeSingle();
+
+    if (inv) {
+      const { recordCostObservationFromInvoice } = await import("@/lib/procurement/flywheel");
+      await recordCostObservationFromInvoice(supabase, {
+        empresaId: inv.empresa_id,
+        invoiceId,
+        providerId: inv.provider_id || "",
+        orderId: authorizedOrderId,
+        currency: inv.currency || "PYG",
+        invoiceDate: inv.invoice_date || undefined
+      });
+    }
+  } catch {
+    // Defensivo
+  }
+
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoiceId}`);
   return { error: null };

@@ -145,6 +145,25 @@ export async function createInvoice(formData: FormData) {
     });
   }
 
+  // Cost Engine Flywheel: Alimentar observaciones de costo real si la factura se vinculó a una OC
+  const activeOrderId = linkOrderId || autoMatchedOrderId;
+  if (activeOrderId) {
+    try {
+      const { recordCostObservationFromInvoice } = await import("@/lib/procurement/flywheel");
+      await recordCostObservationFromInvoice(supabase, {
+        empresaId,
+        invoiceId: invoice.id,
+        providerId,
+        orderId: activeOrderId,
+        itemDescription: str(formData, "product_description") || undefined,
+        currency: currency || "PYG",
+        invoiceDate: invoiceDate || undefined
+      });
+    } catch {
+      // No bloquea la creación de factura si la tabla o módulo no está activo
+    }
+  }
+
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoice.id}`);
   return { error: null, id: invoice.id as string, autoMatched: autoMatchedOrderId !== null };
@@ -258,7 +277,7 @@ export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Pr
 
   const { data: invoice } = await supabase
     .from("invoices")
-    .select("id, status")
+    .select("id, status, provider_id, currency, invoice_date")
     .eq("id", invoiceId)
     .eq("empresa_id", empresaId)
     .single();
@@ -278,6 +297,21 @@ export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Pr
   if (matchError) return { error: "No se pudo vincular: " + matchError.message };
 
   await supabase.from("invoices").update({ status: "MATCH" }).eq("id", invoiceId).eq("empresa_id", empresaId);
+
+  // Cost Engine Flywheel: Alimentar observaciones de costo real
+  try {
+    const { recordCostObservationFromInvoice } = await import("@/lib/procurement/flywheel");
+    await recordCostObservationFromInvoice(supabase, {
+      empresaId,
+      invoiceId,
+      providerId: invoice.provider_id || "",
+      orderId,
+      currency: invoice.currency || "PYG",
+      invoiceDate: invoice.invoice_date || undefined
+    });
+  } catch {
+    // Defensivo
+  }
 
   await logAudit(supabase, { action: "invoice.order_manual_matched", invoiceId, authorizedOrderId: orderId });
 

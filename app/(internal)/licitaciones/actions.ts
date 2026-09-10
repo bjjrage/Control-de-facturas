@@ -310,3 +310,87 @@ export async function guardarPerfilLicitaciones(data: {
   revalidatePath("/licitaciones");
   return {};
 }
+
+/**
+ * Convierte una licitación ganada/adjudicada en un Proyecto activo en el ERP con cómputo métrico y pañol
+ */
+export async function convertirLicitacionAProyecto(
+  licitacionId: string
+): Promise<{ error?: string; projectId?: string; projectCode?: string }> {
+  const { supabase, profile } = await ctx();
+  const empresaId = profile.empresa_id;
+
+  // 1. Obtener datos de la licitación
+  const { data: lic, error: licError } = await supabase
+    .from("licitaciones")
+    .select("*")
+    .eq("id", licitacionId)
+    .eq("empresa_id", empresaId)
+    .maybeSingle();
+
+  if (licError || !lic) {
+    return { error: "Licitación no encontrada o no pertenece a la empresa." };
+  }
+
+  // 2. Obtener ítems de la licitación
+  const { data: items } = await supabase
+    .from("licitacion_items")
+    .select("*")
+    .eq("licitacion_id", licitacionId)
+    .order("sort_order");
+
+  // Si no hay ítems detallados, crear al menos un ítem con el monto adjudicado
+  const bidItems = (items && items.length > 0)
+    ? items.map((it: any, idx: number) => ({
+        itemNumber: idx + 1,
+        description: it.descripcion || "Ítem de licitación",
+        quantity: Number(it.cantidad || 1),
+        unit: it.unidad || "UN",
+        unitPricePyg: Number(it.precio_unitario_estimado || (it.monto_total ? it.monto_total / (it.cantidad || 1) : 0))
+      }))
+    : [{
+        itemNumber: 1,
+        description: `Ejecución de obra: ${lic.titulo}`,
+        quantity: 1,
+        unit: "GL",
+        unitPricePyg: Number(lic.monto_adjudicado || lic.monto_referencial || 0)
+      }];
+
+  const { executeTenderToProjectTransaction } = await import("@/lib/procurement/tender-to-project");
+
+  const result = await executeTenderToProjectTransaction(supabase, {
+    empresaId,
+    tenderId: lic.id,
+    dncpNro: lic.dncp_nro,
+    projectTitle: lic.titulo,
+    buyerName: lic.comitente_nombre || "Entidad Convocante",
+    adjudicatedOfferPricePyg: Number(lic.monto_adjudicado || lic.monto_referencial || 0),
+    durationMonths: 6, // Plazo estándar por defecto si no está especificado
+    advancePaymentPct: 10,
+    retentionPct: 5,
+    bidItems,
+    createdBy: profile.id
+  });
+
+  if (result.error) {
+    return { error: result.error };
+  }
+
+  // Actualizar decisión a GANADA si no lo estaba
+  await supabase
+    .from("licitaciones")
+    .update({ decision: "GANADA" })
+    .eq("id", licitacionId)
+    .eq("empresa_id", empresaId);
+
+  await logAudit(supabase, {
+    action: "tender.converted_to_project",
+    detail: { licitacion_id: licitacionId, project_id: result.projectId, project_code: result.projectCode }
+  });
+
+  revalidatePath("/licitaciones");
+  revalidatePath(`/licitaciones/${licitacionId}`);
+  revalidatePath("/projects");
+
+  return { projectId: result.projectId, projectCode: result.projectCode };
+}

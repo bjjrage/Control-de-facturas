@@ -117,3 +117,78 @@ export function buildProjectFromAdjudicatedTender(params: TenderToProjectParams)
     }
   };
 }
+
+/**
+ * Persiste la transición de Licitación a Obra directamente en la base de datos de Supabase.
+ * Inserta el registro en `projects`, desglosa los ítems en `budget_items`, y crea el depósito/pañol de obra.
+ */
+export async function executeTenderToProjectTransaction(
+  supabase: any,
+  params: TenderToProjectParams
+): Promise<{ error: string | null; projectId?: string; projectCode?: string }> {
+  const payload = buildProjectFromAdjudicatedTender(params);
+
+  // 1. Insertar Proyecto en tabla projects
+  const { data: project, error: projectError } = await supabase
+    .from('projects')
+    .insert({
+      empresa_id: payload.project.empresa_id,
+      name: payload.project.name,
+      code: payload.project.code,
+      client: payload.project.client,
+      budget_total: payload.project.budget_total,
+      status: 'ACTIVO',
+      created_by: payload.project.created_by,
+      start_date: new Date().toISOString().split('T')[0],
+      end_date: new Date(Date.now() + payload.project.plazo_dias * 86_400_000).toISOString().split('T')[0]
+    })
+    .select('id, code')
+    .single();
+
+  if (projectError || !project) {
+    console.error('[TenderToProject] Error al crear proyecto:', projectError);
+    return { error: projectError?.message || 'No se pudo crear el proyecto en el ERP.' };
+  }
+
+  // 2. Insertar los ítems presupuestarios en budget_items
+  if (payload.budgetItems.length > 0) {
+    const budgetRows = payload.budgetItems.map(item => ({
+      project_id: project.id,
+      code: item.code,
+      description: item.description,
+      unit: item.unit,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      sort_order: item.sort_order
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('budget_items')
+      .insert(budgetRows);
+
+    if (itemsError) {
+      console.error('[TenderToProject] Error al transferir budget_items:', itemsError);
+      // No abortamos completamente, el proyecto ya existe, pero informamos
+      return {
+        error: `Proyecto creado pero ocurrió un error al insertar cómputo métrico: ${itemsError.message}`,
+        projectId: project.id,
+        projectCode: project.code
+      };
+    }
+  }
+
+  // 3. Crear depósito/pañol de obra asociado
+  const nombreDeposito = `Pañol ${project.code} - ${payload.project.name}`.slice(0, 100);
+  await supabase.from('depositos').insert({
+    empresa_id: payload.project.empresa_id,
+    nombre: nombreDeposito,
+    es_principal: false,
+    project_id: project.id
+  });
+
+  return {
+    error: null,
+    projectId: project.id,
+    projectCode: project.code
+  };
+}
