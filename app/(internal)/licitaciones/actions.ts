@@ -769,7 +769,9 @@ export async function persistirEvaluacionComercial(
           const profile = await getCompetitorProfile(ofr.ruc, supabase, {
             convocante: lic.comitente_nombre,
             categoria: lic.categoria,
-            montoReferencial: refBudget
+            montoReferencial: refBudget,
+            asOfDate: lic.fecha_publicacion || lic.fecha_entrega_ofertas || null,
+            excludeTenderId: lic.id
           });
           if (profile?.contextual_fingerprint && profile.contextual_fingerprint.sample_size >= 2) {
             knownFingerprints.push(profile.contextual_fingerprint);

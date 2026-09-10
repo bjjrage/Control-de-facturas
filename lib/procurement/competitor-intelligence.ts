@@ -20,6 +20,8 @@ export interface ContextualQuery {
   convocante?: string | null;
   categoria?: string | null;
   montoReferencial?: number | null;
+  asOfDate?: string | null;
+  excludeTenderId?: string | null;
 }
 
 export interface ContextualFingerprint {
@@ -91,18 +93,35 @@ export function calcularCertezaEstadistica(sampleSize: number): CertaintyTier {
 }
 
 /**
- * Cálculo matemático puro de huella contextual con fallback jerárquico.
+ * Cálculo matemático puro de huella contextual con fallback jerárquico e integridad temporal.
  */
 export function calcularHuellaContextual(
   bids: CompetitorBidSummary[],
   context: ContextualQuery
 ): ContextualFingerprint {
+  let eligibleBids = bids;
+
+  // Filtrado temporal estricto (asOfDate / cutoffDate): solo ofertas anteriores a la fecha de corte
+  if (context.asOfDate) {
+    const cutoffMs = new Date(context.asOfDate).getTime();
+    eligibleBids = eligibleBids.filter(b => {
+      if (!b.date) return false;
+      const bDateMs = new Date(b.date).getTime();
+      return !isNaN(bDateMs) && bDateMs < cutoffMs;
+    });
+  }
+
+  // Filtrado de integridad: no utilizar la licitación actual en evaluación para predecir sobre sí misma
+  if (context.excludeTenderId) {
+    eligibleBids = eligibleBids.filter(b => b.process_id !== context.excludeTenderId && b.dncp_nro !== context.excludeTenderId);
+  }
+
   const targetBracket = context.montoReferencial ? categorizarTamanoContrato(context.montoReferencial) : null;
   const targetBuyerNorm = context.convocante ? normalizarTexto(context.convocante) : null;
   const targetCatNorm = context.categoria ? normalizarTexto(context.categoria) : null;
 
   // 1. Filtrar por coincidencia exacta (Convocante + Rubro + Tamaño)
-  const exactMatches = bids.filter((b) => {
+  const exactMatches = eligibleBids.filter((b) => {
     let match = true;
     if (context.convocante && !coincideConvocante(context.convocante, b.buyer)) match = false;
     if (targetCatNorm && !normalizarTexto(b.categoria).includes(targetCatNorm)) match = false;
@@ -116,7 +135,7 @@ export function calcularHuellaContextual(
 
   // 2. Fallback: Rubro + Tamaño
   if (targetCatNorm) {
-    const catMatches = bids.filter((b) => normalizarTexto(b.categoria).includes(targetCatNorm));
+    const catMatches = eligibleBids.filter((b) => normalizarTexto(b.categoria).includes(targetCatNorm));
     if (catMatches.length >= 3) {
       return resumirMetricas(catMatches, "FALLBACK_CATEGORY", true, `Fallback a rubro general: "${context.categoria}"`);
     }
@@ -124,15 +143,15 @@ export function calcularHuellaContextual(
 
   // 3. Fallback: Convocante General
   if (context.convocante) {
-    const buyerMatches = bids.filter((b) => coincideConvocante(context.convocante, b.buyer));
+    const buyerMatches = eligibleBids.filter((b) => coincideConvocante(context.convocante, b.buyer));
     if (buyerMatches.length >= 2) {
       return resumirMetricas(buyerMatches, "FALLBACK_BUYER", true, `Fallback a historial con el convocante: "${context.convocante}"`);
     }
   }
 
   // 4. Fallback Global de la Empresa
-  if (bids.length > 0) {
-    return resumirMetricas(bids, "FALLBACK_GLOBAL", true, "Fallback al comportamiento global histórico de la empresa");
+  if (eligibleBids.length > 0) {
+    return resumirMetricas(eligibleBids, "FALLBACK_GLOBAL", true, "Fallback al comportamiento global histórico de la empresa");
   }
 
   return {
@@ -270,7 +289,7 @@ export async function getCompetitorProfile(
       dncp_nro: p.dncp_nro || "",
       title: p.titulo || "(sin título)",
       buyer: p.comitente_nombre || "Desconocido",
-      categoria: p.categoria || "OBRAS",
+      categoria: p.categoria || "DESCONOCIDO",
       date: p.fecha_publicacion,
       monto_ofertado: montoOf,
       monto_referencial: montoRef,
@@ -319,7 +338,7 @@ export async function getCompetitorProfile(
           dncp_nro: p.dncp_nro || "",
           title: p.titulo || "(sin título)",
           buyer: p.comitente_nombre || "Desconocido",
-          categoria: p.categoria || "OBRAS",
+          categoria: p.categoria || "DESCONOCIDO",
           date: p.fecha_publicacion,
           monto_ofertado: montoOf,
           monto_referencial: montoRef,
@@ -331,19 +350,33 @@ export async function getCompetitorProfile(
     }
   }
 
-  // 3. Métricas acumuladas
-  const totalBids = bids.length;
-  const totalWins = bids.filter((b) => b.gano).length;
+  // 2c. Filtrado temporal estricto (asOfDate / cutoffDate) e integridad de la licitación en evaluación
+  let eligibleBids = bids;
+  if (context?.asOfDate) {
+    const cutoffMs = new Date(context.asOfDate).getTime();
+    eligibleBids = eligibleBids.filter(b => {
+      if (!b.date) return false;
+      const bDateMs = new Date(b.date).getTime();
+      return !isNaN(bDateMs) && bDateMs < cutoffMs;
+    });
+  }
+  if (context?.excludeTenderId) {
+    eligibleBids = eligibleBids.filter(b => b.process_id !== context.excludeTenderId && b.dncp_nro !== context.excludeTenderId);
+  }
+
+  // 3. Métricas acumuladas sobre ofertas elegibles
+  const totalBids = eligibleBids.length;
+  const totalWins = eligibleBids.filter((b) => b.gano).length;
   const winRate = totalBids > 0 ? parseFloat(((totalWins / totalBids) * 100).toFixed(1)) : 0;
-  const totalAwarded = bids
+  const totalAwarded = eligibleBids
     .filter((b) => b.gano && b.monto_ofertado)
     .reduce((acc, b) => acc + (b.monto_ofertado ?? 0), 0);
 
-  const globalFingerprint = resumirMetricas(bids, "FALLBACK_GLOBAL", false, "");
+  const globalFingerprint = resumirMetricas(eligibleBids, "FALLBACK_GLOBAL", false, "");
 
   // 4. Top Convocantes
   const buyerMap = new Map<string, { bids: number; wins: number; amount: number }>();
-  for (const b of bids) {
+  for (const b of eligibleBids) {
     const curr = buyerMap.get(b.buyer) || { bids: 0, wins: 0, amount: 0 };
     curr.bids++;
     if (b.gano) {
@@ -381,7 +414,7 @@ export async function getCompetitorProfile(
     .sort((a, b) => b.shared_tenders_count - a.shared_tenders_count);
 
   // 6. Huella Contextual (si se pidió contexto específico)
-  const contextual_fingerprint = context ? calcularHuellaContextual(bids, context) : undefined;
+  const contextual_fingerprint = context ? calcularHuellaContextual(eligibleBids, context) : undefined;
 
   return {
     supplier_id: supplierData.id,
@@ -399,7 +432,7 @@ export async function getCompetitorProfile(
     certainty_tier: globalFingerprint.certainty_tier,
     top_convocantes: topConvocantes,
     consortium_network: consortiumNetwork,
-    recent_bids: bids.slice(0, 15),
+    recent_bids: eligibleBids.slice(0, 15),
     contextual_fingerprint,
   };
 }

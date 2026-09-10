@@ -18,8 +18,13 @@ interface CheckpointData {
   wave: number;
   last_processed_id: number;
   total_processed: number;
+  total_fetched: number;
+  total_identified_construction: number;
   total_ingested_construction: number;
+  total_file_saved: number;
+  total_db_persisted: number;
   errors_count: number;
+  failure_reasons: Record<string, number>;
   by_year: Record<string, number>;
   by_category: Record<string, number>;
   top_buyers: Record<string, number>;
@@ -121,9 +126,26 @@ function isConstructionRelevant(tender: any): boolean {
 function loadCheckpoint(wave: number): CheckpointData {
   if (fs.existsSync(CHECKPOINT_PATH)) {
     try {
-      const raw = fs.readFileSync(CHECKPOINT_PATH, "utf8");
-      const data = JSON.parse(raw);
-      if (data.wave === wave) return data;
+      const raw = JSON.parse(fs.readFileSync(CHECKPOINT_PATH, "utf8"));
+      if (raw.wave === wave) {
+        return {
+          wave: raw.wave ?? wave,
+          last_processed_id: raw.last_processed_id ?? 0,
+          total_processed: raw.total_processed ?? 0,
+          total_fetched: raw.total_fetched ?? raw.total_processed ?? 0,
+          total_identified_construction: raw.total_identified_construction ?? raw.total_ingested_construction ?? 0,
+          total_ingested_construction: raw.total_ingested_construction ?? 0,
+          total_file_saved: raw.total_file_saved ?? raw.total_ingested_construction ?? 0,
+          total_db_persisted: raw.total_db_persisted ?? 0,
+          errors_count: raw.errors_count ?? 0,
+          failure_reasons: raw.failure_reasons ?? {},
+          by_year: raw.by_year ?? {},
+          by_category: raw.by_category ?? {},
+          top_buyers: raw.top_buyers ?? {},
+          start_time: raw.start_time ?? new Date().toISOString(),
+          last_updated_at: raw.last_updated_at ?? new Date().toISOString(),
+        };
+      }
     } catch {
       // Ignorar fallo de lectura y usar nuevo
     }
@@ -139,8 +161,13 @@ function loadCheckpoint(wave: number): CheckpointData {
     wave,
     last_processed_id: startId,
     total_processed: 0,
+    total_fetched: 0,
+    total_identified_construction: 0,
     total_ingested_construction: 0,
+    total_file_saved: 0,
+    total_db_persisted: 0,
     errors_count: 0,
+    failure_reasons: {},
     by_year: {},
     by_category: {},
     top_buyers: {},
@@ -154,8 +181,9 @@ function saveCheckpoint(cp: CheckpointData) {
   fs.writeFileSync(CHECKPOINT_PATH, JSON.stringify(cp, null, 2), "utf8");
 }
 
-function saveRawRecordLocally(year: number, nro: string, cr: any) {
-  const dir = path.join(BACKFILL_DIR, String(year));
+function saveRawRecordLocally(year: number | null, nro: string, cr: any) {
+  const yearFolder = year !== null && !isNaN(year) ? String(year) : "unknown";
+  const dir = path.join(BACKFILL_DIR, yearFolder);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const filePath = path.join(dir, `${nro}.json`);
   fs.writeFileSync(filePath, JSON.stringify(cr), "utf8");
@@ -206,15 +234,20 @@ export async function runBackfill(options?: {
 
       cp.last_processed_id = nro;
       cp.total_processed++;
+      cp.total_fetched++;
       processedInRun++;
 
       if (!json || !json.records || json.records.length === 0) {
+        const reason = "NOT_FOUND_OR_EMPTY";
+        cp.failure_reasons[reason] = (cp.failure_reasons[reason] || 0) + 1;
         saveCheckpoint(cp);
         continue;
       }
 
       const cr = json.records[0].compiledRelease;
       if (!cr || !cr.tender) {
+        const reason = "NO_TENDER_RELEASE";
+        cp.failure_reasons[reason] = (cp.failure_reasons[reason] || 0) + 1;
         saveCheckpoint(cp);
         continue;
       }
@@ -224,16 +257,24 @@ export async function runBackfill(options?: {
       const buyer = tender.procuringEntity?.name || "Desconocido";
       const cat = tender.mainProcurementCategoryDetails || tender.mainProcurementCategory || "Sin Categoría";
       const dateStr = tender.datePublished || tender.tenderPeriod?.startDate;
-      const year = dateStr ? new Date(dateStr).getFullYear() : 2024;
+      const parsedDate = dateStr ? new Date(dateStr) : null;
+      const year = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate.getFullYear() : null;
 
       const isConst = isConstructionRelevant(tender);
 
       if (isConst) {
+        cp.total_identified_construction++;
         cp.total_ingested_construction++;
         constructionInRun++;
 
         // Guardar payload crudo en warehouse local
-        saveRawRecordLocally(year, String(nro), cr);
+        try {
+          saveRawRecordLocally(year, String(nro), cr);
+          cp.total_file_saved++;
+        } catch (saveErr: any) {
+          const reason = `FILE_SAVE_ERROR: ${saveErr.message || "unknown"}`;
+          cp.failure_reasons[reason] = (cp.failure_reasons[reason] || 0) + 1;
+        }
 
         // Ingestar en base de datos si supabase está activo
         if (supabase) {
@@ -242,19 +283,25 @@ export async function runBackfill(options?: {
               p_cr: cr,
               p_fuente: `DNCP_BACKFILL_W${wave}`,
             });
-          } catch {
-            // Fallback silencioso si la función no está disponible
+            cp.total_db_persisted++;
+          } catch (dbErr: any) {
+            const reason = `DB_RPC_ERROR: ${dbErr.message || "unknown"}`;
+            cp.failure_reasons[reason] = (cp.failure_reasons[reason] || 0) + 1;
           }
         }
 
         // Estadísticas agregadas
-        cp.by_year[year] = (cp.by_year[year] || 0) + 1;
+        const yearKey = year !== null ? String(year) : "unknown";
+        cp.by_year[yearKey] = (cp.by_year[yearKey] || 0) + 1;
         cp.by_category[cat] = (cp.by_category[cat] || 0) + 1;
         cp.top_buyers[buyer] = (cp.top_buyers[buyer] || 0) + 1;
 
-        console.log(`[+] [Año ${year}] ID ${nro} ✓ [CONSTRUCCIÓN]: "${title.slice(0, 45)}" | Convocante: ${buyer.slice(0, 25)}`);
+        console.log(`[+] [Año ${yearKey}] ID ${nro} ✓ [CONSTRUCCIÓN]: "${title.slice(0, 45)}" | Convocante: ${buyer.slice(0, 25)}`);
       } else {
-        console.log(`[-] [Año ${year}] ID ${nro}   [OMITIDO - OTRA CAT]: "${title.slice(0, 40)}" (${cat.slice(0, 20)})`);
+        const reason = "NON_CONSTRUCTION_CATEGORY";
+        cp.failure_reasons[reason] = (cp.failure_reasons[reason] || 0) + 1;
+        const yearKey = year !== null ? String(year) : "unknown";
+        console.log(`[-] [Año ${yearKey}] ID ${nro}   [OMITIDO - OTRA CAT]: "${title.slice(0, 40)}" (${cat.slice(0, 20)})`);
       }
 
       // Guardar checkpoint cada 5 registros
@@ -266,6 +313,8 @@ export async function runBackfill(options?: {
       }
     } catch (err: any) {
       cp.errors_count++;
+      const reason = `FETCH_ERROR: ${err.message || "unknown"}`;
+      cp.failure_reasons[reason] = (cp.failure_reasons[reason] || 0) + 1;
       console.error(`  [!] Error procesando ID ${nro}:`, err.message);
     }
   }

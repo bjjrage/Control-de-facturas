@@ -221,6 +221,104 @@ async function runSuite() {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // TEST 4: Integridad Temporal (asOfDate) y Exclusión de Propia Licitación
+  // ---------------------------------------------------------------------------
+  console.log("\n--- 4. Integridad Temporal (asOfDate) y Exclusión de Licitación Evaluada ---");
+
+  const temporalBids: CompetitorBidSummary[] = [
+    {
+      process_id: "proc-target-tender",
+      dncp_nro: "1001",
+      title: "Licitación Evaluada Actualmente",
+      buyer: "MOPC",
+      categoria: "Obras",
+      date: "2024-03-01",
+      monto_ofertado: 9_000_000_000,
+      monto_referencial: 10_000_000_000,
+      discount_pct: 10.0,
+      gano: false,
+      estado_oferta: "ADMITIDA",
+    },
+    {
+      process_id: "proc-past-1",
+      dncp_nro: "1002",
+      title: "Licitación Pasada 1",
+      buyer: "MOPC",
+      categoria: "Obras",
+      date: "2023-11-15",
+      monto_ofertado: 8_500_000_000,
+      monto_referencial: 10_000_000_000,
+      discount_pct: 15.0,
+      gano: true,
+      estado_oferta: "GANADORA",
+    },
+    {
+      process_id: "proc-past-2",
+      dncp_nro: "1003",
+      title: "Licitación Pasada 2",
+      buyer: "MOPC",
+      categoria: "Obras",
+      date: "2024-01-20",
+      monto_ofertado: 9_200_000_000,
+      monto_referencial: 10_000_000_000,
+      discount_pct: 8.0,
+      gano: false,
+      estado_oferta: "ADMITIDA",
+    },
+    {
+      process_id: "proc-future-1",
+      dncp_nro: "1004",
+      title: "Licitación Posterior (Data Leakage)",
+      buyer: "MOPC",
+      categoria: "Obras",
+      date: "2024-05-10",
+      monto_ofertado: 7_000_000_000,
+      monto_referencial: 10_000_000_000,
+      discount_pct: 30.0,
+      gano: true,
+      estado_oferta: "GANADORA",
+    },
+  ];
+
+  // Caso 4A: Sin filtros temporales ni exclusión -> incluye las 4 ofertas
+  const fpUnfiltered = calcularHuellaContextual(temporalBids, { categoria: "Obras" });
+  if (fpUnfiltered.sample_size === 4) {
+    ok(`Sin filtros: incluye las 4 ofertas (n=${fpUnfiltered.sample_size})`);
+  } else {
+    fail(`Fallo sin filtros: esperado 4, obtenido ${fpUnfiltered.sample_size}`);
+  }
+
+  // Caso 4B: Con exclusión del tender ID actual -> excluye "proc-target-tender"
+  const fpExcludeTender = calcularHuellaContextual(temporalBids, {
+    categoria: "Obras",
+    excludeTenderId: "proc-target-tender",
+  });
+  if (fpExcludeTender.sample_size === 3) {
+    ok(`Con excludeTenderId: excluye exitosamente la licitación actual (n=${fpExcludeTender.sample_size})`);
+  } else {
+    fail(`Fallo excludeTenderId: esperado 3, obtenido ${fpExcludeTender.sample_size}`);
+  }
+
+  // Caso 4C: Con asOfDate "2024-03-01" y excludeTenderId "proc-target-tender"
+  // Debe excluir proc-future-1 (fecha 2024-05-10 >= 2024-03-01) y proc-target-tender (2024-03-01 >= cutoff o por ID)
+  // Solo deben quedar proc-past-1 y proc-past-2 (ambas < 2024-03-01)
+  const fpTemporal = calcularHuellaContextual(temporalBids, {
+    categoria: "Obras",
+    asOfDate: "2024-03-01",
+    excludeTenderId: "proc-target-tender",
+  });
+  if (fpTemporal.sample_size === 2) {
+    // Descuentos: 15.0 y 8.0 -> Promedio 11.5%
+    if (fpTemporal.avg_discount_pct === 11.5) {
+      ok(`Con asOfDate y excludeTenderId: filtra ofertas futuras y autolimitación (n=${fpTemporal.sample_size}, avg_discount=${fpTemporal.avg_discount_pct}%)`);
+    } else {
+      fail(`Fallo en promedio temporal: esperado 11.5%, obtenido ${fpTemporal.avg_discount_pct}%`);
+    }
+  } else {
+    fail(`Fallo temporal: esperado 2 ofertas pasadas, obtenido ${fpTemporal.sample_size}`);
+  }
+
   console.log("\n================================================================================");
   if (failures === 0) {
     console.log("GATE 5A VERIFICATION SUITE: ALL TESTS PASSED ✅");
