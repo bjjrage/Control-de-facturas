@@ -36,18 +36,25 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ## GATE 1 — Data Reliability Spike (DNCP / OCDS / Documentos)
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATE 0
 * **IMPLEMENTATION**:
-  - Muestreo representativo de licitaciones de la DNCP (obras, bienes, servicios; diversos años, convocantes y montos).
-  - Medición cuantitativa de completitud de cabeceras, pliegos, actas de apertura, cuadros comparativos y adjudicaciones.
-  - Ratio de PDFs textuales vs. escaneados y viabilidad de extracción determinística vs. OCR.
+  - Script reproducible de auditoría empírica: [`scripts/spike-dncp-reliability.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/spike-dncp-reliability.ts).
+  - Muestreo multianual estructurado (2021–2025) sobre 123 licitaciones reales y 30 documentos físicos descargados e inspeccionados bit a bit.
+  - Dataset consolidado de resultados: [`data/dncp-spike-results.json`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/data/dncp-spike-results.json).
+  - Informe técnico con métricas duras: [`docs/DATA_RELIABILITY_REPORT.md`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/docs/DATA_RELIABILITY_REPORT.md).
 * **TESTS**:
-  - Script de análisis y matriz cuantitativa de fiabilidad con métricas duras.
+  - `npx tsx scripts/spike-dncp-reliability.ts`: Muestreo cuantitativo ejecutado y verificado.
+  - Medición de capa de texto con `pdf-parse`: 100% de actas y cuadros comparativos son imágenes escaneadas (0% texto nativo vectorial).
+  - Medición de formatos estructurados: 0% de cuadros en Excel/CSV (100% PDFs escaneados).
+  - Medición OCDS: cabeceras, adjudicatarios y montos globales 95%+ disponibles; precios unitarios por ítem en ofertas ausentes en OCDS.
 * **RISKS**:
-  - Variabilidad de calidad en documentos históricos escaneados de la DNCP.
+  - Prometer base de datos de precios unitarios competitivos históricos sin pipeline de OCR presupuestado generaría expectativas inviables. Se mitiga desacoplando Inteligencia Pública Nivel 1 (OCDS determinístico) de Procesamiento de Documentos Nivel 2 (OCR bajo demanda).
 * **DEFINITION OF DONE**:
-  - Matriz real de cobertura y calidad documentada con conclusiones objetivas.
+  - Script reproducible completado (`scripts/spike-dncp-reliability.ts`).
+  - Dataset consolidado generado (`data/dncp-spike-results.json`).
+  - Informe técnico con matriz de completitud documentado (`docs/DATA_RELIABILITY_REPORT.md`).
+  - Veredicto y ajuste arquitectónico para Gate 2 formalizado.
 
 ---
 
