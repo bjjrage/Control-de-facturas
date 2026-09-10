@@ -122,6 +122,74 @@ async function runTests() {
   assert(failResult.error !== null, 'Falla de DB en RPC retorna error estructurado en cliente');
   assert(failResult.error!.includes('unique_violation'), 'Error propaga mensaje de error original de PostgreSQL');
 
+  console.log('--- TEST 5: Falla Cerrada ante RPC Inexistente (Sin Fallback Desacoplado) ---');
+  let nonTransactionalWriteAttempted = false;
+  const mockSupabaseMissingRpc: any = {
+    rpc: async () => {
+      return { data: null, error: { message: 'function convertir_licitacion_a_proyecto_atomico() does not exist', code: 'PGRST202' } };
+    },
+    from: () => {
+      nonTransactionalWriteAttempted = true;
+      return { insert: () => ({ select: () => ({ single: () => ({ data: {}, error: null }) }) }) };
+    }
+  };
+
+  const missingRpcResult = await executeTenderToProjectTransaction(mockSupabaseMissingRpc, params);
+  assert(missingRpcResult.error !== null && missingRpcResult.error.includes('MIGRATION_REQUIRED'), 'Falla cerrada con MIGRATION_REQUIRED cuando RPC no existe');
+  assert(!nonTransactionalWriteAttempted, 'NUNCA intenta escrituras desarticuladas/no transaccionales en tablas individuales si falta el RPC');
+
+  console.log('--- TEST 6: Validación Estricta de BudgetItems (Sin Defaults Inventados) ---');
+  let validationCaught = false;
+  try {
+    buildProjectFromAdjudicatedTender({
+      ...params,
+      bidItems: [
+        { itemNumber: 1, description: '', unit: 'M3', quantity: 10, unitPricePyg: 1000 }
+      ]
+    });
+  } catch (err: any) {
+    validationCaught = true;
+    assert(err.message.includes('VALIDATION_ERROR') && err.message.includes('empty description'), 'Rechaza ítem con descripción vacía');
+  }
+  assert(validationCaught, 'Lanza excepción ante ítem con descripción vacía');
+
+  validationCaught = false;
+  try {
+    buildProjectFromAdjudicatedTender({
+      ...params,
+      bidItems: [
+        { itemNumber: 1, description: 'Excavación', unit: '', quantity: 10, unitPricePyg: 1000 }
+      ]
+    });
+  } catch (err: any) {
+    validationCaught = true;
+    assert(err.message.includes('VALIDATION_ERROR') && err.message.includes('empty unit'), 'Rechaza ítem con unidad vacía');
+  }
+  assert(validationCaught, 'Lanza excepción ante ítem con unidad vacía');
+
+  validationCaught = false;
+  try {
+    buildProjectFromAdjudicatedTender({
+      ...params,
+      bidItems: [
+        { itemNumber: 1, description: 'Excavación', unit: 'M3', quantity: 0, unitPricePyg: 1000 }
+      ]
+    });
+  } catch (err: any) {
+    validationCaught = true;
+    assert(err.message.includes('VALIDATION_ERROR') && err.message.includes('invalid quantity'), 'Rechaza ítem con cantidad <= 0');
+  }
+  assert(validationCaught, 'Lanza excepción ante ítem con cantidad <= 0');
+
+  console.log('--- TEST 7: Tenant Isolation y Restricción de Estado GANADA en RPC ---');
+  const mockSupabaseTenantMismatch: any = {
+    rpc: async () => {
+      return { data: null, error: { message: 'TENANT_MISMATCH: authenticated empresa does not match parameter', code: 'P0001' } };
+    }
+  };
+  const tenantMismatchResult = await executeTenderToProjectTransaction(mockSupabaseTenantMismatch, params);
+  assert(tenantMismatchResult.error !== null && tenantMismatchResult.error.includes('TENANT_MISMATCH'), 'Propaga rechazo por violación de tenant isolation');
+
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 19 PASARON CON ÉXITO');
   console.log('======================================================\n');

@@ -78,6 +78,21 @@ export function buildProjectFromAdjudicatedTender(params: TenderToProjectParams)
     ? Math.round(params.durationMonths * 30)
     : null;
 
+  for (const item of params.bidItems) {
+    if (!item.description || item.description.trim() === '') {
+      throw new Error(`VALIDATION_ERROR: Bid item #${item.itemNumber} has empty description.`);
+    }
+    if (!item.unit || item.unit.trim() === '') {
+      throw new Error(`VALIDATION_ERROR: Bid item #${item.itemNumber} has empty unit of measurement.`);
+    }
+    if (item.quantity === undefined || item.quantity === null || item.quantity <= 0) {
+      throw new Error(`VALIDATION_ERROR: Bid item #${item.itemNumber} has invalid quantity (${item.quantity}). Quantity must be strictly greater than zero.`);
+    }
+    if (item.unitPricePyg === undefined || item.unitPricePyg === null || item.unitPricePyg < 0) {
+      throw new Error(`VALIDATION_ERROR: Bid item #${item.itemNumber} has invalid unit price (${item.unitPricePyg}). Price must be non-negative.`);
+    }
+  }
+
   const budgetItems = params.bidItems.map((item, idx) => ({
     code: `ITM-${(idx + 1).toString().padStart(3, '0')}`,
     description: item.description,
@@ -188,104 +203,24 @@ export async function executeTenderToProjectTransaction(
       };
     }
 
-    if (rpcErr && !rpcErr.message?.includes('function') && !rpcErr.message?.includes('does not exist')) {
+    if (rpcErr) {
+      if (rpcErr.message?.includes('function') && rpcErr.message?.includes('does not exist')) {
+        return {
+          error: 'MIGRATION_REQUIRED: La función atómica convertir_licitacion_a_proyecto_atomico no está instalada en la base de datos. Ejecute la migración 0066.'
+        };
+      }
       console.error('[TenderToProject] Transacción atómica en BD falló (rollback automático):', rpcErr);
       return { error: `Transacción atómica falló (rollback garantizado): ${rpcErr.message}` };
     }
+
+    return { error: 'Respuesta inválida del RPC de conversión atómica.' };
   } catch (err: any) {
-    if (!err?.message?.includes('function') && !err?.message?.includes('does not exist')) {
-      console.error('[TenderToProject] Excepción en RPC transaccional:', err);
-      return { error: err.message || String(err) };
-    }
-  }
-
-  // 2. Fallback transaccional en capa de aplicación si la RPC no existe aún en la base de datos
-  // Verificación de idempotencia
-  const { data: existingProject } = await supabase
-    .from('projects')
-    .select('id, code')
-    .eq('empresa_id', payload.project.empresa_id)
-    .eq('code', payload.project.code)
-    .maybeSingle();
-
-  if (existingProject) {
-    return {
-      error: null,
-      projectId: existingProject.id,
-      projectCode: existingProject.code,
-      alreadyExisted: true
-    };
-  }
-
-  // Insertar Proyecto
-  const insertData: Record<string, unknown> = {
-    empresa_id: payload.project.empresa_id,
-    name: payload.project.name,
-    code: payload.project.code,
-    client: payload.project.client,
-    comitente: payload.project.comitente,
-    contract_number: payload.project.contract_number,
-    contract_amount: payload.project.contract_amount,
-    budget_total: payload.project.budget_total,
-    plazo_dias: payload.project.plazo_dias,
-    anticipo_pct: payload.project.anticipo_pct,
-    retencion_pct: payload.project.retencion_pct,
-    status: 'ACTIVO',
-    created_by: payload.project.created_by,
-    start_date: payload.project.start_date,
-    end_date: payload.project.end_date,
-    tender_id: params.tenderId || null,
-    bid_analysis_run_id: params.bidAnalysisRunId || null
-  };
-
-  const { data: project, error: projectError } = await supabase
-    .from('projects')
-    .insert(insertData)
-    .select('id, code')
-    .single();
-
-  if (projectError || !project) {
-    console.error('[TenderToProject] Error al crear proyecto:', projectError);
-    return { error: projectError?.message || 'No se pudo crear el proyecto en el ERP.' };
-  }
-
-  // Insertar budget_items con rollback manual si falla
-  if (payload.budgetItems.length > 0) {
-    const budgetRows = payload.budgetItems.map(item => ({
-      project_id: project.id,
-      code: item.code,
-      description: item.description,
-      unit: item.unit,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-      sort_order: item.sort_order
-    }));
-
-    const { error: itemsError } = await supabase
-      .from('budget_items')
-      .insert(budgetRows);
-
-    if (itemsError) {
-      console.error('[TenderToProject] Error al insertar cómputo métrico (ejecutando rollback):', itemsError);
-      await supabase.from('projects').delete().eq('id', project.id);
+    if (err?.message?.includes('function') && err?.message?.includes('does not exist')) {
       return {
-        error: `Fallo al transferir budget_items (rollback de proyecto ejecutado): ${itemsError.message}`
+        error: 'MIGRATION_REQUIRED: La función atómica convertir_licitacion_a_proyecto_atomico no está instalada en la base de datos. Ejecute la migración 0066.'
       };
     }
+    console.error('[TenderToProject] Excepción en RPC transaccional:', err);
+    return { error: err.message || String(err) };
   }
-
-  // Crear pañol de obra
-  await supabase.from('depositos').insert({
-    empresa_id: payload.project.empresa_id,
-    nombre: nombreDeposito,
-    es_principal: false,
-    project_id: project.id
-  });
-
-  return {
-    error: null,
-    projectId: project.id,
-    projectCode: project.code,
-    alreadyExisted: false
-  };
 }
