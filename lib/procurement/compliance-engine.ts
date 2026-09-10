@@ -205,3 +205,72 @@ export function evaluateTenderCompliance(
     evaluations
   };
 }
+
+/**
+ * Infiere o extrae los requisitos normativos del pliego basados en la categoría, monto y tipo de llamado
+ */
+export function extractRequirementsFromTender(tender: {
+  id: string;
+  categoria?: string | null;
+  procurement_method?: string | null;
+  monto_referencial?: number | null;
+}): TenderRequirement[] {
+  const reqs: TenderRequirement[] = [
+    {
+      id: 'req-ruc-legal',
+      categoria: 'LEGAL',
+      descripcion: 'RUC activo, Cédula de Identidad de Representante Legal y Estatutos Sociales',
+      esExcluyente: true,
+      criterio: { tipoDocEsperado: 'Estatuto Social / Poder' }
+    },
+    {
+      id: 'req-dnit-cct',
+      categoria: 'FISCAL',
+      descripcion: 'Certificado de Cumplimiento Tributario (CCT) emitido por la DNIT vigente',
+      esExcluyente: true,
+      criterio: { tipoDocEsperado: 'Certificado de Cumplimiento Tributario DNIT' }
+    },
+    {
+      id: 'req-ips-social',
+      categoria: 'FISCAL',
+      descripcion: 'Constancia de no adeudar aportes obrero-patronales al IPS',
+      esExcluyente: true,
+      criterio: { tipoDocEsperado: 'Certificado de No Adeudar IPS' }
+    }
+  ];
+
+  const ref = Number(tender.monto_referencial || 0);
+
+  // Si es Licitación Pública Nacional (LPN) o monto > 1.000M PYG, exigir capacidad financiera y solvencia
+  if (ref > 1000000000 || tender.procurement_method === 'open') {
+    reqs.push({
+      id: 'req-cap-financiera',
+      categoria: 'FINANCIERO',
+      descripcion: 'Balance auditado con ratio de liquidez corriente >= 1.2 y solvencia patrimonial',
+      esExcluyente: true,
+      criterio: { ratioLiquidezMinimo: 1.2 }
+    });
+  }
+
+  // Si es obra de construcción vial o civil, exigir experiencia específica y maquinaria
+  const cat = (tender.categoria || '').toLowerCase();
+  if (cat.includes('work') || cat.includes('obra') || cat.includes('construc')) {
+    reqs.push({
+      id: 'req-exp-obras',
+      categoria: 'EXPERIENCIA',
+      descripcion: `Experiencia técnica acumulada en obras similares (mínimo 50% del monto referencial)`,
+      esExcluyente: true,
+      criterio: { montoMinimoPyg: Math.round(ref * 0.50) }
+    });
+
+    reqs.push({
+      id: 'req-maquinaria-minima',
+      categoria: 'MAQUINARIA',
+      descripcion: 'Disponibilidad de equipo vial mínimo (Motoniveladora, Retroexcavadora o Camión Volquete)',
+      esExcluyente: false,
+      criterio: { potenciaHpMinima: 120 }
+    });
+  }
+
+  return reqs;
+}

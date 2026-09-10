@@ -570,13 +570,17 @@ export async function persistirEvaluacionComercial(
   const vaultItems = await fetchCompanyVaultItems(supabase, empresaId);
 
   // 3. Evaluar cumplimiento normativo y documental basado en la bóveda
-  const { evaluateTenderCompliance } = await import("@/lib/procurement/compliance-engine");
+  const { evaluateTenderCompliance, extractRequirementsFromTender } = await import("@/lib/procurement/compliance-engine");
+  const tenderRequirements = extractRequirementsFromTender({
+    id: lic.id,
+    categoria: lic.categoria,
+    procurement_method: lic.procurement_method,
+    monto_referencial: lic.monto_referencial ? Number(lic.monto_referencial) : null
+  });
+
   const complianceReport = evaluateTenderCompliance(
     lic.id,
-    [
-      { id: "req-legal", categoria: "LEGAL", descripcion: "Estatutos y RUC activo", esExcluyente: true, criterio: {} },
-      { id: "req-fiscal", categoria: "FISCAL", descripcion: "Cumplimiento Tributario DNIT al día", esExcluyente: true, criterio: {} }
-    ],
+    tenderRequirements,
     vaultItems
   );
 

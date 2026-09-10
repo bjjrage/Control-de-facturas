@@ -114,6 +114,23 @@ async function runTests() {
   assert(report2.isEligibleToBid === false, 'Detecta correctamente que NO es elegible para licitar debido a fallas excluyentes');
   assert(report2.faltantesCount === 2, 'Detecta exactamente 2 requerimientos faltantes excluyentes (Liquidez y Experiencia)');
 
+  // CASO 3: Inferencia dinámica de requerimientos desde metadatos de licitación
+  console.log('\n--- TEST 3: Inferencia Dinámica de Requisitos (extractRequirementsFromTender) ---');
+  const { extractRequirementsFromTender } = await import('../lib/procurement/compliance-engine');
+  
+  const inferredObras = extractRequirementsFromTender({
+    id: 'lic-obra-1',
+    categoria: 'works',
+    procurement_method: 'open',
+    monto_referencial: 15000000000 // 15.000M PYG
+  });
+
+  assert(inferredObras.some(r => r.categoria === 'LEGAL'), 'Incluye requisito Legal');
+  assert(inferredObras.some(r => r.categoria === 'FISCAL'), 'Incluye requisito Fiscal');
+  assert(inferredObras.some(r => r.categoria === 'FINANCIERO'), 'Incluye requisito Financiero por ser LPN > 1.000M');
+  assert(inferredObras.some(r => r.categoria === 'EXPERIENCIA'), 'Incluye requisito de Experiencia en Obras');
+  assert(inferredObras.some(r => r.categoria === 'MAQUINARIA'), 'Incluye requisito de Maquinaria vial');
+
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 11 PASARON CON ÉXITO');
   console.log('======================================================\n');
