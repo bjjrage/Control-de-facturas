@@ -125,7 +125,12 @@ async function runBacktest() {
   assert(mape < 5.0, `Error porcentual medio absoluto (MAPE) < 5.0% (obtenido: ${mape.toFixed(2)}%)`);
 
   console.log('\n================================================================');
-  console.log('🎉 STRICT TEMPORAL BACKTEST APROBADO CON VEREDICTO: ACCEPT');
+  console.log('⚠️ NOTA METODOLÓGICA (AUDITORÍA GATE 8):');
+  console.log('Este test valida la MECÁNICA ALGORÍTMICA (walk-forward temporal y ausencia');
+  console.log('de data leakage). El MAPE de 0.27% se calculó sobre un fixture acotado');
+  console.log('y NO representa la precisión sobre el universo completo de licitaciones de la DNCP.');
+  console.log('La validación empírica masiva permanece PARTIAL/BLOCKED hasta completar el backfill masivo.');
+  console.log('🎉 VERIFICACIÓN DE INVARIANTES TEMPORALES APROBADA');
   console.log('================================================================\n');
 }
 
