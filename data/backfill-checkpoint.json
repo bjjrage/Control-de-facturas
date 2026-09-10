@@ -1,0 +1,35 @@
+{
+  "wave": 1,
+  "last_processed_id": 377080,
+  "total_processed": 60,
+  "total_ingested_construction": 20,
+  "errors_count": 0,
+  "by_year": {
+    "2019": 11,
+    "2020": 3,
+    "2024": 6
+  },
+  "by_category": {
+    "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles": 18,
+    "Bienes - Adquisición y Locación de inmuebles. Alquiler de muebles": 1,
+    "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión": 1
+  },
+  "top_buyers": {
+    "Municipalidad de Caaguazú": 1,
+    "Municipalidad de Yhú": 1,
+    "Municipalidad de Cárlos Antonio López": 2,
+    "Municipalidad de Yguazú": 1,
+    "Municipalidad de San Alberto": 1,
+    "Gobierno Departamental de Presidente Hayes (PTE.HAYES)": 1,
+    "Congreso Nacional (C.N.)": 1,
+    "Desconocido": 6,
+    "Gobierno Departamental de Boquerón": 1,
+    "Municipalidad de San Juan del Paraná": 1,
+    "Municipalidad de San Lorenzo": 1,
+    "Administración Nacional de Navegación y Puertos (ANNP)": 1,
+    "Municipalidad de Itacurubí del Rosario": 1,
+    "Municipalidad de Eusebio Ayala": 1
+  },
+  "start_time": "2026-09-10T01:10:37.318Z",
+  "last_updated_at": "2026-09-10T01:11:06.492Z"
+}

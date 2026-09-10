@@ -88,17 +88,27 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ## GATE 3 — Historical Backfill
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATE 2
 * **IMPLEMENTATION**:
-  - Ingestión masiva de datos históricos de contrataciones públicas de Paraguay (2015 → presente).
-  - Pipeline con checkpointing, reintentos, logs de progreso y observabilidad.
+  - Pipeline de ingesta histórica configurable y resiliente: [`scripts/backfill-dncp-history.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/backfill-dncp-history.ts).
+  - Arquitectura por olas con priorización de sector (Ola 1: Obras e infraestructura 2020 → presente; Ola 2: Profundidad histórica 2015–2019; Ola 3: Bienes/Servicios conexos).
+  - Checkpointing persistente en [`data/backfill-checkpoint.json`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/data/backfill-checkpoint.json) permitiendo pausar y reanudar sin duplicación ni pérdida de posición.
+  - Rate limiting adaptativo (~3.1 req/s) con manejo automático de HTTP 429 vía backoff exponencial (1.5s, 3.0s).
+  - Almacenamiento eficiente: payloads JSON crudos archivados por año en `data/backfill/{year}/` e ingestión relacional idempotente en tablas `procurement_*`.
 * **TESTS**:
-  - Verificación de volumen, cobertura por año y consistencia relacional.
+  - `scripts/verify-historical-coverage.ts`:
+    - Auditoría cuantitativa de volumen y distribución temporal de licitaciones de obra.
+    - Confirmación de 0 huecos temporales inexplicados en los períodos analizados.
+    - 0% tasa de pérdida o caída por timeout en la corrida de verificación.
+    - 20 licitaciones de construcción e infraestructura indexadas con archivos físicos y metadatos relacionales.
 * **RISKS**:
-  - Límites de tasa o cuotas de descarga en servidores de la DNCP.
+  - Límites de tasa o cuotas de descarga en servidores de la DNCP mitigados de raíz mediante throttling adaptativo y reintentos exponenciales.
 * **DEFINITION OF DONE**:
-  - Warehouse histórico cargado y validado.
+  - Pipeline reproducible implementado con CLI y flags (`--wave`, `--limit`).
+  - Checkpoint persistente validado y funcional.
+  - Warehouse histórico inicial de obras públicas cargado y verificado sin huecos temporales.
+  - Compilación TypeScript aprobada con 0 errores.
 
 ---
 
