@@ -426,16 +426,25 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ## GATE 15 — Tender Monitoring Agent
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATE 14
 * **IMPLEMENTATION**:
-  - Monitor autónomo de adendas, aclaraciones, fechas, apertura y adjudicaciones post-presentación.
+  - Agente monitor reactivo de llamados [`lib/procurement/tender-monitoring.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/tender-monitoring.ts):
+    - Detección de mutaciones entre snapshots temporales del proceso en la DNCP.
+    - Detección de adendas modificatorias con emisión de alerta inmediata de severidad `CRITICAL` y acción mandatoria `REVISAR_ADENDA_Y_RECALCULAR`.
+    - Detección de prórrogas de entrega/apertura con ajuste de calendario (`WARNING`).
+    - Detección de estados terminales (`ADJUDICADA`, `CANCELADA`, `DESIERTA`).
+    - Registro de aclaraciones oficiales (`INFO`).
 * **TESTS**:
-  - Detección reactiva de adendas y alertas de actualización de oferta.
+  - Suite de monitoreo [`scripts/test-tender-monitoring.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-tender-monitoring.ts):
+    - Detección certera de adenda y prórroga simultánea con clasificación de severidades.
+    - Detección reactiva de adjudicación con solicitud de verificación de resultados.
 * **RISKS**:
-  - Latencia en la publicación de documentos en la DNCP.
+  - Sobrecarga de alertas irrelevantes filtrada mediante separación estricta de notas de aclaración menores (`INFO`) vs adendas modificatorias (`CRITICAL`).
 * **DEFINITION OF DONE**:
-  - Notificaciones selectivas y oportunas ante cambios en llamados seguidos.
+  - Notificaciones selectivas y oportunas ante cambios en llamados seguidos implementadas.
+  - Test suite ejecutada con 0 fallos.
+  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
 
 ---
 
