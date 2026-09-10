@@ -98,6 +98,25 @@ export async function actualizarDocumentoEmpresa(
 
   const { error } = await supabase.from("empresa_documentos").update(patch).eq("id", id);
   if (error) return { error: error.message };
+
+  try {
+    const vaultPatch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (data.tipo !== undefined) {
+      vaultPatch.tipo_documento = data.tipo.trim();
+      vaultPatch.titulo = data.tipo.trim();
+    }
+    if (data.descripcion !== undefined) vaultPatch.descripcion = data.descripcion?.trim() || null;
+    if (data.fecha_emision !== undefined) vaultPatch.fecha_emision = data.fecha_emision || null;
+    if (data.fecha_vencimiento !== undefined) {
+      vaultPatch.fecha_vencimiento = data.fecha_vencimiento || null;
+      vaultPatch.es_vencible = !!data.fecha_vencimiento;
+      vaultPatch.estado = data.fecha_vencimiento && new Date(data.fecha_vencimiento).getTime() < Date.now() ? 'VENCIDO' : 'VIGENTE';
+    }
+    await supabase.from("company_bid_vault_items").update(vaultPatch).contains("metadatos", { ref_id: id });
+  } catch {
+    // Defensivo si la migración no existe
+  }
+
   revalidatePath("/licitaciones/documentos");
   revalidatePath("/dashboard");
   return {};
@@ -107,6 +126,13 @@ export async function eliminarDocumentoEmpresa(id: string): Promise<{ error?: st
   const { supabase } = await ctx();
   const { error } = await supabase.from("empresa_documentos").delete().eq("id", id);
   if (error) return { error: error.message };
+
+  try {
+    await supabase.from("company_bid_vault_items").delete().contains("metadatos", { ref_id: id });
+  } catch {
+    // Defensivo
+  }
+
   revalidatePath("/licitaciones/documentos");
   revalidatePath("/dashboard");
   return {};
