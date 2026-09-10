@@ -47,11 +47,41 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
       .returns<ProductoLite[]>(),
   ]);
 
-  // Sugerencia de costo propio (CPP) por ítem — match liviano contra el catálogo.
-  const costoPorItem = new Map<string, { nombre: string; cpp: number; score: number }>();
+  // Gate 7: Item Matching Engine con lematización, stopwords y calibres paraguayos
+  const { matchTenderItem } = await import("@/lib/procurement/item-matching");
+  const catalogForMatching = (productos ?? []).map(p => ({
+    id: p.id,
+    descripcion: p.nombre,
+    unidad: p.unidad,
+  }));
+
+  // Sugerencia de costo propio (CPP) por ítem
+  const costoPorItem = new Map<string, { nombre: string; cpp: number; score: number; confidence: string }>();
   for (const it of items ?? []) {
+    const match = matchTenderItem(it.descripcion, it.unidad || "UN", catalogForMatching);
+    if (match.bestMatch) {
+      const prodOriginal = (productos ?? []).find(p => p.id === match.bestMatch!.item.id);
+      if (prodOriginal) {
+        costoPorItem.set(it.id, {
+          nombre: prodOriginal.nombre,
+          cpp: prodOriginal.costo_promedio,
+          score: match.bestMatch.similarityScore,
+          confidence: match.bestMatch.confidence
+        });
+        continue;
+      }
+    }
+
+    // Fallback liviano
     const m = matchProducto(it.descripcion, productos ?? []);
-    if (m) costoPorItem.set(it.id, { nombre: m.producto.nombre, cpp: m.producto.costo_promedio, score: m.score });
+    if (m) {
+      costoPorItem.set(it.id, {
+        nombre: m.producto.nombre,
+        cpp: m.producto.costo_promedio,
+        score: m.score,
+        confidence: m.score >= 0.65 ? 'MATCH_AUTOMATICO' : 'REQUIERE_REVISION'
+      });
+    }
   }
   const hayCatalogo = (productos ?? []).length > 0;
 
@@ -161,9 +191,18 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
                       {hayCatalogo ? (
                         <td className="num">
                           {c ? (
-                            <span title={`${c.nombre} · similitud ${(c.score * 100).toFixed(0)}%`}>
-                              {formatMoney(c.cpp, moneda)}
-                            </span>
+                            <div className="flex flex-col items-end">
+                              <span title={`${c.nombre} · similitud ${(c.score * 100).toFixed(0)}%`}>
+                                {formatMoney(c.cpp, moneda)}
+                              </span>
+                              <span className={`text-[9px] px-1 rounded ${
+                                c.confidence === 'MATCH_AUTOMATICO'
+                                  ? 'bg-[var(--ok-bg)] text-[var(--ok)] font-medium'
+                                  : 'bg-[var(--panel-2)] text-[var(--muted)]'
+                              }`}>
+                                {c.confidence === 'MATCH_AUTOMATICO' ? 'Exacto' : `${(c.score * 100).toFixed(0)}%`}
+                              </span>
+                            </div>
                           ) : (
                             <span className="text-[var(--muted)]">—</span>
                           )}
