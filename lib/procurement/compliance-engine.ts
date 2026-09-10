@@ -15,13 +15,28 @@
 
 import { VaultItem } from './bid-vault';
 
-export type ComplianceVerdict = 'CUMPLIDO' | 'GENERABLE' | 'FALTANTE';
+export type ComplianceVerdict = 'CUMPLIDO' | 'GENERABLE' | 'FALTANTE' | 'REVIEW_REQUIRED';
+
+export type RequirementExtractionState =
+  | 'REQUIREMENT_DETECTED'
+  | 'CRITERION_EXTRACTED'
+  | 'CRITERION_UNKNOWN'
+  | 'REVIEW_REQUIRED';
 
 export interface TenderRequirement {
   id: string;
   categoria: 'LEGAL' | 'FISCAL' | 'FINANCIERO' | 'EXPERIENCIA' | 'PERSONAL' | 'MAQUINARIA';
   descripcion: string;
   esExcluyente: boolean;
+  extractionState?: RequirementExtractionState;
+  sourceEvidence?: {
+    snippet: string;
+    sectionLocator?: string;
+    confidencePct: number;
+    provenance: string;
+  };
+  permiteAlquilerOCompromiso?: boolean;
+  permiteNominacionPosterior?: boolean;
   criterio: {
     tipoDocEsperado?: string;
     montoMinimoPyg?: number;
@@ -50,13 +65,14 @@ export interface RequirementEvaluation {
 
 export interface TenderComplianceReport {
   tenderId: string;
-  isEligibleToBid: boolean; // True solo si los requisitos provienen de PBC/adenda real extraída y 100% de los excluyentes son CUMPLIDO o GENERABLE
+  isEligibleToBid: boolean; // True solo si los requisitos provienen de PBC/adenda real extraída, array > 0, y 100% de los excluyentes son CUMPLIDO o GENERABLE
   evidenceOrigin: 'EXTRACTED_FROM_PBC' | 'GENERIC_REQUIREMENT_SUGGESTIONS' | 'MANUAL_ENTRY';
   scoreCumplimientoPct: number;
   totalRequirements: number;
   cumplidosCount: number;
   generablesCount: number;
   faltantesCount: number;
+  reviewRequiredCount: number;
   evaluations: RequirementEvaluation[];
 }
 
@@ -81,24 +97,45 @@ function matchesDocType(vaultItem: VaultItem, expectedDocType?: string): boolean
 
 /**
  * Evalúa la matriz de cumplimiento de una licitación contra los activos y documentos de la empresa.
- * Si los requerimientos provienen de sugerencias genéricas (no extraídas del PBC real),
- * NO confiere habilitación automática (isEligibleToBid permanece false con requerimiento de revisión).
+ * FAIL-CLOSED:
+ * - evidenceOrigin DEBE ser explícito (no se asume EXTRACTED_FROM_PBC por defecto).
+ * - Un array vacío de requerimientos NUNCA confiere 100% de cumplimiento ni isEligibleToBid=true.
+ * - Criterios desconocidos ('CRITERION_UNKNOWN' o 'REVIEW_REQUIRED') resultan en 'REVIEW_REQUIRED' y bloquean elegibilidad si son excluyentes.
+ * - No se inventan umbrales de liquidez, experiencia o potencia de maquinaria.
+ * - Maquinaria y personal solo son 'GENERABLE' si el pliego explícitamente autoriza alquiler/compromiso.
  */
 export function evaluateTenderCompliance(
   tenderId: string,
   requirements: TenderRequirement[],
   vaultItems: VaultItem[],
-  financialMetrics?: {
+  financialMetrics: {
     liquidezCorriente?: number;
     endeudamientoTotal?: number;
     capitalTrabajoPyg?: number;
-  },
-  evidenceOrigin: TenderComplianceReport['evidenceOrigin'] = 'EXTRACTED_FROM_PBC'
+  } | undefined,
+  evidenceOrigin: TenderComplianceReport['evidenceOrigin']
 ): TenderComplianceReport {
+  // P0 INVARIANTE: Un pliego sin requisitos analizados NUNCA produce 100% ni habilita para ofertar
+  if (!requirements || requirements.length === 0) {
+    return {
+      tenderId,
+      isEligibleToBid: false,
+      evidenceOrigin,
+      scoreCumplimientoPct: 0,
+      totalRequirements: 0,
+      cumplidosCount: 0,
+      generablesCount: 0,
+      faltantesCount: 0,
+      reviewRequiredCount: 0,
+      evaluations: []
+    };
+  }
+
   const evaluations: RequirementEvaluation[] = [];
   let cumplidos = 0;
   let generables = 0;
   let faltantes = 0;
+  let reviewRequired = 0;
   let hasDisqualifyingBreach = false;
 
   for (const req of requirements) {
@@ -106,23 +143,27 @@ export function evaluateTenderCompliance(
     let docRespaldo: RequirementEvaluation['documentoRespaldo'] = undefined;
     let obs = '';
 
-    if (req.categoria === 'LEGAL') {
+    // Si el extractor no pudo determinar el criterio cuantitativo o exige revisión
+    if (req.extractionState === 'CRITERION_UNKNOWN' || req.extractionState === 'REVIEW_REQUIRED') {
+      verdict = 'REVIEW_REQUIRED';
+      obs = `Requisito detectado en pliego pero criterio no extraído con certeza: ${req.descripcion}`;
+    } else if (req.categoria === 'LEGAL') {
       const match = vaultItems.find(
         v => v.categoria === 'LEGAL' && matchesDocType(v, req.criterio.tipoDocEsperado)
       );
-      if (match && match.estado === 'VIGENTE') {
+      if (match && match.estado === 'VIGENTE' && match.id) {
         verdict = 'CUMPLIDO';
         docRespaldo = { id: match.id, titulo: match.titulo, estado: match.estado };
         obs = 'Documento legal vigente en bóveda';
       } else {
         verdict = req.esExcluyente ? 'FALTANTE' : 'GENERABLE';
-        obs = match ? `Documento en estado ${match.estado}` : 'Documento legal ausente';
+        obs = match ? `Documento en estado ${match.estado}` : 'Documento legal ausente en bóveda';
       }
     } else if (req.categoria === 'FISCAL') {
       const match = vaultItems.find(
         v => v.categoria === 'FISCAL' && matchesDocType(v, req.criterio.tipoDocEsperado)
       );
-      if (match && match.estado === 'VIGENTE') {
+      if (match && match.estado === 'VIGENTE' && match.id) {
         verdict = 'CUMPLIDO';
         docRespaldo = { id: match.id, titulo: match.titulo, estado: match.estado };
         obs = 'Certificado fiscal/social al día';
@@ -137,58 +178,71 @@ export function evaluateTenderCompliance(
     } else if (req.categoria === 'FINANCIERO') {
       if (req.criterio.ratioEndeudamientoMaximo !== undefined) {
         const maxEndeudamiento = req.criterio.ratioEndeudamientoMaximo;
-        const actualEndeudamiento = financialMetrics?.endeudamientoTotal ?? 0;
-        if (actualEndeudamiento > 0 && actualEndeudamiento <= maxEndeudamiento) {
+        const actualEndeudamiento = financialMetrics?.endeudamientoTotal;
+        if (actualEndeudamiento !== undefined && actualEndeudamiento > 0 && actualEndeudamiento <= maxEndeudamiento) {
           verdict = 'CUMPLIDO';
           obs = `Ratio de endeudamiento total (${actualEndeudamiento}) dentro del límite máximo (${maxEndeudamiento})`;
+        } else if (actualEndeudamiento === undefined || actualEndeudamiento === null) {
+          verdict = 'FALTANTE';
+          obs = `Ratio de endeudamiento de la empresa no determinado en balances contables`;
         } else {
           verdict = 'FALTANTE';
-          obs = `Ratio de endeudamiento excesivo o no determinado (${actualEndeudamiento} > ${maxEndeudamiento})`;
+          obs = `Ratio de endeudamiento excesivo (${actualEndeudamiento} > ${maxEndeudamiento})`;
         }
-      } else {
-        const minLiquidez = req.criterio.ratioLiquidezMinimo ?? 1.0;
-        const actualLiquidez = financialMetrics?.liquidezCorriente ?? 0;
-
-        if (actualLiquidez >= minLiquidez) {
+      } else if (req.criterio.ratioLiquidezMinimo !== undefined) {
+        const minLiquidez = req.criterio.ratioLiquidezMinimo;
+        const actualLiquidez = financialMetrics?.liquidezCorriente;
+        if (actualLiquidez !== undefined && actualLiquidez >= minLiquidez) {
           verdict = 'CUMPLIDO';
           obs = `Ratio de liquidez corriente (${actualLiquidez}) cumple el mínimo requerido (${minLiquidez})`;
+        } else if (actualLiquidez === undefined || actualLiquidez === null) {
+          verdict = 'FALTANTE';
+          obs = `Ratio de liquidez no determinado en balances contables`;
         } else {
           verdict = 'FALTANTE';
           obs = `Ratio de liquidez insuficiente (${actualLiquidez} < ${minLiquidez})`;
         }
+      } else {
+        verdict = 'REVIEW_REQUIRED';
+        obs = 'Requisito financiero sin ratio cuantitativo verificado; revisión requerida';
       }
     } else if (req.categoria === 'EXPERIENCIA') {
-      const expDocs = vaultItems.filter(v => v.categoria === 'EXPERIENCIA');
-      let totalMontoEjecutado = 0;
-      let totalKm = 0;
+      const reqMonto = req.criterio.montoMinimoPyg;
+      const reqKm = req.criterio.kmMinimos;
 
-      for (const d of expDocs) {
-        if (d.metadatos?.monto_ejecutado_pyg) {
-          totalMontoEjecutado += Number(d.metadatos.monto_ejecutado_pyg);
-        }
-        if (d.metadatos?.km_pavimentados) {
-          totalKm += Number(d.metadatos.km_pavimentados);
-        }
-      }
-
-      const reqMonto = req.criterio.montoMinimoPyg ?? 0;
-      const reqKm = req.criterio.kmMinimos ?? 0;
-
-      const cumpleMonto = totalMontoEjecutado >= reqMonto;
-      const cumpleKm = reqKm === 0 || totalKm >= reqKm;
-
-      if (cumpleMonto && cumpleKm) {
-        verdict = 'CUMPLIDO';
-        obs = `Experiencia acumulada comprobada: Gs. ${(totalMontoEjecutado / 1e6).toFixed(0)}M (Req: Gs. ${(reqMonto / 1e6).toFixed(0)}M)${reqKm > 0 ? `, ${totalKm} km (Req: ${reqKm} km)` : ''}`;
-        if (expDocs.length > 0) {
-          docRespaldo = { id: expDocs[0].id, titulo: `${expDocs.length} Certificados de Obras`, estado: 'VIGENTE' };
-        }
+      if (reqMonto === undefined && reqKm === undefined) {
+        verdict = 'REVIEW_REQUIRED';
+        obs = 'Requisito de experiencia sin umbral numérico extraíble del pliego; revisión manual requerida';
       } else {
-        verdict = 'FALTANTE';
-        obs = `Experiencia insuficiente: Gs. ${(totalMontoEjecutado / 1e6).toFixed(0)}M de Gs. ${(reqMonto / 1e6).toFixed(0)}M requeridos`;
+        const expDocs = vaultItems.filter(v => v.categoria === 'EXPERIENCIA');
+        let totalMontoEjecutado = 0;
+        let totalKm = 0;
+
+        for (const d of expDocs) {
+          if (d.metadatos?.monto_ejecutado_pyg) {
+            totalMontoEjecutado += Number(d.metadatos.monto_ejecutado_pyg);
+          }
+          if (d.metadatos?.km_pavimentados) {
+            totalKm += Number(d.metadatos.km_pavimentados);
+          }
+        }
+
+        const cumpleMonto = reqMonto === undefined || totalMontoEjecutado >= reqMonto;
+        const cumpleKm = reqKm === undefined || totalKm >= reqKm;
+
+        if (cumpleMonto && cumpleKm) {
+          verdict = 'CUMPLIDO';
+          obs = `Experiencia acumulada comprobada: Gs. ${(totalMontoEjecutado / 1e6).toFixed(0)}M${reqMonto ? ` (Req: Gs. ${(reqMonto / 1e6).toFixed(0)}M)` : ''}${reqKm ? `, ${totalKm} km (Req: ${reqKm} km)` : ''}`;
+          if (expDocs.length > 0) {
+            docRespaldo = { id: expDocs[0].id, titulo: `${expDocs.length} Certificados de Obras`, estado: 'VIGENTE' };
+          }
+        } else {
+          verdict = 'FALTANTE';
+          obs = `Experiencia insuficiente: Gs. ${(totalMontoEjecutado / 1e6).toFixed(0)}M acumulados`;
+        }
       }
     } else if (req.categoria === 'MAQUINARIA') {
-      const reqHp = req.criterio.potenciaHpMinima ?? 0;
+      const reqHp = req.criterio.potenciaHpMinima;
       const equipMatch = vaultItems.find(
         v => v.categoria === 'MAQUINARIA' && (!reqHp || (v.metadatos?.potencia_hp && v.metadatos.potencia_hp >= reqHp))
       );
@@ -196,10 +250,13 @@ export function evaluateTenderCompliance(
       if (equipMatch) {
         verdict = 'CUMPLIDO';
         docRespaldo = { id: equipMatch.id, titulo: equipMatch.titulo, estado: equipMatch.estado };
-        obs = `Equipo disponible (${equipMatch.metadatos?.potencia_hp || 0} HP >= ${reqHp} HP req)`;
+        obs = `Equipo disponible (${equipMatch.metadatos?.potencia_hp || 0} HP${reqHp ? ` >= ${reqHp} HP req` : ''})`;
+      } else if (req.permiteAlquilerOCompromiso === true) {
+        verdict = 'GENERABLE';
+        obs = 'Maquinaria no propia disponible vía carta de compromiso de alquiler autorizada por el pliego';
       } else {
-        verdict = 'GENERABLE'; // Puede subsanarse con carta de compromiso de alquiler
-        obs = 'Maquinaria propia no disponible; subsanable con carta de alquiler';
+        verdict = 'FALTANTE';
+        obs = 'Maquinaria no disponible en inventario propio y el pliego no autoriza compromiso de alquiler';
       }
     } else if (req.categoria === 'PERSONAL') {
       const match = vaultItems.find(
@@ -209,19 +266,28 @@ export function evaluateTenderCompliance(
         verdict = 'CUMPLIDO';
         docRespaldo = { id: match.id, titulo: match.titulo, estado: match.estado };
         obs = `Personal técnico clave verificado: ${match.titulo}`;
-      } else {
+      } else if (req.permiteNominacionPosterior === true) {
         verdict = 'GENERABLE';
-        obs = 'Personal clave a nominar en la presentación formal de la oferta';
+        obs = 'Personal clave a nominar formalmente mediante carta de compromiso autorizada por el pliego';
+      } else {
+        verdict = 'FALTANTE';
+        obs = 'Personal técnico clave no registrado en la empresa y el pliego exige legajo previo';
       }
     } else {
-      // OTRO
-      verdict = 'GENERABLE';
-      obs = 'Requisito preparable con la presentación de la oferta';
+      verdict = 'REVIEW_REQUIRED';
+      obs = 'Requisito no categorizado; requiere revisión manual';
     }
 
-    if (verdict === 'CUMPLIDO') cumplidos++;
-    else if (verdict === 'GENERABLE') generables++;
-    else {
+    if (verdict === 'CUMPLIDO') {
+      cumplidos++;
+    } else if (verdict === 'GENERABLE') {
+      generables++;
+    } else if (verdict === 'REVIEW_REQUIRED') {
+      reviewRequired++;
+      if (req.esExcluyente) {
+        hasDisqualifyingBreach = true;
+      }
+    } else {
       faltantes++;
       if (req.esExcluyente) {
         hasDisqualifyingBreach = true;
@@ -240,10 +306,10 @@ export function evaluateTenderCompliance(
   }
 
   const total = requirements.length;
-  const scoreCumplimientoPct = total > 0 ? Math.round(((cumplidos + generables * 0.5) / total) * 100) : 100;
+  const scoreCumplimientoPct = total > 0 ? Math.round(((cumplidos + generables * 0.5) / total) * 100) : 0;
 
-  // Si la evidencia proviene solo de sugerencias heurísticas genéricas, NO se puede declarar habilitado
-  const isEligibleToBid = evidenceOrigin === 'EXTRACTED_FROM_PBC' ? !hasDisqualifyingBreach : false;
+  // Si la evidencia proviene solo de sugerencias heurísticas genéricas o hay faltantes/review excluyentes, NO se puede declarar habilitado
+  const isEligibleToBid = evidenceOrigin === 'EXTRACTED_FROM_PBC' && !hasDisqualifyingBreach && total > 0;
 
   return {
     tenderId,
@@ -254,6 +320,7 @@ export function evaluateTenderCompliance(
     cumplidosCount: cumplidos,
     generablesCount: generables,
     faltantesCount: faltantes,
+    reviewRequiredCount: reviewRequired,
     evaluations
   };
 }

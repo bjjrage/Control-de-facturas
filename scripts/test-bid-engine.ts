@@ -39,6 +39,7 @@ async function runTests() {
       cumplidosCount: 5,
       generablesCount: 0,
       faltantesCount: 0,
+      reviewRequiredCount: 0,
       evaluations: []
     },
     institutionProfile: {

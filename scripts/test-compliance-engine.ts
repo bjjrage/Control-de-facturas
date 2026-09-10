@@ -93,7 +93,13 @@ async function runTests() {
     { id: 'req-5', categoria: 'MAQUINARIA', descripcion: 'Disponibilidad de motoniveladora de al menos 140 HP', esExcluyente: false, criterio: { potenciaHpMinima: 140 } }
   ];
 
-  const report1 = evaluateTenderCompliance('LIC-MOPC-01', pliegoMopc, mockVault, { liquidezCorriente: 1.45 });
+  const report1 = evaluateTenderCompliance(
+    'LIC-MOPC-01',
+    pliegoMopc,
+    mockVault,
+    { liquidezCorriente: 1.45 },
+    'EXTRACTED_FROM_PBC'
+  );
   console.log(`Dictamen Pliego MOPC: Elegible para ofertar = ${report1.isEligibleToBid} | Score = ${report1.scoreCumplimientoPct}% | Cumplidos: ${report1.cumplidosCount}/${report1.totalRequirements}`);
 
   assert(report1.isEligibleToBid === true, 'Empresa habilitada para ofertar en licitación MOPC');
@@ -108,7 +114,13 @@ async function runTests() {
     { id: 'p-3', categoria: 'EXPERIENCIA', descripcion: 'Experiencia mínima acumulada de Gs. 100.000M', esExcluyente: true, criterio: { montoMinimoPyg: 100000000000 } } // Empresa tiene 25.000M
   ];
 
-  const report2 = evaluateTenderCompliance('LIC-MEGAPUENTE', pliegoMegaPuente, mockVault, { liquidezCorriente: 1.45 });
+  const report2 = evaluateTenderCompliance(
+    'LIC-MEGAPUENTE',
+    pliegoMegaPuente,
+    mockVault,
+    { liquidezCorriente: 1.45 },
+    'EXTRACTED_FROM_PBC'
+  );
   console.log(`Dictamen Megapuente: Elegible = ${report2.isEligibleToBid} | Faltantes = ${report2.faltantesCount} | Score = ${report2.scoreCumplimientoPct}%`);
 
   assert(report2.isEligibleToBid === false, 'Detecta correctamente que NO es elegible para licitar debido a fallas excluyentes');
@@ -156,8 +168,8 @@ async function runTests() {
 
     SECCIÓN IV: EXPERIENCIA TÉCNICA
     4.1 Experiencia mínima acumulada en obras viales similares de al menos Gs. 10.000.000.000 en los últimos 5 años.
-    4.2 El oferente deberá acreditar la disponibilidad de equipo vial mínimo consistente en Motoniveladora y Retroexcavadora.
-    4.3 Se exigirá la designación de un Jefe de Obra que sea Ingeniero Civil matriculado.
+    4.2 El oferente deberá acreditar la disponibilidad de equipo vial mínimo consistente en Motoniveladora de 140 HP. Se autoriza el arrendamiento mediante carta de compromiso de disponibilidad.
+    4.3 Se exigirá la designación de un Jefe de Obra que sea Ingeniero Civil matriculado. Se permite carta de compromiso de prestar servicios.
   `;
 
   const extraction = extractRequirementsFromPbcText(pbcRealista, 20000000000);
@@ -237,6 +249,51 @@ async function runTests() {
   console.log(`Evaluación con PBC Real (Bóveda completa): Elegible = ${pbcComplianceComplete.isEligibleToBid} | Score = ${pbcComplianceComplete.scoreCumplimientoPct}% | Cumplidos = ${pbcComplianceComplete.cumplidosCount}/${pbcComplianceComplete.totalRequirements}`);
   assert(pbcComplianceComplete.isEligibleToBid === true, 'Confiere habilitación formal cuando todos los requisitos del PBC real están cubiertos');
   assert(pbcComplianceComplete.cumplidosCount >= 6, 'Al menos 6 requisitos quedan formalmente CUMPLIDOS con documentación vigente');
+
+  // CASO 5: P0 FAIL-CLOSED: Array de Requerimientos Vacío NUNCA Habilita
+  console.log('\n--- TEST 5: Array Vacío de Requisitos NUNCA Habilita (Fail-Closed) ---');
+  const emptyReport = evaluateTenderCompliance('LIC-VACIA', [], completeVault, { liquidezCorriente: 2.0 }, 'EXTRACTED_FROM_PBC');
+  assert(emptyReport.isEligibleToBid === false, 'Array vacío nunca confiere isEligibleToBid=true');
+  assert(emptyReport.scoreCumplimientoPct === 0, 'Array vacío nunca otorga score=100%, otorga score=0%');
+  assert(emptyReport.totalRequirements === 0, 'Total de requisitos es 0');
+
+  // CASO 6: P0 INVARIANTE: Criterio Desconocido en Pliego NO Inventa 1.2 ni 50% ni 120 HP
+  console.log('\n--- TEST 6: Cero Supuestos Sintéticos ante Criterio no Cuantificado ---');
+  const pbcTextoVago = `
+    El oferente deberá presentar balance auditado demostrando solvencia y liquidez corriente.
+    Asimismo deberá acreditar experiencia acumulada en obras civiles similares y maquinaria propia.
+  `;
+  const extractionVaga = extractRequirementsFromPbcText(pbcTextoVago, 10000000000);
+  const reqLiq = extractionVaga.requirements.find(r => r.id === 'pbc-fin-liquidez');
+  const reqExp = extractionVaga.requirements.find(r => r.id === 'pbc-exp-obras');
+  const reqMaq = extractionVaga.requirements.find(r => r.id === 'pbc-maq-vial');
+
+  assert(reqLiq !== undefined && reqLiq.extractionState === 'CRITERION_UNKNOWN', 'Liquidez sin número marcado como CRITERION_UNKNOWN (no 1.2 inventado)');
+  assert(reqLiq?.criterio.ratioLiquidezMinimo === undefined, 'No inventa ratioLiquidezMinimo = 1.2');
+
+  assert(reqExp !== undefined && reqExp.extractionState === 'CRITERION_UNKNOWN', 'Experiencia sin monto marcado como CRITERION_UNKNOWN (no 50% inventado)');
+  assert(reqExp?.criterio.montoMinimoPyg === undefined, 'No inventa montoMinimoPyg = 50% del referencial');
+
+  assert(reqMaq !== undefined && reqMaq.extractionState === 'CRITERION_UNKNOWN', 'Maquinaria sin HP marcado como CRITERION_UNKNOWN (no 120 HP inventado)');
+  assert(reqMaq?.criterio.potenciaHpMinima === undefined, 'No inventa potenciaHpMinima = 120');
+
+  const evalVaga = evaluateTenderCompliance('LIC-VAGA', extractionVaga.requirements, completeVault, { liquidezCorriente: 1.5 }, 'EXTRACTED_FROM_PBC');
+  assert(evalVaga.isEligibleToBid === false, 'Pliego con criterios no especificados falla cerrado a NO elegible');
+  assert(evalVaga.evaluations.some(e => e.verdict === 'REVIEW_REQUIRED'), 'Genera dictamen REVIEW_REQUIRED para criterios desconocidos');
+
+  // CASO 7: Maquinaria sin Permiso de Alquiler en Pliego Falla a FALTANTE
+  console.log('\n--- TEST 7: Maquinaria sin Permiso Explícito de Alquiler Falla a FALTANTE (No Generable) ---');
+  const reqMaqSinPermiso: TenderRequirement = {
+    id: 'req-maq-estricta',
+    categoria: 'MAQUINARIA',
+    descripcion: 'Camión Volquete 15m3 propio',
+    esExcluyente: true,
+    permiteAlquilerOCompromiso: false, // Pliego NO autoriza alquiler
+    criterio: {}
+  };
+  const vaultSinVolquete = completeVault.filter(v => v.categoria !== 'MAQUINARIA');
+  const reportMaq = evaluateTenderCompliance('LIC-MAQ', [reqMaqSinPermiso], vaultSinVolquete, undefined, 'EXTRACTED_FROM_PBC');
+  assert(reportMaq.evaluations[0].verdict === 'FALTANTE', 'Sin permiso de alquiler, maquinaria ausente resulta en FALTANTE (no GENERABLE)');
 
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 11 PASARON CON ÉXITO');

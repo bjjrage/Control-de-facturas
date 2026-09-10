@@ -3,11 +3,17 @@
  * Extractor determinístico de requisitos normativos, financieros y técnicos
  * a partir del texto oficial del Pliego de Bases y Condiciones (PBC).
  *
- * Clasifica la evidencia como 'EXTRACTED_FROM_PBC', permitiendo la evaluación
- * formal de elegibilidad sin recurrir a suposiciones sintéticas genéricas.
+ * Clasifica la evidencia como 'EXTRACTED_FROM_PBC', distinguiendo:
+ * - REQUIREMENT_DETECTED
+ * - CRITERION_EXTRACTED
+ * - CRITERION_UNKNOWN
+ * - REVIEW_REQUIRED
+ *
+ * P0 INVARIANTE: NUNCA inventa ratios de liquidez (ej. 1.2), porcentaje de experiencia
+ * (ej. 50% de referencial), ni potencia de maquinaria (ej. 120 HP) si no están en el texto.
  */
 
-import { TenderRequirement } from './compliance-engine';
+import { TenderRequirement, RequirementExtractionState } from './compliance-engine';
 
 export interface PbcExtractionResult {
   requirements: TenderRequirement[];
@@ -24,6 +30,15 @@ function parseNumberFromText(text: string): number | null {
   const clean = text.replace(/[^0-9]/g, '');
   const num = parseInt(clean, 10);
   return Number.isFinite(num) && num > 0 ? num : null;
+}
+
+/**
+ * Extrae un snippet de texto preservando el contexto alrededor del término detectado
+ */
+function extractSnippet(text: string, index: number, radius = 100): string {
+  const start = Math.max(0, index - radius);
+  const end = Math.min(text.length, index + radius);
+  return text.substring(start, end).replace(/\s+/g, ' ').trim();
 }
 
 /**
@@ -51,8 +66,13 @@ export function extractRequirementsFromPbcText(
 
   const lower = pbcText.toLowerCase();
 
+  // Detección de permisos explícitos del pliego para mecanismos sustitutos
+  const permiteAlquiler = lower.includes('arrendamiento') || lower.includes('alquiler') || lower.includes('carta de compromiso de disponibilidad');
+  const permiteNominacionPosterior = lower.includes('carta de compromiso de prestar servicios') || lower.includes('compromiso de prestacion') || lower.includes('a contratar');
+
   // 1. REQUISITOS LEGALES
-  if (lower.includes('estatuto') || lower.includes('poder') || lower.includes('representante legal') || lower.includes('ruc')) {
+  const idxPoder = lower.indexOf('estatuto') >= 0 ? lower.indexOf('estatuto') : lower.indexOf('representante legal');
+  if (idxPoder >= 0 || lower.includes('poder') || lower.includes('ruc')) {
     detectedSections.push('CAPACIDAD_LEGAL');
     matchCount++;
     requirements.push({
@@ -60,23 +80,39 @@ export function extractRequirementsFromPbcText(
       categoria: 'LEGAL',
       descripcion: 'Poder de Representación Legal y Estatutos Sociales inscriptos en el Registro Público',
       esExcluyente: true,
+      extractionState: 'CRITERION_EXTRACTED',
+      sourceEvidence: {
+        snippet: extractSnippet(pbcText, Math.max(0, idxPoder)),
+        sectionLocator: 'CAPACIDAD_LEGAL',
+        confidencePct: 95,
+        provenance: 'PBC_TEXT_PARSER'
+      },
       criterio: { tipoDocEsperado: 'Estatuto Social / Poder' }
     });
   }
 
-  if (lower.includes('art. 40') || lower.includes('artículo 40') || lower.includes('ley 2051') || lower.includes('ley 7021') || lower.includes('inhabilitado')) {
+  const idxArt40 = lower.indexOf('art. 40') >= 0 ? lower.indexOf('art. 40') : lower.indexOf('inhabilitado');
+  if (idxArt40 >= 0 || lower.includes('artículo 40') || lower.includes('ley 2051') || lower.includes('ley 7021')) {
     matchCount++;
     requirements.push({
       id: 'pbc-legal-art40',
       categoria: 'LEGAL',
       descripcion: 'Declaración Jurada de no encontrarse inhabilitado para contratar con el Estado (Art. 40 Ley 2051/03 / Ley 7021/22)',
       esExcluyente: true,
+      extractionState: 'CRITERION_EXTRACTED',
+      sourceEvidence: {
+        snippet: extractSnippet(pbcText, Math.max(0, idxArt40)),
+        sectionLocator: 'CAPACIDAD_LEGAL',
+        confidencePct: 98,
+        provenance: 'PBC_TEXT_PARSER'
+      },
       criterio: { tipoDocEsperado: 'Declaración Jurada' }
     });
   }
 
   // 2. REQUISITOS FISCALES Y DE SEGURIDAD SOCIAL
-  if (lower.includes('cumplimiento tributario') || lower.includes('cct') || lower.includes('dnit') || lower.includes('set')) {
+  const idxDnit = lower.indexOf('cumplimiento tributario') >= 0 ? lower.indexOf('cumplimiento tributario') : lower.indexOf('dnit');
+  if (idxDnit >= 0 || lower.includes('cct') || lower.includes('set')) {
     detectedSections.push('SOLVENCIA_FISCAL');
     matchCount++;
     requirements.push({
@@ -84,100 +120,186 @@ export function extractRequirementsFromPbcText(
       categoria: 'FISCAL',
       descripcion: 'Certificado de Cumplimiento Tributario (CCT) emitido por la DNIT vigente a la fecha de apertura',
       esExcluyente: true,
+      extractionState: 'CRITERION_EXTRACTED',
+      sourceEvidence: {
+        snippet: extractSnippet(pbcText, Math.max(0, idxDnit)),
+        sectionLocator: 'SOLVENCIA_FISCAL',
+        confidencePct: 98,
+        provenance: 'PBC_TEXT_PARSER'
+      },
       criterio: { tipoDocEsperado: 'Certificado de Cumplimiento Tributario DNIT' }
     });
   }
 
-  if (lower.includes('ips') || lower.includes('previsión social') || lower.includes('obrero patronal')) {
+  const idxIps = lower.indexOf('ips') >= 0 ? lower.indexOf('ips') : lower.indexOf('previsión social');
+  if (idxIps >= 0 || lower.includes('obrero patronal')) {
     matchCount++;
     requirements.push({
       id: 'pbc-fiscal-ips',
       categoria: 'FISCAL',
       descripcion: 'Constancia de no adeudar aportes obrero-patronales al Instituto de Previsión Social (IPS)',
       esExcluyente: true,
+      extractionState: 'CRITERION_EXTRACTED',
+      sourceEvidence: {
+        snippet: extractSnippet(pbcText, Math.max(0, idxIps)),
+        sectionLocator: 'SOLVENCIA_FISCAL',
+        confidencePct: 95,
+        provenance: 'PBC_TEXT_PARSER'
+      },
       criterio: { tipoDocEsperado: 'Certificado de No Adeudar IPS' }
     });
   }
 
-  // 3. REQUISITOS FINANCIEROS Y RATIOS
-  let ratioLiquidez = 1.2;
-  const matchLiq = lower.match(/liquidez\s*(?:corriente)?\s*(?:m[ií]nima|>=|>|de|mayor a)?\s*([0-9]+(?:[.,][0-9]+)?)/);
-  if (matchLiq && matchLiq[1]) {
-    const parsedRatio = parseFloat(matchLiq[1].replace(',', '.'));
-    if (parsedRatio >= 0.5 && parsedRatio <= 5.0) {
-      ratioLiquidez = parsedRatio;
-    }
-  }
-
-  if (lower.includes('liquidez') || lower.includes('balance auditado') || lower.includes('estados contables') || lower.includes('solvencia')) {
+  // 3. REQUISITOS FINANCIEROS Y RATIOS (P0: CERO SUPUESTOS SINTÉTICOS)
+  const idxFin = lower.indexOf('liquidez') >= 0 ? lower.indexOf('liquidez') : lower.indexOf('balance auditado');
+  if (idxFin >= 0 || lower.includes('estados contables') || lower.includes('solvencia')) {
     detectedSections.push('CAPACIDAD_FINANCIERA');
     matchCount++;
+
+    // Busca ratio numérico dentro de la cláusula de liquidez
+    const matchLiq = lower.match(/liquidez[^\n.]{0,90}?(?:>=|>|de|alcanzar|m[ií]nima|superior a|ser[aá]\s+(?:mayor\s+o\s+igual\s+a\s+)?)\s*([0-9]+(?:[.,][0-9]+)?)/);
+    let ratioLiquidez: number | undefined = undefined;
+    let extractionStateLiq: RequirementExtractionState = 'CRITERION_UNKNOWN';
+
+    if (matchLiq && matchLiq[1]) {
+      const parsed = parseFloat(matchLiq[1].replace(',', '.'));
+      if (parsed >= 0.5 && parsed <= 5.0) {
+        ratioLiquidez = parsed;
+        extractionStateLiq = 'CRITERION_EXTRACTED';
+      }
+    }
+
     requirements.push({
       id: 'pbc-fin-liquidez',
       categoria: 'FINANCIERO',
-      descripcion: `Balance auditado con ratio de liquidez corriente >= ${ratioLiquidez}`,
+      descripcion: ratioLiquidez !== undefined
+        ? `Balance auditado con ratio de liquidez corriente >= ${ratioLiquidez}`
+        : 'Balance auditado y solvencia financiera (ratio de liquidez mínimo no cuantificado en pliego; revisión requerida)',
       esExcluyente: true,
-      criterio: { ratioLiquidezMinimo: ratioLiquidez }
+      extractionState: extractionStateLiq,
+      sourceEvidence: {
+        snippet: extractSnippet(pbcText, Math.max(0, idxFin)),
+        sectionLocator: 'CAPACIDAD_FINANCIERA',
+        confidencePct: ratioLiquidez !== undefined ? 90 : 50,
+        provenance: 'PBC_TEXT_PARSER'
+      },
+      criterio: ratioLiquidez !== undefined ? { ratioLiquidezMinimo: ratioLiquidez } : {}
     });
   }
 
-  let ratioEndeudamiento: number | undefined = undefined;
-  const matchEnd = lower.match(/endeudamiento\s*(?:total|m[aá]ximo|<=|<|de|menor a)?\s*([0-9]+(?:[.,][0-9]+)?)/);
-  if (matchEnd && matchEnd[1]) {
-    const parsedEnd = parseFloat(matchEnd[1].replace(',', '.'));
-    if (parsedEnd >= 0.1 && parsedEnd <= 1.5) {
-      ratioEndeudamiento = parsedEnd;
-      matchCount++;
-      requirements.push({
-        id: 'pbc-fin-endeudamiento',
-        categoria: 'FINANCIERO',
-        descripcion: `Ratio de endeudamiento total <= ${ratioEndeudamiento}`,
-        esExcluyente: true,
-        criterio: { ratioEndeudamientoMaximo: ratioEndeudamiento }
-      });
+  const idxEnd = lower.indexOf('endeudamiento');
+  if (idxEnd >= 0) {
+    const matchEnd = lower.match(/endeudamiento[^\n.]{0,90}?(?:<=|<|no\s+superar[aá]|menor\s+a|hasta|admitido\s+no\s+superar[aá])\s*([0-9]+(?:[.,][0-9]+)?)/);
+    let ratioEndeudamiento: number | undefined = undefined;
+    let extractionStateEnd: RequirementExtractionState = 'CRITERION_UNKNOWN';
+
+    if (matchEnd && matchEnd[1]) {
+      const parsed = parseFloat(matchEnd[1].replace(',', '.'));
+      if (parsed >= 0.1 && parsed <= 1.5) {
+        ratioEndeudamiento = parsed;
+        extractionStateEnd = 'CRITERION_EXTRACTED';
+      }
     }
+
+    matchCount++;
+    requirements.push({
+      id: 'pbc-fin-endeudamiento',
+      categoria: 'FINANCIERO',
+      descripcion: ratioEndeudamiento !== undefined
+        ? `Ratio de endeudamiento total <= ${ratioEndeudamiento}`
+        : 'Ratio de endeudamiento total (límite máximo no cuantificado en pliego; revisión requerida)',
+      esExcluyente: true,
+      extractionState: extractionStateEnd,
+      sourceEvidence: {
+        snippet: extractSnippet(pbcText, idxEnd),
+        sectionLocator: 'CAPACIDAD_FINANCIERA',
+        confidencePct: ratioEndeudamiento !== undefined ? 90 : 50,
+        provenance: 'PBC_TEXT_PARSER'
+      },
+      criterio: ratioEndeudamiento !== undefined ? { ratioEndeudamientoMaximo: ratioEndeudamiento } : {}
+    });
   }
 
-  // 4. EXPERIENCIA TÉCNICA ESPECÍFICA
-  if (lower.includes('experiencia') || lower.includes('obras similares') || lower.includes('contratos similares')) {
+  // 4. EXPERIENCIA TÉCNICA ESPECÍFICA (P0: CERO SUPUESTOS SINTÉTICOS COMO 50% REFERENCIAL)
+  const idxExp = lower.indexOf('experiencia') >= 0 ? lower.indexOf('experiencia') : lower.indexOf('obras similares');
+  if (idxExp >= 0 || lower.includes('contratos similares')) {
     detectedSections.push('EXPERIENCIA_TECNICA');
     matchCount++;
 
-    let montoExperiencia = referenceBudgetPyg ? Math.round(referenceBudgetPyg * 0.5) : 0;
-    const matchMontoExp = lower.match(/experiencia\s*(?:m[ií]nima)?\s*(?:acumulada|en obras)?\s*(?:por un monto de|superior a|de al menos)?\s*(?:gs\.?|guaran[ií]es)?\s*([0-9]{1,3}(?:\.[0-9]{3})+)/);
+    let montoExperiencia: number | undefined = undefined;
+    let extractionStateExp: RequirementExtractionState = 'CRITERION_UNKNOWN';
+
+    const matchMontoExp = lower.match(/experiencia[^\n.]{0,120}?(?:gs\.?|guaran[ií]es)\s*([0-9]{1,3}(?:\.[0-9]{3})+)/) ||
+                          lower.match(/(?:gs\.?|guaran[ií]es)\s*([0-9]{1,3}(?:\.[0-9]{3})+)[^\n.]{0,80}?experiencia/);
     if (matchMontoExp && matchMontoExp[1]) {
       const parsedMonto = parseNumberFromText(matchMontoExp[1]);
       if (parsedMonto && parsedMonto > 0) {
         montoExperiencia = parsedMonto;
+        extractionStateExp = 'CRITERION_EXTRACTED';
       }
     }
 
     requirements.push({
       id: 'pbc-exp-obras',
       categoria: 'EXPERIENCIA',
-      descripcion: montoExperiencia > 0
+      descripcion: montoExperiencia !== undefined
         ? `Experiencia técnica acumulada en obras similares (mínimo Gs. ${montoExperiencia.toLocaleString('es-PY')})`
-        : 'Experiencia técnica acumulada en obras o servicios similares',
+        : 'Experiencia técnica acumulada en obras o servicios similares (monto no determinado numéricamente en pliego; revisión requerida)',
       esExcluyente: true,
-      criterio: montoExperiencia > 0 ? { montoMinimoPyg: montoExperiencia } : {}
+      extractionState: extractionStateExp,
+      sourceEvidence: {
+        snippet: extractSnippet(pbcText, Math.max(0, idxExp)),
+        sectionLocator: 'EXPERIENCIA_TECNICA',
+        confidencePct: montoExperiencia !== undefined ? 85 : 40,
+        provenance: 'PBC_TEXT_PARSER'
+      },
+      criterio: montoExperiencia !== undefined ? { montoMinimoPyg: montoExperiencia } : {}
     });
   }
 
-  // 5. MAQUINARIA Y EQUIPO VIAL
-  if (lower.includes('motoniveladora') || lower.includes('retroexcavadora') || lower.includes('volquete') || lower.includes('equipo vial') || lower.includes('maquinaria mínima')) {
+  // 5. MAQUINARIA Y EQUIPO VIAL (P0: CERO SUPUESTOS SINTÉTICOS COMO 120 HP)
+  const idxMaq = lower.indexOf('maquinaria') >= 0 ? lower.indexOf('maquinaria') : lower.indexOf('motoniveladora');
+  if (idxMaq >= 0 || lower.includes('retroexcavadora') || lower.includes('volquete') || lower.includes('equipo vial')) {
     detectedSections.push('EQUIPAMIENTO_MAQUINARIA');
     matchCount++;
+
+    const matchHp = lower.match(/([0-9]{2,4})\s*(?:hp|cv|caballos)/);
+    let potenciaHp: number | undefined = undefined;
+    let extractionStateMaq: RequirementExtractionState = 'CRITERION_UNKNOWN';
+
+    if (matchHp && matchHp[1]) {
+      const parsedHp = parseInt(matchHp[1], 10);
+      if (parsedHp >= 20 && parsedHp <= 2000) {
+        potenciaHp = parsedHp;
+        extractionStateMaq = 'CRITERION_EXTRACTED';
+      }
+    }
+
+    // Exclusión solo si el texto lo explicita
+    const esExcluyenteMaq = lower.includes('maquinaria excluyente') || lower.includes('descalificación por falta de equipo');
+
     requirements.push({
       id: 'pbc-maq-vial',
       categoria: 'MAQUINARIA',
-      descripcion: 'Disponibilidad de equipo vial mínimo verificado con título o contrato de arrendamiento',
-      esExcluyente: false,
-      criterio: { potenciaHpMinima: 120 }
+      descripcion: potenciaHp !== undefined
+        ? `Disponibilidad de equipo vial mínimo con potencia >= ${potenciaHp} HP`
+        : 'Disponibilidad de equipo vial mínimo verificado con título o contrato de arrendamiento',
+      esExcluyente: esExcluyenteMaq,
+      extractionState: extractionStateMaq,
+      permiteAlquilerOCompromiso: permiteAlquiler,
+      sourceEvidence: {
+        snippet: extractSnippet(pbcText, Math.max(0, idxMaq)),
+        sectionLocator: 'EQUIPAMIENTO_MAQUINARIA',
+        confidencePct: potenciaHp !== undefined ? 85 : 50,
+        provenance: 'PBC_TEXT_PARSER'
+      },
+      criterio: potenciaHp !== undefined ? { potenciaHpMinima: potenciaHp } : {}
     });
   }
 
   // 6. PERSONAL TÉCNICO CLAVE
-  if (lower.includes('jefe de obra') || lower.includes('director de obra') || lower.includes('residente') || lower.includes('ingeniero civil')) {
+  const idxPer = lower.indexOf('jefe de obra') >= 0 ? lower.indexOf('jefe de obra') : lower.indexOf('ingeniero civil');
+  if (idxPer >= 0 || lower.includes('director de obra') || lower.includes('residente')) {
     detectedSections.push('PERSONAL_CLAVE');
     matchCount++;
     requirements.push({
@@ -185,6 +307,14 @@ export function extractRequirementsFromPbcText(
       categoria: 'PERSONAL',
       descripcion: 'Profesional Ingeniero Civil matriculado con experiencia comprobable en jefatura de obra',
       esExcluyente: true,
+      extractionState: 'CRITERION_EXTRACTED',
+      permiteNominacionPosterior,
+      sourceEvidence: {
+        snippet: extractSnippet(pbcText, Math.max(0, idxPer)),
+        sectionLocator: 'PERSONAL_CLAVE',
+        confidencePct: 90,
+        provenance: 'PBC_TEXT_PARSER'
+      },
       criterio: { cargoRequerido: 'Jefe de Obra' }
     });
   }
@@ -199,3 +329,4 @@ export function extractRequirementsFromPbcText(
     rawMatchesCount: matchCount
   };
 }
+
