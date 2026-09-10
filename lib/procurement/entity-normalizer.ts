@@ -40,6 +40,32 @@ export function normalizarTexto(text: string | null | undefined): string {
     .toUpperCase();
 }
 
+export const SIGLAS_CONVOCANTES: Record<string, string[]> = {
+  MOPC: ["MINISTERIO DE OBRAS PUBLICAS Y COMUNICACIONES", "MOPC"],
+  ANDE: ["ADMINISTRACION NACIONAL DE ELECTRICIDAD", "ANDE"],
+  IPS: ["INSTITUTO DE PREVISION SOCIAL", "IPS"],
+  MEC: ["MINISTERIO DE EDUCACION Y CIENCIAS", "MINISTERIO DE EDUCACION Y CULTURA", "MEC"],
+  MSPBS: ["MINISTERIO DE SALUD PUBLICA Y BIENESTAR SOCIAL", "MSPYBS", "MSPBS"],
+  DNCP: ["DIRECCION NACIONAL DE CONTRATACIONES PUBLICAS", "DNCP"],
+  ESSAP: ["EMPRESA DE SERVICIOS SANITARIOS DEL PARAGUAY", "ESSAP"],
+  PETROPAR: ["PETROLEOS PARAGUAYOS", "PETROPAR"],
+};
+
+export function coincideConvocante(query: string | null | undefined, buyer: string | null | undefined): boolean {
+  if (!query || !buyer) return false;
+  const qNorm = normalizarTexto(query);
+  const bNorm = normalizarTexto(buyer);
+  if (bNorm.includes(qNorm) || qNorm.includes(bNorm)) return true;
+
+  for (const [sigla, aliases] of Object.entries(SIGLAS_CONVOCANTES)) {
+    const siglaNorm = normalizarTexto(sigla);
+    if (qNorm === siglaNorm || aliases.some((a) => qNorm.includes(a))) {
+      if (aliases.some((a) => bNorm.includes(a))) return true;
+    }
+  }
+  return false;
+}
+
 export function limpiarRuc(rucRaw: string | null | undefined): { ruc_clean: string | null; dv: string | null } {
   if (!rucRaw || !rucRaw.trim()) return { ruc_clean: null, dv: null };
   const clean = rucRaw.trim().replace(/\s+/g, "");

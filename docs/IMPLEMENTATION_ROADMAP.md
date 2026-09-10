@@ -140,16 +140,28 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ## GATE 5A — Competitor Intelligence V1
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATE 4
 * **IMPLEMENTATION**:
-  - Motor de huella competitiva contextual (empresa × organismo × rubro × tamaño × rivales).
+  - `supabase/migrations/0062_competitor_intelligence.sql`:
+    - Función de segmentación por tamaño de contrato `public.categorizar_tamano_contrato(numeric)` (`SMALL`, `MEDIUM`, `LARGE`).
+    - Vistas analíticas: `v_procurement_competitor_contextual` (segmentación Empresa × Convocante × Rubro × Tamaño) y `v_procurement_competitor_global`.
+    - Función SQL con fallback jerárquico determinístico: `public.get_competitor_contextual_fingerprint`.
+  - Motor de huella competitiva: [`lib/procurement/competitor-intelligence.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/competitor-intelligence.ts) con cálculo contextual de descuentos medios vs referencial, varianza/dispersión, win rate por contexto, niveles de certeza estadística (ALTA >= 15, MEDIA 5-14, BAJA 2-4, INSUFICIENTE < 2) y mapeo de red de consorcios.
+  - Página de perfil 360° de competidor: [`app/(internal)/licitaciones/competidores/[ruc]/page.tsx`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/app/(internal)/licitaciones/competidores/%5Bruc%5D/page.tsx) con KPIs clave, convocantes frecuentes, red de alianzas e historial de ofertas.
 * **TESTS**:
-  - Validación de fingerprints contra competidores conocidos.
+  - `scripts/test-competitor-intelligence.ts`:
+    - Validación de segmentación por tamaño y grados de certeza estadística.
+    - Validación de los 4 niveles de fallback jerárquico (Exacto -> Rubro -> Convocante -> Global).
+    - Modelado y verificación de comportamiento contra 5 competidores reales de la construcción paraguaya (Progen S.A., TOCSA S.A., Barrail Hermanos, Ocho A, Concret-Mix).
 * **RISKS**:
-  - Muestras pequeñas en nichos especializados.
+  - Muestras pequeñas en nichos especializados mitigadas automáticamente mediante el fallback jerárquico determinístico a rubro o comportamiento global de la empresa.
 * **DEFINITION OF DONE**:
-  - Perfil analítico de competidores operativo y auditable.
+  - Motor analítico de huellas contextuales implementado.
+  - Vistas y funciones de fallback creadas en migración PostgreSQL.
+  - Página de perfil de competidor accesible vía `/licitaciones/competidores/[ruc]`.
+  - Suite de tests de fingerprints aprobada con 0 fallos.
+  - Compilación TypeScript aprobada con 0 errores.
 
 ---
 
