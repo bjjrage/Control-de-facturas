@@ -330,7 +330,18 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
               <tbody>
                 {oferentes!.map((o) => (
                   <tr key={o.id}>
-                    <td className="font-medium">{o.nombre}</td>
+                    <td className="font-medium">
+                      {o.ruc ? (
+                        <Link
+                          href={`/licitaciones/competidores/${encodeURIComponent(o.ruc)}`}
+                          className="text-blue-600 hover:underline"
+                        >
+                          {o.nombre}
+                        </Link>
+                      ) : (
+                        o.nombre
+                      )}
+                    </td>
                     <td className="mono text-[12px] text-[var(--muted)]">{o.ruc ?? "—"}</td>
                     <td className="text-[12px] text-[var(--muted)]">{o.tamano ?? "—"}</td>
                     <td className="num">{o.monto_ofertado ? formatMoney(o.monto_ofertado, moneda) : "—"}</td>
@@ -348,7 +359,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
             </table>
           </div>
           <p className="text-[11px] text-[var(--muted)] mt-1">
-            Los montos de los oferentes que no ganaron salen del Acta de Apertura (parser pendiente).
+            Haga clic en un competidor con RUC para ver su perfil analítico 360° y huella competitiva (Gate 5A).
           </p>
         </section>
       ) : null}

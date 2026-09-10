@@ -68,6 +68,12 @@ export function LicitacionesSection({
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
+            href="/licitaciones/competidores"
+            className="inline-flex items-center h-8 rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 text-[13px] font-medium hover:bg-[var(--hover)]"
+          >
+            Radar de Competidores
+          </Link>
+          <Link
             href="/licitaciones/documentos"
             className="inline-flex items-center h-8 rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 text-[13px] font-medium hover:bg-[var(--hover)]"
           >

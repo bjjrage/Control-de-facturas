@@ -20,7 +20,7 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 | **2** | Procurement Evidence Foundation | DONE | **PROVEN_DONE** | `0060_procurement_*.sql`, deduplicación | Esquema relacional probado con scripts locales |
 | **3** | Historical Backfill | DONE | **PARTIAL** | Pipeline resiliente con checkpointing | Solo 20 archivos de muestra; 2015-2023 incompleto |
 | **4** | Offer Extraction + Entity Normalization | DONE | **PROVEN_DONE** | Normalizador de consorcios y extractor `extraerOfertasDeTexto` | Extracción multioferta desde actas/tablas y 100% precisión en auditoría probada |
-| **5A** | Competitor Intelligence V1 | DONE | **PARTIAL** | Lógica de huellas y página `/competidores/[ruc]` | Depende de la profundidad del backfill en BD para ser estadísticamente útil |
+| **5A** | Competitor Intelligence V1 | DONE | **PROVEN_DONE** | Directorio `/competidores`, perfil 360° `/competidores/[ruc]` y fallback jerárquico | Integrado con actas locales y base nacional; navegación fluida y 5/5 tests probados |
 | **5B** | Cost Engine V1 (CPP) | DONE | **PROVEN_DONE** | Fórmulas de decaimiento y fuentes | Conectado a compras y conciliación de facturas del ERP |
 | **6** | Cost Cold Start / Onboarding | DONE | **PROVEN_DONE** | Parser `onboarding.ts` y UI modal en `/licitaciones` | Modal funcional para subir Excel/CSV y calibrar insumos |
 | **7** | Item Matching Engine | DONE | **PROVEN_DONE** | Tokenizador, stopwords y calibres paraguayos | Integrado en la vista de ítems de `/licitaciones/[id]` con badge de certeza |
@@ -119,29 +119,32 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 ---
 
 ### GATE 5A — Competitor Intelligence V1
-* **STATUS**: **PARTIAL**
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 4
 * **IMPLEMENTATION**:
-  - `0062_competitor_intelligence.sql` con vistas agregadas y función de fallback contextual.
-  - Módulo `lib/procurement/competitor-intelligence.ts`.
-  - Interfaz de usuario en `app/(internal)/licitaciones/competidores/[ruc]/page.tsx`.
+  - `0062_competitor_intelligence.sql` con vistas agregadas (`v_procurement_competitor_global`, `v_procurement_competitor_contextual`) y función de fallback contextual.
+  - Módulo `lib/procurement/competitor-intelligence.ts` con segmentación multidimensional, cálculo de certeza estadística (`calcularCertezaEstadistica`) y fallback jerárquico determinístico (`calcularHuellaContextual`).
+  - Función `listCompetitors` que une la base histórica nacional con oferentes locales del ERP (`licitacion_oferentes`).
+  - Función `getCompetitorProfile` con resolución dual (nacional + oferentes locales de actas de apertura).
+  - Directorio completo y buscador en `app/(internal)/licitaciones/competidores/page.tsx`.
+  - Vista 360° en `app/(internal)/licitaciones/competidores/[ruc]/page.tsx` con KPIs de win rate, agresividad de descuento, red de consorcios y top de convocantes.
+  - Vínculos directos en tabla de oferentes de `app/(internal)/licitaciones/[id]/page.tsx` y botón de acceso en la cabecera principal de licitaciones.
 * **VERIFICACIÓN**:
-  - Pruebas matemáticas en `scripts/test-competitor-intelligence.ts`.
-* **GAPS**:
-  - Sin el backfill masivo (Gate 3) y la extracción de ofertas de actas (Gate 4), la interfaz muestra datos mínimos en la base de datos real.
+  - `scripts/test-competitor-intelligence.ts` valida clasificación por escala, certeza, fallback jerárquico y modelado de 5 competidores reales paraguayos (PROGEN, TOCSA, BARRAIL, OCHO A, CONCRET-MIX).
+* **RESULTADO DE AUDITORÍA**: Completado e integrado de extremo a extremo.
 
 ---
 
 ### GATE 5B — Cost Engine V1 (Costo Presente Ponderado / CPP)
-* **STATUS**: **PARTIAL**
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 0
 * **IMPLEMENTATION**:
   - `0063_cost_observations.sql`: Tabla de observaciones de costo multi-tenant.
   - Algoritmo en `lib/cost-engine/weighting.ts`: Decaimiento exponencial, atenuación logarítmica y jerarquía de fuentes.
+  - Conectado a compras y conciliación de facturas del ERP vía `recordCostObservationFromInvoice` en `app/(internal)/invoices/actions.ts` (Gate 20 Flywheel).
 * **VERIFICACIÓN**:
   - `scripts/test-cost-engine.ts` valida el cálculo matemático rigurosamente.
-* **GAPS**:
-  - No está conectado como listener/trigger reactivo a las facturas y compras que se registran en el ERP. Requiere llamadas explícitas.
+* **RESULTADO DE AUDITORÍA**: Integrado con el flujo de compras e ingresos de facturas.
 
 ---
 

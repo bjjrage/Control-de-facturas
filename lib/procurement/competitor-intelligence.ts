@@ -188,15 +188,16 @@ function resumirMetricas(
 
 /**
  * Consulta y ensambla el perfil analítico 360° de un competidor
+ * Busca en procurement_suppliers (histórico nacional) y en licitacion_oferentes (ERP local)
  */
 export async function getCompetitorProfile(
   rucOrId: string,
   supabase: SupabaseClient,
   context?: ContextualQuery
 ): Promise<CompetitorProfile | null> {
-  const { ruc_clean } = limpiarRuc(rucOrId);
+  const { ruc_clean, dv: extractedDv } = limpiarRuc(rucOrId);
 
-  // 1. Obtener datos del proveedor
+  // 1. Obtener datos del proveedor (procurement_suppliers o fallback licitacion_oferentes)
   let query = supabase.from("procurement_suppliers").select("*");
   if (ruc_clean) {
     query = query.eq("ruc_clean", ruc_clean);
@@ -205,26 +206,55 @@ export async function getCompetitorProfile(
   }
 
   const { data: supplier, error: suppErr } = await query.maybeSingle();
-  if (suppErr || !supplier) return null;
+  let supplierData: any = supplier;
 
-  // 2. Obtener ofertas históricas
-  const { data: bidsRaw, error: bidsErr } = await supabase
-    .from("procurement_bids")
-    .select(`
-      process_id,
-      monto_ofertado,
-      gano,
-      estado_oferta,
-      procurement_processes (
-        dncp_nro,
-        titulo,
-        comitente_nombre,
-        categoria,
-        fecha_publicacion,
-        monto_referencial
-      )
-    `)
-    .eq("supplier_id", supplier.id);
+  if (!supplierData && ruc_clean) {
+    // Fallback: buscar en oferentes locales de licitaciones del ERP
+    const { data: oferentes } = await supabase
+      .from("licitacion_oferentes")
+      .select("id, nombre, ruc, tamano")
+      .ilike("ruc", `%${ruc_clean}%`)
+      .limit(1);
+
+    if (oferentes && oferentes.length > 0) {
+      const o = oferentes[0];
+      const { ruc_clean: rc, dv } = limpiarRuc(o.ruc || rucOrId);
+      supplierData = {
+        id: o.id,
+        nombre: o.nombre,
+        nombre_normalizado: normalizarTexto(o.nombre),
+        ruc_clean: rc || ruc_clean,
+        dv: dv || extractedDv || null,
+        tipo_entidad: "EMPRESA",
+        tamano: o.tamano || null,
+      };
+    }
+  }
+
+  if (!supplierData) return null;
+
+  // 2. Obtener ofertas históricas de procurement_bids (si existe en base nacional)
+  let bidsRaw: any[] = [];
+  if (supplier) {
+    const { data: nationalBids } = await supabase
+      .from("procurement_bids")
+      .select(`
+        process_id,
+        monto_ofertado,
+        gano,
+        estado_oferta,
+        procurement_processes (
+          dncp_nro,
+          titulo,
+          comitente_nombre,
+          categoria,
+          fecha_publicacion,
+          monto_referencial
+        )
+      `)
+      .eq("supplier_id", supplier.id);
+    if (nationalBids) bidsRaw = nationalBids;
+  }
 
   const bids: CompetitorBidSummary[] = (bidsRaw || []).map((b: any) => {
     const p = b.procurement_processes || {};
@@ -249,6 +279,57 @@ export async function getCompetitorProfile(
       estado_oferta: b.estado_oferta || "ADMITIDA",
     };
   });
+
+  // 2b. Combinar con ofertas registradas localmente en el ERP (licitacion_oferentes)
+  if (supplierData.ruc_clean) {
+    const { data: localBidsRaw } = await supabase
+      .from("licitacion_oferentes")
+      .select(`
+        id,
+        licitacion_id,
+        monto_ofertado,
+        gano,
+        fuente,
+        licitaciones (
+          dncp_nro,
+          titulo,
+          comitente_nombre,
+          categoria,
+          fecha_publicacion,
+          monto_referencial
+        )
+      `)
+      .ilike("ruc", `%${supplierData.ruc_clean}%`);
+
+    if (localBidsRaw && localBidsRaw.length > 0) {
+      for (const lb of localBidsRaw) {
+        const p = (lb as any).licitaciones || {};
+        // Evitar duplicados por DNCP nro
+        if (p.dncp_nro && bids.some((b) => b.dncp_nro === p.dncp_nro)) continue;
+
+        const montoRef = p.monto_referencial ? Number(p.monto_referencial) : null;
+        const montoOf = lb.monto_ofertado ? Number(lb.monto_ofertado) : null;
+        let discount: number | null = null;
+        if (montoRef && montoOf && montoRef > 0) {
+          discount = parseFloat((((montoRef - montoOf) / montoRef) * 100).toFixed(2));
+        }
+
+        bids.push({
+          process_id: lb.licitacion_id,
+          dncp_nro: p.dncp_nro || "",
+          title: p.titulo || "(sin título)",
+          buyer: p.comitente_nombre || "Desconocido",
+          categoria: p.categoria || "OBRAS",
+          date: p.fecha_publicacion,
+          monto_ofertado: montoOf,
+          monto_referencial: montoRef,
+          discount_pct: discount,
+          gano: !!lb.gano,
+          estado_oferta: lb.gano ? "GANADORA" : (lb.fuente || "ADMITIDA"),
+        });
+      }
+    }
+  }
 
   // 3. Métricas acumuladas
   const totalBids = bids.length;
@@ -303,13 +384,13 @@ export async function getCompetitorProfile(
   const contextual_fingerprint = context ? calcularHuellaContextual(bids, context) : undefined;
 
   return {
-    supplier_id: supplier.id,
-    nombre: supplier.nombre,
-    nombre_canonico: supplier.nombre_normalizado || supplier.nombre,
-    ruc_clean: supplier.ruc_clean,
-    dv: supplier.dv,
-    tipo_entidad: supplier.tipo_entidad || "EMPRESA",
-    tamano: supplier.tamano,
+    supplier_id: supplierData.id,
+    nombre: supplierData.nombre,
+    nombre_canonico: supplierData.nombre_normalizado || supplierData.nombre,
+    ruc_clean: supplierData.ruc_clean,
+    dv: supplierData.dv,
+    tipo_entidad: supplierData.tipo_entidad || "EMPRESA",
+    tamano: supplierData.tamano,
     total_bids: totalBids,
     total_wins: totalWins,
     win_rate_pct: winRate,
@@ -322,3 +403,108 @@ export async function getCompetitorProfile(
     contextual_fingerprint,
   };
 }
+
+export interface CompetitorListEntry {
+  supplier_id: string;
+  nombre: string;
+  ruc_clean: string;
+  dv: string | null;
+  tipo_entidad: string;
+  tamano: string | null;
+  total_bids: number;
+  total_wins: number;
+  win_rate_pct: number;
+  total_awarded_amount: number;
+  global_avg_discount_pct: number;
+  certainty_tier: CertaintyTier;
+}
+
+/**
+ * Lista competidores con métricas agregadas combinando base histórica (v_procurement_competitor_global)
+ * y oferentes locales del ERP (licitacion_oferentes).
+ */
+export async function listCompetitors(
+  supabase: SupabaseClient,
+  options?: { limit?: number; search?: string }
+): Promise<CompetitorListEntry[]> {
+  const limit = options?.limit ?? 50;
+  const search = options?.search?.trim();
+
+  // 1. Intentar leer desde v_procurement_competitor_global
+  let query = supabase
+    .from("v_procurement_competitor_global")
+    .select("*")
+    .order("total_awarded_amount", { ascending: false })
+    .limit(limit);
+
+  if (search) {
+    query = query.or(`nombre.ilike.%${search}%,ruc_clean.ilike.%${search}%`);
+  }
+
+  const { data: rows, error } = await query;
+  if (!error && rows && rows.length > 0) {
+    return rows.map((r: any) => ({
+      supplier_id: r.supplier_id,
+      nombre: r.nombre,
+      ruc_clean: r.ruc_clean,
+      dv: r.dv,
+      tipo_entidad: r.tipo_entidad || "EMPRESA",
+      tamano: r.tamano,
+      total_bids: Number(r.total_bids || 0),
+      total_wins: Number(r.total_wins || 0),
+      win_rate_pct: Number(r.global_win_rate_pct || 0),
+      total_awarded_amount: Number(r.total_awarded_amount || 0),
+      global_avg_discount_pct: Number(r.global_avg_discount_pct || 0),
+      certainty_tier: r.certainty_tier || "INSUFICIENTE",
+    }));
+  }
+
+  // 2. Si la vista no tiene registros o no está disponible, consultar licitacion_oferentes agrupados
+  let ofQuery = supabase
+    .from("licitacion_oferentes")
+    .select("id, ruc, nombre, tamano, monto_ofertado, gano");
+
+  if (search) {
+    ofQuery = ofQuery.or(`nombre.ilike.%${search}%,ruc.ilike.%${search}%`);
+  }
+
+  const { data: ofRows } = await ofQuery;
+  if (!ofRows || ofRows.length === 0) return [];
+
+  const map = new Map<string, CompetitorListEntry>();
+  for (const o of ofRows) {
+    const { ruc_clean, dv } = limpiarRuc(o.ruc || o.nombre);
+    const key = ruc_clean || o.nombre;
+    const existing = map.get(key) || {
+      supplier_id: o.id,
+      nombre: o.nombre,
+      ruc_clean: ruc_clean || "",
+      dv: dv || null,
+      tipo_entidad: "EMPRESA",
+      tamano: o.tamano || null,
+      total_bids: 0,
+      total_wins: 0,
+      win_rate_pct: 0,
+      total_awarded_amount: 0,
+      global_avg_discount_pct: 0,
+      certainty_tier: "INSUFICIENTE" as CertaintyTier,
+    };
+
+    existing.total_bids++;
+    if (o.gano) {
+      existing.total_wins++;
+      existing.total_awarded_amount += Number(o.monto_ofertado || 0);
+    }
+    map.set(key, existing);
+  }
+
+  return Array.from(map.values())
+    .map((c) => ({
+      ...c,
+      win_rate_pct: c.total_bids > 0 ? parseFloat(((c.total_wins / c.total_bids) * 100).toFixed(1)) : 0,
+      certainty_tier: calcularCertezaEstadistica(c.total_bids),
+    }))
+    .sort((a, b) => b.total_bids - a.total_bids)
+    .slice(0, limit);
+}
+
