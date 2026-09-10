@@ -271,16 +271,29 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ## GATE 9 — Company Bid Vault
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATE 0
 * **IMPLEMENTATION**:
-  - Bóveda estructurada y versionada de documentos de licitación (legal, fiscal, financiero, experiencia, personal, maquinaria).
+  - Migración SQL [`supabase/migrations/0064_company_bid_vault.sql`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/supabase/migrations/0064_company_bid_vault.sql):
+    - Tabla `public.company_bid_vault_items` con RLS multi-tenant estricto (`empresa_id = public.current_empresa_id()`).
+    - 6 categorías canónicas (`LEGAL`, `FISCAL`, `FINANCIERO`, `EXPERIENCIA`, `PERSONAL`, `MAQUINARIA`, `OTRO`).
+    - Estados de vigencia (`VIGENTE`, `POR_VENCER`, `VENCIDO`, `EN_TRAMITE`, `OBSOLETO`).
+    - Metadatos JSONB estructurados para matching automático contra requisitos de pliegos.
+    - Versionado documental y referencia a documento padre para reemplazos limpios.
+    - Función de PostgreSQL `evaluar_estado_documento_boveda`.
+  - Módulo TypeScript [`lib/procurement/bid-vault.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/bid-vault.ts): tipos canónicos, función de evaluación determinística `evaluateDocumentValidity` y agregador de salud `summarizeVaultHealth`.
 * **TESTS**:
-  - Pruebas de vencimientos, estados y metadatos estructurados.
+  - Suite de verificación [`scripts/test-bid-vault.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-bid-vault.ts):
+    - Detección exacta de estados de vigencia según umbrales de alerta (30 días).
+    - Modelado y verificación de bóveda real de constructora paraguaya (Estatutos, DNIT, IPS, Certificados de Obras MOPC, Equipos CAT).
+    - Agregación y reporte de salud por categoría.
 * **RISKS**:
-  - Dispersión de formatos y tipos de documentos.
+  - Carga desactualizada de certificados fiscales mitigada con el conector de actualización externa (GATE 10).
 * **DEFINITION OF DONE**:
-  - Repositorio documental reutilizable con trazabilidad total.
+  - Bóveda documental multi-tenant migrada e indexada.
+  - Lógica de estados y metadatos probada al 100%.
+  - Suite de tests aprobada con 0 fallos.
+  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
 
 ---
 
