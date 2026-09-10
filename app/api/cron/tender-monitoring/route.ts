@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runTenderMonitoringBatch } from "@/lib/procurement/tender-monitoring-runner";
 
@@ -13,20 +13,31 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleCron(request: NextRequest) {
-  // Verificación de autenticación para crons (Vercel Cron / Scheduler externo)
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const authHeader = request.headers.get("authorization");
-    const customHeader = request.headers.get("x-cron-secret");
-    const { searchParams } = new URL(request.url);
-    const queryKey = searchParams.get("key");
+  // P0 CRON SECURITY: Fail-closed estricto.
+  // Si CRON_SECRET no está configurado, PROHIBIR operaciones administrativas.
+  const cronSecret = process.env.CRON_SECRET?.trim();
+  if (!cronSecret) {
+    return NextResponse.json(
+      { error: "Servidor no configurado: CRON_SECRET ausente (Fail-Closed)" },
+      { status: 500 }
+    );
+  }
 
-    const token = authHeader?.startsWith("Bearer ") ? authHeader.substring(7) : null;
-    const isAuthorized = token === cronSecret || customHeader === cronSecret || queryKey === cronSecret;
+  // Autorización exclusiva por Bearer token (no se admiten query parameters por seguridad)
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return NextResponse.json(
+      { error: "No autorizado: se requiere encabezado Authorization Bearer" },
+      { status: 401 }
+    );
+  }
 
-    if (!isAuthorized) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
+  const token = authHeader.substring(7).trim();
+  if (token !== cronSecret) {
+    return NextResponse.json(
+      { error: "No autorizado: token inválido" },
+      { status: 401 }
+    );
   }
 
   try {
