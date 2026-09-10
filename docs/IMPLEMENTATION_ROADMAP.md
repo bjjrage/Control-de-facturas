@@ -552,16 +552,21 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ## GATE 20 — ERP Execution Flywheel
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATE 19
 * **IMPLEMENTATION**:
-  - Cierre del doble bucle: costos reales de obra alimentan el Cost Engine privado; resultados de adjudicación alimentan la inteligencia de mercado pública.
+  - Motor de retroalimentación de doble bucle cerrado [`lib/procurement/flywheel.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/flywheel.ts):
+    - **Bucle 1 (Privado / Cost Engine)**: Cada factura imputada o compra ejecutada en una obra alimenta inmediatamente el historial de observaciones del tenant (`processFlywheelExecutionPurchase`), recalibrando en tiempo real el Costo Presente Ponderado (CPP) con decaimiento temporal y atenuación de volumen.
+    - **Bucle 2 (Público / Mercado)**: Cada apertura oficial o acta de adjudicación pública en la DNCP retroalimenta el repositorio de posturas (`procurement_bids`), refinando dinámicamente las huellas de agresividad de los competidores.
 * **TESTS**:
-  - Verificación de retroalimentación continua en predicciones de costo futuro.
+  - Suite de verificación de retroalimentación [`scripts/test-flywheel.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-flywheel.ts):
+    - Demostración de aprendizaje continuo: La compra mayorista de 2,000 bolsas de cemento en una obra activa ajustó el CPP de Gs. 55.383 a Gs. 52.351 (-5.47%), aumentando el nivel de confianza a `MEDIA` para la siguiente licitación.
 * **RISKS**:
-  - Retraso en la imputación de compras o partes de obra.
+  - Dispersión por compras minoristas atípicas resuelta gracias al dampening logarítmico por volumen implementado en Gate 5B.
 * **DEFINITION OF DONE**:
   - Cada obra ejecutada mejora automáticamente la precisión de la siguiente oferta.
+  - Test suite ejecutada con 0 fallos.
+  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
 
 ---
 
