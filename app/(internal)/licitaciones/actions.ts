@@ -58,12 +58,37 @@ export async function importarLicitacion(
     !!miRuc &&
     parsed.notificados.some((ns) => (ns.ruc ?? "").replace(/\D/g, "").includes(miRuc));
 
-  // Upsert cabecera
+  // Ingestar el hecho público globalmente en procurement_* (idempotente)
+  let processId: string | null = null;
+  try {
+    const { data: procIdData } = await supabase.rpc("ingestar_proceso_ocds_global", {
+      p_cr: compiled,
+      p_fuente: "DNCP_OCDS",
+    });
+    if (typeof procIdData === "string") {
+      processId = procIdData;
+      // Registrar seguimiento privado en empresa_licitacion_seguimiento
+      await supabase.from("empresa_licitacion_seguimiento").upsert(
+        {
+          empresa_id: empresaId,
+          process_id: processId,
+          invitada,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "empresa_id,process_id" }
+      );
+    }
+  } catch {
+    // Si la RPC no está aplicada aún en producción remota, continúa con retrocompatibilidad
+  }
+
+  // Upsert cabecera (con process_id vinculado)
   const { data: lic, error: licErr } = await supabase
     .from("licitaciones")
     .upsert(
       {
         empresa_id: empresaId,
+        process_id: processId,
         dncp_nro: c.dncp_nro || nro,
         ocid: c.ocid || `ocds-03ad3f-${nro}`,
         titulo: c.titulo,
@@ -191,19 +216,71 @@ export async function setLicitacionDecision(
   decision: LicitacionDecision,
   notas?: string
 ): Promise<{ error?: string }> {
-  const { supabase } = await ctx();
+  const { supabase, profile } = await ctx();
   const patch: Record<string, unknown> = { decision, updated_at: new Date().toISOString() };
   if (notas !== undefined) patch.decision_notas = notas.trim() || null;
-  const { error } = await supabase.from("licitaciones").update(patch).eq("id", id);
+
+  // 1. Actualizar licitaciones legacy
+  const { data: lic, error } = await supabase
+    .from("licitaciones")
+    .update(patch)
+    .eq("id", id)
+    .eq("empresa_id", profile.empresa_id)
+    .select("process_id")
+    .maybeSingle();
+
   if (error) return { error: error.message };
+
+  // 2. Actualizar seguimiento privado formal si tiene process_id
+  if (lic?.process_id) {
+    try {
+      await supabase.from("empresa_licitacion_seguimiento").upsert(
+        {
+          empresa_id: profile.empresa_id,
+          process_id: lic.process_id,
+          decision,
+          decision_notas: notas !== undefined ? (notas.trim() || null) : undefined,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "empresa_id,process_id" }
+      );
+    } catch {
+      // Retrocompatibilidad defensiva
+    }
+  }
+
   revalidatePath("/licitaciones");
   revalidatePath(`/licitaciones/${id}`);
   return {};
 }
 
 export async function dejarDeSeguirLicitacion(id: string): Promise<{ error?: string }> {
-  const { supabase } = await ctx();
-  const { error } = await supabase.from("licitaciones").delete().eq("id", id);
+  const { supabase, profile } = await ctx();
+  
+  const { data: lic } = await supabase
+    .from("licitaciones")
+    .select("process_id")
+    .eq("id", id)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+
+  if (lic?.process_id) {
+    try {
+      await supabase
+        .from("empresa_licitacion_seguimiento")
+        .delete()
+        .match({ empresa_id: profile.empresa_id, process_id: lic.process_id });
+    } catch {
+      // Retrocompatibilidad defensiva
+    }
+  }
+
+  const { error } = await supabase
+    .from("licitaciones")
+    .delete()
+    .eq("id", id)
+    .eq("empresa_id", profile.empresa_id);
+
   if (error) return { error: error.message };
   revalidatePath("/licitaciones");
   return {};

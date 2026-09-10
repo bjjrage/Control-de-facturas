@@ -60,17 +60,29 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ## GATE 2 — Procurement Evidence Foundation
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATE 1
 * **IMPLEMENTATION**:
-  - Separación formal de hechos públicos globales (`public.procurement_*`) de decisiones privadas por tenant.
-  - Modelado de procesos, lotes, ítems, oferentes, ofertas, adjudicaciones y contratos con procedencia y checksum.
+  - `supabase/migrations/0060_procurement_evidence_foundation.sql`:
+    - Funciones canónicas: `public.normalizar_ruc`, `public.extraer_dv_ruc`, `public.calcular_dv_ruc_py` y `public.normalizar_texto`.
+    - Esquema público global (`public.procurement_*`): entidades convocantes (`procurement_entities`), procesos (`procurement_processes`), historial append-only (`procurement_process_history`), lotes (`procurement_lots`), ítems (`procurement_items`), oferentes (`procurement_suppliers`), ofertas (`procurement_bids`), adjudicaciones (`procurement_awards`), contratos (`procurement_contracts`) y documentos (`procurement_documents`).
+    - Esquema privado del tenant: `public.empresa_licitacion_seguimiento` (aislado estrictamente con RLS por `empresa_id`).
+    - RPC atómica e idempotente: `public.ingestar_proceso_ocds_global(p_cr, p_fuente)` con cálculo de `payload_sha256`, deduplicación estricta y versionado histórico.
+    - Script de migración no destructivo de datos legacy desde `0058_licitaciones.sql`.
+  - Refactor en Server Actions ([app/(internal)/licitaciones/actions.ts](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/app/(internal)/licitaciones/actions.ts)) vinculando ingestión pública global y seguimiento privado.
 * **TESTS**:
-  - Pruebas de ingestión idempotente y deduplicación.
+  - `scripts/test-procurement-foundation.ts`:
+    - Invariantes de normalización canónica de RUC, DV y nombres de entidades.
+    - Aislamiento multi-tenant comprobado (mismo hecho público, decisiones independientes por tenant).
+    - Idempotencia y deduplicación verificada contra la API OCDS de la DNCP.
+    - Trazabilidad criptográfica SHA-256 e inmutabilidad append-only de historial de estados.
 * **RISKS**:
-  - Complejidad de coexistencia con el esquema existente `0058` (requiere migración no destructiva).
+  - La aplicación de la migración `0060` en producción debe ejecutarse previo a la carga masiva de datos históricos del Gate 3 (mecanismos de fallback defensivo incluidos en código de aplicación).
 * **DEFINITION OF DONE**:
-  - Un mismo proceso público existe una sola vez globalmente y múltiples empresas pueden seguirlo independientemente.
+  - Un mismo proceso público existe una sola vez globalmente.
+  - Dos empresas distintas pueden tener estados privados independientes sobre el mismo proceso.
+  - Ingestión 100% idempotente y deduplicada.
+  - Compilación TypeScript aprobada con 0 errores.
 
 ---
 
