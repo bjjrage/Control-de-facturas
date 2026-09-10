@@ -223,16 +223,26 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ## GATE 7 — Item Matching Engine
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATE 2, GATE 5B
 * **IMPLEMENTATION**:
-  - Pipeline híbrido de emparejamiento de ítems de pliego con catálogo y recursos.
+  - Motor de emparejamiento híbrido determinístico [`lib/procurement/item-matching.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/item-matching.ts):
+    - Normalización de dimensiones y calibres (`d=10mm`, `10 mm`, `AP 500`, `H-21`, `F-32`).
+    - Lematización y stopwords técnicas del sector construcción paraguayo.
+    - Diccionario de sinónimos técnicos (hormigón=concreto, varilla=hierro=acero, diésel=gasoil, etc.).
+    - Similitud ponderada bidireccional (peso 4x en especificaciones técnicas críticas y calibres).
+    - Bonificación de unidad física de medida y compuertas determinísticas (`MATCH_AUTOMATICO` >= 0.65, `REQUIERE_REVISION` >= 0.40, `NO_MATCH` < 0.40).
 * **TESTS**:
-  - Benchmark de acierto sobre pliegos reales (>90% resolución automática).
+  - Benchmark de acierto [`scripts/test-item-matching.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-item-matching.ts):
+    - Exactitud sobre catálogo: 100% (10/10 ítems de pliegos reales emparejados con su par correcto).
+    - Tasa de resolución automática: 100% (superando ampliamente el benchmark mínimo del 90%).
+    - Prueba de discriminación de calibres críticos: Hierro 10mm vs 12mm discriminados inequívocamente sin falsos positivos cruzados.
 * **RISKS**:
-  - Descripciones genéricas o ambiguas en pliegos.
+  - Pliegos con redacción ambigua en ítems genéricos mitigados mediante la compuerta `REQUIERE_REVISION`.
 * **DEFINITION OF DONE**:
-  - Resolución automática con compuertas determinísticas y review humano solo en excepciones.
+  - Resolución automática > 90% alcanzada (100% obtenido en benchmark).
+  - Test suite ejecutada con 0 fallos.
+  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
 
 ---
 
