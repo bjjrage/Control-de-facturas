@@ -175,6 +175,59 @@ async function runTests() {
   });
   assert(resNoDate.recorded === false && resNoDate.reason === 'MISSING_INVOICE_DATE', 'Rechazo observable por falta de fecha (no asume today)');
 
+  console.log('\n--- TEST 4: E2E Regression - No Doble Conversión de Moneda en Cost Engine ---');
+  // Factura de USD 100 @ 7.500 Gs/USD
+  const resUsd100 = await recordCostObservationFromInvoice(mockSupabase, {
+    empresaId: 'emp-1',
+    invoiceId: 'inv-usd-100-test',
+    providerId: 'prov-1',
+    itemDescription: 'Válvula Esférica 2 pulg',
+    quantity: 1,
+    unit: 'UN',
+    invoiceDate: '2026-03-05',
+    unitPrice: 100, // USD 100
+    currency: 'USD',
+    exchangeRate: 7500.0 // 7.500 Gs/USD
+  });
+  assert(resUsd100.recorded === true, 'Factura USD 100 se registró');
+  
+  // Buscar la fila persistida correspondiente
+  const persistedUsdRow = insertedRows.find((r: any) => r.documento_id === 'inv-usd-100-test');
+  assert(persistedUsdRow !== undefined, 'Fila persistida encontrada en la base de datos');
+  assert(persistedUsdRow.precio_unitario === 750000, 'precio_unitario persistido es exactamente 750.000 PYG (100 * 7.500)');
+  assert(persistedUsdRow.tipo_cambio === 7500.0, 'tipo_cambio registrado es 7.500 (provenance)');
+
+  // Simular la lectura y mapeo del Cost Engine tal como se hace en persistirEvaluacionComercial y getCostEstimate
+  const mappedObsForEngine = {
+    id: 'test-obs-usd',
+    empresaId: persistedUsdRow.empresa_id,
+    fuente: persistedUsdRow.fuente,
+    documentoId: persistedUsdRow.documento_id,
+    descripcionItem: persistedUsdRow.descripcion_item,
+    categoriaInsumo: persistedUsdRow.categoria_insumo,
+    cantidad: Number(persistedUsdRow.cantidad),
+    unidad: persistedUsdRow.unidad,
+    // Invariante: precio_unitario ya está en PYG canónico, NO se multiplica de nuevo por tipo_cambio
+    precioUnitario: Number(persistedUsdRow.precio_unitario),
+    moneda: persistedUsdRow.moneda,
+    tipoCambio: Number(persistedUsdRow.tipo_cambio || 1.0),
+    fechaObservacion: persistedUsdRow.fecha_observacion,
+    esVolatil: persistedUsdRow.es_volatil
+  };
+
+  const { calculateCostEstimate } = await import('../lib/cost-engine/weighting');
+  const engineEstimate = calculateCostEstimate([mappedObsForEngine], '2026-03-05');
+  
+  console.log(`   Precio unitario recibido por Cost Engine: Gs. ${engineEstimate.recommendedUnitPrice.toLocaleString('es-PY')}`);
+  assert(
+    engineEstimate.recommendedUnitPrice === 750000,
+    `Cost Engine recibe exactamente Gs. 750.000 (sin doble multiplicación a Gs. 5.625.000.000)`
+  );
+  assert(
+    engineEstimate.recommendedUnitPrice !== 5625000000,
+    `Protegido contra error catastrófico de 5.625.000.000 Gs.`
+  );
+
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 20 PASARON CON ÉXITO');
   console.log('======================================================\n');

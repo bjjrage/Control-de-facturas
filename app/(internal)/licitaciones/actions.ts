@@ -699,7 +699,10 @@ export async function persistirEvaluacionComercial(
         categoriaInsumo: row.categoria_insumo,
         cantidad: Number(row.cantidad),
         unidad: row.unidad,
-        precioUnitario: Number(row.precio_unitario) * Number(row.tipo_cambio || 1.0),
+        // INVARIANTE CANÓNICO DE MONEDA:
+        // cost_observations.precio_unitario ya se persiste 100% normalizado a PYG.
+        // tipo_cambio es solo metadato de trazabilidad y NO debe volverse a multiplicar.
+        precioUnitario: Number(row.precio_unitario),
         moneda: row.moneda,
         tipoCambio: Number(row.tipo_cambio || 1.0),
         fechaObservacion: row.fecha_observacion,
