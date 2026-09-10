@@ -124,6 +124,72 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
         <p className="text-[12px] text-[var(--muted)]">Lugar de apertura: {lic.lugar_apertura}</p>
       ) : null}
 
+      {/* Panel Bid Engine: Análisis Comercial */}
+      <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h2 className="text-[14px] font-semibold">Evaluación Comercial (Bid Engine)</h2>
+            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded ${
+              lic.monto_referencial && lic.monto_referencial > 0
+                ? "bg-[var(--ok-bg)] text-[var(--ok)]"
+                : "bg-[var(--panel-2)] text-[var(--muted)]"
+            }`}>
+              {lic.monto_referencial && lic.monto_referencial > 0 ? "EVALUADO" : "PENDIENTE"}
+            </span>
+          </div>
+          {lic.decision ? (
+            <span className="text-[12px] font-medium text-[var(--primary)]">
+              Decisión: {lic.decision}
+            </span>
+          ) : null}
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3 text-[13px]">
+          <div className="rounded border border-[var(--border)] p-2.5 bg-[var(--panel-2)]">
+            <div className="text-[11px] text-[var(--muted)]">Presupuesto Convocante</div>
+            <div className="text-[15px] font-semibold mt-0.5">
+              {lic.monto_referencial ? formatMoney(lic.monto_referencial, moneda) : "—"}
+            </div>
+            <div className="text-[11px] text-[var(--muted)] mt-1">
+              Base oficial del pliego
+            </div>
+          </div>
+
+          <div className="rounded border border-[var(--border)] p-2.5 bg-[var(--panel-2)]">
+            <div className="text-[11px] text-[var(--muted)]">Costo Directo Estimado (CPP)</div>
+            <div className="text-[15px] font-semibold mt-0.5">
+              {(() => {
+                let totalCostoPropio = 0;
+                let itemsConCosto = 0;
+                for (const it of items ?? []) {
+                  const c = costoPorItem.get(it.id);
+                  if (c && it.cantidad) {
+                    totalCostoPropio += c.cpp * it.cantidad;
+                    itemsConCosto++;
+                  }
+                }
+                return totalCostoPropio > 0 ? formatMoney(totalCostoPropio, moneda) : "Sin catálogo";
+              })()}
+            </div>
+            <div className="text-[11px] text-[var(--muted)] mt-1">
+              Calculado desde compras y catálogo
+            </div>
+          </div>
+
+          <div className="rounded border border-[var(--border)] p-2.5 bg-[var(--panel-2)]">
+            <div className="text-[11px] text-[var(--muted)]">Ítems Emparejados</div>
+            <div className="text-[15px] font-semibold mt-0.5">
+              {costoPorItem.size} de {(items ?? []).length} ítems
+            </div>
+            <div className="text-[11px] text-[var(--muted)] mt-1">
+              {items && items.length > 0 && costoPorItem.size === items.length
+                ? "100% de ítems con costo"
+                : "Se requiere calibrar insumos faltantes"}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Lotes */}
       {(lotes ?? []).length > 0 ? (
         <section>
