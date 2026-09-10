@@ -42,6 +42,28 @@ function extractSnippet(text: string, index: number, radius = 100): string {
 }
 
 /**
+ * Verifica si el contexto del requisito en el PBC contiene lenguaje explícito de exclusión, rechazo o descalificación obligatoria
+ */
+function checkExclusionaryLanguage(snippetOrContext: string): boolean {
+  const s = snippetOrContext.toLowerCase();
+  return (
+    s.includes('excluyente') ||
+    s.includes('descalific') ||
+    s.includes('obligatorio') ||
+    s.includes('causal de rechazo') ||
+    s.includes('requisito sustancial') ||
+    s.includes('condicion sustancial') ||
+    s.includes('so pena de rechazo') ||
+    s.includes('bajo apercibimiento de rechazo') ||
+    s.includes('deberá presentar') ||
+    s.includes('debera presentar') ||
+    s.includes('debe presentar') ||
+    s.includes('sera rechazad') ||
+    s.includes('será rechazad')
+  );
+}
+
+/**
  * Extrae requisitos técnicos, normativos y financieros desde el texto del Pliego
  */
 export function extractRequirementsFromPbcText(
@@ -71,39 +93,62 @@ export function extractRequirementsFromPbcText(
   const permiteNominacionPosterior = lower.includes('carta de compromiso de prestar servicios') || lower.includes('compromiso de prestacion') || lower.includes('a contratar');
 
   // 1. REQUISITOS LEGALES
-  const idxPoder = lower.indexOf('estatuto') >= 0 ? lower.indexOf('estatuto') : lower.indexOf('representante legal');
-  if (idxPoder >= 0 || lower.includes('poder') || lower.includes('ruc')) {
+  // CONSERVATISMO PBC: Mención de RUC NO implica requerir "Poder + Estatutos".
+  // Requiere mención explícita de estatuto, poder de representación, personería o representante legal.
+  const idxPoder = lower.indexOf('estatuto') >= 0
+    ? lower.indexOf('estatuto')
+    : lower.indexOf('representante legal') >= 0
+      ? lower.indexOf('representante legal')
+      : lower.indexOf('poder de representacion') >= 0
+        ? lower.indexOf('poder de representacion')
+        : lower.indexOf('poder especial') >= 0
+          ? lower.indexOf('poder especial')
+          : lower.indexOf('poder general');
+
+  if (idxPoder >= 0) {
+    const snippet = extractSnippet(pbcText, idxPoder);
+    const isExcluyente = checkExclusionaryLanguage(snippet) || lower.includes('capacidad legal');
     detectedSections.push('CAPACIDAD_LEGAL');
     matchCount++;
     requirements.push({
       id: 'pbc-legal-poder',
       categoria: 'LEGAL',
       descripcion: 'Poder de Representación Legal y Estatutos Sociales inscriptos en el Registro Público',
-      esExcluyente: true,
-      extractionState: 'CRITERION_EXTRACTED',
+      esExcluyente: isExcluyente,
+      extractionState: isExcluyente ? 'CRITERION_EXTRACTED' : 'REQUIREMENT_DETECTED',
       sourceEvidence: {
-        snippet: extractSnippet(pbcText, Math.max(0, idxPoder)),
+        snippet,
         sectionLocator: 'CAPACIDAD_LEGAL',
-        confidencePct: 95,
+        confidencePct: isExcluyente ? 95 : 70,
         provenance: 'PBC_TEXT_PARSER'
       },
       criterio: { tipoDocEsperado: 'Estatuto Social / Poder' }
     });
   }
 
-  const idxArt40 = lower.indexOf('art. 40') >= 0 ? lower.indexOf('art. 40') : lower.indexOf('inhabilitado');
-  if (idxArt40 >= 0 || lower.includes('artículo 40') || lower.includes('ley 2051') || lower.includes('ley 7021')) {
+  const idxArt40 = lower.indexOf('art. 40') >= 0
+    ? lower.indexOf('art. 40')
+    : lower.indexOf('inhabilitado') >= 0
+      ? lower.indexOf('inhabilitado')
+      : lower.indexOf('artículo 40') >= 0
+        ? lower.indexOf('artículo 40')
+        : -1;
+
+  if (idxArt40 >= 0 || (lower.includes('ley 2051') && lower.includes('inhab')) || (lower.includes('ley 7021') && lower.includes('inhab'))) {
+    const matchIdx = idxArt40 >= 0 ? idxArt40 : lower.indexOf('ley');
+    const snippet = extractSnippet(pbcText, matchIdx);
+    const isExcluyente = checkExclusionaryLanguage(snippet) || snippet.toLowerCase().includes('inhabilitad');
     matchCount++;
     requirements.push({
       id: 'pbc-legal-art40',
       categoria: 'LEGAL',
       descripcion: 'Declaración Jurada de no encontrarse inhabilitado para contratar con el Estado (Art. 40 Ley 2051/03 / Ley 7021/22)',
-      esExcluyente: true,
-      extractionState: 'CRITERION_EXTRACTED',
+      esExcluyente: isExcluyente,
+      extractionState: isExcluyente ? 'CRITERION_EXTRACTED' : 'REQUIREMENT_DETECTED',
       sourceEvidence: {
-        snippet: extractSnippet(pbcText, Math.max(0, idxArt40)),
+        snippet,
         sectionLocator: 'CAPACIDAD_LEGAL',
-        confidencePct: 98,
+        confidencePct: isExcluyente ? 98 : 75,
         provenance: 'PBC_TEXT_PARSER'
       },
       criterio: { tipoDocEsperado: 'Declaración Jurada' }
@@ -111,39 +156,57 @@ export function extractRequirementsFromPbcText(
   }
 
   // 2. REQUISITOS FISCALES Y DE SEGURIDAD SOCIAL
-  const idxDnit = lower.indexOf('cumplimiento tributario') >= 0 ? lower.indexOf('cumplimiento tributario') : lower.indexOf('dnit');
-  if (idxDnit >= 0 || lower.includes('cct') || lower.includes('set')) {
+  const idxDnit = lower.indexOf('cumplimiento tributario') >= 0
+    ? lower.indexOf('cumplimiento tributario')
+    : lower.indexOf('cct') >= 0
+      ? lower.indexOf('cct')
+      : lower.indexOf('tributario') >= 0
+        ? lower.indexOf('tributario')
+        : -1;
+
+  if (idxDnit >= 0) {
+    const snippet = extractSnippet(pbcText, idxDnit);
+    const isExcluyente = checkExclusionaryLanguage(snippet) || snippet.toLowerCase().includes('cumplimiento');
     detectedSections.push('SOLVENCIA_FISCAL');
     matchCount++;
     requirements.push({
       id: 'pbc-fiscal-dnit',
       categoria: 'FISCAL',
       descripcion: 'Certificado de Cumplimiento Tributario (CCT) emitido por la DNIT vigente a la fecha de apertura',
-      esExcluyente: true,
-      extractionState: 'CRITERION_EXTRACTED',
+      esExcluyente: isExcluyente,
+      extractionState: isExcluyente ? 'CRITERION_EXTRACTED' : 'REQUIREMENT_DETECTED',
       sourceEvidence: {
-        snippet: extractSnippet(pbcText, Math.max(0, idxDnit)),
+        snippet,
         sectionLocator: 'SOLVENCIA_FISCAL',
-        confidencePct: 98,
+        confidencePct: isExcluyente ? 98 : 75,
         provenance: 'PBC_TEXT_PARSER'
       },
       criterio: { tipoDocEsperado: 'Certificado de Cumplimiento Tributario DNIT' }
     });
   }
 
-  const idxIps = lower.indexOf('ips') >= 0 ? lower.indexOf('ips') : lower.indexOf('previsión social');
-  if (idxIps >= 0 || lower.includes('obrero patronal')) {
+  const idxIps = lower.indexOf('ips') >= 0
+    ? lower.indexOf('ips')
+    : lower.indexOf('previsión social') >= 0
+      ? lower.indexOf('previsión social')
+      : lower.indexOf('obrero patronal') >= 0
+        ? lower.indexOf('obrero patronal')
+        : -1;
+
+  if (idxIps >= 0) {
+    const snippet = extractSnippet(pbcText, idxIps);
+    const isExcluyente = checkExclusionaryLanguage(snippet) || snippet.toLowerCase().includes('no adeudar');
     matchCount++;
     requirements.push({
       id: 'pbc-fiscal-ips',
       categoria: 'FISCAL',
       descripcion: 'Constancia de no adeudar aportes obrero-patronales al Instituto de Previsión Social (IPS)',
-      esExcluyente: true,
-      extractionState: 'CRITERION_EXTRACTED',
+      esExcluyente: isExcluyente,
+      extractionState: isExcluyente ? 'CRITERION_EXTRACTED' : 'REQUIREMENT_DETECTED',
       sourceEvidence: {
-        snippet: extractSnippet(pbcText, Math.max(0, idxIps)),
+        snippet,
         sectionLocator: 'SOLVENCIA_FISCAL',
-        confidencePct: 95,
+        confidencePct: isExcluyente ? 95 : 70,
         provenance: 'PBC_TEXT_PARSER'
       },
       criterio: { tipoDocEsperado: 'Certificado de No Adeudar IPS' }

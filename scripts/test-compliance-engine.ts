@@ -295,6 +295,16 @@ async function runTests() {
   const reportMaq = evaluateTenderCompliance('LIC-MAQ', [reqMaqSinPermiso], vaultSinVolquete, undefined, 'EXTRACTED_FROM_PBC');
   assert(reportMaq.evaluations[0].verdict === 'FALTANTE', 'Sin permiso de alquiler, maquinaria ausente resulta en FALTANTE (no GENERABLE)');
 
+  // CASO 8: Conservatismo en Extracción de PBC (Mención de RUC != Poder de Representación)
+  console.log('\n--- TEST 8: Mención aislada de RUC NO infiere Poder ni Estatuto ---');
+  const pbcTextoSoloRuc = `
+    La convocante es el Ministerio con RUC 80012345-6. Consultas al correo compras@mopc.gov.py.
+    Plazo de entrega 60 días en depósito central.
+  `;
+  const extSoloRuc = extractRequirementsFromPbcText(pbcTextoSoloRuc);
+  const reqPoderFalso = extSoloRuc.requirements.find(r => r.id === 'pbc-legal-poder');
+  assert(reqPoderFalso === undefined, 'Mención aislada de RUC de la convocante NO genera falsamente requisito de Poder/Estatuto');
+
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 11 PASARON CON ÉXITO');
   console.log('======================================================\n');
