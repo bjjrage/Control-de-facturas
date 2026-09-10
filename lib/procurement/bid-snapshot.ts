@@ -15,9 +15,9 @@ export interface BidAnalysisRunRecord {
   decision: BidDecisionOutput['decision'];
   overallScore: number;
   montoReferencialPyg: number;
-  precioOfertaRecomendadoPyg: number;
-  margenNetoEstimadoPct: number;
-  probabilidadGanarPct: number;
+  precioOfertaRecomendadoPyg: number | null;
+  margenNetoEstimadoPct: number | null;
+  probabilidadGanarPct: number | null;
   complianceSnapshot: any;
   institutionSnapshot: any;
   financialSnapshot: any;
@@ -52,9 +52,9 @@ export type CanonicalSnapshotPayload = {
   decision: BidDecisionOutput['decision'];
   overallScore: number;
   montoReferencialPyg: number;
-  precioOfertaRecomendadoPyg: number;
-  margenNetoEstimadoPct: number;
-  probabilidadGanarPct: number;
+  precioOfertaRecomendadoPyg: number | null;
+  margenNetoEstimadoPct: number | null;
+  probabilidadGanarPct: number | null;
   complianceSnapshot: any;
   institutionSnapshot: any;
   financialSnapshot: any;

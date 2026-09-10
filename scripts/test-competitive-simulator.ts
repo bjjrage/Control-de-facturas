@@ -90,8 +90,10 @@ async function runTests() {
 
   const uncalibratedResult = simulateCompetitiveBidding(uncalibratedSimInput, 1000);
   console.log(`Estado: ${uncalibratedResult.simulationStatus} | Calibrado: ${uncalibratedResult.isCalibrated}`);
-  assert(uncalibratedResult.simulationStatus === 'CALCULADO', 'Simulación calculable');
+  assert(uncalibratedResult.simulationStatus === 'UNCALIBRATED', 'Simulación falla a UNCALIBRATED ante datos insuficientes');
   assert(uncalibratedResult.isCalibrated === false, 'Detecta correctamente que es uncalibrated');
+  assert(uncalibratedResult.recommendedSweetSpotPricePyg === 0, 'No emite precio recomendado');
+  assert(uncalibratedResult.winProbabilityCurve.length === 0, 'No emite curva de probabilidad numérica sin evidencia');
   assert(uncalibratedResult.missingInputs.length > 0, 'Registra advertencias de calibración');
 
   // TEST 5: Simulación Plenamente Calibrada con Huellas Empíricas

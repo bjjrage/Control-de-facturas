@@ -32,7 +32,7 @@ export interface PricePointWinProbability {
 
 export interface CompetitiveSimulationResult {
   tenderId: string;
-  simulationStatus: 'CALCULADO' | 'INSUFFICIENT_EVIDENCE';
+  simulationStatus: 'CALCULADO' | 'UNCALIBRATED' | 'INSUFFICIENT_EVIDENCE';
   isCalibrated: boolean;
   missingInputs: string[];
   referenceBudgetPyg: number;
@@ -57,7 +57,9 @@ function randomNormal(mean: number, stdDev: number): number {
 /**
  * Ejecuta simulación Monte Carlo de subasta pública.
  * INVARIANTE UNKNOWN != DEFAULT:
- * Si el presupuesto referencial es <= 0, no inventa un presupuesto de 1 guaraní ni posturas ficticias.
+ * Si el presupuesto referencial es <= 0 o la evidencia de competidores es insuficiente,
+ * no inventa competidores (4 o 6), ni descuentos (8%), ni dispersiones sintéticas (3.5%).
+ * Falla a UNCALIBRATED sin emitir precio recomendado ni probabilidad numérica.
  */
 export function simulateCompetitiveBidding(
   input: CompetitiveSimulationInput,
@@ -84,26 +86,52 @@ export function simulateCompetitiveBidding(
     };
   }
 
-  const hasExplicitParticipants = typeof input.expectedParticipantsCount === 'number' && input.expectedParticipantsCount >= 1;
-  const numCompetitors = hasExplicitParticipants ? input.expectedParticipantsCount! : (refBudget > 30000000000 ? 4 : 6);
-  const isCalibrated = hasExplicitParticipants && (input.knownCompetitorFingerprints?.length ?? 0) > 0;
+  // CANONICAL INVARIANT: UNKNOWN != DEFAULT
+  // Requiere mínimo 2 competidores observados Y al menos 2 huellas empíricas (o 3 muestras históricas acumuladas)
+  const fingerprints = input.knownCompetitorFingerprints ?? [];
+  const hasExplicitParticipants = typeof input.expectedParticipantsCount === 'number' && input.expectedParticipantsCount >= 2;
+  const totalSamples = fingerprints.reduce((acc, f) => acc + (f.sample_size || 1), 0);
+  const hasSufficientFingerprints = fingerprints.length >= 2 || totalSamples >= 3;
+
   const missingInputs: string[] = [];
   if (!hasExplicitParticipants) {
-    missingInputs.push('Número de oferentes participantes no observado en el llamado');
+    missingInputs.push('Menos de 2 oferentes observados en el llamado (mínimo 2 requeridos)');
   }
-  if (!input.knownCompetitorFingerprints || input.knownCompetitorFingerprints.length === 0) {
-    missingInputs.push('Sin huellas de descuento históricas de competidores para este rubro');
+  if (!hasSufficientFingerprints) {
+    missingInputs.push('Evidencia insuficiente de descuentos históricos de competidores (mínimo 2 huellas o 3 muestras en el rubro)');
   }
 
-  // Parámetros de distribución de descuentos: media ~ 8.0%, desv ~ 3.5%
-  let meanDiscount = 8.0;
-  let stdDevDiscount = 3.5;
-
-  if (input.knownCompetitorFingerprints && input.knownCompetitorFingerprints.length > 0) {
-    const discounts = input.knownCompetitorFingerprints.map(f => f.avg_discount_pct);
-    meanDiscount = discounts.reduce((a, b) => a + b, 0) / discounts.length;
-    stdDevDiscount = 2.8;
+  // Si los datos son insuficientes: NO emitir precio recomendado ni curva de probabilidad ni inventar 4/6 competidores u 8% de descuento
+  if (!hasExplicitParticipants || !hasSufficientFingerprints) {
+    return {
+      tenderId: input.tenderId,
+      simulationStatus: 'UNCALIBRATED',
+      isCalibrated: false,
+      missingInputs,
+      referenceBudgetPyg: refBudget,
+      simulatedCompetitorsCount: input.expectedParticipantsCount || 0,
+      winningPriceDistribution: {
+        p10WinningPricePyg: 0,
+        p50WinningPricePyg: 0,
+        p90WinningPricePyg: 0
+      },
+      winProbabilityCurve: [],
+      recommendedSweetSpotDiscountPct: 0,
+      recommendedSweetSpotPricePyg: 0,
+      iterationsRun: 0
+    };
   }
+
+  const numCompetitors = input.expectedParticipantsCount!;
+
+  // Calibración estricta con datos empíricos: media y dispersión observadas reales
+  const discounts = fingerprints.map(f => f.avg_discount_pct).filter(d => typeof d === 'number' && !isNaN(d));
+  const meanDiscount = discounts.reduce((a, b) => a + b, 0) / discounts.length;
+  const variance = discounts.reduce((acc, d) => acc + Math.pow(d - meanDiscount, 2), 0) / Math.max(1, discounts.length);
+  const reportedStdDevs = fingerprints.map(f => f.stddev_discount_pct).filter((s): s is number => typeof s === 'number' && s > 0);
+  const stdDevDiscount = reportedStdDevs.length > 0
+    ? reportedStdDevs.reduce((a, b) => a + b, 0) / reportedStdDevs.length
+    : Math.max(0.5, Math.sqrt(variance));
 
   const winningDiscounts: number[] = [];
 
@@ -160,8 +188,8 @@ export function simulateCompetitiveBidding(
   return {
     tenderId: input.tenderId,
     simulationStatus: 'CALCULADO',
-    isCalibrated,
-    missingInputs,
+    isCalibrated: true,
+    missingInputs: [],
     referenceBudgetPyg: input.referenceBudgetPyg,
     simulatedCompetitorsCount: numCompetitors,
     winningPriceDistribution: {

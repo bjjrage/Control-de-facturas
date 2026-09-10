@@ -43,9 +43,9 @@ export interface BidDecisionOutput {
   tenderId: string;
   decision: BidDecision;
   overallScore: number; // 0 - 100
-  recommendedOfferPricePyg: number;
-  expectedNetMarginPct: number;
-  winProbabilityPct: number;
+  recommendedOfferPricePyg: number | null;
+  expectedNetMarginPct: number | null;
+  winProbabilityPct: number | null;
   pillars: PillarAssessment[];
   keyJustifications: string[];
   blockers: string[];
@@ -164,7 +164,7 @@ export function evaluateBidOpportunity(input: BidEngineInput): BidDecisionOutput
 
   // PILAR 4: Financiero (Flujo y Margen Neto Real)
   let pilarFinanciero: PillarAssessment;
-  let netMargin = 0;
+  let netMargin: number | null = null;
   if (input.financialReport.financialStatus === 'INSUFFICIENT_EVIDENCE') {
     pilarFinanciero = {
       pilar: 'FINANCIERO',
@@ -205,8 +205,8 @@ export function evaluateBidOpportunity(input: BidEngineInput): BidDecisionOutput
 
   // PILAR 5: Competitividad
   let pilarCompetitividad: PillarAssessment;
-  let sweetSpotPrice = 0;
-  let sweetSpotWinProb = 0;
+  let sweetSpotPrice: number | null = null;
+  let sweetSpotWinProb: number | null = null;
 
   if (input.simulationResult.simulationStatus === 'INSUFFICIENT_EVIDENCE') {
     pilarCompetitividad = {
@@ -216,20 +216,31 @@ export function evaluateBidOpportunity(input: BidEngineInput): BidDecisionOutput
       resumen: `Simulación competitiva no disponible: ${input.simulationResult.missingInputs.join(', ')}.`
     };
     blockers.push(`Simulación competitiva bloqueada: ${input.simulationResult.missingInputs.join(', ')}.`);
-  } else {
-    sweetSpotPrice = input.simulationResult.recommendedSweetSpotPricePyg;
-    sweetSpotWinProb = input.simulationResult.winProbabilityCurve.find(
-      c => c.discountPct === Math.round(input.simulationResult.recommendedSweetSpotDiscountPct)
-    )?.winProbabilityPct ?? 50;
-
-    const isCalibrated = input.simulationResult.isCalibrated;
+  } else if (input.simulationResult.simulationStatus === 'UNCALIBRATED' || !input.simulationResult.isCalibrated) {
     pilarCompetitividad = {
       pilar: 'COMPETITIVIDAD',
-      status: (sweetSpotWinProb >= 50 && isCalibrated) ? 'OPTIMO' : 'ADVERTENCIA',
-      score: Math.min(100, isCalibrated ? sweetSpotWinProb * 1.2 : Math.min(60, sweetSpotWinProb)),
-      resumen: isCalibrated
+      status: 'ADVERTENCIA',
+      score: 40,
+      resumen: `Simulación competitiva no calibrada: ${input.simulationResult.missingInputs.join('; ')}.`
+    };
+    justifications.push('Competitividad sin calibrar: se requiere verificación de rivales antes de definir descuento.');
+  } else {
+    sweetSpotPrice = (input.simulationResult.recommendedSweetSpotPricePyg && input.simulationResult.recommendedSweetSpotPricePyg > 0)
+      ? input.simulationResult.recommendedSweetSpotPricePyg
+      : null;
+
+    const matchedPoint = input.simulationResult.winProbabilityCurve.find(
+      c => c.discountPct === Math.round(input.simulationResult.recommendedSweetSpotDiscountPct)
+    );
+    sweetSpotWinProb = matchedPoint ? matchedPoint.winProbabilityPct : null;
+
+    pilarCompetitividad = {
+      pilar: 'COMPETITIVIDAD',
+      status: (sweetSpotWinProb !== null && sweetSpotWinProb >= 50) ? 'OPTIMO' : 'ADVERTENCIA',
+      score: sweetSpotWinProb !== null ? Math.min(100, Math.round(sweetSpotWinProb * 1.2)) : 50,
+      resumen: sweetSpotWinProb !== null
         ? `Probabilidad de adjudicación estimada en ${sweetSpotWinProb}% en el punto de corte óptimo.`
-        : `Simulación no calibrada con historial de rivales: probabilidad de adjudicación estimada en ${sweetSpotWinProb}%.`
+        : 'Simulación calculada pero sin punto de corte exacto en la curva.'
     };
   }
   pillars.push(pilarCompetitividad);
