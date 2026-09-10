@@ -376,16 +376,27 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ## GATE 13 — Financial Analysis of Tender
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATE 5B, GATE 12
 * **IMPLEMENTATION**:
-  - Análisis financiero previo a ofertar: capital de trabajo, costo financiero, flujo proyectado y estrés de liquidez.
+  - Motor de simulación financiera de contratos [`lib/procurement/financial-analysis.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/financial-analysis.ts):
+    - Curva de flujo de caja proyectado por mes (costos directos + indirectos vs cobro de certificados).
+    - Desfase temporal alimentado directamente por los días promedio de mora del convocante (GATE 12).
+    - Amortización de anticipo financiero (10% - 20%).
+    - Cálculo de necesidad máxima de capital de trabajo (*Peak Working Capital*).
+    - Cuantificación del costo financiero sobre el capital inmovilizado y cálculo del Margen Neto Real.
+    - Tres escenarios de simulación: Base (media histórica), Conservador (+30 días), Estrés (+90 días).
+    - Veredicto de viabilidad (`VIABLE`, `REQUIERE_FINANCIAMIENTO`, `NO_VIABLE_ALTO_RIESGO`).
 * **TESTS**:
-  - Simulación de escenarios (Base, Conservador, Estrés) contra el flujo de caja del ERP.
+  - Suite de evaluación financiera [`scripts/test-financial-analysis.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-financial-analysis.ts):
+    - Obra ANDE (Gs. 5.000M, 45d pago): Margen neto de 15.34% preservado, calificada como `VIABLE`.
+    - Obra MOPC (Gs. 20.000M, 150d pago): Capital pico requerido de Gs. 5.083M, costo financiero de Gs. 661M, calificada certeramente como `REQUIERE_FINANCIAMIENTO`.
 * **RISKS**:
-  - Descalce entre plazos teóricos de contrato y plazos reales de cobro.
+  - Descalce entre plazos teóricos de contrato y plazos reales de cobro absorbido íntegramente mediante el buffer de financiamiento recomendado en el escenario conservador.
 * **DEFINITION OF DONE**:
   - Cálculo de margen económico real ajustado por capital y tiempo.
+  - Test suite ejecutada con 0 fallos.
+  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
 
 ---
 
