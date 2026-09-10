@@ -101,6 +101,88 @@ async function runTests() {
   // 2.7 Snapshot intacto verificado
   assert(verifySnapshotIntegrity(snapshot) === true, 'Snapshot no adulterado verificado con éxito');
 
+  // TEST 3: Nullability & Persistencia de Métricas no Calibradas (Invariante UNKNOWN != DEFAULT)
+  console.log('\n--- TEST 3: Persistencia e Hidratación de Métricas Nulas (UNKNOWN != DEFAULT) ---');
+  const { persistBidAnalysisSnapshot, getTenderAnalysisSnapshots } = await import('../lib/procurement/bid-snapshot');
+
+  const uncalibratedOutput: BidDecisionOutput = {
+    tenderId: 'TENDER-PARAGUAY-2026',
+    decision: 'REVISAR',
+    overallScore: 50,
+    recommendedOfferPricePyg: null,
+    expectedNetMarginPct: null,
+    winProbabilityPct: null,
+    pillars: [],
+    keyJustifications: ['Modelo no calibrado por falta de oferentes históricos'],
+    blockers: []
+  };
+
+  const nullSnapshot = createBidAnalysisSnapshot('emp-tenant-1', mockInput, uncalibratedOutput, now);
+  assert(nullSnapshot.precioOfertaRecomendadoPyg === null, 'Precio recomendado es null en snapshot');
+  assert(nullSnapshot.margenNetoEstimadoPct === null, 'Margen neto es null en snapshot');
+  assert(nullSnapshot.probabilidadGanarPct === null, 'Probabilidad de ganar es null en snapshot');
+  assert(verifySnapshotIntegrity(nullSnapshot) === true, 'Hash canónico maneja nulls determinísticamente');
+
+  // Mock de Supabase para validar persistencia de nulls e hidratación sin Number(null) -> 0
+  let persistedRow: any = null;
+  const mockSupabase = {
+    from: (table: string) => ({
+      insert: (payload: any) => {
+        persistedRow = payload;
+        return {
+          select: () => ({
+            single: async () => ({ data: { id: 'snap-uuid-999' }, error: null })
+          })
+        };
+      },
+      select: () => ({
+        eq: () => ({
+          eq: () => ({
+            order: async () => ({
+              data: [
+                {
+                  id: 'snap-uuid-999',
+                  empresa_id: 'emp-tenant-1',
+                  tender_id: 'TENDER-PARAGUAY-2026',
+                  titulo_licitacion: 'Construcción de Puente de Hormigón',
+                  convocante: 'MOPC',
+                  decision: 'REVISAR',
+                  overall_score: '50.00',
+                  monto_referencial_pyg: '12000000000.00',
+                  precio_oferta_recomendado_pyg: null,
+                  margen_neto_estimado_pct: null,
+                  probabilidad_ganar_pct: null,
+                  compliance_snapshot: {},
+                  institution_snapshot: {},
+                  financial_snapshot: {},
+                  simulation_snapshot: {},
+                  pillars_snapshot: [],
+                  justifications: [],
+                  blockers: [],
+                  snapshot_hash: nullSnapshot.snapshotHash,
+                  created_at: now
+                }
+              ],
+              error: null
+            })
+          })
+        })
+      })
+    })
+  };
+
+  const persistResult = await persistBidAnalysisSnapshot(mockSupabase, nullSnapshot);
+  assert(persistResult.id === 'snap-uuid-999', 'Snapshot persistido con ID válido');
+  assert(persistedRow.precio_oferta_recomendado_pyg === null, 'BD recibe NULL para precio oferta recomendado');
+  assert(persistedRow.margen_neto_estimado_pct === null, 'BD recibe NULL para margen neto estimado');
+  assert(persistedRow.probabilidad_ganar_pct === null, 'BD recibe NULL para probabilidad ganar');
+
+  const { runs } = await getTenderAnalysisSnapshots(mockSupabase, 'emp-tenant-1', 'TENDER-PARAGUAY-2026');
+  assert(runs.length === 1, 'Se recuperó 1 snapshot histórico');
+  assert(runs[0].precioOfertaRecomendadoPyg === null, 'Hidratación preserva null (no se convierte a 0 vía Number(null))');
+  assert(runs[0].margenNetoEstimadoPct === null, 'Hidratación de margen neto preserva null');
+  assert(runs[0].probabilidadGanarPct === null, 'Hidratación de probabilidad ganar preserva null');
+
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE INTEGRIDAD CANÓNICA DE GATE 18 PASARON');
   console.log('======================================================\n');
