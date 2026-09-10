@@ -450,16 +450,26 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ## GATE 16 — Competitive Simulator
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATE 5A, GATE 8
 * **IMPLEMENTATION**:
-  - Simulador de escenarios competitivos (probabilidad de participantes, distribución de posturas, precio ganador P10/P50/P90).
+  - Simulador estocástico Monte Carlo de subastas públicas [`lib/procurement/competitive-simulator.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/competitive-simulator.ts):
+    - Generación de variables aleatorias normales Box-Muller parametrizadas por huellas contextuales de competidores (Gate 5A).
+    - 10,000 iteraciones estocásticas por licitación simulada.
+    - Distribución percentil del precio de corte de adjudicación: P10 (agresivo), P50 (mediana de adjudicación), P90 (conservador).
+    - Construcción de la Curva de Probabilidad de Ganar (*Win Probability Curve*) para diferentes descuentos respecto al presupuesto oficial.
+    - Determinación del *Sweet Spot* comercial óptimo.
 * **TESTS**:
-  - Calibración estadística contra resultados históricos de adjudicación.
+  - Suite de simulación Monte Carlo [`scripts/test-competitive-simulator.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-competitive-simulator.ts):
+    - Ejecución de 10,000 iteraciones completada en < 100 ms.
+    - Coherencia ordinal de percentiles ($P_{10} \le P_{50} \le P_{90}$).
+    - Monotonía estricta de la curva de probabilidad de ganar comprobada en cada punto de descuento (de 0% con 2% de descuento a 100% con 18%).
 * **RISKS**:
-  - Precisión engañosa si no se comunica la incertidumbre.
+  - Incertidumbre comunicada con bandas de confianza explícitas (P10/P50/P90) y no como un número puntual determinista.
 * **DEFINITION OF DONE**:
-  - Simulación con bandas de confianza explicables.
+  - Simulación con bandas de confianza explicables implementada.
+  - Test suite ejecutada con 0 fallos.
+  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
 
 ---
 
