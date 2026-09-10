@@ -25,7 +25,7 @@ async function runTests() {
 
   // CASO: Licitación MOPC de Gs. 10.000 Millones con 5 competidores
   console.log('--- TEST 1: Monte Carlo Simulation (10,000 runs) ---');
-  const mockFingerprint: ContextualFingerprint = {
+  const mockFingerprint1: ContextualFingerprint = {
     level: 'EXACT_CONTEXT',
     win_rate_pct: 40,
     avg_discount_pct: 7.5,
@@ -33,14 +33,26 @@ async function runTests() {
     sample_size: 15,
     certainty_tier: 'ALTA',
     fallback_applied: false,
-    notes: 'Huella calibrada'
+    notes: 'Huella calibrada 1'
+  };
+
+  const mockFingerprint2: ContextualFingerprint = {
+    level: 'EXACT_CONTEXT',
+    win_rate_pct: 35,
+    avg_discount_pct: 8.5,
+    stddev_discount_pct: 2.0,
+    sample_size: 10,
+    certainty_tier: 'ALTA',
+    fallback_applied: false,
+    notes: 'Huella calibrada 2'
   };
 
   const simInput: CompetitiveSimulationInput = {
     tenderId: 'TENDER-MOPC-SIM',
     referenceBudgetPyg: 10000000000, // 10.000M
     expectedParticipantsCount: 5,
-    knownCompetitorFingerprints: [mockFingerprint]
+    knownCompetitorFingerprints: [mockFingerprint1, mockFingerprint2],
+    analysisMode: 'POST_OPENING'
   };
 
   const result = simulateCompetitiveBidding(simInput, 10000);
@@ -132,6 +144,40 @@ async function runTests() {
   assert(calibratedResult.isCalibrated === true, 'isCalibrated es true con huellas y participantes observados');
   assert(calibratedResult.missingInputs.length === 0, 'Cero advertencias de datos faltantes');
   assert(calibratedResult.recommendedSweetSpotDiscountPct >= 9.0, 'Sweet spot ajustado a los descuentos empíricos observados');
+
+  console.log('\n--- TEST 6: Invariante Sin Piso Sintético (Dispersión Nula => UNCALIBRATED) ---');
+  const zeroDispersionInput: CompetitiveSimulationInput = {
+    tenderId: 'TENDER-ZERO-DISPERSION',
+    referenceBudgetPyg: 8000000000,
+    expectedParticipantsCount: 3,
+    knownCompetitorFingerprints: [
+      {
+        level: 'EXACT_CONTEXT',
+        win_rate_pct: 50,
+        avg_discount_pct: 10.0,
+        stddev_discount_pct: 0, // Sin dispersión reportada
+        sample_size: 5,
+        certainty_tier: 'MEDIA',
+        fallback_applied: false,
+        notes: 'Huella A'
+      },
+      {
+        level: 'EXACT_CONTEXT',
+        win_rate_pct: 50,
+        avg_discount_pct: 10.0, // Mismo descuento exacto (varianza de muestra = 0)
+        stddev_discount_pct: 0,
+        sample_size: 5,
+        certainty_tier: 'MEDIA',
+        fallback_applied: false,
+        notes: 'Huella B'
+      }
+    ]
+  };
+
+  const zeroDispResult = simulateCompetitiveBidding(zeroDispersionInput, 1000);
+  assert(zeroDispResult.simulationStatus === 'UNCALIBRATED', 'Dispersión nula sin stddev reportada falla a UNCALIBRATED (sin piso sintético de 0.5%)');
+  assert(zeroDispResult.isCalibrated === false, 'isCalibrated es false ante dispersión desconocida');
+  assert(zeroDispResult.missingInputs[0].includes('Dispersión empírica de competidores nula'), 'Reporta advertencia de dispersión desconocida');
 
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 16 PASARON CON ÉXITO');

@@ -10,12 +10,15 @@
 
 import { ContextualFingerprint } from './competitor-intelligence';
 
+export type CompetitiveAnalysisMode = 'PRE_BID' | 'POST_OPENING' | 'LIVE_SBE';
+
 export interface CompetitiveSimulationInput {
   tenderId: string;
   referenceBudgetPyg: number;
   expectedParticipantsCount?: number;
   knownCompetitorFingerprints?: ContextualFingerprint[];
   category?: string;
+  analysisMode?: CompetitiveAnalysisMode;
 }
 
 export interface SimulationPercentiles {
@@ -42,6 +45,7 @@ export interface CompetitiveSimulationResult {
   recommendedSweetSpotDiscountPct: number;
   recommendedSweetSpotPricePyg: number;
   iterationsRun: number;
+  analysisMode?: CompetitiveAnalysisMode;
 }
 
 /**
@@ -58,13 +62,14 @@ function randomNormal(mean: number, stdDev: number): number {
  * Ejecuta simulación Monte Carlo de subasta pública.
  * INVARIANTE UNKNOWN != DEFAULT:
  * Si el presupuesto referencial es <= 0 o la evidencia de competidores es insuficiente,
- * no inventa competidores (4 o 6), ni descuentos (8%), ni dispersiones sintéticas (3.5%).
+ * no inventa competidores (4 o 6), ni descuentos (8%), ni dispersiones sintéticas (3.5% o piso de 0.5%).
  * Falla a UNCALIBRATED sin emitir precio recomendado ni probabilidad numérica.
  */
 export function simulateCompetitiveBidding(
   input: CompetitiveSimulationInput,
   iterations: number = 10000
 ): CompetitiveSimulationResult {
+  const mode: CompetitiveAnalysisMode = input.analysisMode || 'PRE_BID';
   const refBudget = Number(input.referenceBudgetPyg || 0);
   if (refBudget <= 0) {
     return {
@@ -82,26 +87,31 @@ export function simulateCompetitiveBidding(
       winProbabilityCurve: [],
       recommendedSweetSpotDiscountPct: 0,
       recommendedSweetSpotPricePyg: 0,
-      iterationsRun: 0
+      iterationsRun: 0,
+      analysisMode: mode
     };
   }
 
   // CANONICAL INVARIANT: UNKNOWN != DEFAULT
-  // Requiere mínimo 2 competidores observados Y al menos 2 huellas empíricas (o 3 muestras históricas acumuladas)
+  // Requiere mínimo 2 competidores observados Y al menos 2 huellas empíricas con dispersión real
   const fingerprints = input.knownCompetitorFingerprints ?? [];
   const hasExplicitParticipants = typeof input.expectedParticipantsCount === 'number' && input.expectedParticipantsCount >= 2;
-  const totalSamples = fingerprints.reduce((acc, f) => acc + (f.sample_size || 1), 0);
-  const hasSufficientFingerprints = fingerprints.length >= 2 || totalSamples >= 3;
+  const validFingerprints = fingerprints.filter(f => typeof f.avg_discount_pct === 'number' && !isNaN(f.avg_discount_pct));
+  const hasSufficientFingerprints = validFingerprints.length >= 2;
 
   const missingInputs: string[] = [];
   if (!hasExplicitParticipants) {
-    missingInputs.push('Menos de 2 oferentes observados en el llamado (mínimo 2 requeridos)');
+    missingInputs.push(
+      mode === 'PRE_BID'
+        ? 'Menos de 2 oferentes estimados en análisis preliminar (mínimo 2 requeridos antes de apertura)'
+        : 'Menos de 2 oferentes confirmados en el llamado (mínimo 2 requeridos)'
+    );
   }
   if (!hasSufficientFingerprints) {
-    missingInputs.push('Evidencia insuficiente de descuentos históricos de competidores (mínimo 2 huellas o 3 muestras en el rubro)');
+    missingInputs.push('Evidencia insuficiente de descuentos históricos de competidores (mínimo 2 huellas contextuales distintas requeridas)');
   }
 
-  // Si los datos son insuficientes: NO emitir precio recomendado ni curva de probabilidad ni inventar 4/6 competidores u 8% de descuento
+  // Si los datos son insuficientes: NO emitir precio recomendado ni curva de probabilidad
   if (!hasExplicitParticipants || !hasSufficientFingerprints) {
     return {
       tenderId: input.tenderId,
@@ -118,20 +128,46 @@ export function simulateCompetitiveBidding(
       winProbabilityCurve: [],
       recommendedSweetSpotDiscountPct: 0,
       recommendedSweetSpotPricePyg: 0,
-      iterationsRun: 0
+      iterationsRun: 0,
+      analysisMode: mode
     };
   }
 
   const numCompetitors = input.expectedParticipantsCount!;
 
   // Calibración estricta con datos empíricos: media y dispersión observadas reales
-  const discounts = fingerprints.map(f => f.avg_discount_pct).filter(d => typeof d === 'number' && !isNaN(d));
+  const discounts = validFingerprints.map(f => f.avg_discount_pct);
   const meanDiscount = discounts.reduce((a, b) => a + b, 0) / discounts.length;
-  const variance = discounts.reduce((acc, d) => acc + Math.pow(d - meanDiscount, 2), 0) / Math.max(1, discounts.length);
-  const reportedStdDevs = fingerprints.map(f => f.stddev_discount_pct).filter((s): s is number => typeof s === 'number' && s > 0);
-  const stdDevDiscount = reportedStdDevs.length > 0
-    ? reportedStdDevs.reduce((a, b) => a + b, 0) / reportedStdDevs.length
-    : Math.max(0.5, Math.sqrt(variance));
+  const sampleVariance = discounts.reduce((acc, d) => acc + Math.pow(d - meanDiscount, 2), 0) / Math.max(1, discounts.length - 1);
+  const reportedStdDevs = validFingerprints.map(f => f.stddev_discount_pct).filter((s): s is number => typeof s === 'number' && s > 0);
+
+  // INVARIANTE: Ningún piso sintético de 0.5% ni inventos estadísticos. Si no hay dispersión empírica, es UNCALIBRATED.
+  let stdDevDiscount: number;
+  if (reportedStdDevs.length > 0) {
+    stdDevDiscount = reportedStdDevs.reduce((a, b) => a + b, 0) / reportedStdDevs.length;
+  } else if (sampleVariance > 0) {
+    stdDevDiscount = Math.sqrt(sampleVariance);
+  } else {
+    // Si la varianza entre huellas es 0 y ninguna reporta desviación estándar, la dispersión es desconocida
+    return {
+      tenderId: input.tenderId,
+      simulationStatus: 'UNCALIBRATED',
+      isCalibrated: false,
+      missingInputs: ['Dispersión empírica de competidores nula o desconocida (no se permite varianza sintética arbitraria)'],
+      referenceBudgetPyg: refBudget,
+      simulatedCompetitorsCount: numCompetitors,
+      winningPriceDistribution: {
+        p10WinningPricePyg: 0,
+        p50WinningPricePyg: 0,
+        p90WinningPricePyg: 0
+      },
+      winProbabilityCurve: [],
+      recommendedSweetSpotDiscountPct: 0,
+      recommendedSweetSpotPricePyg: 0,
+      iterationsRun: 0,
+      analysisMode: mode
+    };
+  }
 
   const winningDiscounts: number[] = [];
 

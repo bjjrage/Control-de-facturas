@@ -572,10 +572,13 @@ export async function persistirEvaluacionComercial(
     annualFinancingRatePct?: number;
     proposedOfferAmountPyg?: number;
     estimatedIndirectCostPyg?: number;
+    analysisMode?: 'PRE_BID' | 'POST_OPENING' | 'LIVE_SBE';
+    expectedParticipantsCount?: number;
   }
 ): Promise<{ error?: string; snapshotId?: string; decision?: string; score?: number; hash?: string }> {
   const { supabase, profile } = await ctx();
   const empresaId = profile.empresa_id;
+  const analysisMode = options?.analysisMode || 'PRE_BID';
 
   // 1. Obtener la licitación y empresa
   const [{ data: lic, error: licError }, { data: empresa }] = await Promise.all([
@@ -753,31 +756,44 @@ export async function persistirEvaluacionComercial(
   });
 
   // 7. Simulación competitiva con oferentes observados o uncalibrated
-  const { data: oferentes } = await supabase
-    .from("licitacion_oferentes")
-    .select("ruc, nombre, monto_ofertado")
-    .eq("licitacion_id", lic.id);
-
-  const realCompetitorsCount = (oferentes ?? []).length;
+  // REGLA TEMPORAL ESTRICTA:
+  // En modo PRE_BID (antes de apertura de sobres), es IMPOSIBLE saber quiénes se presentaron a esta licitación.
+  // Prohibido utilizar licitacion_oferentes de la licitación actual en PRE_BID (sería contaminación del futuro).
+  // Solo en POST_OPENING o LIVE_SBE se permite leer los oferentes que efectivamente se presentaron a este llamado.
   const knownFingerprints: any[] = [];
+  let simulatedCompetitorsCount: number | undefined = undefined;
 
-  if (oferentes && oferentes.length > 0) {
-    const { getCompetitorProfile } = await import("@/lib/procurement/competitor-intelligence");
-    for (const ofr of oferentes) {
-      if (ofr.ruc) {
-        try {
-          const profile = await getCompetitorProfile(ofr.ruc, supabase, {
-            convocante: lic.comitente_nombre,
-            categoria: lic.categoria,
-            montoReferencial: refBudget,
-            asOfDate: lic.fecha_publicacion || lic.fecha_entrega_ofertas || null,
-            excludeTenderId: lic.id
-          });
-          if (profile?.contextual_fingerprint && profile.contextual_fingerprint.sample_size >= 2) {
-            knownFingerprints.push(profile.contextual_fingerprint);
+  if (analysisMode === 'PRE_BID') {
+    // En PRE_BID, solo se admite estimación explícita o análisis puramente histórico previo a la fecha de publicación
+    simulatedCompetitorsCount = options?.expectedParticipantsCount;
+  } else {
+    // En POST_OPENING o LIVE_SBE, se leen los oferentes que abrieron sobre en esta licitación
+    const { data: oferentes } = await supabase
+      .from("licitacion_oferentes")
+      .select("ruc, nombre, monto_ofertado")
+      .eq("licitacion_id", lic.id);
+
+    const realCompetitorsCount = (oferentes ?? []).length;
+    simulatedCompetitorsCount = realCompetitorsCount > 0 ? realCompetitorsCount : undefined;
+
+    if (oferentes && oferentes.length > 0) {
+      const { getCompetitorProfile } = await import("@/lib/procurement/competitor-intelligence");
+      for (const ofr of oferentes) {
+        if (ofr.ruc) {
+          try {
+            const profile = await getCompetitorProfile(ofr.ruc, supabase, {
+              convocante: lic.comitente_nombre,
+              categoria: lic.categoria,
+              montoReferencial: refBudget,
+              asOfDate: lic.fecha_publicacion || lic.fecha_entrega_ofertas || null,
+              excludeTenderId: lic.id
+            });
+            if (profile?.contextual_fingerprint && profile.contextual_fingerprint.sample_size >= 2) {
+              knownFingerprints.push(profile.contextual_fingerprint);
+            }
+          } catch {
+            // Si no se encuentra en procurement_suppliers, continuar
           }
-        } catch {
-          // Si no se encuentra en procurement_suppliers, continuar
         }
       }
     }
@@ -787,9 +803,10 @@ export async function persistirEvaluacionComercial(
   const simulationResult = simulateCompetitiveBidding({
     tenderId: lic.id,
     referenceBudgetPyg: hasValidBudget ? refBudget : 0,
-    expectedParticipantsCount: realCompetitorsCount > 0 ? realCompetitorsCount : undefined,
+    expectedParticipantsCount: simulatedCompetitorsCount,
     knownCompetitorFingerprints: knownFingerprints.length > 0 ? knownFingerprints : undefined,
-    category: lic.categoria || undefined
+    category: lic.categoria || undefined,
+    analysisMode
   }, 1000);
 
   // 8. Evaluar decisión global
@@ -930,9 +947,23 @@ export async function generarPliegoOfertaCompleto(
     };
   });
 
-  // 3. Documentos probatorios de la bóveda
+  // 3. Documentos probatorios de la bóveda y evaluación de pliego
   const { fetchCompanyVaultItems } = await import("@/lib/procurement/bid-vault");
   const vaultItems = await fetchCompanyVaultItems(supabase, empresaId);
+
+  // Obtener matriz de cumplimiento de pliego extraída si existe
+  const { evaluateTenderCompliance } = await import("@/lib/procurement/compliance-engine");
+  let complianceReport: any = null;
+  const extractedPbc = lic.raw_json?.pbc_requisitos_extraidos;
+  if (extractedPbc?.requirements && Array.isArray(extractedPbc.requirements) && extractedPbc.requirements.length > 0) {
+    complianceReport = evaluateTenderCompliance(
+      lic.id,
+      extractedPbc.requirements,
+      vaultItems,
+      undefined,
+      'EXTRACTED_FROM_PBC'
+    );
+  }
 
   // Extraer validez de la oferta desde el PBC si fue extraído, o dejar null (pliego default)
   let extractedValidityDays: number | null = null;
@@ -943,7 +974,7 @@ export async function generarPliegoOfertaCompleto(
     extractedValidityDays = parseInt(matchValidity[1], 10);
   }
 
-  // 4. Ensamblaje de oferta con el orquestador de operaciones (rechaza placeholders)
+  // 4. Ensamblaje de oferta con el orquestador de operaciones (rechaza placeholders y requiere PBC resuelto)
   const { assembleTenderPackage, generateMasterIndex, exportBidPackageAsDocument } = await import("@/lib/procurement/tender-operations");
   const bidPackage = assembleTenderPackage({
     tenderId: lic.dncp_nro,
@@ -954,7 +985,8 @@ export async function generarPliegoOfertaCompleto(
     legalRepresentative: profile.full_name || "",
     items: bidItems,
     vaultItems,
-    validityDays: extractedValidityDays
+    validityDays: extractedValidityDays,
+    complianceReport
   });
 
   const masterIndex = generateMasterIndex(bidPackage);
