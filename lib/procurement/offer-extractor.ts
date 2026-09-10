@@ -138,3 +138,101 @@ export function extraerYValidarOferta(rawInput: {
     warnings,
   };
 }
+
+/**
+ * Extrae múltiples ofertas de competidores a partir de texto de actas de apertura o cuadros comparativos
+ */
+export function extraerOfertasDeTexto(
+  rawText: string,
+  montoReferencialLicitacion?: number | null
+): ExtractedBid[] {
+  if (!rawText || rawText.trim().length === 0) return [];
+
+  const results: ExtractedBid[] = [];
+  const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+
+  const rucRegex = /\b(\d{5,9}(?:-\d)?)\b/;
+  const montoRegex = /(?:gs\.?|pyg|₲)?\s*([0-9]{1,3}(?:\.[0-9]{3}){1,4}(?:,[0-9]{2})?)/i;
+
+  for (const line of lines) {
+    const upper = line.toUpperCase();
+    if (
+      upper.startsWith('NRO') ||
+      upper.startsWith('ÍTEM') ||
+      upper.startsWith('OFERENTE |') ||
+      upper.includes('MONTO OFERTADO') ||
+      upper.includes('PRESUPUESTO REFERENCIAL') ||
+      upper.includes('PRESUPUESTO ESTIMADO')
+    ) {
+      continue;
+    }
+
+    // 1. Tablas delimitadas por pipes (|) o tabuladores (\t)
+    if (line.includes('|') || line.includes('\t')) {
+      const parts = (line.includes('|') ? line.split('|') : line.split('\t'))
+        .map(p => p.trim())
+        .filter(p => p.length > 0);
+
+      if (parts.length >= 2) {
+        let nombre = '';
+        let ruc: string | null = null;
+        let montoStr: string | null = null;
+
+        for (const p of parts) {
+          const matchRuc = p.match(rucRegex);
+          const matchMonto = p.match(montoRegex);
+
+          if (matchMonto && !montoStr && parsearMontoParaguayo(matchMonto[1]) !== null) {
+            montoStr = matchMonto[1];
+          } else if (matchRuc && !ruc && p.length <= 15 && /\d/.test(p)) {
+            ruc = matchRuc[1];
+          } else if (p.length >= 3 && !nombre && !/^\d+$/.test(p)) {
+            nombre = p;
+          }
+        }
+
+        if (nombre) {
+          nombre = nombre.replace(/^\d+[\.\-\)]\s*/, '').trim();
+        }
+
+        if (nombre && (montoStr || ruc)) {
+          results.push(extraerYValidarOferta({
+            oferenteNombre: nombre,
+            oferenteRuc: ruc,
+            montoTexto: montoStr,
+            contextoTexto: line,
+            montoReferencialLicitacion
+          }));
+          continue;
+        }
+      }
+    }
+
+    // 2. Línea de texto estructurado libre (ej: "1. TOCSA S.A. - RUC: 80012345-6 - Gs. 18.400.000.000 - Adjudicado")
+    const matchMonto = line.match(montoRegex);
+    if (matchMonto && parsearMontoParaguayo(matchMonto[1]) !== null) {
+      const matchRuc = line.match(rucRegex);
+      const ruc = matchRuc ? matchRuc[1] : null;
+
+      let cleaned = line;
+      if (ruc) cleaned = cleaned.replace(matchRuc![0], '');
+      cleaned = cleaned.replace(matchMonto[0], '');
+      cleaned = cleaned.replace(/(?:oferente|proveedor|empresa|monto|adjudicado|descalificado|rechazado|ruc|lote)\s*[:=-]?/gi, '');
+      cleaned = cleaned.replace(/[|;,]/g, ' ').trim();
+      cleaned = cleaned.replace(/^\d+[\.\-\)]\s*/, '').trim();
+
+      if (cleaned.length >= 3) {
+        results.push(extraerYValidarOferta({
+          oferenteNombre: cleaned,
+          oferenteRuc: ruc,
+          montoTexto: matchMonto[1],
+          contextoTexto: line,
+          montoReferencialLicitacion
+        }));
+      }
+    }
+  }
+
+  return results;
+}
+

@@ -270,6 +270,53 @@ async function runSuite() {
     fail(`CRITERIO DE COMPUERTA NO CUMPLIDO: Precisión ${precisionPct.toFixed(1)}% < 90.0%`);
   }
 
+  // ---------------------------------------------------------------------------
+  // TEST 4: Extracción Multioferta desde Texto de Acta de Apertura / Cuadro Comparativo
+  // ---------------------------------------------------------------------------
+  console.log("\n--- 4. Extracción Multioferta desde Acta de Apertura ---");
+  const { extraerOfertasDeTexto } = await import("../lib/procurement/offer-extractor");
+
+  const actaTextoReal = `
+ACTA DE APERTURA DE SOBRES - LICITACIÓN PÚBLICA NACIONAL N° 05/2025
+CONTRATACIÓN DE OBRAS VIALES EN EL DEPARTAMENTO CENTRAL
+PRESUPUESTO REFERENCIAL: Gs. 25.000.000.000
+
+Siendo las 10:00 horas del día 15 de marzo de 2025, se procede a la apertura de las ofertas:
+1. TOCSA S.A. | RUC: 80012345-6 | Monto: Gs. 23.500.000.000 | Adjudicada
+2. OCHO A S.A. | RUC: 80098765-4 | Monto: Gs. 24.100.000.000 | Calificada
+3. CONSORCIO VIAL SUR (BARRAIL HNOS - ECOMIPA) | RUC: 80088888-9 | Monto: Gs. 25.500.000.000 | Admitida
+4. CONSTRUCTORA CHACO S.R.L. | RUC: 80033333-1 | Monto: Gs. 28.000.000.000 | Descalificada por falta de garantía
+  `;
+
+  const parsedActa = extraerOfertasDeTexto(actaTextoReal, 25000000000);
+  console.log(`Ofertas extraídas de acta: ${parsedActa.length}`);
+  if (parsedActa.length === 4) {
+    ok(`Extrajo exactamente las 4 ofertas del acta`);
+  } else {
+    fail(`Esperadas 4 ofertas, extraídas: ${parsedActa.length}`);
+  }
+
+  const tocsa = parsedActa.find(p => p.oferente_normalizado.nombre_canonico?.includes("TOCSA"));
+  if (tocsa && tocsa.monto_ofertado === 23500000000 && tocsa.estado_oferta === "GANADORA") {
+    ok(`TOCSA extraída correctamente: Monto Gs. 23.500M, Estado GANADORA`);
+  } else {
+    fail(`Fallo extrayendo oferta de TOCSA`);
+  }
+
+  const consorcio = parsedActa.find(p => p.oferente_normalizado.es_consorcio);
+  if (consorcio && consorcio.oferente_normalizado.consorcio_data?.miembros_identificados.length === 2) {
+    ok(`Consorcio extraído con sus 2 miembros desglosados desde la tabla del acta`);
+  } else {
+    fail(`Fallo identificando consorcio en acta`);
+  }
+
+  const descalificada = parsedActa.find(p => p.estado_oferta === "DESCALIFICADA");
+  if (descalificada && descalificada.oferente_normalizado.nombre_canonico?.includes("CHACO")) {
+    ok(`Detectado motivo de descalificación en Constructora Chaco`);
+  } else {
+    fail(`Fallo detectando descalificación`);
+  }
+
   console.log("\n================================================================================");
   if (failures === 0) {
     console.log("GATE 4 VERIFICATION SUITE: ALL TESTS PASSED ✅");

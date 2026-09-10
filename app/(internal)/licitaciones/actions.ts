@@ -938,3 +938,95 @@ export async function extraerRequisitosDePliego(
   };
 }
 
+/**
+ * Extrae y registra ofertas de competidores a partir del texto de un Acta de Apertura o Cuadro Comparativo (Gate 4)
+ */
+export async function extraerOfertasDeActa(
+  licitacionId: string,
+  textoActa: string,
+  fuente: 'ACTA_PDF' | 'CUADRO_PDF' | 'MANUAL' = 'ACTA_PDF'
+): Promise<{ error?: string; ofertasExtraidas?: number; ganadores?: number; revisionRequerida?: number }> {
+  const { supabase, profile } = await ctx();
+  const empresaId = profile.empresa_id;
+
+  const { data: lic, error: licError } = await supabase
+    .from("licitaciones")
+    .select("*")
+    .eq("id", licitacionId)
+    .eq("empresa_id", empresaId)
+    .maybeSingle();
+
+  if (licError || !lic) {
+    return { error: "Licitación no encontrada o sin acceso." };
+  }
+
+  const { extraerOfertasDeTexto } = await import("@/lib/procurement/offer-extractor");
+  const extractedBids = extraerOfertasDeTexto(
+    textoActa,
+    lic.monto_referencial ? Number(lic.monto_referencial) : null
+  );
+
+  if (extractedBids.length === 0) {
+    return { error: "No se pudieron identificar ofertas económicas en el texto provisto." };
+  }
+
+  let ganadoresCount = 0;
+  let revisionCount = 0;
+
+  for (const bid of extractedBids) {
+    if (bid.estado_oferta === 'GANADORA') ganadoresCount++;
+    if (bid.requiere_revision_humana) revisionCount++;
+
+    const rucFormateado = bid.oferente_normalizado.ruc_clean
+      ? `${bid.oferente_normalizado.ruc_clean}-${bid.oferente_normalizado.dv || '0'}`
+      : null;
+
+    // Upsert por (licitacion_id, ruc) si RUC existe, o insertar si no
+    if (rucFormateado) {
+      await supabase
+        .from("licitacion_oferentes")
+        .upsert({
+          licitacion_id: lic.id,
+          empresa_id: empresaId,
+          ruc: rucFormateado,
+          nombre: bid.oferente_normalizado.nombre_canonico || bid.oferente_raw,
+          monto_ofertado: bid.monto_ofertado,
+          gano: bid.estado_oferta === 'GANADORA',
+          fuente: fuente
+        }, { onConflict: 'licitacion_id, ruc' });
+    } else {
+      await supabase
+        .from("licitacion_oferentes")
+        .insert({
+          licitacion_id: lic.id,
+          empresa_id: empresaId,
+          ruc: null,
+          nombre: bid.oferente_normalizado.nombre_canonico || bid.oferente_raw,
+          monto_ofertado: bid.monto_ofertado,
+          gano: bid.estado_oferta === 'GANADORA',
+          fuente: fuente
+        });
+    }
+  }
+
+  await logAudit(supabase, {
+    action: "tender.bids_extracted_from_acta",
+    detail: {
+      licitacion_id: lic.id,
+      fuente,
+      total_ofertas: extractedBids.length,
+      ganadores: ganadoresCount,
+      requiere_revision: revisionCount
+    }
+  });
+
+  revalidatePath(`/licitaciones/${licitacionId}`);
+
+  return {
+    ofertasExtraidas: extractedBids.length,
+    ganadores: ganadoresCount,
+    revisionRequerida: revisionCount
+  };
+}
+
+
