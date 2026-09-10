@@ -103,8 +103,21 @@ export function processFlywheelExecutionPurchase(
   };
 }
 
+export interface CostObservationRecordResult {
+  recorded: boolean;
+  reason?: string;
+  observationId?: string;
+}
+
 /**
- * Registra observaciones de costo real en base de datos desde una factura vinculada a una orden de compra o proyecto
+ * Registra observaciones de costo real en base de datos desde una factura vinculada a una orden de compra o proyecto.
+ * 
+ * INVARIANTES:
+ * 1. UNKNOWN != DEFAULT: Si faltan cantidad, unidad, fecha o descripción, NO se inventan valores (no qty=1, no unit='UN', no date=today).
+ * 2. RECHAZO OBSERVABLE: Si la evidencia es insuficiente o inválida, se retorna { recorded: false, reason: '...' }.
+ * 3. CONTRATO CANÓNICO DE MONEDA: `precio_unitario` en `cost_observations` siempre almacena el precio normalizado en PYG.
+ *    Para compras en USD, se exige `exchangeRate` verificado y se almacena `precio_unitario = Math.round(unitPrice * exchangeRate)`.
+ *    Jamás se mezclan valores crudos en USD con PYG en la misma columna sin conversión.
  */
 export async function recordCostObservationFromInvoice(
   supabase: any,
@@ -122,18 +135,19 @@ export async function recordCostObservationFromInvoice(
     exchangeRate?: number | null;
     invoiceDate?: string;
   }
-): Promise<void> {
+): Promise<CostObservationRecordResult> {
   try {
-    let description = params.itemDescription;
-    let qty = params.quantity && params.quantity > 0 ? params.quantity : null;
-    let unit = params.unit || null;
-    let unitPrice = params.unitPrice && params.unitPrice > 0 ? params.unitPrice : null;
-    let projectId = params.projectId;
-    let currency = (params.currency || "PYG").toUpperCase();
-    let exchangeRate = params.exchangeRate && params.exchangeRate > 0 ? params.exchangeRate : null;
+    let description = params.itemDescription?.trim() || null;
+    let qty = params.quantity && params.quantity > 0 ? Number(params.quantity) : null;
+    let unit = params.unit?.trim() || null;
+    let unitPrice = params.unitPrice && params.unitPrice > 0 ? Number(params.unitPrice) : null;
+    let projectId = params.projectId || null;
+    let currency = (params.currency || "PYG").toUpperCase().trim();
+    let exchangeRate = params.exchangeRate && params.exchangeRate > 0 ? Number(params.exchangeRate) : null;
+    let invoiceDate = params.invoiceDate?.trim() || null;
 
     // Si tenemos orderId pero faltan datos de producto, consultar la orden
-    if (params.orderId && (!description || !unitPrice || !qty || !unit)) {
+    if (params.orderId && (!description || !unitPrice || !qty || !unit || !projectId)) {
       const { data: order } = await supabase
         .from("authorized_orders")
         .select("product, quantity, unit, unit_price, project_id, total_price, currency")
@@ -141,38 +155,50 @@ export async function recordCostObservationFromInvoice(
         .maybeSingle();
 
       if (order) {
-        description = description || order.product;
+        description = description || order.product?.trim() || null;
         qty = qty ?? (order.quantity && Number(order.quantity) > 0 ? Number(order.quantity) : null);
-        unit = unit || order.unit || "UN";
+        unit = unit || order.unit?.trim() || null;
         unitPrice = unitPrice ?? (order.unit_price && Number(order.unit_price) > 0 ? Number(order.unit_price) : null);
-        projectId = projectId || order.project_id;
+        projectId = projectId || order.project_id || null;
         if (!params.currency && order.currency) {
-          currency = order.currency.toUpperCase();
+          currency = order.currency.toUpperCase().trim();
         }
       }
     }
 
-    if (!description || !unitPrice || unitPrice <= 0) {
-      return; // No hay suficiente información para crear observación válida
+    // Regla P0: UNKNOWN != DEFAULT - Validación estricta de evidencia
+    if (!description) {
+      return { recorded: false, reason: 'MISSING_ITEM_DESCRIPTION' };
     }
-
-    // Si la cantidad sigue sin definirse, solo permitir si es unidad global o por defecto con unidad UN
+    if (!unitPrice || unitPrice <= 0) {
+      return { recorded: false, reason: 'MISSING_OR_INVALID_UNIT_PRICE' };
+    }
     if (!qty || qty <= 0) {
-      qty = 1;
+      return { recorded: false, reason: 'MISSING_OR_INVALID_QUANTITY' };
     }
     if (!unit) {
-      unit = "UN";
+      return { recorded: false, reason: 'MISSING_UNIT' };
+    }
+    if (!invoiceDate) {
+      return { recorded: false, reason: 'MISSING_INVOICE_DATE' };
     }
 
-    // Manejo estricto de moneda y tipo de cambio:
-    // Invariante: Nunca asignar tipo_cambio = 1.0 a compras en USD sin verificar tasa.
+    // Regla P0: Moneda canónica normalizada
     let tipoCambio: number = 1.0;
+    let precioUnitarioNormalizadoPyg: number;
+
     if (currency === "USD") {
       if (!exchangeRate || exchangeRate <= 0) {
         console.warn(`[Flywheel] Omitiendo observación para factura USD ${params.invoiceId}: falta tipo de cambio verificado (evita contaminar CPP).`);
-        return; // Fail-closed: no inyectar tasa 1.0 a dólares
+        return { recorded: false, reason: 'MISSING_EXCHANGE_RATE_FOR_USD' };
       }
       tipoCambio = exchangeRate;
+      precioUnitarioNormalizadoPyg = Math.round(unitPrice * tipoCambio);
+    } else if (currency === "PYG") {
+      tipoCambio = 1.0;
+      precioUnitarioNormalizadoPyg = Math.round(unitPrice);
+    } else {
+      return { recorded: false, reason: `UNSUPPORTED_CURRENCY_${currency}` };
     }
 
     // Clasificar categoría automáticamente
@@ -198,30 +224,51 @@ export async function recordCostObservationFromInvoice(
       .maybeSingle();
 
     if (existingObs) {
-      return; // Ya fue registrada previamente esta línea específica
+      return { recorded: false, reason: 'DUPLICATE_ITEM_OBSERVATION', observationId: existingObs.id };
     }
 
-    const { error: insertError } = await supabase.from("cost_observations").insert({
-      empresa_id: params.empresaId,
-      project_id: projectId || null,
-      proveedor_id: params.providerId || null,
-      fuente: "FACTURA",
-      documento_id: params.invoiceId,
-      descripcion_item: description,
-      categoria_insumo: categoria,
-      cantidad: qty,
-      unidad: unit,
-      precio_unitario: unitPrice,
-      moneda: currency === 'USD' ? 'USD' : 'PYG',
-      tipo_cambio: tipoCambio,
-      fecha_observacion: params.invoiceDate || new Date().toISOString().split('T')[0],
-      es_volatil: categoria === 'COMBUSTIBLE'
-    });
+    const insertQuery = supabase
+      .from("cost_observations")
+      .insert({
+        empresa_id: params.empresaId,
+        project_id: projectId || null,
+        proveedor_id: params.providerId || null,
+        fuente: "FACTURA",
+        documento_id: params.invoiceId,
+        descripcion_item: description,
+        categoria_insumo: categoria,
+        cantidad: qty,
+        unidad: unit,
+        precio_unitario: precioUnitarioNormalizadoPyg,
+        moneda: 'PYG', // Contrato canónico: la base de observaciones opera en PYG normalizado
+        tipo_cambio: tipoCambio,
+        fecha_observacion: invoiceDate,
+        es_volatil: categoria === 'COMBUSTIBLE'
+      });
+
+    let insertedData: any = null;
+    let insertError: any = null;
+
+    if (typeof insertQuery.select === 'function') {
+      const res = await insertQuery.select('id').maybeSingle();
+      insertedData = res.data;
+      insertError = res.error;
+    } else {
+      const res = await insertQuery;
+      insertError = res?.error;
+    }
 
     if (insertError) {
       console.error("[Flywheel] Failed to insert cost observation:", insertError);
+      return { recorded: false, reason: `DB_INSERT_ERROR: ${insertError.message}` };
     }
-  } catch (err) {
+
+    return {
+      recorded: true,
+      observationId: insertedData?.id
+    };
+  } catch (err: any) {
     console.error("[Flywheel] Error recording cost observation from invoice:", err);
+    return { recorded: false, reason: `EXCEPTION: ${err.message || String(err)}` };
   }
 }
