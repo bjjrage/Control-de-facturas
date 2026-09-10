@@ -192,11 +192,16 @@ export function assembleTenderPackage(params: {
     errors.push('La matriz de requisitos del pliego está vacía. No se puede certificar cumplimiento sin requisitos verificables.');
   } else {
     for (const ev of params.complianceReport.evaluations) {
-      if (ev.esExcluyente) {
-        if (ev.verdict === 'FALTANTE') {
+      // INVARIANTE READY_TO_SIGN (FINDING 5):
+      // CUALQUIER evaluación que resulte en REVIEW_REQUIRED bloquea READY_TO_SIGN (no limitado a esExcluyente=true).
+      // Requisitos FALTANTES requeridos también bloquean READY_TO_SIGN.
+      if (ev.verdict === 'REVIEW_REQUIRED') {
+        errors.push(`Requisito REQUIERE REVISIÓN (REVIEW_REQUIRED) en PBC: [${ev.categoria}] ${ev.descripcion} — ${ev.observaciones || 'Criterio o evidencia pendiente de verificación humana'}`);
+      } else if (ev.verdict === 'FALTANTE') {
+        if (ev.esExcluyente) {
           errors.push(`Requisito excluyente FALTANTE en PBC: [${ev.categoria}] ${ev.descripcion}`);
-        } else if (ev.verdict === 'REVIEW_REQUIRED') {
-          errors.push(`Requisito excluyente REQUIERE REVISIÓN (REVIEW_REQUIRED) en PBC: [${ev.categoria}] ${ev.descripcion} — ${ev.observaciones || 'Criterio pendiente de verificación humana'}`);
+        } else {
+          errors.push(`Requisito plenario FALTANTE en PBC: [${ev.categoria}] ${ev.descripcion}`);
         }
       }
 

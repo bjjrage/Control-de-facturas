@@ -305,6 +305,28 @@ async function runTests() {
   const reqPoderFalso = extSoloRuc.requirements.find(r => r.id === 'pbc-legal-poder');
   assert(reqPoderFalso === undefined, 'Mención aislada de RUC de la convocante NO genera falsamente requisito de Poder/Estatuto');
 
+  // CASO 9: Conservatismo de Personal Clave (No fabrica títulos no explicitados)
+  console.log('\n--- TEST 9: Conservatismo de Personal Clave (Sin Títulos Inventados) ---');
+  const pbcJefeObraSinTitulo = `
+    El oferente deberá designar un jefe de obra responsable durante la ejecución de los trabajos.
+  `;
+  const extJefe = extractRequirementsFromPbcText(pbcJefeObraSinTitulo);
+  const reqPersonal = extJefe.requirements.find(r => r.categoria === 'PERSONAL');
+  assert(reqPersonal !== undefined, 'Detecta requerimiento de personal');
+  assert(!reqPersonal!.descripcion.includes('Ingeniero Civil'), 'NO inventa "Ingeniero Civil" cuando el texto solo dice "jefe de obra"');
+  assert(!reqPersonal!.descripcion.includes('matriculado'), 'NO inventa "matriculado" cuando el texto no lo exige');
+
+  // CASO 10: Lenguaje No Excluyente produce esExcluyente=false y REQUIREMENT_DETECTED
+  console.log('\n--- TEST 10: Lenguaje No Excluyente genera esExcluyente=false ---');
+  const pbcNoExcluyente = `
+    En cuanto al equipo, se sugiere disponer de motoniveladora para el perfilado.
+  `;
+  const extNoExcluyente = extractRequirementsFromPbcText(pbcNoExcluyente);
+  const reqMaqSug = extNoExcluyente.requirements.find(r => r.categoria === 'MAQUINARIA');
+  assert(reqMaqSug !== undefined, 'Detecta el ítem de maquinaria');
+  assert(reqMaqSug!.esExcluyente === false, 'Sin cláusula de rechazo ni obligación, clasifica como esExcluyente=false');
+  assert(reqMaqSug!.extractionState === 'REQUIREMENT_DETECTED', 'Clasifica como REQUIREMENT_DETECTED');
+
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 11 PASARON CON ÉXITO');
   console.log('======================================================\n');

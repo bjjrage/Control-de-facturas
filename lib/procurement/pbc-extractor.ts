@@ -58,6 +58,12 @@ function checkExclusionaryLanguage(snippetOrContext: string): boolean {
     s.includes('deberá presentar') ||
     s.includes('debera presentar') ||
     s.includes('debe presentar') ||
+    s.includes('deberá acreditar') ||
+    s.includes('debera acreditar') ||
+    s.includes('debe acreditar') ||
+    s.includes('deberá contar') ||
+    s.includes('debera contar') ||
+    s.includes('debe contar') ||
     s.includes('sera rechazad') ||
     s.includes('será rechazad')
   );
@@ -216,6 +222,10 @@ export function extractRequirementsFromPbcText(
   // 3. REQUISITOS FINANCIEROS Y RATIOS (P0: CERO SUPUESTOS SINTÉTICOS)
   const idxFin = lower.indexOf('liquidez') >= 0 ? lower.indexOf('liquidez') : lower.indexOf('balance auditado');
   if (idxFin >= 0 || lower.includes('estados contables') || lower.includes('solvencia')) {
+    const matchIdx = idxFin >= 0 ? idxFin : lower.indexOf('estados contables');
+    const snippetFin = extractSnippet(pbcText, matchIdx);
+    const esExcluyenteFin = checkExclusionaryLanguage(snippetFin) || lower.includes('solvencia financiera obligatoria');
+
     detectedSections.push('CAPACIDAD_FINANCIERA');
     matchCount++;
 
@@ -238,10 +248,12 @@ export function extractRequirementsFromPbcText(
       descripcion: ratioLiquidez !== undefined
         ? `Balance auditado con ratio de liquidez corriente >= ${ratioLiquidez}`
         : 'Balance auditado y solvencia financiera (ratio de liquidez mínimo no cuantificado en pliego; revisión requerida)',
-      esExcluyente: true,
-      extractionState: extractionStateLiq,
+      esExcluyente: esExcluyenteFin,
+      extractionState: ratioLiquidez !== undefined
+        ? (esExcluyenteFin ? 'CRITERION_EXTRACTED' : 'REQUIREMENT_DETECTED')
+        : (esExcluyenteFin ? 'CRITERION_UNKNOWN' : 'REQUIREMENT_DETECTED'),
       sourceEvidence: {
-        snippet: extractSnippet(pbcText, Math.max(0, idxFin)),
+        snippet: snippetFin,
         sectionLocator: 'CAPACIDAD_FINANCIERA',
         confidencePct: ratioLiquidez !== undefined ? 90 : 50,
         provenance: 'PBC_TEXT_PARSER'
@@ -252,15 +264,15 @@ export function extractRequirementsFromPbcText(
 
   const idxEnd = lower.indexOf('endeudamiento');
   if (idxEnd >= 0) {
+    const snippetEnd = extractSnippet(pbcText, idxEnd);
+    const esExcluyenteEnd = checkExclusionaryLanguage(snippetEnd);
     const matchEnd = lower.match(/endeudamiento[^\n.]{0,90}?(?:<=|<|no\s+superar[aá]|menor\s+a|hasta|admitido\s+no\s+superar[aá])\s*([0-9]+(?:[.,][0-9]+)?)/);
     let ratioEndeudamiento: number | undefined = undefined;
-    let extractionStateEnd: RequirementExtractionState = 'CRITERION_UNKNOWN';
 
     if (matchEnd && matchEnd[1]) {
       const parsed = parseFloat(matchEnd[1].replace(',', '.'));
       if (parsed >= 0.1 && parsed <= 1.5) {
         ratioEndeudamiento = parsed;
-        extractionStateEnd = 'CRITERION_EXTRACTED';
       }
     }
 
@@ -271,10 +283,12 @@ export function extractRequirementsFromPbcText(
       descripcion: ratioEndeudamiento !== undefined
         ? `Ratio de endeudamiento total <= ${ratioEndeudamiento}`
         : 'Ratio de endeudamiento total (límite máximo no cuantificado en pliego; revisión requerida)',
-      esExcluyente: true,
-      extractionState: extractionStateEnd,
+      esExcluyente: esExcluyenteEnd,
+      extractionState: ratioEndeudamiento !== undefined
+        ? (esExcluyenteEnd ? 'CRITERION_EXTRACTED' : 'REQUIREMENT_DETECTED')
+        : (esExcluyenteEnd ? 'CRITERION_UNKNOWN' : 'REQUIREMENT_DETECTED'),
       sourceEvidence: {
-        snippet: extractSnippet(pbcText, idxEnd),
+        snippet: snippetEnd,
         sectionLocator: 'CAPACIDAD_FINANCIERA',
         confidencePct: ratioEndeudamiento !== undefined ? 90 : 50,
         provenance: 'PBC_TEXT_PARSER'
@@ -286,19 +300,24 @@ export function extractRequirementsFromPbcText(
   // 4. EXPERIENCIA TÉCNICA ESPECÍFICA (P0: CERO SUPUESTOS SINTÉTICOS COMO 50% REFERENCIAL)
   const idxExp = lower.indexOf('experiencia') >= 0 ? lower.indexOf('experiencia') : lower.indexOf('obras similares');
   if (idxExp >= 0 || lower.includes('contratos similares')) {
+    const matchIdx = idxExp >= 0 ? idxExp : lower.indexOf('contratos similares');
+    const snippetExp = extractSnippet(pbcText, matchIdx);
+    const esExcluyenteExp = checkExclusionaryLanguage(snippetExp) || lower.includes('experiencia excluyente');
+
     detectedSections.push('EXPERIENCIA_TECNICA');
     matchCount++;
 
+    const matchMonto = lower.match(/(?:al\s+menos|m[ií]nimo|superior\s+a|acumulad[ao]\s+de)\s*(?:gs\.?|guaran[ií]es)?\s*([0-9.,]+(?:\s*(?:mil|millones|mill[oó]n))?)/);
     let montoExperiencia: number | undefined = undefined;
-    let extractionStateExp: RequirementExtractionState = 'CRITERION_UNKNOWN';
 
-    const matchMontoExp = lower.match(/experiencia[^\n.]{0,120}?(?:gs\.?|guaran[ií]es)\s*([0-9]{1,3}(?:\.[0-9]{3})+)/) ||
-                          lower.match(/(?:gs\.?|guaran[ií]es)\s*([0-9]{1,3}(?:\.[0-9]{3})+)[^\n.]{0,80}?experiencia/);
-    if (matchMontoExp && matchMontoExp[1]) {
-      const parsedMonto = parseNumberFromText(matchMontoExp[1]);
-      if (parsedMonto && parsedMonto > 0) {
-        montoExperiencia = parsedMonto;
-        extractionStateExp = 'CRITERION_EXTRACTED';
+    if (matchMonto && matchMonto[1]) {
+      const parsed = parseNumberFromText(matchMonto[1]);
+      if (parsed && parsed >= 10_000_000) {
+        let mult = 1;
+        if (matchMonto[1].includes('millon') || matchMonto[1].includes('millón') || matchMonto[1].includes('millones')) {
+          mult = 1_000_000;
+        }
+        montoExperiencia = parsed * mult;
       }
     }
 
@@ -306,12 +325,14 @@ export function extractRequirementsFromPbcText(
       id: 'pbc-exp-obras',
       categoria: 'EXPERIENCIA',
       descripcion: montoExperiencia !== undefined
-        ? `Experiencia técnica acumulada en obras similares (mínimo Gs. ${montoExperiencia.toLocaleString('es-PY')})`
-        : 'Experiencia técnica acumulada en obras o servicios similares (monto no determinado numéricamente en pliego; revisión requerida)',
-      esExcluyente: true,
-      extractionState: extractionStateExp,
+        ? `Experiencia técnica acumulada in obras similares >= Gs. ${montoExperiencia.toLocaleString('es-PY')}`
+        : 'Experiencia técnica acumulada en obras civiles o viales (monto mínimo no cuantificado en pliego; revisión requerida)',
+      esExcluyente: esExcluyenteExp,
+      extractionState: montoExperiencia !== undefined
+        ? (esExcluyenteExp ? 'CRITERION_EXTRACTED' : 'REQUIREMENT_DETECTED')
+        : (esExcluyenteExp ? 'CRITERION_UNKNOWN' : 'REQUIREMENT_DETECTED'),
       sourceEvidence: {
-        snippet: extractSnippet(pbcText, Math.max(0, idxExp)),
+        snippet: snippetExp,
         sectionLocator: 'EXPERIENCIA_TECNICA',
         confidencePct: montoExperiencia !== undefined ? 85 : 40,
         provenance: 'PBC_TEXT_PARSER'
@@ -323,23 +344,22 @@ export function extractRequirementsFromPbcText(
   // 5. MAQUINARIA Y EQUIPO VIAL (P0: CERO SUPUESTOS SINTÉTICOS COMO 120 HP)
   const idxMaq = lower.indexOf('maquinaria') >= 0 ? lower.indexOf('maquinaria') : lower.indexOf('motoniveladora');
   if (idxMaq >= 0 || lower.includes('retroexcavadora') || lower.includes('volquete') || lower.includes('equipo vial')) {
+    const matchIdx = idxMaq >= 0 ? idxMaq : (lower.indexOf('equipo vial') >= 0 ? lower.indexOf('equipo vial') : lower.indexOf('volquete'));
+    const snippetMaq = extractSnippet(pbcText, matchIdx);
+    const esExcluyenteMaq = checkExclusionaryLanguage(snippetMaq) || lower.includes('maquinaria excluyente') || lower.includes('descalificación por falta de equipo');
+
     detectedSections.push('EQUIPAMIENTO_MAQUINARIA');
     matchCount++;
 
     const matchHp = lower.match(/([0-9]{2,4})\s*(?:hp|cv|caballos)/);
     let potenciaHp: number | undefined = undefined;
-    let extractionStateMaq: RequirementExtractionState = 'CRITERION_UNKNOWN';
 
     if (matchHp && matchHp[1]) {
       const parsedHp = parseInt(matchHp[1], 10);
       if (parsedHp >= 20 && parsedHp <= 2000) {
         potenciaHp = parsedHp;
-        extractionStateMaq = 'CRITERION_EXTRACTED';
       }
     }
-
-    // Exclusión solo si el texto lo explicita
-    const esExcluyenteMaq = lower.includes('maquinaria excluyente') || lower.includes('descalificación por falta de equipo');
 
     requirements.push({
       id: 'pbc-maq-vial',
@@ -348,10 +368,12 @@ export function extractRequirementsFromPbcText(
         ? `Disponibilidad de equipo vial mínimo con potencia >= ${potenciaHp} HP`
         : 'Disponibilidad de equipo vial mínimo verificado con título o contrato de arrendamiento',
       esExcluyente: esExcluyenteMaq,
-      extractionState: extractionStateMaq,
+      extractionState: potenciaHp !== undefined
+        ? (esExcluyenteMaq ? 'CRITERION_EXTRACTED' : 'REQUIREMENT_DETECTED')
+        : (esExcluyenteMaq ? 'CRITERION_UNKNOWN' : 'REQUIREMENT_DETECTED'),
       permiteAlquilerOCompromiso: permiteAlquiler,
       sourceEvidence: {
-        snippet: extractSnippet(pbcText, Math.max(0, idxMaq)),
+        snippet: snippetMaq,
         sectionLocator: 'EQUIPAMIENTO_MAQUINARIA',
         confidencePct: potenciaHp !== undefined ? 85 : 50,
         provenance: 'PBC_TEXT_PARSER'
@@ -361,24 +383,68 @@ export function extractRequirementsFromPbcText(
   }
 
   // 6. PERSONAL TÉCNICO CLAVE
-  const idxPer = lower.indexOf('jefe de obra') >= 0 ? lower.indexOf('jefe de obra') : lower.indexOf('ingeniero civil');
-  if (idxPer >= 0 || lower.includes('director de obra') || lower.includes('residente')) {
+  // CONSERVATISMO PBC: No fabricar atributos más ricos que el texto original.
+  // "Jefe de obra" solo se describe con "Ingeniero Civil" o "matriculado" si esas palabras están en el pliego.
+  const idxPer = lower.indexOf('jefe de obra') >= 0
+    ? lower.indexOf('jefe de obra')
+    : lower.indexOf('director de obra') >= 0
+      ? lower.indexOf('director de obra')
+      : lower.indexOf('residente de obra') >= 0
+        ? lower.indexOf('residente de obra')
+        : lower.indexOf('ingeniero civil') >= 0
+          ? lower.indexOf('ingeniero civil')
+          : -1;
+
+  if (idxPer >= 0) {
+    const snippetPer = extractSnippet(pbcText, idxPer);
+    const snipLower = snippetPer.toLowerCase();
+    const esExcluyentePer = checkExclusionaryLanguage(snippetPer) || lower.includes('personal clave obligatorio');
+
     detectedSections.push('PERSONAL_CLAVE');
     matchCount++;
+
+    // Construir descripción estrictamente fiel a las palabras del texto
+    const mentionsIngCivil = snipLower.includes('ingeniero civil') || snipLower.includes('ing. civil');
+    const mentionsMatricula = snipLower.includes('matricul') || snipLower.includes('registro profesional');
+    const mentionsExp = snipLower.includes('experiencia') || snipLower.includes('años de ejercicio');
+
+    let descPersonal = 'Designación de Jefe de Obra / Profesional Responsable';
+    let cargoEsperado = 'Jefe de Obra';
+
+    if (snipLower.includes('director de obra')) {
+      cargoEsperado = 'Director de Obra';
+      descPersonal = 'Designación de Director de Obra';
+    } else if (snipLower.includes('residente')) {
+      cargoEsperado = 'Residente de Obra';
+      descPersonal = 'Designación de Residente de Obra';
+    } else if (snipLower.includes('jefe de obra')) {
+      cargoEsperado = 'Jefe de Obra';
+      descPersonal = 'Designación de Jefe de Obra';
+    }
+
+    const qualifiers: string[] = [];
+    if (mentionsIngCivil) qualifiers.push('Ingeniero Civil');
+    if (mentionsMatricula) qualifiers.push('matriculado');
+    if (mentionsExp) qualifiers.push('con experiencia comprobable');
+
+    if (qualifiers.length > 0) {
+      descPersonal += ` (${qualifiers.join(', ')})`;
+    }
+
     requirements.push({
       id: 'pbc-per-jefe-obra',
       categoria: 'PERSONAL',
-      descripcion: 'Profesional Ingeniero Civil matriculado con experiencia comprobable en jefatura de obra',
-      esExcluyente: true,
-      extractionState: 'CRITERION_EXTRACTED',
+      descripcion: descPersonal,
+      esExcluyente: esExcluyentePer,
+      extractionState: esExcluyentePer ? 'CRITERION_EXTRACTED' : 'REQUIREMENT_DETECTED',
       permiteNominacionPosterior,
       sourceEvidence: {
-        snippet: extractSnippet(pbcText, Math.max(0, idxPer)),
+        snippet: snippetPer,
         sectionLocator: 'PERSONAL_CLAVE',
-        confidencePct: 90,
+        confidencePct: esExcluyentePer ? 90 : 65,
         provenance: 'PBC_TEXT_PARSER'
       },
-      criterio: { cargoRequerido: 'Jefe de Obra' }
+      criterio: { cargoRequerido: cargoEsperado }
     });
   }
 

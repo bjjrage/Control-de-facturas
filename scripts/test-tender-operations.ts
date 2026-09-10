@@ -188,6 +188,66 @@ async function runTests() {
   assert(pkgReviewRequired.packageStatus === 'DRAFT_INCOMPLETE', 'Con REVIEW_REQUIRED excluyente el estado es DRAFT_INCOMPLETE');
   assert(pkgReviewRequired.validationErrors.some(e => e.includes('REVIEW_REQUIRED')), 'Reporta requisito en revisión');
 
+  // 2C: Con requisito NO excluyente en REVIEW_REQUIRED (ANY REVIEW_REQUIRED blocks READY_TO_SIGN)
+  const complianceNonExcluyenteReview: TenderComplianceReport = {
+    ...validComplianceReport,
+    isEligibleToBid: true,
+    evaluations: [
+      ...validComplianceReport.evaluations,
+      {
+        requirementId: 'pbc-sug-topografo',
+        categoria: 'PERSONAL',
+        descripcion: 'Se sugiere contar con topógrafo certificado',
+        esExcluyente: false,
+        verdict: 'REVIEW_REQUIRED',
+        observaciones: 'Requiere revisión manual antes de presentar'
+      }
+    ]
+  };
+  const pkgNonExcluyenteReview = assembleTenderPackage({
+    tenderId: 'LIC-MOPC-445566',
+    tenderTitle: 'Pavimentación de Acceso a Nueva Asunción',
+    buyerName: 'MOPC',
+    bidderName: 'INGENIERIA & VIAL S.A.',
+    bidderRuc: '80009735-1',
+    legalRepresentative: 'Ing. Carlos Gonzalez',
+    items: itemsCotizados,
+    vaultItems: mockVault,
+    complianceReport: complianceNonExcluyenteReview
+  });
+  assert(pkgNonExcluyenteReview.packageStatus === 'DRAFT_INCOMPLETE', 'Incluso con esExcluyente=false, ANY REVIEW_REQUIRED bloquea READY_TO_SIGN a DRAFT_INCOMPLETE');
+  assert(pkgNonExcluyenteReview.validationErrors.some(e => e.includes('REVIEW_REQUIRED')), 'Reporta el requisito no excluyente en revisión');
+
+  // 2D: Con requisito excluyente FALTANTE
+  const complianceFaltante: TenderComplianceReport = {
+    ...validComplianceReport,
+    isEligibleToBid: false,
+    evaluations: [
+      ...validComplianceReport.evaluations.slice(0, 2),
+      {
+        requirementId: 'pbc-exp-asfalto',
+        categoria: 'EXPERIENCIA',
+        descripcion: 'Experiencia técnica en pavimentos',
+        esExcluyente: true,
+        verdict: 'FALTANTE',
+        observaciones: 'Sin certificado en bóveda'
+      }
+    ]
+  };
+  const pkgFaltante = assembleTenderPackage({
+    tenderId: 'LIC-MOPC-445566',
+    tenderTitle: 'Pavimentación de Acceso a Nueva Asunción',
+    buyerName: 'MOPC',
+    bidderName: 'INGENIERIA & VIAL S.A.',
+    bidderRuc: '80009735-1',
+    legalRepresentative: 'Ing. Carlos Gonzalez',
+    items: itemsCotizados,
+    vaultItems: mockVault,
+    complianceReport: complianceFaltante
+  });
+  assert(pkgFaltante.packageStatus === 'DRAFT_INCOMPLETE', 'Requisito excluyente FALTANTE bloquea a DRAFT_INCOMPLETE');
+  assert(pkgFaltante.validationErrors.some(e => e.includes('FALTANTE')), 'Reporta el requisito faltante');
+
   // CASO 3: Detección de Placeholders en Oferente (80000000-1)
   console.log('\n--- TEST 3: Rechazo de Placeholders Sintéticos ---');
   const pkg3 = assembleTenderPackage({
