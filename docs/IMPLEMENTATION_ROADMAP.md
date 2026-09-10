@@ -402,16 +402,25 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ## GATE 14 — Tender Operations Agent V1
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATE 7, GATE 9, GATE 11, GATE 13
 * **IMPLEMENTATION**:
-  - Orquestador autónomo de preparación de ofertas: armado de expedientes, planillas económicas y formularios.
+  - Orquestador de operaciones y armado de ofertas [`lib/procurement/tender-operations.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/tender-operations.ts):
+    - Generador de Carta Formal de Presentación de Oferta (Formulario 1 DNCP) con declaración de vigencia.
+    - Generador de Declaración Jurada de Inhabilidades según Art. 40 Ley 2051/03 y Ley 7021/22 (Formulario 2 DNCP).
+    - Generador de Planilla Económica y Cómputo Métrico (Formulario 3 DNCP).
+    - Enlace automático de evidencias probatorias vigentes desde el Company Bid Vault (Gate 9).
+    - Ensamblador del paquete con dictamen de estado (`READY_TO_SIGN` vs `DRAFT_INCOMPLETE`) y lista de errores de validación.
 * **TESTS**:
-  - Generación de paquetes de oferta completos en estado READY TO SIGN.
+  - Suite de preparación de ofertas [`scripts/test-tender-operations.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-tender-operations.ts):
+    - Ensamblaje exitoso de expediente completo en estado `READY_TO_SIGN` (Gs. 1.044M, 3 formularios, 3 documentos probatorios adjuntos, 0 errores).
+    - Detección precisa de faltantes documentales (falta de CCT fiscal) bloqueando la firma hasta su subsanación.
 * **RISKS**:
-  - Errores de tipeo o formato en formularios oficiales.
+  - Discrepancias de formato oficial resueltas con plantillas canónicas validadas bajo normativa de Contrataciones Públicas de Paraguay.
 * **DEFINITION OF DONE**:
   - Expediente de licitación armado automáticamente listo para revisión humana final.
+  - Test suite ejecutada con 0 fallos.
+  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
 
 ---
 
