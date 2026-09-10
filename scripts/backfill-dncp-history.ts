@@ -20,6 +20,7 @@ interface CheckpointData {
   total_processed: number;
   total_fetched: number;
   total_identified_construction: number;
+  /** @deprecated Legacy alias para total_identified_construction en checkpoints previos */
   total_ingested_construction: number;
   total_file_saved: number;
   total_db_persisted: number;
@@ -277,16 +278,26 @@ export async function runBackfill(options?: {
         }
 
         // Ingestar en base de datos si supabase está activo
+        // INVARIANTE: Supabase client retorna { data, error } en lugar de lanzar excepciones por fallos de SQL.
+        // Incrementar total_db_persisted ÚNICAMENTE ante confirmación de éxito (!error).
         if (supabase) {
           try {
-            await supabase.rpc("ingestar_proceso_ocds_global", {
+            const { data: rpcData, error: dbErr } = await supabase.rpc("ingestar_proceso_ocds_global", {
               p_cr: cr,
               p_fuente: `DNCP_BACKFILL_W${wave}`,
             });
-            cp.total_db_persisted++;
-          } catch (dbErr: any) {
-            const reason = `DB_RPC_ERROR: ${dbErr.message || "unknown"}`;
+
+            if (dbErr) {
+              const reason = `DB_RPC_ERROR_${dbErr.code || 'NO_CODE'}: ${dbErr.message || 'unknown'}`;
+              cp.failure_reasons[reason] = (cp.failure_reasons[reason] || 0) + 1;
+              console.error(`  [!] Error de persistencia DB para ID ${nro} (${dbErr.code}):`, dbErr.message);
+            } else {
+              cp.total_db_persisted++;
+            }
+          } catch (unexpectedErr: any) {
+            const reason = `DB_UNEXPECTED_EXCEPTION: ${unexpectedErr.message || "unknown"}`;
             cp.failure_reasons[reason] = (cp.failure_reasons[reason] || 0) + 1;
+            console.error(`  [!] Excepción inesperada en llamada DB para ID ${nro}:`, unexpectedErr.message);
           }
         }
 
