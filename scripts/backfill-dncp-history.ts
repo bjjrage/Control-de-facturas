@@ -20,8 +20,6 @@ interface CheckpointData {
   total_processed: number;
   total_fetched: number;
   total_identified_construction: number;
-  /** @deprecated Legacy alias para total_identified_construction en checkpoints previos */
-  total_ingested_construction: number;
   total_file_saved: number;
   total_db_persisted: number;
   errors_count: number;
@@ -135,7 +133,6 @@ function loadCheckpoint(wave: number): CheckpointData {
           total_processed: raw.total_processed ?? 0,
           total_fetched: raw.total_fetched ?? raw.total_processed ?? 0,
           total_identified_construction: raw.total_identified_construction ?? raw.total_ingested_construction ?? 0,
-          total_ingested_construction: raw.total_ingested_construction ?? 0,
           total_file_saved: raw.total_file_saved ?? raw.total_ingested_construction ?? 0,
           total_db_persisted: raw.total_db_persisted ?? 0,
           errors_count: raw.errors_count ?? 0,
@@ -164,7 +161,6 @@ function loadCheckpoint(wave: number): CheckpointData {
     total_processed: 0,
     total_fetched: 0,
     total_identified_construction: 0,
-    total_ingested_construction: 0,
     total_file_saved: 0,
     total_db_persisted: 0,
     errors_count: 0,
@@ -207,7 +203,9 @@ export async function runBackfill(options?: {
   console.log(`GATE 3: INICIANDO PIPELINE DE INGESTA HISTÓRICA — OLA ${wave}`);
   console.log(`- Checkpoint actual: ID ${cp.last_processed_id}`);
   console.log(`- Licitaciones históricas ya procesadas: ${cp.total_processed}`);
-  console.log(`- Obras/construcción identificadas: ${cp.total_ingested_construction}`);
+  console.log(`- Obras/construcción identificadas: ${cp.total_identified_construction}`);
+  console.log(`- Payloads guardados localmente: ${cp.total_file_saved}`);
+  console.log(`- Confirmados en base de datos: ${cp.total_db_persisted}`);
   console.log(`- Meta de esta corrida: ${max} licitaciones representativas`);
   console.log("================================================================================\n");
 
@@ -265,7 +263,6 @@ export async function runBackfill(options?: {
 
       if (isConst) {
         cp.total_identified_construction++;
-        cp.total_ingested_construction++;
         constructionInRun++;
 
         // Guardar payload crudo en warehouse local
@@ -337,8 +334,10 @@ export async function runBackfill(options?: {
   console.log(`BACKFILL OLA ${wave} FINALIZADO EXITOSAMENTE`);
   console.log(`- Tiempo total: ${totalTimeSec} segundos`);
   console.log(`- Total consultados en esta corrida: ${processedInRun}`);
-  console.log(`- Licitaciones de construcción ingestas: ${constructionInRun}`);
-  console.log(`- Total acumulado histórico: ${cp.total_ingested_construction}`);
+  console.log(`- Licitaciones de construcción identificadas en esta corrida: ${constructionInRun}`);
+  console.log(`- Total identificadas (construcción): ${cp.total_identified_construction}`);
+  console.log(`- Total archivos guardados en disco: ${cp.total_file_saved}`);
+  console.log(`- Total confirmados en base de datos: ${cp.total_db_persisted}`);
   console.log(`- Checkpoint guardado en: ${CHECKPOINT_PATH}`);
   console.log("================================================================================\n");
 

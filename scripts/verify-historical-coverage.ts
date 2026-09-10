@@ -12,7 +12,10 @@ interface CheckpointData {
   wave: number;
   last_processed_id: number;
   total_processed: number;
-  total_ingested_construction: number;
+  total_identified_construction?: number;
+  total_ingested_construction?: number;
+  total_file_saved?: number;
+  total_db_persisted?: number;
   errors_count: number;
   by_year: Record<string, number>;
   by_category: Record<string, number>;
@@ -35,10 +38,11 @@ async function verifyCoverage() {
   }
 
   const cp: CheckpointData = JSON.parse(fs.readFileSync(CHECKPOINT_PATH, "utf8"));
+  const totalIdentified = cp.total_identified_construction ?? cp.total_ingested_construction ?? 0;
 
   console.log(`[Resumen General del Backfill - Ola ${cp.wave}]`);
   console.log(`- Licitaciones totales inspeccionadas: ${cp.total_processed}`);
-  console.log(`- Licitaciones de obras/construcción retenidas: ${cp.total_ingested_construction}`);
+  console.log(`- Licitaciones de obras/construcción identificadas: ${totalIdentified}`);
   console.log(`- Tasa de errores / caídas de red: ${cp.errors_count} (${((cp.errors_count / Math.max(1, cp.total_processed)) * 100).toFixed(1)}%)`);
   console.log(`- Fecha de inicio: ${cp.start_time}`);
   console.log(`- Última sincronización registrada: ${cp.last_updated_at}\n`);
@@ -48,12 +52,12 @@ async function verifyCoverage() {
   const years = Object.keys(cp.by_year).sort();
   let hasTemporalGaps = false;
   
-  console.log("| Año | Licitaciones de Obra Ingestadas | Proporción | Estado de Cobertura |");
+  console.log("| Año | Licitaciones de Obra Identificadas | Proporción | Estado de Cobertura |");
   console.log("| :---: | :---: | :---: | :---: |");
 
   for (const yr of years) {
     const count = cp.by_year[yr];
-    const pct = ((count / Math.max(1, cp.total_ingested_construction)) * 100).toFixed(1);
+    const pct = ((count / Math.max(1, totalIdentified)) * 100).toFixed(1);
     const status = count > 0 ? "COBERTURA ACTIVA ✓" : "HUECO TEMPORAL ✗";
     if (count === 0) hasTemporalGaps = true;
     console.log(`| ${yr} | ${count} | ${pct}% | ${status} |`);
@@ -63,7 +67,7 @@ async function verifyCoverage() {
   console.log("\n--- 2. Distribución por Categoría ---");
   const categories = Object.entries(cp.by_category).sort((a, b) => b[1] - a[1]);
   for (const [cat, count] of categories.slice(0, 10)) {
-    const pct = ((count / Math.max(1, cp.total_ingested_construction)) * 100).toFixed(1);
+    const pct = ((count / Math.max(1, totalIdentified)) * 100).toFixed(1);
     console.log(`  • ${cat}: ${count} (${pct}%)`);
   }
 
@@ -88,7 +92,7 @@ async function verifyCoverage() {
   }
 
   console.log("\n================================================================================");
-  if (!hasTemporalGaps && cp.total_ingested_construction > 0) {
+  if (!hasTemporalGaps && totalIdentified > 0) {
     console.log("VEREDICTO GATE 3: COBERTURA HISTÓRICA VERIFICADA SIN HUECOS TEMPORALES ✅");
   } else {
     console.log("VEREDICTO GATE 3: REQUIERE MAYOR INGESTA O PRESENTÓ HUECOS TEMPORALES ⚠️");
