@@ -55,8 +55,8 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
     unidad: p.unidad,
   }));
 
-  // Sugerencia de costo propio (CPP) por ítem
-  const costoPorItem = new Map<string, { nombre: string; cpp: number; score: number; confidence: string }>();
+  // Sugerencia de costo según Costo Promedio Ponderado de inventario por ítem
+  const costoPorItem = new Map<string, { nombre: string; costoPromedioInventario: number; score: number; confidence: string }>();
   for (const it of items ?? []) {
     const match = matchTenderItem(it.descripcion, it.unidad || "UN", catalogForMatching);
     if (match.bestMatch) {
@@ -64,7 +64,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
       if (prodOriginal) {
         costoPorItem.set(it.id, {
           nombre: prodOriginal.nombre,
-          cpp: prodOriginal.costo_promedio,
+          costoPromedioInventario: prodOriginal.costo_promedio,
           score: match.bestMatch.similarityScore,
           confidence: match.bestMatch.confidence
         });
@@ -77,7 +77,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
     if (m) {
       costoPorItem.set(it.id, {
         nombre: m.producto.nombre,
-        cpp: m.producto.costo_promedio,
+        costoPromedioInventario: m.producto.costo_promedio,
         score: m.score,
         confidence: m.score >= 0.65 ? 'MATCH_AUTOMATICO' : 'REQUIERE_REVISION'
       });
@@ -156,7 +156,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
           </div>
 
           <div className="rounded border border-[var(--border)] p-2.5 bg-[var(--panel-2)]">
-            <div className="text-[11px] text-[var(--muted)]">Costo Directo Estimado (CPP)</div>
+            <div className="text-[11px] text-[var(--muted)]">Costo Directo Estimado (Inventario)</div>
             <div className="text-[15px] font-semibold mt-0.5">
               {(() => {
                 let totalCostoPropio = 0;
@@ -164,7 +164,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
                 for (const it of items ?? []) {
                   const c = costoPorItem.get(it.id);
                   if (c && it.cantidad) {
-                    totalCostoPropio += c.cpp * it.cantidad;
+                    totalCostoPropio += c.costoPromedioInventario * it.cantidad;
                     itemsConCosto++;
                   }
                 }
@@ -172,7 +172,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
               })()}
             </div>
             <div className="text-[11px] text-[var(--muted)] mt-1">
-              Calculado desde compras y catálogo
+              Calculado desde costo promedio de stock
             </div>
           </div>
 
@@ -234,7 +234,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
                   <th className="num">Cantidad</th>
                   <th>Unidad</th>
                   <th className="num">P. unit. referencial</th>
-                  {hayCatalogo ? <th className="num">Tu costo (CPP)</th> : null}
+                  {hayCatalogo ? <th className="num">Costo Promedio (Inventario)</th> : null}
                   {(lotes ?? []).length > 0 ? <th>Lote</th> : null}
                 </tr>
               </thead>
@@ -259,7 +259,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
                           {c ? (
                             <div className="flex flex-col items-end">
                               <span title={`${c.nombre} · similitud ${(c.score * 100).toFixed(0)}%`}>
-                                {formatMoney(c.cpp, moneda)}
+                                {formatMoney(c.costoPromedioInventario, moneda)}
                               </span>
                               <span className={`text-[9px] px-1 rounded ${
                                 c.confidence === 'MATCH_AUTOMATICO'

@@ -163,7 +163,19 @@ export async function recordCostObservationFromInvoice(
       categoria = 'MANO_OBRA';
     }
 
-    await supabase.from("cost_observations").insert({
+    // Evitar duplicados si la factura ya generó una observación (idempotencia)
+    const { data: existingObs } = await supabase
+      .from("cost_observations")
+      .select("id")
+      .eq("empresa_id", params.empresaId)
+      .eq("documento_id", params.invoiceId)
+      .maybeSingle();
+
+    if (existingObs) {
+      return; // Ya fue registrada previamente
+    }
+
+    const { error: insertError } = await supabase.from("cost_observations").insert({
       empresa_id: params.empresaId,
       project_id: projectId || null,
       proveedor_id: params.providerId || null,
@@ -179,6 +191,10 @@ export async function recordCostObservationFromInvoice(
       fecha_observacion: params.invoiceDate || new Date().toISOString().split('T')[0],
       es_volatil: categoria === 'COMBUSTIBLE'
     });
+
+    if (insertError) {
+      console.error("[Flywheel] Failed to insert cost observation:", insertError);
+    }
   } catch (err) {
     console.error("[Flywheel] Error recording cost observation from invoice:", err);
   }

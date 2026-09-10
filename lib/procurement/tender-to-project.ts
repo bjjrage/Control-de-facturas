@@ -19,9 +19,9 @@ export interface TenderToProjectParams {
   buyerName: string;
   contractNumber?: string;
   adjudicatedOfferPricePyg: number;
-  durationMonths: number;
-  advancePaymentPct: number;
-  retentionPct: number;
+  durationMonths?: number | null;
+  advancePaymentPct?: number | null;
+  retentionPct?: number | null;
   bidItems: TenderBidItemInput[];
   bidAnalysisRunId?: string;
   createdBy?: string;
@@ -37,9 +37,9 @@ export interface CreatedProjectPayload {
     contract_number: string;
     contract_amount: number;
     budget_total: number;
-    plazo_dias: number;
-    anticipo_pct: number;
-    retencion_pct: number;
+    plazo_dias: number | null;
+    anticipo_pct: number | null;
+    retencion_pct: number | null;
     status: 'ACTIVO';
     created_by: string | null;
   };
@@ -69,8 +69,10 @@ export interface CreatedProjectPayload {
  * Mapea y estructura la oferta adjudicada en una obra operativa lista para el ERP
  */
 export function buildProjectFromAdjudicatedTender(params: TenderToProjectParams): CreatedProjectPayload {
-  const projectCode = params.dncpNro ? `OBRA-DNCP-${params.dncpNro}` : `OBRA-${Date.now().toString().slice(-6)}`;
-  const plazoDias = params.durationMonths * 30;
+  const projectCode = params.dncpNro ? `OBRA-DNCP-${params.dncpNro}` : `OBRA-LIC-${params.tenderId.slice(0, 8)}`;
+  const plazoDias = params.durationMonths != null && params.durationMonths > 0
+    ? Math.round(params.durationMonths * 30)
+    : null;
 
   const budgetItems = params.bidItems.map((item, idx) => ({
     code: `ITM-${(idx + 1).toString().padStart(3, '0')}`,
@@ -103,8 +105,8 @@ export function buildProjectFromAdjudicatedTender(params: TenderToProjectParams)
       contract_amount: params.adjudicatedOfferPricePyg,
       budget_total: totalBudget,
       plazo_dias: plazoDias,
-      anticipo_pct: params.advancePaymentPct,
-      retencion_pct: params.retentionPct,
+      anticipo_pct: params.advancePaymentPct ?? null,
+      retencion_pct: params.retentionPct ?? null,
       status: 'ACTIVO',
       created_by: params.createdBy || null
     },
@@ -121,6 +123,7 @@ export function buildProjectFromAdjudicatedTender(params: TenderToProjectParams)
 /**
  * Persiste la transición de Licitación a Obra directamente en la base de datos de Supabase.
  * Inserta el registro en `projects`, desglosa los ítems en `budget_items`, y crea el depósito/pañol de obra.
+ * Aplica verificación de idempotencia para prevenir duplicados.
  */
 export async function executeTenderToProjectTransaction(
   supabase: any,
@@ -128,20 +131,41 @@ export async function executeTenderToProjectTransaction(
 ): Promise<{ error: string | null; projectId?: string; projectCode?: string }> {
   const payload = buildProjectFromAdjudicatedTender(params);
 
+  // Verificación de idempotencia: ¿ya existe una obra con este código en la empresa?
+  const { data: existingProject } = await supabase
+    .from('projects')
+    .select('id, code')
+    .eq('empresa_id', payload.project.empresa_id)
+    .eq('code', payload.project.code)
+    .maybeSingle();
+
+  if (existingProject) {
+    return {
+      error: null,
+      projectId: existingProject.id,
+      projectCode: existingProject.code
+    };
+  }
+
   // 1. Insertar Proyecto en tabla projects
+  const insertData: Record<string, unknown> = {
+    empresa_id: payload.project.empresa_id,
+    name: payload.project.name,
+    code: payload.project.code,
+    client: payload.project.client,
+    budget_total: payload.project.budget_total,
+    status: 'ACTIVO',
+    created_by: payload.project.created_by,
+    start_date: new Date().toISOString().split('T')[0],
+  };
+
+  if (payload.project.plazo_dias != null) {
+    insertData.end_date = new Date(Date.now() + payload.project.plazo_dias * 86_400_000).toISOString().split('T')[0];
+  }
+
   const { data: project, error: projectError } = await supabase
     .from('projects')
-    .insert({
-      empresa_id: payload.project.empresa_id,
-      name: payload.project.name,
-      code: payload.project.code,
-      client: payload.project.client,
-      budget_total: payload.project.budget_total,
-      status: 'ACTIVO',
-      created_by: payload.project.created_by,
-      start_date: new Date().toISOString().split('T')[0],
-      end_date: new Date(Date.now() + payload.project.plazo_dias * 86_400_000).toISOString().split('T')[0]
-    })
+    .insert(insertData)
     .select('id, code')
     .single();
 

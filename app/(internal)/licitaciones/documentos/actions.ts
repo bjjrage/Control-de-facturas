@@ -57,6 +57,7 @@ export async function crearDocumentoEmpresa(data: DocumentoInput): Promise<{ id?
       categoria = 'PERSONAL';
     }
 
+    const esInferencia = categoria !== 'OTRO';
     await supabase.from("company_bid_vault_items").insert({
       empresa_id: profile.empresa_id,
       categoria,
@@ -67,7 +68,12 @@ export async function crearDocumentoEmpresa(data: DocumentoInput): Promise<{ id?
       fecha_vencimiento: data.fecha_vencimiento || null,
       es_vencible: !!data.fecha_vencimiento,
       estado: data.fecha_vencimiento && new Date(data.fecha_vencimiento).getTime() < Date.now() ? 'VENCIDO' : 'VIGENTE',
-      metadatos: { origen: "empresa_documentos", ref_id: row.id }
+      metadatos: {
+        origen: "empresa_documentos",
+        ref_id: row.id,
+        clasificacion: esInferencia ? "AUTO_SUGGESTED" : "MANUAL_REQUIRED",
+        review_required: esInferencia
+      }
     });
   } catch {
     // Defensivo si la migración 0064 no ha sido aplicada aún

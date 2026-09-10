@@ -64,6 +64,26 @@ async function runTests() {
   assert(payload.budgetItems.length === 4, 'Se crearon exactamente 4 BudgetItems numerados');
   assert(payload.initialProcurementRequests.length === 4, 'Se crearon 4 solicitudes iniciales de compra para pañol/obra');
 
+  console.log('--- TEST 2: Invariante UNKNOWN != DEFAULT (Términos desconocidos permanecen null) ---');
+  const paramsNullDefaults: TenderToProjectParams = {
+    empresaId: 'emp-constructora-py',
+    tenderId: 'TENDER-MOPC-1122',
+    projectTitle: 'Reparación de Puentes Vecinales',
+    buyerName: 'Gobernación de Cordillera',
+    adjudicatedOfferPricePyg: 150000000,
+    durationMonths: null,
+    advancePaymentPct: null,
+    retentionPct: null,
+    bidItems: [
+      { itemNumber: 1, description: 'Estructura Metálica Perfilada', unit: 'KG', quantity: 5000, unitPricePyg: 30000 }
+    ]
+  };
+
+  const payloadNull = buildProjectFromAdjudicatedTender(paramsNullDefaults);
+  assert(payloadNull.project.plazo_dias === null, 'Plazo permanece null si no se conoce (sin default arbitrario)');
+  assert(payloadNull.project.anticipo_pct === null, 'Anticipo permanece null si no se especifica');
+  assert(payloadNull.project.retencion_pct === null, 'Retención permanece null si no se especifica');
+
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 19 PASARON CON ÉXITO');
   console.log('======================================================\n');

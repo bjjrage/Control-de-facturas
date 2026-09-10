@@ -332,6 +332,13 @@ export async function convertirLicitacionAProyecto(
     return { error: "Licitación no encontrada o no pertenece a la empresa." };
   }
 
+  // Regla de Integridad Contractual: Solo se puede convertir a obra una licitación con decisión GANADA
+  if (lic.decision !== "GANADA") {
+    return {
+      error: `No se puede convertir a proyecto una licitación con estado '${lic.decision || "SIN_DECISION"}'. Debe marcarse primero como 'GANADA'.`
+    };
+  }
+
   // 2. Obtener ítems de la licitación
   const { data: items } = await supabase
     .from("licitacion_items")
@@ -358,6 +365,8 @@ export async function convertirLicitacionAProyecto(
 
   const { executeTenderToProjectTransaction } = await import("@/lib/procurement/tender-to-project");
 
+  // Invariante UNKNOWN != DEFAULT: No asumir plazos ni porcentajes arbitrarios (6 meses, 10%, 5%)
+  // Si la licitación no los especifica formalmente en el pliego, quedan en null para configuración manual.
   const result = await executeTenderToProjectTransaction(supabase, {
     empresaId,
     tenderId: lic.id,
@@ -365,9 +374,9 @@ export async function convertirLicitacionAProyecto(
     projectTitle: lic.titulo,
     buyerName: lic.comitente_nombre || "Entidad Convocante",
     adjudicatedOfferPricePyg: Number(lic.monto_adjudicado || lic.monto_referencial || 0),
-    durationMonths: 6, // Plazo estándar por defecto si no está especificado
-    advancePaymentPct: 10,
-    retentionPct: 5,
+    durationMonths: null, // UNKNOWN != DEFAULT: No inventar 6 meses
+    advancePaymentPct: null, // UNKNOWN != DEFAULT: No inventar 10%
+    retentionPct: null, // UNKNOWN != DEFAULT: No inventar 5%
     bidItems,
     createdBy: profile.id
   });
@@ -375,13 +384,6 @@ export async function convertirLicitacionAProyecto(
   if (result.error) {
     return { error: result.error };
   }
-
-  // Actualizar decisión a GANADA si no lo estaba
-  await supabase
-    .from("licitaciones")
-    .update({ decision: "GANADA" })
-    .eq("id", licitacionId)
-    .eq("empresa_id", empresaId);
 
   await logAudit(supabase, {
     action: "tender.converted_to_project",
