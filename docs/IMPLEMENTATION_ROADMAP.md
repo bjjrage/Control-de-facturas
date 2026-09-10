@@ -326,16 +326,26 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ## GATE 11 — Compliance Engine
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATE 9
 * **IMPLEMENTATION**:
-  - Matriz estructurada de verificación de pliego contra el Bid Vault y el ERP.
+  - Motor analítico de cumplimiento de pliegos [`lib/procurement/compliance-engine.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/compliance-engine.ts):
+    - Verificación estructurada por categorías (`LEGAL`, `FISCAL`, `FINANCIERO`, `EXPERIENCIA`, `PERSONAL`, `MAQUINARIA`).
+    - Validación de ratios financieros de solvencia y liquidez corriente procedentes del ERP.
+    - Agregación cuantitativa de experiencia técnica (monto acumulado y unidades físicas como km de asfalto o m2 construidos).
+    - Verificación de parque de maquinaria y potencia requerida (HP).
+    - Asignación determinística de dictámenes (`CUMPLIDO`, `GENERABLE`, `FALTANTE`).
+    - Cálculo de elegibilidad estricta (`isEligibleToBid` es false si existe algún faltante en requisitos excluyentes).
 * **TESTS**:
-  - Evaluación de cumplimiento sobre pliegos con requisitos complejos de experiencia y solvencia.
+  - Suite de evaluación de pliegos [`scripts/test-compliance-engine.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-compliance-engine.ts):
+    - Pliego MOPC vial cumplido al 100% (5/5 requisitos probados con respaldo documental).
+    - Pliego Megapuente con descalificación certera ante ratios de liquidez insuficientes y falta de experiencia acumulada.
 * **RISKS**:
-  - Interpretación de cláusulas complejas en pliegos no estandarizados.
+  - Interpretación de cláusulas atípicas mitigada permitiendo al usuario marcar requisitos como `GENERABLE` con plan de acción.
 * **DEFINITION OF DONE**:
-  - Diagnóstico automatizado de requisitos (CUMPLIDO, GENERABLE, FALTANTE) con respaldo probatorio.
+  - Diagnóstico automatizado de requisitos con respaldo probatorio.
+  - Test suite ejecutada con 0 fallos.
+  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
 
 ---
 
