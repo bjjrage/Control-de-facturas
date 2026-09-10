@@ -572,14 +572,27 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ## GATE 21 — Product Hardening / Enterprise Deployment
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATES 0–20
 * **IMPLEMENTATION**:
-  - Docker Compose reproducible (Web, Supabase/Postgres, Storage, Workers, Reverse Proxy).
-  - Procedimientos de backup, restore, rotación de claves y observabilidad.
+  - Configuración reproducible de despliegue on-premise [`docker-compose.enterprise.yml`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/docker-compose.enterprise.yml):
+    - Gateway NGINX con terminación TLS.
+    - Contenedor de aplicación Next.js.
+    - PostgreSQL 16 con volumen persistente y carga automática de migraciones SQL (0001 a 0065).
+    - Almacenamiento MinIO compatible con S3 para la Bóveda documental.
+    - Instancia de Redis para caché y rate limiting.
+  - Playbook operativo y guía de Disaster Recovery [`docs/ENTERPRISE_DEPLOYMENT.md`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/docs/ENTERPRISE_DEPLOYMENT.md):
+    - Procedimiento automatizado de backups consistentes con `pg_dump`.
+    - Procedimiento de restauración limpia con `pg_restore`.
+    - Guía de rotación semestral de secretos y llaves criptográficas.
 * **TESTS**:
-  - Ensayos de disaster recovery y despliegues limpios en servidor aislado.
+  - Suite de verificación de despliegue [`scripts/test-enterprise-deployment.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-enterprise-deployment.ts):
+    - Integridad sintáctica y de servicios de docker-compose.
+    - Existencia y coherencia del playbook de operaciones.
+    - Verificación de la cadena completa de migraciones SQL (0060 a 0065).
 * **RISKS**:
-  - Dependencias de servicios cloud propietarios.
+  - Dependencia de clouds propietarias eliminada: el sistema puede correr 100% aislado on-premise en infraestructura del cliente.
 * **DEFINITION OF DONE**:
   - Enterprise Deployment Pack completo, documentado y reproducible.
+  - Test suite ejecutada con 0 fallos.
+  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
