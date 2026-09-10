@@ -131,6 +131,113 @@ async function runTests() {
   assert(inferredObras.some(r => r.categoria === 'EXPERIENCIA'), 'Incluye requisito de Experiencia en Obras');
   assert(inferredObras.some(r => r.categoria === 'MAQUINARIA'), 'Incluye requisito de Maquinaria vial');
 
+  // CASO 4: Extracción real desde texto del Pliego de Bases y Condiciones (PBC)
+  console.log('\n--- TEST 4: Extracción Determinística desde PBC Oficial (extractRequirementsFromPbcText) ---');
+  const { extractRequirementsFromPbcText } = await import('../lib/procurement/pbc-extractor');
+
+  const pbcRealista = `
+    PLIEGO DE BASES Y CONDICIONES - LLAMADO A LICITACIÓN PÚBLICA NACIONAL N° 12/2026
+    CONTRATACIÓN DE OBRAS DE PAVIMENTACIÓN ASFÁLTICA Y OBRAS DE ARTE
+    PRESUPUESTO ESTIMADO: Gs. 20.000.000.000 (VEINTE MIL MILLONES DE GUARANÍES)
+
+    SECCIÓN I: INSTRUCCIONES A LOS OFERENTES
+    1.1 CAPACIDAD LEGAL:
+    Los oferentes deberán presentar Estatutos Sociales inscriptos en el Registro Público y Poder del Representante Legal.
+    Asimismo, deberán adjuntar Declaración Jurada de no encontrarse inhabilitados para contratar conforme al Art. 40 de la Ley 2051/03 y Ley 7021/22.
+
+    SECCIÓN II: SOLVENCIA TRIBUTARIA Y SOCIAL
+    2.1 El oferente presentará el Certificado de Cumplimiento Tributario (CCT) emitido por la DNIT vigente a la fecha de apertura.
+    2.2 Constancia expedida por el Instituto de Previsión Social (IPS) de no adeudar aportes obrero-patronales.
+
+    SECCIÓN III: CAPACIDAD FINANCIERA
+    3.1 Se requerirá balance auditado de los últimos tres ejercicios fiscales cerrados.
+    3.2 El ratio de liquidez corriente mínima exigida será mayor o igual a 1.2.
+    3.3 El ratio de endeudamiento máximo admitido no superará 0.80.
+
+    SECCIÓN IV: EXPERIENCIA TÉCNICA
+    4.1 Experiencia mínima acumulada en obras viales similares de al menos Gs. 10.000.000.000 en los últimos 5 años.
+    4.2 El oferente deberá acreditar la disponibilidad de equipo vial mínimo consistente en Motoniveladora y Retroexcavadora.
+    4.3 Se exigirá la designación de un Jefe de Obra que sea Ingeniero Civil matriculado.
+  `;
+
+  const extraction = extractRequirementsFromPbcText(pbcRealista, 20000000000);
+  console.log(`Requisitos extraídos: ${extraction.requirements.length} | Secciones detectadas: ${extraction.detectedSections.join(', ')} | Confianza: ${extraction.extractionConfidencePct}%`);
+
+  assert(extraction.requirements.length >= 6, 'Extrae al menos 6 requisitos formales del pliego');
+  assert(extraction.detectedSections.includes('CAPACIDAD_LEGAL'), 'Detecta sección legal');
+  assert(extraction.detectedSections.includes('SOLVENCIA_FISCAL'), 'Detecta sección fiscal');
+  assert(extraction.detectedSections.includes('CAPACIDAD_FINANCIERA'), 'Detecta sección financiera');
+  assert(extraction.detectedSections.includes('EXPERIENCIA_TECNICA'), 'Detecta sección técnica');
+
+  // 1. Con bóveda incompleta (le faltan IPS y Declaración Jurada Art. 40), DEBE fallar cerrado
+  const pbcComplianceIncomplete = evaluateTenderCompliance(
+    'LIC-PBC-REAL-01',
+    extraction.requirements,
+    mockVault,
+    { liquidezCorriente: 1.45, endeudamientoTotal: 0.65 },
+    'EXTRACTED_FROM_PBC'
+  );
+
+  console.log(`Evaluación con PBC Real (Bóveda incompleta): Elegible = ${pbcComplianceIncomplete.isEligibleToBid} | Score = ${pbcComplianceIncomplete.scoreCumplimientoPct}% | Faltantes = ${pbcComplianceIncomplete.faltantesCount}`);
+  assert(pbcComplianceIncomplete.evidenceOrigin === 'EXTRACTED_FROM_PBC', 'Origen de evidencia es EXTRACTED_FROM_PBC');
+  assert(pbcComplianceIncomplete.isEligibleToBid === false, 'Falla cerrado si el PBC exige IPS y Art 40 y la bóveda no los posee');
+
+  // 2. Con bóveda integral completa (posee Estatutos, Art 40, DNIT, IPS, Maquinaria, Experiencia y Personal)
+  const completeVault: VaultItem[] = [
+    ...mockVault,
+    {
+      id: 'v-art40',
+      empresaId: 'emp-1',
+      categoria: 'LEGAL',
+      tipoDocumento: 'DECLARACION_JURADA',
+      titulo: 'Declaración Jurada Art. 40 Ley 2051/03',
+      esVencible: false,
+      metadatos: {},
+      estado: 'VIGENTE',
+      version: 1,
+      createdAt: '2026-01-01',
+      updatedAt: '2026-01-01'
+    },
+    {
+      id: 'v-ips',
+      empresaId: 'emp-1',
+      categoria: 'FISCAL',
+      tipoDocumento: 'CERTIFICADO_NO_ADEUDAR_IPS',
+      titulo: 'Certificado de No Adeudar IPS',
+      esVencible: true,
+      metadatos: {},
+      estado: 'VIGENTE',
+      version: 1,
+      createdAt: '2026-02-15',
+      updatedAt: '2026-02-15'
+    },
+    {
+      id: 'v-personal',
+      empresaId: 'emp-1',
+      categoria: 'PERSONAL',
+      tipoDocumento: 'MATRICULA_PROFESIONAL',
+      titulo: 'Ing. Civil Residente / Jefe de Obra',
+      esVencible: false,
+      metadatos: { cargo: 'Jefe de Obra', experiencia_anos: 12 },
+      estado: 'VIGENTE',
+      version: 1,
+      createdAt: '2025-01-01',
+      updatedAt: '2025-01-01'
+    }
+  ];
+
+  const pbcComplianceComplete = evaluateTenderCompliance(
+    'LIC-PBC-REAL-01',
+    extraction.requirements,
+    completeVault,
+    { liquidezCorriente: 1.45, endeudamientoTotal: 0.65 },
+    'EXTRACTED_FROM_PBC'
+  );
+
+  console.log(`Evaluación con PBC Real (Bóveda completa): Elegible = ${pbcComplianceComplete.isEligibleToBid} | Score = ${pbcComplianceComplete.scoreCumplimientoPct}% | Cumplidos = ${pbcComplianceComplete.cumplidosCount}/${pbcComplianceComplete.totalRequirements}`);
+  assert(pbcComplianceComplete.isEligibleToBid === true, 'Confiere habilitación formal cuando todos los requisitos del PBC real están cubiertos');
+  assert(pbcComplianceComplete.cumplidosCount >= 6, 'Al menos 6 requisitos quedan formalmente CUMPLIDOS con documentación vigente');
+
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 11 PASARON CON ÉXITO');
   console.log('======================================================\n');

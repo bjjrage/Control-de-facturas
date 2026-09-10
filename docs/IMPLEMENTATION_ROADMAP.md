@@ -206,16 +206,21 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 ---
 
 ### GATE 11 — Compliance Engine
-* **STATUS**: **PARTIAL / SCAFFOLD_ONLY**
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 9
 * **IMPLEMENTATION**:
-  - Matriz de evaluación en `lib/procurement/compliance-engine.ts` contra `VaultItem[]` de la bóveda del tenant.
+  - Matriz de evaluación en `lib/procurement/compliance-engine.ts` contra `VaultItem[]` de la bóveda del tenant con normalización y compatibilidad semántica de tipos de documentos.
+  - Extractor determinístico de requisitos en `lib/procurement/pbc-extractor.ts` (`extractRequirementsFromPbcText`) que analiza pliegos reales, extrayendo requisitos legales (Art. 40, Poder), fiscales (DNIT, IPS), financieros (Liquidez, Endeudamiento), técnicos (Experiencia acumulada y km) y de equipamiento/personal clave.
   - Reclasificación formal de requerimientos sugeridos a `generateGenericRequirementSuggestions` (`evidenceOrigin: 'GENERIC_REQUIREMENT_SUGGESTIONS'`).
-  - Regla estricta: Las sugerencias genéricas **NO confieren habilitación (`isEligibleToBid = false`)**, forzando revisión manual o extracción real.
+  - Integración en Server Actions (`app/(internal)/licitaciones/actions.ts`):
+    - `extraerRequisitosDePliego`: Extrae y persiste la matriz con origen `EXTRACTED_FROM_PBC` y genera el dictamen de cumplimiento.
+    - `persistirEvaluacionComercial`: Emplea requisitos reales de pliego cuando están disponibles o sugerencias genéricas si no, manteniendo la regla estricta: Sugerencias genéricas **NO confieren habilitación (`isEligibleToBid = false`)**.
 * **VERIFICACIÓN**:
-  - `scripts/test-compliance-engine.ts` valida la lógica de dictámenes CUMPLIDO/GENERABLE/FALTANTE y rechazo de auto-habilitación en sugerencias genéricas.
-* **GAPS**:
-  - Extracción automática de requisitos normativos específicos desde el texto y anexos del Pliego de Bases y Condiciones (PBC) oficial.
+  - `scripts/test-compliance-engine.ts` (4/4 tests pasando):
+    - TEST 1: Pliego MOPC vial cumplible califica 100% con bóveda adecuada (`isEligibleToBid: true`).
+    - TEST 2: Falla excluyente de experiencia/liquidez descalifica certeramente (`isEligibleToBid: false`).
+    - TEST 3: Inferencia dinámica de sugerencias previas al PBC.
+    - TEST 4: Extracción completa desde texto de PBC oficial y verificación estricta (fail-closed con bóveda incompleta y habilitación formal 100% con bóveda íntegra).
 
 ---
 

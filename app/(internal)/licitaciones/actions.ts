@@ -571,20 +571,26 @@ export async function persistirEvaluacionComercial(
 
   // 3. Evaluar cumplimiento normativo y documental basado en la bóveda
   const { evaluateTenderCompliance, generateGenericRequirementSuggestions } = await import("@/lib/procurement/compliance-engine");
-  const tenderRequirements = generateGenericRequirementSuggestions({
-    id: lic.id,
-    categoria: lic.categoria,
-    procurement_method: lic.procurement_method,
-    monto_referencial: lic.monto_referencial ? Number(lic.monto_referencial) : null
-  });
+  const extractedPbc = lic.raw_json?.pbc_requisitos_extraidos;
+  const isPbcAvailable = Array.isArray(extractedPbc?.requirements) && extractedPbc.requirements.length > 0;
 
-  // Los requerimientos inferidos heurísticamente NO confieren habilitación automática
+  const tenderRequirements = isPbcAvailable
+    ? extractedPbc.requirements
+    : generateGenericRequirementSuggestions({
+        id: lic.id,
+        categoria: lic.categoria,
+        procurement_method: lic.procurement_method,
+        monto_referencial: lic.monto_referencial ? Number(lic.monto_referencial) : null
+      });
+
+  const evidenceOrigin = isPbcAvailable ? 'EXTRACTED_FROM_PBC' : 'GENERIC_REQUIREMENT_SUGGESTIONS';
+
   const complianceReport = evaluateTenderCompliance(
     lic.id,
     tenderRequirements,
     vaultItems,
     undefined,
-    'GENERIC_REQUIREMENT_SUGGESTIONS'
+    evidenceOrigin
   );
 
   // 4. Perfil institucional del convocante (sin datos históricos simulados)
@@ -821,3 +827,83 @@ export async function generarPliegoOfertaCompleto(
     validationErrors: bidPackage.validationErrors
   };
 }
+
+/**
+ * Extrae requisitos técnicos y legales determinísticos del texto del Pliego de Bases y Condiciones (PBC) (Gate 11)
+ */
+export async function extraerRequisitosDePliego(
+  licitacionId: string,
+  textoPbc: string
+): Promise<{ error?: string; totalRequisitos?: number; secciones?: string[]; elegible?: boolean; score?: number }> {
+  const { supabase, profile } = await ctx();
+  const empresaId = profile.empresa_id;
+
+  const { data: lic, error: licError } = await supabase
+    .from("licitaciones")
+    .select("*")
+    .eq("id", licitacionId)
+    .eq("empresa_id", empresaId)
+    .maybeSingle();
+
+  if (licError || !lic) {
+    return { error: "Licitación no encontrada o sin acceso." };
+  }
+
+  const { extractRequirementsFromPbcText } = await import("@/lib/procurement/pbc-extractor");
+  const extraction = extractRequirementsFromPbcText(
+    textoPbc,
+    lic.monto_referencial ? Number(lic.monto_referencial) : null
+  );
+
+  if (extraction.requirements.length === 0) {
+    return { error: "No se pudieron extraer requisitos normativos o técnicos del texto provisto." };
+  }
+
+  const { fetchCompanyVaultItems } = await import("@/lib/procurement/bid-vault");
+  const vaultItems = await fetchCompanyVaultItems(supabase, empresaId);
+
+  const { evaluateTenderCompliance } = await import("@/lib/procurement/compliance-engine");
+  const complianceReport = evaluateTenderCompliance(
+    lic.id,
+    extraction.requirements,
+    vaultItems,
+    undefined,
+    'EXTRACTED_FROM_PBC'
+  );
+
+  const updatedRawJson = {
+    ...(typeof lic.raw_json === 'object' && lic.raw_json ? lic.raw_json : {}),
+    pbc_requisitos_extraidos: extraction,
+    ultimo_reporte_compliance: complianceReport
+  };
+
+  await supabase
+    .from("licitaciones")
+    .update({
+      raw_json: updatedRawJson,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", lic.id);
+
+  await logAudit(supabase, {
+    action: "tender.pbc_extracted",
+    detail: {
+      licitacion_id: lic.id,
+      requisitos_count: extraction.requirements.length,
+      secciones: extraction.detectedSections,
+      elegible: complianceReport.isEligibleToBid,
+      score: complianceReport.scoreCumplimientoPct
+    }
+  });
+
+  revalidatePath(`/licitaciones/${licitacionId}`);
+  revalidatePath(`/licitaciones/${licitacionId}/evaluacion`);
+
+  return {
+    totalRequisitos: extraction.requirements.length,
+    secciones: extraction.detectedSections,
+    elegible: complianceReport.isEligibleToBid,
+    score: complianceReport.scoreCumplimientoPct
+  };
+}
+

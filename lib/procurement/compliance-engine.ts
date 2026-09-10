@@ -29,6 +29,8 @@ export interface TenderRequirement {
     aniosExperienciaMinimos?: number;
     potenciaHpMinima?: number;
     ratioLiquidezMinimo?: number;
+    ratioEndeudamientoMaximo?: number;
+    cargoRequerido?: string;
   };
 }
 
@@ -56,6 +58,25 @@ export interface TenderComplianceReport {
   generablesCount: number;
   faltantesCount: number;
   evaluations: RequirementEvaluation[];
+}
+
+function matchesDocType(vaultItem: VaultItem, expectedDocType?: string): boolean {
+  if (!expectedDocType) return true;
+  const docType = vaultItem.tipoDocumento.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const expType = expectedDocType.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const title = (vaultItem.titulo || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+  if (vaultItem.tipoDocumento === expectedDocType) return true;
+  if (docType.includes(expType) || expType.includes(docType)) return true;
+  if (title.includes(expType) || expType.includes(title)) return true;
+
+  // Semantic mappings
+  if ((docType.includes('DNIT') || docType.includes('CCT')) && (expType.includes('DNIT') || expType.includes('CCT') || expType.includes('TRIBUTARIO'))) return true;
+  if (docType.includes('IPS') && expType.includes('IPS')) return true;
+  if ((docType.includes('ESTATUTO') || docType.includes('PODER')) && (expType.includes('ESTATUTO') || expType.includes('PODER'))) return true;
+  if (docType.includes('DECLARACION') && (expType.includes('DECLARACION') || expType.includes('ART40'))) return true;
+
+  return false;
 }
 
 /**
@@ -87,7 +108,7 @@ export function evaluateTenderCompliance(
 
     if (req.categoria === 'LEGAL') {
       const match = vaultItems.find(
-        v => v.categoria === 'LEGAL' && (!req.criterio.tipoDocEsperado || v.tipoDocumento === req.criterio.tipoDocEsperado)
+        v => v.categoria === 'LEGAL' && matchesDocType(v, req.criterio.tipoDocEsperado)
       );
       if (match && match.estado === 'VIGENTE') {
         verdict = 'CUMPLIDO';
@@ -99,7 +120,7 @@ export function evaluateTenderCompliance(
       }
     } else if (req.categoria === 'FISCAL') {
       const match = vaultItems.find(
-        v => v.categoria === 'FISCAL' && (!req.criterio.tipoDocEsperado || v.tipoDocumento === req.criterio.tipoDocEsperado)
+        v => v.categoria === 'FISCAL' && matchesDocType(v, req.criterio.tipoDocEsperado)
       );
       if (match && match.estado === 'VIGENTE') {
         verdict = 'CUMPLIDO';
@@ -114,15 +135,27 @@ export function evaluateTenderCompliance(
         obs = 'Certificado fiscal o de seguridad social faltante o vencido';
       }
     } else if (req.categoria === 'FINANCIERO') {
-      const minLiquidez = req.criterio.ratioLiquidezMinimo ?? 1.0;
-      const actualLiquidez = financialMetrics?.liquidezCorriente ?? 0;
-
-      if (actualLiquidez >= minLiquidez) {
-        verdict = 'CUMPLIDO';
-        obs = `Ratio de liquidez corriente (${actualLiquidez}) cumple el mínimo requerido (${minLiquidez})`;
+      if (req.criterio.ratioEndeudamientoMaximo !== undefined) {
+        const maxEndeudamiento = req.criterio.ratioEndeudamientoMaximo;
+        const actualEndeudamiento = financialMetrics?.endeudamientoTotal ?? 0;
+        if (actualEndeudamiento > 0 && actualEndeudamiento <= maxEndeudamiento) {
+          verdict = 'CUMPLIDO';
+          obs = `Ratio de endeudamiento total (${actualEndeudamiento}) dentro del límite máximo (${maxEndeudamiento})`;
+        } else {
+          verdict = 'FALTANTE';
+          obs = `Ratio de endeudamiento excesivo o no determinado (${actualEndeudamiento} > ${maxEndeudamiento})`;
+        }
       } else {
-        verdict = 'FALTANTE';
-        obs = `Ratio de liquidez insuficiente (${actualLiquidez} < ${minLiquidez})`;
+        const minLiquidez = req.criterio.ratioLiquidezMinimo ?? 1.0;
+        const actualLiquidez = financialMetrics?.liquidezCorriente ?? 0;
+
+        if (actualLiquidez >= minLiquidez) {
+          verdict = 'CUMPLIDO';
+          obs = `Ratio de liquidez corriente (${actualLiquidez}) cumple el mínimo requerido (${minLiquidez})`;
+        } else {
+          verdict = 'FALTANTE';
+          obs = `Ratio de liquidez insuficiente (${actualLiquidez} < ${minLiquidez})`;
+        }
       }
     } else if (req.categoria === 'EXPERIENCIA') {
       const expDocs = vaultItems.filter(v => v.categoria === 'EXPERIENCIA');
@@ -168,8 +201,20 @@ export function evaluateTenderCompliance(
         verdict = 'GENERABLE'; // Puede subsanarse con carta de compromiso de alquiler
         obs = 'Maquinaria propia no disponible; subsanable con carta de alquiler';
       }
+    } else if (req.categoria === 'PERSONAL') {
+      const match = vaultItems.find(
+        v => v.categoria === 'PERSONAL' && (!req.criterio.cargoRequerido || matchesDocType(v, req.criterio.cargoRequerido) || (v.metadatos?.cargo && String(v.metadatos.cargo).toLowerCase().includes(req.criterio.cargoRequerido.toLowerCase())))
+      );
+      if (match && match.estado === 'VIGENTE') {
+        verdict = 'CUMPLIDO';
+        docRespaldo = { id: match.id, titulo: match.titulo, estado: match.estado };
+        obs = `Personal técnico clave verificado: ${match.titulo}`;
+      } else {
+        verdict = 'GENERABLE';
+        obs = 'Personal clave a nominar en la presentación formal de la oferta';
+      }
     } else {
-      // PERSONAL u OTRO
+      // OTRO
       verdict = 'GENERABLE';
       obs = 'Requisito preparable con la presentación de la oferta';
     }
