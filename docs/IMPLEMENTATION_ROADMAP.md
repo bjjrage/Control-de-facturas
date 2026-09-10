@@ -351,16 +351,26 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ## GATE 12 — Institution Intelligence
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATE 3
 * **IMPLEMENTATION**:
-  - Perfil analítico por convocante (tiempos de pago, adendas, concentración de proveedores, cancelaciones).
+  - Motor de análisis institucional de convocantes [`lib/procurement/institution-intelligence.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/institution-intelligence.ts):
+    - Medición de días reales promedio de pago de certificados de obra.
+    - Medición de tasa de adendas y prórrogas por llamado.
+    - Medición de tasa de cancelaciones o llamados desiertos.
+    - Concentración del mercado en el Top 3 de contratistas adjudicados.
+    - Matriz determinística de calificación de riesgo (A: Excelente < 60d, B: Confiable < 120d, C: Moderado < 210d, D: Alto Riesgo > 210d).
 * **TESTS**:
-  - Métricas de distribución temporal de desembolsos.
+  - Suite de evaluación de convocantes [`scripts/test-institution-intelligence.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-institution-intelligence.ts):
+    - ANDE modelada y calificada como **A** (Pagos a 45 días, 0% cancelaciones).
+    - MOPC modelado y calificado como **C** (Pagos promedio a 150 días, alta tasa de adendas de 2.75).
+    - Municipio de alto riesgo modelado y calificado como **D** (Mora de 270 días y 66.7% de cancelaciones).
 * **RISKS**:
-  - Ambigüedad en fechas efectivas de pago en datos OCDS.
+  - Variaciones temporales en el presupuesto general de la nación mitigadas calculando la mora de forma móvil por año.
 * **DEFINITION OF DONE**:
-  - Ficha de riesgo y comportamiento contractual por entidad compradora.
+  - Ficha de riesgo y comportamiento contractual por entidad compradora implementada.
+  - Test suite ejecutada con 0 fallos.
+  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
 
 ---
 
