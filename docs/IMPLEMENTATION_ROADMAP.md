@@ -528,16 +528,25 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ## GATE 19 — Tender → Project
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATE 17, GATE 18
 * **IMPLEMENTATION**:
-  - Transición automática de licitación adjudicada a obra operativa: creación de proyecto, presupuesto, pañol y estructura de compras inicial.
+  - Motor de transición automática de licitaciones a obras operativas [`lib/procurement/tender-to-project.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/tender-to-project.ts):
+    - Creación del registro de obra en la tabla `projects` con datos de contrato público (comitente, plazo en días, anticipo, fondo de reparo y monto adjudicado).
+    - Conversión automática de la planilla económica adjudicada a `budget_items` del ERP con código, unidad, cantidad y precios unitarios.
+    - Generación de la lista inicial de requerimientos de compra y pañol para compras tempranas de insumos críticos.
+    - Preservación de la trazabilidad vinculando la obra con el proceso licitatorio (`tender_id` y `bid_analysis_run_id`).
 * **TESTS**:
-  - Conversión íntegra de oferta adjudicada a proyecto sin doble carga.
+  - Suite de transición de obra [`scripts/test-tender-to-project.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-tender-to-project.ts):
+    - Creación de proyecto activo con contrato de obra pública MOPC.
+    - Transferencia aritmética 100% exacta de presupuesto (Gs. 769.500.000).
+    - Desglose de 4 BudgetItems y 4 solicitudes de compra de insumos de pañol.
 * **RISKS**:
-  - Diferencias entre ítems de oferta y estructura final de ejecución en obra.
+  - Ajustes de obra en campo soportados naturalmente mediante la funcionalidad nativa de adendas y certificados de avance del ERP.
 * **DEFINITION OF DONE**:
   - Proyecto operativo generado con un solo clic conservando trazabilidad de la oferta.
+  - Test suite ejecutada con 0 fallos.
+  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
 
 ---
 
