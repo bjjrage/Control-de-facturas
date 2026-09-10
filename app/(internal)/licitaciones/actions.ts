@@ -741,3 +741,128 @@ export async function persistirEvaluacionComercial(
     hash: snapshot.snapshotHash
   };
 }
+
+/**
+ * Ensambla y genera el paquete de formularios y oferta comercial (Gate 14: Tender Operations)
+ */
+export async function generarPliegoOfertaCompleto(
+  licitacionId: string
+): Promise<{
+  error?: string;
+  packageStatus?: 'READY_TO_SIGN' | 'DRAFT_INCOMPLETE';
+  formsCount?: number;
+  attachedDocsCount?: number;
+  totalAmountPyg?: number;
+  validationErrors?: string[];
+}> {
+  const { supabase, profile } = await ctx();
+  const empresaId = profile.empresa_id;
+
+  // 1. Obtener la licitación y empresa
+  const [{ data: lic }, { data: empresa }] = await Promise.all([
+    supabase
+      .from("licitaciones")
+      .select("*")
+      .eq("id", licitacionId)
+      .eq("empresa_id", empresaId)
+      .maybeSingle(),
+    supabase
+      .from("empresas")
+      .select("*")
+      .eq("id", empresaId)
+      .maybeSingle()
+  ]);
+
+  if (!lic) {
+    return { error: "Licitación no encontrada." };
+  }
+
+  // 2. Obtener los ítems y precios de la licitación
+  const { data: rawItems } = await supabase
+    .from("licitacion_items")
+    .select("*")
+    .eq("licitacion_id", lic.id)
+    .order("sort_order");
+
+  const { data: activeProducts } = await supabase
+    .from("productos")
+    .select("id, nombre, unidad, costo_promedio")
+    .eq("empresa_id", empresaId)
+    .eq("activo", true)
+    .gt("costo_promedio", 0);
+
+  const { matchTenderItem } = await import("@/lib/procurement/item-matching");
+  const catalogForMatching = (activeProducts ?? []).map(p => ({
+    id: p.id,
+    descripcion: p.nombre,
+    unidad: p.unidad
+  }));
+
+  const bidItems = (rawItems ?? []).map((it: any, idx: number) => {
+    let unitPrice = Number(it.precio_unitario_referencial || 0);
+    const matched = matchTenderItem(it.descripcion, it.unidad || "UN", catalogForMatching);
+    if (matched.bestMatch) {
+      const prod = (activeProducts ?? []).find(p => p.id === matched.bestMatch!.item.id);
+      if (prod) {
+        // Margen objetivo sobre costo directo: +15%
+        unitPrice = Math.round(prod.costo_promedio * 1.15);
+      }
+    }
+
+    return {
+      itemNumber: idx + 1,
+      description: it.descripcion,
+      unit: it.unidad || "UN",
+      quantity: Number(it.cantidad || 1),
+      unitPricePyg: unitPrice
+    };
+  });
+
+  // Si no hay planilla itemizada en el pliego, armar un ítem global
+  if (bidItems.length === 0) {
+    bidItems.push({
+      itemNumber: 1,
+      description: `Ejecución de Obra / Servicios: ${lic.titulo}`,
+      unit: "GL",
+      quantity: 1,
+      unitPricePyg: Number(lic.monto_referencial || 0)
+    });
+  }
+
+  // 3. Documentos probatorios de la bóveda
+  const { fetchCompanyVaultItems } = await import("@/lib/procurement/bid-vault");
+  const vaultItems = await fetchCompanyVaultItems(supabase, empresaId);
+
+  // 4. Ensamblaje de oferta con el orquestador de operaciones
+  const { assembleTenderPackage } = await import("@/lib/procurement/tender-operations");
+  const bidPackage = assembleTenderPackage({
+    tenderId: lic.dncp_nro,
+    tenderTitle: lic.titulo,
+    buyerName: lic.comitente_nombre || "Entidad Convocante",
+    bidderName: empresa?.nombre || "Empresa Oferente",
+    bidderRuc: empresa?.ruc || "80000000-1",
+    legalRepresentative: profile.full_name || "Representante Legal",
+    items: bidItems,
+    vaultItems
+  });
+
+  await logAudit(supabase, {
+    action: "tender.bid_package_assembled",
+    detail: {
+      licitacion_id: lic.id,
+      package_status: bidPackage.packageStatus,
+      total_amount_pyg: bidPackage.totalOfferAmountPyg,
+      forms_count: bidPackage.preparedForms.length,
+      attached_docs_count: bidPackage.attachedEvidenceDocs.length,
+      errors: bidPackage.validationErrors
+    }
+  });
+
+  return {
+    packageStatus: bidPackage.packageStatus,
+    formsCount: bidPackage.preparedForms.length,
+    attachedDocsCount: bidPackage.attachedEvidenceDocs.length,
+    totalAmountPyg: bidPackage.totalOfferAmountPyg,
+    validationErrors: bidPackage.validationErrors
+  };
+}

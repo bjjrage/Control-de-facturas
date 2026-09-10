@@ -36,6 +36,28 @@ export function ReimportarButton({ nro, id }: { nro: string; id: string }) {
           onClick={async () => {
             setBusy(true);
             setError(null);
+            const { generarPliegoOfertaCompleto } = await import("../actions");
+            const res = await generarPliegoOfertaCompleto(id);
+            setBusy(false);
+            if (res.error) {
+              setError(res.error);
+            } else {
+              const errTxt = res.validationErrors && res.validationErrors.length > 0
+                ? `\n\nObservaciones pendientes:\n• ${res.validationErrors.join('\n• ')}`
+                : '';
+              alert(`Paquete de licitación ensamblado:\n• Estado: ${res.packageStatus}\n• Formularios generados: ${res.formsCount}\n• Documentos de bóveda vinculados: ${res.attachedDocsCount}\n• Monto total ofertado: Gs. ${res.totalAmountPyg?.toLocaleString('es-PY')}${errTxt}`);
+              router.refresh();
+            }
+          }}
+        >
+          {busy ? "Ensamblando…" : "Ensamblar Pliego y Formularios"}
+        </Button>
+        <Button
+          variant="secondary"
+          disabled={busy || busyConvert}
+          onClick={async () => {
+            setBusy(true);
+            setError(null);
             const { persistirEvaluacionComercial } = await import("../actions");
             const res = await persistirEvaluacionComercial(id);
             setBusy(false);

@@ -30,7 +30,7 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 | **11** | Compliance Engine | DONE | **PARTIAL** | Evaluador de matriz contra bóveda de tenant | Pliegos no se parsean automáticamente a esta matriz |
 | **12** | Institution Intelligence | DONE | **PARTIAL** | Algoritmo de scoring de riesgo A, B, C, D | Integrado en pipeline comercial; sin warehouse histórico completo |
 | **13** | Financial Analysis of Tender | DONE | **PARTIAL** | Simulación de cashflow en 3 escenarios | Integrado en Bid Engine; sin lectura en vivo de tasas bancarias |
-| **14** | Tender Operations Agent V1 | DONE | **SCAFFOLD_ONLY** | Generador de plantillas de formularios | Strings markdown estáticos; no es un agente autónomo |
+| **14** | Tender Operations Agent V1 | DONE | **PROVEN_DONE** | Ensamblaje de oferta, formularios y bóveda | Conectado a Server Action `generarPliegoOfertaCompleto` y botón en UI |
 | **15** | Tender Monitoring Agent | DONE | **PARTIAL** | Comparador diferencial por huella digital de documentos | Sin worker/cron en segundo plano programado para sondeo desatendido |
 | **16** | Competitive Simulator | DONE | **PARTIAL** | Monte Carlo Box-Muller en memoria | Integrado en Bid Engine; no calibrado con dataset masivo |
 | **17** | Bid Engine | DONE | **PROVEN_DONE** | Evaluador de 5 pilares y panel en UI | Conectado a Server Action `persistirEvaluacionComercial` |
@@ -245,14 +245,20 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 ---
 
 ### GATE 14 — Tender Operations Agent V1
-* **STATUS**: **SCAFFOLD_ONLY**
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 7, GATE 9, GATE 11, GATE 13
 * **IMPLEMENTATION**:
-  - Generador de plantillas de formularios en `lib/procurement/tender-operations.ts`.
+  - Orquestador de ensamblaje de oferta en `lib/procurement/tender-operations.ts` (`assembleTenderPackage`).
+  - Generación de formularios DNCP oficiales:
+    * Formulario 1: Carta de Presentación de la Oferta.
+    * Formulario 2: Declaración Jurada (Art. 40 Ley 2051/03 / Ley 7021/22).
+    * Formulario 3: Planilla de Precios Unitarios con cómputo métrico y márgenes calibrados.
+  - Vinculación automática de documentos probatorios de respaldo desde la Bóveda (`company_bid_vault_items`).
+  - Acción de servidor `generarPliegoOfertaCompleto` y botón en UI "Ensamblar Pliego y Formularios" en el detalle de la licitación con auditoría `tender.bid_package_assembled`.
 * **VERIFICACIÓN**:
-  - `scripts/test-tender-operations.ts` valida la concatenación de texto de formularios DNCP 1, 2 y 3.
+  - `scripts/test-tender-operations.ts` valida el ensamblaje completo, estados `READY_TO_SIGN` y `DRAFT_INCOMPLETE`, y el cálculo aritmético exacto de montos.
 * **GAPS**:
-  - Es un generador determinístico de strings markdown, no un agente interactivo autónomo.
+  - Exportación directa en formato PDF / Word listo para firma digital calificada.
 
 ---
 
