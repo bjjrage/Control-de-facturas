@@ -87,6 +87,41 @@ async function runTests() {
   assert(payloadNull.project.anticipo_pct === null, 'Anticipo permanece null si no se especifica');
   assert(payloadNull.project.retencion_pct === null, 'Retención permanece null si no se especifica');
 
+  console.log('--- TEST 3: Ejecución Atómica y Manejo de Rollback/Idempotencia en DB ---');
+  let rpcCalled: boolean = false;
+  let rpcArgs: any = null;
+  let deletedProjectId: string | null = null;
+
+  const mockSupabaseSuccess: any = {
+    rpc: async (fnName: string, args: any) => {
+      rpcCalled = true;
+      rpcArgs = args;
+      return { data: { success: true, project_id: 'proj-uuid-999', project_code: 'OBRA-DNCP-445522', already_existed: false }, error: null };
+    }
+  };
+
+  const { executeTenderToProjectTransaction } = await import('../lib/procurement/tender-to-project');
+  const execResult = await executeTenderToProjectTransaction(mockSupabaseSuccess, params);
+
+  assert(Boolean(rpcCalled), 'Se invocó el RPC atómico convertir_licitacion_a_proyecto_atomico');
+  assert(execResult.projectId === 'proj-uuid-999', 'El ID del proyecto retornado corresponde al generado por el RPC');
+  assert(rpcArgs.p_tender_id === 'TENDER-MOPC-9988', 'RPC recibió tender_id');
+  assert(rpcArgs.p_bid_analysis_run_id === 'run-uuid-1234', 'RPC recibió bid_analysis_run_id');
+  assert(rpcArgs.p_budget_items.length === 4, 'RPC recibió los 4 budget items para inserción atómica');
+  assert(rpcArgs.p_budget_items[0].subtotal === undefined, 'RPC no envía columna computada subtotal');
+  assert(payload.initialProcurementRequests.length === 4, 'Retorna requerimientos iniciales en memoria (no persistidos en DB)');
+
+  console.log('--- TEST 4: Rollback ante fallo de DB en el RPC Atómico ---');
+  const mockSupabaseFailure: any = {
+    rpc: async () => {
+      return { data: null, error: { message: 'unique_violation on tenders_tender_id_key', code: '23505' } };
+    }
+  };
+
+  const failResult = await executeTenderToProjectTransaction(mockSupabaseFailure, params);
+  assert(failResult.error !== null, 'Falla de DB en RPC retorna error estructurado en cliente');
+  assert(failResult.error!.includes('unique_violation'), 'Error propaga mensaje de error original de PostgreSQL');
+
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 19 PASARON CON ÉXITO');
   console.log('======================================================\n');

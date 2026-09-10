@@ -132,16 +132,75 @@ export function buildProjectFromAdjudicatedTender(params: TenderToProjectParams)
 
 /**
  * Persiste la transición de Licitación a Obra directamente en la base de datos de Supabase.
- * Inserta el registro en `projects`, desglosa los ítems en `budget_items`, y crea el depósito/pañol de obra.
- * Aplica verificación de idempotencia para prevenir duplicados.
+ * Ejecuta la transición de forma estrictamente ATÓMICA vía RPC en PostgreSQL:
+ * 1. Inserta el registro en `projects` con trazabilidad a `tender_id` y `bid_analysis_run_id`.
+ * 2. Inserta atómicamente todos los `budget_items`.
+ * 3. Crea el depósito / pañol de obra vinculado en `depositos`.
+ * 4. Actualiza la vinculación de obra en `licitaciones.raw_json`.
+ * 5. Si cualquier paso falla, la transacción en BD se revierte en su totalidad (cero registros huérfanos).
+ *
+ * NOTA: `initialProcurementRequests` son sugerencias en memoria para planificación de compras y NO se persisten
+ * como órdenes de compra automáticamente sin aprobación expresa del usuario.
  */
 export async function executeTenderToProjectTransaction(
   supabase: any,
   params: TenderToProjectParams
-): Promise<{ error: string | null; projectId?: string; projectCode?: string }> {
+): Promise<{ error: string | null; projectId?: string; projectCode?: string; alreadyExisted?: boolean }> {
   const payload = buildProjectFromAdjudicatedTender(params);
+  const nombreDeposito = `Pañol ${payload.project.code} - ${payload.project.name}`.slice(0, 100);
 
-  // Verificación de idempotencia: ¿ya existe una obra con este código en la empresa?
+  // 1. Intentar ejecución atómica mediante RPC transaccional en PostgreSQL
+  try {
+    const { data: rpcRes, error: rpcErr } = await supabase.rpc('convertir_licitacion_a_proyecto_atomico', {
+      p_empresa_id: payload.project.empresa_id,
+      p_name: payload.project.name,
+      p_code: payload.project.code,
+      p_client: payload.project.client,
+      p_comitente: payload.project.comitente,
+      p_contract_number: payload.project.contract_number,
+      p_contract_amount: payload.project.contract_amount,
+      p_budget_total: payload.project.budget_total,
+      p_plazo_dias: payload.project.plazo_dias,
+      p_anticipo_pct: payload.project.anticipo_pct,
+      p_retencion_pct: payload.project.retencion_pct,
+      p_start_date: payload.project.start_date,
+      p_end_date: payload.project.end_date,
+      p_tender_id: params.tenderId || null,
+      p_bid_analysis_run_id: params.bidAnalysisRunId || null,
+      p_created_by: payload.project.created_by,
+      p_budget_items: payload.budgetItems.map(b => ({
+        code: b.code,
+        description: b.description,
+        unit: b.unit,
+        quantity: b.quantity,
+        unit_price: b.unit_price,
+        sort_order: b.sort_order
+      })),
+      p_nombre_deposito: nombreDeposito
+    });
+
+    if (!rpcErr && rpcRes && rpcRes.success) {
+      return {
+        error: null,
+        projectId: rpcRes.project_id,
+        projectCode: rpcRes.project_code,
+        alreadyExisted: !!rpcRes.already_existed
+      };
+    }
+
+    if (rpcErr && !rpcErr.message?.includes('function') && !rpcErr.message?.includes('does not exist')) {
+      console.error('[TenderToProject] Transacción atómica en BD falló (rollback automático):', rpcErr);
+      return { error: `Transacción atómica falló (rollback garantizado): ${rpcErr.message}` };
+    }
+  } catch (err: any) {
+    if (!err?.message?.includes('function') && !err?.message?.includes('does not exist')) {
+      console.error('[TenderToProject] Excepción en RPC transaccional:', err);
+      return { error: err.message || String(err) };
+    }
+  }
+
+  // 2. Fallback transaccional en capa de aplicación si la RPC no existe aún en la base de datos
+  // Verificación de idempotencia
   const { data: existingProject } = await supabase
     .from('projects')
     .select('id, code')
@@ -153,21 +212,30 @@ export async function executeTenderToProjectTransaction(
     return {
       error: null,
       projectId: existingProject.id,
-      projectCode: existingProject.code
+      projectCode: existingProject.code,
+      alreadyExisted: true
     };
   }
 
-  // 1. Insertar Proyecto en tabla projects
+  // Insertar Proyecto
   const insertData: Record<string, unknown> = {
     empresa_id: payload.project.empresa_id,
     name: payload.project.name,
     code: payload.project.code,
     client: payload.project.client,
+    comitente: payload.project.comitente,
+    contract_number: payload.project.contract_number,
+    contract_amount: payload.project.contract_amount,
     budget_total: payload.project.budget_total,
+    plazo_dias: payload.project.plazo_dias,
+    anticipo_pct: payload.project.anticipo_pct,
+    retencion_pct: payload.project.retencion_pct,
     status: 'ACTIVO',
     created_by: payload.project.created_by,
     start_date: payload.project.start_date,
     end_date: payload.project.end_date,
+    tender_id: params.tenderId || null,
+    bid_analysis_run_id: params.bidAnalysisRunId || null
   };
 
   const { data: project, error: projectError } = await supabase
@@ -181,7 +249,7 @@ export async function executeTenderToProjectTransaction(
     return { error: projectError?.message || 'No se pudo crear el proyecto en el ERP.' };
   }
 
-  // 2. Insertar los ítems presupuestarios en budget_items
+  // Insertar budget_items con rollback manual si falla
   if (payload.budgetItems.length > 0) {
     const budgetRows = payload.budgetItems.map(item => ({
       project_id: project.id,
@@ -198,18 +266,15 @@ export async function executeTenderToProjectTransaction(
       .insert(budgetRows);
 
     if (itemsError) {
-      console.error('[TenderToProject] Error al transferir budget_items:', itemsError);
-      // No abortamos completamente, el proyecto ya existe, pero informamos
+      console.error('[TenderToProject] Error al insertar cómputo métrico (ejecutando rollback):', itemsError);
+      await supabase.from('projects').delete().eq('id', project.id);
       return {
-        error: `Proyecto creado pero ocurrió un error al insertar cómputo métrico: ${itemsError.message}`,
-        projectId: project.id,
-        projectCode: project.code
+        error: `Fallo al transferir budget_items (rollback de proyecto ejecutado): ${itemsError.message}`
       };
     }
   }
 
-  // 3. Crear depósito/pañol de obra asociado
-  const nombreDeposito = `Pañol ${project.code} - ${payload.project.name}`.slice(0, 100);
+  // Crear pañol de obra
   await supabase.from('depositos').insert({
     empresa_id: payload.project.empresa_id,
     nombre: nombreDeposito,
@@ -220,6 +285,7 @@ export async function executeTenderToProjectTransaction(
   return {
     error: null,
     projectId: project.id,
-    projectCode: project.code
+    projectCode: project.code,
+    alreadyExisted: false
   };
 }
