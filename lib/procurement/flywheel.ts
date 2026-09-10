@@ -119,35 +119,60 @@ export async function recordCostObservationFromInvoice(
     unit?: string;
     unitPrice?: number;
     currency?: string;
+    exchangeRate?: number | null;
     invoiceDate?: string;
   }
 ): Promise<void> {
   try {
     let description = params.itemDescription;
-    let qty = params.quantity || 1;
-    let unit = params.unit || "UN";
-    let unitPrice = params.unitPrice || 0;
+    let qty = params.quantity && params.quantity > 0 ? params.quantity : null;
+    let unit = params.unit || null;
+    let unitPrice = params.unitPrice && params.unitPrice > 0 ? params.unitPrice : null;
     let projectId = params.projectId;
+    let currency = (params.currency || "PYG").toUpperCase();
+    let exchangeRate = params.exchangeRate && params.exchangeRate > 0 ? params.exchangeRate : null;
 
     // Si tenemos orderId pero faltan datos de producto, consultar la orden
-    if (params.orderId && (!description || !unitPrice)) {
+    if (params.orderId && (!description || !unitPrice || !qty || !unit)) {
       const { data: order } = await supabase
         .from("authorized_orders")
-        .select("product, quantity, unit, unit_price, project_id, total_price")
+        .select("product, quantity, unit, unit_price, project_id, total_price, currency")
         .eq("id", params.orderId)
         .maybeSingle();
 
       if (order) {
         description = description || order.product;
-        qty = qty && qty > 0 ? qty : Number(order.quantity || 1);
+        qty = qty ?? (order.quantity && Number(order.quantity) > 0 ? Number(order.quantity) : null);
         unit = unit || order.unit || "UN";
-        unitPrice = unitPrice && unitPrice > 0 ? unitPrice : Number(order.unit_price || order.total_price);
+        unitPrice = unitPrice ?? (order.unit_price && Number(order.unit_price) > 0 ? Number(order.unit_price) : null);
         projectId = projectId || order.project_id;
+        if (!params.currency && order.currency) {
+          currency = order.currency.toUpperCase();
+        }
       }
     }
 
     if (!description || !unitPrice || unitPrice <= 0) {
       return; // No hay suficiente información para crear observación válida
+    }
+
+    // Si la cantidad sigue sin definirse, solo permitir si es unidad global o por defecto con unidad UN
+    if (!qty || qty <= 0) {
+      qty = 1;
+    }
+    if (!unit) {
+      unit = "UN";
+    }
+
+    // Manejo estricto de moneda y tipo de cambio:
+    // Invariante: Nunca asignar tipo_cambio = 1.0 a compras en USD sin verificar tasa.
+    let tipoCambio: number = 1.0;
+    if (currency === "USD") {
+      if (!exchangeRate || exchangeRate <= 0) {
+        console.warn(`[Flywheel] Omitiendo observación para factura USD ${params.invoiceId}: falta tipo de cambio verificado (evita contaminar CPP).`);
+        return; // Fail-closed: no inyectar tasa 1.0 a dólares
+      }
+      tipoCambio = exchangeRate;
     }
 
     // Clasificar categoría automáticamente
@@ -187,8 +212,8 @@ export async function recordCostObservationFromInvoice(
       cantidad: qty,
       unidad: unit,
       precio_unitario: unitPrice,
-      moneda: params.currency || "PYG",
-      tipo_cambio: 1.0,
+      moneda: currency === 'USD' ? 'USD' : 'PYG',
+      tipo_cambio: tipoCambio,
       fecha_observacion: params.invoiceDate || new Date().toISOString().split('T')[0],
       es_volatil: categoria === 'COMBUSTIBLE'
     });

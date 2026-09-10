@@ -397,13 +397,36 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 
 ---
 
-### GATE 21 — Product Hardening / Enterprise Deployment
-* **STATUS**: **SCAFFOLD_ONLY**
-* **DEPENDENCIES**: GATES 0–20
-* **IMPLEMENTATION**:
-  - Configuración Docker Compose en `docker-compose.enterprise.yml`.
-  - Guía operativa en `docs/ENTERPRISE_DEPLOYMENT.md`.
-* **VERIFICACIÓN**:
-  - `scripts/test-enterprise-deployment.ts` verifica la sintaxis de los archivos de configuración.
-* **GAPS**:
-  - No ha sido desplegado ni probado en un servidor real o clúster de producción.
+## P0/P1 HARDENING CAMPAIGN — VERIFICACIÓN FINAL Y BLINDAJE
+
+En la campaña de hardening P0/P1 sobre Construction Intelligence se erradicó sistemáticamente la contaminación por supuestos sintéticos bajo la regla canónica `UNKNOWN != DEFAULT`:
+
+1. **Seguridad de Cron (P0)**:
+   - `app/api/cron/tender-monitoring/route.ts`: Falla cerrado si `CRON_SECRET` no está configurado (HTTP 500). Autenticación estricta vía cabecera `Authorization: Bearer <secret>`. Se rechazan secretos pasados en query params (HTTP 401).
+
+2. **Extracción PBC & Matriz de Cumplimiento (P0)**:
+   - `lib/procurement/pbc-extractor.ts`: Extracción basada en snippets contextuales. Criterios sin cifras explícitas quedan como `CRITERION_UNKNOWN`. Texto vacío genera 0 requisitos.
+   - `lib/procurement/compliance-engine.ts`: Purga total de ratios inventados (1.2 liquidez, 50% experiencia, 120 HP). Matriz vacía dictamina `FAIL_CLOSED`. Nuevos estados de dictamen: `CUMPLIDO`, `GENERABLE`, `FALTANTE`, `REVIEW_REQUIRED`.
+
+3. **Semántica de Costos & Análisis de Oferta (P0)**:
+   - `app/(internal)/licitaciones/actions.ts`: Eliminado el uso de `productos.costo_promedio` (CPP de inventario) como costo de oferta. Consumo de observaciones reales de compra (`cost_observations`) vía `calculateCostEstimate` + ítems explícitos de APU (`licitacion_oferta_items`). Si no hay oferta registrada, `offerAmountPyg = null` (no se asume el presupuesto referencial). Costos indirectos no configurados quedan en `null`.
+   - `lib/procurement/institution-intelligence.ts`: Implementado `getInstitutionProfileFromDb` para consultar datos reales de convocantes y certificados de obra del tenant.
+   - `lib/cost-engine/index.ts`: Terminología formal: "costo de reposición / replacement cost" reservando "CPP" estrictamente para valuación de inventario en almacén.
+
+4. **Simulador Competitivo & Motor de Adjudicación (P0)**:
+   - `lib/procurement/competitive-simulator.ts`: Eliminados defaults sintéticos (4/6 competidores, 8% descuento, 3.5%/2.8% dispersión). Si hay menos de 2 competidores o huellas observadas, se marca `isCalibrated: false`, `calibrationTier: 'UNCALIBRATED'` y no se emiten precio recomendado ni probabilidad de ganar inventados.
+   - `lib/procurement/bid-engine.ts`: Eliminado el fallback de probabilidad de ganar 50%. En ausencia de calibración, `recommendedOfferPricePyg`, `expectedNetMarginPct` y `winProbabilityPct` permanecen estrictamente en `null`.
+   - `lib/procurement/bid-snapshot.ts`: Payload canónico y registros de snapshot actualizados para aceptar `number | null`.
+
+5. **Operaciones de Licitación & Preservación de Evidencias (P0/P1)**:
+   - `lib/procurement/tender-operations.ts`: Eliminado el default sintético de 90 días de validez; se consume del PBC o permanece `null`. Ítems sin cotizar permanecen en 0 (sin asumir presupuesto referencial).
+   - `app/(internal)/licitaciones/actions.ts`: En `importarLicitacion`, el borrado ciego fue reemplazado por reconciliación que preserva estrictamente oferentes de `ACTA_PDF`, `CUADRO_PDF` y `MANUAL`, purgando únicamente registros de `fuente = 'API'`.
+
+6. **Integridad Temporal de Competidores & Backfill (P1)**:
+   - `lib/procurement/competitor-intelligence.ts`: Soporte de `asOfDate` y `excludeTenderId` en consultas contextuales para prevenir fuga de datos hacia atrás (lookahead bias) y autolimitación con la propia licitación. Reemplazado default de categoría `OBRAS` por `DESCONOCIDO`.
+   - `scripts/backfill-dncp-history.ts`: Métricas granulares de pipeline (`total_fetched`, `total_identified_construction`, `total_file_saved`, `total_db_persisted`, `failure_reasons`). Eliminado el año 2024 como fallback forzado.
+
+7. **Transición a Proyecto & Flywheel de Costos (P1)**:
+   - `lib/procurement/tender-to-project.ts`: Eliminado el número de contrato inventado `CONTRATO-{id}` y la asignación automática de fecha de inicio a hoy sin pliego/contrato.
+   - `lib/procurement/flywheel.ts`: Validación fail-closed en facturas en USD: si no existe tipo de cambio verificado, se omite el registro para impedir la contaminación de costos con la tasa 1:1.
+

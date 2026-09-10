@@ -17,7 +17,9 @@ export interface TenderToProjectParams {
   dncpNro?: string;
   projectTitle: string;
   buyerName: string;
-  contractNumber?: string;
+  contractNumber?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
   adjudicatedOfferPricePyg: number;
   durationMonths?: number | null;
   advancePaymentPct?: number | null;
@@ -34,12 +36,14 @@ export interface CreatedProjectPayload {
     code: string;
     client: string;
     comitente: string;
-    contract_number: string;
+    contract_number: string | null;
     contract_amount: number;
     budget_total: number;
     plazo_dias: number | null;
     anticipo_pct: number | null;
     retencion_pct: number | null;
+    start_date: string | null;
+    end_date: string | null;
     status: 'ACTIVO';
     created_by: string | null;
   };
@@ -94,6 +98,10 @@ export function buildProjectFromAdjudicatedTender(params: TenderToProjectParams)
     targetUnitPricePyg: item.unitPricePyg
   }));
 
+  const calculatedEndDate = params.endDate || (params.startDate && plazoDias != null
+    ? new Date(new Date(params.startDate).getTime() + plazoDias * 86_400_000).toISOString().split('T')[0]
+    : null);
+
   return {
     project: {
       empresa_id: params.empresaId,
@@ -101,12 +109,14 @@ export function buildProjectFromAdjudicatedTender(params: TenderToProjectParams)
       code: projectCode,
       client: params.buyerName,
       comitente: params.buyerName,
-      contract_number: params.contractNumber || `CONTRATO-${params.tenderId}`,
+      contract_number: params.contractNumber || null,
       contract_amount: params.adjudicatedOfferPricePyg,
       budget_total: totalBudget,
       plazo_dias: plazoDias,
       anticipo_pct: params.advancePaymentPct ?? null,
       retencion_pct: params.retentionPct ?? null,
+      start_date: params.startDate || null,
+      end_date: calculatedEndDate,
       status: 'ACTIVO',
       created_by: params.createdBy || null
     },
@@ -156,12 +166,9 @@ export async function executeTenderToProjectTransaction(
     budget_total: payload.project.budget_total,
     status: 'ACTIVO',
     created_by: payload.project.created_by,
-    start_date: new Date().toISOString().split('T')[0],
+    start_date: payload.project.start_date,
+    end_date: payload.project.end_date,
   };
-
-  if (payload.project.plazo_dias != null) {
-    insertData.end_date = new Date(Date.now() + payload.project.plazo_dias * 86_400_000).toISOString().split('T')[0];
-  }
 
   const { data: project, error: projectError } = await supabase
     .from('projects')

@@ -80,6 +80,56 @@ async function runTests() {
   assert(effect.newRecommendedPricePyg >= 51500 && effect.newRecommendedPricePyg <= 53000, 'El precio gravita con fuerza hacia la factura reciente');
   assert(effect.newConfidenceTier === 'MEDIA' || effect.newConfidenceTier === 'ALTA', 'La certeza estadística aumenta al tener facturas reales de obra');
 
+  console.log('\n--- TEST 2: Validación de Moneda y Tipo de Cambio en Facturas ---');
+  const { recordCostObservationFromInvoice } = await import('../lib/procurement/flywheel');
+
+  const insertedRows: any[] = [];
+  const mockSupabase = {
+    from: (table: string) => ({
+      select: () => ({
+        eq: () => ({
+          eq: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({ data: null })
+            })
+          })
+        })
+      }),
+      insert: async (row: any) => {
+        insertedRows.push(row);
+        return { error: null };
+      }
+    })
+  };
+
+  // Caso 2A: Factura USD sin tipo de cambio -> Debe abortar (fail-closed)
+  await recordCostObservationFromInvoice(mockSupabase, {
+    empresaId: 'emp-1',
+    invoiceId: 'inv-usd-no-rate',
+    providerId: 'prov-1',
+    itemDescription: 'Generador Eléctrico 50kVA',
+    quantity: 1,
+    unitPrice: 12000,
+    currency: 'USD',
+    exchangeRate: null
+  });
+  assert(insertedRows.length === 0, 'Factura USD sin exchangeRate falla cerrado (no inyecta 1.0 sintético)');
+
+  // Caso 2B: Factura USD con tipo de cambio verificado -> Debe insertar con tipo de cambio real
+  await recordCostObservationFromInvoice(mockSupabase, {
+    empresaId: 'emp-1',
+    invoiceId: 'inv-usd-with-rate',
+    providerId: 'prov-1',
+    itemDescription: 'Generador Eléctrico 50kVA',
+    quantity: 1,
+    unitPrice: 12000,
+    currency: 'USD',
+    exchangeRate: 7550.0
+  });
+  assert(insertedRows.length === 1, 'Factura USD con exchangeRate verificado se registra');
+  assert(insertedRows[0].tipo_cambio === 7550.0, 'tipo_cambio preserva la tasa real de 7.550 Gs/USD');
+  assert(insertedRows[0].moneda === 'USD', 'moneda se registra como USD');
+
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 20 PASARON CON ÉXITO');
   console.log('======================================================\n');

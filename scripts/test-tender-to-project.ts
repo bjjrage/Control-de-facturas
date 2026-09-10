@@ -80,6 +80,9 @@ async function runTests() {
   };
 
   const payloadNull = buildProjectFromAdjudicatedTender(paramsNullDefaults);
+  assert(payloadNull.project.contract_number === null, 'Contrato permanece null si no se conoce (sin default sintético CONTRATO-xxx)');
+  assert(payloadNull.project.start_date === null, 'Fecha de inicio permanece null si no se conoce (sin default arbitrario de hoy)');
+  assert(payloadNull.project.end_date === null, 'Fecha de fin permanece null si no se conoce fecha de inicio');
   assert(payloadNull.project.plazo_dias === null, 'Plazo permanece null si no se conoce (sin default arbitrario)');
   assert(payloadNull.project.anticipo_pct === null, 'Anticipo permanece null si no se especifica');
   assert(payloadNull.project.retencion_pct === null, 'Retención permanece null si no se especifica');
