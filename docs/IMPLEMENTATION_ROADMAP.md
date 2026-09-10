@@ -475,16 +475,29 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ## GATE 17 — Bid Engine
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATE 5A, GATE 5B, GATE 12, GATE 13, GATE 16
 * **IMPLEMENTATION**:
-  - Motor integral de decisión comercial: cruce de inteligencia de mercado, costo real, riesgo institucional y solvencia financiera.
+  - Motor analítico integral de decisión comercial (*Bid / No-Bid*) [`lib/procurement/bid-engine.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/bid-engine.ts):
+    - Síntesis de los 5 pilares estratégicos:
+      1. Cumplimiento normativo y solvencia técnica (Gate 11).
+      2. Costos directos e indirectos y margen bruto inicial (Gate 5B).
+      3. Riesgo de mora y cancelación del convocante (Gate 12).
+      4. Flujo de caja, capital de trabajo pico y margen neto ajustado (Gate 13).
+      5. Simulación estocástica de rivales y probabilidad de ganar (Gate 16).
+    - Asignación determinística de dictamen tripartito: `COMPETIR` (Go), `REVISAR` (Review), `NO_COMPETIR` (No Go).
+    - Cálculo de Score Global (0-100), justificaciones clave y detección de bloqueadores excluyentes.
 * **TESTS**:
-  - Evaluación integral con dictamen explícito (COMPETIR / REVISAR / NO COMPETIR).
+  - Suite de validación comercial [`scripts/test-bid-engine.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-bid-engine.ts):
+    - Caso `COMPETIR`: Licitación ANDE con margen neto del 16.87%, 0 bloqueadores y score de 91/100.
+    - Caso `REVISAR`: Licitación MOPC requiriendo estructuración de capital de trabajo por mora de 150 días.
+    - Caso `NO_COMPETIR`: Licitación bloqueada por omisión de requisitos excluyentes de pliego.
 * **RISKS**:
-  - Decisión sesgada por costos incompletos.
+  - Decisiones sesgadas mitigadas mediante la exigencia mandatoria de los 5 pilares completos antes de emitir la recomendación ejecutiva.
 * **DEFINITION OF DONE**:
-  - Panel ejecutivo con recomendación fundamentada y acceso directo a preparar oferta.
+  - Panel y motor de decisión ejecutiva fundamentada implementado.
+  - Test suite ejecutada con 0 fallos.
+  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
 
 ---
 
