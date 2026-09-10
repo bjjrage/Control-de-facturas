@@ -54,8 +54,12 @@ export function generateFormularioPresentacion(params: {
   bidderName: string;
   bidderRuc: string;
   totalAmountPyg: number;
-  validityDays: number;
+  validityDays?: number | null;
 }): PreparedForm {
+  const validityClause = (typeof params.validityDays === 'number' && params.validityDays > 0)
+    ? `por un período de ${params.validityDays} días calendario`
+    : 'por el período de validez y mantenimiento de oferta establecido en el Pliego de Bases y Condiciones (PBC)';
+
   const content = `[BORRADOR DE PREPARACIÓN INTERNA - NO PRESENTAR SIN REVISIÓN LEGAL]
 A: ${params.buyerName}
 REF: LLAMADO A LICITACIÓN ${params.tenderId} - "${params.tenderTitle}"
@@ -64,7 +68,7 @@ De nuestra consideración:
 
 Por la presente, la empresa ${params.bidderName}, con RUC ${params.bidderRuc}, presenta formalmente su oferta para la ejecución de la obra de referencia por un monto total de Gs. ${params.totalAmountPyg.toLocaleString('es-PY')} (Guaraníes ${params.totalAmountPyg.toLocaleString('es-PY')}).
 
-Declaramos que nuestra oferta se mantendrá válida y vinculante por un período de ${params.validityDays} días calendario a partir de la fecha límite de presentación.
+Declaramos que nuestra oferta se mantendrá válida y vinculante ${validityClause} a partir de la fecha límite de presentación.
 
 Atentamente,
 REPRESENTANTE LEGAL
@@ -144,6 +148,7 @@ export function assembleTenderPackage(params: {
   legalRepresentative: string;
   items: TenderBidItemInput[];
   vaultItems: VaultItem[];
+  validityDays?: number | null;
 }): BidPackage {
   const errors: string[] = [];
 
@@ -182,7 +187,7 @@ export function assembleTenderPackage(params: {
     bidderName: params.bidderName,
     bidderRuc: params.bidderRuc,
     totalAmountPyg: totalAmount,
-    validityDays: 90
+    validityDays: params.validityDays ?? null
   });
 
   const form2 = generateFormularioDeclaracionJurada({

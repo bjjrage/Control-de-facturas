@@ -130,11 +130,11 @@ export async function importarLicitacion(
   if (licErr || !lic) return { error: `No se pudo guardar: ${licErr?.message}` };
   const licId = lic.id as string;
 
-  // Re-sincronizar hijos: borrar y re-insertar
+  // Re-sincronizar hijos: no borrar ciegamente oferentes de alta evidencia (ACTA_PDF, CUADRO_PDF, MANUAL)
   await Promise.all([
     supabase.from("licitacion_lotes").delete().eq("licitacion_id", licId),
     supabase.from("licitacion_items").delete().eq("licitacion_id", licId),
-    supabase.from("licitacion_oferentes").delete().eq("licitacion_id", licId),
+    supabase.from("licitacion_oferentes").delete().eq("licitacion_id", licId).eq("fuente", "API"),
     supabase.from("licitacion_documentos").delete().eq("licitacion_id", licId),
   ]);
 
@@ -177,19 +177,38 @@ export async function importarLicitacion(
   }
 
   if (parsed.oferentes.length > 0) {
-    await supabase.from("licitacion_oferentes").insert(
-      parsed.oferentes.map((o) => ({
-        licitacion_id: licId,
-        empresa_id: empresaId,
-        ruc: o.ruc,
-        nombre: o.nombre,
-        tamano: o.tamano,
-        monto_ofertado: o.monto_ofertado,
-        gano: o.gano,
-        lotes_ganados: o.lotes_ganados,
-        fuente: o.fuente,
-      }))
-    );
+    // Consultar oferentes de alta evidencia existentes para no duplicar ni degradar
+    const { data: existingOferentes } = await supabase
+      .from("licitacion_oferentes")
+      .select("ruc, nombre, fuente")
+      .eq("licitacion_id", licId);
+
+    const existingRucs = new Set((existingOferentes ?? []).map(e => (e.ruc || '').trim().toUpperCase()).filter(Boolean));
+    const existingNames = new Set((existingOferentes ?? []).map(e => (e.nombre || '').trim().toUpperCase()));
+
+    const newOferentes = parsed.oferentes.filter((o) => {
+      const ruc = (o.ruc || '').trim().toUpperCase();
+      const nom = (o.nombre || '').trim().toUpperCase();
+      if (ruc && existingRucs.has(ruc)) return false;
+      if (nom && existingNames.has(nom)) return false;
+      return true;
+    });
+
+    if (newOferentes.length > 0) {
+      await supabase.from("licitacion_oferentes").insert(
+        newOferentes.map((o) => ({
+          licitacion_id: licId,
+          empresa_id: empresaId,
+          ruc: o.ruc,
+          nombre: o.nombre,
+          tamano: o.tamano,
+          monto_ofertado: o.monto_ofertado,
+          gano: o.gano,
+          lotes_ganados: o.lotes_ganados,
+          fuente: o.fuente || 'API',
+        }))
+      );
+    }
   }
 
   if (parsed.documentos.length > 0) {
@@ -872,9 +891,33 @@ export async function generarPliegoOfertaCompleto(
     .eq("licitacion_id", lic.id)
     .order("sort_order");
 
-  // No inventar precios con markup arbitrario: tomar precio unitario referencial o de oferta formal
+  // Buscar oferta propia registrada y sus precios unitarios cotizados
+  const { data: ourOffer } = await supabase
+    .from("licitacion_ofertas")
+    .select("id, monto_total, margen_estimado_pct, licitacion_oferta_items(licitacion_item_id, precio_unitario, costo_unitario)")
+    .eq("licitacion_id", lic.id)
+    .eq("empresa_id", empresaId)
+    .maybeSingle();
+
+  const offerItemPrices = new Map<string, number>();
+  if (ourOffer?.licitacion_oferta_items) {
+    for (const oi of (ourOffer.licitacion_oferta_items as any[])) {
+      if (oi.licitacion_item_id && oi.precio_unitario && Number(oi.precio_unitario) > 0) {
+        offerItemPrices.set(oi.licitacion_item_id, Number(oi.precio_unitario));
+      } else if (oi.licitacion_item_id && oi.costo_unitario && Number(oi.costo_unitario) > 0 && ourOffer.margen_estimado_pct) {
+        const cost = Number(oi.costo_unitario);
+        const margin = Number(ourOffer.margen_estimado_pct);
+        const derivedPrice = Math.round(cost * (1 + margin / 100));
+        offerItemPrices.set(oi.licitacion_item_id, derivedPrice);
+      }
+    }
+  }
+
+  // CANONICAL INVARIANT: precio_unitario_referencial is NOT our bid price!
+  // Bid price must come from explicit offer item pricing or verified cost plus margin.
+  // If an item has no offer price, mark it pending / unpriced (0).
   const bidItems = (rawItems ?? []).map((it: any, idx: number) => {
-    const unitPrice = Number(it.precio_unitario_referencial || 0);
+    const unitPrice = offerItemPrices.get(it.id) ?? 0;
 
     return {
       itemNumber: idx + 1,
@@ -889,6 +932,15 @@ export async function generarPliegoOfertaCompleto(
   const { fetchCompanyVaultItems } = await import("@/lib/procurement/bid-vault");
   const vaultItems = await fetchCompanyVaultItems(supabase, empresaId);
 
+  // Extraer validez de la oferta desde el PBC si fue extraído, o dejar null (pliego default)
+  let extractedValidityDays: number | null = null;
+  const pbcRawText = lic.raw_json?.pbc_texto_crudo || '';
+  const matchValidity = pbcRawText.match(/mantenimiento\s+de\s+(?:la\s+)?oferta[^\d]{1,50}(\d{2,3})\s*d[ií]as/i)
+    || pbcRawText.match(/validez\s+de\s+(?:la\s+)?oferta[^\d]{1,50}(\d{2,3})\s*d[ií]as/i);
+  if (matchValidity) {
+    extractedValidityDays = parseInt(matchValidity[1], 10);
+  }
+
   // 4. Ensamblaje de oferta con el orquestador de operaciones (rechaza placeholders)
   const { assembleTenderPackage, generateMasterIndex, exportBidPackageAsDocument } = await import("@/lib/procurement/tender-operations");
   const bidPackage = assembleTenderPackage({
@@ -899,7 +951,8 @@ export async function generarPliegoOfertaCompleto(
     bidderRuc: empresa?.ruc || "",
     legalRepresentative: profile.full_name || "",
     items: bidItems,
-    vaultItems
+    vaultItems,
+    validityDays: extractedValidityDays
   });
 
   const masterIndex = generateMasterIndex(bidPackage);
