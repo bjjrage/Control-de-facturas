@@ -570,25 +570,28 @@ export async function persistirEvaluacionComercial(
   const vaultItems = await fetchCompanyVaultItems(supabase, empresaId);
 
   // 3. Evaluar cumplimiento normativo y documental basado en la bóveda
-  const { evaluateTenderCompliance, extractRequirementsFromTender } = await import("@/lib/procurement/compliance-engine");
-  const tenderRequirements = extractRequirementsFromTender({
+  const { evaluateTenderCompliance, generateGenericRequirementSuggestions } = await import("@/lib/procurement/compliance-engine");
+  const tenderRequirements = generateGenericRequirementSuggestions({
     id: lic.id,
     categoria: lic.categoria,
     procurement_method: lic.procurement_method,
     monto_referencial: lic.monto_referencial ? Number(lic.monto_referencial) : null
   });
 
+  // Los requerimientos inferidos heurísticamente NO confieren habilitación automática
   const complianceReport = evaluateTenderCompliance(
     lic.id,
     tenderRequirements,
-    vaultItems
+    vaultItems,
+    undefined,
+    'GENERIC_REQUIREMENT_SUGGESTIONS'
   );
 
-  // 4. Perfil institucional del convocante
+  // 4. Perfil institucional del convocante (sin datos históricos simulados)
   const { generateInstitutionProfile } = await import("@/lib/procurement/institution-intelligence");
-  const institutionProfile = generateInstitutionProfile(lic.comitente_nombre || "Convocante General", []);
+  const institutionProfile = generateInstitutionProfile(lic.comitente_nombre || "Convocante no especificado", []);
 
-  // 5. Análisis de costos reales basados en planilla de ítems y catálogo
+  // 5. Análisis de costos reales basados estrictamente en cómputo emparejado con catálogo
   const { data: rawItems } = await supabase
     .from("licitacion_items")
     .select("*")
@@ -627,57 +630,46 @@ export async function persistirEvaluacionComercial(
   const refBudget = Number(lic.monto_referencial || 0);
 
   // INVARIANTE: UNKNOWN != DEFAULT
-  // No inventar duraciones (6 meses) ni presupuestos (95% / 75%) arbitrarios
+  // Plazo contractual: solo si está en OCDS raw_json contractPeriod.durationInDays
   let calculatedDurationMonths: number | null = null;
-  if (lic.fecha_publicacion && lic.fecha_entrega_ofertas) {
-    const start = new Date(lic.fecha_publicacion).getTime();
-    const end = new Date(lic.fecha_entrega_ofertas).getTime();
-    const diffDays = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)));
-    calculatedDurationMonths = Math.max(1, Math.round(diffDays / 30));
+  const rawContractPeriodDays = lic.raw_json?.tender?.contractPeriod?.durationInDays;
+  if (typeof rawContractPeriodDays === 'number' && rawContractPeriodDays > 0) {
+    calculatedDurationMonths = Math.max(1, Math.round(rawContractPeriodDays / 30));
   }
 
-  const durationMonths = calculatedDurationMonths ?? 6; // Plazo mínimo de análisis financiero
-
-  // Si no hay presupuesto referencial o no hay cálculo de costos comprobable, registrar inviabilidad por falta de evidencia
+  // Costos directos comprobados: jamás inventar 80% del presupuesto referencial
   const hasValidBudget = refBudget > 0;
-  const hasSufficientCostData = totalItemsCount > 0 && itemsWithCostCount > 0 && calculatedDirectCost > 0;
+  const hasFullCostCoverage = totalItemsCount > 0 && itemsWithCostCount === totalItemsCount && calculatedDirectCost > 0;
+  const estimatedDirectCostPyg = calculatedDirectCost > 0 ? calculatedDirectCost : null;
 
-  const estimatedDirectCostPyg = hasSufficientCostData
-    ? calculatedDirectCost
-    : (hasValidBudget ? Math.round(refBudget * 0.80) : 0);
+  // Monto de oferta: no derivar de presupuestos referenciales ni inventar margen 15%
+  const offerAmountPyg = hasValidBudget ? refBudget : null;
 
-  const offerAmountPyg = hasValidBudget
-    ? refBudget
-    : (estimatedDirectCostPyg > 0 ? Math.round(estimatedDirectCostPyg * 1.15) : 0);
-
-  const estimatedIndirectCostPyg = Math.round(estimatedDirectCostPyg * 0.05);
-
-  // 6. Análisis financiero de capital de trabajo
+  // 6. Análisis financiero de capital de trabajo (fail-closed si faltan variables)
   const { analyzeTenderFinancials } = await import("@/lib/procurement/financial-analysis");
   const financialReport = analyzeTenderFinancials({
     tenderId: lic.id,
-    offerAmountPyg: offerAmountPyg > 0 ? offerAmountPyg : 1,
+    offerAmountPyg,
     estimatedDirectCostPyg,
-    estimatedIndirectCostPyg,
-    durationMonths,
-    institutionalPaymentDays: institutionProfile.diasPromedioPago || 90,
-    annualFinancingRatePct: 12.0
+    estimatedIndirectCostPyg: 0,
+    durationMonths: calculatedDurationMonths,
+    institutionalPaymentDays: institutionProfile.diasPromedioPago > 0 ? institutionProfile.diasPromedioPago : null,
+    annualFinancingRatePct: null
   });
 
-  // 7. Simulación competitiva Monte Carlo con número de oferentes reales o inferidos
+  // 7. Simulación competitiva con oferentes observados o uncalibrated
   const { data: oferentes } = await supabase
     .from("licitacion_oferentes")
     .select("id")
     .eq("licitacion_id", lic.id);
 
   const realCompetitorsCount = (oferentes ?? []).length;
-  const expectedParticipants = realCompetitorsCount >= 2 ? realCompetitorsCount : 4;
 
   const { simulateCompetitiveBidding } = await import("@/lib/procurement/competitive-simulator");
   const simulationResult = simulateCompetitiveBidding({
     tenderId: lic.id,
-    referenceBudgetPyg: hasValidBudget ? refBudget : (offerAmountPyg > 0 ? offerAmountPyg : 1),
-    expectedParticipantsCount: expectedParticipants
+    referenceBudgetPyg: hasValidBudget ? refBudget : 0,
+    expectedParticipantsCount: realCompetitorsCount > 0 ? realCompetitorsCount : undefined
   }, 1000);
 
   // 8. Evaluar decisión global
@@ -685,7 +677,7 @@ export async function persistirEvaluacionComercial(
   const decisionOutput = evaluateBidOpportunity({
     tenderId: lic.id,
     tenderTitle: lic.titulo,
-    buyerName: lic.comitente_nombre || "Entidad Convocante",
+    buyerName: lic.comitente_nombre || "Convocante no especificado",
     referenceBudgetPyg: refBudget,
     complianceReport,
     institutionProfile,
@@ -693,15 +685,10 @@ export async function persistirEvaluacionComercial(
     simulationResult
   });
 
-  // Si no hubo evidencia suficiente de presupuesto o cómputo, fail-closed a REVISAR o NO_COMPETIR
-  if (!hasValidBudget) {
-    decisionOutput.blockers.push("Evidencia insuficiente: El pliego no especifica presupuesto referencial oficial.");
-    decisionOutput.decision = "NO_COMPETIR";
-  } else if (!hasSufficientCostData) {
-    decisionOutput.blockers.push("Evidencia insuficiente: Se requiere emparejar la planilla de cómputo métrico con el catálogo de insumos antes de validar la oferta.");
-    if (decisionOutput.decision === "COMPETIR") {
-      decisionOutput.decision = "REVISAR";
-    }
+  // Si no hubo cobertura completa de costos o pliego, asegurar que el dictamen no sea COMPETIR
+  if (!hasFullCostCoverage && decisionOutput.decision === 'COMPETIR') {
+    decisionOutput.decision = 'REVISAR';
+    decisionOutput.blockers.push('Cobertura incompleta de costos: no todos los ítems del pliego están cotizados en el catálogo.');
   }
 
   // 9. Crear y persistir snapshot inmutable SHA-256
@@ -709,7 +696,7 @@ export async function persistirEvaluacionComercial(
   const snapshot = createBidAnalysisSnapshot(empresaId, {
     tenderId: lic.id,
     tenderTitle: lic.titulo,
-    buyerName: lic.comitente_nombre || "Entidad Convocante",
+    buyerName: lic.comitente_nombre || "Convocante no especificado",
     referenceBudgetPyg: refBudget,
     complianceReport,
     institutionProfile,
@@ -743,7 +730,7 @@ export async function persistirEvaluacionComercial(
 }
 
 /**
- * Ensambla y genera el paquete de formularios y oferta comercial (Gate 14: Tender Operations)
+ * Ensambla el paquete de borradores y oferta preliminar (Gate 14: Tender Operations)
  */
 export async function generarPliegoOfertaCompleto(
   licitacionId: string
@@ -777,37 +764,16 @@ export async function generarPliegoOfertaCompleto(
     return { error: "Licitación no encontrada." };
   }
 
-  // 2. Obtener los ítems y precios de la licitación
+  // 2. Obtener los ítems de la licitación
   const { data: rawItems } = await supabase
     .from("licitacion_items")
     .select("*")
     .eq("licitacion_id", lic.id)
     .order("sort_order");
 
-  const { data: activeProducts } = await supabase
-    .from("productos")
-    .select("id, nombre, unidad, costo_promedio")
-    .eq("empresa_id", empresaId)
-    .eq("activo", true)
-    .gt("costo_promedio", 0);
-
-  const { matchTenderItem } = await import("@/lib/procurement/item-matching");
-  const catalogForMatching = (activeProducts ?? []).map(p => ({
-    id: p.id,
-    descripcion: p.nombre,
-    unidad: p.unidad
-  }));
-
+  // No inventar precios con markup arbitrario: tomar precio unitario referencial o de oferta formal
   const bidItems = (rawItems ?? []).map((it: any, idx: number) => {
-    let unitPrice = Number(it.precio_unitario_referencial || 0);
-    const matched = matchTenderItem(it.descripcion, it.unidad || "UN", catalogForMatching);
-    if (matched.bestMatch) {
-      const prod = (activeProducts ?? []).find(p => p.id === matched.bestMatch!.item.id);
-      if (prod) {
-        // Margen objetivo sobre costo directo: +15%
-        unitPrice = Math.round(prod.costo_promedio * 1.15);
-      }
-    }
+    const unitPrice = Number(it.precio_unitario_referencial || 0);
 
     return {
       itemNumber: idx + 1,
@@ -818,30 +784,19 @@ export async function generarPliegoOfertaCompleto(
     };
   });
 
-  // Si no hay planilla itemizada en el pliego, armar un ítem global
-  if (bidItems.length === 0) {
-    bidItems.push({
-      itemNumber: 1,
-      description: `Ejecución de Obra / Servicios: ${lic.titulo}`,
-      unit: "GL",
-      quantity: 1,
-      unitPricePyg: Number(lic.monto_referencial || 0)
-    });
-  }
-
   // 3. Documentos probatorios de la bóveda
   const { fetchCompanyVaultItems } = await import("@/lib/procurement/bid-vault");
   const vaultItems = await fetchCompanyVaultItems(supabase, empresaId);
 
-  // 4. Ensamblaje de oferta con el orquestador de operaciones
+  // 4. Ensamblaje de oferta con el orquestador de operaciones (rechaza placeholders)
   const { assembleTenderPackage } = await import("@/lib/procurement/tender-operations");
   const bidPackage = assembleTenderPackage({
     tenderId: lic.dncp_nro,
     tenderTitle: lic.titulo,
-    buyerName: lic.comitente_nombre || "Entidad Convocante",
-    bidderName: empresa?.nombre || "Empresa Oferente",
-    bidderRuc: empresa?.ruc || "80000000-1",
-    legalRepresentative: profile.full_name || "Representante Legal",
+    buyerName: lic.comitente_nombre || "Convocante no especificado",
+    bidderName: empresa?.nombre || "",
+    bidderRuc: empresa?.ruc || "",
+    legalRepresentative: profile.full_name || "",
     items: bidItems,
     vaultItems
   });

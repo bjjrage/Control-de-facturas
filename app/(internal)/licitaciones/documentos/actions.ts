@@ -58,6 +58,8 @@ export async function crearDocumentoEmpresa(data: DocumentoInput): Promise<{ id?
     }
 
     const esInferencia = categoria !== 'OTRO';
+    // Sincronización unidireccional con la proyección company_bid_vault_items
+    // NOTA DE ARQUITECTURA: La fuente canónica de verdad es empresa_documentos
     await supabase.from("company_bid_vault_items").insert({
       empresa_id: profile.empresa_id,
       categoria,
@@ -75,8 +77,8 @@ export async function crearDocumentoEmpresa(data: DocumentoInput): Promise<{ id?
         review_required: esInferencia
       }
     });
-  } catch {
-    // Defensivo si la migración 0064 no ha sido aplicada aún
+  } catch (vaultErr) {
+    console.warn("[BidVault Sync] Error al enriquecer en company_bid_vault_items tras inserción en empresa_documentos:", vaultErr);
   }
 
   revalidatePath("/licitaciones/documentos");
@@ -113,8 +115,8 @@ export async function actualizarDocumentoEmpresa(
       vaultPatch.estado = data.fecha_vencimiento && new Date(data.fecha_vencimiento).getTime() < Date.now() ? 'VENCIDO' : 'VIGENTE';
     }
     await supabase.from("company_bid_vault_items").update(vaultPatch).contains("metadatos", { ref_id: id });
-  } catch {
-    // Defensivo si la migración no existe
+  } catch (vaultErr) {
+    console.warn("[BidVault Sync] Error al actualizar proyección company_bid_vault_items:", vaultErr);
   }
 
   revalidatePath("/licitaciones/documentos");
@@ -129,8 +131,8 @@ export async function eliminarDocumentoEmpresa(id: string): Promise<{ error?: st
 
   try {
     await supabase.from("company_bid_vault_items").delete().contains("metadatos", { ref_id: id });
-  } catch {
-    // Defensivo
+  } catch (vaultErr) {
+    console.warn("[BidVault Sync] Error al limpiar proyección company_bid_vault_items tras eliminación:", vaultErr);
   }
 
   revalidatePath("/licitaciones/documentos");

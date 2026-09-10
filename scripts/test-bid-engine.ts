@@ -33,6 +33,7 @@ async function runTests() {
     complianceReport: {
       tenderId: 'LIC-ANDE-100',
       isEligibleToBid: true,
+      evidenceOrigin: 'EXTRACTED_FROM_PBC',
       scoreCumplimientoPct: 100,
       totalRequirements: 5,
       cumplidosCount: 5,
@@ -54,6 +55,8 @@ async function runTests() {
     },
     financialReport: {
       tenderId: 'LIC-ANDE-100',
+      financialStatus: 'CALCULADO',
+      missingInputs: [],
       offerAmountPyg: 4600000000,
       totalCostPyg: 3800000000,
       baseScenario: {
@@ -75,6 +78,9 @@ async function runTests() {
     },
     simulationResult: {
       tenderId: 'LIC-ANDE-100',
+      simulationStatus: 'CALCULADO',
+      isCalibrated: true,
+      missingInputs: [],
       referenceBudgetPyg: 5000000000,
       simulatedCompetitorsCount: 4,
       winningPriceDistribution: { p10WinningPricePyg: 4400000000, p50WinningPricePyg: 4600000000, p90WinningPricePyg: 4800000000 },
@@ -140,6 +146,42 @@ async function runTests() {
   console.log(`Dictamen Descalificado: ${decision3.decision} | Bloqueadores: ${decision3.blockers.join('; ')}`);
   assert(decision3.decision === 'NO_COMPETIR', 'Dictamen es NO_COMPETIR');
   assert(decision3.blockers.length > 0, 'Reporta bloqueador excluyente');
+
+  // -------------------------------------------------------------
+  // CASO 4: Dictamen NO_COMPETIR por Requisitos Solo Sugeridos Genéricamente
+  // -------------------------------------------------------------
+  console.log('\n--- TEST 4: Caso NO_COMPETIR (Requisitos Solo Genéricos) ---');
+  const inputGeneric: BidEngineInput = {
+    ...inputAnde,
+    tenderId: 'LIC-GENERIC-400',
+    complianceReport: {
+      ...inputAnde.complianceReport,
+      evidenceOrigin: 'GENERIC_REQUIREMENT_SUGGESTIONS'
+    }
+  };
+
+  const decision4 = evaluateBidOpportunity(inputGeneric);
+  console.log(`Dictamen Sugerencias Genéricas: ${decision4.decision} | Bloqueadores: ${decision4.blockers.join('; ')}`);
+  assert(decision4.decision === 'NO_COMPETIR', 'Bloquea GO si los requisitos no proceden de PBC oficial');
+  assert(decision4.blockers.some(b => b.includes('Pliego de Bases y Condiciones')), 'Contiene bloqueador de PBC requerido');
+
+  // -------------------------------------------------------------
+  // CASO 5: Dictamen NO_COMPETIR por Falta de Evidencia de Costos
+  // -------------------------------------------------------------
+  console.log('\n--- TEST 5: Caso NO_COMPETIR (Evidencia de Costos Insuficiente) ---');
+  const inputNoCost: BidEngineInput = {
+    ...inputAnde,
+    tenderId: 'LIC-NOCOST-500',
+    financialReport: {
+      ...inputAnde.financialReport,
+      financialStatus: 'INSUFFICIENT_EVIDENCE',
+      missingInputs: ['Costo directo de insumos no determinado']
+    }
+  };
+
+  const decision5 = evaluateBidOpportunity(inputNoCost);
+  console.log(`Dictamen Sin Costos: ${decision5.decision} | Bloqueadores: ${decision5.blockers.join('; ')}`);
+  assert(decision5.decision === 'NO_COMPETIR', 'Bloquea GO si no hay evidencia comprobable de costos');
 
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 17 PASARON CON ÉXITO');

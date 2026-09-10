@@ -68,6 +68,32 @@ async function runTests() {
   assert(result.winProbabilityCurve[0].winProbabilityPct < 20, 'Descuento mínimo (2%) tiene probabilidad baja (< 20%)');
   assert(result.winProbabilityCurve[result.winProbabilityCurve.length - 1].winProbabilityPct > 80, 'Descuento agresivo (18%) tiene probabilidad alta (> 80%)');
 
+  // TEST 3: Presupuesto Referencial Inexistente o Nulo (Fail-Closed)
+  console.log('\n--- TEST 3: Presupuesto Referencial Faltante (Fail-Closed) ---');
+  const invalidSimInput: CompetitiveSimulationInput = {
+    tenderId: 'TENDER-NO-BUDGET',
+    referenceBudgetPyg: 0
+  };
+
+  const invalidResult = simulateCompetitiveBidding(invalidSimInput);
+  console.log(`Estado: ${invalidResult.simulationStatus} | Faltantes: ${invalidResult.missingInputs.join('; ')}`);
+  assert(invalidResult.simulationStatus === 'INSUFFICIENT_EVIDENCE', 'Retorna INSUFFICIENT_EVIDENCE ante presupuesto nulo');
+  assert(invalidResult.iterationsRun === 0, 'No gasta iteraciones Monte Carlo sobre presupuestos ficticios');
+  assert(invalidResult.winProbabilityCurve.length === 0, 'Curva de probabilidad vacía');
+
+  // TEST 4: Simulación No Calibrada (Sin oferentes observados ni huellas)
+  console.log('\n--- TEST 4: Simulación Sin Calibrar ---');
+  const uncalibratedSimInput: CompetitiveSimulationInput = {
+    tenderId: 'TENDER-UNCALIBRATED',
+    referenceBudgetPyg: 5000000000
+  };
+
+  const uncalibratedResult = simulateCompetitiveBidding(uncalibratedSimInput, 1000);
+  console.log(`Estado: ${uncalibratedResult.simulationStatus} | Calibrado: ${uncalibratedResult.isCalibrated}`);
+  assert(uncalibratedResult.simulationStatus === 'CALCULADO', 'Simulación calculable');
+  assert(uncalibratedResult.isCalibrated === false, 'Detecta correctamente que es uncalibrated');
+  assert(uncalibratedResult.missingInputs.length > 0, 'Registra advertencias de calibración');
+
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 16 PASARON CON ÉXITO');
   console.log('======================================================\n');

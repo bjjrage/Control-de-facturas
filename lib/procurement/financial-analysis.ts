@@ -14,13 +14,13 @@
 
 export interface TenderFinancialSimulationInput {
   tenderId: string;
-  offerAmountPyg: number;          // Monto total de la oferta presentada
-  estimatedDirectCostPyg: number;   // Costo directo total según Cost Engine (Gate 5B)
-  estimatedIndirectCostPyg: number; // Costos indirectos y gastos generales
-  durationMonths: number;           // Plazo de ejecución en meses
-  institutionalPaymentDays: number; // Procedente de Gate 12
-  annualFinancingRatePct?: number;  // Tasa de financiamiento anual (default 12.0% PYG)
-  advancePaymentPct?: number;       // Anticipo financiero del contrato (ej: 10% o 20%)
+  offerAmountPyg?: number | null;          // Monto total de la oferta presentada (debe ser > 0)
+  estimatedDirectCostPyg?: number | null;  // Costo directo total según Cost Engine (Gate 5B)
+  estimatedIndirectCostPyg?: number | null; // Costos indirectos y gastos generales
+  durationMonths?: number | null;          // Plazo de ejecución en meses contractual
+  institutionalPaymentDays?: number | null; // Procedente de Gate 12
+  annualFinancingRatePct?: number | null;  // Tasa de financiamiento anual explícita
+  advancePaymentPct?: number | null;       // Anticipo financiero del contrato (ej: 10% o 20%)
 }
 
 export interface ScenarioResult {
@@ -38,6 +38,8 @@ export interface ScenarioResult {
 
 export interface TenderFinancialReport {
   tenderId: string;
+  financialStatus: 'CALCULADO' | 'INSUFFICIENT_EVIDENCE';
+  missingInputs: string[];
   offerAmountPyg: number;
   totalCostPyg: number;
   baseScenario: ScenarioResult;
@@ -51,7 +53,15 @@ export interface TenderFinancialReport {
  * Simula el escenario financiero con retraso temporal de cobros
  */
 function simulateCashflowScenario(
-  input: TenderFinancialSimulationInput,
+  input: {
+    offerAmountPyg: number;
+    estimatedDirectCostPyg: number;
+    estimatedIndirectCostPyg: number;
+    durationMonths: number;
+    institutionalPaymentDays: number;
+    annualFinancingRatePct?: number | null;
+    advancePaymentPct?: number | null;
+  },
   additionalDelayDays: number,
   scenarioName: ScenarioResult['scenarioName']
 ): ScenarioResult {
@@ -104,16 +114,76 @@ function simulateCashflowScenario(
   };
 }
 
+function createUnsimulatedScenario(
+  scenarioName: ScenarioResult['scenarioName'],
+  reason: string
+): ScenarioResult {
+  return {
+    scenarioName,
+    paymentLagDays: 0,
+    peakWorkingCapitalRequiredPyg: 0,
+    financingCostPyg: 0,
+    grossProfitPyg: 0,
+    netProfitPyg: 0,
+    grossMarginPct: 0,
+    netMarginPct: 0,
+    isFinanciallyViable: false,
+    notes: `No simulado: ${reason}`
+  };
+}
+
 /**
- * Ejecuta el análisis financiero integral de una licitación en los 3 escenarios
+ * Ejecuta el análisis financiero integral de una licitación en los 3 escenarios.
+ * INVARIANTE UNKNOWN != DEFAULT:
+ * Si faltan parámetros requeridos (precio de oferta, costo directo, plazo contractual, mora del pagador),
+ * NO inventa constantes supletorias: retorna INSUFFICIENT_EVIDENCE fail-closed.
  */
 export function analyzeTenderFinancials(input: TenderFinancialSimulationInput): TenderFinancialReport {
-  const base = simulateCashflowScenario(input, 0, 'BASE');
-  const conservative = simulateCashflowScenario(input, 30, 'CONSERVADOR');
-  const stress = simulateCashflowScenario(input, 90, 'ESTRES');
+  const missingInputs: string[] = [];
+
+  const offer = Number(input.offerAmountPyg || 0);
+  const directCost = Number(input.estimatedDirectCostPyg || 0);
+  const indirectCost = Number(input.estimatedIndirectCostPyg || 0);
+  const duration = Number(input.durationMonths || 0);
+  const paymentDays = Number(input.institutionalPaymentDays || 0);
+
+  if (offer <= 0) missingInputs.push('Monto total de oferta económica no especificado o nulo');
+  if (directCost <= 0) missingInputs.push('Costo directo de insumos no determinado');
+  if (duration <= 0) missingInputs.push('Plazo de ejecución contractual no especificado en pliego');
+  if (paymentDays <= 0) missingInputs.push('Plazo de pago institucional del convocante desconocido');
+
+  if (missingInputs.length > 0) {
+    const reason = `Falta de evidencia comprobable: ${missingInputs.join(', ')}`;
+    return {
+      tenderId: input.tenderId,
+      financialStatus: 'INSUFFICIENT_EVIDENCE',
+      missingInputs,
+      offerAmountPyg: offer,
+      totalCostPyg: directCost + indirectCost,
+      baseScenario: createUnsimulatedScenario('BASE', reason),
+      conservativeScenario: createUnsimulatedScenario('CONSERVADOR', reason),
+      stressScenario: createUnsimulatedScenario('ESTRES', reason),
+      recommendedFinancingBufferPyg: 0,
+      overallViability: 'NO_VIABLE_ALTO_RIESGO'
+    };
+  }
+
+  const validData = {
+    offerAmountPyg: offer,
+    estimatedDirectCostPyg: directCost,
+    estimatedIndirectCostPyg: indirectCost,
+    durationMonths: duration,
+    institutionalPaymentDays: paymentDays,
+    annualFinancingRatePct: input.annualFinancingRatePct,
+    advancePaymentPct: input.advancePaymentPct
+  };
+
+  const base = simulateCashflowScenario(validData, 0, 'BASE');
+  const conservative = simulateCashflowScenario(validData, 30, 'CONSERVADOR');
+  const stress = simulateCashflowScenario(validData, 90, 'ESTRES');
 
   let overallViability: TenderFinancialReport['overallViability'] = 'VIABLE';
-  const peakRatio = base.peakWorkingCapitalRequiredPyg / input.offerAmountPyg;
+  const peakRatio = base.peakWorkingCapitalRequiredPyg / offer;
 
   if (!base.isFinanciallyViable) {
     overallViability = 'NO_VIABLE_ALTO_RIESGO';
@@ -123,8 +193,10 @@ export function analyzeTenderFinancials(input: TenderFinancialSimulationInput): 
 
   return {
     tenderId: input.tenderId,
-    offerAmountPyg: input.offerAmountPyg,
-    totalCostPyg: input.estimatedDirectCostPyg + input.estimatedIndirectCostPyg,
+    financialStatus: 'CALCULADO',
+    missingInputs: [],
+    offerAmountPyg: offer,
+    totalCostPyg: directCost + indirectCost,
     baseScenario: base,
     conservativeScenario: conservative,
     stressScenario: stress,

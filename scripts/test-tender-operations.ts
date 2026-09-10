@@ -114,6 +114,47 @@ async function runTests() {
   assert(pkg2.packageStatus === 'DRAFT_INCOMPLETE', 'Identifica correctamente que la oferta está incompleta');
   assert(pkg2.validationErrors.some(e => e.includes('FISCAL')), 'Reporta omisión de documento fiscal');
 
+  // CASO 3: Detección de Placeholders en Oferente (80000000-1)
+  console.log('\n--- TEST 3: Rechazo de Placeholders Sintéticos ---');
+  const pkg3 = assembleTenderPackage({
+    tenderId: 'LIC-MOPC-445566',
+    tenderTitle: 'Pavimentación de Acceso a Nueva Asunción',
+    buyerName: 'MOPC',
+    bidderName: 'Empresa Oferente',
+    bidderRuc: '80000000-1',
+    legalRepresentative: 'Representante Legal',
+    items: itemsCotizados,
+    vaultItems: mockVault
+  });
+
+  console.log(`Estado con Placeholders: ${pkg3.packageStatus} | Errores: ${pkg3.validationErrors.join('; ')}`);
+  assert(pkg3.packageStatus === 'DRAFT_INCOMPLETE', 'Identifica correctamente que la oferta no puede ser READY_TO_SIGN con placeholders');
+  assert(pkg3.validationErrors.some(e => e.includes('80000000-1')), 'Detecta RUC de prueba/placeholder');
+  assert(pkg3.validationErrors.some(e => e.includes('Razón social')), 'Detecta Razón Social genérica');
+  assert(pkg3.validationErrors.some(e => e.includes('Representante Legal')), 'Detecta Representante Legal genérico');
+
+  // CASO 4: Detección de Ítems sin Precio Unitario Cotizado
+  console.log('\n--- TEST 4: Detección de Ítems no Cotizados (unitPrice = 0) ---');
+  const itemsIncompletos: TenderBidItemInput[] = [
+    { itemNumber: 1, description: 'Ítem Con Costo', unit: 'UN', quantity: 10, unitPricePyg: 50000 },
+    { itemNumber: 2, description: 'Ítem Sin Costo (Cero)', unit: 'M2', quantity: 100, unitPricePyg: 0 }
+  ];
+
+  const pkg4 = assembleTenderPackage({
+    tenderId: 'LIC-MOPC-445566',
+    tenderTitle: 'Pavimentación de Acceso a Nueva Asunción',
+    buyerName: 'MOPC',
+    bidderName: 'INGENIERIA & VIAL S.A.',
+    bidderRuc: '80009735-1',
+    legalRepresentative: 'Ing. Carlos Gonzalez',
+    items: itemsIncompletos,
+    vaultItems: mockVault
+  });
+
+  console.log(`Estado con Ítem Sin Precio: ${pkg4.packageStatus} | Errores: ${pkg4.validationErrors.join('; ')}`);
+  assert(pkg4.packageStatus === 'DRAFT_INCOMPLETE', 'No permite READY_TO_SIGN si algún ítem tiene precio cero');
+  assert(pkg4.validationErrors.some(e => e.includes('precio unitario cotizado')), 'Reporta ítem específico sin precio');
+
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 14 PASARON CON ÉXITO');
   console.log('======================================================\n');

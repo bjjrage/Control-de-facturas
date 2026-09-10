@@ -27,13 +27,13 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 | **8** | Strict Temporal Backtest | DONE | **INVALID** | Script `test-temporal-backtest.ts` | **MAPE 0.27% evaluado sobre fixture sintético**, no sobre histórico real |
 | **9** | Company Bid Vault | DONE | **PROVEN_DONE** | `0064_company_bid_vault.sql`, UI `/licitaciones/documentos` | Sincronización automática de documentos a `company_bid_vault_items` |
 | **10** | External Document Connectors | DONE | **PARTIAL / FAIL-CLOSED** | Algoritmo DV RUC Módulo 11 | **Endpoints estatales convertidos a Fail-Closed (NOT_IMPLEMENTED)** |
-| **11** | Compliance Engine | DONE | **PARTIAL** | Evaluador de matriz contra bóveda de tenant | Pliegos no se parsean automáticamente a esta matriz |
-| **12** | Institution Intelligence | DONE | **PARTIAL** | Algoritmo de scoring de riesgo A, B, C, D | Integrado en pipeline comercial; sin warehouse histórico completo |
-| **13** | Financial Analysis of Tender | DONE | **PARTIAL** | Simulación de cashflow en 3 escenarios | Integrado en Bid Engine; sin lectura en vivo de tasas bancarias |
-| **14** | Tender Operations Agent V1 | DONE | **PROVEN_DONE** | Ensamblaje de oferta, formularios y bóveda | Conectado a Server Action `generarPliegoOfertaCompleto` y botón en UI |
+| **11** | Compliance Engine | DONE | **PARTIAL / SCAFFOLD_ONLY** | Evaluador de matriz contra bóveda de tenant | Sugerencias genéricas no confieren elegibilidad; extracción PBC oficial pendiente |
+| **12** | Institution Intelligence | DONE | **PARTIAL** | Algoritmo de scoring de riesgo A, B, C, D, SIN_DATOS | Convocantes sin historial emiten `SIN_DATOS` (0 días, no 90d por defecto) |
+| **13** | Financial Analysis of Tender | DONE | **PARTIAL** | Simulación de cashflow fail-closed | Sin datos de plazo/costos/mora retorna `INSUFFICIENT_EVIDENCE` (no 6m/12% def) |
+| **14** | Tender Operations Agent V1 | DONE | **PARTIAL** | Borradores de oferta, formularios plantilla y bóveda | Rechaza placeholders (80000000-1) e ítems sin precio; plantillas oficiales pendientes |
 | **15** | Tender Monitoring Agent | DONE | **PARTIAL** | Comparador diferencial por huella digital de documentos | Sin worker/cron en segundo plano programado para sondeo desatendido |
-| **16** | Competitive Simulator | DONE | **PARTIAL** | Monte Carlo Box-Muller en memoria | Integrado en Bid Engine; no calibrado con dataset masivo |
-| **17** | Bid Engine | DONE | **PROVEN_DONE** | Evaluador de 5 pilares y panel en UI | Conectado a Server Action `persistirEvaluacionComercial` |
+| **16** | Competitive Simulator | DONE | **PARTIAL** | Monte Carlo Box-Muller en memoria | Fail-closed en presupuesto referencial nulo; trackea `isCalibrated: false` |
+| **17** | Bid Engine | DONE | **PARTIAL** | Evaluador de 5 pilares fail-closed (`UNKNOWN != DEFAULT`) | Dictamina REVISAR / NO_COMPETIR ante evidencia incompleta; jamás GO sintético |
 | **18** | Bid Analysis Snapshot | DONE | **PROVEN_DONE** | `bid_analysis_runs` append-only, SHA-256 canónico | Congelamiento inmutable estricto sin valores sintéticos arbitrarios |
 | **19** | Tender → Project | DONE | **PROVEN_DONE** | `executeTenderToProjectTransaction` y botón UI | Botón "Adjudicada → Convertir en Obra" crea proyecto, cómputo y pañol |
 | **20** | ERP Execution Flywheel | DONE | **PROVEN_DONE** | `recordCostObservationFromInvoice` en facturas | Idempotencia granular (documento + ítem) alimentando `cost_observations` |
@@ -206,15 +206,16 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 ---
 
 ### GATE 11 — Compliance Engine
-* **STATUS**: **PARTIAL**
+* **STATUS**: **PARTIAL / SCAFFOLD_ONLY**
 * **DEPENDENCIES**: GATE 9
 * **IMPLEMENTATION**:
-  - Matriz de evaluación de pliegos en `lib/procurement/compliance-engine.ts` contra `VaultItem[]` de la bóveda del tenant.
-  - Conectado a la bóveda en `persistirEvaluacionComercial` en `actions.ts`.
+  - Matriz de evaluación en `lib/procurement/compliance-engine.ts` contra `VaultItem[]` de la bóveda del tenant.
+  - Reclasificación formal de requerimientos sugeridos a `generateGenericRequirementSuggestions` (`evidenceOrigin: 'GENERIC_REQUIREMENT_SUGGESTIONS'`).
+  - Regla estricta: Las sugerencias genéricas **NO confieren habilitación (`isEligibleToBid = false`)**, forzando revisión manual o extracción real.
 * **VERIFICACIÓN**:
-  - `scripts/test-compliance-engine.ts` valida la lógica de dictámenes CUMPLIDO/GENERABLE/FALTANTE.
+  - `scripts/test-compliance-engine.ts` valida la lógica de dictámenes CUMPLIDO/GENERABLE/FALTANTE y rechazo de auto-habilitación en sugerencias genéricas.
 * **GAPS**:
-  - Extracción automática de requisitos estructurados desde PDFs de pliegos de bases y condiciones.
+  - Extracción automática de requisitos normativos específicos desde el texto y anexos del Pliego de Bases y Condiciones (PBC) oficial.
 
 ---
 
@@ -223,9 +224,9 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 * **DEPENDENCIES**: GATE 3
 * **IMPLEMENTATION**:
   - Algoritmo de scoring institucional cuantitativo en `lib/procurement/institution-intelligence.ts`.
-  - Conectado en el pipeline comercial de `persistirEvaluacionComercial`.
+  - Calificación de riesgo ampliada con estado explícito `'SIN_DATOS'` y 0 días de mora (eliminando el default artificial de 90 días).
 * **VERIFICACIÓN**:
-  - `scripts/test-institution-intelligence.ts` evalúa la calificación de riesgo (A, B, C, D).
+  - `scripts/test-institution-intelligence.ts` evalúa la calificación de riesgo (A, B, C, D, SIN_DATOS).
 * **GAPS**:
   - Alimentación masiva continua desde el OCDS histórico completo de convocatorias y adjudicaciones.
 
@@ -236,29 +237,29 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 * **DEPENDENCIES**: GATE 5B, GATE 12
 * **IMPLEMENTATION**:
   - Simulador de flujo de caja y capital de trabajo en `lib/procurement/financial-analysis.ts` en 3 escenarios (BASE, CONSERVADOR, ESTRÉS).
-  - Integrado en el pipeline del Bid Engine.
+  - Regla `UNKNOWN != DEFAULT`: si faltan monto de oferta, costos directos, plazo contractual o plazo de pago del pagador, retorna `financialStatus: 'INSUFFICIENT_EVIDENCE'` y `NO_VIABLE_ALTO_RIESGO` sin simular datos ficticios.
 * **VERIFICACIÓN**:
-  - `scripts/test-financial-analysis.ts` valida las ecuaciones de cashflow y viabilidad financiera.
+  - `scripts/test-financial-analysis.ts` valida las ecuaciones de cashflow, viabilidad financiera y fail-closed por falta de evidencia.
 * **GAPS**:
   - Lectura dinámica de tasas activas y pasivas de bancos paraguayos en tiempo real.
 
 ---
 
 ### GATE 14 — Tender Operations Agent V1
-* **STATUS**: **PROVEN_DONE**
+* **STATUS**: **PARTIAL**
 * **DEPENDENCIES**: GATE 7, GATE 9, GATE 11, GATE 13
 * **IMPLEMENTATION**:
-  - Orquestador de ensamblaje de oferta en `lib/procurement/tender-operations.ts` (`assembleTenderPackage`).
-  - Generación de formularios DNCP oficiales:
-    * Formulario 1: Carta de Presentación de la Oferta.
-    * Formulario 2: Declaración Jurada (Art. 40 Ley 2051/03 / Ley 7021/22).
-    * Formulario 3: Planilla de Precios Unitarios con cómputo métrico y márgenes calibrados.
-  - Vinculación automática de documentos probatorios de respaldo desde la Bóveda (`company_bid_vault_items`).
-  - Acción de servidor `generarPliegoOfertaCompleto` y botón en UI "Ensamblar Pliego y Formularios" en el detalle de la licitación con auditoría `tender.bid_package_assembled`.
+  - Orquestador de ensamblaje de borradores de oferta en `lib/procurement/tender-operations.ts` (`assembleTenderPackage`).
+  - Generación de borradores de trabajo internos:
+    * `DRAFT-FORM-01`: Borrador de Carta de Presentación de Oferta (Plantilla interna).
+    * `DRAFT-FORM-02`: Borrador de Declaración Jurada Art. 40 (Plantilla interna).
+    * `DRAFT-FORM-03`: Borrador de Planilla de Precios Unitarios y Cómputo Métrico.
+  - Validación fail-closed contra valores sintéticos: prohíbe placeholders (`80000000-1`, "Empresa Oferente", "Representante Legal") e ítems sin cotizar (`unitPrice = 0`), forzando `DRAFT_INCOMPLETE`.
+  - Vinculación de documentos probatorios vigentes desde la Bóveda (`company_bid_vault_items`).
 * **VERIFICACIÓN**:
-  - `scripts/test-tender-operations.ts` valida el ensamblaje completo, estados `READY_TO_SIGN` y `DRAFT_INCOMPLETE`, y el cálculo aritmético exacto de montos.
+  - `scripts/test-tender-operations.ts` valida el ensamblaje completo, estados `READY_TO_SIGN` y `DRAFT_INCOMPLETE`, y el rechazo estricto de placeholders y precios en cero.
 * **GAPS**:
-  - Exportación directa en formato PDF / Word listo para firma digital calificada.
+  - Formularios certificados del portal DNCP y exportación a PDF para firma electrónica calificada.
 
 ---
 
@@ -281,25 +282,31 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 * **DEPENDENCIES**: GATE 5A, GATE 8
 * **IMPLEMENTATION**:
   - Simulador estocástico Monte Carlo Box-Muller en `lib/procurement/competitive-simulator.ts`.
-  - Integrado en el Bid Engine para proyectar P10, P50, P90 y curvas de probabilidad de ganar.
+  - Fail-closed: si el presupuesto referencial es <= 0, retorna `INSUFFICIENT_EVIDENCE` sin inventar precios simulados.
+  - Metadatos de calibración: rastrea `isCalibrated: false` cuando no existen oferentes observados ni huellas históricas de competidores.
 * **VERIFICACIÓN**:
-  - `scripts/test-competitive-simulator.ts` valida la convergencia matemática y monotonía en memoria.
+  - `scripts/test-competitive-simulator.ts` valida la convergencia matemática, monotonía y fail-closed.
 * **GAPS**:
   - Calibración empírica directa con la base histórica masiva de ofertas de la DNCP.
 
 ---
 
 ### GATE 17 — Bid Engine
-* **STATUS**: **PROVEN_DONE**
+* **STATUS**: **PARTIAL**
 * **DEPENDENCIES**: GATE 5A, GATE 5B, GATE 12, GATE 13, GATE 16
 * **IMPLEMENTATION**:
-  - Agregador de 5 pilares comerciales en `lib/procurement/bid-engine.ts`.
-  - Panel visual de evaluación comercial en `app/(internal)/licitaciones/[id]/page.tsx`.
-  - Conectado a la acción `persistirEvaluacionComercial` con veredictos formales (COMPETIR / REVISAR / NO_COMPETIR).
+  - Motor de agregación de 5 pilares comerciales en `lib/procurement/bid-engine.ts`.
+  - Invariante estricto `UNKNOWN != DEFAULT`:
+    * Pilar 1 (Cumplimiento): Bloquea `COMPETIR` si los requisitos son sugerencias genéricas y no proceden de PBC oficial.
+    * Pilar 2 (Costos): Bloquea si no hay cobertura verificada de cómputo y catálogo.
+    * Pilar 3 (Convocante): Asigna advertencia cautelar si la entidad compradora no tiene historial (`SIN_DATOS`).
+    * Pilar 4 (Financiero): Bloquea si la simulación financiera tiene evidencia insuficiente.
+    * Pilar 5 (Competitividad): Advierte si la simulación es no calibrada; bloquea si no hay presupuesto referencial.
+  - Panel visual de evaluación comercial en `app/(internal)/licitaciones/[id]/page.tsx` conectado a `persistirEvaluacionComercial`.
 * **VERIFICACIÓN**:
-  - `scripts/test-bid-engine.ts` valida las reglas comerciales en escenarios reales.
+  - `scripts/test-bid-engine.ts` valida las 5 reglas comerciales (COMPETIR, REVISAR, NO_COMPETIR por descalificación, NO_COMPETIR por sugerencias genéricas, NO_COMPETIR por falta de costos).
 * **GAPS**:
-  - Ponderación de pesos por tipo de contrato configurable por el usuario en la UI.
+  - Configuración personalizada de tolerancias de riesgo por empresa desde la UI.
 
 ---
 
@@ -307,9 +314,9 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 * **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 17
 * **IMPLEMENTATION**:
-  - `0065_bid_analysis_snapshots.sql`: Tabla `bid_analysis_runs` con trigger estricto que bloquea tanto `UPDATE` como `DELETE` (inmutabilidad estricta append-only).
-  - Módulo `lib/procurement/bid-snapshot.ts`: Serialización canónica determinística (`canonicalJsonStringify`) y hashing criptográfico SHA-256 cubriendo la totalidad de los datos del snapshot (compliance, institución, financiero, simulación, pilares, justificaciones, bloqueadores).
-  - Eliminación absoluta de suposiciones sintéticas en `persistirEvaluacionComercial`: cálculo de costo directo a partir de `licitacion_items` emparejados con el catálogo de la empresa; inferencia de plazo según fechas reales de pliego; fail-closed a `REVISAR` o `NO_COMPETIR` si no hay cómputo o presupuesto referencial válido (`UNKNOWN != DEFAULT`).
+  - `0065_bid_analysis_snapshots.sql`: Tabla `bid_analysis_runs` con trigger estricto que bloquea tanto `UPDATE` como `DELETE` (inmutabilidad estricta append-only en BD).
+  - Módulo `lib/procurement/bid-snapshot.ts`: Serialización canónica determinística (`canonicalJsonStringify`) y hashing criptográfico SHA-256 cubriendo la totalidad de los datos del snapshot.
+  - Eliminación absoluta de suposiciones sintéticas en `persistirEvaluacionComercial`: costo directo estrictamente de insumos catalogados; plazo contractual exclusivamente de datos oficiales; fail-closed a `REVISAR` o `NO_COMPETIR` si no hay cómputo o presupuesto referencial válido (`UNKNOWN != DEFAULT`).
 * **VERIFICACIÓN**:
   - `scripts/test-bid-snapshot.ts` valida la inmutabilidad y la detección inmediata de adulteración sobre cualquier campo canónico del snapshot.
 * **GAPS**:

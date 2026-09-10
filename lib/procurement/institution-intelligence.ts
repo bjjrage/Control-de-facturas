@@ -8,7 +8,7 @@
  * 5. Calificación de Riesgo Institucional (A: Excelente, B: Confiable, C: Moderado, D: Alto Riesgo).
  */
 
-export type InstitutionRiskRating = 'A' | 'B' | 'C' | 'D';
+export type InstitutionRiskRating = 'A' | 'B' | 'C' | 'D' | 'SIN_DATOS';
 
 export interface HistoricalInstitutionTender {
   id: string;
@@ -66,7 +66,9 @@ export function calculateInstitutionRiskRating(
 }
 
 /**
- * Procesa el historial de contrataciones públicas de una institución para generar su ficha de riesgo
+ * Procesa el historial de contrataciones públicas de una institución para generar su ficha de riesgo.
+ * INVARIANTE UNKNOWN != DEFAULT:
+ * Si no hay historial, no presume calificación 'B' ni plazo '90d'; emite 'SIN_DATOS' y 0 días comprobados.
  */
 export function generateInstitutionProfile(
   convocanteName: string,
@@ -81,11 +83,11 @@ export function generateInstitutionProfile(
       totalMontoAdjudicadoPyg: 0,
       adendasPorLlamadoPromedio: 0,
       tasaCancelacionPct: 0,
-      diasPromedioPago: 90,
-      calificacionRiesgo: 'B',
+      diasPromedioPago: 0,
+      calificacionRiesgo: 'SIN_DATOS',
       indiceConcentracionTop3Pct: 0,
       topProveedores: [],
-      resumenRiesgo: 'Sin datos históricos suficientes'
+      resumenRiesgo: 'Sin historial verificado en el sistema; calificación y plazo de pago no calibrados'
     };
   }
 

@@ -65,6 +65,13 @@ async function runTests() {
 
   assert(profileMun.calificacionRiesgo === 'D', 'Municipio clasificado como D (Alto Riesgo por demoras > 210 días y cancelaciones > 50%)');
 
+  // CASO 4: Convocante Desconocido sin Historial (UNKNOWN != DEFAULT)
+  console.log('\n--- TEST 4: Convocante Desconocido (SIN_DATOS) ---');
+  const profileDesconocido = generateInstitutionProfile('ENTIDAD SIN REGISTRO', []);
+  console.log(`[DESCONOCIDO] Calificación: ${profileDesconocido.calificacionRiesgo} | Días de Pago: ${profileDesconocido.diasPromedioPago} | Resumen: ${profileDesconocido.resumenRiesgo}`);
+  assert(profileDesconocido.calificacionRiesgo === 'SIN_DATOS', 'Convocante sin datos calificado como SIN_DATOS (no B)');
+  assert(profileDesconocido.diasPromedioPago === 0, 'Días de pago es 0/no calibrado (no 90d)');
+
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 12 PASARON CON ÉXITO');
   console.log('======================================================\n');

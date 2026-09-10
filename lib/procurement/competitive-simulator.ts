@@ -32,6 +32,9 @@ export interface PricePointWinProbability {
 
 export interface CompetitiveSimulationResult {
   tenderId: string;
+  simulationStatus: 'CALCULADO' | 'INSUFFICIENT_EVIDENCE';
+  isCalibrated: boolean;
+  missingInputs: string[];
   referenceBudgetPyg: number;
   simulatedCompetitorsCount: number;
   winningPriceDistribution: SimulationPercentiles;
@@ -52,13 +55,45 @@ function randomNormal(mean: number, stdDev: number): number {
 }
 
 /**
- * Ejecuta simulación Monte Carlo de subasta pública
+ * Ejecuta simulación Monte Carlo de subasta pública.
+ * INVARIANTE UNKNOWN != DEFAULT:
+ * Si el presupuesto referencial es <= 0, no inventa un presupuesto de 1 guaraní ni posturas ficticias.
  */
 export function simulateCompetitiveBidding(
   input: CompetitiveSimulationInput,
   iterations: number = 10000
 ): CompetitiveSimulationResult {
-  const numCompetitors = input.expectedParticipantsCount ?? (input.referenceBudgetPyg > 30000000000 ? 4 : 6);
+  const refBudget = Number(input.referenceBudgetPyg || 0);
+  if (refBudget <= 0) {
+    return {
+      tenderId: input.tenderId,
+      simulationStatus: 'INSUFFICIENT_EVIDENCE',
+      isCalibrated: false,
+      missingInputs: ['Presupuesto referencial de la licitación no especificado o inválido'],
+      referenceBudgetPyg: 0,
+      simulatedCompetitorsCount: 0,
+      winningPriceDistribution: {
+        p10WinningPricePyg: 0,
+        p50WinningPricePyg: 0,
+        p90WinningPricePyg: 0
+      },
+      winProbabilityCurve: [],
+      recommendedSweetSpotDiscountPct: 0,
+      recommendedSweetSpotPricePyg: 0,
+      iterationsRun: 0
+    };
+  }
+
+  const hasExplicitParticipants = typeof input.expectedParticipantsCount === 'number' && input.expectedParticipantsCount >= 1;
+  const numCompetitors = hasExplicitParticipants ? input.expectedParticipantsCount! : (refBudget > 30000000000 ? 4 : 6);
+  const isCalibrated = hasExplicitParticipants && (input.knownCompetitorFingerprints?.length ?? 0) > 0;
+  const missingInputs: string[] = [];
+  if (!hasExplicitParticipants) {
+    missingInputs.push('Número de oferentes participantes no observado en el llamado');
+  }
+  if (!input.knownCompetitorFingerprints || input.knownCompetitorFingerprints.length === 0) {
+    missingInputs.push('Sin huellas de descuento históricas de competidores para este rubro');
+  }
 
   // Parámetros de distribución de descuentos: media ~ 8.0%, desv ~ 3.5%
   let meanDiscount = 8.0;
@@ -124,6 +159,9 @@ export function simulateCompetitiveBidding(
 
   return {
     tenderId: input.tenderId,
+    simulationStatus: 'CALCULADO',
+    isCalibrated,
+    missingInputs,
     referenceBudgetPyg: input.referenceBudgetPyg,
     simulatedCompetitorsCount: numCompetitors,
     winningPriceDistribution: {

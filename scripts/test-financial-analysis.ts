@@ -61,6 +61,24 @@ async function runTests() {
   assert(mopcReport.baseScenario.financingCostPyg > 500000000, 'Costo financiero de mora supera los Gs. 500M');
   assert(mopcReport.overallViability === 'REQUIERE_FINANCIAMIENTO', 'Clasifica certeramente como REQUIERE_FINANCIAMIENTO');
 
+  // CASO 3: Falla cerrada por evidencia insuficiente (UNKNOWN != DEFAULT)
+  console.log('\n--- TEST 3: Evidencia Insuficiente (UNKNOWN != DEFAULT) ---');
+  const incompleteInput: TenderFinancialSimulationInput = {
+    tenderId: 'TENDER-INCOMPLETE-01',
+    offerAmountPyg: null,
+    estimatedDirectCostPyg: null,
+    durationMonths: null,
+    institutionalPaymentDays: null
+  };
+
+  const incompleteReport = analyzeTenderFinancials(incompleteInput);
+  console.log(`[Incompleto] Estado: ${incompleteReport.financialStatus} | Faltantes: ${incompleteReport.missingInputs.join('; ')}`);
+  assert(incompleteReport.financialStatus === 'INSUFFICIENT_EVIDENCE', 'Retorna INSUFFICIENT_EVIDENCE ante datos nulos');
+  assert(incompleteReport.overallViability === 'NO_VIABLE_ALTO_RIESGO', 'Fail-closed a NO_VIABLE_ALTO_RIESGO');
+  assert(incompleteReport.missingInputs.length >= 4, 'Reporta con precisión los 4 campos faltantes');
+  assert(incompleteReport.baseScenario.isFinanciallyViable === false, 'El escenario base no es viable');
+  assert(incompleteReport.baseScenario.notes.includes('No simulado'), 'Indica claramente que no fue simulado por falta de evidencia');
+
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 13 PASARON CON ÉXITO');
   console.log('======================================================\n');

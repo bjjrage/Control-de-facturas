@@ -61,7 +61,15 @@ export function evaluateBidOpportunity(input: BidEngineInput): BidDecisionOutput
 
   // PILAR 1: Cumplimiento
   let pilarCumplimiento: PillarAssessment;
-  if (!input.complianceReport.isEligibleToBid) {
+  if (input.complianceReport.evidenceOrigin === 'GENERIC_REQUIREMENT_SUGGESTIONS') {
+    pilarCumplimiento = {
+      pilar: 'CUMPLIMIENTO',
+      status: 'CRITICO',
+      score: 0,
+      resumen: 'Requisitos basados en sugerencias genéricas heurísticas; no se ha cargado ni extraído el PBC oficial.'
+    };
+    blockers.push('Inhabilitado para ofertar: la matriz de requisitos no proviene de la extracción del Pliego de Bases y Condiciones (PBC) oficial.');
+  } else if (!input.complianceReport.isEligibleToBid) {
     pilarCumplimiento = {
       pilar: 'CUMPLIMIENTO',
       status: 'CRITICO',
@@ -76,42 +84,59 @@ export function evaluateBidOpportunity(input: BidEngineInput): BidDecisionOutput
       score: input.complianceReport.scoreCumplimientoPct,
       resumen: `${input.complianceReport.cumplidosCount} de ${input.complianceReport.totalRequirements} requisitos cumplidos íntegramente.`
     };
-    justifications.push('Elegibilidad normativa y solvencia técnica comprobada.');
+    justifications.push('Elegibilidad normativa y solvencia técnica comprobada contra pliego.');
   }
   pillars.push(pilarCumplimiento);
 
   // PILAR 2: Costos y Margen Bruto
-  const grossMargin = input.financialReport.baseScenario.grossMarginPct;
   let pilarCostos: PillarAssessment;
-  if (grossMargin < 5.0) {
+  if (input.financialReport.financialStatus === 'INSUFFICIENT_EVIDENCE') {
     pilarCostos = {
       pilar: 'COSTOS_Y_MARGEN',
       status: 'CRITICO',
-      score: 20,
-      resumen: `Margen bruto extremadamente bajo (${grossMargin}%).`
+      score: 0,
+      resumen: 'Estructura de costos no calculable: faltan cómputo métrico o precios de insumos en catálogo.'
     };
-    blockers.push(`Margen bruto insuficiente (${grossMargin}%) para absorber contingencias.`);
-  } else if (grossMargin < 12.0) {
-    pilarCostos = {
-      pilar: 'COSTOS_Y_MARGEN',
-      status: 'ADVERTENCIA',
-      score: 65,
-      resumen: `Margen bruto ajustado (${grossMargin}%).`
-    };
+    blockers.push('Costos directos no determinados: la oferta carece de evidencia de costeo verificada.');
   } else {
-    pilarCostos = {
-      pilar: 'COSTOS_Y_MARGEN',
-      status: 'OPTIMO',
-      score: 95,
-      resumen: `Margen bruto competitivo y saludable (${grossMargin}%).`
-    };
-    justifications.push(`Margen bruto inicial sólido del ${grossMargin}%.`);
+    const grossMargin = input.financialReport.baseScenario.grossMarginPct;
+    if (grossMargin < 5.0) {
+      pilarCostos = {
+        pilar: 'COSTOS_Y_MARGEN',
+        status: 'CRITICO',
+        score: 20,
+        resumen: `Margen bruto extremadamente bajo (${grossMargin}%).`
+      };
+      blockers.push(`Margen bruto insuficiente (${grossMargin}%) para absorber contingencias.`);
+    } else if (grossMargin < 12.0) {
+      pilarCostos = {
+        pilar: 'COSTOS_Y_MARGEN',
+        status: 'ADVERTENCIA',
+        score: 65,
+        resumen: `Margen bruto ajustado (${grossMargin}%).`
+      };
+    } else {
+      pilarCostos = {
+        pilar: 'COSTOS_Y_MARGEN',
+        status: 'OPTIMO',
+        score: 95,
+        resumen: `Margen bruto competitivo y saludable (${grossMargin}%).`
+      };
+      justifications.push(`Margen bruto inicial sólido del ${grossMargin}%.`);
+    }
   }
   pillars.push(pilarCostos);
 
   // PILAR 3: Riesgo Convocante
   let pilarConvocante: PillarAssessment;
-  if (input.institutionProfile.calificacionRiesgo === 'D') {
+  if (input.institutionProfile.calificacionRiesgo === 'SIN_DATOS') {
+    pilarConvocante = {
+      pilar: 'RIESGO_CONVOCANTE',
+      status: 'ADVERTENCIA',
+      score: 50,
+      resumen: `Convocante "${input.institutionProfile.convocante}" sin historial verificado en el sistema; plazo de pago no calibrado.`
+    };
+  } else if (input.institutionProfile.calificacionRiesgo === 'D') {
     pilarConvocante = {
       pilar: 'RIESGO_CONVOCANTE',
       status: 'CRITICO',
@@ -138,47 +163,75 @@ export function evaluateBidOpportunity(input: BidEngineInput): BidDecisionOutput
   pillars.push(pilarConvocante);
 
   // PILAR 4: Financiero (Flujo y Margen Neto Real)
-  const netMargin = input.financialReport.baseScenario.netMarginPct;
   let pilarFinanciero: PillarAssessment;
-  if (input.financialReport.overallViability === 'NO_VIABLE_ALTO_RIESGO' || netMargin <= 0) {
+  let netMargin = 0;
+  if (input.financialReport.financialStatus === 'INSUFFICIENT_EVIDENCE') {
     pilarFinanciero = {
       pilar: 'FINANCIERO',
       status: 'CRITICO',
-      score: 10,
-      resumen: 'Margen neto destruido por mora y costo del dinero.'
+      score: 0,
+      resumen: `Simulación financiera no ejecutable: ${input.financialReport.missingInputs.join(', ')}.`
     };
-    blockers.push('Inviabilidad financiera: costo financiero de los atrasos sobrepasa la ganancia del contrato.');
-  } else if (input.financialReport.overallViability === 'REQUIERE_FINANCIAMIENTO') {
-    pilarFinanciero = {
-      pilar: 'FINANCIERO',
-      status: 'ADVERTENCIA',
-      score: 60,
-      resumen: `Requiere capital de trabajo de Gs. ${(input.financialReport.baseScenario.peakWorkingCapitalRequiredPyg / 1e6).toFixed(0)}M.`
-    };
-    justifications.push('Exige estructurar línea de crédito o descuento de certificados para cubrir el capital pico.');
+    blockers.push(`Inviabilidad financiera por falta de evidencia: ${input.financialReport.missingInputs.join(', ')}.`);
   } else {
-    pilarFinanciero = {
-      pilar: 'FINANCIERO',
-      status: 'OPTIMO',
-      score: 90,
-      resumen: `Margen neto real preservado (${netMargin}%) con baja presión de capital.`
-    };
-    justifications.push(`Margen neto real preservado del ${netMargin}% tras deducir costos financieros.`);
+    netMargin = input.financialReport.baseScenario.netMarginPct;
+    if (input.financialReport.overallViability === 'NO_VIABLE_ALTO_RIESGO' || netMargin <= 0) {
+      pilarFinanciero = {
+        pilar: 'FINANCIERO',
+        status: 'CRITICO',
+        score: 10,
+        resumen: 'Margen neto destruido por mora y costo del dinero.'
+      };
+      blockers.push('Inviabilidad financiera: costo financiero de los atrasos sobrepasa la ganancia del contrato.');
+    } else if (input.financialReport.overallViability === 'REQUIERE_FINANCIAMIENTO') {
+      pilarFinanciero = {
+        pilar: 'FINANCIERO',
+        status: 'ADVERTENCIA',
+        score: 60,
+        resumen: `Requiere capital de trabajo de Gs. ${(input.financialReport.baseScenario.peakWorkingCapitalRequiredPyg / 1e6).toFixed(0)}M.`
+      };
+      justifications.push('Exige estructurar línea de crédito o descuento de certificados para cubrir el capital pico.');
+    } else {
+      pilarFinanciero = {
+        pilar: 'FINANCIERO',
+        status: 'OPTIMO',
+        score: 90,
+        resumen: `Margen neto real preservado (${netMargin}%) con baja presión de capital.`
+      };
+      justifications.push(`Margen neto real preservado del ${netMargin}% tras deducir costos financieros.`);
+    }
   }
   pillars.push(pilarFinanciero);
 
   // PILAR 5: Competitividad
-  const sweetSpotPrice = input.simulationResult.recommendedSweetSpotPricePyg;
-  const sweetSpotWinProb = input.simulationResult.winProbabilityCurve.find(
-    c => c.discountPct === Math.round(input.simulationResult.recommendedSweetSpotDiscountPct)
-  )?.winProbabilityPct ?? 50;
+  let pilarCompetitividad: PillarAssessment;
+  let sweetSpotPrice = 0;
+  let sweetSpotWinProb = 0;
 
-  const pilarCompetitividad: PillarAssessment = {
-    pilar: 'COMPETITIVIDAD',
-    status: sweetSpotWinProb >= 50 ? 'OPTIMO' : 'ADVERTENCIA',
-    score: Math.min(100, sweetSpotWinProb * 1.2),
-    resumen: `Probabilidad de adjudicación estimada en ${sweetSpotWinProb}% en el punto de corte óptimo.`
-  };
+  if (input.simulationResult.simulationStatus === 'INSUFFICIENT_EVIDENCE') {
+    pilarCompetitividad = {
+      pilar: 'COMPETITIVIDAD',
+      status: 'CRITICO',
+      score: 0,
+      resumen: `Simulación competitiva no disponible: ${input.simulationResult.missingInputs.join(', ')}.`
+    };
+    blockers.push(`Simulación competitiva bloqueada: ${input.simulationResult.missingInputs.join(', ')}.`);
+  } else {
+    sweetSpotPrice = input.simulationResult.recommendedSweetSpotPricePyg;
+    sweetSpotWinProb = input.simulationResult.winProbabilityCurve.find(
+      c => c.discountPct === Math.round(input.simulationResult.recommendedSweetSpotDiscountPct)
+    )?.winProbabilityPct ?? 50;
+
+    const isCalibrated = input.simulationResult.isCalibrated;
+    pilarCompetitividad = {
+      pilar: 'COMPETITIVIDAD',
+      status: (sweetSpotWinProb >= 50 && isCalibrated) ? 'OPTIMO' : 'ADVERTENCIA',
+      score: Math.min(100, isCalibrated ? sweetSpotWinProb * 1.2 : Math.min(60, sweetSpotWinProb)),
+      resumen: isCalibrated
+        ? `Probabilidad de adjudicación estimada en ${sweetSpotWinProb}% en el punto de corte óptimo.`
+        : `Simulación no calibrada con historial de rivales: probabilidad de adjudicación estimada en ${sweetSpotWinProb}%.`
+    };
+  }
   pillars.push(pilarCompetitividad);
 
   // Decisión final determinística
@@ -190,7 +243,8 @@ export function evaluateBidOpportunity(input: BidEngineInput): BidDecisionOutput
     pilarFinanciero.status === 'ADVERTENCIA' ||
     pilarCostos.status === 'ADVERTENCIA' ||
     pilarConvocante.status === 'ADVERTENCIA' ||
-    pilarCumplimiento.status === 'ADVERTENCIA'
+    pilarCumplimiento.status === 'ADVERTENCIA' ||
+    pilarCompetitividad.status === 'ADVERTENCIA'
   ) {
     decision = 'REVISAR';
   }
