@@ -94,6 +94,43 @@ async function runTests() {
   assert(uncalibratedResult.isCalibrated === false, 'Detecta correctamente que es uncalibrated');
   assert(uncalibratedResult.missingInputs.length > 0, 'Registra advertencias de calibración');
 
+  // TEST 5: Simulación Plenamente Calibrada con Huellas Empíricas
+  console.log('\n--- TEST 5: Simulación Plenamente Calibrada con Huellas Empíricas ---');
+  const calibratedSimInput: CompetitiveSimulationInput = {
+    tenderId: 'TENDER-CALIBRATED',
+    referenceBudgetPyg: 15000000000,
+    expectedParticipantsCount: 3,
+    knownCompetitorFingerprints: [
+      {
+        level: 'EXACT_CONTEXT',
+        win_rate_pct: 65,
+        avg_discount_pct: 9.5,
+        stddev_discount_pct: 2.1,
+        sample_size: 8,
+        certainty_tier: 'MEDIA',
+        fallback_applied: false,
+        notes: 'Calibrado en MOPC obras viales'
+      },
+      {
+        level: 'EXACT_CONTEXT',
+        win_rate_pct: 40,
+        avg_discount_pct: 11.2,
+        stddev_discount_pct: 1.8,
+        sample_size: 12,
+        certainty_tier: 'MEDIA',
+        fallback_applied: false,
+        notes: 'Calibrado en MOPC obras viales'
+      }
+    ]
+  };
+
+  const calibratedResult = simulateCompetitiveBidding(calibratedSimInput, 5000);
+  console.log(`Estado: ${calibratedResult.simulationStatus} | Calibrado: ${calibratedResult.isCalibrated} | Sweet Spot: ${calibratedResult.recommendedSweetSpotDiscountPct}%`);
+  assert(calibratedResult.simulationStatus === 'CALCULADO', 'Simulación calculada exitosamente');
+  assert(calibratedResult.isCalibrated === true, 'isCalibrated es true con huellas y participantes observados');
+  assert(calibratedResult.missingInputs.length === 0, 'Cero advertencias de datos faltantes');
+  assert(calibratedResult.recommendedSweetSpotDiscountPct >= 9.0, 'Sweet spot ajustado a los descuentos empíricos observados');
+
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 16 PASARON CON ÉXITO');
   console.log('======================================================\n');

@@ -666,16 +666,39 @@ export async function persistirEvaluacionComercial(
   // 7. Simulación competitiva con oferentes observados o uncalibrated
   const { data: oferentes } = await supabase
     .from("licitacion_oferentes")
-    .select("id")
+    .select("ruc, nombre, monto_ofertado")
     .eq("licitacion_id", lic.id);
 
   const realCompetitorsCount = (oferentes ?? []).length;
+  const knownFingerprints: any[] = [];
+
+  if (oferentes && oferentes.length > 0) {
+    const { getCompetitorProfile } = await import("@/lib/procurement/competitor-intelligence");
+    for (const ofr of oferentes) {
+      if (ofr.ruc) {
+        try {
+          const profile = await getCompetitorProfile(ofr.ruc, supabase, {
+            convocante: lic.comitente_nombre,
+            categoria: lic.categoria,
+            montoReferencial: refBudget
+          });
+          if (profile?.contextual_fingerprint && profile.contextual_fingerprint.sample_size >= 2) {
+            knownFingerprints.push(profile.contextual_fingerprint);
+          }
+        } catch {
+          // Si no se encuentra en procurement_suppliers, continuar
+        }
+      }
+    }
+  }
 
   const { simulateCompetitiveBidding } = await import("@/lib/procurement/competitive-simulator");
   const simulationResult = simulateCompetitiveBidding({
     tenderId: lic.id,
     referenceBudgetPyg: hasValidBudget ? refBudget : 0,
-    expectedParticipantsCount: realCompetitorsCount > 0 ? realCompetitorsCount : undefined
+    expectedParticipantsCount: realCompetitorsCount > 0 ? realCompetitorsCount : undefined,
+    knownCompetitorFingerprints: knownFingerprints.length > 0 ? knownFingerprints : undefined,
+    category: lic.categoria || undefined
   }, 1000);
 
   // 8. Evaluar decisión global

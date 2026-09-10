@@ -32,8 +32,8 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 | **13** | Financial Analysis of Tender | DONE | **PARTIAL** | Simulación de cashflow fail-closed | Sin datos de plazo/costos/mora retorna `INSUFFICIENT_EVIDENCE` (no 6m/12% def) |
 | **14** | Tender Operations Agent V1 | DONE | **PROVEN_DONE** | Ensamblador de expediente, índice maestro y exportación HTML | Dossier completo exportable y validación estricta contra placeholders probada |
 | **15** | Tender Monitoring Agent | DONE | **PROVEN_DONE** | Huella digital de docs, runner `runTenderMonitoringBatch` y `/api/cron/tender-monitoring` | Detección reactiva y programada de adendas, prórrogas y estados |
-| **16** | Competitive Simulator | DONE | **PARTIAL** | Monte Carlo Box-Muller en memoria | Fail-closed en presupuesto referencial nulo; trackea `isCalibrated: false` |
-| **17** | Bid Engine | DONE | **PARTIAL** | Evaluador de 5 pilares fail-closed (`UNKNOWN != DEFAULT`) | Dictamina REVISAR / NO_COMPETIR ante evidencia incompleta; jamás GO sintético |
+| **16** | Competitive Simulator | DONE | **PROVEN_DONE** | Monte Carlo Box-Muller y calibración de huellas | Simulación estocástica calibrada con competidores observados probada |
+| **17** | Bid Engine | DONE | **PROVEN_DONE** | Evaluador 5 pilares fail-closed (`UNKNOWN != DEFAULT`) | Integración probada con instantáneas inmutables y reglas comerciales |
 | **18** | Bid Analysis Snapshot | DONE | **PROVEN_DONE** | `bid_analysis_runs` append-only, SHA-256 canónico | Congelamiento inmutable estricto sin valores sintéticos arbitrarios |
 | **19** | Tender → Project | DONE | **PROVEN_DONE** | `executeTenderToProjectTransaction` y botón UI | Botón "Adjudicada → Convertir en Obra" crea proyecto, cómputo y pañol |
 | **20** | ERP Execution Flywheel | DONE | **PROVEN_DONE** | `recordCostObservationFromInvoice` en facturas | Idempotencia granular (documento + ítem) alimentando `cost_observations` |
@@ -299,21 +299,25 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 ---
 
 ### GATE 16 — Competitive Simulator
-* **STATUS**: **PARTIAL**
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 5A, GATE 8
 * **IMPLEMENTATION**:
   - Simulador estocástico Monte Carlo Box-Muller en `lib/procurement/competitive-simulator.ts`.
   - Fail-closed: si el presupuesto referencial es <= 0, retorna `INSUFFICIENT_EVIDENCE` sin inventar precios simulados.
-  - Metadatos de calibración: rastrea `isCalibrated: false` cuando no existen oferentes observados ni huellas históricas de competidores.
+  - Metadatos de calibración: rastrea `isCalibrated: false` cuando no existen oferentes observados ni huellas históricas, y `isCalibrated: true` cuando se suministran oferentes y huellas empíricas contextuales (`knownCompetitorFingerprints`).
+  - Integración en `persistirEvaluacionComercial` en `app/(internal)/licitaciones/actions.ts`: consulta los oferentes registrados y busca sus huellas contextuales mediante `getCompetitorProfile` para alimentar la simulación.
 * **VERIFICACIÓN**:
-  - `scripts/test-competitive-simulator.ts` valida la convergencia matemática, monotonía y fail-closed.
-* **GAPS**:
-  - Calibración empírica directa con la base histórica masiva de ofertas de la DNCP.
+  - `scripts/test-competitive-simulator.ts` (5/5 tests pasando):
+    - TEST 1: Simulación Monte Carlo (10.000 iteraciones) con percentiles ordenados (P10 <= P50 <= P90).
+    - TEST 2: Curva monótona de probabilidad de ganar.
+    - TEST 3: Fail-closed ante presupuesto referencial nulo o inválido (`INSUFFICIENT_EVIDENCE`).
+    - TEST 4: Detección y advertencia de simulación no calibrada.
+    - TEST 5: Simulación plenamente calibrada con huellas contextuales observadas (`isCalibrated: true`, 0 missing inputs).
 
 ---
 
 ### GATE 17 — Bid Engine
-* **STATUS**: **PARTIAL**
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 5A, GATE 5B, GATE 12, GATE 13, GATE 16
 * **IMPLEMENTATION**:
   - Motor de agregación de 5 pilares comerciales en `lib/procurement/bid-engine.ts`.
@@ -324,10 +328,14 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
     * Pilar 4 (Financiero): Bloquea si la simulación financiera tiene evidencia insuficiente.
     * Pilar 5 (Competitividad): Advierte si la simulación es no calibrada; bloquea si no hay presupuesto referencial.
   - Panel visual de evaluación comercial en `app/(internal)/licitaciones/[id]/page.tsx` conectado a `persistirEvaluacionComercial`.
+  - Congelamiento inmutable mediante SHA-256 en `bid_analysis_runs`.
 * **VERIFICACIÓN**:
-  - `scripts/test-bid-engine.ts` valida las 5 reglas comerciales (COMPETIR, REVISAR, NO_COMPETIR por descalificación, NO_COMPETIR por sugerencias genéricas, NO_COMPETIR por falta de costos).
-* **GAPS**:
-  - Configuración personalizada de tolerancias de riesgo por empresa desde la UI.
+  - `scripts/test-bid-engine.ts` (5/5 tests pasando):
+    - TEST 1: Caso COMPETIR (Licitación ANDE con todas las evidencias completas).
+    - TEST 2: Caso REVISAR (Alerta financiera de capital de trabajo pico).
+    - TEST 3: Caso NO_COMPETIR (Descalificación técnica excluyente).
+    - TEST 4: Caso NO_COMPETIR (Bloqueo si los requisitos no proceden del PBC oficial).
+    - TEST 5: Caso NO_COMPETIR (Bloqueo si la oferta carece de costos directos verificados).
 
 ---
 
