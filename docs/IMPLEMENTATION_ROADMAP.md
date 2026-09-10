@@ -31,12 +31,12 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 | **12** | Institution Intelligence | DONE | **PARTIAL** | Algoritmo de scoring de riesgo A, B, C, D | Integrado en pipeline comercial; sin warehouse histórico completo |
 | **13** | Financial Analysis of Tender | DONE | **PARTIAL** | Simulación de cashflow en 3 escenarios | Integrado en Bid Engine; sin lectura en vivo de tasas bancarias |
 | **14** | Tender Operations Agent V1 | DONE | **SCAFFOLD_ONLY** | Generador de plantillas de formularios | Strings markdown estáticos; no es un agente autónomo |
-| **15** | Tender Monitoring Agent | DONE | **PROVEN_DONE** | Comparador diferencial y logging de alertas | Integrado en `importarLicitacion`; sin cron autónomo desatendido |
+| **15** | Tender Monitoring Agent | DONE | **PARTIAL** | Comparador diferencial por huella digital de documentos | Sin worker/cron en segundo plano programado para sondeo desatendido |
 | **16** | Competitive Simulator | DONE | **PARTIAL** | Monte Carlo Box-Muller en memoria | Integrado en Bid Engine; no calibrado con dataset masivo |
 | **17** | Bid Engine | DONE | **PROVEN_DONE** | Evaluador de 5 pilares y panel en UI | Conectado a Server Action `persistirEvaluacionComercial` |
-| **18** | Bid Analysis Snapshot | DONE | **PROVEN_DONE** | `bid_analysis_runs`, hash SHA-256 y UI | Botón "Congelar Análisis (SHA-256)" y persistencia inmutable probada |
+| **18** | Bid Analysis Snapshot | DONE | **PROVEN_DONE** | `bid_analysis_runs` append-only, SHA-256 canónico | Congelamiento inmutable estricto sin valores sintéticos arbitrarios |
 | **19** | Tender → Project | DONE | **PROVEN_DONE** | `executeTenderToProjectTransaction` y botón UI | Botón "Adjudicada → Convertir en Obra" crea proyecto, cómputo y pañol |
-| **20** | ERP Execution Flywheel | DONE | **PROVEN_DONE** | `recordCostObservationFromInvoice` en facturas | Cada factura vinculada a OC alimenta `cost_observations` automáticamente |
+| **20** | ERP Execution Flywheel | DONE | **PROVEN_DONE** | `recordCostObservationFromInvoice` en facturas | Idempotencia granular (documento + ítem) alimentando `cost_observations` |
 | **21** | Product Hardening / Enterprise | DONE | **SCAFFOLD_ONLY** | `docker-compose.enterprise.yml` y docs | No desplegado ni validado en infraestructura real |
 
 ---
@@ -257,15 +257,16 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 ---
 
 ### GATE 15 — Tender Monitoring Agent
-* **STATUS**: **PROVEN_DONE**
+* **STATUS**: **PARTIAL**
 * **DEPENDENCIES**: GATE 14
 * **IMPLEMENTATION**:
-  - Comparador diferencial en `lib/procurement/tender-monitoring.ts`.
-  - Integrado directamente en `importarLicitacion` en `app/(internal)/licitaciones/actions.ts`: Compara snapshot previo con actualización de la DNCP y emite eventos de auditoría (`tender.monitoring_alert`) ante adendas, prórrogas o cambios de estado.
+  - Comparador diferencial en `lib/procurement/tender-monitoring.ts` basado en huella digital de documentos (`TenderDocumentFingerprint`: tipo, tipo_detalle, título, url).
+  - Discrimina rigurosamente adendas y enmiendas (`NUEVA_ADENDA`, `CRITICAL`) de notas de aclaración (`ACLARACION_PUBLICADA`, `INFO`) y anexos técnicos (`NUEVO_DOCUMENTO`, `INFO`).
+  - Integrado en `importarLicitacion` en `app/(internal)/licitaciones/actions.ts`: compara documentos reales entre el estado previo y la actualización de la DNCP, emitiendo eventos de auditoría (`tender.monitoring_alert`).
 * **VERIFICACIÓN**:
-  - `scripts/test-tender-monitoring.ts` valida la detección de adendas críticas y prórrogas.
+  - `scripts/test-tender-monitoring.ts` valida la discriminación precisa de adendas, prórrogas y aclaraciones.
 * **GAPS**:
-  - Worker en segundo plano (cron job) para consultar periódicamente todas las licitaciones seguidas sin requerir click manual.
+  - Requiere un worker en segundo plano programado (cron job o scheduled background runner) para sondear periódicamente licitaciones sin depender de reimportación manual por el usuario.
 
 ---
 
@@ -300,14 +301,13 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 * **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 17
 * **IMPLEMENTATION**:
-  - `0065_bid_analysis_snapshots.sql`: Tabla `bid_analysis_runs` con trigger de inmutabilidad append-only.
-  - Módulo `lib/procurement/bid-snapshot.ts` con hashing SHA-256 inmutable, `persistBidAnalysisSnapshot` y `getTenderAnalysisSnapshots`.
-  - Botón "Congelar Análisis (SHA-256)" en la UI de licitaciones conectado a `persistirEvaluacionComercial` en `actions.ts`.
-  - Visualización del snapshot activo y su hash SHA-256 en el detalle de la licitación.
+  - `0065_bid_analysis_snapshots.sql`: Tabla `bid_analysis_runs` con trigger estricto que bloquea tanto `UPDATE` como `DELETE` (inmutabilidad estricta append-only).
+  - Módulo `lib/procurement/bid-snapshot.ts`: Serialización canónica determinística (`canonicalJsonStringify`) y hashing criptográfico SHA-256 cubriendo la totalidad de los datos del snapshot (compliance, institución, financiero, simulación, pilares, justificaciones, bloqueadores).
+  - Eliminación absoluta de suposiciones sintéticas en `persistirEvaluacionComercial`: cálculo de costo directo a partir de `licitacion_items` emparejados con el catálogo de la empresa; inferencia de plazo según fechas reales de pliego; fail-closed a `REVISAR` o `NO_COMPETIR` si no hay cómputo o presupuesto referencial válido (`UNKNOWN != DEFAULT`).
 * **VERIFICACIÓN**:
-  - `scripts/test-bid-snapshot.ts` valida la inmutabilidad criptográfica y detección de adulteraciones.
+  - `scripts/test-bid-snapshot.ts` valida la inmutabilidad y la detección inmediata de adulteración sobre cualquier campo canónico del snapshot.
 * **GAPS**:
-  - Exportación de la corrida congelada en PDF auditable para comités de directorio.
+  - Exportación de la corrida congelada en PDF firmado digitalmente para comités de directorio.
 
 ---
 

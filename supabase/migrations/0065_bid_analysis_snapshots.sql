@@ -49,16 +49,16 @@ CREATE INDEX IF NOT EXISTS idx_bid_runs_empresa_tender
 CREATE INDEX IF NOT EXISTS idx_bid_runs_decision 
     ON public.bid_analysis_runs (empresa_id, decision, created_at DESC);
 
--- Trigger para bloquear updates (inmutabilidad estricta append-only)
+-- Trigger para bloquear updates y deletes (inmutabilidad estricta append-only)
 CREATE OR REPLACE FUNCTION public.bloquear_modificacion_snapshot()
 RETURNS TRIGGER AS $$
 BEGIN
-    RAISE EXCEPTION 'Los snapshots de análisis de licitación son inmutables y no pueden ser modificados ni sobreescritos.';
+    RAISE EXCEPTION 'Los snapshots de análisis de licitación son estrictamente inmutables (append-only) y no pueden ser modificados ni eliminados.';
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE TRIGGER trg_bid_analysis_runs_inmutable
-    BEFORE UPDATE ON public.bid_analysis_runs
+    BEFORE UPDATE OR DELETE ON public.bid_analysis_runs
     FOR EACH ROW
     EXECUTE FUNCTION public.bloquear_modificacion_snapshot();
 

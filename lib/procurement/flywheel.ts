@@ -163,16 +163,17 @@ export async function recordCostObservationFromInvoice(
       categoria = 'MANO_OBRA';
     }
 
-    // Evitar duplicados si la factura ya generó una observación (idempotencia)
+    // Evitar duplicados a nivel de ítem/línea dentro del mismo documento (idempotencia granular)
     const { data: existingObs } = await supabase
       .from("cost_observations")
       .select("id")
       .eq("empresa_id", params.empresaId)
       .eq("documento_id", params.invoiceId)
+      .eq("descripcion_item", description)
       .maybeSingle();
 
     if (existingObs) {
-      return; // Ya fue registrada previamente
+      return; // Ya fue registrada previamente esta línea específica
     }
 
     const { error: insertError } = await supabase.from("cost_observations").insert({

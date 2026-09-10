@@ -30,17 +30,47 @@ export interface BidAnalysisRunRecord {
 }
 
 /**
- * Genera el hash criptográfico SHA-256 inmutable de un análisis
+ * Serialización canónica determinística de objetos y arrays con ordenamiento alfabético de claves.
  */
-export function generateSnapshotHash(payload: {
+export function canonicalJsonStringify(obj: any): string {
+  if (obj === null || typeof obj !== 'object') {
+    return JSON.stringify(obj);
+  }
+  if (Array.isArray(obj)) {
+    return '[' + obj.map(item => canonicalJsonStringify(item)).join(',') + ']';
+  }
+  const keys = Object.keys(obj).sort();
+  const pairs = keys.map(k => `${JSON.stringify(k)}:${canonicalJsonStringify(obj[k])}`);
+  return '{' + pairs.join(',') + '}';
+}
+
+export type CanonicalSnapshotPayload = {
+  empresaId: string;
   tenderId: string;
-  decision: string;
+  tituloLicitacion: string;
+  convocante: string;
+  decision: BidDecisionOutput['decision'];
   overallScore: number;
-  recommendedPrice: number;
+  montoReferencialPyg: number;
+  precioOfertaRecomendadoPyg: number;
+  margenNetoEstimadoPct: number;
+  probabilidadGanarPct: number;
+  complianceSnapshot: any;
+  institutionSnapshot: any;
+  financialSnapshot: any;
+  simulationSnapshot: any;
+  pillarsSnapshot: any;
+  justifications: string[];
+  blockers: string[];
   createdAt: string;
-}): string {
-  const content = `${payload.tenderId}|${payload.decision}|${payload.overallScore}|${payload.recommendedPrice}|${payload.createdAt}`;
-  return createHash('sha256').update(content).digest('hex');
+};
+
+/**
+ * Genera el hash criptográfico SHA-256 inmutable de TODO el contenido canónico del análisis
+ */
+export function generateSnapshotHash(payload: CanonicalSnapshotPayload): string {
+  const canonical = canonicalJsonStringify(payload);
+  return createHash('sha256').update(canonical, 'utf8').digest('hex');
 }
 
 /**
@@ -52,15 +82,7 @@ export function createBidAnalysisSnapshot(
   output: BidDecisionOutput,
   timestamp: string = new Date().toISOString()
 ): BidAnalysisRunRecord {
-  const snapshotHash = generateSnapshotHash({
-    tenderId: input.tenderId,
-    decision: output.decision,
-    overallScore: output.overallScore,
-    recommendedPrice: output.recommendedOfferPricePyg,
-    createdAt: timestamp
-  });
-
-  return {
+  const canonicalPayload: CanonicalSnapshotPayload = {
     empresaId,
     tenderId: input.tenderId,
     tituloLicitacion: input.tenderTitle,
@@ -78,23 +100,43 @@ export function createBidAnalysisSnapshot(
     pillarsSnapshot: output.pillars,
     justifications: output.keyJustifications,
     blockers: output.blockers,
-    snapshotHash,
     createdAt: timestamp
+  };
+
+  const snapshotHash = generateSnapshotHash(canonicalPayload);
+
+  return {
+    ...canonicalPayload,
+    snapshotHash
   };
 }
 
 /**
- * Verifica la integridad del snapshot congelado contra adulteraciones
+ * Verifica la integridad del snapshot congelado contra adulteraciones de CUALQUIER campo canónico
  */
 export function verifySnapshotIntegrity(record: BidAnalysisRunRecord): boolean {
-  const calculated = generateSnapshotHash({
+  const canonicalPayload: CanonicalSnapshotPayload = {
+    empresaId: record.empresaId,
     tenderId: record.tenderId,
+    tituloLicitacion: record.tituloLicitacion,
+    convocante: record.convocante,
     decision: record.decision,
     overallScore: record.overallScore,
-    recommendedPrice: record.precioOfertaRecomendadoPyg,
+    montoReferencialPyg: record.montoReferencialPyg,
+    precioOfertaRecomendadoPyg: record.precioOfertaRecomendadoPyg,
+    margenNetoEstimadoPct: record.margenNetoEstimadoPct,
+    probabilidadGanarPct: record.probabilidadGanarPct,
+    complianceSnapshot: record.complianceSnapshot,
+    institutionSnapshot: record.institutionSnapshot,
+    financialSnapshot: record.financialSnapshot,
+    simulationSnapshot: record.simulationSnapshot,
+    pillarsSnapshot: record.pillarsSnapshot,
+    justifications: record.justifications,
+    blockers: record.blockers,
     createdAt: record.createdAt
-  });
+  };
 
+  const calculated = generateSnapshotHash(canonicalPayload);
   return calculated === record.snapshotHash;
 }
 

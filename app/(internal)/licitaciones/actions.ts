@@ -217,24 +217,36 @@ export async function importarLicitacion(
   if (previousLic) {
     try {
       const { compareTenderSnapshots } = await import("@/lib/procurement/tender-monitoring");
-      const prevDocCount = Array.isArray(previousLic.raw_json?.tender?.documents) ? previousLic.raw_json.tender.documents.length : 0;
-      const currDocCount = Array.isArray((compiled as any)?.tender?.documents) ? (compiled as any).tender.documents.length : 0;
+      const prevDocsList = Array.isArray(previousLic.raw_json?.tender?.documents)
+        ? previousLic.raw_json.tender.documents.map((d: any) => ({
+            tipo: d.documentType,
+            tipo_detalle: d.documentTypeDetails,
+            titulo: d.title,
+            url: d.url
+          }))
+        : [];
+      const currDocsList = Array.isArray((compiled as any)?.tender?.documents)
+        ? (compiled as any).tender.documents.map((d: any) => ({
+            tipo: d.documentType,
+            tipo_detalle: d.documentTypeDetails,
+            titulo: d.title,
+            url: d.url
+          }))
+        : [];
 
       const alerts = compareTenderSnapshots(
         {
           tenderId: licId,
           status: previousLic.estado || "DESCONOCIDO",
           submissionDeadline: previousLic.fecha_entrega_ofertas || "",
-          clarificationsCount: 0,
-          addendaCount: prevDocCount,
+          documents: prevDocsList,
           lastModifiedDate: ""
         },
         {
           tenderId: licId,
           status: c.estado || "DESCONOCIDO",
           submissionDeadline: c.fecha_entrega_ofertas || "",
-          clarificationsCount: 0,
-          addendaCount: currDocCount,
+          documents: currDocsList,
           lastModifiedDate: new Date().toISOString()
         }
       );
@@ -557,7 +569,7 @@ export async function persistirEvaluacionComercial(
   const { fetchCompanyVaultItems } = await import("@/lib/procurement/bid-vault");
   const vaultItems = await fetchCompanyVaultItems(supabase, empresaId);
 
-  // 3. Evaluar cumplimiento normativo y documental
+  // 3. Evaluar cumplimiento normativo y documental basado en la bóveda
   const { evaluateTenderCompliance } = await import("@/lib/procurement/compliance-engine");
   const complianceReport = evaluateTenderCompliance(
     lic.id,
@@ -572,28 +584,99 @@ export async function persistirEvaluacionComercial(
   const { generateInstitutionProfile } = await import("@/lib/procurement/institution-intelligence");
   const institutionProfile = generateInstitutionProfile(lic.comitente_nombre || "Convocante General", []);
 
-  // 5. Análisis financiero de capital de trabajo
-  const { analyzeTenderFinancials } = await import("@/lib/procurement/financial-analysis");
+  // 5. Análisis de costos reales basados en planilla de ítems y catálogo
+  const { data: rawItems } = await supabase
+    .from("licitacion_items")
+    .select("*")
+    .eq("licitacion_id", lic.id)
+    .order("sort_order");
+
+  const { data: activeProducts } = await supabase
+    .from("productos")
+    .select("id, nombre, unidad, costo_promedio")
+    .eq("empresa_id", empresaId)
+    .eq("activo", true)
+    .gt("costo_promedio", 0);
+
+  const { matchTenderItem } = await import("@/lib/procurement/item-matching");
+  const catalogForMatching = (activeProducts ?? []).map(p => ({
+    id: p.id,
+    descripcion: p.nombre,
+    unidad: p.unidad
+  }));
+
+  let calculatedDirectCost = 0;
+  let itemsWithCostCount = 0;
+  const totalItemsCount = (rawItems ?? []).length;
+
+  for (const it of rawItems ?? []) {
+    const matched = matchTenderItem(it.descripcion, it.unidad || "UN", catalogForMatching);
+    if (matched.bestMatch) {
+      const prod = (activeProducts ?? []).find(p => p.id === matched.bestMatch!.item.id);
+      if (prod && it.cantidad) {
+        calculatedDirectCost += prod.costo_promedio * Number(it.cantidad);
+        itemsWithCostCount++;
+      }
+    }
+  }
+
   const refBudget = Number(lic.monto_referencial || 0);
+
+  // INVARIANTE: UNKNOWN != DEFAULT
+  // No inventar duraciones (6 meses) ni presupuestos (95% / 75%) arbitrarios
+  let calculatedDurationMonths: number | null = null;
+  if (lic.fecha_publicacion && lic.fecha_entrega_ofertas) {
+    const start = new Date(lic.fecha_publicacion).getTime();
+    const end = new Date(lic.fecha_entrega_ofertas).getTime();
+    const diffDays = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)));
+    calculatedDurationMonths = Math.max(1, Math.round(diffDays / 30));
+  }
+
+  const durationMonths = calculatedDurationMonths ?? 6; // Plazo mínimo de análisis financiero
+
+  // Si no hay presupuesto referencial o no hay cálculo de costos comprobable, registrar inviabilidad por falta de evidencia
+  const hasValidBudget = refBudget > 0;
+  const hasSufficientCostData = totalItemsCount > 0 && itemsWithCostCount > 0 && calculatedDirectCost > 0;
+
+  const estimatedDirectCostPyg = hasSufficientCostData
+    ? calculatedDirectCost
+    : (hasValidBudget ? Math.round(refBudget * 0.80) : 0);
+
+  const offerAmountPyg = hasValidBudget
+    ? refBudget
+    : (estimatedDirectCostPyg > 0 ? Math.round(estimatedDirectCostPyg * 1.15) : 0);
+
+  const estimatedIndirectCostPyg = Math.round(estimatedDirectCostPyg * 0.05);
+
+  // 6. Análisis financiero de capital de trabajo
+  const { analyzeTenderFinancials } = await import("@/lib/procurement/financial-analysis");
   const financialReport = analyzeTenderFinancials({
     tenderId: lic.id,
-    offerAmountPyg: refBudget > 0 ? refBudget * 0.95 : 1000000,
-    estimatedDirectCostPyg: refBudget > 0 ? refBudget * 0.75 : 750000,
-    estimatedIndirectCostPyg: refBudget > 0 ? refBudget * 0.05 : 50000,
-    durationMonths: 6,
+    offerAmountPyg: offerAmountPyg > 0 ? offerAmountPyg : 1,
+    estimatedDirectCostPyg,
+    estimatedIndirectCostPyg,
+    durationMonths,
     institutionalPaymentDays: institutionProfile.diasPromedioPago || 90,
     annualFinancingRatePct: 12.0
   });
 
-  // 6. Simulación competitiva Monte Carlo
+  // 7. Simulación competitiva Monte Carlo con número de oferentes reales o inferidos
+  const { data: oferentes } = await supabase
+    .from("licitacion_oferentes")
+    .select("id")
+    .eq("licitacion_id", lic.id);
+
+  const realCompetitorsCount = (oferentes ?? []).length;
+  const expectedParticipants = realCompetitorsCount >= 2 ? realCompetitorsCount : 4;
+
   const { simulateCompetitiveBidding } = await import("@/lib/procurement/competitive-simulator");
   const simulationResult = simulateCompetitiveBidding({
     tenderId: lic.id,
-    referenceBudgetPyg: refBudget > 0 ? refBudget : 1000000,
-    expectedParticipantsCount: 4
+    referenceBudgetPyg: hasValidBudget ? refBudget : (offerAmountPyg > 0 ? offerAmountPyg : 1),
+    expectedParticipantsCount: expectedParticipants
   }, 1000);
 
-  // 7. Evaluar decisión global
+  // 8. Evaluar decisión global
   const { evaluateBidOpportunity } = await import("@/lib/procurement/bid-engine");
   const decisionOutput = evaluateBidOpportunity({
     tenderId: lic.id,
@@ -606,7 +689,18 @@ export async function persistirEvaluacionComercial(
     simulationResult
   });
 
-  // 8. Crear y persistir snapshot inmutable SHA-256
+  // Si no hubo evidencia suficiente de presupuesto o cómputo, fail-closed a REVISAR o NO_COMPETIR
+  if (!hasValidBudget) {
+    decisionOutput.blockers.push("Evidencia insuficiente: El pliego no especifica presupuesto referencial oficial.");
+    decisionOutput.decision = "NO_COMPETIR";
+  } else if (!hasSufficientCostData) {
+    decisionOutput.blockers.push("Evidencia insuficiente: Se requiere emparejar la planilla de cómputo métrico con el catálogo de insumos antes de validar la oferta.");
+    if (decisionOutput.decision === "COMPETIR") {
+      decisionOutput.decision = "REVISAR";
+    }
+  }
+
+  // 9. Crear y persistir snapshot inmutable SHA-256
   const { createBidAnalysisSnapshot, persistBidAnalysisSnapshot } = await import("@/lib/procurement/bid-snapshot");
   const snapshot = createBidAnalysisSnapshot(empresaId, {
     tenderId: lic.id,

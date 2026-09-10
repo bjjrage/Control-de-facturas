@@ -63,6 +63,56 @@ async function runTests() {
   assert(alerts2.length === 1, 'Genera 1 alerta de cambio de estado');
   assert(alerts2[0].eventType === 'CAMBIO_ESTADO' && alerts2[0].actionRequired === 'VERIFICAR_RESULTADOS', 'Requiere verificar resultados oficiales');
 
+  // CASO 3: Detección granular por huella digital de documentos (No disparar NUEVA_ADENDA si es solo un anexo)
+  console.log('\n--- TEST 3: Huella Digital de Documentos (Adenda vs Anexo vs Aclaración) ---');
+  const snapWithInitialDocs: TenderSnapshot = {
+    tenderId: 'DNCP-455120',
+    status: 'CONVOCADA',
+    submissionDeadline: '2026-04-10T09:00:00Z',
+    documents: [
+      { tipo: 'tenderNotice', tipo_detalle: 'Pliego de Bases', titulo: 'PBC Llamado 455120', url: 'https://dncp.gov.py/doc1.pdf' }
+    ],
+    lastModifiedDate: '2026-03-01'
+  };
+
+  // 3.1 Se sube un anexo genérico: NO debe ser NUEVA_ADENDA
+  const snapWithAttachment: TenderSnapshot = {
+    ...snapWithInitialDocs,
+    documents: [
+      ...snapWithInitialDocs.documents!,
+      { tipo: 'technicalSpecifications', tipo_detalle: 'Plano', titulo: 'Plano de Estructura', url: 'https://dncp.gov.py/plano.pdf' }
+    ]
+  };
+  const alertsDoc = compareTenderSnapshots(snapWithInitialDocs, snapWithAttachment);
+  assert(alertsDoc.length === 1, 'Genera 1 alerta por nuevo documento');
+  assert(alertsDoc[0].eventType === 'NUEVO_DOCUMENTO', 'Documento técnico no es adenda, es NUEVO_DOCUMENTO');
+  assert(alertsDoc[0].severity === 'INFO', 'Severidad es INFO');
+
+  // 3.2 Se publica una Adenda Modificatoria formal: SÍ debe ser NUEVA_ADENDA
+  const snapWithRealAddenda: TenderSnapshot = {
+    ...snapWithAttachment,
+    documents: [
+      ...snapWithAttachment.documents!,
+      { tipo: 'tenderNotice', tipo_detalle: 'Adenda N° 1', titulo: 'Modificación de Cómputo Métrico', url: 'https://dncp.gov.py/adenda1.pdf' }
+    ]
+  };
+  const alertsAddenda = compareTenderSnapshots(snapWithAttachment, snapWithRealAddenda);
+  assert(alertsAddenda.length === 1, 'Genera 1 alerta por adenda');
+  assert(alertsAddenda[0].eventType === 'NUEVA_ADENDA', 'Identifica fielmente la adenda');
+  assert(alertsAddenda[0].severity === 'CRITICAL', 'Severidad de adenda es CRITICAL');
+
+  // 3.3 Se publica una Nota de Aclaración: SÍ debe ser ACLARACION_PUBLICADA
+  const snapWithClarification: TenderSnapshot = {
+    ...snapWithRealAddenda,
+    documents: [
+      ...snapWithRealAddenda.documents!,
+      { tipo: 'clarifications', tipo_detalle: 'Aclaración N° 1', titulo: 'Respuesta a Consultas', url: 'https://dncp.gov.py/aclaracion1.pdf' }
+    ]
+  };
+  const alertsClarif = compareTenderSnapshots(snapWithRealAddenda, snapWithClarification);
+  assert(alertsClarif.length === 1, 'Genera 1 alerta por nota de aclaración');
+  assert(alertsClarif[0].eventType === 'ACLARACION_PUBLICADA', 'Identifica fielmente la nota de aclaración');
+
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 15 PASARON CON ÉXITO');
   console.log('======================================================\n');

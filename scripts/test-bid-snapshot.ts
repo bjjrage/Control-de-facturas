@@ -56,16 +56,53 @@ async function runTests() {
   assert(snapshot.snapshotHash.length === 64, 'Hash SHA-256 válido de 64 caracteres');
   assert(verifySnapshotIntegrity(snapshot) === true, 'Integridad del snapshot verificada con éxito');
 
-  // TEST 2: Detección Inmediata de Adulteración (Tamper Detection)
-  console.log('\n--- TEST 2: Detección de Adulteración Histórica ---');
-  const adulterated = { ...snapshot, overallScore: 99 }; // Cambio fraudulento
-  const isTamperedValid = verifySnapshotIntegrity(adulterated);
-  console.log(`Intento de alteración silenciosa detectado: ${!isTamperedValid ? 'RECHAZADO' : 'ACEPTADO'}`);
+  // TEST 2: Detección Inmediata de Adulteración (Tamper Detection) en cada pilar canónico
+  console.log('\n--- TEST 2: Detección de Adulteración en Componentes Canónicos ---');
+  
+  // 2.1 Adulteración en Score general
+  const tamperedScore = { ...snapshot, overallScore: 99 };
+  assert(verifySnapshotIntegrity(tamperedScore) === false, 'Adulteración en overallScore detectada y rechazada');
 
-  assert(isTamperedValid === false, 'El sistema detecta inmediatamente que el snapshot fue adulterado');
+  // 2.2 Adulteración en Compliance Snapshot
+  const tamperedCompliance = {
+    ...snapshot,
+    complianceSnapshot: { ...snapshot.complianceSnapshot, isEligibleToBid: false }
+  };
+  assert(verifySnapshotIntegrity(tamperedCompliance) === false, 'Adulteración en complianceSnapshot detectada y rechazada');
+
+  // 2.3 Adulteración en Financial Snapshot
+  const tamperedFinancial = {
+    ...snapshot,
+    financialSnapshot: { ...snapshot.financialSnapshot, totalCostPyg: 9999999999 }
+  };
+  assert(verifySnapshotIntegrity(tamperedFinancial) === false, 'Adulteración en financialSnapshot detectada y rechazada');
+
+  // 2.4 Adulteración en Simulation Snapshot
+  const tamperedSimulation = {
+    ...snapshot,
+    simulationSnapshot: { ...snapshot.simulationSnapshot, recommendedSweetSpotDiscountPct: 15.0 }
+  };
+  assert(verifySnapshotIntegrity(tamperedSimulation) === false, 'Adulteración en simulationSnapshot detectada y rechazada');
+
+  // 2.5 Adulteración en Blockers
+  const tamperedBlocker = {
+    ...snapshot,
+    blockers: ['Bloqueador inyectado fraudulentamente']
+  };
+  assert(verifySnapshotIntegrity(tamperedBlocker) === false, 'Inyección fraudulenta en blockers detectada y rechazada');
+
+  // 2.6 Adulteración en Justifications
+  const tamperedJustification = {
+    ...snapshot,
+    justifications: ['Justificación falsa']
+  };
+  assert(verifySnapshotIntegrity(tamperedJustification) === false, 'Modificación en justifications detectada y rechazada');
+
+  // 2.7 Snapshot intacto verificado
+  assert(verifySnapshotIntegrity(snapshot) === true, 'Snapshot no adulterado verificado con éxito');
 
   console.log('\n======================================================');
-  console.log('🎉 TODOS LOS TESTS DE GATE 18 PASARON CON ÉXITO');
+  console.log('🎉 TODOS LOS TESTS DE INTEGRIDAD CANÓNICA DE GATE 18 PASARON');
   console.log('======================================================\n');
 }
 
