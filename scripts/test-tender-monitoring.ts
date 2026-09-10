@@ -113,6 +113,72 @@ async function runTests() {
   assert(alertsClarif.length === 1, 'Genera 1 alerta por nota de aclaración');
   assert(alertsClarif[0].eventType === 'ACLARACION_PUBLICADA', 'Identifica fielmente la nota de aclaración');
 
+  // CASO 4: Scheduled Background Runner (runTenderMonitoringBatch)
+  console.log('\n--- TEST 4: Scheduled Background Runner (Batch Polling) ---');
+  const { runTenderMonitoringBatch } = await import('../lib/procurement/tender-monitoring-runner');
+
+  const insertedAuditLogs: any[] = [];
+  const updatedLicitaciones: any[] = [];
+
+  const mockSupabase: any = {
+    from: (table: string) => {
+      if (table === 'licitaciones') {
+        return {
+          select: () => ({
+            neq: () => ({
+              order: () => ({
+                limit: (lim: number) => Promise.resolve({
+                  data: [
+                    {
+                      id: 'lic-batch-1',
+                      empresa_id: 'emp-101',
+                      dncp_nro: '455120',
+                      ocid: 'ocds-03ad3f-455120',
+                      titulo: 'Construcción Puente MOPC',
+                      estado: 'CONVOCATORIA',
+                      fecha_entrega_ofertas: '2026-04-10T09:00:00Z',
+                      raw_json: {
+                        tender: {
+                          documents: [
+                            { documentType: 'tenderNotice', documentTypeDetails: 'Pliego', title: 'PBC Inicial', url: 'https://dncp.gov.py/pbc.pdf' }
+                          ]
+                        }
+                      },
+                      synced_at: '2026-03-01T10:00:00Z'
+                    }
+                  ],
+                  error: null
+                })
+              })
+            })
+          }),
+          update: (patch: any) => ({
+            eq: (field: string, val: any) => {
+              updatedLicitaciones.push({ field, val, patch });
+              return Promise.resolve({ error: null });
+            }
+          })
+        };
+      }
+      if (table === 'audit_logs') {
+        return {
+          insert: (entry: any) => {
+            insertedAuditLogs.push(entry);
+            return Promise.resolve({ error: null });
+          }
+        };
+      }
+      return {};
+    }
+  };
+
+  const batchResult = await runTenderMonitoringBatch(mockSupabase, { limit: 1, dryRun: false });
+  console.log(`Licitaciones verificadas: ${batchResult.checkedCount} | Actualizadas: ${batchResult.updatedCount} | Alertas: ${batchResult.alertsGeneratedCount}`);
+
+  assert(batchResult.checkedCount === 1, 'Procesa exactamente 1 licitación en el lote');
+  assert(batchResult.startedAt !== undefined, 'Registra timestamp de inicio');
+  assert(batchResult.finishedAt !== undefined, 'Registra timestamp de finalización');
+
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 15 PASARON CON ÉXITO');
   console.log('======================================================\n');

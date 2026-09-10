@@ -31,7 +31,7 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 | **12** | Institution Intelligence | DONE | **PARTIAL** | Algoritmo de scoring de riesgo A, B, C, D, SIN_DATOS | Convocantes sin historial emiten `SIN_DATOS` (0 días, no 90d por defecto) |
 | **13** | Financial Analysis of Tender | DONE | **PARTIAL** | Simulación de cashflow fail-closed | Sin datos de plazo/costos/mora retorna `INSUFFICIENT_EVIDENCE` (no 6m/12% def) |
 | **14** | Tender Operations Agent V1 | DONE | **PARTIAL** | Borradores de oferta, formularios plantilla y bóveda | Rechaza placeholders (80000000-1) e ítems sin precio; plantillas oficiales pendientes |
-| **15** | Tender Monitoring Agent | DONE | **PARTIAL** | Comparador diferencial por huella digital de documentos | Sin worker/cron en segundo plano programado para sondeo desatendido |
+| **15** | Tender Monitoring Agent | DONE | **PROVEN_DONE** | Huella digital de docs, runner `runTenderMonitoringBatch` y `/api/cron/tender-monitoring` | Detección reactiva y programada de adendas, prórrogas y estados |
 | **16** | Competitive Simulator | DONE | **PARTIAL** | Monte Carlo Box-Muller en memoria | Fail-closed en presupuesto referencial nulo; trackea `isCalibrated: false` |
 | **17** | Bid Engine | DONE | **PARTIAL** | Evaluador de 5 pilares fail-closed (`UNKNOWN != DEFAULT`) | Dictamina REVISAR / NO_COMPETIR ante evidencia incompleta; jamás GO sintético |
 | **18** | Bid Analysis Snapshot | DONE | **PROVEN_DONE** | `bid_analysis_runs` append-only, SHA-256 canónico | Congelamiento inmutable estricto sin valores sintéticos arbitrarios |
@@ -264,16 +264,18 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 ---
 
 ### GATE 15 — Tender Monitoring Agent
-* **STATUS**: **PARTIAL**
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 14
 * **IMPLEMENTATION**:
   - Comparador diferencial en `lib/procurement/tender-monitoring.ts` basado en huella digital de documentos (`TenderDocumentFingerprint`: tipo, tipo_detalle, título, url).
   - Discrimina rigurosamente adendas y enmiendas (`NUEVA_ADENDA`, `CRITICAL`) de notas de aclaración (`ACLARACION_PUBLICADA`, `INFO`) y anexos técnicos (`NUEVO_DOCUMENTO`, `INFO`).
-  - Integrado en `importarLicitacion` en `app/(internal)/licitaciones/actions.ts`: compara documentos reales entre el estado previo y la actualización de la DNCP, emitiendo eventos de auditoría (`tender.monitoring_alert`).
+  - Motor de sondeo en segundo plano desatendido en `lib/procurement/tender-monitoring-runner.ts` (`runTenderMonitoringBatch`): itera licitaciones activas ordenadas por `synced_at`, consulta la DNCP de forma resiliente, corre la comparación de huellas y persiste alertas operativas en `audit_logs`.
+  - Endpoint de cron seguro en `app/api/cron/tender-monitoring/route.ts` con soporte GET y POST, protegido mediante cabecera o bearer token `CRON_SECRET` para ejecución programada en Vercel Cron, GitHub Actions o scheduler de infraestructura.
+  - Integrado reactivamente en `importarLicitacion` en `app/(internal)/licitaciones/actions.ts`.
 * **VERIFICACIÓN**:
-  - `scripts/test-tender-monitoring.ts` valida la discriminación precisa de adendas, prórrogas y aclaraciones.
+  - `scripts/test-tender-monitoring.ts` valida la discriminación precisa de adendas, prórrogas, aclaraciones y el procesamiento en lote del runner desatendido.
 * **GAPS**:
-  - Requiere un worker en segundo plano programado (cron job o scheduled background runner) para sondear periódicamente licitaciones sin depender de reimportación manual por el usuario.
+  - Notificaciones en tiempo real vía webhook / Slack / WhatsApp para alertas de severidad `CRITICAL`.
 
 ---
 
