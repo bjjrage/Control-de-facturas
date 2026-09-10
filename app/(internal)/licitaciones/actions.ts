@@ -394,3 +394,87 @@ export async function convertirLicitacionAProyecto(
 
   return { projectId: result.projectId, projectCode: result.projectCode };
 }
+
+/**
+ * Importa planillas de costos / cómputos métricos históricos (Excel/CSV) para calibrar el Cost Engine (Gate 6)
+ */
+export async function importarPlanillaCostosHistoricos(
+  formData: FormData
+): Promise<{ error?: string; importados?: number; totalLeidos?: number; categorias?: Record<string, number> }> {
+  const { supabase, profile } = await ctx();
+  const empresaId = profile.empresa_id;
+
+  const file = formData.get("file") as File | null;
+  const nombreObra = (formData.get("nombre_obra") as string) || "Obra Histórica";
+  const fechaObra = (formData.get("fecha_obra") as string) || new Date().toISOString().split("T")[0];
+
+  if (!file || file.size === 0) {
+    return { error: "Por favor seleccioná un archivo Excel o CSV válido." };
+  }
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const { parseHistoricalSpreadsheet } = await import("@/lib/cost-engine/onboarding");
+    const result = parseHistoricalSpreadsheet(buffer, {
+      empresaId,
+      projectName: nombreObra,
+      defaultDate: fechaObra,
+      defaultSource: "MANUAL"
+    });
+
+    if (result.observations.length === 0) {
+      return {
+        error: "No se encontraron filas con descripción y precio válidos en la planilla.",
+        totalLeidos: result.totalRowsRead
+      };
+    }
+
+    // Insertar en cost_observations en lotes de 100
+    const observationsToInsert = result.observations.map((obs: any) => ({
+      empresa_id: obs.empresaId,
+      fuente: obs.fuente,
+      descripcion_item: obs.descripcionItem,
+      categoria_insumo: obs.categoriaInsumo,
+      cantidad: obs.cantidad,
+      unidad: obs.unidad,
+      precio_unitario: obs.precioUnitario,
+      moneda: obs.moneda,
+      tipo_cambio: obs.tipoCambio,
+      fecha_observacion: obs.fechaObservacion,
+      es_volatil: obs.esVolatil
+    }));
+
+    const chunkSize = 100;
+    for (let i = 0; i < observationsToInsert.length; i += chunkSize) {
+      const chunk = observationsToInsert.slice(i, i + chunkSize);
+      const { error: insertError } = await supabase.from("cost_observations").insert(chunk);
+      if (insertError) {
+        console.error("[Onboarding] Error inserting chunk:", insertError);
+      }
+    }
+
+    await logAudit(supabase, {
+      action: "cost_engine.historical_onboarding",
+      detail: {
+        obra: nombreObra,
+        valid_rows: result.validObservations,
+        total_rows: result.totalRowsRead,
+        categories: result.inferredCategories
+      }
+    });
+
+    revalidatePath("/licitaciones");
+    revalidatePath("/licitaciones/costos");
+
+    return {
+      importados: result.validObservations,
+      totalLeidos: result.totalRowsRead,
+      categorias: result.inferredCategories
+    };
+  } catch (err: any) {
+    console.error("[Onboarding] Error processing file:", err);
+    return { error: `Error al procesar el archivo: ${err.message || String(err)}` };
+  }
+}

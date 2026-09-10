@@ -10,7 +10,12 @@ import { Input, Label, Textarea } from "@/components/ui/input";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { CurrencyCode, Licitacion, LicitacionDecision, LicitacionPerfil } from "@/lib/types";
 
-import { guardarPerfilLicitaciones, importarLicitacion, setLicitacionDecision } from "./actions";
+import {
+  guardarPerfilLicitaciones,
+  importarLicitacion,
+  setLicitacionDecision,
+  importarPlanillaCostosHistoricos
+} from "./actions";
 
 const DECISION_LABEL: Record<LicitacionDecision, string> = {
   SIN_REVISAR: "Sin revisar",
@@ -61,13 +66,14 @@ export function LicitacionesSection({
             {invitadas > 0 ? ` · ${invitadas} con invitación` : ""}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link
             href="/licitaciones/documentos"
             className="inline-flex items-center h-8 rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 text-[13px] font-medium hover:bg-[var(--hover)]"
           >
-            Documentos de la empresa
+            Bóveda de Documentos
           </Link>
+          <ImportarCostosDialog />
           <PerfilDialog perfil={perfil} />
           <ImportarDialog />
         </div>
@@ -339,6 +345,96 @@ function PerfilDialog({ perfil }: { perfil: LicitacionPerfil | null }) {
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="secondary" onClick={() => setOpen(false)} disabled={busy}>Cancelar</Button>
             <Button onClick={submit} disabled={busy}>{busy ? "Guardando…" : "Guardar"}</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ImportarCostosDialog() {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+  const [nombreObra, setNombreObra] = useState("");
+  const [fechaObra, setFechaObra] = useState(new Date().toISOString().split("T")[0]);
+  const [file, setFile] = useState<File | null>(null);
+
+  async function submit() {
+    if (!file) {
+      setError("Seleccioná un archivo Excel o CSV.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setOk(null);
+
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("nombre_obra", nombreObra.trim() || "Obra Histórica");
+    fd.append("fecha_obra", fechaObra);
+
+    const res = await importarPlanillaCostosHistoricos(fd);
+    setBusy(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    setOk(`Se importaron exitosamente ${res.importados} observaciones de costo real para calibrar el Cost Engine.`);
+    setFile(null);
+    setNombreObra("");
+    router.refresh();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="secondary">+ Calibrar Costos (Excel)</Button>
+      </DialogTrigger>
+      <DialogContent title="Calibrar Cost Engine con Obras Anteriores">
+        <div className="space-y-3">
+          <p className="text-[12px] text-[var(--muted)]">
+            Subí planillas de cómputo métrico o precios unitarios de obras anteriores (Excel o CSV). El sistema inferirá automáticamente las columnas, categorías de insumo (materiales, equipos, combustibles) y precios unitarios.
+          </p>
+          <div>
+            <Label htmlFor="cost-obra">Nombre o referencia de la obra</Label>
+            <Input
+              id="cost-obra"
+              value={nombreObra}
+              onChange={(e) => setNombreObra((e.target as HTMLInputElement).value)}
+              placeholder="Ej: Pavimentación Av. Santa Teresa (2024)"
+            />
+          </div>
+          <div>
+            <Label htmlFor="cost-fecha">Fecha aproximada de los costos</Label>
+            <Input
+              id="cost-fecha"
+              type="date"
+              value={fechaObra}
+              onChange={(e) => setFechaObra((e.target as HTMLInputElement).value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="cost-file">Archivo Excel (.xlsx, .xls) o CSV *</Label>
+            <Input
+              id="cost-file"
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={(e) => {
+                const f = (e.target as HTMLInputElement).files?.[0];
+                if (f) setFile(f);
+              }}
+            />
+          </div>
+          {error ? <p className="text-[12px] text-[var(--error)]">{error}</p> : null}
+          {ok ? <p className="text-[12px] text-[var(--ok)] font-medium">{ok}</p> : null}
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="secondary" onClick={() => setOpen(false)} disabled={busy}>Cerrar</Button>
+            <Button onClick={submit} disabled={busy || !file}>
+              {busy ? "Procesando…" : "Importar y Calibrar"}
+            </Button>
           </div>
         </div>
       </DialogContent>

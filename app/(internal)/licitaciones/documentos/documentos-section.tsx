@@ -114,9 +114,9 @@ export function DocumentosSection({ documentos }: { documentos: EmpresaDocumento
       <BackButton label="Volver a Licitaciones" />
       <div className="flex flex-wrap items-start justify-between gap-3 mt-1">
         <div>
-          <h1 className="text-[17px] font-semibold">Documentos de la empresa</h1>
+          <h1 className="text-[17px] font-semibold">Bóveda de Documentos (Company Bid Vault)</h1>
           <p className="text-[13px] text-[var(--muted)] mt-0.5">
-            Certificados y constancias para la carpeta de licitación, con control de vencimiento.
+            Bóveda documental para licitaciones públicas con control de vigencia y sincronización automática.
           </p>
         </div>
         <NuevoDocumentoDialog />
