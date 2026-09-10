@@ -47,7 +47,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
       .returns<ProductoLite[]>(),
     supabase
       .from("bid_analysis_runs")
-      .select("id, decision, overall_score, snapshot_hash, created_at")
+      .select("id, decision, overall_score, snapshot_hash, blockers, justifications, precio_oferta_recomendado_pyg, margen_neto_estimado_pct, probabilidad_ganar_pct, created_at")
       .eq("tender_id", id)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -139,12 +139,14 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
             <h2 className="text-[14px] font-semibold">Evaluación Comercial (Bid Engine)</h2>
             <span className={`text-[11px] font-semibold px-2 py-0.5 rounded ${
               latestSnapshot
-                ? "bg-[var(--ok-bg)] text-[var(--ok)]"
-                : lic.monto_referencial && lic.monto_referencial > 0
-                ? "bg-[var(--panel-2)] text-[var(--muted)]"
+                ? latestSnapshot.decision === "COMPETIR"
+                  ? "bg-[var(--ok-bg)] text-[var(--ok)]"
+                  : latestSnapshot.decision === "REVISAR"
+                  ? "bg-amber-500/10 text-amber-600"
+                  : "bg-red-500/10 text-red-600"
                 : "bg-[var(--panel-2)] text-[var(--muted)]"
             }`}>
-              {latestSnapshot ? `SNAPSHOT INMUTABLE (${latestSnapshot.decision})` : "SIN SNAPSHOT"}
+              {latestSnapshot ? `${latestSnapshot.decision} (SCORE: ${latestSnapshot.overall_score}/100)` : "SIN EVALUACIÓN"}
             </span>
             {latestSnapshot ? (
               <span className="text-[10px] mono text-[var(--muted)]" title={`Hash SHA-256 completo: ${latestSnapshot.snapshot_hash}`}>
@@ -158,6 +160,19 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
             </span>
           ) : null}
         </div>
+
+        {latestSnapshot && Array.isArray(latestSnapshot.blockers) && latestSnapshot.blockers.length > 0 ? (
+          <div className="rounded border border-red-500/20 bg-red-500/5 p-2.5 space-y-1">
+            <div className="text-[11px] font-semibold text-red-600 uppercase tracking-wide">
+              Bloqueadores detectados en pliego / cómputo:
+            </div>
+            <ul className="list-disc list-inside text-[12px] text-red-700/90 space-y-0.5">
+              {latestSnapshot.blockers.map((b: string, i: number) => (
+                <li key={i}>{b}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         <div className="grid gap-3 sm:grid-cols-3 text-[13px]">
           <div className="rounded border border-[var(--border)] p-2.5 bg-[var(--panel-2)]">
