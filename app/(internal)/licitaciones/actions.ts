@@ -747,6 +747,8 @@ export async function generarPliegoOfertaCompleto(
   attachedDocsCount?: number;
   totalAmountPyg?: number;
   validationErrors?: string[];
+  masterIndex?: string;
+  exportDocumentHtml?: string;
 }> {
   const { supabase, profile } = await ctx();
   const empresaId = profile.empresa_id;
@@ -795,7 +797,7 @@ export async function generarPliegoOfertaCompleto(
   const vaultItems = await fetchCompanyVaultItems(supabase, empresaId);
 
   // 4. Ensamblaje de oferta con el orquestador de operaciones (rechaza placeholders)
-  const { assembleTenderPackage } = await import("@/lib/procurement/tender-operations");
+  const { assembleTenderPackage, generateMasterIndex, exportBidPackageAsDocument } = await import("@/lib/procurement/tender-operations");
   const bidPackage = assembleTenderPackage({
     tenderId: lic.dncp_nro,
     tenderTitle: lic.titulo,
@@ -806,6 +808,31 @@ export async function generarPliegoOfertaCompleto(
     items: bidItems,
     vaultItems
   });
+
+  const masterIndex = generateMasterIndex(bidPackage);
+  const exportDocumentHtml = exportBidPackageAsDocument(bidPackage);
+
+  const updatedRawJson = {
+    ...(typeof lic.raw_json === 'object' && lic.raw_json ? lic.raw_json : {}),
+    ultimo_paquete_oferta: {
+      packageStatus: bidPackage.packageStatus,
+      totalOfferAmountPyg: bidPackage.totalOfferAmountPyg,
+      formsCount: bidPackage.preparedForms.length,
+      attachedDocsCount: bidPackage.attachedEvidenceDocs.length,
+      validationErrors: bidPackage.validationErrors,
+      generatedAt: bidPackage.generatedAt,
+      masterIndex,
+      exportDocumentHtml
+    }
+  };
+
+  await supabase
+    .from("licitaciones")
+    .update({
+      raw_json: updatedRawJson,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", lic.id);
 
   await logAudit(supabase, {
     action: "tender.bid_package_assembled",
@@ -819,12 +846,16 @@ export async function generarPliegoOfertaCompleto(
     }
   });
 
+  revalidatePath(`/licitaciones/${licitacionId}`);
+
   return {
     packageStatus: bidPackage.packageStatus,
     formsCount: bidPackage.preparedForms.length,
     attachedDocsCount: bidPackage.attachedEvidenceDocs.length,
     totalAmountPyg: bidPackage.totalOfferAmountPyg,
-    validationErrors: bidPackage.validationErrors
+    validationErrors: bidPackage.validationErrors,
+    masterIndex,
+    exportDocumentHtml
   };
 }
 

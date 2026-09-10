@@ -225,3 +225,118 @@ export function assembleTenderPackage(params: {
     generatedAt: new Date().toISOString()
   };
 }
+
+/**
+ * Genera el Índice Maestro del Expediente de Oferta
+ */
+export function generateMasterIndex(bidPackage: BidPackage): string {
+  let index = `ÍNDICE MAESTRO DEL EXPEDIENTE DE OFERTA\n`;
+  index += `LICITACIÓN: ${bidPackage.tenderId} | OFERENTE: ${bidPackage.bidderName} (RUC ${bidPackage.bidderRuc})\n`;
+  index += `ESTADO DE INTEGRIDAD: ${bidPackage.packageStatus}\n`;
+  index += `FECHA DE GENERACIÓN: ${bidPackage.generatedAt}\n\n`;
+  index += `SECCIÓN I: FORMULARIOS OFICIALES DE PRESENTACIÓN\n`;
+  bidPackage.preparedForms.forEach((f, idx) => {
+    index += `  ${idx + 1}. [${f.formCode}] ${f.title} — ${f.isCompleted ? 'COMPLETO' : 'INCOMPLETO'} (Firmas: ${f.requiredSignatures.join(', ')})\n`;
+  });
+  index += `\nSECCIÓN II: DOCUMENTOS PROBATORIOS Y ANEXOS DE BÓVEDA\n`;
+  if (bidPackage.attachedEvidenceDocs.length === 0) {
+    index += `  (Sin documentos de respaldo adjuntos)\n`;
+  } else {
+    bidPackage.attachedEvidenceDocs.forEach((d, idx) => {
+      index += `  ${idx + 1}. [${d.category}] ${d.documentTitle} (ID Bóveda: ${d.vaultItemId})\n`;
+    });
+  }
+  if (bidPackage.validationErrors.length > 0) {
+    index += `\nOBSERVACIONES Y REQUISITOS PENDIENTES:\n`;
+    bidPackage.validationErrors.forEach((err, idx) => {
+      index += `  ! [OBS ${idx + 1}] ${err}\n`;
+    });
+  }
+  return index;
+}
+
+/**
+ * Exporta el expediente licitatorio completo como documento HTML listo para impresión o firma digital
+ */
+export function exportBidPackageAsDocument(bidPackage: BidPackage): string {
+  const masterIndex = generateMasterIndex(bidPackage);
+  const totalFmt = bidPackage.totalOfferAmountPyg.toLocaleString('es-PY');
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Expediente de Oferta - ${bidPackage.tenderId}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 40px; color: #1f2937; line-height: 1.5; }
+    h1, h2, h3 { color: #111827; }
+    .header { border-bottom: 2px solid #e5e7eb; padding-bottom: 16px; margin-bottom: 24px; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-weight: 600; font-size: 12px; }
+    .badge-success { background: #dcfce7; color: #15803d; }
+    .badge-warn { background: #fef9c3; color: #854d0e; }
+    .section { margin-top: 32px; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fafafa; }
+    .pre-box { white-space: pre-wrap; font-family: monospace; font-size: 13px; background: #ffffff; padding: 12px; border: 1px solid #d1d5db; border-radius: 4px; }
+    .table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    .table th, .table td { border: 1px solid #e5e7eb; padding: 8px 12px; text-align: left; font-size: 13px; }
+    .table th { background: #f3f4f6; }
+    .signatures { margin-top: 60px; display: flex; justify-content: space-around; }
+    .sig-line { border-top: 1px solid #000; width: 220px; text-align: center; padding-top: 8px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>EXPEDIENTE DE OFERTA LICITATORIA</h1>
+    <p><strong>Licitación DNCP:</strong> ${bidPackage.tenderId}</p>
+    <p><strong>Oferente:</strong> ${bidPackage.bidderName} | <strong>RUC:</strong> ${bidPackage.bidderRuc}</p>
+    <p><strong>Monto Total de Oferta:</strong> Gs. ${totalFmt}</p>
+    <p><strong>Estado:</strong> <span class="badge ${bidPackage.packageStatus === 'READY_TO_SIGN' ? 'badge-success' : 'badge-warn'}">${bidPackage.packageStatus}</span></p>
+    <p><strong>Generado el:</strong> ${bidPackage.generatedAt}</p>
+  </div>
+
+  <h2>1. Índice Maestro del Expediente</h2>
+  <div class="pre-box">${masterIndex}</div>
+
+  <h2>2. Formularios Oficiales</h2>
+  ${bidPackage.preparedForms.map(f => `
+    <div class="section">
+      <h3>${f.formCode} — ${f.title}</h3>
+      <div class="pre-box">${f.content}</div>
+    </div>
+  `).join('')}
+
+  <h2>3. Documentos Probatorios Anexos (Bóveda)</h2>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Categoría</th>
+        <th>Título del Documento</th>
+        <th>Identificador Bóveda</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${bidPackage.attachedEvidenceDocs.map(d => `
+        <tr>
+          <td>${d.category}</td>
+          <td>${d.documentTitle}</td>
+          <td><code>${d.vaultItemId}</code></td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+
+  <div class="signatures">
+    <div class="sig-line">
+      <strong>REPRESENTANTE LEGAL</strong><br>
+      ${bidPackage.bidderName}<br>
+      Firma Digital Calificada / Sello
+    </div>
+    <div class="sig-line">
+      <strong>RESPONSABLE TÉCNICO</strong><br>
+      Reg. Prof. N° / C.I.<br>
+      Firma / Sello
+    </div>
+  </div>
+</body>
+</html>`;
+}
+

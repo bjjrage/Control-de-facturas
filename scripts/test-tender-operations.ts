@@ -155,6 +155,27 @@ async function runTests() {
   assert(pkg4.packageStatus === 'DRAFT_INCOMPLETE', 'No permite READY_TO_SIGN si algún ítem tiene precio cero');
   assert(pkg4.validationErrors.some(e => e.includes('precio unitario cotizado')), 'Reporta ítem específico sin precio');
 
+  // CASO 5: Generación del Índice Maestro y Exportación HTML del Expediente
+  console.log('\n--- TEST 5: Índice Maestro y Exportación Completa del Expediente ---');
+  const { generateMasterIndex, exportBidPackageAsDocument } = await import('../lib/procurement/tender-operations');
+
+  const masterIndex = generateMasterIndex(pkg1);
+  console.log('Índice Maestro generado:\n', masterIndex);
+  assert(masterIndex.includes('ÍNDICE MAESTRO DEL EXPEDIENTE DE OFERTA'), 'Encabezado formal del índice maestro');
+  assert(masterIndex.includes('DRAFT-FORM-01'), 'Incluye Formulario 1 en índice');
+  assert(masterIndex.includes('DRAFT-FORM-02'), 'Incluye Formulario 2 en índice');
+  assert(masterIndex.includes('DRAFT-FORM-03'), 'Incluye Formulario 3 en índice');
+  assert(masterIndex.includes('Estatuto Social'), 'Incluye documento legal en índice');
+  assert(masterIndex.includes('Cumplimiento Tributario DNIT'), 'Incluye documento fiscal en índice');
+
+  const exportDoc = exportBidPackageAsDocument(pkg1);
+  assert(exportDoc.includes('<!DOCTYPE html>'), 'Documento generado es HTML estándar válido');
+  assert(exportDoc.includes('EXPEDIENTE DE OFERTA LICITATORIA'), 'Título formal en documento');
+  assert(exportDoc.includes('READY_TO_SIGN'), 'Refleja estado READY_TO_SIGN');
+  assert(exportDoc.includes('Gs. 1.044.000.000'), 'Refleja monto total de oferta formateado');
+  assert(exportDoc.includes('REPRESENTANTE LEGAL'), 'Bloque de firma de Representante Legal presente');
+  assert(exportDoc.includes('RESPONSABLE TÉCNICO'), 'Bloque de firma de Responsable Técnico presente');
+
   console.log('\n======================================================');
   console.log('🎉 TODOS LOS TESTS DE GATE 14 PASARON CON ÉXITO');
   console.log('======================================================\n');
@@ -164,3 +185,4 @@ runTests().catch(err => {
   console.error('Error fatal en suite de pruebas Gate 14:', err);
   process.exit(1);
 });
+

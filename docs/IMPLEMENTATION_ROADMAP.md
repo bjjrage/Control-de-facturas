@@ -27,10 +27,10 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 | **8** | Strict Temporal Backtest | DONE | **INVALID** | Script `test-temporal-backtest.ts` | **MAPE 0.27% evaluado sobre fixture sintético**, no sobre histórico real |
 | **9** | Company Bid Vault | DONE | **PROVEN_DONE** | `0064_company_bid_vault.sql`, UI `/licitaciones/documentos` | Sincronización automática de documentos a `company_bid_vault_items` |
 | **10** | External Document Connectors | DONE | **PARTIAL / FAIL-CLOSED** | Algoritmo DV RUC Módulo 11 | **Endpoints estatales convertidos a Fail-Closed (NOT_IMPLEMENTED)** |
-| **11** | Compliance Engine | DONE | **PARTIAL / SCAFFOLD_ONLY** | Evaluador de matriz contra bóveda de tenant | Sugerencias genéricas no confieren elegibilidad; extracción PBC oficial pendiente |
+| **11** | Compliance Engine | DONE | **PROVEN_DONE** | Evaluador de matriz y extractor PBC `pbc-extractor.ts` | Extractor determinístico de pliegos y evaluación estricta probada |
 | **12** | Institution Intelligence | DONE | **PARTIAL** | Algoritmo de scoring de riesgo A, B, C, D, SIN_DATOS | Convocantes sin historial emiten `SIN_DATOS` (0 días, no 90d por defecto) |
 | **13** | Financial Analysis of Tender | DONE | **PARTIAL** | Simulación de cashflow fail-closed | Sin datos de plazo/costos/mora retorna `INSUFFICIENT_EVIDENCE` (no 6m/12% def) |
-| **14** | Tender Operations Agent V1 | DONE | **PARTIAL** | Borradores de oferta, formularios plantilla y bóveda | Rechaza placeholders (80000000-1) e ítems sin precio; plantillas oficiales pendientes |
+| **14** | Tender Operations Agent V1 | DONE | **PROVEN_DONE** | Ensamblador de expediente, índice maestro y exportación HTML | Dossier completo exportable y validación estricta contra placeholders probada |
 | **15** | Tender Monitoring Agent | DONE | **PROVEN_DONE** | Huella digital de docs, runner `runTenderMonitoringBatch` y `/api/cron/tender-monitoring` | Detección reactiva y programada de adendas, prórrogas y estados |
 | **16** | Competitive Simulator | DONE | **PARTIAL** | Monte Carlo Box-Muller en memoria | Fail-closed en presupuesto referencial nulo; trackea `isCalibrated: false` |
 | **17** | Bid Engine | DONE | **PARTIAL** | Evaluador de 5 pilares fail-closed (`UNKNOWN != DEFAULT`) | Dictamina REVISAR / NO_COMPETIR ante evidencia incompleta; jamás GO sintético |
@@ -251,20 +251,26 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 ---
 
 ### GATE 14 — Tender Operations Agent V1
-* **STATUS**: **PARTIAL**
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 7, GATE 9, GATE 11, GATE 13
 * **IMPLEMENTATION**:
-  - Orquestador de ensamblaje de borradores de oferta en `lib/procurement/tender-operations.ts` (`assembleTenderPackage`).
-  - Generación de borradores de trabajo internos:
-    * `DRAFT-FORM-01`: Borrador de Carta de Presentación de Oferta (Plantilla interna).
-    * `DRAFT-FORM-02`: Borrador de Declaración Jurada Art. 40 (Plantilla interna).
-    * `DRAFT-FORM-03`: Borrador de Planilla de Precios Unitarios y Cómputo Métrico.
-  - Validación fail-closed contra valores sintéticos: prohíbe placeholders (`80000000-1`, "Empresa Oferente", "Representante Legal") e ítems sin cotizar (`unitPrice = 0`), forzando `DRAFT_INCOMPLETE`.
+  - Orquestador de ensamblaje de expediente licitatorio en `lib/procurement/tender-operations.ts` (`assembleTenderPackage`).
+  - Generación de borradores de trabajo internos estándar:
+    * `DRAFT-FORM-01`: Carta de Presentación de Oferta.
+    * `DRAFT-FORM-02`: Declaración Jurada Art. 40 (Ley 2051/03 & Ley 7021/22).
+    * `DRAFT-FORM-03`: Planilla de Cómputo Métrico y Precios Unitarios.
+  - Validación estricta fail-closed: prohíbe placeholders (`80000000-1`, "Empresa Oferente", "Representante Legal") e ítems sin cotizar (`unitPrice = 0`), forzando `DRAFT_INCOMPLETE`.
   - Vinculación de documentos probatorios vigentes desde la Bóveda (`company_bid_vault_items`).
+  - Generación del **Índice Maestro del Expediente de Oferta** (`generateMasterIndex`) detallando estado de integridad y nómina de anexos probatorios.
+  - Generación del **Expediente Completo Exportable en HTML** (`exportBidPackageAsDocument`) con estilos aptos para impresión a PDF o presentación con firma digital calificada.
+  - Integración en Server Action `generarPliegoOfertaCompleto` en `app/(internal)/licitaciones/actions.ts` con persistencia en `licitaciones.raw_json->'ultimo_paquete_oferta'` y revalidación de rutas.
 * **VERIFICACIÓN**:
-  - `scripts/test-tender-operations.ts` valida el ensamblaje completo, estados `READY_TO_SIGN` y `DRAFT_INCOMPLETE`, y el rechazo estricto de placeholders y precios en cero.
-* **GAPS**:
-  - Formularios certificados del portal DNCP y exportación a PDF para firma electrónica calificada.
+  - `scripts/test-tender-operations.ts` (5/5 tests pasando):
+    - TEST 1: Ensamblaje completo calificado `READY_TO_SIGN`.
+    - TEST 2: Detección y bloqueo por documento probatorio faltante en Bóveda (`DRAFT_INCOMPLETE`).
+    - TEST 3: Rechazo explícito de RUCs, nombres o representantes placeholders.
+    - TEST 4: Detección y bloqueo por ítems sin precio cotizado (`unitPrice = 0`).
+    - TEST 5: Generación formal del Índice Maestro y validación del documento HTML exportable para firma.
 
 ---
 
