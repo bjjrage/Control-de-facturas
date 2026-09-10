@@ -1,598 +1,333 @@
-# IMPLEMENTATION ROADMAP: CONTROL DE FACTURAS → CONSTRUCTION INTELLIGENCE
+# IMPLEMENTATION ROADMAP: CONTROL DE FACTURAS → CONSTRUCTION INTELLIGENCE (RE-AUDITED)
 
-Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejecuta, prueba y documenta de forma secuencial y auditable.
+Este documento es el roadmap canónico de ejecución técnica auditado rigurosamente para separar implementaciones probadas, código base/scaffold, coberturas parciales e invenciones.
+
+**ESTADOS TRAS AUDITORÍA**:
+- **PROVEN_DONE**: Código productivo con pruebas empíricas reales verificadas contra datos o esquemas.
+- **PARTIAL**: Componentes funcionales o pipelines reales pero con cobertura incompleta o módulos faltantes (ej: OCR).
+- **SCAFFOLD_ONLY**: Funciones o algoritmos escritos en memoria / esquemas definidos, pero sin integración a la UI, base de datos de producción o pipelines automáticos.
+- **INVALID**: Cálculos o aserciones engañosas / ficticias (ej: MAPE evaluado sobre mocks sintéticos idénticos a los datos de entrenamiento).
+- **BLOCKED**: Dependencias no resueltas que impiden su operación segura.
 
 ---
 
-## GATE 0 — Cerrar Auditoría / Hardening
+## RESUMEN EJECUTIVO DE AUDITORÍA (GATES 0 — 21)
 
-* **STATUS**: DONE
-* **DEPENDENCIES**: N/A (Estado base del repositorio)
+| Gate | Nombre | Estado Anterior | Estado Auditado | Evidencia Real | Gap Principal |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **0** | Cerrar Auditoría / Hardening | DONE | **PROVEN_DONE** | `0059_gate0_*.sql`, scripts pasan | Migración SQL pendiente de aplicar en remoto |
+| **1** | Data Reliability Spike | DONE | **PROVEN_DONE** | 123 licitaciones, 30 PDFs auditados | Actas son 100% escaneadas (raster), no hay OCR integrado |
+| **2** | Procurement Evidence Foundation | DONE | **PROVEN_DONE** | `0060_procurement_*.sql`, deduplicación | Esquema relacional probado con scripts locales |
+| **3** | Historical Backfill | DONE | **PARTIAL** | Pipeline resiliente con checkpointing | Solo 20 archivos de muestra; 2015-2023 incompleto |
+| **4** | Offer Extraction + Entity Normalization | DONE | **PARTIAL** | Normalizador de RUC y consorcios | Extracción solo funciona en OCDS/texto estructurado, no en actas escaneadas |
+| **5A** | Competitor Intelligence V1 | DONE | **PARTIAL** | Lógica de huellas y página `/competidores/[ruc]` | Depende de la profundidad del backfill en BD para ser estadísticamente útil |
+| **5B** | Cost Engine V1 (CPP) | DONE | **PARTIAL** | Fórmulas de decaimiento y fuentes | No está conectado como listener automático de facturas/OC del ERP |
+| **6** | Cost Cold Start / Onboarding | DONE | **SCAFFOLD_ONLY** | Parser de planillas en `onboarding.ts` | Sin interfaz de usuario para que una constructora suba sus planillas |
+| **7** | Item Matching Engine | DONE | **SCAFFOLD_ONLY** | Tokenizador y ponderador en memoria | Sin integración en la vista de pliegos o importación |
+| **8** | Strict Temporal Backtest | DONE | **INVALID** | Script `test-temporal-backtest.ts` | **MAPE 0.27% evaluado sobre fixture sintético**, no sobre histórico real |
+| **9** | Company Bid Vault | DONE | **SCAFFOLD_ONLY** | `0064_company_bid_vault.sql` y evaluador | Sin UI de gestión documental ni upload de archivos |
+| **10** | External Document Connectors | DONE | **PARTIAL / FAIL-CLOSED** | Algoritmo DV RUC Módulo 11 | **Endpoints estatales convertidos a Fail-Closed (NOT_IMPLEMENTED)** |
+| **11** | Compliance Engine | DONE | **SCAFFOLD_ONLY** | Evaluador de matriz de cumplimiento | Pliegos no se parsean automáticamente a esta matriz |
+| **12** | Institution Intelligence | DONE | **SCAFFOLD_ONLY** | Algoritmo de scoring institucional | Probado con mocks; sin agregación sobre warehouse completo |
+| **13** | Financial Analysis of Tender | DONE | **SCAFFOLD_ONLY** | Modelo matemático de flujo de fondos | No persiste en BD ni se conecta a la tesorería real del ERP |
+| **14** | Tender Operations Agent V1 | DONE | **SCAFFOLD_ONLY** | Generador de plantillas de formularios | Strings markdown estáticos; no es un agente autónomo |
+| **15** | Tender Monitoring Agent | DONE | **SCAFFOLD_ONLY** | Comparador diferencial de snapshots | Sin scheduler/cron/worker de monitoreo periódico |
+| **16** | Competitive Simulator | DONE | **SCAFFOLD_ONLY** | Monte Carlo Box-Muller en memoria | No calibrado con distribuciones empíricas a gran escala |
+| **17** | Bid Engine | DONE | **SCAFFOLD_ONLY** | Evaluador de 5 pilares | No integrado en el flujo de usuario ni persistido |
+| **18** | Bid Analysis Snapshot | DONE | **PARTIAL** | `0065_bid_analysis_snapshots.sql` y hashing | Tabla y hashing creados; falta hooking a la toma de decisiones |
+| **19** | Tender → Project | DONE | **SCAFFOLD_ONLY** | Función transformadora a `Project` y `BudgetItem` | No ejecuta inserciones reales en la base de datos |
+| **20** | ERP Execution Flywheel | DONE | **SCAFFOLD_ONLY** | Función en memoria que simula feedback | Sin hooks/triggers de eventos conectados a las acciones del ERP |
+| **21** | Product Hardening / Enterprise | DONE | **SCAFFOLD_ONLY** | `docker-compose.enterprise.yml` y docs | No desplegado ni validado en infraestructura real |
+
+---
+
+## DETALLE POR GATE
+
+### GATE 0 — Cerrar Auditoría / Hardening
+* **STATUS**: **PROVEN_DONE**
+* **DEPENDENCIES**: N/A
 * **IMPLEMENTATION**:
-  - `supabase/migrations/0059_gate0_security_and_integrity_hardening.sql`:
-    - Corrección de RLS en `payment_orders` y `payment_order_invoices`: sustitución de políticas legacy sin filtro por políticas estrictas con `empresa_id = public.current_empresa_id()`.
-    - Triggers `BEFORE INSERT` para autocompletar y forzar validación estricta de `empresa_id` en OPs y vinculaciones de facturas (prevención de cross-tenant invoice linking).
-    - Hardening de políticas RLS en buckets de Supabase Storage (`quote-pdfs`, `invoice-files`, `rfq-attachments`) para restringir acceso por pertenencia de empresa.
-    - RPC atómica `public.ejecutar_orden_pago_atomica`: agrupa la actualización de estado a `EJECUTADA`, cambio de facturas a `PAGADO` y asiento en `movimientos_tesoreria` en una sola transacción ACID.
-    - RPC atómica `public.registrar_cobro_atomico`: vinculación atómica de cobro de ventas con asiento contable de tesorería.
-    - Guardián de integridad contable en base de datos: trigger `trg_invoice_delete_integrity` que prohíbe eliminar facturas en estado `PAGADO` o vinculadas a OPs ejecutadas.
-  - Refactor en Server Actions (`app/(internal)/pagos/actions.ts`, `app/(internal)/ventas/actions.ts`, `app/(internal)/invoices/[id]/actions.ts`) para consumir las RPCs atómicas y bloquear borrado de facturas pagadas.
-  - Limpieza de credenciales de prueba en texto plano y artefactos residuales en git (`dump_data.sql`).
-* **TESTS**:
-  - `scripts/verify-gate0-invariants.ts`:
-    - Invariantes de conciliación económica pura (tolerancia 5%, estados MATCH / REQUIERE_REVISION / APROBADO_EXCEPCION).
-    - Invariantes de aislamiento multi-tenant en `payment_orders` y `payment_order_invoices` (cero filas con `empresa_id` NULL, cero enlaces cruzados entre empresas).
-    - Invariante de libro mayor de tesorería: `cuentas_financieras.saldo == SUM(movimientos_tesoreria.monto)`.
-    - Invariante de tenant en todas las tablas de dominio.
-* **RISKS**:
-  - Aplicación remota de la migración `0059` en entornos de producción debe realizarse previo al deploy del frontend (se mantuvo fallback retrocompatible en Server Actions por seguridad operativa).
-* **DEFINITION OF DONE**:
-  - Leaks multi-tenant resueltos.
-  - Integridad atómica en transacciones de dinero implementada.
-  - Suite de invariantes ejecutada y aprobada con 0 fallos.
-  - Compilación TypeScript aprobada con 0 errores.
+  - `supabase/migrations/0059_gate0_security_and_integrity_hardening.sql`: RLS estricto multi-tenant (`empresa_id = public.current_empresa_id()`) en `payment_orders` y `payment_order_invoices`. Triggers de autocompletado y validación cruzada.
+  - RPCs transaccionales atómicas: `public.ejecutar_orden_pago_atomica` y `public.registrar_cobro_atomico`.
+  - Guardián de integridad `trg_invoice_delete_integrity` que impide el borrado de facturas pagadas o en OPs ejecutadas.
+  - Modificaciones en Server Actions con fallbacks defensivos para evitar regresiones.
+* **VERIFICACIÓN**:
+  - `scripts/verify-gate0-invariants.ts`: Probado y verificado.
+* **GAPS**:
+  - Migración `0059` aún no ejecutada en base de datos remota de producción Supabase.
 
 ---
 
-## GATE 1 — Data Reliability Spike (DNCP / OCDS / Documentos)
-
-* **STATUS**: DONE
+### GATE 1 — Data Reliability Spike (DNCP / OCDS / Documentos)
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 0
 * **IMPLEMENTATION**:
-  - Script reproducible de auditoría empírica: [`scripts/spike-dncp-reliability.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/spike-dncp-reliability.ts).
-  - Muestreo multianual estructurado (2021–2025) sobre 123 licitaciones reales y 30 documentos físicos descargados e inspeccionados bit a bit.
-  - Dataset consolidado de resultados: [`data/dncp-spike-results.json`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/data/dncp-spike-results.json).
-  - Informe técnico con métricas duras: [`docs/DATA_RELIABILITY_REPORT.md`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/docs/DATA_RELIABILITY_REPORT.md).
-* **TESTS**:
-  - `npx tsx scripts/spike-dncp-reliability.ts`: Muestreo cuantitativo ejecutado y verificado.
-  - Medición de capa de texto con `pdf-parse`: 100% de actas y cuadros comparativos son imágenes escaneadas (0% texto nativo vectorial).
-  - Medición de formatos estructurados: 0% de cuadros en Excel/CSV (100% PDFs escaneados).
-  - Medición OCDS: cabeceras, adjudicatarios y montos globales 95%+ disponibles; precios unitarios por ítem en ofertas ausentes en OCDS.
-* **RISKS**:
-  - Prometer base de datos de precios unitarios competitivos históricos sin pipeline de OCR presupuestado generaría expectativas inviables. Se mitiga desacoplando Inteligencia Pública Nivel 1 (OCDS determinístico) de Procesamiento de Documentos Nivel 2 (OCR bajo demanda).
-* **DEFINITION OF DONE**:
-  - Script reproducible completado (`scripts/spike-dncp-reliability.ts`).
-  - Dataset consolidado generado (`data/dncp-spike-results.json`).
-  - Informe técnico con matriz de completitud documentado (`docs/DATA_RELIABILITY_REPORT.md`).
-  - Veredicto y ajuste arquitectónico para Gate 2 formalizado.
+  - Muestreo cuantitativo de 123 licitaciones y descarga bit a bit de 30 documentos físicos de la DNCP (`scripts/spike-dncp-reliability.ts`).
+  - Dataset consolidado `data/dncp-spike-results.json` e informe `docs/DATA_RELIABILITY_REPORT.md`.
+* **VERIFICACIÓN**:
+  - Hallazgo empírico irrefutable: 100% de actas y cuadros comparativos son imágenes escaneadas (0% texto nativo).
+* **GAPS**:
+  - No existe OCR integrado para procesar estas imágenes; los precios unitarios de competidores no son accesibles vía OCDS.
 
 ---
 
-## GATE 2 — Procurement Evidence Foundation
-
-* **STATUS**: DONE
+### GATE 2 — Procurement Evidence Foundation
+* **STATUS**: **PROVEN_DONE**
 * **DEPENDENCIES**: GATE 1
 * **IMPLEMENTATION**:
-  - `supabase/migrations/0060_procurement_evidence_foundation.sql`:
-    - Funciones canónicas: `public.normalizar_ruc`, `public.extraer_dv_ruc`, `public.calcular_dv_ruc_py` y `public.normalizar_texto`.
-    - Esquema público global (`public.procurement_*`): entidades convocantes (`procurement_entities`), procesos (`procurement_processes`), historial append-only (`procurement_process_history`), lotes (`procurement_lots`), ítems (`procurement_items`), oferentes (`procurement_suppliers`), ofertas (`procurement_bids`), adjudicaciones (`procurement_awards`), contratos (`procurement_contracts`) y documentos (`procurement_documents`).
-    - Esquema privado del tenant: `public.empresa_licitacion_seguimiento` (aislado estrictamente con RLS por `empresa_id`).
-    - RPC atómica e idempotente: `public.ingestar_proceso_ocds_global(p_cr, p_fuente)` con cálculo de `payload_sha256`, deduplicación estricta y versionado histórico.
-    - Script de migración no destructivo de datos legacy desde `0058_licitaciones.sql`.
-  - Refactor en Server Actions ([app/(internal)/licitaciones/actions.ts](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/app/(internal)/licitaciones/actions.ts)) vinculando ingestión pública global y seguimiento privado.
-* **TESTS**:
-  - `scripts/test-procurement-foundation.ts`:
-    - Invariantes de normalización canónica de RUC, DV y nombres de entidades.
-    - Aislamiento multi-tenant comprobado (mismo hecho público, decisiones independientes por tenant).
-    - Idempotencia y deduplicación verificada contra la API OCDS de la DNCP.
-    - Trazabilidad criptográfica SHA-256 e inmutabilidad append-only de historial de estados.
-* **RISKS**:
-  - La aplicación de la migración `0060` en producción debe ejecutarse previo a la carga masiva de datos históricos del Gate 3 (mecanismos de fallback defensivo incluidos en código de aplicación).
-* **DEFINITION OF DONE**:
-  - Un mismo proceso público existe una sola vez globalmente.
-  - Dos empresas distintas pueden tener estados privados independientes sobre el mismo proceso.
-  - Ingestión 100% idempotente y deduplicada.
-  - Compilación TypeScript aprobada con 0 errores.
+  - `supabase/migrations/0060_procurement_evidence_foundation.sql`: Esquema global público (`procurement_*`) y esquema privado multi-tenant (`empresa_licitacion_seguimiento`).
+  - RPC `public.ingestar_proceso_ocds_global` idempotente con hash SHA-256.
+* **VERIFICACIÓN**:
+  - `scripts/test-procurement-foundation.ts` pasa con 0 errores.
+* **GAPS**:
+  - Esquema probado en local; migración pendiente de despliegue en producción.
 
 ---
 
-## GATE 3 — Historical Backfill
-
-* **STATUS**: DONE
+### GATE 3 — Historical Backfill
+* **STATUS**: **PARTIAL**
 * **DEPENDENCIES**: GATE 2
 * **IMPLEMENTATION**:
-  - Pipeline de ingesta histórica configurable y resiliente: [`scripts/backfill-dncp-history.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/backfill-dncp-history.ts).
-  - Arquitectura por olas con priorización de sector (Ola 1: Obras e infraestructura 2020 → presente; Ola 2: Profundidad histórica 2015–2019; Ola 3: Bienes/Servicios conexos).
-  - Checkpointing persistente en [`data/backfill-checkpoint.json`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/data/backfill-checkpoint.json) permitiendo pausar y reanudar sin duplicación ni pérdida de posición.
-  - Rate limiting adaptativo (~3.1 req/s) con manejo automático de HTTP 429 vía backoff exponencial (1.5s, 3.0s).
-  - Almacenamiento eficiente: payloads JSON crudos archivados por año en `data/backfill/{year}/` e ingestión relacional idempotente en tablas `procurement_*`.
-* **TESTS**:
-  - `scripts/verify-historical-coverage.ts`:
-    - Auditoría cuantitativa de volumen y distribución temporal de licitaciones de obra.
-    - Confirmación de 0 huecos temporales inexplicados en los períodos analizados.
-    - 0% tasa de pérdida o caída por timeout en la corrida de verificación.
-    - 20 licitaciones de construcción e infraestructura indexadas con archivos físicos y metadatos relacionales.
-* **RISKS**:
-  - Límites de tasa o cuotas de descarga en servidores de la DNCP mitigados de raíz mediante throttling adaptativo y reintentos exponenciales.
-* **DEFINITION OF DONE**:
-  - Pipeline reproducible implementado con CLI y flags (`--wave`, `--limit`).
-  - Checkpoint persistente validado y funcional.
-  - Warehouse histórico inicial de obras públicas cargado y verificado sin huecos temporales.
-  - Compilación TypeScript aprobada con 0 errores.
+  - Pipeline configurable en `scripts/backfill-dncp-history.ts` con checkpointing persistente (`data/backfill-checkpoint.json`).
+* **VERIFICACIÓN**:
+  - El mecanismo de paginación y checkpointing funciona correctamente.
+* **GAPS**:
+  - Solo se descargaron 20 licitaciones de prueba. El backfill completo 2015–2024 **NO está ejecutado**.
 
 ---
 
-## GATE 4 — Offer Extraction + Entity Normalization
-
-* **STATUS**: DONE
+### GATE 4 — Offer Extraction + Entity Normalization
+* **STATUS**: **PARTIAL**
 * **DEPENDENCIES**: GATE 3
 * **IMPLEMENTATION**:
-  - `supabase/migrations/0061_consortia_and_normalized_bids.sql`:
-    - Tablas de modelado de consorcios: `public.procurement_consortia` y miembros explícitos `public.procurement_consortium_members`.
-    - Tablas de resolución de variantes de nombres: `public.procurement_entity_aliases`.
-    - Ampliación de `public.procurement_bids`: `lot_id`, `estado_oferta` (ADMITIDA, DESCALIFICADA, GANADORA, RECHAZADA), `motivo_descalificacion`, `confidence_score` (0.00–1.00), `document_url` y linaje documental `document_id`.
-  - Módulo de normalización canónica: [`lib/procurement/entity-normalizer.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/entity-normalizer.ts) con detección de tipo societario (SA, SRL, Consorcio), extracción estricta de miembros/porcentajes y regla innegociable anti-alucinación.
-  - Módulo de extracción de ofertas: [`lib/procurement/offer-extractor.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/offer-extractor.ts) con parseo de moneda paraguaya (PYG con puntos de mil), chequeo de orden de magnitud presupuestaria y flagging automático de revisión humana si `confidence_score < 0.80`.
-* **TESTS**:
-  - `scripts/test-offer-extraction.ts`:
-    - Suite de 10 casos reales auditados de actas y cuadros comparativos paraguayos.
-    - Precisión cuantitativa de extracción alcanzada: **100.0%** (superando el umbral de aceptación del 90.0%).
-    - Verificación de desempate de consorcios con porcentajes y regla anti-alucinación.
-* **RISKS**:
-  - Variabilidad caligráfica o escaneos ilegibles en documentos de municipalidades remotas mitigados derivando ofertas con confianza < 0.80 a cola de revisión humana.
-* **DEFINITION OF DONE**:
-  - Módulos de extracción y normalización de entidades implementados y tipados.
-  - Migración de consorcios y ofertas normalizadas creada.
-  - Precisión de extracción >= 90.0% verificada mediante tests.
-  - Compilación TypeScript aprobada con 0 errores.
+  - Migración `0061_consortia_and_normalized_bids.sql`.
+  - Normalizador de consorcios y RUC en `lib/procurement/entity-normalizer.ts`.
+  - Parser de ofertas en `lib/procurement/offer-extractor.ts`.
+* **VERIFICACIÓN**:
+  - `scripts/test-offer-extraction.ts` valida el parseo sobre strings y fixtures estructurados.
+* **GAPS**:
+  - Al no haber pipeline de OCR/Vision para PDFs raster, no es posible extraer ofertas de licitaciones reales fuera de la API OCDS básica.
 
 ---
 
-## GATE 5A — Competitor Intelligence V1
-
-* **STATUS**: DONE
+### GATE 5A — Competitor Intelligence V1
+* **STATUS**: **PARTIAL**
 * **DEPENDENCIES**: GATE 4
 * **IMPLEMENTATION**:
-  - `supabase/migrations/0062_competitor_intelligence.sql`:
-    - Función de segmentación por tamaño de contrato `public.categorizar_tamano_contrato(numeric)` (`SMALL`, `MEDIUM`, `LARGE`).
-    - Vistas analíticas: `v_procurement_competitor_contextual` (segmentación Empresa × Convocante × Rubro × Tamaño) y `v_procurement_competitor_global`.
-    - Función SQL con fallback jerárquico determinístico: `public.get_competitor_contextual_fingerprint`.
-  - Motor de huella competitiva: [`lib/procurement/competitor-intelligence.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/competitor-intelligence.ts) con cálculo contextual de descuentos medios vs referencial, varianza/dispersión, win rate por contexto, niveles de certeza estadística (ALTA >= 15, MEDIA 5-14, BAJA 2-4, INSUFICIENTE < 2) y mapeo de red de consorcios.
-  - Página de perfil 360° de competidor: [`app/(internal)/licitaciones/competidores/[ruc]/page.tsx`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/app/(internal)/licitaciones/competidores/%5Bruc%5D/page.tsx) con KPIs clave, convocantes frecuentes, red de alianzas e historial de ofertas.
-* **TESTS**:
-  - `scripts/test-competitor-intelligence.ts`:
-    - Validación de segmentación por tamaño y grados de certeza estadística.
-    - Validación de los 4 niveles de fallback jerárquico (Exacto -> Rubro -> Convocante -> Global).
-    - Modelado y verificación de comportamiento contra 5 competidores reales de la construcción paraguaya (Progen S.A., TOCSA S.A., Barrail Hermanos, Ocho A, Concret-Mix).
-* **RISKS**:
-  - Muestras pequeñas en nichos especializados mitigadas automáticamente mediante el fallback jerárquico determinístico a rubro o comportamiento global de la empresa.
-* **DEFINITION OF DONE**:
-  - Motor analítico de huellas contextuales implementado.
-  - Vistas y funciones de fallback creadas en migración PostgreSQL.
-  - Página de perfil de competidor accesible vía `/licitaciones/competidores/[ruc]`.
-  - Suite de tests de fingerprints aprobada con 0 fallos.
-  - Compilación TypeScript aprobada con 0 errores.
+  - `0062_competitor_intelligence.sql` con vistas agregadas y función de fallback contextual.
+  - Módulo `lib/procurement/competitor-intelligence.ts`.
+  - Interfaz de usuario en `app/(internal)/licitaciones/competidores/[ruc]/page.tsx`.
+* **VERIFICACIÓN**:
+  - Pruebas matemáticas en `scripts/test-competitor-intelligence.ts`.
+* **GAPS**:
+  - Sin el backfill masivo (Gate 3) y la extracción de ofertas de actas (Gate 4), la interfaz muestra datos mínimos en la base de datos real.
 
 ---
 
-## GATE 5B — Cost Engine V1 (Costo Presente Ponderado / CPP)
-
-* **STATUS**: DONE
+### GATE 5B — Cost Engine V1 (Costo Presente Ponderado / CPP)
+* **STATUS**: **PARTIAL**
 * **DEPENDENCIES**: GATE 0
 * **IMPLEMENTATION**:
-  - Migración SQL [`supabase/migrations/0063_cost_observations.sql`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/supabase/migrations/0063_cost_observations.sql): tabla `public.cost_observations` con RLS multi-tenant estricto (`empresa_id = public.current_empresa_id()`), categorías de insumo (`MATERIAL`, `MANO_OBRA`, `EQUIPO`, `SUBCONTRATO`, `COMBUSTIBLE`, `OTRO`), multiplicador cambiario y bandera de volatilidad.
-  - Tipos canónicos [`lib/cost-engine/types.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/cost-engine/types.ts): `CostObservation`, `CostEstimate`, `CostTrend`, `WeightingBreakdown`, `CostConfidenceTier`.
-  - Algoritmo de agregación matemática determinística [`lib/cost-engine/weighting.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/cost-engine/weighting.ts):
-    - Jerarquía de fuentes de verdad: FACTURA (1.0) > RECEPCION (0.9) > ORDEN_COMPRA (0.8) > COTIZACION (0.6) > MANUAL (0.3).
-    - Decaimiento temporal exponencial según volatilidad del insumo: Combustible (vida media 30 días), Estándar/Materiales (90 días), Equipos/Subcontratos (180 días).
-    - Atenuación logarítmica de volumen (`1 + ln(1 + cantidad)`) para evitar distorsiones por compras monopólicas.
-    - Detección de dispersión estadística y cálculo de percentiles (Min, P25, Mediana, P75, Max). Detección de mercado volátil cuando el coeficiente de variación super el 15%.
-    - Detección de tendencias de costo (`RISING`, `FALLING`, `STABLE`, `VOLATILE`) y niveles de certeza (`ALTA`, `MEDIA`, `BAJA`, `INSUFICIENTE`).
-  - API pública y Server Actions [`lib/cost-engine/index.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/cost-engine/index.ts): `getCurrentCostEstimate` y `recordCostObservation`.
-* **TESTS**:
-  - Suite de verificación matemática [`scripts/test-cost-engine.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-cost-engine.ts):
-    - Verificación matemática exacta de decaimiento temporal en t=0, t=90 (0.5) y t=180 (0.25).
-    - Verificación de dampening logarítmico (ratio 1.82x vs 100x lineal).
-    - Verificación de jerarquía de fuentes (Factura domina sobre Cotización).
-    - Benchmark contra 5 insumos críticos de la construcción paraguaya (Cemento Portland Gs. 52.360/bolsa, Varilla 10mm Gs. 8.236/kg, Arena Lavada Gs. 73.426/m3, Gasoil Gs. 7.502/lt con tendencia alcista detectada, Alquiler Motoniveladora Gs. 395.328/hora).
-    - Verificación de detección de mercados volátiles (CV 27.22% marcado como volátil).
-* **RISKS**:
-  - Insumos sin histórico en empresas de reciente creación resueltos con el onboarding acelerado de obras históricas (GATE 6).
-* **DEFINITION OF DONE**:
-  - Esquema `cost_observations` migrado con RLS y validaciones.
-  - Funciones matemáticas de CPP y percentiles implementadas sin dependencias opacas.
-  - Benchmark de 5 insumos de construcción paraguaya aprobado al 100%.
-  - Suite de tests `scripts/test-cost-engine.ts` ejecutada con 0 fallos.
-  - Compilación TypeScript aprobada con 0 errores (`npx tsc --noEmit` exit code 0).
+  - `0063_cost_observations.sql`: Tabla de observaciones de costo multi-tenant.
+  - Algoritmo en `lib/cost-engine/weighting.ts`: Decaimiento exponencial, atenuación logarítmica y jerarquía de fuentes.
+* **VERIFICACIÓN**:
+  - `scripts/test-cost-engine.ts` valida el cálculo matemático rigurosamente.
+* **GAPS**:
+  - No está conectado como listener/trigger reactivo a las facturas y compras que se registran en el ERP. Requiere llamadas explícitas.
 
 ---
 
-## GATE 6 — Cost Cold Start / Historical Onboarding
-
-* **STATUS**: DONE
+### GATE 6 — Cost Cold Start / Historical Onboarding
+* **STATUS**: **SCAFFOLD_ONLY**
 * **DEPENDENCIES**: GATE 5B
 * **IMPLEMENTATION**:
-  - Motor de ingestión ágil [`lib/cost-engine/onboarding.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/cost-engine/onboarding.ts):
-    - Detección heurística multiformato de cabeceras de Excel/CSV (Ítem, Cómputo/Cantidad, Unidad, Precio Unitario, Fecha).
-    - Normalización de números con separadores guaraníes (puntos de miles y comas decimales).
-    - Inferencia semántica automática de categorías paraguayas (`COMBUSTIBLE`, `EQUIPO`, `MANO_OBRA`, `MATERIAL`, `SUBCONTRATO`).
-    - Conversión inmediata de planillas de cómputo en observaciones de costo (`CostObservation`).
-* **TESTS**:
-  - Suite de onboarding [`scripts/test-historical-onboarding.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-historical-onboarding.ts):
-    - Inferencia de categorías probada al 100%.
-    - Carga simulada de 3 obras históricas con esquemas de columna heterogéneos.
-    - Calibración inmediata del motor de costos: confianza pasa de `INSUFICIENTE` a `MEDIA` en segundos.
-* **RISKS**:
-  - Planillas sin columna de precio resueltas reportando omisiones sin abortar el resto del lote.
-* **DEFINITION OF DONE**:
-  - Empresa nueva operativa en el motor de costos en minutos mediante carga de 3 obras históricas.
-  - Test suite ejecutada con 0 fallos.
-  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
+  - Parser heurístico de planillas de cómputo en `lib/cost-engine/onboarding.ts`.
+* **VERIFICACIÓN**:
+  - `scripts/test-historical-onboarding.ts` demuestra que el algoritmo reconoce columnas.
+* **GAPS**:
+  - No hay pantalla (UI) ni endpoint HTTP para que los usuarios carguen sus archivos Excel/CSV desde la aplicación web.
 
 ---
 
-## GATE 7 — Item Matching Engine
-
-* **STATUS**: DONE
+### GATE 7 — Item Matching Engine
+* **STATUS**: **SCAFFOLD_ONLY**
 * **DEPENDENCIES**: GATE 2, GATE 5B
 * **IMPLEMENTATION**:
-  - Motor de emparejamiento híbrido determinístico [`lib/procurement/item-matching.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/item-matching.ts):
-    - Normalización de dimensiones y calibres (`d=10mm`, `10 mm`, `AP 500`, `H-21`, `F-32`).
-    - Lematización y stopwords técnicas del sector construcción paraguayo.
-    - Diccionario de sinónimos técnicos (hormigón=concreto, varilla=hierro=acero, diésel=gasoil, etc.).
-    - Similitud ponderada bidireccional (peso 4x en especificaciones técnicas críticas y calibres).
-    - Bonificación de unidad física de medida y compuertas determinísticas (`MATCH_AUTOMATICO` >= 0.65, `REQUIERE_REVISION` >= 0.40, `NO_MATCH` < 0.40).
-* **TESTS**:
-  - Benchmark de acierto [`scripts/test-item-matching.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-item-matching.ts):
-    - Exactitud sobre catálogo: 100% (10/10 ítems de pliegos reales emparejados con su par correcto).
-    - Tasa de resolución automática: 100% (superando ampliamente el benchmark mínimo del 90%).
-    - Prueba de discriminación de calibres críticos: Hierro 10mm vs 12mm discriminados inequívocamente sin falsos positivos cruzados.
-* **RISKS**:
-  - Pliegos con redacción ambigua en ítems genéricos mitigados mediante la compuerta `REQUIERE_REVISION`.
-* **DEFINITION OF DONE**:
-  - Resolución automática > 90% alcanzada (100% obtenido en benchmark).
-  - Test suite ejecutada con 0 fallos.
-  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
+  - Tokenizador, normalizador de calibres y stopwords en `lib/procurement/item-matching.ts`.
+* **VERIFICACIÓN**:
+  - `scripts/test-item-matching.ts` valida matching en memoria.
+* **GAPS**:
+  - No está conectado al flujo de importación de ítems de pliegos en la aplicación.
 
 ---
 
-## GATE 8 — Strict Temporal Backtest
-
-* **STATUS**: DONE
+### GATE 8 — Strict Temporal Backtest
+* **STATUS**: **INVALID**
 * **DEPENDENCIES**: GATE 4, GATE 5A, GATE 5B
 * **IMPLEMENTATION**:
-  - Suite walk-forward sin filtración de datos futuros (No Data Leakage) [`scripts/test-temporal-backtest.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-temporal-backtest.ts):
-    - Partición cronológica estricta: Entrenamiento con observaciones transaccionales y licitaciones históricas previas a $T_{\text{cutoff}}$ (2022–2023).
-    - Proyección a ciegas sobre licitaciones y precios del período de evaluación (2024).
-    - Verificación programática de que ninguna observación posterior a la fecha de corte participa en el cálculo ponderado del Cost Engine.
-* **TESTS**:
-  - Evaluación cuantitativa de error sobre resultados de adjudicación en MOPC:
-    - Verificación estricta de no data leakage en el Cost Engine (cero observaciones futuras en el breakdown ponderado).
-    - Estimación de descuento de competidor líder (TOCSA en MOPC) calibrado en 7.50%.
-    - Error medio absoluto porcentual de oferta ganadora (MAPE): **0.27%** (cumpliendo sobradamente el umbral estricto de MAPE < 5.0%).
-* **RISKS**:
-  - Distorsiones macroeconómicas abruptas se detectan y aíslan mediante la métrica de volatilidad del Cost Engine.
-* **DEFINITION OF DONE**:
-  - Veredicto de backtesting: **ACCEPT**.
-  - Test suite walk-forward ejecutada con 0 fallos.
-  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
+  - Script `scripts/test-temporal-backtest.ts`.
+* **VERIFICACIÓN**:
+  - **FALSIFICADO**: El test corrió sobre un fixture sintético hardcodeado donde los precios de prueba coincidían exactamente con los esperados.
+* **GAPS**:
+  - No existe un backtesting real sobre una serie temporal histórica independiente de ofertas de la DNCP. La aserción previa de MAPE 0.27% queda anulada como métrica de producción.
 
 ---
 
-## GATE 9 — Company Bid Vault
-
-* **STATUS**: DONE
+### GATE 9 — Company Bid Vault
+* **STATUS**: **SCAFFOLD_ONLY**
 * **DEPENDENCIES**: GATE 0
 * **IMPLEMENTATION**:
-  - Migración SQL [`supabase/migrations/0064_company_bid_vault.sql`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/supabase/migrations/0064_company_bid_vault.sql):
-    - Tabla `public.company_bid_vault_items` con RLS multi-tenant estricto (`empresa_id = public.current_empresa_id()`).
-    - 6 categorías canónicas (`LEGAL`, `FISCAL`, `FINANCIERO`, `EXPERIENCIA`, `PERSONAL`, `MAQUINARIA`, `OTRO`).
-    - Estados de vigencia (`VIGENTE`, `POR_VENCER`, `VENCIDO`, `EN_TRAMITE`, `OBSOLETO`).
-    - Metadatos JSONB estructurados para matching automático contra requisitos de pliegos.
-    - Versionado documental y referencia a documento padre para reemplazos limpios.
-    - Función de PostgreSQL `evaluar_estado_documento_boveda`.
-  - Módulo TypeScript [`lib/procurement/bid-vault.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/bid-vault.ts): tipos canónicos, función de evaluación determinística `evaluateDocumentValidity` y agregador de salud `summarizeVaultHealth`.
-* **TESTS**:
-  - Suite de verificación [`scripts/test-bid-vault.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-bid-vault.ts):
-    - Detección exacta de estados de vigencia según umbrales de alerta (30 días).
-    - Modelado y verificación de bóveda real de constructora paraguaya (Estatutos, DNIT, IPS, Certificados de Obras MOPC, Equipos CAT).
-    - Agregación y reporte de salud por categoría.
-* **RISKS**:
-  - Carga desactualizada de certificados fiscales mitigada con el conector de actualización externa (GATE 10).
-* **DEFINITION OF DONE**:
-  - Bóveda documental multi-tenant migrada e indexada.
-  - Lógica de estados y metadatos probada al 100%.
-  - Suite de tests aprobada con 0 fallos.
-  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
+  - `0064_company_bid_vault.sql`: Esquema de bóveda documental multi-tenant.
+  - Lógica de estados de vigencia en `lib/procurement/bid-vault.ts`.
+* **VERIFICACIÓN**:
+  - `scripts/test-bid-vault.ts` valida transiciones de estado en memoria.
+* **GAPS**:
+  - No existe interfaz en el ERP para subir, visualizar o renovar documentos de la bóveda.
 
 ---
 
-## GATE 10 — External Document Connectors
-
-* **STATUS**: DONE
+### GATE 10 — External Document Connectors
+* **STATUS**: **PARTIAL / FAIL-CLOSED**
 * **DEPENDENCIES**: GATE 9
 * **IMPLEMENTATION**:
-  - Módulo de conectores estatales [`lib/procurement/external-connectors.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/external-connectors.ts):
-    - Implementación canónica del algoritmo de Dígito Verificador Módulo 11 oficial de la SET/DNIT (`calcularDvRucPy`).
-    - Conector tributario DNIT / Marangatu con validación estricta de DV y emisión de Constancia de Cumplimiento Tributario (CCT).
-    - Conector previsional IPS con verificación de solvencia y certificado patronal de no adeudar.
-    - Conector DNCP con consulta de inhabilitaciones y sanciones vigentes para contratar con el Estado.
-    - Auditoría estatal integral tripartita (`runFullStateComplianceAudit`).
-* **TESTS**:
-  - Suite de verificación [`scripts/test-external-connectors.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-external-connectors.ts):
-    - Validación positiva de RUC real paraguayo (80009735-1).
-    - Rechazo inmediato de RUC malformado o con DV apócrifo.
-    - Emisión de solvencia patronal IPS con número de certificado y vigencia.
-    - Consulta de inhabilitaciones DNCP aprobada.
-    - Auditoría 100% cumplida sobre los 3 entes públicos.
-* **RISKS**:
-  - Indisponibilidad o cambios de schema en portales estatales mitigados mediante validación algorítmica local, fallbacks y timeouts configurables.
-* **DEFINITION OF DONE**:
-  - Conectores con las 3 entidades clave del Estado paraguayo operativos.
-  - Test suite ejecutada con 0 fallos.
-  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
+  - `lib/procurement/external-connectors.ts`:
+    - Implementación canónica y probada del algoritmo de Dígito Verificador Módulo 11 oficial de la SET/DNIT (`calcularDvRucPy` y `validarRucParaguayo`).
+    - Stubs de conectores a DNIT, IPS y DNCP convertidos a **FAIL-CLOSED** (`isCompliant: false`, status `NOT_IMPLEMENTED`).
+* **VERIFICACIÓN**:
+  - `scripts/test-external-connectors.ts` verifica que ningún conector falsifique certificados ni emita cumplimientos inventados.
+* **GAPS**:
+  - Integración pendiente con web services / scrapers oficiales autenticados de DNIT, IPS y DNCP.
 
 ---
 
-## GATE 11 — Compliance Engine
-
-* **STATUS**: DONE
+### GATE 11 — Compliance Engine
+* **STATUS**: **SCAFFOLD_ONLY**
 * **DEPENDENCIES**: GATE 9
 * **IMPLEMENTATION**:
-  - Motor analítico de cumplimiento de pliegos [`lib/procurement/compliance-engine.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/compliance-engine.ts):
-    - Verificación estructurada por categorías (`LEGAL`, `FISCAL`, `FINANCIERO`, `EXPERIENCIA`, `PERSONAL`, `MAQUINARIA`).
-    - Validación de ratios financieros de solvencia y liquidez corriente procedentes del ERP.
-    - Agregación cuantitativa de experiencia técnica (monto acumulado y unidades físicas como km de asfalto o m2 construidos).
-    - Verificación de parque de maquinaria y potencia requerida (HP).
-    - Asignación determinística de dictámenes (`CUMPLIDO`, `GENERABLE`, `FALTANTE`).
-    - Cálculo de elegibilidad estricta (`isEligibleToBid` es false si existe algún faltante en requisitos excluyentes).
-* **TESTS**:
-  - Suite de evaluación de pliegos [`scripts/test-compliance-engine.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-compliance-engine.ts):
-    - Pliego MOPC vial cumplido al 100% (5/5 requisitos probados con respaldo documental).
-    - Pliego Megapuente con descalificación certera ante ratios de liquidez insuficientes y falta de experiencia acumulada.
-* **RISKS**:
-  - Interpretación de cláusulas atípicas mitigada permitiendo al usuario marcar requisitos como `GENERABLE` con plan de acción.
-* **DEFINITION OF DONE**:
-  - Diagnóstico automatizado de requisitos con respaldo probatorio.
-  - Test suite ejecutada con 0 fallos.
-  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
+  - Matriz de evaluación de pliegos en `lib/procurement/compliance-engine.ts`.
+* **VERIFICACIÓN**:
+  - `scripts/test-compliance-engine.ts` valida la lógica condicional con objetos de prueba.
+* **GAPS**:
+  - No existe parser que extraiga requisitos de un pliego PDF para alimentar esta matriz automáticamente.
 
 ---
 
-## GATE 12 — Institution Intelligence
-
-* **STATUS**: DONE
+### GATE 12 — Institution Intelligence
+* **STATUS**: **SCAFFOLD_ONLY**
 * **DEPENDENCIES**: GATE 3
 * **IMPLEMENTATION**:
-  - Motor de análisis institucional de convocantes [`lib/procurement/institution-intelligence.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/institution-intelligence.ts):
-    - Medición de días reales promedio de pago de certificados de obra.
-    - Medición de tasa de adendas y prórrogas por llamado.
-    - Medición de tasa de cancelaciones o llamados desiertos.
-    - Concentración del mercado en el Top 3 de contratistas adjudicados.
-    - Matriz determinística de calificación de riesgo (A: Excelente < 60d, B: Confiable < 120d, C: Moderado < 210d, D: Alto Riesgo > 210d).
-* **TESTS**:
-  - Suite de evaluación de convocantes [`scripts/test-institution-intelligence.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-institution-intelligence.ts):
-    - ANDE modelada y calificada como **A** (Pagos a 45 días, 0% cancelaciones).
-    - MOPC modelado y calificado como **C** (Pagos promedio a 150 días, alta tasa de adendas de 2.75).
-    - Municipio de alto riesgo modelado y calificado como **D** (Mora de 270 días y 66.7% de cancelaciones).
-* **RISKS**:
-  - Variaciones temporales en el presupuesto general de la nación mitigadas calculando la mora de forma móvil por año.
-* **DEFINITION OF DONE**:
-  - Ficha de riesgo y comportamiento contractual por entidad compradora implementada.
-  - Test suite ejecutada con 0 fallos.
-  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
+  - Algoritmo de scoring de convocantes en `lib/procurement/institution-intelligence.ts`.
+* **VERIFICACIÓN**:
+  - `scripts/test-institution-intelligence.ts` evaluado sobre objetos mock.
+* **GAPS**:
+  - No está conectado a un warehouse relacional con datos históricos completos de pagos y contratos estatales.
 
 ---
 
-## GATE 13 — Financial Analysis of Tender
-
-* **STATUS**: DONE
+### GATE 13 — Financial Analysis of Tender
+* **STATUS**: **SCAFFOLD_ONLY**
 * **DEPENDENCIES**: GATE 5B, GATE 12
 * **IMPLEMENTATION**:
-  - Motor de simulación financiera de contratos [`lib/procurement/financial-analysis.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/financial-analysis.ts):
-    - Curva de flujo de caja proyectado por mes (costos directos + indirectos vs cobro de certificados).
-    - Desfase temporal alimentado directamente por los días promedio de mora del convocante (GATE 12).
-    - Amortización de anticipo financiero (10% - 20%).
-    - Cálculo de necesidad máxima de capital de trabajo (*Peak Working Capital*).
-    - Cuantificación del costo financiero sobre el capital inmovilizado y cálculo del Margen Neto Real.
-    - Tres escenarios de simulación: Base (media histórica), Conservador (+30 días), Estrés (+90 días).
-    - Veredicto de viabilidad (`VIABLE`, `REQUIERE_FINANCIAMIENTO`, `NO_VIABLE_ALTO_RIESGO`).
-* **TESTS**:
-  - Suite de evaluación financiera [`scripts/test-financial-analysis.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-financial-analysis.ts):
-    - Obra ANDE (Gs. 5.000M, 45d pago): Margen neto de 15.34% preservado, calificada como `VIABLE`.
-    - Obra MOPC (Gs. 20.000M, 150d pago): Capital pico requerido de Gs. 5.083M, costo financiero de Gs. 661M, calificada certeramente como `REQUIERE_FINANCIAMIENTO`.
-* **RISKS**:
-  - Descalce entre plazos teóricos de contrato y plazos reales de cobro absorbido íntegramente mediante el buffer de financiamiento recomendado en el escenario conservador.
-* **DEFINITION OF DONE**:
-  - Cálculo de margen económico real ajustado por capital y tiempo.
-  - Test suite ejecutada con 0 fallos.
-  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
+  - Simulador de flujo de caja y capital de trabajo en `lib/procurement/financial-analysis.ts`.
+* **VERIFICACIÓN**:
+  - `scripts/test-financial-analysis.ts` valida las ecuaciones de cashflow.
+* **GAPS**:
+  - No persiste simulaciones en la BD ni se integra con las cuentas bancarias o el flujo de tesorería del ERP.
 
 ---
 
-## GATE 14 — Tender Operations Agent V1
-
-* **STATUS**: DONE
+### GATE 14 — Tender Operations Agent V1
+* **STATUS**: **SCAFFOLD_ONLY**
 * **DEPENDENCIES**: GATE 7, GATE 9, GATE 11, GATE 13
 * **IMPLEMENTATION**:
-  - Orquestador de operaciones y armado de ofertas [`lib/procurement/tender-operations.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/tender-operations.ts):
-    - Generador de Carta Formal de Presentación de Oferta (Formulario 1 DNCP) con declaración de vigencia.
-    - Generador de Declaración Jurada de Inhabilidades según Art. 40 Ley 2051/03 y Ley 7021/22 (Formulario 2 DNCP).
-    - Generador de Planilla Económica y Cómputo Métrico (Formulario 3 DNCP).
-    - Enlace automático de evidencias probatorias vigentes desde el Company Bid Vault (Gate 9).
-    - Ensamblador del paquete con dictamen de estado (`READY_TO_SIGN` vs `DRAFT_INCOMPLETE`) y lista de errores de validación.
-* **TESTS**:
-  - Suite de preparación de ofertas [`scripts/test-tender-operations.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-tender-operations.ts):
-    - Ensamblaje exitoso de expediente completo en estado `READY_TO_SIGN` (Gs. 1.044M, 3 formularios, 3 documentos probatorios adjuntos, 0 errores).
-    - Detección precisa de faltantes documentales (falta de CCT fiscal) bloqueando la firma hasta su subsanación.
-* **RISKS**:
-  - Discrepancias de formato oficial resueltas con plantillas canónicas validadas bajo normativa de Contrataciones Públicas de Paraguay.
-* **DEFINITION OF DONE**:
-  - Expediente de licitación armado automáticamente listo para revisión humana final.
-  - Test suite ejecutada con 0 fallos.
-  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
+  - Generador de plantillas de formularios en `lib/procurement/tender-operations.ts`.
+* **VERIFICACIÓN**:
+  - `scripts/test-tender-operations.ts` valida la concatenación de texto de formularios DNCP 1, 2 y 3.
+* **GAPS**:
+  - Es un generador determinístico de strings markdown, no un agente autónomo interactivo.
 
 ---
 
-## GATE 15 — Tender Monitoring Agent
-
-* **STATUS**: DONE
+### GATE 15 — Tender Monitoring Agent
+* **STATUS**: **SCAFFOLD_ONLY**
 * **DEPENDENCIES**: GATE 14
 * **IMPLEMENTATION**:
-  - Agente monitor reactivo de llamados [`lib/procurement/tender-monitoring.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/tender-monitoring.ts):
-    - Detección de mutaciones entre snapshots temporales del proceso en la DNCP.
-    - Detección de adendas modificatorias con emisión de alerta inmediata de severidad `CRITICAL` y acción mandatoria `REVISAR_ADENDA_Y_RECALCULAR`.
-    - Detección de prórrogas de entrega/apertura con ajuste de calendario (`WARNING`).
-    - Detección de estados terminales (`ADJUDICADA`, `CANCELADA`, `DESIERTA`).
-    - Registro de aclaraciones oficiales (`INFO`).
-* **TESTS**:
-  - Suite de monitoreo [`scripts/test-tender-monitoring.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-tender-monitoring.ts):
-    - Detección certera de adenda y prórroga simultánea con clasificación de severidades.
-    - Detección reactiva de adjudicación con solicitud de verificación de resultados.
-* **RISKS**:
-  - Sobrecarga de alertas irrelevantes filtrada mediante separación estricta de notas de aclaración menores (`INFO`) vs adendas modificatorias (`CRITICAL`).
-* **DEFINITION OF DONE**:
-  - Notificaciones selectivas y oportunas ante cambios en llamados seguidos implementadas.
-  - Test suite ejecutada con 0 fallos.
-  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
+  - Comparador diferencial en `lib/procurement/tender-monitoring.ts`.
+* **VERIFICACIÓN**:
+  - `scripts/test-tender-monitoring.ts` valida la detección de cambios entre dos objetos JSON.
+* **GAPS**:
+  - No hay un proceso en segundo plano (daemon, cron job o worker) que ejecute consultas periódicas contra la DNCP.
 
 ---
 
-## GATE 16 — Competitive Simulator
-
-* **STATUS**: DONE
+### GATE 16 — Competitive Simulator
+* **STATUS**: **SCAFFOLD_ONLY**
 * **DEPENDENCIES**: GATE 5A, GATE 8
 * **IMPLEMENTATION**:
-  - Simulador estocástico Monte Carlo de subastas públicas [`lib/procurement/competitive-simulator.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/competitive-simulator.ts):
-    - Generación de variables aleatorias normales Box-Muller parametrizadas por huellas contextuales de competidores (Gate 5A).
-    - 10,000 iteraciones estocásticas por licitación simulada.
-    - Distribución percentil del precio de corte de adjudicación: P10 (agresivo), P50 (mediana de adjudicación), P90 (conservador).
-    - Construcción de la Curva de Probabilidad de Ganar (*Win Probability Curve*) para diferentes descuentos respecto al presupuesto oficial.
-    - Determinación del *Sweet Spot* comercial óptimo.
-* **TESTS**:
-  - Suite de simulación Monte Carlo [`scripts/test-competitive-simulator.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-competitive-simulator.ts):
-    - Ejecución de 10,000 iteraciones completada en < 100 ms.
-    - Coherencia ordinal de percentiles ($P_{10} \le P_{50} \le P_{90}$).
-    - Monotonía estricta de la curva de probabilidad de ganar comprobada en cada punto de descuento (de 0% con 2% de descuento a 100% con 18%).
-* **RISKS**:
-  - Incertidumbre comunicada con bandas de confianza explícitas (P10/P50/P90) y no como un número puntual determinista.
-* **DEFINITION OF DONE**:
-  - Simulación con bandas de confianza explicables implementada.
-  - Test suite ejecutada con 0 fallos.
-  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
+  - Simulador estocástico Monte Carlo Box-Muller en `lib/procurement/competitive-simulator.ts`.
+* **VERIFICACIÓN**:
+  - `scripts/test-competitive-simulator.ts` valida la convergencia matemática y monotonía en memoria.
+* **GAPS**:
+  - Las distribuciones de probabilidad no están calibradas contra un repositorio masivo de ofertas reales adjudicadas.
 
 ---
 
-## GATE 17 — Bid Engine
-
-* **STATUS**: DONE
+### GATE 17 — Bid Engine
+* **STATUS**: **SCAFFOLD_ONLY**
 * **DEPENDENCIES**: GATE 5A, GATE 5B, GATE 12, GATE 13, GATE 16
 * **IMPLEMENTATION**:
-  - Motor analítico integral de decisión comercial (*Bid / No-Bid*) [`lib/procurement/bid-engine.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/bid-engine.ts):
-    - Síntesis de los 5 pilares estratégicos:
-      1. Cumplimiento normativo y solvencia técnica (Gate 11).
-      2. Costos directos e indirectos y margen bruto inicial (Gate 5B).
-      3. Riesgo de mora y cancelación del convocante (Gate 12).
-      4. Flujo de caja, capital de trabajo pico y margen neto ajustado (Gate 13).
-      5. Simulación estocástica de rivales y probabilidad de ganar (Gate 16).
-    - Asignación determinística de dictamen tripartito: `COMPETIR` (Go), `REVISAR` (Review), `NO_COMPETIR` (No Go).
-    - Cálculo de Score Global (0-100), justificaciones clave y detección de bloqueadores excluyentes.
-* **TESTS**:
-  - Suite de validación comercial [`scripts/test-bid-engine.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-bid-engine.ts):
-    - Caso `COMPETIR`: Licitación ANDE con margen neto del 16.87%, 0 bloqueadores y score de 91/100.
-    - Caso `REVISAR`: Licitación MOPC requiriendo estructuración de capital de trabajo por mora de 150 días.
-    - Caso `NO_COMPETIR`: Licitación bloqueada por omisión de requisitos excluyentes de pliego.
-* **RISKS**:
-  - Decisiones sesgadas mitigadas mediante la exigencia mandatoria de los 5 pilares completos antes de emitir la recomendación ejecutiva.
-* **DEFINITION OF DONE**:
-  - Panel y motor de decisión ejecutiva fundamentada implementado.
-  - Test suite ejecutada con 0 fallos.
-  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
+  - Agregador de 5 pilares comerciales en `lib/procurement/bid-engine.ts`.
+* **VERIFICACIÓN**:
+  - `scripts/test-bid-engine.ts` valida la regla de Go/No-Go sobre escenarios de prueba.
+* **GAPS**:
+  - No está integrado en la interfaz de usuario de licitaciones ni persiste sus veredictos en base de datos.
 
 ---
 
-## GATE 18 — Bid Analysis Snapshot
-
-* **STATUS**: DONE
+### GATE 18 — Bid Analysis Snapshot
+* **STATUS**: **PARTIAL**
 * **DEPENDENCIES**: GATE 17
 * **IMPLEMENTATION**:
-  - Migración SQL [`supabase/migrations/0065_bid_analysis_snapshots.sql`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/supabase/migrations/0065_bid_analysis_snapshots.sql):
-    - Tabla `public.bid_analysis_runs` con RLS multi-tenant estricto (`empresa_id = public.current_empresa_id()`).
-    - Almacenamiento append-only e inmutable de los 5 snapshots estructurados (`compliance_snapshot`, `institution_snapshot`, `financial_snapshot`, `simulation_snapshot`, `pillars_snapshot`).
-    - Trigger de PostgreSQL `bloquear_modificacion_snapshot` que prohíbe cualquier comando `UPDATE` sobre la tabla.
-    - Firma de integridad SHA-256 (`snapshot_hash`).
-  - Módulo TypeScript [`lib/procurement/bid-snapshot.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/bid-snapshot.ts): generador de snapshots congelados y verificador criptográfico anti-adulteración.
-* **TESTS**:
-  - Suite de auditoría inmutable [`scripts/test-bid-snapshot.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-bid-snapshot.ts):
-    - Congelamiento exitoso con hash SHA-256 de 64 caracteres.
-    - Verificación matemática de integridad (100% match).
-    - Detección certera y rechazo ante intentos de alteración silenciosa o fraude en datos históricos.
-* **RISKS**:
-  - Crecimiento de almacenamiento mitigado al guardar estructuras JSON compactas sin duplicar binarios pesados.
-* **DEFINITION OF DONE**:
-  - Auditoría y trazabilidad histórica sin recálculos silenciosos garantizada.
-  - Test suite ejecutada con 0 fallos.
-  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
+  - `0065_bid_analysis_snapshots.sql`: Tabla `bid_analysis_runs` con trigger de inmutabilidad append-only.
+  - Módulo `lib/procurement/bid-snapshot.ts` con hashing SHA-256.
+* **VERIFICACIÓN**:
+  - `scripts/test-bid-snapshot.ts` valida la inmutabilidad y cálculo de hash.
+* **GAPS**:
+  - La tabla existe pero ninguna acción de usuario o API del ERP escribe registros reales en ella todavía.
 
 ---
 
-## GATE 19 — Tender → Project
-
-* **STATUS**: DONE
+### GATE 19 — Tender → Project
+* **STATUS**: **SCAFFOLD_ONLY**
 * **DEPENDENCIES**: GATE 17, GATE 18
 * **IMPLEMENTATION**:
-  - Motor de transición automática de licitaciones a obras operativas [`lib/procurement/tender-to-project.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/tender-to-project.ts):
-    - Creación del registro de obra en la tabla `projects` con datos de contrato público (comitente, plazo en días, anticipo, fondo de reparo y monto adjudicado).
-    - Conversión automática de la planilla económica adjudicada a `budget_items` del ERP con código, unidad, cantidad y precios unitarios.
-    - Generación de la lista inicial de requerimientos de compra y pañol para compras tempranas de insumos críticos.
-    - Preservación de la trazabilidad vinculando la obra con el proceso licitatorio (`tender_id` y `bid_analysis_run_id`).
-* **TESTS**:
-  - Suite de transición de obra [`scripts/test-tender-to-project.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-tender-to-project.ts):
-    - Creación de proyecto activo con contrato de obra pública MOPC.
-    - Transferencia aritmética 100% exacta de presupuesto (Gs. 769.500.000).
-    - Desglose de 4 BudgetItems y 4 solicitudes de compra de insumos de pañol.
-* **RISKS**:
-  - Ajustes de obra en campo soportados naturalmente mediante la funcionalidad nativa de adendas y certificados de avance del ERP.
-* **DEFINITION OF DONE**:
-  - Proyecto operativo generado con un solo clic conservando trazabilidad de la oferta.
-  - Test suite ejecutada con 0 fallos.
-  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
+  - Función `transformTenderToProject` en `lib/procurement/tender-to-project.ts`.
+* **VERIFICACIÓN**:
+  - `scripts/test-tender-to-project.ts` valida la transformación de objetos en memoria.
+* **GAPS**:
+  - No ejecuta transacciones en base de datos; no crea proyectos reales en la tabla `projects` ni inserta ítems en `budget_items`.
 
 ---
 
-## GATE 20 — ERP Execution Flywheel
-
-* **STATUS**: DONE
+### GATE 20 — ERP Execution Flywheel
+* **STATUS**: **SCAFFOLD_ONLY**
 * **DEPENDENCIES**: GATE 19
 * **IMPLEMENTATION**:
-  - Motor de retroalimentación de doble bucle cerrado [`lib/procurement/flywheel.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/flywheel.ts):
-    - **Bucle 1 (Privado / Cost Engine)**: Cada factura imputada o compra ejecutada en una obra alimenta inmediatamente el historial de observaciones del tenant (`processFlywheelExecutionPurchase`), recalibrando en tiempo real el Costo Presente Ponderado (CPP) con decaimiento temporal y atenuación de volumen.
-    - **Bucle 2 (Público / Mercado)**: Cada apertura oficial o acta de adjudicación pública en la DNCP retroalimenta el repositorio de posturas (`procurement_bids`), refinando dinámicamente las huellas de agresividad de los competidores.
-* **TESTS**:
-  - Suite de verificación de retroalimentación [`scripts/test-flywheel.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-flywheel.ts):
-    - Demostración de aprendizaje continuo: La compra mayorista de 2,000 bolsas de cemento en una obra activa ajustó el CPP de Gs. 55.383 a Gs. 52.351 (-5.47%), aumentando el nivel de confianza a `MEDIA` para la siguiente licitación.
-* **RISKS**:
-  - Dispersión por compras minoristas atípicas resuelta gracias al dampening logarítmico por volumen implementado en Gate 5B.
-* **DEFINITION OF DONE**:
-  - Cada obra ejecutada mejora automáticamente la precisión de la siguiente oferta.
-  - Test suite ejecutada con 0 fallos.
-  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
+  - Lógica de retroalimentación de doble bucle en `lib/procurement/flywheel.ts`.
+* **VERIFICACIÓN**:
+  - `scripts/test-flywheel.ts` valida el recálculo matemático de costos en memoria.
+* **GAPS**:
+  - No existen event listeners ni webhooks conectados a las acciones de facturas u órdenes de compra del ERP.
 
 ---
 
-## GATE 21 — Product Hardening / Enterprise Deployment
-
-* **STATUS**: DONE
+### GATE 21 — Product Hardening / Enterprise Deployment
+* **STATUS**: **SCAFFOLD_ONLY**
 * **DEPENDENCIES**: GATES 0–20
 * **IMPLEMENTATION**:
-  - Configuración reproducible de despliegue on-premise [`docker-compose.enterprise.yml`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/docker-compose.enterprise.yml):
-    - Gateway NGINX con terminación TLS.
-    - Contenedor de aplicación Next.js.
-    - PostgreSQL 16 con volumen persistente y carga automática de migraciones SQL (0001 a 0065).
-    - Almacenamiento MinIO compatible con S3 para la Bóveda documental.
-    - Instancia de Redis para caché y rate limiting.
-  - Playbook operativo y guía de Disaster Recovery [`docs/ENTERPRISE_DEPLOYMENT.md`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/docs/ENTERPRISE_DEPLOYMENT.md):
-    - Procedimiento automatizado de backups consistentes con `pg_dump`.
-    - Procedimiento de restauración limpia con `pg_restore`.
-    - Guía de rotación semestral de secretos y llaves criptográficas.
-* **TESTS**:
-  - Suite de verificación de despliegue [`scripts/test-enterprise-deployment.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-enterprise-deployment.ts):
-    - Integridad sintáctica y de servicios de docker-compose.
-    - Existencia y coherencia del playbook de operaciones.
-    - Verificación de la cadena completa de migraciones SQL (0060 a 0065).
-* **RISKS**:
-  - Dependencia de clouds propietarias eliminada: el sistema puede correr 100% aislado on-premise en infraestructura del cliente.
-* **DEFINITION OF DONE**:
-  - Enterprise Deployment Pack completo, documentado y reproducible.
-  - Test suite ejecutada con 0 fallos.
-  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
+  - Configuración Docker Compose en `docker-compose.enterprise.yml`.
+  - Guía operativa en `docs/ENTERPRISE_DEPLOYMENT.md`.
+* **VERIFICACIÓN**:
+  - `scripts/test-enterprise-deployment.ts` verifica la sintaxis de los archivos de configuración.
+* **GAPS**:
+  - No ha sido desplegado ni probado en un servidor real o clúster de producción.

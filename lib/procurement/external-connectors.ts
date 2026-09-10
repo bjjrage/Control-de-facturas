@@ -74,6 +74,7 @@ export function validarRucParaguayo(ruc: string): boolean {
 
 /**
  * Conector DNIT / SET: Valida estado tributario
+ * FAIL-CLOSED: No simula certificados ni cumplimiento positivo sin conexión real.
  */
 export async function checkDnitCompliance(
   ruc: string,
@@ -91,28 +92,24 @@ export async function checkDnitCompliance(
       isCompliant: false,
       statusText: 'RUC INVÁLIDO O DÍGITO VERIFICADOR INCORRECTO',
       verifiedAt: now,
-      sourceReachable: true
+      sourceReachable: false
     };
   }
 
-  const issueDate = new Date().toISOString().split('T')[0];
-  const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
+  // Fail-closed stub: No endpoint real integrado
   return {
     source: 'DNIT',
     ruc: fullRuc,
-    isCompliant: true,
-    certificateNumber: `CCT-${fullRuc.replace('-', '')}-${Date.now().toString().slice(-6)}`,
-    issueDate,
-    expiryDate: expiry,
-    statusText: 'CUMPLIMIENTO TRIBUTARIO AL DÍA',
+    isCompliant: false,
+    statusText: 'NOT_IMPLEMENTED: Conector oficial DNIT/Marangatu pendiente de credenciales/API pública. Fail-closed.',
     verifiedAt: now,
-    sourceReachable: true
+    sourceReachable: false
   };
 }
 
 /**
  * Conector IPS: Valida certificado de no adeudar al Seguro Social
+ * FAIL-CLOSED: No simula solvencia patronal sin verificación en portal oficial.
  */
 export async function checkIpsCompliance(
   ruc: string,
@@ -122,24 +119,21 @@ export async function checkIpsCompliance(
   const { ruc_clean, dv } = limpiarRuc(ruc);
   const fullRuc = ruc_clean && dv ? `${ruc_clean}-${dv}` : (ruc_clean || '');
   const now = new Date().toISOString();
-  const issueDate = new Date().toISOString().split('T')[0];
-  const expiry = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
+  // Fail-closed stub: No endpoint real integrado
   return {
     source: 'IPS',
     ruc: fullRuc,
-    isCompliant: true,
-    certificateNumber: `IPS-SOLV-${patronalNumber || 'PAT'}-${Date.now().toString().slice(-5)}`,
-    issueDate,
-    expiryDate: expiry,
-    statusText: 'CERTIFICADO DE NO ADEUDAR AL IPS VIGENTE',
+    isCompliant: false,
+    statusText: 'NOT_IMPLEMENTED: Conector oficial IPS pendiente de scraper/API de solvencia patronal. Fail-closed.',
     verifiedAt: now,
-    sourceReachable: true
+    sourceReachable: false
   };
 }
 
 /**
  * Conector DNCP: Consulta de proveedores inhabilitados o suspendidos
+ * FAIL-CLOSED: Requiere integración con endpoint OCDS de inhabilitaciones/sanciones.
  */
 export async function checkDncpInhabilitacion(
   ruc: string,
@@ -149,13 +143,14 @@ export async function checkDncpInhabilitacion(
   const fullRuc = ruc_clean && dv ? `${ruc_clean}-${dv}` : (ruc_clean || '');
   const now = new Date().toISOString();
 
+  // Fail-closed stub: No endpoint real integrado
   return {
     source: 'DNCP',
     ruc: fullRuc,
-    isCompliant: true,
-    statusText: 'HABILITADO PARA CONTRATAR CON EL ESTADO (SIN SANCIONES)',
+    isCompliant: false,
+    statusText: 'NOT_IMPLEMENTED: Conector de sanciones DNCP pendiente de query OCDS real. Fail-closed.',
     verifiedAt: now,
-    sourceReachable: true
+    sourceReachable: false
   };
 }
 

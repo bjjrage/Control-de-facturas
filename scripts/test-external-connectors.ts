@@ -27,42 +27,45 @@ async function runTests() {
   console.log('🧪 TEST SUITE: EXTERNAL DOCUMENT CONNECTORS (GATE 10)');
   console.log('======================================================\n');
 
-  // TEST 1: RUC Válido de Constructora Paraguaya
-  console.log('--- TEST 1: Verificación DNIT con RUC Válido ---');
+  // TEST 1: RUC Válido de Constructora Paraguaya - Verificación DV y Fail-Closed
+  console.log('--- TEST 1: Verificación DNIT con RUC Válido (Fail-Closed) ---');
   const validRuc = '80009735-1'; // RUC real paraguayo (DV = 1)
   const dnitValid = await checkDnitCompliance(validRuc);
-  console.log('Resultado DNIT:', dnitValid.statusText, '| Certificado:', dnitValid.certificateNumber);
-  assert(dnitValid.isCompliant === true, 'RUC válido obtiene cumplimiento tributario positivo');
-  assert(!!dnitValid.certificateNumber, 'Certificado tributario asignado con número de serie');
-  assert(!!dnitValid.expiryDate, 'Fecha de vencimiento calculada');
+  console.log('Resultado DNIT:', dnitValid.statusText);
+  assert(dnitValid.isCompliant === false, 'RUC válido retorna fail-closed (isCompliant: false) al no haber conector real configurado');
+  assert(dnitValid.statusText.includes('NOT_IMPLEMENTED'), 'Status indica explícitamente NOT_IMPLEMENTED');
+  assert(dnitValid.sourceReachable === false, 'sourceReachable es false');
 
   // TEST 2: Rechazo de RUC Inválido o Malformado
   console.log('\n--- TEST 2: Rechazo Inmediato de RUC Inválido ---');
   const invalidRuc = '12345'; // Sin formato válido
   const dnitInvalid = await checkDnitCompliance(invalidRuc);
   assert(dnitInvalid.isCompliant === false, 'RUC inválido es rechazado de inmediato');
+  assert(dnitInvalid.statusText.includes('INVÁLIDO'), 'Mensaje de RUC inválido correcto');
 
-  // TEST 3: Verificación IPS
-  console.log('\n--- TEST 3: Verificación Patronal IPS ---');
+  // TEST 3: Verificación IPS (Fail-Closed)
+  console.log('\n--- TEST 3: Verificación Patronal IPS (Fail-Closed) ---');
   const ipsResult = await checkIpsCompliance('80009735-1', 'PAT-9988');
-  console.log('Resultado IPS:', ipsResult.statusText, '| Certificado:', ipsResult.certificateNumber);
-  assert(ipsResult.isCompliant === true, 'IPS aprueba solvencia patronal');
+  console.log('Resultado IPS:', ipsResult.statusText);
+  assert(ipsResult.isCompliant === false, 'IPS retorna fail-closed');
+  assert(ipsResult.statusText.includes('NOT_IMPLEMENTED'), 'Status indica NOT_IMPLEMENTED');
 
-  // TEST 4: Verificación DNCP
-  console.log('\n--- TEST 4: Verificación de Inhabilitaciones DNCP ---');
+  // TEST 4: Verificación DNCP (Fail-Closed)
+  console.log('\n--- TEST 4: Verificación de Inhabilitaciones DNCP (Fail-Closed) ---');
   const dncpResult = await checkDncpInhabilitacion('80009735-1');
   console.log('Resultado DNCP:', dncpResult.statusText);
-  assert(dncpResult.isCompliant === true, 'DNCP certifica ausencia de inhabilitaciones');
+  assert(dncpResult.isCompliant === false, 'DNCP retorna fail-closed');
+  assert(dncpResult.statusText.includes('NOT_IMPLEMENTED'), 'Status indica NOT_IMPLEMENTED');
 
-  // TEST 5: Auditoría Integral Tripartita
-  console.log('\n--- TEST 5: Auditoría Estatal Consolidada ---');
+  // TEST 5: Auditoría Integral Tripartita (Fail-Closed)
+  console.log('\n--- TEST 5: Auditoría Estatal Consolidada (Fail-Closed) ---');
   const fullAudit = await runFullStateComplianceAudit('80009735-1', 'PAT-9988');
-  console.log(`Auditoría consolidada para RUC ${fullAudit.ruc}: ${fullAudit.allCompliant ? '100% CUMPLIDO' : 'OBSERVADO'}`);
-  assert(fullAudit.allCompliant === true, 'La constructora cumple con todos los requerimientos estatales');
-  assert(fullAudit.results.dnit.isCompliant && fullAudit.results.ips.isCompliant && fullAudit.results.dncp.isCompliant, 'Los 3 entes estatales respondieron satisfactoriamente');
+  console.log(`Auditoría consolidada para RUC ${fullAudit.ruc}: ${fullAudit.allCompliant ? '100% CUMPLIDO' : 'FAIL-CLOSED / RECHAZADO POR SEGURIDAD'}`);
+  assert(fullAudit.allCompliant === false, 'La auditoría es fail-closed mientras no existan conexiones oficiales reales');
+  assert(!fullAudit.results.dnit.isCompliant && !fullAudit.results.ips.isCompliant && !fullAudit.results.dncp.isCompliant, 'Ningún ente estatal genera certificados falsos');
 
   console.log('\n======================================================');
-  console.log('🎉 TODOS LOS TESTS DE GATE 10 PASARON CON ÉXITO');
+  console.log('🎉 TODOS LOS TESTS DE GATE 10 (FAIL-CLOSED) PASARON');
   console.log('======================================================\n');
 }
 
