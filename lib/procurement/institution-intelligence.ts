@@ -170,3 +170,90 @@ export function generateInstitutionProfile(
     resumenRiesgo
   };
 }
+
+/**
+ * Consulta la base de datos para obtener el historial real de una institución convocante
+ * (desde procurement_processes y certificados de obra si aplican) y computa su perfil.
+ * Si no hay historial, emite calificación SIN_DATOS con riesgo no calibrado fail-closed.
+ */
+export async function getInstitutionProfileFromDb(
+  supabase: any,
+  convocanteName: string,
+  empresaId?: string
+): Promise<InstitutionProfile> {
+  const cleanName = (convocanteName || '').trim();
+  if (!cleanName || cleanName === 'Convocante no especificado') {
+    return generateInstitutionProfile(cleanName || 'Convocante no especificado', []);
+  }
+
+  try {
+    // 1. Días de cobro en certificados de obra del tenant (si existen)
+    let certificateDays: number[] = [];
+    if (empresaId) {
+      const { data: certs } = await supabase
+        .from('project_certificates')
+        .select('fecha_aprobacion, fecha_cobro, comitente')
+        .eq('empresa_id', empresaId)
+        .ilike('comitente', `%${cleanName}%`)
+        .not('fecha_aprobacion', 'is', null)
+        .not('fecha_cobro', 'is', null);
+
+      if (certs && certs.length > 0) {
+        certificateDays = certs
+          .map((c: any) => {
+            const aprob = new Date(c.fecha_aprobacion).getTime();
+            const cobro = new Date(c.fecha_cobro).getTime();
+            return Math.max(0, Math.round((cobro - aprob) / (1000 * 60 * 60 * 24)));
+          })
+          .filter((d: number) => d > 0);
+      }
+    }
+
+    const avgPaymentDays = certificateDays.length > 0
+      ? Math.round(certificateDays.reduce((a, b) => a + b, 0) / certificateDays.length)
+      : undefined;
+
+    // 2. Procesos de contratación públicos registrados para este convocante
+    const { data: processes, error } = await supabase
+      .from('procurement_processes')
+      .select('id, ocid, comitente_nombre, estado, monto_referencial, fecha_publicacion, raw_json')
+      .ilike('comitente_nombre', `%${cleanName}%`)
+      .limit(100);
+
+    if (error || !processes || processes.length === 0) {
+      return generateInstitutionProfile(cleanName, []);
+    }
+
+    const tenders: HistoricalInstitutionTender[] = processes.map((p: any) => {
+      const awards = p.raw_json?.awards || [];
+      const winningSupplier = awards[0]?.suppliers?.[0]?.name || '';
+      const winningRuc = awards[0]?.suppliers?.[0]?.id || '';
+      const winningAmount = awards[0]?.value?.amount || p.monto_referencial || 0;
+      const docs = p.raw_json?.documents || [];
+      const adendasCount = Array.isArray(docs)
+        ? docs.filter((d: any) => {
+            const txt = `${d.documentTypeDetails || ''} ${d.title || ''}`.toLowerCase();
+            return txt.includes('adenda') || txt.includes('aclaracion');
+          }).length
+        : 0;
+
+      return {
+        id: p.id,
+        convocante: p.comitente_nombre || cleanName,
+        fechaLlamado: p.fecha_publicacion || new Date().toISOString().split('T')[0],
+        montoTotalAdjudicado: Number(winningAmount || 0),
+        proveedorAdjudicado: winningSupplier,
+        rucProveedor: winningRuc,
+        cantidadAdendas: adendasCount,
+        estado: p.estado === 'ADJUDICADA' ? 'ADJUDICADA' : (p.estado === 'CANCELADA' ? 'CANCELADA' : (p.estado === 'DESIERTA' ? 'DESIERTA' : 'EN_PROCESO')),
+        diasDemoraPagoPromedio: avgPaymentDays
+      };
+    });
+
+    return generateInstitutionProfile(cleanName, tenders);
+  } catch (err) {
+    console.error('[InstitutionIntelligence] Error fetching from DB:', err);
+    return generateInstitutionProfile(cleanName, []);
+  }
+}
+

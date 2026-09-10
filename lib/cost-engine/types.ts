@@ -46,7 +46,7 @@ export interface WeightingBreakdown {
 export interface CostEstimate {
   itemDescription: string;
   unit: string;
-  recommendedUnitPrice: number; // Precio sugerido ponderado (CPP)
+  recommendedUnitPrice: number; // Precio sugerido ponderado / costo de reposición (replacement cost)
   priceRange: {
     min: number;
     p25: number;

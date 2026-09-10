@@ -1,6 +1,6 @@
 /**
  * COST ENGINE PUBLIC API (GATE 5B)
- * Servicio de estimación de costo ponderado (CPP) y registro de observaciones transaccionales.
+ * Servicio de estimación de costo de reposición (replacement cost) y registro de observaciones transaccionales de costo.
  */
 
 import { createClient } from '@/lib/supabase/server';
@@ -16,8 +16,8 @@ export * from './weighting';
 export * from './onboarding';
 
 /**
- * Obtiene la estimación de costo ponderado para un producto o descripción de insumo
- * dentro del contexto del tenant actual.
+ * Obtiene la estimación de costo de reposición / replacement cost para un producto o descripción de insumo
+ * dentro del contexto del tenant actual a partir de observaciones históricas.
  */
 export async function getCurrentCostEstimate(params: {
   productoId?: string;

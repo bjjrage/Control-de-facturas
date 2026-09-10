@@ -549,7 +549,11 @@ export async function importarPlanillaCostosHistoricos(
  */
 export async function persistirEvaluacionComercial(
   licitacionId: string,
-  options?: { annualFinancingRatePct?: number }
+  options?: {
+    annualFinancingRatePct?: number;
+    proposedOfferAmountPyg?: number;
+    estimatedIndirectCostPyg?: number;
+  }
 ): Promise<{ error?: string; snapshotId?: string; decision?: string; score?: number; hash?: string }> {
   const { supabase, profile } = await ctx();
   const empresaId = profile.empresa_id;
@@ -601,44 +605,94 @@ export async function persistirEvaluacionComercial(
     evidenceOrigin
   );
 
-  // 4. Perfil institucional del convocante (sin datos históricos simulados)
-  const { generateInstitutionProfile } = await import("@/lib/procurement/institution-intelligence");
-  const institutionProfile = generateInstitutionProfile(lic.comitente_nombre || "Convocante no especificado", []);
+  // 4. Perfil institucional del convocante consultado desde base de datos real
+  const { getInstitutionProfileFromDb } = await import("@/lib/procurement/institution-intelligence");
+  const institutionProfile = await getInstitutionProfileFromDb(supabase, lic.comitente_nombre || "Convocante no especificado", empresaId);
 
-  // 5. Análisis de costos reales basados estrictamente en cómputo emparejado con catálogo
+  // 5. Análisis de costos reales basados estrictamente en Cost Engine y ofertas registradas
+  // CANONICAL INVARIANT: Inventory CPP != Replacement Cost != Bid Cost != Actual Project Cost.
   const { data: rawItems } = await supabase
     .from("licitacion_items")
     .select("*")
     .eq("licitacion_id", lic.id)
     .order("sort_order");
 
-  const { data: activeProducts } = await supabase
-    .from("productos")
-    .select("id, nombre, unidad, costo_promedio")
+  // Buscar oferta propia registrada y sus APUs/costos unitarios
+  const { data: ourOffer } = await supabase
+    .from("licitacion_ofertas")
+    .select("id, monto_total, licitacion_oferta_items(licitacion_item_id, costo_unitario, precio_unitario)")
+    .eq("licitacion_id", lic.id)
     .eq("empresa_id", empresaId)
-    .eq("activo", true)
-    .gt("costo_promedio", 0);
+    .maybeSingle();
 
-  const { matchTenderItem } = await import("@/lib/procurement/item-matching");
-  const catalogForMatching = (activeProducts ?? []).map(p => ({
-    id: p.id,
-    descripcion: p.nombre,
-    unidad: p.unidad
-  }));
+  const explicitItemCosts = new Map<string, number>();
+  if (ourOffer?.licitacion_oferta_items) {
+    for (const oi of (ourOffer.licitacion_oferta_items as any[])) {
+      if (oi.licitacion_item_id && oi.costo_unitario && Number(oi.costo_unitario) > 0) {
+        explicitItemCosts.set(oi.licitacion_item_id, Number(oi.costo_unitario));
+      }
+    }
+  }
+
+  // Cargar observaciones transaccionales de costo del tenant para calcular costo de reposición
+  const { data: costObs } = await supabase
+    .from("cost_observations")
+    .select("*")
+    .eq("empresa_id", empresaId)
+    .order("fecha_observacion", { ascending: false });
+
+  const { calculateCostEstimate } = await import("@/lib/cost-engine");
 
   let calculatedDirectCost = 0;
   let itemsWithCostCount = 0;
   const totalItemsCount = (rawItems ?? []).length;
 
   for (const it of rawItems ?? []) {
-    const matched = matchTenderItem(it.descripcion, it.unidad || "UN", catalogForMatching);
-    if (matched.bestMatch) {
-      const prod = (activeProducts ?? []).find(p => p.id === matched.bestMatch!.item.id);
-      if (prod && it.cantidad) {
-        calculatedDirectCost += prod.costo_promedio * Number(it.cantidad);
+    const qty = Number(it.cantidad || 1);
+
+    // Prioridad 1: APU o costo unitario explícito en nuestra oferta
+    if (explicitItemCosts.has(it.id)) {
+      const explicitUnitCost = explicitItemCosts.get(it.id)!;
+      calculatedDirectCost += explicitUnitCost * qty;
+      itemsWithCostCount++;
+      continue;
+    }
+
+    // Prioridad 2: Costo de reposición según observaciones transaccionales del Cost Engine
+    const matchingObs = (costObs ?? []).filter((obs: any) =>
+      obs.descripcion_item && it.descripcion &&
+      obs.descripcion_item.toLowerCase().trim() === it.descripcion.toLowerCase().trim()
+    );
+
+    if (matchingObs.length > 0) {
+      const mappedObs = matchingObs.map((row: any) => ({
+        id: row.id,
+        empresaId: row.empresa_id,
+        productoId: row.producto_id,
+        projectId: row.project_id,
+        proveedorId: row.proveedor_id,
+        fuente: row.fuente,
+        documentoId: row.documento_id,
+        descripcionItem: row.descripcion_item,
+        categoriaInsumo: row.categoria_insumo,
+        cantidad: Number(row.cantidad),
+        unidad: row.unidad,
+        precioUnitario: Number(row.precio_unitario) * Number(row.tipo_cambio || 1.0),
+        moneda: row.moneda,
+        tipoCambio: Number(row.tipo_cambio || 1.0),
+        fechaObservacion: row.fecha_observacion,
+        esVolatil: row.es_volatil
+      }));
+
+      const estimate = calculateCostEstimate(mappedObs);
+      if (estimate.confidenceTier !== 'INSUFICIENTE' && estimate.recommendedUnitPrice > 0) {
+        calculatedDirectCost += estimate.recommendedUnitPrice * qty;
         itemsWithCostCount++;
+        continue;
       }
     }
+
+    // Si no hay APU ni observaciones verificadas, NO usar costo_promedio de inventario como reemplazo silencioso
   }
 
   const refBudget = Number(lic.monto_referencial || 0);
@@ -651,13 +705,20 @@ export async function persistirEvaluacionComercial(
     calculatedDurationMonths = Math.max(1, Math.round(rawContractPeriodDays / 30));
   }
 
-  // Costos directos comprobados: jamás inventar 80% del presupuesto referencial
+  // Costos directos comprobados: si la cobertura no es total o es 0, queda en UNKNOWN / null (INSUFFICIENT_EVIDENCE)
   const hasValidBudget = refBudget > 0;
   const hasFullCostCoverage = totalItemsCount > 0 && itemsWithCostCount === totalItemsCount && calculatedDirectCost > 0;
-  const estimatedDirectCostPyg = calculatedDirectCost > 0 ? calculatedDirectCost : null;
+  const estimatedDirectCostPyg = hasFullCostCoverage ? calculatedDirectCost : null;
 
-  // Monto de oferta: no derivar de presupuestos referenciales ni inventar margen 15%
-  const offerAmountPyg = hasValidBudget ? refBudget : null;
+  // Monto de oferta: NO derivar del presupuesto referencial. Si no hay propuesta, es null.
+  const offerAmountPyg = options?.proposedOfferAmountPyg
+    ?? (ourOffer?.monto_total ? Number(ourOffer.monto_total) : null);
+
+  // Costos indirectos: solo si están configurados o estimados explícitamente, jamás porcentaje arbitrario
+  const estimatedIndirectCostPyg = options?.estimatedIndirectCostPyg
+    ?? ((empresa as any)?.porcentaje_costos_indirectos && estimatedDirectCostPyg
+        ? Math.round((Number((empresa as any).porcentaje_costos_indirectos) / 100) * estimatedDirectCostPyg)
+        : null);
 
   // 6. Análisis financiero de capital de trabajo (fail-closed si faltan variables)
   const { analyzeTenderFinancials } = await import("@/lib/procurement/financial-analysis");
@@ -666,7 +727,7 @@ export async function persistirEvaluacionComercial(
     tenderId: lic.id,
     offerAmountPyg,
     estimatedDirectCostPyg,
-    estimatedIndirectCostPyg: 0,
+    estimatedIndirectCostPyg,
     durationMonths: calculatedDurationMonths,
     institutionalPaymentDays: institutionProfile.diasPromedioPago > 0 ? institutionProfile.diasPromedioPago : null,
     annualFinancingRatePct: explicitRate !== null ? Number(explicitRate) : null
@@ -726,7 +787,7 @@ export async function persistirEvaluacionComercial(
   // Si no hubo cobertura completa de costos o pliego, asegurar que el dictamen no sea COMPETIR
   if (!hasFullCostCoverage && decisionOutput.decision === 'COMPETIR') {
     decisionOutput.decision = 'REVISAR';
-    decisionOutput.blockers.push('Cobertura incompleta de costos: no todos los ítems del pliego están cotizados en el catálogo.');
+    decisionOutput.blockers.push('Cobertura incompleta de costos: no todos los ítems del pliego cuentan con costeo verificado en el Cost Engine o APUs.');
   }
 
   // 9. Crear y persistir snapshot inmutable SHA-256
