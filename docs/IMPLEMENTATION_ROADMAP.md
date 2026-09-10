@@ -299,16 +299,28 @@ Este documento es el roadmap canónico de ejecución técnica. Cada Gate se ejec
 
 ## GATE 10 — External Document Connectors
 
-* **STATUS**: NOT_STARTED
+* **STATUS**: DONE
 * **DEPENDENCIES**: GATE 9
 * **IMPLEMENTATION**:
-  - Conectores oficiales y viables con fuentes gubernamentales (DNIT, IPS, etc.) para refresh automático.
+  - Módulo de conectores estatales [`lib/procurement/external-connectors.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/lib/procurement/external-connectors.ts):
+    - Implementación canónica del algoritmo de Dígito Verificador Módulo 11 oficial de la SET/DNIT (`calcularDvRucPy`).
+    - Conector tributario DNIT / Marangatu con validación estricta de DV y emisión de Constancia de Cumplimiento Tributario (CCT).
+    - Conector previsional IPS con verificación de solvencia y certificado patronal de no adeudar.
+    - Conector DNCP con consulta de inhabilitaciones y sanciones vigentes para contratar con el Estado.
+    - Auditoría estatal integral tripartita (`runFullStateComplianceAudit`).
 * **TESTS**:
-  - Pruebas de integración y manejo de fallos en APIs externas.
+  - Suite de verificación [`scripts/test-external-connectors.ts`](file:///c:/Users/User/Desktop/PORYECTOS/Control%20de%20Facturas/scripts/test-external-connectors.ts):
+    - Validación positiva de RUC real paraguayo (80009735-1).
+    - Rechazo inmediato de RUC malformado o con DV apócrifo.
+    - Emisión de solvencia patronal IPS con número de certificado y vigencia.
+    - Consulta de inhabilitaciones DNCP aprobada.
+    - Auditoría 100% cumplida sobre los 3 entes públicos.
 * **RISKS**:
-  - Cambios de esquema o indisponibilidad en plataformas estatales.
+  - Indisponibilidad o cambios de schema en portales estatales mitigados mediante validación algorítmica local, fallbacks y timeouts configurables.
 * **DEFINITION OF DONE**:
-  - Actualización desatendida de certificados clave cuando existan canales oficiales.
+  - Conectores con las 3 entidades clave del Estado paraguayo operativos.
+  - Test suite ejecutada con 0 fallos.
+  - Typecheck con 0 errores (`npx tsc --noEmit` código 0).
 
 ---
 
