@@ -124,67 +124,79 @@ export async function markPaymentOrderExecuted(
   const supabase = await createClient();
   const empresaId = profile.empresa_id;
 
-  const { data: op } = await supabase
-    .from("payment_orders")
-    .select("id, status")
-    .eq("id", opId)
-    .eq("empresa_id", empresaId)
-    .single();
+  const { error: rpcError } = await supabase.rpc("ejecutar_orden_pago_atomica", {
+    p_empresa_id: empresaId,
+    p_op_id: opId,
+    p_cuenta_id: cuentaId ?? null,
+    p_created_by: profile.id,
+  });
 
-  if (!op) return { error: "OP no encontrada." };
-  if (op.status !== "EMITIDA") return { error: "La OP ya fue ejecutada." };
+  if (rpcError) {
+    // Si la función atómica aún no fue aplicada a la base remota, ejecutar el camino de compatibilidad
+    if (rpcError.message?.includes("function") && rpcError.message?.includes("does not exist")) {
+      const { data: op } = await supabase
+        .from("payment_orders")
+        .select("id, status")
+        .eq("id", opId)
+        .eq("empresa_id", empresaId)
+        .single();
 
-  const { data: links } = await supabase
-    .from("payment_order_invoices")
-    .select("invoice_id, invoices(total, currency)")
-    .eq("payment_order_id", opId);
+      if (!op) return { error: "OP no encontrada." };
+      if (op.status !== "EMITIDA") return { error: "La OP ya fue ejecutada." };
 
-  const invoiceIds = (links ?? []).map((l) => l.invoice_id as string);
+      const { data: links } = await supabase
+        .from("payment_order_invoices")
+        .select("invoice_id, invoices(total, currency)")
+        .eq("payment_order_id", opId);
 
-  await supabase
-    .from("payment_orders")
-    .update({ status: "EJECUTADA", executed_at: new Date().toISOString(), cuenta_id: cuentaId ?? null })
-    .eq("id", opId)
-    .eq("empresa_id", empresaId);
+      const invoiceIds = (links ?? []).map((l) => l.invoice_id as string);
 
-  if (invoiceIds.length > 0) {
-    await supabase
-      .from("invoices")
-      .update({ status: "PAGADO" })
-      .in("id", invoiceIds)
-      .eq("empresa_id", empresaId);
-  }
+      await supabase
+        .from("payment_orders")
+        .update({ status: "EJECUTADA", executed_at: new Date().toISOString(), cuenta_id: cuentaId ?? null })
+        .eq("id", opId)
+        .eq("empresa_id", empresaId);
 
-  // Si se eligió una cuenta, el pago sale de tesorería. Sumamos por moneda; si
-  // hay monedas mezcladas en la OP registramos un movimiento por cada una.
-  if (cuentaId) {
-    const porMoneda = new Map<string, number>();
-    for (const l of links ?? []) {
-      const raw = (l as { invoices: unknown }).invoices;
-      const inv = (Array.isArray(raw) ? raw[0] : raw) as { total: number; currency: string } | null;
-      if (inv) porMoneda.set(inv.currency, (porMoneda.get(inv.currency) ?? 0) + inv.total);
-    }
-    for (const [, monto] of porMoneda) {
-      if (monto <= 0) continue;
-      const { error: movErr } = await supabase.rpc("registrar_movimiento_tesoreria", {
-        p_empresa_id: empresaId,
-        p_cuenta_id: cuentaId,
-        p_monto: -monto,
-        p_tipo: "PAGO",
-        p_motivo: "Pago de orden de pago",
-        p_payment_order_id: opId,
-        p_created_by: profile.id,
-        p_permitir_negativo: true,
-      });
-      if (movErr) {
-        return { error: `OP ejecutada, pero no se pudo asentar el pago en tesorería: ${movErr.message}` };
+      if (invoiceIds.length > 0) {
+        await supabase
+          .from("invoices")
+          .update({ status: "PAGADO" })
+          .in("id", invoiceIds)
+          .eq("empresa_id", empresaId);
       }
+
+      if (cuentaId) {
+        const porMoneda = new Map<string, number>();
+        for (const l of links ?? []) {
+          const raw = (l as { invoices: unknown }).invoices;
+          const inv = (Array.isArray(raw) ? raw[0] : raw) as { total: number; currency: string } | null;
+          if (inv) porMoneda.set(inv.currency, (porMoneda.get(inv.currency) ?? 0) + inv.total);
+        }
+        for (const [, monto] of porMoneda) {
+          if (monto <= 0) continue;
+          const { error: movErr } = await supabase.rpc("registrar_movimiento_tesoreria", {
+            p_empresa_id: empresaId,
+            p_cuenta_id: cuentaId,
+            p_monto: -monto,
+            p_tipo: "PAGO",
+            p_motivo: "Pago de orden de pago",
+            p_payment_order_id: opId,
+            p_created_by: profile.id,
+            p_permitir_negativo: true,
+          });
+          if (movErr) {
+            return { error: `OP ejecutada, pero no se pudo asentar el pago en tesorería: ${movErr.message}` };
+          }
+        }
+      }
+    } else {
+      return { error: rpcError.message };
     }
   }
 
   await logAudit(supabase, {
     action: "payment_order.executed",
-    detail: { op_id: opId, invoice_count: invoiceIds.length, cuenta_id: cuentaId ?? null },
+    detail: { op_id: opId, cuenta_id: cuentaId ?? null },
   });
 
   revalidatePath(`/pagos/${opId}`);

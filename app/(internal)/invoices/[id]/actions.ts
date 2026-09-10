@@ -148,17 +148,34 @@ export async function deleteInvoice(invoiceId: string) {
   // so without this an admin could delete another tenant's invoice by id.
   const { data: invoice } = await admin
     .from("invoices")
-    .select("attachment_id")
+    .select("attachment_id, status, invoice_number")
     .eq("id", invoiceId)
     .eq("empresa_id", empresaId)
     .maybeSingle();
   if (!invoice) return { error: "Factura no encontrada." };
 
+  if (invoice.status === "PAGADO") {
+    return { error: "No se puede eliminar la factura " + (invoice.invoice_number ?? "") + " porque ya fue pagada (integridad contable)." };
+  }
+
+  // Verificar si está en una orden de pago ejecutada
+  const { data: inExecutedOp } = await admin
+    .from("payment_order_invoices")
+    .select("payment_orders(status)")
+    .eq("invoice_id", invoiceId)
+    .eq("empresa_id", empresaId);
+
+  const hasExecutedOp = (inExecutedOp ?? []).some(
+    (row: unknown) => (row as { payment_orders: { status: string } | null })?.payment_orders?.status === "EJECUTADA"
+  );
+  if (hasExecutedOp) {
+    return { error: "No se puede eliminar una factura vinculada a una orden de pago ejecutada." };
+  }
+
   await admin.from("invoice_order_matches").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
   await admin.from("invoice_exceptions").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
   await admin.from("audit_logs").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
-  // payment_order_invoices tiene FK NO ACTION — sin esto el delete falla por
-  // violación de foreign key si la factura llegó a estar en una orden de pago.
+  // payment_order_invoices tiene FK NO ACTION — solo se remueve si la OP no fue ejecutada
   await admin.from("payment_order_invoices").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
 
   const { error } = await admin.from("invoices").delete().eq("id", invoiceId).eq("empresa_id", empresaId);

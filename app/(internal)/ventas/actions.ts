@@ -188,39 +188,59 @@ export async function addReceipt(docId: string, formData: FormData) {
 
   const cuentaId = str(formData, "cuenta_id");
   const receiptDate = str(formData, "receipt_date") ?? new Date().toISOString().slice(0, 10);
+  const method = (str(formData, "method") ?? "TRANSFERENCIA") as ReceiptMethod;
+  const reference = str(formData, "reference");
+  const notes = str(formData, "notes");
 
-  const { data: receipt, error } = await supabase
-    .from("sales_receipts")
-    .insert({
-      sales_document_id: docId,
-      amount,
-      receipt_date: receiptDate,
-      method: (str(formData, "method") ?? "TRANSFERENCIA") as ReceiptMethod,
-      reference: str(formData, "reference"),
-      notes: str(formData, "notes"),
-      cuenta_id: cuentaId,
-      created_by: profile.id,
-    })
-    .select("id")
-    .single();
-  if (error) return { error: error.message };
+  const { data: atomicReceiptId, error: atomicErr } = await supabase.rpc("registrar_cobro_atomico", {
+    p_empresa_id: profile.empresa_id,
+    p_sales_document_id: docId,
+    p_amount: amount,
+    p_method: method,
+    p_receipt_date: receiptDate,
+    p_reference: reference,
+    p_notes: notes,
+    p_cuenta_id: cuentaId ?? null,
+    p_created_by: profile.id,
+  });
 
-  // Si se eligió una cuenta financiera, el cobro entra a tesorería.
-  if (cuentaId && receipt) {
-    const { error: movErr } = await supabase.rpc("registrar_movimiento_tesoreria", {
-      p_empresa_id: profile.empresa_id,
-      p_cuenta_id: cuentaId,
-      p_monto: amount,
-      p_tipo: "COBRO",
-      p_fecha: receiptDate,
-      p_motivo: `Cobro documento`,
-      p_sales_receipt_id: receipt.id,
-      p_created_by: profile.id,
-      p_permitir_negativo: true,
-    });
-    if (movErr) {
-      // El cobro quedó registrado; avisamos que el movimiento de tesorería falló.
-      return { error: `Cobro registrado, pero no se pudo asentar en tesorería: ${movErr.message}` };
+  if (atomicErr) {
+    if (atomicErr.message?.includes("function") && atomicErr.message?.includes("does not exist")) {
+      // Fallback si la migración aún no corrió en la base remota
+      const { data: receipt, error } = await supabase
+        .from("sales_receipts")
+        .insert({
+          sales_document_id: docId,
+          amount,
+          receipt_date: receiptDate,
+          method,
+          reference,
+          notes,
+          cuenta_id: cuentaId,
+          created_by: profile.id,
+        })
+        .select("id")
+        .single();
+      if (error) return { error: error.message };
+
+      if (cuentaId && receipt) {
+        const { error: movErr } = await supabase.rpc("registrar_movimiento_tesoreria", {
+          p_empresa_id: profile.empresa_id,
+          p_cuenta_id: cuentaId,
+          p_monto: amount,
+          p_tipo: "COBRO",
+          p_fecha: receiptDate,
+          p_motivo: `Cobro documento`,
+          p_sales_receipt_id: receipt.id,
+          p_created_by: profile.id,
+          p_permitir_negativo: true,
+        });
+        if (movErr) {
+          return { error: `Cobro registrado, pero no se pudo asentar en tesorería: ${movErr.message}` };
+        }
+      }
+    } else {
+      return { error: atomicErr.message };
     }
   }
 
