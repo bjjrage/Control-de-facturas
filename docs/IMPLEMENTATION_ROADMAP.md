@@ -21,11 +21,11 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 | **3** | Historical Backfill | DONE | **PARTIAL** | Pipeline resiliente con checkpointing | Solo 20 archivos de muestra; 2015-2023 incompleto |
 | **4** | Offer Extraction + Entity Normalization | DONE | **PARTIAL** | Normalizador de RUC y consorcios | Extracción solo funciona en OCDS/texto estructurado, no en actas escaneadas |
 | **5A** | Competitor Intelligence V1 | DONE | **PARTIAL** | Lógica de huellas y página `/competidores/[ruc]` | Depende de la profundidad del backfill en BD para ser estadísticamente útil |
-| **5B** | Cost Engine V1 (CPP) | DONE | **PARTIAL** | Fórmulas de decaimiento y fuentes | No está conectado como listener automático de facturas/OC del ERP |
-| **6** | Cost Cold Start / Onboarding | DONE | **SCAFFOLD_ONLY** | Parser de planillas en `onboarding.ts` | Sin interfaz de usuario para que una constructora suba sus planillas |
-| **7** | Item Matching Engine | DONE | **SCAFFOLD_ONLY** | Tokenizador y ponderador en memoria | Sin integración en la vista de pliegos o importación |
+| **5B** | Cost Engine V1 (CPP) | DONE | **PROVEN_DONE** | Fórmulas de decaimiento y fuentes | Conectado a compras y conciliación de facturas del ERP |
+| **6** | Cost Cold Start / Onboarding | DONE | **PROVEN_DONE** | Parser `onboarding.ts` y UI modal en `/licitaciones` | Modal funcional para subir Excel/CSV y calibrar insumos |
+| **7** | Item Matching Engine | DONE | **PROVEN_DONE** | Tokenizador, stopwords y calibres paraguayos | Integrado en la vista de ítems de `/licitaciones/[id]` con badge de certeza |
 | **8** | Strict Temporal Backtest | DONE | **INVALID** | Script `test-temporal-backtest.ts` | **MAPE 0.27% evaluado sobre fixture sintético**, no sobre histórico real |
-| **9** | Company Bid Vault | DONE | **SCAFFOLD_ONLY** | `0064_company_bid_vault.sql` y evaluador | Sin UI de gestión documental ni upload de archivos |
+| **9** | Company Bid Vault | DONE | **PROVEN_DONE** | `0064_company_bid_vault.sql`, UI `/licitaciones/documentos` | Sincronización automática de documentos a `company_bid_vault_items` |
 | **10** | External Document Connectors | DONE | **PARTIAL / FAIL-CLOSED** | Algoritmo DV RUC Módulo 11 | **Endpoints estatales convertidos a Fail-Closed (NOT_IMPLEMENTED)** |
 | **11** | Compliance Engine | DONE | **SCAFFOLD_ONLY** | Evaluador de matriz de cumplimiento | Pliegos no se parsean automáticamente a esta matriz |
 | **12** | Institution Intelligence | DONE | **SCAFFOLD_ONLY** | Algoritmo de scoring institucional | Probado con mocks; sin agregación sobre warehouse completo |
@@ -33,10 +33,10 @@ Este documento es el roadmap canónico de ejecución técnica auditado rigurosam
 | **14** | Tender Operations Agent V1 | DONE | **SCAFFOLD_ONLY** | Generador de plantillas de formularios | Strings markdown estáticos; no es un agente autónomo |
 | **15** | Tender Monitoring Agent | DONE | **SCAFFOLD_ONLY** | Comparador diferencial de snapshots | Sin scheduler/cron/worker de monitoreo periódico |
 | **16** | Competitive Simulator | DONE | **SCAFFOLD_ONLY** | Monte Carlo Box-Muller en memoria | No calibrado con distribuciones empíricas a gran escala |
-| **17** | Bid Engine | DONE | **SCAFFOLD_ONLY** | Evaluador de 5 pilares | No integrado en el flujo de usuario ni persistido |
+| **17** | Bid Engine | DONE | **PARTIAL** | Evaluador de 5 pilares | Integrado en panel de análisis comercial en `/licitaciones/[id]` |
 | **18** | Bid Analysis Snapshot | DONE | **PARTIAL** | `0065_bid_analysis_snapshots.sql` y hashing | Tabla y hashing creados; falta hooking a la toma de decisiones |
-| **19** | Tender → Project | DONE | **SCAFFOLD_ONLY** | Función transformadora a `Project` y `BudgetItem` | No ejecuta inserciones reales en la base de datos |
-| **20** | ERP Execution Flywheel | DONE | **SCAFFOLD_ONLY** | Función en memoria que simula feedback | Sin hooks/triggers de eventos conectados a las acciones del ERP |
+| **19** | Tender → Project | DONE | **PROVEN_DONE** | `executeTenderToProjectTransaction` y botón UI | Botón "Adjudicada → Convertir en Obra" crea proyecto, cómputo y pañol |
+| **20** | ERP Execution Flywheel | DONE | **PROVEN_DONE** | `recordCostObservationFromInvoice` en facturas | Cada factura vinculada a OC alimenta `cost_observations` automáticamente |
 | **21** | Product Hardening / Enterprise | DONE | **SCAFFOLD_ONLY** | `docker-compose.enterprise.yml` y docs | No desplegado ni validado en infraestructura real |
 
 ---
