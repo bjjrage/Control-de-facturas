@@ -11,6 +11,7 @@
  */
 
 import { VaultItem } from './bid-vault';
+import { TenderComplianceReport } from './compliance-engine';
 
 export interface TenderBidItemInput {
   itemNumber: number;
@@ -60,7 +61,7 @@ export function generateFormularioPresentacion(params: {
     ? `por un período de ${params.validityDays} días calendario`
     : 'por el período de validez y mantenimiento de oferta establecido en el Pliego de Bases y Condiciones (PBC)';
 
-  const content = `[BORRADOR DE PREPARACIÓN INTERNA - NO PRESENTAR SIN REVISIÓN LEGAL]
+  const content = `[BORRADOR / PLANTILLA INTERNA - NO PRESENTAR SIN REVISIÓN LEGAL]
 A: ${params.buyerName}
 REF: LLAMADO A LICITACIÓN ${params.tenderId} - "${params.tenderTitle}"
 
@@ -76,7 +77,7 @@ ${params.bidderName}`;
 
   return {
     formCode: 'DRAFT-FORM-01',
-    title: 'Borrador: Carta de Presentación de la Oferta (Plantilla)',
+    title: 'Borrador / Plantilla interna: Carta de Presentación de la Oferta',
     content,
     isCompleted: params.totalAmountPyg > 0 && !!params.bidderRuc && params.bidderRuc !== '80000000-1',
     requiredSignatures: ['Representante Legal']
@@ -92,7 +93,7 @@ export function generateFormularioDeclaracionJurada(params: {
   bidderRuc: string;
   legalRepresentative: string;
 }): PreparedForm {
-  const content = `[BORRADOR DE PREPARACIÓN INTERNA - DECLARACIÓN JURADA ART. 40 LEY 2051/03 & LEY 7021/22]
+  const content = `[BORRADOR / PLANTILLA INTERNA - DECLARACIÓN JURADA ART. 40 LEY 2051/03 & LEY 7021/22]
 
 Quien suscribe, ${params.legalRepresentative}, en mi carácter de Representante Legal de ${params.bidderName} (RUC ${params.bidderRuc}), declaro bajo fe de juramento que la empresa ni sus directores/socios se encuentran comprendidos en ninguna de las causales de inhabilidad o incompatibilidad para contratar con el Estado paraguayo.
 
@@ -101,7 +102,7 @@ Fecha: ${new Date().toISOString().split('T')[0]}`;
 
   return {
     formCode: 'DRAFT-FORM-02',
-    title: 'Borrador: Declaración Jurada de Integridad e Inhabilidades (Plantilla)',
+    title: 'Borrador / Plantilla interna: Declaración Jurada de Integridad e Inhabilidades',
     content,
     isCompleted: !!params.legalRepresentative && params.legalRepresentative !== 'Representante Legal',
     requiredSignatures: ['Representante Legal']
@@ -129,7 +130,7 @@ export function generatePlanillaPrecios(items: TenderBidItemInput[]): PreparedFo
 
   return {
     formCode: 'DRAFT-FORM-03',
-    title: 'Borrador: Planilla de Cómputo y Precios Unitarios (Plantilla)',
+    title: 'Borrador / Plantilla interna: Planilla de Cómputo y Precios Unitarios',
     content: table,
     isCompleted: items.length > 0 && grandTotal > 0 && !hasZeroPrice,
     requiredSignatures: ['Representante Legal', 'Responsable Técnico']
@@ -149,6 +150,7 @@ export function assembleTenderPackage(params: {
   items: TenderBidItemInput[];
   vaultItems: VaultItem[];
   validityDays?: number | null;
+  complianceReport?: TenderComplianceReport | null;
 }): BidPackage {
   const errors: string[] = [];
 
@@ -178,6 +180,57 @@ export function assembleTenderPackage(params: {
     }
   }
 
+  // 1. Verificación obligatoria de matriz de cumplimiento de PBC
+  // READY_TO_SIGN es imposible si no existe matriz extraída del pliego o si hay requisitos excluyentes sin resolver
+  const attachedDocs: BidPackage['attachedEvidenceDocs'] = [];
+
+  if (!params.complianceReport) {
+    errors.push('Falta matriz formal de requisitos extraída del Pliego de Bases y Condiciones (PBC). No se puede emitir dictamen READY_TO_SIGN sin pliego analizado.');
+  } else if (params.complianceReport.evidenceOrigin !== 'EXTRACTED_FROM_PBC') {
+    errors.push('La matriz de requisitos no procede de un PBC oficial extraído (origen no verificado). Requiere análisis de pliego real para ser READY_TO_SIGN.');
+  } else if (!params.complianceReport.evaluations || params.complianceReport.evaluations.length === 0) {
+    errors.push('La matriz de requisitos del pliego está vacía. No se puede certificar cumplimiento sin requisitos verificables.');
+  } else {
+    for (const ev of params.complianceReport.evaluations) {
+      if (ev.esExcluyente) {
+        if (ev.verdict === 'FALTANTE') {
+          errors.push(`Requisito excluyente FALTANTE en PBC: [${ev.categoria}] ${ev.descripcion}`);
+        } else if (ev.verdict === 'REVIEW_REQUIRED') {
+          errors.push(`Requisito excluyente REQUIERE REVISIÓN (REVIEW_REQUIRED) en PBC: [${ev.categoria}] ${ev.descripcion} — ${ev.observaciones || 'Criterio pendiente de verificación humana'}`);
+        }
+      }
+
+      // Vincular los documentos probatorios resueltos en la evaluación
+      if (ev.documentoRespaldo) {
+        if (!attachedDocs.some(d => d.vaultItemId === ev.documentoRespaldo!.id)) {
+          attachedDocs.push({
+            category: ev.categoria,
+            documentTitle: ev.documentoRespaldo.titulo,
+            vaultItemId: ev.documentoRespaldo.id
+          });
+        }
+      }
+    }
+
+    if (!params.complianceReport.isEligibleToBid) {
+      errors.push('El dictamen normativo del pliego concluye que la oferta NO es elegible para presentarse (isEligibleToBid = false).');
+    }
+  }
+
+  // Si no se proveyó compliance report o no trajo documentos adjuntos pero hay vaultItems disponibles,
+  // vincular los documentos vigentes para referencia informativa en el borrador
+  if (attachedDocs.length === 0 && params.vaultItems && params.vaultItems.length > 0) {
+    for (const v of params.vaultItems) {
+      if (v.estado === 'VIGENTE' && !attachedDocs.some(d => d.vaultItemId === v.id)) {
+        attachedDocs.push({
+          category: v.categoria,
+          documentTitle: v.titulo,
+          vaultItemId: v.id
+        });
+      }
+    }
+  }
+
   const totalAmount = params.items.reduce((acc, it) => acc + it.quantity * it.unitPricePyg, 0);
 
   const form1 = generateFormularioPresentacion({
@@ -198,23 +251,6 @@ export function assembleTenderPackage(params: {
   });
 
   const form3 = generatePlanillaPrecios(params.items);
-
-  // Adjuntar documentos probatorios de la bóveda
-  const attachedDocs: BidPackage['attachedEvidenceDocs'] = [];
-  const requiredCategories: Array<'LEGAL' | 'FISCAL' | 'EXPERIENCIA'> = ['LEGAL', 'FISCAL', 'EXPERIENCIA'];
-
-  for (const cat of requiredCategories) {
-    const doc = params.vaultItems.find(v => v.categoria === cat && v.estado === 'VIGENTE');
-    if (doc) {
-      attachedDocs.push({
-        category: doc.categoria,
-        documentTitle: doc.titulo,
-        vaultItemId: doc.id
-      });
-    } else {
-      errors.push(`Falta adjuntar documento probatorio vigente de categoría ${cat} desde la Bóveda.`);
-    }
-  }
 
   const packageStatus = errors.length === 0 ? 'READY_TO_SIGN' : 'DRAFT_INCOMPLETE';
 
@@ -239,7 +275,7 @@ export function generateMasterIndex(bidPackage: BidPackage): string {
   index += `LICITACIÓN: ${bidPackage.tenderId} | OFERENTE: ${bidPackage.bidderName} (RUC ${bidPackage.bidderRuc})\n`;
   index += `ESTADO DE INTEGRIDAD: ${bidPackage.packageStatus}\n`;
   index += `FECHA DE GENERACIÓN: ${bidPackage.generatedAt}\n\n`;
-  index += `SECCIÓN I: FORMULARIOS OFICIALES DE PRESENTACIÓN\n`;
+  index += `SECCIÓN I: BORRADORES / PLANTILLAS INTERNAS DE PRESENTACIÓN\n`;
   bidPackage.preparedForms.forEach((f, idx) => {
     index += `  ${idx + 1}. [${f.formCode}] ${f.title} — ${f.isCompleted ? 'COMPLETO' : 'INCOMPLETO'} (Firmas: ${f.requiredSignatures.join(', ')})\n`;
   });
@@ -301,7 +337,7 @@ export function exportBidPackageAsDocument(bidPackage: BidPackage): string {
   <h2>1. Índice Maestro del Expediente</h2>
   <div class="pre-box">${masterIndex}</div>
 
-  <h2>2. Formularios Oficiales</h2>
+  <h2>2. Borradores / Plantillas Internas de Presentación</h2>
   ${bidPackage.preparedForms.map(f => `
     <div class="section">
       <h3>${f.formCode} — ${f.title}</h3>

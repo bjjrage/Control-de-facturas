@@ -10,6 +10,7 @@
 
 import { assembleTenderPackage, TenderBidItemInput } from '../lib/procurement/tender-operations';
 import { VaultItem } from '../lib/procurement/bid-vault';
+import { TenderComplianceReport } from '../lib/procurement/compliance-engine';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -67,6 +68,48 @@ async function runTests() {
     }
   ];
 
+  // Matriz real de cumplimiento extraída del PBC (Gate 11) con 100% de requerimientos resueltos
+  const validComplianceReport: TenderComplianceReport = {
+    tenderId: 'LIC-MOPC-445566',
+    isEligibleToBid: true,
+    evidenceOrigin: 'EXTRACTED_FROM_PBC',
+    scoreCumplimientoPct: 100,
+    totalRequirements: 3,
+    cumplidosCount: 3,
+    generablesCount: 0,
+    faltantesCount: 0,
+    reviewRequiredCount: 0,
+    evaluations: [
+      {
+        requirementId: 'pbc-legal-poder',
+        categoria: 'LEGAL',
+        descripcion: 'Estatutos Sociales y Poder de Representación',
+        esExcluyente: true,
+        verdict: 'CUMPLIDO',
+        documentoRespaldo: { id: 'v-legal', titulo: 'Estatuto Social Modificado', estado: 'VIGENTE' },
+        observaciones: 'Vigente y verificado'
+      },
+      {
+        requirementId: 'pbc-fiscal-cct',
+        categoria: 'FISCAL',
+        descripcion: 'Certificado de Cumplimiento Tributario DNIT',
+        esExcluyente: true,
+        verdict: 'CUMPLIDO',
+        documentoRespaldo: { id: 'v-fiscal', titulo: 'Constancia de Cumplimiento Tributario DNIT', estado: 'VIGENTE' },
+        observaciones: 'Vigente al día'
+      },
+      {
+        requirementId: 'pbc-exp-asfalto',
+        categoria: 'EXPERIENCIA',
+        descripcion: 'Experiencia técnica acumulada en obras viales',
+        esExcluyente: true,
+        verdict: 'CUMPLIDO',
+        documentoRespaldo: { id: 'v-exp', titulo: 'Certificado de Pavimentación Asfáltica', estado: 'VIGENTE' },
+        observaciones: 'Supera el monto mínimo'
+      }
+    ]
+  };
+
   // Ítems cotizados con el Cost Engine
   const itemsCotizados: TenderBidItemInput[] = [
     { itemNumber: 1, description: 'Replanteo y Marcación de Obras Viales', unit: 'GL', quantity: 1, unitPricePyg: 15000000 },
@@ -75,8 +118,8 @@ async function runTests() {
     { itemNumber: 4, description: 'Carpeta Asfáltica en Caliente con Asfalto Modificado e=0.05m', unit: 'M2', quantity: 8000, unitPricePyg: 95000 }
   ];
 
-  // CASO 1: Ensamblaje Exitoso de Oferta Completa
-  console.log('--- TEST 1: Ensamblaje Completo (READY_TO_SIGN) ---');
+  // CASO 1: Ensamblaje Exitoso de Oferta Completa con Matriz PBC Resuelta
+  console.log('--- TEST 1: Ensamblaje Completo (READY_TO_SIGN con PBC Resuelto) ---');
   const pkg1 = assembleTenderPackage({
     tenderId: 'LIC-MOPC-445566',
     tenderTitle: 'Pavimentación de Acceso a Nueva Asunción',
@@ -85,7 +128,8 @@ async function runTests() {
     bidderRuc: '80009735-1',
     legalRepresentative: 'Ing. Carlos Gonzalez',
     items: itemsCotizados,
-    vaultItems: mockVault
+    vaultItems: mockVault,
+    complianceReport: validComplianceReport
   });
 
   console.log(`Estado del Paquete: ${pkg1.packageStatus} | Formularios: ${pkg1.preparedForms.length} | Documentos Adjuntos: ${pkg1.attachedEvidenceDocs.length} | Monto Total: Gs. ${pkg1.totalOfferAmountPyg.toLocaleString('es-PY')}`);
@@ -96,10 +140,11 @@ async function runTests() {
   assert(pkg1.attachedEvidenceDocs.length === 3, 'Vinculados los 3 documentos probatorios desde la Bóveda');
   assert(pkg1.validationErrors.length === 0, 'Cero errores de validación');
 
-  // CASO 2: Detección de Faltantes y Estado Incompleto
-  console.log('\n--- TEST 2: Ensamblaje con Documento Faltante en Bóveda ---');
-  const vaultIncompleto = mockVault.filter(v => v.categoria !== 'FISCAL');
-  const pkg2 = assembleTenderPackage({
+  // CASO 2: Sin Matriz PBC o con Requisito Excluyente no Resuelto => DRAFT_INCOMPLETE
+  console.log('\n--- TEST 2: Bloqueo READY_TO_SIGN sin PBC o con Requisitos en Revisión ---');
+  
+  // 2A: Sin matriz PBC
+  const pkgSinPbc = assembleTenderPackage({
     tenderId: 'LIC-MOPC-445566',
     tenderTitle: 'Pavimentación de Acceso a Nueva Asunción',
     buyerName: 'MOPC',
@@ -107,12 +152,41 @@ async function runTests() {
     bidderRuc: '80009735-1',
     legalRepresentative: 'Ing. Carlos Gonzalez',
     items: itemsCotizados,
-    vaultItems: vaultIncompleto
+    vaultItems: mockVault,
+    complianceReport: null
   });
+  assert(pkgSinPbc.packageStatus === 'DRAFT_INCOMPLETE', 'Sin matriz PBC el estado es DRAFT_INCOMPLETE');
+  assert(pkgSinPbc.validationErrors.some(e => e.includes('Falta matriz formal de requisitos extraída')), 'Reporta falta de pliego analizado');
 
-  console.log(`Estado con Falta Fiscal: ${pkg2.packageStatus} | Errores: ${pkg2.validationErrors.join(', ')}`);
-  assert(pkg2.packageStatus === 'DRAFT_INCOMPLETE', 'Identifica correctamente que la oferta está incompleta');
-  assert(pkg2.validationErrors.some(e => e.includes('FISCAL')), 'Reporta omisión de documento fiscal');
+  // 2B: Con requisito excluyente en REVIEW_REQUIRED
+  const complianceConRevision: TenderComplianceReport = {
+    ...validComplianceReport,
+    isEligibleToBid: false,
+    evaluations: [
+      ...validComplianceReport.evaluations.slice(0, 2),
+      {
+        requirementId: 'pbc-exp-asfalto',
+        categoria: 'EXPERIENCIA',
+        descripcion: 'Experiencia técnica en pavimentos',
+        esExcluyente: true,
+        verdict: 'REVIEW_REQUIRED',
+        observaciones: 'Monto no cuantificado numéricamente'
+      }
+    ]
+  };
+  const pkgReviewRequired = assembleTenderPackage({
+    tenderId: 'LIC-MOPC-445566',
+    tenderTitle: 'Pavimentación de Acceso a Nueva Asunción',
+    buyerName: 'MOPC',
+    bidderName: 'INGENIERIA & VIAL S.A.',
+    bidderRuc: '80009735-1',
+    legalRepresentative: 'Ing. Carlos Gonzalez',
+    items: itemsCotizados,
+    vaultItems: mockVault,
+    complianceReport: complianceConRevision
+  });
+  assert(pkgReviewRequired.packageStatus === 'DRAFT_INCOMPLETE', 'Con REVIEW_REQUIRED excluyente el estado es DRAFT_INCOMPLETE');
+  assert(pkgReviewRequired.validationErrors.some(e => e.includes('REVIEW_REQUIRED')), 'Reporta requisito en revisión');
 
   // CASO 3: Detección de Placeholders en Oferente (80000000-1)
   console.log('\n--- TEST 3: Rechazo de Placeholders Sintéticos ---');
@@ -162,6 +236,7 @@ async function runTests() {
   const masterIndex = generateMasterIndex(pkg1);
   console.log('Índice Maestro generado:\n', masterIndex);
   assert(masterIndex.includes('ÍNDICE MAESTRO DEL EXPEDIENTE DE OFERTA'), 'Encabezado formal del índice maestro');
+  assert(masterIndex.includes('SECCIÓN I: BORRADORES / PLANTILLAS INTERNAS DE PRESENTACIÓN'), 'Encabezado formal de borradores/plantillas internas en índice maestro');
   assert(masterIndex.includes('DRAFT-FORM-01'), 'Incluye Formulario 1 en índice');
   assert(masterIndex.includes('DRAFT-FORM-02'), 'Incluye Formulario 2 en índice');
   assert(masterIndex.includes('DRAFT-FORM-03'), 'Incluye Formulario 3 en índice');
@@ -171,6 +246,7 @@ async function runTests() {
   const exportDoc = exportBidPackageAsDocument(pkg1);
   assert(exportDoc.includes('<!DOCTYPE html>'), 'Documento generado es HTML estándar válido');
   assert(exportDoc.includes('EXPEDIENTE DE OFERTA LICITATORIA'), 'Título formal en documento');
+  assert(exportDoc.includes('Borradores / Plantillas Internas de Presentación'), 'Sección 2 titulada formalmente como plantillas internas');
   assert(exportDoc.includes('READY_TO_SIGN'), 'Refleja estado READY_TO_SIGN');
   assert(exportDoc.includes('Gs. 1.044.000.000'), 'Refleja monto total de oferta formateado');
   assert(exportDoc.includes('REPRESENTANTE LEGAL'), 'Bloque de firma de Representante Legal presente');
