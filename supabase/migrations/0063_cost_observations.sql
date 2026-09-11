@@ -48,6 +48,6 @@ CREATE INDEX IF NOT EXISTS idx_cost_obs_empresa_categoria
 CREATE OR REPLACE TRIGGER trg_cost_observations_updated_at
     BEFORE UPDATE ON public.cost_observations
     FOR EACH ROW
-    EXECUTE FUNCTION public.update_updated_at_column();
+    EXECUTE FUNCTION public.set_updated_at();
 
 COMMENT ON TABLE public.cost_observations IS 'Historial auditable de observaciones de costo real para el Cost Engine (Gate 5B)';

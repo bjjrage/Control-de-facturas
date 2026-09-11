@@ -64,7 +64,7 @@ CREATE INDEX IF NOT EXISTS idx_bid_vault_metadatos
 CREATE OR REPLACE TRIGGER trg_company_bid_vault_updated_at
     BEFORE UPDATE ON public.company_bid_vault_items
     FOR EACH ROW
-    EXECUTE FUNCTION public.update_updated_at_column();
+    EXECUTE FUNCTION public.set_updated_at();
 
 -- Función para evaluar automáticamente el estado de vencimiento
 CREATE OR REPLACE FUNCTION public.evaluar_estado_documento_boveda(
