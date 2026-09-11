@@ -387,17 +387,13 @@ async function run() {
       try {
         await sessClient.query('BEGIN');
         if (userId) {
-          await sessClient.query(`
-            SET LOCAL role = 'authenticated';
-            SELECT set_config('request.jwt.claim.sub', $1, true);
-            SELECT set_config('request.jwt.claim.role', 'authenticated', true);
-          `, [userId]);
+          await sessClient.query("SET LOCAL role = 'authenticated'");
+          await sessClient.query("SELECT set_config('request.jwt.claim.sub', $1, true)", [userId]);
+          await sessClient.query("SELECT set_config('request.jwt.claim.role', 'authenticated', true)");
         } else {
-          await sessClient.query(`
-            SET LOCAL role = 'anon';
-            SELECT set_config('request.jwt.claim.sub', '', true);
-            SELECT set_config('request.jwt.claim.role', 'anon', true);
-          `);
+          await sessClient.query("SET LOCAL role = 'anon'");
+          await sessClient.query("SELECT set_config('request.jwt.claim.sub', '', true)");
+          await sessClient.query("SELECT set_config('request.jwt.claim.role', 'anon', true)");
         }
         const res = await sessClient.query(sql, params);
         await sessClient.query('COMMIT');
