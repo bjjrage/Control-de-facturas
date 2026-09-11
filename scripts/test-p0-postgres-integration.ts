@@ -337,7 +337,21 @@ async function run() {
       VALUES ($1, $2, $3);
     `, [empresaB, opB, invPayB]);
 
+    // Verify that the trigger trg_payment_order_invoices_empresa blocks cross-tenant linkage normally
+    let triggerBlockedCrossTenant = false;
+    try {
+      await client.query(`
+        INSERT INTO public.payment_order_invoices (empresa_id, payment_order_id, invoice_id)
+        VALUES ($1, $2, $3);
+      `, [empresaA, opB, invPayB]);
+    } catch (err: any) {
+      if (err.message && err.message.includes('does not belong to empresa')) {
+        triggerBlockedCrossTenant = true;
+      }
+    }
+
     // Orden de pago fraudulenta/corrupta A con factura de B infiltrada
+    // (Bypaseamos el trigger temporalmente para probar que el RPC ejecutar_orden_pago_atomica tiene defensa en profundidad)
     const opACorruptRes = await client.query(`
       INSERT INTO public.payment_orders (empresa_id, code, provider_id, status, created_by)
       VALUES ($1, 'OP-TEST-A-CORRUPT', $2, 'EMITIDA', $3)
@@ -345,10 +359,12 @@ async function run() {
     `, [empresaA, provA, userA]);
     const opACorrupt = opACorruptRes.rows[0].id;
 
+    await client.query('ALTER TABLE public.payment_order_invoices DISABLE TRIGGER trg_payment_order_invoices_empresa;');
     await client.query(`
       INSERT INTO public.payment_order_invoices (empresa_id, payment_order_id, invoice_id)
       VALUES ($1, $2, $3);
     `, [empresaA, opACorrupt, invPayB]);
+    await client.query('ALTER TABLE public.payment_order_invoices ENABLE TRIGGER trg_payment_order_invoices_empresa;');
 
 
     // --------------------------------------------------------------------------
@@ -617,10 +633,12 @@ async function run() {
       VALUES ($1, $2, $3);
     `, [empresaA, opRollback.id, invRollback.id]);
 
+    await client.query('ALTER TABLE public.payment_order_invoices DISABLE TRIGGER trg_payment_order_invoices_empresa;');
     await client.query(`
       INSERT INTO public.payment_order_invoices (empresa_id, payment_order_id, invoice_id)
       VALUES ($1, $2, $3);
     `, [empresaA, opRollback.id, invPayB]);
+    await client.query('ALTER TABLE public.payment_order_invoices ENABLE TRIGGER trg_payment_order_invoices_empresa;');
 
     const rollbackExec = await execAsUser(userA, 'SELECT public.ejecutar_orden_pago_atomica($1, $2, $3)', [empresaA, opRollback.id, ctaRollback.id]);
     
