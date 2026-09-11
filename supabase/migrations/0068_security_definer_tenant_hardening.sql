@@ -551,7 +551,7 @@ SET
 WHERE estado_evidencia = 'REVISION_REQUERIDA'
   AND (tipo_cambio IS NULL OR tipo_cambio <= 0);
 
--- Paso B: Reconstruir moneda_original únicamente donde existe evidencia inequívoca en facturas
+-- Paso B: Reconstruir moneda_original únicamente donde existe evidencia inequívoca en facturas DEL MISMO TENANT
 UPDATE public.cost_observations co
 SET moneda_original = i.currency
 FROM public.invoices i
@@ -559,9 +559,10 @@ WHERE co.fuente = 'FACTURA'
   AND co.documento_id IS NOT NULL
   AND co.documento_id ~ '^[0-9a-fA-F-]{36}$'
   AND i.id = co.documento_id::uuid
+  AND i.empresa_id = co.empresa_id
   AND co.moneda_original IS NULL;
 
--- Paso C: Reconstruir moneda_original únicamente donde existe evidencia inequívoca en órdenes de compra
+-- Paso C: Reconstruir moneda_original únicamente donde existe evidencia inequívoca en órdenes de compra DEL MISMO TENANT
 UPDATE public.cost_observations co
 SET moneda_original = o.currency
 FROM public.authorized_orders o
@@ -569,10 +570,11 @@ WHERE co.fuente = 'ORDEN_COMPRA'
   AND co.documento_id IS NOT NULL
   AND co.documento_id ~ '^[0-9a-fA-F-]{36}$'
   AND o.id = co.documento_id::uuid
+  AND o.empresa_id = co.empresa_id
   AND co.moneda_original IS NULL;
 
--- Filas sin evidencia inequívoca permanecen con moneda_original = NULL (UNKNOWN).
--- No se aplica ningún fallback sintético tipo 'USD' o 'PYG'.
+-- Filas sin evidencia inequívoca del mismo tenant permanecen con moneda_original = NULL (UNKNOWN).
+-- No se aplica ningún fallback sintético tipo 'USD' o 'PYG', y jamás se cruza metadata entre empresas.
 
 -- Revocar accesos anónimos a las funciones modificadas por defensa en profundidad
 REVOKE ALL ON FUNCTION public.ejecutar_orden_pago_atomica(uuid, uuid, uuid, uuid) FROM PUBLIC;

@@ -89,6 +89,63 @@ describe('P0 Invariants: Financial Security, Currency Semantics and Fail-Closed 
       expect(estimate.confidenceTier).toBe('INSUFICIENTE');
     });
 
+    it('RECONSTRUCCIÓN DE MONEDA TENANT-SCOPED: Observación de Empresa A con Factura de Empresa B JAMÁS extrae metadata de B', () => {
+      // Simulación de la regla SQL de migración 0068:
+      // i.empresa_id = co.empresa_id
+      interface MockDoc {
+        id: string;
+        empresaId: string;
+        currency: string;
+      }
+      interface MockObservation {
+        id: string;
+        empresaId: string;
+        fuente: string;
+        documentoId: string | null;
+        monedaOriginal: string | null;
+      }
+
+      const invoices: MockDoc[] = [
+        { id: 'doc-fac-b', empresaId: 'emp-B', currency: 'USD' },
+        { id: 'doc-fac-a', empresaId: 'emp-A', currency: 'EUR' }
+      ];
+
+      function simulateMigrationReconstructCurrency(obs: MockObservation, docs: MockDoc[]): MockObservation {
+        const matchingDoc = docs.find(d => d.id === obs.documentoId && d.empresaId === obs.empresaId);
+        return {
+          ...obs,
+          monedaOriginal: matchingDoc ? matchingDoc.currency : null
+        };
+      }
+
+      // Caso Cross-tenant: Observación de A apunta a factura de B
+      const obsCrossTenant: MockObservation = {
+        id: 'obs-a-cross',
+        empresaId: 'emp-A',
+        fuente: 'FACTURA',
+        documentoId: 'doc-fac-b', // pertenece a B!
+        monedaOriginal: null
+      };
+
+      const resultCross = simulateMigrationReconstructCurrency(obsCrossTenant, invoices);
+      // Invariante: Nunca copiar metadata de B; debe permanecer NULL / UNKNOWN
+      expect(resultCross.monedaOriginal).toBeNull();
+
+      // Caso Mismo Tenant: Observación de A apunta a factura de A
+      const obsSameTenant: MockObservation = {
+        id: 'obs-a-same',
+        empresaId: 'emp-A',
+        fuente: 'FACTURA',
+        documentoId: 'doc-fac-a',
+        monedaOriginal: null
+      };
+
+      const resultSame = simulateMigrationReconstructCurrency(obsSameTenant, invoices);
+      // Reconstrucción permitida únicamente cuando i.empresa_id = co.empresa_id
+      expect(resultSame.monedaOriginal).toBe('EUR');
+    });
+
+
     it('Dato ambiguo o en REVISION_REQUERIDA queda no computable y se excluye de cálculos', () => {
       const validObs: CostObservation = {
         id: 'obs-valid',
