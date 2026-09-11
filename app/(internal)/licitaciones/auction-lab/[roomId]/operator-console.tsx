@@ -34,6 +34,9 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
   const [links, setLinks] = useState<{ competitor: string; observer: string } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [showPolicy, setShowPolicy] = useState(false);
+  // Transient unequivocal feedback right after a freeze (same pattern as the
+  // standalone bot page).
+  const [justFrozenVersion, setJustFrozenVersion] = useState<number | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const poll = useCallback(async () => {
@@ -89,6 +92,7 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
       return;
     }
     setShowPolicy(false);
+    setJustFrozenVersion(res.version ?? null);
     await poll();
   }
 
@@ -165,6 +169,23 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
 
       {error ? <p className="text-[12px] text-[var(--error)]">{error}</p> : null}
 
+      {justFrozenVersion !== null && bot.policyVersion === justFrozenVersion ? (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 flex items-center gap-2.5">
+          <div className="text-[13px]">
+            <span className="font-semibold text-[var(--foreground)]">
+              Política v{justFrozenVersion} autorizada
+            </span>
+            <span className="text-[var(--muted)]"> — el bot ya opera con esta versión.</span>
+          </div>
+          <button
+            onClick={() => setJustFrozenVersion(null)}
+            className="ml-auto text-[11px] text-[var(--muted)] hover:text-[var(--foreground)] cursor-pointer shrink-0"
+          >
+            Cerrar
+          </button>
+        </div>
+      ) : null}
+
       {links ? (
         <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-2 text-[13px]">
           <p className="font-semibold text-emerald-600 dark:text-emerald-400">Links nuevos — se muestran una sola vez.</p>
@@ -223,7 +244,7 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
               <div className="text-[var(--muted)]">{String(bot.lastDecision.reasonDescription ?? bot.lastDecision.reasonCode ?? '')}</div>
             </div>
           ) : null}
-          {bot.pendingCandidate ? (
+          {bot.pendingCandidate && room.status !== 'CLOSED' ? (
             <div className="rounded-lg border-2 border-amber-500/40 bg-amber-500/10 p-3">
               <p className="text-[12px] font-semibold text-amber-600 dark:text-amber-400">
                 BOT PROPONE ₲ {Number(bot.pendingCandidate.pricePyg).toLocaleString('es-PY')}
