@@ -1,0 +1,79 @@
+name: P0 PostgreSQL Integration Certification
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - audit/p0-security-integrity
+
+concurrency:
+  group: p0-postgres-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  p0-integration:
+    name: Real PostgreSQL & Supabase Integration (0001 -> 0068)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Ephemeral Local Supabase Stack
+        run: |
+          echo "Iniciando contenedor Supabase local efímero..."
+          supabase start
+          supabase status
+
+      - name: Reset Database and Apply All Migrations (0001 -> 0068)
+        run: |
+          echo "Aplicando stack completo de migraciones desde DB vacía..."
+          supabase db reset
+
+      - name: Execute P0 Real PostgreSQL Integration Suite
+        env:
+          TEST_DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+        run: |
+          echo "Ejecutando suite de integración contra PostgreSQL real..."
+          npx tsx scripts/test-p0-postgres-integration.ts
+
+      - name: Execute Existing Vitest Unit Test Suite
+        run: |
+          echo "================================================================"
+          echo "UNIT / STATIC TESTS (Vitest)"
+          echo "================================================================"
+          npm test
+
+      - name: Execute TypeScript Compiler Typecheck
+        run: |
+          echo "================================================================"
+          echo "STATIC ANALYSIS (tsc --noEmit)"
+          echo "================================================================"
+          npx tsc --noEmit
+
+      - name: Execute Production Next.js Build
+        run: |
+          echo "================================================================"
+          echo "PRODUCTION BUILD VERIFICATION"
+          echo "================================================================"
+          npm run build
+
+      - name: Stop Local Supabase Stack
+        if: always()
+        run: |
+          supabase stop || true
