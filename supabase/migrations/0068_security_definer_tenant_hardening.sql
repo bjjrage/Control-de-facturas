@@ -523,6 +523,9 @@ ALTER TABLE public.cost_observations
 -- Ajustar constraint de precio_unitario para admitir NULL exclusivamente en filas
 -- en REVISION_REQUERIDA donde no es posible computar un valor en PYG seguro
 ALTER TABLE public.cost_observations
+  ALTER COLUMN precio_unitario DROP NOT NULL;
+
+ALTER TABLE public.cost_observations
   DROP CONSTRAINT IF EXISTS cost_observations_precio_unitario_check;
 
 ALTER TABLE public.cost_observations
