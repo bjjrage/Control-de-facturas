@@ -9,6 +9,7 @@ import {
   authorizeAssistedBid,
   authorizeSandboxPolicy,
   finalizeSandboxRoom,
+  getOperatorRoomState,
   pollOperatorRoom,
   regenerateSandboxLinks,
   setSandboxBotPaused,
@@ -26,7 +27,7 @@ function fmtTime(iso: string): string {
   return d.toLocaleTimeString('es-PY', { hour12: false });
 }
 
-export function OperatorConsole({ roomId }: { roomId: string }) {
+export function OperatorConsole({ roomId, canManage }: { roomId: string; canManage: boolean }) {
   const [view, setView] = useState<OperatorView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -36,7 +37,8 @@ export function OperatorConsole({ roomId }: { roomId: string }) {
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const poll = useCallback(async () => {
-    const res = await pollOperatorRoom(roomId);
+    // Managers heartbeat (advance + bot tick); comercial gets a read-only view.
+    const res = canManage ? await pollOperatorRoom(roomId) : await getOperatorRoomState(roomId);
     if (res.error) {
       setError(res.error);
       return;
@@ -45,7 +47,7 @@ export function OperatorConsole({ roomId }: { roomId: string }) {
       setView(res.view);
       setError(null);
     }
-  }, [roomId]);
+  }, [roomId, canManage]);
 
   useEffect(() => {
     void poll();
@@ -115,6 +117,10 @@ export function OperatorConsole({ roomId }: { roomId: string }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {!canManage ? (
+            <span className="text-[11px] text-[var(--muted)] self-center">Vista de sólo lectura (rol comercial).</span>
+          ) : (
+            <>
           {room.status === 'DRAFT' ? (
             <Button className="h-8 text-xs" disabled={busy !== null} onClick={() => run('start', () => startSandboxRoom(roomId))}>
               {busy === 'start' ? 'Iniciando…' : 'Iniciar subasta'}
@@ -152,6 +158,8 @@ export function OperatorConsole({ roomId }: { roomId: string }) {
           <Button variant="secondary" className="h-8 text-xs" onClick={() => setShowPolicy((s) => !s)}>
             {showPolicy ? 'Ocultar policy' : 'Cambiar policy'}
           </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -220,13 +228,17 @@ export function OperatorConsole({ roomId }: { roomId: string }) {
               <p className="text-[12px] font-semibold text-amber-600 dark:text-amber-400">
                 BOT PROPONE ₲ {Number(bot.pendingCandidate.pricePyg).toLocaleString('es-PY')}
               </p>
-              <Button
-                className="h-8 text-xs mt-2"
-                disabled={busy !== null}
-                onClick={() => run('authz', () => authorizeAssistedBid(roomId).then((r) => ({ error: r.error })))}
-              >
-                {busy === 'authz' ? 'Autorizando…' : 'Autorizar lance'}
-              </Button>
+              {canManage ? (
+                <Button
+                  className="h-8 text-xs mt-2"
+                  disabled={busy !== null}
+                  onClick={() => run('authz', () => authorizeAssistedBid(roomId).then((r) => ({ error: r.error })))}
+                >
+                  {busy === 'authz' ? 'Autorizando…' : 'Autorizar lance'}
+                </Button>
+              ) : (
+                <p className="text-[11px] text-[var(--muted)] mt-1">Solo un administrador puede autorizar el lance.</p>
+              )}
             </div>
           ) : null}
         </div>
@@ -260,7 +272,7 @@ export function OperatorConsole({ roomId }: { roomId: string }) {
         </div>
       </div>
 
-      {showPolicy ? (
+      {showPolicy && canManage ? (
         <div className="space-y-2">
           <h2 className="text-[13px] font-semibold">Autorizar policy {bot.policyVersion !== null ? `v${bot.policyVersion + 1}` : 'v1'}</h2>
           <PolicyConfigForm

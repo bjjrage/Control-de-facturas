@@ -93,8 +93,8 @@ describe('0068 static safety audit', () => {
       const src = read(f);
       // Direct event inserts were removed with the events_insert policy:
       // everything flows through append_sandbox_event.
-      expect(`${f}: direct events insert`).not.toMatch(/auction_sandbox_events/);
-      expect(src).not.toMatch(/from\('auction_sandbox_bids'\)\.insert/);
+      expect(src).not.toMatch(/from\(['"]auction_sandbox_events['"]\)\.insert/);
+      expect(src).not.toMatch(/from\(['"]auction_sandbox_bids['"]\)\.insert/);
     }
     // ...except the RPC allocator call itself.
     const ops = read('app/(internal)/licitaciones/auction-lab/actions.ts');
@@ -105,6 +105,39 @@ describe('0068 static safety audit', () => {
     const ops = read('app/(internal)/licitaciones/auction-lab/actions.ts');
     const guards = ops.match(/if \('error' in advanced\)/g) ?? [];
     expect(guards.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('authorization split: mutating actions require MANAGE, read-only never touches admin', () => {
+    const ops = read('app/(internal)/licitaciones/auction-lab/actions.ts');
+    const starts: Array<{ name: string; at: number }> = [];
+    const re = /export async function (\w+)/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(ops)) !== null) starts.push({ name: m[1], at: m.index });
+    const bodyOf = (name: string): string => {
+      const i = starts.findIndex((s) => s.name === name);
+      expect(i).toBeGreaterThan(-1);
+      return ops.slice(starts[i].at, i + 1 < starts.length ? starts[i + 1].at : undefined);
+    };
+    // Every exported mutating action gates on MANAGE_ROLES (directly or via
+    // manageOperatorBundle). True DB-backed authz tests need a database;
+    // this pins the gate structure statically.
+    for (const fn of [
+      'createSandboxRoom',
+      'startSandboxRoom',
+      'authorizeSandboxPolicy',
+      'pollOperatorRoom',
+      'authorizeAssistedBid',
+      'setSandboxBotPaused',
+      'finalizeSandboxRoom',
+      'regenerateSandboxLinks',
+    ]) {
+      expect(`${fn}: ${bodyOf(fn)}`).toMatch(/MANAGE_ROLES|manageOperatorBundle/);
+    }
+    // The read-only view path must never create or receive an admin client.
+    const readBody = bodyOf('getOperatorRoomState');
+    expect(readBody).not.toContain('createAdminClient');
+    expect(readBody).not.toMatch(/\badmin\b/);
+    expect(readBody).toContain('readOperatorBundle');
   });
   it('app read lists never include random_close_at', () => {
     const server = read('lib/auction-sandbox/server.ts');

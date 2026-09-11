@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { loadSandboxBundle } from '../server';
+import { computeNextRuntime, loadSandboxBundle } from '../server';
 
 const ROOM_ROW = {
   id: 'room-1',
@@ -55,6 +55,37 @@ function stubDb(failTable: string | null): SupabaseClient {
     }),
   } as unknown as SupabaseClient;
 }
+
+describe('computeNextRuntime — single coherent write (F-A2)', () => {
+  const decision = {
+    action: 'BID_CANDIDATE',
+    reasonCode: 'TARGET_POSITION_DEFENSE_REQUIRED',
+    candidatePricePyg: 999_998,
+    policyVersion: 1,
+  };
+
+  it('ASSISTED candidate: lastBotStatus AND pendingCandidate coexist', () => {
+    const prev = { lastBotStatus: { action: 'WAIT', reasonCode: 'X', candidate: null, v: 1 }, other: 'kept' };
+    const next = computeNextRuntime(prev, decision, {
+      pricePyg: 999_998, basisObservedAt: '2026-01-01T00:00:01.000Z', policyVersion: 1, decidedAt: '2026-01-01T00:00:01.000Z',
+    });
+    expect(next.lastBotStatus).toEqual({ action: 'BID_CANDIDATE', reasonCode: 'TARGET_POSITION_DEFENSE_REQUIRED', candidate: 999_998, v: 1 });
+    expect(next.pendingCandidate).toEqual({
+      pricePyg: 999_998, basisObservedAt: '2026-01-01T00:00:01.000Z', policyVersion: 1, decidedAt: '2026-01-01T00:00:01.000Z',
+    });
+    expect(next.other).toBe('kept');
+  });
+
+  it('non-candidate decision refreshes status and clears pending', () => {
+    const prev = {
+      lastBotStatus: { action: 'BID_CANDIDATE', reasonCode: 'X', candidate: 999_998, v: 1 },
+      pendingCandidate: { pricePyg: 999_998, basisObservedAt: 't', policyVersion: 1, decidedAt: 't' },
+    };
+    const next = computeNextRuntime(prev, { action: 'WAIT', reasonCode: 'Y', candidatePricePyg: null, policyVersion: 1 }, null);
+    expect(next.lastBotStatus).toEqual({ action: 'WAIT', reasonCode: 'Y', candidate: null, v: 1 });
+    expect(next.pendingCandidate).toBeNull();
+  });
+});
 
 describe('loadSandboxBundle fail-closed', () => {
   it('loads a full bundle when every query succeeds', async () => {

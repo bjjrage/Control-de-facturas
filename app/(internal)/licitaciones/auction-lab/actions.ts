@@ -13,6 +13,7 @@ import { buildPolicyVersionRecord, checkPolicyContinuity, policyFromSnapshot } f
 import {
   bundleToSnapshot,
   buildWatchView,
+  computeNextRuntime,
   loadSandboxBundle,
   publicRoomInfo,
   rankBundle,
@@ -32,17 +33,35 @@ const nowIso = () => new Date().toISOString();
 /**
  * Write model: reads go through the RLS user client; every SEQUENCE-allocating
  * write goes through the service_role RPCs (submit/append/advance/close).
- * The operator is authenticated + empresa-verified BEFORE any admin call.
  * No app code reads or writes next_sequence (see migration-audit spec).
+ *
+ * AUTHORIZATION MODEL (V0): comercial = READ ONLY, administracion/admin = MANAGE.
+ * - readOperatorBundle(): OPERATOR_ROLES, user/RLS client, NEVER admin.
+ *   No mutation authority of any kind leaves this function.
+ * - manageOperatorBundle(): MANAGE_ROLES only, user client + admin client.
+ *   Every mutating action (create/start/policy/poll-with-bot/assisted/auto/
+ *   pause/finalize/regenerate/advance) goes through here. The admin client is
+ *   NEVER handed out after a comercial-level gate.
  */
-async function operatorBundle(roomId: string): Promise<{ db: Db; admin: Db; bundle: SandboxBundle; empresaId: string } | { error: string }> {
+async function readOperatorBundle(roomId: string): Promise<{ db: Db; bundle: SandboxBundle } | { error: string }> {
   const empresaId = await requireEmpresaId([...OPERATOR_ROLES]);
+  const db = await createClient();
+  const loaded = await loadSandboxBundle(db, roomId);
+  if ('error' in loaded) return { error: loaded.error };
+  if (loaded.bundle.room.empresa_id !== empresaId) return { error: 'Sala inexistente.' };
+  return { db, bundle: loaded.bundle };
+}
+
+async function manageOperatorBundle(roomId: string): Promise<{ db: Db; admin: Db; bundle: SandboxBundle; empresaId: string } | { error: string }> {
+  const empresaId = await requireEmpresaId([...MANAGE_ROLES]);
   const db = await createClient();
   const loaded = await loadSandboxBundle(db, roomId);
   if ('error' in loaded) return { error: loaded.error };
   if (loaded.bundle.room.empresa_id !== empresaId) return { error: 'Sala inexistente.' };
   return { db, admin: createAdminClient(), bundle: loaded.bundle, empresaId };
 }
+
+
 
 /** Phase heartbeat via the atomic advance RPC, then a fresh authoritative reload. */
 async function advanceRoom(admin: Db, db: Db, roomId: string): Promise<{ bundle: SandboxBundle } | { error: string }> {
@@ -104,7 +123,6 @@ async function botTick(admin: Db, db: Db, bundle: SandboxBundle, atIso: string):
     (last.candidate ?? null) !== (decision.candidatePricePyg ?? null) ||
     last.v !== decision.policyVersion;
 
-  let next = bundle;
   if (changed) {
     await appendEvent(admin, bundle.room.id, 'BOT_DECISION', {
       action: decision.action,
@@ -116,36 +134,29 @@ async function botTick(admin: Db, db: Db, bundle: SandboxBundle, atIso: string):
       executionMode: decision.executionMode,
       machineState,
     });
-    await db.from('auction_sandbox_rooms').update({
-      bot_runtime: {
-        ...runtime,
-        lastBotStatus: { action: decision.action, reasonCode: decision.reasonCode, candidate: decision.candidatePricePyg, v: decision.policyVersion },
-      },
-    }).eq('id', bundle.room.id);
     if (decision.action === 'STOP') {
       await appendEvent(admin, bundle.room.id, 'BOT_STOPPED', { reasonCode: decision.reasonCode, policyVersion: decision.policyVersion });
     }
   }
 
-  const pending = runtime.pendingCandidate as { pricePyg: number; basisObservedAt: string; policyVersion: number; decidedAt: string } | undefined;
+  // Single coherent bot_runtime write per tick (F-A2): status + pending
+  // candidate are assembled pure-first, then persisted exactly once.
+  const assistedCandidate =
+    policy.executionMode === 'ASSISTED' && decision.action === 'BID_CANDIDATE' && decision.candidatePricePyg !== null
+      ? {
+          pricePyg: decision.candidatePricePyg,
+          basisObservedAt: decision.evaluatedAt,
+          policyVersion: decision.policyVersion,
+          decidedAt: atIso,
+        }
+      : null;
+  const nextRuntime = computeNextRuntime(runtime, decision, assistedCandidate);
+  await db.from('auction_sandbox_rooms').update({ bot_runtime: nextRuntime }).eq('id', bundle.room.id);
+  const next: SandboxBundle = { ...bundle, room: { ...bundle.room, bot_runtime: nextRuntime } };
 
-  if (policy.executionMode === 'ASSISTED' && decision.action === 'BID_CANDIDATE' && decision.candidatePricePyg !== null) {
-    if (!pending || pending.pricePyg !== decision.candidatePricePyg || pending.policyVersion !== decision.policyVersion) {
-      await db.from('auction_sandbox_rooms').update({
-        bot_runtime: {
-          ...(next.room.bot_runtime as Record<string, unknown>),
-          pendingCandidate: { pricePyg: decision.candidatePricePyg, basisObservedAt: decision.evaluatedAt, policyVersion: decision.policyVersion, decidedAt: atIso },
-        },
-      }).eq('id', bundle.room.id);
-    }
+  if (assistedCandidate) {
     const assistedReload = await loadSandboxBundle(db, bundle.room.id);
     return 'error' in assistedReload ? next : assistedReload.bundle;
-  }
-
-  if (pending) {
-    await db.from('auction_sandbox_rooms').update({
-      bot_runtime: { ...(next.room.bot_runtime as Record<string, unknown>), pendingCandidate: null },
-    }).eq('id', bundle.room.id);
   }
 
   if (policy.executionMode === 'BOUNDED_AUTO' && decision.action === 'BID_CANDIDATE' && decision.candidatePricePyg !== null) {
@@ -269,12 +280,23 @@ function toOperatorView(bundle: SandboxBundle, atIso: string): OperatorView {
 
 /** Heartbeat: atomic advance + one bot tick + operator view. Fail-closed on reads. */
 export async function pollOperatorRoom(roomId: string): Promise<{ view?: OperatorView; error?: string }> {
-  const res = await operatorBundle(roomId);
+  const res = await manageOperatorBundle(roomId);
   if ('error' in res) return { error: res.error };
   const advanced = await advanceRoom(res.admin, res.db, roomId);
   if ('error' in advanced) return { error: advanced.error };
   const bundle = await botTick(res.admin, res.db, advanced.bundle, nowIso());
   return { view: toOperatorView(bundle, nowIso()) };
+}
+
+/**
+ * READ-ONLY view for comercial: loads state only — no advance, no bot tick,
+ * no privileged RPC, no admin client. Phases may lag until a manager's
+ * heartbeat (or any token poll) advances them.
+ */
+export async function getOperatorRoomState(roomId: string): Promise<{ view?: OperatorView; error?: string }> {
+  const res = await readOperatorBundle(roomId);
+  if ('error' in res) return { error: res.error };
+  return { view: toOperatorView(res.bundle, nowIso()) };
 }
 
 export async function createSandboxRoom(input: {
@@ -346,7 +368,7 @@ export async function createSandboxRoom(input: {
 }
 
 export async function startSandboxRoom(roomId: string): Promise<{ error?: string }> {
-  const res = await operatorBundle(roomId);
+  const res = await manageOperatorBundle(roomId);
   if ('error' in res) return { error: res.error };
   if (res.bundle.room.status !== 'DRAFT') return { error: 'La sala ya fue iniciada.' };
   if (res.bundle.policies.length === 0) return { error: 'Autorizá una policy (v1) antes de arrancar.' };
@@ -366,7 +388,7 @@ export async function authorizeSandboxPolicy(
   draft: AuctionPolicy,
   authorizedBy: string
 ): Promise<{ version?: number; error?: string }> {
-  const res = await operatorBundle(roomId);
+  const res = await manageOperatorBundle(roomId);
   if ('error' in res) return { error: res.error };
   const room = res.bundle.room;
   const prev = res.bundle.policies.length > 0 ? res.bundle.policies[res.bundle.policies.length - 1] : null;
@@ -421,7 +443,7 @@ export async function authorizeSandboxPolicy(
 
 /** ASSISTED: grant → fresh snapshot → recheck → submit, all in one server action. */
 export async function authorizeAssistedBid(roomId: string): Promise<{ price?: number; error?: string }> {
-  const res = await operatorBundle(roomId);
+  const res = await manageOperatorBundle(roomId);
   if ('error' in res) return { error: res.error };
   const profile = await requireProfile([...MANAGE_ROLES]);
   const atIso = nowIso();
@@ -491,7 +513,7 @@ export async function authorizeAssistedBid(roomId: string): Promise<{ price?: nu
 }
 
 export async function setSandboxBotPaused(roomId: string, paused: boolean): Promise<{ error?: string }> {
-  const res = await operatorBundle(roomId);
+  const res = await manageOperatorBundle(roomId);
   if ('error' in res) return { error: res.error };
   const { error } = await res.db.from('auction_sandbox_rooms').update({ bot_paused: paused }).eq('id', roomId);
   if (error) return { error: 'No se pudo actualizar.' };
@@ -499,7 +521,7 @@ export async function setSandboxBotPaused(roomId: string, paused: boolean): Prom
 }
 
 export async function finalizeSandboxRoom(roomId: string): Promise<{ error?: string }> {
-  const res = await operatorBundle(roomId);
+  const res = await manageOperatorBundle(roomId);
   if ('error' in res) return { error: res.error };
   if (res.bundle.room.status === 'CLOSED') return {};
   // Atomic manual close (winner + AUCTION_CLOSED + WINNER_DECLARED coherent).
@@ -509,7 +531,7 @@ export async function finalizeSandboxRoom(roomId: string): Promise<{ error?: str
 }
 
 export async function regenerateSandboxLinks(roomId: string): Promise<{ competitorToken?: string; observerToken?: string; error?: string }> {
-  const res = await operatorBundle(roomId);
+  const res = await manageOperatorBundle(roomId);
   if ('error' in res) return { error: res.error };
   const competitorToken = generateSandboxToken();
   const observerToken = generateSandboxToken();

@@ -75,6 +75,37 @@ export function aliasOf(bundle: SandboxBundle, participantId: string): { kind: '
   return { kind: (p?.kind ?? 'HUMAN') as 'BOT' | 'HUMAN', alias: p?.display_alias ?? '?' };
 }
 
+export interface AssistedCandidate {
+  pricePyg: number;
+  basisObservedAt: string;
+  policyVersion: number;
+  decidedAt: string;
+}
+
+/**
+ * Builds the next bot_runtime in ONE pure step (no I/O): the caller persists
+ * the result exactly once per tick. lastBotStatus always refreshes from the
+ * latest decision; pendingCandidate is set only for a live ASSISTED candidate
+ * and cleared otherwise — the two can never clobber each other across writes
+ * because there is a single write.
+ */
+export function computeNextRuntime(
+  runtime: Record<string, unknown>,
+  decision: { action: string; reasonCode: string; candidatePricePyg: number | null; policyVersion: number },
+  assistedCandidate: AssistedCandidate | null
+): Record<string, unknown> {
+  return {
+    ...runtime,
+    lastBotStatus: {
+      action: decision.action,
+      reasonCode: decision.reasonCode,
+      candidate: decision.candidatePricePyg ?? null,
+      v: decision.policyVersion,
+    },
+    pendingCandidate: assistedCandidate,
+  };
+}
+
 export function rankBundle(bundle: SandboxBundle): SandboxRankedEntry[] {
   return rankBids(bundle.bids, (pid) => aliasOf(bundle, pid));
 }
