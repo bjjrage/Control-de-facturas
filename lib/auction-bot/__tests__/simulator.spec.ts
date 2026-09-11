@@ -28,6 +28,7 @@ describe('End-to-End Simulation & Policy Version Upgrade Specification', () => {
     expect(report.results[6].decision.reasonCode).toBe('ECONOMIC_LIMIT_BREACHED');
     expect(report.results[7].decision.action).toBe('BID_CANDIDATE'); // POST_RANDOM MIPYME AVAILABLE
     expect(report.results[7].decision.candidatePricePyg).toBe(989_990);
+    expect(report.results[7].decision.policyVersion).toBe(2); // operator override after the STOP
     expect(report.results[8].decision.action).toBe('STOP'); // Auction closed
   });
 

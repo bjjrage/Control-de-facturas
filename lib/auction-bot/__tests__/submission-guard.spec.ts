@@ -329,6 +329,7 @@ describe('Submission Guards — Execution Mode & Pre-Submit Recheck', () => {
     const decisionB = evaluateAuctionStep(movedState, policy, undefined, { currentTimestampIso: t2 });
     expect(decisionB.action).toBe('BID_CANDIDATE');
     expect(decisionB.candidatePricePyg).toBe(989_990);
+    machine.beginEvaluation(); // BID_READY → EVALUATING for the fresh observation
     machine.handleDecision(decisionB, movedState);
     // The new decision cleared the grant bound to A.
     expect(machine.getContext().pendingHumanAuthorization).toBeNull();
@@ -345,6 +346,35 @@ describe('Submission Guards — Execution Mode & Pre-Submit Recheck', () => {
   });
 
   // ── B6: lifecycle guards ──────────────────────────────────────────────────
+  it('P1: handleDecision from non-EVALUATING throws without mutating (HALTED + WAIT)', () => {
+    const policy = buildPolicy('BOUNDED_AUTO');
+    const machine = new AuctionBotStateMachine(policy);
+    machine.startMonitoring();
+    machine.beginEvaluation();
+    const state = buildDisplacedState();
+    const haltDecision = evaluateAuctionStep(state, policy, undefined, {
+      currentTimestampIso: '2026-09-10T20:05:00.000Z', // stale → HALT
+    });
+    expect(haltDecision.action).toBe('HALT');
+    machine.handleDecision(haltDecision, state);
+    expect(machine.getState()).toBe('HALTED');
+    const lastBefore = machine.getContext().lastDecision;
+
+    // A genuine WAIT decision arriving while HALTED must NOT resurrect to MONITORING.
+    const postState: AuctionState = {
+      ...state,
+      phase: 'POST_RANDOM',
+      timingWindow: 'EXPIRED',
+      closeRisk: false,
+      postRandom: { mipymeBenefitStatus: 'UNAVAILABLE' },
+    };
+    const waitDecision = evaluateAuctionStep(postState, policy, undefined, { currentTimestampIso: baseTime });
+    expect(waitDecision.action).toBe('WAIT');
+    expect(() => machine.handleDecision(waitDecision, postState)).toThrow();
+    expect(machine.getState()).toBe('HALTED');
+    expect(machine.getContext().lastDecision).toBe(lastBefore);
+  });
+
   it('B6: confirmSubmission outside SUBMITTING throws', () => {
     const { machine } = machineWithCandidate('BOUNDED_AUTO');
     expect(() => machine.confirmSubmission()).toThrow();

@@ -161,10 +161,19 @@ export class AuctionBotStateMachine {
   }
 
   /**
-   * Transition to EVALUATING when a new state update arrives
+   * Transition to EVALUATING when a new state update arrives.
+   *
+   * Allowed from any monitoring-like state — including BID_READY and
+   * MIPYME_LAST_CHANCE: a fresh observation arriving while a candidate is
+   * pending must be evaluable (the resulting decision replaces or confirms
+   * the candidate via handleDecision). Terminal ACTION states (STOPPED,
+   * HALTED) and in-flight states (SUBMITTING, RECONCILING) can NOT resume
+   * evaluation on their own: STOPPED requires a new authorized policy version,
+   * HALTED requires explicit operator recovery, and in-flight submissions must
+   * resolve exactly-once first.
    */
   beginEvaluation(): void {
-    if (['MONITORING', 'CONFIRMED', 'IDLE', 'MIPYME_BID_CONFIRMED'].includes(this.context.lifecycleState)) {
+    if (['MONITORING', 'CONFIRMED', 'IDLE', 'MIPYME_BID_CONFIRMED', 'BID_READY', 'MIPYME_LAST_CHANCE'].includes(this.context.lifecycleState)) {
       this.transitionTo('EVALUATING', 'STATE_RECEIVED');
     }
   }
@@ -178,22 +187,20 @@ export class AuctionBotStateMachine {
    * fail-closed against stale submissions.
    */
   handleDecision(decision: ActionDecision, generatingState?: AuctionState): void {
-    // LIFECYCLE GUARD: a new BID_CANDIDATE must never silently overwrite an
-    // in-flight submission (SUBMITTING / RECONCILING with an active submission)
-    // nor resurrect a HALTED machine. Checked BEFORE any mutation.
-    if (decision.action === 'BID_CANDIDATE') {
-      const inFlight =
-        (this.context.lifecycleState === 'SUBMITTING' || this.context.lifecycleState === 'RECONCILING') &&
-        this.context.activeSubmission !== null;
-      if (inFlight) {
-        throw new Error(
-          `Refusing to overwrite in-flight submission ${this.context.activeSubmission?.bidId} (state '${this.context.lifecycleState}') with a new BID_CANDIDATE.`
-        );
-      }
-      if (this.context.lifecycleState === 'HALTED') {
-        throw new Error('Refusing to accept a new BID_CANDIDATE while HALTED. Explicit operator recovery is required.');
-      }
+    // LIFECYCLE GUARD: engine decisions are only accepted from EVALUATING.
+    // No exceptions: this prevents accidental resurrection or overwrite —
+    // HALTED + WAIT → MONITORING, STOPPED + BID → BID_READY, IDLE + BID →
+    // BID_READY, SUBMITTING/RECONCILING + any stray decision (including BID
+    // overwrites of in-flight submissions). Throws WITHOUT mutating context.
+    if (this.context.lifecycleState !== 'EVALUATING') {
+      throw new Error(
+        `Refusing decision '${decision.action}' from state '${this.context.lifecycleState}'. Decisions are only accepted from EVALUATING (call beginEvaluation() on a fresh observation first).`
+      );
     }
+    // NOTE: in-flight-submission overwrite and HALTED resurrection are subsumed
+    // by the EVALUATING-only guard above (a machine in SUBMITTING /
+    // RECONCILING / HALTED can never reach this point). They are intentionally
+    // NOT re-checked here to avoid dead code.
 
     this.context.lastDecision = decision;
     // A new decision invalidates any previous recheck AND any pending human
@@ -280,10 +287,38 @@ export class AuctionBotStateMachine {
 
   /**
    * Authorizes and activates a new policy version (e.g. after stopping on autoLimit)
+   *
+   * LIFECYCLE GUARD: never while a submission is in flight (SUBMITTING /
+   * RECONCILING, or an active submission still SUBMITTING/UNKNOWN). The
+   * in-flight submission must resolve exactly-once first.
+   *
+   * IDENTITY CONTINUITY: a new VERSION belongs to the same policy/session —
+   * policyId, auctionId, groupId and scope must be identical (and version
+   * strictly greater). Anything else is NOT a new version: it requires a new
+   * AuctionBotStateMachine / new session.
    */
   applyNewPolicyVersion(newPolicy: FrozenAuctionPolicy): void {
-    if (newPolicy.version <= this.context.policy.version) {
-      throw new Error(`New policy version (v${newPolicy.version}) must be greater than current active version (v${this.context.policy.version}).`);
+    const inFlightState =
+      this.context.lifecycleState === 'SUBMITTING' || this.context.lifecycleState === 'RECONCILING';
+    const inFlightSubmission =
+      this.context.activeSubmission?.status === 'SUBMITTING' ||
+      this.context.activeSubmission?.status === 'UNKNOWN';
+    if (inFlightState || inFlightSubmission) {
+      throw new Error(
+        `Refusing policy upgrade while a submission is in flight (state '${this.context.lifecycleState}', submission '${this.context.activeSubmission?.status ?? 'none'}'). Resolve exactly-once first.`
+      );
+    }
+    const current = this.context.policy;
+    const identityFields = ['policyId', 'auctionId', 'groupId', 'scope'] as const;
+    for (const field of identityFields) {
+      if (newPolicy[field] !== current[field]) {
+        throw new Error(
+          `Refusing policy upgrade: identity field '${field}' changed ('${current[field]}' → '${newPolicy[field]}'). That is not a new version — start a new AuctionBotStateMachine/session.`
+        );
+      }
+    }
+    if (newPolicy.version <= current.version) {
+      throw new Error(`New policy version (v${newPolicy.version}) must be greater than current active version (v${current.version}).`);
     }
     const oldVersion = this.context.policy.version;
     this.context.policy = newPolicy;

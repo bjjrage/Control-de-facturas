@@ -33,6 +33,11 @@ export interface SimulationReport {
 
 /**
  * Runs a sequence of simulation events against a policy and optional SBE constraints.
+ *
+ * An event may carry `authorizePolicyVersion`: when present, the machine
+ * authorizes that policy version BEFORE evaluating the step (operator override
+ * flow, e.g. after an Auto Limit STOP). This mirrors the real lifecycle —
+ * a STOPPED machine cannot accept decisions until a new version is applied.
  */
 export function runAuctionSimulation(
   events: SimulationEvent[],
@@ -46,11 +51,16 @@ export function runAuctionSimulation(
   let passedCount = 0;
 
   for (const ev of events) {
+    if (ev.authorizePolicyVersion) {
+      machine.applyNewPolicyVersion(ev.authorizePolicyVersion);
+    }
     machine.beginEvaluation();
 
+    // Evaluate against the machine's ACTIVE policy (it may have been upgraded
+    // mid-run via authorizePolicyVersion), never a stale captured reference.
     const decision = evaluateAuctionStep(
       ev.state,
-      policy,
+      machine.getContext().policy,
       constraints,
       { currentTimestampIso: ev.state.observedAt }
     );

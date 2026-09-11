@@ -44,7 +44,48 @@ export interface SimulationEvent {
   state: AuctionState;
   expectedAction: 'WAIT' | 'BID_CANDIDATE' | 'STOP' | 'HALT';
   expectedCandidatePricePyg?: number;
+  /**
+   * When set, the machine authorizes this policy version BEFORE evaluating
+   * the step (operator override). Required after a STOP: a STOPPED machine
+   * accepts no further decisions until a new version is applied.
+   */
+  authorizePolicyVersion?: FrozenAuctionPolicy;
 }
+
+/**
+ * Operator override v2 for the canonical scenario: after the Auto Limit STOP
+ * (step 7), the operator authorizes 300 bps (3%) tolerance → Auto Limit
+ * 970.000. Same policy/session identity (pol-sim-001), version 2.
+ */
+export const SIM_V2_POLICY: FrozenAuctionPolicy = freezePolicy(
+  {
+    policyId: 'pol-sim-001',
+    auctionId: 'lic-dncp-2026-001',
+    groupId: 'item-1',
+    scope: 'ITEM',
+    positionStrategy: 'TARGET_RANK_1',
+    targetRank: 1,
+    defenseStepPyg: 10,
+    normalPhaseBehavior: 'WAIT',
+    safeWindowBehavior: 'WAIT',
+    enterTargetPositionInEntryWindow: true,
+    defendImmediatelyInCloseRisk: true,
+    targetPricePyg: 1_000_000,
+    autoDefenseToleranceBps: 300, // 3% -> autoLimit = 970.000
+    autoLimitPyg: 970_000,
+    mipymePolicy: {
+      enabled: true,
+      executionMode: 'BOUNDED_AUTO',
+      defenseStepPyg: 10,
+      economicLimitMode: 'USE_CURRENT_AUTO_LIMIT',
+    },
+    executionMode: 'BOUNDED_AUTO',
+    maxStalenessMs: 5000,
+    authorizedBy: 'director.comercial@empresa.com.py',
+  },
+  2,
+  '2026-09-10T20:01:30.000Z'
+);
 
 /**
  * Creates the user's canonical scenario sequence:
@@ -207,7 +248,8 @@ export function createCanonicalUserScenario(baseTimeIso: string = '2026-09-10T20
     },
     {
       step: 8,
-      eventDescription: 'Fase aleatoria concluye. Ingreso a POST_RANDOM con beneficio MIPYME AVAILABLE. Mejor precio: ₲990.000. Step MIPYME: 10. Candidate: ₲989.990 (dentro de AutoLimit 980.000).',
+      eventDescription: 'Tras el STOP, el operador autoriza la versión 2 (tolerancia 3% → AutoLimit ₲970.000). Ingreso a POST_RANDOM con beneficio MIPYME AVAILABLE. Mejor precio: ₲990.000. Step MIPYME: 10. Candidate: ₲989.990 (dentro del nuevo AutoLimit).',
+      authorizePolicyVersion: SIM_V2_POLICY,
       state: {
         auctionId: 'lic-dncp-2026-001',
         groupId: 'item-1',
