@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
 import { JoinView } from '@/lib/auction-sandbox/server';
+import { PollController, TimeoutError } from '@/lib/auction-sandbox/poll-controller';
 import { getJoinView, submitHumanBid } from './actions';
 
 export function JoinConsole({ token }: { token: string }) {
@@ -13,7 +14,7 @@ export function JoinConsole({ token }: { token: string }) {
   const [price, setPrice] = useState('');
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const controllerRef = useRef<PollController | null>(null);
 
   const poll = useCallback(async () => {
     const res = await getJoinView(token);
@@ -26,14 +27,19 @@ export function JoinConsole({ token }: { token: string }) {
       setError(null);
     }
   }, [token]);
+  const pollRef = useRef(poll);
+  pollRef.current = poll;
 
   useEffect(() => {
-    void poll();
-    timer.current = setInterval(() => void poll(), 1000);
+    const ctl = new PollController(() => pollRef.current(), { intervalMs: 1000 });
+    controllerRef.current = ctl;
+    void ctl.tick();
+    ctl.start();
     return () => {
-      if (timer.current) clearInterval(timer.current);
+      ctl.stop();
+      controllerRef.current = null;
     };
-  }, [poll]);
+  }, []);
 
   async function submit() {
     const n = parseInt(price.replace(/\D/g, ''), 10);
@@ -41,18 +47,29 @@ export function JoinConsole({ token }: { token: string }) {
       setFlash('Ingresá un precio válido en guaraníes.');
       return;
     }
+    const ctl = controllerRef.current;
     setBusy(true);
-    const key = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-    const res = await submitHumanBid(token, n, key);
-    setBusy(false);
-    if (res.error) {
-      setFlash(res.error);
-    } else {
-      setFlash('Lance enviado.');
-      setPrice('');
+    try {
+      const key = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+      // Submit with polling suspended (single authoritative refresh after);
+      // a hung submit settles as unknown instead of wedging the button.
+      const out = ctl
+        ? await ctl.runMutation(() => submitHumanBid(token, n, key), 25000, 'Enviar lance')
+        : { status: 'done' as const, value: await submitHumanBid(token, n, key) };
+      if (out.status === 'unknown') {
+        setFlash('Sin confirmación: revisá tus lances, el envío puede haber llegado. No reenvíes a ciegas.');
+      } else if (out.value.error) {
+        setFlash(out.value.error);
+      } else {
+        setFlash('Lance enviado.');
+        setPrice('');
+      }
+    } catch (e) {
+      setFlash(e instanceof TimeoutError ? e.message : 'Error de conexión.');
+    } finally {
+      setBusy(false);
     }
     setTimeout(() => setFlash(null), 4000);
-    await poll();
   }
 
   if (error && !view) {

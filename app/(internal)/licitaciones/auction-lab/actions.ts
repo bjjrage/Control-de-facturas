@@ -373,12 +373,18 @@ export async function startSandboxRoom(roomId: string): Promise<{ error?: string
   if (res.bundle.room.status !== 'DRAFT') return { error: 'La sala ya fue iniciada.' };
   if (res.bundle.policies.length === 0) return { error: 'Autorizá una policy (v1) antes de arrancar.' };
   const atIso = nowIso();
-  const { error } = await res.db
+  // Conditional write + rowcount check: two concurrent starts cannot both
+  // win, so AUCTION_STARTED is emitted exactly once (checked below).
+  const { data: started, error } = await res.db
     .from('auction_sandbox_rooms')
     .update({ status: 'ACTIVE_NORMAL', started_at: atIso })
     .eq('id', roomId)
-    .eq('status', 'DRAFT');
+    .eq('status', 'DRAFT')
+    .select('id');
   if (error) return { error: 'No se pudo iniciar la sala.' };
+  if (!started || started.length !== 1) {
+    return { error: 'La sala ya fue iniciada o cambió de estado.' };
+  }
   await appendEvent(res.admin, roomId, 'AUCTION_STARTED', { at: nowIso() });
   return {};
 }

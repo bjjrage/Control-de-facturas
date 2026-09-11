@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { PolicyConfigForm } from '@/components/auction-bot/policy-config-form';
 import { FrozenAuctionPolicy } from '@/lib/auction-bot/types';
+import { PollController, TimeoutError } from '@/lib/auction-sandbox/poll-controller';
 import {
   authorizeAssistedBid,
   authorizeSandboxPolicy,
@@ -37,7 +38,7 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
   // Transient unequivocal feedback right after a freeze (same pattern as the
   // standalone bot page).
   const [justFrozenVersion, setJustFrozenVersion] = useState<number | null>(null);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const controllerRef = useRef<PollController | null>(null);
 
   const poll = useCallback(async () => {
     // Managers heartbeat (advance + bot tick); comercial gets a read-only view.
@@ -52,25 +53,53 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
     }
   }, [roomId, canManage]);
 
+  const pollRef = useRef(poll);
+  pollRef.current = poll;
+
   useEffect(() => {
-    void poll();
-    timer.current = setInterval(() => void poll(), 1000);
+    const ctl = new PollController(() => pollRef.current(), { intervalMs: 1000 });
+    controllerRef.current = ctl;
+    void ctl.tick();
+    ctl.start();
     return () => {
-      if (timer.current) clearInterval(timer.current);
+      ctl.stop();
+      controllerRef.current = null;
     };
-  }, [poll]);
+  }, []);
+
+  const MUTATION_LABELS: Record<string, string> = {
+    start: 'Iniciar subasta',
+    authz: 'Autorizar lance',
+    pause: 'Pausar/reanudar bot',
+    finalize: 'Finalizar demo',
+    links: 'Regenerar links',
+    policy: 'Autorizar policy',
+  };
 
   async function run(key: string, fn: () => Promise<{ error?: string }>) {
+    const ctl = controllerRef.current;
+    const label = MUTATION_LABELS[key] ?? 'Acción';
     setBusy(key);
     setError(null);
     try {
-      const res = await fn();
-      if (res.error) setError(res.error);
-    } catch {
-      setError('Error de conexión.');
+      const out = ctl
+        ? await ctl.runMutation(fn, 25000, label)
+        : { status: 'done' as const, value: await fn() };
+      if (out.status === 'unknown') {
+        // Timeout is NOT a verdict: the mutation may complete late. The
+        // controller already refreshed once — reconcile from what the room
+        // shows now instead of retrying blindly.
+        setError(
+          `Sin confirmación: ${label} tardó demasiado. Mirá el estado actual de la sala: si ya refleja el cambio, no hace falta reintentar.`
+        );
+        return;
+      }
+      if (out.value.error) setError(out.value.error);
+    } catch (e) {
+      setError(e instanceof TimeoutError ? e.message : 'Error de conexión.');
+    } finally {
+      setBusy(null);
     }
-    setBusy(null);
-    await poll();
   }
 
   async function copy(text: string, which: string) {
@@ -84,16 +113,28 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
   }
 
   async function handleFrozen(frozen: FrozenAuctionPolicy) {
+    const ctl = controllerRef.current;
     setBusy('policy');
-    const res = await authorizeSandboxPolicy(roomId, frozen, frozen.authorizedBy);
-    setBusy(null);
-    if (res.error) {
-      setError(res.error);
-      return;
+    setError(null);
+    try {
+      const out = ctl
+        ? await ctl.runMutation(() => authorizeSandboxPolicy(roomId, frozen, frozen.authorizedBy), 25000, 'Autorizar policy')
+        : { status: 'done' as const, value: await authorizeSandboxPolicy(roomId, frozen, frozen.authorizedBy) };
+      if (out.status === 'unknown') {
+        setError('Sin confirmación: la autorización tardó demasiado. Revisá si aparece la nueva versión antes de reintentar.');
+        return;
+      }
+      if (out.value.error) {
+        setError(out.value.error);
+        return;
+      }
+      setShowPolicy(false);
+      setJustFrozenVersion(out.value.version ?? null);
+    } catch (e) {
+      setError(e instanceof TimeoutError ? e.message : 'Error de conexión.');
+    } finally {
+      setBusy(null);
     }
-    setShowPolicy(false);
-    setJustFrozenVersion(res.version ?? null);
-    await poll();
   }
 
   if (error && !view) {
