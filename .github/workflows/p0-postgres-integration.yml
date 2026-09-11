@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   p0-integration:
-    name: Real PostgreSQL & Supabase Integration (0001 -> 0068)
+    name: Real PostgreSQL & Supabase Integration (0001 -> 0069)
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -40,7 +40,7 @@ jobs:
           supabase start
           supabase status
 
-      - name: Reset Database and Apply All Migrations (0001 -> 0068)
+      - name: Reset Database and Apply All Migrations (0001 -> 0069)
         run: |
           echo "Aplicando stack completo de migraciones desde DB vacía..."
           supabase db reset
