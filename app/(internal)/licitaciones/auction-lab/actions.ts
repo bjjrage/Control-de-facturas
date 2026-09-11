@@ -38,16 +38,17 @@ const nowIso = () => new Date().toISOString();
 async function operatorBundle(roomId: string): Promise<{ db: Db; admin: Db; bundle: SandboxBundle; empresaId: string } | { error: string }> {
   const empresaId = await requireEmpresaId([...OPERATOR_ROLES]);
   const db = await createClient();
-  const bundle = await loadSandboxBundle(db, roomId);
-  if (!bundle || bundle.room.empresa_id !== empresaId) return { error: 'Sala inexistente.' };
-  return { db, admin: createAdminClient(), bundle, empresaId };
+  const loaded = await loadSandboxBundle(db, roomId);
+  if ('error' in loaded) return { error: loaded.error };
+  if (loaded.bundle.room.empresa_id !== empresaId) return { error: 'Sala inexistente.' };
+  return { db, admin: createAdminClient(), bundle: loaded.bundle, empresaId };
 }
 
-/** Phase heartbeat via the atomic advance RPC, then a fresh reload. */
-async function advanceRoom(admin: Db, db: Db, roomId: string): Promise<SandboxBundle | null> {
+/** Phase heartbeat via the atomic advance RPC, then a fresh authoritative reload. */
+async function advanceRoom(admin: Db, db: Db, roomId: string): Promise<{ bundle: SandboxBundle } | { error: string }> {
   const { error } = await admin.rpc('advance_sandbox_room', { p_room_id: roomId });
-  if (error) return await loadSandboxBundle(db, roomId);
-  return await loadSandboxBundle(db, roomId);
+  if (error) return { error: `No se pudo avanzar la sala (${error.code ?? 'rpc-error'}).` };
+  return loadSandboxBundle(db, roomId);
 }
 
 async function appendEvent(admin: Db, roomId: string, type: string, payload: Record<string, unknown>): Promise<number | null> {
@@ -137,7 +138,8 @@ async function botTick(admin: Db, db: Db, bundle: SandboxBundle, atIso: string):
         },
       }).eq('id', bundle.room.id);
     }
-    return (await loadSandboxBundle(db, bundle.room.id)) ?? next;
+    const assistedReload = await loadSandboxBundle(db, bundle.room.id);
+    return 'error' in assistedReload ? next : assistedReload.bundle;
   }
 
   if (pending) {
@@ -148,10 +150,11 @@ async function botTick(admin: Db, db: Db, bundle: SandboxBundle, atIso: string):
 
   if (policy.executionMode === 'BOUNDED_AUTO' && decision.action === 'BID_CANDIDATE' && decision.candidatePricePyg !== null) {
     await botAutoSubmit(admin, db, next, policy, decision.candidatePricePyg, decision.evaluatedAt, atIso);
-    return (await loadSandboxBundle(db, bundle.room.id)) ?? next;
   }
-
-  return (await loadSandboxBundle(db, bundle.room.id)) ?? next;
+  // Return the freshest authoritative bundle; fall back to the tick input
+  // (fully loaded seconds ago) only when the reload itself fails.
+  const reloaded = await loadSandboxBundle(db, bundle.room.id);
+  return 'error' in reloaded ? next : reloaded.bundle;
 }
 
 /** Guarded BOUNDED_AUTO submit: initial decision, then a REAL fresh reload before any submit. */
@@ -177,11 +180,14 @@ async function botAutoSubmit(
   if (decision.action !== 'BID_CANDIDATE' || decision.candidatePricePyg !== candidatePricePyg) return;
   machine.handleDecision(decision, state0);
 
-  // REAL fresh re-observation: re-read Supabase AFTER the decision (with phase
-  // advance), then recheck. A competitor move invalidates — never submit off
-  // the old snapshot.
+  // REAL fresh re-observation: confirm the phase through the authoritative
+  // advance RPC FIRST (bonus) — never run the bot against an unconfirmed
+  // phase — then re-read Supabase AFTER the decision, then recheck.
+  // A competitor move invalidates — never submit off the old snapshot.
+  const advanced = await advanceRoom(admin, db, bundle.room.id);
+  if ('error' in advanced) return; // phase unconfirmed → NO SUBMIT
   const freshAt = new Date().toISOString();
-  const freshBundle = (await loadSandboxBundle(db, bundle.room.id)) ?? bundle;
+  const freshBundle = advanced.bundle;
   const freshState = snapshotToAuctionState(bundleToSnapshot(freshBundle), freshAt);
   const bidKey = buildBotIdempotencyKey(bundle.room.id, policy.version, basisObservedAt, candidatePricePyg);
 
@@ -261,13 +267,13 @@ function toOperatorView(bundle: SandboxBundle, atIso: string): OperatorView {
   };
 }
 
-/** Heartbeat: atomic advance + one bot tick + operator view. */
+/** Heartbeat: atomic advance + one bot tick + operator view. Fail-closed on reads. */
 export async function pollOperatorRoom(roomId: string): Promise<{ view?: OperatorView; error?: string }> {
   const res = await operatorBundle(roomId);
   if ('error' in res) return { error: res.error };
-  await advanceRoom(res.admin, res.db, roomId);
-  let bundle = (await loadSandboxBundle(res.db, roomId)) ?? res.bundle;
-  bundle = await botTick(res.admin, res.db, bundle, nowIso());
+  const advanced = await advanceRoom(res.admin, res.db, roomId);
+  if ('error' in advanced) return { error: advanced.error };
+  const bundle = await botTick(res.admin, res.db, advanced.bundle, nowIso());
   return { view: toOperatorView(bundle, nowIso()) };
 }
 
@@ -327,12 +333,15 @@ export async function createSandboxRoom(input: {
     { room_id: roomId, kind: 'BOT', display_alias: 'Nuestro Bot' },
     { room_id: roomId, kind: 'HUMAN', display_alias: 'Competidor' },
   ]);
-  await db.from('auction_sandbox_events').insert({
-    room_id: roomId,
-    type: 'ROOM_CREATED',
-    payload: { title },
-    server_sequence: 0,
+  // ROOM_CREATED goes through the authoritative event allocator (admin RPC):
+  // direct inserts have no RLS grant and would fail silently.
+  const admin = createAdminClient();
+  const { error: eventError } = await admin.rpc('append_sandbox_event', {
+    p_room_id: roomId,
+    p_type: 'ROOM_CREATED',
+    p_payload: { title },
   });
+  if (eventError) return { error: 'Sala creada pero sin evento inicial.' };
   return { roomId, competitorToken, observerToken };
 }
 
@@ -416,8 +425,9 @@ export async function authorizeAssistedBid(roomId: string): Promise<{ price?: nu
   if ('error' in res) return { error: res.error };
   const profile = await requireProfile([...MANAGE_ROLES]);
   const atIso = nowIso();
-  await advanceRoom(res.admin, res.db, roomId);
-  let bundle = (await loadSandboxBundle(res.db, roomId)) ?? res.bundle;
+  const advanced = await advanceRoom(res.admin, res.db, roomId);
+  if ('error' in advanced) return { error: advanced.error };
+  let bundle = advanced.bundle;
   if (bundle.policies.length === 0) return { error: 'Sin policy autorizada.' };
   const latest = bundle.policies[bundle.policies.length - 1];
   let policy;
@@ -447,9 +457,10 @@ export async function authorizeAssistedBid(roomId: string): Promise<{ price?: nu
   }
   // REAL fresh re-observation: advance + re-read Supabase AFTER the decision.
   // The grant stays bound to the initial candidate; if the market moved, the
-  // recheck invalidates and nothing is submitted.
-  await advanceRoom(res.admin, res.db, roomId);
-  const freshBundle = (await loadSandboxBundle(res.db, roomId)) ?? bundle;
+  // recheck invalidates and nothing is submitted. Advance failure → no submit.
+  const refreshed = await advanceRoom(res.admin, res.db, roomId);
+  if ('error' in refreshed) return { error: refreshed.error };
+  const freshBundle = refreshed.bundle;
   const freshAt = new Date().toISOString();
   const freshState = snapshotToAuctionState(bundleToSnapshot(freshBundle), freshAt);
   const bidKey = buildBotIdempotencyKey(roomId, policy.version, state.observedAt, decision.candidatePricePyg);

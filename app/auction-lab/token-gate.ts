@@ -24,8 +24,9 @@ export async function resolveSandboxRoom(
     .eq(column, digest)
     .maybeSingle();
   if (!room) return { error: 'Enlace inválido o vencido.' };
-  const bundle = await loadSandboxBundle(admin, (room as { id: string }).id);
-  if (!bundle) return { error: 'Enlace inválido o vencido.' };
+  const loaded = await loadSandboxBundle(admin, (room as { id: string }).id);
+  if ('error' in loaded) return { error: loaded.error };
+  const bundle = loaded.bundle;
   let participantId: string | null = null;
   if (kind === 'competitor') {
     participantId = bundle.participants.find((p) => p.kind === 'HUMAN')?.id ?? null;

@@ -9,7 +9,9 @@ export default async function AuctionLabRoomPage({ params }: { params: Promise<{
   await requireProfile(['comercial', 'administracion', 'admin']);
   const empresaId = await requireEmpresaId(['comercial', 'administracion', 'admin']);
   const supabase = await createClient();
-  const bundle = await loadSandboxBundle(supabase, roomId);
+  const loaded = await loadSandboxBundle(supabase, roomId);
+  if ('error' in loaded) notFound();
+  const bundle = loaded.bundle;
   if (!bundle || bundle.room.empresa_id !== empresaId) notFound();
 
   return <OperatorConsole roomId={roomId} />;

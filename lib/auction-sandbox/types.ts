@@ -60,7 +60,16 @@ export interface SandboxBotRuntime {
     policyVersion: number;
     decidedAt: string;
   } | null;
-  lastBotStatus?: string | null;
+  /**
+   * Canonical persisted shape (NEVER a bare string). Views expose only
+   * `.action` (a string) — rendering this object directly would break React.
+   */
+  lastBotStatus?: {
+    action: string;
+    reasonCode: string;
+    candidate: number | null;
+    v: number;
+  } | null;
 }
 
 export interface SandboxParticipant {

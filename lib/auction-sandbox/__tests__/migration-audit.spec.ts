@@ -83,6 +83,29 @@ describe('0068 static safety audit', () => {
     }
   });
 
+  it('no direct inserts into events/bids in app code (allocator + RPC only)', () => {
+    const files = [
+      'app/(internal)/licitaciones/auction-lab/actions.ts',
+      'app/auction-lab/join/[token]/actions.ts',
+      'app/auction-lab/watch/[token]/actions.ts',
+    ];
+    for (const f of files) {
+      const src = read(f);
+      // Direct event inserts were removed with the events_insert policy:
+      // everything flows through append_sandbox_event.
+      expect(`${f}: direct events insert`).not.toMatch(/auction_sandbox_events/);
+      expect(src).not.toMatch(/from\('auction_sandbox_bids'\)\.insert/);
+    }
+    // ...except the RPC allocator call itself.
+    const ops = read('app/(internal)/licitaciones/auction-lab/actions.ts');
+    expect(ops).toContain('append_sandbox_event');
+  });
+
+  it('advance failure blocks submit paths (poll, assisted, auto-submit)', () => {
+    const ops = read('app/(internal)/licitaciones/auction-lab/actions.ts');
+    const guards = ops.match(/if \('error' in advanced\)/g) ?? [];
+    expect(guards.length).toBeGreaterThanOrEqual(3);
+  });
   it('app read lists never include random_close_at', () => {
     const server = read('lib/auction-sandbox/server.ts');
     const colsDef = server.slice(server.indexOf('const ROOM_COLS'), server.indexOf('NOTE: random_close_at'));

@@ -15,7 +15,9 @@ export async function getJoinView(token: string): Promise<{ view?: JoinView; err
   if ('error' in resolved) return { error: resolved.error };
   await advanceIfNeeded(resolved.bundle.room.id);
   const admin = createAdminClient();
-  const bundle = (await loadSandboxBundle(admin, resolved.bundle.room.id)) ?? resolved.bundle;
+  const loaded = await loadSandboxBundle(admin, resolved.bundle.room.id);
+  if ('error' in loaded) return { error: loaded.error };
+  const bundle = loaded.bundle;
   return { view: buildJoinView(bundle, resolved.participantId as string, new Date().toISOString()) };
 }
 

@@ -41,10 +41,11 @@ const ROOM_COLS =
 // advance_sandbox_room RPC; computeRoomAdvance() below is the REFERENCE
 // implementation mirrored by that RPC (unit-tested; keep in sync).
 
-/** Loads everything for a room. Returns null when the room does not exist. */
-export async function loadSandboxBundle(db: Db, roomId: string): Promise<SandboxBundle | null> {
-  const { data: room } = await db.from('auction_sandbox_rooms').select(ROOM_COLS).eq('id', roomId).maybeSingle();
-  if (!room) return null;
+/** Loads everything for a room. FAIL-CLOSED: any read error → { error }, never partial/empty data. */
+export async function loadSandboxBundle(db: Db, roomId: string): Promise<{ bundle: SandboxBundle } | { error: string }> {
+  const { data: room, error: roomError } = await db.from('auction_sandbox_rooms').select(ROOM_COLS).eq('id', roomId).maybeSingle();
+  if (roomError) return { error: `No se pudo leer la sala (${roomError.code ?? 'read-error'}).` };
+  if (!room) return { error: 'Sala inexistente.' };
   const typedRoom = room as unknown as SandboxRoom;
   const [participants, bids, policies, events] = await Promise.all([
     db.from('auction_sandbox_participants').select('*').eq('room_id', roomId).order('created_at'),
@@ -52,12 +53,16 @@ export async function loadSandboxBundle(db: Db, roomId: string): Promise<Sandbox
     db.from('auction_sandbox_policy_versions').select('*').eq('room_id', roomId).order('version'),
     db.from('auction_sandbox_events').select('*').eq('room_id', roomId).order('server_sequence').limit(200),
   ]);
+  const failed = [participants, bids, policies, events].find((q) => q.error);
+  if (failed?.error) return { error: `No se pudo leer la sala (${failed.error.code ?? 'read-error'}).` };
   return {
-    room: typedRoom,
-    participants: (participants.data ?? []) as SandboxParticipant[],
-    bids: (bids.data ?? []) as SandboxBid[],
-    policies: (policies.data ?? []) as SandboxPolicyVersion[],
-    events: (events.data ?? []) as SandboxEvent[],
+    bundle: {
+      room: typedRoom,
+      participants: (participants.data ?? []) as SandboxParticipant[],
+      bids: (bids.data ?? []) as SandboxBid[],
+      policies: (policies.data ?? []) as SandboxPolicyVersion[],
+      events: (events.data ?? []) as SandboxEvent[],
+    },
   };
 }
 
@@ -160,10 +165,20 @@ export interface WatchKpis {
   distanceToAutoLimitPyg: number | null;
 }
 
+export interface WatchRecentBid {
+  participant_id: string;
+  display_alias: string;
+  kind: 'BOT' | 'HUMAN';
+  price_pyg: number;
+  server_sequence: number;
+  server_received_at: string;
+}
+
 export interface WatchView {
   room: PublicRoomInfo;
   ranking: SandboxRankedEntry[];
-  recentBids: SandboxRankedEntry[];
+  /** Real bid history (sequence DESC, latest 10). NOT collapsed per participant. */
+  recentBids: WatchRecentBid[];
   policy: { version: number; targetPricePyg: number; autoLimitPyg: number; targetRank: number; executionMode: string; authorizedBy: string } | null;
   lastDecision: Record<string, unknown> | null;
   botStatus: string | null;
@@ -208,7 +223,20 @@ export function buildWatchView(bundle: SandboxBundle, nowIso: string): WatchView
   return {
     room: publicRoomInfo(bundle, nowIso),
     ranking,
-    recentBids: [...ranking].reverse().slice(0, 10),
+    recentBids: [...bundle.bids]
+      .sort((a, b) => b.server_sequence - a.server_sequence)
+      .slice(0, 10)
+      .map((b) => {
+        const meta = aliasOf(bundle, b.participant_id);
+        return {
+          participant_id: b.participant_id,
+          display_alias: meta.alias,
+          kind: meta.kind,
+          price_pyg: b.price_pyg,
+          server_sequence: b.server_sequence,
+          server_received_at: b.server_received_at,
+        };
+      }),
     policy: latestPolicy
       ? {
           version: latestPolicy.version,
@@ -220,7 +248,9 @@ export function buildWatchView(bundle: SandboxBundle, nowIso: string): WatchView
         }
       : null,
     lastDecision: (lastDecisionEvent?.payload ?? null) as Record<string, unknown> | null,
-    botStatus: (bundle.room.bot_runtime?.lastBotStatus as string | undefined) ?? null,
+    // Canonical: persisted lastBotStatus is ALWAYS the object shape (see
+    // SandboxBotRuntime); only .action (a string) leaves the server.
+    botStatus: bundle.room.bot_runtime?.lastBotStatus?.action ?? null,
     pendingCandidate: bundle.room.bot_runtime?.pendingCandidate ?? null,
     timeline,
     kpis: {

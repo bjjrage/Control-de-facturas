@@ -392,8 +392,7 @@ describe('policyFromSnapshot metadata cross-checks (F5)', () => {
   });
 });
 
-describe('view secrecy (F6)', () => {
-  function fullBundle() {
+describe('view secrecy (F6)', () => {  function fullBundle() {
     const r = room();
     const ext = r as unknown as Record<string, unknown>;
     ext.random_close_at = new Date(Date.parse(T0) + 60_000).toISOString();
@@ -410,5 +409,49 @@ describe('view secrecy (F6)', () => {
       expect(json).not.toContain('token_hash');
       expect(json).not.toContain('hash-c');
     }
+  });
+
+  it('persisted lastBotStatus object surfaces as the action string (never an object)', () => {
+    const b = fullBundle();
+    const withStatus = {
+      ...b,
+      room: {
+        ...b.room,
+        bot_runtime: {
+          lastBotStatus: { action: 'BID_CANDIDATE', reasonCode: 'TARGET_POSITION_DEFENSE_REQUIRED', candidate: 999_998, v: 1 },
+        },
+      },
+    };
+    const view = buildWatchView(withStatus, T0);
+    expect(view.botStatus).toBe('BID_CANDIDATE');
+    expect(typeof view.botStatus).toBe('string');
+  });
+
+  it('empty runtime yields null botStatus (never undefined/object)', () => {
+    const view = buildWatchView(fullBundle(), T0);
+    expect(view.botStatus).toBeNull();
+  });
+});
+
+describe('recentBids is real history, ranking stays collapsed (F1/F3)', () => {
+  function historyBundle() {
+    const r = room();
+    const bids = [
+      humanBid(1, 999_999, T0),
+      { ...humanBid(1, 999_999, T0), id: 'bot1', participant_id: 'bot', price_pyg: 999_998, server_sequence: 2 },
+      { ...humanBid(1, 999_999, T0), id: 'h2', price_pyg: 999_990, server_sequence: 3 },
+      { ...humanBid(1, 999_999, T0), id: 'bot2', participant_id: 'bot', price_pyg: 999_989, server_sequence: 4 },
+    ];
+    return { ...snap(r, bids), policies: [], events: [] };
+  }
+
+  it('ranking collapses to 2 rows, recentBids keeps all 4 in recency order', () => {
+    const b = historyBundle();
+    const view = buildWatchView(b, T0);
+    expect(view.ranking).toHaveLength(2);
+    expect(view.ranking[0].price_pyg).toBe(999_989);
+    expect(view.recentBids).toHaveLength(4);
+    expect(view.recentBids.map((x) => x.server_sequence)).toEqual([4, 3, 2, 1]);
+    expect(view.recentBids[0]).toMatchObject({ participant_id: 'bot', price_pyg: 999_989, display_alias: 'Nuestro Bot', kind: 'BOT' });
   });
 });
