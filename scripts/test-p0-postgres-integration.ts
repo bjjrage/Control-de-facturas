@@ -544,11 +544,17 @@ async function run() {
     `, [empresaA, userA, budgetItemsValid]);
     record('Tenant A intenta convertir Licitación B -> FAIL', 'FAIL', t4_cross_lic.success ? 'SUCCESS' : 'FAIL', !t4_cross_lic.success);
 
+    const licA2 = (await client.query(`
+      INSERT INTO public.licitaciones (
+        empresa_id, dncp_nro, ocid, titulo, decision
+      ) VALUES ($1, 'DNCP-A-101', 'ocds-a-101', 'Licitacion A 2', 'GANADA') RETURNING id;
+    `, [empresaA])).rows[0].id;
+
     // 4.3 A + bid_analysis_run B = FAIL
     const t4_cross_run = await execAsUser(userA, `
       SELECT public.convertir_licitacion_a_proyecto_atomico(
         $1, 'Obra Cross Run', 'OBRA-CR-02', 'MOPC', 'MOPC', 'CT-03', 5000000, 5000000,
-        180, 10, 5, current_date, current_date + 180, 'DNCP-A-100', $2, $3, $4::jsonb, 'Depósito'
+        180, 10, 5, current_date, current_date + 180, 'DNCP-A-101', $2, $3, $4::jsonb, 'Depósito'
       )
     `, [empresaA, runB, userA, budgetItemsValid]);
     record('Tenant A intenta adjuntar bid_analysis_run de B -> FAIL', 'FAIL', t4_cross_run.success ? 'SUCCESS' : 'FAIL', !t4_cross_run.success);
