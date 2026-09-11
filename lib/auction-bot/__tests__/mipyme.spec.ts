@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { evaluateAuctionStep } from '../engine';
-import { freezePolicy } from '../policy';
+import { calculateAutoLimitPyg, freezePolicy } from '../policy';
 import { AuctionBotStateMachine } from '../state-machine';
 import { AuctionState, ExecutionMode, FrozenAuctionPolicy } from '../types';
 
@@ -14,7 +14,8 @@ describe('MIPYME Last Chance Specification', () => {
     toleranceBps: number = 200 // 2% -> Auto Limit = 980.000
   ): FrozenAuctionPolicy {
     const targetPrice = 1_000_000;
-    const autoLimit = Math.floor((targetPrice * (10000 - toleranceBps)) / 10000);
+    // Always mirror the canonical CEIL implementation — never a local formula.
+    const autoLimit = calculateAutoLimitPyg(targetPrice, toleranceBps);
 
     return freezePolicy({
       policyId: 'pol-mipyme',
@@ -173,12 +174,16 @@ describe('MIPYME Last Chance Specification', () => {
     machine.beginEvaluation();
     const decision = evaluateAuctionStep(state, policy, undefined, { currentTimestampIso: baseTime });
 
-    machine.handleDecision(decision);
+    machine.handleDecision(decision, state);
     expect(machine.getState()).toBe('MIPYME_LAST_CHANCE');
     expect(machine.getMipymeAttemptStatus()).toBe('CANDIDATE_READY');
 
-    // Submit bid
-    const submission = machine.startSubmission('mipyme-bid-001');
+    // Pre-submit recheck against a fresh observation is mandatory.
+    const recheck = machine.recheckCandidate(state, { nowIso: baseTime });
+    expect(recheck.valid).toBe(true);
+
+    // Submit bid (deterministic submittedAt for replay)
+    const submission = machine.startSubmission('mipyme-bid-001', { submittedAtIso: baseTime });
     expect(submission.isMipyme).toBe(true);
     expect(machine.getState()).toBe('SUBMITTING');
     expect(machine.getMipymeAttemptStatus()).toBe('SUBMITTING');
@@ -201,7 +206,7 @@ describe('MIPYME Last Chance Specification', () => {
       ourCurrentPricePyg: 989_990,
     };
 
-    const recon = machine.reconcileWithState(postReconciliationState, { observationIsAuthoritative: true });
+    const recon = machine.reconcileWithState(postReconciliationState, { observationIsAuthoritative: true }, { nowIso: baseTime });
     // Three-way outcome
     expect(recon.outcome).toBe('ACCEPTED');
     expect(recon.foundRank).toBe(1);
@@ -274,9 +279,12 @@ describe('MIPYME Last Chance Specification', () => {
     const state = createPostRandomState('AVAILABLE', 990_000);
     machine.beginEvaluation();
     const decision = evaluateAuctionStep(state, policy, undefined, { currentTimestampIso: baseTime });
-    machine.handleDecision(decision);
+    machine.handleDecision(decision, state);
 
-    machine.startSubmission('mipyme-bid-direct');
+    const recheck = machine.recheckCandidate(state, { nowIso: baseTime });
+    expect(recheck.valid).toBe(true);
+
+    machine.startSubmission('mipyme-bid-direct', { submittedAtIso: baseTime });
     expect(machine.getState()).toBe('SUBMITTING');
 
     machine.confirmSubmission();
@@ -294,8 +302,10 @@ describe('MIPYME Last Chance Specification', () => {
     const state = createPostRandomState('AVAILABLE', 990_000);
     machine.beginEvaluation();
     const decision = evaluateAuctionStep(state, policy, undefined, { currentTimestampIso: baseTime });
-    machine.handleDecision(decision);
-    machine.startSubmission('mipyme-bid-proc');
+    machine.handleDecision(decision, state);
+    const recheck = machine.recheckCandidate(state, { nowIso: baseTime });
+    expect(recheck.valid).toBe(true);
+    machine.startSubmission('mipyme-bid-proc', { submittedAtIso: baseTime });
     machine.confirmSubmission();
 
     expect(machine.getState()).toBe('MIPYME_BID_CONFIRMED');
@@ -360,8 +370,10 @@ describe('MIPYME Last Chance Specification', () => {
     const state = createPostRandomState('AVAILABLE', 990_000);
     machine.beginEvaluation();
     const decision = evaluateAuctionStep(state, policy, undefined, { currentTimestampIso: baseTime });
-    machine.handleDecision(decision);
-    machine.startSubmission(bidId);
+    machine.handleDecision(decision, state);
+    const recheck = machine.recheckCandidate(state, { nowIso: baseTime });
+    expect(recheck.valid).toBe(true);
+    machine.startSubmission(bidId, { submittedAtIso: baseTime });
     machine.markSubmissionUnknown('Socket timeout');
     return machine;
   }
@@ -387,7 +399,7 @@ describe('MIPYME Last Chance Specification', () => {
       observedAt: baseTime,
     };
 
-    const result = machine.reconcileWithState(stateWithBid, { observationIsAuthoritative: true });
+    const result = machine.reconcileWithState(stateWithBid, { observationIsAuthoritative: true }, { nowIso: baseTime });
 
     expect(result.outcome).toBe('ACCEPTED');
     expect(result.foundRank).toBe(1);
@@ -416,7 +428,7 @@ describe('MIPYME Last Chance Specification', () => {
       observedAt: baseTime,
     };
 
-    const result = machine.reconcileWithState(stateWithoutBid, { observationIsAuthoritative: true });
+    const result = machine.reconcileWithState(stateWithoutBid, { observationIsAuthoritative: true }, { nowIso: baseTime });
 
     expect(result.outcome).toBe('NOT_ACCEPTED');
     expect(machine.getState()).toBe('STOPPED');
@@ -446,7 +458,7 @@ describe('MIPYME Last Chance Specification', () => {
     };
 
     // Caller cannot guarantee the snapshot is complete
-    const result = machine.reconcileWithState(nonAuthoritativeState, { observationIsAuthoritative: false });
+    const result = machine.reconcileWithState(nonAuthoritativeState, { observationIsAuthoritative: false }, { nowIso: baseTime });
 
     expect(result.outcome).toBe('AMBIGUOUS');
     expect(machine.getState()).toBe('HALTED');
@@ -479,7 +491,7 @@ describe('MIPYME Last Chance Specification', () => {
     const result = machine.reconcileWithState(anyState, {
       observationIsAuthoritative: false,
       explicitRejectionFromAdapter: true,
-    });
+    }, { nowIso: baseTime });
 
     expect(result.outcome).toBe('NOT_ACCEPTED');
     expect(result.reason).toContain('rechazada explícitamente');

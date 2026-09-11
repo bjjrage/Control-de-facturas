@@ -10,10 +10,16 @@ import {
   BidSubmission,
   FrozenAuctionPolicy,
   AuctionState,
+  ExecutionMode,
   MipymeAttemptStatus,
   ReconciliationContext,
   ReconciliationResult,
 } from './types';
+import {
+  HumanAuthorizationRequiredError,
+  ObserveModeSubmissionError,
+  StaleCandidateError,
+} from './errors';
 
 export interface StateMachineContext {
   lifecycleState: BotLifecycleState;
@@ -21,6 +27,26 @@ export interface StateMachineContext {
   lastDecision: ActionDecision | null;
   activeSubmission: BidSubmission | null;
   mipymeAttemptStatus: MipymeAttemptStatus;
+  /**
+   * Binds a BID_CANDIDATE to the exact observed state that generated it.
+   * The pre-submit recheck compares the fresh observation against this basis.
+   * Null = no submittable candidate (stale, invalidated, or never observed).
+   */
+  candidateBasis: {
+    observedAt: string;
+    auctionId: string;
+    groupId: string;
+    ourRank: number | null;
+    ourCurrentPricePyg: number | null;
+    policyVersion: number;
+  } | null;
+  /** True only after a successful pre-submit recheck. Single-use: consumed by startSubmission. */
+  candidateRechecked: boolean;
+  /**
+   * Explicit single-use human authorization for ASSISTED mode.
+   * Granted via grantHumanAuthorization, consumed by startSubmission.
+   */
+  pendingHumanAuthorization: { operatorId: string; grantedAt: string } | null;
   history: Array<{
     timestamp: string;
     from: BotLifecycleState;
@@ -28,6 +54,26 @@ export interface StateMachineContext {
     trigger: string;
     detail?: string;
   }>;
+}
+
+export interface RecheckOptions {
+  /** Injectable current time for deterministic replay/simulation. */
+  nowIso?: string;
+}
+
+export interface StartSubmissionOptions {
+  /** Deterministic submittedAt for replay/tests. Defaults to current time. */
+  submittedAtIso?: string;
+  /**
+   * Inline explicit human authorization (operator identity) for ASSISTED mode.
+   * Equivalent to calling grantHumanAuthorization immediately before.
+   */
+  humanAuthorizationId?: string;
+}
+
+export interface ReconcileOptions {
+  /** Injectable current time for deterministic replay/simulation. */
+  nowIso?: string;
 }
 
 export class AuctionBotStateMachine {
@@ -40,6 +86,9 @@ export class AuctionBotStateMachine {
       lastDecision: null,
       activeSubmission: null,
       mipymeAttemptStatus: 'NOT_ATTEMPTED',
+      candidateBasis: null,
+      candidateRechecked: false,
+      pendingHumanAuthorization: null,
       history: [],
     };
   }
@@ -87,19 +136,44 @@ export class AuctionBotStateMachine {
   }
 
   /**
-   * Apply an engine decision (handling normal and MIPYME stages)
+   * Apply an engine decision (handling normal and MIPYME stages).
+   *
+   * generatingState binds a BID_CANDIDATE to the exact observation that
+   * produced it (pre-submit recheck basis). When omitted, any candidate is
+   * recorded WITHOUT basis and can never be submitted until re-evaluated —
+   * fail-closed against stale submissions.
    */
-  handleDecision(decision: ActionDecision): void {
+  handleDecision(decision: ActionDecision, generatingState?: AuctionState): void {
     this.context.lastDecision = decision;
+    // A new decision invalidates any previous recheck: the candidate (if any)
+    // must be re-validated against a fresh observation before submitting.
+    this.context.candidateRechecked = false;
+
+    const bindBasis = () => {
+      if (generatingState) {
+        this.context.candidateBasis = {
+          observedAt: generatingState.observedAt,
+          auctionId: generatingState.auctionId,
+          groupId: generatingState.groupId,
+          ourRank: generatingState.ourRank,
+          ourCurrentPricePyg: generatingState.ourCurrentPricePyg,
+          policyVersion: decision.policyVersion,
+        };
+      } else {
+        this.context.candidateBasis = null;
+      }
+    };
 
     // MIPYME Stage Decision Handling
     if (decision.isMipymeLastChance) {
       if (decision.action === 'BID_CANDIDATE') {
         // Enforce single-opportunity rule: do not recreate candidate if already confirmed or expired
         if (this.context.mipymeAttemptStatus === 'CONFIRMED' || this.context.mipymeAttemptStatus === 'EXPIRED') {
+          this.context.candidateBasis = null;
           return;
         }
         this.context.mipymeAttemptStatus = 'CANDIDATE_READY';
+        bindBasis();
         this.transitionTo(
           'MIPYME_LAST_CHANCE',
           'MIPYME_CANDIDATE_READY',
@@ -112,16 +186,19 @@ export class AuctionBotStateMachine {
         if (decision.reasonCode === 'MIPYME_BENEFIT_NOT_AVAILABLE') {
           this.context.mipymeAttemptStatus = 'EXPIRED';
         }
+        this.context.candidateBasis = null;
         this.transitionTo('MONITORING', 'MIPYME_WAIT', decision.reasonDescription);
         return;
       }
 
       if (decision.action === 'STOP') {
+        this.context.candidateBasis = null;
         this.transitionTo('STOPPED', 'MIPYME_STOP', decision.reasonDescription);
         return;
       }
 
       if (decision.action === 'HALT') {
+        this.context.candidateBasis = null;
         this.transitionTo('HALTED', 'MIPYME_HALT', decision.reasonDescription);
         return;
       }
@@ -130,15 +207,19 @@ export class AuctionBotStateMachine {
     // Standard Live Bidding Decision Handling
     switch (decision.action) {
       case 'BID_CANDIDATE':
+        bindBasis();
         this.transitionTo('BID_READY', 'BID_CANDIDATE_GENERATED', `Candidate: ₲${decision.candidatePricePyg?.toLocaleString()}`);
         break;
       case 'WAIT':
+        this.context.candidateBasis = null;
         this.transitionTo('MONITORING', 'DECISION_WAIT', decision.reasonDescription);
         break;
       case 'STOP':
+        this.context.candidateBasis = null;
         this.transitionTo('STOPPED', 'DECISION_STOP', decision.reasonDescription);
         break;
       case 'HALT':
+        this.context.candidateBasis = null;
         this.transitionTo('HALTED', 'DECISION_HALT', decision.reasonDescription);
         break;
     }
@@ -160,6 +241,11 @@ export class AuctionBotStateMachine {
       this.context.mipymeAttemptStatus = 'NOT_ATTEMPTED';
     }
     this.context.lastDecision = null;
+    this.context.candidateBasis = null;
+    this.context.candidateRechecked = false;
+    // A pending human grant was issued against the previous candidate/policy:
+    // it must not survive a policy upgrade.
+    this.context.pendingHumanAuthorization = null;
 
     this.transitionTo(
       'MONITORING',
@@ -169,9 +255,127 @@ export class AuctionBotStateMachine {
   }
 
   /**
-   * Begin submission of a candidate bid (assisted or bounded_auto)
+   * Records an explicit, single-use human authorization to submit the current
+   * candidate (ASSISTED mode gate). The grant is consumed by the next
+   * startSubmission and is cleared by policy upgrades. Auditable via history.
    */
-  startSubmission(bidId: string): BidSubmission {
+  grantHumanAuthorization(operatorId: string): void {
+    if (!operatorId || operatorId.trim() === '') {
+      throw new Error('grantHumanAuthorization requires a non-empty operator identity.');
+    }
+    this.context.pendingHumanAuthorization = {
+      operatorId: operatorId.trim(),
+      grantedAt: new Date().toISOString(),
+    };
+    this.context.history.push({
+      timestamp: new Date().toISOString(),
+      from: this.context.lifecycleState,
+      to: this.context.lifecycleState,
+      trigger: 'HUMAN_AUTHORIZATION_GRANTED',
+      detail: `Operator ${operatorId.trim()} authorized submission of the current candidate (single-use).`,
+    });
+  }
+
+  /**
+   * PRE-SUBMIT RECHECK — explicit barrier between BID_CANDIDATE and SUBMITTING.
+   *
+   * A candidate is bound to the observed state that generated it. Before any
+   * submission, the caller must present a FRESH observation and this method
+   * verifies: same auction/group, parseable timestamps, freshness within
+   * maxStalenessMs, identical policyVersion, and unchanged relevant
+   * price/ranking (ourRank + ourCurrentPricePyg).
+   *
+   * If anything relevant changed → INVALIDATE CANDIDATE → back to MONITORING
+   * for re-evaluation. Corrupt timestamps fail closed → HALTED.
+   */
+  recheckCandidate(
+    freshState: AuctionState,
+    options?: RecheckOptions
+  ): { valid: boolean; reason: string } {
+    const basis = this.context.candidateBasis;
+    const lastDecision = this.context.lastDecision;
+
+    if (
+      this.context.lifecycleState !== 'BID_READY' &&
+      this.context.lifecycleState !== 'MIPYME_LAST_CHANCE'
+    ) {
+      return { valid: false, reason: 'No hay candidate pendiente (estado actual no es BID_READY ni MIPYME_LAST_CHANCE).' };
+    }
+    if (!lastDecision || lastDecision.action !== 'BID_CANDIDATE' || !basis) {
+      this.context.candidateRechecked = false;
+      return { valid: false, reason: 'Candidate sin base observada ligada: requiere re-evaluación con estado fresco antes de enviar.' };
+    }
+
+    if (
+      freshState.auctionId !== basis.auctionId ||
+      freshState.groupId !== basis.groupId ||
+      freshState.auctionId !== this.context.policy.auctionId ||
+      freshState.groupId !== this.context.policy.groupId
+    ) {
+      this.invalidateCandidate(
+        `La observación fresca pertenece a otra subasta/grupo (${freshState.auctionId}/${freshState.groupId}) que el candidate (${basis.auctionId}/${basis.groupId}).`
+      );
+      return { valid: false, reason: 'Discrepancia de subasta/grupo entre candidate y observación fresca: candidate invalidado.' };
+    }
+
+    const nowMs = Date.parse(options?.nowIso ?? new Date().toISOString());
+    const freshObservedMs = Date.parse(freshState.observedAt);
+    if (!Number.isFinite(nowMs) || !Number.isFinite(freshObservedMs)) {
+      this.context.candidateRechecked = false;
+      this.transitionTo('HALTED', 'RECHECK_INVALID_TIMESTAMP', 'Timestamp inválido en recheck pre-submit (now u observedAt no parseable). Detención preventiva.');
+      return { valid: false, reason: 'Timestamp inválido en recheck: HALT preventivo.' };
+    }
+
+    const ageMs = Math.max(0, nowMs - freshObservedMs);
+    if (ageMs > this.context.policy.maxStalenessMs) {
+      this.invalidateCandidate(
+        `La observación fresca está desactualizada (${ageMs}ms > máximo ${this.context.policy.maxStalenessMs}ms).`
+      );
+      return { valid: false, reason: 'Observación fresca desactualizada: candidate invalidado, a re-evaluar.' };
+    }
+
+    if (this.context.policy.version !== basis.policyVersion) {
+      this.invalidateCandidate(
+        `La política cambió desde que se generó el candidate (v${basis.policyVersion} → v${this.context.policy.version}).`
+      );
+      return { valid: false, reason: 'La política cambió desde la generación del candidate: candidate invalidado.' };
+    }
+
+    if (
+      freshState.ourRank !== basis.ourRank ||
+      freshState.ourCurrentPricePyg !== basis.ourCurrentPricePyg
+    ) {
+      this.invalidateCandidate(
+        `El estado relevante cambió (rank ${basis.ourRank}→${freshState.ourRank}, precio ${basis.ourCurrentPricePyg}→${freshState.ourCurrentPricePyg}).`
+      );
+      return { valid: false, reason: 'Precio/ranking relevante cambió desde la generación del candidate: candidate invalidado, a re-evaluar.' };
+    }
+
+    this.context.candidateRechecked = true;
+    return { valid: true, reason: 'Candidate re-validado contra observación fresca: misma subasta/grupo, estado compatible, policyVersion idéntica, precio/ranking sin cambios.' };
+  }
+
+  private invalidateCandidate(detail: string): void {
+    this.context.candidateBasis = null;
+    this.context.candidateRechecked = false;
+    this.context.lastDecision = null;
+    if (this.context.mipymeAttemptStatus === 'CANDIDATE_READY') {
+      this.context.mipymeAttemptStatus = 'NOT_ATTEMPTED';
+    }
+    this.transitionTo('MONITORING', 'CANDIDATE_INVALIDATED', detail);
+  }
+
+  /**
+   * Begin submission of a candidate bid.
+   *
+   * Hard gates enforced HERE (never trust the UI for these guarantees):
+   *  1. Valid states only: BID_READY / MIPYME_LAST_CHANCE.
+   *  2. OBSERVE mode can NEVER submit (audit only).
+   *  3. ASSISTED mode requires an explicit single-use human authorization.
+   *  4. The candidate must have passed the pre-submit recheck against a fresh
+   *     observation (no direct startSubmission with a potentially stale candidate).
+   */
+  startSubmission(bidId: string, options?: StartSubmissionOptions): BidSubmission {
     const isMipyme = this.context.lifecycleState === 'MIPYME_LAST_CHANCE';
     const validStates: BotLifecycleState[] = ['BID_READY', 'MIPYME_LAST_CHANCE'];
 
@@ -182,12 +386,44 @@ export class AuctionBotStateMachine {
       throw new Error('No candidate price in last decision to submit.');
     }
 
+    const effectiveMode: ExecutionMode = isMipyme
+      ? this.context.policy.mipymePolicy.executionMode
+      : this.context.policy.executionMode;
+
+    if (effectiveMode === 'OBSERVE') {
+      throw new ObserveModeSubmissionError();
+    }
+
+    if (effectiveMode === 'ASSISTED') {
+      const inlineAuth = options?.humanAuthorizationId?.trim() || null;
+      const grantedAuth = this.context.pendingHumanAuthorization;
+      if (!inlineAuth && !grantedAuth) {
+        throw new HumanAuthorizationRequiredError();
+      }
+      const authorizingOperator = inlineAuth ?? grantedAuth!.operatorId;
+      // Single-use: consume any prior grant.
+      this.context.pendingHumanAuthorization = null;
+      this.context.history.push({
+        timestamp: new Date().toISOString(),
+        from: this.context.lifecycleState,
+        to: this.context.lifecycleState,
+        trigger: 'HUMAN_AUTHORIZATION_CONSUMED',
+        detail: `Operator ${authorizingOperator} authorized bid ${bidId} (ASSISTED, single-use).`,
+      });
+    }
+
+    if (!this.context.candidateRechecked) {
+      throw new StaleCandidateError('Call recheckCandidate with a fresh observation first.');
+    }
+    // Single-use: the recheck is consumed by this submission.
+    this.context.candidateRechecked = false;
+
     const submission: BidSubmission = {
       bidId,
       auctionId: this.context.policy.auctionId,
       groupId: this.context.policy.groupId,
       pricePyg: this.context.lastDecision.candidatePricePyg,
-      submittedAt: new Date().toISOString(),
+      submittedAt: options?.submittedAtIso ?? new Date().toISOString(),
       policyVersion: this.context.policy.version,
       status: 'SUBMITTING',
       isMipyme,
@@ -248,8 +484,21 @@ export class AuctionBotStateMachine {
    * Principle: "No visible in observation" ≠ "was not sent".
    * Only resolve as NOT_ACCEPTED when the caller explicitly provides authoritative evidence.
    * Stale or non-authoritative observations must resolve as AMBIGUOUS → HALT.
+   *
+   * Hardening gates (all fail closed to AMBIGUOUS → HALTED):
+   *   - auctionId/groupId of the observation must match the active submission;
+   *   - observedAt/submittedAt/now must be parseable (invalid timestamps HALT);
+   *   - the observation must be fresh (stale snapshots prove nothing);
+   *   - a price match only ACCEPTs when the matched offer provably postdates
+   *     the submission (timestamp >= submittedAt). An identical older offer may
+   *     be a PREVIOUS bid of ours — confusing them would confirm a bid the SBE
+   *     may never have received. When identity cannot be proven: AMBIGUOUS → HALT.
    */
-  reconcileWithState(state: AuctionState, context: ReconciliationContext): ReconciliationResult {
+  reconcileWithState(
+    state: AuctionState,
+    context: ReconciliationContext,
+    options?: ReconcileOptions
+  ): ReconciliationResult {
     if (this.context.lifecycleState !== 'RECONCILING' || !this.context.activeSubmission) {
       return {
         outcome: 'AMBIGUOUS',
@@ -260,14 +509,63 @@ export class AuctionBotStateMachine {
     const isMipyme = this.context.activeSubmission.isMipyme;
     const targetPrice = this.context.activeSubmission.pricePyg;
     const bidId = this.context.activeSubmission.bidId;
+    const submittedAtMs = Date.parse(this.context.activeSubmission.submittedAt);
+
+    const haltAmbiguous = (trigger: string, reason: string): ReconciliationResult => {
+      if (isMipyme) {
+        this.context.mipymeAttemptStatus = 'UNKNOWN';
+      }
+      this.transitionTo('HALTED', trigger, reason);
+      return { outcome: 'AMBIGUOUS', reason };
+    };
+
+    // ── GATE 1: auction / group identity ─────────────────────────────────────
+    if (
+      state.auctionId !== this.context.activeSubmission.auctionId ||
+      state.groupId !== this.context.activeSubmission.groupId
+    ) {
+      return haltAmbiguous(
+        'RECONCILIATION_SCOPE_MISMATCH_HALT',
+        `La observación pertenece a otra subasta/grupo (${state.auctionId}/${state.groupId}) que la oferta enviada (${this.context.activeSubmission.auctionId}/${this.context.activeSubmission.groupId}). No se puede reconciliar: HALT para intervención humana.`
+      );
+    }
+
+    // ── GATE 2: parseable timestamps (invalid timestamps fail closed) ────────
+    const nowMs = Date.parse(options?.nowIso ?? new Date().toISOString());
+    const observedMs = Date.parse(state.observedAt);
+    if (!Number.isFinite(nowMs) || !Number.isFinite(observedMs) || !Number.isFinite(submittedAtMs)) {
+      return haltAmbiguous(
+        'RECONCILIATION_INVALID_TIMESTAMP_HALT',
+        'Timestamp inválido en reconciliación (observedAt, submittedAt o now no parseable). Sin tiempo confiable no se puede validar freshness ni identidad: HALT preventivo.'
+      );
+    }
+
+    // ── GATE 3: observation freshness ────────────────────────────────────────
+    const ageMs = Math.max(0, nowMs - observedMs);
+    if (ageMs > this.context.policy.maxStalenessMs) {
+      return haltAmbiguous(
+        'RECONCILIATION_STALE_OBSERVATION_HALT',
+        `La observación para reconciliar está desactualizada (${ageMs}ms > máximo ${this.context.policy.maxStalenessMs}ms). Un snapshot viejo no prueba nada: HALT para intervención humana.`
+      );
+    }
 
     const foundOurOffer = state.rankedOffers.find(
       (offer) => offer.isOurOffer && offer.pricePyg === targetPrice
     );
 
     // ── OUTCOME: ACCEPTED ────────────────────────────────────────────────────
-    // Authoritative positive evidence: our offer appears in the ranked list.
+    // Authoritative positive evidence: our offer appears in the ranked list AND
+    // provably postdates the submission. An identical older offer could be a
+    // previous bid of ours — accepting it would confirm a bid the SBE may
+    // never have received.
     if (foundOurOffer) {
+      const offerMs = Date.parse(foundOurOffer.timestamp);
+      if (!Number.isFinite(offerMs) || offerMs < submittedAtMs) {
+        return haltAmbiguous(
+          'RECONCILIATION_IDENTITY_UNPROVEN_HALT',
+          `Oferta propia a ₲${targetPrice.toLocaleString()} visible pero sin timestamp autoritativo que la ligue a este envío (podría ser una oferta previa idéntica). No se puede demostrar identidad: AMBIGUO → HALT, sin reintento automático.`
+        );
+      }
       this.context.activeSubmission.status = 'CONFIRMED';
       const detail = `Oferta ${bidId} registrada en SBE en puesto #${foundOurOffer.rank}.`;
       if (isMipyme) {

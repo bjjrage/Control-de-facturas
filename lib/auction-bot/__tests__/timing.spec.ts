@@ -6,7 +6,13 @@ import { AuctionState } from '../types';
 describe('Independence of Position Goal vs Timing Strategy', () => {
   const baseTime = '2026-09-10T20:00:00.000Z';
 
-  function buildPolicy(targetRank: number, normalBehavior: 'WAIT' | 'ACTIVE', safeBehavior: 'WAIT' | 'ACTIVE') {
+  function buildPolicy(
+    targetRank: number,
+    normalBehavior: 'WAIT' | 'ACTIVE',
+    safeBehavior: 'WAIT' | 'ACTIVE',
+    enterInEntryWindow: boolean = true,
+    defendInCloseRisk: boolean = true
+  ) {
     return freezePolicy({
       policyId: 'pol-timing',
       auctionId: 'auc-time',
@@ -17,8 +23,8 @@ describe('Independence of Position Goal vs Timing Strategy', () => {
       defenseStepPyg: 10,
       normalPhaseBehavior: normalBehavior,
       safeWindowBehavior: safeBehavior,
-      enterTargetPositionInEntryWindow: true,
-      defendImmediatelyInCloseRisk: true,
+      enterTargetPositionInEntryWindow: enterInEntryWindow,
+      defendImmediatelyInCloseRisk: defendInCloseRisk,
       targetPricePyg: 1_000_000,
       autoDefenseToleranceBps: 200,
       autoLimitPyg: 980_000,
@@ -117,5 +123,49 @@ describe('Independence of Position Goal vs Timing Strategy', () => {
     expect(decision.targetRank).toBe(1);
     expect(decision.reasonCode).toBe('TARGET_POSITION_DEFENSE_REQUIRED');
     expect(decision.candidatePricePyg).toBe(999_990); // 1.000.000 - 10
+  });
+
+  it('WAITS in ENTRY_WINDOW when enterTargetPositionInEntryWindow is false', () => {
+    const policy = buildPolicy(2, 'WAIT', 'WAIT', false, true);
+    const entryState: AuctionState = {
+      ...displacedState,
+      phase: 'RANDOM_CLOSE',
+      timingWindow: 'ENTRY_WINDOW',
+    };
+
+    const decision = evaluateAuctionStep(entryState, policy, undefined, { currentTimestampIso: baseTime });
+    expect(decision.action).toBe('WAIT');
+    expect(decision.reasonCode).toBe('ENTRY_WINDOW_DISABLED_BY_POLICY');
+    expect(decision.candidatePricePyg).toBeNull();
+  });
+
+  it('WAITS in CLOSE_RISK_WINDOW when defendImmediatelyInCloseRisk is false', () => {
+    const policy = buildPolicy(1, 'WAIT', 'WAIT', true, false);
+    const riskState: AuctionState = {
+      ...displacedState,
+      phase: 'RANDOM_CLOSE',
+      timingWindow: 'CLOSE_RISK_WINDOW',
+      closeRisk: true,
+    };
+
+    const decision = evaluateAuctionStep(riskState, policy, undefined, { currentTimestampIso: baseTime });
+    expect(decision.action).toBe('WAIT');
+    expect(decision.reasonCode).toBe('CLOSE_RISK_DEFENSE_DISABLED_BY_POLICY');
+    expect(decision.candidatePricePyg).toBeNull();
+  });
+
+  it('WAITS on closeRisk flag alone when defendImmediatelyInCloseRisk is false', () => {
+    const policy = buildPolicy(1, 'ACTIVE', 'ACTIVE', true, false);
+    const riskState: AuctionState = {
+      ...displacedState,
+      phase: 'RANDOM_CLOSE',
+      timingWindow: 'NOT_APPLICABLE',
+      closeRisk: true,
+    };
+
+    const decision = evaluateAuctionStep(riskState, policy, undefined, { currentTimestampIso: baseTime });
+    expect(decision.action).toBe('WAIT');
+    expect(decision.reasonCode).toBe('CLOSE_RISK_DEFENSE_DISABLED_BY_POLICY');
+    expect(decision.candidatePricePyg).toBeNull();
   });
 });

@@ -12,6 +12,16 @@ export interface PositionGoalResult {
   candidatePricePyg: number | null;
   referenceCompetitorPricePyg: number | null;
   reason: string;
+  /**
+   * True when there are not enough observed competitor offers to compute the
+   * reference price for the requested targetRank (fewer offers than targetRank).
+   * The engine must NOT invent a reference (e.g. undercutting the leader to
+   * take #1 when the client only asked for Top 3) — it must WAIT/HALT instead.
+   *
+   * PENDING: validate against the real SBE whether an externally-known
+   * reference (e.g. referential price) may be used here. Until then: no bid.
+   */
+  insufficientEvidence?: boolean;
 }
 
 /**
@@ -50,6 +60,21 @@ export function evaluatePositionGoal(
       candidatePricePyg: null,
       referenceCompetitorPricePyg: null,
       reason: 'No se detectaron ofertas de competidores en la subasta.',
+    };
+  }
+
+  // Insufficient evidence: fewer competitor offers than the requested targetRank.
+  // There is no observed occupant of the target-rank threshold, so there is no
+  // legitimate reference price to undercut. Bidding here would mean inventing
+  // behavior (e.g. taking #1 when the client only asked for Top 3).
+  if (competitors.length < targetRank) {
+    return {
+      isSatisfied: false,
+      targetRank,
+      candidatePricePyg: null,
+      referenceCompetitorPricePyg: null,
+      insufficientEvidence: true,
+      reason: `Evidencia insuficiente para el objetivo Top ${targetRank}: solo hay ${competitors.length} oferta(s) de competidores observada(s). No se genera lance sin referencia (pendiente validar contra SBE real).`,
     };
   }
 

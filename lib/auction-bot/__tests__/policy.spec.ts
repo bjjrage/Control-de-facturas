@@ -13,9 +13,9 @@ import { PolicyValidationError } from '../errors';
 
 describe('AuctionPolicy & Monetary Arithmetic Specification (Sanitized V0)', () => {
   it('calculates autoLimitPyg accurately using pure integer arithmetic via basis points', () => {
-    // 1.000.000 with 200 bps (2%) -> 980.000
+    // 1.000.000 with 200 bps (2%) -> 980.000 (exact, ceil == floor)
     expect(calculateAutoLimitPyg(1_000_000, 200)).toBe(980_000);
-    // 500.000 with 500 bps (5%) -> 475.000
+    // 500.000 with 500 bps (5%) -> 475.000 (exact)
     expect(calculateAutoLimitPyg(500_000, 500)).toBe(475_000);
     // 0 bps (0%) -> target price itself
     expect(calculateAutoLimitPyg(1_000_000, 0)).toBe(1_000_000);
@@ -23,32 +23,32 @@ describe('AuctionPolicy & Monetary Arithmetic Specification (Sanitized V0)', () 
     expect(calculateAutoLimitPyg(1_000_000, 10000)).toBe(0);
   });
 
-  it('handles decimal percentages and inexact divisions deterministically without float drift', () => {
-    // 1.5% -> 150 bps
-    const bps15 = tolerancePctToBps(1.5);
-    expect(bps15).toBe(150);
-    expect(bpsToTolerancePct(bps15)).toBe(1.5);
-
-    // 0.25% -> 25 bps
-    const bps025 = tolerancePctToBps(0.25);
-    expect(bps025).toBe(25);
-
-    // 3.33% -> 333 bps
-    const bps333 = tolerancePctToBps(3.33);
-    expect(bps333).toBe(333);
-
-    // Inexact division test: 1.234.567 PYG with 150 bps (1.5%)
-    // (1.234.567 * 9850) / 10000 = 12.160.484.950 / 10.000 = 1.216.048 (floor)
+  it('uses CEIL (never floor): the effective deviation can never exceed the authorized tolerance', () => {
+    // Tolerance is the MAXIMUM authorized deviation, autoLimit the MINIMUM
+    // permitted integer price. Flooring would authorize a price strictly below
+    // the true economic boundary.
+    //
+    // Inexact division: 1.234.567 PYG with 150 bps (1.5%)
+    // (1.234.567 * 9850) / 10000 = 12.160.484.950 / 10.000 = 1.216.048,495 -> CEIL 1.216.049
     const inexactLimit = calculateAutoLimitPyg(1_234_567, 150);
-    expect(inexactLimit).toBe(1_216_048);
+    expect(inexactLimit).toBe(1_216_049);
     expect(Number.isInteger(inexactLimit)).toBe(true);
+    // Effective deviation: (1.234.567 - 1.216.049) / 1.234.567 = 1,49996% <= 1.5% ✓
+    expect(1_234_567 - inexactLimit).toBeLessThanOrEqual((1_234_567 * 150) / 10000);
 
-    // Inexact division test: 999.999 PYG with 333 bps (3.33%)
-    // (999.999 * 9667) / 10000 = 9666990333 / 10000 = 966.699 (floor)
+    // Inexact division: 999.999 PYG with 333 bps (3.33%)
+    // (999.999 * 9667) / 10000 = 9666990333 / 10000 = 966.699,0333 -> CEIL 966.700
     const inexactLimit2 = calculateAutoLimitPyg(999_999, 333);
-    expect(inexactLimit2).toBe(966_699);
+    expect(inexactLimit2).toBe(966_700);
+    expect(999_999 - inexactLimit2).toBeLessThanOrEqual((999_999 * 333) / 10000);
   });
 
+  it('converts between percentages and integer basis points without float drift', () => {
+    expect(tolerancePctToBps(1.5)).toBe(150);
+    expect(bpsToTolerancePct(150)).toBe(1.5);
+    expect(tolerancePctToBps(0.25)).toBe(25);
+    expect(tolerancePctToBps(3.33)).toBe(333);
+  });
   it('validates free defenseStep allowing any positive integer (7, 23, 5000, etc.)', () => {
     const validPolicy: AuctionPolicy = {
       policyId: 'pol-free-step',

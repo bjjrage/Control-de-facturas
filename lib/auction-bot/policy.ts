@@ -23,10 +23,14 @@ export function bpsToTolerancePct(bps: number): number {
 /**
  * Calculates the exact auto-defense limit price authorized by the policy.
  * Uses pure integer BigInt arithmetic in PYG integers:
- * autoLimit = floor(targetPrice * (10000 - toleranceBps) / 10000)
- * 
- * Rounding Rule: Integer truncation / floor division (conservative integer floor).
- * Never uses floating point for the financial boundary.
+ * autoLimit = ceil(targetPrice * (10000 - toleranceBps) / 10000)
+ *
+ * Rounding Rule: integer CEIL division (never floor, never float).
+ * Rationale: the tolerance is the MAXIMUM authorized deviation, so the
+ * autoLimit is the MINIMUM permitted integer price. Flooring would authorize
+ * a price strictly below the true economic boundary (up to almost ₲1 lower),
+ * silently exceeding the authorized tolerance. Ceil guarantees the effective
+ * deviation never exceeds the tolerance.
  */
 export function calculateAutoLimitPyg(targetPricePyg: number, autoDefenseToleranceBps: number): number {
   if (targetPricePyg <= 0) return 0;
@@ -35,7 +39,9 @@ export function calculateAutoLimitPyg(targetPricePyg: number, autoDefenseToleran
 
   const targetBig = BigInt(Math.floor(targetPricePyg));
   const factorBig = BigInt(10000 - autoDefenseToleranceBps);
-  const autoLimitBig = (targetBig * factorBig) / BigInt(10000);
+  const divisorBig = BigInt(10000);
+  // Integer ceil division: (a + d - 1) / d
+  const autoLimitBig = (targetBig * factorBig + divisorBig - BigInt(1)) / divisorBig;
 
   return Number(autoLimitBig);
 }

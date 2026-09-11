@@ -43,6 +43,20 @@ export function evaluateAuctionStep(
     currentRank: state.ourRank,
   };
 
+  // Invalid timestamps fail closed: NaN arithmetic would silently skip the
+  // freshness validation below (any comparison with NaN is false).
+  if (!Number.isFinite(nowMs) || !Number.isFinite(observedMs)) {
+    return {
+      ...baseDecision,
+      action: 'HALT',
+      reasonCode: 'INVALID_TIMESTAMP',
+      reasonDescription: 'Timestamp inválido (now u observedAt no parseable). Detención preventiva: no se puede validar freshness sin tiempo confiable.',
+      candidatePricePyg: null,
+      targetRank: null,
+      defenseStepAppliedPyg: null,
+    };
+  }
+
   // STEP 1: Observe & Validate State & Policy Integrity (Fail-Closed)
   if (!policy.isFrozen || !verifyPolicyFingerprint(policy)) {
     return {
@@ -152,6 +166,32 @@ export function evaluateAuctionStep(
         action: 'WAIT',
         reasonCode: 'TACTICAL_WAIT_SAFE_WINDOW',
         reasonDescription: 'Fase aleatoria (Safe Window): aún no hay riesgo de cierre, espera táctica en ejecución.',
+        candidatePricePyg: null,
+        targetRank: null,
+        defenseStepAppliedPyg: null,
+      };
+    }
+    // ENTRY_WINDOW is only actionable when the policy explicitly allows
+    // acquiring the target position in that window.
+    if (state.timingWindow === 'ENTRY_WINDOW' && policy.enterTargetPositionInEntryWindow === false) {
+      return {
+        ...baseDecision,
+        action: 'WAIT',
+        reasonCode: 'ENTRY_WINDOW_DISABLED_BY_POLICY',
+        reasonDescription: 'Ventana de entrada (Entry Window): la política tiene deshabilitada la adquisición de posición en esta ventana. Espera.',
+        candidatePricePyg: null,
+        targetRank: null,
+        defenseStepAppliedPyg: null,
+      };
+    }
+    // Close-risk defense only fires when the policy explicitly enables it.
+    const isCloseRiskNow = state.closeRisk || state.timingWindow === 'CLOSE_RISK_WINDOW';
+    if (isCloseRiskNow && policy.defendImmediatelyInCloseRisk === false) {
+      return {
+        ...baseDecision,
+        action: 'WAIT',
+        reasonCode: 'CLOSE_RISK_DEFENSE_DISABLED_BY_POLICY',
+        reasonDescription: 'Ventana de riesgo de cierre (Close-Risk): la política tiene deshabilitada la defensa inmediata. Espera.',
         candidatePricePyg: null,
         targetRank: null,
         defenseStepAppliedPyg: null,
@@ -274,6 +314,19 @@ export function evaluateAuctionStep(
 
   // STEP 3 & 4: Position Goal Evaluation
   const positionResult = evaluatePositionGoal(state, policy.targetRank, policy.defenseStepPyg);
+
+  // No reference price exists for the requested target rank: never invent one.
+  if (positionResult.insufficientEvidence) {
+    return {
+      ...baseDecision,
+      action: 'WAIT',
+      reasonCode: 'INSUFFICIENT_EVIDENCE_FOR_TARGET_RANK',
+      reasonDescription: positionResult.reason,
+      candidatePricePyg: null,
+      targetRank: positionResult.targetRank,
+      defenseStepAppliedPyg: null,
+    };
+  }
 
   if (positionResult.isSatisfied || positionResult.candidatePricePyg === null) {
     return {

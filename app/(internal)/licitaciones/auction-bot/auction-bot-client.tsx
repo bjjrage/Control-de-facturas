@@ -2,14 +2,15 @@
 
 import React, { useState } from "react";
 import { FrozenAuctionPolicy } from "@/lib/auction-bot/types";
-import { BASE_POLICY } from "@/lib/auction-bot/simulator";
 import { PolicySummaryCard } from "@/components/auction-bot/policy-summary-card";
 import { PolicyConfigForm } from "@/components/auction-bot/policy-config-form";
 import { SimulatorRunnerView } from "@/components/auction-bot/simulator-runner-view";
 import { Bot, Sliders, PlaySquare } from "lucide-react";
 
 export function AuctionBotClient() {
-  const [activePolicy, setActivePolicy] = useState<FrozenAuctionPolicy>(BASE_POLICY);
+  // No fake active policy: the UI starts with NO policy. Nothing is shown as
+  // frozen/authorized until the operator configures and freezes version 1.
+  const [activePolicy, setActivePolicy] = useState<FrozenAuctionPolicy | null>(null);
   const [activeTab, setActiveTab] = useState<"config" | "simulator">("config");
 
   const handlePolicyFrozen = (newFrozenPolicy: FrozenAuctionPolicy) => {
@@ -49,11 +50,15 @@ export function AuctionBotClient() {
             <Sliders className="h-3.5 w-3.5" /> Política & Autorización
           </button>
           <button
-            onClick={() => setActiveTab("simulator")}
-            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
-              activeTab === "simulator"
-                ? "bg-blue-600 text-white shadow-xs"
-                : "text-[var(--muted)] hover:text-[var(--foreground)]"
+            onClick={() => activePolicy && setActiveTab("simulator")}
+            disabled={!activePolicy}
+            title={activePolicy ? undefined : "Congelá una política (versión 1) para habilitar el simulador"}
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              !activePolicy
+                ? "text-[var(--muted)] opacity-50 cursor-not-allowed"
+                : activeTab === "simulator"
+                ? "bg-blue-600 text-white shadow-xs cursor-pointer"
+                : "text-[var(--muted)] hover:text-[var(--foreground)] cursor-pointer"
             }`}
           >
             <PlaySquare className="h-3.5 w-3.5" /> Simulador de Subasta
@@ -70,13 +75,13 @@ export function AuctionBotClient() {
       {/* Active Tab Content */}
       {activeTab === "config" && (
         <PolicyConfigForm
-          initialPolicy={activePolicy}
+          initialPolicy={activePolicy ?? undefined}
           activeFrozenPolicy={activePolicy}
           onPolicyFrozen={handlePolicyFrozen}
         />
       )}
 
-      {activeTab === "simulator" && (
+      {activeTab === "simulator" && activePolicy && (
         <SimulatorRunnerView frozenPolicy={activePolicy} />
       )}
     </div>

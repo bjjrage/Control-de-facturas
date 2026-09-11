@@ -46,3 +46,26 @@ export class SbeConstraintViolationError extends AuctionBotError {
     this.name = 'SbeConstraintViolationError';
   }
 }
+
+export class ObserveModeSubmissionError extends AuctionBotError {
+  constructor() {
+    super('Submission blocked: execution mode is OBSERVE. OBSERVE policies audit only and can never submit bids.');
+    this.name = 'ObserveModeSubmissionError';
+  }
+}
+
+export class HumanAuthorizationRequiredError extends AuctionBotError {
+  constructor() {
+    super('Submission blocked: ASSISTED mode requires an explicit, single-use human authorization (grantHumanAuthorization) before startSubmission.');
+    this.name = 'HumanAuthorizationRequiredError';
+  }
+}
+
+export class StaleCandidateError extends AuctionBotError {
+  constructor(detail?: string) {
+    super(
+      `Submission blocked: candidate was not re-validated against a fresh observation (pre-submit recheck).${detail ? ` ${detail}` : ''}`
+    );
+    this.name = 'StaleCandidateError';
+  }
+}

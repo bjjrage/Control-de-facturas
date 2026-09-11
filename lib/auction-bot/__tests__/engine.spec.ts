@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { evaluateAuctionStep } from '../engine';
-import { freezePolicy } from '../policy';
+import { calculateAutoLimitPyg, freezePolicy } from '../policy';
 import { AuctionState, FrozenAuctionPolicy } from '../types';
 
 describe('Deterministic Strategy Engine - Free Defense Step & Auto Limit Semantics', () => {
@@ -8,7 +8,8 @@ describe('Deterministic Strategy Engine - Free Defense Step & Auto Limit Semanti
 
   function buildPolicy(defenseStepPyg: number, toleranceBps: number = 200): FrozenAuctionPolicy {
     const targetPrice = 1_000_000;
-    const autoLimit = Math.floor((targetPrice * (10000 - toleranceBps)) / 10000);
+    // Always mirror the canonical CEIL implementation — never a local formula.
+    const autoLimit = calculateAutoLimitPyg(targetPrice, toleranceBps);
 
     return freezePolicy({
       policyId: 'pol-eng-01',
@@ -125,5 +126,99 @@ describe('Deterministic Strategy Engine - Free Defense Step & Auto Limit Semanti
       expect(decision.action).toBe(item.expectedAction);
       expect(decision.candidatePricePyg).toBe(item.expectedCand);
     }
+  });
+
+  it('HALTS with INVALID_TIMESTAMP when observedAt is not parseable', () => {
+    const policy = buildPolicy(10, 200);
+    const badState: AuctionState = {
+      ...buildState(995_000),
+      observedAt: 'not-a-date',
+    };
+
+    const decision = evaluateAuctionStep(badState, policy, undefined, { currentTimestampIso: baseTime });
+    expect(decision.action).toBe('HALT');
+    expect(decision.reasonCode).toBe('INVALID_TIMESTAMP');
+    expect(decision.candidatePricePyg).toBeNull();
+  });
+
+  it('HALTS with INVALID_TIMESTAMP when the evaluation timestamp is not parseable', () => {
+    const policy = buildPolicy(10, 200);
+    const state = buildState(995_000);
+
+    const decision = evaluateAuctionStep(state, policy, undefined, { currentTimestampIso: 'garbage' });
+    expect(decision.action).toBe('HALT');
+    expect(decision.reasonCode).toBe('INVALID_TIMESTAMP');
+    expect(decision.candidatePricePyg).toBeNull();
+  });
+
+  it('WAITS with INSUFFICIENT_EVIDENCE when fewer offers exist than the requested targetRank', () => {
+    // Client asked for Top 3 but only ONE competitor offer is observed and we
+    // have no position yet: there is no legitimate reference to undercut.
+    // The engine must NOT take #1 on its own initiative.
+    const thinState: AuctionState = {
+      auctionId: 'auc-01',
+      groupId: 'grp-01',
+      scope: 'ITEM',
+      phase: 'RANDOM_CLOSE',
+      timingWindow: 'CLOSE_RISK_WINDOW',
+      closeRisk: true,
+      status: 'ACTIVE',
+      rankedOffers: [
+        { rank: 1, participantId: 'comp-1', isOurOffer: false, pricePyg: 995_000, timestamp: baseTime },
+      ],
+      ourRank: null,
+      ourCurrentPricePyg: null,
+      observedAt: baseTime,
+    };
+
+    // Sanity: with targetRank forced to 1 the same state DOES produce a candidate.
+    const policyRank1 = freezePolicy({
+      policyId: 'pol-eng-01',
+      auctionId: 'auc-01',
+      groupId: 'grp-01',
+      scope: 'ITEM',
+      positionStrategy: 'TARGET_RANK_1',
+      targetRank: 1,
+      defenseStepPyg: 10,
+      normalPhaseBehavior: 'ACTIVE',
+      safeWindowBehavior: 'ACTIVE',
+      enterTargetPositionInEntryWindow: true,
+      defendImmediatelyInCloseRisk: true,
+      targetPricePyg: 1_000_000,
+      autoDefenseToleranceBps: 200,
+      autoLimitPyg: 980_000,
+      mipymePolicy: { enabled: false, executionMode: 'OBSERVE', defenseStepPyg: 10, economicLimitMode: 'USE_CURRENT_AUTO_LIMIT' },
+      executionMode: 'BOUNDED_AUTO',
+      maxStalenessMs: 5000,
+      authorizedBy: 'analista@empresa.com.py',
+    });
+    const sanity = evaluateAuctionStep(thinState, policyRank1, undefined, { currentTimestampIso: baseTime });
+    expect(sanity.action).toBe('BID_CANDIDATE');
+
+    // But with targetRank = 3 the engine must WAIT, not undercut to #1.
+    const policyRank3 = freezePolicy({
+      policyId: 'pol-eng-01',
+      auctionId: 'auc-01',
+      groupId: 'grp-01',
+      scope: 'ITEM',
+      positionStrategy: 'TARGET_TOP_3',
+      targetRank: 3,
+      defenseStepPyg: 10,
+      normalPhaseBehavior: 'ACTIVE',
+      safeWindowBehavior: 'ACTIVE',
+      enterTargetPositionInEntryWindow: true,
+      defendImmediatelyInCloseRisk: true,
+      targetPricePyg: 1_000_000,
+      autoDefenseToleranceBps: 200,
+      autoLimitPyg: 980_000,
+      mipymePolicy: { enabled: false, executionMode: 'OBSERVE', defenseStepPyg: 10, economicLimitMode: 'USE_CURRENT_AUTO_LIMIT' },
+      executionMode: 'BOUNDED_AUTO',
+      maxStalenessMs: 5000,
+      authorizedBy: 'analista@empresa.com.py',
+    });
+    const decision = evaluateAuctionStep(thinState, policyRank3, undefined, { currentTimestampIso: baseTime });
+    expect(decision.action).toBe('WAIT');
+    expect(decision.reasonCode).toBe('INSUFFICIENT_EVIDENCE_FOR_TARGET_RANK');
+    expect(decision.candidatePricePyg).toBeNull();
   });
 });

@@ -70,7 +70,11 @@ export interface AuctionPolicy {
   // Economic Policy (Integer arithmetic via Basis Points: 1% = 100 bps)
   targetPricePyg: number;
   autoDefenseToleranceBps: number; // e.g. 200 bps = 2.00%, 150 bps = 1.50%
-  autoLimitPyg: number; // Derived integer floor: (targetPricePyg * (10000 - bps)) / 10000
+  // Derived integer CEIL: ceil(targetPricePyg * (10000 - bps) / 10000).
+  // The tolerance is the MAXIMUM authorized deviation, so the autoLimit is the
+  // MINIMUM permitted integer price. Ceil (never floor): flooring would authorize
+  // a price up to almost ₲1 BELOW the true economic boundary.
+  autoLimitPyg: number;
 
   // MIPYME Last Chance Policy (Special stage configuration)
   mipymePolicy: MipymePolicyConfig;
@@ -140,8 +144,12 @@ export type ActionReasonCode =
   | 'TACTICAL_WAIT_SAFE_WINDOW'
   | 'TARGET_POSITION_DEFENSE_REQUIRED'
   | 'ENTRY_POSITION_REQUIRED'
+  | 'ENTRY_WINDOW_DISABLED_BY_POLICY'
+  | 'CLOSE_RISK_DEFENSE_DISABLED_BY_POLICY'
+  | 'INSUFFICIENT_EVIDENCE_FOR_TARGET_RANK'
   | 'ECONOMIC_LIMIT_BREACHED'
   | 'STALE_STATE'
+  | 'INVALID_TIMESTAMP'
   | 'AUCTION_NOT_ACTIVE'
   | 'AUCTION_CLOSED'
   | 'AUCTION_PAUSED'

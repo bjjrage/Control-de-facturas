@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import {
   AuctionPolicy,
+  AuctionScope,
   FrozenAuctionPolicy,
   PositionStrategyId,
   NormalPhaseBehavior,
@@ -30,8 +31,12 @@ export function PolicyConfigForm({
   activeFrozenPolicy,
   onPolicyFrozen,
 }: PolicyConfigFormProps) {
-  const [auctionId, setAuctionId] = useState(initialPolicy?.auctionId || "lic-dncp-2026-001");
-  const [groupId, setGroupId] = useState(initialPolicy?.groupId || "item-1");
+  // No fictional defaults: a fresh policy starts EMPTY and SAFE.
+  // authorizedBy is required (no fake email); executionMode starts at OBSERVE;
+  // MIPYME starts disabled. The operator must explicitly choose everything.
+  const [auctionId, setAuctionId] = useState(initialPolicy?.auctionId ?? "");
+  const [groupId, setGroupId] = useState(initialPolicy?.groupId ?? "");
+  const [scope, setScope] = useState<AuctionScope>(initialPolicy?.scope ?? "ITEM");
   const [targetRank, setTargetRank] = useState<number>(initialPolicy?.targetRank || 1);
   const [positionStrategy, setPositionStrategy] = useState<PositionStrategyId>(
     initialPolicy?.positionStrategy || "TARGET_RANK_1"
@@ -62,17 +67,17 @@ export function PolicyConfigForm({
     initialPolicy ? bpsToTolerancePct(initialPolicy.autoDefenseToleranceBps) : 2.0
   );
   const [executionMode, setExecutionMode] = useState<ExecutionMode>(
-    initialPolicy?.executionMode || "BOUNDED_AUTO"
+    initialPolicy?.executionMode || "OBSERVE"
   );
   const [authorizedBy, setAuthorizedBy] = useState<string>(
-    initialPolicy?.authorizedBy || "analista.licitaciones@empresa.com.py"
+    initialPolicy?.authorizedBy ?? ""
   );
-  // MIPYME Policy Configuration
+  // MIPYME Policy Configuration — never assumed enabled on a new policy.
   const [mipymeEnabled, setMipymeEnabled] = useState<boolean>(
-    initialPolicy?.mipymePolicy?.enabled ?? true
+    initialPolicy?.mipymePolicy?.enabled ?? false
   );
   const [mipymeExecutionMode, setMipymeExecutionMode] = useState<ExecutionMode>(
-    initialPolicy?.mipymePolicy?.executionMode ?? "BOUNDED_AUTO"
+    initialPolicy?.mipymePolicy?.executionMode ?? "OBSERVE"
   );
   const [mipymeDefenseStepPyg, setMipymeDefenseStepPyg] = useState<number>(
     initialPolicy?.mipymePolicy?.defenseStepPyg ?? 10
@@ -101,7 +106,7 @@ export function PolicyConfigForm({
       policyId: activeFrozenPolicy ? activeFrozenPolicy.policyId : `pol-${Date.now().toString(36)}`,
       auctionId,
       groupId,
-      scope: "ITEM",
+      scope,
       positionStrategy,
       targetRank,
       defenseStepPyg,
@@ -140,7 +145,7 @@ export function PolicyConfigForm({
       policyId: activeFrozenPolicy ? activeFrozenPolicy.policyId : `pol-${Date.now().toString(36)}`,
       auctionId,
       groupId,
-      scope: "ITEM",
+      scope,
       positionStrategy,
       targetRank,
       defenseStepPyg,
@@ -197,31 +202,46 @@ export function PolicyConfigForm({
       )}
 
       {/* Grid: Auction Identifiers & Authorization */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-[12px] font-medium text-[var(--foreground)] mb-1">ID Subasta (DNCP)</label>
+          <label className="block text-[12px] font-medium text-[var(--foreground)] mb-1">ID Subasta (DNCP) *</label>
           <input
             type="text"
             value={auctionId}
             onChange={(e) => setAuctionId(e.target.value)}
+            placeholder="Ej: 391731"
             className="w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-1.5 text-[13px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
         <div>
-          <label className="block text-[12px] font-medium text-[var(--foreground)] mb-1">ID Ítem / Lote</label>
+          <label className="block text-[12px] font-medium text-[var(--foreground)] mb-1">Alcance (Scope) *</label>
+          <select
+            value={scope}
+            onChange={(e) => setScope(e.target.value as AuctionScope)}
+            className="w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-1.5 text-[13px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="ITEM">ITEM — un ítem de la subasta</option>
+            <option value="LOT">LOT — un lote de la subasta</option>
+            <option value="TOTAL">TOTAL — la subasta completa</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-[12px] font-medium text-[var(--foreground)] mb-1">ID Ítem / Lote / Total *</label>
           <input
             type="text"
             value={groupId}
             onChange={(e) => setGroupId(e.target.value)}
+            placeholder="Ej: item-1"
             className="w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-1.5 text-[13px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
         <div>
-          <label className="block text-[12px] font-medium text-[var(--foreground)] mb-1">Operador / Autorizado por</label>
+          <label className="block text-[12px] font-medium text-[var(--foreground)] mb-1">Operador / Autorizado por *</label>
           <input
             type="text"
             value={authorizedBy}
             onChange={(e) => setAuthorizedBy(e.target.value)}
+            placeholder="Nombre o email del operador que autoriza"
             className="w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-1.5 text-[13px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
@@ -552,7 +572,7 @@ export function PolicyConfigForm({
 
             <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-4 text-[12px] space-y-2">
               <div className="flex justify-between">
-                <span className="text-[var(--muted)]">Subasta / Ítem:</span>
+                <span className="text-[var(--muted)]">Subasta / {scope}:</span>
                 <span className="font-semibold">{auctionId} / {groupId}</span>
               </div>
               <div className="flex justify-between">

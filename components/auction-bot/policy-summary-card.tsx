@@ -2,14 +2,36 @@
 
 import React from "react";
 import { FrozenAuctionPolicy } from "@/lib/auction-bot/types";
-import { ShieldCheck, ShieldAlert, Lock, Hash, Clock, Crosshair, UserCheck } from "lucide-react";
+import { ShieldCheck, ShieldAlert, Lock, Hash, Clock, Crosshair, UserCheck, FileQuestion } from "lucide-react";
 
 interface PolicySummaryCardProps {
-  policy: FrozenAuctionPolicy;
+  policy: FrozenAuctionPolicy | null;
   onUnfreezeRequest?: () => void;
 }
 
 export function PolicySummaryCard({ policy, onUnfreezeRequest }: PolicySummaryCardProps) {
+  // No policy yet: show an explicit empty state. Never present a fictional
+  // policy as frozen/authorized.
+  if (!policy) {
+    return (
+      <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--panel-2)] p-5 shadow-sm">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-black/5 dark:bg-white/5 text-[var(--muted)]">
+            <FileQuestion className="h-4 w-4" />
+          </div>
+          <div>
+            <div className="font-semibold text-[14px] text-[var(--foreground)]">
+              Sin política activa
+            </div>
+            <p className="text-[11px] text-[var(--muted)]">
+              Configurá los parámetros abajo y congelá la versión 1 para comenzar. Nada está autorizado todavía.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const formattedTarget = policy.targetPricePyg.toLocaleString("es-PY");
   const formattedAutoLimit = policy.autoLimitPyg.toLocaleString("es-PY");
   const formattedDefenseStep = policy.defenseStepPyg.toLocaleString("es-PY");
