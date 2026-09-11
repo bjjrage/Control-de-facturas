@@ -34,8 +34,12 @@ type Db = SupabaseClient;
 const ROOM_COLS =
   'id, empresa_id, created_by, title, scope, group_id, status, opening_price_pyg, ' +
   'minimum_decrement_pyg, normal_duration_seconds, random_min_seconds, random_max_seconds, ' +
-  'started_at, random_started_at, random_close_at, closed_at, next_sequence, bot_paused, ' +
+  'started_at, random_started_at, closed_at, next_sequence, bot_paused, ' +
   'bot_runtime, winner_participant_id, created_at';
+// NOTE: random_close_at lives in auction_sandbox_room_private (no SELECT for
+// app roles) and is NEVER selected here. Phase transitions run inside the
+// advance_sandbox_room RPC; computeRoomAdvance() below is the REFERENCE
+// implementation mirrored by that RPC (unit-tested; keep in sync).
 
 /** Loads everything for a room. Returns null when the room does not exist. */
 export async function loadSandboxBundle(db: Db, roomId: string): Promise<SandboxBundle | null> {
@@ -70,61 +74,12 @@ export function rankBundle(bundle: SandboxBundle): SandboxRankedEntry[] {
   return rankBids(bundle.bids, (pid) => aliasOf(bundle, pid));
 }
 
-export interface RoomAdvance {
-  patch: Partial<SandboxRoom>;
-  events: Array<{ type: SandboxEvent['type']; payload: Record<string, unknown>; server_sequence: number }>;
-}
-
-/**
- * Computes the phase transition for a room at server time. Pure given inputs
- * (persists nothing). Returns null when nothing changes. The caller persists
- * patch + events, emitting transition events only when the status CHANGED.
- */
-export function computeRoomAdvance(
-  bundle: SandboxBundle,
-  nowIso: string,
-  rand01: number
-): RoomAdvance | null {
-  const room = bundle.room;
-  const nowMs = Date.parse(nowIso);
-  if (room.status === 'DRAFT' || room.status === 'CLOSED') return null;
-
-  if (room.status === 'ACTIVE_NORMAL') {
-    if (!room.started_at) return null;
-    if (nowMs - Date.parse(room.started_at) < room.normal_duration_seconds * 1000) return null;
-    const randomStartedAt = nowIso;
-    const randomCloseAt = room.random_close_at ?? rollRandomCloseAt(nowMs, room.random_min_seconds, room.random_max_seconds, rand01);
-    return {
-      patch: { status: 'ACTIVE_RANDOM', random_started_at: randomStartedAt, random_close_at: randomCloseAt },
-      events: [{ type: 'RANDOM_PHASE_STARTED', payload: { at: randomStartedAt }, server_sequence: room.next_sequence }],
-    };
-  }
-
-  // ACTIVE_RANDOM
-  if (room.random_close_at && nowMs >= Date.parse(room.random_close_at)) {
-    const ranking = rankBundle(bundle);
-    const winner = winnerOfRanking(ranking);
-    return {
-      patch: { status: 'CLOSED', closed_at: nowIso, winner_participant_id: winner?.participant_id ?? null },
-      events: [
-        { type: 'AUCTION_CLOSED', payload: { at: nowIso, total_bids: bundle.bids.length }, server_sequence: room.next_sequence },
-        {
-          type: 'WINNER_DECLARED',
-          payload: winner ? { participant_id: winner.participant_id, alias: winner.display_alias, price_pyg: winner.price_pyg } : { participant_id: null },
-          server_sequence: room.next_sequence + 1,
-        },
-      ],
-    };
-  }
-  // Random close not rolled yet (should not happen — rolled at transition — but backstop it).
-  if (!room.random_close_at && room.random_started_at) {
-    return {
-      patch: { random_close_at: rollRandomCloseAt(Date.parse(room.random_started_at), room.random_min_seconds, room.random_max_seconds, rand01) },
-      events: [],
-    };
-  }
-  return null;
-}
+// NOTE: phase transitions run EXCLUSIVELY inside the advance_sandbox_room /
+// force_close_sandbox_room RPCs (row lock + monotonic sequence, single
+// roll of random_close_at). There is deliberately NO TypeScript transition
+// builder anymore: a second implementation would drift from the SQL source
+// of truth. computePhase()/rollRandomCloseAt() in engine.ts remain as the
+// tested pure primitives.
 
 // ---------------------------------------------------------------------------
 // Views (secret fields NEVER leave the server)

@@ -82,6 +82,67 @@ export function planAssistedSubmit(input: AssistedSubmitInput): AssistedSubmitPl
   return { state, decision, machine };
 }
 
+export interface RecheckSubmitInput {
+  /**
+   * Core machine with the candidate already decided AND basis bound
+   * (handleDecision applied on the INITIAL authoritative snapshot).
+   */
+  machine: AuctionBotStateMachine;
+  decision: ActionDecision;
+  /** REAL fresh snapshot, read from the server AFTER the initial decision. */
+  freshState: AuctionState;
+  /** Server time of that fresh read (must be strictly newer in effect). */
+  freshNowIso: string;
+  /**
+   * Transport submit, injected (Supabase RPC in production, fake in tests).
+   * Called at most once, only after a valid recheck.
+   */
+  submit: (args: { pricePyg: number; bidId: string; submittedAtIso: string }) => Promise<{ accepted: boolean; reason?: string }>;
+}
+
+export interface RecheckSubmitResult {
+  submitted: boolean;
+  pricePyg?: number;
+  bidId?: string;
+  reason: string;
+}
+
+/**
+ * Pre-submit barrier with a REAL fresh observation (F2):
+ * machine.recheckCandidate(freshState) must pass — same candidate re-derived
+ * from the fresh snapshot (a competitor move invalidates). Only then
+ * startSubmission + a single injected submit. Never submits from a stale
+ * snapshot; never invents observation times.
+ */
+export async function recheckAndSubmit(input: RecheckSubmitInput): Promise<RecheckSubmitResult> {
+  const recheck = input.machine.recheckCandidate(input.freshState, { nowIso: input.freshNowIso });
+  if (!recheck.valid) {
+    return { submitted: false, reason: `Recheck inválido: ${recheck.reason}` };
+  }
+  let submission;
+  try {
+    submission = input.machine.startSubmission(
+      `sandbox:${input.decision.policyVersion}:${input.freshState.auctionId}:${input.decision.candidatePricePyg}`,
+      { submittedAtIso: input.freshNowIso }
+    );
+  } catch (e) {
+    return { submitted: false, reason: e instanceof Error ? e.message : 'Submit bloqueado por el Core.' };
+  }
+  try {
+    const res = await input.submit({
+      pricePyg: submission.pricePyg,
+      bidId: submission.bidId,
+      submittedAtIso: submission.submittedAt,
+    });
+    if (!res.accepted) {
+      return { submitted: false, reason: res.reason ?? 'Rechazada por el servidor.' };
+    }
+    return { submitted: true, pricePyg: submission.pricePyg, bidId: submission.bidId, reason: 'ok' };
+  } catch (e) {
+    return { submitted: false, reason: e instanceof Error ? e.message : 'Falló el envío.' };
+  }
+}
+
 /** SBE constraints derived from room technical limits. */
 export function roomSbeConstraints(minimumDecrementPyg: number): SbeConstraints {
   return { minimumDecrementPyg: Math.max(1, Math.floor(minimumDecrementPyg)) };

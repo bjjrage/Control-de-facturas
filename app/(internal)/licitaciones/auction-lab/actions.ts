@@ -2,17 +2,17 @@
 
 import { requireEmpresaId, requireProfile } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { AuctionBotStateMachine } from '@/lib/auction-bot/state-machine';
 import { evaluateAuctionStep } from '@/lib/auction-bot/engine';
-import { runBotTick, roomSbeConstraints } from '@/lib/auction-sandbox/bot-runner';
+import { recheckAndSubmit, runBotTick, roomSbeConstraints } from '@/lib/auction-sandbox/bot-runner';
 import { snapshotToAuctionState } from '@/lib/auction-sandbox/auction-state-adapter';
-import { buildBotIdempotencyKey, rankBids, winnerOfRanking } from '@/lib/auction-sandbox/engine';
-import { buildPolicyVersionRecord, policyFromSnapshot } from '@/lib/auction-sandbox/policies';
+import { buildBotIdempotencyKey, rankBids } from '@/lib/auction-sandbox/engine';
+import { buildPolicyVersionRecord, checkPolicyContinuity, policyFromSnapshot } from '@/lib/auction-sandbox/policies';
 import {
   bundleToSnapshot,
   buildWatchView,
-  computeRoomAdvance,
   loadSandboxBundle,
   publicRoomInfo,
   rankBundle,
@@ -29,58 +29,47 @@ const MANAGE_ROLES = ['administracion', 'admin'] as const;
 
 const nowIso = () => new Date().toISOString();
 
-async function operatorBundle(roomId: string): Promise<{ db: Db; bundle: SandboxBundle; empresaId: string } | { error: string }> {
+/**
+ * Write model: reads go through the RLS user client; every SEQUENCE-allocating
+ * write goes through the service_role RPCs (submit/append/advance/close).
+ * The operator is authenticated + empresa-verified BEFORE any admin call.
+ * No app code reads or writes next_sequence (see migration-audit spec).
+ */
+async function operatorBundle(roomId: string): Promise<{ db: Db; admin: Db; bundle: SandboxBundle; empresaId: string } | { error: string }> {
   const empresaId = await requireEmpresaId([...OPERATOR_ROLES]);
   const db = await createClient();
   const bundle = await loadSandboxBundle(db, roomId);
   if (!bundle || bundle.room.empresa_id !== empresaId) return { error: 'Sala inexistente.' };
-  return { db, bundle, empresaId };
+  return { db, admin: createAdminClient(), bundle, empresaId };
 }
 
-/** Persists a computed phase transition (optimistic: skips events on lost race). */
-async function persistAdvance(db: Db, bundle: SandboxBundle, atIso: string, rand01: number): Promise<SandboxBundle> {
-  const advance = computeRoomAdvance(bundle, atIso, rand01);
-  if (!advance) return bundle;
-  const seqBase = bundle.room.next_sequence;
-  const { data: updated } = await db
-    .from('auction_sandbox_rooms')
-    .update({ ...advance.patch, next_sequence: seqBase + advance.events.length })
-    .eq('id', bundle.room.id)
-    .eq('status', bundle.room.status)
-    .select('id');
-  if (!updated || updated.length === 0) {
-    return (await loadSandboxBundle(db, bundle.room.id)) ?? bundle;
-  }
-  if (advance.events.length > 0) {
-    await db.from('auction_sandbox_events').insert(
-      advance.events.map((e, i) => ({ room_id: bundle.room.id, type: e.type, payload: e.payload, server_sequence: seqBase + i }))
-    );
-  }
-  return (await loadSandboxBundle(db, bundle.room.id)) ?? bundle;
+/** Phase heartbeat via the atomic advance RPC, then a fresh reload. */
+async function advanceRoom(admin: Db, db: Db, roomId: string): Promise<SandboxBundle | null> {
+  const { error } = await admin.rpc('advance_sandbox_room', { p_room_id: roomId });
+  if (error) return await loadSandboxBundle(db, roomId);
+  return await loadSandboxBundle(db, roomId);
 }
 
-async function appendEvent(db: Db, bundle: SandboxBundle, type: string, payload: Record<string, unknown>): Promise<SandboxBundle> {
-  const seq = bundle.room.next_sequence;
-  await db.from('auction_sandbox_events').insert({ room_id: bundle.room.id, type, payload, server_sequence: seq });
-  await db.from('auction_sandbox_rooms').update({ next_sequence: seq + 1 }).eq('id', bundle.room.id);
-  return { ...bundle, room: { ...bundle.room, next_sequence: seq + 1 } };
+async function appendEvent(admin: Db, roomId: string, type: string, payload: Record<string, unknown>): Promise<number | null> {
+  const { data, error } = await admin.rpc('append_sandbox_event', { p_room_id: roomId, p_type: type, p_payload: payload });
+  if (error) return null;
+  return (data as { ok: boolean; sequence?: number })?.sequence ?? null;
 }
 
 type RpcResult = { accepted: boolean; duplicate?: boolean; bid_id?: string; sequence?: number; rejection_code?: string; rejection_message?: string };
 
+/** Bid submit ALWAYS through the service_role RPC (server clock, no client time). */
 async function rpcSubmit(
-  db: Db,
+  admin: Db,
   roomId: string,
   participantId: string,
   pricePyg: number,
-  atIso: string,
   idempotencyKey: string | null
 ): Promise<RpcResult> {
-  const { data, error } = await db.rpc('submit_sandbox_bid', {
+  const { data, error } = await admin.rpc('submit_sandbox_bid', {
     p_room_id: roomId,
     p_participant_id: participantId,
     p_price_pyg: pricePyg,
-    p_now_iso: atIso,
     p_idempotency_key: idempotencyKey,
   });
   if (error) throw new Error(`submit_sandbox_bid: ${error.message}`);
@@ -91,7 +80,7 @@ async function rpcSubmit(
 // Bot tick (BOUNDED_AUTO auto-submit; other modes only observe/record).
 // ---------------------------------------------------------------------------
 
-async function botTick(db: Db, bundle: SandboxBundle, atIso: string): Promise<SandboxBundle> {
+async function botTick(admin: Db, db: Db, bundle: SandboxBundle, atIso: string): Promise<SandboxBundle> {
   if (bundle.room.bot_paused) return bundle;
   if (bundle.policies.length === 0) return bundle;
   if (bundle.room.status !== 'ACTIVE_NORMAL' && bundle.room.status !== 'ACTIVE_RANDOM') return bundle;
@@ -116,7 +105,7 @@ async function botTick(db: Db, bundle: SandboxBundle, atIso: string): Promise<Sa
 
   let next = bundle;
   if (changed) {
-    next = await appendEvent(db, next, 'BOT_DECISION', {
+    await appendEvent(admin, bundle.room.id, 'BOT_DECISION', {
       action: decision.action,
       reasonCode: decision.reasonCode,
       reasonDescription: decision.reasonDescription,
@@ -133,7 +122,7 @@ async function botTick(db: Db, bundle: SandboxBundle, atIso: string): Promise<Sa
       },
     }).eq('id', bundle.room.id);
     if (decision.action === 'STOP') {
-      next = await appendEvent(db, next, 'BOT_STOPPED', { reasonCode: decision.reasonCode, policyVersion: decision.policyVersion });
+      await appendEvent(admin, bundle.room.id, 'BOT_STOPPED', { reasonCode: decision.reasonCode, policyVersion: decision.policyVersion });
     }
   }
 
@@ -158,15 +147,16 @@ async function botTick(db: Db, bundle: SandboxBundle, atIso: string): Promise<Sa
   }
 
   if (policy.executionMode === 'BOUNDED_AUTO' && decision.action === 'BID_CANDIDATE' && decision.candidatePricePyg !== null) {
-    await botAutoSubmit(db, next, policy, decision.candidatePricePyg, decision.evaluatedAt, atIso);
+    await botAutoSubmit(admin, db, next, policy, decision.candidatePricePyg, decision.evaluatedAt, atIso);
     return (await loadSandboxBundle(db, bundle.room.id)) ?? next;
   }
 
   return (await loadSandboxBundle(db, bundle.room.id)) ?? next;
 }
 
-/** Full guarded submit for one BOUNDED_AUTO candidate (fresh machine, recheck, RPC, confirm). */
+/** Guarded BOUNDED_AUTO submit: initial decision, then a REAL fresh reload before any submit. */
 async function botAutoSubmit(
+  admin: Db,
   db: Db,
   bundle: SandboxBundle,
   policy: ReturnType<typeof policyFromSnapshot>,
@@ -177,47 +167,47 @@ async function botAutoSubmit(
   const bot = bundle.participants.find((p) => p.kind === 'BOT');
   if (!bot) return;
   const constraints = roomSbeConstraints(bundle.room.minimum_decrement_pyg);
-  const bidId = buildBotIdempotencyKey(bundle.room.id, policy.version, basisObservedAt, candidatePricePyg);
 
+  // Initial authoritative evaluation → candidate (binds the basis).
   const machine = new AuctionBotStateMachine(policy);
   machine.startMonitoring();
   machine.beginEvaluation();
-  // Re-evaluate synchronously (same server instant) to bind the basis.
   const state0 = snapshotToAuctionState(bundleToSnapshot(bundle), atIso);
   const decision = evaluateAuctionStep(state0, policy, constraints, { currentTimestampIso: atIso });
   if (decision.action !== 'BID_CANDIDATE' || decision.candidatePricePyg !== candidatePricePyg) return;
   machine.handleDecision(decision, state0);
 
-  // Fresh snapshot for the pre-submit recheck (strictly newer observation).
-  const freshAt = new Date(Date.parse(atIso) + 1).toISOString();
-  const recheck = machine.recheckCandidate({ ...state0, observedAt: freshAt }, { nowIso: freshAt });
-  if (!recheck.valid) return;
+  // REAL fresh re-observation: re-read Supabase AFTER the decision (with phase
+  // advance), then recheck. A competitor move invalidates — never submit off
+  // the old snapshot.
+  const freshAt = new Date().toISOString();
+  const freshBundle = (await loadSandboxBundle(db, bundle.room.id)) ?? bundle;
+  const freshState = snapshotToAuctionState(bundleToSnapshot(freshBundle), freshAt);
+  const bidKey = buildBotIdempotencyKey(bundle.room.id, policy.version, basisObservedAt, candidatePricePyg);
 
-  let submission;
-  try {
-    submission = machine.startSubmission(bidId, { submittedAtIso: freshAt });
-  } catch {
-    return;
-  }
-  try {
-    const res = await rpcSubmit(db, bundle.room.id, bot.id, submission.pricePyg, freshAt, bidId);
-    if (res.accepted) {
-      machine.confirmSubmission();
-    }
-    // A business rejection (lost race) needs no confirm: next tick re-evaluates.
-  } catch {
-    try {
-      machine.markSubmissionUnknown('RPC submit failed');
-      const snap2 = await loadSandboxBundle(db, bundle.room.id);
-      if (snap2) {
-        const s2 = snapshotToAuctionState(bundleToSnapshot(snap2), new Date().toISOString());
-        machine.reconcileWithState(s2, { observationIsAuthoritative: true }, { nowIso: s2.observedAt });
+  const result = await recheckAndSubmit({
+    machine,
+    decision,
+    freshState,
+    freshNowIso: freshAt,
+    submit: async ({ pricePyg }) => {
+      try {
+        const res = await rpcSubmit(admin, bundle.room.id, bot.id, pricePyg, bidKey);
+        return res.accepted ? { accepted: true } : { accepted: false, reason: res.rejection_message ?? res.rejection_code };
+      } catch (e) {
+        return { accepted: false, reason: e instanceof Error ? e.message : 'RPC failed' };
       }
+    },
+  });
+  if (result.submitted) {
+    try {
+      machine.confirmSubmission();
     } catch {
-      // Fail-safe: the bid may or may not exist; the next tick re-evaluates
-      // from the authoritative snapshot. Never auto-retry blindly.
+      // Already resolved; next tick re-evaluates from authority.
     }
   }
+  // Business rejection / transport failure: no confirm, no blind retry.
+  // The next tick re-evaluates from the authoritative snapshot.
 }
 
 // ---------------------------------------------------------------------------
@@ -271,13 +261,13 @@ function toOperatorView(bundle: SandboxBundle, atIso: string): OperatorView {
   };
 }
 
-/** Heartbeat: advance phases + run one bot tick + return the operator view. */
+/** Heartbeat: atomic advance + one bot tick + operator view. */
 export async function pollOperatorRoom(roomId: string): Promise<{ view?: OperatorView; error?: string }> {
   const res = await operatorBundle(roomId);
   if ('error' in res) return { error: res.error };
-  const atIso = nowIso();
-  let bundle = await persistAdvance(res.db, res.bundle, atIso, Math.random());
-  bundle = await botTick(res.db, bundle, nowIso());
+  await advanceRoom(res.admin, res.db, roomId);
+  let bundle = (await loadSandboxBundle(res.db, roomId)) ?? res.bundle;
+  bundle = await botTick(res.admin, res.db, bundle, nowIso());
   return { view: toOperatorView(bundle, nowIso()) };
 }
 
@@ -358,8 +348,7 @@ export async function startSandboxRoom(roomId: string): Promise<{ error?: string
     .eq('id', roomId)
     .eq('status', 'DRAFT');
   if (error) return { error: 'No se pudo iniciar la sala.' };
-  let bundle = (await loadSandboxBundle(res.db, roomId)) ?? res.bundle;
-  await appendEvent(res.db, bundle, 'AUCTION_STARTED', { at: atIso });
+  await appendEvent(res.admin, roomId, 'AUCTION_STARTED', { at: nowIso() });
   return {};
 }
 
@@ -370,22 +359,45 @@ export async function authorizeSandboxPolicy(
 ): Promise<{ version?: number; error?: string }> {
   const res = await operatorBundle(roomId);
   if ('error' in res) return { error: res.error };
-  const versions = res.bundle.policies.map((p) => p.version);
-  const nextVersion = versions.length > 0 ? Math.max(...versions) + 1 : 1;
+  const room = res.bundle.room;
+  const prev = res.bundle.policies.length > 0 ? res.bundle.policies[res.bundle.policies.length - 1] : null;
+  const nextVersion = prev ? prev.version + 1 : 1;
+  const who = authorizedBy.trim();
+  if (!who) return { error: 'Indicá quién autoriza.' };
+
+  // Canonical server-side binding: NEVER trust browser identity fields.
+  // v1 policyId is server-assigned (stable per room); v2+ must keep it.
+  const boundDraft: AuctionPolicy = {
+    ...draft,
+    auctionId: room.id,
+    groupId: room.group_id,
+    scope: room.scope,
+    authorizedBy: who,
+    policyId: prev ? prev.policy_id : `pol-sandbox-${room.id.slice(0, 8)}`,
+  };
+  const continuity = checkPolicyContinuity({
+    roomId: room.id,
+    roomGroupId: room.group_id,
+    roomScope: room.scope,
+    prev: prev ? { version: prev.version, policy_id: prev.policy_id } : null,
+    draft: boundDraft,
+    version: nextVersion,
+    authorizedBy: who,
+  });
+  if (continuity.length > 0) return { error: continuity.join(' ') };
+
   let record;
   try {
-    record = buildPolicyVersionRecord(roomId, draft, nextVersion, authorizedBy.trim(), nowIso());
+    record = buildPolicyVersionRecord(roomId, boundDraft, nextVersion, who, nowIso());
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Política inválida.' };
   }
-  if (!authorizedBy.trim()) return { error: 'Indicá quién autoriza.' };
   const { error } = await res.db.from('auction_sandbox_policy_versions').insert(record);
   if (error) {
     if (error.code === '23505') return { error: 'Versión duplicada: reintentá.' };
     return { error: 'No se pudo persistir la policy.' };
   }
-  const bundle = (await loadSandboxBundle(res.db, roomId)) ?? res.bundle;
-  await appendEvent(res.db, bundle, 'POLICY_AUTHORIZED', {
+  await appendEvent(res.admin, roomId, 'POLICY_AUTHORIZED', {
     version: nextVersion,
     policy_id: record.policy_id,
     fingerprint: record.fingerprint,
@@ -393,7 +405,7 @@ export async function authorizeSandboxPolicy(
   });
   // A new version invalidates any ASSISTED pending candidate.
   await res.db.from('auction_sandbox_rooms').update({
-    bot_runtime: { ...((bundle.room.bot_runtime ?? {}) as Record<string, unknown>), pendingCandidate: null },
+    bot_runtime: { ...((room.bot_runtime ?? {}) as Record<string, unknown>), pendingCandidate: null },
   }).eq('id', roomId);
   return { version: nextVersion };
 }
@@ -404,7 +416,8 @@ export async function authorizeAssistedBid(roomId: string): Promise<{ price?: nu
   if ('error' in res) return { error: res.error };
   const profile = await requireProfile([...MANAGE_ROLES]);
   const atIso = nowIso();
-  let bundle = await persistAdvance(res.db, res.bundle, atIso, Math.random());
+  await advanceRoom(res.admin, res.db, roomId);
+  let bundle = (await loadSandboxBundle(res.db, roomId)) ?? res.bundle;
   if (bundle.policies.length === 0) return { error: 'Sin policy autorizada.' };
   const latest = bundle.policies[bundle.policies.length - 1];
   let policy;
@@ -432,29 +445,38 @@ export async function authorizeAssistedBid(roomId: string): Promise<{ price?: nu
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'No se pudo autorizar.' };
   }
-  const freshAt = new Date(Date.parse(atIso) + 1).toISOString();
+  // REAL fresh re-observation: advance + re-read Supabase AFTER the decision.
+  // The grant stays bound to the initial candidate; if the market moved, the
+  // recheck invalidates and nothing is submitted.
+  await advanceRoom(res.admin, res.db, roomId);
   const freshBundle = (await loadSandboxBundle(res.db, roomId)) ?? bundle;
+  const freshAt = new Date().toISOString();
   const freshState = snapshotToAuctionState(bundleToSnapshot(freshBundle), freshAt);
-  const recheck = machine.recheckCandidate(freshState, { nowIso: freshAt });
-  if (!recheck.valid) return { error: `Recheck falló: ${recheck.reason}` };
-  let submission;
+  const bidKey = buildBotIdempotencyKey(roomId, policy.version, state.observedAt, decision.candidatePricePyg);
+  const result = await recheckAndSubmit({
+    machine,
+    decision,
+    freshState,
+    freshNowIso: freshAt,
+    submit: async ({ pricePyg }) => {
+      try {
+        const rpcRes = await rpcSubmit(res.admin, roomId, bot.id, pricePyg, bidKey);
+        return rpcRes.accepted ? { accepted: true } : { accepted: false, reason: rpcRes.rejection_message ?? rpcRes.rejection_code };
+      } catch (e) {
+        return { accepted: false, reason: e instanceof Error ? e.message : 'Falló el envío.' };
+      }
+    },
+  });
+  if (!result.submitted) return { error: result.reason };
   try {
-    submission = machine.startSubmission(`assist:${roomId}:v${policy.version}:${freshAt}`, { submittedAtIso: freshAt });
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Submit bloqueado.' };
-  }
-  try {
-    const bidKey = buildBotIdempotencyKey(roomId, policy.version, state.observedAt, submission.pricePyg);
-    const rpcRes = await rpcSubmit(res.db, roomId, bot.id, submission.pricePyg, freshAt, bidKey);
-    if (!rpcRes.accepted) return { error: `Rechazada: ${rpcRes.rejection_message ?? rpcRes.rejection_code}` };
     machine.confirmSubmission();
-    await res.db.from('auction_sandbox_rooms').update({
-      bot_runtime: { ...((bundle.room.bot_runtime ?? {}) as Record<string, unknown>), pendingCandidate: null },
-    }).eq('id', roomId);
-    return { price: submission.pricePyg };
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Falló el envío.' };
+  } catch {
+    return { error: 'No se pudo confirmar el envío.' };
   }
+  await res.db.from('auction_sandbox_rooms').update({
+    bot_runtime: { ...((bundle.room.bot_runtime ?? {}) as Record<string, unknown>), pendingCandidate: null },
+  }).eq('id', roomId);
+  return { price: result.pricePyg };
 }
 
 export async function setSandboxBotPaused(roomId: string, paused: boolean): Promise<{ error?: string }> {
@@ -469,19 +491,9 @@ export async function finalizeSandboxRoom(roomId: string): Promise<{ error?: str
   const res = await operatorBundle(roomId);
   if ('error' in res) return { error: res.error };
   if (res.bundle.room.status === 'CLOSED') return {};
-  const atIso = nowIso();
-  const ranking = rankBundle(res.bundle);
-  const winner = winnerOfRanking(ranking);
-  await res.db.from('auction_sandbox_rooms').update({
-    status: 'CLOSED',
-    closed_at: atIso,
-    winner_participant_id: winner?.participant_id ?? null,
-  }).eq('id', roomId);
-  let bundle = (await loadSandboxBundle(res.db, roomId)) ?? res.bundle;
-  bundle = await appendEvent(res.db, bundle, 'AUCTION_CLOSED', { at: atIso, manual: true, total_bids: bundle.bids.length });
-  await appendEvent(res.db, bundle, 'WINNER_DECLARED', winner
-    ? { participant_id: winner.participant_id, alias: winner.display_alias, price_pyg: winner.price_pyg }
-    : { participant_id: null });
+  // Atomic manual close (winner + AUCTION_CLOSED + WINNER_DECLARED coherent).
+  const { error } = await res.admin.rpc('force_close_sandbox_room', { p_room_id: roomId });
+  if (error) return { error: 'No se pudo finalizar la sala.' };
   return {};
 }
 

@@ -38,8 +38,12 @@ export interface SandboxRoom {
   random_max_seconds: number;
   started_at: string | null;
   random_started_at: string | null;
-  /** Secret while the auction is active. NEVER sent to any client. */
-  random_close_at: string | null;
+  /**
+   * Secret while the auction is active. Lives ONLY in
+   * auction_sandbox_room_private (no app SELECT). The engine keeps the field
+   * for its reference implementation + tests; live app rows omit it.
+   */
+  random_close_at?: string | null;
   closed_at: string | null;
   next_sequence: number;
   bot_paused: boolean;

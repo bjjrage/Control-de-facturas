@@ -67,9 +67,22 @@ export function rollRandomCloseAt(randomStartedAtMs: number, minSeconds: number,
   return new Date(randomStartedAtMs + Math.round(offsetSeconds * 1000)).toISOString();
 }
 
-/** Server-side ranking: price ASC, ties broken by server_sequence ASC. */
+/**
+ * Server-side ranking: ONE position per participant.
+ * Each participant competes with their CURRENT best accepted bid only
+ * (lowest price; ties within a participant broken by lowest server_sequence).
+ * Participants are then ordered by (price ASC, server_sequence ASC) —
+ * first to the server wins ties. A participant NEVER occupies two ranks.
+ */
 export function rankBids(bids: SandboxBid[], aliasOf: (participantId: string) => { kind: 'BOT' | 'HUMAN'; alias: string }): SandboxRankedEntry[] {
-  const ordered = [...bids].sort((a, b) =>
+  const bestByParticipant = new Map<string, SandboxBid>();
+  for (const b of bids) {
+    const cur = bestByParticipant.get(b.participant_id);
+    if (!cur || b.price_pyg < cur.price_pyg || (b.price_pyg === cur.price_pyg && b.server_sequence < cur.server_sequence)) {
+      bestByParticipant.set(b.participant_id, b);
+    }
+  }
+  const ordered = [...bestByParticipant.values()].sort((a, b) =>
     a.price_pyg !== b.price_pyg ? a.price_pyg - b.price_pyg : a.server_sequence - b.server_sequence
   );
   return ordered.map((b, i) => {

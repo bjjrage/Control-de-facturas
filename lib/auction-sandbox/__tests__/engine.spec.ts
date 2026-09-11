@@ -155,11 +155,24 @@ describe('Sandbox engine — bid validation', () => {
 });
 
 describe('Sandbox engine — ranking, winner, idempotency', () => {
-  it('ranks price ASC and breaks ties by server_sequence (first to server wins)', () => {
-    const bids = [bid('b2', 'hum', 999_998, 2), bid('b1', 'bot', 999_998, 1), bid('b3', 'hum', 999_999, 3)];
+  it('one position per participant: history never duplicates ranks', () => {
+    // human: 999999 then 979999; bot: 999998 → only current bests rank.
+    const bids = [bid('b1', 'hum', 999_999, 1), bid('b2', 'bot', 999_998, 2), bid('b3', 'hum', 979_999, 3)];
     const ranking = rankBids(bids, ALIAS);
-    expect(ranking.map((r) => r.participant_id)).toEqual(['bot', 'hum', 'hum']);
+    expect(ranking).toHaveLength(2);
+    expect(ranking[0].participant_id).toBe('hum');
+    expect(ranking[0].price_pyg).toBe(979_999);
     expect(ranking[0].rank).toBe(1);
+    expect(ranking[1].participant_id).toBe('bot');
+    expect(ranking[1].price_pyg).toBe(999_998);
+    expect(ranking[1].rank).toBe(2);
+    expect(winnerOfRanking(ranking)?.participant_id).toBe('hum');
+  });
+
+  it('breaks cross-participant ties by server_sequence (first to server wins)', () => {
+    const bids = [bid('b2', 'hum', 999_998, 2), bid('b1', 'bot', 999_998, 1)];
+    const ranking = rankBids(bids, ALIAS);
+    expect(ranking.map((r) => r.participant_id)).toEqual(['bot', 'hum']);
     expect(winnerOfRanking(ranking)?.participant_id).toBe('bot');
   });
 

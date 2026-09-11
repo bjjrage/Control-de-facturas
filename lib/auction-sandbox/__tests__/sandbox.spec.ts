@@ -6,10 +6,13 @@
  */
 import { describe, it, expect } from 'vitest';
 import { snapshotToAuctionState } from '../auction-state-adapter';
-import { planAssistedSubmit, roomSbeConstraints, runBotTick } from '../bot-runner';
+import { planAssistedSubmit, recheckAndSubmit, roomSbeConstraints, runBotTick } from '../bot-runner';
 import { rankBids, validateSandboxBid, computePhase } from '../engine';
-import { buildPolicyVersionRecord, policyFromSnapshot } from '../policies';
+import { buildPolicyVersionRecord, checkPolicyContinuity, policyFromSnapshot } from '../policies';
+import { buildJoinView, buildWatchView, publicRoomInfo } from '../server';
 import { calculateAutoLimitPyg, freezePolicy } from '../../auction-bot/policy';
+import { evaluateAuctionStep } from '../../auction-bot/engine';
+import { AuctionBotStateMachine } from '../../auction-bot/state-machine';
 import { AuctionPolicy, FrozenAuctionPolicy } from '../../auction-bot/types';
 import { SandboxBid, SandboxRoom, SandboxSnapshot } from '../types';
 
@@ -233,10 +236,179 @@ describe('Sandbox policy persistence records', () => {
 });
 
 describe('Sandbox ranking helper reuse', () => {
-  it('exposes server ranking for views', () => {
+  it('exposes one row per participant (current best only)', () => {
     const bids = [humanBid(2, 979_999, T0), humanBid(1, 999_999, T0)];
     const ranking = rankBids(bids, (pid) => (pid === 'bot' ? { kind: 'BOT', alias: 'Nuestro Bot' } : { kind: 'HUMAN', alias: 'Competidor' }));
+    expect(ranking).toHaveLength(1);
     expect(ranking[0].price_pyg).toBe(979_999);
     expect(ranking[0].rank).toBe(1);
+  });
+});
+
+describe('recheckAndSubmit — real fresh snapshot flow (F2)', () => {
+  const T1 = '2026-01-01T00:00:01.000Z';
+  const policy = acceptancePolicy();
+  const constraints = roomSbeConstraints(1);
+
+  function decide() {
+    const state = snapshotToAuctionState(snap(room(), [humanBid(1, 999_999, T0)]), T0);
+    const machine = new AuctionBotStateMachine(policy);
+    machine.startMonitoring();
+    machine.beginEvaluation();
+    const decision = evaluateAuctionStep(state, policy, constraints, { currentTimestampIso: T0 });
+    machine.handleDecision(decision, state);
+    return { machine, decision };
+  }
+
+  it('submits when the fresh snapshot confirms the same candidate', async () => {
+    const { machine, decision } = decide();
+    expect(decision.action).toBe('BID_CANDIDATE');
+    const freshState = snapshotToAuctionState(snap(room(), [humanBid(1, 999_999, T0)]), T1);
+    const calls: Array<{ pricePyg: number; bidId: string; submittedAtIso: string }> = [];
+    const result = await recheckAndSubmit({
+      machine, decision, freshState, freshNowIso: T1,
+      submit: async (args) => { calls.push(args); return { accepted: true }; },
+    });
+    expect(result.submitted).toBe(true);
+    expect(result.pricePyg).toBe(999_998);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].submittedAtIso).toBe(T1);
+  });
+
+  it('does NOT submit when the competitor moved before the fresh read', async () => {
+    const { machine, decision } = decide();
+    // Competitor drops to 990_000 AFTER the initial decision: the old
+    // candidate 999_998 would no longer take #1.
+    const movedState = snapshotToAuctionState(
+      snap(room(), [humanBid(1, 990_000, T1)]), T1
+    );
+    const calls: unknown[] = [];
+    const result = await recheckAndSubmit({
+      machine, decision, freshState: movedState, freshNowIso: T1,
+      submit: async (args) => { calls.push(args); return { accepted: true }; },
+    });
+    expect(result.submitted).toBe(false);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('does NOT submit from the same snapshot twice (no re-observation)', async () => {
+    const { machine, decision } = decide();
+    const sameState = snapshotToAuctionState(snap(room(), [humanBid(1, 999_999, T0)]), T0);
+    const calls: unknown[] = [];
+    const result = await recheckAndSubmit({
+      machine, decision, freshState: sameState, freshNowIso: T0,
+      submit: async (args) => { calls.push(args); return { accepted: true }; },
+    });
+    expect(result.submitted).toBe(false);
+    expect(calls).toHaveLength(0);
+  });
+});
+
+describe('checkPolicyContinuity — server-side binding (F5)', () => {
+  const ROOM = { roomId: 'room-acc', roomGroupId: 'item-1', roomScope: 'ITEM' as const };
+  function boundDraft(overrides: Partial<AuctionPolicy> = {}): AuctionPolicy {
+    return {
+      policyId: 'pol-sandbox-room-acc',
+      auctionId: 'room-acc',
+      groupId: 'item-1',
+      scope: 'ITEM',
+      positionStrategy: 'TARGET_RANK_1',
+      targetRank: 1,
+      defenseStepPyg: 1,
+      normalPhaseBehavior: 'WAIT',
+      safeWindowBehavior: 'WAIT',
+      enterTargetPositionInEntryWindow: true,
+      defendImmediatelyInCloseRisk: true,
+      targetPricePyg: 1_000_000,
+      autoDefenseToleranceBps: 200,
+      autoLimitPyg: 980_000,
+      mipymePolicy: { enabled: false, executionMode: 'OBSERVE', defenseStepPyg: 1, economicLimitMode: 'USE_CURRENT_AUTO_LIMIT' },
+      executionMode: 'BOUNDED_AUTO',
+      maxStalenessMs: 5000,
+      authorizedBy: 'Test Operator',
+      ...overrides,
+    };
+  }
+
+  it('accepts a well-formed v1', () => {
+    expect(checkPolicyContinuity({ ...ROOM, prev: null, draft: boundDraft(), version: 1, authorizedBy: 'Test Operator' })).toEqual([]);
+  });
+
+  it('rejects v1 from another room / group / scope', () => {
+    const base = { ...ROOM, prev: null, draft: boundDraft(), version: 1, authorizedBy: 'Test Operator' };
+    expect(checkPolicyContinuity({ ...base, draft: boundDraft({ auctionId: 'room-B' }) })).not.toEqual([]);
+    expect(checkPolicyContinuity({ ...base, draft: boundDraft({ groupId: 'item-9' }) })).not.toEqual([]);
+    expect(checkPolicyContinuity({ ...base, draft: boundDraft({ scope: 'LOT' }) })).not.toEqual([]);
+  });
+
+  it('rejects authorizedBy mismatch', () => {
+    expect(checkPolicyContinuity({ ...ROOM, prev: null, draft: boundDraft(), version: 1, authorizedBy: 'Other' })).not.toEqual([]);
+    expect(checkPolicyContinuity({ ...ROOM, prev: null, draft: boundDraft({ authorizedBy: '' }), version: 1, authorizedBy: '' })).not.toEqual([]);
+  });
+
+  it('v2 must keep policyId and bump exactly +1', () => {
+    const prev = { version: 1, policy_id: 'pol-sandbox-room-acc' };
+    const ok = { ...ROOM, prev, draft: boundDraft(), version: 2, authorizedBy: 'Test Operator' };
+    expect(checkPolicyContinuity(ok)).toEqual([]);
+    expect(checkPolicyContinuity({ ...ok, draft: boundDraft({ policyId: 'pol-other' }) })).not.toEqual([]);
+    expect(checkPolicyContinuity({ ...ok, version: 3 })).not.toEqual([]);
+    expect(checkPolicyContinuity({ ...ok, draft: boundDraft({ scope: 'LOT' }) })).not.toEqual([]);
+  });
+});
+
+describe('policyFromSnapshot metadata cross-checks (F5)', () => {
+  function record() {
+    return buildPolicyVersionRecord('room-acc', {
+      policyId: 'pol-sandbox-room-acc',
+      auctionId: 'room-acc',
+      groupId: 'item-1',
+      scope: 'ITEM',
+      positionStrategy: 'TARGET_RANK_1',
+      targetRank: 1,
+      defenseStepPyg: 1,
+      normalPhaseBehavior: 'WAIT',
+      safeWindowBehavior: 'WAIT',
+      enterTargetPositionInEntryWindow: true,
+      defendImmediatelyInCloseRisk: true,
+      targetPricePyg: 1_000_000,
+      autoDefenseToleranceBps: 200,
+      autoLimitPyg: 980_000,
+      mipymePolicy: { enabled: false, executionMode: 'OBSERVE', defenseStepPyg: 1, economicLimitMode: 'USE_CURRENT_AUTO_LIMIT' },
+      executionMode: 'BOUNDED_AUTO',
+      maxStalenessMs: 5000,
+      authorizedBy: 'Test Operator',
+    }, 1, 'Test Operator', T0);
+  }
+
+  it('restores a consistent record', () => {
+    expect(policyFromSnapshot(record()).policyId).toBe('pol-sandbox-room-acc');
+  });
+
+  it('rejects version / policyId / fingerprint metadata tamper', () => {
+    const rec = record();
+    expect(() => policyFromSnapshot({ ...rec, version: 2 })).toThrow();
+    expect(() => policyFromSnapshot({ ...rec, policy_id: 'pol-other' })).toThrow();
+    expect(() => policyFromSnapshot({ ...rec, fingerprint: 'deadbeef' })).toThrow();
+  });
+});
+
+describe('view secrecy (F6)', () => {
+  function fullBundle() {
+    const r = room();
+    const ext = r as unknown as Record<string, unknown>;
+    ext.random_close_at = new Date(Date.parse(T0) + 60_000).toISOString();
+    ext.competitor_token_hash = 'hash-c';
+    ext.observer_token_hash = 'hash-o';
+    return { ...snap(r, [humanBid(1, 999_999, T0)]), policies: [], events: [] };
+  }
+
+  it('no view leaks random_close_at or token hashes', () => {
+    const b = fullBundle();
+    for (const view of [publicRoomInfo(b, T0), buildJoinView(b, 'hum', T0), buildWatchView(b, T0)]) {
+      const json = JSON.stringify(view);
+      expect(json).not.toContain('random_close_at');
+      expect(json).not.toContain('token_hash');
+      expect(json).not.toContain('hash-c');
+    }
   });
 });
