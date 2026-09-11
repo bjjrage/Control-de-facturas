@@ -86,7 +86,7 @@ describe('PollController', () => {
     expect(ctl.isSuspended).toBe(false);
   });
 
-  it('runMutation timeout resolves unknown (never throws), resumes, refreshes once', async () => {
+  it('runMutation timeout resolves unknown and holds polling until the orphan settles', async () => {
     const order: string[] = [];
     const ctl = new PollController(
       async () => {
@@ -100,10 +100,9 @@ describe('PollController', () => {
       expect(result.label).toBe('Iniciar subasta');
       expect(result.elapsedMs).toBe(20);
     }
-    expect(order).toEqual(['poll']);
-    expect(ctl.isSuspended).toBe(false);
-    // polling works again after the timeout
-    expect(await ctl.tick()).toBe('polled');
+    // No premature refresh: the orphan never settles here, so no poll ran.
+    expect(order).toEqual([]);
+    expect(ctl.isSuspended).toBe(true);
   });
 
   it('GAP1: mutation waits for the in-flight poll — never overlaps', async () => {
@@ -139,7 +138,7 @@ describe('PollController', () => {
     expect(order).toEqual(['poll-start', 'poll-end', 'mutation-start', 'poll-start', 'poll-end']);
   });
 
-  it('GAP2: slow mutation times out unknown, completes later without duplication', async () => {
+  it('GAP2: slow mutation times out unknown, refreshes only when the orphan settles', async () => {
     const order: string[] = [];
     let calls = 0;
     let release!: () => void;
@@ -162,11 +161,15 @@ describe('PollController', () => {
     const first = await ctl.runMutation(slowMutation, 20, 'Iniciar subasta');
     expect(first.status).toBe('unknown');
     expect(calls).toBe(1);
-    // The timed-out mutation completes later on its own — exactly once.
+    // No refresh yet: polling stays suspended while the orphan is pending.
+    expect(order).toEqual(['mutation-1-start']);
+    expect(await ctl.tick()).toBe('skipped');
+    // The orphan settles later on its own — exactly once, then refresh+resume.
     release();
     await new Promise((r) => setTimeout(r, 10));
-    expect(order).toEqual(['mutation-1-start', 'poll', 'mutation-1-end']);
+    expect(order).toEqual(['mutation-1-start', 'mutation-1-end', 'poll']);
     expect(calls).toBe(1);
+    expect(await ctl.tick()).toBe('polled');
     // Operator-initiated retry is a NEW explicit call (never automatic).
     const second = await ctl.runMutation(
       async () => {
@@ -178,6 +181,37 @@ describe('PollController', () => {
     );
     expect(second).toEqual({ status: 'done', value: 'v2' });
     expect(calls).toBe(2);
+  });
+
+  it('GAP2-drain: stuck poll blocks the mutation (no overlap, visible guidance)', async () => {
+    const order: string[] = [];
+    const ctl = new PollController(
+      async () => {
+        order.push('poll-start');
+        await new Promise(() => {}); // stuck forever
+      },
+      { intervalMs: 1000 }
+    );
+    const polling = ctl.tick(); // in-flight, never settles
+    void polling;
+    await new Promise((r) => setTimeout(r, 10));
+    let mutationStarted = false;
+    const result = await ctl.runMutation(
+      async () => {
+        mutationStarted = true;
+        return 'x';
+      },
+      5000,
+      'Iniciar subasta',
+      { drainTimeoutMs: 30 }
+    );
+    expect(mutationStarted).toBe(false);
+    expect(result.status).toBe('unknown');
+    if (result.status === 'unknown') {
+      expect(result.detail).toContain('Recargá');
+    }
+    expect(order).toEqual(['poll-start']);
+    // NOTE: `polling` intentionally left pending (stuck poll simulation).
   });
 
   it('runMutation propagates mutation errors and still refreshes', async () => {

@@ -45,13 +45,21 @@ export interface PollControllerOptions {
 /**
  * Outcome of runMutation:
  *  - done: the mutation settled in time; `value` is fn()'s result.
- *  - unknown: the timeout fired first. The mutation MAY still complete
- *    server-side — the caller must reconcile from fresh state and must NOT
- *    blind-retry while ambiguous.
+ *  - unknown: the timeout (or an undrainable poll) fired first. The mutation
+ *    MAY still complete server-side — the caller must reconcile from fresh
+ *    state and must NOT blind-retry while ambiguous. `detail` carries a
+ *    human-ready hint for the specific unknown cause.
  */
 export type MutationOutcome<T> =
   | { status: 'done'; value: T }
-  | { status: 'unknown'; label: string; elapsedMs: number };
+  | { status: 'unknown'; label: string; elapsedMs: number; detail?: string };
+
+/** Max time runMutation waits for an in-flight poll to drain. */
+export const DRAIN_TIMEOUT_MS = 5000;
+
+/** Shown when a stuck poll blocks a mutation. */
+export const DRAIN_TIMEOUT_MESSAGE =
+  'La lectura actual no terminó. Recargá la sala antes de reintentar.';
 
 export class PollController {
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -105,6 +113,19 @@ export class PollController {
       this.skippedCount += 1;
       return 'skipped';
     }
+    return this.executePoll();
+  }
+
+  /** Poll bypassing only the suspension gate (keeps the in-flight guard). */
+  private async tickForce(): Promise<'polled' | 'skipped'> {
+    if (this.inFlight) {
+      this.skippedCount += 1;
+      return 'skipped';
+    }
+    return this.executePoll();
+  }
+
+  private async executePoll(): Promise<'polled'> {
     this.inFlight = true;
     const slot: object = {};
     this.inFlightSlot = slot;
@@ -134,39 +155,97 @@ export class PollController {
   /**
    * Runs an interactive mutation with full exclusion:
    *  1. suspend new ticks;
-   *  2. wait for any currently in-flight poll to settle (it cannot be
-   *     cancelled — its result is simply observed, never trusted blindly);
+   *  2. wait for any currently in-flight poll to settle — with a SHORT
+   *     timeout: a stuck poll must never wedge a mutation. On drain timeout
+   *     the mutation does NOT run (no overlap, ever);
    *  3. run the mutation with a timeout;
-   *  4. exactly one authoritative refresh;
+   *  4. exactly one authoritative refresh — unless the mutation timed out,
+   *     in which case polling stays suspended until the late promise
+   *     settles, and only then refreshes + resumes (no overlap with the
+   *     orphan, no premature mutating polls);
    *  5. resume normal polling.
    *
-   * A timeout resolves { status: 'unknown' } — the mutation may still
-   * complete server-side, so the caller must RECONCILE by reading fresh state
-   * (never blind-retry while ambiguous). Genuine fn() rejections propagate.
+   * A mutation timeout resolves { status: 'unknown' } — the mutation may
+   * still complete server-side, so the caller must RECONCILE by reading fresh
+   * state (never blind-retry while ambiguous). Genuine fn() rejections
+   * propagate (after the refresh rules below).
    */
-  async runMutation<T>(fn: () => Promise<T>, timeoutMs: number, label: string): Promise<MutationOutcome<T>> {
+  async runMutation<T>(
+    fn: () => Promise<T>,
+    timeoutMs: number,
+    label: string,
+    opts?: { drainTimeoutMs?: number }
+  ): Promise<MutationOutcome<T>> {
     this.suspend();
     try {
-      const inflight = this.inFlightPromise;
-      if (inflight) {
-        try {
-          await inflight;
-        } catch {
-          // Settled (possibly failed) — what matters is that it finished.
-        }
+      // Drain with a leash: never overlap the mutation with a stuck poll.
+      const drainMs = opts?.drainTimeoutMs ?? DRAIN_TIMEOUT_MS;
+      const drained = await this.drainInflight(drainMs);
+      if (!drained) {
+        this.resume();
+        await this.tick();
+        return { status: 'unknown', label, elapsedMs: drainMs, detail: DRAIN_TIMEOUT_MESSAGE };
       }
+      const task = fn();
       try {
-        const value = await withTimeout(fn(), timeoutMs, label);
+        const value = await withTimeout(task, timeoutMs, label);
+        this.resume();
+        await this.tick();
         return { status: 'done', value };
       } catch (e) {
-        if (e instanceof TimeoutError) {
-          return { status: 'unknown', label, elapsedMs: timeoutMs };
+        if (!(e instanceof TimeoutError)) {
+          this.resume();
+          await this.tick();
+          throw e;
         }
-        throw e;
+        // Timeout: fn() is still alive (orphan). Hold the suspension — no new
+        // mutating polls — and refresh + resume only when it settles.
+        void task.then(
+          () => void this.settleOrphan(),
+          () => void this.settleOrphan()
+        );
+        return { status: 'unknown', label, elapsedMs: timeoutMs };
       }
-    } finally {
+    } catch (e) {
+      // Defensive: never leak a suspension on unexpected paths.
       this.resume();
-      await this.tick();
+      throw e;
+    }
+  }
+
+  /**
+   * Settles an orphaned (timed-out but still running) mutation: one
+   * authoritative refresh, then resume. Runs at most once per orphan —
+   * guarded so a second orphan/settle cycle cannot double-refresh.
+   */
+  private orphanSettling = false;
+
+  private async settleOrphan(): Promise<void> {
+    if (this.orphanSettling) return;
+    this.orphanSettling = true;
+    try {
+      await this.tickForce();
+    } finally {
+      this.orphanSettling = false;
+      this.resume();
+    }
+  }
+
+  /** Waits for the in-flight poll (if any), up to `ms`. Never throws. */
+  private async drainInflight(ms: number): Promise<boolean> {
+    const inflight = this.inFlightPromise;
+    if (!inflight) return true;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    try {
+      await Promise.race([
+        inflight.catch(() => {}),
+        new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, ms);
+        }),
+      ]);
+      return this.inFlightPromise === null;
+    } finally {
+      if (timer !== null) clearTimeout(timer);
     }
   }
 }

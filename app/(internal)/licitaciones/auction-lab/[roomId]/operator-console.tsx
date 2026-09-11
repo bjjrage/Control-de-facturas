@@ -86,11 +86,12 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
         ? await ctl.runMutation(fn, 25000, label)
         : { status: 'done' as const, value: await fn() };
       if (out.status === 'unknown') {
-        // Timeout is NOT a verdict: the mutation may complete late. The
-        // controller already refreshed once — reconcile from what the room
-        // shows now instead of retrying blindly.
+        // Timeout is NOT a verdict: the mutation may complete late. The UI
+        // shows reconciling state; the controller refreshes once the late
+        // promise settles. Never blind-retry while ambiguous.
         setError(
-          `Sin confirmación: ${label} tardó demasiado. Mirá el estado actual de la sala: si ya refleja el cambio, no hace falta reintentar.`
+          out.detail ??
+            `Sin confirmación: ${label} tardó demasiado. Mirá el estado actual de la sala: si ya refleja el cambio, no hace falta reintentar.`
         );
         return;
       }
