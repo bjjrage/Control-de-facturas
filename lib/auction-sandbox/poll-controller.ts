@@ -6,16 +6,19 @@
  * the same room row (advance/tick vs start/bid) — with no timeout anywhere,
  * a slow action wedged the UI forever ("Iniciando…" eternamente).
  *
- * Guarantees:
+ * Model:
  *  - never two polls from the same client concurrently (skip when in flight);
+ *  - every poll runs under a timeout: a hung read can never wedge the
+ *    heartbeat (it is skipped, recorded, and retried next interval);
  *  - a mutation NEVER overlaps a poll: it suspends new ticks, WAITS for any
- *    in-flight poll to settle, then runs;
- *  - every mutation runs with a timeout and ends with exactly one
- *    authoritative refresh;
- *  - a timeout is NOT a failure verdict: the mutation may complete later, so
- *    runMutation resolves { status: 'unknown' } (never a blind retry, never
- *    a duplicate submit from this path) and the caller reconciles by reading
- *    fresh state (e.g. room already ACTIVE → reconciled success).
+ *    in-flight poll to settle (bounded drain), then runs under its own
+ *    timeout, then exactly one authoritative refresh;
+ *  - a mutation timeout is NOT a failure verdict: the mutation may complete
+ *    later, so runMutation resolves { status: 'unknown' } and raises the
+ *    orphan hold — ticks (reads) keep flowing so the UI can reconcile, but
+ *    new mutations are refused with ReconcilingError until the orphan
+ *    settles (never a blind retry while ambiguous). A cap timer backstops a
+ *    never-settling orphan.
  */
 export class TimeoutError extends Error {
   constructor(
@@ -24,6 +27,14 @@ export class TimeoutError extends Error {
   ) {
     super(`${label} tardó más de ${Math.round(timeoutMs / 1000)}s sin responder.`);
     this.name = 'TimeoutError';
+  }
+}
+
+/** Thrown when a mutation is attempted while a previous one is unconfirmed. */
+export class ReconcilingError extends Error {
+  constructor() {
+    super('Hay una acción anterior sin confirmar. Esperá a que se resuelva antes de reintentar.');
+    this.name = 'ReconcilingError';
   }
 }
 
@@ -38,8 +49,17 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): 
   });
 }
 
+/** Returns true for Next.js redirect digests (must propagate, never swallow). */
+export function isNextRedirect(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const digest = (error as { digest?: unknown }).digest;
+  return typeof digest === 'string' && digest.startsWith('NEXT_REDIRECT');
+}
+
 export interface PollControllerOptions {
   intervalMs: number;
+  /** Leash for a single poll read. Default 15s. */
+  pollTimeoutMs?: number;
 }
 
 /**
@@ -61,6 +81,9 @@ export const DRAIN_TIMEOUT_MS = 5000;
 export const DRAIN_TIMEOUT_MESSAGE =
   'La lectura actual no terminó. Recargá la sala antes de reintentar.';
 
+/** Backstop: an orphan that never settles releases the mutation hold after this. */
+export const ORPHAN_HOLD_CAP_MS = 90000;
+
 export class PollController {
   private timer: ReturnType<typeof setInterval> | null = null;
   private inFlight: boolean = false;
@@ -69,6 +92,11 @@ export class PollController {
   private suspended = 0;
   private pollCount = 0;
   private skippedCount = 0;
+  private orphanHold = false;
+  private orphanCapTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastPollErrorValue: unknown = null;
+  /** Called (at most once per orphan) when a held orphan finally settles. */
+  onOrphanSettled: (() => void) | null = null;
 
   constructor(
     private readonly poll: () => Promise<unknown>,
@@ -83,8 +111,21 @@ export class PollController {
     return this.suspended > 0;
   }
 
+  /** True while a timed-out mutation is still unconfirmed (mutations refused). */
+  get hasUnsettledMutation(): boolean {
+    return this.orphanHold;
+  }
+
+  get lastPollError(): unknown {
+    return this.lastPollErrorValue;
+  }
+
   get stats(): { polls: number; skipped: number } {
     return { polls: this.pollCount, skipped: this.skippedCount };
+  }
+
+  get pollTimeoutMs(): number {
+    return this.options.pollTimeoutMs ?? 15000;
   }
 
   start(): void {
@@ -116,22 +157,18 @@ export class PollController {
     return this.executePoll();
   }
 
-  /** Poll bypassing only the suspension gate (keeps the in-flight guard). */
-  private async tickForce(): Promise<'polled' | 'skipped'> {
-    if (this.inFlight) {
-      this.skippedCount += 1;
-      return 'skipped';
-    }
-    return this.executePoll();
-  }
-
-  private async executePoll(): Promise<'polled'> {
+  private async executePoll(): Promise<'polled' | 'skipped'> {
     this.inFlight = true;
     const slot: object = {};
     this.inFlightSlot = slot;
     const current = (async () => {
       try {
-        await this.poll();
+        await withTimeout(this.poll(), this.pollTimeoutMs, 'lectura');
+      } catch (e) {
+        // A hung poll must never wedge the heartbeat: record it and move on.
+        // Redirect digests are rethrown by the poller itself (see consoles);
+        // here we only guarantee the in-flight flag always clears.
+        this.lastPollErrorValue = e;
       } finally {
         this.inFlight = false;
         if (this.inFlightSlot === slot) {
@@ -141,34 +178,25 @@ export class PollController {
       }
     })();
     this.inFlightPromise = current;
-    try {
-      await current;
-      this.pollCount += 1;
-      return 'polled';
-    } catch {
-      // Poll errors belong to the poller (it surfaces them in UI state);
-      // tick still settles so timers/mutations never wedge on a bad poll.
-      return 'polled';
-    }
+    await current;
+    this.pollCount += 1;
+    return 'polled';
   }
 
   /**
    * Runs an interactive mutation with full exclusion:
-   *  1. suspend new ticks;
-   *  2. wait for any currently in-flight poll to settle — with a SHORT
+   *  1. refuse while a previous mutation is unconfirmed (ReconcilingError);
+   *  2. suspend new ticks;
+   *  3. wait for any currently in-flight poll to settle — with a SHORT
    *     timeout: a stuck poll must never wedge a mutation. On drain timeout
    *     the mutation does NOT run (no overlap, ever);
-   *  3. run the mutation with a timeout;
-   *  4. exactly one authoritative refresh — unless the mutation timed out,
-   *     in which case polling stays suspended until the late promise
-   *     settles, and only then refreshes + resumes (no overlap with the
-   *     orphan, no premature mutating polls);
-   *  5. resume normal polling.
+   *  4. run the mutation with a timeout, then exactly one authoritative
+   *     refresh;
+   *  5. on mutation timeout: raise the orphan hold (ticks keep flowing so the
+   *     UI can reconcile; new mutations are refused) and resolve unknown.
+   *     The hold clears when the orphan settles (refresh then) or at the cap.
    *
-   * A mutation timeout resolves { status: 'unknown' } — the mutation may
-   * still complete server-side, so the caller must RECONCILE by reading fresh
-   * state (never blind-retry while ambiguous). Genuine fn() rejections
-   * propagate (after the refresh rules below).
+   * Genuine fn() rejections propagate (after a refresh).
    */
   async runMutation<T>(
     fn: () => Promise<T>,
@@ -176,6 +204,7 @@ export class PollController {
     label: string,
     opts?: { drainTimeoutMs?: number }
   ): Promise<MutationOutcome<T>> {
+    if (this.orphanHold) throw new ReconcilingError();
     this.suspend();
     try {
       // Drain with a leash: never overlap the mutation with a stuck poll.
@@ -198,11 +227,14 @@ export class PollController {
           await this.tick();
           throw e;
         }
-        // Timeout: fn() is still alive (orphan). Hold the suspension — no new
-        // mutating polls — and refresh + resume only when it settles.
+        // Timeout: fn() is still alive (orphan). Release the tick suspension
+        // (reads keep flowing for reconciliation) but raise the orphan hold
+        // so no new mutation can start while ambiguous.
+        this.resume();
+        this.raiseOrphanHold();
         void task.then(
-          () => void this.settleOrphan(),
-          () => void this.settleOrphan()
+          () => this.clearOrphanHold(),
+          () => this.clearOrphanHold()
         );
         return { status: 'unknown', label, elapsedMs: timeoutMs };
       }
@@ -213,22 +245,27 @@ export class PollController {
     }
   }
 
-  /**
-   * Settles an orphaned (timed-out but still running) mutation: one
-   * authoritative refresh, then resume. Runs at most once per orphan —
-   * guarded so a second orphan/settle cycle cannot double-refresh.
-   */
-  private orphanSettling = false;
+  private raiseOrphanHold(): void {
+    this.orphanHold = true;
+    if (this.orphanCapTimer !== null) clearTimeout(this.orphanCapTimer);
+    this.orphanCapTimer = setTimeout(() => {
+      this.orphanCapTimer = null;
+      this.clearOrphanHold();
+    }, ORPHAN_HOLD_CAP_MS);
+    // Unref in Node so a held cap never keeps a test process alive.
+    const t = this.orphanCapTimer as unknown as { unref?: () => void };
+    if (typeof t.unref === 'function') t.unref();
+  }
 
-  private async settleOrphan(): Promise<void> {
-    if (this.orphanSettling) return;
-    this.orphanSettling = true;
-    try {
-      await this.tickForce();
-    } finally {
-      this.orphanSettling = false;
-      this.resume();
+  private async clearOrphanHold(): Promise<void> {
+    if (!this.orphanHold) return;
+    this.orphanHold = false;
+    if (this.orphanCapTimer !== null) {
+      clearTimeout(this.orphanCapTimer);
+      this.orphanCapTimer = null;
     }
+    await this.tick();
+    this.onOrphanSettled?.();
   }
 
   /** Waits for the in-flight poll (if any), up to `ms`. Never throws. */

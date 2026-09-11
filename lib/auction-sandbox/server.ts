@@ -49,19 +49,22 @@ export async function loadSandboxBundle(db: Db, roomId: string): Promise<{ bundl
   const typedRoom = room as unknown as SandboxRoom;
   const [participants, bids, policies, events] = await Promise.all([
     db.from('auction_sandbox_participants').select('*').eq('room_id', roomId).order('created_at'),
-    db.from('auction_sandbox_bids').select('*').eq('room_id', roomId).eq('accepted', true).order('server_sequence'),
+    // Latest 200 by sequence DESC (a rejection-spam flood can never push the
+    // close/winner tail out of view), then back to ASC for the bundle contract.
+    db.from('auction_sandbox_bids').select('*').eq('room_id', roomId).eq('accepted', true).order('server_sequence', { ascending: false }).limit(200),
     db.from('auction_sandbox_policy_versions').select('*').eq('room_id', roomId).order('version'),
-    db.from('auction_sandbox_events').select('*').eq('room_id', roomId).order('server_sequence').limit(200),
+    db.from('auction_sandbox_events').select('*').eq('room_id', roomId).order('server_sequence', { ascending: false }).limit(200),
   ]);
   const failed = [participants, bids, policies, events].find((q) => q.error);
   if (failed?.error) return { error: `No se pudo leer la sala (${failed.error.code ?? 'read-error'}).` };
+  const asc = <T,>(rows: T[] | null): T[] => [...(rows ?? [])].reverse();
   return {
     bundle: {
       room: typedRoom,
       participants: (participants.data ?? []) as SandboxParticipant[],
-      bids: (bids.data ?? []) as SandboxBid[],
+      bids: asc(bids.data as SandboxBid[] | null),
       policies: (policies.data ?? []) as SandboxPolicyVersion[],
-      events: (events.data ?? []) as SandboxEvent[],
+      events: asc(events.data as SandboxEvent[] | null),
     },
   };
 }
@@ -108,6 +111,51 @@ export function computeNextRuntime(
 
 export function rankBundle(bundle: SandboxBundle): SandboxRankedEntry[] {
   return rankBids(bundle.bids, (pid) => aliasOf(bundle, pid));
+}
+
+export interface DecisionFingerprint {
+  action: string;
+  reasonCode: string;
+  candidatePricePyg: number | null;
+  policyVersion: number;
+}
+
+/**
+ * True when no identical BOT_DECISION is already recorded in the loaded
+ * bundle: prevents duplicate decision events when a previous tick committed
+ * the event but failed to persist the runtime (or two tabs race). The check
+ * is advisory (TOCTOU across tabs remains, narrowed to one RPC round trip),
+ * never a correctness gate for bidding.
+ */
+export function shouldEmitDecision(bundle: SandboxBundle, decision: DecisionFingerprint): boolean {
+  return !bundle.events.some(
+    (e) =>
+      e.type === 'BOT_DECISION' &&
+      (e.payload as Record<string, unknown>).action === decision.action &&
+      (e.payload as Record<string, unknown>).reasonCode === decision.reasonCode &&
+      ((e.payload as Record<string, unknown>).candidatePricePyg ?? null) === (decision.candidatePricePyg ?? null) &&
+      (e.payload as Record<string, unknown>).policyVersion === decision.policyVersion
+  );
+}
+
+/**
+ * Initial-event backfill proof (fail-closed): returns which of ROOM_CREATED /
+ * AUCTION_STARTED are provably missing. Provable only when the loaded history
+ * is complete — i.e. max server_sequence < 200 (nothing could have aged out
+ * of the 200-event window) — otherwise absence proves nothing and no
+ * backfill is attempted (avoids duplicates).
+ */
+export function missingInitialEvents(bundle: SandboxBundle): Array<'ROOM_CREATED' | 'AUCTION_STARTED'> {
+  const seqs = bundle.events.map((e) => e.server_sequence);
+  const complete = seqs.length === 0 || Math.max(...seqs) < 200;
+  if (!complete) return [];
+  const types = new Set(bundle.events.map((e) => e.type));
+  const missing: Array<'ROOM_CREATED' | 'AUCTION_STARTED'> = [];
+  if (!types.has('ROOM_CREATED')) missing.push('ROOM_CREATED');
+  if (bundle.room.status !== 'DRAFT' && bundle.room.started_at && !types.has('AUCTION_STARTED')) {
+    missing.push('AUCTION_STARTED');
+  }
+  return missing;
 }
 
 // NOTE: phase transitions run EXCLUSIVELY inside the advance_sandbox_room /

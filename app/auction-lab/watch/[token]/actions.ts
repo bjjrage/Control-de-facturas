@@ -5,7 +5,8 @@ import { buildWatchView, loadSandboxBundle, WatchView } from '@/lib/auction-sand
 import { resolveSandboxRoom } from '../../token-gate';
 
 /** War-room is strictly READ ONLY: reload + redacted view, zero writes.
- * The operator heartbeat is the exclusive mutating poller (F-G1). */
+ * The operator heartbeat is the exclusive mutating poller (F-G1), including
+ * initial-event backfills. */
 export async function getWatchView(token: string): Promise<{ view?: WatchView; error?: string }> {
   const resolved = await resolveSandboxRoom(token, 'observer');
   if ('error' in resolved) return { error: resolved.error };

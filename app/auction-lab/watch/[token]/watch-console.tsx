@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { WatchView } from '@/lib/auction-sandbox/server';
-import { PollController } from '@/lib/auction-sandbox/poll-controller';
+import { PollController, isNextRedirect } from '@/lib/auction-sandbox/poll-controller';
 import { getWatchView } from './actions';
 
 function fmtT(iso: string): string {
@@ -13,16 +13,23 @@ function fmtT(iso: string): string {
 export function WatchConsole({ token }: { token: string }) {
   const [view, setView] = useState<WatchView | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const controllerRef = useRef<PollController | null>(null);
 
   const poll = useCallback(async () => {
-    const res = await getWatchView(token);
-    if (res.error) {
-      setError(res.error);
-      return;
-    }
-    if (res.view) {
-      setView(res.view);
-      setError(null);
+    try {
+      const res = await getWatchView(token);
+      if (res.error) {
+        setError(res.error);
+        return;
+      }
+      if (res.view) {
+        setView(res.view);
+        setError(null);
+        if (res.view.room.status === 'CLOSED') controllerRef.current?.stop();
+      }
+    } catch (e) {
+      if (isNextRedirect(e)) throw e;
+      setError('Error de conexión. Revisá tu sesión si persiste.');
     }
   }, [token]);
   const pollRef = useRef(poll);
@@ -30,9 +37,13 @@ export function WatchConsole({ token }: { token: string }) {
 
   useEffect(() => {
     const ctl = new PollController(() => pollRef.current(), { intervalMs: 1000 });
+    controllerRef.current = ctl;
     void ctl.tick();
     ctl.start();
-    return () => ctl.stop();
+    return () => {
+      ctl.stop();
+      controllerRef.current = null;
+    };
   }, []);
 
   if (error && !view) {
@@ -63,12 +74,17 @@ export function WatchConsole({ token }: { token: string }) {
         </div>
 
         <div>
-          <h1 className="text-[18px] font-bold tracking-tight">{view.room.title}</h1>
-          <p className="text-[13px] text-[var(--muted)]">
+          <h1 className="text-[18px] font-bold tracking-tight">{view.room.title}</h1>          <p className="text-[13px] text-[var(--muted)]">
             {view.room.status}
             {view.room.closeRisk ? <span className="ml-2 font-semibold text-rose-600 dark:text-rose-400">RIESGO DE CIERRE</span> : null}
           </p>
         </div>
+
+        {error ? (
+          <div className="rounded-xl border border-[var(--error)]/30 bg-[var(--error-bg)] p-3 text-[12px] text-[var(--error)]">
+            {error}
+          </div>
+        ) : null}
 
         {view.result ? (
           <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">

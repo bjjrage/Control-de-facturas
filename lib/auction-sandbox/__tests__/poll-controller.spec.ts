@@ -1,10 +1,18 @@
 /**
  * AUCTION SANDBOX — PollController regressions.
- * Covers: no concurrent polls, suspend/resume, mutation timeout + single
- * refresh, withTimeout semantics.
+ * Covers: no concurrent polls, poll timeout leash, suspend/resume,
+ * drain-with-timeout, orphan hold (mutations refused, reads continue),
+ * settle refresh, cap backstop, no blind retry.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { PollController, TimeoutError, withTimeout } from '../poll-controller';
+import {
+  DRAIN_TIMEOUT_MESSAGE,
+  PollController,
+  ReconcilingError,
+  TimeoutError,
+  isNextRedirect,
+  withTimeout,
+} from '../poll-controller';
 
 function deferred<T = void>() {
   let resolve!: (v: T | PromiseLike<T>) => void;
@@ -31,6 +39,15 @@ describe('withTimeout', () => {
   });
 });
 
+describe('isNextRedirect', () => {
+  it('detects redirect digests and nothing else', () => {
+    expect(isNextRedirect({ digest: 'NEXT_REDIRECT;replace;/login' })).toBe(true);
+    expect(isNextRedirect(new Error('x'))).toBe(false);
+    expect(isNextRedirect(null)).toBe(false);
+    expect(isNextRedirect('NEXT_REDIRECT')).toBe(false);
+  });
+});
+
 describe('PollController', () => {
   it('never runs two polls concurrently (second tick is skipped)', async () => {
     const gate = deferred();
@@ -49,6 +66,22 @@ describe('PollController', () => {
     gate.resolve();
     expect(await first).toBe('polled');
     expect(ctl.stats).toEqual({ polls: 1, skipped: 1 });
+  });
+
+  it('a hung poll cannot wedge the heartbeat (timeout leash + retry)', async () => {
+    let calls = 0;
+    const ctl = new PollController(
+      async () => {
+        calls += 1;
+        if (calls === 1) await new Promise(() => {}); // hang once
+      },
+      { intervalMs: 1000, pollTimeoutMs: 30 }
+    );
+    await ctl.tick(); // resolves despite the hang
+    expect(calls).toBe(1);
+    expect(ctl.lastPollError).toBeInstanceOf(TimeoutError);
+    expect(await ctl.tick()).toBe('polled'); // recovers on next tick
+    expect(calls).toBe(2);
   });
 
   it('suspend blocks ticks until resumed', async () => {
@@ -86,25 +119,6 @@ describe('PollController', () => {
     expect(ctl.isSuspended).toBe(false);
   });
 
-  it('runMutation timeout resolves unknown and holds polling until the orphan settles', async () => {
-    const order: string[] = [];
-    const ctl = new PollController(
-      async () => {
-        order.push('poll');
-      },
-      { intervalMs: 1000 }
-    );
-    const result = await ctl.runMutation(() => new Promise<string>(() => {}), 20, 'Iniciar subasta');
-    expect(result.status).toBe('unknown');
-    if (result.status === 'unknown') {
-      expect(result.label).toBe('Iniciar subasta');
-      expect(result.elapsedMs).toBe(20);
-    }
-    // No premature refresh: the orphan never settles here, so no poll ran.
-    expect(order).toEqual([]);
-    expect(ctl.isSuspended).toBe(true);
-  });
-
   it('GAP1: mutation waits for the in-flight poll — never overlaps', async () => {
     const order: string[] = [];
     const gate = deferred();
@@ -117,6 +131,7 @@ describe('PollController', () => {
       { intervalMs: 1000 }
     );
     const polling = ctl.tick(); // in-flight, blocked on gate
+    void polling;
     await new Promise((r) => setTimeout(r, 10)); // let the poll actually start
     const mutating = ctl.runMutation(
       async () => {
@@ -131,56 +146,10 @@ describe('PollController', () => {
     expect(order).toEqual(['poll-start']);
     gate.resolve();
     const result = await mutating;
-    await polling;
     expect(result).toEqual({ status: 'done', value: 'ok' });
     // Strict order: initial poll fully ends → mutation runs → single refresh
     // poll (which itself pushes start/end markers).
     expect(order).toEqual(['poll-start', 'poll-end', 'mutation-start', 'poll-start', 'poll-end']);
-  });
-
-  it('GAP2: slow mutation times out unknown, refreshes only when the orphan settles', async () => {
-    const order: string[] = [];
-    let calls = 0;
-    let release!: () => void;
-    const gate = new Promise<void>((res) => {
-      release = res;
-    });
-    const ctl = new PollController(
-      async () => {
-        order.push('poll');
-      },
-      { intervalMs: 1000 }
-    );
-    const slowMutation = async () => {
-      calls += 1;
-      order.push(`mutation-${calls}-start`);
-      await gate;
-      order.push(`mutation-${calls}-end`);
-      return `v${calls}`;
-    };
-    const first = await ctl.runMutation(slowMutation, 20, 'Iniciar subasta');
-    expect(first.status).toBe('unknown');
-    expect(calls).toBe(1);
-    // No refresh yet: polling stays suspended while the orphan is pending.
-    expect(order).toEqual(['mutation-1-start']);
-    expect(await ctl.tick()).toBe('skipped');
-    // The orphan settles later on its own — exactly once, then refresh+resume.
-    release();
-    await new Promise((r) => setTimeout(r, 10));
-    expect(order).toEqual(['mutation-1-start', 'mutation-1-end', 'poll']);
-    expect(calls).toBe(1);
-    expect(await ctl.tick()).toBe('polled');
-    // Operator-initiated retry is a NEW explicit call (never automatic).
-    const second = await ctl.runMutation(
-      async () => {
-        calls += 1;
-        return 'v2';
-      },
-      5000,
-      'Iniciar subasta'
-    );
-    expect(second).toEqual({ status: 'done', value: 'v2' });
-    expect(calls).toBe(2);
   });
 
   it('GAP2-drain: stuck poll blocks the mutation (no overlap, visible guidance)', async () => {
@@ -212,6 +181,69 @@ describe('PollController', () => {
     }
     expect(order).toEqual(['poll-start']);
     // NOTE: `polling` intentionally left pending (stuck poll simulation).
+  });
+
+  it('GAP3: timeout holds mutations, keeps reads flowing, refreshes on settle', async () => {
+    const order: string[] = [];
+    let calls = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((res) => {
+      release = res;
+    });
+    const ctl = new PollController(
+      async () => {
+        order.push('poll');
+      },
+      { intervalMs: 1000 }
+    );
+    const slowMutation = async () => {
+      calls += 1;
+      order.push(`mutation-${calls}-start`);
+      await gate;
+      order.push(`mutation-${calls}-end`);
+      return `v${calls}`;
+    };
+    const settled: string[] = [];
+    ctl.onOrphanSettled = () => settled.push('settled');
+
+    const first = await ctl.runMutation(slowMutation, 20, 'Iniciar subasta');
+    expect(first.status).toBe('unknown');
+    expect(calls).toBe(1);
+    expect(ctl.hasUnsettledMutation).toBe(true);
+    // Reads keep flowing while the orphan is pending (reconciliation).
+    expect(await ctl.tick()).toBe('polled');
+    expect(order).toEqual(['mutation-1-start', 'poll']);
+    // ...but new mutations are refused (never a blind retry).
+    let secondStarted = false;
+    await expect(
+      ctl.runMutation(
+        async () => {
+          secondStarted = true;
+          return 'x';
+        },
+        5000,
+        'Iniciar subasta'
+      )
+    ).rejects.toBeInstanceOf(ReconcilingError);
+    expect(secondStarted).toBe(false);
+    // The orphan settles later: exactly one refresh, hold cleared, notified.
+    release();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(order).toEqual(['mutation-1-start', 'poll', 'mutation-1-end', 'poll']);
+    expect(settled).toEqual(['settled']);
+    expect(ctl.hasUnsettledMutation).toBe(false);
+    expect(calls).toBe(1); // never duplicated
+    // Operator-initiated retry after settle is a NEW explicit call.
+    const retry = await ctl.runMutation(
+      async () => {
+        calls += 1;
+        return 'v2';
+      },
+      5000,
+      'Iniciar subasta'
+    );
+    expect(retry).toEqual({ status: 'done', value: 'v2' });
+    expect(calls).toBe(2);
   });
 
   it('runMutation propagates mutation errors and still refreshes', async () => {

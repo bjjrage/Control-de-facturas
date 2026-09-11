@@ -8,15 +8,17 @@ import { AuctionBotStateMachine } from '@/lib/auction-bot/state-machine';
 import { evaluateAuctionStep } from '@/lib/auction-bot/engine';
 import { recheckAndSubmit, runBotTick, roomSbeConstraints } from '@/lib/auction-sandbox/bot-runner';
 import { snapshotToAuctionState } from '@/lib/auction-sandbox/auction-state-adapter';
-import { buildBotIdempotencyKey, rankBids } from '@/lib/auction-sandbox/engine';
+import { buildAssistedIdempotencyKey, buildBotIdempotencyKey, rankBids } from '@/lib/auction-sandbox/engine';
 import { buildPolicyVersionRecord, checkPolicyContinuity, policyFromSnapshot } from '@/lib/auction-sandbox/policies';
 import {
   bundleToSnapshot,
   buildWatchView,
   computeNextRuntime,
   loadSandboxBundle,
+  missingInitialEvents,
   publicRoomInfo,
   rankBundle,
+  shouldEmitDecision,
   SandboxBundle,
   WatchView,
 } from '@/lib/auction-sandbox/server';
@@ -76,6 +78,23 @@ async function appendEvent(admin: Db, roomId: string, type: string, payload: Rec
   return (data as { ok: boolean; sequence?: number })?.sequence ?? null;
 }
 
+/**
+ * Self-healing for the two birth events (ROOM_CREATED / AUCTION_STARTED):
+ * when the loaded history provably starts at birth (see
+ * missingInitialEvents) yet an initial event is absent — i.e. its write
+ * failed while the state transition committed — the next heartbeat
+ * backfills it. Never duplicates: absence is only acted upon with proof.
+ */
+async function ensureInitialEvents(admin: Db, bundle: SandboxBundle): Promise<void> {
+  const missing = missingInitialEvents(bundle);
+  for (const type of missing) {
+    await appendEvent(admin, bundle.room.id, type, {
+      at: type === 'ROOM_CREATED' ? bundle.room.created_at : (bundle.room.started_at ?? new Date().toISOString()),
+      backfilled: true,
+    });
+  }
+}
+
 type RpcResult = { accepted: boolean; duplicate?: boolean; bid_id?: string; sequence?: number; rejection_code?: string; rejection_message?: string };
 
 /** Bid submit ALWAYS through the service_role RPC (server clock, no client time). */
@@ -123,7 +142,9 @@ async function botTick(admin: Db, db: Db, bundle: SandboxBundle, atIso: string):
     (last.candidate ?? null) !== (decision.candidatePricePyg ?? null) ||
     last.v !== decision.policyVersion;
 
-  if (changed) {
+  // Emit only when the freshly loaded bundle has no identical decision yet:
+  // covers the event-committed/runtime-lost split without duplicating.
+  if (changed && shouldEmitDecision(bundle, decision)) {
     await appendEvent(admin, bundle.room.id, 'BOT_DECISION', {
       action: decision.action,
       reasonCode: decision.reasonCode,
@@ -140,7 +161,8 @@ async function botTick(admin: Db, db: Db, bundle: SandboxBundle, atIso: string):
   }
 
   // Single coherent bot_runtime write per tick (F-A2): status + pending
-  // candidate are assembled pure-first, then persisted exactly once.
+  // candidate are assembled pure-first, then persisted exactly once — and
+  // only when something actually changed (narrows cross-tab LWW + DB load).
   const assistedCandidate =
     policy.executionMode === 'ASSISTED' && decision.action === 'BID_CANDIDATE' && decision.candidatePricePyg !== null
       ? {
@@ -151,8 +173,18 @@ async function botTick(admin: Db, db: Db, bundle: SandboxBundle, atIso: string):
         }
       : null;
   const nextRuntime = computeNextRuntime(runtime, decision, assistedCandidate);
-  await db.from('auction_sandbox_rooms').update({ bot_runtime: nextRuntime }).eq('id', bundle.room.id);
-  const next: SandboxBundle = { ...bundle, room: { ...bundle.room, bot_runtime: nextRuntime } };
+  let next = bundle;
+  if (JSON.stringify(nextRuntime) !== JSON.stringify(runtime)) {
+    const { error: runtimeError } = await db
+      .from('auction_sandbox_rooms')
+      .update({ bot_runtime: nextRuntime })
+      .eq('id', bundle.room.id);
+    // A failed runtime write is non-fatal: the next tick recomputes from the
+    // authoritative bundle (and shouldEmitDecision prevents event dupes).
+    if (!runtimeError) {
+      next = { ...bundle, room: { ...bundle.room, bot_runtime: nextRuntime } };
+    }
+  }
 
   if (assistedCandidate) {
     const assistedReload = await loadSandboxBundle(db, bundle.room.id);
@@ -284,6 +316,7 @@ export async function pollOperatorRoom(roomId: string): Promise<{ view?: Operato
   if ('error' in res) return { error: res.error };
   const advanced = await advanceRoom(res.admin, res.db, roomId);
   if ('error' in advanced) return { error: advanced.error };
+  await ensureInitialEvents(res.admin, advanced.bundle);
   const bundle = await botTick(res.admin, res.db, advanced.bundle, nowIso());
   return { view: toOperatorView(bundle, nowIso()) };
 }
@@ -351,10 +384,16 @@ export async function createSandboxRoom(input: {
     .single();
   if (error || !room) return { error: 'No se pudo crear la sala.' };
   const roomId = (room as { id: string }).id;
-  await db.from('auction_sandbox_participants').insert([
+  // Participants must both exist or the room is bricked: compensate by
+  // deleting the room (cascade) instead of returning half-built state.
+  const { error: participantsError } = await db.from('auction_sandbox_participants').insert([
     { room_id: roomId, kind: 'BOT', display_alias: 'Nuestro Bot' },
     { room_id: roomId, kind: 'HUMAN', display_alias: 'Competidor' },
   ]);
+  if (participantsError) {
+    await db.from('auction_sandbox_rooms').delete().eq('id', roomId);
+    return { error: 'No se pudo crear la sala (participantes).' };
+  }
   // ROOM_CREATED goes through the authoritative event allocator (admin RPC):
   // direct inserts have no RLS grant and would fail silently.
   const admin = createAdminClient();
@@ -385,21 +424,28 @@ export async function startSandboxRoom(roomId: string): Promise<{ error?: string
   if (!started || started.length !== 1) {
     return { error: 'La sala ya fue iniciada o cambió de estado.' };
   }
-  await appendEvent(res.admin, roomId, 'AUCTION_STARTED', { at: nowIso() });
+  // The transition committed; a failed event write must surface (the
+  // heartbeat backfills a provably-missing AUCTION_STARTED via
+  // ensureInitialEvents, so this never silently diverges forever).
+  const startedSeq = await appendEvent(res.admin, roomId, 'AUCTION_STARTED', { at: nowIso() });
+  if (startedSeq === null) return { error: 'Sala iniciada, pero falló el registro del evento. Recargá la sala.' };
   return {};
 }
 
 export async function authorizeSandboxPolicy(
   roomId: string,
   draft: AuctionPolicy,
-  authorizedBy: string
+  _authorizedBy: string
 ): Promise<{ version?: number; error?: string }> {
   const res = await manageOperatorBundle(roomId);
   if ('error' in res) return { error: res.error };
   const room = res.bundle.room;
   const prev = res.bundle.policies.length > 0 ? res.bundle.policies[res.bundle.policies.length - 1] : null;
   const nextVersion = prev ? prev.version + 1 : 1;
-  const who = authorizedBy.trim();
+  // Audit identity comes from the logged-in operator, NEVER from the browser:
+  // a client-supplied authorizedBy is spoofable and is therefore ignored.
+  const profile = await requireProfile([...MANAGE_ROLES]);
+  const who = profile.full_name?.trim() || profile.id;
   if (!who) return { error: 'Indicá quién autoriza.' };
 
   // Canonical server-side binding: NEVER trust browser identity fields.
@@ -434,16 +480,21 @@ export async function authorizeSandboxPolicy(
     if (error.code === '23505') return { error: 'Versión duplicada: reintentá.' };
     return { error: 'No se pudo persistir la policy.' };
   }
-  await appendEvent(res.admin, roomId, 'POLICY_AUTHORIZED', {
+  // Both follow-ups are checked: a persisted policy without its event or
+  // without the candidate invalidation would silently diverge.
+  const policySeq = await appendEvent(res.admin, roomId, 'POLICY_AUTHORIZED', {
     version: nextVersion,
     policy_id: record.policy_id,
     fingerprint: record.fingerprint,
     authorized_by: record.authorized_by,
   });
-  // A new version invalidates any ASSISTED pending candidate.
-  await res.db.from('auction_sandbox_rooms').update({
+  const { error: clearError } = await res.db.from('auction_sandbox_rooms').update({
+    // A new version invalidates any ASSISTED pending candidate.
     bot_runtime: { ...((room.bot_runtime ?? {}) as Record<string, unknown>), pendingCandidate: null },
   }).eq('id', roomId);
+  if (policySeq === null || clearError) {
+    return { error: `Policy v${nextVersion} guardada, pero falló la registración (evento/limpieza). Revisá el timeline antes de operar.` };
+  }
   return { version: nextVersion };
 }
 
@@ -491,7 +542,10 @@ export async function authorizeAssistedBid(roomId: string): Promise<{ price?: nu
   const freshBundle = refreshed.bundle;
   const freshAt = new Date().toISOString();
   const freshState = snapshotToAuctionState(bundleToSnapshot(freshBundle), freshAt);
-  const bidKey = buildBotIdempotencyKey(roomId, policy.version, state.observedAt, decision.candidatePricePyg);
+  // STABLE key per (room, version, price): concurrent authorizations of the
+  // SAME candidate dedupe in the RPC instead of double-submitting. (Never
+  // bind wall-clock here: time-varying keys defeat idempotency.)
+  const bidKey = buildAssistedIdempotencyKey(roomId, policy.version, decision.candidatePricePyg);
   const result = await recheckAndSubmit({
     machine,
     decision,
@@ -512,6 +566,10 @@ export async function authorizeAssistedBid(roomId: string): Promise<{ price?: nu
   } catch {
     return { error: 'No se pudo confirmar el envío.' };
   }
+  // Display-only cleanup (best-effort, checked): the submit path re-derived
+  // everything from the current policy, and the next tick recomputes the
+  // proposal box from scratch — so a failed clear converges on its own.
+  // Never fail an already-executed economic action over display state.
   await res.db.from('auction_sandbox_rooms').update({
     bot_runtime: { ...((bundle.room.bot_runtime ?? {}) as Record<string, unknown>), pendingCandidate: null },
   }).eq('id', roomId);

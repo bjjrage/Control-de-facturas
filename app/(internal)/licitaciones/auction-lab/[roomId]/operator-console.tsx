@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { PolicyConfigForm } from '@/components/auction-bot/policy-config-form';
 import { FrozenAuctionPolicy } from '@/lib/auction-bot/types';
-import { PollController, TimeoutError } from '@/lib/auction-sandbox/poll-controller';
+import { PollController, TimeoutError, isNextRedirect, ReconcilingError } from '@/lib/auction-sandbox/poll-controller';
 import {
   authorizeAssistedBid,
   authorizeSandboxPolicy,
@@ -38,18 +38,27 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
   // Transient unequivocal feedback right after a freeze (same pattern as the
   // standalone bot page).
   const [justFrozenVersion, setJustFrozenVersion] = useState<number | null>(null);
+  // True while a timed-out mutation is still unconfirmed: mutation buttons
+  // stay disabled (no blind retry) while reads keep flowing for reconcile.
+  const [reconciling, setReconciling] = useState(false);
   const controllerRef = useRef<PollController | null>(null);
 
   const poll = useCallback(async () => {
-    // Managers heartbeat (advance + bot tick); comercial gets a read-only view.
-    const res = canManage ? await pollOperatorRoom(roomId) : await getOperatorRoomState(roomId);
-    if (res.error) {
-      setError(res.error);
-      return;
-    }
-    if (res.view) {
-      setView(res.view);
-      setError(null);
+    try {
+      // Managers heartbeat (advance + bot tick); comercial gets a read-only view.
+      const res = canManage ? await pollOperatorRoom(roomId) : await getOperatorRoomState(roomId);
+      if (res.error) {
+        setError(res.error);
+        return;
+      }
+      if (res.view) {
+        setView(res.view);
+        setError(null);
+      }
+    } catch (e) {
+      // Auth expiry (redirect digest) must propagate to Next, never swallow.
+      if (isNextRedirect(e)) throw e;
+      setError('Error de conexión. Revisá tu sesión si persiste.');
     }
   }, [roomId, canManage]);
 
@@ -59,6 +68,7 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
   useEffect(() => {
     const ctl = new PollController(() => pollRef.current(), { intervalMs: 1000 });
     controllerRef.current = ctl;
+    ctl.onOrphanSettled = () => setReconciling(false);
     void ctl.tick();
     ctl.start();
     return () => {
@@ -79,6 +89,10 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
   async function run(key: string, fn: () => Promise<{ error?: string }>) {
     const ctl = controllerRef.current;
     const label = MUTATION_LABELS[key] ?? 'Acción';
+    if (ctl?.hasUnsettledMutation) {
+      setError('Hay una acción anterior sin confirmar. Esperá a que se resuelva antes de reintentar.');
+      return;
+    }
     setBusy(key);
     setError(null);
     try {
@@ -86,9 +100,9 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
         ? await ctl.runMutation(fn, 25000, label)
         : { status: 'done' as const, value: await fn() };
       if (out.status === 'unknown') {
-        // Timeout is NOT a verdict: the mutation may complete late. The UI
-        // shows reconciling state; the controller refreshes once the late
-        // promise settles. Never blind-retry while ambiguous.
+        // Timeout is NOT a verdict: UI enters reconciling mode (mutations
+        // locked, reads flowing) until the orphan settles or the cap hits.
+        setReconciling(true);
         setError(
           out.detail ??
             `Sin confirmación: ${label} tardó demasiado. Mirá el estado actual de la sala: si ya refleja el cambio, no hace falta reintentar.`
@@ -97,7 +111,8 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
       }
       if (out.value.error) setError(out.value.error);
     } catch (e) {
-      setError(e instanceof TimeoutError ? e.message : 'Error de conexión.');
+      if (isNextRedirect(e)) throw e;
+      setError(e instanceof ReconcilingError ? e.message : e instanceof TimeoutError ? e.message : 'Error de conexión.');
     } finally {
       setBusy(null);
     }
@@ -115,6 +130,10 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
 
   async function handleFrozen(frozen: FrozenAuctionPolicy) {
     const ctl = controllerRef.current;
+    if (ctl?.hasUnsettledMutation) {
+      setError('Hay una acción anterior sin confirmar. Esperá a que se resuelva antes de reintentar.');
+      return;
+    }
     setBusy('policy');
     setError(null);
     try {
@@ -122,6 +141,7 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
         ? await ctl.runMutation(() => authorizeSandboxPolicy(roomId, frozen, frozen.authorizedBy), 25000, 'Autorizar policy')
         : { status: 'done' as const, value: await authorizeSandboxPolicy(roomId, frozen, frozen.authorizedBy) };
       if (out.status === 'unknown') {
+        setReconciling(true);
         setError('Sin confirmación: la autorización tardó demasiado. Revisá si aparece la nueva versión antes de reintentar.');
         return;
       }
@@ -132,7 +152,8 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
       setShowPolicy(false);
       setJustFrozenVersion(out.value.version ?? null);
     } catch (e) {
-      setError(e instanceof TimeoutError ? e.message : 'Error de conexión.');
+      if (isNextRedirect(e)) throw e;
+      setError(e instanceof ReconcilingError ? e.message : e instanceof TimeoutError ? e.message : 'Error de conexión.');
     } finally {
       setBusy(null);
     }
@@ -168,24 +189,24 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
           ) : (
             <>
           {room.status === 'DRAFT' ? (
-            <Button className="h-8 text-xs" disabled={busy !== null} onClick={() => run('start', () => startSandboxRoom(roomId))}>
+            <Button className="h-8 text-xs" disabled={busy !== null || reconciling} onClick={() => run('start', () => startSandboxRoom(roomId))}>
               {busy === 'start' ? 'Iniciando…' : 'Iniciar subasta'}
             </Button>
           ) : null}
           {room.status !== 'CLOSED' && room.status !== 'DRAFT' ? (
-            <Button variant="secondary" className="h-8 text-xs" disabled={busy !== null} onClick={() => run('pause', () => setSandboxBotPaused(roomId, !view.botPaused))}>
+            <Button variant="secondary" className="h-8 text-xs" disabled={busy !== null || reconciling} onClick={() => run('pause', () => setSandboxBotPaused(roomId, !view.botPaused))}>
               {view.botPaused ? 'Reanudar bot' : 'Pausar bot'}
             </Button>
           ) : null}
           {room.status !== 'CLOSED' && room.status !== 'DRAFT' ? (
-            <Button variant="secondary" className="h-8 text-xs" disabled={busy !== null} onClick={() => run('finalize', () => finalizeSandboxRoom(roomId))}>
+            <Button variant="secondary" className="h-8 text-xs" disabled={busy !== null || reconciling} onClick={() => run('finalize', () => finalizeSandboxRoom(roomId))}>
               Finalizar demo
             </Button>
           ) : null}
           <Button
             variant="secondary"
             className="h-8 text-xs"
-            disabled={busy !== null}
+            disabled={busy !== null || reconciling}
             onClick={() =>
               run('links', async () => {
                 const res = await regenerateSandboxLinks(roomId);
@@ -210,6 +231,12 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
       </div>
 
       {error ? <p className="text-[12px] text-[var(--error)]">{error}</p> : null}
+
+      {reconciling ? (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-[12px] font-medium text-amber-600 dark:text-amber-400">
+          Acción sin confirmar — reconciliando con el servidor. Las acciones están pausadas hasta confirmar el resultado; no hace falta reintentar.
+        </div>
+      ) : null}
 
       {justFrozenVersion !== null && bot.policyVersion === justFrozenVersion ? (
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 flex items-center gap-2.5">
@@ -294,7 +321,7 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
               {canManage ? (
                 <Button
                   className="h-8 text-xs mt-2"
-                  disabled={busy !== null}
+                  disabled={busy !== null || reconciling}
                   onClick={() => run('authz', () => authorizeAssistedBid(roomId).then((r) => ({ error: r.error })))}
                 >
                   {busy === 'authz' ? 'Autorizando…' : 'Autorizar lance'}

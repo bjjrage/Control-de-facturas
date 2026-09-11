@@ -158,6 +158,15 @@ export function buildBotIdempotencyKey(roomId: string, policyVersion: number, ba
   return `bot:${roomId}:v${policyVersion}:${basisObservedAt}:${pricePyg}`;
 }
 
+/**
+ * Stable key for ASSISTED authorizations: bound to (room, version, price)
+ * ONLY — deliberately wall-clock-free so concurrent authorizations of the
+ * same candidate dedupe in the RPC instead of double-submitting.
+ */
+export function buildAssistedIdempotencyKey(roomId: string, policyVersion: number, pricePyg: number): string {
+  return `assist:${roomId}:v${policyVersion}:${pricePyg}`;
+}
+
 /** Winner = rank #1 accepted bid (null when no bids). */
 export function winnerOfRanking(ranking: SandboxRankedEntry[]): SandboxRankedEntry | null {
   return ranking.length > 0 ? ranking[0] : null;
