@@ -64,9 +64,9 @@ async function run() {
     record('Verificación de conexión a PostgreSQL real', 'Versión PostgreSQL retornada', pgVersion.slice(0, 30), true);
 
     // --------------------------------------------------------------------------
-    // 1. VERIFICACIÓN DE RECONSTRUCCIÓN MONETARIA TENANT-SCOPED (MIGRACIÓN 0068)
+    // 1. SETUP DE TENANTS, USUARIOS Y PROVEEDORES BASE
     // --------------------------------------------------------------------------
-    console.log('\n--- TEST 1: Reconstrucción Histórica de Moneda (Same Tenant vs Cross Tenant) ---');
+    console.log('\n--- SETUP DE TENANTS Y USUARIOS REALES EN POSTGRESQL ---');
     
     // Crear empresas A y B
     const empARes = await client.query(`
@@ -83,6 +83,36 @@ async function run() {
     `);
     const empresaB = empBRes.rows[0].id;
 
+    // Crear usuarios en auth.users
+    const usrARes = await client.query(`
+      INSERT INTO auth.users (id, email)
+      VALUES (gen_random_uuid(), 'user-a-' || gen_random_uuid() || '@test.com')
+      RETURNING id;
+    `);
+    const userA = usrARes.rows[0].id;
+
+    const usrBRes = await client.query(`
+      INSERT INTO auth.users (id, email)
+      VALUES (gen_random_uuid(), 'user-b-' || gen_random_uuid() || '@test.com')
+      RETURNING id;
+    `);
+    const userB = usrBRes.rows[0].id;
+
+    const usrNoTenantRes = await client.query(`
+      INSERT INTO auth.users (id, email)
+      VALUES (gen_random_uuid(), 'user-notenant-' || gen_random_uuid() || '@test.com')
+      RETURNING id;
+    `);
+    const userNoTenant = usrNoTenantRes.rows[0].id;
+
+    // Crear perfiles asociados en public.profiles
+    await client.query(`
+      INSERT INTO public.profiles (id, email, full_name, role, empresa_id)
+      VALUES 
+        ($1, 'user-a@test.com', 'Usuario Empresa A', 'admin', $2),
+        ($3, 'user-b@test.com', 'Usuario Empresa B', 'admin', $4);
+    `, [userA, empresaA, userB, empresaB]);
+
     // Crear proveedores para A y B
     const provARes = await client.query(`
       INSERT INTO public.providers (empresa_id, name, tax_id)
@@ -98,41 +128,46 @@ async function run() {
     `, [empresaB]);
     const provB = provBRes.rows[0].id;
 
+    // --------------------------------------------------------------------------
+    // 2. VERIFICACIÓN DE RECONSTRUCCIÓN MONETARIA TENANT-SCOPED (MIGRACIÓN 0068)
+    // --------------------------------------------------------------------------
+    console.log('\n--- TEST 1: Reconstrucción Histórica de Moneda (Same Tenant vs Cross Tenant) ---');
+
     // Factura legítima de Empresa A en EUR
     const facARes = await client.query(`
       INSERT INTO public.invoices (
-        empresa_id, provider_id, invoice_number, invoice_date, currency, total, status
-      ) VALUES ($1, $2, 'FAC-A-001', '2026-08-01', 'EUR', 1500, 'PENDIENTE')
+        empresa_id, provider_id, invoice_number, invoice_date, currency, total, status, created_by
+      ) VALUES ($1, $2, 'FAC-A-001', '2026-08-01', 'EUR', 1500, 'PENDIENTE', $3)
       RETURNING id;
-    `, [empresaA, provA]);
+    `, [empresaA, provA, userA]);
     const facAId = facARes.rows[0].id;
 
     // Factura legítima de Empresa B en USD
     const facBRes = await client.query(`
       INSERT INTO public.invoices (
-        empresa_id, provider_id, invoice_number, invoice_date, currency, total, status
-      ) VALUES ($1, $2, 'FAC-B-001', '2026-08-01', 'USD', 2500, 'PENDIENTE')
+        empresa_id, provider_id, invoice_number, invoice_date, currency, total, status, created_by
+      ) VALUES ($1, $2, 'FAC-B-001', '2026-08-01', 'USD', 2500, 'PENDIENTE', $3)
       RETURNING id;
-    `, [empresaB, provB]);
+    `, [empresaB, provB, userB]);
     const facBId = facBRes.rows[0].id;
 
     // Órdenes de compra autorizadas para A y B
     const aoARes = await client.query(`
       INSERT INTO public.authorized_orders (
         empresa_id, provider_id, provider_name, client_name, product, quantity, unit,
-        unit_price, total_price, currency, vat_included, is_cheapest
-      ) VALUES ($1, $2, 'Proveedor A', 'Cliente A', 'Insumo Alfa', 10, 'UN', 100, 1000, 'EUR', true, true)
+        unit_price, total_price, currency, vat_included, is_cheapest, authorized_by
+      ) VALUES ($1, $2, 'Proveedor A', 'Cliente A', 'Insumo Alfa', 10, 'UN', 100, 1000, 'EUR', true, true, $3)
       RETURNING id;
-    `, [empresaA, provA]);
+    `, [empresaA, provA, userA]);
     const aoAId = aoARes.rows[0].id;
 
     const aoBRes = await client.query(`
       INSERT INTO public.authorized_orders (
         empresa_id, provider_id, provider_name, client_name, product, quantity, unit,
-        unit_price, total_price, currency, vat_included, is_cheapest
-      ) VALUES ($1, $2, 'Proveedor B', 'Cliente B', 'Insumo Beta', 20, 'UN', 50, 1000, 'USD', true, true)
+        unit_price, total_price, currency, vat_included, is_cheapest, authorized_by
+      ) VALUES ($1, $2, 'Proveedor B', 'Cliente B', 'Insumo Beta', 20, 'UN', 50, 1000, 'USD', true, true, $3)
       RETURNING id;
-    `, [empresaB, provB]);
+    `, [empresaB, provB, userB]);
     const aoBId = aoBRes.rows[0].id;
 
     // Insertar observaciones corruptas previas a la reparación
@@ -244,42 +279,6 @@ async function run() {
     record('Observación sin documento permanece NULL', 'null', String(rNoDoc), rNoDoc === null);
     record('Observación con documento inexistente permanece NULL', 'null', String(rBadDoc), rBadDoc === null);
 
-
-    // --------------------------------------------------------------------------
-    // 2. CREACIÓN DE USUARIOS AUTENTICADOS REALES PARA TEST DE TENANT ISOLATION
-    // --------------------------------------------------------------------------
-    console.log('\n--- SETUP DE USUARIOS & SESIONES REALES EN POSTGRESQL ---');
-    
-    // Crear usuarios en auth.users
-    const usrARes = await client.query(`
-      INSERT INTO auth.users (id, email)
-      VALUES (gen_random_uuid(), 'user-a-' || gen_random_uuid() || '@test.com')
-      RETURNING id;
-    `);
-    const userA = usrARes.rows[0].id;
-
-    const usrBRes = await client.query(`
-      INSERT INTO auth.users (id, email)
-      VALUES (gen_random_uuid(), 'user-b-' || gen_random_uuid() || '@test.com')
-      RETURNING id;
-    `);
-    const userB = usrBRes.rows[0].id;
-
-    const usrNoTenantRes = await client.query(`
-      INSERT INTO auth.users (id, email)
-      VALUES (gen_random_uuid(), 'user-notenant-' || gen_random_uuid() || '@test.com')
-      RETURNING id;
-    `);
-    const userNoTenant = usrNoTenantRes.rows[0].id;
-
-    // Crear perfiles asociados en public.profiles
-    await client.query(`
-      INSERT INTO public.profiles (id, email, full_name, role, empresa_id)
-      VALUES 
-        ($1, 'user-a@test.com', 'Usuario Empresa A', 'admin', $2),
-        ($3, 'user-b@test.com', 'Usuario Empresa B', 'admin', $4);
-    `, [userA, empresaA, userB, empresaB]);
-
     // Cuentas financieras para A y B
     const ctaARes = await client.query(`
       INSERT INTO public.cuentas_financieras (empresa_id, nombre, tipo, saldo)
@@ -298,26 +297,26 @@ async function run() {
     // Facturas listas para pagar
     const invPayARes = await client.query(`
       INSERT INTO public.invoices (
-        empresa_id, provider_id, invoice_number, invoice_date, currency, total, status
-      ) VALUES ($1, $2, 'INV-PAY-A1', current_date, 'PYG', 5000000, 'APTO_PARA_PAGO')
+        empresa_id, provider_id, invoice_number, invoice_date, currency, total, status, created_by
+      ) VALUES ($1, $2, 'INV-PAY-A1', current_date, 'PYG', 5000000, 'APTO_PARA_PAGO', $3)
       RETURNING id;
-    `, [empresaA, provA]);
+    `, [empresaA, provA, userA]);
     const invPayA = invPayARes.rows[0].id;
 
     const invPayBRes = await client.query(`
       INSERT INTO public.invoices (
-        empresa_id, provider_id, invoice_number, invoice_date, currency, total, status
-      ) VALUES ($1, $2, 'INV-PAY-B1', current_date, 'PYG', 3000000, 'APTO_PARA_PAGO')
+        empresa_id, provider_id, invoice_number, invoice_date, currency, total, status, created_by
+      ) VALUES ($1, $2, 'INV-PAY-B1', current_date, 'PYG', 3000000, 'APTO_PARA_PAGO', $3)
       RETURNING id;
-    `, [empresaB, provB]);
+    `, [empresaB, provB, userB]);
     const invPayB = invPayBRes.rows[0].id;
 
     // Orden de pago legítima A
     const opARes = await client.query(`
-      INSERT INTO public.payment_orders (empresa_id, code, provider_id, status)
-      VALUES ($1, 'OP-TEST-A-01', $2, 'EMITIDA')
+      INSERT INTO public.payment_orders (empresa_id, code, provider_id, status, created_by)
+      VALUES ($1, 'OP-TEST-A-01', $2, 'EMITIDA', $3)
       RETURNING id;
-    `, [empresaA, provA]);
+    `, [empresaA, provA, userA]);
     const opA = opARes.rows[0].id;
 
     await client.query(`
@@ -327,10 +326,10 @@ async function run() {
 
     // Orden de pago legítima B
     const opBRes = await client.query(`
-      INSERT INTO public.payment_orders (empresa_id, code, provider_id, status)
-      VALUES ($1, 'OP-TEST-B-01', $2, 'EMITIDA')
+      INSERT INTO public.payment_orders (empresa_id, code, provider_id, status, created_by)
+      VALUES ($1, 'OP-TEST-B-01', $2, 'EMITIDA', $3)
       RETURNING id;
-    `, [empresaB, provB]);
+    `, [empresaB, provB, userB]);
     const opB = opBRes.rows[0].id;
 
     await client.query(`
@@ -340,10 +339,10 @@ async function run() {
 
     // Orden de pago fraudulenta/corrupta A con factura de B infiltrada
     const opACorruptRes = await client.query(`
-      INSERT INTO public.payment_orders (empresa_id, code, provider_id, status)
-      VALUES ($1, 'OP-TEST-A-CORRUPT', $2, 'EMITIDA')
+      INSERT INTO public.payment_orders (empresa_id, code, provider_id, status, created_by)
+      VALUES ($1, 'OP-TEST-A-CORRUPT', $2, 'EMITIDA', $3)
       RETURNING id;
-    `, [empresaA, provA]);
+    `, [empresaA, provA, userA]);
     const opACorrupt = opACorruptRes.rows[0].id;
 
     await client.query(`
@@ -404,14 +403,14 @@ async function run() {
 
     // 2.5 A + cuenta financiera B = FAIL
     const opA2 = (await client.query(`
-      INSERT INTO public.payment_orders (empresa_id, code, provider_id, status)
-      VALUES ($1, 'OP-TEST-A-02', $2, 'EMITIDA') RETURNING id;
-    `, [empresaA, provA])).rows[0].id;
+      INSERT INTO public.payment_orders (empresa_id, code, provider_id, status, created_by)
+      VALUES ($1, 'OP-TEST-A-02', $2, 'EMITIDA', $3) RETURNING id;
+    `, [empresaA, provA, userA])).rows[0].id;
     const invA2 = (await client.query(`
       INSERT INTO public.invoices (
-        empresa_id, provider_id, invoice_number, invoice_date, currency, total, status
-      ) VALUES ($1, $2, 'INV-A2', current_date, 'PYG', 100000, 'APTO_PARA_PAGO') RETURNING id;
-    `, [empresaA, provA])).rows[0].id;
+        empresa_id, provider_id, invoice_number, invoice_date, currency, total, status, created_by
+      ) VALUES ($1, $2, 'INV-A2', current_date, 'PYG', 100000, 'APTO_PARA_PAGO', $3) RETURNING id;
+    `, [empresaA, provA, userA])).rows[0].id;
     await client.query(`
       INSERT INTO public.payment_order_invoices (empresa_id, payment_order_id, invoice_id)
       VALUES ($1, $2, $3);
@@ -604,14 +603,14 @@ async function run() {
 
     const invRollback = (await client.query(`
       INSERT INTO public.invoices (
-        empresa_id, provider_id, invoice_number, invoice_date, currency, total, status
-      ) VALUES ($1, $2, 'INV-ROLL-01', current_date, 'PYG', 2000000, 'APTO_PARA_PAGO') RETURNING id, status;
-    `, [empresaA, provA])).rows[0];
+        empresa_id, provider_id, invoice_number, invoice_date, currency, total, status, created_by
+      ) VALUES ($1, $2, 'INV-ROLL-01', current_date, 'PYG', 2000000, 'APTO_PARA_PAGO', $3) RETURNING id, status;
+    `, [empresaA, provA, userA])).rows[0];
 
     const opRollback = (await client.query(`
-      INSERT INTO public.payment_orders (empresa_id, code, provider_id, status)
-      VALUES ($1, 'OP-ROLLBACK-01', $2, 'EMITIDA') RETURNING id, status;
-    `, [empresaA, provA])).rows[0];
+      INSERT INTO public.payment_orders (empresa_id, code, provider_id, status, created_by)
+      VALUES ($1, 'OP-ROLLBACK-01', $2, 'EMITIDA', $3) RETURNING id, status;
+    `, [empresaA, provA, userA])).rows[0];
 
     await client.query(`
       INSERT INTO public.payment_order_invoices (empresa_id, payment_order_id, invoice_id)
@@ -645,15 +644,15 @@ async function run() {
     console.log('\n--- TEST 8: Concurrencia Real (Prevención de Doble Pago) ---');
 
     const opConcurrency = (await client.query(`
-      INSERT INTO public.payment_orders (empresa_id, code, provider_id, status)
-      VALUES ($1, 'OP-CONCURRENCY-01', $2, 'EMITIDA') RETURNING id;
-    `, [empresaA, provA])).rows[0].id;
+      INSERT INTO public.payment_orders (empresa_id, code, provider_id, status, created_by)
+      VALUES ($1, 'OP-CONCURRENCY-01', $2, 'EMITIDA', $3) RETURNING id;
+    `, [empresaA, provA, userA])).rows[0].id;
 
     const invConcurrency = (await client.query(`
       INSERT INTO public.invoices (
-        empresa_id, provider_id, invoice_number, invoice_date, currency, total, status
-      ) VALUES ($1, $2, 'INV-CONC-01', current_date, 'PYG', 500000, 'APTO_PARA_PAGO') RETURNING id;
-    `, [empresaA, provA])).rows[0].id;
+        empresa_id, provider_id, invoice_number, invoice_date, currency, total, status, created_by
+      ) VALUES ($1, $2, 'INV-CONC-01', current_date, 'PYG', 500000, 'APTO_PARA_PAGO', $3) RETURNING id;
+    `, [empresaA, provA, userA])).rows[0].id;
 
     await client.query(`
       INSERT INTO public.payment_order_invoices (empresa_id, payment_order_id, invoice_id)
