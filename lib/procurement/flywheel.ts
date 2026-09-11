@@ -241,6 +241,8 @@ export async function recordCostObservationFromInvoice(
         unidad: unit,
         precio_unitario: precioUnitarioNormalizadoPyg,
         moneda: 'PYG', // Contrato canónico: la base de observaciones opera en PYG normalizado
+        moneda_original: currency,
+        precio_unitario_original: unitPrice,
         tipo_cambio: tipoCambio,
         fecha_observacion: invoiceDate,
         es_volatil: categoria === 'COMBUSTIBLE'

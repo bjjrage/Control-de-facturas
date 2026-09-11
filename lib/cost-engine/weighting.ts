@@ -95,10 +95,19 @@ export function calculateCostEstimate(
   const sourceWeights = { ...DEFAULT_SOURCE_WEIGHTS, ...config?.sourceWeights };
   const volatilityThreshold = config?.volatilityThresholdPercent ?? 15.0; // 15% CV
 
-  if (observations.length === 0) {
+  // Filtrar estrictamente observaciones computables con estado de evidencia VALIDA
+  const validObservations = observations.filter(
+    (obs): obs is CostObservation & { precioUnitario: number } => {
+      if (obs.estadoEvidencia && obs.estadoEvidencia !== 'VALIDA') return false;
+      if (obs.precioUnitario === null || obs.precioUnitario === undefined || !Number.isFinite(obs.precioUnitario) || obs.precioUnitario < 0) return false;
+      return true;
+    }
+  );
+
+  if (validObservations.length === 0) {
     return {
-      itemDescription: 'Sin observaciones',
-      unit: 'UN',
+      itemDescription: observations[0]?.descripcionItem || 'Sin observaciones válidas',
+      unit: observations[0]?.unidad || 'UN',
       recommendedUnitPrice: 0,
       priceRange: { min: 0, p25: 0, median: 0, p75: 0, max: 0 },
       sampleSize: 0,
@@ -121,7 +130,7 @@ export function calculateCostEstimate(
   const prices: number[] = [];
 
   // Ordenar por fecha cronológica ascendente para calcular tendencias
-  const sortedObs = [...observations].sort(
+  const sortedObs = [...validObservations].sort(
     (a, b) => new Date(a.fechaObservacion).getTime() - new Date(b.fechaObservacion).getTime()
   );
 
@@ -210,11 +219,11 @@ export function calculateCostEstimate(
   }
 
   return {
-    itemDescription: observations[0].descripcionItem,
-    unit: observations[0].unidad,
+    itemDescription: validObservations[0].descripcionItem,
+    unit: validObservations[0].unidad,
     recommendedUnitPrice: recommendedPrice,
     priceRange: { min, p25, median, p75, max },
-    sampleSize: observations.length,
+    sampleSize: validObservations.length,
     totalVolumeObserved: totalVolume,
     volatilityPercentage,
     trend,

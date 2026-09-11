@@ -54,7 +54,10 @@ async function runTests() {
     '0062_competitor_intelligence.sql',
     '0063_cost_observations.sql',
     '0064_company_bid_vault.sql',
-    '0065_bid_analysis_snapshots.sql'
+    '0065_bid_analysis_snapshots.sql',
+    '0066_bid_snapshot_nullability_and_project_linkage.sql',
+    '0067_canonical_cost_and_contract_history.sql',
+    '0068_security_definer_tenant_hardening.sql'
   ];
 
   for (const m of migrations) {

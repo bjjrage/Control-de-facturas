@@ -210,7 +210,7 @@ export async function executeTenderToProjectTransaction(
     if (rpcErr) {
       if (rpcErr.message?.includes('function') && rpcErr.message?.includes('does not exist')) {
         return {
-          error: 'MIGRATION_REQUIRED: La función atómica convertir_licitacion_a_proyecto_atomico no está instalada en la base de datos. Ejecute la migración 0066.'
+          error: 'MIGRATION_REQUIRED: La función atómica convertir_licitacion_a_proyecto_atomico no está instalada en la base de datos. Ejecute la migración 0068.'
         };
       }
       console.error('[TenderToProject] Transacción atómica en BD falló (rollback automático):', rpcErr);
@@ -221,7 +221,7 @@ export async function executeTenderToProjectTransaction(
   } catch (err: any) {
     if (err?.message?.includes('function') && err?.message?.includes('does not exist')) {
       return {
-        error: 'MIGRATION_REQUIRED: La función atómica convertir_licitacion_a_proyecto_atomico no está instalada en la base de datos. Ejecute la migración 0066.'
+        error: 'MIGRATION_REQUIRED: La función atómica convertir_licitacion_a_proyecto_atomico no está instalada en la base de datos. Ejecute la migración 0068.'
       };
     }
     console.error('[TenderToProject] Excepción en RPC transaccional:', err);

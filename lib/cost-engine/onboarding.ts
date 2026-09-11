@@ -198,6 +198,8 @@ export function parseHistoricalSpreadsheet(
       unidad: unit,
       precioUnitario: unitPrice,
       moneda: 'PYG',
+      monedaOriginal: 'PYG',
+      precioUnitarioOriginal: unitPrice,
       tipoCambio: 1.0,
       fechaObservacion: dateStr,
       esVolatil: category === 'COMBUSTIBLE',

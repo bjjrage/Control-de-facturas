@@ -568,6 +568,8 @@ export async function importarPlanillaCostosHistoricos(
       unidad: obs.unidad,
       precio_unitario: obs.precioUnitario,
       moneda: obs.moneda,
+      moneda_original: obs.monedaOriginal || obs.moneda || 'PYG',
+      precio_unitario_original: obs.precioUnitarioOriginal ?? obs.precioUnitario,
       tipo_cambio: obs.tipoCambio,
       fecha_observacion: obs.fechaObservacion,
       es_volatil: obs.esVolatil

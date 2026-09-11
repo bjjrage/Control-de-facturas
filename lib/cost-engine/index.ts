@@ -32,7 +32,8 @@ export async function getCurrentCostEstimate(params: {
   let query = supabase
     .from('cost_observations')
     .select('*')
-    .or('estado_evidencia.eq.VALIDA,estado_evidencia.is.null')
+    .eq('estado_evidencia', 'VALIDA')
+    .not('precio_unitario', 'is', null)
     .lte('fecha_observacion', asOfDateStr)
     .order('fecha_observacion', { ascending: false })
     .limit(100);
@@ -69,8 +70,10 @@ export async function getCurrentCostEstimate(params: {
     // INVARIANTE CANÓNICO DE MONEDA:
     // cost_observations.precio_unitario ya se persiste 100% normalizado a PYG.
     // tipo_cambio es solo metadato de trazabilidad y NO debe volverse a multiplicar.
-    precioUnitario: Number(row.precio_unitario),
+    precioUnitario: row.precio_unitario != null ? Number(row.precio_unitario) : null,
     moneda: row.moneda,
+    monedaOriginal: row.moneda_original || null,
+    precioUnitarioOriginal: row.precio_unitario_original != null ? Number(row.precio_unitario_original) : null,
     tipoCambio: row.tipo_cambio != null ? Number(row.tipo_cambio) : undefined,
     fechaObservacion: row.fecha_observacion,
     esVolatil: row.es_volatil,
@@ -129,6 +132,8 @@ export async function recordCostObservation(observation: Omit<CostObservation, '
       unidad: observation.unidad.trim().toUpperCase(),
       precio_unitario: normalizedPricePyg,
       moneda: 'PYG',
+      moneda_original: observation.moneda || 'PYG',
+      precio_unitario_original: observation.precioUnitario,
       tipo_cambio: observation.tipoCambio || null,
       fecha_observacion: observation.fechaObservacion,
       es_volatil: observation.esVolatil || false,

@@ -23,8 +23,10 @@ export interface CostObservation {
   categoriaInsumo: InputCategory;
   cantidad: number;
   unidad: string;
-  precioUnitario: number; // En PYG (normalizado)
+  precioUnitario: number | null; // En PYG (normalizado), o null si es no computable / en revisión
   moneda: 'PYG' | 'USD';
+  monedaOriginal?: string | null;
+  precioUnitarioOriginal?: number | null;
   tipoCambio?: number;
   fechaObservacion: string; // ISO date YYYY-MM-DD
   esVolatil?: boolean;
