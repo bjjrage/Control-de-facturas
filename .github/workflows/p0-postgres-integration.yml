@@ -59,19 +59,19 @@ jobs:
           echo "================================================================"
           npm test
 
+      - name: Execute Production Next.js Build
+        run: |
+          echo "================================================================"
+          echo "PRODUCTION BUILD VERIFICATION (generates .next/types)"
+          echo "================================================================"
+          npm run build
+
       - name: Execute TypeScript Compiler Typecheck
         run: |
           echo "================================================================"
           echo "STATIC ANALYSIS (tsc --noEmit)"
           echo "================================================================"
           npx tsc --noEmit
-
-      - name: Execute Production Next.js Build
-        run: |
-          echo "================================================================"
-          echo "PRODUCTION BUILD VERIFICATION"
-          echo "================================================================"
-          npm run build
 
       - name: Stop Local Supabase Stack
         if: always()
