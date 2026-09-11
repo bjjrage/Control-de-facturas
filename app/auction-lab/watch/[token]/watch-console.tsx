@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { WatchView } from '@/lib/auction-sandbox/server';
+import { PollController } from '@/lib/auction-sandbox/poll-controller';
 import { getWatchView } from './actions';
 
 function fmtT(iso: string): string {
@@ -12,7 +13,6 @@ function fmtT(iso: string): string {
 export function WatchConsole({ token }: { token: string }) {
   const [view, setView] = useState<WatchView | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const poll = useCallback(async () => {
     const res = await getWatchView(token);
@@ -25,14 +25,15 @@ export function WatchConsole({ token }: { token: string }) {
       setError(null);
     }
   }, [token]);
+  const pollRef = useRef(poll);
+  pollRef.current = poll;
 
   useEffect(() => {
-    void poll();
-    timer.current = setInterval(() => void poll(), 1000);
-    return () => {
-      if (timer.current) clearInterval(timer.current);
-    };
-  }, [poll]);
+    const ctl = new PollController(() => pollRef.current(), { intervalMs: 1000 });
+    void ctl.tick();
+    ctl.start();
+    return () => ctl.stop();
+  }, []);
 
   if (error && !view) {
     return (
