@@ -1,0 +1,1758 @@
+{
+  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/ocds/record/ocds-03ad3f-371548",
+  "publishedDate": "2026-09-10T21:17:48Z",
+  "publisher": {
+    "name": "Dirección Nacional de Contrataciones Públicas, Paraguay"
+  },
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "publicationPolicy": "https://www.contrataciones.gov.py/datos/legal",
+  "version": "1.1",
+  "extensions": [
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_budget_breakdown_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_budget_and_spend_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_lots_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_enquiry_extension/master/extension.json",
+    "https://raw.githubusercontent.com/sdd1982/enquiriesAddress/master/extension.json",
+    "https://raw.githubusercontent.com/sdd1982/legalEntityTypeDetail/master/extension.json",
+    "https://raw.githubusercontent.com/gitMHOCDS/transactions/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_investmentproject_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_clarification_meetings_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_item_attributes_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_items_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_contract_suppliers_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_partyDetails_scale_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_location_extension/v1.1.4/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_activityType_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_tender_notifiedsuppliers_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_tender_lots_details_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_memberOf_extension/master/extension.json",
+    "https://raw.githubusercontent.com/portaledcahn/ocds_tenderDatePublished_extension/master/extension.json",
+    "https://raw.githubusercontent.com/INAImexico/ocds_guarantees_extension/master/extension.json",
+    "https://bitbucket.org/ONCAETI/ocds_releasesource_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_requirements_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_bidOpening_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_coveredBy_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_qualification_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_publicEntitiesDetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_items_subItems_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_statusdetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_mainProcurementCategoryDetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_identifier_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_estimatedDate_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_participationFee_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_amendments_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_lot_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_transaction_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_financialprogress_financialcode_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_categories_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_complaints_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_item_minQuantity_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_implementation_purchaseOrder_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_document_type_details/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_cancellations_amendments_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_milestone_documents_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_techniques_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_bid_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_bid_items_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_auctions_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_secondStage_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_beneficiaries_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/Crown-Commercial-Service/ocds_tender_suitability_extension/main/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_subcontracting_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_partyDetails_scale_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_organizationClassification_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_sustainability_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_implementation_reportedpayment_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_milestone_deliveries_extension/raw/master/extension.json"
+  ],
+  "records": [
+    {
+      "ocid": "ocds-03ad3f-371548-1",
+      "releases": [
+        {
+          "date": "2019-11-20T16:21:23-04:00",
+          "tag": [
+            "tender",
+            "award",
+            "implementation",
+            "contractAmendment",
+            "planningUpdate"
+          ],
+          "url": "https://www.contrataciones.gov.py/datos/api/v3/doc/ocds/releases/id/371548-c-d-n-44-adquisicion-combustibles-lubricantes-1-1574266883"
+        }
+      ],
+      "compiledRelease": {
+        "id": "371548-c-d-n-44-adquisicion-combustibles-lubricantes-1-1574266883",
+        "awards": [
+          {
+            "id": "371548-estaciones-servicios-sur-sociedad-anonima-1",
+            "status": "active",
+            "statusDetails": "Adjudicado",
+            "date": "2019-11-08T11:00:00-04:00",
+            "value": {
+              "amount": 166465000,
+              "currency": "PYG"
+            },
+            "suppliers": [
+              {
+                "name": "ESTACIONES DE SERVICIOS DEL SUR SOCIEDAD ANONIMA",
+                "id": "PY-RUC-80095696-6"
+              }
+            ],
+            "documents": [
+              {
+                "id": "I4RoC3k+0+M=",
+                "datePublished": "2019-11-20T16:21:22-04:00",
+                "title": "notificacion_a_oferente_1573827480543.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/I4RoC3k%252B0%252BM%253D",
+                "language": "es",
+                "documentTypeDetails": "Notificación al Oferente"
+              },
+              {
+                "id": "kqaCx2etda8=",
+                "datePublished": "2019-11-20T16:21:22-04:00",
+                "title": "acta_de_apertura_1573827466760.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/kqaCx2etda8%253D",
+                "language": "es",
+                "documentTypeDetails": "Acta de Apertura"
+              },
+              {
+                "id": "eLK6OjwQmWc=",
+                "datePublished": "2019-11-20T16:21:22-04:00",
+                "title": "resol_10451_2019_1573827498844.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/eLK6OjwQmWc%253D",
+                "language": "es",
+                "documentType": "awardNotice",
+                "documentTypeDetails": "Resolución de Adjudicación"
+              },
+              {
+                "id": "xJ0jDMYWuEg=",
+                "datePublished": "2019-11-20T16:21:22-04:00",
+                "title": "cuadro_comparativo_1573827494740.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/xJ0jDMYWuEg%253D",
+                "language": "es",
+                "documentTypeDetails": "Cuadro Comparativo de Ofertas"
+              },
+              {
+                "id": "dix2iRRDbik=",
+                "title": "URL de la Adjudicación",
+                "url": "https://www.contrataciones.gov.py/licitaciones/adjudicacion/371548-c-d-n-44-adquisicion-combustibles-lubricantes-1/resumen-adjudicacion.html",
+                "language": "es",
+                "documentType": "awardNotice",
+                "format": "text/html"
+              },
+              {
+                "id": "fEyKT6K2nvY=",
+                "title": "24427_371548_1574277680979.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/fEyKT6K2nvY%253D",
+                "language": "es",
+                "documentTypeDetails": "Nota de Observacion"
+              },
+              {
+                "id": "xj45IUkojGA=",
+                "datePublished": "2019-11-20T16:21:22-04:00",
+                "title": "informe_de_evaluacion_1573827570529.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/xj45IUkojGA%253D",
+                "language": "es",
+                "documentTypeDetails": "Informe de Evaluación"
+              }
+            ],
+            "items": [
+              {
+                "id": "5IG0uWQ9/mVY4YeLgXA9HQ==",
+                "description": "Nafta Ron 90",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "15101503-004",
+                  "description": "Nafta Ron 90",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/15101503-004"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "15101503",
+                    "description": "Nafta",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/15101503"
+                  }
+                ],
+                "quantity": 7900,
+                "unit": {
+                  "name": "Litros",
+                  "id": "LT",
+                  "value": {
+                    "amount": 5750,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "U7zPXC54LEk=",
+                "attributes": [
+                  {
+                    "value": "Py",
+                    "name": "Procedencia",
+                    "id": "1"
+                  },
+                  {
+                    "value": "BOCA DE EXPENDIO",
+                    "name": "Presentacion",
+                    "id": "2"
+                  },
+                  {
+                    "value": "Petrochaco",
+                    "name": "Marca",
+                    "id": "4"
+                  },
+                  {
+                    "name": "Relacion Medida",
+                    "id": "6",
+                    "value": "Litros"
+                  },
+                  {
+                    "name": "Orden",
+                    "value": "2",
+                    "id": "7"
+                  },
+                  {
+                    "name": "Destilación - 90% Vol., evaporados, máx.",
+                    "value": "Unidades: °C Especificación (1): 190,0 Métodos: D86",
+                    "id": "15"
+                  },
+                  {
+                    "name": "Residuos, máx",
+                    "value": "Unidades: % v/v Especificación (1): 2,0 Métodos: D86",
+                    "id": "17"
+                  },
+                  {
+                    "name": "Aspecto",
+                    "value": "Especificación (1): Límpido sin sustancias en suspensión Métodos: Visual (4)",
+                    "id": "8"
+                  },
+                  {
+                    "name": "Gomas existentes, máx. (7)",
+                    "value": "Unidades: mg/100ml Especificación (1): 5,0 Métodos: ASTM D 381",
+                    "id": "21"
+                  },
+                  {
+                    "name": "Número de Octanos Research, min. (8)",
+                    "value": "Unidades: RON Especificación (1): 90 Métodos: ASTM D 2699",
+                    "id": "22"
+                  },
+                  {
+                    "name": "Color (5)",
+                    "value": "Especificación (1): Amarillo Métodos: Visual",
+                    "id": "10"
+                  },
+                  {
+                    "name": "Punto final, máx.",
+                    "value": "Unidades: °C Especificación (1): 225,0 Métodos: D86",
+                    "id": "16"
+                  },
+                  {
+                    "name": "Densidad a 15°C",
+                    "value": "Unidades: g/cm3 Especificación (1): Informar Métodos: ASTM D 1298 ASTM D 4052",
+                    "id": "23"
+                  },
+                  {
+                    "name": "Destilación - 50% Vol., evaporados",
+                    "value": "Unidades: °C Especificación (1): 65,0 - 120,0 Métodos: D86",
+                    "id": "14"
+                  },
+                  {
+                    "name": "Azufre, máx. (Hasta 29/02/2016)",
+                    "value": "Unidades: ppm (mg/kg) Especificación (1): 300 Métodos: ASTM D 2622 ASTM D 4294 ASTM D 5453",
+                    "id": "11"
+                  },
+                  {
+                    "name": "Plomo, máx.",
+                    "value": "Unidades: g/l Especificación (1): 0,013 Métodos: ASTM D 3237 ASTM D 3116",
+                    "id": "24"
+                  },
+                  {
+                    "name": "Contenido de Etanol Anhidro, máx.",
+                    "value": "Unidades: % v/v Especificación (1): 25 Métodos: ABNT NBR 13992 (volumétrico)",
+                    "id": "9"
+                  },
+                  {
+                    "name": "Benceno, máx.",
+                    "value": "Unidades: % v/v Especificación (1): 1,5 Métodos: ASTM D-1319 ASTM D-5580 ASTM D 5769 ASTM D-6277",
+                    "id": "19"
+                  },
+                  {
+                    "name": "Tensión de Vapor Reid a 37,8°C (6)",
+                    "value": "Unidades: kPa Especificación (1): 49,0 - 93,0 Métodos: ASTM D 4953 ASTM D 5190 ASTM D 5191 ASTM D 5482",
+                    "id": "20"
+                  },
+                  {
+                    "name": "Destilación - 10% Vol., evaporados, máx.",
+                    "value": "Unidades: °C Especificación (1): 70,0 Métodos: D86",
+                    "id": "13"
+                  },
+                  {
+                    "name": "Aditivos (9) *",
+                    "value": "Especificación (1): Consignar N° de Registro del aditivo en el MIC Métodos: Informar método",
+                    "id": "25"
+                  },
+                  {
+                    "name": "Methyl Ter-Butyl Ether o Ether Metil Ter-Butilico (MTBE), máx. (10)",
+                    "value": "Unidades: % v/v Especificación (1): 2 Métodos: ASTM D 4815",
+                    "id": "26"
+                  },
+                  {
+                    "name": "Hidrocarburos aromáticos, máx.",
+                    "value": "Unidades: % v/v Especificación (1): 30 Métodos: ASTM D-1319 ASTM D-5580 ASTM D 5769 ASTM D-6277",
+                    "id": "18"
+                  },
+                  {
+                    "name": "Azufre, máx. (Desde 01/03/2016)",
+                    "value": "Unidades: ppm (mg/kg) Especificación (1): 120 Métodos: ASTM D 2622 ASTM D 4294 ASTM D 5453",
+                    "id": "12"
+                  }
+                ]
+              },
+              {
+                "id": "GsfmMILdchZUZsGO1k7tRA==",
+                "description": "Gasoil - Diesel - Tipo III",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "15101505-001",
+                  "description": "Gasoil - Diesel - Tipo III",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/15101505-001"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "15101505",
+                    "description": "Gasoil-Diesel",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/15101505"
+                  }
+                ],
+                "quantity": 21200,
+                "unit": {
+                  "name": "Litros",
+                  "id": "LT",
+                  "value": {
+                    "amount": 5400,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "U7zPXC54LEk=",
+                "attributes": [
+                  {
+                    "value": "Py",
+                    "name": "Procedencia",
+                    "id": "1"
+                  },
+                  {
+                    "value": "BOCA DE EXPENDIO",
+                    "name": "Presentacion",
+                    "id": "2"
+                  },
+                  {
+                    "value": "Petrochaco",
+                    "name": "Marca",
+                    "id": "4"
+                  },
+                  {
+                    "name": "Relacion Medida",
+                    "id": "6",
+                    "value": "Litos"
+                  },
+                  {
+                    "name": "Orden",
+                    "value": "1",
+                    "id": "7"
+                  },
+                  {
+                    "name": "Punto de escurrimiento, invierno, máx. (Abril a octubre)",
+                    "value": "Unidades: °C Especificación (1): -5 Métodos: D 97",
+                    "id": "29"
+                  },
+                  {
+                    "name": "Punto de inflamación, min. (Desde 01/03/2016)",
+                    "value": "Unidades: °C Especificación (1): 50 Métodos: D 93",
+                    "id": "34"
+                  },
+                  {
+                    "name": "Aditivos (6) *",
+                    "value": "Consignar N° de Registro de aditivo en el MIC Métodos: Informar método",
+                    "id": "33"
+                  },
+                  {
+                    "name": "Azufre, máx. (Hasta 29/02/2016)",
+                    "value": "Unidades: ppm (mg/kg) Especificación (1): 500 Métodos: D 4294",
+                    "id": "15"
+                  },
+                  {
+                    "name": "Punto de enturbiamiento, invierno, máx. (Abril a octubre)",
+                    "value": "Unidades: °C Especificación (1): 0 Métodos: D 7689 D 2500",
+                    "id": "28"
+                  },
+                  {
+                    "name": "Aspecto",
+                    "value": "Especificación (1): Límpido sin sustancias en suspensión Métodos: Visual (2)",
+                    "id": "8"
+                  },
+                  {
+                    "name": "Aromáticos, máx. (4)",
+                    "value": "Unidades: % vol. Especificación (1): 25 Métodos: D 1319",
+                    "id": "17"
+                  },
+                  {
+                    "name": "Destilación: 90% Vol., recogido, máx. (Desde 01/03/2016)",
+                    "value": "Unidades: °C Especificación (1): 350 Métodos: D86",
+                    "id": "19"
+                  },
+                  {
+                    "name": "Jndice de cetano calculado, min. (Desde 01/03/2016)",
+                    "value": "Unidades: N° Especificación (1): 48 Métodos: D 976 D 4737",
+                    "id": "25"
+                  },
+                  {
+                    "name": "Agua y sedimento, máx.",
+                    "value": "Unidades: % v/v Especificación (1): 0,05 Métodos: D 1796",
+                    "id": "10"
+                  },
+                  {
+                    "name": "Residuo Carbonoso en 10% de residuo de destilado, máx.",
+                    "value": "Unidades: % m/m Especificación (1): 0,25 Métodos: D 524 D-4530",
+                    "id": "30"
+                  },
+                  {
+                    "name": "Lubricidad, máx.",
+                    "value": "Unidades: Micra Especificación (1): 460 Métodos: D-6079",
+                    "id": "31"
+                  },
+                  {
+                    "name": "Densidad a 15°C",
+                    "value": "Unidades: g/cm3 Especificación (1): Informar Métodos: D 1298 D 4052",
+                    "id": "12"
+                  },
+                  {
+                    "name": "Número de cetano, min. (5) (Desde 01/03/2016)",
+                    "value": "Unidades: N° Especificación (1): 50 Métodos: D 613",
+                    "id": "23"
+                  },
+                  {
+                    "name": "lndice de cetano calculado, min. (Hasta 29/02/2016)",
+                    "value": "Unidades: N° Especificación (1): 45 Métodos: D 976 D 4737",
+                    "id": "24"
+                  },
+                  {
+                    "name": "Punto de escurrimiento, verano, máx. (Noviembre a marzo)",
+                    "value": "Unidades: °C Especificación (1): 0 Métodos: D 97",
+                    "id": "27"
+                  },
+                  {
+                    "name": "Número de cetano, min. (5) (Hasta 29/02/2016)",
+                    "value": "Unidades: N° Especificación (1): 45 Métodos: D 613",
+                    "id": "22"
+                  },
+                  {
+                    "name": "Color, máx. (3) (Hasta 29/02/2016)",
+                    "value": "Unidades: N° Especificación (1): 2,5 Métodos: D 1500",
+                    "id": "13"
+                  },
+                  {
+                    "name": "Azufre, máx. (Desde 01/03/2016)",
+                    "value": "Unidades: ppm (mg/kg) Especificación (1): 50 Métodos: D 4294",
+                    "id": "16"
+                  },
+                  {
+                    "name": "Biodiésel (FAME)",
+                    "value": "Unidades: % v/v Especificación (1): 1 Métodos: D-7371 EN-14078",
+                    "id": "9"
+                  },
+                  {
+                    "name": "Color, máx. (3) (Desde 01/03/2016)",
+                    "value": "Unidades: N° Especificación (1): 1,5 Métodos: D 1500",
+                    "id": "14"
+                  },
+                  {
+                    "name": "Contaminación por partículas, máx.",
+                    "value": "Unidades: g/m3 Especificación (1): 24 Métodos: D-7321",
+                    "id": "32"
+                  },
+                  {
+                    "name": "Punto de inflamación, min. (Hasta 29/02/2016)",
+                    "value": "Unidades: °C Especificación (1): 42 Métodos: D 93",
+                    "id": "20"
+                  },
+                  {
+                    "name": "Viscosidad cinemática a 40°C",
+                    "value": "Unidades: cSt (mm2/s) Especificación (1): 1,9 - 5,0 Métodos: D 445 D 7042",
+                    "id": "11"
+                  },
+                  {
+                    "name": "Punto de enturbiamiento, verano, máx. (Noviembre a marzo)",
+                    "value": "Unidades: °C Especificación (1): 5 Métodos: D 7689 D 2500",
+                    "id": "26"
+                  },
+                  {
+                    "name": "Cenizas, máx.",
+                    "value": "Unidades: % m/m Especificación (1): 0,005 Métodos: D 482",
+                    "id": "21"
+                  },
+                  {
+                    "name": "Destilación: 90% Vol., recogido, máx. (Hasta 29/02/2016)",
+                    "value": "Unidades: °C Especificación (1): 370 Métodos: D86",
+                    "id": "18"
+                  }
+                ]
+              },
+              {
+                "id": "wno/PYlXBUCPY26GnRqizw==",
+                "description": "Aceite para vehiculo",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "15121501-001",
+                  "description": "Aceite para vehiculo",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/15121501-001"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "15121501",
+                    "description": "Aceite de motor",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/15121501"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Unidad Medida Global",
+                  "id": "GL",
+                  "value": {
+                    "amount": 6560000,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "U7zPXC54LEk=",
+                "attributes": [
+                  {
+                    "value": "Py",
+                    "name": "Procedencia",
+                    "id": "1"
+                  },
+                  {
+                    "value": "BOCA DE EXPENDIO",
+                    "name": "Presentacion",
+                    "id": "2"
+                  },
+                  {
+                    "value": "Petrochaco",
+                    "name": "Marca",
+                    "id": "4"
+                  },
+                  {
+                    "name": "Relacion Medida",
+                    "id": "6",
+                    "value": "Global"
+                  },
+                  {
+                    "name": "Orden",
+                    "value": "3",
+                    "id": "7"
+                  }
+                ],
+                "subItems": [
+                  {
+                    "id": "LFVcSfoYN9o=",
+                    "description": "3.1 Aceite Nº 40",
+                    "quantity": 55,
+                    "unit": {
+                      "name": "Litros",
+                      "id": "LT",
+                      "value": {
+                        "amount": 40000,
+                        "currency": "PYG"
+                      }
+                    },
+                    "attributes": [
+                      {
+                        "value": "Py",
+                        "name": "Procedencia",
+                        "id": "1"
+                      },
+                      {
+                        "value": "BOCA DE EXPENDIO",
+                        "name": "Presentacion",
+                        "id": "2"
+                      },
+                      {
+                        "value": "Petrochaco",
+                        "name": "Marca",
+                        "id": "4"
+                      },
+                      {
+                        "name": "Relacion Medida",
+                        "id": "6",
+                        "value": "Litros"
+                      }
+                    ],
+                    "group": "3.1-Aceite Nº 40"
+                  },
+                  {
+                    "id": "/7RoQMbWlnE=",
+                    "description": "3.3 Aceite de Dirección ",
+                    "quantity": 55,
+                    "unit": {
+                      "name": "Litros",
+                      "id": "LT",
+                      "value": {
+                        "amount": 40000,
+                        "currency": "PYG"
+                      }
+                    },
+                    "attributes": [
+                      {
+                        "value": "Py",
+                        "name": "Procedencia",
+                        "id": "1"
+                      },
+                      {
+                        "value": "BOCA DE EXPENDIO",
+                        "name": "Presentacion",
+                        "id": "2"
+                      },
+                      {
+                        "value": "Petrochaco",
+                        "name": "Marca",
+                        "id": "4"
+                      },
+                      {
+                        "name": "Relacion Medida",
+                        "id": "6",
+                        "value": "Litros"
+                      }
+                    ],
+                    "group": "3.3-Aceite de Dirección "
+                  },
+                  {
+                    "id": "o/mGNny7hog=",
+                    "description": "3.2 Aceite Nº 90",
+                    "quantity": 54,
+                    "unit": {
+                      "name": "Litros",
+                      "id": "LT",
+                      "value": {
+                        "amount": 40000,
+                        "currency": "PYG"
+                      }
+                    },
+                    "attributes": [
+                      {
+                        "value": "Py",
+                        "name": "Procedencia",
+                        "id": "1"
+                      },
+                      {
+                        "value": "BOCA DE EXPENDIO",
+                        "name": "Presentacion",
+                        "id": "2"
+                      },
+                      {
+                        "value": "Petrochaco",
+                        "name": "Marca",
+                        "id": "4"
+                      },
+                      {
+                        "name": "Relacion Medida",
+                        "id": "6",
+                        "value": "Litros"
+                      }
+                    ],
+                    "group": "3.2-Aceite Nº 90"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "tender": {
+          "id": "371548-c-d-n-44-adquisicion-combustibles-lubricantes-1",
+          "title": "C.D N° 44 \"Adquisición de Combustibles y Lubricantes\"",
+          "status": "complete",
+          "awardCriteria": "priceOnly",
+          "awardCriteriaDetails": "Por Total",
+          "submissionMethod": [
+            "inPerson"
+          ],
+          "bidOpening": {
+            "date": "2019-11-05T09:15:00-04:00",
+            "address": {
+              "streetAddress": "DIRECCCION UOC"
+            }
+          },
+          "submissionMethodDetails": "Lugar entrega ofertas: DIRECCCION UOC || Lugar entrega bien: Según documento del llamado || Fecha entrega bien: Según documento del llamado",
+          "eligibilityCriteria": "Restricciones: INHABILIDADES PREVISTAS EN EL ARTICULO 40 DE LA LEY 2051/03",
+          "statusDetails": "Adjudicada",
+          "enquiriesAddress": {
+            "streetAddress": "DIRECCCION UOC"
+          },
+          "mainProcurementCategoryDetails": "Bienes - Combustibles y Lubricantes",
+          "hasEnquiries": false,
+          "value": {
+            "amount": 167460030,
+            "currency": "PYG"
+          },
+          "datePublished": "2019-10-28T17:13:44-04:00",
+          "tenderPeriod": {
+            "startDate": "2019-10-28T17:13:44-04:00",
+            "endDate": "2019-11-05T09:00:00-04:00",
+            "durationInDays": 7
+          },
+          "awardPeriod": {
+            "startDate": "2019-11-05T09:15:00-04:00"
+          },
+          "enquiryPeriod": {
+            "endDate": "2019-10-29T08:00:00-04:00",
+            "startDate": "2019-10-28T17:13:44-04:00",
+            "durationInDays": 0
+          },
+          "mainProcurementCategory": "goods",
+          "procurementMethod": "open",
+          "procurementMethodDetails": "Contratación Directa",
+          "procuringEntity": {
+            "id": "DNCP-SICP-CODE-212",
+            "name": "Municipalidad de San Ignacio"
+          },
+          "criteria": [
+            {
+              "id": "1",
+              "title": "Garantía de Mantenimiento de Ofertas",
+              "description": "Los oferentes, proveedores o contratistas deberán garantizar la seriedad de sus ofertas, mediante la garantía de mantenimiento de la oferta",
+              "source": "tenderer",
+              "requirementGroups": [
+                {
+                  "id": "1-1",
+                  "description": "La garantía debe ser de un cierto porcentaje, periodo y tipo",
+                  "requirements": [
+                    {
+                      "id": "1-1-1",
+                      "title": "Porcentaje de la garantia",
+                      "expectedValue": "5"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "lots": [
+            {
+              "id": "U7zPXC54LEk=",
+              "title": "1 - LoteTotal",
+              "status": "active",
+              "statusDetails": "Activo",
+              "value": {
+                "amount": 167460030,
+                "currency": "PYG"
+              },
+              "simultaneousSupply": false,
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "1",
+                  "id": "1"
+                }
+              ]
+            }
+          ],
+          "notifiedSuppliers": [
+            {
+              "name": "AGROMECANICA MARTINEZ S.A.",
+              "id": "PY-RUC-80066943-6"
+            },
+            {
+              "name": "AUTOMOTOR SA",
+              "id": "PY-RUC-80001340-9"
+            },
+            {
+              "name": "ESTACIONES DE SERVICIOS DEL SUR SOCIEDAD ANONIMA",
+              "id": "PY-RUC-80095696-6"
+            },
+            {
+              "name": "LAS LOMAS S.R.L.",
+              "id": "PY-RUC-80046620-9"
+            },
+            {
+              "name": "TOTOYA S.A.",
+              "id": "PY-RUC-80054876-0"
+            }
+          ],
+          "items": [
+            {
+              "id": "GsfmMILdchZUZsGO1k7tRA==",
+              "description": "Gasoil - Diesel - Tipo III",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "15101505-001",
+                "description": "Gasoil - Diesel - Tipo III",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/15101505-001"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "15101505",
+                  "description": "Gasoil-Diesel",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/15101505"
+                }
+              ],
+              "quantity": 21200,
+              "unit": {
+                "name": "Litros",
+                "id": "LT",
+                "value": {
+                  "amount": 5800,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "U7zPXC54LEk=",
+              "attributes": [
+                {
+                  "name": "Presentacion",
+                  "value": "BOCA DE EXPENDIO",
+                  "id": "1"
+                },
+                {
+                  "name": "Orden",
+                  "value": "1",
+                  "id": "2"
+                },
+                {
+                  "name": "Viscosidad cinemática a 40°C",
+                  "value": "Unidades: cSt (mm2/s) Especificación (1): 1,9 - 5,0 Métodos: D 445 D 7042",
+                  "id": "6"
+                },
+                {
+                  "name": "Punto de enturbiamiento, verano, máx. (Noviembre a marzo)",
+                  "value": "Unidades: °C Especificación (1): 5 Métodos: D 7689 D 2500",
+                  "id": "21"
+                },
+                {
+                  "name": "Aspecto",
+                  "value": "Especificación (1): Límpido sin sustancias en suspensión Métodos: Visual (2)",
+                  "id": "3"
+                },
+                {
+                  "name": "Punto de escurrimiento, verano, máx. (Noviembre a marzo)",
+                  "value": "Unidades: °C Especificación (1): 0 Métodos: D 97",
+                  "id": "22"
+                },
+                {
+                  "name": "Punto de enturbiamiento, invierno, máx. (Abril a octubre)",
+                  "value": "Unidades: °C Especificación (1): 0 Métodos: D 7689 D 2500",
+                  "id": "23"
+                },
+                {
+                  "name": "Punto de inflamación, min. (Hasta 29/02/2016)",
+                  "value": "Unidades: °C Especificación (1): 42 Métodos: D 93",
+                  "id": "15"
+                },
+                {
+                  "name": "Densidad a 15°C",
+                  "value": "Unidades: g/cm3 Especificación (1): Informar Métodos: D 1298 D 4052",
+                  "id": "7"
+                },
+                {
+                  "name": "Número de cetano, min. (5) (Hasta 29/02/2016)",
+                  "value": "Unidades: N° Especificación (1): 45 Métodos: D 613",
+                  "id": "17"
+                },
+                {
+                  "name": "Contaminación por partículas, máx.",
+                  "value": "Unidades: g/m3 Especificación (1): 24 Métodos: D-7321",
+                  "id": "27"
+                },
+                {
+                  "name": "Lubricidad, máx.",
+                  "value": "Unidades: Micra Especificación (1): 460 Métodos: D-6079",
+                  "id": "26"
+                },
+                {
+                  "name": "Azufre, máx. (Desde 01/03/2016)",
+                  "value": "Unidades: ppm (mg/kg) Especificación (1): 50 Métodos: D 4294",
+                  "id": "11"
+                },
+                {
+                  "name": "Residuo Carbonoso en 10% de residuo de destilado, máx.",
+                  "value": "Unidades: % m/m Especificación (1): 0,25 Métodos: D 524 D-4530",
+                  "id": "25"
+                },
+                {
+                  "name": "Punto de inflamación, min. (Desde 01/03/2016)",
+                  "value": "Unidades: °C Especificación (1): 50 Métodos: D 93",
+                  "id": "29"
+                },
+                {
+                  "name": "Aditivos (6) *",
+                  "value": "Consignar N° de Registro de aditivo en el MIC Métodos: Informar método",
+                  "id": "28"
+                },
+                {
+                  "name": "Cenizas, máx.",
+                  "value": "Unidades: % m/m Especificación (1): 0,005 Métodos: D 482",
+                  "id": "16"
+                },
+                {
+                  "name": "Biodiésel (FAME)",
+                  "value": "Unidades: % v/v Especificación (1): 1 Métodos: D-7371 EN-14078",
+                  "id": "4"
+                },
+                {
+                  "name": "Agua y sedimento, máx.",
+                  "value": "Unidades: % v/v Especificación (1): 0,05 Métodos: D 1796",
+                  "id": "5"
+                },
+                {
+                  "name": "Jndice de cetano calculado, min. (Desde 01/03/2016)",
+                  "value": "Unidades: N° Especificación (1): 48 Métodos: D 976 D 4737",
+                  "id": "20"
+                },
+                {
+                  "name": "Color, máx. (3) (Desde 01/03/2016)",
+                  "value": "Unidades: N° Especificación (1): 1,5 Métodos: D 1500",
+                  "id": "9"
+                },
+                {
+                  "name": "Punto de escurrimiento, invierno, máx. (Abril a octubre)",
+                  "value": "Unidades: °C Especificación (1): -5 Métodos: D 97",
+                  "id": "24"
+                },
+                {
+                  "name": "Destilación: 90% Vol., recogido, máx. (Hasta 29/02/2016)",
+                  "value": "Unidades: °C Especificación (1): 370 Métodos: D86",
+                  "id": "13"
+                },
+                {
+                  "name": "Destilación: 90% Vol., recogido, máx. (Desde 01/03/2016)",
+                  "value": "Unidades: °C Especificación (1): 350 Métodos: D86",
+                  "id": "14"
+                },
+                {
+                  "name": "Aromáticos, máx. (4)",
+                  "value": "Unidades: % vol. Especificación (1): 25 Métodos: D 1319",
+                  "id": "12"
+                },
+                {
+                  "name": "Color, máx. (3) (Hasta 29/02/2016)",
+                  "value": "Unidades: N° Especificación (1): 2,5 Métodos: D 1500",
+                  "id": "8"
+                },
+                {
+                  "name": "Azufre, máx. (Hasta 29/02/2016)",
+                  "value": "Unidades: ppm (mg/kg) Especificación (1): 500 Métodos: D 4294",
+                  "id": "10"
+                },
+                {
+                  "name": "Número de cetano, min. (5) (Desde 01/03/2016)",
+                  "value": "Unidades: N° Especificación (1): 50 Métodos: D 613",
+                  "id": "18"
+                },
+                {
+                  "name": "lndice de cetano calculado, min. (Hasta 29/02/2016)",
+                  "value": "Unidades: N° Especificación (1): 45 Métodos: D 976 D 4737",
+                  "id": "19"
+                }
+              ]
+            },
+            {
+              "id": "wno/PYlXBUCPY26GnRqizw==",
+              "description": "Aceite para vehiculo",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "15121501-001",
+                "description": "Aceite para vehiculo",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/15121501-001"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "15121501",
+                  "description": "Aceite de motor",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/15121501"
+                }
+              ],
+              "quantity": 1,
+              "unit": {
+                "name": "Unidad Medida Global",
+                "id": "GL",
+                "value": {
+                  "amount": 5000030,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "U7zPXC54LEk=",
+              "attributes": [
+                {
+                  "name": "Presentacion",
+                  "value": "BOCA DE EXPENDIO",
+                  "id": "1"
+                },
+                {
+                  "name": "Orden",
+                  "value": "3",
+                  "id": "2"
+                }
+              ],
+              "subItems": [
+                {
+                  "id": "/7RoQMbWlnE=",
+                  "description": "3.3 Aceite de Dirección ",
+                  "quantity": 55,
+                  "unit": {
+                    "name": "Litros",
+                    "id": "LT",
+                    "value": {
+                      "amount": 30490,
+                      "currency": "PYG"
+                    }
+                  },
+                  "attributes": [
+                    {
+                      "name": "Presentacion",
+                      "value": "BOCA DE EXPENDIO",
+                      "id": "1"
+                    }
+                  ],
+                  "group": "3.3-Aceite de Dirección "
+                },
+                {
+                  "id": "o/mGNny7hog=",
+                  "description": "3.2 Aceite Nº 90",
+                  "quantity": 54,
+                  "unit": {
+                    "name": "Litros",
+                    "id": "LT",
+                    "value": {
+                      "amount": 30490,
+                      "currency": "PYG"
+                    }
+                  },
+                  "attributes": [
+                    {
+                      "name": "Presentacion",
+                      "value": "BOCA DE EXPENDIO",
+                      "id": "1"
+                    }
+                  ],
+                  "group": "3.2-Aceite Nº 90"
+                },
+                {
+                  "id": "LFVcSfoYN9o=",
+                  "description": "3.1 Aceite Nº 40",
+                  "quantity": 55,
+                  "unit": {
+                    "name": "Litros",
+                    "id": "LT",
+                    "value": {
+                      "amount": 30484,
+                      "currency": "PYG"
+                    }
+                  },
+                  "attributes": [
+                    {
+                      "name": "Presentacion",
+                      "value": "BOCA DE EXPENDIO",
+                      "id": "1"
+                    }
+                  ],
+                  "group": "3.1-Aceite Nº 40"
+                }
+              ]
+            },
+            {
+              "id": "5IG0uWQ9/mVY4YeLgXA9HQ==",
+              "description": "Nafta Ron 90",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "15101503-004",
+                "description": "Nafta Ron 90",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/15101503-004"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "15101503",
+                  "description": "Nafta",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/15101503"
+                }
+              ],
+              "quantity": 7900,
+              "unit": {
+                "name": "Litros",
+                "id": "LT",
+                "value": {
+                  "amount": 5000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "U7zPXC54LEk=",
+              "attributes": [
+                {
+                  "name": "Presentacion",
+                  "value": "BOCA DE EXPENDIO",
+                  "id": "1"
+                },
+                {
+                  "name": "Orden",
+                  "value": "2",
+                  "id": "2"
+                },
+                {
+                  "name": "Color (5)",
+                  "value": "Especificación (1): Amarillo Métodos: Visual",
+                  "id": "5"
+                },
+                {
+                  "name": "Gomas existentes, máx. (7)",
+                  "value": "Unidades: mg/100ml Especificación (1): 5,0 Métodos: ASTM D 381",
+                  "id": "16"
+                },
+                {
+                  "name": "Methyl Ter-Butyl Ether o Ether Metil Ter-Butilico (MTBE), máx. (10)",
+                  "value": "Unidades: % v/v Especificación (1): 2 Métodos: ASTM D 4815",
+                  "id": "21"
+                },
+                {
+                  "name": "Hidrocarburos aromáticos, máx.",
+                  "value": "Unidades: % v/v Especificación (1): 30 Métodos: ASTM D-1319 ASTM D-5580 ASTM D 5769 ASTM D-6277",
+                  "id": "13"
+                },
+                {
+                  "name": "Plomo, máx.",
+                  "value": "Unidades: g/l Especificación (1): 0,013 Métodos: ASTM D 3237 ASTM D 3116",
+                  "id": "19"
+                },
+                {
+                  "name": "Aditivos (9) *",
+                  "value": "Especificación (1): Consignar N° de Registro del aditivo en el MIC Métodos: Informar método",
+                  "id": "20"
+                },
+                {
+                  "name": "Azufre, máx. (Desde 01/03/2016)",
+                  "value": "Unidades: ppm (mg/kg) Especificación (1): 120 Métodos: ASTM D 2622 ASTM D 4294 ASTM D 5453",
+                  "id": "7"
+                },
+                {
+                  "name": "Benceno, máx.",
+                  "value": "Unidades: % v/v Especificación (1): 1,5 Métodos: ASTM D-1319 ASTM D-5580 ASTM D 5769 ASTM D-6277",
+                  "id": "14"
+                },
+                {
+                  "name": "Destilación - 50% Vol., evaporados",
+                  "value": "Unidades: °C Especificación (1): 65,0 - 120,0 Métodos: D86",
+                  "id": "9"
+                },
+                {
+                  "name": "Punto final, máx.",
+                  "value": "Unidades: °C Especificación (1): 225,0 Métodos: D86",
+                  "id": "11"
+                },
+                {
+                  "name": "Aspecto",
+                  "value": "Especificación (1): Límpido sin sustancias en suspensión Métodos: Visual (4)",
+                  "id": "3"
+                },
+                {
+                  "name": "Destilación - 10% Vol., evaporados, máx.",
+                  "value": "Unidades: °C Especificación (1): 70,0 Métodos: D86",
+                  "id": "8"
+                },
+                {
+                  "name": "Residuos, máx",
+                  "value": "Unidades: % v/v Especificación (1): 2,0 Métodos: D86",
+                  "id": "12"
+                },
+                {
+                  "name": "Tensión de Vapor Reid a 37,8°C (6)",
+                  "value": "Unidades: kPa Especificación (1): 49,0 - 93,0 Métodos: ASTM D 4953 ASTM D 5190 ASTM D 5191 ASTM D 5482",
+                  "id": "15"
+                },
+                {
+                  "name": "Número de Octanos Research, min. (8)",
+                  "value": "Unidades: RON Especificación (1): 90 Métodos: ASTM D 2699",
+                  "id": "17"
+                },
+                {
+                  "name": "Densidad a 15°C",
+                  "value": "Unidades: g/cm3 Especificación (1): Informar Métodos: ASTM D 1298 ASTM D 4052",
+                  "id": "18"
+                },
+                {
+                  "name": "Contenido de Etanol Anhidro, máx.",
+                  "value": "Unidades: % v/v Especificación (1): 25 Métodos: ABNT NBR 13992 (volumétrico)",
+                  "id": "4"
+                },
+                {
+                  "name": "Destilación - 90% Vol., evaporados, máx.",
+                  "value": "Unidades: °C Especificación (1): 190,0 Métodos: D86",
+                  "id": "10"
+                },
+                {
+                  "name": "Azufre, máx. (Hasta 29/02/2016)",
+                  "value": "Unidades: ppm (mg/kg) Especificación (1): 300 Métodos: ASTM D 2622 ASTM D 4294 ASTM D 5453",
+                  "id": "6"
+                }
+              ]
+            }
+          ],
+          "tenderers": [
+            {
+              "name": "ESTACIONES DE SERVICIOS DEL SUR SOCIEDAD ANONIMA",
+              "id": "PY-RUC-80095696-6"
+            }
+          ],
+          "documents": [
+            {
+              "id": "ciYnTtt3ehs=",
+              "datePublished": "2019-10-28T17:13:44-04:00",
+              "title": "nota_1571827551950.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/ciYnTtt3ehs%253D",
+              "language": "es",
+              "documentTypeDetails": "Nota Comunicación"
+            },
+            {
+              "id": "aYAa3fSGruU=",
+              "datePublished": "2019-10-28T17:13:44-04:00",
+              "title": "pbc_formulario_1571827542893.zip",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/aYAa3fSGruU%253D",
+              "language": "es",
+              "documentType": "eligibilityCriteria",
+              "documentTypeDetails": "Carta de Invitación"
+            },
+            {
+              "id": "C6kIVqUmjzE=",
+              "datePublished": "2019-10-28T17:13:44-04:00",
+              "title": "21748_000_1572293615599.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/C6kIVqUmjzE%253D",
+              "language": "es",
+              "documentTypeDetails": "Nota de Observacion"
+            },
+            {
+              "id": "ywrUUKRrtKQ=",
+              "datePublished": "2019-10-30T14:44:53-04:00",
+              "title": "adenda_01_2019_1572349382938.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/ywrUUKRrtKQ%253D",
+              "language": "es",
+              "documentTypeDetails": "Adenda"
+            },
+            {
+              "id": "KJXZIQaxPZc=",
+              "datePublished": "2019-10-30T14:44:53-04:00",
+              "title": "22076__30_10_2019_133658_1572457447602.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/KJXZIQaxPZc%253D",
+              "language": "es",
+              "documentTypeDetails": "Nota de Observacion"
+            },
+            {
+              "id": "GmuYHdPk+R0=",
+              "datePublished": "2019-10-28T17:13:44-04:00",
+              "title": "cdp_1571827563827.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/GmuYHdPk%252BR0%253D",
+              "language": "es",
+              "documentTypeDetails": "CDP"
+            },
+            {
+              "id": "dix2iRRDbik=",
+              "title": "URL de la Convocatoria",
+              "url": "https://www.contrataciones.gov.py/licitaciones/convocatoria/371548-c-d-n-44-adquisicion-combustibles-lubricantes-1.html",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "format": "text/html"
+            },
+            {
+              "id": "8zyTTNYTQ8Q=",
+              "datePublished": "2019-10-30T14:44:53-04:00",
+              "title": "llamado_publico_1572457493707.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/8zyTTNYTQ8Q%253D",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "documentTypeDetails": "Llamado publicado"
+            },
+            {
+              "id": "WMi9ZCvyKCg=",
+              "datePublished": "2019-10-28T17:13:44-04:00",
+              "title": "llamado_publico_1572293624278.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/WMi9ZCvyKCg%253D",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "documentTypeDetails": "Llamado publicado"
+            },
+            {
+              "id": "N6Hzcb8A94k=",
+              "datePublished": "2019-10-28T17:13:46-04:00",
+              "title": "iao.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/N6Hzcb8A94k%253D",
+              "language": "es",
+              "documentTypeDetails": "Instrucción a los Oferentes - Bienes y Servicios"
+            },
+            {
+              "id": "S7FZZZ33lug=",
+              "datePublished": "2019-10-28T17:13:46-04:00",
+              "title": "cgc.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/S7FZZZ33lug%253D",
+              "language": "es",
+              "documentTypeDetails": "Condiciones Generales del Contrato - Bienes y Servicios"
+            }
+          ],
+          "numberOfTenderers": 1
+        },
+        "language": "es",
+        "ocid": "ocds-03ad3f-371548-1",
+        "date": "2019-11-20T16:21:23-04:00",
+        "initiationType": "tender",
+        "buyer": {
+          "id": "DNCP-SICP-CODE-212",
+          "name": "Municipalidad de San Ignacio"
+        },
+        "sources": [
+          {
+            "id": "dncp-sicp",
+            "name": "Sistema de Información de las Contrataciones Públicas - DNCP",
+            "url": "https://www.contrataciones.gov.py/"
+          }
+        ],
+        "contracts": [
+          {
+            "id": "CD-30126-19-181684",
+            "amendments": [
+              {
+                "date": "2019-12-12T00:00:00-04:00",
+                "description": "Ampliación de Monto",
+                "amendsAmount": {
+                  "amount": 33055000,
+                  "currency": "PYG"
+                },
+                "id": "371548-estaciones-servicios-sur-sociedad-anonima-1-ampliacion",
+                "financialCode": "AC-30126-19-38257"
+              }
+            ],
+            "implementation": {
+              "financialProgress": {
+                "breakdown": [
+                  {
+                    "id": "2019/30/126/2/2/1/0/11/8/360/30/AC-30126-19-38257",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 33055000
+                    },
+                    "classifications": {
+                      "anio": "2019",
+                      "nivel": "30",
+                      "entidad": "126",
+                      "tipo_programa": "2",
+                      "programa": "2",
+                      "sub_programa": "1",
+                      "proyecto": "0",
+                      "financiador": "11",
+                      "departamento": "8",
+                      "objeto_gasto": "360",
+                      "fuente_financiamiento": "30",
+                      "cdp": "371548"
+                    },
+                    "financialCode": "AC-30126-19-38257"
+                  },
+                  {
+                    "id": "2019/30/126/2/2/1/0/11/8/360/30/CD-30126-19-181684",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 166465000
+                    },
+                    "classifications": {
+                      "anio": "2019",
+                      "nivel": "30",
+                      "entidad": "126",
+                      "tipo_programa": "2",
+                      "programa": "2",
+                      "sub_programa": "1",
+                      "proyecto": "0",
+                      "financiador": "11",
+                      "departamento": "8",
+                      "objeto_gasto": "360",
+                      "fuente_financiamiento": "30",
+                      "cdp": "371548"
+                    },
+                    "financialCode": "CD-30126-19-181684"
+                  }
+                ]
+              }
+            },
+            "awardID": "371548-estaciones-servicios-sur-sociedad-anonima-1",
+            "status": "active",
+            "statusDetails": "Adjudicado",
+            "dateSigned": "2019-11-25T08:00:00-04:00",
+            "value": {
+              "amount": 166465000,
+              "currency": "PYG"
+            },
+            "documents": [
+              {
+                "id": "wHLjqKqgP3g=",
+                "datePublished": "2019-11-28T17:03:35-04:00",
+                "title": "nota_contrato_1574686721088.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/contrato/wHLjqKqgP3g%253D",
+                "language": "es",
+                "documentTypeDetails": "Nota de Aclaración"
+              },
+              {
+                "id": "Jn9eqxc9Aos=",
+                "datePublished": "2019-11-28T17:03:35-04:00",
+                "title": "contrato_n__48_2019_1574686763581.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/contrato/Jn9eqxc9Aos%253D",
+                "language": "es",
+                "documentType": "contractSigned",
+                "documentTypeDetails": "Orden de Compra o Contrato"
+              },
+              {
+                "id": "XpNCwwg+rto=",
+                "title": "25627_generico_2_1574971411689.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/contrato/XpNCwwg%252Brto%253D",
+                "language": "es",
+                "documentTypeDetails": "Nota de Observacion"
+              }
+            ]
+          }
+        ],
+        "planning": {
+          "identifier": "371548",
+          "estimatedDate": "2019-10-31T00:00:00-04:00",
+          "budget": {
+            "description": "C.D N° 44 \"Adquisición de Combustibles y Lubricantes\"",
+            "amount": {
+              "currency": "PYG",
+              "amount": 168000000
+            },
+            "budgetBreakdown": [
+              {
+                "id": "2019/30/126/2/2/1/0/11/8/360/30-w26YSja94NY=",
+                "sourceParty": {
+                  "id": "212",
+                  "name": "Municipalidad de San Ignacio"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_utilizado": 166465000,
+                  "monto_a_utilizar": 168000000
+                },
+                "classifications": {
+                  "anio": "2019",
+                  "nivel": "30",
+                  "entidad": "126",
+                  "tipo_programa": "2",
+                  "programa": "2",
+                  "sub_programa": "1",
+                  "proyecto": "0",
+                  "financiador": "11",
+                  "departamento": "8",
+                  "objeto_gasto": "360",
+                  "fuente_financiamiento": "30",
+                  "cdp": "371548"
+                }
+              }
+            ]
+          },
+          "items": [
+            {
+              "id": "my/FwzROtmk=",
+              "description": "Gasoil-Diesel",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "15101505",
+                "description": "Gasoil-Diesel",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/15101505"
+              }
+            },
+            {
+              "id": "QO4jBA7Cvjs=",
+              "description": "Aceite de motor",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "15121501",
+                "description": "Aceite de motor",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/15121501"
+              }
+            },
+            {
+              "id": "QCCKKVqfHEo=",
+              "description": "Nafta",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "15101503",
+                "description": "Nafta",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/15101503"
+              }
+            }
+          ]
+        },
+        "parties": [
+          {
+            "id": "DNCP-SICP-CODE-212",
+            "name": "Municipalidad de San Ignacio",
+            "identifier": {
+              "scheme": "DNCP-SICP-CODE",
+              "id": "212",
+              "legalName": "Municipalidad de San Ignacio"
+            },
+            "contactPoint": {
+              "email": "lorna92@outlook.es",
+              "name": "YOLANDA CONCEPCION SERVIN AGUERO",
+              "telephone": "0782232446"
+            },
+            "roles": [
+              "buyer",
+              "procuringEntity"
+            ],
+            "details": {
+              "level": "Municipalidades",
+              "entityType": "Municipalidades",
+              "type": "Entidad"
+            },
+            "additionalIdentifiers": [
+              {
+                "id": "2019.30.126",
+                "legalName": "Municipalidad de San Ignacio",
+                "scheme": "PY-PGN"
+              }
+            ]
+          },
+          {
+            "name": "AUTOMOTOR SA",
+            "id": "PY-RUC-80001340-9",
+            "identifier": {
+              "id": "80001340-9",
+              "legalName": "AUTOMOTOR SA",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "Ruben Dario Valenzuela",
+              "email": "rocio.pereira@automotorpy.com",
+              "faxNumber": "293-251",
+              "url": "http://www.automotor.com.py"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "ASUNCION (DISTRITO)",
+              "region": "Central",
+              "streetAddress": "AVDA. GRAL. ARTIGAS 1921"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+                  "id": 2
+                },
+                {
+                  "name": "Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+                  "id": 18
+                },
+                {
+                  "name": "Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+                  "id": 22
+                },
+                {
+                  "name": "Productos Alimenticios",
+                  "id": 14
+                },
+                {
+                  "name": "Adquisición y Locación de inmuebles. Alquiler de muebles",
+                  "id": 3
+                }
+              ]
+            }
+          },
+          {
+            "name": "LAS LOMAS S.R.L.",
+            "id": "PY-RUC-80046620-9",
+            "identifier": {
+              "id": "80046620-9",
+              "legalName": "LAS LOMAS S.R.L.",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "ROLANDO YDELIN BENITEZ MOLINAS",
+              "email": "laslomas_srl@hotmail.com",
+              "faxNumber": "243175",
+              "telephone": "0981403813"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "CAACUPÉ",
+              "region": "Cordillera",
+              "streetAddress": "CASA MATRIZ:RUTA A TOBATI C/ENTRADA A CONAVI BÂº LOMA GUAZU SUCURSAL: Avda GAUDIOSO NUÑEZ "
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.R.L.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Combustibles y Lubricantes",
+                  "id": 15
+                },
+                {
+                  "name": "Productos quimicos",
+                  "id": 16
+                },
+                {
+                  "name": "Productos Alimenticios",
+                  "id": 14
+                }
+              ]
+            }
+          },
+          {
+            "name": "TOTOYA S.A.",
+            "id": "PY-RUC-80054876-0",
+            "identifier": {
+              "id": "80054876-0",
+              "legalName": "TOTOYA S.A.",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "AMERICO LUIS BENITEZ VALLEJOS",
+              "email": "totoyasa09@hotmail.com",
+              "faxNumber": "432073",
+              "telephone": "982715675"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "PARAGUARI",
+              "region": "Paraguarí",
+              "streetAddress": "RUTA 1 MCAL. FRANCISCO SOLANO LOPEZ KM 61"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.",
+              "activityTypes": [
+                "goods"
+              ]
+            }
+          },
+          {
+            "name": "AGROMECANICA MARTINEZ S.A.",
+            "id": "PY-RUC-80066943-6",
+            "identifier": {
+              "id": "80066943-6",
+              "legalName": "AGROMECANICA MARTINEZ S.A.",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "Milcides Gabriel Martinez Bresanivich",
+              "email": "agromecanicamartinezsa@outlook.com",
+              "faxNumber": "0464-20149",
+              "telephone": "0"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "NUEVA ESPERANZA",
+              "region": "Canindeyú",
+              "streetAddress": "CALLE LAPACHO- NUEVA ESPERANZA"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Combustibles y Lubricantes",
+                  "id": 15
+                },
+                {
+                  "name": "Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+                  "id": 18
+                },
+                {
+                  "name": "Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+                  "id": 2
+                },
+                {
+                  "name": "Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+                  "id": 22
+                }
+              ]
+            }
+          },
+          {
+            "name": "ESTACIONES DE SERVICIOS DEL SUR SOCIEDAD ANONIMA",
+            "id": "PY-RUC-80095696-6",
+            "identifier": {
+              "id": "80095696-6",
+              "legalName": "ESTACIONES DE SERVICIOS DEL SUR SOCIEDAD ANONIMA",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "supplier",
+              "notifiedSupplier",
+              "tenderer"
+            ],
+            "contactPoint": {
+              "name": "ALBERTO MORENO NOTARIO",
+              "email": "estacionesmisiones@gmail.com",
+              "telephone": "0991718978"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "SAN IGNACIO",
+              "region": "Misiones",
+              "streetAddress": "RUTA INTERNACIONAL Nº 1 MCAL. F.S. LOPEZ KM 224 C/ FELIX PEDROZO"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Combustibles y Lubricantes",
+                  "id": 15
+                },
+                {
+                  "name": "Productos Alimenticios",
+                  "id": 14
+                }
+              ]
+            }
+          }
+        ],
+        "tag": [
+          "compiled"
+        ]
+      }
+    }
+  ],
+  "pagination": {
+    "total_items": 1,
+    "total_pages": 1,
+    "current_page": 1,
+    "items_per_page": 10,
+    "total_in_page": 1
+  }
+}

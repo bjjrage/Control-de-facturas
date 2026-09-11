@@ -1,0 +1,2554 @@
+{
+  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/ocds/record/ocds-03ad3f-371538",
+  "publishedDate": "2026-09-10T21:17:48Z",
+  "publisher": {
+    "name": "Dirección Nacional de Contrataciones Públicas, Paraguay"
+  },
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "publicationPolicy": "https://www.contrataciones.gov.py/datos/legal",
+  "version": "1.1",
+  "extensions": [
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_budget_breakdown_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_budget_and_spend_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_lots_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_enquiry_extension/master/extension.json",
+    "https://raw.githubusercontent.com/sdd1982/enquiriesAddress/master/extension.json",
+    "https://raw.githubusercontent.com/sdd1982/legalEntityTypeDetail/master/extension.json",
+    "https://raw.githubusercontent.com/gitMHOCDS/transactions/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_investmentproject_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_clarification_meetings_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_item_attributes_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_items_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_contract_suppliers_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_partyDetails_scale_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_location_extension/v1.1.4/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_activityType_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_tender_notifiedsuppliers_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_tender_lots_details_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_memberOf_extension/master/extension.json",
+    "https://raw.githubusercontent.com/portaledcahn/ocds_tenderDatePublished_extension/master/extension.json",
+    "https://raw.githubusercontent.com/INAImexico/ocds_guarantees_extension/master/extension.json",
+    "https://bitbucket.org/ONCAETI/ocds_releasesource_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_requirements_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_bidOpening_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_coveredBy_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_qualification_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_publicEntitiesDetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_items_subItems_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_statusdetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_mainProcurementCategoryDetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_identifier_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_estimatedDate_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_participationFee_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_amendments_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_lot_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_transaction_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_financialprogress_financialcode_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_categories_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_complaints_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_item_minQuantity_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_implementation_purchaseOrder_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_document_type_details/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_cancellations_amendments_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_milestone_documents_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_techniques_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_bid_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_bid_items_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_auctions_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_secondStage_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_beneficiaries_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/Crown-Commercial-Service/ocds_tender_suitability_extension/main/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_subcontracting_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_partyDetails_scale_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_organizationClassification_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_sustainability_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_implementation_reportedpayment_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_milestone_deliveries_extension/raw/master/extension.json"
+  ],
+  "records": [
+    {
+      "ocid": "ocds-03ad3f-371538-1",
+      "releases": [
+        {
+          "date": "2022-12-01T07:39:26-04:00",
+          "tag": [
+            "tender",
+            "award",
+            "contractTermination",
+            "implementation",
+            "contractAmendment",
+            "planningUpdate"
+          ],
+          "url": "https://www.contrataciones.gov.py/datos/api/v3/doc/ocds/releases/id/371538-cd-mitic-n-21-2019-adquisicion-montaje-puesta-funcionamiento-equipos-aire-acondicion-1-1669880366.315713"
+        }
+      ],
+      "compiledRelease": {
+        "id": "371538-cd-mitic-n-21-2019-adquisicion-montaje-puesta-funcionamiento-equipos-aire-acondicion-1-1669880366.315713",
+        "awards": [
+          {
+            "id": "371538-warrior-s-r-l-1",
+            "status": "active",
+            "statusDetails": "Adjudicado",
+            "date": "2019-12-06T12:00:00-04:00",
+            "value": {
+              "amount": 167000000,
+              "currency": "PYG"
+            },
+            "suppliers": [
+              {
+                "name": "WARRIOR S.A",
+                "id": "PY-RUC-80056565-7"
+              }
+            ],
+            "documents": [
+              {
+                "id": "YptqTn/WrtE=",
+                "datePublished": "2019-12-16T19:01:14-04:00",
+                "title": "informe_de_evaluacion_1575671117216.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/YptqTn%252FWrtE%253D",
+                "language": "es",
+                "documentTypeDetails": "Informe de Evaluación"
+              },
+              {
+                "id": "ZVEo5M4ZeIE=",
+                "datePublished": "2019-12-16T19:01:14-04:00",
+                "title": "informe_de_evaluacion_cd_21_1576180092793.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/ZVEo5M4ZeIE%253D",
+                "language": "es",
+                "documentTypeDetails": "Informe de Evaluación"
+              },
+              {
+                "id": "AQ0oM+w2PyM=",
+                "datePublished": "2019-12-16T19:01:14-04:00",
+                "title": "acta_de_apertura_cd_21_1576180082335.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/AQ0oM%252Bw2PyM%253D",
+                "language": "es",
+                "documentTypeDetails": "Acta de Apertura"
+              },
+              {
+                "id": "dix2iRRDbik=",
+                "title": "URL de la Adjudicación",
+                "url": "https://www.contrataciones.gov.py/licitaciones/adjudicacion/371538-cd-mitic-n-21-2019-adquisicion-montaje-puesta-funcionamiento-equipos-aire-acondicion-1/resumen-adjudicacion.html",
+                "language": "es",
+                "documentType": "awardNotice",
+                "format": "text/html"
+              },
+              {
+                "id": "AZJbob/mgOM=",
+                "datePublished": "2019-12-16T19:01:14-04:00",
+                "title": "resolucion_mitic_n_661_2019_1576180105484.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/AZJbob%252FmgOM%253D",
+                "language": "es",
+                "documentType": "awardNotice",
+                "documentTypeDetails": "Resolución de Adjudicación"
+              },
+              {
+                "id": "X3nnqE0gocY=",
+                "datePublished": "2019-12-16T19:01:14-04:00",
+                "title": "cco_1575671141691.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/X3nnqE0gocY%253D",
+                "language": "es",
+                "documentTypeDetails": "Cuadro Comparativo de Ofertas"
+              },
+              {
+                "id": "kTFrLy5U4I4=",
+                "datePublished": "2019-12-16T19:01:14-04:00",
+                "title": "notificacion_oferentes_1576180170384.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/kTFrLy5U4I4%253D",
+                "language": "es",
+                "documentTypeDetails": "Notificación al Oferente"
+              },
+              {
+                "id": "f2fYbqAqFgw=",
+                "datePublished": "2019-12-16T19:01:14-04:00",
+                "title": "acta_de_apertura_1575671114567.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/f2fYbqAqFgw%253D",
+                "language": "es",
+                "documentTypeDetails": "Acta de Apertura"
+              },
+              {
+                "id": "8GH+Dl/EHfU=",
+                "datePublished": "2019-12-16T19:01:14-04:00",
+                "title": "cuadro_comparativo_de_ofertas_cd21_1576180161894.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/8GH%252BDl%252FEHfU%253D",
+                "language": "es",
+                "documentTypeDetails": "Cuadro Comparativo de Ofertas"
+              },
+              {
+                "id": "IoPJf5ovN/8=",
+                "datePublished": "2019-12-16T19:01:14-04:00",
+                "title": "notificacion_oferente_1575671161240.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/IoPJf5ovN%252F8%253D",
+                "language": "es",
+                "documentTypeDetails": "Notificación al Oferente"
+              },
+              {
+                "id": "bGaDrggOEog=",
+                "datePublished": "2019-12-16T19:01:14-04:00",
+                "title": "resolucion_mitic_1575671124543.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/bGaDrggOEog%253D",
+                "language": "es",
+                "documentType": "awardNotice",
+                "documentTypeDetails": "Resolución de Adjudicación"
+              }
+            ],
+            "items": [
+              {
+                "id": "J9ybsJuzGsS7L5370jFouQ==",
+                "description": "Acondicionador de aire tipo split - Equipos de climatización para Central Digital de Coronel Oviedo",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "40101701-002",
+                  "description": "Acondicionador de aire tipo split",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/40101701-002"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "40101701",
+                    "description": "Aires acondicionados y accesorios",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/40101701"
+                  }
+                ],
+                "quantity": 2,
+                "unit": {
+                  "name": "Unidad",
+                  "id": "UNI",
+                  "value": {
+                    "amount": 16200000,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "xxsh4hzNgOI=",
+                "attributes": [
+                  {
+                    "value": "CHINA",
+                    "name": "Procedencia",
+                    "id": "1"
+                  },
+                  {
+                    "value": "UNIDAD",
+                    "name": "Presentacion",
+                    "id": "2"
+                  },
+                  {
+                    "value": "MIDEA",
+                    "name": "Fabricante",
+                    "id": "3"
+                  },
+                  {
+                    "value": "MIDEA",
+                    "name": "Marca",
+                    "id": "4"
+                  },
+                  {
+                    "value": "60000 BTU",
+                    "name": "Modelo",
+                    "id": "5"
+                  },
+                  {
+                    "name": "Relacion Medida",
+                    "id": "6",
+                    "value": "Unidad"
+                  },
+                  {
+                    "name": "Orden",
+                    "value": "3",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "NECNf4vTwdMB/LpJ8/Jhkw==",
+                "description": "Acondicionador de aire tipo split - Equipos de climatización para Central Digital de Ciudad del Este",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "40101701-002",
+                  "description": "Acondicionador de aire tipo split",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/40101701-002"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "40101701",
+                    "description": "Aires acondicionados y accesorios",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/40101701"
+                  }
+                ],
+                "quantity": 2,
+                "unit": {
+                  "name": "Unidad",
+                  "id": "UNI",
+                  "value": {
+                    "amount": 15600000,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "xxsh4hzNgOI=",
+                "attributes": [
+                  {
+                    "value": "CHINA",
+                    "name": "Procedencia",
+                    "id": "1"
+                  },
+                  {
+                    "value": "UNIDAD",
+                    "name": "Presentacion",
+                    "id": "2"
+                  },
+                  {
+                    "value": "MIDEA",
+                    "name": "Fabricante",
+                    "id": "3"
+                  },
+                  {
+                    "value": "MIDEA",
+                    "name": "Marca",
+                    "id": "4"
+                  },
+                  {
+                    "value": "60000 BTU",
+                    "name": "Modelo",
+                    "id": "5"
+                  },
+                  {
+                    "name": "Relacion Medida",
+                    "id": "6",
+                    "value": "Unidad"
+                  },
+                  {
+                    "name": "Orden",
+                    "value": "4",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "nxoF7a39UIiOoC6+QBjD2w==",
+                "description": "Acondicionador de aire tipo split - Equipos de climatización para Central Digital de Arroyito",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "40101701-002",
+                  "description": "Acondicionador de aire tipo split",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/40101701-002"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "40101701",
+                    "description": "Aires acondicionados y accesorios",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/40101701"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Unidad",
+                  "id": "UNI",
+                  "value": {
+                    "amount": 13200000,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "xxsh4hzNgOI=",
+                "attributes": [
+                  {
+                    "value": "CHINA",
+                    "name": "Procedencia",
+                    "id": "1"
+                  },
+                  {
+                    "value": "UNIDAD",
+                    "name": "Presentacion",
+                    "id": "2"
+                  },
+                  {
+                    "value": "MIDEA",
+                    "name": "Fabricante",
+                    "id": "3"
+                  },
+                  {
+                    "value": "MIDEA",
+                    "name": "Marca",
+                    "id": "4"
+                  },
+                  {
+                    "value": "60000 BTU",
+                    "name": "Modelo",
+                    "id": "5"
+                  },
+                  {
+                    "name": "Relacion Medida",
+                    "id": "6",
+                    "value": "Unidad"
+                  },
+                  {
+                    "name": "Orden",
+                    "value": "5",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "oHhu3kWhu9piss21qHhJ+w==",
+                "description": "Acondicionador de aire tipo split - Equipos de climatización para Central Digital de Encarnación",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "40101701-002",
+                  "description": "Acondicionador de aire tipo split",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/40101701-002"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "40101701",
+                    "description": "Aires acondicionados y accesorios",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/40101701"
+                  }
+                ],
+                "quantity": 2,
+                "unit": {
+                  "name": "Unidad",
+                  "id": "UNI",
+                  "value": {
+                    "amount": 19800000,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "xxsh4hzNgOI=",
+                "attributes": [
+                  {
+                    "value": "CHINA",
+                    "name": "Procedencia",
+                    "id": "1"
+                  },
+                  {
+                    "value": "UNIDAD",
+                    "name": "Presentacion",
+                    "id": "2"
+                  },
+                  {
+                    "value": "MIDEA",
+                    "name": "Fabricante",
+                    "id": "3"
+                  },
+                  {
+                    "value": "MIDEA",
+                    "name": "Marca",
+                    "id": "4"
+                  },
+                  {
+                    "value": "60000 BTU",
+                    "name": "Modelo",
+                    "id": "5"
+                  },
+                  {
+                    "name": "Relacion Medida",
+                    "id": "6",
+                    "value": "Unidad"
+                  },
+                  {
+                    "name": "Orden",
+                    "value": "2",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "wyEwk0M52raOoCmF8FpaIA==",
+                "description": "Acondicionador de aire tipo split - Equipos de climatización para Central Digital de Yby Yaú",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "40101701-002",
+                  "description": "Acondicionador de aire tipo split",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/40101701-002"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "40101701",
+                    "description": "Aires acondicionados y accesorios",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/40101701"
+                  }
+                ],
+                "quantity": 2,
+                "unit": {
+                  "name": "Unidad",
+                  "id": "UNI",
+                  "value": {
+                    "amount": 19200000,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "xxsh4hzNgOI=",
+                "attributes": [
+                  {
+                    "value": "CHINA",
+                    "name": "Procedencia",
+                    "id": "1"
+                  },
+                  {
+                    "value": "UNIDAD",
+                    "name": "Presentacion",
+                    "id": "2"
+                  },
+                  {
+                    "value": "MIDEA",
+                    "name": "Fabricante",
+                    "id": "3"
+                  },
+                  {
+                    "value": "MIDEA",
+                    "name": "Marca",
+                    "id": "4"
+                  },
+                  {
+                    "value": "48000 BTU",
+                    "name": "Modelo",
+                    "id": "5"
+                  },
+                  {
+                    "name": "Relacion Medida",
+                    "id": "6",
+                    "value": "Unidad"
+                  },
+                  {
+                    "name": "Orden",
+                    "value": "1",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "xy+BOHaV2zGg7LY1jxFlJw==",
+                "description": "Acondicionador de aire tipo split - Equipos de climatización para Central Digital de Caapucu",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "40101701-002",
+                  "description": "Acondicionador de aire tipo split",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/40101701-002"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "40101701",
+                    "description": "Aires acondicionados y accesorios",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/40101701"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Unidad",
+                  "id": "UNI",
+                  "value": {
+                    "amount": 12200000,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "xxsh4hzNgOI=",
+                "attributes": [
+                  {
+                    "value": "CHINA",
+                    "name": "Procedencia",
+                    "id": "1"
+                  },
+                  {
+                    "value": "UNIDAD",
+                    "name": "Presentacion",
+                    "id": "2"
+                  },
+                  {
+                    "value": "MIDEA",
+                    "name": "Fabricante",
+                    "id": "3"
+                  },
+                  {
+                    "value": "MIDEA",
+                    "name": "Marca",
+                    "id": "4"
+                  },
+                  {
+                    "value": "48000 BTU",
+                    "name": "Modelo",
+                    "id": "5"
+                  },
+                  {
+                    "name": "Relacion Medida",
+                    "id": "6",
+                    "value": "Unidad"
+                  },
+                  {
+                    "name": "Orden",
+                    "value": "6",
+                    "id": "7"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "contracts": [
+          {
+            "id": "CD-12021-19-185038",
+            "guarantees": [
+              {
+                "id": "fbPioiWtNVc=",
+                "date": "2021-01-11T00:00:00-04:00",
+                "period": {
+                  "endDate": "2022-01-31T00:00:00-04:00",
+                  "startDate": "2020-12-31T00:00:00-04:00"
+                },
+                "obligations": "Endoso - Fiel Cumplimiento"
+              },
+              {
+                "id": "VHOsQBIdyZs=",
+                "date": "2019-12-26T00:00:00-04:00",
+                "period": {
+                  "endDate": "2020-12-31T00:00:00-04:00",
+                  "startDate": "2019-12-17T00:00:00-04:00"
+                },
+                "obligations": "fulfillment"
+              }
+            ],
+            "implementation": {
+              "milestones": [
+                {
+                  "purchaseOrderId": "r2cp2CLqBdg=",
+                  "id": "+bpk6Sw8iqw=",
+                  "title": "Informes de conformidad",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2023-09-21T00:00:00-04:00",
+                  "dateMet": "2022-09-21T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "nWKVSxLJSeo=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/nWKVSxLJSeo%253D",
+                      "datePublished": "2023-08-09T14:25:27-04:00",
+                      "language": "es",
+                      "title": "informe_de_conformidad_y_anexos_1691605526422.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "3CA8ENa1Aec=",
+                  "title": "Acta de recepción ",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2019-12-31T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "id": "bjMGeZcWM4o=",
+                  "title": "Nota de Remisión",
+                  "type": "reporting",
+                  "code": "Nota de Remisión",
+                  "dueDate": "2019-12-31T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "id": "/eBCGPhDuyQ=",
+                  "title": "Acta de recepción ",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2019-12-31T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "id": "EDzdrNXlm4Y=",
+                  "title": "Nota de Remisión",
+                  "type": "reporting",
+                  "code": "Nota de Remisión",
+                  "dueDate": "2019-12-31T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "id": "fL0rL5E/pXw=",
+                  "title": "Informe de conformidad",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2022-10-10T00:00:00-04:00",
+                  "dateMet": "2022-10-10T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "xl3RVLNVlxY=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/xl3RVLNVlxY%253D",
+                      "datePublished": "2022-11-03T15:53:52-04:00",
+                      "language": "es",
+                      "title": "informe_de_conformidad__10_10_2022____warrior_1667501632030.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "f/oLdgszwP0=",
+                  "title": "Acta de recepción ",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2019-12-31T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "id": "hQEKkC93Zl8=",
+                  "title": "Nota de Remisión",
+                  "type": "reporting",
+                  "code": "Nota de Remisión",
+                  "dueDate": "2019-12-31T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "id": "JHCtk2Ickyc=",
+                  "title": "Nota de Remisión",
+                  "type": "reporting",
+                  "code": "Nota de Remisión",
+                  "dueDate": "2019-12-31T00:00:00-04:00",
+                  "dateMet": "2020-05-08T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Nota de Remisión",
+                      "id": "g4RUO2u0mQU=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/g4RUO2u0mQU%253D",
+                      "datePublished": "2020-10-14T10:34:36-04:00",
+                      "language": "es",
+                      "title": "nota_remision_central_cde_1602682475950.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "k/OUJtuWkyw=",
+                  "title": "Nota de Remisión",
+                  "type": "reporting",
+                  "code": "Nota de Remisión",
+                  "dueDate": "2019-12-31T00:00:00-04:00",
+                  "dateMet": "2020-02-08T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Nota de Remisión",
+                      "id": "edkVNBqoEig=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/edkVNBqoEig%253D",
+                      "datePublished": "2020-10-14T10:30:08-04:00",
+                      "language": "es",
+                      "title": "nota_remision_central_yby_yau_1602682207772.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "POT94424q6U=",
+                  "title": "Acta de Recepcion Definitiva",
+                  "type": "delivery",
+                  "code": "Recepción Definitiva",
+                  "dueDate": "2022-09-29T00:00:00-04:00",
+                  "dateMet": "2022-10-05T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Recepción Definitiva",
+                      "id": "BCGcy8oGF5c=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/BCGcy8oGF5c%253D",
+                      "datePublished": "2022-11-03T15:51:23-04:00",
+                      "language": "es",
+                      "title": "acta_de_recepcion_definitiva__05_10_2022____warrior_1667501483058.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "THwiK+ySA6M=",
+                  "title": "Acta de recepción ",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2019-12-31T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "id": "ueRDTLtaNTk=",
+                  "title": "Acta de recepción ",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2019-12-31T00:00:00-04:00",
+                  "dateMet": "2020-05-11T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "eQc/z2D2rTU=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/eQc%252Fz2D2rTU%253D",
+                      "datePublished": "2020-10-14T10:35:33-04:00",
+                      "language": "es",
+                      "title": "acta_recepcion_tecnica_definitiva_central_cde_1602682532427.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "UPb/ZawBm3k=",
+                  "title": "Nota de Remisión",
+                  "type": "reporting",
+                  "code": "Nota de Remisión",
+                  "dueDate": "2019-12-31T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "id": "Uz334OKm0Fc=",
+                  "title": "Nota de Remisión",
+                  "type": "reporting",
+                  "code": "Nota de Remisión",
+                  "dueDate": "2019-12-31T00:00:00-04:00",
+                  "dateMet": "2020-05-08T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Nota de Remisión",
+                      "id": "5S6QyvOC4uQ=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/5S6QyvOC4uQ%253D",
+                      "datePublished": "2020-10-14T10:34:26-04:00",
+                      "language": "es",
+                      "title": "nota_remision_central_cde_1602682466170.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "yktTT05YrTA=",
+                  "title": "Acta de recepción ",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2019-12-31T00:00:00-04:00",
+                  "dateMet": "2020-02-10T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "oHPGnNouWrs=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/oHPGnNouWrs%253D",
+                      "datePublished": "2020-10-14T10:31:28-04:00",
+                      "language": "es",
+                      "title": "acta_recepcion_tecnica_definitiva_central_yby_yau_1602682287884.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                }
+              ],
+              "purchaseOrders": [
+                {
+                  "id": "r2cp2CLqBdg=",
+                  "title": "Ordenes",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2022-09-22T00:00:00-04:00",
+                      "endDate": "2022-10-07T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "r2cp2CLqBdg=",
+                      "datePublished": "2023-08-09T14:23:34-04:00",
+                      "title": "ordenes_1691605414296.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/r2cp2CLqBdg%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                }
+              ],
+              "financialProgress": {
+                "breakdown": [
+                  {
+                    "id": "2020/12/21/1/1/0/4/74/99/540/30/CD-12021-19-185038",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 89080000
+                    },
+                    "classifications": {
+                      "anio": "2020",
+                      "nivel": "12",
+                      "entidad": "21",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "4",
+                      "financiador": "74",
+                      "departamento": "99",
+                      "objeto_gasto": "540",
+                      "fuente_financiamiento": "30",
+                      "cdp": "371538"
+                    },
+                    "financialCode": "CD-12021-19-185038"
+                  },
+                  {
+                    "id": "2019/12/21/2/1/2/0/74/99/540/30/CD-12021-19-185038",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 0
+                    },
+                    "classifications": {
+                      "anio": "2019",
+                      "nivel": "12",
+                      "entidad": "21",
+                      "tipo_programa": "2",
+                      "programa": "1",
+                      "sub_programa": "2",
+                      "proyecto": "0",
+                      "financiador": "74",
+                      "departamento": "99",
+                      "objeto_gasto": "540",
+                      "fuente_financiamiento": "30",
+                      "cdp": "371538"
+                    },
+                    "financialCode": "CD-12021-19-185038"
+                  },
+                  {
+                    "id": "2022/12/21/1/1/0/4/74/99/541/30/CD-12021-19-185038",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 46880000
+                    },
+                    "classifications": {
+                      "anio": "2022",
+                      "nivel": "12",
+                      "entidad": "21",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "4",
+                      "financiador": "74",
+                      "departamento": "99",
+                      "objeto_gasto": "541",
+                      "fuente_financiamiento": "30",
+                      "cdp": "371538"
+                    },
+                    "financialCode": "CD-12021-19-185038"
+                  },
+                  {
+                    "id": "2020/12/21/1/1/0/4/74/99/540/30/AC-12021-20-39329",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 0
+                    },
+                    "classifications": {
+                      "anio": "2020",
+                      "nivel": "12",
+                      "entidad": "21",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "4",
+                      "financiador": "74",
+                      "departamento": "99",
+                      "objeto_gasto": "540",
+                      "fuente_financiamiento": "30",
+                      "cdp": "371538"
+                    },
+                    "financialCode": "AC-12021-20-39329"
+                  },
+                  {
+                    "id": "2023/12/21/1/1/0/2/1/99/541/10/AC-12021-20-39329",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 15200000
+                    },
+                    "classifications": {
+                      "anio": "2023",
+                      "nivel": "12",
+                      "entidad": "21",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "2",
+                      "financiador": "1",
+                      "departamento": "99",
+                      "objeto_gasto": "541",
+                      "fuente_financiamiento": "10",
+                      "cdp": "371538"
+                    },
+                    "financialCode": "AC-12021-20-39329"
+                  }
+                ]
+              },
+              "transactions": [
+                {
+                  "id": "SIAF+CD-12021-19-185038+001-001-0003039+3059602",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 28936006
+                  },
+                  "date": "2020-06-02T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "WARRIOR S.A",
+                    "id": "PY-RUC-80056565-7"
+                  },
+                  "requestDate": "2020-05-26T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0003039",
+                      "bill": {
+                        "id": "001-001-0003039",
+                        "type": "FACTURA",
+                        "date": "2020-05-25T00:00:00-04:00",
+                        "amount": {
+                          "amount": 30720000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 837818,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 108358,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 837818,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-185038"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-185038+001-001-0003352+3059603",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 29812320
+                  },
+                  "date": "2023-01-13T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "WARRIOR S.A",
+                    "id": "PY-RUC-80056565-7"
+                  },
+                  "requestDate": "2022-12-28T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0003352",
+                      "bill": {
+                        "id": "001-001-0003352",
+                        "type": "FACTURA",
+                        "date": "2022-12-22T00:00:00-04:00",
+                        "amount": {
+                          "amount": 31680000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 864000,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 111744,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 864000,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-185038"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-185038+001-002-0000193+3059604",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 30141673
+                  },
+                  "date": "2020-04-07T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "WARRIOR S.A",
+                    "id": "PY-RUC-80056565-7"
+                  },
+                  "requestDate": "2020-03-31T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-002-0000193",
+                      "bill": {
+                        "id": "001-002-0000193",
+                        "type": "FACTURA",
+                        "date": "2020-03-10T00:00:00-04:00",
+                        "amount": {
+                          "amount": 32000000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 872727,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 112873,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 872727,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-185038"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-185038+001-002-0000193+3059605",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 1318698
+                  },
+                  "date": "2020-06-16T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "WARRIOR S.A",
+                    "id": "PY-RUC-80056565-7"
+                  },
+                  "requestDate": "2020-05-29T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-002-0000193",
+                      "bill": {
+                        "id": "001-002-0000193",
+                        "type": "FACTURA",
+                        "date": "2020-03-10T00:00:00-04:00",
+                        "amount": {
+                          "amount": 1400000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 38182,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 4938,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 38182,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-185038"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-185038+001-002-0000229+3059606",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 23510505
+                  },
+                  "date": "2020-12-10T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "WARRIOR S.A",
+                    "id": "PY-RUC-80056565-7"
+                  },
+                  "requestDate": "2020-11-30T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-002-0000229",
+                      "bill": {
+                        "id": "001-002-0000229",
+                        "type": "FACTURA",
+                        "date": "2020-08-28T00:00:00-04:00",
+                        "amount": {
+                          "amount": 24960000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 680727,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 88041,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 680727,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-185038"
+                }
+              ]
+            },
+            "amendments": [
+              {
+                "date": "2020-05-06T00:00:00-04:00",
+                "description": "Ampliación de Monto",
+                "amendsAmount": {
+                  "amount": 32200000,
+                  "currency": "PYG"
+                },
+                "id": "371538-warrior-s-r-l-1-ampliacion-2",
+                "financialCode": "AC-12021-20-39329"
+              },
+              {
+                "date": "2023-01-13T00:00:00-04:00",
+                "description": "Rescisión",
+                "id": "16",
+                "rationale": "Demás casos estipulados en el contrato, de acuerdo con su naturaleza",
+                "guarantee": {
+                  "id": "16",
+                  "type": "Declaración Jurada",
+                  "date": "2019-12-16T00:00:00-04:00",
+                  "period": {
+                    "endDate": "2023-04-30T00:00:00-04:00"
+                  },
+                  "percentage": 20,
+                  "executed": false
+                },
+                "prepaid": true
+              }
+            ],
+            "awardID": "371538-warrior-s-r-l-1",
+            "status": "terminated",
+            "statusDetails": "Adjudicado",
+            "dateSigned": "2019-12-16T12:00:00-04:00",
+            "period": {
+              "startDate": "2019-12-18T00:00:00-04:00",
+              "endDate": "2021-12-31T00:00:00-04:00"
+            },
+            "value": {
+              "amount": 167000000,
+              "currency": "PYG"
+            },
+            "documents": [
+              {
+                "id": "BDePmEx6jAA=",
+                "datePublished": "2019-12-20T15:42:10-04:00",
+                "title": "contrato_45_warrior_1576607179055.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/contrato/BDePmEx6jAA%253D",
+                "language": "es",
+                "documentType": "contractSigned",
+                "documentTypeDetails": "Orden de Compra o Contrato"
+              },
+              {
+                "id": "F9qwN3iEePw=",
+                "title": "27935_responsabilidad_adj_1576867328175.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/contrato/F9qwN3iEePw%253D",
+                "language": "es",
+                "documentTypeDetails": "Nota de Observacion"
+              },
+              {
+                "id": "Vgotk0MoDDw=",
+                "datePublished": "2023-06-21T15:50:20-04:00",
+                "title": "resolucin_mitic_016_23_1681919393593.pdf",
+                "url": "https://contrataciones.gov.py/documentos/download/rescision_contrato/Vgotk0MoDDw%253D",
+                "language": "es",
+                "documentTypeDetails": "Resolución Rescisión"
+              },
+              {
+                "id": "XKVD5ZyuMRE=",
+                "datePublished": "2019-12-20T15:42:10-04:00",
+                "title": "684__a_dncp_solicitud_cc_warrior_sa_signed__1576604999743.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/contrato/XKVD5ZyuMRE%253D",
+                "language": "es",
+                "documentTypeDetails": "Nota de Aclaración"
+              },
+              {
+                "id": "cTHeSAvnMxI=",
+                "datePublished": "2019-12-20T15:42:10-04:00",
+                "title": "684__a_dncp_solicitud_cc_warrior_sa_signed__1576604664351.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/contrato/cTHeSAvnMxI%253D",
+                "language": "es",
+                "documentTypeDetails": "Nota de Aclaración"
+              }
+            ]
+          }
+        ],
+        "tender": {
+          "id": "371538-cd-mitic-n-21-2019-adquisicion-montaje-puesta-funcionamiento-equipos-aire-acondicion-1",
+          "title": "CD MITIC Nº 21/2019 Adquisición, montaje y puesta en funcionamiento de equipos de aire acondicionado para el MITIC - Plurianual 2019 - 2020",
+          "status": "complete",
+          "awardCriteria": "priceOnly",
+          "awardCriteriaDetails": "Por Total",
+          "submissionMethod": [
+            "inPerson"
+          ],
+          "bidOpening": {
+            "date": "2019-12-04T13:45:00-04:00",
+            "address": {
+              "streetAddress": "Gral. Santos Nº 1170 c/Concordia. Complejo Santos. Bloques E1 y E2"
+            }
+          },
+          "submissionMethodDetails": "Lugar entrega ofertas: Gral. Santos Nº 1170 c/Concordia. Complejo Santos. Bloques E1 y E2 || Lugar entrega bien: Según documento del llamado || Fecha entrega bien: Según documento del llamado",
+          "eligibilityCriteria": "Restricciones: INHABILIDADES PREVISTAS EN EL ARTICULO 40 DE LA LEY 2051/03",
+          "statusDetails": "Adjudicada",
+          "enquiriesAddress": {
+            "streetAddress": "Gral. Santos Nº 1170 c/Concordia. Complejo Santos. Bloques E1 y E2"
+          },
+          "mainProcurementCategoryDetails": "Bienes - Muebles y Enseres",
+          "hasEnquiries": false,
+          "value": {
+            "amount": 167000000,
+            "currency": "PYG"
+          },
+          "datePublished": "2019-11-14T17:37:06-04:00",
+          "tenderPeriod": {
+            "startDate": "2019-11-14T17:37:06-04:00",
+            "endDate": "2019-12-04T13:30:00-04:00",
+            "durationInDays": 19
+          },
+          "awardPeriod": {
+            "startDate": "2019-12-04T13:45:00-04:00"
+          },
+          "enquiryPeriod": {
+            "endDate": "2019-11-18T09:00:00-04:00",
+            "startDate": "2019-11-14T17:37:06-04:00",
+            "durationInDays": 3
+          },
+          "mainProcurementCategory": "goods",
+          "procurementMethod": "open",
+          "procurementMethodDetails": "Contratación Directa",
+          "procuringEntity": {
+            "id": "DNCP-SICP-CODE-375",
+            "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+          },
+          "criteria": [
+            {
+              "id": "1",
+              "title": "Garantía de Mantenimiento de Ofertas",
+              "description": "Los oferentes, proveedores o contratistas deberán garantizar la seriedad de sus ofertas, mediante la garantía de mantenimiento de la oferta",
+              "source": "tenderer",
+              "requirementGroups": [
+                {
+                  "id": "1-1",
+                  "description": "La garantía debe ser de un cierto porcentaje, periodo y tipo",
+                  "requirements": [
+                    {
+                      "id": "1-1-1",
+                      "title": "Porcentaje de la garantia",
+                      "expectedValue": "5"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "lots": [
+            {
+              "id": "xxsh4hzNgOI=",
+              "title": "1 - LoteTotal",
+              "status": "active",
+              "statusDetails": "Activo",
+              "value": {
+                "amount": 167000000,
+                "currency": "PYG"
+              },
+              "simultaneousSupply": false,
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "1",
+                  "id": "1"
+                }
+              ]
+            }
+          ],
+          "notifiedSuppliers": [
+            {
+              "name": "BRITAM S.A.",
+              "id": "PY-RUC-80008970-7"
+            },
+            {
+              "name": "CLIMATOTAL S.R.L.",
+              "id": "PY-RUC-80052898-0"
+            },
+            {
+              "name": "GONZALEZ GIMENEZ Y CIA. SAC",
+              "id": "PY-RUC-80003485-6"
+            },
+            {
+              "name": "GOTZE INGENIERIA SA",
+              "id": "PY-RUC-80046302-1"
+            },
+            {
+              "name": "NICOLAS GONZALEZ ODDONE SAECA",
+              "id": "PY-RUC-80014137-7"
+            }
+          ],
+          "items": [
+            {
+              "id": "J9ybsJuzGsS7L5370jFouQ==",
+              "description": "Acondicionador de aire tipo split - Equipos de climatización para Central Digital de Coronel Oviedo",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "40101701-002",
+                "description": "Acondicionador de aire tipo split",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/40101701-002"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "40101701",
+                  "description": "Aires acondicionados y accesorios",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/40101701"
+                }
+              ],
+              "quantity": 2,
+              "unit": {
+                "name": "Unidad",
+                "id": "UNI",
+                "value": {
+                  "amount": 13500000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "xxsh4hzNgOI=",
+              "attributes": [
+                {
+                  "name": "Presentacion",
+                  "value": "UNIDAD",
+                  "id": "1"
+                },
+                {
+                  "name": "Orden",
+                  "value": "3",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "NECNf4vTwdMB/LpJ8/Jhkw==",
+              "description": "Acondicionador de aire tipo split - Equipos de climatización para Central Digital de Ciudad del Este",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "40101701-002",
+                "description": "Acondicionador de aire tipo split",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/40101701-002"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "40101701",
+                  "description": "Aires acondicionados y accesorios",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/40101701"
+                }
+              ],
+              "quantity": 2,
+              "unit": {
+                "name": "Unidad",
+                "id": "UNI",
+                "value": {
+                  "amount": 13000000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "xxsh4hzNgOI=",
+              "attributes": [
+                {
+                  "name": "Presentacion",
+                  "value": "UNIDAD",
+                  "id": "1"
+                },
+                {
+                  "name": "Orden",
+                  "value": "4",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "nxoF7a39UIiOoC6+QBjD2w==",
+              "description": "Acondicionador de aire tipo split - Equipos de climatización para Central Digital de Arroyito",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "40101701-002",
+                "description": "Acondicionador de aire tipo split",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/40101701-002"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "40101701",
+                  "description": "Aires acondicionados y accesorios",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/40101701"
+                }
+              ],
+              "quantity": 2,
+              "unit": {
+                "name": "Unidad",
+                "id": "UNI",
+                "value": {
+                  "amount": 13000000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "xxsh4hzNgOI=",
+              "attributes": [
+                {
+                  "name": "Presentacion",
+                  "value": "UNIDAD",
+                  "id": "1"
+                },
+                {
+                  "name": "Orden",
+                  "value": "5",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "oHhu3kWhu9piss21qHhJ+w==",
+              "description": "Acondicionador de aire tipo split - Equipos de climatización para Central Digital de Encarnación",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "40101701-002",
+                "description": "Acondicionador de aire tipo split",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/40101701-002"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "40101701",
+                  "description": "Aires acondicionados y accesorios",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/40101701"
+                }
+              ],
+              "quantity": 2,
+              "unit": {
+                "name": "Unidad",
+                "id": "UNI",
+                "value": {
+                  "amount": 16500000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "xxsh4hzNgOI=",
+              "attributes": [
+                {
+                  "name": "Presentacion",
+                  "value": "UNIDAD",
+                  "id": "1"
+                },
+                {
+                  "name": "Orden",
+                  "value": "2",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "wyEwk0M52raOoCmF8FpaIA==",
+              "description": "Acondicionador de aire tipo split - Equipos de climatización para Central Digital de Yby Yaú",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "40101701-002",
+                "description": "Acondicionador de aire tipo split",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/40101701-002"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "40101701",
+                  "description": "Aires acondicionados y accesorios",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/40101701"
+                }
+              ],
+              "quantity": 2,
+              "unit": {
+                "name": "Unidad",
+                "id": "UNI",
+                "value": {
+                  "amount": 16000000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "xxsh4hzNgOI=",
+              "attributes": [
+                {
+                  "name": "Presentacion",
+                  "value": "UNIDAD",
+                  "id": "1"
+                },
+                {
+                  "name": "Orden",
+                  "value": "1",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "xy+BOHaV2zGg7LY1jxFlJw==",
+              "description": "Acondicionador de aire tipo split - Equipos de climatización para Central Digital de Caapucu",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "40101701-002",
+                "description": "Acondicionador de aire tipo split",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/40101701-002"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "40101701",
+                  "description": "Aires acondicionados y accesorios",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/40101701"
+                }
+              ],
+              "quantity": 2,
+              "unit": {
+                "name": "Unidad",
+                "id": "UNI",
+                "value": {
+                  "amount": 11500000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "xxsh4hzNgOI=",
+              "attributes": [
+                {
+                  "name": "Presentacion",
+                  "value": "UNIDAD",
+                  "id": "1"
+                },
+                {
+                  "name": "Orden",
+                  "value": "6",
+                  "id": "2"
+                }
+              ]
+            }
+          ],
+          "tenderers": [
+            {
+              "name": "Grupo Megga SRL",
+              "id": "PY-RUC-80085804-2"
+            },
+            {
+              "name": "WARRIOR S.A",
+              "id": "PY-RUC-80056565-7"
+            }
+          ],
+          "documents": [
+            {
+              "id": "2X297dSVKI4=",
+              "datePublished": "2019-11-27T15:51:15-04:00",
+              "title": "llamado_publico_1574880675958.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/2X297dSVKI4%253D",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "documentTypeDetails": "Llamado publicado"
+            },
+            {
+              "id": "2YRWbcNO45I=",
+              "datePublished": "2019-11-21T14:12:08-04:00",
+              "title": "llamado_publico_1574356328497.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/2YRWbcNO45I%253D",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "documentTypeDetails": "Llamado publicado"
+            },
+            {
+              "id": "3yIBEgj9ufM=",
+              "datePublished": "2019-11-14T17:37:06-04:00",
+              "title": "cd_21_adq_aa_1573585129444.zip",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/3yIBEgj9ufM%253D",
+              "language": "es",
+              "documentType": "eligibilityCriteria",
+              "documentTypeDetails": "Carta de Invitación"
+            },
+            {
+              "id": "6dC2OhSwJ6I=",
+              "datePublished": "2019-11-14T17:37:06-04:00",
+              "title": "23710_nota_res_cd0001_1573763823501.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/6dC2OhSwJ6I%253D",
+              "language": "es",
+              "documentTypeDetails": "Nota de Observacion"
+            },
+            {
+              "id": "dix2iRRDbik=",
+              "title": "URL de la Convocatoria",
+              "url": "https://www.contrataciones.gov.py/licitaciones/convocatoria/371538-cd-mitic-n-21-2019-adquisicion-montaje-puesta-funcionamiento-equipos-aire-acondicion-1.html",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "format": "text/html"
+            },
+            {
+              "id": "LKXMAuFeDnA=",
+              "datePublished": "2019-11-14T17:37:08-04:00",
+              "title": "iao.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/LKXMAuFeDnA%253D",
+              "language": "es",
+              "documentTypeDetails": "Instrucción a los Oferentes - Bienes y Servicios"
+            },
+            {
+              "id": "Ok7/LbcxOCM=",
+              "datePublished": "2019-11-21T14:12:08-04:00",
+              "title": "aclaratoria_1_cd21r1_signed__1574335494713.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/Ok7%252FLbcxOCM%253D",
+              "language": "es",
+              "documentType": "clarifications",
+              "documentTypeDetails": "Aclaraciones"
+            },
+            {
+              "id": "os9nyWx3oyM=",
+              "datePublished": "2019-11-27T15:51:15-04:00",
+              "title": "adenda_02_cd_21_signed__1574876673166.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/os9nyWx3oyM%253D",
+              "language": "es",
+              "documentTypeDetails": "Adenda"
+            },
+            {
+              "id": "P+mnaMGOAcU=",
+              "datePublished": "2019-11-21T14:12:08-04:00",
+              "title": "adenda_01_cd21_signed__1574336982160.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/P%252BmnaMGOAcU%253D",
+              "language": "es",
+              "documentTypeDetails": "Adenda"
+            },
+            {
+              "id": "qY6BMpo2AJI=",
+              "datePublished": "2019-11-14T17:37:06-04:00",
+              "title": "llamado_publico_1573763826464.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/qY6BMpo2AJI%253D",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "documentTypeDetails": "Llamado publicado"
+            },
+            {
+              "id": "Sd2YgAsH4eM=",
+              "datePublished": "2019-11-27T15:51:15-04:00",
+              "title": "acta_prorroga_21_1574876636343.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/Sd2YgAsH4eM%253D",
+              "language": "es",
+              "documentTypeDetails": "Acta de Prórroga"
+            },
+            {
+              "id": "viSefSOqxoU=",
+              "datePublished": "2019-11-14T17:37:09-04:00",
+              "title": "cgc.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/viSefSOqxoU%253D",
+              "language": "es",
+              "documentTypeDetails": "Condiciones Generales del Contrato - Bienes y Servicios"
+            }
+          ],
+          "numberOfTenderers": 2
+        },
+        "language": "es",
+        "ocid": "ocds-03ad3f-371538-1",
+        "date": "2022-12-01T07:39:26-04:00",
+        "initiationType": "tender",
+        "buyer": {
+          "id": "DNCP-SICP-CODE-375",
+          "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+        },
+        "sources": [
+          {
+            "id": "dncp-sicp",
+            "name": "Sistema de Información de las Contrataciones Públicas - DNCP",
+            "url": "https://www.contrataciones.gov.py/"
+          }
+        ],
+        "planning": {
+          "identifier": "371538",
+          "estimatedDate": "2019-10-31T00:00:00-04:00",
+          "budget": {
+            "description": "CD MITIC Nº 21/2019 Adquisición, montaje y puesta en funcionamiento de equipos de aire acondicionado para el MITIC - Plurianual 2019 - 2020",
+            "amount": {
+              "currency": "PYG",
+              "amount": 167000000
+            },
+            "budgetBreakdown": [
+              {
+                "id": "2019/12/21/2/1/2/0/74/99/540/30-R8RytKBSP4s=",
+                "sourceParty": {
+                  "id": "375",
+                  "name": "Ministerio de Tecnologías de la Información y Comunicación"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_utilizado": 33400000,
+                  "monto_a_utilizar": 90000000
+                },
+                "classifications": {
+                  "anio": "2019",
+                  "nivel": "12",
+                  "entidad": "21",
+                  "tipo_programa": "2",
+                  "programa": "1",
+                  "sub_programa": "2",
+                  "proyecto": "0",
+                  "financiador": "74",
+                  "departamento": "99",
+                  "objeto_gasto": "540",
+                  "fuente_financiamiento": "30",
+                  "cdp": "371538"
+                }
+              },
+              {
+                "id": "2020/12/21/1/1/0/4/74/99/540/30-UBDmC2+rusY=",
+                "sourceParty": {
+                  "id": "375",
+                  "name": "Ministerio de Tecnologías de la Información y Comunicación"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_a_utilizar": 89080000
+                },
+                "classifications": {
+                  "anio": "2020",
+                  "nivel": "12",
+                  "entidad": "21",
+                  "tipo_programa": "1",
+                  "programa": "1",
+                  "sub_programa": "0",
+                  "proyecto": "4",
+                  "financiador": "74",
+                  "departamento": "99",
+                  "objeto_gasto": "540",
+                  "fuente_financiamiento": "30",
+                  "cdp": "371538"
+                }
+              },
+              {
+                "id": "2022/12/21/1/1/0/4/74/99/541/30-vItIUk2X7Mw=",
+                "sourceParty": {
+                  "id": "375",
+                  "name": "Ministerio de Tecnologías de la Información y Comunicación"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_a_utilizar": 46880000
+                },
+                "classifications": {
+                  "anio": "2022",
+                  "nivel": "12",
+                  "entidad": "21",
+                  "tipo_programa": "1",
+                  "programa": "1",
+                  "sub_programa": "0",
+                  "proyecto": "4",
+                  "financiador": "74",
+                  "departamento": "99",
+                  "objeto_gasto": "541",
+                  "fuente_financiamiento": "30",
+                  "cdp": "371538"
+                }
+              }
+            ]
+          },
+          "items": [
+            {
+              "id": "dGrxcEvoeOA=",
+              "description": "Aires acondicionados y accesorios",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "40101701",
+                "description": "Aires acondicionados y accesorios",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/40101701"
+              }
+            }
+          ]
+        },
+        "parties": [
+          {
+            "id": "DNCP-SICP-CODE-375",
+            "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)",
+            "identifier": {
+              "scheme": "DNCP-SICP-CODE",
+              "id": "375",
+              "legalName": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+            },
+            "contactPoint": {
+              "email": "uoc@mitic.gov.py",
+              "name": "Gustavo Daniel Berni González",
+              "telephone": "0212179906"
+            },
+            "roles": [
+              "buyer",
+              "procuringEntity",
+              "payer"
+            ],
+            "details": {
+              "level": "Poder Ejecutivo",
+              "entityType": "Organismos de la Administración Central",
+              "type": "Entidad"
+            },
+            "additionalIdentifiers": [
+              {
+                "id": "2019.12.21",
+                "legalName": "Ministerio de Tecnologías de la Información y Comunicación",
+                "scheme": "PY-PGN"
+              }
+            ]
+          },
+          {
+            "name": "GONZALEZ GIMENEZ Y CIA. SAC",
+            "id": "PY-RUC-80003485-6",
+            "identifier": {
+              "id": "80003485-6",
+              "legalName": "GONZALEZ GIMENEZ Y CIA. SAC",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "ALCIDES DOMINGO GONZÁLEZ MONTANARO.",
+              "email": "msanabria@gonzalezgimenez.com.py"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "ASUNCIÓN.",
+              "region": "Asunción",
+              "streetAddress": "25 DE MAYO N° 713 E/ ANTEQUERA."
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ]
+            }
+          },
+          {
+            "name": "BRITAM S.A.",
+            "id": "PY-RUC-80008970-7",
+            "identifier": {
+              "id": "80008970-7",
+              "legalName": "BRITAM S.A.",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "NERI RAMÓN GIMENEZ- CESAR RAMIREZ- ANTONIO FERNANDEZ",
+              "email": "comprasfrio@britam.com.py",
+              "faxNumber": "670411",
+              "telephone": "0984 615 330",
+              "url": "http://www.britam.com.py"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "FERNANDO DE LA MORA",
+              "region": "Central",
+              "streetAddress": "AVENIDA MARISCAL LOPEZ NRO. 2929 Y VILLA OLIMPIA"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+                  "id": 2
+                },
+                {
+                  "name": "Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+                  "id": 24
+                },
+                {
+                  "name": "Adquisición y Locación de inmuebles. Alquiler de muebles",
+                  "id": 3
+                },
+                {
+                  "name": "Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+                  "id": 22
+                },
+                {
+                  "name": "Servicios Técnicos",
+                  "id": 7
+                },
+                {
+                  "name": "Muebles y Enseres",
+                  "id": 23
+                }
+              ]
+            }
+          },
+          {
+            "name": "NICOLAS GONZALEZ ODDONE SAECA",
+            "id": "PY-RUC-80014137-7",
+            "identifier": {
+              "id": "80014137-7",
+              "legalName": "NICOLAS GONZALEZ ODDONE SAECA",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "NICOLAS V. GONZALEZ R. - MAURO E. GONZÁLEZ - MONTSERRAT GONZÁLEZ DE CABALLERO - GISELA GONZÁLEZ DE FUSTER - JUAN JOSE BOSIO GONZÁLEZ - DOMINGO DAHER - MARGARITA ZELAYA DE SILVA",
+              "email": "licitaciones@ngosaeca.com.py",
+              "faxNumber": "213-130",
+              "telephone": "0974450127",
+              "url": "http://www.ngosaeca.com.py"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "ASUNCION",
+              "region": "Central",
+              "streetAddress": "RCA. DOMINICANA E/ SCHININI Y VIA FERREA"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.E.C.A.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Utiles de oficina, Productos de papel y cartón e impresos",
+                  "id": 11
+                },
+                {
+                  "name": "Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+                  "id": 18
+                },
+                {
+                  "name": "Muebles y Enseres",
+                  "id": 23
+                },
+                {
+                  "name": "Bienes e insumos agropecuario y forestal",
+                  "id": 19
+                },
+                {
+                  "name": "Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+                  "id": 24
+                }
+              ]
+            }
+          },
+          {
+            "name": "GOTZE INGENIERIA SA",
+            "id": "PY-RUC-80046302-1",
+            "identifier": {
+              "id": "80046302-1",
+              "legalName": "GOTZE INGENIERIA SA",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "EMILIO GOTZE PETERSEN- EMILIO KEVIN GOTZE- OLGA ECHAGUE",
+              "email": "gotzesa@gotze.com.py"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "Fdo. de  la Mora",
+              "region": "Central",
+              "streetAddress": "Eugenio Gotze y Ettiene"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+                  "id": 18
+                },
+                {
+                  "name": "Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+                  "id": 22
+                },
+                {
+                  "name": "Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+                  "id": 24
+                },
+                {
+                  "name": "Muebles y Enseres",
+                  "id": 23
+                }
+              ]
+            }
+          },
+          {
+            "name": "CLIMATOTAL S.R.L.",
+            "id": "PY-RUC-80052898-0",
+            "identifier": {
+              "id": "80052898-0",
+              "legalName": "CLIMATOTAL S.R.L.",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "JUAN FRANCO",
+              "email": "climatotal1@hotmail.com",
+              "faxNumber": "021526464",
+              "telephone": "0982195009"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "FERNANDO DE LA MORA",
+              "region": "Central",
+              "streetAddress": "ZAVALAS CUE CASA #2600"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.R.L.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Seguros",
+                  "id": 6
+                }
+              ]
+            }
+          },
+          {
+            "name": "WARRIOR S.A",
+            "id": "PY-RUC-80056565-7",
+            "identifier": {
+              "id": "80056565-7",
+              "legalName": "WARRIOR S.A",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "supplier",
+              "tenderer",
+              "payee"
+            ],
+            "contactPoint": {
+              "name": " JOSE PRATT- TAMARA CASTELLANO",
+              "email": "administracion@warrior.com.py",
+              "telephone": "0983818672",
+              "url": "http://www.warrior.com.py"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "Luque",
+              "region": "Central",
+              "streetAddress": "Rosarior 889 c/ Carandayty"
+            },
+            "details": {
+              "scale": "micro",
+              "legalEntityTypeDetail": "S.A.",
+              "activityTypes": [
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+                  "id": 24
+                },
+                {
+                  "name": "Muebles y Enseres",
+                  "id": 23
+                },
+                {
+                  "name": "Equipos, Productos e instrumentales Médicos y de Laboratorio. Servicios asistenciales de salud",
+                  "id": 17
+                },
+                {
+                  "name": "Equipos Militares y de Seguridad. Servicio de Seguridad y Vigilancia",
+                  "id": 25
+                },
+                {
+                  "name": "Elementos e insumos de limpieza",
+                  "id": 12
+                }
+              ]
+            }
+          },
+          {
+            "name": "Grupo Megga SRL",
+            "id": "PY-RUC-80085804-2",
+            "identifier": {
+              "id": "80085804-2",
+              "legalName": "Grupo Megga SRL",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "tenderer"
+            ],
+            "contactPoint": {
+              "name": "Victor Daniel Caceres y Diego Campos",
+              "email": "diegogrupomegga@gmail.com",
+              "telephone": "0981552540"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "Asuncion",
+              "region": "Central",
+              "streetAddress": "Jose Rodo nº 555"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.R.L.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Combustibles y Lubricantes",
+                  "id": 15
+                },
+                {
+                  "name": "Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+                  "id": 22
+                },
+                {
+                  "name": "Utiles de oficina, Productos de papel y cartón e impresos",
+                  "id": 11
+                },
+                {
+                  "name": "Servicios Técnicos",
+                  "id": 7
+                },
+                {
+                  "name": "Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+                  "id": 2
+                },
+                {
+                  "name": "Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+                  "id": 24
+                },
+                {
+                  "name": "Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+                  "id": 21
+                },
+                {
+                  "name": "Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+                  "id": 18
+                }
+              ]
+            }
+          }
+        ],
+        "tag": [
+          "compiled"
+        ]
+      }
+    }
+  ],
+  "pagination": {
+    "total_items": 1,
+    "total_pages": 1,
+    "current_page": 1,
+    "items_per_page": 10,
+    "total_in_page": 1
+  }
+}

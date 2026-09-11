@@ -1,0 +1,4190 @@
+{
+  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/ocds/record/ocds-03ad3f-360600",
+  "publishedDate": "2026-09-10T21:17:47Z",
+  "publisher": {
+    "name": "Dirección Nacional de Contrataciones Públicas, Paraguay"
+  },
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "publicationPolicy": "https://www.contrataciones.gov.py/datos/legal",
+  "version": "1.1",
+  "extensions": [
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_budget_breakdown_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_budget_and_spend_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_lots_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_enquiry_extension/master/extension.json",
+    "https://raw.githubusercontent.com/sdd1982/enquiriesAddress/master/extension.json",
+    "https://raw.githubusercontent.com/sdd1982/legalEntityTypeDetail/master/extension.json",
+    "https://raw.githubusercontent.com/gitMHOCDS/transactions/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_investmentproject_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_clarification_meetings_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_item_attributes_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_items_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_contract_suppliers_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_partyDetails_scale_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_location_extension/v1.1.4/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_activityType_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_tender_notifiedsuppliers_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_tender_lots_details_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_memberOf_extension/master/extension.json",
+    "https://raw.githubusercontent.com/portaledcahn/ocds_tenderDatePublished_extension/master/extension.json",
+    "https://raw.githubusercontent.com/INAImexico/ocds_guarantees_extension/master/extension.json",
+    "https://bitbucket.org/ONCAETI/ocds_releasesource_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_requirements_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_bidOpening_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_coveredBy_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_qualification_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_publicEntitiesDetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_items_subItems_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_statusdetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_mainProcurementCategoryDetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_identifier_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_estimatedDate_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_participationFee_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_amendments_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_lot_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_transaction_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_financialprogress_financialcode_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_categories_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_complaints_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_item_minQuantity_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_implementation_purchaseOrder_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_document_type_details/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_cancellations_amendments_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_milestone_documents_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_techniques_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_bid_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_bid_items_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_auctions_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_secondStage_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_beneficiaries_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/Crown-Commercial-Service/ocds_tender_suitability_extension/main/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_subcontracting_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_partyDetails_scale_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_organizationClassification_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_sustainability_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_implementation_reportedpayment_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_milestone_deliveries_extension/raw/master/extension.json"
+  ],
+  "records": [
+    {
+      "ocid": "ocds-03ad3f-360600-1",
+      "releases": [
+        {
+          "date": "2019-09-26T15:18:17-04:00",
+          "tag": [
+            "tender",
+            "award",
+            "implementation",
+            "contractAmendment",
+            "planningUpdate"
+          ],
+          "url": "https://www.contrataciones.gov.py/datos/api/v3/doc/ocds/releases/id/360600-servicio-soporte-mantenimiento-preventivo-correctivo-sistema-atencion-contribuyente-1-1569511097.06574"
+        }
+      ],
+      "compiledRelease": {
+        "id": "360600-servicio-soporte-mantenimiento-preventivo-correctivo-sistema-atencion-contribuyente-1-1569511097.06574",
+        "awards": [
+          {
+            "id": "360600-know-how-s-a-1",
+            "status": "active",
+            "statusDetails": "Adjudicado",
+            "date": "2019-09-20T12:00:00-04:00",
+            "value": {
+              "amount": 242215000,
+              "currency": "PYG"
+            },
+            "suppliers": [
+              {
+                "name": "KNOW HOW S.A.",
+                "id": "PY-RUC-80019900-6"
+              }
+            ],
+            "documents": [
+              {
+                "id": "DNu+iYVevLU=",
+                "datePublished": "2019-09-26T15:18:17-04:00",
+                "title": "nota_daaf_dc_275_know_how_1569329335855.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/DNu%252BiYVevLU%253D",
+                "language": "es",
+                "documentTypeDetails": "Notificación al Oferente"
+              },
+              {
+                "id": "j1iAQ4Fba+8=",
+                "title": "18638_correo2490_1569525495884.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/j1iAQ4Fba%252B8%253D",
+                "language": "es",
+                "documentTypeDetails": "Nota de Observacion"
+              },
+              {
+                "id": "dix2iRRDbik=",
+                "title": "URL de la Adjudicación",
+                "url": "https://www.contrataciones.gov.py/licitaciones/adjudicacion/360600-servicio-soporte-mantenimiento-preventivo-correctivo-sistema-atencion-contribuyente-1/resumen-adjudicacion.html",
+                "language": "es",
+                "documentType": "awardNotice",
+                "format": "text/html"
+              },
+              {
+                "id": "fdTSQJZYOE0=",
+                "datePublished": "2019-09-26T15:18:17-04:00",
+                "title": "informe_de_evaluacion_28_1569328950827.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/fdTSQJZYOE0%253D",
+                "language": "es",
+                "documentTypeDetails": "Informe de Evaluación"
+              },
+              {
+                "id": "vDVE8gPJRCA=",
+                "datePublished": "2019-09-26T15:18:17-04:00",
+                "title": "resolucion_daaf_138_1569329263787.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/vDVE8gPJRCA%253D",
+                "language": "es",
+                "documentType": "awardNotice",
+                "documentTypeDetails": "Resolución de Adjudicación"
+              },
+              {
+                "id": "tC0XintCgaM=",
+                "datePublished": "2019-09-26T15:18:17-04:00",
+                "title": "acta_apertura_de_sobres_1569328779654.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/tC0XintCgaM%253D",
+                "language": "es",
+                "documentTypeDetails": "Acta de Apertura"
+              },
+              {
+                "id": "APQy3bArp58=",
+                "datePublished": "2019-09-26T15:18:17-04:00",
+                "title": "cuadro_comparativo_de_precios_1569329051051.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/APQy3bArp58%253D",
+                "language": "es",
+                "documentTypeDetails": "Cuadro Comparativo de Ofertas"
+              }
+            ],
+            "items": [
+              {
+                "id": "BECM1mquTIM20VW+vZy4cQ==",
+                "description": "MANTENIMIENTO PREVENTIVO TRIMESTRAL",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "81111812-001",
+                  "description": "Mantenimiento y Reparacion de monitor",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/81111812-001"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "81111812",
+                    "description": "Mantenimiento del hardware de equipos informaticos y relacionados ",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/81111812"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Mes",
+                  "id": "ME",
+                  "value": {
+                    "amount": 57760000,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "KfKC9ZCr0T4=",
+                "attributes": [
+                  {
+                    "value": "UNIDAD",
+                    "name": "Presentacion",
+                    "id": "2"
+                  },
+                  {
+                    "name": "Orden",
+                    "value": "2",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "drXkUyg8gB8G5uW5usGYuw==",
+                "description": "Servicio técnico / soporte para equipos informaticos",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "81111811-001",
+                  "description": "Servicio técnico / soporte para equipos informaticos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/81111811-001"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "81111811",
+                    "description": "Soporte tecnico o servicios de ayuda",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/81111811"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Unidad",
+                  "id": "UNI",
+                  "value": {
+                    "amount": 6855000,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "KfKC9ZCr0T4=",
+                "attributes": [
+                  {
+                    "value": "UNIDAD",
+                    "name": "Presentacion",
+                    "id": "2"
+                  },
+                  {
+                    "name": "Orden",
+                    "value": "3",
+                    "id": "7"
+                  }
+                ],
+                "subItems": [
+                  {
+                    "id": "6LAo8mTd4F8=",
+                    "description": "3.4 IMPRESORA TÉRMICA BEMTECH MODELO MP 4200 USB",
+                    "unit": {
+                      "name": "Unidad",
+                      "id": "UNI",
+                      "value": {
+                        "amount": 2040000,
+                        "currency": "PYG"
+                      }
+                    },
+                    "attributes": [
+                      {
+                        "value": "EVENTO",
+                        "name": "Presentacion",
+                        "id": "2"
+                      }
+                    ],
+                    "group": "3.4-IMPRESORA TÉRMICA BEMTECH MODELO MP 4200 USB"
+                  },
+                  {
+                    "id": "ECLOgvJsbBM=",
+                    "description": "3.5 TELEVISOR TV AOC 43\" FHD/USB/HDMI/DIGITAL/MART/WIFI",
+                    "unit": {
+                      "name": "Unidad",
+                      "id": "UNI",
+                      "value": {
+                        "amount": 3600000,
+                        "currency": "PYG"
+                      }
+                    },
+                    "attributes": [
+                      {
+                        "value": "EVENTO",
+                        "name": "Presentacion",
+                        "id": "2"
+                      }
+                    ],
+                    "group": "3.5-TELEVISOR TV AOC 43\" FHD/USB/HDMI/DIGITAL/MART/WIFI"
+                  },
+                  {
+                    "id": "PL9UlohIs1M=",
+                    "description": "3.3 HDMI EXTENDER",
+                    "unit": {
+                      "name": "Unidad",
+                      "id": "UNI",
+                      "value": {
+                        "amount": 615000,
+                        "currency": "PYG"
+                      }
+                    },
+                    "attributes": [
+                      {
+                        "value": "EVENTO",
+                        "name": "Presentacion",
+                        "id": "2"
+                      }
+                    ],
+                    "group": "3.3-HDMI EXTENDER"
+                  },
+                  {
+                    "id": "JpbgeRef76E=",
+                    "description": "3.2 SPLITTER HDMI 1x4 .1",
+                    "unit": {
+                      "name": "Unidad",
+                      "id": "UNI",
+                      "value": {
+                        "amount": 420000,
+                        "currency": "PYG"
+                      }
+                    },
+                    "attributes": [
+                      {
+                        "value": "EVENTO",
+                        "name": "Presentacion",
+                        "id": "2"
+                      }
+                    ],
+                    "group": "3.2-SPLITTER HDMI 1x4 .1"
+                  },
+                  {
+                    "id": "7xl7aJFHcFM=",
+                    "description": "3.1 CONVERSOR VGA A HDMI",
+                    "unit": {
+                      "name": "Unidad",
+                      "id": "UNI",
+                      "value": {
+                        "amount": 180000,
+                        "currency": "PYG"
+                      }
+                    },
+                    "attributes": [
+                      {
+                        "value": "EVENTO",
+                        "name": "Presentacion",
+                        "id": "2"
+                      }
+                    ],
+                    "group": "3.1-CONVERSOR VGA A HDMI"
+                  }
+                ]
+              },
+              {
+                "id": "fN6RtFcykT1xGdzQU6a5Aw==",
+                "description": "MANTENIMIENTO PREVENTIVO MENSUAL SATAC",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "81111812-001",
+                  "description": "Mantenimiento y Reparacion de monitor",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/81111812-001"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "81111812",
+                    "description": "Mantenimiento del hardware de equipos informaticos y relacionados ",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/81111812"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Mes",
+                  "id": "ME",
+                  "value": {
+                    "amount": 177600000,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "KfKC9ZCr0T4=",
+                "attributes": [
+                  {
+                    "value": "UNIDAD",
+                    "name": "Presentacion",
+                    "id": "2"
+                  },
+                  {
+                    "name": "Orden",
+                    "value": "1",
+                    "id": "7"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "parties": [
+          {
+            "id": "DNCP-SICP-CODE-392",
+            "name": "Dirección Nacional de Ingresos Tributarios (DNIT)",
+            "identifier": {
+              "id": "392",
+              "legalName": "Dirección Nacional de Ingresos Tributarios (DNIT)",
+              "scheme": "DNCP-SICP-CODE"
+            },
+            "additionalIdentifiers": [
+              {
+                "id": "2019.23.40",
+                "legalName": "Dirección Nacional de Ingresos Tributarios",
+                "scheme": "PY-PGN"
+              }
+            ],
+            "roles": [
+              "buyer"
+            ]
+          },
+          {
+            "id": "DNCP-SICP-CODE-2012",
+            "name": "Dirección Nacional de Ingresos Tributarios / Dirección Nacional de Ingresos Tributarios",
+            "identifier": {
+              "scheme": "DNCP-SICP-CODE",
+              "id": "2012",
+              "legalName": "Dirección Nacional de Ingresos Tributarios / Dirección Nacional de Ingresos Tributarios"
+            },
+            "contactPoint": {
+              "email": "uoc@set.gov.py",
+              "name": "Francisco M. Valiente García",
+              "telephone": "4177736"
+            },
+            "roles": [
+              "procuringEntity"
+            ],
+            "details": {
+              "level": "Entes Autónomos y Autárquicos",
+              "entityType": "Entidades Descentralizadas",
+              "type": "Unidad Contratación"
+            },
+            "memberOf": [
+              {
+                "id": "DNCP-SICP-CODE-392",
+                "name": "Dirección Nacional de Ingresos Tributarios (DNIT)"
+              }
+            ]
+          },
+          {
+            "name": "OLAM SRL",
+            "id": "PY-RUC-80013217-3",
+            "identifier": {
+              "id": "80013217-3",
+              "legalName": "OLAM SRL",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "MANFREDO DELIGDISCH STUBBE- ARIEL DELIGDISCH- Maria Selva Yelsi de Salinas- Angelica Patricia Garcete",
+              "email": "licitaciones@olam.com.py",
+              "telephone": "0981560670",
+              "url": "http://www.olam.com"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "ASUNCION (DISTRITO)",
+              "region": "Central",
+              "streetAddress": "Aviadores del Chaco 2462 e/ Santa Teresa y San Blas"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.R.L.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+                  "id": 18
+                },
+                {
+                  "name": "Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+                  "id": 24
+                }
+              ]
+            }
+          },
+          {
+            "name": "DATA SYSTEMS SA EMISORA DE CAPITAL ABIERTO",
+            "id": "PY-RUC-80013889-9",
+            "identifier": {
+              "id": "80013889-9",
+              "legalName": "DATA SYSTEMS SA EMISORA DE CAPITAL ABIERTO",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "JOSE MANUEL FLECHA C., SERGIO GUSTAVO PEREZ B., MARCIAL LEITON; HUGO GIMENEZ",
+              "email": "datasys@data.com.py",
+              "faxNumber": "213-386",
+              "telephone": "981554443",
+              "url": "http://www.data.com.py"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "ASUNCION (DISTRITO)",
+              "region": "Central",
+              "streetAddress": "SALTOS DEL GUAIRA 1055"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.E.C.A.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Servicios Técnicos",
+                  "id": 7
+                },
+                {
+                  "name": "Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+                  "id": 24
+                },
+                {
+                  "name": "Utiles de oficina, Productos de papel y cartón e impresos",
+                  "id": 11
+                },
+                {
+                  "name": "Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+                  "id": 2
+                }
+              ]
+            }
+          },
+          {
+            "name": "KNOW HOW S.A.",
+            "id": "PY-RUC-80019900-6",
+            "identifier": {
+              "id": "80019900-6",
+              "legalName": "KNOW HOW S.A.",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "supplier",
+              "notifiedSupplier",
+              "tenderer",
+              "payee"
+            ],
+            "contactPoint": {
+              "name": "PABLO ZUBIRI - CESAR TRAPANI- Juan Marcelo Verdina",
+              "email": "licitaciones@knowhow.com.py",
+              "faxNumber": "2898000",
+              "telephone": "021 289 8000",
+              "url": "http://www.knowhow.com.py"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "ASUNCION",
+              "region": "Central",
+              "streetAddress": "VENEZUELA 845 C/ SARGENTO GAUTO"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+                  "id": 24
+                },
+                {
+                  "name": "Servicios Técnicos",
+                  "id": 7
+                },
+                {
+                  "name": "Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+                  "id": 2
+                },
+                {
+                  "name": "Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+                  "id": 5
+                }
+              ]
+            }
+          },
+          {
+            "name": "DATA LAB SA",
+            "id": "PY-RUC-80030218-4",
+            "identifier": {
+              "id": "80030218-4",
+              "legalName": "DATA LAB SA",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "VICENTE SÁNCHEZ - VICENTE DAVID SÁNCHEZ CÉSPEDES - ALICE BEATRIZ SÁNCHEZ- Alicia Gamarra - Mirta Morinigo",
+              "email": "datalab@datalab.com.py",
+              "faxNumber": "209 127",
+              "telephone": "0976-660316 -0976-302504",
+              "url": "http://www.datalab.com.py"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "ASUNCIÓN.",
+              "region": "Asunción",
+              "streetAddress": "AVDA. ARTIGAS N° 1645."
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Textiles, vestuarios y calzados",
+                  "id": 10
+                },
+                {
+                  "name": "Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+                  "id": 24
+                },
+                {
+                  "name": "Equipos Militares y de Seguridad. Servicio de Seguridad y Vigilancia",
+                  "id": 25
+                },
+                {
+                  "name": "Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+                  "id": 2
+                }
+              ]
+            }
+          },
+          {
+            "name": "TECHNOMA SAECA",
+            "id": "PY-RUC-80060858-5",
+            "identifier": {
+              "id": "80060858-5",
+              "legalName": "TECHNOMA SAECA",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "ENRIQUE VERA- SERGIO PIZURNO- LUIS F. RIOS-CARLOS GALLARDO- FRANCISCO A. RAMIREZ",
+              "email": "licitaciones@technoma.com.py",
+              "telephone": "0983900209",
+              "url": "https://www.technoma.com.py/"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "Asunción",
+              "region": "Asunción",
+              "streetAddress": "AVDA. SANTA TERESA N° 1827 c/HERMINIO MALDONADO, TORRES DEL PASEO LA GALERIA . TORRE 3 - PISO 10"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.E.C.A.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+                  "id": 5
+                },
+                {
+                  "name": "Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+                  "id": 24
+                },
+                {
+                  "name": "Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+                  "id": 22
+                },
+                {
+                  "name": "Servicios Técnicos",
+                  "id": 7
+                },
+                {
+                  "name": "Capacitaciones y Adiestramientos",
+                  "id": 4
+                },
+                {
+                  "name": "Equipos Militares y de Seguridad. Servicio de Seguridad y Vigilancia",
+                  "id": 25
+                }
+              ]
+            }
+          }
+        ],
+        "contracts": [
+          {
+            "id": "CO-12006-19-179461",
+            "guarantees": [
+              {
+                "id": "qkn6VxPHOIw=",
+                "date": "2019-10-16T00:00:00-04:00",
+                "period": {
+                  "endDate": "2021-11-15T00:00:00-04:00",
+                  "startDate": "2019-10-15T00:00:00-04:00"
+                },
+                "obligations": "fulfillment"
+              }
+            ],
+            "implementation": {
+              "milestones": [
+                {
+                  "purchaseOrderId": "NEVQo2m9okw=",
+                  "id": "OoJGD8Q6D3A=",
+                  "title": "Acta de Conformidad",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2019-12-23T00:00:00-04:00",
+                  "dateMet": "2019-11-30T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "E7ZjyHbV5X8=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/E7ZjyHbV5X8%253D",
+                      "datePublished": "2021-08-18T09:53:47-04:00",
+                      "language": "es",
+                      "title": "acta_conf_dtic_65___os_n__0879_2019_1629294826506.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "/oxgtoPfUNg=",
+                  "id": "GfZOvq0OSN0=",
+                  "title": "Acta de Conformidad",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-06-04T00:00:00-04:00",
+                  "dateMet": "2020-03-31T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "TZefiERrix4=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/TZefiERrix4%253D",
+                      "datePublished": "2021-08-18T09:30:17-04:00",
+                      "language": "es",
+                      "title": "acta_conf_dtic_47___os_n__0153_2020_1629293416496.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "uyJgsMgz75U=",
+                  "id": "APOqMTN3Dks=",
+                  "title": "Acta de Conformidad",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-05-01T00:00:00-04:00",
+                  "dateMet": "2020-05-31T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "xkAOm3gMjjw=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/xkAOm3gMjjw%253D",
+                      "datePublished": "2020-12-12T10:49:48-04:00",
+                      "language": "es",
+                      "title": "conformidad_n__66___os_353_1607780988126.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "8PWPQJGz7X8=",
+                  "title": "acta de conformidad",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-05-01T00:00:00-04:00",
+                  "dateMet": "2020-05-31T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "2RG1oJRmyx8=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/2RG1oJRmyx8%253D",
+                      "datePublished": "2020-12-10T12:08:27-04:00",
+                      "language": "es",
+                      "title": "conformidad_n__66___os_353_1607612906524.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "sofuvIWEjlc=",
+                  "id": "o9MWxcuERz4=",
+                  "title": "Acta de Conformidad",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-06-11T00:00:00-04:00",
+                  "dateMet": "2020-04-30T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "jrhPtf94fTI=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/jrhPtf94fTI%253D",
+                      "datePublished": "2021-08-18T09:35:24-04:00",
+                      "language": "es",
+                      "title": "acta_conf_dtic_51___os_n__0337_2020_1629293723658.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "72Y1PrZE4fg=",
+                  "id": "sVPN2wr08T4=",
+                  "title": "ACTA DE CONFORMIDAD",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-02-28T00:00:00-04:00",
+                  "dateMet": "2020-02-28T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "UddmsD6fJZA=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/UddmsD6fJZA%253D",
+                      "datePublished": "2021-01-14T10:38:23-04:00",
+                      "language": "es",
+                      "title": "conformidad_n__35___os_058_1610631502567.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "FHOpb7p3G7s=",
+                  "id": "5SsDZ930D0A=",
+                  "title": "Acta de Conformidad",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-09-02T00:00:00-04:00",
+                  "dateMet": "2020-08-19T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "KAMuArMYHAM=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/KAMuArMYHAM%253D",
+                      "datePublished": "2021-08-18T11:04:51-04:00",
+                      "language": "es",
+                      "title": "acta_conf_dtic_88___os_n__0553_2020_1629299090525.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "I7q/Aw1cL8c=",
+                  "id": "FZpcjdvoOsA=",
+                  "title": "ACTA DE CONFORMIDAD ",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-02-28T00:00:00-04:00",
+                  "dateMet": "2020-02-28T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "QfuoIzKFbC4=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/QfuoIzKFbC4%253D",
+                      "datePublished": "2021-01-14T10:34:42-04:00",
+                      "language": "es",
+                      "title": "conformidad_n__65___os_057_1610631282157.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "2mbX+ned6Cg=",
+                  "id": "Z5aXSrNjb70=",
+                  "title": "Acta de Conformidad",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-07-21T00:00:00-04:00",
+                  "status": "scheduled",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "j7DS6QxdULc=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/j7DS6QxdULc%253D",
+                      "datePublished": "2021-08-18T09:42:03-04:00",
+                      "language": "es",
+                      "title": "acta_conf_dtic_64___os_n__0354_2020_1629294122909.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "PqjO5OBijyY=",
+                  "id": "qz9dsbCr04A=",
+                  "title": "Acta de Conformidad",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-09-02T00:00:00-04:00",
+                  "dateMet": "2020-07-31T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "fqpohqFwaDU=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/fqpohqFwaDU%253D",
+                      "datePublished": "2021-08-18T09:48:41-04:00",
+                      "language": "es",
+                      "title": "acta_conf_dtic_87___os_n__0436_2020_1629294520259.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "eijdjymZHjc=",
+                  "id": "VwowvcAVAOM=",
+                  "title": "Acta de Conformidad",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2019-12-06T00:00:00-04:00",
+                  "dateMet": "2019-11-30T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "gY5Y8o2EolU=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/gY5Y8o2EolU%253D",
+                      "datePublished": "2021-08-18T10:04:04-04:00",
+                      "language": "es",
+                      "title": "acta_conf_dtic_51___os_n__0880_2019_1629295443804.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "J3cwHwXdOeU=",
+                  "id": "+BzvroTCpNU=",
+                  "title": "Acta de Conformidad",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-02-27T00:00:00-04:00",
+                  "dateMet": "2020-02-20T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "qhpv10EzMnw=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/qhpv10EzMnw%253D",
+                      "datePublished": "2021-08-18T11:02:23-04:00",
+                      "language": "es",
+                      "title": "acta_conf_dtic_29___os_n__0086_2020_1629298942853.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "b/awo5BV4/g=",
+                  "id": "pdX69OgL8W8=",
+                  "title": "Acta de Conformidad",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-02-10T00:00:00-04:00",
+                  "dateMet": "2020-01-31T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "N0m8oh3NP7E=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/N0m8oh3NP7E%253D",
+                      "datePublished": "2021-08-18T09:16:31-04:00",
+                      "language": "es",
+                      "title": "acta_conf_dtic_21___os_n__0005_2020_1629292590582.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "Cyasx/VSl/k=",
+                  "id": "oLzFSUO1q5w=",
+                  "title": "Acta de Conformidad",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-08-13T00:00:00-04:00",
+                  "dateMet": "2020-06-30T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "v9ENnPIFzFU=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/v9ENnPIFzFU%253D",
+                      "datePublished": "2021-08-18T09:45:20-04:00",
+                      "language": "es",
+                      "title": "acta_conf_dtic_74___os_n__0366_2020_1629294319935.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                }
+              ],
+              "purchaseOrders": [
+                {
+                  "id": "PqjO5OBijyY=",
+                  "title": "ITEM 1- JULIO 2020",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-07-01T00:00:00-04:00",
+                      "endDate": "2020-07-31T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "PqjO5OBijyY=",
+                      "datePublished": "2021-08-18T09:47:07-04:00",
+                      "title": "os_n__0436_2020_1629294426986.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/PqjO5OBijyY%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "FHOpb7p3G7s=",
+                  "title": "ITEM 3",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-08-19T00:00:00-04:00",
+                      "endDate": "2020-08-19T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "FHOpb7p3G7s=",
+                      "datePublished": "2021-08-18T11:03:50-04:00",
+                      "title": "os_n__0553_2020_1629299029683.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/FHOpb7p3G7s%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "Cyasx/VSl/k=",
+                  "title": "ITEM 1-  JUNIO 2020",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-06-01T00:00:00-04:00",
+                      "endDate": "2020-06-30T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "Cyasx/VSl/k=",
+                      "datePublished": "2021-08-18T09:44:11-04:00",
+                      "title": "os_n__0366_2020_1629294250808.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/Cyasx%252FVSl%252Fk%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "sofuvIWEjlc=",
+                  "title": "ITEM 1- ABRIL 2020",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-04-01T00:00:00-04:00",
+                      "endDate": "2020-04-30T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "sofuvIWEjlc=",
+                      "datePublished": "2021-08-18T09:32:32-04:00",
+                      "title": "os_n__0337_2020_1629293551601.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/sofuvIWEjlc%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "/oxgtoPfUNg=",
+                  "title": "ITEM 1- MARZO 2020",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-03-01T00:00:00-04:00",
+                      "endDate": "2020-03-31T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "/oxgtoPfUNg=",
+                      "datePublished": "2021-08-18T09:28:47-04:00",
+                      "title": "os_n__0153_2020_1629293326708.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/%252FoxgtoPfUNg%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "2mbX+ned6Cg=",
+                  "title": "ITEM 1- MAYO 2020",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-05-01T00:00:00-04:00",
+                      "endDate": "2020-05-31T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "2mbX+ned6Cg=",
+                      "datePublished": "2021-08-18T09:39:33-04:00",
+                      "title": "os_n__0354_2020_1629293971723.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/2mbX%252Bned6Cg%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "J3cwHwXdOeU=",
+                  "title": "ITEM 3",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-02-20T00:00:00-04:00",
+                      "endDate": "2020-02-20T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "J3cwHwXdOeU=",
+                      "datePublished": "2021-08-18T11:00:01-04:00",
+                      "title": "os_n__0086_2020_1629298800921.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/J3cwHwXdOeU%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "NEVQo2m9okw=",
+                  "title": "ITEM 2- NOVIEMBRE 2019",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2019-11-01T00:00:00-04:00",
+                      "endDate": "2019-11-30T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "NEVQo2m9okw=",
+                      "datePublished": "2021-08-18T09:52:01-04:00",
+                      "title": "os_n__0879_2019_1629294721116.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/NEVQo2m9okw%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "eijdjymZHjc=",
+                  "title": "ITEM 1- NOVIEMBRE 2019",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2019-11-01T00:00:00-04:00",
+                      "endDate": "2019-11-30T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "eijdjymZHjc=",
+                      "datePublished": "2021-08-18T09:57:56-04:00",
+                      "title": "os_n__0880_2019_1629295075829.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/eijdjymZHjc%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "uyJgsMgz75U=",
+                  "title": "item 2",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-05-22T00:00:00-04:00",
+                      "endDate": "2020-06-22T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "uyJgsMgz75U=",
+                      "datePublished": "2020-12-12T10:26:43-04:00",
+                      "title": "os_353_1607779602917.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/uyJgsMgz75U%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "I7q/Aw1cL8c=",
+                  "title": "iTEM 2 - FEBRERO 2020",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-02-01T00:00:00-04:00",
+                      "endDate": "2020-02-28T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "active",
+                  "documents": [
+                    {
+                      "id": "I7q/Aw1cL8c=",
+                      "datePublished": "2021-01-14T10:24:57-04:00",
+                      "title": "os_057_1610630697121.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/I7q%252FAw1cL8c%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "b/awo5BV4/g=",
+                  "title": "ITEM 1- ENERO 2020",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-01-01T00:00:00-04:00",
+                      "endDate": "2020-01-31T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "b/awo5BV4/g=",
+                      "datePublished": "2021-08-18T09:11:14-04:00",
+                      "title": "os_n__0005_2020_1629292274188.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/b%252Fawo5BV4%252Fg%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "72Y1PrZE4fg=",
+                  "title": "ITEM 1 - FEBRERO 2020",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-02-01T00:00:00-04:00",
+                      "endDate": "2020-02-28T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "active",
+                  "documents": [
+                    {
+                      "id": "72Y1PrZE4fg=",
+                      "datePublished": "2021-01-14T10:37:38-04:00",
+                      "title": "os_058_1610631457776.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/72Y1PrZE4fg%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                }
+              ],
+              "financialProgress": {
+                "breakdown": [
+                  {
+                    "id": "2021/12/6/1/1/0/4/75/99/243/30/CO-12006-19-179461",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 7220000
+                    },
+                    "classifications": {
+                      "anio": "2021",
+                      "nivel": "12",
+                      "entidad": "6",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "4",
+                      "financiador": "75",
+                      "departamento": "99",
+                      "objeto_gasto": "243",
+                      "fuente_financiamiento": "30",
+                      "cdp": "360600"
+                    },
+                    "financialCode": "CO-12006-19-179461"
+                  },
+                  {
+                    "id": "2020/12/6/1/1/0/4/75/99/240/30/CO-12006-19-179461",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 28880000
+                    },
+                    "classifications": {
+                      "anio": "2020",
+                      "nivel": "12",
+                      "entidad": "6",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "4",
+                      "financiador": "75",
+                      "departamento": "99",
+                      "objeto_gasto": "240",
+                      "fuente_financiamiento": "30",
+                      "cdp": "360600"
+                    },
+                    "financialCode": "CO-12006-19-179461"
+                  },
+                  {
+                    "id": "2019/12/6/2/1/1/0/75/99/540/30/CO-12006-19-179461",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 6855000
+                    },
+                    "classifications": {
+                      "anio": "2019",
+                      "nivel": "12",
+                      "entidad": "6",
+                      "tipo_programa": "2",
+                      "programa": "1",
+                      "sub_programa": "1",
+                      "proyecto": "0",
+                      "financiador": "75",
+                      "departamento": "99",
+                      "objeto_gasto": "540",
+                      "fuente_financiamiento": "30",
+                      "cdp": "360600"
+                    },
+                    "financialCode": "CO-12006-19-179461"
+                  },
+                  {
+                    "id": "2020/12/6/1/1/0/4/75/99/260/30/CO-12006-19-179461",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 88800000
+                    },
+                    "classifications": {
+                      "anio": "2020",
+                      "nivel": "12",
+                      "entidad": "6",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "4",
+                      "financiador": "75",
+                      "departamento": "99",
+                      "objeto_gasto": "260",
+                      "fuente_financiamiento": "30",
+                      "cdp": "360600"
+                    },
+                    "financialCode": "CO-12006-19-179461"
+                  },
+                  {
+                    "id": "2019/12/6/2/1/1/0/75/99/240/30/CO-12006-19-179461",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 7220000
+                    },
+                    "classifications": {
+                      "anio": "2019",
+                      "nivel": "12",
+                      "entidad": "6",
+                      "tipo_programa": "2",
+                      "programa": "1",
+                      "sub_programa": "1",
+                      "proyecto": "0",
+                      "financiador": "75",
+                      "departamento": "99",
+                      "objeto_gasto": "240",
+                      "fuente_financiamiento": "30",
+                      "cdp": "360600"
+                    },
+                    "financialCode": "CO-12006-19-179461"
+                  },
+                  {
+                    "id": "2021/12/6/1/1/0/4/75/99/261/30/CO-12006-19-179461",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 29600000
+                    },
+                    "classifications": {
+                      "anio": "2021",
+                      "nivel": "12",
+                      "entidad": "6",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "4",
+                      "financiador": "75",
+                      "departamento": "99",
+                      "objeto_gasto": "261",
+                      "fuente_financiamiento": "30",
+                      "cdp": "360600"
+                    },
+                    "financialCode": "CO-12006-19-179461"
+                  },
+                  {
+                    "id": "2019/12/6/2/1/1/0/75/99/260/30/CO-12006-19-179461",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 14800000
+                    },
+                    "classifications": {
+                      "anio": "2019",
+                      "nivel": "12",
+                      "entidad": "6",
+                      "tipo_programa": "2",
+                      "programa": "1",
+                      "sub_programa": "1",
+                      "proyecto": "0",
+                      "financiador": "75",
+                      "departamento": "99",
+                      "objeto_gasto": "260",
+                      "fuente_financiamiento": "30",
+                      "cdp": "360600"
+                    },
+                    "financialCode": "CO-12006-19-179461"
+                  }
+                ]
+              },
+              "transactions": [
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0012326+2676464",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6970262
+                  },
+                  "date": "2021-11-30T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2021-11-26T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0012326",
+                      "bill": {
+                        "id": "001-001-0012326",
+                        "type": "FACTURA",
+                        "date": "2021-11-03T00:00:00-04:00",
+                        "amount": {
+                          "amount": 7400000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 26102,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                },
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0012240+2676463",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6970262
+                  },
+                  "date": "2021-11-30T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2021-11-26T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0012240",
+                      "bill": {
+                        "id": "001-001-0012240",
+                        "type": "FACTURA",
+                        "date": "2021-10-25T00:00:00-04:00",
+                        "amount": {
+                          "amount": 7400000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 26102,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                },
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0012504+2676467",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6970262
+                  },
+                  "date": "2022-01-12T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2021-12-29T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0012504",
+                      "bill": {
+                        "id": "001-001-0012504",
+                        "type": "FACTURA",
+                        "date": "2021-12-28T00:00:00-04:00",
+                        "amount": {
+                          "amount": 7400000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 26102,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                },
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0010401+2676454",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6970262
+                  },
+                  "date": "2020-07-07T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2020-06-26T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0010401",
+                      "bill": {
+                        "id": "001-001-0010401",
+                        "type": "FACTURA",
+                        "date": "2020-06-04T00:00:00-04:00",
+                        "amount": {
+                          "amount": 7400000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 26102,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                },
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0012217+2676462",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6970262
+                  },
+                  "date": "2021-11-02T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2021-10-26T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0012217",
+                      "bill": {
+                        "id": "001-001-0012217",
+                        "type": "FACTURA",
+                        "date": "2021-10-08T00:00:00-04:00",
+                        "amount": {
+                          "amount": 7400000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 26102,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                },
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0010598+2676457",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6800715
+                  },
+                  "date": "2020-09-08T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2020-08-27T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0010598",
+                      "bill": {
+                        "id": "001-001-0010598",
+                        "type": "FACTURA",
+                        "date": "2020-07-23T00:00:00-04:00",
+                        "amount": {
+                          "amount": 7220000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 196909,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 25467,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 196909,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                },
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0010824+2676460",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6970262
+                  },
+                  "date": "2020-10-06T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2020-09-30T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0010824",
+                      "bill": {
+                        "id": "001-001-0010824",
+                        "type": "FACTURA",
+                        "date": "2020-09-07T00:00:00-04:00",
+                        "amount": {
+                          "amount": 7400000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 26102,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                },
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0010823+2676459",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6970262
+                  },
+                  "date": "2020-10-06T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2020-09-30T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0010823",
+                      "bill": {
+                        "id": "001-001-0010823",
+                        "type": "FACTURA",
+                        "date": "2020-09-07T00:00:00-04:00",
+                        "amount": {
+                          "amount": 7400000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 26102,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                },
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0012454+2676465",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6970262
+                  },
+                  "date": "2021-12-28T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2021-12-22T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0012454",
+                      "bill": {
+                        "id": "001-001-0012454",
+                        "type": "FACTURA",
+                        "date": "2021-12-07T00:00:00-04:00",
+                        "amount": {
+                          "amount": 7400000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 26102,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                },
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0010096+2676452",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 1389927
+                  },
+                  "date": "2020-06-04T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2020-05-26T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0010096",
+                      "bill": {
+                        "id": "001-001-0010096",
+                        "type": "FACTURA",
+                        "date": "2020-03-09T00:00:00-04:00",
+                        "amount": {
+                          "amount": 1395000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 5073,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                },
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0010825+2676461",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 2133465
+                  },
+                  "date": "2020-10-06T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2020-09-30T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0010825",
+                      "bill": {
+                        "id": "001-001-0010825",
+                        "type": "FACTURA",
+                        "date": "2020-09-07T00:00:00-04:00",
+                        "amount": {
+                          "amount": 2265000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 61773,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 7989,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 61773,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                },
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0009754+2676449",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6800715
+                  },
+                  "date": "2020-03-24T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2020-03-18T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0009754",
+                      "bill": {
+                        "id": "001-001-0009754",
+                        "type": "FACTURA",
+                        "date": "2019-12-26T00:00:00-04:00",
+                        "amount": {
+                          "amount": 7220000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 196909,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 25467,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 196909,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                },
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0010599+2676458",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6800715
+                  },
+                  "date": "2020-09-08T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2020-08-27T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0010599",
+                      "bill": {
+                        "id": "001-001-0010599",
+                        "type": "FACTURA",
+                        "date": "2020-07-23T00:00:00-04:00",
+                        "amount": {
+                          "amount": 7220000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 196909,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 25467,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 196909,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                },
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0009736+2676448",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6970262
+                  },
+                  "date": "2020-01-15T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2019-12-27T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0009736",
+                      "bill": {
+                        "id": "001-001-0009736",
+                        "type": "FACTURA",
+                        "date": "2019-12-17T00:00:00-04:00",
+                        "amount": {
+                          "amount": 7400000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 26102,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                },
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0009967+2676451",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6970262
+                  },
+                  "date": "2020-03-24T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2020-03-18T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0009967",
+                      "bill": {
+                        "id": "001-001-0009967",
+                        "type": "FACTURA",
+                        "date": "2020-02-11T00:00:00-04:00",
+                        "amount": {
+                          "amount": 7400000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 26102,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                },
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0009859+2676450",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6970262
+                  },
+                  "date": "2020-03-24T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2020-03-18T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0009859",
+                      "bill": {
+                        "id": "001-001-0009859",
+                        "type": "FACTURA",
+                        "date": "2020-01-24T00:00:00-04:00",
+                        "amount": {
+                          "amount": 7400000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 26102,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                },
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0010596+2676455",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6970262
+                  },
+                  "date": "2020-09-08T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2020-08-27T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0010596",
+                      "bill": {
+                        "id": "001-001-0010596",
+                        "type": "FACTURA",
+                        "date": "2020-07-23T00:00:00-04:00",
+                        "amount": {
+                          "amount": 7400000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 26102,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                },
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0010597+2676456",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6970262
+                  },
+                  "date": "2020-09-08T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2020-08-27T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0010597",
+                      "bill": {
+                        "id": "001-001-0010597",
+                        "type": "FACTURA",
+                        "date": "2020-07-23T00:00:00-04:00",
+                        "amount": {
+                          "amount": 7400000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 26102,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                },
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0012472+2676466",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6800715
+                  },
+                  "date": "2021-12-29T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2021-12-27T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0012472",
+                      "bill": {
+                        "id": "001-001-0012472",
+                        "type": "FACTURA",
+                        "date": "2021-12-17T00:00:00-04:00",
+                        "amount": {
+                          "amount": 7220000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 196909,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 25467,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 196909,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                },
+                {
+                  "id": "SIAF+CO-12006-19-179461+001-001-0010107+2676453",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6970262
+                  },
+                  "date": "2020-05-12T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-1805",
+                    "name": "Subsecretaria de Estado de Tributación (SET) / Ministerio de Hacienda"
+                  },
+                  "payee": {
+                    "name": "KNOW HOW S.A.",
+                    "id": "PY-RUC-80019900-6"
+                  },
+                  "requestDate": "2020-04-30T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0010107",
+                      "bill": {
+                        "id": "001-001-0010107",
+                        "type": "FACTURA",
+                        "date": "2020-03-19T00:00:00-04:00",
+                        "amount": {
+                          "amount": 7400000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 26102,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 201818,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CO-12006-19-179461"
+                }
+              ]
+            },
+            "amendments": [
+              {
+                "date": "2021-09-28T00:00:00-04:00",
+                "description": "Ampliación de Plazo",
+                "id": "360600-know-how-s-a-1-ampliacion"
+              }
+            ],
+            "awardID": "360600-know-how-s-a-1",
+            "status": "active",
+            "statusDetails": "Adjudicado",
+            "dateSigned": "2019-10-15T12:00:00-04:00",
+            "period": {
+              "startDate": "2019-10-15T00:00:00-04:00",
+              "endDate": "2021-10-15T00:00:00-04:00"
+            },
+            "value": {
+              "amount": 242215000,
+              "currency": "PYG"
+            },
+            "documents": [
+              {
+                "id": "hkrcwi+4Q+I=",
+                "datePublished": "2019-10-23T17:53:45-04:00",
+                "title": "contrato_mh_set_32_know_how_s_a__1571754495828.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/contrato/hkrcwi%252B4Q%252BI%253D",
+                "language": "es",
+                "documentType": "contractSigned",
+                "documentTypeDetails": "Orden de Compra o Contrato"
+              }
+            ]
+          }
+        ],
+        "tender": {
+          "id": "360600-servicio-soporte-mantenimiento-preventivo-correctivo-sistema-atencion-contribuyente-1",
+          "title": "SERVICIO DE SOPORTE, MANTENIMIENTO PREVENTIVO Y CORRECTIVO DEL SISTEMA DE ATENCION AL CONTRIBUYENTE (SATAC) DE LA SET DEL MH",
+          "status": "complete",
+          "awardCriteria": "priceOnly",
+          "awardCriteriaDetails": "Por Total",
+          "submissionMethod": [
+            "inPerson"
+          ],
+          "bidOpening": {
+            "date": "2019-08-27T11:15:00-04:00",
+            "address": {
+              "streetAddress": "YEGROS C/ ELIGIO AYALA"
+            }
+          },
+          "submissionMethodDetails": "Lugar entrega ofertas: YEGROS C/ ELIGIO AYALA || Lugar entrega bien: Según documento del llamado || Fecha entrega bien: Según documento del llamado",
+          "eligibilityCriteria": "Restricciones: INHABILIDADES PREVISTAS EN EL ARTICULO 40 DE LA LEY 2051/03",
+          "statusDetails": "Adjudicada",
+          "enquiriesAddress": {
+            "streetAddress": "YEGROS C/ ELIGIO AYALA"
+          },
+          "mainProcurementCategoryDetails": "Servicios - Servicios Técnicos",
+          "hasEnquiries": false,
+          "value": {
+            "amount": 191600000,
+            "currency": "PYG"
+          },
+          "datePublished": "2019-08-06T16:25:55-04:00",
+          "tenderPeriod": {
+            "startDate": "2019-08-06T16:25:55-04:00",
+            "endDate": "2019-08-27T11:00:00-04:00",
+            "durationInDays": 20
+          },
+          "awardPeriod": {
+            "startDate": "2019-08-27T11:15:00-04:00"
+          },
+          "enquiryPeriod": {
+            "endDate": "2019-08-21T12:00:00-04:00",
+            "startDate": "2019-08-06T16:25:55-04:00",
+            "durationInDays": 14
+          },
+          "mainProcurementCategory": "services",
+          "procurementMethod": "open",
+          "procurementMethodDetails": "Concurso de Ofertas",
+          "procuringEntity": {
+            "id": "DNCP-SICP-CODE-2012",
+            "name": "Dirección Nacional de Ingresos Tributarios / Dirección Nacional de Ingresos Tributarios"
+          },
+          "criteria": [
+            {
+              "id": "1",
+              "title": "Garantía de Mantenimiento de Ofertas",
+              "description": "Los oferentes, proveedores o contratistas deberán garantizar la seriedad de sus ofertas, mediante la garantía de mantenimiento de la oferta",
+              "source": "tenderer",
+              "requirementGroups": [
+                {
+                  "id": "1-1",
+                  "description": "La garantía debe ser de un cierto porcentaje, periodo y tipo",
+                  "requirements": [
+                    {
+                      "id": "1-1-1",
+                      "title": "Porcentaje de la garantia",
+                      "expectedValue": "3"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "lots": [
+            {
+              "id": "KfKC9ZCr0T4=",
+              "title": "1 - LoteTotal",
+              "status": "active",
+              "statusDetails": "Activo",
+              "value": {
+                "amount": 191600000,
+                "currency": "PYG"
+              },
+              "openContractType": " Por monto",
+              "minValue": {
+                "amount": 145800000,
+                "currency": "PYG"
+              },
+              "simultaneousSupply": false,
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "1",
+                  "id": "1"
+                }
+              ]
+            }
+          ],
+          "notifiedSuppliers": [
+            {
+              "name": "DATA LAB SA",
+              "id": "PY-RUC-80030218-4"
+            },
+            {
+              "name": "DATA SYSTEMS SA EMISORA DE CAPITAL ABIERTO",
+              "id": "PY-RUC-80013889-9"
+            },
+            {
+              "name": "KNOW HOW S.A.",
+              "id": "PY-RUC-80019900-6"
+            },
+            {
+              "name": "OLAM SRL",
+              "id": "PY-RUC-80013217-3"
+            },
+            {
+              "name": "TECHNOMA SAECA",
+              "id": "PY-RUC-80060858-5"
+            }
+          ],
+          "items": [
+            {
+              "id": "drXkUyg8gB8G5uW5usGYuw==",
+              "description": "Servicio técnico / soporte para equipos informaticos",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "81111811-001",
+                "description": "Servicio técnico / soporte para equipos informaticos",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/81111811-001"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "81111811",
+                  "description": "Soporte tecnico o servicios de ayuda",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/81111811"
+                }
+              ],
+              "unit": {
+                "name": "Unidad",
+                "id": "UNI",
+                "value": {
+                  "amount": 6855000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "KfKC9ZCr0T4=",
+              "attributes": [
+                {
+                  "name": "Presentacion",
+                  "value": "UNIDAD",
+                  "id": "1"
+                },
+                {
+                  "name": "Orden",
+                  "value": "3",
+                  "id": "2"
+                }
+              ],
+              "subItems": [
+                {
+                  "id": "PL9UlohIs1M=",
+                  "description": "3.3 HDMI EXTENDER",
+                  "quantity": 1,
+                  "unit": {
+                    "name": "Unidad",
+                    "id": "UNI",
+                    "value": {
+                      "amount": 615000,
+                      "currency": "PYG"
+                    }
+                  },
+                  "attributes": [
+                    {
+                      "name": "Presentacion",
+                      "value": "EVENTO",
+                      "id": "1"
+                    }
+                  ],
+                  "group": "3.3-HDMI EXTENDER"
+                },
+                {
+                  "id": "JpbgeRef76E=",
+                  "description": "3.2 SPLITTER HDMI 1x4 .1",
+                  "quantity": 1,
+                  "unit": {
+                    "name": "Unidad",
+                    "id": "UNI",
+                    "value": {
+                      "amount": 420000,
+                      "currency": "PYG"
+                    }
+                  },
+                  "attributes": [
+                    {
+                      "name": "Presentacion",
+                      "value": "EVENTO",
+                      "id": "1"
+                    }
+                  ],
+                  "group": "3.2-SPLITTER HDMI 1x4 .1"
+                },
+                {
+                  "id": "7xl7aJFHcFM=",
+                  "description": "3.1 CONVERSOR VGA A HDMI",
+                  "quantity": 1,
+                  "unit": {
+                    "name": "Unidad",
+                    "id": "UNI",
+                    "value": {
+                      "amount": 180000,
+                      "currency": "PYG"
+                    }
+                  },
+                  "attributes": [
+                    {
+                      "name": "Presentacion",
+                      "value": "EVENTO",
+                      "id": "1"
+                    }
+                  ],
+                  "group": "3.1-CONVERSOR VGA A HDMI"
+                },
+                {
+                  "id": "6LAo8mTd4F8=",
+                  "description": "3.4 IMPRESORA TÉRMICA BEMTECH MODELO MP 4200 USB",
+                  "quantity": 1,
+                  "unit": {
+                    "name": "Unidad",
+                    "id": "UNI",
+                    "value": {
+                      "amount": 2040000,
+                      "currency": "PYG"
+                    }
+                  },
+                  "attributes": [
+                    {
+                      "name": "Presentacion",
+                      "value": "EVENTO",
+                      "id": "1"
+                    }
+                  ],
+                  "group": "3.4-IMPRESORA TÉRMICA BEMTECH MODELO MP 4200 USB"
+                },
+                {
+                  "id": "ECLOgvJsbBM=",
+                  "description": "3.5 TELEVISOR TV AOC 43\" FHD/USB/HDMI/DIGITAL/MART/WIFI",
+                  "quantity": 1,
+                  "unit": {
+                    "name": "Unidad",
+                    "id": "UNI",
+                    "value": {
+                      "amount": 3600000,
+                      "currency": "PYG"
+                    }
+                  },
+                  "attributes": [
+                    {
+                      "name": "Presentacion",
+                      "value": "EVENTO",
+                      "id": "1"
+                    }
+                  ],
+                  "group": "3.5-TELEVISOR TV AOC 43\" FHD/USB/HDMI/DIGITAL/MART/WIFI"
+                }
+              ]
+            },
+            {
+              "id": "fN6RtFcykT1xGdzQU6a5Aw==",
+              "description": "MANTENIMIENTO PREVENTIVO MENSUAL SATAC",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "81111812-001",
+                "description": "Mantenimiento y Reparacion de monitor",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/81111812-001"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "81111812",
+                  "description": "Mantenimiento del hardware de equipos informaticos y relacionados ",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/81111812"
+                }
+              ],
+              "unit": {
+                "name": "Mes",
+                "id": "ME",
+                "value": {
+                  "amount": 7400000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "KfKC9ZCr0T4=",
+              "attributes": [
+                {
+                  "name": "Presentacion",
+                  "value": "UNIDAD",
+                  "id": "1"
+                },
+                {
+                  "name": "Orden",
+                  "value": "1",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "BECM1mquTIM20VW+vZy4cQ==",
+              "description": "MANTENIMIENTO PREVENTIVO TRIMESTRAL",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "81111812-001",
+                "description": "Mantenimiento y Reparacion de monitor",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/81111812-001"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "81111812",
+                  "description": "Mantenimiento del hardware de equipos informaticos y relacionados ",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/81111812"
+                }
+              ],
+              "unit": {
+                "name": "Mes",
+                "id": "ME",
+                "value": {
+                  "amount": 7220000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "KfKC9ZCr0T4=",
+              "attributes": [
+                {
+                  "name": "Presentacion",
+                  "value": "UNIDAD",
+                  "id": "1"
+                },
+                {
+                  "name": "Orden",
+                  "value": "2",
+                  "id": "2"
+                }
+              ]
+            }
+          ],
+          "tenderers": [
+            {
+              "name": "KNOW HOW S.A.",
+              "id": "PY-RUC-80019900-6"
+            }
+          ],
+          "documents": [
+            {
+              "id": "0psL1L7SomA=",
+              "datePublished": "2019-08-19T14:19:22-04:00",
+              "title": "llamado_publico_1566238762602.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/0psL1L7SomA%253D",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "documentTypeDetails": "Llamado publicado"
+            },
+            {
+              "id": "4pSsfo0OvdY=",
+              "datePublished": "2019-08-06T16:25:55-04:00",
+              "title": "constancia_de_plurianualidad_formularios_varios_1564686475375.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/4pSsfo0OvdY%253D",
+              "language": "es",
+              "documentTypeDetails": "Constancia de previsión plurianual"
+            },
+            {
+              "id": "U3npYvzCD/Y=",
+              "datePublished": "2019-08-06T16:25:58-04:00",
+              "title": "cgc.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/U3npYvzCD%252FY%253D",
+              "language": "es",
+              "documentTypeDetails": "Condiciones Generales del Contrato - Bienes y Servicios"
+            },
+            {
+              "id": "xJSEs5X4Zws=",
+              "datePublished": "2019-08-06T16:25:55-04:00",
+              "title": "llamado_publico_1565123155105.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/xJSEs5X4Zws%253D",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "documentTypeDetails": "Llamado publicado"
+            },
+            {
+              "id": "47ksCe/9NNM=",
+              "datePublished": "2019-08-06T16:25:55-04:00",
+              "title": "nota_dncp_satac0001_1564686467457.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/47ksCe%252F9NNM%253D",
+              "language": "es",
+              "documentTypeDetails": "Justificación Contrato Abierto"
+            },
+            {
+              "id": "MR1t5KoWRJc=",
+              "datePublished": "2019-08-06T16:25:55-04:00",
+              "title": "pbc_satac_uv_1564686438550.zip",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/MR1t5KoWRJc%253D",
+              "language": "es",
+              "documentType": "biddingDocuments",
+              "documentTypeDetails": "Pliego de bases y Condiciones"
+            },
+            {
+              "id": "QJI9q+gkmCc=",
+              "datePublished": "2019-08-06T16:25:57-04:00",
+              "title": "iao.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/QJI9q%252BgkmCc%253D",
+              "language": "es",
+              "documentTypeDetails": "Instrucción a los Oferentes - Bienes y Servicios"
+            },
+            {
+              "id": "8R4fcSEdIJg=",
+              "datePublished": "2019-08-06T16:25:55-04:00",
+              "title": "resolucion_satac0001_1564686455434.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/8R4fcSEdIJg%253D",
+              "language": "es",
+              "documentTypeDetails": "Resolución del Llamado"
+            },
+            {
+              "id": "hS4kmycr+1Q=",
+              "datePublished": "2019-08-06T16:25:55-04:00",
+              "title": "14653_3606000001_1565123153094.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/hS4kmycr%252B1Q%253D",
+              "language": "es",
+              "documentTypeDetails": "Nota de Observacion"
+            },
+            {
+              "id": "do3gmslVxuU=",
+              "datePublished": "2019-08-19T14:19:22-04:00",
+              "title": "adenda_n_1_1566238113474.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/do3gmslVxuU%253D",
+              "language": "es",
+              "documentTypeDetails": "Adenda"
+            },
+            {
+              "id": "hNEa18cYgzw=",
+              "datePublished": "2019-08-06T16:25:55-04:00",
+              "title": "cdp_satac0001_1564686445158.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/hNEa18cYgzw%253D",
+              "language": "es",
+              "documentTypeDetails": "CDP"
+            },
+            {
+              "id": "dix2iRRDbik=",
+              "title": "URL de la Convocatoria",
+              "url": "https://www.contrataciones.gov.py/licitaciones/convocatoria/360600-servicio-soporte-mantenimiento-preventivo-correctivo-sistema-atencion-contribuyente-1.html",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "format": "text/html"
+            }
+          ],
+          "numberOfTenderers": 1
+        },
+        "language": "es",
+        "ocid": "ocds-03ad3f-360600-1",
+        "date": "2019-09-26T15:18:17-04:00",
+        "initiationType": "tender",
+        "buyer": {
+          "id": "DNCP-SICP-CODE-392",
+          "name": "Dirección Nacional de Ingresos Tributarios (DNIT)"
+        },
+        "sources": [
+          {
+            "id": "dncp-sicp",
+            "name": "Sistema de Información de las Contrataciones Públicas - DNCP",
+            "url": "https://www.contrataciones.gov.py/"
+          }
+        ],
+        "planning": {
+          "identifier": "360600",
+          "estimatedDate": "2019-06-30T00:00:00-04:00",
+          "budget": {
+            "description": "SERVICIO DE SOPORTE, MANTENIMIENTO PREVENTIVO Y CORRECTIVO DEL SISTEMA DE ATENCION AL CONTRIBUYENTE (SATAC) DE LA SET DEL MH",
+            "amount": {
+              "currency": "PYG",
+              "amount": 291600000
+            },
+            "budgetBreakdown": [
+              {
+                "id": "2019/12/6/2/1/1/0/75/99/540/30-C5UcoKlmEy4=",
+                "sourceParty": {
+                  "id": "305",
+                  "name": "Ministerio de Economía y Finanzas"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_utilizado": 6855000,
+                  "monto_a_utilizar": 7000000
+                },
+                "classifications": {
+                  "anio": "2019",
+                  "nivel": "12",
+                  "entidad": "6",
+                  "tipo_programa": "2",
+                  "programa": "1",
+                  "sub_programa": "1",
+                  "proyecto": "0",
+                  "financiador": "75",
+                  "departamento": "99",
+                  "objeto_gasto": "540",
+                  "fuente_financiamiento": "30",
+                  "cdp": "360600"
+                }
+              },
+              {
+                "id": "2019/12/6/2/1/1/0/75/99/240/30-y8GWD6iLKZE=",
+                "sourceParty": {
+                  "id": "305",
+                  "name": "Ministerio de Economía y Finanzas"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_utilizado": 7220000,
+                  "monto_a_utilizar": 14520000
+                },
+                "classifications": {
+                  "anio": "2019",
+                  "nivel": "12",
+                  "entidad": "6",
+                  "tipo_programa": "2",
+                  "programa": "1",
+                  "sub_programa": "1",
+                  "proyecto": "0",
+                  "financiador": "75",
+                  "departamento": "99",
+                  "objeto_gasto": "240",
+                  "fuente_financiamiento": "30",
+                  "cdp": "360600"
+                }
+              },
+              {
+                "id": "2020/12/6/1/1/0/4/75/99/260/30-Eey3pLmXSRQ=",
+                "sourceParty": {
+                  "id": "305",
+                  "name": "Ministerio de Economía y Finanzas"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_a_utilizar": 88800000
+                },
+                "classifications": {
+                  "anio": "2020",
+                  "nivel": "12",
+                  "entidad": "6",
+                  "tipo_programa": "1",
+                  "programa": "1",
+                  "sub_programa": "0",
+                  "proyecto": "4",
+                  "financiador": "75",
+                  "departamento": "99",
+                  "objeto_gasto": "260",
+                  "fuente_financiamiento": "30",
+                  "cdp": "360600"
+                }
+              },
+              {
+                "id": "2019/12/6/2/1/1/0/75/99/260/30-Ds5vpl2d//o=",
+                "sourceParty": {
+                  "id": "305",
+                  "name": "Ministerio de Economía y Finanzas"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_utilizado": 14800000,
+                  "monto_a_utilizar": 29920000
+                },
+                "classifications": {
+                  "anio": "2019",
+                  "nivel": "12",
+                  "entidad": "6",
+                  "tipo_programa": "2",
+                  "programa": "1",
+                  "sub_programa": "1",
+                  "proyecto": "0",
+                  "financiador": "75",
+                  "departamento": "99",
+                  "objeto_gasto": "260",
+                  "fuente_financiamiento": "30",
+                  "cdp": "360600"
+                }
+              },
+              {
+                "id": "2021/12/6/1/1/0/4/75/99/243/30-TVjRSqqebH0=",
+                "sourceParty": {
+                  "id": "305",
+                  "name": "Ministerio de Economía y Finanzas"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_a_utilizar": 7220000
+                },
+                "classifications": {
+                  "anio": "2021",
+                  "nivel": "12",
+                  "entidad": "6",
+                  "tipo_programa": "1",
+                  "programa": "1",
+                  "sub_programa": "0",
+                  "proyecto": "4",
+                  "financiador": "75",
+                  "departamento": "99",
+                  "objeto_gasto": "243",
+                  "fuente_financiamiento": "30",
+                  "cdp": "360600"
+                }
+              },
+              {
+                "id": "2020/12/6/1/1/0/4/75/99/240/30-hcWAri9vGfs=",
+                "sourceParty": {
+                  "id": "305",
+                  "name": "Ministerio de Economía y Finanzas"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_a_utilizar": 28880000
+                },
+                "classifications": {
+                  "anio": "2020",
+                  "nivel": "12",
+                  "entidad": "6",
+                  "tipo_programa": "1",
+                  "programa": "1",
+                  "sub_programa": "0",
+                  "proyecto": "4",
+                  "financiador": "75",
+                  "departamento": "99",
+                  "objeto_gasto": "240",
+                  "fuente_financiamiento": "30",
+                  "cdp": "360600"
+                }
+              },
+              {
+                "id": "2021/12/6/1/1/0/4/75/99/261/30-1rV5MGXLup4=",
+                "sourceParty": {
+                  "id": "305",
+                  "name": "Ministerio de Economía y Finanzas"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_a_utilizar": 29600000
+                },
+                "classifications": {
+                  "anio": "2021",
+                  "nivel": "12",
+                  "entidad": "6",
+                  "tipo_programa": "1",
+                  "programa": "1",
+                  "sub_programa": "0",
+                  "proyecto": "4",
+                  "financiador": "75",
+                  "departamento": "99",
+                  "objeto_gasto": "261",
+                  "fuente_financiamiento": "30",
+                  "cdp": "360600"
+                }
+              }
+            ]
+          },
+          "items": [
+            {
+              "id": "MfhIyHIoN0w=",
+              "description": "Mantenimiento del hardware de equipos informaticos y relacionados ",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "81111812",
+                "description": "Mantenimiento del hardware de equipos informaticos y relacionados ",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/81111812"
+              }
+            },
+            {
+              "id": "nwykHATDLLU=",
+              "description": "Televisores",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "52161505",
+                "description": "Televisores",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/52161505"
+              }
+            },
+            {
+              "id": "Qi+8X0bHcPA=",
+              "description": "Soporte tecnico o servicios de ayuda",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "81111811",
+                "description": "Soporte tecnico o servicios de ayuda",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/81111811"
+              }
+            },
+            {
+              "id": "w+x2zXnc1gk=",
+              "description": "Impresoras de bandas",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "43212101",
+                "description": "Impresoras de bandas",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/43212101"
+              }
+            }
+          ]
+        },
+        "tag": [
+          "compiled"
+        ]
+      }
+    }
+  ],
+  "pagination": {
+    "total_items": 1,
+    "total_pages": 1,
+    "current_page": 1,
+    "items_per_page": 10,
+    "total_in_page": 1
+  }
+}

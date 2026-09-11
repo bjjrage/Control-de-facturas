@@ -1,0 +1,3869 @@
+{
+  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/ocds/record/ocds-03ad3f-371570",
+  "publishedDate": "2026-09-10T21:17:47Z",
+  "publisher": {
+    "name": "Dirección Nacional de Contrataciones Públicas, Paraguay"
+  },
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "publicationPolicy": "https://www.contrataciones.gov.py/datos/legal",
+  "version": "1.1",
+  "extensions": [
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_budget_breakdown_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_budget_and_spend_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_lots_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_enquiry_extension/master/extension.json",
+    "https://raw.githubusercontent.com/sdd1982/enquiriesAddress/master/extension.json",
+    "https://raw.githubusercontent.com/sdd1982/legalEntityTypeDetail/master/extension.json",
+    "https://raw.githubusercontent.com/gitMHOCDS/transactions/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_investmentproject_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_clarification_meetings_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_item_attributes_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_items_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_contract_suppliers_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_partyDetails_scale_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_location_extension/v1.1.4/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_activityType_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_tender_notifiedsuppliers_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_tender_lots_details_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_memberOf_extension/master/extension.json",
+    "https://raw.githubusercontent.com/portaledcahn/ocds_tenderDatePublished_extension/master/extension.json",
+    "https://raw.githubusercontent.com/INAImexico/ocds_guarantees_extension/master/extension.json",
+    "https://bitbucket.org/ONCAETI/ocds_releasesource_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_requirements_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_bidOpening_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_coveredBy_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_qualification_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_publicEntitiesDetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_items_subItems_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_statusdetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_mainProcurementCategoryDetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_identifier_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_estimatedDate_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_participationFee_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_amendments_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_lot_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_transaction_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_financialprogress_financialcode_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_categories_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_complaints_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_item_minQuantity_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_implementation_purchaseOrder_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_document_type_details/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_cancellations_amendments_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_milestone_documents_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_techniques_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_bid_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_bid_items_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_auctions_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_secondStage_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_beneficiaries_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/Crown-Commercial-Service/ocds_tender_suitability_extension/main/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_subcontracting_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_partyDetails_scale_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_organizationClassification_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_sustainability_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_implementation_reportedpayment_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_milestone_deliveries_extension/raw/master/extension.json"
+  ],
+  "records": [
+    {
+      "ocid": "ocds-03ad3f-371570-1",
+      "releases": [
+        {
+          "date": "2019-12-02T16:29:20-04:00",
+          "tag": [
+            "tender",
+            "award",
+            "implementation",
+            "contractAmendment",
+            "planningUpdate"
+          ],
+          "url": "https://www.contrataciones.gov.py/datos/api/v3/doc/ocds/releases/id/371570-locacion-inmuebles-determinada-oficinas-direccion-adultos-mayores-1-1575304160"
+        }
+      ],
+      "compiledRelease": {
+        "id": "371570-locacion-inmuebles-determinada-oficinas-direccion-adultos-mayores-1-1575304160",
+        "awards": [
+          {
+            "id": "371570-la-compania-buen-pastor-s-r-l-1",
+            "status": "active",
+            "statusDetails": "Adjudicado",
+            "date": "2019-11-26T12:00:00-04:00",
+            "value": {
+              "amount": 272317500,
+              "currency": "PYG"
+            },
+            "suppliers": [
+              {
+                "name": "La compañia del buen pastor s.r.l",
+                "id": "PY-RUC-80097517-0"
+              }
+            ],
+            "documents": [
+              {
+                "id": "0aCBPUpj/Nc=",
+                "datePublished": "2019-12-02T16:29:19-04:00",
+                "title": "cco_1574858410175.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/0aCBPUpj%252FNc%253D",
+                "language": "es",
+                "documentTypeDetails": "Cuadro Comparativo de Ofertas"
+              },
+              {
+                "id": "SHZiexya82g=",
+                "datePublished": "2019-12-02T16:29:19-04:00",
+                "title": "resolucion_y_dictamen_1574858405598.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/SHZiexya82g%253D",
+                "language": "es",
+                "documentType": "awardNotice",
+                "documentTypeDetails": "Resolución de Adjudicación"
+              },
+              {
+                "id": "f8fM3lIHJ9Q=",
+                "datePublished": "2019-12-02T16:29:19-04:00",
+                "title": "apertura_de_sobres_1574858401079.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/f8fM3lIHJ9Q%253D",
+                "language": "es",
+                "documentTypeDetails": "Acta de Apertura"
+              },
+              {
+                "id": "zsjSskSFsZo=",
+                "datePublished": "2019-12-02T16:29:19-04:00",
+                "title": "notificacion_n__1176_1574860218882.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/zsjSskSFsZo%253D",
+                "language": "es",
+                "documentTypeDetails": "Notificación al Oferente"
+              },
+              {
+                "id": "dix2iRRDbik=",
+                "title": "URL de la Adjudicación",
+                "url": "https://www.contrataciones.gov.py/licitaciones/adjudicacion/371570-locacion-inmuebles-determinada-oficinas-direccion-adultos-mayores-1/resumen-adjudicacion.html",
+                "language": "es",
+                "documentType": "awardNotice",
+                "format": "text/html"
+              },
+              {
+                "id": "WqoiBwUsxu0=",
+                "datePublished": "2019-12-02T16:29:19-04:00",
+                "title": "evaluacion_1574858415885.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/WqoiBwUsxu0%253D",
+                "language": "es",
+                "documentTypeDetails": "Informe de Evaluación"
+              }
+            ],
+            "items": [
+              {
+                "id": "6+uivsgcQqcT2PAcUz1low==",
+                "description": "Garantias de alquiler",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "80161504-998",
+                  "description": "Garantias de alquiler",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/80161504-998"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "80161504",
+                    "description": "Servicios administrativos",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/80161504"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Unidad",
+                  "id": "UNI",
+                  "value": {
+                    "amount": 32917500,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "yXnNCp2M5bI=",
+                "deliveryAddress": {
+                  "streetAddress": "GARANTIAS DE ALQUILER-SERVICIO ADMINISTRATIVO Y DE APOYO A LA GESTIÒN "
+                },
+                "attributes": [
+                  {
+                    "name": "Orden",
+                    "value": "2",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "bsuyTM4h6ul7rcm+sCUJxw==",
+                "description": "Alquiler de casa p/ uso institucional",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "80131502-003",
+                  "description": "Alquiler de casa p/ uso institucional",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/80131502-003"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "80131502",
+                    "description": "Alquiler de instalaciones comerciales, industriales o salones",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/80131502"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Mes",
+                  "id": "ME",
+                  "value": {
+                    "amount": 239400000,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "yXnNCp2M5bI=",
+                "deliveryAddress": {
+                  "streetAddress": "ESTADOS UNIDOS E/ FULGENCIO R . MORENO DISTRITO SAN ROQUE CTA. CAT. Nº 12-130-29 Y 12-130-53 FINCAA Nº 18150 Y 6036-ASUNCION"
+                },
+                "attributes": [
+                  {
+                    "name": "Orden",
+                    "value": "1",
+                    "id": "7"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "contracts": [
+          {
+            "id": "LC-12008-19-182247",
+            "implementation": {
+              "milestones": [
+                {
+                  "purchaseOrderId": "M2BNphjzaG8=",
+                  "id": "W3sOpcJV73Q=",
+                  "title": "ACTA DE RECEPCION DE BIENES Y/O SERVICIOS Nº 82/2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-06-01T00:00:00-04:00",
+                  "dateMet": "2020-06-01T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "IxNmkkZVn+M=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/IxNmkkZVn%252BM%253D",
+                      "datePublished": "2022-10-10T13:01:40-04:00",
+                      "language": "es",
+                      "title": "acta6_1665417699717.PDF",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "NpVQHjKNp4g=",
+                  "id": "Mhx3SN4JZ3I=",
+                  "title": "ACTA DE RECEPCION DE BIENES Y/O SERVICIOS Nº 35/2020",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-02-28T00:00:00-04:00",
+                  "dateMet": "2020-02-28T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "gHG5MemoSU0=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/gHG5MemoSU0%253D",
+                      "datePublished": "2022-10-10T11:27:59-04:00",
+                      "language": "es",
+                      "title": "acta3_1665412079115.PDF",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "t/gQdJUgeNs=",
+                  "id": "RAb80bzA7UU=",
+                  "title": "ACTA DE RECEPCION DE BIENES Y/O SERVICIOS Nº 178/2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-10-31T00:00:00-04:00",
+                  "dateMet": "2020-10-31T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "yP/7pVxTQ4I=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/yP%252F7pVxTQ4I%253D",
+                      "datePublished": "2022-10-10T13:42:54-04:00",
+                      "language": "es",
+                      "title": "acta11_1665420173436.PDF",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "Y0UTbxUTX/s=",
+                  "id": "JKU3uzE9uk8=",
+                  "title": "ACTA DE RECEPCION DE BIENES Y/O SERVICIOS Nº 132/2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-08-31T00:00:00-04:00",
+                  "dateMet": "2020-08-31T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "CELk5ye5USY=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/CELk5ye5USY%253D",
+                      "datePublished": "2022-10-10T13:28:02-04:00",
+                      "language": "es",
+                      "title": "acta9_1665419281522.PDF",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "73XBv4inj9Y=",
+                  "id": "Acd+heur2KE=",
+                  "title": "ACTA DE RECEPCION DE BIENES YO SERVICIOS Nº 120/2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-07-31T00:00:00-04:00",
+                  "dateMet": "2020-07-31T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "O4MVo2mLGJw=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/O4MVo2mLGJw%253D",
+                      "datePublished": "2022-10-10T13:21:30-04:00",
+                      "language": "es",
+                      "title": "acta8_1665418890352.PDF",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "6v0aEZFnYKM=",
+                  "id": "vlhUd0qHGF0=",
+                  "title": "ACTA DE RECEPCION DE BIENES Y/O SERVICIOS Nº 101/2020",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-06-30T00:00:00-04:00",
+                  "dateMet": "2020-06-30T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "pqBiEeBK7p0=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/pqBiEeBK7p0%253D",
+                      "datePublished": "2022-10-10T13:08:01-04:00",
+                      "language": "es",
+                      "title": "acta7_1665418080979.PDF",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "zSmGSnXNG3w=",
+                  "id": "GaepufbvWtY=",
+                  "title": "ACTA DE RECEPCION DE BIENES Y/O SERVICIOS Nº 20/2020",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-01-31T00:00:00-04:00",
+                  "dateMet": "2020-01-31T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "VPpTSDcsk0M=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/VPpTSDcsk0M%253D",
+                      "datePublished": "2022-10-10T11:24:22-04:00",
+                      "language": "es",
+                      "title": "acta2_1665411861629.PDF",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "2M7GMYKpSic=",
+                  "id": "KdEUG/RLG5Q=",
+                  "title": "ACTA DE RECEPCION DE BIENES Y/O SERVICIOS Nº 62/2020",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-04-30T00:00:00-04:00",
+                  "dateMet": "2020-04-30T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "twv17xRtv/0=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/twv17xRtv%252F0%253D",
+                      "datePublished": "2022-10-10T12:56:43-04:00",
+                      "language": "es",
+                      "title": "acta5_1665417402990.PDF",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "wOTN0Gl9ktI=",
+                  "id": "tRiP2FXdYM0=",
+                  "title": "ACTA DE RECEPCION DE BIENES Y/O SERVICIOS Nº 218/2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-11-30T00:00:00-04:00",
+                  "dateMet": "2020-11-30T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "xhWd4nUUVL4=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/xhWd4nUUVL4%253D",
+                      "datePublished": "2022-10-10T13:47:11-04:00",
+                      "language": "es",
+                      "title": "acta12_1665420430538.PDF",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "+2sM3B8tIvA=",
+                  "id": "HWjjTKkicOU=",
+                  "title": "ACTA DE RECEPCION DE BIENES Y/O SERVICIOS Nº 44/2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-03-31T00:00:00-04:00",
+                  "dateMet": "2020-03-31T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "B0iWprxNftk=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/B0iWprxNftk%253D",
+                      "datePublished": "2022-10-10T12:53:19-04:00",
+                      "language": "es",
+                      "title": "acta4_1665417199375.PDF",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "3hCHa0nplpM=",
+                  "id": "Cz7jpaEIlYI=",
+                  "title": "ACTA DE RECEPCION DE BIENES Y/O SERVICIOS Nº 11/2020",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-01-02T00:00:00-04:00",
+                  "dateMet": "2020-01-02T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "Nq6IDPnhZtI=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/Nq6IDPnhZtI%253D",
+                      "datePublished": "2022-10-10T11:20:08-04:00",
+                      "language": "es",
+                      "title": "acta1_1665411607626.PDF",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "1EgFPGGUM3o=",
+                  "id": "HAqiT1R+vEA=",
+                  "title": "ACTA DE RECEPCION DE BIENES Y/O SERVICIOS Nº 153/2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-09-30T00:00:00-04:00",
+                  "dateMet": "2020-09-30T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "eGdrkj+jQQY=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/eGdrkj%252BjQQY%253D",
+                      "datePublished": "2022-10-10T13:35:22-04:00",
+                      "language": "es",
+                      "title": "acta10_1665419722108.PDF",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "sfVlELW7edc=",
+                  "id": "mBnc6vXw5CM=",
+                  "title": "ACTA DE RECEPCION DE BIENES Y/O SERVICIOS Nº 94/2019",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2019-12-16T00:00:00-04:00",
+                  "dateMet": "2019-12-16T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Acta",
+                      "id": "90KLo1Xsj/k=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/90KLo1Xsj%252Fk%253D",
+                      "datePublished": "2022-10-10T11:15:56-04:00",
+                      "language": "es",
+                      "title": "acta_garantia_1665411356264.PDF",
+                      "format": "application/pdf"
+                    }
+                  ]
+                }
+              ],
+              "purchaseOrders": [
+                {
+                  "id": "+2sM3B8tIvA=",
+                  "title": "LOCACION DE INMUEBLES DETERMINADA PARA OFICINAS DE LA DIRECCION DE ADULTOS MAYORES",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-03-02T00:00:00-04:00",
+                      "endDate": "2020-03-31T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "+2sM3B8tIvA=",
+                      "datePublished": "2022-10-10T11:34:28-04:00",
+                      "title": "orden4_1665412467761.PDF",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/%252B2sM3B8tIvA%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "2M7GMYKpSic=",
+                  "title": "LOCACION DE INMUEBLES DETERMINADA PARA OFICINAS DE LA DIRECCION DE ADULTOS MAYORES",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-04-01T00:00:00-04:00",
+                      "endDate": "2020-04-30T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "2M7GMYKpSic=",
+                      "datePublished": "2022-10-10T12:55:37-04:00",
+                      "title": "orden5_1665417336569.PDF",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/2M7GMYKpSic%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "sfVlELW7edc=",
+                  "title": "LOCACION DE INMUEBLES DETERMINADA PARA OFICINAS DE LA DIRECCION DE ADULTOS MAYORES",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2019-12-02T00:00:00-04:00",
+                      "endDate": "2019-12-16T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "sfVlELW7edc=",
+                      "datePublished": "2022-10-10T11:12:55-04:00",
+                      "title": "orden_garantia_1665411174389.PDF",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/sfVlELW7edc%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "6v0aEZFnYKM=",
+                  "title": "LOCACION DE INMUEBLES DETERMINADA PARA OFICINAS DE LA DIRECCION DE ADULTOS MAYORES",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-06-01T00:00:00-04:00",
+                      "endDate": "2020-06-30T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "6v0aEZFnYKM=",
+                      "datePublished": "2022-10-10T13:04:20-04:00",
+                      "title": "orden7_1665417860323.PDF",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/6v0aEZFnYKM%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "t/gQdJUgeNs=",
+                  "title": "LOCACION DE INMUEBLES DETERMINADA PARA OFICINAS DE LA DIRECCION DE ADULTOS MAYORES",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-10-01T00:00:00-04:00",
+                      "endDate": "2020-10-31T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "t/gQdJUgeNs=",
+                      "datePublished": "2022-10-10T13:42:08-04:00",
+                      "title": "orden11_1665420128353.PDF",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/t%252FgQdJUgeNs%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "NpVQHjKNp4g=",
+                  "title": "LOCACION DE INMUEBLES DETERMINADA PARA OFICINAS DE LA DIRECCION DE ADULTOS MAYORES",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-01-31T00:00:00-04:00",
+                      "endDate": "2020-02-28T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "NpVQHjKNp4g=",
+                      "datePublished": "2022-10-10T11:27:01-04:00",
+                      "title": "orden3_1665412020456.PDF",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/NpVQHjKNp4g%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "M2BNphjzaG8=",
+                  "title": "LOCACION DE INMUEBLES DETERMINADA PARA OFICINAS DE LA DIRECCION DE ADULTOS MAYORES",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-04-30T00:00:00-04:00",
+                      "endDate": "2020-06-01T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "M2BNphjzaG8=",
+                      "datePublished": "2022-10-10T13:00:22-04:00",
+                      "title": "orden6_1665417621694.PDF",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/M2BNphjzaG8%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "zSmGSnXNG3w=",
+                  "title": "LOCACION DE INMUEBLES DETERMINADA PARA OFICINAS DE LA DIRECCION DE ADULTOS MAYORES",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-01-02T00:00:00-04:00",
+                      "endDate": "2020-01-31T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "zSmGSnXNG3w=",
+                      "datePublished": "2022-10-10T11:23:00-04:00",
+                      "title": "orden2_1665411780208.PDF",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/zSmGSnXNG3w%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "wOTN0Gl9ktI=",
+                  "title": "LOCACION DE INMUEBLES DETERMINADA PARA OFICINAS DE LA DIRECCION DE ADULTOS MAYORES",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-10-30T00:00:00-04:00",
+                      "endDate": "2020-11-30T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "wOTN0Gl9ktI=",
+                      "datePublished": "2022-10-10T13:44:52-04:00",
+                      "title": "orden12_1665420292123.PDF",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/wOTN0Gl9ktI%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "Y0UTbxUTX/s=",
+                  "title": "LOCACION DE INMUEBLES DETERMINADA PARA OFICINAS DE LA DIRECCION DE ADULTOS MAYORES",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-07-31T00:00:00-04:00",
+                      "endDate": "2020-08-31T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "Y0UTbxUTX/s=",
+                      "datePublished": "2022-10-10T13:26:06-04:00",
+                      "title": "orden9_1665419165466.PDF",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/Y0UTbxUTX%252Fs%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "3hCHa0nplpM=",
+                  "title": "LOCACION DE INMUEBLES DETERMINADA PARA OFICINAS DE LA DIRECCION DE ADULTOS MAYORES",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2019-12-02T00:00:00-04:00",
+                      "endDate": "2020-01-02T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "3hCHa0nplpM=",
+                      "datePublished": "2022-10-10T11:18:48-04:00",
+                      "title": "orden1_1665411527538.PDF",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/3hCHa0nplpM%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "1EgFPGGUM3o=",
+                  "title": "LOCACION DE INMUEBLES DETERMINADA PARA OFICINAS DE LA DIRECCION DE ADULTOS MAYORES",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-09-01T00:00:00-04:00",
+                      "endDate": "2020-09-30T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "1EgFPGGUM3o=",
+                      "datePublished": "2022-10-10T13:34:08-04:00",
+                      "title": "orden10_1665419647571.PDF",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/1EgFPGGUM3o%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "73XBv4inj9Y=",
+                  "title": "LOCACION DE INMUEBLES DETERMINADA PARA OFICINAS DE LA DIRECCION DE ADULTOS MAYORES",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-07-01T00:00:00-04:00",
+                      "endDate": "2020-07-31T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "73XBv4inj9Y=",
+                      "datePublished": "2022-10-10T13:20:37-04:00",
+                      "title": "orden8_1665418836572.PDF",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/73XBv4inj9Y%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                }
+              ],
+              "financialProgress": {
+                "breakdown": [
+                  {
+                    "id": "2020/12/8/1/1/0/1/1/99/250/30/LC-12008-19-182247",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 79800000
+                    },
+                    "classifications": {
+                      "anio": "2020",
+                      "nivel": "12",
+                      "entidad": "8",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "1",
+                      "financiador": "1",
+                      "departamento": "99",
+                      "objeto_gasto": "250",
+                      "fuente_financiamiento": "30",
+                      "cdp": "371570"
+                    },
+                    "financialCode": "LC-12008-19-182247"
+                  },
+                  {
+                    "id": "2021/12/8/2/6/0/2/1/99/251/30/RL-12008-21-4842",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 21000000
+                    },
+                    "classifications": {
+                      "anio": "2021",
+                      "nivel": "12",
+                      "entidad": "8",
+                      "tipo_programa": "2",
+                      "programa": "6",
+                      "sub_programa": "0",
+                      "proyecto": "2",
+                      "financiador": "1",
+                      "departamento": "99",
+                      "objeto_gasto": "251",
+                      "fuente_financiamiento": "30",
+                      "cdp": "371570"
+                    },
+                    "financialCode": "RL-12008-21-4842"
+                  },
+                  {
+                    "id": "2022/12/8/2/6/0/1/1/99/251/30/RL-12008-21-4829",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 39900000
+                    },
+                    "classifications": {
+                      "anio": "2022",
+                      "nivel": "12",
+                      "entidad": "8",
+                      "tipo_programa": "2",
+                      "programa": "6",
+                      "sub_programa": "0",
+                      "proyecto": "1",
+                      "financiador": "1",
+                      "departamento": "99",
+                      "objeto_gasto": "251",
+                      "fuente_financiamiento": "30",
+                      "cdp": "371570"
+                    },
+                    "financialCode": "RL-12008-21-4829"
+                  },
+                  {
+                    "id": "2020/12/8/2/6/0/1/1/99/250/30/LC-12008-19-182247",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 119700000
+                    },
+                    "classifications": {
+                      "anio": "2020",
+                      "nivel": "12",
+                      "entidad": "8",
+                      "tipo_programa": "2",
+                      "programa": "6",
+                      "sub_programa": "0",
+                      "proyecto": "1",
+                      "financiador": "1",
+                      "departamento": "99",
+                      "objeto_gasto": "250",
+                      "fuente_financiamiento": "30",
+                      "cdp": "371570"
+                    },
+                    "financialCode": "LC-12008-19-182247"
+                  },
+                  {
+                    "id": "2021/12/8/2/6/0/1/1/99/251/30/LC-12008-19-182247",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 19950000
+                    },
+                    "classifications": {
+                      "anio": "2021",
+                      "nivel": "12",
+                      "entidad": "8",
+                      "tipo_programa": "2",
+                      "programa": "6",
+                      "sub_programa": "0",
+                      "proyecto": "1",
+                      "financiador": "1",
+                      "departamento": "99",
+                      "objeto_gasto": "251",
+                      "fuente_financiamiento": "30",
+                      "cdp": "371570"
+                    },
+                    "financialCode": "LC-12008-19-182247"
+                  },
+                  {
+                    "id": "2021/12/8/1/1/0/1/1/99/251/30/RL-12008-21-4842",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 48699996
+                    },
+                    "classifications": {
+                      "anio": "2021",
+                      "nivel": "12",
+                      "entidad": "8",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "1",
+                      "financiador": "1",
+                      "departamento": "99",
+                      "objeto_gasto": "251",
+                      "fuente_financiamiento": "30",
+                      "cdp": "371570"
+                    },
+                    "financialCode": "RL-12008-21-4842"
+                  },
+                  {
+                    "id": "2021/12/8/1/1/0/1/1/99/251/10/RL-12008-21-4829",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 31323009
+                    },
+                    "classifications": {
+                      "anio": "2021",
+                      "nivel": "12",
+                      "entidad": "8",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "1",
+                      "financiador": "1",
+                      "departamento": "99",
+                      "objeto_gasto": "251",
+                      "fuente_financiamiento": "10",
+                      "cdp": "371570"
+                    },
+                    "financialCode": "RL-12008-21-4829"
+                  },
+                  {
+                    "id": "2021/12/8/1/1/0/1/1/99/251/30/RL-12008-21-4829",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 68426991
+                    },
+                    "classifications": {
+                      "anio": "2021",
+                      "nivel": "12",
+                      "entidad": "8",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "1",
+                      "financiador": "1",
+                      "departamento": "99",
+                      "objeto_gasto": "251",
+                      "fuente_financiamiento": "30",
+                      "cdp": "371570"
+                    },
+                    "financialCode": "RL-12008-21-4829"
+                  },
+                  {
+                    "id": "2021/12/8/2/6/0/3/1/99/251/30/RL-12008-21-4842",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 50000004
+                    },
+                    "classifications": {
+                      "anio": "2021",
+                      "nivel": "12",
+                      "entidad": "8",
+                      "tipo_programa": "2",
+                      "programa": "6",
+                      "sub_programa": "0",
+                      "proyecto": "3",
+                      "financiador": "1",
+                      "departamento": "99",
+                      "objeto_gasto": "251",
+                      "fuente_financiamiento": "30",
+                      "cdp": "371570"
+                    },
+                    "financialCode": "RL-12008-21-4842"
+                  },
+                  {
+                    "id": "2019/12/8/2/1/9/0/1/99/250/30/LC-12008-19-182247",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 52867500
+                    },
+                    "classifications": {
+                      "anio": "2019",
+                      "nivel": "12",
+                      "entidad": "8",
+                      "tipo_programa": "2",
+                      "programa": "1",
+                      "sub_programa": "9",
+                      "proyecto": "0",
+                      "financiador": "1",
+                      "departamento": "99",
+                      "objeto_gasto": "250",
+                      "fuente_financiamiento": "30",
+                      "cdp": "371570"
+                    },
+                    "financialCode": "LC-12008-19-182247"
+                  }
+                ]
+              },
+              "transactions": [
+                {
+                  "id": "SIAF+LC-12008-19-182247+001-001-0000164+2687481",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 18791449
+                  },
+                  "date": "2020-09-01T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2020-08-24T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000164",
+                      "bill": {
+                        "id": "001-001-0000164",
+                        "type": "FACTURA",
+                        "date": "2020-01-31T00:00:00-04:00",
+                        "amount": {
+                          "amount": 19950000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 70369,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "LC-12008-19-182247"
+                },
+                {
+                  "id": "SIAF+LC-12008-19-182247+001-001-0000165+2687482",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 18791449
+                  },
+                  "date": "2020-08-04T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2020-07-28T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000165",
+                      "bill": {
+                        "id": "001-001-0000165",
+                        "type": "FACTURA",
+                        "date": "2020-02-28T00:00:00-04:00",
+                        "amount": {
+                          "amount": 19950000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 70369,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "LC-12008-19-182247"
+                },
+                {
+                  "id": "SIAF+LC-12008-19-182247+001-001-0000166+2687483",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 18791449
+                  },
+                  "date": "2020-08-06T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2020-07-31T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000166",
+                      "bill": {
+                        "id": "001-001-0000166",
+                        "type": "FACTURA",
+                        "date": "2020-03-21T00:00:00-04:00",
+                        "amount": {
+                          "amount": 19950000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 70369,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "LC-12008-19-182247"
+                },
+                {
+                  "id": "SIAF+LC-12008-19-182247+001-001-0000167+2687484",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 18791449
+                  },
+                  "date": "2020-09-01T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2020-08-24T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000167",
+                      "bill": {
+                        "id": "001-001-0000167",
+                        "type": "FACTURA",
+                        "date": "2020-04-30T00:00:00-04:00",
+                        "amount": {
+                          "amount": 19950000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 70369,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "LC-12008-19-182247"
+                },
+                {
+                  "id": "SIAF+LC-12008-19-182247+001-001-0000168+2687485",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 31005891
+                  },
+                  "date": "2020-08-06T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2020-07-31T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000168",
+                      "bill": {
+                        "id": "001-001-0000168",
+                        "type": "FACTURA",
+                        "date": "2020-05-20T00:00:00-04:00",
+                        "amount": {
+                          "amount": 32917500,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 897750,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 116109,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 897750,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "LC-12008-19-182247"
+                },
+                {
+                  "id": "SIAF+LC-12008-19-182247+001-001-0000169+2687486",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 18791449
+                  },
+                  "date": "2020-08-06T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2020-07-30T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000169",
+                      "bill": {
+                        "id": "001-001-0000169",
+                        "type": "FACTURA",
+                        "date": "2020-05-20T00:00:00-04:00",
+                        "amount": {
+                          "amount": 19950000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 70369,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "LC-12008-19-182247"
+                },
+                {
+                  "id": "SIAF+LC-12008-19-182247+001-001-0000171+2687487",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 18791449
+                  },
+                  "date": "2020-09-03T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2020-08-31T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000171",
+                      "bill": {
+                        "id": "001-001-0000171",
+                        "type": "FACTURA",
+                        "date": "2020-06-01T00:00:00-04:00",
+                        "amount": {
+                          "amount": 19950000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 70369,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "LC-12008-19-182247"
+                },
+                {
+                  "id": "SIAF+LC-12008-19-182247+001-001-0000172+2687488",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 18791449
+                  },
+                  "date": "2020-12-15T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2020-12-09T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000172",
+                      "bill": {
+                        "id": "001-001-0000172",
+                        "type": "FACTURA",
+                        "date": "2020-07-01T00:00:00-04:00",
+                        "amount": {
+                          "amount": 19950000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 70369,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "LC-12008-19-182247"
+                },
+                {
+                  "id": "SIAF+LC-12008-19-182247+001-001-0000202+2687489",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 18791449
+                  },
+                  "date": "2020-12-15T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2020-12-09T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000202",
+                      "bill": {
+                        "id": "001-001-0000202",
+                        "type": "FACTURA",
+                        "date": "2020-09-20T00:00:00-04:00",
+                        "amount": {
+                          "amount": 19950000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 70369,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "LC-12008-19-182247"
+                },
+                {
+                  "id": "SIAF+LC-12008-19-182247+001-001-0000206+2687490",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 18791449
+                  },
+                  "date": "2021-01-14T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2020-12-29T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000206",
+                      "bill": {
+                        "id": "001-001-0000206",
+                        "type": "FACTURA",
+                        "date": "2020-10-01T00:00:00-04:00",
+                        "amount": {
+                          "amount": 19950000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 70369,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "LC-12008-19-182247"
+                },
+                {
+                  "id": "SIAF+LC-12008-19-182247+001-001-0000207+2687491",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 18791449
+                  },
+                  "date": "2020-12-15T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2020-12-09T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000207",
+                      "bill": {
+                        "id": "001-001-0000207",
+                        "type": "FACTURA",
+                        "date": "2020-10-21T00:00:00-04:00",
+                        "amount": {
+                          "amount": 19950000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 70369,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "LC-12008-19-182247"
+                },
+                {
+                  "id": "SIAF+LC-12008-19-182247+001-001-0000210+2687492",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 18791449
+                  },
+                  "date": "2020-12-22T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2020-12-17T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000210",
+                      "bill": {
+                        "id": "001-001-0000210",
+                        "type": "FACTURA",
+                        "date": "2020-11-02T00:00:00-04:00",
+                        "amount": {
+                          "amount": 19950000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 70369,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "LC-12008-19-182247"
+                },
+                {
+                  "id": "SIAF+LC-12008-19-182247+001-001-0000214+2687493",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 18791449
+                  },
+                  "date": "2021-07-08T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2021-06-29T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000214",
+                      "bill": {
+                        "id": "001-001-0000214",
+                        "type": "FACTURA",
+                        "date": "2021-01-04T00:00:00-04:00",
+                        "amount": {
+                          "amount": 19950000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 70369,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "LC-12008-19-182247"
+                },
+                {
+                  "id": "SIAF+RL-12008-21-4829+001-001-0000215+3144495",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 37582898
+                  },
+                  "date": "2021-12-28T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2021-12-21T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000215",
+                      "bill": {
+                        "id": "001-001-0000215",
+                        "type": "FACTURA",
+                        "date": "2021-03-09T00:00:00-04:00",
+                        "amount": {
+                          "amount": 39900000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 1088182,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 140738,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 1088182,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "RL-12008-21-4829"
+                },
+                {
+                  "id": "SIAF+RL-12008-21-4829+001-001-0000216+3144496",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 18791449
+                  },
+                  "date": "2021-12-21T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2021-12-16T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000216",
+                      "bill": {
+                        "id": "001-001-0000216",
+                        "type": "FACTURA",
+                        "date": "2021-03-25T00:00:00-04:00",
+                        "amount": {
+                          "amount": 19950000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 70369,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "RL-12008-21-4829"
+                },
+                {
+                  "id": "SIAF+RL-12008-21-4829+001-001-0000219+3144497",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 18791449
+                  },
+                  "date": "2022-01-20T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2021-12-23T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000219",
+                      "bill": {
+                        "id": "001-001-0000219",
+                        "type": "FACTURA",
+                        "date": "2021-04-22T00:00:00-04:00",
+                        "amount": {
+                          "amount": 19950000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 70369,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 544091,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "RL-12008-21-4829"
+                },
+                {
+                  "id": "SIAF+RL-12008-21-4829+001-001-0000224+3144498",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 8078902
+                  },
+                  "date": "2021-12-28T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2021-12-24T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000224",
+                      "bill": {
+                        "id": "001-001-0000224",
+                        "type": "FACTURA",
+                        "date": "2021-05-07T00:00:00-04:00",
+                        "amount": {
+                          "amount": 8576991,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 233918,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 30253,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 233918,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "RL-12008-21-4829"
+                },
+                {
+                  "id": "SIAF+RL-12008-21-4829+001-001-0000224+3144499",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 10712547
+                  },
+                  "date": "2022-01-20T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2021-12-24T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000224",
+                      "bill": {
+                        "id": "001-001-0000224",
+                        "type": "FACTURA",
+                        "date": "2021-05-07T00:00:00-04:00",
+                        "amount": {
+                          "amount": 11373009,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 310173,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 40116,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 310173,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "RL-12008-21-4829"
+                },
+                {
+                  "id": "SIAF+RL-12008-21-4829+001-001-0000253+3144500",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 37582898
+                  },
+                  "date": "2022-05-12T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2022-04-30T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000253",
+                      "bill": {
+                        "id": "001-001-0000253",
+                        "type": "FACTURA",
+                        "date": "2022-03-10T00:00:00-04:00",
+                        "amount": {
+                          "amount": 39900000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 1088182,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 140738,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 1088182,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "RL-12008-21-4829"
+                },
+                {
+                  "id": "SIAF+RL-12008-21-4842+001-001-0000251+3144501",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 17802426
+                  },
+                  "date": "2021-12-02T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2021-11-29T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000251",
+                      "bill": {
+                        "id": "001-001-0000251",
+                        "type": "FACTURA",
+                        "date": "2021-11-05T00:00:00-04:00",
+                        "amount": {
+                          "amount": 18900000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 515455,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 66665,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 515454,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "RL-12008-21-4842"
+                },
+                {
+                  "id": "SIAF+RL-12008-21-4842+001-001-0000251+3144502",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 19780473
+                  },
+                  "date": "2021-12-02T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2021-11-29T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000251",
+                      "bill": {
+                        "id": "001-001-0000251",
+                        "type": "FACTURA",
+                        "date": "2021-11-05T00:00:00-04:00",
+                        "amount": {
+                          "amount": 21000000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 572727,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 74073,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 572727,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "RL-12008-21-4842"
+                },
+                {
+                  "id": "SIAF+RL-12008-21-4842+001-001-0000252+3144503",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 45871856
+                  },
+                  "date": "2021-12-02T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2021-11-26T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000252",
+                      "bill": {
+                        "id": "001-001-0000252",
+                        "type": "FACTURA",
+                        "date": "2021-11-05T00:00:00-04:00",
+                        "amount": {
+                          "amount": 48699996,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 1328181,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 171778,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 1328181,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "RL-12008-21-4842"
+                },
+                {
+                  "id": "SIAF+RL-12008-21-4842+001-001-0000252+3144504",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 29293942
+                  },
+                  "date": "2021-12-21T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-306",
+                    "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+                  },
+                  "payee": {
+                    "name": "La compañia del buen pastor s.r.l",
+                    "id": "PY-RUC-80097517-0"
+                  },
+                  "requestDate": "2021-12-18T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000252",
+                      "bill": {
+                        "id": "001-001-0000252",
+                        "type": "FACTURA",
+                        "date": "2021-11-05T00:00:00-04:00",
+                        "amount": {
+                          "amount": 31100004,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 848182,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 109698,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 848182,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "RL-12008-21-4842"
+                }
+              ]
+            },
+            "amendments": [
+              {
+                "date": "2021-09-29T11:38:50-04:00",
+                "description": "Renovación de Alquiler de Inmueble",
+                "amendsAmount": {
+                  "amount": 139650000,
+                  "currency": "PYG"
+                },
+                "id": "371570-la-compania-buen-pastor-s-r-l-1-renovacion",
+                "financialCode": "RL-12008-21-4829"
+              },
+              {
+                "date": "2021-10-13T09:56:15-04:00",
+                "description": "Renovación de Alquiler de Inmueble",
+                "amendsAmount": {
+                  "amount": 119700000,
+                  "currency": "PYG"
+                },
+                "id": "371570-la-compania-buen-pastor-s-r-l-1-renovacion-1",
+                "financialCode": "RL-12008-21-4842"
+              }
+            ],
+            "awardID": "371570-la-compania-buen-pastor-s-r-l-1",
+            "status": "active",
+            "statusDetails": "Adjudicado",
+            "dateSigned": "2019-11-27T12:00:00-04:00",
+            "period": {
+              "startDate": "2019-12-14T00:00:00-04:00",
+              "endDate": "2020-12-31T00:00:00-04:00"
+            },
+            "value": {
+              "amount": 272317500,
+              "currency": "PYG"
+            },
+            "documents": [
+              {
+                "id": "2iKZEieBJxY=",
+                "datePublished": "2019-12-05T11:26:49-04:00",
+                "title": "contrato_n__421_19_ibs_1575318556875.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/contrato/2iKZEieBJxY%253D",
+                "language": "es",
+                "documentType": "contractSigned",
+                "documentTypeDetails": "Orden de Compra o Contrato"
+              }
+            ]
+          }
+        ],
+        "tender": {
+          "id": "371570-locacion-inmuebles-determinada-oficinas-direccion-adultos-mayores-1",
+          "title": "LOCACION DE INMUEBLES DETERMINADA PARA OFICINAS DE LA DIRECCION DE ADULTOS MAYORES",
+          "status": "complete",
+          "awardCriteria": "priceOnly",
+          "awardCriteriaDetails": "Por Total",
+          "submissionMethod": [
+            "inPerson"
+          ],
+          "bidOpening": {
+            "date": "2019-11-21T10:00:00-04:00",
+            "address": {
+              "streetAddress": "DEPARTAMENTOS DE COMPRAS MENORES - MSPYBS"
+            }
+          },
+          "submissionMethodDetails": "Lugar entrega ofertas: DEPARTAMENTOS DE COMPRAS MENORES - MSPYBS || Lugar entrega bien: Según documento del llamado || Fecha entrega bien: Según documento del llamado",
+          "eligibilityCriteria": "Restricciones: INHABILIDADES PREVISTAS EN EL ARTICULO 40 DE LA LEY 2051/03",
+          "statusDetails": "Adjudicada",
+          "enquiriesAddress": {
+            "streetAddress": "DEPARTAMENTOS DE COMPRAS MENORES - MSPYBS"
+          },
+          "mainProcurementCategoryDetails": "Locación Inmuebles - Adquisición y Locación de inmuebles. Alquiler de muebles",
+          "hasEnquiries": false,
+          "value": {
+            "amount": 272317500,
+            "currency": "PYG"
+          },
+          "datePublished": "2019-11-14T15:04:05-04:00",
+          "tenderPeriod": {
+            "startDate": "2019-11-14T15:04:05-04:00",
+            "endDate": "2019-11-21T09:50:00-04:00",
+            "durationInDays": 6
+          },
+          "awardPeriod": {
+            "startDate": "2019-11-21T10:00:00-04:00"
+          },
+          "contractPeriod": {
+            "maxExtentDate": "2020-11-30T00:00:00-04:00"
+          },
+          "enquiryPeriod": {
+            "endDate": "2019-11-19T08:00:00-04:00",
+            "startDate": "2019-11-14T15:04:05-04:00",
+            "durationInDays": 4
+          },
+          "mainProcurementCategory": "services",
+          "additionalProcurementCategories": [
+            "goods"
+          ],
+          "procurementMethod": "open",
+          "procurementMethodDetails": "Locación de Inmuebles",
+          "procuringEntity": {
+            "id": "DNCP-SICP-CODE-306",
+            "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+          },
+          "criteria": [
+            {
+              "id": "1",
+              "title": "Garantía de Mantenimiento de Ofertas",
+              "description": "Los oferentes, proveedores o contratistas deberán garantizar la seriedad de sus ofertas, mediante la garantía de mantenimiento de la oferta",
+              "source": "tenderer",
+              "requirementGroups": [
+                {
+                  "id": "1-1",
+                  "description": "La garantía debe ser de un cierto porcentaje, periodo y tipo",
+                  "requirements": [
+                    {
+                      "id": "1-1-1",
+                      "title": "Porcentaje de la garantia",
+                      "expectedValue": "3"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "lots": [
+            {
+              "id": "yXnNCp2M5bI=",
+              "title": "1 - LoteTotal",
+              "status": "active",
+              "statusDetails": "Activo",
+              "value": {
+                "amount": 272317500,
+                "currency": "PYG"
+              },
+              "simultaneousSupply": false,
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "1",
+                  "id": "1"
+                }
+              ]
+            }
+          ],
+          "notifiedSuppliers": [
+            {
+              "name": "La compañia del buen pastor s.r.l",
+              "id": "PY-RUC-80097517-0"
+            }
+          ],
+          "items": [
+            {
+              "id": "6+uivsgcQqcT2PAcUz1low==",
+              "description": "Garantias de alquiler",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "80161504-998",
+                "description": "Garantias de alquiler",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/80161504-998"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "80161504",
+                  "description": "Servicios administrativos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/80161504"
+                }
+              ],
+              "quantity": 1,
+              "unit": {
+                "name": "Unidad",
+                "id": "UNI",
+                "value": {
+                  "amount": 32917500,
+                  "currency": "PYG"
+                }
+              },
+              "deliveryAddress": {
+                "streetAddress": "Distrito San Roque - Asunción"
+              },
+              "relatedLot": "yXnNCp2M5bI=",
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "2",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "bsuyTM4h6ul7rcm+sCUJxw==",
+              "description": "Alquiler de casa p/ uso institucional",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "80131502-003",
+                "description": "Alquiler de casa p/ uso institucional",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/80131502-003"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "80131502",
+                  "description": "Alquiler de instalaciones comerciales, industriales o salones",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/80131502"
+                }
+              ],
+              "quantity": 12,
+              "unit": {
+                "name": "Mes",
+                "id": "ME",
+                "value": {
+                  "amount": 19950000,
+                  "currency": "PYG"
+                }
+              },
+              "deliveryAddress": {
+                "streetAddress": "Distrito San Roque - Asunción"
+              },
+              "relatedLot": "yXnNCp2M5bI=",
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "1",
+                  "id": "2"
+                }
+              ]
+            }
+          ],
+          "tenderers": [
+            {
+              "name": "La compañia del buen pastor s.r.l",
+              "id": "PY-RUC-80097517-0"
+            }
+          ],
+          "documents": [
+            {
+              "id": "akJqfEJNems=",
+              "datePublished": "2019-11-14T15:04:05-04:00",
+              "title": "llamado_publico_1573754645027.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/akJqfEJNems%253D",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "documentTypeDetails": "Llamado publicado"
+            },
+            {
+              "id": "SR4WwfDK+Kc=",
+              "datePublished": "2019-11-14T15:04:05-04:00",
+              "title": "cdp_1573733497974.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/SR4WwfDK%252BKc%253D",
+              "language": "es",
+              "documentTypeDetails": "CDP"
+            },
+            {
+              "id": "IZMLkEi4/5k=",
+              "datePublished": "2019-11-14T15:04:05-04:00",
+              "title": "dictamen_de_a_1573733521602.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/IZMLkEi4%252F5k%253D",
+              "language": "es",
+              "documentTypeDetails": "Dictamen del Llamado"
+            },
+            {
+              "id": "HSeCiUimgFs=",
+              "datePublished": "2019-11-14T15:04:05-04:00",
+              "title": "constancia_plurianual_1573733725894.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/HSeCiUimgFs%253D",
+              "language": "es",
+              "documentTypeDetails": "Constancia de previsión plurianual"
+            },
+            {
+              "id": "qS/zOkkltYE=",
+              "datePublished": "2019-11-14T15:04:05-04:00",
+              "title": "carta_y_anexos_1573734067432.zip",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/qS%252FzOkkltYE%253D",
+              "language": "es",
+              "documentType": "eligibilityCriteria",
+              "documentTypeDetails": "Carta de Invitación"
+            },
+            {
+              "id": "n1WplikmvlM=",
+              "datePublished": "2019-11-14T15:04:05-04:00",
+              "title": "resoluci_n_1573733538815.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/n1WplikmvlM%253D",
+              "language": "es",
+              "documentTypeDetails": "Resolución Locación de Inmueble"
+            },
+            {
+              "id": "lNB21NKAA1w=",
+              "datePublished": "2019-11-14T15:04:05-04:00",
+              "title": "carta_y_anexos_1573733492753.zip",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/lNB21NKAA1w%253D",
+              "language": "es",
+              "documentType": "eligibilityCriteria",
+              "documentTypeDetails": "Carta de Invitación"
+            },
+            {
+              "id": "JNbCgre+JqQ=",
+              "datePublished": "2019-11-14T15:04:05-04:00",
+              "title": "proforma_de_contrato_li_1573733507368.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/JNbCgre%252BJqQ%253D",
+              "language": "es",
+              "documentTypeDetails": "Proforma de contrato"
+            },
+            {
+              "id": "dix2iRRDbik=",
+              "title": "URL de la Convocatoria",
+              "url": "https://www.contrataciones.gov.py/licitaciones/convocatoria/371570-locacion-inmuebles-determinada-oficinas-direccion-adultos-mayores-1.html",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "format": "text/html"
+            }
+          ],
+          "numberOfTenderers": 1
+        },
+        "language": "es",
+        "ocid": "ocds-03ad3f-371570-1",
+        "date": "2019-12-02T16:29:20-04:00",
+        "initiationType": "tender",
+        "buyer": {
+          "id": "DNCP-SICP-CODE-306",
+          "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+        },
+        "sources": [
+          {
+            "id": "dncp-sicp",
+            "name": "Sistema de Información de las Contrataciones Públicas - DNCP",
+            "url": "https://www.contrataciones.gov.py/"
+          }
+        ],
+        "planning": {
+          "identifier": "371570",
+          "estimatedDate": "2019-11-30T00:00:00-04:00",
+          "budget": {
+            "description": "LOCACION DE INMUEBLES DETERMINADA PARA OFICINAS DE LA DIRECCION DE ADULTOS MAYORES",
+            "amount": {
+              "currency": "PYG",
+              "amount": 272317500
+            },
+            "budgetBreakdown": [
+              {
+                "id": "2019/12/8/2/1/9/0/1/99/250/30-MoOc4yNVm5M=",
+                "sourceParty": {
+                  "id": "306",
+                  "name": "Ministerio de Salud Pública y Bienestar Social"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_utilizado": 52867500,
+                  "monto_a_utilizar": 52867500
+                },
+                "classifications": {
+                  "anio": "2019",
+                  "nivel": "12",
+                  "entidad": "8",
+                  "tipo_programa": "2",
+                  "programa": "1",
+                  "sub_programa": "9",
+                  "proyecto": "0",
+                  "financiador": "1",
+                  "departamento": "99",
+                  "objeto_gasto": "250",
+                  "fuente_financiamiento": "30",
+                  "cdp": "371570"
+                }
+              },
+              {
+                "id": "2021/12/8/2/6/0/1/1/99/251/30-XDUyMvq9bao=",
+                "sourceParty": {
+                  "id": "306",
+                  "name": "Ministerio de Salud Pública y Bienestar Social"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_a_utilizar": 19950000
+                },
+                "classifications": {
+                  "anio": "2021",
+                  "nivel": "12",
+                  "entidad": "8",
+                  "tipo_programa": "2",
+                  "programa": "6",
+                  "sub_programa": "0",
+                  "proyecto": "1",
+                  "financiador": "1",
+                  "departamento": "99",
+                  "objeto_gasto": "251",
+                  "fuente_financiamiento": "30",
+                  "cdp": "371570"
+                }
+              },
+              {
+                "id": "2020/12/8/1/1/0/1/1/99/250/30-TtX6FKkjbGg=",
+                "sourceParty": {
+                  "id": "306",
+                  "name": "Ministerio de Salud Pública y Bienestar Social"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_a_utilizar": 79800000
+                },
+                "classifications": {
+                  "anio": "2020",
+                  "nivel": "12",
+                  "entidad": "8",
+                  "tipo_programa": "1",
+                  "programa": "1",
+                  "sub_programa": "0",
+                  "proyecto": "1",
+                  "financiador": "1",
+                  "departamento": "99",
+                  "objeto_gasto": "250",
+                  "fuente_financiamiento": "30",
+                  "cdp": "371570"
+                }
+              },
+              {
+                "id": "2020/12/8/2/6/0/1/1/99/250/30-ImrMxTi1hDw=",
+                "sourceParty": {
+                  "id": "306",
+                  "name": "Ministerio de Salud Pública y Bienestar Social"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_a_utilizar": 119700000
+                },
+                "classifications": {
+                  "anio": "2020",
+                  "nivel": "12",
+                  "entidad": "8",
+                  "tipo_programa": "2",
+                  "programa": "6",
+                  "sub_programa": "0",
+                  "proyecto": "1",
+                  "financiador": "1",
+                  "departamento": "99",
+                  "objeto_gasto": "250",
+                  "fuente_financiamiento": "30",
+                  "cdp": "371570"
+                }
+              }
+            ]
+          },
+          "items": [
+            {
+              "id": "MPkhf1e0unk=",
+              "description": "Alquiler de instalaciones comerciales, industriales o salones",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "80131502",
+                "description": "Alquiler de instalaciones comerciales, industriales o salones",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/80131502"
+              }
+            },
+            {
+              "id": "7SKt+qzXAIg=",
+              "description": "Servicios administrativos",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "80161504",
+                "description": "Servicios administrativos",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/80161504"
+              }
+            }
+          ]
+        },
+        "parties": [
+          {
+            "id": "DNCP-SICP-CODE-306",
+            "name": "Ministerio de Salud Pública y Bienestar Social (MSPBS)",
+            "identifier": {
+              "scheme": "DNCP-SICP-CODE",
+              "id": "306",
+              "legalName": "Ministerio de Salud Pública y Bienestar Social (MSPBS)"
+            },
+            "contactPoint": {
+              "email": "carlosdecoud@hotmail.com",
+              "name": "CP Carlos Torres Decoud",
+              "telephone": "204-601/3 int. 1314"
+            },
+            "roles": [
+              "buyer",
+              "procuringEntity",
+              "payer"
+            ],
+            "details": {
+              "level": "Poder Ejecutivo",
+              "entityType": "Organismos de la Administración Central",
+              "type": "Entidad"
+            },
+            "additionalIdentifiers": [
+              {
+                "id": "2019.12.8",
+                "legalName": "Ministerio de Salud Pública y Bienestar Social",
+                "scheme": "PY-PGN"
+              }
+            ]
+          },
+          {
+            "name": "La compañia del buen pastor s.r.l",
+            "id": "PY-RUC-80097517-0",
+            "identifier": {
+              "id": "80097517-0",
+              "legalName": "La compañia del buen pastor s.r.l",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "tenderer",
+              "supplier",
+              "notifiedSupplier",
+              "payee"
+            ],
+            "contactPoint": {
+              "name": "ALEJANDRO REIFMAN ",
+              "email": "TOTOJOSE2004@HOTMAIL.COM",
+              "telephone": "0981108182"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "ASUNCION ",
+              "region": "Asunción",
+              "streetAddress": "ANA DIAZ ENTRE ESTADOS UNIDOS Y BRASIL "
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.R.L.",
+              "activityTypes": [
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Adquisición y Locación de inmuebles. Alquiler de muebles",
+                  "id": 3
+                }
+              ]
+            }
+          }
+        ],
+        "tag": [
+          "compiled"
+        ]
+      }
+    }
+  ],
+  "pagination": {
+    "total_items": 1,
+    "total_pages": 1,
+    "current_page": 1,
+    "items_per_page": 10,
+    "total_in_page": 1
+  }
+}

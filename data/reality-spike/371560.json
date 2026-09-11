@@ -1,0 +1,3051 @@
+{
+  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/ocds/record/ocds-03ad3f-371560",
+  "publishedDate": "2026-09-10T21:17:46Z",
+  "publisher": {
+    "name": "Dirección Nacional de Contrataciones Públicas, Paraguay"
+  },
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "publicationPolicy": "https://www.contrataciones.gov.py/datos/legal",
+  "version": "1.1",
+  "extensions": [
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_budget_breakdown_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_budget_and_spend_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_lots_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_enquiry_extension/master/extension.json",
+    "https://raw.githubusercontent.com/sdd1982/enquiriesAddress/master/extension.json",
+    "https://raw.githubusercontent.com/sdd1982/legalEntityTypeDetail/master/extension.json",
+    "https://raw.githubusercontent.com/gitMHOCDS/transactions/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_investmentproject_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_clarification_meetings_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_item_attributes_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_items_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_contract_suppliers_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_partyDetails_scale_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_location_extension/v1.1.4/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_activityType_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_tender_notifiedsuppliers_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_tender_lots_details_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_memberOf_extension/master/extension.json",
+    "https://raw.githubusercontent.com/portaledcahn/ocds_tenderDatePublished_extension/master/extension.json",
+    "https://raw.githubusercontent.com/INAImexico/ocds_guarantees_extension/master/extension.json",
+    "https://bitbucket.org/ONCAETI/ocds_releasesource_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_requirements_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_bidOpening_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_coveredBy_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_qualification_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_publicEntitiesDetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_items_subItems_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_statusdetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_mainProcurementCategoryDetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_identifier_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_estimatedDate_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_participationFee_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_amendments_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_lot_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_transaction_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_financialprogress_financialcode_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_categories_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_complaints_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_item_minQuantity_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_implementation_purchaseOrder_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_document_type_details/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_cancellations_amendments_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_milestone_documents_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_techniques_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_bid_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_bid_items_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_auctions_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_secondStage_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_beneficiaries_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/Crown-Commercial-Service/ocds_tender_suitability_extension/main/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_subcontracting_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_partyDetails_scale_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_organizationClassification_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_sustainability_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_implementation_reportedpayment_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_milestone_deliveries_extension/raw/master/extension.json"
+  ],
+  "records": [
+    {
+      "ocid": "ocds-03ad3f-371560-1",
+      "releases": [
+        {
+          "date": "2019-12-11T12:35:15-04:00",
+          "tag": [
+            "tender",
+            "award",
+            "implementation",
+            "contractAmendment",
+            "planningUpdate"
+          ],
+          "url": "https://www.contrataciones.gov.py/datos/api/v3/doc/ocds/releases/id/371560-reacondicionamiento-escalinata-congreso-nacional-1-1576067715.345745"
+        }
+      ],
+      "compiledRelease": {
+        "id": "371560-reacondicionamiento-escalinata-congreso-nacional-1-1576067715.345745",
+        "awards": [
+          {
+            "id": "371560-ricardo-diaz-martinez-1",
+            "status": "active",
+            "statusDetails": "Adjudicado",
+            "date": "2019-12-03T12:00:00-04:00",
+            "value": {
+              "amount": 824999752,
+              "currency": "PYG"
+            },
+            "suppliers": [
+              {
+                "name": "RICARDO DIAZ MARTINEZ",
+                "id": "PY-RUC-310695-0"
+              }
+            ],
+            "documents": [
+              {
+                "id": "DvYkUFTlE3Y=",
+                "datePublished": "2019-12-11T12:35:15-04:00",
+                "title": "resolucion_1575636094043.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/DvYkUFTlE3Y%253D",
+                "language": "es",
+                "documentType": "awardNotice",
+                "documentTypeDetails": "Resolución de Adjudicación"
+              },
+              {
+                "id": "S7nUlqkQCbM=",
+                "datePublished": "2019-12-11T12:35:15-04:00",
+                "title": "notificacion_oferentes_1575573964897.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/S7nUlqkQCbM%253D",
+                "language": "es",
+                "documentTypeDetails": "Notificación al Oferente"
+              },
+              {
+                "id": "dix2iRRDbik=",
+                "title": "URL de la Adjudicación",
+                "url": "https://www.contrataciones.gov.py/licitaciones/adjudicacion/371560-reacondicionamiento-escalinata-congreso-nacional-1/resumen-adjudicacion.html",
+                "language": "es",
+                "documentType": "awardNotice",
+                "format": "text/html"
+              },
+              {
+                "id": "Xs3Z2YhR1sA=",
+                "datePublished": "2019-12-11T12:35:15-04:00",
+                "title": "evaluacion___anexos_1575571549178.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/Xs3Z2YhR1sA%253D",
+                "language": "es",
+                "documentTypeDetails": "Informe de Evaluación"
+              },
+              {
+                "id": "2uuqm6IW4iw=",
+                "datePublished": "2019-12-11T12:35:15-04:00",
+                "title": "acta_de_apertura_1575571398248.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/2uuqm6IW4iw%253D",
+                "language": "es",
+                "documentTypeDetails": "Acta de Apertura"
+              },
+              {
+                "id": "sswfQAT5/30=",
+                "datePublished": "2019-12-11T12:35:15-04:00",
+                "title": "cco_1575571404818.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/sswfQAT5%252F30%253D",
+                "language": "es",
+                "documentTypeDetails": "Cuadro Comparativo de Ofertas"
+              },
+              {
+                "id": "URlDrOoNdKw=",
+                "datePublished": "2019-12-11T12:35:15-04:00",
+                "title": "evaluacion_1575571401487.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/URlDrOoNdKw%253D",
+                "language": "es",
+                "documentTypeDetails": "Informe de Evaluación"
+              }
+            ],
+            "items": [
+              {
+                "id": "4ehAjnVaquUl+Cw1/B7o9A==",
+                "description": "Remoción de mampostería de ladrillo y contrapiso existentes",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "72102508-001",
+                  "description": "Restauracion o reparacion de pisos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102508-001"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "72102508",
+                    "description": "Colocacion y restauracion de albanileria, mamposteria o azulejos",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102508"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Metros cúbicos",
+                  "id": "M3",
+                  "value": {
+                    "amount": 10984253,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "z3QYQBZ0U1c=",
+                "attributes": [
+                  {
+                    "name": "Orden",
+                    "value": "7",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "6RpP0pyieTbRLolFcSwCHA==",
+                "description": "Desmonte de pasamanos existentes",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "72102702-9999",
+                  "description": "Mantenimiento / Reparacion de Escalera de edificio",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102702-9999"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "72102702",
+                    "description": "Revestimiento, instalacion o mantenimiento de suelos",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102702"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Metros",
+                  "id": "m",
+                  "value": {
+                    "amount": 845846,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "z3QYQBZ0U1c=",
+                "attributes": [
+                  {
+                    "name": "Orden",
+                    "value": "5",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "9bsxmsWjm9BPbYyFuOxlug==",
+                "description": "Remoción de piso de granito natural existente en descanso",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "72102508-001",
+                  "description": "Restauracion o reparacion de pisos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102508-001"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "72102508",
+                    "description": "Colocacion y restauracion de albanileria, mamposteria o azulejos",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102508"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Metros cuadrados",
+                  "id": "M2",
+                  "value": {
+                    "amount": 6449915,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "z3QYQBZ0U1c=",
+                "attributes": [
+                  {
+                    "name": "Orden",
+                    "value": "3",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "9hzgjZ+FZHdqC26PB0V5YA==",
+                "description": "Retiro de escombros en contenedores",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "72131601-013",
+                  "description": "Limpieza de obra",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72131601-013"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "72131601",
+                    "description": "Construccion de edificios comerciales, empresariales o institucionales",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72131601"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Unidad Medida Global",
+                  "id": "GL",
+                  "value": {
+                    "amount": 12123914,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "z3QYQBZ0U1c=",
+                "attributes": [
+                  {
+                    "name": "Orden",
+                    "value": "16",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "arD0iCgLUQgKGVpv21/3cg==",
+                "description": "Remoción de zócalo de granito natural existente",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "72101607-005",
+                  "description": "Instalacion o colocacion de zocalo",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72101607-005"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "72101607",
+                    "description": "Instalacion, remodelación o reparacion de paredes",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72101607"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Metros",
+                  "id": "m",
+                  "value": {
+                    "amount": 769462,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "z3QYQBZ0U1c=",
+                "attributes": [
+                  {
+                    "name": "Orden",
+                    "value": "4",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "BKNfywmd4xcTVYhUzXKmpQ==",
+                "description": "Provisión y colocación de zócalo de granito natural",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "72102702-9999",
+                  "description": "Mantenimiento / Reparacion de Escalera de edificio",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102702-9999"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "72102702",
+                    "description": "Revestimiento, instalacion o mantenimiento de suelos",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102702"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Metros",
+                  "id": "m",
+                  "value": {
+                    "amount": 3950377,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "z3QYQBZ0U1c=",
+                "attributes": [
+                  {
+                    "name": "Orden",
+                    "value": "13",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "DpkuqsGhE9u/ngY+aYV2IQ==",
+                "description": "Limpieza periódica de obras",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "72131601-013",
+                  "description": "Limpieza de obra",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72131601-013"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "72131601",
+                    "description": "Construccion de edificios comerciales, empresariales o institucionales",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72131601"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Unidad Medida Global",
+                  "id": "GL",
+                  "value": {
+                    "amount": 6466087,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "z3QYQBZ0U1c=",
+                "attributes": [
+                  {
+                    "name": "Orden",
+                    "value": "17",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "Ih7jQX2h95cCtROv+MBfAA==",
+                "description": "Contrapiso de nivelación de escalones",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "72131601-009",
+                  "description": "Colocacion de pisos - contrapisos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72131601-009"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "72131601",
+                    "description": "Construccion de edificios comerciales, empresariales o institucionales",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72131601"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Metros cuadrados",
+                  "id": "M2",
+                  "value": {
+                    "amount": 15987400,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "z3QYQBZ0U1c=",
+                "attributes": [
+                  {
+                    "name": "Orden",
+                    "value": "9",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "IwvleeVRRJWsNlEZgnJyFA==",
+                "description": "Provisión y colocación de granito natural en descanso",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "72102702-9999",
+                  "description": "Mantenimiento / Reparacion de Escalera de edificio",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102702-9999"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "72102702",
+                    "description": "Revestimiento, instalacion o mantenimiento de suelos",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102702"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Metros cuadrados",
+                  "id": "M2",
+                  "value": {
+                    "amount": 70949169,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "z3QYQBZ0U1c=",
+                "attributes": [
+                  {
+                    "name": "Orden",
+                    "value": "12",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "k7OP2+4uGsGy9wDN+FOqxg==",
+                "description": "Provisión y colocación de huella y contrahuella de granito natural con borde antideslizante",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "72102702-9999",
+                  "description": "Mantenimiento / Reparacion de Escalera de edificio",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102702-9999"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "72102702",
+                    "description": "Revestimiento, instalacion o mantenimiento de suelos",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102702"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Metros cuadrados",
+                  "id": "M2",
+                  "value": {
+                    "amount": 470407902,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "z3QYQBZ0U1c=",
+                "attributes": [
+                  {
+                    "name": "Orden",
+                    "value": "11",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "+lZvgI9HLE2P50GTfZ/ZRQ==",
+                "description": "Provisión y colocación de cubrejuntas metálicas",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "72102602-010",
+                  "description": "Colocacion de pasamano ",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102602-010"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "72102602",
+                    "description": "Instalacion, reparacion y mantenimiento de mobiliarios y aberturas",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102602"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Metros",
+                  "id": "m",
+                  "value": {
+                    "amount": 2570261,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "z3QYQBZ0U1c=",
+                "attributes": [
+                  {
+                    "name": "Orden",
+                    "value": "15",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "ppTpbGI8+s/ta/Cg/nRomg==",
+                "description": "Provisión, colocación y remoción de vallado de obra",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "72131601-002",
+                  "description": "Preparacion de obra",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72131601-002"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "72131601",
+                    "description": "Construccion de edificios comerciales, empresariales o institucionales",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72131601"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Metros",
+                  "id": "m",
+                  "value": {
+                    "amount": 18185850,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "z3QYQBZ0U1c=",
+                "attributes": [
+                  {
+                    "name": "Orden",
+                    "value": "1",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "Prf9ZOHkVzd5n1n5sU8OvA==",
+                "description": "Remoción de cubrejuntas metálicas con recuperación de material",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "72102702-9999",
+                  "description": "Mantenimiento / Reparacion de Escalera de edificio",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102702-9999"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "72102702",
+                    "description": "Revestimiento, instalacion o mantenimiento de suelos",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102702"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Metros",
+                  "id": "m",
+                  "value": {
+                    "amount": 6401419,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "z3QYQBZ0U1c=",
+                "attributes": [
+                  {
+                    "name": "Orden",
+                    "value": "6",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "qSJsQQDbn1T/z8l+lxTTbQ==",
+                "description": "Remoción de huella y contrahuella de granito natural existente",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "72102508-001",
+                  "description": "Restauracion o reparacion de pisos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102508-001"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "72102508",
+                    "description": "Colocacion y restauracion de albanileria, mamposteria o azulejos",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102508"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Metros cuadrados",
+                  "id": "M2",
+                  "value": {
+                    "amount": 47040732,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "z3QYQBZ0U1c=",
+                "attributes": [
+                  {
+                    "name": "Orden",
+                    "value": "2",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "SgI91fXDZIeFuhTYLi2BhQ==",
+                "description": "Provisión y colocación de pasamanos de acero inoxidable, similar al existente",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "72102602-010",
+                  "description": "Colocacion de pasamano ",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102602-010"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "72102602",
+                    "description": "Instalacion, reparacion y mantenimiento de mobiliarios y aberturas",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102602"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Metros",
+                  "id": "m",
+                  "value": {
+                    "amount": 19701370,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "z3QYQBZ0U1c=",
+                "attributes": [
+                  {
+                    "name": "Orden",
+                    "value": "14",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "WgcjUVcp3gCIMo5jeYs+CQ==",
+                "description": "Carpeta de regularización de escalones",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "72102702-002",
+                  "description": "Revestimiento de pisos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102702-002"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "72102702",
+                    "description": "Revestimiento, instalacion o mantenimiento de suelos",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102702"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Metros cuadrados",
+                  "id": "M2",
+                  "value": {
+                    "amount": 13901900,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "z3QYQBZ0U1c=",
+                "attributes": [
+                  {
+                    "name": "Orden",
+                    "value": "10",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "YdOqiUXN3V9tfCh3Lz7BMg==",
+                "description": "Relleno de hormigón con armadura anclada a la losa inclinada existente, con varilla de 10 mm c/ 50 cm en cada grada",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "72102003-001",
+                  "description": "Relleno de hormigón",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102003-001"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "72102003",
+                    "description": "Recubrimiento o satinado de materias estructurales de metal, madera u hormigon",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102003"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Metros cúbicos",
+                  "id": "M3",
+                  "value": {
+                    "amount": 118263895,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "z3QYQBZ0U1c=",
+                "attributes": [
+                  {
+                    "name": "Orden",
+                    "value": "8",
+                    "id": "7"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "contracts": [
+          {
+            "id": "LP-11001-19-183665",
+            "guarantees": [
+              {
+                "id": "Br2aZsiXicg=",
+                "date": "2019-12-15T00:00:00-04:00",
+                "period": {
+                  "endDate": "2020-04-30T00:00:00-04:00",
+                  "startDate": "2019-12-05T00:00:00-04:00"
+                },
+                "obligations": "Endoso - Fiel Cumplimiento"
+              },
+              {
+                "id": "LyOHsQYIGnk=",
+                "date": "2020-08-31T00:00:00-04:00",
+                "period": {
+                  "endDate": "2020-08-31T00:00:00-04:00",
+                  "startDate": "2020-07-31T00:00:00-04:00"
+                },
+                "obligations": "Endoso - Anticipo"
+              },
+              {
+                "id": "M7lvmR1/MFA=",
+                "date": "2020-04-30T00:00:00-04:00",
+                "period": {
+                  "endDate": "2020-07-31T00:00:00-04:00",
+                  "startDate": "2020-04-30T00:00:00-04:00"
+                },
+                "obligations": "Endoso - Fiel Cumplimiento"
+              },
+              {
+                "id": "RsA48gCbwMU=",
+                "date": "2019-12-15T00:00:00-04:00",
+                "period": {
+                  "endDate": "2020-04-30T00:00:00-04:00",
+                  "startDate": "2019-12-05T00:00:00-04:00"
+                },
+                "obligations": "fulfillment"
+              }
+            ],
+            "implementation": {
+              "milestones": [
+                {
+                  "id": "h4oPaakbAAg=",
+                  "title": "Certificado de Obra N° 2",
+                  "type": "reporting",
+                  "code": "Certificado",
+                  "dueDate": "2020-03-05T00:00:00-04:00",
+                  "dateMet": "2020-03-05T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Certificado",
+                      "id": "D7NhrnmGtPY=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/D7NhrnmGtPY%253D",
+                      "datePublished": "2025-06-26T14:32:01-04:00",
+                      "language": "es",
+                      "title": "certificado_de_obra_2_reacondicionamiento_de_la_escalinata_1750959121258.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "CmDXZMY3I4A=",
+                  "title": "CONVENIO",
+                  "type": "reporting",
+                  "code": "Certificado",
+                  "dueDate": "2020-07-31T00:00:00-04:00",
+                  "dateMet": "2020-07-31T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Certificado",
+                      "id": "PrMPPgY8n9I=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/PrMPPgY8n9I%253D",
+                      "datePublished": "2023-03-09T11:37:25-04:00",
+                      "language": "es",
+                      "title": "indicador_de_cumplimiento___convenio_segun_poliza_n__653___id_371560_1678372644270.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "EBx/xT2D/Wk=",
+                  "title": "Certificado de Obra N° 1",
+                  "type": "reporting",
+                  "code": "Certificado",
+                  "dueDate": "2020-02-01T00:00:00-04:00",
+                  "dateMet": "2020-02-01T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Certificado",
+                      "id": "AS4/TR8b74A=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/AS4%252FTR8b74A%253D",
+                      "datePublished": "2025-06-26T14:31:12-04:00",
+                      "language": "es",
+                      "title": "certificado_de_obra_1_reacondicionamiento_de_la_escalinata_1750959071472.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                }
+              ],
+              "financialProgress": {
+                "breakdown": [
+                  {
+                    "id": "2020/11/1/1/1/0/1/1/99/520/10/LP-11001-19-183665",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 659999802
+                    },
+                    "classifications": {
+                      "anio": "2020",
+                      "nivel": "11",
+                      "entidad": "1",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "1",
+                      "financiador": "1",
+                      "departamento": "99",
+                      "objeto_gasto": "520",
+                      "fuente_financiamiento": "10",
+                      "cdp": "371560"
+                    },
+                    "financialCode": "LP-11001-19-183665"
+                  },
+                  {
+                    "id": "2019/11/1/1/1/0/0/1/99/520/10/LP-11001-19-183665",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 164999950
+                    },
+                    "classifications": {
+                      "anio": "2019",
+                      "nivel": "11",
+                      "entidad": "1",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "0",
+                      "financiador": "1",
+                      "departamento": "99",
+                      "objeto_gasto": "520",
+                      "fuente_financiamiento": "10",
+                      "cdp": "371560"
+                    },
+                    "financialCode": "LP-11001-19-183665"
+                  },
+                  {
+                    "id": "2020/11/1/1/1/0/1/1/99/520/10/AC-11001-20-39005",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 134372811
+                    },
+                    "classifications": {
+                      "anio": "2020",
+                      "nivel": "11",
+                      "entidad": "1",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "1",
+                      "financiador": "1",
+                      "departamento": "99",
+                      "objeto_gasto": "520",
+                      "fuente_financiamiento": "10",
+                      "cdp": "371560"
+                    },
+                    "financialCode": "AC-11001-20-39005"
+                  }
+                ]
+              },
+              "transactions": [
+                {
+                  "id": "SIAF+AC-11001-20-39005+001-001-0001100+3112806",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 120566691
+                  },
+                  "date": "2020-07-20T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-298",
+                    "name": "Congreso Nacional (C.N.)"
+                  },
+                  "payee": {
+                    "name": "RICARDO DIAZ MARTINEZ",
+                    "id": "PY-RUC-310695-0"
+                  },
+                  "requestDate": "2020-06-26T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0001100",
+                      "bill": {
+                        "id": "001-001-0001100",
+                        "type": "FACTURA",
+                        "date": "2020-06-16T00:00:00-04:00",
+                        "amount": {
+                          "amount": 128000000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 3490909,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 451491,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 3490909,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "AC-11001-20-39005"
+                },
+                {
+                  "id": "SIAF+AC-11001-20-39005+001-001-0001100+3112807",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6002724
+                  },
+                  "date": "2020-08-28T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-298",
+                    "name": "Congreso Nacional (C.N.)"
+                  },
+                  "payee": {
+                    "name": "RICARDO DIAZ MARTINEZ",
+                    "id": "PY-RUC-310695-0"
+                  },
+                  "requestDate": "2020-07-30T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0001100",
+                      "bill": {
+                        "id": "001-001-0001100",
+                        "type": "FACTURA",
+                        "date": "2020-06-16T00:00:00-04:00",
+                        "amount": {
+                          "amount": 6372811,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 173804,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 22479,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 173804,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "AC-11001-20-39005"
+                },
+                {
+                  "id": "SIAF+LP-11001-19-183665+001-001-0000963+2897549",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 155417952
+                  },
+                  "date": "2020-01-24T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-298",
+                    "name": "Congreso Nacional (C.N.)"
+                  },
+                  "payee": {
+                    "name": "RICARDO DIAZ MARTINEZ",
+                    "id": "PY-RUC-310695-0"
+                  },
+                  "requestDate": "2019-12-27T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0000963",
+                      "bill": {
+                        "id": "001-001-0000963",
+                        "type": "FACTURA",
+                        "date": "2019-12-23T00:00:00-04:00",
+                        "amount": {
+                          "amount": 164999950,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 4499999,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 582000,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 4499999,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "LP-11001-19-183665"
+                },
+                {
+                  "id": "SIAF+LP-11001-19-183665+001-001-0001062+2897550",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 39009423
+                  },
+                  "date": "2020-04-16T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-298",
+                    "name": "Congreso Nacional (C.N.)"
+                  },
+                  "payee": {
+                    "name": "RICARDO DIAZ MARTINEZ",
+                    "id": "PY-RUC-310695-0"
+                  },
+                  "requestDate": "2020-02-27T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0001062",
+                      "bill": {
+                        "id": "001-001-0001062",
+                        "type": "FACTURA",
+                        "date": "2020-02-11T00:00:00-04:00",
+                        "amount": {
+                          "amount": 41414474,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 1129486,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 146079,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 1129486,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "LP-11001-19-183665"
+                },
+                {
+                  "id": "SIAF+LP-11001-19-183665+001-001-0001075+2897551",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 100886204
+                  },
+                  "date": "2020-06-03T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-298",
+                    "name": "Congreso Nacional (C.N.)"
+                  },
+                  "payee": {
+                    "name": "RICARDO DIAZ MARTINEZ",
+                    "id": "PY-RUC-310695-0"
+                  },
+                  "requestDate": "2020-04-30T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0001075",
+                      "bill": {
+                        "id": "001-001-0001075",
+                        "type": "FACTURA",
+                        "date": "2020-03-05T00:00:00-04:00",
+                        "amount": {
+                          "amount": 107106151,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 2921077,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 377793,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 2921077,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "LP-11001-19-183665"
+                },
+                {
+                  "id": "SIAF+LP-11001-19-183665+001-001-0001085+2897552",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 373068180
+                  },
+                  "date": "2020-08-05T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-298",
+                    "name": "Congreso Nacional (C.N.)"
+                  },
+                  "payee": {
+                    "name": "RICARDO DIAZ MARTINEZ",
+                    "id": "PY-RUC-310695-0"
+                  },
+                  "requestDate": "2020-06-25T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0001085",
+                      "bill": {
+                        "id": "001-001-0001085",
+                        "type": "FACTURA",
+                        "date": "2020-05-26T00:00:00-04:00",
+                        "amount": {
+                          "amount": 396068985,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 10801881,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 1397043,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 10801881,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "LP-11001-19-183665"
+                },
+                {
+                  "id": "SIAF+LP-11001-19-183665+001-001-0001098+2897553",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 108708007
+                  },
+                  "date": "2020-07-20T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-298",
+                    "name": "Congreso Nacional (C.N.)"
+                  },
+                  "payee": {
+                    "name": "RICARDO DIAZ MARTINEZ",
+                    "id": "PY-RUC-310695-0"
+                  },
+                  "requestDate": "2020-06-25T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0001098",
+                      "bill": {
+                        "id": "001-001-0001098",
+                        "type": "FACTURA",
+                        "date": "2020-06-16T00:00:00-04:00",
+                        "amount": {
+                          "amount": 115410192,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 3147551,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 407083,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 3147551,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "LP-11001-19-183665"
+                }
+              ]
+            },
+            "amendments": [
+              {
+                "date": "2020-03-30T00:00:00-04:00",
+                "description": "Ampliación de Monto",
+                "amendsAmount": {
+                  "amount": 134372811,
+                  "currency": "PYG"
+                },
+                "id": "371560-ricardo-diaz-martinez-1-ampliacion",
+                "financialCode": "AC-11001-20-39005"
+              }
+            ],
+            "awardID": "371560-ricardo-diaz-martinez-1",
+            "status": "active",
+            "statusDetails": "Adjudicado",
+            "dateSigned": "2019-12-05T12:00:00-04:00",
+            "period": {
+              "startDate": "2019-12-05T00:00:00-04:00",
+              "endDate": "2020-12-31T00:00:00-04:00"
+            },
+            "value": {
+              "amount": 824999752,
+              "currency": "PYG"
+            },
+            "documents": [
+              {
+                "id": "evWFN0k6EEo=",
+                "title": "nota_27498___responsabilidad_1576598125619.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/contrato/evWFN0k6EEo%253D",
+                "language": "es",
+                "documentTypeDetails": "Nota de Observacion"
+              },
+              {
+                "id": "kHkOCzUZ+yI=",
+                "datePublished": "2019-12-17T12:55:27-04:00",
+                "title": "justificacion_art_34_1576168190695.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/contrato/kHkOCzUZ%252ByI%253D",
+                "language": "es",
+                "documentTypeDetails": "Nota de Aclaración"
+              },
+              {
+                "id": "gjjsfddnRCI=",
+                "datePublished": "2019-12-17T12:55:27-04:00",
+                "title": "contrato_1576168410100.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/contrato/gjjsfddnRCI%253D",
+                "language": "es",
+                "documentType": "contractSigned",
+                "documentTypeDetails": "Orden de Compra o Contrato"
+              }
+            ]
+          }
+        ],
+        "tender": {
+          "id": "371560-reacondicionamiento-escalinata-congreso-nacional-1",
+          "title": "Reacondicionamiento de la escalinata del Congreso Nacional",
+          "status": "complete",
+          "awardCriteria": "priceOnly",
+          "awardCriteriaDetails": "Por Total",
+          "submissionMethod": [
+            "inPerson"
+          ],
+          "bidOpening": {
+            "date": "2019-11-25T09:30:00-04:00",
+            "address": {
+              "streetAddress": "PRESIDENCIA DEL CONGRESO 14 DE MAYO ESQ AVDA REPUBLICA 3ER PISO"
+            }
+          },
+          "submissionMethodDetails": "Lugar entrega ofertas: UOC CONGRESO 14 DE MAYO ESQ AVDA REPUBLICA EX CASA DE LA CULTURA || Lugar entrega bien: Según lo establecido en el PBC || Fecha entrega bien: Según lo establecido en el PBC",
+          "eligibilityCriteria": "Restricciones: INHABILIDADES PREVISTAS EN EL ARTICULO 40 DE LA LEY 2051/03",
+          "statusDetails": "Adjudicada",
+          "enquiriesAddress": {
+            "streetAddress": "UOC CONGRESO 14 DE MAYO ESQ AVDA REPUBLICA EX CASA DE LA CULTURA"
+          },
+          "mainProcurementCategoryDetails": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+          "hasEnquiries": false,
+          "value": {
+            "amount": 1020710000,
+            "currency": "PYG"
+          },
+          "datePublished": "2019-11-01T18:05:29-04:00",
+          "tenderPeriod": {
+            "startDate": "2019-11-01T18:05:29-04:00",
+            "endDate": "2019-11-25T09:00:00-04:00",
+            "durationInDays": 23
+          },
+          "awardPeriod": {
+            "startDate": "2019-11-25T09:30:00-04:00"
+          },
+          "enquiryPeriod": {
+            "endDate": "2019-11-18T09:00:00-04:00",
+            "startDate": "2019-11-01T18:05:29-04:00",
+            "durationInDays": 16
+          },
+          "mainProcurementCategory": "works",
+          "additionalProcurementCategories": [
+            "works"
+          ],
+          "procurementMethod": "open",
+          "procurementMethodDetails": "Licitación Pública Nacional",
+          "procuringEntity": {
+            "id": "DNCP-SICP-CODE-298",
+            "name": "Congreso Nacional (C.N.)"
+          },
+          "criteria": [
+            {
+              "id": "1",
+              "title": "Garantía de Mantenimiento de Ofertas",
+              "description": "Los oferentes, proveedores o contratistas deberán garantizar la seriedad de sus ofertas, mediante la garantía de mantenimiento de la oferta",
+              "source": "tenderer",
+              "requirementGroups": [
+                {
+                  "id": "1-1",
+                  "description": "La garantía debe ser de un cierto porcentaje, periodo y tipo",
+                  "requirements": [
+                    {
+                      "id": "1-1-1",
+                      "title": "Porcentaje de la garantia",
+                      "expectedValue": "3"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "lots": [
+            {
+              "id": "z3QYQBZ0U1c=",
+              "title": "1 - Reacondicionamiento de la escalinata del Edificio del Congreso Nacional ",
+              "status": "active",
+              "statusDetails": "Activo",
+              "value": {
+                "amount": 1020710000,
+                "currency": "PYG"
+              },
+              "simultaneousSupply": false,
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "1",
+                  "id": "1"
+                }
+              ]
+            }
+          ],
+          "items": [
+            {
+              "id": "BKNfywmd4xcTVYhUzXKmpQ==",
+              "description": "Provisión y colocación de zócalo de granito natural",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "72102702-9999",
+                "description": "Mantenimiento / Reparacion de Escalera de edificio",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102702-9999"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "72102702",
+                  "description": "Revestimiento, instalacion o mantenimiento de suelos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102702"
+                }
+              ],
+              "quantity": 11,
+              "unit": {
+                "name": "Metros",
+                "id": "m",
+                "value": {
+                  "amount": 425000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "z3QYQBZ0U1c=",
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "13",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "ppTpbGI8+s/ta/Cg/nRomg==",
+              "description": "Provisión, colocación y remoción de vallado de obra",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "72131601-002",
+                "description": "Preparacion de obra",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72131601-002"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "72131601",
+                  "description": "Construccion de edificios comerciales, empresariales o institucionales",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72131601"
+                }
+              ],
+              "quantity": 75,
+              "unit": {
+                "name": "Metros",
+                "id": "m",
+                "value": {
+                  "amount": 300000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "z3QYQBZ0U1c=",
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "1",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "6RpP0pyieTbRLolFcSwCHA==",
+              "description": "Desmonte de pasamanos existentes",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "72102702-9999",
+                "description": "Mantenimiento / Reparacion de Escalera de edificio",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102702-9999"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "72102702",
+                  "description": "Revestimiento, instalacion o mantenimiento de suelos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102702"
+                }
+              ],
+              "quantity": 16,
+              "unit": {
+                "name": "Metros",
+                "id": "m",
+                "value": {
+                  "amount": 65000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "z3QYQBZ0U1c=",
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "5",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "+lZvgI9HLE2P50GTfZ/ZRQ==",
+              "description": "Provisión y colocación de cubrejuntas metálicas",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "72102602-010",
+                "description": "Colocacion de pasamano ",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102602-010"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "72102602",
+                  "description": "Instalacion, reparacion y mantenimiento de mobiliarios y aberturas",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102602"
+                }
+              ],
+              "quantity": 26,
+              "unit": {
+                "name": "Metros",
+                "id": "m",
+                "value": {
+                  "amount": 120000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "z3QYQBZ0U1c=",
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "15",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "DpkuqsGhE9u/ngY+aYV2IQ==",
+              "description": "Limpieza periódica de obras",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "72131601-013",
+                "description": "Limpieza de obra",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72131601-013"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "72131601",
+                  "description": "Construccion de edificios comerciales, empresariales o institucionales",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72131601"
+                }
+              ],
+              "quantity": 1,
+              "unit": {
+                "name": "Unidad Medida Global",
+                "id": "GL",
+                "value": {
+                  "amount": 8000000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "z3QYQBZ0U1c=",
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "17",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "9bsxmsWjm9BPbYyFuOxlug==",
+              "description": "Remoción de piso de granito natural existente en descanso",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "72102508-001",
+                "description": "Restauracion o reparacion de pisos",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102508-001"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "72102508",
+                  "description": "Colocacion y restauracion de albanileria, mamposteria o azulejos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102508"
+                }
+              ],
+              "quantity": 53,
+              "unit": {
+                "name": "Metros cuadrados",
+                "id": "M2",
+                "value": {
+                  "amount": 150000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "z3QYQBZ0U1c=",
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "3",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "Prf9ZOHkVzd5n1n5sU8OvA==",
+              "description": "Remoción de cubrejuntas metálicas con recuperación de material",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "72102702-9999",
+                "description": "Mantenimiento / Reparacion de Escalera de edificio",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102702-9999"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "72102702",
+                  "description": "Revestimiento, instalacion o mantenimiento de suelos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102702"
+                }
+              ],
+              "quantity": 26,
+              "unit": {
+                "name": "Metros",
+                "id": "m",
+                "value": {
+                  "amount": 300000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "z3QYQBZ0U1c=",
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "6",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "SgI91fXDZIeFuhTYLi2BhQ==",
+              "description": "Provisión y colocación de pasamanos de acero inoxidable, similar al existente",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "72102602-010",
+                "description": "Colocacion de pasamano ",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102602-010"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "72102602",
+                  "description": "Instalacion, reparacion y mantenimiento de mobiliarios y aberturas",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102602"
+                }
+              ],
+              "quantity": 32,
+              "unit": {
+                "name": "Metros",
+                "id": "m",
+                "value": {
+                  "amount": 750000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "z3QYQBZ0U1c=",
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "14",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "IwvleeVRRJWsNlEZgnJyFA==",
+              "description": "Provisión y colocación de granito natural en descanso",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "72102702-9999",
+                "description": "Mantenimiento / Reparacion de Escalera de edificio",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102702-9999"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "72102702",
+                  "description": "Revestimiento, instalacion o mantenimiento de suelos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102702"
+                }
+              ],
+              "quantity": 53,
+              "unit": {
+                "name": "Metros cuadrados",
+                "id": "M2",
+                "value": {
+                  "amount": 1650000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "z3QYQBZ0U1c=",
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "12",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "4ehAjnVaquUl+Cw1/B7o9A==",
+              "description": "Remoción de mampostería de ladrillo y contrapiso existentes",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "72102508-001",
+                "description": "Restauracion o reparacion de pisos",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102508-001"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "72102508",
+                  "description": "Colocacion y restauracion de albanileria, mamposteria o azulejos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102508"
+                }
+              ],
+              "quantity": 90,
+              "unit": {
+                "name": "Metros cúbicos",
+                "id": "M3",
+                "value": {
+                  "amount": 150000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "z3QYQBZ0U1c=",
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "7",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "Ih7jQX2h95cCtROv+MBfAA==",
+              "description": "Contrapiso de nivelación de escalones",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "72131601-009",
+                "description": "Colocacion de pisos - contrapisos",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72131601-009"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "72131601",
+                  "description": "Construccion de edificios comerciales, empresariales o institucionales",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72131601"
+                }
+              ],
+              "quantity": 430,
+              "unit": {
+                "name": "Metros cuadrados",
+                "id": "M2",
+                "value": {
+                  "amount": 46000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "z3QYQBZ0U1c=",
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "9",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "k7OP2+4uGsGy9wDN+FOqxg==",
+              "description": "Provisión y colocación de huella y contrahuella de granito natural con borde antideslizante",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "72102702-9999",
+                "description": "Mantenimiento / Reparacion de Escalera de edificio",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102702-9999"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "72102702",
+                  "description": "Revestimiento, instalacion o mantenimiento de suelos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102702"
+                }
+              ],
+              "quantity": 582,
+              "unit": {
+                "name": "Metros cuadrados",
+                "id": "M2",
+                "value": {
+                  "amount": 1000000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "z3QYQBZ0U1c=",
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "11",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "WgcjUVcp3gCIMo5jeYs+CQ==",
+              "description": "Carpeta de regularización de escalones",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "72102702-002",
+                "description": "Revestimiento de pisos",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102702-002"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "72102702",
+                  "description": "Revestimiento, instalacion o mantenimiento de suelos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102702"
+                }
+              ],
+              "quantity": 430,
+              "unit": {
+                "name": "Metros cuadrados",
+                "id": "M2",
+                "value": {
+                  "amount": 40000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "z3QYQBZ0U1c=",
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "10",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "arD0iCgLUQgKGVpv21/3cg==",
+              "description": "Remoción de zócalo de granito natural existente",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "72101607-005",
+                "description": "Instalacion o colocacion de zocalo",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72101607-005"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "72101607",
+                  "description": "Instalacion, remodelación o reparacion de paredes",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72101607"
+                }
+              ],
+              "quantity": 11,
+              "unit": {
+                "name": "Metros",
+                "id": "m",
+                "value": {
+                  "amount": 85000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "z3QYQBZ0U1c=",
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "4",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "qSJsQQDbn1T/z8l+lxTTbQ==",
+              "description": "Remoción de huella y contrahuella de granito natural existente",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "72102508-001",
+                "description": "Restauracion o reparacion de pisos",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102508-001"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "72102508",
+                  "description": "Colocacion y restauracion de albanileria, mamposteria o azulejos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102508"
+                }
+              ],
+              "quantity": 582,
+              "unit": {
+                "name": "Metros cuadrados",
+                "id": "M2",
+                "value": {
+                  "amount": 100000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "z3QYQBZ0U1c=",
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "2",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "9hzgjZ+FZHdqC26PB0V5YA==",
+              "description": "Retiro de escombros en contenedores",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "72131601-013",
+                "description": "Limpieza de obra",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72131601-013"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "72131601",
+                  "description": "Construccion de edificios comerciales, empresariales o institucionales",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72131601"
+                }
+              ],
+              "quantity": 1,
+              "unit": {
+                "name": "Unidad Medida Global",
+                "id": "GL",
+                "value": {
+                  "amount": 15000000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "z3QYQBZ0U1c=",
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "16",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "YdOqiUXN3V9tfCh3Lz7BMg==",
+              "description": "Relleno de hormigón con armadura anclada a la losa inclinada existente, con varilla de 10 mm c/ 50 cm en cada grada",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "72102003-001",
+                "description": "Relleno de hormigón",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/72102003-001"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "72102003",
+                  "description": "Recubrimiento o satinado de materias estructurales de metal, madera u hormigon",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102003"
+                }
+              ],
+              "quantity": 90,
+              "unit": {
+                "name": "Metros cúbicos",
+                "id": "M3",
+                "value": {
+                  "amount": 1615000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "z3QYQBZ0U1c=",
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "8",
+                  "id": "2"
+                }
+              ]
+            }
+          ],
+          "tenderers": [
+            {
+              "name": "D Y D ARQUITECTURA Y CONSTRUCCION S.R.L.",
+              "id": "PY-RUC-80062328-2"
+            },
+            {
+              "name": "DIEGO JOAQUIN RODRIGUEZ BARRIOS",
+              "id": "PY-RUC-2292560-0"
+            },
+            {
+              "name": "NELSON RIGOBERTO MONGES RODRIGUEZ",
+              "id": "PY-RUC-583272-1"
+            },
+            {
+              "name": "ESTRUCTURA INGENIERIA S.A.",
+              "id": "PY-RUC-80008815-8"
+            },
+            {
+              "name": "RICARDO DIAZ MARTINEZ",
+              "id": "PY-RUC-310695-0"
+            }
+          ],
+          "documents": [
+            {
+              "id": "fs9wL32VtXs=",
+              "datePublished": "2019-11-01T18:05:28-04:00",
+              "title": "c_lpn_07_19_reacondicionamiento_escalinata_1572365400523.zip",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/fs9wL32VtXs%253D",
+              "language": "es",
+              "documentType": "biddingDocuments",
+              "documentTypeDetails": "Pliego de bases y Condiciones"
+            },
+            {
+              "id": "YLAD9AHtNPQ=",
+              "datePublished": "2019-11-01T18:05:28-04:00",
+              "title": "nota_dncp___anticipo_1572365409636.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/YLAD9AHtNPQ%253D",
+              "language": "es",
+              "documentTypeDetails": "Justificación de Anticipo"
+            },
+            {
+              "id": "g3yu2GWvPj8=",
+              "datePublished": "2019-11-01T18:05:31-04:00",
+              "title": "iao.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/g3yu2GWvPj8%253D",
+              "language": "es",
+              "documentTypeDetails": "Instrucción a los Oferentes - Obras"
+            },
+            {
+              "id": "rb6hJSQXDWo=",
+              "datePublished": "2019-11-06T18:01:14-04:00",
+              "title": "llamado_publico_1573074074027.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/rb6hJSQXDWo%253D",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "documentTypeDetails": "Llamado publicado"
+            },
+            {
+              "id": "MGQNepwWTQM=",
+              "datePublished": "2019-11-01T18:05:32-04:00",
+              "title": "cgc.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/MGQNepwWTQM%253D",
+              "language": "es",
+              "documentTypeDetails": "Condiciones Generales del Contrato - Obras"
+            },
+            {
+              "id": "4RpSoIUHHBg=",
+              "datePublished": "2019-11-06T18:01:13-04:00",
+              "title": "adenda1_1573047875678.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/4RpSoIUHHBg%253D",
+              "language": "es",
+              "documentTypeDetails": "Adenda"
+            },
+            {
+              "id": "1ytQN0e9W+Q=",
+              "datePublished": "2019-11-01T18:05:28-04:00",
+              "title": "22363_371560_1572642315811.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/1ytQN0e9W%252BQ%253D",
+              "language": "es",
+              "documentTypeDetails": "Nota de Observacion"
+            },
+            {
+              "id": "i1pZk7U3e/c=",
+              "datePublished": "2019-11-01T18:05:28-04:00",
+              "title": "cdp_sipp_1572365403435.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/i1pZk7U3e%252Fc%253D",
+              "language": "es",
+              "documentTypeDetails": "CDP"
+            },
+            {
+              "id": "v08yMlOukkM=",
+              "datePublished": "2019-11-01T18:05:28-04:00",
+              "title": "354335_reacondicionamiento_4to_piso_1572365443065.kml",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/v08yMlOukkM%253D",
+              "language": "es",
+              "documentTypeDetails": "Geolocalizacion"
+            },
+            {
+              "id": "kzgRjDbrmQM=",
+              "datePublished": "2019-11-01T18:05:28-04:00",
+              "title": "llamado_publico_1572642328850.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/kzgRjDbrmQM%253D",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "documentTypeDetails": "Llamado publicado"
+            },
+            {
+              "id": "NUAC5tJgctk=",
+              "datePublished": "2019-11-01T18:05:28-04:00",
+              "title": "presupuesto_plurianual_2019_2021_congreso__3__1572365431452.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/NUAC5tJgctk%253D",
+              "language": "es",
+              "documentTypeDetails": "Constancia de previsión plurianual"
+            },
+            {
+              "id": "fZCHVKTmRPQ=",
+              "datePublished": "2019-11-01T18:05:28-04:00",
+              "title": "nota_dncp___muni_1572365424710.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/fZCHVKTmRPQ%253D",
+              "language": "es",
+              "documentTypeDetails": "Permiso Municipal"
+            },
+            {
+              "id": "BZvksHR66zw=",
+              "datePublished": "2019-11-01T18:05:28-04:00",
+              "title": "resolucion_aprueba_pliego_1572365420821.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/BZvksHR66zw%253D",
+              "language": "es",
+              "documentTypeDetails": "Resolución del Llamado"
+            },
+            {
+              "id": "dix2iRRDbik=",
+              "title": "URL de la Convocatoria",
+              "url": "https://www.contrataciones.gov.py/licitaciones/convocatoria/371560-reacondicionamiento-escalinata-congreso-nacional-1.html",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "format": "text/html"
+            }
+          ],
+          "numberOfTenderers": 5
+        },
+        "language": "es",
+        "ocid": "ocds-03ad3f-371560-1",
+        "date": "2019-12-11T12:35:15-04:00",
+        "initiationType": "tender",
+        "buyer": {
+          "id": "DNCP-SICP-CODE-298",
+          "name": "Congreso Nacional (C.N.)"
+        },
+        "sources": [
+          {
+            "id": "dncp-sicp",
+            "name": "Sistema de Información de las Contrataciones Públicas - DNCP",
+            "url": "https://www.contrataciones.gov.py/"
+          }
+        ],
+        "planning": {
+          "identifier": "371560",
+          "estimatedDate": "2019-10-31T00:00:00-04:00",
+          "budget": {
+            "description": "Reacondicionamiento de la escalinata del Congreso Nacional",
+            "amount": {
+              "currency": "PYG",
+              "amount": 1020710850
+            },
+            "budgetBreakdown": [
+              {
+                "id": "2020/11/1/1/1/0/1/1/99/520/10-XppZi6VJJkA=",
+                "sourceParty": {
+                  "id": "298",
+                  "name": "Congreso Nacional"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_a_utilizar": 659999802
+                },
+                "classifications": {
+                  "anio": "2020",
+                  "nivel": "11",
+                  "entidad": "1",
+                  "tipo_programa": "1",
+                  "programa": "1",
+                  "sub_programa": "0",
+                  "proyecto": "1",
+                  "financiador": "1",
+                  "departamento": "99",
+                  "objeto_gasto": "520",
+                  "fuente_financiamiento": "10",
+                  "cdp": "371560"
+                }
+              },
+              {
+                "id": "2019/11/1/1/1/0/0/1/99/520/10-8sEKmF8aoXY=",
+                "sourceParty": {
+                  "id": "298",
+                  "name": "Congreso Nacional"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_utilizado": 164999950,
+                  "monto_a_utilizar": 204142170
+                },
+                "classifications": {
+                  "anio": "2019",
+                  "nivel": "11",
+                  "entidad": "1",
+                  "tipo_programa": "1",
+                  "programa": "1",
+                  "sub_programa": "0",
+                  "proyecto": "0",
+                  "financiador": "1",
+                  "departamento": "99",
+                  "objeto_gasto": "520",
+                  "fuente_financiamiento": "10",
+                  "cdp": "371560"
+                }
+              }
+            ]
+          },
+          "items": [
+            {
+              "id": "yYCa0lXgxD0=",
+              "description": "Revestimiento, instalacion o mantenimiento de suelos",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "72102702",
+                "description": "Revestimiento, instalacion o mantenimiento de suelos",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102702"
+              }
+            },
+            {
+              "id": "zrDAFkk66e8=",
+              "description": "REMOCION DE ZOCALOS",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "72101607",
+                "description": "Instalacion, remodelación o reparacion de paredes",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72101607"
+              }
+            },
+            {
+              "id": "j6GhoLvuIWs=",
+              "description": "COLOCACION DE CONTRAPISO",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "72131601",
+                "description": "Construccion de edificios comerciales, empresariales o institucionales",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72131601"
+              }
+            },
+            {
+              "id": "aBTQGitEaJs=",
+              "description": "Revestimiento, instalacion o mantenimiento de suelos",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "72102702",
+                "description": "Revestimiento, instalacion o mantenimiento de suelos",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102702"
+              }
+            },
+            {
+              "id": "gX3wuSPf2v8=",
+              "description": "CARPETA DE REGULARIZACION DE ESCALONES",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "72102702",
+                "description": "Revestimiento, instalacion o mantenimiento de suelos",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102702"
+              }
+            },
+            {
+              "id": "l6LoWOELYas=",
+              "description": "Instalacion, reparacion y mantenimiento de mobiliarios y aberturas",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "72102602",
+                "description": "Instalacion, reparacion y mantenimiento de mobiliarios y aberturas",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102602"
+              }
+            },
+            {
+              "id": "JJNpLprwSEE=",
+              "description": "RETIRO DE ESCOMBRO",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "72153507",
+                "description": "Servicios de retirada de materiales de zonas en obras",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72153507"
+              }
+            },
+            {
+              "id": "7lX5qtWfKfU=",
+              "description": "Revestimiento, instalacion o mantenimiento de suelos",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "72102702",
+                "description": "Revestimiento, instalacion o mantenimiento de suelos",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102702"
+              }
+            },
+            {
+              "id": "nyKPER+fp54=",
+              "description": "PROVISION, COLOCACION Y REMOCION DE VALLADO DE OBRA",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "72131601",
+                "description": "Construccion de edificios comerciales, empresariales o institucionales",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72131601"
+              }
+            },
+            {
+              "id": "d+nIrNlP0GA=",
+              "description": "REMOCION DE CUBREJUNTAS",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "72103001",
+                "description": "Servicios de desmonte de terrenos",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72103001"
+              }
+            },
+            {
+              "id": "vXjjLFDToBM=",
+              "description": "REMOCION DE HUELLA Y CONTRAHUELLA DE GRANITO NATURAL EXISTENTE",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "72131601",
+                "description": "Construccion de edificios comerciales, empresariales o institucionales",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72131601"
+              }
+            },
+            {
+              "id": "AKtXSXQR0kw=",
+              "description": "LIMPIEZA DE OBRA",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "72131601",
+                "description": "Construccion de edificios comerciales, empresariales o institucionales",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72131601"
+              }
+            },
+            {
+              "id": "at4eod/Va7Q=",
+              "description": "REMOCION DE PISOS DE GRANITO",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "72102508",
+                "description": "Colocacion y restauracion de albanileria, mamposteria o azulejos",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102508"
+              }
+            },
+            {
+              "id": "tIwwKWnldjI=",
+              "description": "RELLENO DE HORMIGON",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "72102003",
+                "description": "Recubrimiento o satinado de materias estructurales de metal, madera u hormigon",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102003"
+              }
+            },
+            {
+              "id": "GmgdPeWxs2s=",
+              "description": "REMOCION DE MAMPOSTERIA DE LADRILLO",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "72102508",
+                "description": "Colocacion y restauracion de albanileria, mamposteria o azulejos",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102508"
+              }
+            },
+            {
+              "id": "BDFmJehKsRc=",
+              "description": "COLOCACION DE PASAMANO",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "72102602",
+                "description": "Instalacion, reparacion y mantenimiento de mobiliarios y aberturas",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72102602"
+              }
+            },
+            {
+              "id": "ocBB99eajg8=",
+              "description": "DESMONTE DE PASAMANOS EXISTENTES",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "72103001",
+                "description": "Servicios de desmonte de terrenos",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/72103001"
+              }
+            }
+          ]
+        },
+        "parties": [
+          {
+            "id": "DNCP-SICP-CODE-298",
+            "name": "Congreso Nacional (C.N.)",
+            "identifier": {
+              "scheme": "DNCP-SICP-CODE",
+              "id": "298",
+              "legalName": "Congreso Nacional (C.N.)"
+            },
+            "contactPoint": {
+              "email": "secretariauoc.cn@gmail.com",
+              "name": "ANHALIA BRITEZ BRITEZ APONTE",
+              "telephone": "4145851"
+            },
+            "roles": [
+              "buyer",
+              "procuringEntity",
+              "payer"
+            ],
+            "details": {
+              "level": "Poder Legislativo",
+              "entityType": "Organismos de la Administración Central",
+              "type": "Entidad"
+            },
+            "additionalIdentifiers": [
+              {
+                "id": "2019.11.1",
+                "legalName": "Congreso Nacional",
+                "scheme": "PY-PGN"
+              }
+            ]
+          },
+          {
+            "name": "DIEGO JOAQUIN RODRIGUEZ BARRIOS",
+            "id": "PY-RUC-2292560-0",
+            "identifier": {
+              "id": "2292560-0",
+              "legalName": "DIEGO JOAQUIN RODRIGUEZ BARRIOS",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "tenderer"
+            ],
+            "contactPoint": {
+              "name": "DIEGO JOAQUIN RODRIGUEZ BARRIOS",
+              "email": "tesingenieria@gmail.com",
+              "faxNumber": "553407",
+              "telephone": "0981405452",
+              "url": "http://www.tesingenieria.com"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "ASUNCION",
+              "region": "Asunción",
+              "streetAddress": "14 DE ABRIL 3255 CASI PARAISO"
+            },
+            "details": {
+              "legalEntityTypeDetail": "Persona Física - Bienes y Servicios",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Productos Alimenticios",
+                  "id": 14
+                },
+                {
+                  "name": "Combustibles y Lubricantes",
+                  "id": 15
+                },
+                {
+                  "name": "Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+                  "id": 5
+                },
+                {
+                  "name": "Utensilios de cocina y comedor, Productos de Porcelana, vidrio y loza",
+                  "id": 13
+                },
+                {
+                  "name": "Servicios de ceremonial, gastronomico y funerarios",
+                  "id": 9
+                },
+                {
+                  "name": "Adquisición y Locación de inmuebles. Alquiler de muebles",
+                  "id": 3
+                },
+                {
+                  "name": "Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+                  "id": 21
+                }
+              ]
+            }
+          },
+          {
+            "name": "RICARDO DIAZ MARTINEZ",
+            "id": "PY-RUC-310695-0",
+            "identifier": {
+              "id": "310695-0",
+              "legalName": "RICARDO DIAZ MARTINEZ",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "supplier",
+              "tenderer",
+              "payee"
+            ],
+            "contactPoint": {
+              "name": "RICARDO DIAZ MARTINEZ",
+              "email": "administracion@diazconstrucciones.com.py",
+              "faxNumber": "229869",
+              "telephone": "981414117"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "ASUNCION",
+              "region": "Asunción",
+              "streetAddress": "JHON F. KENNEDY N°1083"
+            },
+            "details": {
+              "legalEntityTypeDetail": "Persona Física - Bienes y Servicios",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Servicios Técnicos",
+                  "id": 7
+                },
+                {
+                  "name": "Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+                  "id": 5
+                },
+                {
+                  "name": "Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+                  "id": 21
+                }
+              ]
+            }
+          },
+          {
+            "name": "NELSON RIGOBERTO MONGES RODRIGUEZ",
+            "id": "PY-RUC-583272-1",
+            "identifier": {
+              "id": "583272-1",
+              "legalName": "NELSON RIGOBERTO MONGES RODRIGUEZ",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "tenderer"
+            ],
+            "contactPoint": {
+              "name": "NELSON RIGOBERTO MONGES RODRIGUEZ",
+              "email": "lm.construcciones@hotmail.com",
+              "faxNumber": "900 083",
+              "telephone": "981915134"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "LAMBARE",
+              "region": "Central",
+              "streetAddress": "AVDA.BONIFACIO OVANDO 160 CASI CACIQUE LAMBARE"
+            },
+            "details": {
+              "legalEntityTypeDetail": "Persona Física - Bienes y Servicios",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Utensilios de cocina y comedor, Productos de Porcelana, vidrio y loza",
+                  "id": 13
+                },
+                {
+                  "name": "Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+                  "id": 21
+                }
+              ]
+            }
+          },
+          {
+            "name": "ESTRUCTURA INGENIERIA S.A.",
+            "id": "PY-RUC-80008815-8",
+            "identifier": {
+              "id": "80008815-8",
+              "legalName": "ESTRUCTURA INGENIERIA S.A.",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "tenderer"
+            ],
+            "contactPoint": {
+              "name": "FELIPE NERY HUERTA ",
+              "email": "santiago@gadea.com.py",
+              "faxNumber": "296478",
+              "telephone": "983179700"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "Mariano Roque Alonso",
+              "region": "Central",
+              "streetAddress": "Boquerón y 1º de Mayo - Villa Margarita"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.",
+              "activityTypes": [
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+                  "id": 21
+                },
+                {
+                  "name": "Servicios Técnicos",
+                  "id": 7
+                }
+              ]
+            }
+          },
+          {
+            "name": "D Y D ARQUITECTURA Y CONSTRUCCION S.R.L.",
+            "id": "PY-RUC-80062328-2",
+            "identifier": {
+              "id": "80062328-2",
+              "legalName": "D Y D ARQUITECTURA Y CONSTRUCCION S.R.L.",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "tenderer"
+            ],
+            "contactPoint": {
+              "name": "Dardo Nicolas Gonzalez Ramos",
+              "email": "dydsrl.ac@gmail.com",
+              "telephone": "0981941713"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "296",
+              "region": "Central",
+              "streetAddress": "Eusebio Lillo n° 2566"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.R.L.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+                  "id": 2
+                },
+                {
+                  "name": "Servicios Técnicos",
+                  "id": 7
+                },
+                {
+                  "name": "Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+                  "id": 21
+                }
+              ]
+            }
+          }
+        ],
+        "tag": [
+          "compiled"
+        ]
+      }
+    }
+  ],
+  "pagination": {
+    "total_items": 1,
+    "total_pages": 1,
+    "current_page": 1,
+    "items_per_page": 10,
+    "total_in_page": 1
+  }
+}

@@ -17,6 +17,8 @@
  * (Un contrato con extendsContractID JAMÁS se ingesta como nuevo contrato original independiente).
  */
 
+import { createHash } from 'node:crypto';
+
 export type AmendmentType =
   | 'AMOUNT_INCREASE'
   | 'AMOUNT_DECREASE'
@@ -40,6 +42,7 @@ export interface AmendmentInput {
   amountDelta?: number | null;
   durationDeltaDays?: number | null;
   financialCode?: string | null;
+  currency?: string | null;
   rawPayload?: any;
 }
 
@@ -63,6 +66,7 @@ export interface AmendmentTimelineEntry {
   date: string | null;
   description: string;
   financialCode: string | null;
+  currency: string | null;
   amountDelta: number | null;
   cumulativeAmountDelta: number | null;
   durationDeltaDays: number | null;
@@ -82,6 +86,8 @@ export interface ContractEconomicHistory {
   finalDurationDays: number | null;    // null = DURATION_UNKNOWN
   amendmentCount: number;
   hasUnresolvedAmendments: boolean;
+  hasUnresolvedAmount: boolean;
+  hasUnresolvedDuration: boolean;
   growthPercentage: number | null;
   durationGrowthPercentage: number | null;
   timeline: AmendmentTimelineEntry[];
@@ -222,9 +228,15 @@ export function separateContractsAndExtendsAmendments(rawContracts: any[]): {
       // Es un registro de adenda vinculado a un contrato previo
       const rawType = c.dncpAmendmentType || c.amendmentType || c.title || '';
       const amountVal = c.value?.amount != null ? Number(c.value.amount) : null;
+      const currency = c.value?.currency ? String(c.value.currency).toUpperCase() : null;
       
       let durationDays: number | null = null;
-      if (c.period?.startDate && c.period?.endDate) {
+      const isPureAmount = (rawType.toLowerCase().includes('monto') || rawType.toLowerCase().includes('reajuste')) &&
+        !rawType.toLowerCase().includes('plazo') &&
+        !rawType.toLowerCase().includes('prorroga') &&
+        !rawType.toLowerCase().includes('prórroga');
+
+      if (!isPureAmount && c.period?.startDate && c.period?.endDate) {
         const start = new Date(c.period.startDate).getTime();
         const end = new Date(c.period.endDate).getTime();
         if (!isNaN(start) && !isNaN(end)) {
@@ -232,8 +244,14 @@ export function separateContractsAndExtendsAmendments(rawContracts: any[]): {
         }
       }
 
+      // Identidad determinística libre de aleatoriedad (SHA-256 fingerprint de atributos estables)
+      const deterministicFallbackId = 'amend-' + createHash('sha256')
+        .update(`${extendsId}:${c.dncpContractCode || ''}:${c.dateSigned || ''}:${amountVal ?? ''}:${rawType}`)
+        .digest('hex')
+        .slice(0, 16);
+
       linkedAmendments.push({
-        amendmentDncpId: c.id || c.dncpContractCode || `amend-${Math.random().toString(36).slice(2, 9)}`,
+        amendmentDncpId: c.id || c.dncpContractCode || deterministicFallbackId,
         extendsContractId: extendsId,
         dncpContractCode: c.dncpContractCode || null,
         dncpAmendmentTypeRaw: rawType || null,
@@ -244,6 +262,7 @@ export function separateContractsAndExtendsAmendments(rawContracts: any[]): {
         amountDelta: amountVal,
         durationDeltaDays: durationDays,
         financialCode: c.financialCode || null,
+        currency,
         rawPayload: c
       });
     } else {
@@ -260,6 +279,10 @@ export function separateContractsAndExtendsAmendments(rawContracts: any[]): {
  * Cumple con el principio UNKNOWN != DEFAULT:
  * Si una adenda declara ampliación/reajuste/modificación pero el valor numérico no puede ser resuelto,
  * `finalContractAmount` queda como `null` (UNKNOWN) y jamás se inventa un valor 0 ni se reusa el original.
+ * 
+ * Dimensiones desacopladas:
+ * Incertidumbre en monto y en plazo se manejan de forma estrictamente independiente
+ * (hasUnresolvedAmount y hasUnresolvedDuration).
  */
 export function computeContractEconomicHistory(
   contract: ContractInput,
@@ -267,9 +290,9 @@ export function computeContractEconomicHistory(
 ): ContractEconomicHistory {
   let totalAmountDelta = 0;
   let totalDurationDeltaDays = 0;
-  let hasUnresolved = false;
   let hasUnresolvedAmount = false;
   let hasUnresolvedDuration = false;
+  const contractCurrency = (contract.currency || 'PYG').toUpperCase();
   const timeline: AmendmentTimelineEntry[] = [];
 
   // Ordenar adendas cronológicamente si tienen fecha
@@ -282,6 +305,7 @@ export function computeContractEconomicHistory(
     const rawDesc = amend.description || '';
     const rawType = amend.dncpAmendmentTypeRaw || '';
     const inferredType = amend.tipo || classifyAmendment(rawType, rawDesc, amend.amountDelta, amend.durationDeltaDays);
+    const amendCurrency = amend.currency ? amend.currency.toUpperCase() : null;
     
     let deltaAmt: number | null = null;
     let deltaDays: number | null = null;
@@ -296,21 +320,44 @@ export function computeContractEconomicHistory(
       rawType.toLowerCase().includes('monto') ||
       rawType.toLowerCase().includes('reajuste');
 
+    // Verificar si es una adenda exclusivamente de plazo
+    const isTermOnly =
+      (inferredType === 'TERM_EXTENSION' || inferredType === 'TERM_REDUCTION') &&
+      !affectsAmount;
+
+    // Verificar si es una adenda exclusivamente de monto
+    const isAmountOnly = affectsAmount &&
+      !(inferredType === 'TERM_EXTENSION' || inferredType === 'TERM_REDUCTION') &&
+      !rawDesc.toLowerCase().includes('plazo') &&
+      !rawType.toLowerCase().includes('plazo') &&
+      !rawDesc.toLowerCase().includes('prorroga') &&
+      !rawType.toLowerCase().includes('prórroga');
+
+    // 1. DIMENSIÓN MONETARIA
     if (affectsAmount) {
-      if (amend.amountDelta === undefined || amend.amountDelta === null || isNaN(amend.amountDelta)) {
+      if (amendCurrency && amendCurrency !== contractCurrency) {
+        // Discrepancia de monedas sin FX rate verificado bloquea agregación económica
         entryUnresolved = true;
-        hasUnresolved = true;
+        hasUnresolvedAmount = true;
+      } else if (amend.amountDelta === undefined || amend.amountDelta === null || isNaN(amend.amountDelta)) {
+        entryUnresolved = true;
         hasUnresolvedAmount = true;
       } else {
         deltaAmt = Number(amend.amountDelta);
         totalAmountDelta += deltaAmt;
       }
-    } else if (amend.amountDelta != null && !isNaN(amend.amountDelta) && amend.amountDelta !== 0) {
-      deltaAmt = Number(amend.amountDelta);
-      totalAmountDelta += deltaAmt;
+    } else if (!isTermOnly && amend.amountDelta != null && !isNaN(amend.amountDelta) && amend.amountDelta !== 0) {
+      if (amendCurrency && amendCurrency !== contractCurrency) {
+        entryUnresolved = true;
+        hasUnresolvedAmount = true;
+      } else {
+        deltaAmt = Number(amend.amountDelta);
+        totalAmountDelta += deltaAmt;
+      }
     }
+    // Si es adenda exclusivamente de plazo, NUNCA aplicar monto delta.
 
-    // Verificar si la adenda implica impacto en plazo
+    // 2. DIMENSIÓN DE PLAZO
     const affectsDuration =
       inferredType === 'TERM_EXTENSION' ||
       inferredType === 'TERM_REDUCTION' ||
@@ -324,7 +371,6 @@ export function computeContractEconomicHistory(
     if (affectsDuration) {
       if (amend.durationDeltaDays === undefined || amend.durationDeltaDays === null || isNaN(amend.durationDeltaDays)) {
         entryUnresolved = true;
-        hasUnresolved = true;
         hasUnresolvedDuration = true;
       } else {
         deltaDays = Number(amend.durationDeltaDays);
@@ -334,6 +380,7 @@ export function computeContractEconomicHistory(
       deltaDays = Number(amend.durationDeltaDays);
       totalDurationDeltaDays += deltaDays;
     }
+    // Si es adenda exclusivamente de monto, NUNCA derivar plazo delta.
 
     timeline.push({
       amendmentDncpId: amend.amendmentDncpId,
@@ -345,6 +392,7 @@ export function computeContractEconomicHistory(
       date: amend.date || null,
       description: rawDesc,
       financialCode: amend.financialCode || null,
+      currency: amendCurrency || contractCurrency,
       amountDelta: deltaAmt,
       cumulativeAmountDelta: hasUnresolvedAmount ? null : totalAmountDelta,
       durationDeltaDays: deltaDays,
@@ -370,7 +418,7 @@ export function computeContractEconomicHistory(
   return {
     contractId: contract.id,
     contractDncpId: contract.contractDncpId,
-    currency: contract.currency || 'PYG',
+    currency: contractCurrency,
     originalAmount: originalAmt,
     originalDurationDays: originalDays,
     totalAmountDelta: hasUnresolvedAmount ? null : totalAmountDelta,
@@ -378,7 +426,9 @@ export function computeContractEconomicHistory(
     finalContractAmount: finalAmt,
     finalDurationDays: finalDays,
     amendmentCount: sortedAmendments.length,
-    hasUnresolvedAmendments: hasUnresolved,
+    hasUnresolvedAmendments: hasUnresolvedAmount || hasUnresolvedDuration,
+    hasUnresolvedAmount,
+    hasUnresolvedDuration,
     growthPercentage: growthPct != null ? Math.round(growthPct * 100) / 100 : null,
     durationGrowthPercentage: durationGrowthPct != null ? Math.round(durationGrowthPct * 100) / 100 : null,
     timeline

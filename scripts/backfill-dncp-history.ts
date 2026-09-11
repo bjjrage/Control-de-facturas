@@ -243,7 +243,9 @@ export async function runBackfill(options?: {
         continue;
       }
 
-      const cr = json.records[0].compiledRelease;
+      const recordItem = json.records[0];
+      const cr = recordItem.compiledRelease;
+      const releases = Array.isArray(recordItem.releases) ? recordItem.releases : [];
       if (!cr || !cr.tender) {
         const reason = "NO_TENDER_RELEASE";
         cp.failure_reasons[reason] = (cp.failure_reasons[reason] || 0) + 1;
@@ -265,9 +267,19 @@ export async function runBackfill(options?: {
         cp.total_identified_construction++;
         constructionInRun++;
 
-        // Guardar payload crudo en warehouse local
+        const fullPayload = {
+          compiledRelease: cr,
+          releases,
+          releasesMetadata: {
+            count: releases.length,
+            ocid: recordItem.ocid || cr.ocid,
+            fetchedAt: new Date().toISOString()
+          }
+        };
+
+        // Guardar payload crudo en warehouse local preservando historial completo de releases
         try {
-          saveRawRecordLocally(year, String(nro), cr);
+          saveRawRecordLocally(year, String(nro), fullPayload);
           cp.total_file_saved++;
         } catch (saveErr: any) {
           const reason = `FILE_SAVE_ERROR: ${saveErr.message || "unknown"}`;
@@ -280,7 +292,7 @@ export async function runBackfill(options?: {
         if (supabase) {
           try {
             const { data: rpcData, error: dbErr } = await supabase.rpc("ingestar_proceso_ocds_global", {
-              p_cr: cr,
+              p_cr: fullPayload,
               p_fuente: `DNCP_BACKFILL_W${wave}`,
             });
 

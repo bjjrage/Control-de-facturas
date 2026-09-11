@@ -1,0 +1,3181 @@
+{
+  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/ocds/record/ocds-03ad3f-371542",
+  "publishedDate": "2026-09-10T21:17:48Z",
+  "publisher": {
+    "name": "Dirección Nacional de Contrataciones Públicas, Paraguay"
+  },
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "publicationPolicy": "https://www.contrataciones.gov.py/datos/legal",
+  "version": "1.1",
+  "extensions": [
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_budget_breakdown_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_budget_and_spend_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_lots_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_enquiry_extension/master/extension.json",
+    "https://raw.githubusercontent.com/sdd1982/enquiriesAddress/master/extension.json",
+    "https://raw.githubusercontent.com/sdd1982/legalEntityTypeDetail/master/extension.json",
+    "https://raw.githubusercontent.com/gitMHOCDS/transactions/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_investmentproject_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_clarification_meetings_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_item_attributes_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_items_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_contract_suppliers_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_partyDetails_scale_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_location_extension/v1.1.4/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_activityType_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_tender_notifiedsuppliers_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_tender_lots_details_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_memberOf_extension/master/extension.json",
+    "https://raw.githubusercontent.com/portaledcahn/ocds_tenderDatePublished_extension/master/extension.json",
+    "https://raw.githubusercontent.com/INAImexico/ocds_guarantees_extension/master/extension.json",
+    "https://bitbucket.org/ONCAETI/ocds_releasesource_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_requirements_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_bidOpening_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_coveredBy_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_qualification_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_publicEntitiesDetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_items_subItems_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_statusdetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_mainProcurementCategoryDetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_identifier_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_estimatedDate_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_participationFee_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_amendments_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_lot_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_transaction_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_financialprogress_financialcode_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_categories_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_complaints_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_item_minQuantity_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_implementation_purchaseOrder_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_document_type_details/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_cancellations_amendments_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_milestone_documents_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_techniques_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_bid_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_bid_items_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_auctions_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_secondStage_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_beneficiaries_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/Crown-Commercial-Service/ocds_tender_suitability_extension/main/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_subcontracting_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_partyDetails_scale_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_organizationClassification_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_sustainability_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_implementation_reportedpayment_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_milestone_deliveries_extension/raw/master/extension.json"
+  ],
+  "records": [
+    {
+      "ocid": "ocds-03ad3f-371542-1",
+      "releases": [
+        {
+          "date": "2021-12-20T13:19:14-04:00",
+          "tag": [
+            "tender",
+            "award",
+            "contractTermination",
+            "implementation",
+            "contractAmendment",
+            "planningUpdate"
+          ],
+          "url": "https://www.contrataciones.gov.py/datos/api/v3/doc/ocds/releases/id/371542-cd-mitic-n-19-2019-servicio-publicacion-periodicos-mitic-plurianual-2019-2021-1-1640006354.492833"
+        }
+      ],
+      "compiledRelease": {
+        "id": "371542-cd-mitic-n-19-2019-servicio-publicacion-periodicos-mitic-plurianual-2019-2021-1-1640006354.492833",
+        "awards": [
+          {
+            "id": "371542-blanca-teodolina-marin-riquelme-1",
+            "status": "active",
+            "statusDetails": "Adjudicado",
+            "date": "2019-12-06T12:00:00-04:00",
+            "value": {
+              "amount": 29400000,
+              "currency": "PYG"
+            },
+            "suppliers": [
+              {
+                "name": "BLANCA TEODOLINA MARIN RIQUELME",
+                "id": "PY-RUC-388022-2"
+              }
+            ],
+            "documents": [
+              {
+                "id": "sjOZs7CGm4s=",
+                "datePublished": "2019-12-11T20:06:37-04:00",
+                "title": "resolucion_mitic_n_649_2019_1575675707504.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/sjOZs7CGm4s%253D",
+                "language": "es",
+                "documentType": "awardNotice",
+                "documentTypeDetails": "Resolución de Adjudicación"
+              },
+              {
+                "id": "dix2iRRDbik=",
+                "title": "URL de la Adjudicación",
+                "url": "https://www.contrataciones.gov.py/licitaciones/adjudicacion/371542-cd-mitic-n-19-2019-servicio-publicacion-periodicos-mitic-plurianual-2019-2021-1/resumen-adjudicacion.html",
+                "language": "es",
+                "documentType": "awardNotice",
+                "format": "text/html"
+              },
+              {
+                "id": "9TE0scOn5go=",
+                "datePublished": "2019-12-11T20:06:37-04:00",
+                "title": "cco_cd_19_9_1575656660477.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/9TE0scOn5go%253D",
+                "language": "es",
+                "documentTypeDetails": "Cuadro Comparativo de Ofertas"
+              },
+              {
+                "id": "TwZLFKp+p14=",
+                "datePublished": "2019-12-11T20:06:37-04:00",
+                "title": "notificacion_adjudicacion_1575678028944.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/TwZLFKp%252Bp14%253D",
+                "language": "es",
+                "documentTypeDetails": "Notificación al Oferente"
+              },
+              {
+                "id": "Gw3EOO99jSA=",
+                "title": "26923_res_adj_1576105595680.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/Gw3EOO99jSA%253D",
+                "language": "es",
+                "documentTypeDetails": "Nota de Observacion"
+              },
+              {
+                "id": "eX4g4V8M9mQ=",
+                "datePublished": "2019-12-11T20:06:37-04:00",
+                "title": "informe_de_evaluacion_cd_19_1575656645170.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/eX4g4V8M9mQ%253D",
+                "language": "es",
+                "documentTypeDetails": "Informe de Evaluación"
+              },
+              {
+                "id": "dNxNTywwCJc=",
+                "datePublished": "2019-12-11T20:06:37-04:00",
+                "title": "acta_de_apertura_cd_19_1575656627852.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/dNxNTywwCJc%253D",
+                "language": "es",
+                "documentTypeDetails": "Acta de Apertura"
+              }
+            ],
+            "items": [
+              {
+                "id": "hOmc3bMri/P167mCBdHodw==",
+                "description": "PUBLICACIÓN DE LLAMADO A CONTRATACIÓN EN DIARIO DE CIRCULACIÓN NACIONAL. (DOM)",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "82101504-002",
+                  "description": "Publicacion en periodicos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/82101504-002"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "82101504",
+                    "description": "Publicidad o publicacion en periodicos",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/82101504"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Unidad",
+                  "id": "UNI",
+                  "value": {
+                    "amount": 1170000,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "RVtITWjer4w=",
+                "attributes": [
+                  {
+                    "value": "EVENTO",
+                    "name": "Presentacion",
+                    "id": "2"
+                  },
+                  {
+                    "name": "Orden",
+                    "value": "2",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "L4D7oUMgAoF0u7YJ367usA==",
+                "description": "PUBLICACIÓN DE EXEQUIAS EN DIARIO DE CIRCULACIÓN NACIONAL.",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "82101504-002",
+                  "description": "Publicacion en periodicos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/82101504-002"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "82101504",
+                    "description": "Publicidad o publicacion en periodicos",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/82101504"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Unidad",
+                  "id": "UNI",
+                  "value": {
+                    "amount": 200000,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "RVtITWjer4w=",
+                "attributes": [
+                  {
+                    "value": "EVENTO",
+                    "name": "Presentacion",
+                    "id": "2"
+                  },
+                  {
+                    "name": "Orden",
+                    "value": "3",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "+vEF+3bif3q55Ab0HE15FA==",
+                "description": "PUBLICACIÓN DE LLAMADO A CONTRATACIÓN EN DIARIO DE CIRCULACIÓN NACIONAL. (LUN-SÁB)",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "82101504-002",
+                  "description": "Publicacion en periodicos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/82101504-002"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "82101504",
+                    "description": "Publicidad o publicacion en periodicos",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/82101504"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Unidad",
+                  "id": "UNI",
+                  "value": {
+                    "amount": 750000,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "RVtITWjer4w=",
+                "attributes": [
+                  {
+                    "value": "EVENTO",
+                    "name": "Presentacion",
+                    "id": "2"
+                  },
+                  {
+                    "name": "Orden",
+                    "value": "1",
+                    "id": "7"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "contracts": [
+          {
+            "id": "CD-12021-19-184984",
+            "guarantees": [
+              {
+                "id": "tQZCQ8uOqE0=",
+                "date": "2019-12-28T00:00:00-04:00",
+                "period": {
+                  "endDate": "2022-01-31T00:00:00-04:00",
+                  "startDate": "2019-12-18T00:00:00-04:00"
+                },
+                "obligations": "fulfillment"
+              }
+            ],
+            "implementation": {
+              "milestones": [
+                {
+                  "purchaseOrderId": "mlsG+h+8rZI=",
+                  "id": "lX5T1peo/+o=",
+                  "title": "INFORME DE CONFORMIDAD ORDEN 11",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2021-08-13T00:00:00-04:00",
+                  "dateMet": "2021-08-13T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "dJkgPusiYW8=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/dJkgPusiYW8%253D",
+                      "datePublished": "2023-04-20T10:07:23-04:00",
+                      "language": "es",
+                      "title": "expte__virtu_os_011_cd_19_19_blanca_marin_lpn_1_pautale_2021_1681999642653.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "kIoi33TPuas=",
+                  "title": "Orden de provision/servicio",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-05-27T00:00:00-04:00",
+                  "dateMet": "2020-05-28T00:00:00-04:00",
+                  "status": "met"
+                },
+                {
+                  "id": "46sOrczQhT8=",
+                  "title": "Informe de Conformidad orden 7",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-09-12T00:00:00-04:00",
+                  "dateMet": "2020-09-12T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "j3FfExk0IJs=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/j3FfExk0IJs%253D",
+                      "datePublished": "2023-04-19T16:14:47-04:00",
+                      "language": "es",
+                      "title": "conformidad_orden_7_1681935287259.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "L3Rl45a5k1w=",
+                  "id": "AemU/Gh2fqc=",
+                  "title": "INFORME DE CONFORMIDAD",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-04-17T00:00:00-04:00",
+                  "dateMet": "2020-04-17T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "XMJlItOqiPQ=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/XMJlItOqiPQ%253D",
+                      "datePublished": "2023-04-19T16:29:16-04:00",
+                      "language": "es",
+                      "title": "conformidad_ordel_del_01_al_04_1681936156327.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "sepJgFujgmg=",
+                  "id": "zk9JQQ2fpR8=",
+                  "title": "INFORME DE CONFORMIDAD ORDEN 7",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-09-09T00:00:00-04:00",
+                  "dateMet": "2020-09-09T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "4jI47MeO80s=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/4jI47MeO80s%253D",
+                      "datePublished": "2023-04-19T16:51:09-04:00",
+                      "language": "es",
+                      "title": "conformidad_orden_7_1681937468775.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "9VvF3WSwj7k=",
+                  "title": "Orden de provision/servicio",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-05-13T00:00:00-04:00",
+                  "dateMet": "2020-05-14T00:00:00-04:00",
+                  "status": "met"
+                },
+                {
+                  "purchaseOrderId": "SI0PaSnkvjk=",
+                  "id": "eeBhaQBtxv0=",
+                  "title": "INFORME DE CONFORMIDAD  ORDEN  6",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-08-07T00:00:00-04:00",
+                  "dateMet": "2020-08-07T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "1GYVQ/kE/WY=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/1GYVQ%252FkE%252FWY%253D",
+                      "datePublished": "2023-04-19T16:44:58-04:00",
+                      "language": "es",
+                      "title": "conformidad_orden_05_y_06_1681937097548.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "rrDuS0GcUTw=",
+                  "id": "yVlcG2gyG0Y=",
+                  "title": "INFORME DE CONFORMIDAD ORDEN 13",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2021-11-05T00:00:00-04:00",
+                  "dateMet": "2021-11-05T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "eRjQFzOUe3o=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/eRjQFzOUe3o%253D",
+                      "datePublished": "2023-04-20T10:17:37-04:00",
+                      "language": "es",
+                      "title": "expediente_2021_12021001_007330_1682000256648.pdf",
+                      "format": "application/pdf"
+                    },
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "xu+gHunzafU=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/xu%252BgHunzafU%253D",
+                      "datePublished": "2023-04-26T16:10:58-04:00",
+                      "language": "es",
+                      "title": "documentos_remplazados_y_conformidad_1682539872156.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "eGApXr0xqeQ=",
+                  "id": "X2qH2+6VQoM=",
+                  "title": "INFORME DE CONFORMIDAD ORDEN 12",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2021-10-20T00:00:00-04:00",
+                  "dateMet": "2021-10-22T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "1NCEwr7lP38=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/1NCEwr7lP38%253D",
+                      "datePublished": "2023-04-20T10:14:57-04:00",
+                      "language": "es",
+                      "title": "expte__conformidad_os_12_2021_1682000096681.pdf",
+                      "format": "application/pdf"
+                    },
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "/ya2MY6jAxk=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/%252Fya2MY6jAxk%253D",
+                      "datePublished": "2023-04-26T16:13:25-04:00",
+                      "language": "es",
+                      "title": "conformidad_1682540018839.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "e35hBysOaFo=",
+                  "title": "Informe de provision/servicio",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-08-07T00:00:00-04:00",
+                  "dateMet": "2020-08-07T00:00:00-04:00",
+                  "status": "met"
+                },
+                {
+                  "id": "JLGKEQUngQk=",
+                  "title": "Informe de provision/servicio",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-05-28T00:00:00-04:00",
+                  "dateMet": "2020-05-28T00:00:00-04:00",
+                  "status": "met"
+                },
+                {
+                  "id": "8AMj7JAxB9U=",
+                  "title": "Informe de provision/servicio",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-05-14T00:00:00-04:00",
+                  "dateMet": "2020-05-14T00:00:00-04:00",
+                  "status": "met"
+                },
+                {
+                  "purchaseOrderId": "a4nkv/iOcdk=",
+                  "id": "TokD/sdkSMY=",
+                  "title": "INFORME DE CONFORMIDAD ORDEN 9",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-11-19T00:00:00-04:00",
+                  "dateMet": "2020-11-19T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "n6wc9i5GcuU=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/n6wc9i5GcuU%253D",
+                      "datePublished": "2023-04-20T09:37:31-04:00",
+                      "language": "es",
+                      "title": "conformidad_orden_09_y_10_1681997850880.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "YSqm8Ujm3pk=",
+                  "id": "ViW7RjVZ9lQ=",
+                  "title": "INFORME DE CONFORMIDAD ORDEN 5",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-08-07T00:00:00-04:00",
+                  "dateMet": "2020-08-07T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "gvDQ+hPGeyI=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/gvDQ%252BhPGeyI%253D",
+                      "datePublished": "2023-04-19T16:41:59-04:00",
+                      "language": "es",
+                      "title": "conformidad_orden_05_y_06_1681936919271.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "9BKTq4R1FMM=",
+                  "id": "VlgVvi9wszk=",
+                  "title": "INFORME DE CONFORMIDAD ORDEN 2",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-04-17T00:00:00-04:00",
+                  "dateMet": "2020-04-17T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "W9d6bZlFmhE=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/W9d6bZlFmhE%253D",
+                      "datePublished": "2023-04-19T16:26:58-04:00",
+                      "language": "es",
+                      "title": "conformidad_ordel_del_01_al_04_1681936018307.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "R+eYpHdJt3w=",
+                  "title": "Informe de provision/servicio",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-04-17T00:00:00-04:00",
+                  "dateMet": "2020-04-17T00:00:00-04:00",
+                  "status": "met"
+                },
+                {
+                  "id": "CXs7Y8CjqyY=",
+                  "title": "Informe de provision/servicio",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-05-14T00:00:00-04:00",
+                  "dateMet": "2020-05-14T00:00:00-04:00",
+                  "status": "met"
+                },
+                {
+                  "purchaseOrderId": "8EDM9JVYfEs=",
+                  "id": "ctxlPc2M4/U=",
+                  "title": "INFORME D E CONFORMIDAD ORDEN 15",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2021-12-02T00:00:00-04:00",
+                  "dateMet": "2021-12-02T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "a8Wju2a9Rtk=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/a8Wju2a9Rtk%253D",
+                      "datePublished": "2023-04-26T14:51:05-04:00",
+                      "language": "es",
+                      "title": "conformidad_os_15_1682535079408.pdf",
+                      "format": "application/pdf"
+                    },
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "HGiclB5IA8U=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/HGiclB5IA8U%253D",
+                      "datePublished": "2023-04-20T10:24:05-04:00",
+                      "language": "es",
+                      "title": "expediente_2021_12021001_007645_1682000644946.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "9A4MBJ6HCUw=",
+                  "id": "W3bYi/leHiM=",
+                  "title": "INFORME DE CONFORMIDAD ORDEN 1",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-04-01T00:00:00-04:00",
+                  "dateMet": "2020-04-01T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "dIvItdBi4sA=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/dIvItdBi4sA%253D",
+                      "datePublished": "2023-04-19T16:24:48-04:00",
+                      "language": "es",
+                      "title": "conformidad_ordel_del_01_al_04_1681935888296.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "ifBFXHLqD38=",
+                  "id": "1Nz0Onb62q4=",
+                  "title": "INFORME DE CONFORMIDAD ORDEN 4",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-05-28T00:00:00-04:00",
+                  "dateMet": "2020-05-28T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "500ekgoiRIM=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/500ekgoiRIM%253D",
+                      "datePublished": "2023-04-19T16:36:46-04:00",
+                      "language": "es",
+                      "title": "conformidad_ordel_del_01_al_04_1681936606244.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "CuLRXEnTGpA=",
+                  "title": "Orden de provision/servicio",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-04-16T00:00:00-04:00",
+                  "dateMet": "2020-04-17T00:00:00-04:00",
+                  "status": "met"
+                },
+                {
+                  "id": "l5rSAdPyHpU=",
+                  "title": "Informe de provision/servicio",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-05-28T00:00:00-04:00",
+                  "dateMet": "2020-05-28T00:00:00-04:00",
+                  "status": "met"
+                },
+                {
+                  "purchaseOrderId": "KufWqCiN8KM=",
+                  "id": "c9socifv0Jw=",
+                  "title": "INFORME DE CONFORMIDAD ORDEN 14",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2021-11-12T00:00:00-04:00",
+                  "dateMet": "2021-11-12T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "7n7h/+/gVig=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/7n7h%252F%252B%252FgVig%253D",
+                      "datePublished": "2023-04-20T10:19:38-04:00",
+                      "language": "es",
+                      "title": "expediente_2021_12021001_007645_1682000378077.pdf",
+                      "format": "application/pdf"
+                    },
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "RG3K4nTzAas=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/RG3K4nTzAas%253D",
+                      "datePublished": "2023-04-26T16:09:15-04:00",
+                      "language": "es",
+                      "title": "conformidad_os_14_1682539769285.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "IRyQffx9FwU=",
+                  "title": "Informe de provision/servicio",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-08-07T00:00:00-04:00",
+                  "dateMet": "2020-08-07T00:00:00-04:00",
+                  "status": "met"
+                },
+                {
+                  "purchaseOrderId": "VX3EHa+G4Xo=",
+                  "id": "0cbcCWiYreU=",
+                  "title": "INFORME DE CUMPLIMIENTO ORDEN  10",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-11-24T00:00:00-04:00",
+                  "dateMet": "2020-11-24T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "qQw46DRjReI=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/qQw46DRjReI%253D",
+                      "datePublished": "2023-04-20T09:59:58-04:00",
+                      "language": "es",
+                      "title": "conformidad_orden_09_y_10_1681999197963.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "Iil5tBuv25E=",
+                  "id": "TC2MbId8ctk=",
+                  "title": "INFORME DE CONFORMIDAD ORDEN 8",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-11-02T00:00:00-04:00",
+                  "dateMet": "2020-11-02T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "lNwZXE7l3fQ=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/lNwZXE7l3fQ%253D",
+                      "datePublished": "2023-04-19T16:56:38-04:00",
+                      "language": "es",
+                      "title": "conformidad_orden_8_1681937797570.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "dadLslaAiAA=",
+                  "title": "Informe de provision/servicio",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-04-01T00:00:00-04:00",
+                  "dateMet": "2020-04-01T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "kKm95bjoJA0=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/kKm95bjoJA0%253D",
+                      "datePublished": "2020-11-09T16:09:07-04:00",
+                      "language": "es",
+                      "title": "106___a_dgaf_informe_cumplimiento_blanca_marin_cd_19_1604948947150.docx",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "2yFWNh8ybbg=",
+                  "title": "Orden de provision/servicio",
+                  "type": "delivery",
+                  "code": "Acta",
+                  "dueDate": "2020-03-31T00:00:00-04:00",
+                  "dateMet": "2020-08-07T00:00:00-04:00",
+                  "status": "met"
+                }
+              ],
+              "purchaseOrders": [
+                {
+                  "id": "ifBFXHLqD38=",
+                  "title": "PUBLICACION DE LLAMADO A CONTRATACION POR TRES DIAS",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-05-28T00:00:00-04:00",
+                      "endDate": "2020-05-30T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "ifBFXHLqD38=",
+                      "datePublished": "2023-04-19T16:31:26-04:00",
+                      "title": "os_004_cd_19_19_blanca_marin_signed__1681936286118.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/ifBFXHLqD38%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "mlsG+h+8rZI=",
+                  "title": "PUBLICACION DE LLAMADO A CONTRATACION POR TRES DIAS",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2021-08-13T00:00:00-04:00",
+                      "endDate": "2021-08-15T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "mlsG+h+8rZI=",
+                      "datePublished": "2023-04-20T10:02:31-04:00",
+                      "title": "os_11_blanca_marin_1681999351358.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/mlsG%252Bh%252B8rZI%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "a4nkv/iOcdk=",
+                  "title": "PUBLICACION DE LLAMADO A CONTRATACION POR TRES DIAS",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-11-20T00:00:00-04:00",
+                      "endDate": "2020-11-22T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "a4nkv/iOcdk=",
+                      "datePublished": "2023-04-20T09:35:12-04:00",
+                      "title": "os_009_cd_19_19_blanca_marin_firmado_1681997711618.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/a4nkv%252FiOcdk%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "KufWqCiN8KM=",
+                  "title": "PUBLICACION DE LLAMADO A CONTRATACION POR TRES DIAS",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2021-11-12T00:00:00-04:00",
+                      "endDate": "2021-11-14T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "KufWqCiN8KM=",
+                      "datePublished": "2023-04-20T10:18:52-04:00",
+                      "title": "os_14_firmada_1682000332199.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/KufWqCiN8KM%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "9A4MBJ6HCUw=",
+                  "title": "PUBLICACION DE LLAMADO A CONTRATACION POR TRES DIAS ",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-04-01T00:00:00-04:00",
+                      "endDate": "2020-04-03T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "9A4MBJ6HCUw=",
+                      "datePublished": "2023-04-19T16:23:44-04:00",
+                      "title": "os_001_cd_19_19_blanca_marin_signed__1681935824165.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/9A4MBJ6HCUw%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "L3Rl45a5k1w=",
+                  "title": "PUBLICACION DE LLAMADO A CONTRATACION POR TRES DIAS",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-05-14T00:00:00-04:00",
+                      "endDate": "2020-05-16T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "L3Rl45a5k1w=",
+                      "datePublished": "2023-04-19T16:29:57-04:00",
+                      "title": "os_003_cd_19_19_blanca_marin_signed__1681936196882.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/L3Rl45a5k1w%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "8EDM9JVYfEs=",
+                  "title": "PUBLICACION DE LLAMADO A CONTRATACION POR TRES DIAS",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2021-12-02T00:00:00-04:00",
+                      "endDate": "2021-12-04T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "8EDM9JVYfEs=",
+                      "datePublished": "2023-04-26T14:48:51-04:00",
+                      "title": "od_15_firmada_1682534945238.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/8EDM9JVYfEs%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "sepJgFujgmg=",
+                  "title": "PUBLICACION DE LLAMADO A CONTRATACION POR TRES DIAS",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-09-09T00:00:00-04:00",
+                      "endDate": "2020-09-11T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "sepJgFujgmg=",
+                      "datePublished": "2023-04-19T16:46:28-04:00",
+                      "title": "os_007_cd_19_19_blanca_marin_signed__1681937188161.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/sepJgFujgmg%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "YSqm8Ujm3pk=",
+                  "title": "PUBLICACION DE LLAMADO A CONTRATACION POR TRES DIAS",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-08-07T00:00:00-04:00",
+                      "endDate": "2020-08-09T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "YSqm8Ujm3pk=",
+                      "datePublished": "2023-04-19T16:37:55-04:00",
+                      "title": "os_005_cd_19_19_blanca_marin_signed__1681936675063.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/YSqm8Ujm3pk%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "Iil5tBuv25E=",
+                  "title": "PUBLICACION DE LLAMADO A CONTRATACION POR TRES DIAS",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-10-31T00:00:00-04:00",
+                      "endDate": "2020-11-02T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "Iil5tBuv25E=",
+                      "datePublished": "2023-04-19T16:55:26-04:00",
+                      "title": "os_008_cd_19_19_blanca_marin_corregido_1681937725756.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/Iil5tBuv25E%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "VX3EHa+G4Xo=",
+                  "title": "PUBLICACION DE LLAMADO A CONTRATACION POR TRES DIAS",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-11-24T00:00:00-04:00",
+                      "endDate": "2020-11-26T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "VX3EHa+G4Xo=",
+                      "datePublished": "2023-04-26T16:17:13-04:00",
+                      "title": "os_010_cd_19_19_blanca_marin_firmado_1682540247215.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/VX3EHa%252BG4Xo%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "eGApXr0xqeQ=",
+                  "title": "PUBLICACION DE LLAMADO A CONTRATACION POR TRES DIAS",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2021-10-20T00:00:00-04:00",
+                      "endDate": "2021-10-20T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "eGApXr0xqeQ=",
+                      "datePublished": "2023-04-20T10:12:12-04:00",
+                      "title": "os_12_firmada_1681999932070.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/eGApXr0xqeQ%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "SI0PaSnkvjk=",
+                  "title": "PUBLICACION DE SERVICIO EXEQUIALES ",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-08-14T00:00:00-04:00",
+                      "endDate": "2020-08-16T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "SI0PaSnkvjk=",
+                      "datePublished": "2023-04-19T16:43:29-04:00",
+                      "title": "os_006_cd_19_19_blanca_marin_signed__1681937009352.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/SI0PaSnkvjk%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "rrDuS0GcUTw=",
+                  "title": "PUBLICACION DE LLAMADO A CONTRATACION POR TRES DIAS",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2021-11-05T00:00:00-04:00",
+                      "endDate": "2021-11-07T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "rrDuS0GcUTw=",
+                      "datePublished": "2023-04-20T10:16:59-04:00",
+                      "title": "os_13_firmada_1682000218817.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/rrDuS0GcUTw%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "9BKTq4R1FMM=",
+                  "title": "PUBLICACION DE LLAMADO A CONTRATACION POR TRES DIAS",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2020-04-17T00:00:00-04:00",
+                      "endDate": "2020-04-19T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "9BKTq4R1FMM=",
+                      "datePublished": "2023-04-19T16:25:47-04:00",
+                      "title": "os_002_cd_19_19_blanca_marin_signed__1681935946570.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/9BKTq4R1FMM%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                }
+              ],
+              "financialProgress": {
+                "breakdown": [
+                  {
+                    "id": "2021/12/21/1/1/0/2/1/99/265/10/CD-12021-19-184984",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 4000000
+                    },
+                    "classifications": {
+                      "anio": "2021",
+                      "nivel": "12",
+                      "entidad": "21",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "2",
+                      "financiador": "1",
+                      "departamento": "99",
+                      "objeto_gasto": "265",
+                      "fuente_financiamiento": "10",
+                      "cdp": "371542"
+                    },
+                    "financialCode": "CD-12021-19-184984"
+                  },
+                  {
+                    "id": "2020/12/21/1/1/0/3/1/99/260/10/CD-12021-19-184984",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 24000000
+                    },
+                    "classifications": {
+                      "anio": "2020",
+                      "nivel": "12",
+                      "entidad": "21",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "3",
+                      "financiador": "1",
+                      "departamento": "99",
+                      "objeto_gasto": "260",
+                      "fuente_financiamiento": "10",
+                      "cdp": "371542"
+                    },
+                    "financialCode": "CD-12021-19-184984"
+                  },
+                  {
+                    "id": "2019/12/21/2/1/1/0/1/99/260/10/CD-12021-19-184984",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 1400000
+                    },
+                    "classifications": {
+                      "anio": "2019",
+                      "nivel": "12",
+                      "entidad": "21",
+                      "tipo_programa": "2",
+                      "programa": "1",
+                      "sub_programa": "1",
+                      "proyecto": "0",
+                      "financiador": "1",
+                      "departamento": "99",
+                      "objeto_gasto": "260",
+                      "fuente_financiamiento": "10",
+                      "cdp": "371542"
+                    },
+                    "financialCode": "CD-12021-19-184984"
+                  },
+                  {
+                    "id": "2021/12/21/1/1/0/4/74/99/265/30/AC-12021-21-42013",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 5840000
+                    },
+                    "classifications": {
+                      "anio": "2021",
+                      "nivel": "12",
+                      "entidad": "21",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "4",
+                      "financiador": "74",
+                      "departamento": "99",
+                      "objeto_gasto": "265",
+                      "fuente_financiamiento": "30",
+                      "cdp": "371542"
+                    },
+                    "financialCode": "AC-12021-21-42013"
+                  }
+                ]
+              },
+              "transactions": [
+                {
+                  "id": "SIAF+CD-12021-19-184984+001-001-0005654+2248486",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 6753619
+                  },
+                  "date": "2020-07-22T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "BLANCA TEODOLINA MARIN RIQUELME",
+                    "id": "PY-RUC-388022-2"
+                  },
+                  "requestDate": "2020-06-29T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0005654",
+                      "bill": {
+                        "id": "001-001-0005654",
+                        "type": "FACTURA",
+                        "date": "2020-05-12T00:00:00-04:00",
+                        "amount": {
+                          "amount": 7170000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 195545,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 25291,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 195545,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184984"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184984+001-001-0006086+2248489",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 2514946
+                  },
+                  "date": "2021-01-26T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "BLANCA TEODOLINA MARIN RIQUELME",
+                    "id": "PY-RUC-388022-2"
+                  },
+                  "requestDate": "2020-11-27T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0006086",
+                      "bill": {
+                        "id": "001-001-0006086",
+                        "type": "FACTURA",
+                        "date": "2020-11-05T00:00:00-04:00",
+                        "amount": {
+                          "amount": 2670000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 72818,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 9418,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 72818,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184984"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184984+001-001-0006138+2248490",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 2514946
+                  },
+                  "date": "2021-01-29T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "BLANCA TEODOLINA MARIN RIQUELME",
+                    "id": "PY-RUC-388022-2"
+                  },
+                  "requestDate": "2020-12-22T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0006138",
+                      "bill": {
+                        "id": "001-001-0006138",
+                        "type": "FACTURA",
+                        "date": "2020-12-02T00:00:00-04:00",
+                        "amount": {
+                          "amount": 2670000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 72818,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 9418,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 72818,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184984"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184984+001-001-0007105+2248492",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 2512592
+                  },
+                  "date": "2021-11-24T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "BLANCA TEODOLINA MARIN RIQUELME",
+                    "id": "PY-RUC-388022-2"
+                  },
+                  "requestDate": "2021-10-29T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0007105",
+                      "bill": {
+                        "id": "001-001-0007105",
+                        "type": "FACTURA",
+                        "date": "2021-09-13T00:00:00-04:00",
+                        "amount": {
+                          "amount": 2670000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 72818,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 9418,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 72818,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184984"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184984+001-001-0007299+2248494",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 1646829
+                  },
+                  "date": "2022-01-24T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "BLANCA TEODOLINA MARIN RIQUELME",
+                    "id": "PY-RUC-388022-2"
+                  },
+                  "requestDate": "2021-12-28T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0007299",
+                      "bill": {
+                        "id": "001-001-0007299",
+                        "type": "FACTURA",
+                        "date": "2021-11-22T00:00:00-04:00",
+                        "amount": {
+                          "amount": 1750000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 47727,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 6173,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 47727,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184984"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184984+001-001-0005692+2248487",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 2180454
+                  },
+                  "date": "2020-07-22T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "BLANCA TEODOLINA MARIN RIQUELME",
+                    "id": "PY-RUC-388022-2"
+                  },
+                  "requestDate": "2020-06-29T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0005692",
+                      "bill": {
+                        "id": "001-001-0005692",
+                        "type": "FACTURA",
+                        "date": "2020-05-22T00:00:00-04:00",
+                        "amount": {
+                          "amount": 2250000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 8182,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 61364,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184984"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184984+001-001-0005712+2248488",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 2180454
+                  },
+                  "date": "2020-07-22T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "BLANCA TEODOLINA MARIN RIQUELME",
+                    "id": "PY-RUC-388022-2"
+                  },
+                  "requestDate": "2020-06-29T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0005712",
+                      "bill": {
+                        "id": "001-001-0005712",
+                        "type": "FACTURA",
+                        "date": "2020-06-01T00:00:00-04:00",
+                        "amount": {
+                          "amount": 2250000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 8182,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 61364,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184984"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184984+001-001-0007207+2248493",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 2178408
+                  },
+                  "date": "2021-12-28T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "BLANCA TEODOLINA MARIN RIQUELME",
+                    "id": "PY-RUC-388022-2"
+                  },
+                  "requestDate": "2021-11-27T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0007207",
+                      "bill": {
+                        "id": "001-001-0007207",
+                        "type": "FACTURA",
+                        "date": "2021-10-27T00:00:00-04:00",
+                        "amount": {
+                          "amount": 2250000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 8182,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 61364,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184984"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184984+001-001-0006139+2248491",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 188385
+                  },
+                  "date": "2021-01-29T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "BLANCA TEODOLINA MARIN RIQUELME",
+                    "id": "PY-RUC-388022-2"
+                  },
+                  "requestDate": "2020-12-22T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0006139",
+                      "bill": {
+                        "id": "001-001-0006139",
+                        "type": "FACTURA",
+                        "date": "2020-12-02T00:00:00-04:00",
+                        "amount": {
+                          "amount": 200000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 5455,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 705,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 5455,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184984"
+                },
+                {
+                  "id": "SIAF+AC-12021-21-42013+001-001-0007418+3077253",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 2178408
+                  },
+                  "date": "2022-01-17T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "BLANCA TEODOLINA MARIN RIQUELME",
+                    "id": "PY-RUC-388022-2"
+                  },
+                  "requestDate": "2021-12-28T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0007418",
+                      "bill": {
+                        "id": "001-001-0007418",
+                        "type": "FACTURA",
+                        "date": "2021-12-23T00:00:00-04:00",
+                        "amount": {
+                          "amount": 2250000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 8182,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 61364,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "AC-12021-21-42013"
+                },
+                {
+                  "id": "SIAF+AC-12021-21-42013+001-001-0007300+3077252",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 2512592
+                  },
+                  "date": "2022-01-17T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "BLANCA TEODOLINA MARIN RIQUELME",
+                    "id": "PY-RUC-388022-2"
+                  },
+                  "requestDate": "2021-12-28T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0007300",
+                      "bill": {
+                        "id": "001-001-0007300",
+                        "type": "FACTURA",
+                        "date": "2021-11-22T00:00:00-04:00",
+                        "amount": {
+                          "amount": 2670000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 72818,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 9418,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 72818,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "AC-12021-21-42013"
+                },
+                {
+                  "id": "SIAF+AC-12021-21-42013+001-001-0007299+3077251",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 865761
+                  },
+                  "date": "2022-01-17T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "BLANCA TEODOLINA MARIN RIQUELME",
+                    "id": "PY-RUC-388022-2"
+                  },
+                  "requestDate": "2021-12-28T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0007299",
+                      "bill": {
+                        "id": "001-001-0007299",
+                        "type": "FACTURA",
+                        "date": "2021-11-22T00:00:00-04:00",
+                        "amount": {
+                          "amount": 920000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 25091,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 3245,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 25091,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "AC-12021-21-42013"
+                }
+              ]
+            },
+            "amendments": [
+              {
+                "date": "2021-11-04T00:00:00-04:00",
+                "description": "Ampliación de Monto",
+                "amendsAmount": {
+                  "amount": 5840000,
+                  "currency": "PYG"
+                },
+                "id": "371542-blanca-teodolina-marin-riquelme-1-ampliacion",
+                "financialCode": "AC-12021-21-42013"
+              }
+            ],
+            "awardID": "371542-blanca-teodolina-marin-riquelme-1",
+            "status": "terminated",
+            "statusDetails": "Adjudicado",
+            "dateSigned": "2019-12-17T12:00:00-04:00",
+            "period": {
+              "startDate": "2019-12-18T00:00:00-04:00",
+              "endDate": "2021-12-31T00:00:00-04:00"
+            },
+            "value": {
+              "amount": 29400000,
+              "currency": "PYG"
+            },
+            "documents": [
+              {
+                "id": "mauINdMf5GA=",
+                "datePublished": "2019-12-20T14:48:15-04:00",
+                "title": "contrato_42_public_en_periodicos_1576606807334.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/contrato/mauINdMf5GA%253D",
+                "language": "es",
+                "documentType": "contractSigned",
+                "documentTypeDetails": "Orden de Compra o Contrato"
+              },
+              {
+                "id": "i8XhcAP2B3E=",
+                "datePublished": "2019-12-20T14:48:15-04:00",
+                "title": "688__a_dncp_solicitud_cc_blanca_marin_signed__1576606800875.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/contrato/i8XhcAP2B3E%253D",
+                "language": "es",
+                "documentTypeDetails": "Nota de Aclaración"
+              },
+              {
+                "id": "hTXtad6r0Ow=",
+                "title": "27935_responsabilidad_adj_1576864093123.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/contrato/hTXtad6r0Ow%253D",
+                "language": "es",
+                "documentTypeDetails": "Nota de Observacion"
+              }
+            ]
+          }
+        ],
+        "tender": {
+          "id": "371542-cd-mitic-n-19-2019-servicio-publicacion-periodicos-mitic-plurianual-2019-2021-1",
+          "title": "CD MITIC Nº 19/2019 Servicio de publicación en periódicos para el MITIC - Plurianual 2019 - 2021",
+          "status": "complete",
+          "awardCriteria": "priceOnly",
+          "awardCriteriaDetails": "Por Total",
+          "submissionMethod": [
+            "inPerson"
+          ],
+          "bidOpening": {
+            "date": "2019-12-03T11:00:00-04:00",
+            "address": {
+              "streetAddress": "GRAL. SANTOS Nº 1170 C/CONCORDIA. COMPLEJO SANTOS. BLOQUE E2"
+            }
+          },
+          "submissionMethodDetails": "Lugar entrega ofertas: GRAL. SANTOS Nº 1170 C/CONCORDIA. COMPLEJO SANTOS. BLOQUE E2 || Lugar entrega bien: Según documento del llamado || Fecha entrega bien: Según documento del llamado",
+          "eligibilityCriteria": "Restricciones: INHABILIDADES PREVISTAS EN EL ARTICULO 40 DE LA LEY 2051/03",
+          "statusDetails": "Adjudicada",
+          "enquiriesAddress": {
+            "streetAddress": "GRAL. SANTOS Nº 1170 C/CONCORDIA. COMPLEJO SANTOS. BLOQUE E2"
+          },
+          "mainProcurementCategoryDetails": "Servicios - Servicios Técnicos",
+          "hasEnquiries": false,
+          "value": {
+            "amount": 29400000,
+            "currency": "PYG"
+          },
+          "datePublished": "2019-11-14T17:35:41-04:00",
+          "tenderPeriod": {
+            "startDate": "2019-11-14T17:35:41-04:00",
+            "endDate": "2019-12-03T10:45:00-04:00",
+            "durationInDays": 18
+          },
+          "awardPeriod": {
+            "startDate": "2019-12-03T11:00:00-04:00"
+          },
+          "contractPeriod": {
+            "maxExtentDate": "2021-12-31T00:00:00-04:00"
+          },
+          "enquiryPeriod": {
+            "endDate": "2019-11-28T09:00:00-04:00",
+            "startDate": "2019-11-14T17:35:41-04:00",
+            "durationInDays": 13
+          },
+          "mainProcurementCategory": "services",
+          "procurementMethod": "open",
+          "procurementMethodDetails": "Contratación Directa",
+          "procuringEntity": {
+            "id": "DNCP-SICP-CODE-375",
+            "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+          },
+          "criteria": [
+            {
+              "id": "1",
+              "title": "Garantía de Mantenimiento de Ofertas",
+              "description": "Los oferentes, proveedores o contratistas deberán garantizar la seriedad de sus ofertas, mediante la garantía de mantenimiento de la oferta",
+              "source": "tenderer",
+              "requirementGroups": [
+                {
+                  "id": "1-1",
+                  "description": "La garantía debe ser de un cierto porcentaje, periodo y tipo",
+                  "requirements": [
+                    {
+                      "id": "1-1-1",
+                      "title": "Porcentaje de la garantia",
+                      "expectedValue": "5"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "lots": [
+            {
+              "id": "RVtITWjer4w=",
+              "title": "1 - LoteTotal",
+              "status": "active",
+              "statusDetails": "Activo",
+              "value": {
+                "amount": 29400000,
+                "currency": "PYG"
+              },
+              "openContractType": " Por monto",
+              "minValue": {
+                "amount": 15000000,
+                "currency": "PYG"
+              },
+              "simultaneousSupply": false,
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "1",
+                  "id": "1"
+                }
+              ]
+            }
+          ],
+          "notifiedSuppliers": [
+            {
+              "name": "ALEX PUBLICIDAD S.R.L.",
+              "id": "PY-RUC-80004735-4"
+            },
+            {
+              "name": "BLANCA TEODOLINA MARIN RIQUELME",
+              "id": "PY-RUC-388022-2"
+            },
+            {
+              "name": "FUSION S.A",
+              "id": "PY-RUC-80026952-7"
+            },
+            {
+              "name": "Grupo 8R S.A.",
+              "id": "PY-RUC-80072458-5"
+            },
+            {
+              "name": "SENIOR PUBLICIDAD SRL",
+              "id": "PY-RUC-80000411-6"
+            }
+          ],
+          "items": [
+            {
+              "id": "+vEF+3bif3q55Ab0HE15FA==",
+              "description": "PUBLICACIÓN DE LLAMADO A CONTRATACIÓN EN DIARIO DE CIRCULACIÓN NACIONAL. (LUN-SÁB)",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "82101504-002",
+                "description": "Publicacion en periodicos",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/82101504-002"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "82101504",
+                  "description": "Publicidad o publicacion en periodicos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/82101504"
+                }
+              ],
+              "unit": {
+                "name": "Unidad",
+                "id": "UNI",
+                "value": {
+                  "amount": 644506,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "RVtITWjer4w=",
+              "attributes": [
+                {
+                  "name": "Presentacion",
+                  "value": "EVENTO",
+                  "id": "1"
+                },
+                {
+                  "name": "Orden",
+                  "value": "1",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "L4D7oUMgAoF0u7YJ367usA==",
+              "description": "PUBLICACIÓN DE EXEQUIAS EN DIARIO DE CIRCULACIÓN NACIONAL.",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "82101504-002",
+                "description": "Publicacion en periodicos",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/82101504-002"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "82101504",
+                  "description": "Publicidad o publicacion en periodicos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/82101504"
+                }
+              ],
+              "unit": {
+                "name": "Unidad",
+                "id": "UNI",
+                "value": {
+                  "amount": 168544,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "RVtITWjer4w=",
+              "attributes": [
+                {
+                  "name": "Presentacion",
+                  "value": "EVENTO",
+                  "id": "1"
+                },
+                {
+                  "name": "Orden",
+                  "value": "3",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "hOmc3bMri/P167mCBdHodw==",
+              "description": "PUBLICACIÓN DE LLAMADO A CONTRATACIÓN EN DIARIO DE CIRCULACIÓN NACIONAL. (DOM)",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "82101504-002",
+                "description": "Publicacion en periodicos",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/82101504-002"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "82101504",
+                  "description": "Publicidad o publicacion en periodicos",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/82101504"
+                }
+              ],
+              "unit": {
+                "name": "Unidad",
+                "id": "UNI",
+                "value": {
+                  "amount": 978920,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "RVtITWjer4w=",
+              "attributes": [
+                {
+                  "name": "Presentacion",
+                  "value": "EVENTO",
+                  "id": "1"
+                },
+                {
+                  "name": "Orden",
+                  "value": "2",
+                  "id": "2"
+                }
+              ]
+            }
+          ],
+          "tenderers": [
+            {
+              "name": "BLANCA TEODOLINA MARIN RIQUELME",
+              "id": "PY-RUC-388022-2"
+            }
+          ],
+          "documents": [
+            {
+              "id": "C8w0bxtcISU=",
+              "datePublished": "2019-11-25T07:18:27-04:00",
+              "title": "acta_prorroga_cd_19_1574427972858.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/C8w0bxtcISU%253D",
+              "language": "es",
+              "documentTypeDetails": "Acta de Prórroga"
+            },
+            {
+              "id": "Hy6tMWniRdM=",
+              "datePublished": "2019-11-25T07:18:27-04:00",
+              "title": "adenda_01_cd_19_signed__1574428004740.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/Hy6tMWniRdM%253D",
+              "language": "es",
+              "documentTypeDetails": "Adenda"
+            },
+            {
+              "id": "dix2iRRDbik=",
+              "title": "URL de la Convocatoria",
+              "url": "https://www.contrataciones.gov.py/licitaciones/convocatoria/371542-cd-mitic-n-19-2019-servicio-publicacion-periodicos-mitic-plurianual-2019-2021-1.html",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "format": "text/html"
+            },
+            {
+              "id": "MhDm8hDMUcI=",
+              "datePublished": "2019-11-14T17:35:44-04:00",
+              "title": "cgc.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/MhDm8hDMUcI%253D",
+              "language": "es",
+              "documentTypeDetails": "Condiciones Generales del Contrato - Bienes y Servicios"
+            },
+            {
+              "id": "nZt3zljl3aI=",
+              "datePublished": "2019-11-25T07:18:27-04:00",
+              "title": "llamado_publico_1574677107131.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/nZt3zljl3aI%253D",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "documentTypeDetails": "Llamado publicado"
+            },
+            {
+              "id": "8CBOFFn86z4=",
+              "datePublished": "2019-11-14T17:35:41-04:00",
+              "title": "certificado_de_disponibilidad_presupuestaria_1573232137962.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/8CBOFFn86z4%253D",
+              "language": "es",
+              "documentTypeDetails": "CDP"
+            },
+            {
+              "id": "3s3heyV6yNk=",
+              "datePublished": "2019-11-14T17:35:41-04:00",
+              "title": "cd_19_publicacion_1573232125523.zip",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/3s3heyV6yNk%253D",
+              "language": "es",
+              "documentType": "eligibilityCriteria",
+              "documentTypeDetails": "Carta de Invitación"
+            },
+            {
+              "id": "HzUqFEZeq1Q=",
+              "datePublished": "2019-11-14T17:35:41-04:00",
+              "title": "constancia_plurianual_fg_04_1573232166350.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/HzUqFEZeq1Q%253D",
+              "language": "es",
+              "documentTypeDetails": "Constancia de previsión plurianual"
+            },
+            {
+              "id": "3auPd/N0/gQ=",
+              "datePublished": "2019-11-14T17:35:43-04:00",
+              "title": "iao.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/3auPd%252FN0%252FgQ%253D",
+              "language": "es",
+              "documentTypeDetails": "Instrucción a los Oferentes - Bienes y Servicios"
+            },
+            {
+              "id": "PeyuSi1Jd5k=",
+              "datePublished": "2019-11-14T17:35:41-04:00",
+              "title": "23710_nota_res_cd0001_1573763739163.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/PeyuSi1Jd5k%253D",
+              "language": "es",
+              "documentTypeDetails": "Nota de Observacion"
+            },
+            {
+              "id": "49VmEj2NbXM=",
+              "datePublished": "2019-11-14T17:35:41-04:00",
+              "title": "llamado_publico_1573763741326.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/49VmEj2NbXM%253D",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "documentTypeDetails": "Llamado publicado"
+            }
+          ],
+          "numberOfTenderers": 1
+        },
+        "language": "es",
+        "ocid": "ocds-03ad3f-371542-1",
+        "date": "2021-12-20T13:19:14-04:00",
+        "initiationType": "tender",
+        "buyer": {
+          "id": "DNCP-SICP-CODE-375",
+          "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+        },
+        "sources": [
+          {
+            "id": "dncp-sicp",
+            "name": "Sistema de Información de las Contrataciones Públicas - DNCP",
+            "url": "https://www.contrataciones.gov.py/"
+          }
+        ],
+        "planning": {
+          "identifier": "371542",
+          "estimatedDate": "2019-11-30T00:00:00-04:00",
+          "budget": {
+            "description": "CD MITIC Nº 19/2019 Servicio de publicación en periódicos para el MITIC - Plurianual 2019 - 2021",
+            "amount": {
+              "currency": "PYG",
+              "amount": 29400000
+            },
+            "budgetBreakdown": [
+              {
+                "id": "2020/12/21/1/1/0/3/1/99/260/10-5dBe0w/+rBw=",
+                "sourceParty": {
+                  "id": "375",
+                  "name": "Ministerio de Tecnologías de la Información y Comunicación"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_a_utilizar": 24000000
+                },
+                "classifications": {
+                  "anio": "2020",
+                  "nivel": "12",
+                  "entidad": "21",
+                  "tipo_programa": "1",
+                  "programa": "1",
+                  "sub_programa": "0",
+                  "proyecto": "3",
+                  "financiador": "1",
+                  "departamento": "99",
+                  "objeto_gasto": "260",
+                  "fuente_financiamiento": "10",
+                  "cdp": "371542"
+                }
+              },
+              {
+                "id": "2021/12/21/1/1/0/2/1/99/265/10-MwqJeCOFfcY=",
+                "sourceParty": {
+                  "id": "375",
+                  "name": "Ministerio de Tecnologías de la Información y Comunicación"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_a_utilizar": 4000000
+                },
+                "classifications": {
+                  "anio": "2021",
+                  "nivel": "12",
+                  "entidad": "21",
+                  "tipo_programa": "1",
+                  "programa": "1",
+                  "sub_programa": "0",
+                  "proyecto": "2",
+                  "financiador": "1",
+                  "departamento": "99",
+                  "objeto_gasto": "265",
+                  "fuente_financiamiento": "10",
+                  "cdp": "371542"
+                }
+              },
+              {
+                "id": "2019/12/21/2/1/1/0/1/99/260/10-Y+7jmuJnxGM=",
+                "sourceParty": {
+                  "id": "375",
+                  "name": "Ministerio de Tecnologías de la Información y Comunicación"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_utilizado": 1400000,
+                  "monto_a_utilizar": 1400000
+                },
+                "classifications": {
+                  "anio": "2019",
+                  "nivel": "12",
+                  "entidad": "21",
+                  "tipo_programa": "2",
+                  "programa": "1",
+                  "sub_programa": "1",
+                  "proyecto": "0",
+                  "financiador": "1",
+                  "departamento": "99",
+                  "objeto_gasto": "260",
+                  "fuente_financiamiento": "10",
+                  "cdp": "371542"
+                }
+              }
+            ]
+          },
+          "items": [
+            {
+              "id": "mK/TyctuD7w=",
+              "description": "Publicidad o publicacion en periodicos",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "82101504",
+                "description": "Publicidad o publicacion en periodicos",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/82101504"
+              }
+            }
+          ]
+        },
+        "parties": [
+          {
+            "id": "DNCP-SICP-CODE-375",
+            "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)",
+            "identifier": {
+              "scheme": "DNCP-SICP-CODE",
+              "id": "375",
+              "legalName": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+            },
+            "contactPoint": {
+              "email": "uoc@mitic.gov.py",
+              "name": "Gustavo Daniel Berni González",
+              "telephone": "0212179906"
+            },
+            "roles": [
+              "buyer",
+              "procuringEntity",
+              "payer"
+            ],
+            "details": {
+              "level": "Poder Ejecutivo",
+              "entityType": "Organismos de la Administración Central",
+              "type": "Entidad"
+            },
+            "additionalIdentifiers": [
+              {
+                "id": "2019.12.21",
+                "legalName": "Ministerio de Tecnologías de la Información y Comunicación",
+                "scheme": "PY-PGN"
+              }
+            ]
+          },
+          {
+            "name": "BLANCA TEODOLINA MARIN RIQUELME",
+            "id": "PY-RUC-388022-2",
+            "identifier": {
+              "id": "388022-2",
+              "legalName": "BLANCA TEODOLINA MARIN RIQUELME",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier",
+              "tenderer",
+              "supplier",
+              "payee"
+            ],
+            "contactPoint": {
+              "name": "BLANCA MARÍN",
+              "email": "blancamarin_17@hotmail.com",
+              "faxNumber": "021-424606",
+              "telephone": "0981404515",
+              "url": "http://www.bm.com.py"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "ASUNCION",
+              "region": "Central",
+              "streetAddress": " CORONEL GRACIA  ESQ. CPTAN. MIRANDA "
+            },
+            "details": {
+              "legalEntityTypeDetail": "Persona Física - Bienes y Servicios",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+                  "id": 21
+                },
+                {
+                  "name": "Utiles de oficina, Productos de papel y cartón e impresos",
+                  "id": 11
+                },
+                {
+                  "name": "Publicidad y Propaganda",
+                  "id": 8
+                }
+              ]
+            }
+          },
+          {
+            "name": "SENIOR PUBLICIDAD SRL",
+            "id": "PY-RUC-80000411-6",
+            "identifier": {
+              "id": "80000411-6",
+              "legalName": "SENIOR PUBLICIDAD SRL",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "NILO RUBÉN OVELAR MELGAREJO.",
+              "email": "rovelar@senior.com.py",
+              "faxNumber": "209093/4"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "ASUNCIÓN.",
+              "region": "Asunción",
+              "streetAddress": "Ciudad del Vaticano 270 casi 25 de Mayo"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.R.L.",
+              "activityTypes": [
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Publicidad y Propaganda",
+                  "id": 8
+                },
+                {
+                  "name": "Servicios Técnicos",
+                  "id": 7
+                }
+              ]
+            }
+          },
+          {
+            "name": "ALEX PUBLICIDAD S.R.L.",
+            "id": "PY-RUC-80004735-4",
+            "identifier": {
+              "id": "80004735-4",
+              "legalName": "ALEX PUBLICIDAD S.R.L.",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "MARIA DEL ROCIO NUNES,DARIO GUSTAVO MORENO DE LOS RIOS",
+              "email": "ventas@alexpublicidad.com.py",
+              "faxNumber": "0",
+              "telephone": "0972227727"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "ASUNCION (DISTRITO)",
+              "region": "Asunción",
+              "streetAddress": "TTE JUAN M.ALCORTA FLEITAS "
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.R.L.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Utiles de oficina, Productos de papel y cartón e impresos",
+                  "id": 11
+                },
+                {
+                  "name": "Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+                  "id": 5
+                },
+                {
+                  "name": "Publicidad y Propaganda",
+                  "id": 8
+                }
+              ]
+            }
+          },
+          {
+            "name": "FUSION S.A",
+            "id": "PY-RUC-80026952-7",
+            "identifier": {
+              "id": "80026952-7",
+              "legalName": "FUSION S.A",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "DELFIN PEÑA BAREIRO",
+              "email": "delfin@fusioncreativa.com.py",
+              "faxNumber": "0",
+              "telephone": "985864505",
+              "url": "http://www.fusioncreativa.com.py"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "SAN LORENZO (DISTRITO)",
+              "region": "Central",
+              "streetAddress": "JACARANDA ESQUINA ROSA PEÑA Nº 2994"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+                  "id": 5
+                },
+                {
+                  "name": "Publicidad y Propaganda",
+                  "id": 8
+                }
+              ]
+            }
+          },
+          {
+            "name": "Grupo 8R S.A.",
+            "id": "PY-RUC-80072458-5",
+            "identifier": {
+              "id": "80072458-5",
+              "legalName": "Grupo 8R S.A.",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "Julián Arturo Andrés Resquín Chop.",
+              "email": "presupuestos@nuevasideas.com.py",
+              "telephone": "0981490339",
+              "url": "http://www.nuevasideas.com.py"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "Asunción.",
+              "region": "Asunción",
+              "streetAddress": "Manduvirá N° 1051 e/ Colón y Hernandarias."
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Utiles de oficina, Productos de papel y cartón e impresos",
+                  "id": 11
+                }
+              ]
+            }
+          }
+        ],
+        "tag": [
+          "compiled"
+        ]
+      }
+    }
+  ],
+  "pagination": {
+    "total_items": 1,
+    "total_pages": 1,
+    "current_page": 1,
+    "items_per_page": 10,
+    "total_in_page": 1
+  }
+}

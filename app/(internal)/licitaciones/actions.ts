@@ -421,29 +421,65 @@ export async function convertirLicitacionAProyecto(
     };
   }
 
-  // 2. Obtener ítems de la licitación
+  // 2. Verificar monto adjudicado real (FAIL CLOSED: presupuesto referencial != adjudicación)
+  const adjudicatedAmount = Number(lic.monto_adjudicado);
+  if (isNaN(adjudicatedAmount) || adjudicatedAmount <= 0) {
+    return {
+      error: "No se puede convertir a proyecto: la licitación no cuenta con monto adjudicado verificado (monto_adjudicado > 0). El presupuesto referencial no puede sustituir al valor de adjudicación contractual."
+    };
+  }
+
+  // 3. Obtener ítems de la licitación (FAIL CLOSED: cero ítems sintéticos permitidos)
   const { data: items } = await supabase
     .from("licitacion_items")
     .select("*")
     .eq("licitacion_id", licitacionId)
     .order("sort_order");
 
-  // Si no hay ítems detallados, crear al menos un ítem con el monto adjudicado
-  const bidItems = (items && items.length > 0)
-    ? items.map((it: any, idx: number) => ({
-        itemNumber: idx + 1,
-        description: it.descripcion || "Ítem de licitación",
-        quantity: it.cantidad != null ? Number(it.cantidad) : 0,
-        unit: it.unidad ? String(it.unidad).trim() : "",
-        unitPricePyg: Number(it.precio_unitario_estimado || (it.monto_total && it.cantidad ? it.monto_total / Number(it.cantidad) : 0))
-      }))
-    : [{
-        itemNumber: 1,
-        description: `Ejecución de obra: ${lic.titulo}`,
-        quantity: 1,
-        unit: "GL",
-        unitPricePyg: Number(lic.monto_adjudicado || lic.monto_referencial || 0)
-      }];
+  if (!items || items.length === 0) {
+    return {
+      error: "No se puede convertir a proyecto: la licitación no cuenta con ítems económicos detallados para transferir al presupuesto de obra."
+    };
+  }
+
+  // Validar exhaustivamente cada ítem real
+  const bidItems: Array<{
+    itemNumber: number;
+    description: string;
+    quantity: number;
+    unit: string;
+    unitPricePyg: number;
+  }> = [];
+
+  for (let idx = 0; idx < items.length; idx++) {
+    const it = items[idx];
+    const itemNumber = idx + 1;
+    const desc = it.descripcion ? String(it.descripcion).trim() : "";
+    const unit = it.unidad ? String(it.unidad).trim() : "";
+    const qty = Number(it.cantidad);
+    const unitPrice = Number(it.precio_unitario_estimado || (it.monto_total && it.cantidad ? it.monto_total / Number(it.cantidad) : 0));
+
+    if (!desc) {
+      return { error: `No se puede convertir a proyecto: el ítem #${itemNumber} no tiene descripción válida.` };
+    }
+    if (!unit) {
+      return { error: `No se puede convertir a proyecto: el ítem #${itemNumber} ("${desc.slice(0, 30)}") no tiene unidad de medida verificable.` };
+    }
+    if (isNaN(qty) || qty <= 0) {
+      return { error: `No se puede convertir a proyecto: el ítem #${itemNumber} ("${desc.slice(0, 30)}") tiene cantidad inválida (${it.cantidad}). Debe ser estrictamente mayor a cero.` };
+    }
+    if (isNaN(unitPrice) || unitPrice < 0) {
+      return { error: `No se puede convertir a proyecto: el ítem #${itemNumber} ("${desc.slice(0, 30)}") tiene precio unitario inválido.` };
+    }
+
+    bidItems.push({
+      itemNumber,
+      description: desc,
+      quantity: qty,
+      unit,
+      unitPricePyg: unitPrice
+    });
+  }
 
   const { executeTenderToProjectTransaction } = await import("@/lib/procurement/tender-to-project");
 
@@ -455,7 +491,7 @@ export async function convertirLicitacionAProyecto(
     dncpNro: lic.dncp_nro,
     projectTitle: lic.titulo,
     buyerName: lic.comitente_nombre || "Entidad Convocante",
-    adjudicatedOfferPricePyg: Number(lic.monto_adjudicado || lic.monto_referencial || 0),
+    adjudicatedOfferPricePyg: adjudicatedAmount,
     durationMonths: null, // UNKNOWN != DEFAULT: No inventar 6 meses
     advancePaymentPct: null, // UNKNOWN != DEFAULT: No inventar 10%
     retentionPct: null, // UNKNOWN != DEFAULT: No inventar 5%
@@ -657,10 +693,14 @@ export async function persistirEvaluacionComercial(
   }
 
   // Cargar observaciones transaccionales de costo del tenant para calcular costo de reposición
+  // INVARIANTE CANÓNICO DE ESTADO DE EVIDENCIA:
+  // Solo se deben consumir observaciones con estado_evidencia = 'VALIDA'.
+  // 'REVISION_REQUERIDA', 'OBSOLETA' y 'DESCARTADA' jamás deben influir en el costo de oferta.
   const { data: costObs } = await supabase
     .from("cost_observations")
     .select("*")
     .eq("empresa_id", empresaId)
+    .eq("estado_evidencia", "VALIDA")
     .order("fecha_observacion", { ascending: false });
 
   const { calculateCostEstimate } = await import("@/lib/cost-engine");
@@ -688,8 +728,9 @@ export async function persistirEvaluacionComercial(
       continue;
     }
 
-    // Prioridad 2: Costo de reposición según observaciones transaccionales del Cost Engine
+    // Prioridad 2: Costo de reposición según observaciones transaccionales del Cost Engine (estrictamente estado_evidencia = 'VALIDA')
     const matchingObs = (costObs ?? []).filter((obs: any) =>
+      obs.estado_evidencia === 'VALIDA' &&
       obs.descripcion_item && it.descripcion &&
       obs.descripcion_item.toLowerCase().trim() === it.descripcion.toLowerCase().trim()
     );

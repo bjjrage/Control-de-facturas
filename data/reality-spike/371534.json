@@ -1,0 +1,3817 @@
+{
+  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/ocds/record/ocds-03ad3f-371534",
+  "publishedDate": "2026-09-10T21:17:47Z",
+  "publisher": {
+    "name": "Dirección Nacional de Contrataciones Públicas, Paraguay"
+  },
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "publicationPolicy": "https://www.contrataciones.gov.py/datos/legal",
+  "version": "1.1",
+  "extensions": [
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_budget_breakdown_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_budget_and_spend_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_lots_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_enquiry_extension/master/extension.json",
+    "https://raw.githubusercontent.com/sdd1982/enquiriesAddress/master/extension.json",
+    "https://raw.githubusercontent.com/sdd1982/legalEntityTypeDetail/master/extension.json",
+    "https://raw.githubusercontent.com/gitMHOCDS/transactions/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_investmentproject_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_clarification_meetings_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_item_attributes_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_items_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_contract_suppliers_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_partyDetails_scale_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_location_extension/v1.1.4/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_activityType_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_tender_notifiedsuppliers_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_tender_lots_details_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_memberOf_extension/master/extension.json",
+    "https://raw.githubusercontent.com/portaledcahn/ocds_tenderDatePublished_extension/master/extension.json",
+    "https://raw.githubusercontent.com/INAImexico/ocds_guarantees_extension/master/extension.json",
+    "https://bitbucket.org/ONCAETI/ocds_releasesource_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_requirements_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_bidOpening_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_coveredBy_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_qualification_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_publicEntitiesDetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_items_subItems_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_statusdetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_mainProcurementCategoryDetails_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_identifier_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_planning_estimatedDate_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_participationFee_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_amendments_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_lot_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_transaction_details_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_financialprogress_financialcode_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_partyDetails_categories_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_complaints_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_item_minQuantity_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_implementation_purchaseOrder_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_document_type_details/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_cancellations_amendments_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_milestone_documents_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_techniques_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_bid_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_bid_items_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_auctions_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_secondStage_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_beneficiaries_extension/raw/master/extension.json",
+    "https://raw.githubusercontent.com/Crown-Commercial-Service/ocds_tender_suitability_extension/main/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_subcontracting_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_partyDetails_scale_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_organizationClassification_extension/master/extension.json",
+    "https://raw.githubusercontent.com/open-contracting-extensions/ocds_sustainability_extension/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_contract_implementation_reportedpayment_extension/raw/master/extension.json",
+    "https://gitlab.com/dncp-opendata/ocds_milestone_deliveries_extension/raw/master/extension.json"
+  ],
+  "records": [
+    {
+      "ocid": "ocds-03ad3f-371534-1",
+      "releases": [
+        {
+          "date": "2019-12-11T20:08:29-04:00",
+          "tag": [
+            "tender",
+            "award",
+            "contractTermination",
+            "implementation",
+            "contractAmendment",
+            "planningUpdate"
+          ],
+          "url": "https://www.contrataciones.gov.py/datos/api/v3/doc/ocds/releases/id/371534-cd-mitic-n-17-2019-servicio-internet-redundante-infraestructura-nube-py-mitic-pluria-1-1576094909.264125"
+        }
+      ],
+      "compiledRelease": {
+        "id": "371534-cd-mitic-n-17-2019-servicio-internet-redundante-infraestructura-nube-py-mitic-pluria-1-1576094909.264125",
+        "awards": [
+          {
+            "id": "371534-tecnologia-electronica-e-informatica-sa-t-e-i-s-a-1",
+            "status": "active",
+            "statusDetails": "Adjudicado",
+            "date": "2019-12-06T12:00:00-04:00",
+            "value": {
+              "amount": 31533120,
+              "currency": "PYG"
+            },
+            "suppliers": [
+              {
+                "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+                "id": "PY-RUC-80013979-8"
+              }
+            ],
+            "documents": [
+              {
+                "id": "kkXZbRt6XD4=",
+                "datePublished": "2019-12-11T20:08:29-04:00",
+                "title": "cco_cd_17_1575675583768.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/kkXZbRt6XD4%253D",
+                "language": "es",
+                "documentTypeDetails": "Cuadro Comparativo de Ofertas"
+              },
+              {
+                "id": "mPUkTfkMAWE=",
+                "datePublished": "2019-12-11T20:08:29-04:00",
+                "title": "informe_de_evaluacion_cd_17_1575675525203.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/mPUkTfkMAWE%253D",
+                "language": "es",
+                "documentTypeDetails": "Informe de Evaluación"
+              },
+              {
+                "id": "WOoe9aCOn/c=",
+                "datePublished": "2019-12-11T20:08:29-04:00",
+                "title": "acta_de_apertura_cd_17_1575659346124.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/WOoe9aCOn%252Fc%253D",
+                "language": "es",
+                "documentTypeDetails": "Acta de Apertura"
+              },
+              {
+                "id": "FoJP43LrQL0=",
+                "title": "26923_res_adj_1576105705163.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/FoJP43LrQL0%253D",
+                "language": "es",
+                "documentTypeDetails": "Nota de Observacion"
+              },
+              {
+                "id": "dix2iRRDbik=",
+                "title": "URL de la Adjudicación",
+                "url": "https://www.contrataciones.gov.py/licitaciones/adjudicacion/371534-cd-mitic-n-17-2019-servicio-internet-redundante-infraestructura-nube-py-mitic-pluria-1/resumen-adjudicacion.html",
+                "language": "es",
+                "documentType": "awardNotice",
+                "format": "text/html"
+              },
+              {
+                "id": "oZhXAHBSRFo=",
+                "datePublished": "2019-12-11T20:08:29-04:00",
+                "title": "resolucion_mitic_n_654_2019_1575675528730.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/oZhXAHBSRFo%253D",
+                "language": "es",
+                "documentType": "awardNotice",
+                "documentTypeDetails": "Resolución de Adjudicación"
+              },
+              {
+                "id": "C73LCpxwJjw=",
+                "datePublished": "2019-12-11T20:08:29-04:00",
+                "title": "notificacion_de_adjudicacion_1575678113662.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/adjudicacion/C73LCpxwJjw%253D",
+                "language": "es",
+                "documentTypeDetails": "Notificación al Oferente"
+              }
+            ],
+            "items": [
+              {
+                "id": "KgeGkR3RCKg9pgm97VgwIg==",
+                "description": "Instalacion de equipos, cableados y puntos de red/Instalación de infraestructura necesaria para provisión de internet ",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "81112107-001",
+                  "description": "Instalacion de equipos, cableados y puntos de red ",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/81112107-001"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "81112107",
+                    "description": "Servicios de Instalación de Internet y relacionados",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/81112107"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Unidad",
+                  "id": "UNI",
+                  "value": {
+                    "amount": 220000,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "DobGPUK00PE=",
+                "attributes": [
+                  {
+                    "value": "UNIDAD",
+                    "name": "Presentacion",
+                    "id": "2"
+                  },
+                  {
+                    "name": "Orden",
+                    "value": "1",
+                    "id": "7"
+                  }
+                ]
+              },
+              {
+                "id": "PNm6Lft7God0uLRJqyFr9Q==",
+                "description": "Servicios de Internet",
+                "classification": {
+                  "scheme": "catalogoNivel5DNCP",
+                  "id": "81112107-004",
+                  "description": "Servicios de Internet",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/81112107-004"
+                },
+                "additionalClassifications": [
+                  {
+                    "scheme": "UNSPSC",
+                    "id": "81112107",
+                    "description": "Servicios de Instalación de Internet y relacionados",
+                    "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/81112107"
+                  }
+                ],
+                "quantity": 1,
+                "unit": {
+                  "name": "Mes",
+                  "id": "ME",
+                  "value": {
+                    "amount": 31313120,
+                    "currency": "PYG"
+                  }
+                },
+                "relatedLot": "DobGPUK00PE=",
+                "attributes": [
+                  {
+                    "value": "EVENTO",
+                    "name": "Presentacion",
+                    "id": "2"
+                  },
+                  {
+                    "name": "Orden",
+                    "value": "2",
+                    "id": "7"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "contracts": [
+          {
+            "id": "CD-12021-19-184866",
+            "guarantees": [
+              {
+                "id": "QCf2mp4Sd+g=",
+                "date": "2019-12-28T00:00:00-04:00",
+                "period": {
+                  "endDate": "2021-05-13T00:00:00-04:00",
+                  "startDate": "2019-12-18T00:00:00-04:00"
+                },
+                "obligations": "fulfillment"
+              },
+              {
+                "id": "qyTAoVr/Bnw=",
+                "date": "2021-05-23T00:00:00-04:00",
+                "period": {
+                  "endDate": "2021-08-16T00:00:00-04:00",
+                  "startDate": "2021-05-13T00:00:00-04:00"
+                },
+                "obligations": "fulfillment"
+              }
+            ],
+            "implementation": {
+              "milestones": [
+                {
+                  "purchaseOrderId": "iC/ayY6lOn0=",
+                  "id": "6Fo4UHQWtMM=",
+                  "title": "Informe de conformidad - mes enero del 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-04-22T00:00:00-04:00",
+                  "dateMet": "2020-04-22T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "B0iC7XjOBP8=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/B0iC7XjOBP8%253D",
+                      "datePublished": "2023-04-20T11:20:34-04:00",
+                      "language": "es",
+                      "title": "2__informe_de_conformidad_enero_a_febrero_2020_1682004033446.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "7+DSBxXVg3U=",
+                  "title": "Informe de Prestación de servicio Enero a Febrero 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2019-12-18T00:00:00-04:00",
+                  "dateMet": "2020-02-18T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "ao+//z6/rb4=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/ao%252B%252F%252Fz6%252Frb4%253D",
+                      "datePublished": "2021-07-12T09:30:32-04:00",
+                      "language": "es",
+                      "title": "01_informe_de_conformidad_enero_a_febrero_2020_1626096631650.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "IkoOOsC8X5A=",
+                  "title": "Informe de Prestación de Servicios 1",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2019-12-30T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "purchaseOrderId": "iC/ayY6lOn0=",
+                  "id": "qTIIKO+P1xY=",
+                  "title": "Informe de conformidad - mes mayo del 2021",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2021-09-23T00:00:00-04:00",
+                  "dateMet": "2021-09-23T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "Tw9IKLMXn+Y=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/Tw9IKLMXn%252BY%253D",
+                      "datePublished": "2023-04-20T11:53:21-04:00",
+                      "language": "es",
+                      "title": "17__informe_abril_mayo_junio_2021_1682006001320.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "YJx2Z0DHYbY=",
+                  "title": "Informe de Prestación de Servicios 10",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-09-30T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "id": "KvIqSGcJaZs=",
+                  "title": "Informe de Prestación de servicio septiembre 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-08-18T00:00:00-04:00",
+                  "dateMet": "2020-09-18T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "+3NnFccdo2A=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/%252B3NnFccdo2A%253D",
+                      "datePublished": "2021-07-12T09:35:42-04:00",
+                      "language": "es",
+                      "title": "06_informe_de_conformidad_septiembre_2020_1626096941689.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "iC/ayY6lOn0=",
+                  "id": "A7p5cF3sMo0=",
+                  "title": "Informe de conformidad - mes diciembre del 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-05-18T00:00:00-04:00",
+                  "dateMet": "2020-05-18T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "Jlx/WiPXteM=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/Jlx%252FWiPXteM%253D",
+                      "datePublished": "2023-04-20T11:39:08-04:00",
+                      "language": "es",
+                      "title": "13__diciembre_2020_1682005148146.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "83+LndHEmUY=",
+                  "title": "Informe de Prestación de Servicios 7",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-06-30T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "id": "bE0+HUnAtW8=",
+                  "title": "\tInforme de Prestación de servicio Diciembre 2019",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2019-12-20T00:00:00-04:00",
+                  "dateMet": "2019-12-20T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "xHh+W9MTlT8=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/xHh%252BW9MTlT8%253D",
+                      "datePublished": "2023-04-17T16:26:15-04:00",
+                      "language": "es",
+                      "title": "diciembre_2019_1681763174376.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "RHlYohQrPE8=",
+                  "title": "Informe de Prestación de Servicios 16",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2021-03-30T00:00:00-04:00",
+                  "status": "scheduled",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "wK2azxjs5rk=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/wK2azxjs5rk%253D",
+                      "datePublished": "2021-05-10T14:29:42-04:00",
+                      "language": "es",
+                      "title": "informe_de_conformidad_1_1620671381671.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "iC/ayY6lOn0=",
+                  "id": "KzvGPTLpWGs=",
+                  "title": "Informe de conformidad - mes junio del 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-09-23T00:00:00-04:00",
+                  "dateMet": "2020-09-23T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "v83eDO4e74Q=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/v83eDO4e74Q%253D",
+                      "datePublished": "2023-04-20T11:25:07-04:00",
+                      "language": "es",
+                      "title": "7__informe_de_conformidad_junio_2020_1682004306471.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "iC/ayY6lOn0=",
+                  "id": "3Zz3Cc6VU78=",
+                  "title": "Informe de conformidad - mes diciembre del 2019",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2019-12-20T00:00:00-04:00",
+                  "dateMet": "2019-12-20T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "zu4PpXziDFc=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/zu4PpXziDFc%253D",
+                      "datePublished": "2023-04-20T11:08:38-04:00",
+                      "language": "es",
+                      "title": "1__informe_diciembre_2019_1682003318185.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "bV86ax9NQ+4=",
+                  "title": "Informe de Prestación de Servicios 2",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-01-30T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "id": "O4X+0vTmNgU=",
+                  "title": "Informe de Prestación de servicio abril 2021",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2021-04-18T00:00:00-04:00",
+                  "dateMet": "2021-05-18T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "5B0SGRpeeuk=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/5B0SGRpeeuk%253D",
+                      "datePublished": "2021-07-12T09:35:32-04:00",
+                      "language": "es",
+                      "title": "06_informe_de_conformidad_septiembre_2020_1626096931681.pdf",
+                      "format": "application/pdf"
+                    },
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "7G1DuLnGuyE=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/7G1DuLnGuyE%253D",
+                      "datePublished": "2021-07-12T09:33:21-04:00",
+                      "language": "es",
+                      "title": "04_informe_de_conformidad_julio__2020_1626096800620.pdf",
+                      "format": "application/pdf"
+                    },
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "EgR9OXrppl0=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/EgR9OXrppl0%253D",
+                      "datePublished": "2021-07-12T09:29:39-04:00",
+                      "language": "es",
+                      "title": "02_informe_de_conformidad_marzo_a_mayo__2020_1626096578378.pdf",
+                      "format": "application/pdf"
+                    },
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "fK/t9ryQH1s=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/fK%252Ft9ryQH1s%253D",
+                      "datePublished": "2021-07-12T09:28:07-04:00",
+                      "language": "es",
+                      "title": "01_informe_de_conformidad_enero_a_febrero_2020_1626096486534.pdf",
+                      "format": "application/pdf"
+                    },
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "iM1EwQ5HiYU=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/iM1EwQ5HiYU%253D",
+                      "datePublished": "2021-07-12T09:32:16-04:00",
+                      "language": "es",
+                      "title": "03_informe_de_conformidad_junio_2020_1626096735706.pdf",
+                      "format": "application/pdf"
+                    },
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "Kp92Is7HCgI=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/Kp92Is7HCgI%253D",
+                      "datePublished": "2022-03-14T15:25:29-04:00",
+                      "language": "es",
+                      "title": "informe_marzo_2021_1647282328776.pdf",
+                      "format": "application/pdf"
+                    },
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "RPrW6oujYEE=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/RPrW6oujYEE%253D",
+                      "datePublished": "2021-07-07T09:27:09-04:00",
+                      "language": "es",
+                      "title": "conformidad_1625664428667.pdf",
+                      "format": "application/pdf"
+                    },
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "uC+QgqI4e78=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/uC%252BQgqI4e78%253D",
+                      "datePublished": "2021-07-12T09:34:33-04:00",
+                      "language": "es",
+                      "title": "05_informe_de_conformidad_agosto_2020_1626096872787.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "iC/ayY6lOn0=",
+                  "id": "IFhWHzilauk=",
+                  "title": "Informe de conformidad - mes marzo del 2021",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2021-04-23T00:00:00-04:00",
+                  "dateMet": "2021-04-23T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "HVIemrCttJk=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/HVIemrCttJk%253D",
+                      "datePublished": "2023-04-20T11:46:02-04:00",
+                      "language": "es",
+                      "title": "16__informe_marzo_2021_1647282328776_1682005562196.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "iC/ayY6lOn0=",
+                  "id": "z7O1571T/zA=",
+                  "title": "Informe de conformidad - mes mayo del 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-06-18T00:00:00-04:00",
+                  "dateMet": "2020-06-18T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "oHMjOYlZLeQ=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/oHMjOYlZLeQ%253D",
+                      "datePublished": "2023-04-20T11:24:06-04:00",
+                      "language": "es",
+                      "title": "6__informe_de_conformidad_marzo_a_mayo__2020_1682004245963.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "iC/ayY6lOn0=",
+                  "id": "maILI8FKD8A=",
+                  "title": "Informe de conformidad - mes enero del 2021",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2021-05-11T00:00:00-04:00",
+                  "dateMet": "2021-05-11T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "2iKkAoGubYI=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/2iKkAoGubYI%253D",
+                      "datePublished": "2023-04-20T11:42:05-04:00",
+                      "language": "es",
+                      "title": "14__enero_febrero_2021_1682005325308.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "SU9DSNeaUbU=",
+                  "title": "Informe de Prestación de servicio octubre 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-09-18T00:00:00-04:00",
+                  "dateMet": "2020-10-18T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "xrkgYEjFXD4=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/xrkgYEjFXD4%253D",
+                      "datePublished": "2021-07-12T09:36:43-04:00",
+                      "language": "es",
+                      "title": "07_informe_de_conformidad_octubre_2020_1626097002881.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "iC/ayY6lOn0=",
+                  "id": "+z6zZFrZjzw=",
+                  "title": "Informe de conformidad - mes abril del 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-06-18T00:00:00-04:00",
+                  "dateMet": "2020-06-18T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "rnr1udu2hRA=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/rnr1udu2hRA%253D",
+                      "datePublished": "2023-04-20T11:23:14-04:00",
+                      "language": "es",
+                      "title": "5__informe_de_conformidad_marzo_a_mayo__2020_1682004193658.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "6bOzL4WHv4M=",
+                  "title": "Informe de Prestación de Servicios 3",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-02-29T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "id": "uRb2DKR9xSo=",
+                  "title": "\tInforme de Prestación de servicio Diciembre 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2021-05-18T00:00:00-04:00",
+                  "dateMet": "2021-05-18T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "gtIBEVi7DCA=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/gtIBEVi7DCA%253D",
+                      "datePublished": "2023-04-17T16:24:53-04:00",
+                      "language": "es",
+                      "title": "diciembre_2020_1681763093092.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "1oOA9FtWMnY=",
+                  "title": "Informe de Prestación de Servicios 15",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2021-02-28T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "purchaseOrderId": "iC/ayY6lOn0=",
+                  "id": "REJdFsXg5nM=",
+                  "title": "Informe de conformidad - mes marzo del 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-06-18T00:00:00-04:00",
+                  "dateMet": "2020-06-18T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "mMtoph/FnL0=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/mMtoph%252FFnL0%253D",
+                      "datePublished": "2023-04-20T11:22:40-04:00",
+                      "language": "es",
+                      "title": "4__informe_de_conformidad_marzo_a_mayo__2020_1682004159853.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "apZxozGKTSg=",
+                  "title": "Informe de Prestación de servicio Marzo 2021",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2021-03-18T00:00:00-04:00",
+                  "dateMet": "2021-04-18T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "I3ym6GcdORE=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/I3ym6GcdORE%253D",
+                      "datePublished": "2022-03-14T15:25:48-04:00",
+                      "language": "es",
+                      "title": "informe_marzo_2021_1647282348198.pdf",
+                      "format": "application/pdf"
+                    },
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "TlCuVMw8hig=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/TlCuVMw8hig%253D",
+                      "datePublished": "2022-03-14T15:25:55-04:00",
+                      "language": "es",
+                      "title": "informe_marzo_2021_1647282354551.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "B+nPNKXZV+c=",
+                  "title": "Informe de Prestación de Servicios 8",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-07-30T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "purchaseOrderId": "iC/ayY6lOn0=",
+                  "id": "XEBxUoHG2qs=",
+                  "title": "Informe de conformidad - mes febrero del 2021",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2021-05-11T00:00:00-04:00",
+                  "dateMet": "2021-05-11T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "mTdhmqoYiKk=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/mTdhmqoYiKk%253D",
+                      "datePublished": "2023-04-20T11:44:48-04:00",
+                      "language": "es",
+                      "title": "15__enero_febrero_2021_1682005488173.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "iC/ayY6lOn0=",
+                  "id": "Vidwyjh/prs=",
+                  "title": "Informe de conformidad - mes febrero del 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-04-22T00:00:00-04:00",
+                  "dateMet": "2020-04-22T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "b2ExhdXTAH4=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/b2ExhdXTAH4%253D",
+                      "datePublished": "2023-04-20T11:21:48-04:00",
+                      "language": "es",
+                      "title": "3__informe_de_conformidad_enero_a_febrero_2020_1682004107981.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "h5DyrdmbLcY=",
+                  "title": "Informe de Prestación de Servicios 12",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-11-30T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "id": "Kbymn4nNKIU=",
+                  "title": "Informe de Prestación de Servicios 9",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-08-30T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "id": "3vItWVP92uc=",
+                  "title": "Informe de Prestación de Servicios 4",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-03-30T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "id": "ti2+zr1UNAQ=",
+                  "title": "Informe de Prestación de servicio julio 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-06-18T00:00:00-04:00",
+                  "dateMet": "2020-07-18T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "9+i0wZ8fV9E=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/9%252Bi0wZ8fV9E%253D",
+                      "datePublished": "2021-07-12T09:33:32-04:00",
+                      "language": "es",
+                      "title": "04_informe_de_conformidad_julio__2020_1626096811725.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "iC/ayY6lOn0=",
+                  "id": "eNmnBBt437k=",
+                  "title": "Informe de conformidad - mes abril del 2021",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2021-09-23T00:00:00-04:00",
+                  "dateMet": "2021-09-23T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "16qE32uhHn4=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/16qE32uhHn4%253D",
+                      "datePublished": "2023-04-20T11:52:39-04:00",
+                      "language": "es",
+                      "title": "17__informe_abril_mayo_junio_2021_1682005958498.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "Zx6Ar8WKNd0=",
+                  "title": "Informe de Prestación de servicio junio 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-05-18T00:00:00-04:00",
+                  "dateMet": "2020-06-18T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "NkZ2x2EkiEA=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/NkZ2x2EkiEA%253D",
+                      "datePublished": "2021-07-12T09:32:41-04:00",
+                      "language": "es",
+                      "title": "03_informe_de_conformidad_junio_2020_1626096760796.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "HGy9SAz1aJU=",
+                  "title": "Informe de Prestación de Servicios 14",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2021-01-30T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "id": "CsFZ6dUIz/U=",
+                  "title": "Informe de Prestación de servicio noviembre 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-10-18T00:00:00-04:00",
+                  "dateMet": "2020-11-18T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "gqlq6pZ5CF0=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/gqlq6pZ5CF0%253D",
+                      "datePublished": "2021-07-12T09:37:45-04:00",
+                      "language": "es",
+                      "title": "08_informe_de_conformidad_noviembre_2020_1626097064959.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "qiv+s1htxvg=",
+                  "title": "Informe de Prestación de servicio agosto 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-07-18T00:00:00-04:00",
+                  "dateMet": "2020-08-18T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "8WDtv+WPOtE=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/8WDtv%252BWPOtE%253D",
+                      "datePublished": "2021-07-12T09:34:44-04:00",
+                      "language": "es",
+                      "title": "05_informe_de_conformidad_agosto_2020_1626096884280.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "iC/ayY6lOn0=",
+                  "id": "nm965W2lmNE=",
+                  "title": "Informe de conformidad - mes julio del 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-10-19T00:00:00-04:00",
+                  "dateMet": "2020-10-19T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "5NTha83N68E=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/5NTha83N68E%253D",
+                      "datePublished": "2023-04-20T11:26:02-04:00",
+                      "language": "es",
+                      "title": "8__informe_de_conformidad_julio__2020_1682004361523.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "iC/ayY6lOn0=",
+                  "id": "A+9aUYOL2o8=",
+                  "title": "Informe de conformidad - mes agosto del 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-09-23T00:00:00-04:00",
+                  "dateMet": "2020-09-23T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "kHfxSqgevQI=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/kHfxSqgevQI%253D",
+                      "datePublished": "2023-04-20T11:27:02-04:00",
+                      "language": "es",
+                      "title": "9__informe_de_conformidad_agosto_2020_1682004421474.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "iC/ayY6lOn0=",
+                  "id": "c10UrEcjKKw=",
+                  "title": "Informe de conformidad - mes junio del 2021",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2021-09-23T00:00:00-04:00",
+                  "dateMet": "2021-09-23T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "jouc7H5mGuo=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/jouc7H5mGuo%253D",
+                      "datePublished": "2023-04-20T11:53:58-04:00",
+                      "language": "es",
+                      "title": "17__informe_abril_mayo_junio_2021_1682006038135.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "PN/m2La7BFk=",
+                  "title": "Informe de Prestación de servicio marzo a mayo 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-02-18T00:00:00-04:00",
+                  "dateMet": "2020-05-18T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "+JG1NJdtNOU=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/%252BJG1NJdtNOU%253D",
+                      "datePublished": "2021-07-12T09:30:47-04:00",
+                      "language": "es",
+                      "title": "02_informe_de_conformidad_marzo_a_mayo__2020_1626096646910.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "UbLuZwj/tWM=",
+                  "title": "Informe de Prestación de Servicios 13",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-12-30T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "id": "A4UPYN7ymV0=",
+                  "title": "Informe de Prestación de servicio Marzo 2021",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2021-03-18T00:00:00-04:00",
+                  "dateMet": "2021-04-18T00:00:00-04:00",
+                  "status": "met"
+                },
+                {
+                  "purchaseOrderId": "iC/ayY6lOn0=",
+                  "id": "EdwqMN2LA+8=",
+                  "title": "Informe de conformidad - mes noviembre del 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-12-10T00:00:00-04:00",
+                  "dateMet": "2020-12-10T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "Hv059yaub8g=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/Hv059yaub8g%253D",
+                      "datePublished": "2023-04-20T11:37:47-04:00",
+                      "language": "es",
+                      "title": "12__informe_de_conformidad_noviembre_2020_1682005067267.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "iC/ayY6lOn0=",
+                  "id": "f0gVL9owhxg=",
+                  "title": "Informe de conformidad - mes octubre del 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-11-11T00:00:00-04:00",
+                  "dateMet": "2020-11-11T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "dfwf7bDjK1Q=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/dfwf7bDjK1Q%253D",
+                      "datePublished": "2023-04-20T11:36:11-04:00",
+                      "language": "es",
+                      "title": "11__informe_de_conformidad_octubre_2020_1682004970713.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "purchaseOrderId": "iC/ayY6lOn0=",
+                  "id": "jpJEzooVDOc=",
+                  "title": "Informe de conformidad - mes setiembre del 2020",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-10-20T00:00:00-04:00",
+                  "dateMet": "2020-10-20T00:00:00-04:00",
+                  "status": "met",
+                  "documents": [
+                    {
+                      "documentTypeDetails": "Informe",
+                      "id": "m/6+qjNVzUE=",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_entregable/m%252F6%252BqjNVzUE%253D",
+                      "datePublished": "2023-04-20T11:27:56-04:00",
+                      "language": "es",
+                      "title": "10__informe_de_conformidad_septiembre_2020_1682004476030.pdf",
+                      "format": "application/pdf"
+                    }
+                  ]
+                },
+                {
+                  "id": "sGBHrR6JltQ=",
+                  "title": "Informe de Prestación de Servicios 5",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-04-30T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "id": "Xh31+7hhc3I=",
+                  "title": "Informe de Prestación de Servicios 6",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-05-30T00:00:00-04:00",
+                  "status": "scheduled"
+                },
+                {
+                  "id": "TkWodnWi0Fk=",
+                  "title": "Informe de Prestación de Servicios 11",
+                  "type": "reporting",
+                  "code": "Informe",
+                  "dueDate": "2020-10-30T00:00:00-04:00",
+                  "status": "scheduled"
+                }
+              ],
+              "purchaseOrders": [
+                {
+                  "id": "iC/ayY6lOn0=",
+                  "title": "Orden de servicios",
+                  "executionPeriod": [
+                    {
+                      "startDate": "2019-12-18T00:00:00-04:00",
+                      "endDate": "2019-12-18T00:00:00-04:00"
+                    }
+                  ],
+                  "status": "terminated",
+                  "documents": [
+                    {
+                      "id": "iC/ayY6lOn0=",
+                      "datePublished": "2023-04-17T14:59:50-04:00",
+                      "title": "orden_de_servicio_1681757989207.pdf",
+                      "url": "https://www.contrataciones.gov.py/documentos/download/contrato_detalle_orden/iC%252FayY6lOn0%253D",
+                      "language": "es",
+                      "documentType": "contractSchedule",
+                      "format": "application/pdf"
+                    }
+                  ]
+                }
+              ],
+              "financialProgress": {
+                "breakdown": [
+                  {
+                    "id": "2019/12/21/2/1/2/0/1/99/260/10/CD-12021-19-184866",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 2177070
+                    },
+                    "classifications": {
+                      "anio": "2019",
+                      "nivel": "12",
+                      "entidad": "21",
+                      "tipo_programa": "2",
+                      "programa": "1",
+                      "sub_programa": "2",
+                      "proyecto": "0",
+                      "financiador": "1",
+                      "departamento": "99",
+                      "objeto_gasto": "260",
+                      "fuente_financiamiento": "10",
+                      "cdp": "371534"
+                    },
+                    "financialCode": "CD-12021-19-184866"
+                  },
+                  {
+                    "id": "2021/12/21/1/1/0/4/74/99/268/30/CD-12021-19-184866",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 5871210
+                    },
+                    "classifications": {
+                      "anio": "2021",
+                      "nivel": "12",
+                      "entidad": "21",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "4",
+                      "financiador": "74",
+                      "departamento": "99",
+                      "objeto_gasto": "268",
+                      "fuente_financiamiento": "30",
+                      "cdp": "371534"
+                    },
+                    "financialCode": "CD-12021-19-184866"
+                  },
+                  {
+                    "id": "2021/12/21/1/1/0/4/74/99/268/30/AC-12021-21-40830",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 5871210
+                    },
+                    "classifications": {
+                      "anio": "2021",
+                      "nivel": "12",
+                      "entidad": "21",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "4",
+                      "financiador": "74",
+                      "departamento": "99",
+                      "objeto_gasto": "268",
+                      "fuente_financiamiento": "30",
+                      "cdp": "371534"
+                    },
+                    "financialCode": "AC-12021-21-40830"
+                  },
+                  {
+                    "id": "2020/12/21/1/1/0/4/74/99/260/30/CD-12021-19-184866",
+                    "period": {
+                      "startDate": "2019-01-01T00:00:00Z",
+                      "endDate": "2019-12-31T00:00:00Z"
+                    },
+                    "measures": {
+                      "monto_a_utilizar": 23484840
+                    },
+                    "classifications": {
+                      "anio": "2020",
+                      "nivel": "12",
+                      "entidad": "21",
+                      "tipo_programa": "1",
+                      "programa": "1",
+                      "sub_programa": "0",
+                      "proyecto": "4",
+                      "financiador": "74",
+                      "departamento": "99",
+                      "objeto_gasto": "260",
+                      "fuente_financiamiento": "30",
+                      "cdp": "371534"
+                    },
+                    "financialCode": "CD-12021-19-184866"
+                  }
+                ]
+              },
+              "transactions": [
+                {
+                  "id": "SIAF+AC-12021-21-40830+001-002-0000344+3118741",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 5525075
+                  },
+                  "date": "2023-01-12T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+                    "id": "PY-RUC-80013979-8"
+                  },
+                  "requestDate": "2022-12-19T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-002-0000344",
+                      "bill": {
+                        "id": "001-002-0000344",
+                        "type": "FACTURA",
+                        "date": "2022-09-26T00:00:00-04:00",
+                        "amount": {
+                          "amount": 5871210,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 160124,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 20709,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 160124,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "AC-12021-21-40830"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184866+001-001-0027475+3006435",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 219200
+                  },
+                  "date": "2020-01-24T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+                    "id": "PY-RUC-80013979-8"
+                  },
+                  "requestDate": "2019-12-22T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-001-0027475",
+                      "bill": {
+                        "id": "001-001-0027475",
+                        "type": "FACTURA",
+                        "date": "2019-12-20T00:00:00-04:00",
+                        "amount": {
+                          "amount": 220000,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 800,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184866"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184866+001-002-0091752+3006436",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 1949953
+                  },
+                  "date": "2020-01-24T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+                    "id": "PY-RUC-80013979-8"
+                  },
+                  "requestDate": "2019-12-22T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-002-0091752",
+                      "bill": {
+                        "id": "001-002-0091752",
+                        "type": "FACTURA",
+                        "date": "2019-12-20T00:00:00-04:00",
+                        "amount": {
+                          "amount": 1957070,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 7117,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184866"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184866+001-002-0094310+3006437",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 1896578
+                  },
+                  "date": "2020-05-19T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+                    "id": "PY-RUC-80013979-8"
+                  },
+                  "requestDate": "2020-04-30T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-002-0094310",
+                      "bill": {
+                        "id": "001-002-0094310",
+                        "type": "FACTURA",
+                        "date": "2020-02-27T00:00:00-04:00",
+                        "amount": {
+                          "amount": 1957070,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 7117,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184866"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184866+001-002-0095510+3006438",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 1896578
+                  },
+                  "date": "2020-05-19T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+                    "id": "PY-RUC-80013979-8"
+                  },
+                  "requestDate": "2020-04-30T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-002-0095510",
+                      "bill": {
+                        "id": "001-002-0095510",
+                        "type": "FACTURA",
+                        "date": "2020-03-04T00:00:00-04:00",
+                        "amount": {
+                          "amount": 1957070,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 7117,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184866"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184866+001-002-0098170+3006439",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 1843417
+                  },
+                  "date": "2020-08-13T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+                    "id": "PY-RUC-80013979-8"
+                  },
+                  "requestDate": "2020-07-30T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-002-0098170",
+                      "bill": {
+                        "id": "001-002-0098170",
+                        "type": "FACTURA",
+                        "date": "2020-05-27T00:00:00-04:00",
+                        "amount": {
+                          "amount": 1957070,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 6903,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184866"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184866+001-002-0098171+3006440",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 1843417
+                  },
+                  "date": "2020-08-13T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+                    "id": "PY-RUC-80013979-8"
+                  },
+                  "requestDate": "2020-07-30T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-002-0098171",
+                      "bill": {
+                        "id": "001-002-0098171",
+                        "type": "FACTURA",
+                        "date": "2020-05-27T00:00:00-04:00",
+                        "amount": {
+                          "amount": 1957070,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 6903,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184866"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184866+001-002-0099339+3006441",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 1896578
+                  },
+                  "date": "2020-08-13T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+                    "id": "PY-RUC-80013979-8"
+                  },
+                  "requestDate": "2020-07-30T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-002-0099339",
+                      "bill": {
+                        "id": "001-002-0099339",
+                        "type": "FACTURA",
+                        "date": "2020-06-01T00:00:00-04:00",
+                        "amount": {
+                          "amount": 1957070,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 7117,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184866"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184866+001-002-0100621+3006442",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 1896578
+                  },
+                  "date": "2020-12-15T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+                    "id": "PY-RUC-80013979-8"
+                  },
+                  "requestDate": "2020-11-30T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-002-0100621",
+                      "bill": {
+                        "id": "001-002-0100621",
+                        "type": "FACTURA",
+                        "date": "2020-07-01T00:00:00-04:00",
+                        "amount": {
+                          "amount": 1957070,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 7117,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184866"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184866+001-002-0101909+3006443",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 1896578
+                  },
+                  "date": "2020-12-15T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+                    "id": "PY-RUC-80013979-8"
+                  },
+                  "requestDate": "2020-11-30T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-002-0101909",
+                      "bill": {
+                        "id": "001-002-0101909",
+                        "type": "FACTURA",
+                        "date": "2020-08-03T00:00:00-04:00",
+                        "amount": {
+                          "amount": 1957070,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 7117,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184866"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184866+001-002-0103176+3006444",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 1896578
+                  },
+                  "date": "2020-12-15T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+                    "id": "PY-RUC-80013979-8"
+                  },
+                  "requestDate": "2020-11-30T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-002-0103176",
+                      "bill": {
+                        "id": "001-002-0103176",
+                        "type": "FACTURA",
+                        "date": "2020-09-02T00:00:00-04:00",
+                        "amount": {
+                          "amount": 1957070,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 7117,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184866"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184866+001-002-0104496+3006445",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 1896578
+                  },
+                  "date": "2020-12-15T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+                    "id": "PY-RUC-80013979-8"
+                  },
+                  "requestDate": "2020-11-30T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-002-0104496",
+                      "bill": {
+                        "id": "001-002-0104496",
+                        "type": "FACTURA",
+                        "date": "2020-10-01T00:00:00-04:00",
+                        "amount": {
+                          "amount": 1957070,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 7117,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184866"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184866+001-002-0105773+3006446",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 1896578
+                  },
+                  "date": "2021-01-14T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+                    "id": "PY-RUC-80013979-8"
+                  },
+                  "requestDate": "2020-12-22T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-002-0105773",
+                      "bill": {
+                        "id": "001-002-0105773",
+                        "type": "FACTURA",
+                        "date": "2020-11-03T00:00:00-04:00",
+                        "amount": {
+                          "amount": 1957070,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 7117,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184866"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184866+001-012-0001147+3006447",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 1896578
+                  },
+                  "date": "2021-01-14T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+                    "id": "PY-RUC-80013979-8"
+                  },
+                  "requestDate": "2020-12-22T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-012-0001147",
+                      "bill": {
+                        "id": "001-012-0001147",
+                        "type": "FACTURA",
+                        "date": "2020-12-07T00:00:00-04:00",
+                        "amount": {
+                          "amount": 1957070,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 7117,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184866"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184866+001-012-0001440+3006448",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 1841691
+                  },
+                  "date": "2021-06-10T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+                    "id": "PY-RUC-80013979-8"
+                  },
+                  "requestDate": "2021-05-29T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-012-0001440",
+                      "bill": {
+                        "id": "001-012-0001440",
+                        "type": "FACTURA",
+                        "date": "2021-03-08T00:00:00-04:00",
+                        "amount": {
+                          "amount": 1957070,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 6903,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184866"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184866+001-012-0001441+3006449",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 1841691
+                  },
+                  "date": "2021-06-10T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+                    "id": "PY-RUC-80013979-8"
+                  },
+                  "requestDate": "2021-05-29T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-012-0001441",
+                      "bill": {
+                        "id": "001-012-0001441",
+                        "type": "FACTURA",
+                        "date": "2021-03-08T00:00:00-04:00",
+                        "amount": {
+                          "amount": 1957070,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 6903,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184866"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184866+001-012-0001442+3006450",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 1841691
+                  },
+                  "date": "2021-06-10T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+                    "id": "PY-RUC-80013979-8"
+                  },
+                  "requestDate": "2021-05-29T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-012-0001442",
+                      "bill": {
+                        "id": "001-012-0001442",
+                        "type": "FACTURA",
+                        "date": "2021-03-08T00:00:00-04:00",
+                        "amount": {
+                          "amount": 1957070,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 6903,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184866"
+                },
+                {
+                  "id": "SIAF+CD-12021-19-184866+001-012-0001514+3006451",
+                  "sourceSystem": "SIAF",
+                  "value": {
+                    "currency": "PYG",
+                    "amount": 1894798
+                  },
+                  "date": "2021-06-10T00:00:00-04:00",
+                  "payer": {
+                    "id": "DNCP-SICP-CODE-375",
+                    "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+                  },
+                  "payee": {
+                    "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+                    "id": "PY-RUC-80013979-8"
+                  },
+                  "requestDate": "2021-05-29T00:00:00-04:00",
+                  "finantialObligations": [
+                    {
+                      "id": "001-012-0001514",
+                      "bill": {
+                        "id": "001-012-0001514",
+                        "type": "FACTURA",
+                        "date": "2021-04-05T00:00:00-04:00",
+                        "amount": {
+                          "amount": 1957070,
+                          "currency": "PYG"
+                        }
+                      },
+                      "retentions": [
+                        {
+                          "id": "1",
+                          "type": "tax",
+                          "name": "IVA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "2",
+                          "type": "tax",
+                          "name": "RENTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "3",
+                          "type": "fee",
+                          "name": "MULTA",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "4",
+                          "type": "tax",
+                          "name": "RETENCION DNCP",
+                          "amount": {
+                            "amount": 7117,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "5",
+                          "type": "fee",
+                          "name": "ISC",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "6",
+                          "type": "fee",
+                          "name": "REPARO",
+                          "amount": {
+                            "amount": 0,
+                            "currency": "PYG"
+                          }
+                        },
+                        {
+                          "id": "7",
+                          "type": "tax",
+                          "name": "RETENCION IVA",
+                          "amount": {
+                            "amount": 53375,
+                            "currency": "PYG"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "financialCode": "CD-12021-19-184866"
+                }
+              ]
+            },
+            "amendments": [
+              {
+                "date": "2021-04-28T00:00:00-04:00",
+                "description": "Ampliación de Monto",
+                "amendsAmount": {
+                  "amount": 5871210,
+                  "currency": "PYG"
+                },
+                "id": "371534-tecnologia-electronica-e-informatica-sa-t-e-i-s-a-1-ampliacion",
+                "financialCode": "AC-12021-21-40830"
+              }
+            ],
+            "awardID": "371534-tecnologia-electronica-e-informatica-sa-t-e-i-s-a-1",
+            "status": "terminated",
+            "statusDetails": "Adjudicado",
+            "dateSigned": "2019-12-17T12:00:00-04:00",
+            "period": {
+              "startDate": "2019-12-18T00:00:00-04:00",
+              "endDate": "2021-03-31T00:00:00-04:00"
+            },
+            "value": {
+              "amount": 31533120,
+              "currency": "PYG"
+            },
+            "documents": [
+              {
+                "id": "tFDq3gr9INM=",
+                "title": "27935_responsabilidad_adj_1576850565609.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/contrato/tFDq3gr9INM%253D",
+                "language": "es",
+                "documentTypeDetails": "Nota de Observacion"
+              },
+              {
+                "id": "YrzUkJP43VA=",
+                "datePublished": "2019-12-20T11:02:47-04:00",
+                "title": "685__a_dncp_solicitud_cc_teisa_signed__1576605924733.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/contrato/YrzUkJP43VA%253D",
+                "language": "es",
+                "documentTypeDetails": "Nota de Aclaración"
+              },
+              {
+                "id": "bQDD7F1v/k0=",
+                "datePublished": "2019-12-20T11:02:46-04:00",
+                "title": "contrato_44_teisa_1576606209476.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/contrato/bQDD7F1v%252Fk0%253D",
+                "language": "es",
+                "documentType": "contractSigned",
+                "documentTypeDetails": "Orden de Compra o Contrato"
+              },
+              {
+                "id": "7FfCS5eOfWA=",
+                "datePublished": "2019-12-20T11:02:47-04:00",
+                "title": "685__a_dncp_solicitud_cc_teisa_signed__1576605929169.pdf",
+                "url": "https://www.contrataciones.gov.py/documentos/download/contrato/7FfCS5eOfWA%253D",
+                "language": "es",
+                "documentTypeDetails": "Nota de Aclaración"
+              }
+            ]
+          }
+        ],
+        "tender": {
+          "id": "371534-cd-mitic-n-17-2019-servicio-internet-redundante-infraestructura-nube-py-mitic-pluria-1",
+          "title": "CD MITIC Nº 17/2019 Servicio de internet redundante para la infraestructura de Nube PY del MITIC - Plurianual 2019 - 2021 - Ad referendum",
+          "status": "complete",
+          "awardCriteria": "priceOnly",
+          "awardCriteriaDetails": "Por Total",
+          "submissionMethod": [
+            "inPerson"
+          ],
+          "bidOpening": {
+            "date": "2019-12-04T11:30:00-04:00",
+            "address": {
+              "streetAddress": "Gral. Santos esq. Concordia, Complejo Santos, Oficinas E1 y E2"
+            }
+          },
+          "submissionMethodDetails": "Lugar entrega ofertas: Gral. Santos esq. Concordia, Complejo Santos, Oficinas E1 y E2 || Lugar entrega bien: Según documento del llamado || Fecha entrega bien: Según documento del llamado",
+          "eligibilityCriteria": "Restricciones: INHABILIDADES PREVISTAS EN EL ARTICULO 40 DE LA LEY 2051/03",
+          "statusDetails": "Adjudicada",
+          "enquiriesAddress": {
+            "streetAddress": "Gral. Santos esq. Concordia, Complejo Santos, Oficinas E1 y E2"
+          },
+          "mainProcurementCategoryDetails": "Servicios - Servicios Técnicos",
+          "hasEnquiries": false,
+          "value": {
+            "amount": 43400000,
+            "currency": "PYG"
+          },
+          "datePublished": "2019-11-18T19:00:03-04:00",
+          "tenderPeriod": {
+            "startDate": "2019-11-18T19:00:03-04:00",
+            "endDate": "2019-12-04T11:20:00-04:00",
+            "durationInDays": 15
+          },
+          "awardPeriod": {
+            "startDate": "2019-12-04T11:30:00-04:00"
+          },
+          "enquiryPeriod": {
+            "endDate": "2019-11-21T09:00:00-04:00",
+            "startDate": "2019-11-18T19:00:03-04:00",
+            "durationInDays": 2
+          },
+          "mainProcurementCategory": "services",
+          "procurementMethod": "open",
+          "procurementMethodDetails": "Contratación Directa",
+          "procuringEntity": {
+            "id": "DNCP-SICP-CODE-375",
+            "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+          },
+          "criteria": [
+            {
+              "id": "1",
+              "title": "Garantía de Mantenimiento de Ofertas",
+              "description": "Los oferentes, proveedores o contratistas deberán garantizar la seriedad de sus ofertas, mediante la garantía de mantenimiento de la oferta",
+              "source": "tenderer",
+              "requirementGroups": [
+                {
+                  "id": "1-1",
+                  "description": "La garantía debe ser de un cierto porcentaje, periodo y tipo",
+                  "requirements": [
+                    {
+                      "id": "1-1-1",
+                      "title": "Porcentaje de la garantia",
+                      "expectedValue": "5"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "lots": [
+            {
+              "id": "DobGPUK00PE=",
+              "title": "1 - LoteTotal",
+              "status": "active",
+              "statusDetails": "Activo",
+              "value": {
+                "amount": 43400000,
+                "currency": "PYG"
+              },
+              "simultaneousSupply": false,
+              "attributes": [
+                {
+                  "name": "Orden",
+                  "value": "1",
+                  "id": "1"
+                }
+              ]
+            }
+          ],
+          "notifiedSuppliers": [
+            {
+              "name": "AMX PARAGUAY S.A.",
+              "id": "PY-RUC-80030572-8"
+            },
+            {
+              "name": "NUCLEO S.A.",
+              "id": "PY-RUC-80017437-2"
+            },
+            {
+              "name": "PLANET S.A.",
+              "id": "PY-RUC-80014227-6"
+            },
+            {
+              "name": "RIEDER Y CIA. SACI",
+              "id": "PY-RUC-80002612-8"
+            },
+            {
+              "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+              "id": "PY-RUC-80013979-8"
+            },
+            {
+              "name": "TELEFONICA CELULAR DEL PARAGUAY SAE (TELECEL SAE)",
+              "id": "PY-RUC-80000519-8"
+            }
+          ],
+          "items": [
+            {
+              "id": "KgeGkR3RCKg9pgm97VgwIg==",
+              "description": "Instalacion de equipos, cableados y puntos de red/Instalación de infraestructura necesaria para provisión de internet ",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "81112107-001",
+                "description": "Instalacion de equipos, cableados y puntos de red ",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/81112107-001"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "81112107",
+                  "description": "Servicios de Instalación de Internet y relacionados",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/81112107"
+                }
+              ],
+              "quantity": 1,
+              "unit": {
+                "name": "Unidad",
+                "id": "UNI",
+                "value": {
+                  "amount": 1800000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "DobGPUK00PE=",
+              "attributes": [
+                {
+                  "name": "Presentacion",
+                  "value": "UNIDAD",
+                  "id": "1"
+                },
+                {
+                  "name": "Orden",
+                  "value": "1",
+                  "id": "2"
+                }
+              ]
+            },
+            {
+              "id": "PNm6Lft7God0uLRJqyFr9Q==",
+              "description": "Servicios de Internet",
+              "classification": {
+                "scheme": "catalogoNivel5DNCP",
+                "id": "81112107-004",
+                "description": "Servicios de Internet",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n5/81112107-004"
+              },
+              "additionalClassifications": [
+                {
+                  "scheme": "UNSPSC",
+                  "id": "81112107",
+                  "description": "Servicios de Instalación de Internet y relacionados",
+                  "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/81112107"
+                }
+              ],
+              "quantity": 16,
+              "unit": {
+                "name": "Mes",
+                "id": "ME",
+                "value": {
+                  "amount": 2600000,
+                  "currency": "PYG"
+                }
+              },
+              "relatedLot": "DobGPUK00PE=",
+              "attributes": [
+                {
+                  "name": "Presentacion",
+                  "value": "EVENTO",
+                  "id": "1"
+                },
+                {
+                  "name": "Orden",
+                  "value": "2",
+                  "id": "2"
+                }
+              ]
+            }
+          ],
+          "tenderers": [
+            {
+              "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+              "id": "PY-RUC-80013979-8"
+            },
+            {
+              "name": "TELEFONICA CELULAR DEL PARAGUAY SAE (TELECEL SAE)",
+              "id": "PY-RUC-80000519-8"
+            }
+          ],
+          "documents": [
+            {
+              "id": "dix2iRRDbik=",
+              "title": "URL de la Convocatoria",
+              "url": "https://www.contrataciones.gov.py/licitaciones/convocatoria/371534-cd-mitic-n-17-2019-servicio-internet-redundante-infraestructura-nube-py-mitic-pluria-1.html",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "format": "text/html"
+            },
+            {
+              "id": "5PtdZS1M3vM=",
+              "datePublished": "2019-11-18T19:00:02-04:00",
+              "title": "llamado_publico_1574114402704.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/5PtdZS1M3vM%253D",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "documentTypeDetails": "Llamado publicado"
+            },
+            {
+              "id": "JXVHlX0F85E=",
+              "datePublished": "2019-11-18T19:00:02-04:00",
+              "title": "cd_17_internet_redundante_1573831267802.zip",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/JXVHlX0F85E%253D",
+              "language": "es",
+              "documentType": "eligibilityCriteria",
+              "documentTypeDetails": "Carta de Invitación"
+            },
+            {
+              "id": "gRZRcRL67Aw=",
+              "datePublished": "2019-11-28T08:11:35-04:00",
+              "title": "adenda_01_cd_17_signed__1574876818536.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/gRZRcRL67Aw%253D",
+              "language": "es",
+              "documentTypeDetails": "Adenda"
+            },
+            {
+              "id": "uWPIV+C+LA4=",
+              "datePublished": "2019-11-18T19:00:02-04:00",
+              "title": "constancia_plurianual_fg_04_1573831392263.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/uWPIV%252BC%252BLA4%253D",
+              "language": "es",
+              "documentTypeDetails": "Constancia de previsión plurianual"
+            },
+            {
+              "id": "ILnZaaEHtH0=",
+              "datePublished": "2019-11-18T19:00:07-04:00",
+              "title": "iao.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/ILnZaaEHtH0%253D",
+              "language": "es",
+              "documentTypeDetails": "Instrucción a los Oferentes - Bienes y Servicios"
+            },
+            {
+              "id": "ss/HPEy0+6E=",
+              "datePublished": "2019-11-18T19:00:02-04:00",
+              "title": "cdp_internet_redundante_1573831277215.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/ss%252FHPEy0%252B6E%253D",
+              "language": "es",
+              "documentTypeDetails": "CDP"
+            },
+            {
+              "id": "Bd7qW3IwqhY=",
+              "datePublished": "2019-11-18T19:00:02-04:00",
+              "title": "24152___371534_1574114396121.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/Bd7qW3IwqhY%253D",
+              "language": "es",
+              "documentTypeDetails": "Nota de Observacion"
+            },
+            {
+              "id": "VO9iXuS3ZlM=",
+              "datePublished": "2019-11-28T08:11:35-04:00",
+              "title": "acta_prorroga_cd_17_1574876791385.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/VO9iXuS3ZlM%253D",
+              "language": "es",
+              "documentTypeDetails": "Adenda"
+            },
+            {
+              "id": "PY92rCwhIp8=",
+              "datePublished": "2019-11-18T19:00:08-04:00",
+              "title": "cgc.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/PY92rCwhIp8%253D",
+              "language": "es",
+              "documentTypeDetails": "Condiciones Generales del Contrato - Bienes y Servicios"
+            },
+            {
+              "id": "2n1tyxCWpOA=",
+              "datePublished": "2019-11-28T08:11:35-04:00",
+              "title": "llamado_publico_1574939495645.pdf",
+              "url": "https://www.contrataciones.gov.py/documentos/download/convocatoria/2n1tyxCWpOA%253D",
+              "language": "es",
+              "documentType": "tenderNotice",
+              "documentTypeDetails": "Llamado publicado"
+            }
+          ],
+          "numberOfTenderers": 2
+        },
+        "language": "es",
+        "ocid": "ocds-03ad3f-371534-1",
+        "date": "2019-12-11T20:08:29-04:00",
+        "initiationType": "tender",
+        "buyer": {
+          "id": "DNCP-SICP-CODE-375",
+          "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+        },
+        "sources": [
+          {
+            "id": "dncp-sicp",
+            "name": "Sistema de Información de las Contrataciones Públicas - DNCP",
+            "url": "https://www.contrataciones.gov.py/"
+          }
+        ],
+        "planning": {
+          "identifier": "371534",
+          "estimatedDate": "2019-10-31T00:00:00-04:00",
+          "budget": {
+            "description": "CD MITIC Nº 17/2019 Servicio de internet redundante para la infraestructura de Nube PY del MITIC - Plurianual 2019 - 2021 ",
+            "amount": {
+              "currency": "PYG",
+              "amount": 52080000
+            },
+            "budgetBreakdown": [
+              {
+                "id": "2019/12/21/2/1/2/0/1/99/260/10-xz4Blwr3g3A=",
+                "sourceParty": {
+                  "id": "375",
+                  "name": "Ministerio de Tecnologías de la Información y Comunicación"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_utilizado": 2177070,
+                  "monto_a_utilizar": 8400000
+                },
+                "classifications": {
+                  "anio": "2019",
+                  "nivel": "12",
+                  "entidad": "21",
+                  "tipo_programa": "2",
+                  "programa": "1",
+                  "sub_programa": "2",
+                  "proyecto": "0",
+                  "financiador": "1",
+                  "departamento": "99",
+                  "objeto_gasto": "260",
+                  "fuente_financiamiento": "10",
+                  "cdp": "371534"
+                }
+              },
+              {
+                "id": "2020/12/21/1/1/0/4/74/99/260/30-blpPhMjR6r0=",
+                "sourceParty": {
+                  "id": "375",
+                  "name": "Ministerio de Tecnologías de la Información y Comunicación"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_a_utilizar": 23484840
+                },
+                "classifications": {
+                  "anio": "2020",
+                  "nivel": "12",
+                  "entidad": "21",
+                  "tipo_programa": "1",
+                  "programa": "1",
+                  "sub_programa": "0",
+                  "proyecto": "4",
+                  "financiador": "74",
+                  "departamento": "99",
+                  "objeto_gasto": "260",
+                  "fuente_financiamiento": "30",
+                  "cdp": "371534"
+                }
+              },
+              {
+                "id": "2021/12/21/1/1/0/4/74/99/268/30-XI4UhIIYTsk=",
+                "sourceParty": {
+                  "id": "375",
+                  "name": "Ministerio de Tecnologías de la Información y Comunicación"
+                },
+                "period": {
+                  "startDate": "2019-01-01T00:00:00Z",
+                  "endDate": "2019-12-31T00:00:00Z"
+                },
+                "measures": {
+                  "monto_a_utilizar": 5871210
+                },
+                "classifications": {
+                  "anio": "2021",
+                  "nivel": "12",
+                  "entidad": "21",
+                  "tipo_programa": "1",
+                  "programa": "1",
+                  "sub_programa": "0",
+                  "proyecto": "4",
+                  "financiador": "74",
+                  "departamento": "99",
+                  "objeto_gasto": "268",
+                  "fuente_financiamiento": "30",
+                  "cdp": "371534"
+                }
+              }
+            ]
+          },
+          "items": [
+            {
+              "id": "kBae1xDNgwU=",
+              "description": "Servicios de Instalación de Internet y relacionados",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "81112107",
+                "description": "Servicios de Instalación de Internet y relacionados",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/81112107"
+              }
+            },
+            {
+              "id": "DIWMhjkly6c=",
+              "description": "Servicios de Instalación de Internet y relacionados",
+              "classification": {
+                "scheme": "UNSPSC",
+                "id": "81112107",
+                "description": "Servicios de Instalación de Internet y relacionados",
+                "uri": "https://www.contrataciones.gov.py/datos/api/v3/doc/itemClassification/n4/81112107"
+              }
+            }
+          ]
+        },
+        "parties": [
+          {
+            "id": "DNCP-SICP-CODE-375",
+            "name": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)",
+            "identifier": {
+              "scheme": "DNCP-SICP-CODE",
+              "id": "375",
+              "legalName": "Ministerio de Tecnologías de la Información y Comunicación (MITIC)"
+            },
+            "contactPoint": {
+              "email": "uoc@mitic.gov.py",
+              "name": "Gustavo Daniel Berni González",
+              "telephone": "0212179906"
+            },
+            "roles": [
+              "buyer",
+              "procuringEntity",
+              "payer"
+            ],
+            "details": {
+              "level": "Poder Ejecutivo",
+              "entityType": "Organismos de la Administración Central",
+              "type": "Entidad"
+            },
+            "additionalIdentifiers": [
+              {
+                "id": "2019.12.21",
+                "legalName": "Ministerio de Tecnologías de la Información y Comunicación",
+                "scheme": "PY-PGN"
+              }
+            ]
+          },
+          {
+            "name": "TELEFONICA CELULAR DEL PARAGUAY SAE (TELECEL SAE)",
+            "id": "PY-RUC-80000519-8",
+            "identifier": {
+              "id": "80000519-8",
+              "legalName": "TELEFONICA CELULAR DEL PARAGUAY SAE (TELECEL SAE)",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "tenderer",
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "EMANUEL SIERNA CALVO/RITA GIMÉNEZ HELLMAN",
+              "email": "gobierno@tigo.com.py",
+              "faxNumber": "6189022",
+              "telephone": "981584122",
+              "url": "http://www.tigo.com.py"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "FERNANDO DE LA MORA",
+              "region": "Central",
+              "streetAddress": "ZAVALAS CUE E/ARTILLERIA"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.",
+              "activityTypes": [
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Servicios Técnicos",
+                  "id": 7
+                }
+              ]
+            }
+          },
+          {
+            "name": "RIEDER Y CIA. SACI",
+            "id": "PY-RUC-80002612-8",
+            "identifier": {
+              "id": "80002612-8",
+              "legalName": "RIEDER Y CIA. SACI",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "JUAN RODOLFO RIEDER CELLE - FRANCISCO JAVIER RIEDER CELLE - CARLOS ENRIQUE RIEDER CELLE - JORGE OSCAR RIEDER SALVADOR MALDONADO DIAZ - HILDA JUDITH RIEDER  CELLE",
+              "email": "licitaciones@rieder.com.py",
+              "faxNumber": "212021",
+              "url": "http://www.rieder.com.py"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "ASUNCION (DISTRITO)",
+              "region": "Asunción",
+              "streetAddress": "AVDA.ARTIGAS 1945"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.C.I.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+                  "id": 2
+                }
+              ]
+            }
+          },
+          {
+            "name": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+            "id": "PY-RUC-80013979-8",
+            "identifier": {
+              "id": "80013979-8",
+              "legalName": "TECNOLOGIA EN ELECTRONICA E INFORMATICA SA (T.E.I.S.A.)",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier",
+              "supplier",
+              "tenderer",
+              "payee"
+            ],
+            "contactPoint": {
+              "name": "GALO EGUEZ, GUSTAVO EGUEZ, JAIME EGUEZ",
+              "email": "licitaciones@teisa.com.py",
+              "faxNumber": "601429",
+              "url": "http://www.teisa.com.py"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "ASUNCION",
+              "region": "Central",
+              "streetAddress": "Cecilio Da Silva N° 1001"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Adquisición y Locación de inmuebles. Alquiler de muebles",
+                  "id": 3
+                },
+                {
+                  "name": "Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+                  "id": 5
+                },
+                {
+                  "name": "Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+                  "id": 24
+                },
+                {
+                  "name": "Servicios Técnicos",
+                  "id": 7
+                }
+              ]
+            }
+          },
+          {
+            "name": "PLANET S.A.",
+            "id": "PY-RUC-80014227-6",
+            "identifier": {
+              "id": "80014227-6",
+              "legalName": "PLANET S.A.",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "ING. ROBERTO VUYK",
+              "email": "dmartinez@planet.com.py",
+              "faxNumber": "605577",
+              "telephone": "0984-777203",
+              "url": "http://www.planet.com.py"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "ASUNCION",
+              "region": "Asunción",
+              "streetAddress": "Aviadores del Chaco 2917 c/ Molas Lopez - Edificio PROTEK 3A"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.",
+              "activityTypes": [
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Servicios Técnicos",
+                  "id": 7
+                },
+                {
+                  "name": "Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+                  "id": 24
+                }
+              ]
+            }
+          },
+          {
+            "name": "NUCLEO S.A.",
+            "id": "PY-RUC-80017437-2",
+            "identifier": {
+              "id": "80017437-2",
+              "legalName": "NUCLEO S.A.",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "JUAN CARLOS PEPE",
+              "email": "gobierno@personal.com.py",
+              "faxNumber": "2177067",
+              "telephone": "0971 100000",
+              "url": "http://www.personal.com.py"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "ASUNCION",
+              "region": "Asunción",
+              "streetAddress": "MAXIMO LIRA 522"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.",
+              "activityTypes": [
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Servicios Técnicos",
+                  "id": 7
+                },
+                {
+                  "name": "Muebles y Enseres",
+                  "id": 23
+                },
+                {
+                  "name": "Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+                  "id": 24
+                }
+              ]
+            }
+          },
+          {
+            "name": "AMX PARAGUAY S.A.",
+            "id": "PY-RUC-80030572-8",
+            "identifier": {
+              "id": "80030572-8",
+              "legalName": "AMX PARAGUAY S.A.",
+              "scheme": "PY-RUC"
+            },
+            "roles": [
+              "notifiedSupplier"
+            ],
+            "contactPoint": {
+              "name": "CARLOS MERSAN GALLI",
+              "email": "jose.zarate1@claro.com.py",
+              "url": "http://www.claro.com.py"
+            },
+            "address": {
+              "countryName": "Paraguay",
+              "locality": "ASUNCIÓN.",
+              "region": "Asunción",
+              "streetAddress": "MCAL. LÓPEZ N° 1730"
+            },
+            "details": {
+              "legalEntityTypeDetail": "S.A.",
+              "activityTypes": [
+                "goods",
+                "services"
+              ],
+              "categories": [
+                {
+                  "name": "Publicidad y Propaganda",
+                  "id": 8
+                }
+              ]
+            }
+          }
+        ],
+        "tag": [
+          "compiled"
+        ]
+      }
+    }
+  ],
+  "pagination": {
+    "total_items": 1,
+    "total_pages": 1,
+    "current_page": 1,
+    "items_per_page": 10,
+    "total_in_page": 1
+  }
+}

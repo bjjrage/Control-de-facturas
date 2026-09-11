@@ -61,14 +61,29 @@ export function ocidDe(nro: string): string {
   return `${OCID_PREFIX}${nro}`;
 }
 
+export interface DncpRecordResult {
+  compiledRelease: Record<string, unknown>;
+  releases: Record<string, unknown>[];
+  ocid: string;
+  version?: string;
+  uri?: string;
+}
+
 /**
- * Trae el record OCDS compilado de una licitación. Devuelve el `compiledRelease`.
+ * Trae el record OCDS completo de una licitación preservando tanto el `compiledRelease`
+ * como el historial completo de `releases[]`.
  */
-export async function fetchRecord(nroOrInput: string): Promise<Record<string, unknown>> {
+export async function fetchFullRecord(nroOrInput: string): Promise<DncpRecordResult> {
   const nro = normalizarNro(nroOrInput);
   const data = (await getJson(`${BASE}/ocds/record/${ocidDe(nro)}`)) as {
     status?: number;
-    records?: { compiledRelease?: Record<string, unknown>; releases?: unknown[] }[];
+    records?: {
+      ocid?: string;
+      version?: string;
+      uri?: string;
+      compiledRelease?: Record<string, unknown>;
+      releases?: unknown[];
+    }[];
   };
 
   if (data.status === 404 || !data.records || data.records.length === 0) {
@@ -78,7 +93,21 @@ export async function fetchRecord(nroOrInput: string): Promise<Record<string, un
   if (!rec.compiledRelease) {
     throw new Error(`El record ${nro} no trae compiledRelease`);
   }
-  return rec.compiledRelease;
+  return {
+    compiledRelease: rec.compiledRelease,
+    releases: (rec.releases as Record<string, unknown>[]) || [],
+    ocid: rec.ocid || ocidDe(nro),
+    version: rec.version,
+    uri: rec.uri
+  };
+}
+
+/**
+ * Trae el record OCDS compilado de una licitación. Devuelve el `compiledRelease`.
+ */
+export async function fetchRecord(nroOrInput: string): Promise<Record<string, unknown>> {
+  const full = await fetchFullRecord(nroOrInput);
+  return full.compiledRelease;
 }
 
 /**
