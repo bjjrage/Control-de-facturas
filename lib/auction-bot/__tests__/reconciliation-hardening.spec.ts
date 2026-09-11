@@ -12,6 +12,9 @@ import { AuctionState, FrozenAuctionPolicy } from '../types';
 describe('Reconciliation Hardening — Scope, Freshness & Bid Identity', () => {
   const baseTime = '2026-09-10T20:00:00.000Z';
   const submitTime = '2026-09-10T20:00:05.000Z';
+  // Strict temporal protocol: the recheck observation must strictly postdate
+  // the candidate-generating observation; submit follows within the TTL.
+  const freshTime = '2026-09-10T20:00:01.000Z';
 
   function buildPolicy(): FrozenAuctionPolicy {
     return freezePolicy({
@@ -71,7 +74,7 @@ describe('Reconciliation Hardening — Scope, Freshness & Bid Identity', () => {
     expect(decision.action).toBe('BID_CANDIDATE');
     expect(decision.candidatePricePyg).toBe(994_990);
     machine.handleDecision(decision, state);
-    expect(machine.recheckCandidate(state, { nowIso: baseTime }).valid).toBe(true);
+    expect(machine.recheckCandidate({ ...state, observedAt: freshTime }, { nowIso: freshTime }).valid).toBe(true);
     machine.startSubmission('bid-recon-1', { submittedAtIso: submitTime });
     machine.markSubmissionUnknown('Socket timeout');
     expect(machine.getState()).toBe('RECONCILING');
@@ -168,6 +171,93 @@ describe('Reconciliation Hardening — Scope, Freshness & Bid Identity', () => {
       ourRank: 1,
       ourCurrentPricePyg: 994_990,
     };
+    const result = machine.reconcileWithState(state, { observationIsAuthoritative: true }, { nowIso: submitTime });
+    expect(result.outcome).toBe('AMBIGUOUS');
+    expect(machine.getState()).toBe('HALTED');
+  });
+
+  it('does NOT accept a price match in a NON-authoritative snapshot', () => {
+    const machine = reconcilingMachine();
+    const state: AuctionState = {
+      ...buildLiveState(),
+      observedAt: submitTime,
+      rankedOffers: [
+        { rank: 1, participantId: 'our-firm', isOurOffer: true, pricePyg: 994_990, timestamp: '2026-09-10T20:00:06.000Z' },
+        { rank: 2, participantId: 'comp-1', isOurOffer: false, pricePyg: 995_000, timestamp: baseTime },
+      ],
+      ourRank: 1,
+      ourCurrentPricePyg: 994_990,
+    };
+    // Offer provably postdates the submit — but the snapshot is not
+    // authoritative and there is no explicit adapter acceptance.
+    const result = machine.reconcileWithState(state, { observationIsAuthoritative: false }, { nowIso: submitTime });
+    expect(result.outcome).toBe('AMBIGUOUS');
+    expect(machine.getState()).toBe('HALTED');
+  });
+
+  it('ACCEPTS with explicitAcceptanceFromAdapter even when the snapshot is not authoritative', () => {
+    const machine = reconcilingMachine();
+    const state: AuctionState = {
+      ...buildLiveState(),
+      observedAt: submitTime,
+      rankedOffers: [
+        { rank: 1, participantId: 'our-firm', isOurOffer: true, pricePyg: 994_990, timestamp: '2026-09-10T20:00:06.000Z' },
+        { rank: 2, participantId: 'comp-1', isOurOffer: false, pricePyg: 995_000, timestamp: baseTime },
+      ],
+      ourRank: 1,
+      ourCurrentPricePyg: 994_990,
+    };
+    const result = machine.reconcileWithState(
+      state,
+      { observationIsAuthoritative: false, explicitAcceptanceFromAdapter: true },
+      { nowIso: submitTime }
+    );
+    expect(result.outcome).toBe('ACCEPTED');
+    expect(result.foundRank).toBe(1);
+    expect(result.reason).toContain('aceptación explícita');
+    expect(machine.getState()).toBe('MONITORING');
+  });
+
+  it('a pre-submit snapshot cannot prove NOT_ACCEPTED → AMBIGUOUS', () => {
+    const machine = reconcilingMachine();
+    // Snapshot taken BEFORE the submit: proves nothing either way, even when
+    // authoritative and even without our bid visible.
+    const preSubmitTime = '2026-09-10T20:00:03.000Z';
+    const state: AuctionState = {
+      ...buildLiveState(),
+      observedAt: preSubmitTime,
+      rankedOffers: [
+        { rank: 1, participantId: 'comp-1', isOurOffer: false, pricePyg: 995_000, timestamp: baseTime },
+        { rank: 2, participantId: 'our-firm', isOurOffer: true, pricePyg: 1_000_000, timestamp: baseTime },
+      ],
+      ourRank: 2,
+      ourCurrentPricePyg: 1_000_000,
+    };
+    const result = machine.reconcileWithState(state, { observationIsAuthoritative: true }, { nowIso: preSubmitTime });
+    expect(result.outcome).toBe('AMBIGUOUS');
+    expect(machine.getState()).toBe('HALTED');
+  });
+
+  it('goes AMBIGUOUS → HALTED on scope mismatch', () => {
+    const machine = reconcilingMachine();
+    const state: AuctionState = {
+      ...buildLiveState(),
+      scope: 'LOT',
+      observedAt: submitTime,
+      rankedOffers: [
+        { rank: 1, participantId: 'our-firm', isOurOffer: true, pricePyg: 994_990, timestamp: '2026-09-10T20:00:06.000Z' },
+      ],
+      ourRank: 1,
+      ourCurrentPricePyg: 994_990,
+    };
+    const result = machine.reconcileWithState(state, { observationIsAuthoritative: true }, { nowIso: submitTime });
+    expect(result.outcome).toBe('AMBIGUOUS');
+    expect(machine.getState()).toBe('HALTED');
+  });
+
+  it('goes AMBIGUOUS → HALTED on future-dated observation (no clock-skew policy)', () => {
+    const machine = reconcilingMachine();
+    const state: AuctionState = { ...buildLiveState(), observedAt: '2026-09-10T21:00:00.000Z' };
     const result = machine.reconcileWithState(state, { observationIsAuthoritative: true }, { nowIso: submitTime });
     expect(result.outcome).toBe('AMBIGUOUS');
     expect(machine.getState()).toBe('HALTED');

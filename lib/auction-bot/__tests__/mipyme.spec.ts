@@ -6,6 +6,18 @@ import { AuctionState, ExecutionMode, FrozenAuctionPolicy } from '../types';
 
 describe('MIPYME Last Chance Specification', () => {
   const baseTime = '2026-09-10T20:00:00.000Z';
+  // Strict temporal protocol: T0 generates the candidate, T1 re-observes,
+  // T2 submits and reconciles. Same snapshot never counts as re-observation.
+  const freshTime = '2026-09-10T20:00:01.000Z';
+  const submitTime = '2026-09-10T20:00:02.000Z';
+
+  function freshState(state: AuctionState): AuctionState {
+    return { ...state, observedAt: freshTime };
+  }
+
+  // NOTE: reconcile fixtures below use observedAt === submitTime and offer
+  // timestamps >= submittedAt: GATE 4 requires snapshots at/after the submit,
+  // and ACCEPT requires a provably-post-submit offer timestamp.
 
   function createPolicy(
     mipymeEnabled: boolean = true,
@@ -179,11 +191,11 @@ describe('MIPYME Last Chance Specification', () => {
     expect(machine.getMipymeAttemptStatus()).toBe('CANDIDATE_READY');
 
     // Pre-submit recheck against a fresh observation is mandatory.
-    const recheck = machine.recheckCandidate(state, { nowIso: baseTime });
+    const recheck = machine.recheckCandidate(freshState(state), { nowIso: freshTime });
     expect(recheck.valid).toBe(true);
 
     // Submit bid (deterministic submittedAt for replay)
-    const submission = machine.startSubmission('mipyme-bid-001', { submittedAtIso: baseTime });
+    const submission = machine.startSubmission('mipyme-bid-001', { submittedAtIso: submitTime });
     expect(submission.isMipyme).toBe(true);
     expect(machine.getState()).toBe('SUBMITTING');
     expect(machine.getMipymeAttemptStatus()).toBe('SUBMITTING');
@@ -198,15 +210,16 @@ describe('MIPYME Last Chance Specification', () => {
     // Portal state arrives showing our MIPYME offer in rank 1 (authoritative snapshot)
     const postReconciliationState: AuctionState = {
       ...state,
+      observedAt: submitTime,
       rankedOffers: [
-        { rank: 1, participantId: 'our-firm', isOurOffer: true, pricePyg: 989_990, timestamp: baseTime },
+        { rank: 1, participantId: 'our-firm', isOurOffer: true, pricePyg: 989_990, timestamp: submitTime },
         { rank: 2, participantId: 'comp-alpha', isOurOffer: false, pricePyg: 990_000, timestamp: baseTime },
       ],
       ourRank: 1,
       ourCurrentPricePyg: 989_990,
     };
 
-    const recon = machine.reconcileWithState(postReconciliationState, { observationIsAuthoritative: true }, { nowIso: baseTime });
+    const recon = machine.reconcileWithState(postReconciliationState, { observationIsAuthoritative: true }, { nowIso: submitTime });
     // Three-way outcome
     expect(recon.outcome).toBe('ACCEPTED');
     expect(recon.foundRank).toBe(1);
@@ -218,7 +231,7 @@ describe('MIPYME Last Chance Specification', () => {
 
     // Single-opportunity check: cannot generate another MIPYME candidate once confirmed
     machine.beginEvaluation();
-    const secondDecision = evaluateAuctionStep(postReconciliationState, policy, undefined, { currentTimestampIso: baseTime });
+    const secondDecision = evaluateAuctionStep(postReconciliationState, policy, undefined, { currentTimestampIso: submitTime });
     machine.handleDecision(secondDecision);
     // State remains in EVALUATING/MIPYME_BID_CONFIRMED, not reverting to MIPYME_LAST_CHANCE
     expect(machine.getState()).toBe('EVALUATING');
@@ -281,10 +294,10 @@ describe('MIPYME Last Chance Specification', () => {
     const decision = evaluateAuctionStep(state, policy, undefined, { currentTimestampIso: baseTime });
     machine.handleDecision(decision, state);
 
-    const recheck = machine.recheckCandidate(state, { nowIso: baseTime });
+    const recheck = machine.recheckCandidate(freshState(state), { nowIso: freshTime });
     expect(recheck.valid).toBe(true);
 
-    machine.startSubmission('mipyme-bid-direct', { submittedAtIso: baseTime });
+    machine.startSubmission('mipyme-bid-direct', { submittedAtIso: submitTime });
     expect(machine.getState()).toBe('SUBMITTING');
 
     machine.confirmSubmission();
@@ -303,9 +316,9 @@ describe('MIPYME Last Chance Specification', () => {
     machine.beginEvaluation();
     const decision = evaluateAuctionStep(state, policy, undefined, { currentTimestampIso: baseTime });
     machine.handleDecision(decision, state);
-    const recheck = machine.recheckCandidate(state, { nowIso: baseTime });
+    const recheck = machine.recheckCandidate(freshState(state), { nowIso: freshTime });
     expect(recheck.valid).toBe(true);
-    machine.startSubmission('mipyme-bid-proc', { submittedAtIso: baseTime });
+    machine.startSubmission('mipyme-bid-proc', { submittedAtIso: submitTime });
     machine.confirmSubmission();
 
     expect(machine.getState()).toBe('MIPYME_BID_CONFIRMED');
@@ -371,9 +384,9 @@ describe('MIPYME Last Chance Specification', () => {
     machine.beginEvaluation();
     const decision = evaluateAuctionStep(state, policy, undefined, { currentTimestampIso: baseTime });
     machine.handleDecision(decision, state);
-    const recheck = machine.recheckCandidate(state, { nowIso: baseTime });
+    const recheck = machine.recheckCandidate(freshState(state), { nowIso: freshTime });
     expect(recheck.valid).toBe(true);
-    machine.startSubmission(bidId, { submittedAtIso: baseTime });
+    machine.startSubmission(bidId, { submittedAtIso: submitTime });
     machine.markSubmissionUnknown('Socket timeout');
     return machine;
   }
@@ -391,15 +404,15 @@ describe('MIPYME Last Chance Specification', () => {
       closeRisk: false,
       status: 'ACTIVE',
       rankedOffers: [
-        { rank: 1, participantId: 'our-firm', isOurOffer: true, pricePyg: 989_990, timestamp: baseTime },
+        { rank: 1, participantId: 'our-firm', isOurOffer: true, pricePyg: 989_990, timestamp: submitTime },
         { rank: 2, participantId: 'comp-alpha', isOurOffer: false, pricePyg: 990_000, timestamp: baseTime },
       ],
       ourRank: 1,
       ourCurrentPricePyg: 989_990,
-      observedAt: baseTime,
+      observedAt: submitTime,
     };
 
-    const result = machine.reconcileWithState(stateWithBid, { observationIsAuthoritative: true }, { nowIso: baseTime });
+    const result = machine.reconcileWithState(stateWithBid, { observationIsAuthoritative: true }, { nowIso: submitTime });
 
     expect(result.outcome).toBe('ACCEPTED');
     expect(result.foundRank).toBe(1);
@@ -425,10 +438,10 @@ describe('MIPYME Last Chance Specification', () => {
       ],
       ourRank: 2,
       ourCurrentPricePyg: 1_005_000,
-      observedAt: baseTime,
+      observedAt: submitTime,
     };
 
-    const result = machine.reconcileWithState(stateWithoutBid, { observationIsAuthoritative: true }, { nowIso: baseTime });
+    const result = machine.reconcileWithState(stateWithoutBid, { observationIsAuthoritative: true }, { nowIso: submitTime });
 
     expect(result.outcome).toBe('NOT_ACCEPTED');
     expect(machine.getState()).toBe('STOPPED');
@@ -454,11 +467,11 @@ describe('MIPYME Last Chance Specification', () => {
       ],
       ourRank: 2,
       ourCurrentPricePyg: 1_005_000,
-      observedAt: baseTime,
+      observedAt: submitTime,
     };
 
     // Caller cannot guarantee the snapshot is complete
-    const result = machine.reconcileWithState(nonAuthoritativeState, { observationIsAuthoritative: false }, { nowIso: baseTime });
+    const result = machine.reconcileWithState(nonAuthoritativeState, { observationIsAuthoritative: false }, { nowIso: submitTime });
 
     expect(result.outcome).toBe('AMBIGUOUS');
     expect(machine.getState()).toBe('HALTED');
@@ -484,14 +497,14 @@ describe('MIPYME Last Chance Specification', () => {
       ],
       ourRank: null,
       ourCurrentPricePyg: null,
-      observedAt: baseTime,
+      observedAt: submitTime,
     };
 
     // SBE adapter received an explicit rejection code for this bidId
     const result = machine.reconcileWithState(anyState, {
       observationIsAuthoritative: false,
       explicitRejectionFromAdapter: true,
-    }, { nowIso: baseTime });
+    }, { nowIso: submitTime });
 
     expect(result.outcome).toBe('NOT_ACCEPTED');
     expect(result.reason).toContain('rechazada explícitamente');

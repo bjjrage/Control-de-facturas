@@ -216,9 +216,46 @@ describe('Deterministic Strategy Engine - Free Defense Step & Auto Limit Semanti
       maxStalenessMs: 5000,
       authorizedBy: 'analista@empresa.com.py',
     });
-    const decision = evaluateAuctionStep(thinState, policyRank3, undefined, { currentTimestampIso: baseTime });
+  });
+
+  it('WAITS in PRE_AUCTION and never generates a candidate', () => {
+    const policy = buildPolicy(10, 200);
+    const preAuctionState: AuctionState = {
+      ...buildState(995_000),
+      phase: 'PRE_AUCTION',
+      timingWindow: 'NOT_APPLICABLE',
+      closeRisk: false,
+    };
+
+    const decision = evaluateAuctionStep(preAuctionState, policy, undefined, { currentTimestampIso: baseTime });
     expect(decision.action).toBe('WAIT');
-    expect(decision.reasonCode).toBe('INSUFFICIENT_EVIDENCE_FOR_TARGET_RANK');
+    expect(decision.reasonCode).toBe('AUCTION_PRE_AUCTION');
+    expect(decision.candidatePricePyg).toBeNull();
+  });
+
+  it('HALTS on scope mismatch between policy and state', () => {
+    const policy = buildPolicy(10, 200); // scope ITEM
+    const lotState: AuctionState = {
+      ...buildState(995_000),
+      scope: 'LOT',
+      groupId: 'grp-01',
+    };
+
+    const decision = evaluateAuctionStep(lotState, policy, undefined, { currentTimestampIso: baseTime });
+    expect(decision.action).toBe('HALT');
+    expect(decision.reasonCode).toBe('SCOPE_MISMATCH');
+    expect(decision.candidatePricePyg).toBeNull();
+  });
+
+  it('HALTS on future-dated observedAt (no clock-skew policy yet)', () => {
+    const policy = buildPolicy(10, 200);
+    const state = buildState(995_000);
+
+    const decision = evaluateAuctionStep(state, policy, undefined, {
+      currentTimestampIso: '2026-09-10T19:59:00.000Z', // now BEFORE observedAt
+    });
+    expect(decision.action).toBe('HALT');
+    expect(decision.reasonCode).toBe('INVALID_TIMESTAMP');
     expect(decision.candidatePricePyg).toBeNull();
   });
 });

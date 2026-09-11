@@ -45,12 +45,14 @@ export function evaluateAuctionStep(
 
   // Invalid timestamps fail closed: NaN arithmetic would silently skip the
   // freshness validation below (any comparison with NaN is false).
-  if (!Number.isFinite(nowMs) || !Number.isFinite(observedMs)) {
+  // A future-dated observation (observedAt > now) is equally untrustworthy —
+  // there is no clock-skew policy yet, so fail closed.
+  if (!Number.isFinite(nowMs) || !Number.isFinite(observedMs) || observedMs > nowMs) {
     return {
       ...baseDecision,
       action: 'HALT',
       reasonCode: 'INVALID_TIMESTAMP',
-      reasonDescription: 'Timestamp inválido (now u observedAt no parseable). Detención preventiva: no se puede validar freshness sin tiempo confiable.',
+      reasonDescription: 'Timestamp inválido (now u observedAt no parseable, u observedAt futuro sin política de clock-skew). Detención preventiva: no se puede validar freshness sin tiempo confiable.',
       candidatePricePyg: null,
       targetRank: null,
       defenseStepAppliedPyg: null,
@@ -70,13 +72,20 @@ export function evaluateAuctionStep(
     };
   }
 
-  // Policy scope / ID mismatch
-  if (policy.auctionId !== state.auctionId || policy.groupId !== state.groupId) {
+  // Policy scope / ID mismatch (fail-closed: never bid another scope's auction)
+  if (
+    policy.auctionId !== state.auctionId ||
+    policy.groupId !== state.groupId ||
+    policy.scope !== state.scope
+  ) {
+    const scopeNote = policy.scope !== state.scope
+      ? ` Alcance incompatible (Policy: ${policy.scope} vs Estado: ${state.scope}).`
+      : '';
     return {
       ...baseDecision,
       action: 'HALT',
-      reasonCode: 'POLICY_MISMATCH',
-      reasonDescription: `Discrepancia de subasta/grupo (Policy: ${policy.auctionId}/${policy.groupId} vs Estado: ${state.auctionId}/${state.groupId}).`,
+      reasonCode: policy.scope !== state.scope ? 'SCOPE_MISMATCH' : 'POLICY_MISMATCH',
+      reasonDescription: `Discrepancia de subasta/grupo (Policy: ${policy.auctionId}/${policy.groupId} vs Estado: ${state.auctionId}/${state.groupId}).${scopeNote}`,
       candidatePricePyg: null,
       targetRank: null,
       defenseStepAppliedPyg: null,
@@ -147,6 +156,19 @@ export function evaluateAuctionStep(
   }
 
   // STEP 2: Determine Temporal Phase & Timing Strategy (Independent of Position Goal)
+  // PRE_AUCTION: the auction has not started — always WAIT, never BID_CANDIDATE.
+  if (state.phase === 'PRE_AUCTION') {
+    return {
+      ...baseDecision,
+      action: 'WAIT',
+      reasonCode: 'AUCTION_PRE_AUCTION',
+      reasonDescription: 'La subasta aún no inició (PRE_AUCTION). Espera al inicio; nunca se genera lance antes de la apertura.',
+      candidatePricePyg: null,
+      targetRank: null,
+      defenseStepAppliedPyg: null,
+    };
+  }
+
   if (state.phase === 'NORMAL_BIDDING') {
     if (policy.normalPhaseBehavior === 'WAIT') {
       return {
@@ -396,5 +418,6 @@ export function evaluateAuctionStep(
     candidatePricePyg,
     targetRank,
     defenseStepAppliedPyg: defenseStepApplied,
+    isMipymeLastChance: false,
   };
 }

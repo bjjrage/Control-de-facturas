@@ -151,9 +151,11 @@ export type ActionReasonCode =
   | 'STALE_STATE'
   | 'INVALID_TIMESTAMP'
   | 'AUCTION_NOT_ACTIVE'
+  | 'AUCTION_PRE_AUCTION'
   | 'AUCTION_CLOSED'
   | 'AUCTION_PAUSED'
   | 'POLICY_MISMATCH'
+  | 'SCOPE_MISMATCH'
   | 'POLICY_NOT_FROZEN'
   | 'SBE_CONSTRAINTS_VIOLATED'
   | 'POLICY_CONSTRAINT_VIOLATION'
@@ -246,10 +248,16 @@ export type ReconciliationOutcome = 'ACCEPTED' | 'NOT_ACCEPTED' | 'AMBIGUOUS';
  *
  * explicitRejectionFromAdapter — (optional) set to true when the SBE adapter has received
  *   an explicit rejection code from the portal for the specific bidId being reconciled.
+ *
+ * explicitAcceptanceFromAdapter — (optional) set to true when the SBE adapter has received
+ *   an explicit acceptance/registration confirmation from the portal for the specific
+ *   bidId being reconciled. Counts as authoritative evidence for ACCEPTED even when the
+ *   accompanying snapshot is not itself authoritative.
  */
 export interface ReconciliationContext {
   observationIsAuthoritative: boolean;
   explicitRejectionFromAdapter?: boolean;
+  explicitAcceptanceFromAdapter?: boolean;
 }
 
 export interface ReconciliationResult {
