@@ -181,6 +181,20 @@ async function runTests() {
   }
   assert(validationCaught, 'Lanza excepción ante ítem con cantidad <= 0');
 
+  validationCaught = false;
+  try {
+    buildProjectFromAdjudicatedTender({
+      ...params,
+      bidItems: [
+        { itemNumber: 1, description: 'Excavación', unit: 'M3', quantity: 10, unitPricePyg: 0 }
+      ]
+    });
+  } catch (err: any) {
+    validationCaught = true;
+    assert(err.message.includes('VALIDATION_ERROR') && err.message.includes('invalid unit price'), 'Rechaza ítem con precio unitario <= 0');
+  }
+  assert(validationCaught, 'Lanza excepción ante ítem con precio unitario = 0 (fail-closed)');
+
   console.log('--- TEST 7: Tenant Isolation y Restricción de Estado GANADA en RPC ---');
   const mockSupabaseTenantMismatch: any = {
     rpc: async () => {

@@ -105,7 +105,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- 3.1 Ampliar procurement_contracts
 ALTER TABLE public.procurement_contracts
-  ADD COLUMN IF NOT EXISTS moneda TEXT NOT NULL DEFAULT 'PYG',
+  ADD COLUMN IF NOT EXISTS moneda TEXT,
   ADD COLUMN IF NOT EXISTS monto_contrato_original NUMERIC(18,2),
   ADD COLUMN IF NOT EXISTS monto_contrato_vigente NUMERIC(18,2),
   ADD COLUMN IF NOT EXISTS duracion_dias_original INTEGER,
@@ -128,6 +128,14 @@ SET
   monto_contrato_vigente = COALESCE(monto_contrato_vigente, monto_contrato)
 WHERE monto_contrato_original IS NULL OR monto_contrato_vigente IS NULL;
 
+-- 3.1b Preservar moneda histórica: recuperar de evidencia raw DNCP cuando exista, sino mantener NULL/UNKNOWN (sin defaults sintéticos a 'PYG')
+UPDATE public.procurement_contracts pc
+SET moneda = (pp.raw_json->'tender'->'value'->>'currency')
+FROM public.procurement_processes pp
+WHERE pc.process_id = pp.id
+  AND pc.moneda IS NULL
+  AND pp.raw_json->'tender'->'value'->>'currency' IS NOT NULL;
+
 -- 3.2 Tabla canónica de Adendas y Modificaciones Contractuales (DNCP Real Model)
 CREATE TABLE IF NOT EXISTS public.procurement_contract_amendments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -146,7 +154,7 @@ CREATE TABLE IF NOT EXISTS public.procurement_contract_amendments (
   numero TEXT,
   fecha TIMESTAMPTZ,
   descripcion TEXT,
-  moneda TEXT NOT NULL DEFAULT 'PYG',
+  moneda TEXT,
   monto_previo NUMERIC(18,2),
   monto_delta NUMERIC(18,2), -- NULL si es desconocido / incalculable (UNKNOWN != DEFAULT 0)
   monto_posterior NUMERIC(18,2),
@@ -162,7 +170,7 @@ CREATE TABLE IF NOT EXISTS public.procurement_contract_amendments (
 );
 
 ALTER TABLE public.procurement_contract_amendments
-  ADD COLUMN IF NOT EXISTS moneda TEXT NOT NULL DEFAULT 'PYG',
+  ADD COLUMN IF NOT EXISTS moneda TEXT,
   ADD COLUMN IF NOT EXISTS is_orphan BOOLEAN NOT NULL DEFAULT false;
 
 ALTER TABLE public.procurement_contract_amendments
@@ -256,7 +264,7 @@ CREATE INDEX IF NOT EXISTS idx_licitaciones_project_id ON public.licitaciones(pr
 -- ------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public.ingestar_proceso_ocds_global(
-  p_payload JSONB,
+  p_cr JSONB,
   p_fuente TEXT DEFAULT 'DNCP_OCDS'
 )
 RETURNS UUID
@@ -298,6 +306,8 @@ DECLARE
   v_doc JSONB;
   v_ruc_clean TEXT;
   v_supplier_id UUID;
+  v_award_supplier_ids UUID[];
+  v_contract_supplier_ids UUID[];
   v_supplier_name TEXT;
   v_supplier_scale TEXT;
   v_contract_db_id UUID;
@@ -333,22 +343,30 @@ DECLARE
   r_amend RECORD;
 BEGIN
   -- 10. PRESERVAR HISTORIAL DE RELEASES Y COMPILED_RELEASE
-  IF p_payload ? 'compiledRelease' THEN
-    v_cr := p_payload->'compiledRelease';
-    IF p_payload ? 'releases' AND jsonb_typeof(p_payload->'releases') = 'array' THEN
-      v_releases := p_payload->'releases';
-      -- Extraer metadatos cronológicos de releases
+  -- Compatibilidad Canónica P0: p_cr permanece como parámetro con nombre.
+  -- Si p_cr contiene compiledRelease, normalizar internamente y preservar el paquete completo en raw_json.
+  -- Si p_cr es bare compiledRelease, soportarlo de forma transparente.
+  IF p_cr ? 'compiledRelease' THEN
+    v_cr := p_cr->'compiledRelease';
+    IF p_cr ? 'releases' AND jsonb_typeof(p_cr->'releases') = 'array' THEN
+      v_releases := p_cr->'releases';
+      -- Extraer metadatos cronológicos de releases con semántica honesta (RELEASE_INDEX / RELEASE_REFERENCE)
       SELECT jsonb_agg(jsonb_build_object(
-        'id', rel->>'id',
+        'id', COALESCE(rel->>'id', rel->>'url'),
         'date', rel->>'date',
         'tag', rel->'tag',
+        'url', rel->>'url',
         'initiationType', rel->>'initiationType',
+        'release_type', CASE 
+          WHEN rel ? 'tender' OR rel ? 'contracts' OR rel ? 'awards' THEN 'FULL_RELEASE'
+          ELSE 'RELEASE_REFERENCE'
+        END,
         'payload_sha256', encode(digest(rel::TEXT, 'sha256'), 'hex')
       )) INTO v_releases_metadata
       FROM jsonb_array_elements(v_releases) AS rel;
     END IF;
   ELSE
-    v_cr := p_payload;
+    v_cr := p_cr;
   END IF;
 
   v_ocid := v_cr->>'ocid';
@@ -364,7 +382,7 @@ BEGIN
   v_buyer_id := COALESCE(v_cr->'buyer'->>'id', v_tender->'procuringEntity'->>'id');
 
   -- 9. HASH SEMANTICS: SHA-256 CANÓNICO (NO MD5)
-  v_sha := encode(digest(p_payload::TEXT, 'sha256'), 'hex');
+  v_sha := encode(digest(p_cr::TEXT, 'sha256'), 'hex');
 
   -- 1. Resolver o Ingestar Entidad Compradora
   IF v_buyer_id IS NOT NULL AND v_buyer_name IS NOT NULL THEN
@@ -382,10 +400,10 @@ BEGIN
     RETURNING id INTO v_entity_id;
   END IF;
 
-  -- 2. Calcular montos
+  -- 2. Calcular montos (sin forzar PYG si no está verificado en evidencia)
   v_monto_disp := (v_planning->'budget'->'amount'->>'amount')::NUMERIC;
   v_monto_ref := (v_tender->'value'->>'amount')::NUMERIC;
-  v_moneda := COALESCE(v_tender->'value'->>'currency', 'PYG');
+  v_moneda := v_tender->'value'->>'currency';
   v_estado := upper(COALESCE(v_tender->>'status', 'PLANNING'));
 
   -- 3. Upsert Proceso Global
@@ -411,7 +429,7 @@ BEGIN
       (v_tender->'tenderPeriod'->>'endDate')::TIMESTAMPTZ,
       (v_tender->'bidOpening'->>'date')::TIMESTAMPTZ,
       COALESCE(v_tender->'bidOpening'->'address'->>'streetAddress', v_tender->>'submissionMethodDetails'),
-      v_estado, v_tender->>'statusDetails', p_payload, v_sha, p_fuente,
+      v_estado, v_tender->>'statusDetails', p_cr, v_sha, p_fuente,
       v_releases_metadata, 1, now(), now()
     ) RETURNING id INTO v_process_id;
   ELSE
@@ -443,7 +461,7 @@ BEGIN
       lugar_apertura = COALESCE(v_tender->'bidOpening'->'address'->>'streetAddress', v_tender->>'submissionMethodDetails'),
       estado = v_estado,
       estado_detalle = v_tender->>'statusDetails',
-      raw_json = p_payload,
+      raw_json = p_cr,
       payload_sha256 = v_sha,
       releases_metadata = COALESCE(v_releases_metadata, procurement_processes.releases_metadata),
       sync_count = sync_count + 1,
@@ -578,19 +596,34 @@ BEGIN
     END LOOP;
   END IF;
 
-  -- 7. Ingestar Adjudicaciones (4. PRESERVAR TODOS LOS PROVEEDORES DE ADJUDICACIÓN)
+  -- 7. Ingestar Adjudicaciones (Multi-supplier semantics: join table is canonical)
   IF jsonb_typeof(v_cr->'awards') = 'array' THEN
     FOR v_award IN SELECT * FROM jsonb_array_elements(v_cr->'awards') LOOP
       IF v_award->>'status' <> 'unsuccessful' THEN
-        v_supplier_id := NULL;
         v_award_dncp_id := COALESCE(v_award->>'id', '1');
+        v_award_supplier_ids := ARRAY[]::UUID[];
 
-        -- Proveedor primario
-        IF jsonb_typeof(v_award->'suppliers') = 'array' AND jsonb_array_length(v_award->'suppliers') > 0 THEN
-          v_ruc_clean := public.normalizar_ruc(v_award->'suppliers'->0->>'id');
-          IF v_ruc_clean IS NOT NULL THEN
-            SELECT id INTO v_supplier_id FROM public.procurement_suppliers WHERE ruc_clean = v_ruc_clean;
-          END IF;
+        -- Recolectar todos los proveedores verificados de la adjudicación
+        IF jsonb_typeof(v_award->'suppliers') = 'array' THEN
+          FOR v_party IN SELECT * FROM jsonb_array_elements(v_award->'suppliers') LOOP
+            v_ruc_clean := public.normalizar_ruc(v_party->>'id');
+            IF v_ruc_clean IS NOT NULL THEN
+              SELECT id INTO v_supplier_id FROM public.procurement_suppliers WHERE ruc_clean = v_ruc_clean;
+              IF v_supplier_id IS NOT NULL AND NOT (v_supplier_id = ANY(v_award_supplier_ids)) THEN
+                v_award_supplier_ids := array_append(v_award_supplier_ids, v_supplier_id);
+              END IF;
+            END IF;
+          END LOOP;
+        END IF;
+
+        -- Semántica Multi-Proveedor Canónica:
+        -- Exactamente 1 proveedor verificado -> supplier_id = ese ID
+        -- Más de 1 proveedor verificado -> supplier_id = NULL
+        -- Cero proveedores verificados -> supplier_id = NULL
+        IF array_length(v_award_supplier_ids, 1) = 1 THEN
+          v_supplier_id := v_award_supplier_ids[1];
+        ELSE
+          v_supplier_id := NULL;
         END IF;
 
         INSERT INTO public.procurement_awards (
@@ -601,7 +634,7 @@ BEGIN
           v_award_dncp_id,
           v_supplier_id,
           (v_award->'value'->>'amount')::NUMERIC,
-          COALESCE(v_award->'value'->>'currency', 'PYG'),
+          COALESCE(v_award->'value'->>'currency', v_moneda),
           (v_award->>'date')::TIMESTAMPTZ,
           v_award->>'status',
           v_award
@@ -609,27 +642,21 @@ BEGIN
         ON CONFLICT (process_id, award_dncp_id) DO UPDATE SET
           supplier_id = EXCLUDED.supplier_id,
           monto_adjudicado = EXCLUDED.monto_adjudicado,
-          moneda = EXCLUDED.moneda,
+          moneda = COALESCE(EXCLUDED.moneda, procurement_awards.moneda),
           status = EXCLUDED.status,
           raw_payload = EXCLUDED.raw_payload
         RETURNING id INTO v_award_db_id;
 
-        -- Ingestar TODOS los proveedores adjudicados en procurement_award_suppliers
-        IF jsonb_typeof(v_award->'suppliers') = 'array' THEN
-          FOR v_party IN SELECT * FROM jsonb_array_elements(v_award->'suppliers') LOOP
-            v_ruc_clean := public.normalizar_ruc(v_party->>'id');
-            IF v_ruc_clean IS NOT NULL THEN
-              SELECT id INTO v_supplier_id FROM public.procurement_suppliers WHERE ruc_clean = v_ruc_clean;
-              IF v_supplier_id IS NOT NULL THEN
-                INSERT INTO public.procurement_award_suppliers (award_id, supplier_id)
-                VALUES (v_award_db_id, v_supplier_id)
-                ON CONFLICT (award_id, supplier_id) DO NOTHING;
+        -- Ingestar TODOS los proveedores adjudicados en la tabla join procurement_award_suppliers
+        IF array_length(v_award_supplier_ids, 1) > 0 THEN
+          FOREACH v_supplier_id IN ARRAY v_award_supplier_ids LOOP
+            INSERT INTO public.procurement_award_suppliers (award_id, supplier_id)
+            VALUES (v_award_db_id, v_supplier_id)
+            ON CONFLICT (award_id, supplier_id) DO NOTHING;
 
-                INSERT INTO public.procurement_bids (process_id, supplier_id, gano, fuente)
-                VALUES (v_process_id, v_supplier_id, true, 'API')
-                ON CONFLICT (process_id, supplier_id) DO UPDATE SET gano = true;
-              END IF;
-            END IF;
+            INSERT INTO public.procurement_bids (process_id, supplier_id, gano, fuente)
+            VALUES (v_process_id, v_supplier_id, true, 'API')
+            ON CONFLICT (process_id, supplier_id) DO UPDATE SET gano = true;
           END LOOP;
         END IF;
       END IF;
@@ -645,7 +672,7 @@ BEGIN
       IF v_extends_contract_id = '' THEN
         v_contract_dncp_id := COALESCE(v_contract->>'id', '1');
         v_monto_contrato_orig := (v_contract->'value'->>'amount')::NUMERIC;
-        v_contract_moneda := COALESCE(v_contract->'value'->>'currency', v_moneda, 'PYG');
+        v_contract_moneda := COALESCE(v_contract->'value'->>'currency', v_moneda);
         v_fecha_inicio := (v_contract->'period'->>'startDate')::TIMESTAMPTZ;
         v_fecha_fin := (v_contract->'period'->>'endDate')::TIMESTAMPTZ;
         v_duracion_dias_orig := NULL;
@@ -654,24 +681,43 @@ BEGIN
           v_duracion_dias_orig := extract(day from (v_fecha_fin - v_fecha_inicio))::INTEGER;
         END IF;
 
-        -- 4. CONTRACT -> AWARD -> SUPPLIER CHAIN: Resolver award_id y supplier_id desde evidencia DNCP
+        -- CONTRACT -> AWARD -> SUPPLIER CHAIN:
         v_contract_award_id := NULL;
         v_contract_supplier_id := NULL;
+        v_contract_supplier_ids := ARRAY[]::UUID[];
+
         IF v_contract->>'awardID' IS NOT NULL THEN
-          SELECT id, supplier_id INTO v_contract_award_id, v_contract_supplier_id
+          SELECT id INTO v_contract_award_id
           FROM public.procurement_awards
           WHERE process_id = v_process_id AND award_dncp_id = (v_contract->>'awardID');
         END IF;
 
-        -- Si el contrato trae suppliers directamente, priorizarlo
+        -- 1. Si el contrato trae suppliers directamente, recolectar proveedores verificados
         IF jsonb_typeof(v_contract->'suppliers') = 'array' AND jsonb_array_length(v_contract->'suppliers') > 0 THEN
-          v_ruc_clean := public.normalizar_ruc(v_contract->'suppliers'->0->>'id');
-          IF v_ruc_clean IS NOT NULL THEN
-            SELECT id INTO v_supplier_id FROM public.procurement_suppliers WHERE ruc_clean = v_ruc_clean;
-            IF v_supplier_id IS NOT NULL THEN
-              v_contract_supplier_id := v_supplier_id;
+          FOR v_party IN SELECT * FROM jsonb_array_elements(v_contract->'suppliers') LOOP
+            v_ruc_clean := public.normalizar_ruc(v_party->>'id');
+            IF v_ruc_clean IS NOT NULL THEN
+              SELECT id INTO v_supplier_id FROM public.procurement_suppliers WHERE ruc_clean = v_ruc_clean;
+              IF v_supplier_id IS NOT NULL AND NOT (v_supplier_id = ANY(v_contract_supplier_ids)) THEN
+                v_contract_supplier_ids := array_append(v_contract_supplier_ids, v_supplier_id);
+              END IF;
             END IF;
-          END IF;
+          END LOOP;
+        ELSIF v_contract_award_id IS NOT NULL THEN
+          -- 2. Si el contrato no trae suppliers, heredar proveedores de la adjudicación vinculada
+          SELECT ARRAY_AGG(DISTINCT supplier_id) INTO v_contract_supplier_ids
+          FROM public.procurement_award_suppliers
+          WHERE award_id = v_contract_award_id;
+        END IF;
+
+        -- Semántica Multi-Proveedor Canónica:
+        -- Exactamente 1 proveedor verificado -> supplier_id = ese ID
+        -- Más de 1 proveedor verificado -> supplier_id = NULL
+        -- Cero proveedores verificados -> supplier_id = NULL
+        IF v_contract_supplier_ids IS NOT NULL AND array_length(v_contract_supplier_ids, 1) = 1 THEN
+          v_contract_supplier_id := v_contract_supplier_ids[1];
+        ELSE
+          v_contract_supplier_id := NULL;
         END IF;
 
         INSERT INTO public.procurement_contracts (
@@ -699,7 +745,7 @@ BEGIN
         )
         ON CONFLICT (process_id, contract_dncp_id) DO UPDATE SET
           award_id = COALESCE(EXCLUDED.award_id, procurement_contracts.award_id),
-          supplier_id = COALESCE(EXCLUDED.supplier_id, procurement_contracts.supplier_id),
+          supplier_id = EXCLUDED.supplier_id,
           numero_contrato = COALESCE(EXCLUDED.numero_contrato, procurement_contracts.numero_contrato),
           monto_contrato_original = COALESCE(procurement_contracts.monto_contrato_original, EXCLUDED.monto_contrato_original),
           moneda = COALESCE(EXCLUDED.moneda, procurement_contracts.moneda),
@@ -711,25 +757,12 @@ BEGIN
         RETURNING id INTO v_contract_db_id;
 
         -- Ingestar todos los proveedores del contrato en procurement_contract_suppliers
-        IF jsonb_typeof(v_contract->'suppliers') = 'array' THEN
-          FOR v_party IN SELECT * FROM jsonb_array_elements(v_contract->'suppliers') LOOP
-            v_ruc_clean := public.normalizar_ruc(v_party->>'id');
-            IF v_ruc_clean IS NOT NULL THEN
-              SELECT id INTO v_supplier_id FROM public.procurement_suppliers WHERE ruc_clean = v_ruc_clean;
-              IF v_supplier_id IS NOT NULL THEN
-                INSERT INTO public.procurement_contract_suppliers (contract_id, supplier_id)
-                VALUES (v_contract_db_id, v_supplier_id)
-                ON CONFLICT (contract_id, supplier_id) DO NOTHING;
-              END IF;
-            END IF;
+        IF v_contract_supplier_ids IS NOT NULL AND array_length(v_contract_supplier_ids, 1) > 0 THEN
+          FOREACH v_supplier_id IN ARRAY v_contract_supplier_ids LOOP
+            INSERT INTO public.procurement_contract_suppliers (contract_id, supplier_id)
+            VALUES (v_contract_db_id, v_supplier_id)
+            ON CONFLICT (contract_id, supplier_id) DO NOTHING;
           END LOOP;
-        ELSIF v_contract_award_id IS NOT NULL THEN
-          -- Heredar proveedores de la adjudicación vinculada
-          INSERT INTO public.procurement_contract_suppliers (contract_id, supplier_id)
-          SELECT v_contract_db_id, supplier_id
-          FROM public.procurement_award_suppliers
-          WHERE award_id = v_contract_award_id
-          ON CONFLICT (contract_id, supplier_id) DO NOTHING;
         END IF;
 
         -- Ingestar adendas embebidas en contracts[].amendments
@@ -753,7 +786,7 @@ BEGIN
 
             v_amendment_desc := v_amendment->>'description';
             v_dncp_raw_type := COALESCE(v_amendment->>'dncpAmendmentType', v_amendment->>'amendmentType', v_amendment_desc);
-            v_amendment_moneda := COALESCE(v_amendment->'amendsAmount'->>'currency', v_contract_moneda, 'PYG');
+            v_amendment_moneda := COALESCE(v_amendment->'amendsAmount'->>'currency', v_contract_moneda);
 
             -- Clasificación con prioridad a evidencia cruda DNCP
             v_amendment_tipo := 'OTHER';
@@ -841,7 +874,7 @@ BEGIN
         );
 
         v_dncp_raw_type := COALESCE(v_contract->>'dncpAmendmentType', v_contract->>'amendmentType', v_contract->>'title', 'Adenda Contractual');
-        v_amendment_moneda := COALESCE(v_contract->'value'->>'currency', v_moneda, 'PYG');
+        v_amendment_moneda := COALESCE(v_contract->'value'->>'currency', v_moneda);
 
         v_amendment_tipo := 'OTHER';
         IF lower(COALESCE(v_dncp_raw_type, '')) LIKE '%reajuste%' THEN
@@ -1226,8 +1259,8 @@ BEGIN
     IF v_item_qty IS NULL OR v_item_qty <= 0 THEN
       RAISE EXCEPTION 'Ítem "%" inválido: cantidad (%) debe ser estrictamente mayor a cero', v_item_desc, v_item_qty;
     END IF;
-    IF v_item_price IS NULL OR v_item_price < 0 THEN
-      RAISE EXCEPTION 'Ítem "%" inválido: precio unitario (%) no puede ser nulo ni negativo', v_item_desc, v_item_price;
+    IF v_item_price IS NULL OR v_item_price <= 0 THEN
+      RAISE EXCEPTION 'Ítem "%" inválido: precio unitario (%) debe ser estrictamente mayor a cero', v_item_desc, v_item_price;
     END IF;
 
     v_calculated_budget_total := v_calculated_budget_total + (v_item_qty * v_item_price);

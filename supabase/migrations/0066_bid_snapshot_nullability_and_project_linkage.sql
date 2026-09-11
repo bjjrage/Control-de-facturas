@@ -180,8 +180,8 @@ BEGIN
         RAISE EXCEPTION 'Ítem "%" inválido: cantidad (%) debe ser estrictamente mayor a cero', v_item_desc, v_item_qty;
       END IF;
 
-      IF v_item_price IS NULL OR v_item_price < 0 THEN
-        RAISE EXCEPTION 'Ítem "%" inválido: precio unitario (%) no puede ser nulo ni negativo', v_item_desc, v_item_price;
+      IF v_item_price IS NULL OR v_item_price <= 0 THEN
+        RAISE EXCEPTION 'Ítem "%" inválido: precio unitario (%) debe ser estrictamente mayor a cero', v_item_desc, v_item_price;
       END IF;
 
       INSERT INTO public.budget_items (

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   AuctionPolicy,
   AuctionScope,
@@ -84,7 +84,19 @@ export function PolicyConfigForm({
   );
 
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [modalError, setModalError] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  // policyId generated ONCE per freeze attempt (prepare → confirm share it).
+  const [pendingPolicyId, setPendingPolicyId] = useState<string | null>(null);
+  const errorBoxRef = useRef<HTMLDivElement | null>(null);
+  const fieldRefs = useRef<Record<string, HTMLElement | null>>({});
+
+  function setFieldRef(key: string) {
+    return (el: HTMLElement | null) => {
+      fieldRefs.current[key] = el;
+    };
+  }
 
   // Real-time calculated Auto Limit using integer BigInt arithmetic
   const calculatedAutoLimit = calculateAutoLimitPyg(targetPricePyg, toleranceBps);
@@ -101,9 +113,53 @@ export function PolicyConfigForm({
     else if (strat === "TARGET_TOP_3" || strat === "MAINTAIN_TOP_3") setTargetRank(3);
   };
 
+  // Maps raw validator messages to form fields + humanized Spanish hints.
+  // validateAuctionPolicy() stays the single source of truth (lib untouched).
+  function mapErrorsToFields(errors: string[]): Record<string, string> {
+    const mapping: Array<[string, string, string]> = [
+      ['auctionId', 'auctionId', 'Completá el ID de la subasta (ej: 391731).'],
+      ['groupId', 'groupId', 'Completá el ID del ítem / lote (ej: item-1).'],
+      ['authorizedBy', 'authorizedBy', 'Indicá quién autoriza (nombre u operador).'],
+      ['targetRank', 'targetRank', 'El puesto objetivo debe ser un entero mayor o igual a 1.'],
+      ['defenseStepPyg', 'defenseStep', 'El paso de defensa debe ser un entero mayor a 0.'],
+      ['targetPricePyg', 'targetPrice', 'El precio objetivo debe ser un entero mayor a 0.'],
+      ['autoDefenseToleranceBps', 'tolerance', 'La tolerancia debe estar entre 0% y 100%.'],
+      ['autoLimitPyg', 'targetPrice', 'El límite calculado no coincide: revisá precio objetivo y tolerancia.'],
+      ['scope', 'scope', 'Elegí el alcance: ITEM, LOT o TOTAL.'],
+      ['executionMode', 'executionMode', 'Elegí un modo de operación válido.'],
+      ['maxStalenessMs', 'staleness', 'Staleness máxima inválida.'],
+      ['mipymePolicy.enabled', 'mipyme', 'Configuración MIPYME inválida.'],
+      ['mipymePolicy.executionMode', 'mipyme', 'Modo MIPYME inválido.'],
+      ['mipymePolicy.defenseStepPyg', 'mipyme', 'El paso de defensa MIPYME debe ser un entero mayor a 0.'],
+      ['mipymePolicy.economicLimitMode', 'mipyme', 'Límite económico MIPYME inválido.'],
+      ['mipymePolicy', 'mipyme', 'Revisá la sección de beneficio MIPYME.'],
+      ['policyId', 'auctionId', 'Error interno de identificador: reintentá.'],
+    ];
+    const out: Record<string, string> = {};
+    for (const err of errors) {
+      const hit = mapping.find(([needle]) => err.includes(needle));
+      if (hit && !out[hit[1]]) out[hit[1]] = hit[2];
+    }
+    return out;
+  }
+
+  function revealErrors(errors: string[], byField: Record<string, string>) {
+    setValidationErrors(errors);
+    setFieldErrors(byField);
+    // The button lives at the bottom: bring the error box into view and focus
+    // the first offending field so the button never looks dead.
+    requestAnimationFrame(() => {
+      errorBoxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const firstKey = Object.keys(byField)[0];
+      const el = firstKey ? fieldRefs.current[firstKey] : null;
+      (el as HTMLElement | null)?.focus?.();
+    });
+  }
+
   const handlePrepareFreeze = () => {
+    const policyId = activeFrozenPolicy ? activeFrozenPolicy.policyId : `pol-${Date.now().toString(36)}`;
     const draftPolicy: AuctionPolicy = {
-      policyId: activeFrozenPolicy ? activeFrozenPolicy.policyId : `pol-${Date.now().toString(36)}`,
+      policyId,
       auctionId,
       groupId,
       scope,
@@ -130,11 +186,14 @@ export function PolicyConfigForm({
 
     const errors = validateAuctionPolicy(draftPolicy);
     if (errors.length > 0) {
-      setValidationErrors(errors);
+      revealErrors(errors, mapErrorsToFields(errors));
       return;
     }
 
     setValidationErrors([]);
+    setFieldErrors({});
+    setModalError(null);
+    setPendingPolicyId(policyId);
     setShowConfirmModal(true);
   };
 
@@ -142,7 +201,7 @@ export function PolicyConfigForm({
     const nextVersion = activeFrozenPolicy ? activeFrozenPolicy.version + 1 : 1;
 
     const draftPolicy: AuctionPolicy = {
-      policyId: activeFrozenPolicy ? activeFrozenPolicy.policyId : `pol-${Date.now().toString(36)}`,
+      policyId: activeFrozenPolicy ? activeFrozenPolicy.policyId : (pendingPolicyId ?? `pol-${Date.now().toString(36)}`),
       auctionId,
       groupId,
       scope,
@@ -167,9 +226,18 @@ export function PolicyConfigForm({
       authorizedBy,
     };
 
-    const frozen = freezePolicy(draftPolicy, nextVersion);
-    setShowConfirmModal(false);
-    onPolicyFrozen(frozen);
+    // freezePolicy() throws on invalid input: never let it fail silently.
+    // (Prepare already validated, but this is the real authorization boundary.)
+    try {
+      const frozen = freezePolicy(draftPolicy, nextVersion);
+      setShowConfirmModal(false);
+      setModalError(null);
+      setPendingPolicyId(null);
+      onPolicyFrozen(frozen);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'No se pudo congelar la política.';
+      setModalError(message);
+    }
   };
 
   return (
@@ -189,9 +257,9 @@ export function PolicyConfigForm({
       </div>
 
       {validationErrors.length > 0 && (
-        <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-red-600 dark:text-red-400 text-[12px] space-y-1">
+        <div ref={errorBoxRef} className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-red-600 dark:text-red-400 text-[12px] space-y-1">
           <div className="flex items-center gap-1.5 font-semibold">
-            <AlertCircle className="h-4 w-4" /> Errores de validación:
+            <AlertCircle className="h-4 w-4" /> Faltan datos para autorizar: revisá los campos marcados.
           </div>
           <ul className="list-disc list-inside space-y-0.5">
             {validationErrors.map((err, i) => (
@@ -206,12 +274,19 @@ export function PolicyConfigForm({
         <div>
           <label className="block text-[12px] font-medium text-[var(--foreground)] mb-1">ID Subasta (DNCP) *</label>
           <input
+            ref={setFieldRef("auctionId") as React.Ref<HTMLInputElement>}
             type="text"
             value={auctionId}
             onChange={(e) => setAuctionId(e.target.value)}
             placeholder="Ej: 391731"
-            className="w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-1.5 text-[13px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500"
+            aria-invalid={fieldErrors.auctionId ? true : undefined}
+            className={`w-full rounded-md border px-3 py-1.5 text-[13px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+              fieldErrors.auctionId ? "border-red-500 bg-[var(--panel-2)]" : "border-[var(--border)] bg-[var(--panel-2)]"
+            }`}
           />
+          {fieldErrors.auctionId ? (
+            <p className="text-[11px] text-red-600 dark:text-red-400 mt-1">{fieldErrors.auctionId}</p>
+          ) : null}
         </div>
         <div>
           <label className="block text-[12px] font-medium text-[var(--foreground)] mb-1">Alcance (Scope) *</label>
@@ -228,22 +303,36 @@ export function PolicyConfigForm({
         <div>
           <label className="block text-[12px] font-medium text-[var(--foreground)] mb-1">ID Ítem / Lote / Total *</label>
           <input
+            ref={setFieldRef("groupId") as React.Ref<HTMLInputElement>}
             type="text"
             value={groupId}
             onChange={(e) => setGroupId(e.target.value)}
             placeholder="Ej: item-1"
-            className="w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-1.5 text-[13px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500"
+            aria-invalid={fieldErrors.groupId ? true : undefined}
+            className={`w-full rounded-md border px-3 py-1.5 text-[13px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+              fieldErrors.groupId ? "border-red-500 bg-[var(--panel-2)]" : "border-[var(--border)] bg-[var(--panel-2)]"
+            }`}
           />
+          {fieldErrors.groupId ? (
+            <p className="text-[11px] text-red-600 dark:text-red-400 mt-1">{fieldErrors.groupId}</p>
+          ) : null}
         </div>
         <div>
           <label className="block text-[12px] font-medium text-[var(--foreground)] mb-1">Operador / Autorizado por *</label>
           <input
+            ref={setFieldRef("authorizedBy") as React.Ref<HTMLInputElement>}
             type="text"
             value={authorizedBy}
             onChange={(e) => setAuthorizedBy(e.target.value)}
             placeholder="Nombre o email del operador que autoriza"
-            className="w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-1.5 text-[13px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500"
+            aria-invalid={fieldErrors.authorizedBy ? true : undefined}
+            className={`w-full rounded-md border px-3 py-1.5 text-[13px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+              fieldErrors.authorizedBy ? "border-red-500 bg-[var(--panel-2)]" : "border-[var(--border)] bg-[var(--panel-2)]"
+            }`}
           />
+          {fieldErrors.authorizedBy ? (
+            <p className="text-[11px] text-red-600 dark:text-red-400 mt-1">{fieldErrors.authorizedBy}</p>
+          ) : null}
         </div>
       </div>
 
@@ -608,6 +697,12 @@ export function PolicyConfigForm({
                 <span className="font-semibold">{executionMode}</span>
               </div>
             </div>
+
+            {modalError ? (
+              <p className="text-[12px] text-red-600 dark:text-red-400 rounded-lg border border-red-500/20 bg-red-500/10 p-2.5">
+                No se pudo autorizar: {modalError}
+              </p>
+            ) : null}
 
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="secondary" onClick={() => setShowConfirmModal(false)}>

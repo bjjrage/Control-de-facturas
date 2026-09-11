@@ -141,66 +141,75 @@ export function classifyAmendment(
 
   const combined = `${rawType} ${description}`.trim();
 
-  // 1. Reajuste de precios (Price Adjustment)
+  // PRIORITY 1: EXPLICIT OFFICIAL / RAW AMENDMENT TEXTUAL SEMANTICS
+  // 1.1 Price Adjustment (Reajuste de precios)
   if (combined.includes('reajuste') || rawType.includes('reajuste')) {
     return 'PRICE_ADJUSTMENT';
   }
 
-  // 2. Modificaciones de Alcance / Nuevos Ítems / Convenio Modificatorio
+  // 1.2 Term extension / Prórroga
   if (
-    combined.includes('modificación') ||
-    combined.includes('modificacion') ||
+    combined.includes('ampliación de plazo') ||
+    combined.includes('ampliacion de plazo') ||
+    combined.includes('extensión de plazo') ||
+    combined.includes('extension de plazo') ||
+    combined.includes('prórroga') ||
+    combined.includes('prorroga')
+  ) {
+    return 'TERM_EXTENSION';
+  }
+
+  // 1.3 Term reduction
+  if (
+    combined.includes('reducción de plazo') ||
+    combined.includes('reduccion de plazo')
+  ) {
+    return 'TERM_REDUCTION';
+  }
+
+  // 1.4 Amount increase
+  if (
+    combined.includes('ampliación de monto') ||
+    combined.includes('ampliacion de monto') ||
+    combined.includes('aumento de monto') ||
+    combined.includes('adicional')
+  ) {
+    return 'AMOUNT_INCREASE';
+  }
+
+  // 1.5 Amount decrease
+  if (
+    combined.includes('disminución de monto') ||
+    combined.includes('disminucion de monto') ||
+    combined.includes('reducción de monto') ||
+    combined.includes('reduccion de monto')
+  ) {
+    return 'AMOUNT_DECREASE';
+  }
+
+  // 1.6 Explicit Scope modification (Convenio modificatorio / modificación de alcance)
+  if (
+    combined.includes('modificación de alcance') ||
+    combined.includes('modificacion de alcance') ||
     combined.includes('convenio modificatorio') ||
-    combined.includes('alcance') ||
-    combined.includes('especificaciones') ||
     combined.includes('nuevo item') ||
     combined.includes('nuevos items')
   ) {
     return 'SCOPE_MODIFICATION';
   }
 
-  // 3. Ampliación de Monto
-  if (
-    combined.includes('ampliación de monto') ||
-    combined.includes('ampliacion de monto') ||
-    combined.includes('aumento de monto') ||
-    combined.includes('adicional') ||
-    (amountDelta != null && amountDelta > 0)
-  ) {
-    return 'AMOUNT_INCREASE';
+  // PRIORITY 2: EXPLICIT DIMENSION EVIDENCE (When textual semantics are absent/generic)
+  if (durationDeltaDays != null && durationDeltaDays !== 0) {
+    return durationDeltaDays > 0 ? 'TERM_EXTENSION' : 'TERM_REDUCTION';
   }
 
-  // 4. Disminución de Monto
-  if (
-    combined.includes('disminución de monto') ||
-    combined.includes('disminucion de monto') ||
-    combined.includes('reducción de monto') ||
-    combined.includes('reduccion de monto') ||
-    (amountDelta != null && amountDelta < 0)
-  ) {
-    return 'AMOUNT_DECREASE';
+  if (amountDelta != null && amountDelta !== 0) {
+    return amountDelta > 0 ? 'AMOUNT_INCREASE' : 'AMOUNT_DECREASE';
   }
 
-  // 5. Prórroga / Ampliación de Plazo
-  if (
-    combined.includes('prórroga') ||
-    combined.includes('prorroga') ||
-    combined.includes('ampliación de plazo') ||
-    combined.includes('ampliacion de plazo') ||
-    combined.includes('extensión de plazo') ||
-    combined.includes('extension de plazo') ||
-    (durationDeltaDays != null && durationDeltaDays > 0)
-  ) {
-    return 'TERM_EXTENSION';
-  }
-
-  // 6. Reducción de Plazo
-  if (
-    combined.includes('reducción de plazo') ||
-    combined.includes('reduccion de plazo') ||
-    (durationDeltaDays != null && durationDeltaDays < 0)
-  ) {
-    return 'TERM_REDUCTION';
+  // Generic modification mention without dimension
+  if (combined.includes('modificación') || combined.includes('modificacion')) {
+    return 'SCOPE_MODIFICATION';
   }
 
   if (combined === '' && amountDelta == null && durationDeltaDays == null) {
@@ -311,30 +320,32 @@ export function computeContractEconomicHistory(
     let deltaDays: number | null = null;
     let entryUnresolved = false;
 
+    // Verificar si es una adenda de plazo (TERM ONLY) vs monto (AMOUNT ONLY)
+    const isExplicitTermType = inferredType === 'TERM_EXTENSION' || inferredType === 'TERM_REDUCTION';
+    const isExplicitAmountType = inferredType === 'AMOUNT_INCREASE' || inferredType === 'AMOUNT_DECREASE' || inferredType === 'PRICE_ADJUSTMENT';
+
     // Verificar si la adenda implica impacto en monto
-    const affectsAmount =
-      inferredType === 'AMOUNT_INCREASE' ||
-      inferredType === 'AMOUNT_DECREASE' ||
-      inferredType === 'PRICE_ADJUSTMENT' ||
+    const affectsAmount = isExplicitAmountType || (!isExplicitTermType && (
       rawDesc.toLowerCase().includes('monto') ||
       rawType.toLowerCase().includes('monto') ||
-      rawType.toLowerCase().includes('reajuste');
+      rawType.toLowerCase().includes('reajuste')
+    ));
 
     // Verificar si es una adenda exclusivamente de plazo
-    const isTermOnly =
-      (inferredType === 'TERM_EXTENSION' || inferredType === 'TERM_REDUCTION') &&
-      !affectsAmount;
+    const isTermOnly = isExplicitTermType && !affectsAmount;
 
     // Verificar si es una adenda exclusivamente de monto
-    const isAmountOnly = affectsAmount &&
-      !(inferredType === 'TERM_EXTENSION' || inferredType === 'TERM_REDUCTION') &&
+    const isAmountOnly = affectsAmount && !isExplicitTermType &&
       !rawDesc.toLowerCase().includes('plazo') &&
       !rawType.toLowerCase().includes('plazo') &&
       !rawDesc.toLowerCase().includes('prorroga') &&
       !rawType.toLowerCase().includes('prórroga');
 
     // 1. DIMENSIÓN MONETARIA
-    if (affectsAmount) {
+    if (isTermOnly) {
+      // Invariante P0: Adenda de SOLO PLAZO jamás altera el monto contractual
+      deltaAmt = null;
+    } else if (affectsAmount) {
       if (amendCurrency && amendCurrency !== contractCurrency) {
         // Discrepancia de monedas sin FX rate verificado bloquea agregación económica
         entryUnresolved = true;
@@ -346,7 +357,7 @@ export function computeContractEconomicHistory(
         deltaAmt = Number(amend.amountDelta);
         totalAmountDelta += deltaAmt;
       }
-    } else if (!isTermOnly && amend.amountDelta != null && !isNaN(amend.amountDelta) && amend.amountDelta !== 0) {
+    } else if (amend.amountDelta != null && !isNaN(amend.amountDelta) && amend.amountDelta !== 0) {
       if (amendCurrency && amendCurrency !== contractCurrency) {
         entryUnresolved = true;
         hasUnresolvedAmount = true;
@@ -355,18 +366,17 @@ export function computeContractEconomicHistory(
         totalAmountDelta += deltaAmt;
       }
     }
-    // Si es adenda exclusivamente de plazo, NUNCA aplicar monto delta.
 
     // 2. DIMENSIÓN DE PLAZO
     const affectsDuration =
-      inferredType === 'TERM_EXTENSION' ||
-      inferredType === 'TERM_REDUCTION' ||
-      rawDesc.toLowerCase().includes('plazo') ||
-      rawDesc.toLowerCase().includes('prorroga') ||
-      rawDesc.toLowerCase().includes('prórroga') ||
-      rawType.toLowerCase().includes('plazo') ||
-      rawType.toLowerCase().includes('prorroga') ||
-      rawType.toLowerCase().includes('prórroga');
+      isExplicitTermType || (!isAmountOnly && (
+        rawDesc.toLowerCase().includes('plazo') ||
+        rawDesc.toLowerCase().includes('prorroga') ||
+        rawDesc.toLowerCase().includes('prórroga') ||
+        rawType.toLowerCase().includes('plazo') ||
+        rawType.toLowerCase().includes('prorroga') ||
+        rawType.toLowerCase().includes('prórroga')
+      ));
 
     if (affectsDuration) {
       if (amend.durationDeltaDays === undefined || amend.durationDeltaDays === null || isNaN(amend.durationDeltaDays)) {
@@ -377,10 +387,10 @@ export function computeContractEconomicHistory(
         totalDurationDeltaDays += deltaDays;
       }
     } else if (amend.durationDeltaDays != null && !isNaN(amend.durationDeltaDays) && amend.durationDeltaDays !== 0) {
+      // Si la adenda declara explícitamente un delta de plazo
       deltaDays = Number(amend.durationDeltaDays);
       totalDurationDeltaDays += deltaDays;
     }
-    // Si es adenda exclusivamente de monto, NUNCA derivar plazo delta.
 
     timeline.push({
       amendmentDncpId: amend.amendmentDncpId,

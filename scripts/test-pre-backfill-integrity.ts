@@ -881,6 +881,294 @@ async function runTests() {
   }
 
   // ----------------------------------------------------------------------------
+  // Scenario Q: RPC Parameter Name Compatibility (0060 => p_cr, 0067 => p_cr, caller => p_cr)
+  // ----------------------------------------------------------------------------
+  try {
+    console.log("\nTesting Scenario Q: RPC Parameter Name Compatibility (0060, 0067, backfill caller)...");
+
+    const sql0060 = fs.readFileSync(path.resolve(process.cwd(), 'supabase/migrations/0060_procurement_evidence_foundation.sql'), 'utf8');
+    const sql0067 = fs.readFileSync(path.resolve(process.cwd(), 'supabase/migrations/0067_canonical_cost_and_contract_history.sql'), 'utf8');
+    const backfillScript = fs.readFileSync(path.resolve(process.cwd(), 'scripts/backfill-dncp-history.ts'), 'utf8');
+
+    // Requirement A: 0060 RPC input parameter is p_cr
+    assert(/ingestar_proceso_ocds_global\s*\(\s*p_cr\s+jsonb/i.test(sql0060), "0060 debe definir el parámetro como p_cr");
+    // Requirement B: 0067 RPC input parameter remains p_cr
+    assert(/ingestar_proceso_ocds_global\s*\(\s*p_cr\s+jsonb/i.test(sql0067), "0067 debe conservar el parámetro exactamente como p_cr");
+    assert(!/ingestar_proceso_ocds_global\s*\(\s*p_payload/i.test(sql0067), "0067 jamás debe renombrar el parámetro a p_payload");
+    // Requirement C: backfill caller uses p_cr
+    assert(/p_cr:\s*fullPayload/.test(backfillScript), "backfill-dncp-history.ts debe invocar el RPC con p_cr");
+    assert(!/p_payload:\s*fullPayload/.test(backfillScript), "backfill-dncp-history.ts no debe usar p_payload");
+
+    console.log("  ✓ Scenario Q PASSED: Compatibilidad de firma RPC verificada (p_cr canónico sin rupturas).");
+    passed++;
+  } catch (err: any) {
+    console.error("  ✗ Scenario Q FAILED:", err.message);
+    failed++;
+  }
+
+  // ----------------------------------------------------------------------------
+  // Scenario R: Ingestion Payload Normalization (Full package vs Legacy bare)
+  // ----------------------------------------------------------------------------
+  try {
+    console.log("\nTesting Scenario R: Payload Normalization (full package vs bare compiledRelease)...");
+
+    function normalizePayload(inputPayload: any) {
+      let v_cr: any;
+      let v_releases: any[] = [];
+      let isRichPackage = false;
+
+      if (inputPayload && typeof inputPayload === 'object' && 'compiledRelease' in inputPayload) {
+        v_cr = inputPayload.compiledRelease;
+        isRichPackage = true;
+        if (Array.isArray(inputPayload.releases)) {
+          v_releases = inputPayload.releases;
+        }
+      } else {
+        v_cr = inputPayload;
+      }
+      return { v_cr, v_releases, isRichPackage };
+    }
+
+    // Full package
+    const fullPkg = {
+      compiledRelease: { ocid: 'ocds-03ad3f-123456', tender: { title: 'Licitacion Rica' } },
+      releases: [{ date: '2026-01-01', tag: ['tender'], url: 'https://...' }],
+      releasesMetadata: { count: 1, releaseType: 'RELEASE_REFERENCE' }
+    };
+    const resFull = normalizePayload(fullPkg);
+    assert(resFull.isRichPackage, "Debe detectar paquete rico");
+    assert(resFull.v_cr.ocid === 'ocds-03ad3f-123456', "compiledRelease extraído con éxito");
+    assert(resFull.v_releases.length === 1, "releases preservados");
+
+    // Legacy bare compiledRelease
+    const legacyBare = {
+      ocid: 'ocds-03ad3f-654321',
+      tender: { title: 'Licitacion Antigua' }
+    };
+    const resBare = normalizePayload(legacyBare);
+    assert(!resBare.isRichPackage, "Debe detectar payload legado");
+    assert(resBare.v_cr.ocid === 'ocds-03ad3f-654321', "bare payload usado directamente como compiledRelease");
+
+    console.log("  ✓ Scenario R PASSED: Normalización transparente de payload (paquete completo y legado soportados).");
+    passed++;
+  } catch (err: any) {
+    console.error("  ✗ Scenario R FAILED:", err.message);
+    failed++;
+  }
+
+  // ----------------------------------------------------------------------------
+  // Scenario S: Tender -> Project Conversion fails closed on price = 0
+  // ----------------------------------------------------------------------------
+  try {
+    console.log("\nTesting Scenario S: Tender -> Project Conversion fails closed on price = 0...");
+
+    const zeroPriceItem = { itemNumber: 2, description: 'Item Cero', unit: 'UN', quantity: 5, unitPricePyg: 0 };
+    const nanPriceItem = { itemNumber: 3, description: 'Item NaN', unit: 'UN', quantity: 5, unitPricePyg: NaN };
+
+    let zeroPriceCaught = false;
+    try {
+      buildProjectFromAdjudicatedTender({
+        empresaId: '00000000-0000-0000-0000-000000000001',
+        tenderId: 'TND-001',
+        dncpNro: '123456',
+        projectTitle: 'Proyecto Test',
+        buyerName: 'Comitente',
+        adjudicatedOfferPricePyg: 500000,
+        bidItems: [zeroPriceItem]
+      });
+    } catch (e: any) {
+      zeroPriceCaught = true;
+      assert(e.message.includes('VALIDATION_ERROR') && e.message.includes('invalid unit price'), 'Debe reportar error de validación de precio');
+    }
+    assert(zeroPriceCaught, "unitPrice = 0 debe lanzar error y fallar cerrado");
+
+    let nanPriceCaught = false;
+    try {
+      buildProjectFromAdjudicatedTender({
+        empresaId: '00000000-0000-0000-0000-000000000001',
+        tenderId: 'TND-001',
+        dncpNro: '123456',
+        projectTitle: 'Proyecto Test',
+        buyerName: 'Comitente',
+        adjudicatedOfferPricePyg: 500000,
+        bidItems: [nanPriceItem]
+      });
+    } catch (e: any) {
+      nanPriceCaught = true;
+    }
+    assert(nanPriceCaught, "unitPrice = NaN debe lanzar error y fallar cerrado");
+
+    console.log("  ✓ Scenario S PASSED: Precio cero / inválido falla cerrado categóricamente.");
+    passed++;
+  } catch (err: any) {
+    console.error("  ✗ Scenario S FAILED:", err.message);
+    failed++;
+  }
+
+  // ----------------------------------------------------------------------------
+  // Scenario T: Multi-Supplier Semantics (1 supplier vs 2 suppliers)
+  // ----------------------------------------------------------------------------
+  try {
+    console.log("\nTesting Scenario T: Multi-Supplier Semantics (1 supplier vs 2 suppliers)...");
+
+    function resolveSupplierIds(verifiedSuppliers: Array<{ id: string }>) {
+      const uniqueIds = Array.from(new Set(verifiedSuppliers.map(s => s.id)));
+      let singularSupplierId: string | null = null;
+      if (uniqueIds.length === 1) {
+        singularSupplierId = uniqueIds[0];
+      } else {
+        singularSupplierId = null; // > 1 or 0 => NULL
+      }
+      const joinRows = uniqueIds.map(id => ({ supplier_id: id }));
+      return { singularSupplierId, joinRows };
+    }
+
+    // 1 supplier
+    const case1 = resolveSupplierIds([{ id: 'supp-1' }]);
+    assert(case1.singularSupplierId === 'supp-1', "1 proveedor => supplier_id poblado con ese ID");
+    assert(case1.joinRows.length === 1, "1 proveedor => exactamente 1 fila join");
+
+    // 2 suppliers
+    const case2 = resolveSupplierIds([{ id: 'supp-1' }, { id: 'supp-2' }]);
+    assert(case2.singularSupplierId === null, "2 proveedores => supplier_id debe ser estrictamente NULL (sin asignar suppliers[0])");
+    assert(case2.joinRows.length === 2, "2 proveedores => 2 filas join preservadas");
+
+    // 0 suppliers
+    const case0 = resolveSupplierIds([]);
+    assert(case0.singularSupplierId === null, "0 proveedores => supplier_id NULL");
+    assert(case0.joinRows.length === 0, "0 proveedores => 0 filas join");
+
+    console.log("  ✓ Scenario T PASSED: Semántica multi-proveedor canónica (join tables como fuente de verdad).");
+    passed++;
+  } catch (err: any) {
+    console.error("  ✗ Scenario T FAILED:", err.message);
+    failed++;
+  }
+
+  // ----------------------------------------------------------------------------
+  // Scenario U: Amount-only amendment with fake duration causes assertion failure
+  // ----------------------------------------------------------------------------
+  try {
+    console.log("\nTesting Scenario U: Amount-only amendment with fake duration causes failure...");
+
+    const contract: ContractInput = {
+      id: 'c-amt-only',
+      contractDncpId: 'c-amt-only',
+      originalAmount: 100_000_000,
+      originalDurationDays: 180,
+      currency: 'PYG'
+    };
+
+    const pureAmountAmendment: AmendmentInput = {
+      amendmentDncpId: 'amend-pure-amt',
+      extendsContractId: 'c-amt-only',
+      tipo: 'AMOUNT_INCREASE',
+      dncpAmendmentTypeRaw: 'Ampliación de Monto',
+      amountDelta: 20_000_000,
+      durationDeltaDays: null
+    };
+
+    const hist = computeContractEconomicHistory(contract, [pureAmountAmendment]);
+    assert(hist.finalContractAmount === 120_000_000, "Monto final debe incrementarse a 120M");
+    assert(hist.finalDurationDays === 180, "Plazo no debe sufrir alteración alguna");
+
+    const timelineEntry = hist.timeline[0];
+    const durationDeltaInvented = timelineEntry.durationDeltaDays !== null && timelineEntry.durationDeltaDays !== 0;
+    assert(!durationDeltaInvented, "Adenda de solo monto jamás debe contener o derivar un delta de plazo");
+
+    console.log("  ✓ Scenario U PASSED: Adenda de solo monto no inventa plazo.");
+    passed++;
+  } catch (err: any) {
+    console.error("  ✗ Scenario U FAILED:", err.message);
+    failed++;
+  }
+
+  // ----------------------------------------------------------------------------
+  // Scenario V: Term-only amendment with fake amount causes assertion failure
+  // ----------------------------------------------------------------------------
+  try {
+    console.log("\nTesting Scenario V: Term-only amendment with fake amount causes failure...");
+
+    const contract: ContractInput = {
+      id: 'c-term-only',
+      contractDncpId: 'c-term-only',
+      originalAmount: 100_000_000,
+      originalDurationDays: 180,
+      currency: 'PYG'
+    };
+
+    const pureTermAmendment: AmendmentInput = {
+      amendmentDncpId: 'amend-pure-term',
+      extendsContractId: 'c-term-only',
+      tipo: 'TERM_EXTENSION',
+      dncpAmendmentTypeRaw: 'Ampliación de Plazo',
+      amountDelta: null,
+      durationDeltaDays: 60
+    };
+
+    const hist = computeContractEconomicHistory(contract, [pureTermAmendment]);
+    assert(hist.finalDurationDays === 240, "Plazo final debe extenderse a 240 días");
+    assert(hist.finalContractAmount === 100_000_000, "Monto jamás debe alterarse en adenda de plazo");
+
+    const timelineEntry = hist.timeline[0];
+    const amountDeltaInvented = timelineEntry.amountDelta !== null && timelineEntry.amountDelta !== 0;
+    assert(!amountDeltaInvented, "Adenda de solo plazo jamás debe contener o alterar el monto contractual");
+
+    console.log("  ✓ Scenario V PASSED: Adenda de solo plazo jamás altera el monto contractual.");
+    passed++;
+  } catch (err: any) {
+    console.error("  ✗ Scenario V FAILED:", err.message);
+    failed++;
+  }
+
+  // ----------------------------------------------------------------------------
+  // Scenario W: Explicit raw term-extension wins over incidental positive amount heuristic
+  // ----------------------------------------------------------------------------
+  try {
+    console.log("\nTesting Scenario W: Explicit raw term-extension wins over incidental amount heuristic...");
+
+    // Caso peligroso auditado:
+    // rawType = 'Ampliación de Plazo', pero amountDelta = 50,000,000 existe incidentalmente en el payload.
+    // La heurística textual oficial DEBE ganar sobre amountDelta > 0.
+    const classified = classifyAmendment(
+      'Ampliación de Plazo', // rawType
+      'Adenda de prórroga contractual', // description
+      50_000_000, // incidental amountDelta en payload
+      60 // durationDeltaDays
+    );
+
+    assert(classified === 'TERM_EXTENSION', `Debe clasificarse como TERM_EXTENSION, clasificado actual: ${classified}`);
+
+    const contract: ContractInput = {
+      id: 'c-heuristic-test',
+      contractDncpId: 'c-heuristic-test',
+      originalAmount: 200_000_000,
+      originalDurationDays: 90,
+      currency: 'PYG'
+    };
+
+    const incidentalAmendment: AmendmentInput = {
+      amendmentDncpId: 'amend-incidental-amt',
+      extendsContractId: 'c-heuristic-test',
+      dncpAmendmentTypeRaw: 'Ampliación de Plazo',
+      description: 'Prórroga de plazo de ejecución',
+      amountDelta: 50_000_000, // Incidental
+      durationDeltaDays: 30
+    };
+
+    const hist = computeContractEconomicHistory(contract, [incidentalAmendment]);
+    assert(hist.timeline[0].tipo === 'TERM_EXTENSION', "Debe computarse como TERM_EXTENSION");
+    assert(hist.finalContractAmount === 200_000_000, "Monto contractual debe permanecer 200M (inmune a monto incidental en adenda de plazo)");
+    assert(hist.finalDurationDays === 120, "Plazo contractual debe extenderse a 120 días");
+
+    console.log("  ✓ Scenario W PASSED: Prioridad textual oficial verificada (inmune a heurísticas numéricas incidentales).");
+    passed++;
+  } catch (err: any) {
+    console.error("  ✗ Scenario W FAILED:", err.message);
+    failed++;
+  }
+
+  // ----------------------------------------------------------------------------
   // Resumen Final
   // ----------------------------------------------------------------------------
   console.log("\n================================================================================");

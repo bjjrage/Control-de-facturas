@@ -61,6 +61,11 @@ export interface SpikeProcessResult {
   category: string;
   originalContractsCount: number;
   amendmentsCount: number;
+  extendsAmendmentsCount: number;
+  extendsParentsResolved: number;
+  extendsOrphanCount: number;
+  extendsResolutionRatePct: number;
+  embeddedAmendmentsCount: number;
   amendmentTypes: string[];
   currencies: string[];
   hasNonIntegerItemIds: boolean;
@@ -165,12 +170,12 @@ export async function runRealitySpike(): Promise<{
       const rawContracts = cr.contracts || [];
       const { originalContracts, linkedAmendments } = separateContractsAndExtendsAmendments(rawContracts);
 
-      // También revisar si hay embedded amendments en los contratos originales
-      const allAmendments = [...linkedAmendments];
+      // Embedded amendments en los contratos originales
+      const embeddedAmendments: any[] = [];
       for (const orig of originalContracts) {
         if (Array.isArray(orig.amendments)) {
           for (const ea of orig.amendments) {
-            allAmendments.push({
+            embeddedAmendments.push({
               amendmentDncpId: ea.id || `ea-${ea.date || 'unkn'}`,
               extendsContractId: orig.id,
               sourceType: 'EMBEDDED_AMENDMENT',
@@ -183,6 +188,8 @@ export async function runRealitySpike(): Promise<{
         }
       }
 
+      const allAmendments = [...linkedAmendments, ...embeddedAmendments];
+
       totalOrigContracts += originalContracts.length;
       totalAmendments += allAmendments.length;
 
@@ -193,19 +200,21 @@ export async function runRealitySpike(): Promise<{
         if (c.dncpContractCode) originalContractMap.set(String(c.dncpContractCode).trim(), c);
       }
 
-      let resolvedParents = 0;
-      let orphanCount = 0;
-      for (const a of allAmendments) {
+      // EXTENDS CONTRACT amendments: exact parent resolution
+      let extendsResolved = 0;
+      let extendsOrphans = 0;
+      for (const a of linkedAmendments) {
         const parentId = a.extendsContractId ? String(a.extendsContractId).trim() : null;
         if (parentId && originalContractMap.has(parentId)) {
-          resolvedParents++;
+          extendsResolved++;
         } else {
-          orphanCount++;
+          extendsOrphans++;
         }
       }
-      totalOrphans += orphanCount;
-      const parentResolutionRate = allAmendments.length > 0
-        ? Math.round((resolvedParents / allAmendments.length) * 100)
+      totalOrphans += extendsOrphans;
+
+      const extendsResolutionRatePct = linkedAmendments.length > 0
+        ? Math.round((extendsResolved / linkedAmendments.length) * 100)
         : 100;
 
       // 5. Computar historial económico independiente por contrato
@@ -253,7 +262,7 @@ export async function runRealitySpike(): Promise<{
           growthPct: hist.growthPercentage
         });
 
-        // Verificar aislamiento de dimensiones
+        // Verificar aislamiento de dimensiones con aserciones reales
         for (const t of hist.timeline) {
           if (t.tipo === 'TERM_EXTENSION' || t.tipo === 'TERM_REDUCTION') {
             termOnlyConfirmed = true;
@@ -264,12 +273,17 @@ export async function runRealitySpike(): Promise<{
           }
           if (t.tipo === 'AMOUNT_INCREASE' || t.tipo === 'AMOUNT_DECREASE') {
             amountOnlyConfirmed = true;
-            // Pure amount modification must not invent duration delta if not in amendment
-            if (t.durationDeltaDays !== null && t.durationDeltaDays !== 0 && !t.dncpAmendmentTypeRaw?.toLowerCase().includes('plazo')) {
-              // Validated
+            // Pure amount modification must not invent duration delta
+            if (t.durationDeltaDays !== null && t.durationDeltaDays !== 0) {
+              amountOnlyHandled = false;
             }
           }
         }
+      }
+
+      const independentDimensionsValidated = termOnlyHandled && amountOnlyHandled;
+      if (!independentDimensionsValidated) {
+        throw new Error(`DIMENSION_ISOLATION_ASSERTION_FAILED in process ${nro}: termOnlyHandled=${termOnlyHandled}, amountOnlyHandled=${amountOnlyHandled}`);
       }
 
       const amendmentTypes = Array.from(new Set(allAmendments.map(a => a.dncpAmendmentTypeRaw || a.tipo || 'OTHER')));
@@ -281,15 +295,20 @@ export async function runRealitySpike(): Promise<{
         category: cat,
         originalContractsCount: originalContracts.length,
         amendmentsCount: allAmendments.length,
+        extendsAmendmentsCount: linkedAmendments.length,
+        extendsParentsResolved: extendsResolved,
+        extendsOrphanCount: extendsOrphans,
+        extendsResolutionRatePct,
+        embeddedAmendmentsCount: embeddedAmendments.length,
         amendmentTypes,
         currencies: Array.from(currencies),
         hasNonIntegerItemIds,
         hasNonIntegerLotIds,
         supplierCount: totalSupplierEntries,
         hasConsortium: maxSuppliersPerAward > 1,
-        parentResolutionRatePct: parentResolutionRate,
-        orphanAmendmentsCount: orphanCount,
-        independentDimensionsValidated: true,
+        parentResolutionRatePct: extendsResolutionRatePct,
+        orphanAmendmentsCount: extendsOrphans,
+        independentDimensionsValidated,
         termOnlyHandledCorrectly: termOnlyHandled,
         amountOnlyHandledCorrectly: amountOnlyHandled,
         economicHistories
@@ -298,22 +317,34 @@ export async function runRealitySpike(): Promise<{
       results.push(procResult);
 
       console.log(`[✓] Proceso DNCP ${nro}: "${title.slice(0, 40)}"`);
-      console.log(`    Contratos orig: ${originalContracts.length} | Adendas: ${allAmendments.length} | Padres resueltos: ${parentResolutionRate}% | Huérfanos: ${orphanCount}`);
+      console.log(`    Contratos orig: ${originalContracts.length} | Adendas EXTENDS: ${linkedAmendments.length} (resueltos: ${extendsResolved}, huérfanos: ${extendsOrphans}) | EMBEDDED: ${embeddedAmendments.length}`);
       console.log(`    Tipos adenda: [${amendmentTypes.join(', ')}]`);
+      console.log(`    Dimensiones independientes: ${independentDimensionsValidated} (termOnly=${termOnlyHandled}, amountOnly=${amountOnlyHandled})`);
       console.log(`    IDs no-enteros: Items=${hasNonIntegerItemIds}, Lotes=${hasNonIntegerLotIds} | Consorcios: ${maxSuppliersPerAward > 1}`);
     } catch (err: any) {
       console.error(`[!] Error en spike para proceso ${nro}:`, err.message);
+      throw err;
     }
+  }
+
+  const allDimensionsValidated = results.every(r => r.independentDimensionsValidated);
+  if (!allDimensionsValidated) {
+    throw new Error("REALITY SPIKE ASSERTION FAILED: Aislamiento dimensional violado en procesos analizados.");
   }
 
   const summary = {
     totalOriginalContracts: totalOrigContracts,
     totalAmendments: totalAmendments,
+    totalExtendsAmendments: results.reduce((acc, r) => acc + r.extendsAmendmentsCount, 0),
+    totalExtendsResolved: results.reduce((acc, r) => acc + r.extendsParentsResolved, 0),
+    totalExtendsOrphans: totalOrphans,
+    totalEmbeddedAmendments: results.reduce((acc, r) => acc + r.embeddedAmendmentsCount, 0),
     totalOrphanAmendments: totalOrphans,
     nonIntegerIdsConfirmed,
     consortiaDetected,
     termOnlyAmendmentsConfirmed: termOnlyConfirmed,
-    amountOnlyAmendmentsConfirmed: amountOnlyConfirmed
+    amountOnlyAmendmentsConfirmed: amountOnlyConfirmed,
+    independentDimensionsValidated: allDimensionsValidated
   };
 
   console.log('\n================================================================================');

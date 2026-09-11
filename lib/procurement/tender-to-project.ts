@@ -92,8 +92,8 @@ export function buildProjectFromAdjudicatedTender(params: TenderToProjectParams)
     if (item.quantity === undefined || item.quantity === null || item.quantity <= 0) {
       throw new Error(`VALIDATION_ERROR: Bid item #${item.itemNumber} has invalid quantity (${item.quantity}). Quantity must be strictly greater than zero.`);
     }
-    if (item.unitPricePyg === undefined || item.unitPricePyg === null || item.unitPricePyg < 0) {
-      throw new Error(`VALIDATION_ERROR: Bid item #${item.itemNumber} has invalid unit price (${item.unitPricePyg}). Price must be non-negative.`);
+    if (item.unitPricePyg === undefined || item.unitPricePyg === null || isNaN(item.unitPricePyg) || item.unitPricePyg <= 0) {
+      throw new Error(`VALIDATION_ERROR: Bid item #${item.itemNumber} has invalid unit price (${item.unitPricePyg}). Price must be strictly greater than zero.`);
     }
   }
 

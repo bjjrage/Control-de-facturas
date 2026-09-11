@@ -457,7 +457,14 @@ export async function convertirLicitacionAProyecto(
     const desc = it.descripcion ? String(it.descripcion).trim() : "";
     const unit = it.unidad ? String(it.unidad).trim() : "";
     const qty = Number(it.cantidad);
-    const unitPrice = Number(it.precio_unitario_estimado || (it.monto_total && it.cantidad ? it.monto_total / Number(it.cantidad) : 0));
+    let unitPrice: number;
+    if (it.precio_unitario_estimado !== undefined && it.precio_unitario_estimado !== null && !isNaN(Number(it.precio_unitario_estimado))) {
+      unitPrice = Number(it.precio_unitario_estimado);
+    } else if (it.monto_total !== undefined && it.monto_total !== null && it.cantidad && Number(it.cantidad) > 0) {
+      unitPrice = Number(it.monto_total) / Number(it.cantidad);
+    } else {
+      return { error: `No se puede convertir a proyecto: el ítem #${itemNumber} ("${desc.slice(0, 30)}") carece de precio unitario verificado.` };
+    }
 
     if (!desc) {
       return { error: `No se puede convertir a proyecto: el ítem #${itemNumber} no tiene descripción válida.` };
@@ -468,8 +475,8 @@ export async function convertirLicitacionAProyecto(
     if (isNaN(qty) || qty <= 0) {
       return { error: `No se puede convertir a proyecto: el ítem #${itemNumber} ("${desc.slice(0, 30)}") tiene cantidad inválida (${it.cantidad}). Debe ser estrictamente mayor a cero.` };
     }
-    if (isNaN(unitPrice) || unitPrice < 0) {
-      return { error: `No se puede convertir a proyecto: el ítem #${itemNumber} ("${desc.slice(0, 30)}") tiene precio unitario inválido.` };
+    if (isNaN(unitPrice) || unitPrice <= 0) {
+      return { error: `No se puede convertir a proyecto: el ítem #${itemNumber} ("${desc.slice(0, 30)}") tiene precio unitario inválido (${unitPrice}). Debe ser estrictamente mayor a cero.` };
     }
 
     bidItems.push({

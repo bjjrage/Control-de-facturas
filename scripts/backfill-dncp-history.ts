@@ -272,6 +272,7 @@ export async function runBackfill(options?: {
           releases,
           releasesMetadata: {
             count: releases.length,
+            releaseType: releases.some((r: any) => r.releaseType === 'FULL_RELEASE') ? 'FULL_RELEASE' : 'RELEASE_INDEX',
             ocid: recordItem.ocid || cr.ocid,
             fetchedAt: new Date().toISOString()
           }

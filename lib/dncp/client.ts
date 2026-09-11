@@ -61,9 +61,21 @@ export function ocidDe(nro: string): string {
   return `${OCID_PREFIX}${nro}`;
 }
 
+export type ReleaseItemType = 'RELEASE_INDEX' | 'RELEASE_REFERENCE' | 'FULL_RELEASE';
+
+export interface DncpReleaseItem {
+  id?: string;
+  date?: string;
+  tag?: string[];
+  url?: string;
+  initiationType?: string;
+  releaseType: ReleaseItemType;
+  [key: string]: unknown;
+}
+
 export interface DncpRecordResult {
   compiledRelease: Record<string, unknown>;
-  releases: Record<string, unknown>[];
+  releases: DncpReleaseItem[];
   ocid: string;
   version?: string;
   uri?: string;
@@ -71,7 +83,7 @@ export interface DncpRecordResult {
 
 /**
  * Trae el record OCDS completo de una licitación preservando tanto el `compiledRelease`
- * como el historial completo de `releases[]`.
+ * como el historial completo de `releases[]` con semántica honesta de RELEASE_REFERENCE / RELEASE_INDEX.
  */
 export async function fetchFullRecord(nroOrInput: string): Promise<DncpRecordResult> {
   const nro = normalizarNro(nroOrInput);
@@ -93,9 +105,21 @@ export async function fetchFullRecord(nroOrInput: string): Promise<DncpRecordRes
   if (!rec.compiledRelease) {
     throw new Error(`El record ${nro} no trae compiledRelease`);
   }
+
+  const rawReleases = (rec.releases as Record<string, unknown>[]) || [];
+  const releases: DncpReleaseItem[] = rawReleases.map(rel => {
+    // Si el objeto solo contiene url/tag/date sin el cuerpo histórico de tender/contracts/awards
+    const hasFullBody = !!(rel.tender || rel.contracts || rel.awards || rel.planning);
+    const releaseType: ReleaseItemType = hasFullBody ? 'FULL_RELEASE' : 'RELEASE_REFERENCE';
+    return {
+      ...rel,
+      releaseType
+    };
+  });
+
   return {
     compiledRelease: rec.compiledRelease,
-    releases: (rec.releases as Record<string, unknown>[]) || [],
+    releases,
     ocid: rec.ocid || ocidDe(nro),
     version: rec.version,
     uri: rec.uri
