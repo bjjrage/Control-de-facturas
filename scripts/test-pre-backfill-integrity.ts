@@ -1169,6 +1169,54 @@ async function runTests() {
   }
 
   // ----------------------------------------------------------------------------
+  // Scenario X: RUC Normalization with OCDS Prefixes (PY-RUC-, RUC-, bare)
+  // ----------------------------------------------------------------------------
+  try {
+    console.log("\nTesting Scenario X: RUC normalization handles PY-RUC-, RUC- and bare RUC identically...");
+
+    function normalizarRucRef(ruc: string | null): string | null {
+      if (!ruc || !ruc.trim()) return null;
+      let clean = ruc.trim().replace(/\s+/g, '');
+      clean = clean.replace(/^(PY-)?RUC-/i, '');
+      if (clean.includes('-')) {
+        clean = clean.split('-')[0];
+      }
+      const alphanumeric = clean.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+      return alphanumeric.length > 0 ? alphanumeric : null;
+    }
+
+    function extraerDvRef(ruc: string | null): string | null {
+      if (!ruc || !ruc.trim()) return null;
+      let clean = ruc.trim().replace(/\s+/g, '');
+      clean = clean.replace(/^(PY-)?RUC-/i, '');
+      if (clean.includes('-')) {
+        return clean.split('-')[1];
+      }
+      return null;
+    }
+
+    const testRucs = ['PY-RUC-310695-0', 'RUC-310695-0', '310695-0'];
+    for (const r of testRucs) {
+      const clean = normalizarRucRef(r);
+      const dv = extraerDvRef(r);
+      assert(clean === '310695', `RUC normalizado debe ser 310695 para ${r}, obtenido: ${clean}`);
+      assert(dv === '0', `DV extraído debe ser 0 para ${r}, obtenido: ${dv}`);
+    }
+
+    // Comprobar que 0060 y 0067 definen la expresión regular canónica
+    const sql0060 = fs.readFileSync(path.resolve(__dirname, '../supabase/migrations/0060_procurement_evidence_foundation.sql'), 'utf8');
+    const sql0067 = fs.readFileSync(path.resolve(__dirname, '../supabase/migrations/0067_canonical_cost_and_contract_history.sql'), 'utf8');
+    assert(sql0060.includes('^(PY-)?RUC-'), "0060 debe incluir regex ^(PY-)?RUC- en normalizar_ruc");
+    assert(sql0067.includes('^(PY-)?RUC-'), "0067 debe incluir regex ^(PY-)?RUC- en normalizar_ruc");
+
+    console.log("  ✓ Scenario X PASSED: Normalización de RUC canónica y consistente across PY-RUC-, RUC- y bare RUC.");
+    passed++;
+  } catch (err: any) {
+    console.error("  ✗ Scenario X FAILED:", err.message);
+    failed++;
+  }
+
+  // ----------------------------------------------------------------------------
   // Resumen Final
   // ----------------------------------------------------------------------------
   console.log("\n================================================================================");

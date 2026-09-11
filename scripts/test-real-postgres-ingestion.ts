@@ -181,9 +181,9 @@ async function main() {
     .eq("process_id", processId1);
 
   assert(!contractErr, `Error consultando contratos: ${contractErr?.message}`);
-  assert(contracts.length === 1, `Debe haber exactamente 1 contrato, encontrados: ${contracts.length}`);
+  assert(Boolean(contracts) && contracts!.length === 1, `Debe haber exactamente 1 contrato, encontrados: ${contracts?.length}`);
   
-  const contract = contracts[0];
+  const contract = contracts![0];
   assert(contract.contract_dncp_id === "LP-11001-19-183665", `ID contrato incorrecto: ${contract.contract_dncp_id}`);
   assert(Number(contract.monto_contrato_original) === 824999752, `Monto original debe ser 824,999,752, obtenido: ${contract.monto_contrato_original}`);
   assert(contract.moneda === "PYG", `Moneda del contrato debe ser PYG, obtenido: ${contract.moneda}`);
@@ -201,9 +201,9 @@ async function main() {
     .eq("process_id", processId1);
 
   assert(!amendErr, `Error consultando adendas: ${amendErr?.message}`);
-  assert(amendments.length === 1, `Debe haber exactamente 1 adenda, encontradas: ${amendments.length}`);
+  assert(Boolean(amendments) && amendments!.length === 1, `Debe haber exactamente 1 adenda, encontradas: ${amendments?.length}`);
 
-  const amendment = amendments[0];
+  const amendment = amendments![0];
   assert(amendment.contract_id === contract.id, "La adenda debe estar enlazada al ID del contrato");
   assert(amendment.amendment_dncp_id === "371560-ricardo-diaz-martinez-1-ampliacion", `ID de adenda incorrecto: ${amendment.amendment_dncp_id}`);
   assert(Number(amendment.monto_delta) === 134372811, `Monto delta debe ser 134,372,811, obtenido: ${amendment.monto_delta}`);
@@ -222,19 +222,19 @@ async function main() {
     .order("sort_order", { ascending: true });
 
   assert(!itemsErr, `Error consultando items: ${itemsErr?.message}`);
-  assert(items.length === 17, `Debe haber exactamente 17 items, encontrados: ${items.length}`);
+  assert(Boolean(items) && items!.length === 17, `Debe haber exactamente 17 items, encontrados: ${items?.length}`);
 
   const expectedBase64Sample = "BKNfywmd4xcTVYhUzXKmpQ==";
-  const sampleItem = items.find((it) => it.item_dncp_id === expectedBase64Sample);
+  const sampleItem = items!.find((it) => it.item_dncp_id === expectedBase64Sample);
   assert(Boolean(sampleItem), `Item con ID Base64 "${expectedBase64Sample}" no fue encontrado`);
   assert(sampleItem!.descripcion === "Provisión y colocación de zócalo de granito natural", `Descripción no coincide: ${sampleItem!.descripcion}`);
   assert(Number(sampleItem!.cantidad) === 11, `Cantidad debe ser 11, obtenido: ${sampleItem!.cantidad}`);
   assert(sampleItem!.unidad === "Metros", `Unidad debe ser Metros, obtenido: ${sampleItem!.unidad}`);
   assert(Number(sampleItem!.precio_unitario_referencial) === 425000, `Precio unitario debe ser 425,000, obtenido: ${sampleItem!.precio_unitario_referencial}`);
 
-  const base64Items = items.filter((it) => it.item_dncp_id && it.item_dncp_id.includes("="));
+  const base64Items = items!.filter((it) => it.item_dncp_id && it.item_dncp_id.includes("="));
   assert(base64Items.length > 0, "Debe haber items con padding base64 '=' preservado");
-  console.log(`  ✓ ${items.length} Ítems verificados.`);
+  console.log(`  ✓ ${items!.length} Ítems verificados.`);
   console.log(`    Muestra Base64: ID="${sampleItem!.item_dncp_id}", Desc="${sampleItem!.descripcion}", Cant=${sampleItem!.cantidad} ${sampleItem!.unidad}, Unitario=PYG ${Number(sampleItem!.precio_unitario_referencial).toLocaleString()}`);
 
   // 3.6 Supplier
@@ -245,8 +245,8 @@ async function main() {
     .eq("ruc_clean", "310695");
 
   assert(!suppErr, `Error consultando proveedor: ${suppErr?.message}`);
-  assert(suppliers.length === 1, `Debe existir exactamente 1 proveedor con RUC limpio 310695, encontrados: ${suppliers.length}`);
-  const supplier = suppliers[0];
+  assert(Boolean(suppliers) && suppliers!.length === 1, `Debe existir exactamente 1 proveedor con RUC limpio 310695, encontrados: ${suppliers?.length}`);
+  const supplier = suppliers![0];
   assert(supplier.nombre === "RICARDO DIAZ MARTINEZ", `Nombre de proveedor incorrecto: ${supplier.nombre}`);
   assert(supplier.dv === "0", `DV de proveedor debe ser 0, obtenido: ${supplier.dv}`);
 
@@ -257,7 +257,7 @@ async function main() {
     .eq("supplier_id", supplier.id);
 
   assert(!csErr, `Error consultando contract_suppliers: ${csErr?.message}`);
-  assert(contractSuppliers.length === 1, `El proveedor debe estar vinculado en procurement_contract_suppliers`);
+  assert(Boolean(contractSuppliers) && contractSuppliers!.length === 1, `El proveedor debe estar vinculado en procurement_contract_suppliers`);
   assert(contract.supplier_id === supplier.id, `El contrato debe apuntar al ID del proveedor`);
   console.log(`  ✓ Supplier verificado: Nombre="${supplier.nombre}", RUC=${supplier.ruc_clean}-${supplier.dv}, Vinculado a Contrato.`);
 
@@ -336,11 +336,11 @@ async function main() {
     .eq("id", contract.id)
     .single();
 
-  assert(!cprErr, `Error consultando contrato post re-ingestión: ${cprErr?.message}`);
-  assert(Number(contractPostRetry.monto_contrato_original) === 824999752, "Monto original cambió post re-ingestión");
-  assert(Number(contractPostRetry.monto_contrato_vigente) === 959372563, "Monto vigente cambió post re-ingestión");
-  assert(contractPostRetry.amendment_count === 1, "amendment_count cambió post re-ingestión");
-  assert(Number(contractPostRetry.total_amendment_amount_delta) === 134372811, "total_amendment_amount_delta cambió post re-ingestión");
+  assert(!cprErr && Boolean(contractPostRetry), `Error consultando contrato post re-ingestión: ${cprErr?.message}`);
+  assert(Number(contractPostRetry!.monto_contrato_original) === 824999752, "Monto original cambió post re-ingestión");
+  assert(Number(contractPostRetry!.monto_contrato_vigente) === 959372563, "Monto vigente cambió post re-ingestión");
+  assert(contractPostRetry!.amendment_count === 1, "amendment_count cambió post re-ingestión");
+  assert(Number(contractPostRetry!.total_amendment_amount_delta) === 134372811, "total_amendment_amount_delta cambió post re-ingestión");
   console.log(`  ✓ Invariantes económicos de contrato verificados post re-ingestión (monto vigente y original inmutables).`);
 
   console.log("\n================================================================================");
