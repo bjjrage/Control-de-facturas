@@ -66,7 +66,8 @@ async function runTests() {
       unidad: 'BLS',
       precioUnitario: 50000,
       moneda: 'PYG',
-      fechaObservacion: today
+      fechaObservacion: today,
+      estadoEvidencia: 'VALIDA'
     },
     {
       id: '2',
@@ -78,7 +79,8 @@ async function runTests() {
       unidad: 'BLS',
       precioUnitario: 70000,
       moneda: 'PYG',
-      fechaObservacion: today
+      fechaObservacion: today,
+      estadoEvidencia: 'VALIDA'
     }
   ];
   // Factura weight = 1.0, Cotizacion weight = 0.6. Promedio debería inclinarse fuertemente hacia 50000
@@ -91,10 +93,10 @@ async function runTests() {
 
   // Insumo 1: Cemento Portland (Bolsa 50kg)
   const cementoObs: CostObservation[] = [
-    { id: 'c1', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Cemento Portland II F-32', categoriaInsumo: 'MATERIAL', cantidad: 500, unidad: 'BLS', precioUnitario: 52000, moneda: 'PYG', fechaObservacion: '2026-02-15' },
-    { id: 'c2', empresaId: 'e', fuente: 'RECEPCION', descripcionItem: 'Cemento Portland II F-32', categoriaInsumo: 'MATERIAL', cantidad: 200, unidad: 'BLS', precioUnitario: 53000, moneda: 'PYG', fechaObservacion: '2026-02-01' },
-    { id: 'c3', empresaId: 'e', fuente: 'ORDEN_COMPRA', descripcionItem: 'Cemento Portland II F-32', categoriaInsumo: 'MATERIAL', cantidad: 1000, unidad: 'BLS', precioUnitario: 51500, moneda: 'PYG', fechaObservacion: '2026-01-10' },
-    { id: 'c4', empresaId: 'e', fuente: 'COTIZACION', descripcionItem: 'Cemento Portland II F-32', categoriaInsumo: 'MATERIAL', cantidad: 50, unidad: 'BLS', precioUnitario: 55000, moneda: 'PYG', fechaObservacion: '2025-11-01' }
+    { id: 'c1', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Cemento Portland II F-32', categoriaInsumo: 'MATERIAL', cantidad: 500, unidad: 'BLS', precioUnitario: 52000, moneda: 'PYG', fechaObservacion: '2026-02-15', estadoEvidencia: 'VALIDA' as const },
+    { id: 'c2', empresaId: 'e', fuente: 'RECEPCION', descripcionItem: 'Cemento Portland II F-32', categoriaInsumo: 'MATERIAL', cantidad: 200, unidad: 'BLS', precioUnitario: 53000, moneda: 'PYG', fechaObservacion: '2026-02-01', estadoEvidencia: 'VALIDA' as const },
+    { id: 'c3', empresaId: 'e', fuente: 'ORDEN_COMPRA', descripcionItem: 'Cemento Portland II F-32', categoriaInsumo: 'MATERIAL', cantidad: 1000, unidad: 'BLS', precioUnitario: 51500, moneda: 'PYG', fechaObservacion: '2026-01-10', estadoEvidencia: 'VALIDA' as const },
+    { id: 'c4', empresaId: 'e', fuente: 'COTIZACION', descripcionItem: 'Cemento Portland II F-32', categoriaInsumo: 'MATERIAL', cantidad: 50, unidad: 'BLS', precioUnitario: 55000, moneda: 'PYG', fechaObservacion: '2025-11-01', estadoEvidencia: 'VALIDA' as const }
   ];
   const cementoEst = calculateCostEstimate(cementoObs, '2026-03-01');
   console.log(`[Cemento Portland] Precio recomendado: Gs. ${cementoEst.recommendedUnitPrice.toLocaleString('es-PY')} | Rango: [Gs. ${cementoEst.priceRange.p25.toLocaleString('es-PY')} - ${cementoEst.priceRange.p75.toLocaleString('es-PY')}] | Volatilidad: ${cementoEst.volatilityPercentage}% | Confianza: ${cementoEst.confidenceTier}`);
@@ -103,9 +105,9 @@ async function runTests() {
 
   // Insumo 2: Varilla Conformada 10mm (Acero / Hierro por kg)
   const aceroObs: CostObservation[] = [
-    { id: 'a1', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Varilla Conformada AP500 10mm', categoriaInsumo: 'MATERIAL', cantidad: 2500, unidad: 'KG', precioUnitario: 8200, moneda: 'PYG', fechaObservacion: '2026-02-20' },
-    { id: 'a2', empresaId: 'e', fuente: 'ORDEN_COMPRA', descripcionItem: 'Varilla Conformada AP500 10mm', categoriaInsumo: 'MATERIAL', cantidad: 5000, unidad: 'KG', precioUnitario: 8050, moneda: 'PYG', fechaObservacion: '2026-01-15' },
-    { id: 'a3', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Varilla Conformada AP500 10mm', categoriaInsumo: 'MATERIAL', cantidad: 1000, unidad: 'KG', precioUnitario: 8400, moneda: 'PYG', fechaObservacion: '2026-02-28' }
+    { id: 'a1', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Varilla Conformada AP500 10mm', categoriaInsumo: 'MATERIAL', cantidad: 2500, unidad: 'KG', precioUnitario: 8200, moneda: 'PYG', fechaObservacion: '2026-02-20', estadoEvidencia: 'VALIDA' as const },
+    { id: 'a2', empresaId: 'e', fuente: 'ORDEN_COMPRA', descripcionItem: 'Varilla Conformada AP500 10mm', categoriaInsumo: 'MATERIAL', cantidad: 5000, unidad: 'KG', precioUnitario: 8050, moneda: 'PYG', fechaObservacion: '2026-01-15', estadoEvidencia: 'VALIDA' as const },
+    { id: 'a3', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Varilla Conformada AP500 10mm', categoriaInsumo: 'MATERIAL', cantidad: 1000, unidad: 'KG', precioUnitario: 8400, moneda: 'PYG', fechaObservacion: '2026-02-28', estadoEvidencia: 'VALIDA' as const }
   ];
   const aceroEst = calculateCostEstimate(aceroObs, '2026-03-01');
   console.log(`[Varilla 10mm] Precio recomendado: Gs. ${aceroEst.recommendedUnitPrice.toLocaleString('es-PY')}/kg | Mediana: Gs. ${aceroEst.priceRange.median.toLocaleString('es-PY')} | Tendencia: ${aceroEst.trend}`);
@@ -113,8 +115,8 @@ async function runTests() {
 
   // Insumo 3: Arena Lavada (m3)
   const arenaObs: CostObservation[] = [
-    { id: 'ar1', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Arena Lavada de Río', categoriaInsumo: 'MATERIAL', cantidad: 30, unidad: 'M3', precioUnitario: 75000, moneda: 'PYG', fechaObservacion: '2026-02-10' },
-    { id: 'ar2', empresaId: 'e', fuente: 'RECEPCION', descripcionItem: 'Arena Lavada de Río', categoriaInsumo: 'MATERIAL', cantidad: 60, unidad: 'M3', precioUnitario: 72000, moneda: 'PYG', fechaObservacion: '2026-02-18' }
+    { id: 'ar1', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Arena Lavada de Río', categoriaInsumo: 'MATERIAL', cantidad: 30, unidad: 'M3', precioUnitario: 75000, moneda: 'PYG', fechaObservacion: '2026-02-10', estadoEvidencia: 'VALIDA' as const },
+    { id: 'ar2', empresaId: 'e', fuente: 'RECEPCION', descripcionItem: 'Arena Lavada de Río', categoriaInsumo: 'MATERIAL', cantidad: 60, unidad: 'M3', precioUnitario: 72000, moneda: 'PYG', fechaObservacion: '2026-02-18', estadoEvidencia: 'VALIDA' as const }
   ];
   const arenaEst = calculateCostEstimate(arenaObs, '2026-03-01');
   console.log(`[Arena Lavada] Precio recomendado: Gs. ${arenaEst.recommendedUnitPrice.toLocaleString('es-PY')}/m3 | Confianza: ${arenaEst.confidenceTier}`);
@@ -122,9 +124,9 @@ async function runTests() {
 
   // Insumo 4: Gasoil Común / Diésel (Litro - Insumo Volátil)
   const gasoilObs: CostObservation[] = [
-    { id: 'g1', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Diésel Común Tipo III', categoriaInsumo: 'COMBUSTIBLE', cantidad: 1000, unidad: 'LTS', precioUnitario: 7600, moneda: 'PYG', fechaObservacion: '2026-02-27', esVolatil: true },
-    { id: 'g2', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Diésel Común Tipo III', categoriaInsumo: 'COMBUSTIBLE', cantidad: 800, unidad: 'LTS', precioUnitario: 7350, moneda: 'PYG', fechaObservacion: '2026-01-20', esVolatil: true },
-    { id: 'g3', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Diésel Común Tipo III', categoriaInsumo: 'COMBUSTIBLE', cantidad: 1200, unidad: 'LTS', precioUnitario: 7100, moneda: 'PYG', fechaObservacion: '2025-11-15', esVolatil: true }
+    { id: 'g1', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Diésel Común Tipo III', categoriaInsumo: 'COMBUSTIBLE', cantidad: 1000, unidad: 'LTS', precioUnitario: 7600, moneda: 'PYG', fechaObservacion: '2026-02-27', esVolatil: true, estadoEvidencia: 'VALIDA' as const },
+    { id: 'g2', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Diésel Común Tipo III', categoriaInsumo: 'COMBUSTIBLE', cantidad: 800, unidad: 'LTS', precioUnitario: 7350, moneda: 'PYG', fechaObservacion: '2026-01-20', esVolatil: true, estadoEvidencia: 'VALIDA' as const },
+    { id: 'g3', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Diésel Común Tipo III', categoriaInsumo: 'COMBUSTIBLE', cantidad: 1200, unidad: 'LTS', precioUnitario: 7100, moneda: 'PYG', fechaObservacion: '2025-11-15', esVolatil: true, estadoEvidencia: 'VALIDA' as const }
   ];
   const gasoilEst = calculateCostEstimate(gasoilObs, '2026-03-01');
   console.log(`[Gasoil Común] Precio recomendado: Gs. ${gasoilEst.recommendedUnitPrice.toLocaleString('es-PY')}/lt | Decaimiento acelerado (30d) | Tendencia: ${gasoilEst.trend}`);
@@ -134,8 +136,8 @@ async function runTests() {
 
   // Insumo 5: Hora Motoniveladora (Equipo / Maquinaria)
   const motoObs: CostObservation[] = [
-    { id: 'm1', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Alquiler Motoniveladora CAT 140M', categoriaInsumo: 'EQUIPO', cantidad: 40, unidad: 'HS', precioUnitario: 380000, moneda: 'PYG', fechaObservacion: '2026-02-05' },
-    { id: 'm2', empresaId: 'e', fuente: 'COTIZACION', descripcionItem: 'Alquiler Motoniveladora CAT 140M', categoriaInsumo: 'EQUIPO', cantidad: 80, unidad: 'HS', precioUnitario: 420000, moneda: 'PYG', fechaObservacion: '2026-01-10' }
+    { id: 'm1', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Alquiler Motoniveladora CAT 140M', categoriaInsumo: 'EQUIPO', cantidad: 40, unidad: 'HS', precioUnitario: 380000, moneda: 'PYG', fechaObservacion: '2026-02-05', estadoEvidencia: 'VALIDA' as const },
+    { id: 'm2', empresaId: 'e', fuente: 'COTIZACION', descripcionItem: 'Alquiler Motoniveladora CAT 140M', categoriaInsumo: 'EQUIPO', cantidad: 80, unidad: 'HS', precioUnitario: 420000, moneda: 'PYG', fechaObservacion: '2026-01-10', estadoEvidencia: 'VALIDA' as const }
   ];
   const motoEst = calculateCostEstimate(motoObs, '2026-03-01');
   console.log(`[Hora Motoniveladora] Precio recomendado: Gs. ${motoEst.recommendedUnitPrice.toLocaleString('es-PY')}/h | Rango: [Gs. ${motoEst.priceRange.min.toLocaleString('es-PY')} - ${motoEst.priceRange.max.toLocaleString('es-PY')}]`);
@@ -144,9 +146,9 @@ async function runTests() {
   // TEST 5: Detección de Dispersión Extrema (Mercado Volátil)
   console.log('\n--- TEST 5: Detección de Volatilidad ---');
   const volatileObs: CostObservation[] = [
-    { id: 'v1', empresaId: 'e', fuente: 'COTIZACION', descripcionItem: 'Cable Cu 10mm2', categoriaInsumo: 'MATERIAL', cantidad: 100, unidad: 'M', precioUnitario: 12000, moneda: 'PYG', fechaObservacion: '2026-02-01' },
-    { id: 'v2', empresaId: 'e', fuente: 'COTIZACION', descripcionItem: 'Cable Cu 10mm2', categoriaInsumo: 'MATERIAL', cantidad: 100, unidad: 'M', precioUnitario: 18000, moneda: 'PYG', fechaObservacion: '2026-02-05' },
-    { id: 'v3', empresaId: 'e', fuente: 'COTIZACION', descripcionItem: 'Cable Cu 10mm2', categoriaInsumo: 'MATERIAL', cantidad: 100, unidad: 'M', precioUnitario: 24000, moneda: 'PYG', fechaObservacion: '2026-02-10' }
+    { id: 'v1', empresaId: 'e', fuente: 'COTIZACION', descripcionItem: 'Cable Cu 10mm2', categoriaInsumo: 'MATERIAL', cantidad: 100, unidad: 'M', precioUnitario: 12000, moneda: 'PYG', fechaObservacion: '2026-02-01', estadoEvidencia: 'VALIDA' as const },
+    { id: 'v2', empresaId: 'e', fuente: 'COTIZACION', descripcionItem: 'Cable Cu 10mm2', categoriaInsumo: 'MATERIAL', cantidad: 100, unidad: 'M', precioUnitario: 18000, moneda: 'PYG', fechaObservacion: '2026-02-05', estadoEvidencia: 'VALIDA' as const },
+    { id: 'v3', empresaId: 'e', fuente: 'COTIZACION', descripcionItem: 'Cable Cu 10mm2', categoriaInsumo: 'MATERIAL', cantidad: 100, unidad: 'M', precioUnitario: 24000, moneda: 'PYG', fechaObservacion: '2026-02-10', estadoEvidencia: 'VALIDA' as const }
   ];
   const volatileEst = calculateCostEstimate(volatileObs, '2026-03-01');
   console.log(`[Dispersión Alta] Volatilidad CV: ${volatileEst.volatilityPercentage}% | Mercado Volátil: ${volatileEst.isVolatileMarket} | Tendencia: ${volatileEst.trend}`);

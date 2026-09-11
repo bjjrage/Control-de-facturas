@@ -533,17 +533,46 @@ ALTER TABLE public.cost_observations
     (precio_unitario IS NOT NULL AND precio_unitario >= 0)
   );
 
--- Reparar semánticamente filas ambiguas que fueron catalogadas en 0067 como REVISION_REQUERIDA
--- sin tasa de cambio verificada: preservar el valor en precio_unitario_original, asignar
--- moneda_original = 'USD' (o la moneda histórica previa), y poner precio_unitario = NULL
--- para que JAMÁS se presenten o calculen como PYG.
+-- Reparar semánticamente filas ambiguas catalogadas como REVISION_REQUERIDA:
+-- 1. Si la observación proviene de una factura identificable en public.invoices (fuente = 'FACTURA'),
+--    reconstruir determinísticamente la moneda real a partir de invoice.currency.
+-- 2. Si proviene de orden de compra identificable en public.authorized_orders (fuente = 'ORDEN_COMPRA'),
+--    reconstruir determinísticamente desde authorized_orders.currency.
+-- 3. Si no existe vínculo inequívoco a un documento persistido, la moneda original es IRRECUPERABLE:
+--    moneda_original := NULL (UNKNOWN != DEFAULT: NUNCA inventar 'USD' u otra moneda).
+-- 4. En todos los casos ambiguos sin tasa de cambio, preservar precio_unitario_original con el valor numérico
+--    y forzar precio_unitario = NULL para que JAMÁS se presente ni compute como PYG.
+
+-- Paso A: Preservar precio_unitario_original y desacoplar precio_unitario en PYG
 UPDATE public.cost_observations
 SET
   precio_unitario_original = COALESCE(precio_unitario_original, precio_unitario),
-  moneda_original = COALESCE(moneda_original, 'USD'),
   precio_unitario = NULL
 WHERE estado_evidencia = 'REVISION_REQUERIDA'
   AND (tipo_cambio IS NULL OR tipo_cambio <= 0);
+
+-- Paso B: Reconstruir moneda_original únicamente donde existe evidencia inequívoca en facturas
+UPDATE public.cost_observations co
+SET moneda_original = i.currency
+FROM public.invoices i
+WHERE co.fuente = 'FACTURA'
+  AND co.documento_id IS NOT NULL
+  AND co.documento_id ~ '^[0-9a-fA-F-]{36}$'
+  AND i.id = co.documento_id::uuid
+  AND co.moneda_original IS NULL;
+
+-- Paso C: Reconstruir moneda_original únicamente donde existe evidencia inequívoca en órdenes de compra
+UPDATE public.cost_observations co
+SET moneda_original = o.currency
+FROM public.authorized_orders o
+WHERE co.fuente = 'ORDEN_COMPRA'
+  AND co.documento_id IS NOT NULL
+  AND co.documento_id ~ '^[0-9a-fA-F-]{36}$'
+  AND o.id = co.documento_id::uuid
+  AND co.moneda_original IS NULL;
+
+-- Filas sin evidencia inequívoca permanecen con moneda_original = NULL (UNKNOWN).
+-- No se aplica ningún fallback sintético tipo 'USD' o 'PYG'.
 
 -- Revocar accesos anónimos a las funciones modificadas por defensa en profundidad
 REVOKE ALL ON FUNCTION public.ejecutar_orden_pago_atomica(uuid, uuid, uuid, uuid) FROM PUBLIC;

@@ -77,7 +77,8 @@ export function processFlywheelExecutionPurchase(
     precioUnitario: event.unitPricePyg,
     moneda: 'PYG',
     fechaObservacion: event.purchaseDate,
-    esVolatil: event.category === 'COMBUSTIBLE'
+    esVolatil: event.category === 'COMBUSTIBLE',
+    estadoEvidencia: 'VALIDA'
   };
 
   const updatedObservations = [...existingObservations, newObs];

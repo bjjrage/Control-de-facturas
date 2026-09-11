@@ -95,10 +95,10 @@ export function calculateCostEstimate(
   const sourceWeights = { ...DEFAULT_SOURCE_WEIGHTS, ...config?.sourceWeights };
   const volatilityThreshold = config?.volatilityThresholdPercent ?? 15.0; // 15% CV
 
-  // Filtrar estrictamente observaciones computables con estado de evidencia VALIDA
+  // Filtrar estrictamente observaciones computables con estado de evidencia VALIDA (UNKNOWN != VALID)
   const validObservations = observations.filter(
     (obs): obs is CostObservation & { precioUnitario: number } => {
-      if (obs.estadoEvidencia && obs.estadoEvidencia !== 'VALIDA') return false;
+      if (!obs || obs.estadoEvidencia !== 'VALIDA') return false;
       if (obs.precioUnitario === null || obs.precioUnitario === undefined || !Number.isFinite(obs.precioUnitario) || obs.precioUnitario < 0) return false;
       return true;
     }

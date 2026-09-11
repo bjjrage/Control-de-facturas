@@ -39,12 +39,12 @@ async function runBacktest() {
 
   // 1. Histórico de compras / costos reales (confección sin leakage)
   const historicalCosts: CostObservation[] = [
-    { id: '1', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Cemento Portland', categoriaInsumo: 'MATERIAL', cantidad: 500, unidad: 'BLS', precioUnitario: 48000, moneda: 'PYG', fechaObservacion: '2022-05-10' },
-    { id: '2', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Cemento Portland', categoriaInsumo: 'MATERIAL', cantidad: 800, unidad: 'BLS', precioUnitario: 49500, moneda: 'PYG', fechaObservacion: '2022-11-20' },
-    { id: '3', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Cemento Portland', categoriaInsumo: 'MATERIAL', cantidad: 1200, unidad: 'BLS', precioUnitario: 51000, moneda: 'PYG', fechaObservacion: '2023-06-15' },
-    { id: '4', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Cemento Portland', categoriaInsumo: 'MATERIAL', cantidad: 600, unidad: 'BLS', precioUnitario: 52000, moneda: 'PYG', fechaObservacion: '2023-12-05' },
+    { id: '1', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Cemento Portland', categoriaInsumo: 'MATERIAL', cantidad: 500, unidad: 'BLS', precioUnitario: 48000, moneda: 'PYG', fechaObservacion: '2022-05-10', estadoEvidencia: 'VALIDA' as const },
+    { id: '2', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Cemento Portland', categoriaInsumo: 'MATERIAL', cantidad: 800, unidad: 'BLS', precioUnitario: 49500, moneda: 'PYG', fechaObservacion: '2022-11-20', estadoEvidencia: 'VALIDA' as const },
+    { id: '3', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Cemento Portland', categoriaInsumo: 'MATERIAL', cantidad: 1200, unidad: 'BLS', precioUnitario: 51000, moneda: 'PYG', fechaObservacion: '2023-06-15', estadoEvidencia: 'VALIDA' as const },
+    { id: '4', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Cemento Portland', categoriaInsumo: 'MATERIAL', cantidad: 600, unidad: 'BLS', precioUnitario: 52000, moneda: 'PYG', fechaObservacion: '2023-12-05', estadoEvidencia: 'VALIDA' as const },
     // Observaciones futuras (2024) - NO DEBEN ENTRAR EN LA ESTIMACIÓN A 2024-01-01
-    { id: '5', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Cemento Portland', categoriaInsumo: 'MATERIAL', cantidad: 1000, unidad: 'BLS', precioUnitario: 53500, moneda: 'PYG', fechaObservacion: '2024-06-10' }
+    { id: '5', empresaId: 'e', fuente: 'FACTURA', descripcionItem: 'Cemento Portland', categoriaInsumo: 'MATERIAL', cantidad: 1000, unidad: 'BLS', precioUnitario: 53500, moneda: 'PYG', fechaObservacion: '2024-06-10', estadoEvidencia: 'VALIDA' as const }
   ];
 
   // Test 1: Comprobación de No Data Leakage en Cost Engine

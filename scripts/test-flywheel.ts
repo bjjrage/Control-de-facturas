@@ -34,7 +34,8 @@ async function runTests() {
       unidad: 'BLS',
       precioUnitario: 56000,
       moneda: 'PYG',
-      fechaObservacion: '2025-10-01'
+      fechaObservacion: '2025-10-01',
+      estadoEvidencia: 'VALIDA'
     },
     {
       id: 'init-2',
@@ -46,7 +47,8 @@ async function runTests() {
       unidad: 'BLS',
       precioUnitario: 55000,
       moneda: 'PYG',
-      fechaObservacion: '2025-11-15'
+      fechaObservacion: '2025-11-15',
+      estadoEvidencia: 'VALIDA'
     }
   ];
 
@@ -212,7 +214,8 @@ async function runTests() {
     moneda: persistedUsdRow.moneda,
     tipoCambio: Number(persistedUsdRow.tipo_cambio || 1.0),
     fechaObservacion: persistedUsdRow.fecha_observacion,
-    esVolatil: persistedUsdRow.es_volatil
+    esVolatil: persistedUsdRow.es_volatil,
+    estadoEvidencia: 'VALIDA' as const
   };
 
   const { calculateCostEstimate } = await import('../lib/cost-engine/weighting');

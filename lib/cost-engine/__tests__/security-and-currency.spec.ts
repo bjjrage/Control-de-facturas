@@ -63,7 +63,8 @@ describe('P0 Invariants: Financial Security, Currency Semantics and Fail-Closed 
       // Caso que denunció la auditoría en 0067:
       // Fila original: 25 USD sin FX.
       // En 0067 corrupto: precio_unitario quedaba en 25 con moneda PYG y estado REVISION_REQUERIDA.
-      // En 0068 saneado: precio_unitario = null, moneda_original = 'USD', precio_unitario_original = 25, estado REVISION_REQUERIDA.
+      // En 0068 corregido: precio_unitario = null, moneda_original = null (UNKNOWN != DEFAULT: jamás inventar 'USD'),
+      // precio_unitario_original = 25, estado REVISION_REQUERIDA.
       const corruptLegacyRow: CostObservation = {
         id: 'obs-corrupt-1',
         empresaId: 'emp-1',
@@ -74,7 +75,7 @@ describe('P0 Invariants: Financial Security, Currency Semantics and Fail-Closed 
         unidad: 'UN',
         precioUnitario: null, // Desacoplado: jamás 25 PYG
         moneda: 'PYG',
-        monedaOriginal: 'USD',
+        monedaOriginal: null, // No inferir ni inventar USD si no hay evidencia inequívoca
         precioUnitarioOriginal: 25,
         tipoCambio: undefined,
         fechaObservacion: '2026-08-01',
@@ -177,8 +178,9 @@ describe('P0 Invariants: Financial Security, Currency Semantics and Fail-Closed 
     });
   });
 
-  describe('Multi-Tenant RPC Simulation & Invariants', () => {
-    // Simulación unitaria de la lógica incorporada en el RPC ejecutar_orden_pago_atomica
+  describe('[SIMULACIÓN UNITARIA EN MEMORIA] Contrato Lógico de Seguridad Multi-Tenant (NO reemplaza pruebas reales PostgreSQL)', () => {
+    // Simulación unitaria de la lógica de negocio TypeScript que replica las compuertas de la RPC.
+    // NOTA PARA AUDITORÍA: Estos tests validan únicamente la lógica y contratos en TypeScript.
     function simulateEjecutarOrdenPago(ctx: {
       authUid: string | null;
       callerEmpresaId: string | null;

@@ -764,7 +764,8 @@ export async function persistirEvaluacionComercial(
         moneda: row.moneda,
         tipoCambio: Number(row.tipo_cambio || 1.0),
         fechaObservacion: row.fecha_observacion,
-        esVolatil: row.es_volatil
+        esVolatil: row.es_volatil,
+        estadoEvidencia: 'VALIDA' as const
       }));
 
       const estimate = calculateCostEstimate(mappedObs);
