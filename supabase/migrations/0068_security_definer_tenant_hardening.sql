@@ -427,7 +427,6 @@ BEGIN
     v_item_price := (v_item->>'unit_price')::NUMERIC;
 
     INSERT INTO public.budget_items (
-      empresa_id,
       project_id,
       code,
       description,
@@ -436,7 +435,6 @@ BEGIN
       unit_price,
       sort_order
     ) VALUES (
-      p_empresa_id,
       v_project_id,
       COALESCE(v_item->>'code', 'ITM-' || LPAD(v_sort_order::TEXT, 3, '0')),
       trim(v_item->>'description'),
