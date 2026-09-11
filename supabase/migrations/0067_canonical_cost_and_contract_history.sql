@@ -3,6 +3,48 @@
 -- ==============================================================================
 
 -- ------------------------------------------------------------------------------
+-- 0. NORMALIZACIÓN CANÓNICA ROBUSTA (SOPORTE DE PREFIJOS OFICIALES DNCP/OCDS)
+-- ------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.normalizar_ruc(p_ruc TEXT)
+RETURNS TEXT LANGUAGE plpgsql IMMUTABLE AS $$
+DECLARE
+  v_clean TEXT;
+BEGIN
+  IF p_ruc IS NULL OR trim(p_ruc) = '' THEN
+    RETURN NULL;
+  END IF;
+  v_clean := regexp_replace(trim(p_ruc), '\s+', '', 'g');
+  v_clean := regexp_replace(v_clean, '^(PY-)?RUC-', '', 'i');
+  IF position('-' IN v_clean) > 0 THEN
+    v_clean := split_part(v_clean, '-', 1);
+  END IF;
+  v_clean := regexp_replace(v_clean, '[^a-zA-Z0-9]', '', 'g');
+  IF length(v_clean) = 0 THEN
+    RETURN NULL;
+  END IF;
+  RETURN upper(v_clean);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.extraer_dv_ruc(p_ruc TEXT)
+RETURNS TEXT LANGUAGE plpgsql IMMUTABLE AS $$
+DECLARE
+  v_clean TEXT;
+BEGIN
+  IF p_ruc IS NULL OR trim(p_ruc) = '' THEN
+    RETURN NULL;
+  END IF;
+  v_clean := regexp_replace(trim(p_ruc), '\s+', '', 'g');
+  v_clean := regexp_replace(v_clean, '^(PY-)?RUC-', '', 'i');
+  IF position('-' IN v_clean) > 0 THEN
+    RETURN split_part(v_clean, '-', 2);
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+-- ------------------------------------------------------------------------------
 -- 1. CANONICAL COST_OBSERVATIONS CONTRACT & LEGACY DATA RECONCILIATION
 -- ------------------------------------------------------------------------------
 
@@ -93,9 +135,9 @@ END $$;
 ALTER TABLE public.procurement_items
   ADD COLUMN IF NOT EXISTS item_dncp_id TEXT;
 
+DROP INDEX IF EXISTS public.idx_proc_items_process_dncp_id;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_proc_items_process_dncp_id 
-  ON public.procurement_items(process_id, item_dncp_id)
-  WHERE item_dncp_id IS NOT NULL;
+  ON public.procurement_items(process_id, item_dncp_id);
 
 -- ------------------------------------------------------------------------------
 -- 3. TRAZABILIDAD ECONÓMICA DE CONTRATOS PÚBLICOS Y ADENDAS REALES DNCP
@@ -270,7 +312,7 @@ CREATE OR REPLACE FUNCTION public.ingestar_proceso_ocds_global(
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = public, extensions, pg_temp
 AS $$
 DECLARE
   v_cr JSONB;
