@@ -469,26 +469,26 @@ async function run() {
 
     // 3.1 A + doc A = OK
     const t3_ok = await execAsUser(userA, `
-      SELECT public.registrar_cobro_atomico($1, $2, $3, $4, current_date, 'REF-A', 'Nota A', $5)
-    `, [empresaA, docA, 1000000, 'TRANSFERENCIA', ctaA]);
+      SELECT public.registrar_cobro_atomico($1, $2, $3, $4, current_date, 'REF-A', 'Nota A', $5, $6)
+    `, [empresaA, docA, 1000000, 'TRANSFERENCIA', ctaA, userA]);
     record('Tenant A registra cobro sobre Documento A con Cuenta A -> OK', 'SUCCESS', t3_ok.success ? 'SUCCESS' : t3_ok.error, t3_ok.success);
 
     // 3.2 A + doc B = FAIL
     const t3_cross_doc = await execAsUser(userA, `
-      SELECT public.registrar_cobro_atomico($1, $2, $3, $4, current_date, 'REF-X', 'Nota', $5)
-    `, [empresaA, docB, 500000, 'TRANSFERENCIA', ctaA]);
+      SELECT public.registrar_cobro_atomico($1, $2, $3, $4, current_date, 'REF-X', 'Nota', $5, $6)
+    `, [empresaA, docB, 500000, 'TRANSFERENCIA', ctaA, userA]);
     record('Tenant A intenta cobrar Documento B -> FAIL', 'FAIL', t3_cross_doc.success ? 'SUCCESS' : 'FAIL', !t3_cross_doc.success);
 
     // 3.3 A + cuenta B = FAIL
     const t3_cross_cta = await execAsUser(userA, `
-      SELECT public.registrar_cobro_atomico($1, $2, $3, $4, current_date, 'REF-X', 'Nota', $5)
-    `, [empresaA, docA, 500000, 'TRANSFERENCIA', ctaB]);
+      SELECT public.registrar_cobro_atomico($1, $2, $3, $4, current_date, 'REF-X', 'Nota', $5, $6)
+    `, [empresaA, docA, 500000, 'TRANSFERENCIA', ctaB, userA]);
     record('Tenant A intenta registrar cobro en Cuenta B -> FAIL', 'FAIL', t3_cross_cta.success ? 'SUCCESS' : 'FAIL', !t3_cross_cta.success);
 
     // 3.4 anon = FAIL
     const t3_anon = await execAsUser(null, `
-      SELECT public.registrar_cobro_atomico($1, $2, $3, $4, current_date, 'REF-X', 'Nota', $5)
-    `, [empresaA, docA, 500000, 'TRANSFERENCIA', ctaA]);
+      SELECT public.registrar_cobro_atomico($1, $2, $3, $4, current_date, 'REF-X', 'Nota', $5, $6)
+    `, [empresaA, docA, 500000, 'TRANSFERENCIA', ctaA, null]);
     record('Llamada anónima a registrar_cobro_atomico -> FAIL', 'FAIL', t3_anon.success ? 'SUCCESS' : 'FAIL', !t3_anon.success);
 
 
@@ -523,7 +523,7 @@ async function run() {
     `, [empresaB])).rows[0].id;
 
     const budgetItemsValid = JSON.stringify([
-      { description: 'Item 1 Obra', unit: 'M2', quantity: 100, unitPrice: 50000 }
+      { description: 'Item 1 Obra', unit: 'M2', quantity: 100, unit_price: 50000 }
     ]);
 
     // 4.1 A + licitación A = OK
