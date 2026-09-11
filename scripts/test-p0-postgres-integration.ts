@@ -462,14 +462,14 @@ async function run() {
     const cliB = (await client.query(`INSERT INTO public.clients (empresa_id, name) VALUES ($1, 'Cliente B') RETURNING id;`, [empresaB])).rows[0].id;
 
     const docA = (await client.query(`
-      INSERT INTO public.sales_documents (empresa_id, client_id, code, doc_type, status, total)
-      VALUES ($1, $2, 'DOC-A-01', 'NOTA_VENTA', 'EMITIDA', 2000000) RETURNING id;
-    `, [empresaA, cliA])).rows[0].id;
+      INSERT INTO public.sales_documents (empresa_id, client_id, code, doc_type, status, total, created_by)
+      VALUES ($1, $2, 'DOC-A-01', 'NOTA_VENTA', 'EMITIDA', 2000000, $3) RETURNING id;
+    `, [empresaA, cliA, userA])).rows[0].id;
 
     const docB = (await client.query(`
-      INSERT INTO public.sales_documents (empresa_id, client_id, code, doc_type, status, total)
-      VALUES ($1, $2, 'DOC-B-01', 'NOTA_VENTA', 'EMITIDA', 1500000) RETURNING id;
-    `, [empresaB, cliB])).rows[0].id;
+      INSERT INTO public.sales_documents (empresa_id, client_id, code, doc_type, status, total, created_by)
+      VALUES ($1, $2, 'DOC-B-01', 'NOTA_VENTA', 'EMITIDA', 1500000, $3) RETURNING id;
+    `, [empresaB, cliB, userB])).rows[0].id;
 
     // 3.1 A + doc A = OK
     const t3_ok = await execAsUser(userA, `
