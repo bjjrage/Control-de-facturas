@@ -11,6 +11,15 @@ name: BIM E2E Certification
 
 on:
   workflow_dispatch:
+  # TEMPORAL: permite ejecutar el workflow desde feature/bim-presupuesto sin
+  # mergear a main (GitHub solo resuelve workflow_dispatch si el archivo existe
+  # en la rama default). Dispara únicamente cuando cambia ESTE archivo.
+  # Quitar este bloque una vez obtenida la evidencia E2E.
+  push:
+    branches:
+      - feature/bim-presupuesto
+    paths:
+      - ".github/workflows/bim-e2e-certification.yml"
 
 concurrency:
   group: bim-e2e-certification
