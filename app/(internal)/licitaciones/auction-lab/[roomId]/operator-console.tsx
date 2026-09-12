@@ -302,7 +302,6 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
           <h1 className="text-[17px] font-semibold">Auction Lab · {room.title}</h1>
           <p className="text-[13px] text-[var(--muted)] mt-0.5">
             <span className="font-mono text-[12px]">{room.group_id}</span> · {room.scope} · {room.status}
-            {room.closeRisk ? <span className="ml-2 font-semibold text-rose-600 dark:text-rose-400">CLOSE RISK</span> : null}
             {room.bot_paused ? <span className="ml-2 text-amber-600 dark:text-amber-400">BOT PAUSADO</span> : null}
           </p>
           {room.status === 'ACTIVE_NORMAL' && room.started_at ? (

@@ -197,7 +197,7 @@ export function JoinConsole({ token }: { token: string }) {
           <p className="text-[11px] text-[var(--muted)]">Subasta simulada</p>
           <h1 className="text-[16px] font-semibold">{view.room.title}</h1>
           <div className="mt-2 grid grid-cols-2 gap-2 text-[13px]">
-            <div><span className="text-[var(--muted)]">Fase: </span><strong>{view.room.status}{view.room.closeRisk ? ' · RIESGO DE CIERRE' : ''}</strong></div>
+            <div><span className="text-[var(--muted)]">Fase: </span><strong>{view.room.status}</strong></div>
             <div><span className="text-[var(--muted)]">Tu posición: </span><strong>{view.myRank !== null ? `#${view.myRank}` : '—'}</strong></div>
             <div><span className="text-[var(--muted)]">Mejor oferta: </span><strong>{view.bestPrice !== null ? `₲${view.bestPrice.toLocaleString('es-PY')}` : '—'}</strong></div>
             <div><span className="text-[var(--muted)]">Tu oferta: </span><strong>{view.myPrice !== null ? `₲${view.myPrice.toLocaleString('es-PY')}` : '—'}</strong></div>

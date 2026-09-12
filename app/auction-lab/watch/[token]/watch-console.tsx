@@ -133,7 +133,6 @@ export function WatchConsole({ token }: { token: string }) {
         <div>
           <h1 className="text-[18px] font-bold tracking-tight">{view.room.title}</h1>          <p className="text-[13px] text-[var(--muted)]">
             {view.room.status}
-            {view.room.closeRisk ? <span className="ml-2 font-semibold text-rose-600 dark:text-rose-400">RIESGO DE CIERRE</span> : null}
           </p>
           {view.room.status === 'ACTIVE_NORMAL' && view.room.started_at ? (
             <p className="text-[12px] text-[var(--muted)]">
