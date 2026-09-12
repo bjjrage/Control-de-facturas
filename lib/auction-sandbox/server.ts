@@ -145,8 +145,7 @@ export function shouldEmitDecision(bundle: SandboxBundle, decision: DecisionFing
  * of the 200-event window) — otherwise absence proves nothing and no
  * backfill is attempted (avoids duplicates).
  */
-export function missingInitialEvents(bundle: SandboxBundle): Array<'ROOM_CREATED' | 'AUCTION_STARTED'> {
-  const seqs = bundle.events.map((e) => e.server_sequence);
+export function missingInitialEvents(bundle: SandboxBundle): Array<'ROOM_CREATED' | 'AUCTION_STARTED'> {  const seqs = bundle.events.map((e) => e.server_sequence);
   const complete = seqs.length === 0 || Math.max(...seqs) < 200;
   if (!complete) return [];
   const types = new Set(bundle.events.map((e) => e.type));
@@ -156,6 +155,24 @@ export function missingInitialEvents(bundle: SandboxBundle): Array<'ROOM_CREATED
     missing.push('AUCTION_STARTED');
   }
   return missing;
+}
+
+/**
+ * Policy-event backfill proof: versions persisted without their
+ * POLICY_AUTHORIZED event, provable only under the same completeness rule
+ * as missingInitialEvents. Returns the version numbers to backfill.
+ */
+export function missingPolicyEvents(bundle: SandboxBundle): number[] {
+  const seqs = bundle.events.map((e) => e.server_sequence);
+  const complete = seqs.length === 0 || Math.max(...seqs) < 200;
+  if (!complete || bundle.policies.length === 0) return [];
+  const announced = new Set(
+    bundle.events
+      .filter((e) => e.type === 'POLICY_AUTHORIZED')
+      .map((e) => (e.payload as Record<string, unknown>).version)
+      .filter((v): v is number => typeof v === 'number')
+  );
+  return bundle.policies.map((p) => p.version).filter((v) => !announced.has(v));
 }
 
 // NOTE: phase transitions run EXCLUSIVELY inside the advance_sandbox_room /
@@ -330,7 +347,11 @@ export function buildWatchView(bundle: SandboxBundle, nowIso: string): WatchView
     // Canonical: persisted lastBotStatus is ALWAYS the object shape (see
     // SandboxBotRuntime); only .action (a string) leaves the server.
     botStatus: bundle.room.bot_runtime?.lastBotStatus?.action ?? null,
-    pendingCandidate: bundle.room.bot_runtime?.pendingCandidate ?? null,
+    // A stored candidate is only exposed when bound to the ACTIVE version.
+    pendingCandidate:
+      bundle.room.bot_runtime?.pendingCandidate?.policyVersion === latestPolicy?.version
+        ? (bundle.room.bot_runtime?.pendingCandidate ?? null)
+        : null,
     timeline,
     kpis: {
       botBids: botBids.length,

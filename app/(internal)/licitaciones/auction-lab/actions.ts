@@ -9,13 +9,14 @@ import { evaluateAuctionStep } from '@/lib/auction-bot/engine';
 import { recheckAndSubmit, runBotTick, roomSbeConstraints } from '@/lib/auction-sandbox/bot-runner';
 import { snapshotToAuctionState } from '@/lib/auction-sandbox/auction-state-adapter';
 import { buildAssistedIdempotencyKey, buildBotIdempotencyKey, rankBids } from '@/lib/auction-sandbox/engine';
-import { buildPolicyVersionRecord, checkPolicyContinuity, policyFromSnapshot } from '@/lib/auction-sandbox/policies';
+import { buildPolicyVersionRecord, checkPolicyContinuity, policyFromSnapshot, samePolicyContent } from '@/lib/auction-sandbox/policies';
 import {
   bundleToSnapshot,
   buildWatchView,
   computeNextRuntime,
   loadSandboxBundle,
   missingInitialEvents,
+  missingPolicyEvents,
   publicRoomInfo,
   rankBundle,
   shouldEmitDecision,
@@ -79,10 +80,10 @@ async function appendEvent(admin: Db, roomId: string, type: string, payload: Rec
 }
 
 /**
- * Self-healing for the two birth events (ROOM_CREATED / AUCTION_STARTED):
- * when the loaded history provably starts at birth (see
- * missingInitialEvents) yet an initial event is absent — i.e. its write
- * failed while the state transition committed — the next heartbeat
+ * Self-healing for birth + policy events (ROOM_CREATED / AUCTION_STARTED /
+ * POLICY_AUTHORIZED): when the loaded history provably starts at birth (see
+ * missingInitialEvents / missingPolicyEvents) yet an event is absent — i.e.
+ * its write failed while the state transition committed — the next heartbeat
  * backfills it. Never duplicates: absence is only acted upon with proof.
  */
 async function ensureInitialEvents(admin: Db, bundle: SandboxBundle): Promise<void> {
@@ -90,6 +91,18 @@ async function ensureInitialEvents(admin: Db, bundle: SandboxBundle): Promise<vo
   for (const type of missing) {
     await appendEvent(admin, bundle.room.id, type, {
       at: type === 'ROOM_CREATED' ? bundle.room.created_at : (bundle.room.started_at ?? new Date().toISOString()),
+      backfilled: true,
+    });
+  }
+  const byVersion = new Map(bundle.policies.map((p) => [p.version, p]));
+  for (const version of missingPolicyEvents(bundle)) {
+    const rec = byVersion.get(version);
+    if (!rec) continue;
+    await appendEvent(admin, bundle.room.id, 'POLICY_AUTHORIZED', {
+      version,
+      policy_id: rec.policy_id,
+      fingerprint: rec.fingerprint,
+      authorized_by: rec.authorized_by,
       backfilled: true,
     });
   }
@@ -144,8 +157,10 @@ async function botTick(admin: Db, db: Db, bundle: SandboxBundle, atIso: string):
 
   // Emit only when the freshly loaded bundle has no identical decision yet:
   // covers the event-committed/runtime-lost split without duplicating.
+  // If the event write fails, skip the runtime update as well: the next tick
+  // recomputes from the authoritative bundle and retries both together.
   if (changed && shouldEmitDecision(bundle, decision)) {
-    await appendEvent(admin, bundle.room.id, 'BOT_DECISION', {
+    const decisionSeq = await appendEvent(admin, bundle.room.id, 'BOT_DECISION', {
       action: decision.action,
       reasonCode: decision.reasonCode,
       reasonDescription: decision.reasonDescription,
@@ -155,8 +170,10 @@ async function botTick(admin: Db, db: Db, bundle: SandboxBundle, atIso: string):
       executionMode: decision.executionMode,
       machineState,
     });
+    if (decisionSeq === null) return bundle;
     if (decision.action === 'STOP') {
-      await appendEvent(admin, bundle.room.id, 'BOT_STOPPED', { reasonCode: decision.reasonCode, policyVersion: decision.policyVersion });
+      const stoppedSeq = await appendEvent(admin, bundle.room.id, 'BOT_STOPPED', { reasonCode: decision.reasonCode, policyVersion: decision.policyVersion });
+      if (stoppedSeq === null) return bundle;
     }
   }
 
@@ -292,6 +309,11 @@ function toOperatorView(bundle: SandboxBundle, atIso: string): OperatorView {
   const snap = (latest?.snapshot ?? {}) as { targetPricePyg?: number; autoLimitPyg?: number; executionMode?: string };
   const runtime = (bundle.room.bot_runtime ?? {}) as Record<string, unknown>;
   const lastDecisionEvent = [...bundle.events].reverse().find((e) => e.type === 'BOT_DECISION');
+  // A stored candidate is only shown when bound to the ACTIVE version: a
+  // version upgrade (or a stale write) must never offer authorizing old economics.
+  const storedPending = (runtime.pendingCandidate as OperatorView['bot']['pendingCandidate']) ?? null;
+  const pendingCandidate =
+    storedPending && latest && storedPending.policyVersion === latest.version ? storedPending : null;
   return {
     room: publicRoomInfo(bundle, atIso),
     ranking: rankBundle(bundle),
@@ -303,7 +325,7 @@ function toOperatorView(bundle: SandboxBundle, atIso: string): OperatorView {
       targetPricePyg: snap.targetPricePyg ?? null,
       autoLimitPyg: snap.autoLimitPyg ?? null,
       lastDecision: (lastDecisionEvent?.payload ?? null) as Record<string, unknown> | null,
-      pendingCandidate: (runtime.pendingCandidate as OperatorView['bot']['pendingCandidate']) ?? null,
+      pendingCandidate,
     },
     activePolicy,
     watch: buildWatchView(bundle, atIso),
@@ -458,6 +480,19 @@ export async function authorizeSandboxPolicy(
     authorizedBy: who,
     policyId: prev ? prev.policy_id : `pol-sandbox-${room.id.slice(0, 8)}`,
   };
+  // Retry idempotency: identical content to the latest version returns it
+  // instead of inflating a duplicate vN+1 (e.g. double-click / retry after
+  // a partial failure that already committed the row).
+  if (prev) {
+    try {
+      const prevPolicy = policyFromSnapshot(prev);
+      if (samePolicyContent(prevPolicy, boundDraft)) {
+        return { version: prev.version };
+      }
+    } catch {
+      // Corrupt snapshot: fall through and version up normally.
+    }
+  }
   const continuity = checkPolicyContinuity({
     roomId: room.id,
     roomGroupId: room.group_id,
