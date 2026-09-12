@@ -141,7 +141,7 @@ export function createCanonicalUserScenario(baseTimeIso: string = '2026-09-10T20
     },
     {
       step: 3,
-      eventDescription: 'Ingreso a Fase Aleatoria (Safe Window). Aún no hay riesgo de cierre (closeRisk = false). El bot continúa en espera táctica.',
+      eventDescription: 'Ingreso a Fase Aleatoria (Safe Window). En RANDOM_CLOSE ya no existe espera táctica: el bot evalúa posición normalmente y busca el objetivo #1 (1.010.000 - 10 = 1.009.990).',
       state: {
         auctionId: 'lic-dncp-2026-001',
         groupId: 'item-1',
@@ -158,7 +158,8 @@ export function createCanonicalUserScenario(baseTimeIso: string = '2026-09-10T20
         ourCurrentPricePyg: 1_050_000,
         observedAt: addSeconds(35),
       },
-      expectedAction: 'WAIT', // Tactical wait in SAFE_WINDOW
+      expectedAction: 'BID_CANDIDATE', // RANDOM_CLOSE is always ACTIVE
+      expectedCandidatePricePyg: 1_009_990,
     },
     {
       step: 4,
