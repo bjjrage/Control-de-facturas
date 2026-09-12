@@ -43,6 +43,7 @@ export interface CompetitorBidSummary {
   categoria: string;
   date: string | null;
   monto_ofertado: number | null;
+  monto_adjudicado?: number | null;
   monto_referencial: number | null;
   discount_pct: number | null;
   gano: boolean;
@@ -350,7 +351,60 @@ export async function getCompetitorProfile(
     }
   }
 
-  // 2c. Filtrado temporal estricto (asOfDate / cutoffDate) e integridad de la licitación en evaluación
+  // 2c. Consultar montos adjudicados oficiales en procurement_awards
+  const processAwardMap = new Map<string, number>();
+  if (supplierData.id) {
+    try {
+      // 1. Direct awards by supplier_id
+      const { data: directAwards } = await supabase
+        .from("procurement_awards")
+        .select("process_id, monto_adjudicado")
+        .eq("supplier_id", supplierData.id);
+
+      if (directAwards) {
+        for (const a of directAwards) {
+          if (a.process_id && a.monto_adjudicado) {
+            processAwardMap.set(a.process_id, Number(a.monto_adjudicado));
+          }
+        }
+      }
+
+      // 2. Consortium / joint awards via procurement_award_suppliers
+      const { data: jointAwards } = await supabase
+        .from("procurement_award_suppliers")
+        .select("award_id, procurement_awards(process_id, monto_adjudicado)")
+        .eq("supplier_id", supplierData.id);
+
+      if (jointAwards) {
+        for (const ja of jointAwards) {
+          const pa = (ja as any).procurement_awards;
+          if (pa && pa.process_id && pa.monto_adjudicado && !processAwardMap.has(pa.process_id)) {
+            processAwardMap.set(pa.process_id, Number(pa.monto_adjudicado));
+          }
+        }
+      }
+    } catch {
+      // Continuar con montos disponibles
+    }
+  }
+
+  // Enriquecer ofertas con monto_adjudicado oficial
+  for (const b of bids) {
+    const aw = processAwardMap.get(b.process_id);
+    if (aw) {
+      b.monto_adjudicado = aw;
+      if (b.gano && !b.monto_ofertado) {
+        // En licitaciones donde la oferta ganadora es el valor adjudicado,
+        // usar el monto adjudicado como monto de la oferta
+        b.monto_ofertado = aw;
+        if (b.monto_referencial && b.monto_referencial > 0) {
+          b.discount_pct = parseFloat((((b.monto_referencial - aw) / b.monto_referencial) * 100).toFixed(2));
+        }
+      }
+    }
+  }
+
+  // 2d. Filtrado temporal estricto (asOfDate / cutoffDate) e integridad de la licitación en evaluación
   let eligibleBids = bids;
   if (context?.asOfDate) {
     const cutoffMs = new Date(context.asOfDate).getTime();
@@ -369,8 +423,8 @@ export async function getCompetitorProfile(
   const totalWins = eligibleBids.filter((b) => b.gano).length;
   const winRate = totalBids > 0 ? parseFloat(((totalWins / totalBids) * 100).toFixed(1)) : 0;
   const totalAwarded = eligibleBids
-    .filter((b) => b.gano && b.monto_ofertado)
-    .reduce((acc, b) => acc + (b.monto_ofertado ?? 0), 0);
+    .filter((b) => b.gano)
+    .reduce((acc, b) => acc + (b.monto_adjudicado ?? b.monto_ofertado ?? 0), 0);
 
   const globalFingerprint = resumirMetricas(eligibleBids, "FALLBACK_GLOBAL", false, "");
 
@@ -381,7 +435,7 @@ export async function getCompetitorProfile(
     curr.bids++;
     if (b.gano) {
       curr.wins++;
-      curr.amount += b.monto_ofertado ?? 0;
+      curr.amount += b.monto_adjudicado ?? b.monto_ofertado ?? 0;
     }
     buyerMap.set(b.buyer, curr);
   }

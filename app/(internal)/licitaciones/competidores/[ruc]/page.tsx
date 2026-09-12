@@ -202,7 +202,8 @@ export default async function CompetidorProfilePage({
               <tr>
                 <th className="px-4 py-3">Licitación</th>
                 <th className="px-4 py-3">Convocante</th>
-                <th className="px-4 py-3">Monto Ofertado</th>
+                <th className="px-4 py-3">Monto Ofertado / Adjudicado</th>
+                <th className="px-4 py-3">Referencial</th>
                 <th className="px-4 py-3">Descuento</th>
                 <th className="px-4 py-3">Resultado</th>
               </tr>
@@ -210,43 +211,62 @@ export default async function CompetidorProfilePage({
             <tbody className="divide-y divide-[var(--border)]">
               {profile.recent_bids.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-[var(--muted)]">
+                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-[var(--muted)]">
                     No se registran ofertas recientes cargadas.
                   </td>
                 </tr>
               ) : (
-                profile.recent_bids.map((b, i) => (
-                  <tr key={i} className="hover:bg-[var(--hover)] transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-[var(--foreground)]">{b.title}</div>
-                      <div className="text-xs text-[var(--muted)]">ID DNCP: {b.dncp_nro}</div>
-                    </td>
-                    <td className="px-4 py-3 text-[var(--muted)]">{b.buyer}</td>
-                    <td className="px-4 py-3 font-semibold text-[var(--foreground)]">
-                      {b.monto_ofertado ? formatMoney(b.monto_ofertado, "PYG") : "No publicado"}
-                    </td>
-                    <td className="px-4 py-3 text-[var(--muted)]">
-                      {b.discount_pct !== null ? (
-                        <span className={b.discount_pct > 0 ? "font-medium text-emerald-400" : "text-[var(--muted)]"}>
-                          {b.discount_pct > 0 ? `-${b.discount_pct}%` : `${b.discount_pct}%`}
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {b.gano ? (
-                        <span className="inline-flex rounded-full bg-emerald-950/60 border border-emerald-800/60 px-2.5 py-0.5 text-xs font-medium text-emerald-400">
-                          Ganadora
-                        </span>
-                      ) : (
-                        <span className="inline-flex rounded-full bg-[var(--panel-2)] border border-[var(--border)] px-2.5 py-0.5 text-xs font-medium text-[var(--muted)]">
-                          {b.estado_oferta}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                profile.recent_bids.map((b, i) => {
+                  const montoPrincipal = b.monto_adjudicado ?? b.monto_ofertado;
+                  return (
+                    <tr key={i} className="hover:bg-[var(--hover)] transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-[var(--foreground)]">{b.title}</div>
+                        <div className="text-xs text-[var(--muted)]">ID DNCP: {b.dncp_nro}</div>
+                      </td>
+                      <td className="px-4 py-3 text-[var(--muted)]">{b.buyer}</td>
+                      <td className="px-4 py-3">
+                        {montoPrincipal ? (
+                          <div>
+                            <span className="font-semibold text-[var(--foreground)]">
+                              {formatMoney(montoPrincipal, "PYG")}
+                            </span>
+                            {b.monto_adjudicado && (
+                              <span className="block text-[10px] text-emerald-400">Adjudicado oficial</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-[var(--muted)]" title="La DNCP publicó la oferta en acta PDF pero no en campo numérico JSON">
+                            Ofertó (Acta DNCP)
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-[var(--muted)]">
+                        {b.monto_referencial ? formatMoney(b.monto_referencial, "PYG") : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-[var(--muted)]">
+                        {b.discount_pct !== null ? (
+                          <span className={b.discount_pct > 0 ? "font-medium text-emerald-400" : "text-[var(--muted)]"}>
+                            {b.discount_pct > 0 ? `-${b.discount_pct}%` : `${b.discount_pct}%`}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {b.gano ? (
+                          <span className="inline-flex rounded-full bg-emerald-950/60 border border-emerald-800/60 px-2.5 py-0.5 text-xs font-medium text-emerald-400">
+                            Ganadora
+                          </span>
+                        ) : (
+                          <span className="inline-flex rounded-full bg-[var(--panel-2)] border border-[var(--border)] px-2.5 py-0.5 text-xs font-medium text-[var(--muted)]">
+                            {b.estado_oferta}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
