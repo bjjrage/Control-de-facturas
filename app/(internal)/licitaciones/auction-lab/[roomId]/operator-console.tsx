@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { PolicyConfigForm } from '@/components/auction-bot/policy-config-form';
 import { FrozenAuctionPolicy } from '@/lib/auction-bot/types';
-import { PollController, TimeoutError, isNextRedirect, ReconcilingError, DRAIN_TIMEOUT_MESSAGE } from '@/lib/auction-sandbox/poll-controller';
+import { PollController, TimeoutError, isNextRedirect, ReconcilingError, DRAIN_TIMEOUT_MESSAGE, createResponseGuard } from '@/lib/auction-sandbox/poll-controller';
 import {
   authorizeAssistedBid,
   authorizeSandboxPolicy,
@@ -41,12 +41,21 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
   // True while a timed-out mutation is still unconfirmed: mutation buttons
   // stay disabled (no blind retry) while reads keep flowing for reconcile.
   const [reconciling, setReconciling] = useState(false);
+  // True when the first snapshot never arrived within LOAD_TIMEOUT_MS:
+  // the "Cargando…" state must never wedge forever — offer a retry.
+  const [loadExpired, setLoadExpired] = useState(false);
   const controllerRef = useRef<PollController | null>(null);
+  const guardRef = useRef(createResponseGuard());
 
   const poll = useCallback(async () => {
+    // Epoch guard: a late response must never overwrite fresher state
+    // (e.g. an ACTIVE snapshot landing after CLOSED stopped the timer).
+    const seq = guardRef.current.begin();
+    const alive = () => guardRef.current.isCurrent(seq);
     try {
       // Managers heartbeat (advance + bot tick); comercial gets a read-only view.
       const res = canManage ? await pollOperatorRoom(roomId) : await getOperatorRoomState(roomId);
+      if (!alive()) return;
       if (res.error) {
         setError(res.error);
         return;
@@ -56,6 +65,7 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
         setError(null);
       }
     } catch (e) {
+      if (!alive()) return;
       // Auth expiry arrives as a redirect digest. It must never be swallowed
       // into a frozen view: stop polling and send the user to login. (A
       // rethrow would die inside the controller's guarded tick.)
@@ -79,9 +89,16 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
     ctl.start();
     return () => {
       ctl.stop();
+      guardRef.current.reset();
       controllerRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (view) return;
+    const t = setTimeout(() => setLoadExpired(true), 30000);
+    return () => clearTimeout(t);
+  }, [view]);
 
   const MUTATION_LABELS: Record<string, string> = {
     start: 'Iniciar subasta',
@@ -179,7 +196,15 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
     return <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-[13px] text-[var(--error)]">{error}</div>;
   }
   if (!view) {
-    return <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-[13px] text-[var(--muted)]">Cargando sala…</div>;
+    return (
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-[13px] text-[var(--muted)]">
+        {loadExpired ? (
+          <span>La sala tarda demasiado en cargar. <button className="underline" onClick={() => window.location.reload()}>Reintentar</button></span>
+        ) : (
+          'Cargando sala…'
+        )}
+      </div>
+    );
   }
 
   const { room, ranking, bot } = view;

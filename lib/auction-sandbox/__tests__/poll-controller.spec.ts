@@ -10,6 +10,7 @@ import {
   PollController,
   ReconcilingError,
   TimeoutError,
+  createResponseGuard,
   isNextRedirect,
   withTimeout,
 } from '../poll-controller';
@@ -45,6 +46,26 @@ describe('isNextRedirect', () => {
     expect(isNextRedirect(new Error('x'))).toBe(false);
     expect(isNextRedirect(null)).toBe(false);
     expect(isNextRedirect('NEXT_REDIRECT')).toBe(false);
+  });
+});
+
+describe('createResponseGuard — stale poll responses never win', () => {
+  it('only the latest begun sequence is current', () => {
+    const g = createResponseGuard();
+    const a = g.begin();
+    const b = g.begin();
+    expect(g.isCurrent(a)).toBe(false);
+    expect(g.isCurrent(b)).toBe(true);
+  });
+
+  it('reset invalidates every outstanding sequence', () => {
+    const g = createResponseGuard();
+    const a = g.begin();
+    g.reset();
+    expect(g.isCurrent(a)).toBe(false);
+    // The guard stays usable after reset.
+    const c = g.begin();
+    expect(g.isCurrent(c)).toBe(true);
   });
 });
 

@@ -84,6 +84,22 @@ export const DRAIN_TIMEOUT_MESSAGE =
 /** Backstop: an orphan that never settles releases the mutation hold after this. */
 export const ORPHAN_HOLD_CAP_MS = 90000;
 
+/**
+ * Stale-response guard: drops out-of-order poll resolutions so a late
+ * response can never overwrite fresher state (e.g. an ACTIVE snapshot
+ * landing after CLOSED). One guard per polling client.
+ */
+export function createResponseGuard() {
+  let latest = 0;
+  return {
+    begin: () => ++latest,
+    isCurrent: (seq: number) => seq === latest,
+    reset: () => {
+      latest = 0;
+    },
+  };
+}
+
 export class PollController {
   private timer: ReturnType<typeof setInterval> | null = null;
   private inFlight: boolean = false;

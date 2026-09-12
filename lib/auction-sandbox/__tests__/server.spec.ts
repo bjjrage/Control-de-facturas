@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { computeNextRuntime, loadSandboxBundle, missingInitialEvents, shouldEmitDecision, SandboxBundle } from '../server';
+import { botStoppedOnVersion, computeNextRuntime, loadSandboxBundle, missingInitialEvents, shouldEmitDecision, SandboxBundle } from '../server';
 import { SandboxBid } from '../types';
 
 const ROOM_ROW = {
@@ -84,6 +84,27 @@ describe('computeNextRuntime — single coherent write (F-A2)', () => {  const d
     const next = computeNextRuntime(prev, { action: 'WAIT', reasonCode: 'Y', candidatePricePyg: null, policyVersion: 1 }, null);
     expect(next.lastBotStatus).toEqual({ action: 'WAIT', reasonCode: 'Y', candidate: null, v: 1 });
     expect(next.pendingCandidate).toBeNull();
+  });
+});
+
+describe('botStoppedOnVersion — STOP terminal per policy version', () => {
+  it('STOP on the current version → stopped', () => {
+    expect(botStoppedOnVersion({ lastBotStatus: { action: 'STOP', reasonCode: 'X', candidate: null, v: 2 } }, 2)).toBe(true);
+  });
+
+  it('STOP on an older version → revived by the new policy', () => {
+    expect(botStoppedOnVersion({ lastBotStatus: { action: 'STOP', reasonCode: 'X', candidate: null, v: 2 } }, 3)).toBe(false);
+  });
+
+  it('non-STOP status → not stopped', () => {
+    expect(botStoppedOnVersion({ lastBotStatus: { action: 'WAIT', reasonCode: 'X', candidate: null, v: 2 } }, 2)).toBe(false);
+  });
+
+  it('empty/corrupt runtime → not stopped (fail-open toward evaluation)', () => {
+    expect(botStoppedOnVersion({}, 1)).toBe(false);
+    expect(botStoppedOnVersion(null, 1)).toBe(false);
+    expect(botStoppedOnVersion(undefined, 1)).toBe(false);
+    expect(botStoppedOnVersion({ lastBotStatus: { action: 'STOP' } }, 1)).toBe(false);
   });
 });
 

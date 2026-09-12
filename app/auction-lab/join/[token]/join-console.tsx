@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
 import { JoinView } from '@/lib/auction-sandbox/server';
-import { PollController, TimeoutError, isNextRedirect, ReconcilingError, DRAIN_TIMEOUT_MESSAGE } from '@/lib/auction-sandbox/poll-controller';
+import { PollController, TimeoutError, isNextRedirect, ReconcilingError, DRAIN_TIMEOUT_MESSAGE, createResponseGuard } from '@/lib/auction-sandbox/poll-controller';
 import { getJoinView, submitHumanBid } from './actions';
 
 export function JoinConsole({ token }: { token: string }) {
@@ -16,7 +16,9 @@ export function JoinConsole({ token }: { token: string }) {
   const [flash, setFlash] = useState<string | null>(null);
   const [flashKind, setFlashKind] = useState<'ok' | 'error'>('ok');
   const [reconciling, setReconciling] = useState(false);
+  const [loadExpired, setLoadExpired] = useState(false);
   const controllerRef = useRef<PollController | null>(null);
+  const guardRef = useRef(createResponseGuard());
 
   const say = (text: string, kind: 'ok' | 'error' = 'ok') => {
     setFlash(text);
@@ -24,8 +26,11 @@ export function JoinConsole({ token }: { token: string }) {
   };
 
   const poll = useCallback(async () => {
+    const seq = guardRef.current.begin();
+    const alive = () => guardRef.current.isCurrent(seq);
     try {
       const res = await getJoinView(token);
+      if (!alive()) return;
       if (res.error) {
         setError(res.error);
         // Dead link: stop flooding a token the server will never accept.
@@ -38,6 +43,7 @@ export function JoinConsole({ token }: { token: string }) {
         if (res.view.room.status === 'CLOSED') controllerRef.current?.stop();
       }
     } catch (e) {
+      if (!alive()) return;
       // A rethrow would die inside the controller's guarded tick: reload so
       // server components re-resolve the session/token state instead.
       if (isNextRedirect(e)) {
@@ -59,9 +65,16 @@ export function JoinConsole({ token }: { token: string }) {
     ctl.start();
     return () => {
       ctl.stop();
+      guardRef.current.reset();
       controllerRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (view) return;
+    const t = setTimeout(() => setLoadExpired(true), 30000);
+    return () => clearTimeout(t);
+  }, [view]);
 
   async function submit() {
     const n = parseInt(price.replace(/\D/g, ''), 10);
@@ -135,7 +148,13 @@ export function JoinConsole({ token }: { token: string }) {
   if (!view) {
     return (
       <div className="min-h-screen bg-[var(--background)] px-4 py-8">
-        <div className="mx-auto w-full max-w-lg text-[13px] text-[var(--muted)]">Cargando subasta…</div>
+        <div className="mx-auto w-full max-w-lg text-[13px] text-[var(--muted)]">
+          {loadExpired ? (
+            <span>La subasta tarda demasiado en cargar. <button className="underline" onClick={() => window.location.reload()}>Reintentar</button></span>
+          ) : (
+            'Cargando subasta…'
+          )}
+        </div>
       </div>
     );
   }

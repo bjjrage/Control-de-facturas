@@ -86,6 +86,22 @@ export interface AssistedCandidate {
 }
 
 /**
+ * STOP terminal gate per policy version: once the persisted runtime records
+ * a STOP decision for the CURRENT policy version, further ticks must not
+ * re-evaluate or emit — a fresh Core machine deterministically re-derives
+ * STOP from the same (monotonically decreasing) snapshot, so skipping is
+ * pure hardening against decision/event spam. A newly authorized policy
+ * version revives the bot (v differs from the recorded STOP).
+ */
+export function botStoppedOnVersion(
+  runtime: Record<string, unknown> | null | undefined,
+  policyVersion: number
+): boolean {
+  const last = ((runtime ?? {}).lastBotStatus ?? {}) as { action?: unknown; v?: unknown };
+  return last.action === 'STOP' && last.v === policyVersion;
+}
+
+/**
  * Builds the next bot_runtime in ONE pure step (no I/O): the caller persists
  * the result exactly once per tick. lastBotStatus always refreshes from the
  * latest decision; pendingCandidate is set only for a live ASSISTED candidate

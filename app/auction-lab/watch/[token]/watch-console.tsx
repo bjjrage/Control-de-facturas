@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { WatchView } from '@/lib/auction-sandbox/server';
-import { PollController, isNextRedirect } from '@/lib/auction-sandbox/poll-controller';
+import { PollController, isNextRedirect, createResponseGuard } from '@/lib/auction-sandbox/poll-controller';
 import { getWatchView } from './actions';
 
 function fmtT(iso: string): string {
@@ -13,11 +13,17 @@ function fmtT(iso: string): string {
 export function WatchConsole({ token }: { token: string }) {
   const [view, setView] = useState<WatchView | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loadExpired, setLoadExpired] = useState(false);
   const controllerRef = useRef<PollController | null>(null);
+  const guardRef = useRef(createResponseGuard());
 
   const poll = useCallback(async () => {
+    // Epoch guard: a late response must never overwrite fresher state.
+    const seq = guardRef.current.begin();
+    const alive = () => guardRef.current.isCurrent(seq);
     try {
       const res = await getWatchView(token);
+      if (!alive()) return;
       if (res.error) {
         setError(res.error);
         if (/inválido|vencido/i.test(res.error)) controllerRef.current?.stop();
@@ -29,6 +35,7 @@ export function WatchConsole({ token }: { token: string }) {
         if (res.view.room.status === 'CLOSED') controllerRef.current?.stop();
       }
     } catch (e) {
+      if (!alive()) return;
       if (isNextRedirect(e)) {
         controllerRef.current?.stop();
         window.location.reload();
@@ -47,9 +54,16 @@ export function WatchConsole({ token }: { token: string }) {
     ctl.start();
     return () => {
       ctl.stop();
+      guardRef.current.reset();
       controllerRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (view) return;
+    const t = setTimeout(() => setLoadExpired(true), 30000);
+    return () => clearTimeout(t);
+  }, [view]);
 
   // A token error with a loaded view means the link died mid-session:
   // replace the stale board instead of a live-looking screen + banner.
@@ -78,7 +92,13 @@ export function WatchConsole({ token }: { token: string }) {
   if (!view) {
     return (
       <div className="min-h-screen bg-[var(--background)] px-4 py-8">
-        <div className="mx-auto w-full max-w-3xl text-[13px] text-[var(--muted)]">Conectando a la sala…</div>
+        <div className="mx-auto w-full max-w-3xl text-[13px] text-[var(--muted)]">
+          {loadExpired ? (
+            <span>La sala tarda demasiado en conectar. <button className="underline" onClick={() => window.location.reload()}>Reintentar</button></span>
+          ) : (
+            'Conectando a la sala…'
+          )}
+        </div>
       </div>
     );
   }

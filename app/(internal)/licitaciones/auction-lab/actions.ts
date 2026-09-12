@@ -13,6 +13,7 @@ import { buildPolicyVersionRecord, checkPolicyContinuity, policyFromSnapshot, sa
 import {
   bundleToSnapshot,
   buildWatchView,
+  botStoppedOnVersion,
   computeNextRuntime,
   loadSandboxBundle,
   missingInitialEvents,
@@ -138,6 +139,11 @@ async function botTick(admin: Db, db: Db, bundle: SandboxBundle, atIso: string):
   if (bundle.room.status !== 'ACTIVE_NORMAL' && bundle.room.status !== 'ACTIVE_RANDOM') return bundle;
 
   const latest = bundle.policies[bundle.policies.length - 1];
+  // STOP is terminal per policy version: never re-evaluate or emit after it
+  // (a fresh Core machine would deterministically re-derive STOP). A newly
+  // authorized policy version revives the bot.
+  const runtimeBefore = (bundle.room.bot_runtime ?? {}) as Record<string, unknown>;
+  if (botStoppedOnVersion(runtimeBefore, latest.version)) return bundle;
   let policy;
   try {
     policy = policyFromSnapshot(latest);
@@ -462,6 +468,9 @@ export async function authorizeSandboxPolicy(
   const res = await manageOperatorBundle(roomId);
   if ('error' in res) return { error: res.error };
   const room = res.bundle.room;
+  // A closed auction takes no new policy versions: authorizing one would
+  // inflate the version chain and timeline with zero economic effect.
+  if (room.status === 'CLOSED') return { error: 'La sala está cerrada.' };
   const prev = res.bundle.policies.length > 0 ? res.bundle.policies[res.bundle.policies.length - 1] : null;
   const nextVersion = prev ? prev.version + 1 : 1;
   // Audit identity comes from the logged-in operator, NEVER from the browser:
@@ -537,6 +546,10 @@ export async function authorizeSandboxPolicy(
 export async function authorizeAssistedBid(roomId: string): Promise<{ price?: number; error?: string }> {
   const res = await manageOperatorBundle(roomId);
   if ('error' in res) return { error: res.error };
+  // Authorizing into a closed auction is incoherent (the Core would STOP on
+  // the CLOSED state anyway): fail fast with a clear message instead of a
+  // confusing "sin candidate" error after wasted RPCs.
+  if (res.bundle.room.status === 'CLOSED') return { error: 'La sala está cerrada.' };
   const profile = await requireProfile([...MANAGE_ROLES]);
   const atIso = nowIso();
   const advanced = await advanceRoom(res.admin, res.db, roomId);
