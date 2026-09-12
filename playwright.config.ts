@@ -37,9 +37,12 @@ export default defineConfig({
       use: { storageState: undefined }, // setup no usa estado guardado
     },
     // Step 2: todos los tests E2E usando la sesión guardada
+    // (bim-certification.spec.ts excluido: solo corre con
+    // playwright.bim.config.ts contra Supabase local efímero, nunca en prod)
     {
       name: "e2e",
       testMatch: /.*\.spec\.ts/,
+      testIgnore: /bim-certification\.spec\.ts/,
       dependencies: ["setup"],
     },
   ],
