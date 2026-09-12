@@ -6,6 +6,7 @@ import { formatMoney } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { getCompetitorProfile } from "@/lib/procurement/competitor-intelligence";
 import { Building2, Users2, Award, Percent, AlertCircle, ShieldCheck } from "lucide-react";
+import { CompetitorExclusionButton } from "./exclusion-button";
 
 export default async function CompetidorProfilePage({
   params,
@@ -13,7 +14,7 @@ export default async function CompetidorProfilePage({
   params: Promise<{ ruc: string }>;
 }) {
   const { ruc } = await params;
-  await requireProfile(["comercial", "administracion", "admin"]);
+  const profileUser = await requireProfile(["comercial", "administracion", "admin"]);
   const supabase = await createClient();
 
   const profile = await getCompetitorProfile(decodeURIComponent(ruc), supabase);
@@ -34,6 +35,18 @@ export default async function CompetidorProfilePage({
         </div>
       </div>
     );
+  }
+
+  // Verificar si está excluido por el tenant actual
+  let isExcluded = false;
+  if (profile.supplier_id) {
+    const { data: excl } = await supabase
+      .from("empresa_competitor_exclusions")
+      .select("id")
+      .eq("empresa_id", profileUser.empresa_id)
+      .eq("supplier_id", profile.supplier_id)
+      .maybeSingle();
+    isExcluded = Boolean(excl);
   }
 
   const certaintyColors = {
@@ -62,12 +75,22 @@ export default async function CompetidorProfilePage({
               {profile.dv ? `-${profile.dv}` : ""} {profile.tamano ? `• Escala: ${profile.tamano}` : ""}
             </p>
           </div>
-          <div className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium ${certaintyColors}`}>
-            <ShieldCheck className="h-4 w-4" />
-            Certeza Estadística: {profile.certainty_tier} ({profile.total_bids} obs.)
+          <div className="flex items-center gap-3">
+            {profile.supplier_id && (
+              <CompetitorExclusionButton
+                supplierId={profile.supplier_id}
+                supplierName={profile.nombre}
+                initialIsExcluded={isExcluded}
+              />
+            )}
+            <div className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium ${certaintyColors}`}>
+              <ShieldCheck className="h-4 w-4" />
+              Certeza: {profile.certainty_tier} ({profile.total_bids} obs.)
+            </div>
           </div>
         </div>
       </div>
+
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

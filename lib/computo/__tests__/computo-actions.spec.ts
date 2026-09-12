@@ -85,13 +85,30 @@ vi.mock("@/lib/supabase/server", () => ({
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function seedBudgetItems(): BudgetItem[] {
-  return [
-    { id: "bi-1", project_id: "proj-1", parent_id: null, code: "1.1", description: "Excavación manual de terreno", unit: "m3", quantity: 100, unit_price: 25000, created_at: "" },
-    { id: "bi-2", project_id: "proj-1", parent_id: null, code: "1.2", description: "Relleno y compactación con material selecto", unit: "m3", quantity: 80, unit_price: 18000, created_at: "" },
-    { id: "bi-3", project_id: "proj-1", parent_id: null, code: "2.1", description: "Hormigón armado H-30 para columnas", unit: "m3", quantity: 40, unit_price: 850000, created_at: "" },
-    { id: "bi-4", project_id: "proj-1", parent_id: null, code: "2.2", description: "Acero corrugado fy=4200", unit: "kg", quantity: 5000, unit_price: 7500, created_at: "" },
-    { id: "bi-5", project_id: "proj-1", parent_id: null, code: "3.1", description: "Losa de entrepiso", unit: "m2", quantity: 200, unit_price: 320000, created_at: "" },
+  const rows: Array<[string, string, string, string, number, number]> = [
+    ["bi-1", "1.1", "Excavación manual de terreno", "m3", 100, 25000],
+    ["bi-2", "1.2", "Relleno y compactación con material selecto", "m3", 80, 18000],
+    ["bi-3", "2.1", "Hormigón armado H-30 para columnas", "m3", 40, 850000],
+    ["bi-4", "2.2", "Acero corrugado fy=4200", "kg", 5000, 7500],
+    ["bi-5", "3.1", "Losa de entrepiso", "m2", 200, 320000],
   ];
+  return rows.map(([id, code, description, unit, quantity, unit_price], i) => ({
+    id,
+    project_id: "proj-1",
+    parent_id: null,
+    code,
+    description,
+    unit,
+    quantity,
+    unit_price,
+    subtotal: quantity * unit_price,
+    sort_order: i,
+    start_date: null,
+    end_date: null,
+    depends_on: null,
+    quantity_per_unit: null,
+    created_at: "",
+  }));
 }
 
 function seedComputoItems(importId: string): ComputoItem[] {
