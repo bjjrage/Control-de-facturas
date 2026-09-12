@@ -5,7 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePlan } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
-import { suggestMatches, aggregateElementsForBudgetItem } from "@/lib/bim/matching";
+import { aggregateElementsForBudgetItem } from "@/lib/bim/matching";
+import { runSemanticMatch } from "@/lib/bim/semantic-pipeline";
+import { DeepSeekSemanticMatcher } from "@/lib/bim/deepseek-matcher";
 import type { BimElement, BimModel, BimBudgetMatch, BudgetItem } from "@/lib/types";
 
 async function assertProjectAccess(projectId: string) {
@@ -172,17 +174,40 @@ export async function generateMatchSuggestions(
   const parentIds = new Set(budgetItems.map((b) => b.parent_id).filter(Boolean));
   const matchableItems = budgetItems.filter((b) => !parentIds.has(b.id) && b.unit_price != null);
 
+  // Filtro determinista -> retrieval por texto -> DEEPSEEK decide. El fuzzy
+  // scorer ya no es la autoridad de match, solo acota candidatos (ver
+  // lib/bim/semantic-pipeline.ts). Si DeepSeek falla (falta API key, error de
+  // red, respuesta inválida), se corta acá con el error real — nunca se
+  // sustituye por un resultado fuzzy disfrazado de decisión de IA.
+  let matcher: DeepSeekSemanticMatcher;
+  try {
+    matcher = new DeepSeekSemanticMatcher();
+  } catch (e) {
+    return { suggested: 0, error: e instanceof Error ? e.message : "No se pudo inicializar el matcher semántico." };
+  }
+
   const rows: { bim_element_id: string; budget_item_id: string; method: "DETERMINISTIC" | "SEMANTIC"; score: number }[] = [];
   for (const element of elements) {
-    const candidates = suggestMatches(element, matchableItems);
-    for (const c of candidates) {
+    let result;
+    try {
+      result = await runSemanticMatch(matcher, element, matchableItems);
+    } catch (e) {
+      return {
+        suggested: rows.length,
+        error: `Se generaron ${rows.length} sugerencias antes de un error de DeepSeek: ${e instanceof Error ? e.message : String(e)}`,
+      };
+    }
+    if (result.decision === "MATCH" && result.candidateId) {
       rows.push({
         bim_element_id: element.id,
-        budget_item_id: c.budgetItem.id,
+        budget_item_id: result.candidateId,
         method: "SEMANTIC",
-        score: c.score,
+        score: result.confidence,
       });
     }
+    // REVIEW y NO_MATCH no generan fila: el elemento queda sin sugerencia,
+    // consistente con "Sin sugerencias compatibles" en la UI. No es un error,
+    // es la abstención explícita que pide el diseño del matcher.
   }
 
   if (rows.length === 0) return { suggested: 0, error: null };

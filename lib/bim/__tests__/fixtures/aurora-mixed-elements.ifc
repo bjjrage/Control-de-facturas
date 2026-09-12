@@ -1,0 +1,147 @@
+ISO-10303-21;
+HEADER;
+FILE_DESCRIPTION((''),'2;1');
+FILE_NAME('aurora-mixed-elements.ifc','2026-09-11T00:00:00',(''),(''),'Control de Facturas BIM test fixture','','');
+FILE_SCHEMA(('IFC4'));
+ENDSEC;
+
+DATA;
+#1=IFCPERSON($,$,'Tester',$,$,$,$,$);
+#2=IFCORGANIZATION($,'Control de Facturas',$,$,$);
+#3=IFCPERSONANDORGANIZATION(#1,#2,$);
+#4=IFCAPPLICATION(#2,'1.0','Control de Facturas BIM fixture','CDF');
+#5=IFCOWNERHISTORY(#3,#4,$,.ADDED.,$,$,$,0);
+
+#10=IFCAXIS2PLACEMENT3D(#11,$,$);
+#11=IFCCARTESIANPOINT((0.,0.,0.));
+#12=IFCDIRECTION((0.,0.,1.));
+#13=IFCDIRECTION((1.,0.,0.));
+
+#21=IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.);
+#22=IFCSIUNIT(*,.AREAUNIT.,$,.SQUARE_METRE.);
+#23=IFCSIUNIT(*,.VOLUMEUNIT.,$,.CUBIC_METRE.);
+#24=IFCSIUNIT(*,.PLANEANGLEUNIT.,$,.RADIAN.);
+#25=IFCUNITASSIGNMENT((#21,#22,#23,#24));
+
+#30=IFCGEOMETRICREPRESENTATIONCONTEXT($,'Model',3,1.0E-5,#10,$);
+
+#40=IFCPROJECT('0AuroraProjectGUID000a',#5,'Proyecto Demo Aurora',$,$,$,$,(#30),#25);
+
+#50=IFCLOCALPLACEMENT($,#10);
+#51=IFCSITE('0AuroraSiteGUID00000b',#5,'Sitio',$,$,#50,$,$,.ELEMENT.,$,$,$,$,$);
+
+#60=IFCLOCALPLACEMENT(#50,#10);
+#61=IFCBUILDING('0AuroraBuildingGUID00c',#5,'Edificio Aurora',$,$,#60,$,$,.ELEMENT.,$,$,$);
+
+#70=IFCLOCALPLACEMENT(#60,#10);
+#71=IFCBUILDINGSTOREY('0AuroraStoreyGUID000d',#5,'Nivel 1',$,$,#70,$,$,.ELEMENT.,0.);
+
+#80=IFCRELAGGREGATES('0AuroraAggr1GUID0000e',#5,$,$,#40,(#51));
+#81=IFCRELAGGREGATES('0AuroraAggr2GUID0000f',#5,$,$,#51,(#61));
+#82=IFCRELAGGREGATES('0AuroraAggr3GUID0000g',#5,$,$,#61,(#71));
+
+/* --------------------------------------------------------------------------- */
+/* W1 (TEST S1): muro cerámico, nomenclatura en inglés, sin espesor con */
+/* sufijo "mm"/"cm" en el texto -> el filtro determinista de espesor NO se */
+/* activa (no hay dato confiable), la resolución depende del matcher */
+/* semántico. */
+/* --------------------------------------------------------------------------- */
+#100=IFCWALLSTANDARDCASE('0AuroraW1GUID00000h',#5,'External Wall - Ceramic Brick - 150',$,$,#70,$,$);
+#101=IFCMATERIAL('Ceramic Brick');
+#102=IFCRELASSOCIATESMATERIAL('0AuroraW1MatGUID000i',#5,$,$,(#100),#101);
+#103=IFCQUANTITYAREA('NetSideArea',$,$,88.2);
+#104=IFCELEMENTQUANTITY('0AuroraW1QtoGUID000j',#5,'BaseQuantities',$,$,(#103));
+#105=IFCRELDEFINESBYPROPERTIES('0AuroraW1QtoRelGUID0k',#5,$,$,(#100),#104);
+
+/* --------------------------------------------------------------------------- */
+/* W2 (TEST D1): espesor "100mm" SÍ está en el nombre -> el filtro */
+/* determinista puede descartar ALB-001 (15cm) por sí solo. */
+/* --------------------------------------------------------------------------- */
+#110=IFCWALLSTANDARDCASE('0AuroraW2GUID00000l',#5,'Muro cerámico 100mm',$,$,#70,$,$);
+#111=IFCMATERIAL('Ceramic');
+#112=IFCRELASSOCIATESMATERIAL('0AuroraW2MatGUID000m',#5,$,$,(#110),#111);
+#113=IFCQUANTITYAREA('NetSideArea',$,$,40.);
+#114=IFCELEMENTQUANTITY('0AuroraW2QtoGUID000n',#5,'BaseQuantities',$,$,(#113));
+#115=IFCRELDEFINESBYPROPERTIES('0AuroraW2QtoRelGUID0o',#5,$,$,(#110),#114);
+
+/* --------------------------------------------------------------------------- */
+/* W3 (TEST S3): español informal, espesor como "e=0.15" (metros) — el regex */
+/* de extractSpecs solo reconoce sufijo "mm"/"cm", así que tampoco se activa */
+/* el filtro determinista acá. Depende 100% del matcher semántico. */
+/* --------------------------------------------------------------------------- */
+#120=IFCWALLSTANDARDCASE('0AuroraW3GUID00000p',#5,'Muro ladrillo ceram. e=0.15',$,$,#70,$,$);
+#121=IFCMATERIAL('Ceramic');
+#122=IFCRELASSOCIATESMATERIAL('0AuroraW3MatGUID000q',#5,$,$,(#120),#121);
+#123=IFCQUANTITYAREA('NetSideArea',$,$,35.);
+#124=IFCELEMENTQUANTITY('0AuroraW3QtoGUID000r',#5,'BaseQuantities',$,$,(#123));
+#125=IFCRELDEFINESBYPROPERTIES('0AuroraW3QtoRelGUID0s',#5,$,$,(#120),#124);
+
+/* --------------------------------------------------------------------------- */
+/* W4 (TEST D5): "External Wall" léxicamente parecido a W1, pero material */
+/* hormigón -> no debe terminar en ALB-001 solo por el texto. */
+/* --------------------------------------------------------------------------- */
+#130=IFCWALLSTANDARDCASE('0AuroraW4GUID00000t',#5,'External Concrete Wall - 200mm',$,$,#70,$,$);
+#131=IFCMATERIAL('Concrete');
+#132=IFCRELASSOCIATESMATERIAL('0AuroraW4MatGUID000u',#5,$,$,(#130),#131);
+#133=IFCQUANTITYAREA('NetSideArea',$,$,64.);
+#134=IFCELEMENTQUANTITY('0AuroraW4QtoGUID000v',#5,'BaseQuantities',$,$,(#133));
+#135=IFCRELDEFINESBYPROPERTIES('0AuroraW4QtoRelGUID0w',#5,$,$,(#130),#134);
+
+/* --------------------------------------------------------------------------- */
+/* W5 (TEST C1 — baseline cooperativo): nombre casi idéntico al rubro. */
+/* --------------------------------------------------------------------------- */
+#140=IFCWALLSTANDARDCASE('0AuroraW5GUID00000x',#5,'Mamposteria ceramica 15cm',$,$,#70,$,$);
+#143=IFCQUANTITYAREA('NetSideArea',$,$,20.);
+#144=IFCELEMENTQUANTITY('0AuroraW5QtoGUID000y',#5,'BaseQuantities',$,$,(#143));
+#145=IFCRELDEFINESBYPROPERTIES('0AuroraW5QtoRelGUID0z',#5,$,$,(#140),#144);
+
+/* --------------------------------------------------------------------------- */
+/* C1 (TEST S2): abreviación técnica de resistencia "C30/37" (norma europea) */
+/* que debe relacionarse (o no, con REVIEW) con H30/H40 (norma local). */
+/* --------------------------------------------------------------------------- */
+#150=IFCCOLUMN('0AuroraC1GUID00000A',#5,'RC Column C30/37',$,$,#70,$,$);
+#151=IFCMATERIAL('Concrete C30/37');
+#152=IFCRELASSOCIATESMATERIAL('0AuroraC1MatGUID000B',#5,$,$,(#150),#151);
+#153=IFCQUANTITYVOLUME('NetVolume',$,$,11.8);
+#154=IFCELEMENTQUANTITY('0AuroraC1QtoGUID000C',#5,'BaseQuantities',$,$,(#153));
+#155=IFCRELDEFINESBYPROPERTIES('0AuroraC1QtoRelGUID0D',#5,$,$,(#150),#154);
+
+/* --------------------------------------------------------------------------- */
+/* C2 (TEST D2): resistencia explícita en la misma nomenclatura del catálogo. */
+/* --------------------------------------------------------------------------- */
+#160=IFCCOLUMN('0AuroraC2GUID00000E',#5,'Concrete H40',$,$,#70,$,$);
+#161=IFCMATERIAL('Concrete');
+#162=IFCRELASSOCIATESMATERIAL('0AuroraC2MatGUID000F',#5,$,$,(#160),#161);
+#163=IFCQUANTITYVOLUME('NetVolume',$,$,6.5);
+#164=IFCELEMENTQUANTITY('0AuroraC2QtoGUID000G',#5,'BaseQuantities',$,$,(#163));
+#165=IFCRELDEFINESBYPROPERTIES('0AuroraC2QtoRelGUID0H',#5,$,$,(#160),#164);
+
+/* --------------------------------------------------------------------------- */
+/* C3 (TEST C2 — baseline cooperativo): nombre casi idéntico al rubro. */
+/* --------------------------------------------------------------------------- */
+#170=IFCCOLUMN('0AuroraC3GUID00000I',#5,'Hormigon estructural H30',$,$,#70,$,$);
+#173=IFCQUANTITYVOLUME('NetVolume',$,$,5.);
+#174=IFCELEMENTQUANTITY('0AuroraC3QtoGUID000J',#5,'BaseQuantities',$,$,(#173));
+#175=IFCRELDEFINESBYPROPERTIES('0AuroraC3QtoRelGUID0K',#5,$,$,(#170),#174);
+
+/* --------------------------------------------------------------------------- */
+/* CV1 (TEST D3): sin material ni especificación adicional -> ambigüedad */
+/* real entre 3 candidatos de piso, ninguno con evidencia suficiente. */
+/* --------------------------------------------------------------------------- */
+#180=IFCCOVERING('0AuroraCV1GUID00000L',#5,'Floor finish',$,$,#70,$,$);
+#183=IFCQUANTITYAREA('NetArea',$,$,420.);
+#184=IFCELEMENTQUANTITY('0AuroraCV1QtoGUID000M',#5,'BaseQuantities',$,$,(#183));
+#185=IFCRELDEFINESBYPROPERTIES('0AuroraCV1QtoRelGUID0N',#5,$,$,(#180),#184);
+
+/* --------------------------------------------------------------------------- */
+/* CV2 (TEST D4): sin rubro equivalente en el catálogo. */
+/* --------------------------------------------------------------------------- */
+#190=IFCCOVERING('0AuroraCV2GUID00000O',#5,'Intumescent Fireproofing Coating',$,$,#70,$,$);
+#193=IFCQUANTITYAREA('NetArea',$,$,310.);
+#194=IFCELEMENTQUANTITY('0AuroraCV2QtoGUID000P',#5,'BaseQuantities',$,$,(#193));
+#195=IFCRELDEFINESBYPROPERTIES('0AuroraCV2QtoRelGUID0Q',#5,$,$,(#190),#194);
+
+#200=IFCRELCONTAINEDINSPATIALSTRUCTURE('0AuroraContainGUID00R',#5,$,$,(#100,#110,#120,#130,#140,#150,#160,#170,#180,#190),#71);
+
+ENDSEC;
+END-ISO-10303-21;
