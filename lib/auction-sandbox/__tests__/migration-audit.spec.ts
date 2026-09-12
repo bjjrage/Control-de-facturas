@@ -66,6 +66,17 @@ describe('0068 static safety audit', () => {
   it('sequence allocation is lock-guarded in SQL (FOR UPDATE + single bump)', () => {
     const forUpdates = sql.match(/for update/g) ?? [];
     expect(forUpdates.length).toBeGreaterThanOrEqual(4); // submit, append, advance, force_close
+    // Per-RPC (not just global): removing the lock from any one allocator
+    // must fail, so slice each function body and require its own lock.
+    const bodyOf = (fn: string): string => {
+      const start = sql.indexOf(`create or replace function public.${fn}(`);
+      expect(start).toBeGreaterThan(-1);
+      const next = sql.indexOf('create or replace function public.', start + 10);
+      return sql.slice(start, next === -1 ? undefined : next);
+    };
+    for (const fn of ['submit_sandbox_bid', 'append_sandbox_event', 'advance_sandbox_room', 'force_close_sandbox_room']) {
+      expect(`${fn}: ${bodyOf(fn)}`).toMatch(/for update/);
+    }
     expect(sql).toMatch(/on conflict \(room_id\) do nothing/); // single-winner random roll
   });
 

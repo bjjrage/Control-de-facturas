@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { botStoppedOnVersion, botTickSkipReason, computeNextRuntime, loadSandboxBundle, missingInitialEvents, missingStoppedEvents, policyVersionSuperseded, refuseIfRoomClosed, shouldEmitDecision, SandboxBundle } from '../server';
+import { botStoppedOnVersion, botTickSkipReason, computeNextRuntime, isVersionSuperseded, loadSandboxBundle, missingInitialEvents, missingStoppedEvents, policyVersionSuperseded, refuseIfRoomClosed, shouldEmitDecision, SandboxBundle } from '../server';
 import { SandboxBid } from '../types';
 
 const ROOM_ROW = {
@@ -280,8 +280,7 @@ describe('refuseIfRoomClosed — one message, both authorize paths', () => {
   });
 });
 
-describe('policyVersionSuperseded — never submit off a stale policy', () => {
-  it('same latest version → not superseded', () => {
+describe('policyVersionSuperseded — never submit off a stale policy', () => {  it('same latest version → not superseded', () => {
     expect(policyVersionSuperseded(tickBundle({ policies: [1, 2] }), 2)).toBe(false);
   });
 
@@ -291,6 +290,24 @@ describe('policyVersionSuperseded — never submit off a stale policy', () => {
 
   it('policies vanished → superseded (fail closed)', () => {
     expect(policyVersionSuperseded(tickBundle({ policies: [] }), 1)).toBe(true);
+  });
+});
+
+describe('isVersionSuperseded — last-millimetre pre-submit check', () => {
+  it('same version → submit allowed', () => {
+    expect(isVersionSuperseded(2, 2)).toBe(false);
+  });
+
+  it('newer version landed → abort', () => {
+    expect(isVersionSuperseded(3, 2)).toBe(true);
+  });
+
+  it('no version readable → abort (fail closed)', () => {
+    expect(isVersionSuperseded(null, 2)).toBe(true);
+  });
+
+  it('decision newer than latest (torn read) → abort, never submit', () => {
+    expect(isVersionSuperseded(2, 3)).toBe(true);
   });
 });
 
@@ -320,6 +337,14 @@ describe('missingStoppedEvents — terminal-marker backfill proof', () => {
       runtime: { lastBotStatus: { action: 'STOP', reasonCode: 'X', candidate: null, v: 1 } },
     });
     b.events = [{ id: 'e', room_id: 'room-1', type: 'ROOM_CREATED', payload: {}, server_sequence: 250, created_at: '2026-01-01T00:00:00.000Z' }];
+    expect(missingStoppedEvents(b)).toEqual([]);
+  });
+
+  it('exactly-full window (max seq 200) → nothing (boundary)', () => {
+    const b = tickBundle({
+      runtime: { lastBotStatus: { action: 'STOP', reasonCode: 'X', candidate: null, v: 1 } },
+    });
+    b.events = [{ id: 'e', room_id: 'room-1', type: 'ROOM_CREATED', payload: {}, server_sequence: 200, created_at: '2026-01-01T00:00:00.000Z' }];
     expect(missingStoppedEvents(b)).toEqual([]);
   });
 });

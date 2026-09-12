@@ -129,6 +129,17 @@ export function refuseIfRoomClosed(status: SandboxRoom['status']): string | null
 }
 
 /**
+ * Version-level continuity: the version a candidate was computed under must
+ * still be the latest. Note !== (not >): a decision bound to a
+ * NEWER-than-latest version is equally invalid — fail closed in both
+ * directions (there is no policy-delete path, so newer-than-latest means a
+ * torn read, never a legitimate state).
+ */
+export function isVersionSuperseded(latestVersion: number | null, decisionVersion: number): boolean {
+  return latestVersion === null || latestVersion !== decisionVersion;
+}
+
+/**
  * Policy continuity across a fresh re-read: the version a candidate was
  * computed under must still be the latest. A newly authorized version (e.g.
  * a tighter autoLimit) invalidates the in-flight candidate — submitting it
@@ -136,8 +147,8 @@ export function refuseIfRoomClosed(status: SandboxRoom['status']): string | null
  * operator retry re-evaluates under the new version.
  */
 export function policyVersionSuperseded(freshBundle: SandboxBundle, decisionPolicyVersion: number): boolean {
-  if (freshBundle.policies.length === 0) return true;
-  return freshBundle.policies[freshBundle.policies.length - 1].version !== decisionPolicyVersion;
+  const latest = freshBundle.policies[freshBundle.policies.length - 1];
+  return isVersionSuperseded(latest?.version ?? null, decisionPolicyVersion);
 }
 
 /**

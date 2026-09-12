@@ -327,6 +327,63 @@ describe('PollController', () => {
     });
   });
 
+  it('a stale orphan settler cannot release a newer hold (generation guard)', async () => {
+    let releaseA!: () => void;
+    let releaseB!: () => void;
+    const gateA = new Promise<string>((res) => {
+      releaseA = () => res('A');
+    });
+    const gateB = new Promise<string>((res) => {
+      releaseB = () => res('B');
+    });
+    const settled: string[] = [];
+    // Short cap to reach the two-generation scenario fast; margins below
+    // keep every assertion clear of both cap deadlines.
+    const ctl = new PollController(async () => {}, { intervalMs: 1000, orphanCapMs: 100 });
+    ctl.onOrphanSettled = () => settled.push('settled');
+    // A holds (gen 1); the cap clears it; B holds (gen 2). Then stale A
+    // settles: its gen-1 clear must NOT release B's hold.
+    const a = ctl.runMutation(() => gateA, 10, 'A');
+    await expect(a).resolves.toEqual({ status: 'unknown', label: 'A', elapsedMs: 10 });
+    expect(ctl.hasUnsettledMutation).toBe(true);
+    await new Promise((r) => setTimeout(r, 150)); // A's cap fires (~100ms)
+    expect(ctl.hasUnsettledMutation).toBe(false);
+    expect(settled).toEqual(['settled']);
+    const b = ctl.runMutation(() => gateB, 10, 'B');
+    await expect(b).resolves.toEqual({ status: 'unknown', label: 'B', elapsedMs: 10 });
+    expect(ctl.hasUnsettledMutation).toBe(true);
+    releaseA(); // stale settler from the previous generation
+    await new Promise((r) => setTimeout(r, 20));
+    expect(ctl.hasUnsettledMutation).toBe(true); // B's hold survives
+    expect(settled).toEqual(['settled']); // no spurious settle fired
+    releaseB(); // B's own settle releases its hold…
+    await new Promise((r) => setTimeout(r, 20));
+    expect(ctl.hasUnsettledMutation).toBe(false);
+    expect(settled).toEqual(['settled', 'settled']);
+  });
+
+  it('synchronously-throwing mutation refreshes, releases, and rethrows', async () => {
+    const order: string[] = [];
+    const ctl = new PollController(
+      async () => {
+        order.push('poll');
+      },
+      { intervalMs: 1000 }
+    );
+    await expect(
+      ctl.runMutation(() => {
+        throw new Error('sync boom');
+      }, 5000, 'x')
+    ).rejects.toThrow('sync boom');
+    expect(order).toEqual(['poll']);
+    expect(ctl.isSuspended).toBe(false);
+    // Guard cleared: the next mutation runs normally.
+    await expect(ctl.runMutation(() => Promise.resolve('ok'), 5000, 'x')).resolves.toEqual({
+      status: 'done',
+      value: 'ok',
+    });
+  });
+
   it('start is idempotent and stop halts the timer', () => {
     vi.useFakeTimers();
     try {

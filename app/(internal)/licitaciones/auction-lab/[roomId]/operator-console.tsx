@@ -205,7 +205,11 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
   }
 
   if (error && !view) {
-    return <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-[13px] text-[var(--error)]">{error}</div>;
+    return (
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-[13px] text-[var(--error)]">
+        {error} <button className="underline" onClick={() => window.location.reload()}>Reintentar</button>
+      </div>
+    );
   }
   if (!view) {
     return (
@@ -256,6 +260,7 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
               Finalizar demo
             </Button>
           ) : null}
+          {room.status !== 'CLOSED' ? (
           <Button
             variant="secondary"
             className="h-8 text-xs"
@@ -275,9 +280,12 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
           >
             Regenerar links
           </Button>
+          ) : null}
+          {room.status !== 'CLOSED' ? (
           <Button variant="secondary" className="h-8 text-xs" disabled={busy !== null || reconciling} onClick={() => setShowPolicy((s) => !s)}>
             {showPolicy ? 'Ocultar policy' : 'Cambiar policy'}
           </Button>
+          ) : null}
             </>
           )}
         </div>
@@ -367,7 +375,7 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
               <div className="text-[var(--muted)]">{String(bot.lastDecision.reasonDescription ?? bot.lastDecision.reasonCode ?? '')}</div>
             </div>
           ) : null}
-          {bot.pendingCandidate && room.status !== 'CLOSED' ? (
+          {bot.pendingCandidate && (room.status === 'ACTIVE_NORMAL' || room.status === 'ACTIVE_RANDOM') ? (
             <div className="rounded-lg border-2 border-amber-500/40 bg-amber-500/10 p-3">
               <p className="text-[12px] font-semibold text-amber-600 dark:text-amber-400">
                 BOT PROPONE ₲ {Number(bot.pendingCandidate.pricePyg).toLocaleString('es-PY')}

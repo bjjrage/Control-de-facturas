@@ -85,7 +85,9 @@ export function WatchConsole({ token }: { token: string }) {
   if (error && !view) {
     return (
       <div className="min-h-screen bg-[var(--background)] px-4 py-8">
-        <div className="mx-auto w-full max-w-3xl rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-[13px] text-[var(--error)]">{error}</div>
+        <div className="mx-auto w-full max-w-3xl rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-[13px] text-[var(--error)]">
+          {error} <button className="underline" onClick={() => window.location.reload()}>Reintentar</button>
+        </div>
       </div>
     );
   }

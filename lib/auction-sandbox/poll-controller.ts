@@ -60,6 +60,8 @@ export interface PollControllerOptions {
   intervalMs: number;
   /** Leash for a single poll read. Default 15s. */
   pollTimeoutMs?: number;
+  /** Backstop for a never-settling orphan. Default ORPHAN_HOLD_CAP_MS. */
+  orphanCapMs?: number;
 }
 
 /**
@@ -109,6 +111,13 @@ export class PollController {
   private pollCount = 0;
   private skippedCount = 0;
   private orphanHold = false;
+  /**
+   * Generation of the CURRENT hold. A stale settler (an orphan from an older
+   * hold resolving late) must never release a newer hold — without this, a
+   * 90s-old mutation settling after the cap + a fresh orphan would unlock
+   * the UI while the fresh mutation is still ambiguous.
+   */
+  private orphanGen = 0;
   /** True while a runMutation body is executing (second callers are refused). */
   private mutating = false;
   private orphanCapTimer: ReturnType<typeof setTimeout> | null = null;
@@ -239,7 +248,16 @@ export class PollController {
         await this.tick();
         return { status: 'unknown', label, elapsedMs: drainMs, detail: DRAIN_TIMEOUT_MESSAGE };
       }
-      const task = fn();
+      // A synchronously-throwing fn() gets exactly the async-rejection
+      // treatment (refresh + rethrow) — never a skipped refresh.
+      let task: Promise<T>;
+      try {
+        task = fn();
+      } catch (e) {
+        this.resume();
+        await this.tick();
+        throw e;
+      }
       try {
         const value = await withTimeout(task, timeoutMs, label);
         this.resume();
@@ -255,10 +273,10 @@ export class PollController {
         // (reads keep flowing for reconciliation) but raise the orphan hold
         // so no new mutation can start while ambiguous.
         this.resume();
-        this.raiseOrphanHold();
+        const gen = this.raiseOrphanHold();
         void task.then(
-          () => this.clearOrphanHold(),
-          () => this.clearOrphanHold()
+          () => this.clearOrphanHold(gen),
+          () => this.clearOrphanHold(gen)
         );
         return { status: 'unknown', label, elapsedMs: timeoutMs };
       }
@@ -271,20 +289,24 @@ export class PollController {
     }
   }
 
-  private raiseOrphanHold(): void {
+  private raiseOrphanHold(): number {
+    const gen = ++this.orphanGen;
     this.orphanHold = true;
     if (this.orphanCapTimer !== null) clearTimeout(this.orphanCapTimer);
     this.orphanCapTimer = setTimeout(() => {
       this.orphanCapTimer = null;
-      this.clearOrphanHold();
-    }, ORPHAN_HOLD_CAP_MS);
+      void this.clearOrphanHold(gen);
+    }, this.options.orphanCapMs ?? ORPHAN_HOLD_CAP_MS);
     // Unref in Node so a held cap never keeps a test process alive.
     const t = this.orphanCapTimer as unknown as { unref?: () => void };
     if (typeof t.unref === 'function') t.unref();
+    return gen;
   }
 
-  private async clearOrphanHold(): Promise<void> {
-    if (!this.orphanHold) return;
+  private async clearOrphanHold(gen: number): Promise<void> {
+    // Generation check: a stale settler (or an old cap) must never release
+    // a NEWER hold — the UI would unlock while that mutation is ambiguous.
+    if (!this.orphanHold || gen !== this.orphanGen) return;
     this.orphanHold = false;
     if (this.orphanCapTimer !== null) {
       clearTimeout(this.orphanCapTimer);

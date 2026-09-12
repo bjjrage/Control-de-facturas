@@ -15,6 +15,7 @@ import {
   buildWatchView,
   botTickSkipReason,
   computeNextRuntime,
+  isVersionSuperseded,
   loadSandboxBundle,
   missingInitialEvents,
   missingPolicyEvents,
@@ -125,6 +126,25 @@ async function ensureInitialEvents(admin: Db, bundle: SandboxBundle): Promise<vo
 }
 
 type RpcResult = { accepted: boolean; duplicate?: boolean; bid_id?: string; sequence?: number; rejection_code?: string; rejection_message?: string };
+
+/**
+ * Lightweight pre-submit policy re-read: latest version ONLY (one indexed
+ * row, no full bundle). Used inside submit closures as the last-millimetre
+ * continuity check — a version authorized between the fresh reload and the
+ * submit still aborts. Residual single-read→RPC TOCTOU is documented and
+ * accepted (the submit RPC itself is the final atomic step).
+ */
+async function latestPolicyVersion(db: Db, roomId: string): Promise<number | null> {
+  const { data, error } = await db
+    .from('auction_sandbox_policy_versions')
+    .select('version')
+    .eq('room_id', roomId)
+    .order('version', { ascending: false })
+    .limit(1);
+  if (error || !data || data.length === 0) return null;
+  const v = (data[0] as { version?: unknown }).version;
+  return typeof v === 'number' ? v : null;
+}
 
 /** Bid submit ALWAYS through the service_role RPC (server clock, no client time). */
 async function rpcSubmit(
@@ -272,6 +292,9 @@ async function botAutoSubmit(
   if (policyVersionSuperseded(freshBundle, policy.version)) return;
   const freshState = snapshotToAuctionState(bundleToSnapshot(freshBundle), freshAt);
   const bidKey = buildBotIdempotencyKey(bundle.room.id, policy.version, candidatePricePyg);
+  // A pause landing mid-flight stops the submit: pausing must take effect
+  // ASAP, and the next tick re-evaluates (PAUSED skip) anyway.
+  if (freshBundle.room.bot_paused) return;
 
   const result = await recheckAndSubmit({
     machine,
@@ -279,6 +302,11 @@ async function botAutoSubmit(
     freshState,
     freshNowIso: freshAt,
     submit: async ({ pricePyg }) => {
+      // Last-millimetre continuity: re-read the latest version right before
+      // the irreversible submit (see latestPolicyVersion).
+      if (isVersionSuperseded(await latestPolicyVersion(db, bundle.room.id), policy.version)) {
+        return { accepted: false, reason: 'La policy cambió durante el envío.' };
+      }
       try {
         const res = await rpcSubmit(admin, bundle.room.id, bot.id, pricePyg, bidKey);
         return res.accepted ? { accepted: true } : { accepted: false, reason: res.rejection_message ?? res.rejection_code };
@@ -358,6 +386,14 @@ function toOperatorView(bundle: SandboxBundle, atIso: string): OperatorView {
 export async function pollOperatorRoom(roomId: string): Promise<{ view?: OperatorView; error?: string }> {
   const res = await manageOperatorBundle(roomId);
   if ('error' in res) return { error: res.error };
+  // Terminal rooms degrade to a read-only refresh: CLOSED is monotonic, so
+  // there is nothing left to advance or tick — but backfills still heal and
+  // the result board still converges. (Token consoles stop entirely; the
+  // operator keeps a cheap read so post-mortem review stays live.)
+  if (res.bundle.room.status === 'CLOSED') {
+    await ensureInitialEvents(res.admin, res.bundle);
+    return { view: toOperatorView(res.bundle, nowIso()) };
+  }
   const advanced = await advanceRoom(res.admin, res.db, roomId);
   if ('error' in advanced) return { error: advanced.error };
   await ensureInitialEvents(res.admin, advanced.bundle);
@@ -626,6 +662,12 @@ export async function authorizeAssistedBid(roomId: string): Promise<{ price?: nu
     freshState,
     freshNowIso: freshAt,
     submit: async ({ pricePyg }) => {
+      // Last-millimetre continuity (see botAutoSubmit): a version landing
+      // between the refresh and this submit still aborts with an
+      // operator-actionable message.
+      if (isVersionSuperseded(await latestPolicyVersion(res.db, roomId), policy.version)) {
+        return { accepted: false, reason: 'La policy cambió durante el envío. Revisá la versión actual y reintentá.' };
+      }
       try {
         const rpcRes = await rpcSubmit(res.admin, roomId, bot.id, pricePyg, bidKey);
         return rpcRes.accepted ? { accepted: true } : { accepted: false, reason: rpcRes.rejection_message ?? rpcRes.rejection_code };
@@ -671,6 +713,10 @@ export async function finalizeSandboxRoom(roomId: string): Promise<{ error?: str
 export async function regenerateSandboxLinks(roomId: string): Promise<{ competitorToken?: string; observerToken?: string; error?: string }> {
   const res = await manageOperatorBundle(roomId);
   if ('error' in res) return { error: res.error };
+  // Post-mortem regeneration would silently invalidate the observer links
+  // someone may be using to review the finished room.
+  const closedLinksRefusal = refuseIfRoomClosed(res.bundle.room.status);
+  if (closedLinksRefusal) return { error: closedLinksRefusal };
   const competitorToken = generateSandboxToken();
   const observerToken = generateSandboxToken();
   const { data, error } = await res.db.from('auction_sandbox_rooms').update({
