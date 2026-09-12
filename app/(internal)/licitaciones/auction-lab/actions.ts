@@ -579,8 +579,8 @@ export async function authorizeAssistedBid(roomId: string): Promise<{ price?: nu
 export async function setSandboxBotPaused(roomId: string, paused: boolean): Promise<{ error?: string }> {
   const res = await manageOperatorBundle(roomId);
   if ('error' in res) return { error: res.error };
-  const { error } = await res.db.from('auction_sandbox_rooms').update({ bot_paused: paused }).eq('id', roomId);
-  if (error) return { error: 'No se pudo actualizar.' };
+  const { data, error } = await res.db.from('auction_sandbox_rooms').update({ bot_paused: paused }).eq('id', roomId).select('id');
+  if (error || !data || data.length !== 1) return { error: 'No se pudo actualizar.' };
   return {};
 }
 
@@ -599,10 +599,10 @@ export async function regenerateSandboxLinks(roomId: string): Promise<{ competit
   if ('error' in res) return { error: res.error };
   const competitorToken = generateSandboxToken();
   const observerToken = generateSandboxToken();
-  const { error } = await res.db.from('auction_sandbox_rooms').update({
+  const { data, error } = await res.db.from('auction_sandbox_rooms').update({
     competitor_token_hash: hashSandboxToken(competitorToken),
     observer_token_hash: hashSandboxToken(observerToken),
-  }).eq('id', roomId);
-  if (error) return { error: 'No se pudieron regenerar los links.' };
+  }).eq('id', roomId).select('id');
+  if (error || !data || data.length !== 1) return { error: 'No se pudieron regenerar los links.' };
   return { competitorToken, observerToken };
 }
