@@ -16,6 +16,19 @@
 // asignación de unidades, se falla cerrado: NO se adivina un factor, la
 // cantidad de ese tipo queda sin reportar en vez de arriesgar un valor mal
 // escalado silenciosamente.
+//
+// PESO (MASSUNIT) — deliberadamente NO implementado: `scaleForKind` devuelve
+// null siempre para "weight", así que cualquier cantidad de peso queda sin
+// reportar (fail closed), nunca se asume kg en silencio. No es solo "más
+// conservador que hacer nada": el MASSUNIT base de IFC es GRAM (con Prefix
+// .KILO. para expresar kilogramos, no existe un nombre "KILOGRAM"), mientras
+// que nuestra unidad canónica ya ES "kg" — reusar el mismo cálculo de
+// prefijo-a-base que usamos para longitud/área/volumen daría un factor
+// equivocado, no solo uno pesimista. Implementarlo bien queda fuera de este
+// batch (ver quantityKind "weight" hoy tampoco aparece en ningún
+// `preferredQty` de RELEVANT_TYPES en ifc-parser.client.ts, así que no está
+// expuesto por ningún tipo IFC soportado — este es el guardrail para cuando
+// se agregue uno).
 import type { IfcAPI } from "web-ifc";
 
 const SI_PREFIX_SCALE: Record<string, number> = {
@@ -103,5 +116,15 @@ export function scaleForKind(
   if (kind === "length") return scales.lengthToMetres;
   if (kind === "area") return scales.areaToSquareMetres;
   if (kind === "volume") return scales.volumeToCubicMetres;
-  return 1; // count/weight: sin escala de longitud involucrada en este slice.
+  if (kind === "count") return 1; // adimensional, sin ambigüedad de unidad posible.
+  // weight: FAIL CLOSED a propósito. La unidad canónica que persistimos es
+  // "kg", pero el MASSUNIT base de IFC casi siempre se declara como GRAM con
+  // Prefix .KILO. (no existe un nombre "KILOGRAM" en el schema) — a
+  // diferencia de longitud/área/volumen, el prefijo del proyecto NO se
+  // traduce 1:1 al factor de escala hacia nuestra unidad canónica (kg ya es
+  // "un nivel de prefijo arriba" del GRAM base), así que reusar
+  // siUnitScale() tal cual daría un resultado equivocado, no solo
+  // pesimista. No implementamos esa conversión en este batch — mejor no
+  // habilitar costeo por peso que arriesgar un factor mal calculado.
+  return null;
 }

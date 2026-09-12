@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/browser";
-import { formatNumber, formatMoney } from "@/lib/format";
+import { formatNumber, formatMoney, calcLineSubtotal } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { aggregateElementsForBudgetItem, unitsCompatibleForCosting } from "@/lib/bim/matching";
 import { findElementByExpressId } from "@/lib/bim/identity";
@@ -447,7 +447,9 @@ export function BimSection({ projectId }: { projectId: string }) {
                                 <div className="font-mono text-[13px]">
                                   {formatNumber(selectedElement.quantity_value, 2)} {selectedElement.quantity_unit} ×{" "}
                                   {formatMoney(confirmedItem.unit_price, "PYG")} ={" "}
-                                  <strong>{formatMoney(selectedElement.quantity_value * confirmedItem.unit_price, "PYG")}</strong>
+                                  <strong>
+                                    {formatMoney(calcLineSubtotal(selectedElement.quantity_value, confirmedItem.unit_price), "PYG")}
+                                  </strong>
                                 </div>
                               ) : (
                                 <div className="text-[11px] text-[var(--error)]">
@@ -542,7 +544,8 @@ export function BimSection({ projectId }: { projectId: string }) {
               <tbody>
                 {aggregationRows.map(({ item, elementCount, totalQuantity, incompatible, unit }) => {
                   const diff = totalQuantity != null && item.quantity != null ? totalQuantity - item.quantity : null;
-                  const total = totalQuantity != null && item.unit_price != null ? totalQuantity * item.unit_price : null;
+                  const total =
+                    totalQuantity != null && item.unit_price != null ? calcLineSubtotal(totalQuantity, item.unit_price) : null;
                   return (
                     <tr key={item.id}>
                       <td>

@@ -2,23 +2,38 @@
 // intercambiables:
 //
 //   express_id   STEP expressID (número de línea de la entidad en el
-//                archivo IFC). Determinista para UN archivo concreto, pero
-//                NO estable entre versiones/re-exportaciones: un nuevo
-//                export del mismo modelo puede reordenar líneas y asignarle
-//                otro número al "mismo" muro. Su único uso legítimo es
-//                selección/render dentro de la sesión del viewer, siempre
-//                acotado a un bim_model_id concreto (una fila = un archivo
-//                subido). Nunca debe usarse solo, sin bim_model_id, como
-//                clave de búsqueda o de identidad persistente.
+//                archivo IFC). Identidad técnica EFÍMERA: solo tiene sentido
+//                dentro de una instancia cargada de UN archivo IFC concreto
+//                (un bim_model). Un nuevo export del mismo modelo puede
+//                reordenar líneas y asignarle otro número al "mismo" muro.
+//                Su único uso legítimo es selección/render dentro de la
+//                sesión del viewer, siempre acotado a un bim_model_id
+//                concreto (una fila = un archivo subido). Nunca debe usarse
+//                solo, sin bim_model_id, como clave de búsqueda.
 //
-//   ifc_guid     IfcGloballyUniqueId (GlobalId). Es la identidad que la
-//                herramienta BIM le asigna al elemento y la que sobrevive a
-//                re-exportar el mismo modelo. La unicidad en bim_elements es
-//                (bim_model_id, ifc_guid) — ver 0070_bim_presupuesto.sql —
-//                así que hoy identifica un elemento dentro de UNA versión
-//                subida; es la clave a usar si en el futuro se quiere
-//                reconciliar/heredar matches entre versiones del mismo
-//                modelo (no implementado en este batch).
+//   ifc_guid     IfcGloballyUniqueId (GlobalId). Es la identidad CANÓNICA del
+//                elemento DENTRO DE UN bim_model concreto — la unicidad en
+//                bim_elements es (bim_model_id, ifc_guid), ver
+//                0070_bim_presupuesto.sql. La clave persistente hoy sigue
+//                siendo, conceptualmente, `bim_model_id + ifc_guid`: no hay
+//                identidad de elemento independiente del archivo subido.
+//
+//                ENTRE VERSIONES/RE-EXPORTACIONES (dos bim_model distintos
+//                del "mismo" modelo real): la mayoría de las herramientas
+//                BIM (Revit, ARCHICAD) preservan el GlobalId de un elemento
+//                mientras no se borre y se recree en el software de origen,
+//                pero esto NO es una garantía universal del estándar IFC —
+//                puede cambiar por una operación de "purgar"/limpiar el
+//                archivo, un roundtrip por otra herramienta, o el propio
+//                comportamiento del exportador. GlobalId es una señal fuerte
+//                para reconciliar versiones, no una prueba.
+//
+// Reconciliación entre versiones (IFC v1 -> IFC v2) NO está implementada en
+// este batch. Si se construye a futuro, debe tratar el GlobalId como señal
+// PRIMARIA (probablemente suficiente en la mayoría de los casos reales) pero
+// diseñar para el caso en que falle, complementando con: IFC type, spatial
+// path/storey, property sets, ubicación (placement) y, en última instancia,
+// un fingerprint geométrico. Fuera de alcance acá — no ampliar scope.
 //
 // Esta función es el único punto por el que el viewer (que solo conoce
 // express_id, porque es lo que expone la geometría de web-ifc) resuelve el

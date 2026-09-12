@@ -14,6 +14,7 @@
 // en budget_items ni fija un match por su cuenta.
 
 import type { BimElement, BudgetItem } from "@/lib/types";
+import { roundQuantity4 } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Normalización de texto y unidades
@@ -198,8 +199,12 @@ export function aggregateElementsForBudgetItem(elements: BimElement[], item: Bud
     }
   }
 
+  // Redondeado a la precisión de budget_items.quantity (numeric(18,4)) — es
+  // el mismo valor que se persiste si el usuario confirma "Actualizar cant.
+  // presupuesto", así que la cifra que ve en la UI y la que queda guardada
+  // deben coincidir exactamente.
   const totalQuantity =
-    compatible.length > 0 ? compatible.reduce((sum, el) => sum + (el.quantity_value ?? 0), 0) : null;
+    compatible.length > 0 ? roundQuantity4(compatible.reduce((sum, el) => sum + (el.quantity_value ?? 0), 0)) : null;
 
   return { compatible, incompatible, totalQuantity, unit: item.unit };
 }

@@ -33,6 +33,7 @@ import { collectQuantityCandidates, extractMaterialNames } from "../ifc-parser.c
 import { selectCanonicalQuantity } from "../quantity-policy";
 import { readProjectUnitScales, scaleForKind } from "../unit-conversion";
 import { aggregateElementsForBudgetItem, unitsCompatibleForCosting } from "../matching";
+import { calcLineSubtotal } from "@/lib/format";
 import type { BimElement, BudgetItem } from "@/lib/types";
 
 const FIXTURE_PATH = join(__dirname, "fixtures", "archicad-ifc2x3-walls.ifc");
@@ -196,12 +197,19 @@ describe("IFC real — ARCHICAD 25, IFC2X3 (3 muros exteriores)", () => {
       const aggregation = aggregateElementsForBudgetItem(bimElements, rubro);
       expect(aggregation.incompatible).toHaveLength(0);
       expect(aggregation.compatible).toHaveLength(3);
-      // 23.2182062609 + 22.9725109565 + 19.5327766957, valores reales del IFC
-      expect(aggregation.totalQuantity).toBeCloseTo(65.7234939131, 6);
+      // 23.2182062609 + 22.9725109565 + 19.5327766957 = 65.7234939131 (suma
+      // cruda), redondeado a la precisión de budget_items.quantity
+      // (numeric(18,4)) por aggregateElementsForBudgetItem vía roundQuantity4
+      // — es el mismo valor que se persistiría si se confirma "Actualizar
+      // cant. presupuesto", no un valor solo para mostrar en pantalla.
+      expect(aggregation.totalQuantity).toBe(65.7235);
 
       expect(unitsCompatibleForCosting("m2", rubro.unit)).toBe(true);
-      const total = aggregation.totalQuantity! * rubro.unit_price!;
-      expect(Math.round(total)).toBe(12_158_846); // 65.7234939131 × ₲185.000, redondeado
+      // calcLineSubtotal replica ROUND(quantity * unit_price, 2) de
+      // budget_items (0028_construccion_pro.sql) — NO una multiplicación
+      // flotante cruda. 65.7235 × 185.000 = 12.158.847,50 exacto.
+      const total = calcLineSubtotal(aggregation.totalQuantity!, rubro.unit_price!);
+      expect(total).toBe(12_158_847.5);
     } finally {
       api.CloseModel(modelID);
     }
