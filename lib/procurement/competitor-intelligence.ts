@@ -701,6 +701,7 @@ export async function listCompetitorsRadar(
   const awardsMap = new Map<string, number>();
   if (supplierIdsToFetchAwards.length > 0) {
     try {
+      // 1. Adjudicaciones directas por supplier_id
       let awardQuery = supabase
         .from("procurement_awards")
         .select("supplier_id, monto_adjudicado, fecha_adjudicacion")
@@ -717,6 +718,26 @@ export async function listCompetitorsRadar(
         for (const a of awards) {
           if (a.supplier_id && a.monto_adjudicado) {
             awardsMap.set(a.supplier_id, (awardsMap.get(a.supplier_id) || 0) + Number(a.monto_adjudicado));
+          }
+        }
+      }
+
+      // 2. Adjudicaciones en consorcio (multi-proveedor vía procurement_award_suppliers)
+      const { data: jointAwards } = await supabase
+        .from("procurement_award_suppliers")
+        .select("supplier_id, procurement_awards(monto_adjudicado, fecha_adjudicacion)")
+        .in("supplier_id", supplierIdsToFetchAwards);
+
+      if (jointAwards) {
+        for (const ja of jointAwards) {
+          const pa = (ja as any).procurement_awards;
+          if (pa && pa.monto_adjudicado) {
+            if (periodMonths > 0 && pa.fecha_adjudicacion) {
+              const cutoff = new Date();
+              cutoff.setMonth(cutoff.getMonth() - periodMonths);
+              if (new Date(pa.fecha_adjudicacion) < cutoff) continue;
+            }
+            awardsMap.set(ja.supplier_id, (awardsMap.get(ja.supplier_id) || 0) + Number(pa.monto_adjudicado));
           }
         }
       }
