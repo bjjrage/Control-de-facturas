@@ -52,11 +52,22 @@ export interface DeepSeekMatcherOptions {
   model?: string;
 }
 
+export interface DeepSeekUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  latencyMs: number;
+}
+
 export class DeepSeekSemanticMatcher implements SemanticMatcher {
   private readonly apiKey: string;
   private readonly timeoutMs: number;
   private readonly baseUrl: string;
   private readonly model: string;
+
+  // Instrumentación de solo lectura para reporting (tokens/latencia de la
+  // última llamada) — no participa de la decisión de match ni del prompt.
+  public lastUsage: DeepSeekUsage | null = null;
 
   constructor(options: DeepSeekMatcherOptions = {}) {
     const apiKey = options.apiKey ?? process.env.DEEPSEEK_API_KEY;
@@ -97,6 +108,7 @@ export class DeepSeekSemanticMatcher implements SemanticMatcher {
 
     const controller = new AbortController();
     const timeoutHandle = setTimeout(() => controller.abort(), this.timeoutMs);
+    const startedAt = Date.now();
     let response: Response;
     try {
       response = await fetch(`${this.baseUrl}/chat/completions`, {
@@ -133,6 +145,14 @@ export class DeepSeekSemanticMatcher implements SemanticMatcher {
     }
 
     const json = await response.json();
+    const latencyMs = Date.now() - startedAt;
+    const usage = json?.usage;
+    this.lastUsage = {
+      promptTokens: typeof usage?.prompt_tokens === "number" ? usage.prompt_tokens : 0,
+      completionTokens: typeof usage?.completion_tokens === "number" ? usage.completion_tokens : 0,
+      totalTokens: typeof usage?.total_tokens === "number" ? usage.total_tokens : 0,
+      latencyMs,
+    };
     const content = json?.choices?.[0]?.message?.content;
     if (typeof content !== "string" || content.trim() === "") {
       throw new DeepSeekResponseError("Respuesta de DeepSeek sin contenido de texto en choices[0].message.content.");

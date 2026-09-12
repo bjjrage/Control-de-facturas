@@ -18,8 +18,16 @@
 // igual que en producción — no son objetos armados a mano).
 import { readFileSync } from "fs";
 import { join } from "path";
-import { beforeAll, describe, expect, it } from "vitest";
+import { config as loadDotenv } from "dotenv";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as WebIFC from "web-ifc";
+
+// Vitest no carga .env.local automáticamente (a diferencia de Next.js) —
+// reutiliza dotenv, ya dependencia del proyecto, en vez de inventar otro
+// mecanismo. No pisa variables ya seteadas en el entorno (comportamiento
+// default de dotenv), así que un `DEEPSEEK_API_KEY` exportado a mano sigue
+// teniendo prioridad.
+loadDotenv({ path: join(process.cwd(), ".env.local") });
 import { collectQuantityCandidates, extractMaterialNames } from "../ifc-parser.client";
 import { selectCanonicalQuantity, type QuantityKind } from "../quantity-policy";
 import { DeepSeekSemanticMatcher } from "../deepseek-matcher";
@@ -114,18 +122,48 @@ describe.runIf(RUN_LIVE)("live-semantic-matching — DeepSeek real (sin mocks)",
     elements = await loadAuroraElements();
   }, LIVE_TEST_TIMEOUT_MS);
 
-  async function matchByElementName(name: string) {
+  const report: Array<{
+    caso: string;
+    elemento: string;
+    decision: string;
+    candidato: string;
+    confidence: number;
+    latenciaMs: number;
+    tokens: number;
+  }> = [];
+
+  async function matchByElementName(caseLabel: string, name: string) {
     const element = elements.get(name);
     if (!element) throw new Error(`Fixture inconsistente: no se encontró el elemento IFC "${name}"`);
-    return runSemanticMatch(matcher, element, AURORA_BUDGET_ITEMS);
+    const result = await runSemanticMatch(matcher, element, AURORA_BUDGET_ITEMS);
+    const candidateCode = result.candidateId
+      ? AURORA_BUDGET_ITEMS.find((b) => b.id === result.candidateId)?.code ?? result.candidateId
+      : "—";
+    report.push({
+      caso: caseLabel,
+      elemento: name,
+      decision: result.decision,
+      candidato: candidateCode,
+      confidence: result.confidence,
+      latenciaMs: matcher.lastUsage?.latencyMs ?? -1,
+      tokens: matcher.lastUsage?.totalTokens ?? -1,
+    });
+    return result;
   }
+
+  afterAll(() => {
+    if (report.length === 0) return;
+    console.table(report);
+    const totalTokens = report.reduce((s, r) => s + Math.max(r.tokens, 0), 0);
+    console.log(`Total tokens (prompt+completion) en esta corrida: ${totalTokens}`);
+  });
 
   // --- Casos cooperativos (baseline) ----------------------------------------
 
   it(
     "C1 — 'Mamposteria ceramica 15cm' -> MATCH ALB-001",
     async () => {
-      const result = await matchByElementName("Mamposteria ceramica 15cm");
+      const result = await matchByElementName("C1", "Mamposteria ceramica 15cm");
       expect(result.decision).toBe("MATCH");
       expect(result.candidateId).toBe(auroraItemByCode("ALB-001").id);
     },
@@ -135,7 +173,7 @@ describe.runIf(RUN_LIVE)("live-semantic-matching — DeepSeek real (sin mocks)",
   it(
     "C2 — 'Hormigon estructural H30' -> MATCH EST-001",
     async () => {
-      const result = await matchByElementName("Hormigon estructural H30");
+      const result = await matchByElementName("C2", "Hormigon estructural H30");
       expect(result.decision).toBe("MATCH");
       expect(result.candidateId).toBe(auroraItemByCode("EST-001").id);
     },
@@ -147,7 +185,7 @@ describe.runIf(RUN_LIVE)("live-semantic-matching — DeepSeek real (sin mocks)",
   it(
     "S1 — traducción/nomenclatura: 'External Wall - Ceramic Brick - 150' -> MATCH ALB-001",
     async () => {
-      const result = await matchByElementName("External Wall - Ceramic Brick - 150");
+      const result = await matchByElementName("S1", "External Wall - Ceramic Brick - 150");
       expect(result.decision).toBe("MATCH");
       expect(result.candidateId).toBe(auroraItemByCode("ALB-001").id);
     },
@@ -157,7 +195,7 @@ describe.runIf(RUN_LIVE)("live-semantic-matching — DeepSeek real (sin mocks)",
   it(
     "S2 — abreviación técnica: 'RC Column C30/37' -> MATCH solo si es EST-001; MATCH a EST-002 (H40) es FAIL; REVIEW es aceptable",
     async () => {
-      const result = await matchByElementName("RC Column C30/37");
+      const result = await matchByElementName("S2", "RC Column C30/37");
       if (result.decision === "MATCH") {
         expect(result.candidateId).toBe(auroraItemByCode("EST-001").id);
       } else {
@@ -170,7 +208,7 @@ describe.runIf(RUN_LIVE)("live-semantic-matching — DeepSeek real (sin mocks)",
   it(
     "S3 — español informal: 'Muro ladrillo ceram. e=0.15' -> MATCH ALB-001",
     async () => {
-      const result = await matchByElementName("Muro ladrillo ceram. e=0.15");
+      const result = await matchByElementName("S3", "Muro ladrillo ceram. e=0.15");
       expect(result.decision).toBe("MATCH");
       expect(result.candidateId).toBe(auroraItemByCode("ALB-001").id);
     },
@@ -182,7 +220,7 @@ describe.runIf(RUN_LIVE)("live-semantic-matching — DeepSeek real (sin mocks)",
   it(
     "D1 — espesor: 'Muro cerámico 100mm' -> MATCH ALB-002 (MATCH a ALB-001/15cm es FAIL)",
     async () => {
-      const result = await matchByElementName("Muro cerámico 100mm");
+      const result = await matchByElementName("D1", "Muro cerámico 100mm");
       expect(result.decision).toBe("MATCH");
       expect(result.candidateId).toBe(auroraItemByCode("ALB-002").id);
     },
@@ -192,7 +230,7 @@ describe.runIf(RUN_LIVE)("live-semantic-matching — DeepSeek real (sin mocks)",
   it(
     "D2 — resistencia: 'Concrete H40' -> MATCH EST-002 (MATCH a EST-001/H30 es FAIL)",
     async () => {
-      const result = await matchByElementName("Concrete H40");
+      const result = await matchByElementName("D2", "Concrete H40");
       expect(result.decision).toBe("MATCH");
       expect(result.candidateId).toBe(auroraItemByCode("EST-002").id);
     },
@@ -202,7 +240,7 @@ describe.runIf(RUN_LIVE)("live-semantic-matching — DeepSeek real (sin mocks)",
   it(
     "D3 — ambigüedad real: 'Floor finish' (sin material/spec) -> REVIEW (elegir uno arbitrariamente es FAIL)",
     async () => {
-      const result = await matchByElementName("Floor finish");
+      const result = await matchByElementName("D3", "Floor finish");
       expect(result.decision).toBe("REVIEW");
     },
     LIVE_TEST_TIMEOUT_MS
@@ -211,7 +249,7 @@ describe.runIf(RUN_LIVE)("live-semantic-matching — DeepSeek real (sin mocks)",
   it(
     "D4 — sin equivalente: 'Intumescent Fireproofing Coating' -> NO_MATCH",
     async () => {
-      const result = await matchByElementName("Intumescent Fireproofing Coating");
+      const result = await matchByElementName("D4", "Intumescent Fireproofing Coating");
       expect(result.decision).toBe("NO_MATCH");
     },
     LIVE_TEST_TIMEOUT_MS
@@ -220,7 +258,7 @@ describe.runIf(RUN_LIVE)("live-semantic-matching — DeepSeek real (sin mocks)",
   it(
     "D5 — parecido léxicamente pero incorrecto: 'External Concrete Wall - 200mm' nunca matchea un rubro de mampostería",
     async () => {
-      const result = await matchByElementName("External Concrete Wall - 200mm");
+      const result = await matchByElementName("D5", "External Concrete Wall - 200mm");
       if (result.decision === "MATCH") {
         expect(result.candidateId).not.toBe(auroraItemByCode("ALB-001").id);
         expect(result.candidateId).not.toBe(auroraItemByCode("ALB-002").id);
