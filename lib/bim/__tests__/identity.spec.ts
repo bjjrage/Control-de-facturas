@@ -20,6 +20,7 @@ function makeElement(overrides: Partial<BimElement>): BimElement {
     quantity_source: null,
     quantity_property: null,
     created_at: new Date().toISOString(),
+    group_id: null,
     ...overrides,
   };
 }

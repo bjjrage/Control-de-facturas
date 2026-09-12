@@ -834,6 +834,37 @@ export interface BimElement {
   quantity_source: BimQuantitySource | null;
   quantity_property: string | null;
   created_at: string;
+  group_id: string | null;
+}
+
+export interface BimElementGroup {
+  id: string;
+  bim_model_id: string;
+  project_id: string;
+  ifc_type: string;
+  material: string | null;
+  normalized_name: string;
+  quantity_type: BimQuantityType | null;
+  quantity_unit: string | null;
+  total_quantity: number | null;
+  element_count: number;
+  created_at: string;
+}
+
+export type BimGroupMatchMethod = "SEMANTIC" | "MANUAL";
+export type BimGroupMatchStatus = "SUGGESTED" | "REVIEW" | "NO_MATCH" | "CONFIRMED" | "REJECTED";
+
+export interface BimGroupMatch {
+  id: string;
+  group_id: string;
+  budget_item_id: string | null;
+  method: BimGroupMatchMethod;
+  score: number | null;
+  reason: string | null;
+  status: BimGroupMatchStatus;
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+  created_at: string;
 }
 
 export type BimMatchMethod = "DETERMINISTIC" | "SEMANTIC" | "MANUAL";

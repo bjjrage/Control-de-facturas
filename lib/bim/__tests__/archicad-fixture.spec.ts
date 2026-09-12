@@ -172,6 +172,7 @@ describe("IFC real — ARCHICAD 25, IFC2X3 (3 muros exteriores)", () => {
           quantity_source: "IFC_QTO",
           quantity_property: selection.property,
           created_at: new Date().toISOString(),
+          group_id: null,
         });
       }
 

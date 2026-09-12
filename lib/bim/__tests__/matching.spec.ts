@@ -20,6 +20,7 @@ function makeElement(overrides: Partial<BimElement> = {}): BimElement {
     quantity_source: "IFC_QTO",
     quantity_property: "Qto_WallBaseQuantities.NetSideArea",
     created_at: new Date().toISOString(),
+    group_id: null,
     ...overrides,
   };
 }

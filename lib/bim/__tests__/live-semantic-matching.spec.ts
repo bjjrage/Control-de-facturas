@@ -97,6 +97,7 @@ async function loadAuroraElements(): Promise<Map<string, BimElement>> {
           quantity_source: resolved ? "IFC_QTO" : null,
           quantity_property: resolved?.property ?? null,
           created_at: new Date().toISOString(),
+          group_id: null,
         });
       }
     }

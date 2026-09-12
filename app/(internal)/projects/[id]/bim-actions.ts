@@ -6,9 +6,11 @@ import { requirePlan } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { aggregateElementsForBudgetItem } from "@/lib/bim/matching";
-import { runSemanticMatch } from "@/lib/bim/semantic-pipeline";
+import { runSemanticMatch, buildCandidatePool, toSemanticMatchInput } from "@/lib/bim/semantic-pipeline";
 import { DeepSeekSemanticMatcher } from "@/lib/bim/deepseek-matcher";
-import type { BimElement, BimModel, BimBudgetMatch, BudgetItem } from "@/lib/types";
+import { DeepSeekBatchSemanticMatcher, type BatchMatchItem } from "@/lib/bim/deepseek-batch-matcher";
+import { groupElements } from "@/lib/bim/grouping";
+import type { BimElement, BimModel, BimBudgetMatch, BimElementGroup, BimGroupMatch, BudgetItem } from "@/lib/types";
 
 async function assertProjectAccess(projectId: string) {
   const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
@@ -219,6 +221,292 @@ export async function generateMatchSuggestions(
 
   revalidatePath(`/projects/${projectId}`);
   return { suggested: rows.length, error: null };
+}
+
+// ---------------------------------------------------------------------------
+// Flujo agrupado (0072_bim_groups.sql): agrupa elementos técnicamente
+// equivalentes ANTES de llamar a DeepSeek, y llama al matcher EN LOTE
+// (5-10 grupos por request) en vez de una vez por elemento. Reemplaza a
+// generateMatchSuggestions como flujo principal de la UI; esa función queda
+// intacta para no romper nada de lo ya certificado.
+// ---------------------------------------------------------------------------
+
+const GROUP_BATCH_SIZE = 8;
+
+export interface ProcessBimGroupsResult {
+  elementCount: number;
+  groupCount: number;
+  suggested: number;
+  review: number;
+  noMatch: number;
+  totalTokens: number;
+  latencyMs: number;
+  error: string | null;
+}
+
+// Agrupa los elementos del modelo, persiste los grupos (con trazabilidad
+// grupo -> elementos vía bim_elements.group_id) y corre el matching semántico
+// EN LOTE sobre los grupos. Solo inserta propuestas (SUGGESTED/REVIEW/
+// NO_MATCH) — nunca confirma nada; la confirmación es una acción humana
+// aparte (confirmGroupMatch).
+export async function processBimGroups(projectId: string, bimModelId: string): Promise<ProcessBimGroupsResult> {
+  const startedAt = Date.now();
+  const empty: ProcessBimGroupsResult = {
+    elementCount: 0,
+    groupCount: 0,
+    suggested: 0,
+    review: 0,
+    noMatch: 0,
+    totalTokens: 0,
+    latencyMs: 0,
+    error: null,
+  };
+  const { supabase } = await assertProjectAccess(projectId);
+
+  const [{ data: elements }, { data: budgetItems }] = await Promise.all([
+    supabase.from("bim_elements").select("*").eq("bim_model_id", bimModelId).returns<BimElement[]>(),
+    supabase.from("budget_items").select("*").eq("project_id", projectId).returns<BudgetItem[]>(),
+  ]);
+  if (!elements || elements.length === 0) return { ...empty, error: "El modelo no tiene elementos." };
+  if (!budgetItems || budgetItems.length === 0) {
+    return { ...empty, elementCount: elements.length, error: "El proyecto todavía no tiene ítems de presupuesto para comparar." };
+  }
+  const parentIds = new Set(budgetItems.map((b) => b.parent_id).filter(Boolean));
+  const matchableItems = budgetItems.filter((b) => !parentIds.has(b.id) && b.unit_price != null);
+
+  // Idempotencia: si este modelo ya tiene grupos, NO volver a agrupar ni a
+  // llamar a DeepSeek. Sin este guard, un segundo click en "Recalcular
+  // sugerencias" duplicaría bim_element_groups en cada corrida y, si en vez
+  // de duplicar se hubiera optado por borrar los grupos viejos primero, el
+  // ON DELETE CASCADE se habría llevado puestas las confirmaciones humanas
+  // ya hechas (bim_group_matches CONFIRMED/REJECTED). Recalcular de verdad
+  // requiere borrar el modelo y volver a subir el IFC — no está en alcance
+  // de este batch.
+  const { data: existingGroups } = await supabase
+    .from("bim_element_groups")
+    .select("id")
+    .eq("bim_model_id", bimModelId);
+  if (existingGroups && existingGroups.length > 0) {
+    const existingGroupIds = existingGroups.map((g) => g.id);
+    const { data: existingMatches } = await supabase.from("bim_group_matches").select("status").in("group_id", existingGroupIds);
+    const rows = existingMatches ?? [];
+    return {
+      elementCount: elements.length,
+      groupCount: existingGroups.length,
+      suggested: rows.filter((r) => r.status === "SUGGESTED").length,
+      review: rows.filter((r) => r.status === "REVIEW").length,
+      noMatch: rows.filter((r) => r.status === "NO_MATCH").length,
+      totalTokens: 0,
+      latencyMs: Date.now() - startedAt,
+      error: null,
+    };
+  }
+
+  // 1) Agrupar (puro, en memoria) y persistir grupos + group_id en cada elemento.
+  const drafts = groupElements(elements);
+  const groupIds: string[] = [];
+  for (const draft of drafts) {
+    const { data: group, error } = await supabase
+      .from("bim_element_groups")
+      .insert({
+        bim_model_id: bimModelId,
+        project_id: projectId,
+        ifc_type: draft.ifcType,
+        material: draft.material,
+        normalized_name: draft.representative.name ?? draft.ifcType,
+        quantity_type: draft.quantityType,
+        quantity_unit: draft.quantityUnit,
+        total_quantity: draft.totalQuantity,
+        element_count: draft.elements.length,
+      })
+      .select("id")
+      .single();
+    if (error || !group) return { ...empty, elementCount: elements.length, error: error?.message ?? "No se pudo crear un grupo." };
+
+    const { error: updateError } = await supabase
+      .from("bim_elements")
+      .update({ group_id: group.id })
+      .in(
+        "id",
+        draft.elements.map((e) => e.id)
+      );
+    if (updateError) return { ...empty, elementCount: elements.length, error: updateError.message };
+
+    groupIds.push(group.id);
+  }
+
+  // 2) Matching semántico EN LOTE sobre los grupos (nunca sobre el texto crudo:
+  // cada grupo se representa por su elemento representante + cantidad total).
+  let matcher: DeepSeekBatchSemanticMatcher;
+  try {
+    matcher = new DeepSeekBatchSemanticMatcher();
+  } catch (e) {
+    return { ...empty, elementCount: elements.length, groupCount: drafts.length, error: e instanceof Error ? e.message : "No se pudo inicializar el matcher semántico." };
+  }
+
+  let suggested = 0;
+  let review = 0;
+  let noMatch = 0;
+  let totalTokens = 0;
+  const rows: { group_id: string; budget_item_id: string | null; method: "SEMANTIC"; score: number; reason: string; status: "SUGGESTED" | "REVIEW" | "NO_MATCH" }[] = [];
+
+  for (let i = 0; i < drafts.length; i += GROUP_BATCH_SIZE) {
+    const batchDrafts = drafts.slice(i, i + GROUP_BATCH_SIZE);
+    const batchGroupIds = groupIds.slice(i, i + GROUP_BATCH_SIZE);
+    const items: BatchMatchItem[] = batchDrafts.map((draft, idx) => {
+      const rep = draft.representative;
+      const groupElement: BimElement = { ...rep, quantity_value: draft.totalQuantity ?? rep.quantity_value };
+      const candidates = buildCandidatePool(groupElement, matchableItems);
+      return { elementId: batchGroupIds[idx], input: toSemanticMatchInput(groupElement, candidates) };
+    });
+
+    let batchResults;
+    try {
+      batchResults = await matcher.matchBatch(items);
+    } catch (e) {
+      return {
+        elementCount: elements.length,
+        groupCount: drafts.length,
+        suggested,
+        review,
+        noMatch,
+        totalTokens,
+        latencyMs: Date.now() - startedAt,
+        error: `Se procesaron ${suggested + review + noMatch} grupos antes de un error de DeepSeek: ${e instanceof Error ? e.message : String(e)}`,
+      };
+    }
+    totalTokens += matcher.lastUsage?.totalTokens ?? 0;
+
+    for (const groupId of batchGroupIds) {
+      const result = batchResults.get(groupId);
+      if (!result) continue;
+      if (result.decision === "MATCH" && result.candidateId) {
+        rows.push({ group_id: groupId, budget_item_id: result.candidateId, method: "SEMANTIC", score: result.confidence, reason: result.reason, status: "SUGGESTED" });
+        suggested++;
+      } else if (result.decision === "REVIEW") {
+        rows.push({ group_id: groupId, budget_item_id: null, method: "SEMANTIC", score: result.confidence, reason: result.reason, status: "REVIEW" });
+        review++;
+      } else {
+        rows.push({ group_id: groupId, budget_item_id: null, method: "SEMANTIC", score: result.confidence, reason: result.reason, status: "NO_MATCH" });
+        noMatch++;
+      }
+    }
+  }
+
+  if (rows.length > 0) {
+    const { error } = await supabase.from("bim_group_matches").insert(rows);
+    if (error) {
+      return { elementCount: elements.length, groupCount: drafts.length, suggested, review, noMatch, totalTokens, latencyMs: Date.now() - startedAt, error: error.message };
+    }
+  }
+
+  await logAudit(supabase, {
+    action: "bim.groups_processed",
+    detail: { project_id: projectId, bim_model_id: bimModelId, element_count: elements.length, group_count: drafts.length, suggested, review, no_match: noMatch },
+  });
+
+  revalidatePath(`/projects/${projectId}`);
+  return {
+    elementCount: elements.length,
+    groupCount: drafts.length,
+    suggested,
+    review,
+    noMatch,
+    totalTokens,
+    latencyMs: Date.now() - startedAt,
+    error: null,
+  };
+}
+
+export async function getBimGroupsData(
+  projectId: string,
+  bimModelId: string
+): Promise<{
+  groups: BimElementGroup[];
+  matches: BimGroupMatch[];
+  elements: BimElement[];
+  budgetItems: BudgetItem[];
+  error: string | null;
+}> {
+  try {
+    const { supabase } = await assertProjectAccess(projectId);
+    const [{ data: groups }, { data: elements }, { data: budgetItems }] = await Promise.all([
+      supabase.from("bim_element_groups").select("*").eq("bim_model_id", bimModelId).order("created_at").returns<BimElementGroup[]>(),
+      supabase.from("bim_elements").select("*").eq("bim_model_id", bimModelId).returns<BimElement[]>(),
+      supabase.from("budget_items").select("*").eq("project_id", projectId).returns<BudgetItem[]>(),
+    ]);
+
+    const groupIds = (groups ?? []).map((g) => g.id);
+    let matches: BimGroupMatch[] = [];
+    if (groupIds.length > 0) {
+      const { data } = await supabase.from("bim_group_matches").select("*").in("group_id", groupIds).returns<BimGroupMatch[]>();
+      matches = data ?? [];
+    }
+
+    return { groups: groups ?? [], matches, elements: elements ?? [], budgetItems: budgetItems ?? [], error: null };
+  } catch (e) {
+    return { groups: [], matches: [], elements: [], budgetItems: [], error: e instanceof Error ? e.message : "Error." };
+  }
+}
+
+// El usuario confirma el rubro sugerido (o elige otro manualmente: method
+// pasa a MANUAL). Un grupo tiene a lo sumo un match CONFIRMADO vigente
+// (índice único parcial en la migración).
+export async function confirmGroupMatch(
+  projectId: string,
+  groupId: string,
+  budgetItemId: string
+): Promise<{ error: string | null }> {
+  const { profile, supabase } = await assertProjectAccess(projectId);
+
+  const { data: existing } = await supabase
+    .from("bim_group_matches")
+    .select("id, budget_item_id")
+    .eq("group_id", groupId)
+    .in("status", ["SUGGESTED", "REVIEW"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existing && existing.budget_item_id === budgetItemId) {
+    const { error } = await supabase
+      .from("bim_group_matches")
+      .update({ status: "CONFIRMED", confirmed_by: profile.id, confirmed_at: new Date().toISOString() })
+      .eq("id", existing.id);
+    if (error) return { error: error.message };
+  } else {
+    // Rubro distinto al sugerido (o no había sugerencia): match manual nuevo.
+    const { error } = await supabase.from("bim_group_matches").insert({
+      group_id: groupId,
+      budget_item_id: budgetItemId,
+      method: "MANUAL",
+      status: "CONFIRMED",
+      confirmed_by: profile.id,
+      confirmed_at: new Date().toISOString(),
+    });
+    if (error) return { error: error.message };
+  }
+
+  await logAudit(supabase, { action: "bim.group_match_confirmed", detail: { project_id: projectId, group_id: groupId, budget_item_id: budgetItemId } });
+  revalidatePath(`/projects/${projectId}`);
+  return { error: null };
+}
+
+// "Dejar sin asignar" — decisión humana explícita, distinta de NO_MATCH (que
+// es una conclusión de la IA). Nunca se mezclan en el mismo estado.
+export async function rejectGroupMatch(projectId: string, groupId: string): Promise<{ error: string | null }> {
+  const { profile, supabase } = await assertProjectAccess(projectId);
+  const { error } = await supabase.from("bim_group_matches").insert({
+    group_id: groupId,
+    budget_item_id: null,
+    method: "MANUAL",
+    status: "REJECTED",
+    confirmed_by: profile.id,
+    confirmed_at: new Date().toISOString(),
+  });
+  if (error) return { error: error.message };
+  revalidatePath(`/projects/${projectId}`);
+  return { error: null };
 }
 
 // El usuario CONFIRMA un match propuesto (o crea uno manual). Descarta

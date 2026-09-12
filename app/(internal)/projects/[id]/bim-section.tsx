@@ -4,20 +4,22 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/browser";
 import { formatNumber, formatMoney, calcLineSubtotal } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { aggregateElementsForBudgetItem, unitsCompatibleForCosting } from "@/lib/bim/matching";
+import { unitsCompatibleForCosting } from "@/lib/bim/matching";
 import { findElementByExpressId } from "@/lib/bim/identity";
-import type { BimModel, BimElement, BimBudgetMatch, BudgetItem } from "@/lib/types";
+import type { BimModel, BimElement, BimElementGroup, BimGroupMatch, BudgetItem } from "@/lib/types";
 import type { IfcViewerHandle } from "@/lib/bim/ifc-viewer.client";
 import {
   getBimData,
+  getBimGroupsData,
   getBimUploadSlot,
   getBimModelFileUrl,
   registerBimModel,
-  generateMatchSuggestions,
-  confirmBimMatch,
-  applyBimQuantityToBudgetItem,
+  processBimGroups,
+  confirmGroupMatch,
+  rejectGroupMatch,
   deleteBimModel,
   type ParsedElementInput,
+  type ProcessBimGroupsResult,
 } from "./bim-actions";
 
 const QUANTITY_LABEL: Record<string, string> = {
@@ -28,39 +30,66 @@ const QUANTITY_LABEL: Record<string, string> = {
   weight: "Peso",
 };
 
+const GROUP_STATUS_LABEL: Record<string, string> = {
+  SUGGESTED: "Sugerido",
+  REVIEW: "A revisar",
+  NO_MATCH: "Sin correspondencia",
+  CONFIRMED: "Confirmado",
+  REJECTED: "Sin asignar",
+};
+
 export function BimSection({ projectId }: { projectId: string }) {
   const [models, setModels] = useState<BimModel[]>([]);
   const [elements, setElements] = useState<BimElement[]>([]);
-  const [matches, setMatches] = useState<BimBudgetMatch[]>([]);
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
+  const [groups, setGroups] = useState<BimElementGroup[]>([]);
+  const [groupMatches, setGroupMatches] = useState<BimGroupMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  const [focusedGroupId, setFocusedGroupId] = useState<string | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [viewerStatus, setViewerStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [processingResult, setProcessingResult] = useState<ProcessBimGroupsResult | null>(null);
+  const [showReview, setShowReview] = useState(false);
+  const [changingGroupId, setChangingGroupId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const viewerContainerRef = useRef<HTMLDivElement | null>(null);
   const viewerHandleRef = useRef<IfcViewerHandle | null>(null);
   const loadedModelIdRef = useRef<string | null>(null);
+  const reviewSectionRef = useRef<HTMLDivElement | null>(null);
 
   async function refresh() {
     setLoading(true);
     const data = await getBimData(projectId);
     setModels(data.models);
     setElements(data.elements);
-    setMatches(data.matches);
     setBudgetItems(data.budgetItems);
     setError(data.error);
     setLoading(false);
     if (data.models.length > 0 && !selectedModelId) setSelectedModelId(data.models[0].id);
   }
 
+  async function refreshGroups(modelId: string) {
+    const data = await getBimGroupsData(projectId, modelId);
+    setGroups(data.groups);
+    setGroupMatches(data.matches);
+    if (data.error) setError(data.error);
+  }
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
     refresh();
   }, [projectId]);
+
+  useEffect(() => {
+    if (!selectedModelId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
+    refreshGroups(selectedModelId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedModelId]);
 
   // Carga (o recarga) el viewer 3D cuando cambia el modelo seleccionado. Solo
   // recrea el viewer si el modelo cargado cambió (loadedModelIdRef) — si el
@@ -93,6 +122,7 @@ export function BimSection({ projectId }: { projectId: string }) {
             }
             const el = selectedModelId ? findElementByExpressId(elements, selectedModelId, expressId) : null;
             setSelectedElementId(el?.id ?? null);
+            setFocusedGroupId(el?.group_id ?? null);
           },
         });
         await handle.loadFromBuffer(buffer);
@@ -132,6 +162,7 @@ export function BimSection({ projectId }: { projectId: string }) {
 
   async function handleUpload(file: File) {
     setError(null);
+    setProcessingResult(null);
     setUploadStatus("Leyendo archivo…");
     try {
       const { parseIfcFile } = await import("@/lib/bim/ifc-parser.client");
@@ -169,9 +200,13 @@ export function BimSection({ projectId }: { projectId: string }) {
       await refresh();
       if (result.modelId) {
         setSelectedModelId(result.modelId);
+        setUploadStatus("Agrupando elementos y consultando al matcher semántico…");
         startTransition(async () => {
-          await generateMatchSuggestions(projectId, result.modelId!);
-          await refresh();
+          const processResult = await processBimGroups(projectId, result.modelId!);
+          setUploadStatus(null);
+          setProcessingResult(processResult);
+          if (processResult.error) setError(processResult.error);
+          await refreshGroups(result.modelId!);
         });
       }
     } catch (e) {
@@ -186,52 +221,63 @@ export function BimSection({ projectId }: { projectId: string }) {
     [elements, selectedModelId]
   );
   const budgetItemById = useMemo(() => new Map(budgetItems.map((b) => [b.id, b])), [budgetItems]);
-  const matchesByElement = useMemo(() => {
-    const map = new Map<string, BimBudgetMatch[]>();
-    for (const m of matches) (map.get(m.bim_element_id) ?? map.set(m.bim_element_id, []).get(m.bim_element_id)!).push(m);
-    return map;
-  }, [matches]);
+  const matchableBudgetItems = useMemo(() => {
+    const parentIds = new Set(budgetItems.map((b) => b.parent_id).filter(Boolean));
+    return budgetItems.filter((b) => !parentIds.has(b.id) && b.unit_price != null);
+  }, [budgetItems]);
+
+  // Un grupo puede tener varias propuestas históricas (ej. tras "Recalcular");
+  // nos quedamos con la más reciente que no esté descartada por una decisión
+  // humana posterior.
+  const latestMatchByGroup = useMemo(() => {
+    const byGroup = new Map<string, BimGroupMatch[]>();
+    for (const m of groupMatches) (byGroup.get(m.group_id) ?? byGroup.set(m.group_id, []).get(m.group_id)!).push(m);
+    const result = new Map<string, BimGroupMatch>();
+    for (const [groupId, list] of byGroup) {
+      const confirmed = list.find((m) => m.status === "CONFIRMED");
+      const rejected = list.find((m) => m.status === "REJECTED");
+      const latest = [...list].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0];
+      result.set(groupId, confirmed ?? rejected ?? latest);
+    }
+    return result;
+  }, [groupMatches]);
 
   const selectedElement = currentElements.find((e) => e.id === selectedElementId) ?? null;
-  const selectedElMatches = selectedElement ? (matchesByElement.get(selectedElement.id) ?? []).filter((m) => m.status !== "DESCARTADO") : [];
-  const confirmedMatch = selectedElMatches.find((m) => m.status === "CONFIRMADO") ?? null;
-  const proposedMatches = selectedElMatches.filter((m) => m.status === "PROPUESTO").sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-  const confirmedItem = confirmedMatch ? budgetItemById.get(confirmedMatch.budget_item_id) ?? null : null;
 
-  // Rubros con al menos un match confirmado -> agregación de cantidad BIM.
-  const aggregationRows = useMemo(() => {
-    const confirmedByBudgetItem = new Map<string, string[]>();
-    for (const m of matches) {
-      if (m.status !== "CONFIRMADO") continue;
-      (confirmedByBudgetItem.get(m.budget_item_id) ?? confirmedByBudgetItem.set(m.budget_item_id, []).get(m.budget_item_id)!).push(
-        m.bim_element_id
-      );
+  const currentGroups = useMemo(() => groups.filter((g) => g.bim_model_id === selectedModelId), [groups, selectedModelId]);
+  const elementsByGroup = useMemo(() => {
+    const map = new Map<string, BimElement[]>();
+    for (const e of currentElements) {
+      if (!e.group_id) continue;
+      (map.get(e.group_id) ?? map.set(e.group_id, []).get(e.group_id)!).push(e);
     }
-    const elementById = new Map(elements.map((e) => [e.id, e]));
-    return [...confirmedByBudgetItem.entries()]
-      .map(([budgetItemId, elIds]) => {
-        const item = budgetItemById.get(budgetItemId);
-        if (!item) return null;
-        const els = elIds.map((id) => elementById.get(id)).filter((e): e is BimElement => !!e);
-        const agg = aggregateElementsForBudgetItem(els, item);
-        return { item, elementCount: els.length, ...agg };
-      })
-      .filter((r): r is NonNullable<typeof r> => !!r);
-  }, [matches, elements, budgetItemById]);
+    return map;
+  }, [currentElements]);
 
-  async function handleConfirm(elementId: string, budgetItemId: string) {
+  const visibleElements = focusedGroupId ? elementsByGroup.get(focusedGroupId) ?? [] : currentElements;
+
+  async function handleConfirmGroup(groupId: string, budgetItemId: string) {
     setError(null);
-    const result = await confirmBimMatch(projectId, elementId, budgetItemId);
+    const result = await confirmGroupMatch(projectId, groupId, budgetItemId);
     if (result.error) setError(result.error);
-    await refresh();
+    setChangingGroupId(null);
+    if (selectedModelId) await refreshGroups(selectedModelId);
   }
 
-  async function handleApplyQuantity(budgetItemId: string) {
+  async function handleRejectGroup(groupId: string) {
     setError(null);
-    const result = await applyBimQuantityToBudgetItem(projectId, budgetItemId);
+    const result = await rejectGroupMatch(projectId, groupId);
     if (result.error) setError(result.error);
-    else if (result.warning) setError(result.warning);
-    await refresh();
+    if (selectedModelId) await refreshGroups(selectedModelId);
+  }
+
+  function focusGroup(groupId: string) {
+    setFocusedGroupId((prev) => (prev === groupId ? null : groupId));
+    const firstElement = elementsByGroup.get(groupId)?.[0];
+    if (firstElement) {
+      setSelectedElementId(firstElement.id);
+      if (firstElement.express_id != null) viewerHandleRef.current?.fitSelection();
+    }
   }
 
   async function handleDeleteModel(modelId: string) {
@@ -243,16 +289,48 @@ export function BimSection({ projectId }: { projectId: string }) {
     }
     const result = await deleteBimModel(projectId, modelId);
     if (result.error) setError(result.error);
-    if (selectedModelId === modelId) setSelectedModelId(null);
+    if (selectedModelId === modelId) {
+      setSelectedModelId(null);
+      setGroups([]);
+      setGroupMatches([]);
+      setProcessingResult(null);
+    }
     await refresh();
   }
+
+  // Presupuesto resultante: agrega por budget_item todos los grupos
+  // CONFIRMADOS que apuntan a él. El precio SIEMPRE viene de budget_items —
+  // DeepSeek nunca genera precio, solo propuso a qué budget_item corresponde
+  // cada grupo.
+  const finalBudgetRows = useMemo(() => {
+    const byItem = new Map<string, { item: BudgetItem; groups: BimElementGroup[] }>();
+    for (const group of currentGroups) {
+      const match = latestMatchByGroup.get(group.id);
+      if (!match || match.status !== "CONFIRMED" || !match.budget_item_id) continue;
+      const item = budgetItemById.get(match.budget_item_id);
+      if (!item) continue;
+      const entry = byItem.get(item.id) ?? { item, groups: [] };
+      entry.groups.push(group);
+      byItem.set(item.id, entry);
+    }
+    return [...byItem.values()].map(({ item, groups: itemGroups }) => {
+      const compatibleGroups = itemGroups.filter(
+        (g) => g.total_quantity != null && unitsCompatibleForCosting(g.quantity_unit, item.unit)
+      );
+      const incompatibleCount = itemGroups.length - compatibleGroups.length;
+      const totalQuantity =
+        compatibleGroups.length > 0 ? compatibleGroups.reduce((s, g) => s + (g.total_quantity ?? 0), 0) : null;
+      const total = totalQuantity != null && item.unit_price != null ? calcLineSubtotal(totalQuantity, item.unit_price) : null;
+      return { item, totalQuantity, total, groupCount: itemGroups.length, incompatibleCount };
+    });
+  }, [currentGroups, latestMatchByGroup, budgetItemById]);
 
   return (
     <div className="space-y-4">
       <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-[12px] text-[var(--muted)]">
-        El BIM aporta cantidades; el presupuesto aporta precios. Subí un IFC, seleccioná un elemento (en el
-        visor o en la lista) y confirmá manualmente a qué ítem del presupuesto corresponde. Ningún precio se
-        calcula sin tu confirmación.
+        El BIM aporta cantidades; el presupuesto aporta precios. Subí un IFC: los elementos técnicamente
+        equivalentes se agrupan y se consultan en lote contra el catálogo de costos. Vos confirmás cada grupo —
+        ningún precio se calcula sin tu confirmación.
       </div>
 
       {error ? (
@@ -276,6 +354,28 @@ export function BimSection({ projectId }: { projectId: string }) {
         {uploadStatus ? <span className="text-[12px] text-[var(--muted)]">{uploadStatus}</span> : null}
       </div>
 
+      {processingResult && !processingResult.error ? (
+        <div className="rounded border border-[var(--accent)]/40 bg-[var(--accent)]/5 px-3 py-2.5 space-y-1.5">
+          <div className="font-medium text-[13px]">BIM procesado</div>
+          <div className="text-[12px] text-[var(--muted)]">
+            {processingResult.elementCount} elementos · {processingResult.groupCount} grupos detectados
+          </div>
+          <div className="text-[12px] flex flex-wrap gap-x-4">
+            <span>{processingResult.suggested} matches sugeridos</span>
+            <span>{processingResult.review} requieren revisión</span>
+            <span>{processingResult.noMatch} sin correspondencia</span>
+          </div>
+          <Button
+            onClick={() => {
+              setShowReview(true);
+              reviewSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          >
+            Revisar presupuesto
+          </Button>
+        </div>
+      ) : null}
+
       {loading ? (
         <div className="text-[13px] text-[var(--muted)]">Cargando…</div>
       ) : models.length === 0 ? (
@@ -288,6 +388,7 @@ export function BimSection({ projectId }: { projectId: string }) {
                 key={m.id}
                 onClick={() => {
                   setSelectedElementId(null);
+                  setFocusedGroupId(null);
                   setSelectedModelId(m.id);
                 }}
                 className={`rounded-md border px-3 py-1.5 text-[12px] ${
@@ -306,7 +407,7 @@ export function BimSection({ projectId }: { projectId: string }) {
             <>
               <div className="flex items-center justify-between">
                 <div className="text-[12px] text-[var(--muted)]">
-                  Esquema {currentModel.schema ?? "?"} · {currentElements.length} elementos
+                  Esquema {currentModel.schema ?? "?"} · {currentElements.length} elementos · {currentGroups.length} grupos
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -315,13 +416,14 @@ export function BimSection({ projectId }: { projectId: string }) {
                     onClick={() =>
                       startTransition(async () => {
                         setError(null);
-                        const result = await generateMatchSuggestions(projectId, currentModel.id);
+                        const result = await processBimGroups(projectId, currentModel.id);
+                        setProcessingResult(result);
                         if (result.error) setError(result.error);
-                        await refresh();
+                        await refreshGroups(currentModel.id);
                       })
                     }
                   >
-                    {pending ? "Calculando…" : "Recalcular sugerencias"}
+                    {pending ? "Actualizando…" : "Actualizar resumen"}
                   </Button>
                   <Button variant="secondary" onClick={() => handleDeleteModel(currentModel.id)}>
                     Eliminar modelo
@@ -339,8 +441,18 @@ export function BimSection({ projectId }: { projectId: string }) {
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-3">
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Modelo 3D</span>
+                    <span className="text-[11px] text-[var(--muted)] uppercase tracking-wide">
+                      Modelo 3D {focusedGroupId ? "— evidencia del grupo seleccionado" : ""}
+                    </span>
                     <div className="flex gap-1">
+                      {focusedGroupId ? (
+                        <button
+                          onClick={() => setFocusedGroupId(null)}
+                          className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 py-0.5 text-[11px]"
+                        >
+                          Ver todos
+                        </button>
+                      ) : null}
                       <button
                         onClick={() => viewerHandleRef.current?.fitAll()}
                         className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 py-0.5 text-[11px]"
@@ -369,7 +481,7 @@ export function BimSection({ projectId }: { projectId: string }) {
                   </p>
                 </div>
 
-                {/* Inspector: propiedades + flujo económico del elemento seleccionado */}
+                {/* Inspector: propiedades técnicas del elemento seleccionado (evidencia) */}
                 <div className="rounded border border-[var(--border)] p-3 space-y-3 max-h-[480px] overflow-y-auto">
                   {!selectedElement ? (
                     <div className="text-[12px] text-[var(--muted)]">
@@ -433,67 +545,23 @@ export function BimSection({ projectId }: { projectId: string }) {
                         )}
                       </div>
 
-                      <div className="border-t border-[var(--border)] pt-2">
-                        <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide mb-1.5">
-                          Rubro económico
-                        </div>
-                        {confirmedItem ? (
-                          <div className="space-y-1.5">
-                            <div className="text-[12px]">
-                              ✓ {confirmedItem.code} — {confirmedItem.description}
-                            </div>
-                            {selectedElement.quantity_value != null && confirmedItem.unit_price != null ? (
-                              unitsCompatibleForCosting(selectedElement.quantity_unit, confirmedItem.unit) ? (
-                                <div className="font-mono text-[13px]">
-                                  {formatNumber(selectedElement.quantity_value, 2)} {selectedElement.quantity_unit} ×{" "}
-                                  {formatMoney(confirmedItem.unit_price, "PYG")} ={" "}
-                                  <strong>
-                                    {formatMoney(calcLineSubtotal(selectedElement.quantity_value, confirmedItem.unit_price), "PYG")}
-                                  </strong>
-                                </div>
-                              ) : (
-                                <div className="text-[11px] text-[var(--error)]">
-                                  Unidad BIM ({selectedElement.quantity_unit ?? "sin unidad"}) incompatible con la
-                                  unidad del rubro ({confirmedItem.unit ?? "sin unidad"}) — no se calcula total.
-                                </div>
-                              )
-                            ) : (
-                              <div className="text-[12px] text-[var(--muted)]">PRECIO NO DISPONIBLE</div>
-                            )}
-                          </div>
-                        ) : proposedMatches.length > 0 ? (
-                          <div className="space-y-1.5">
-                            {proposedMatches.map((m) => {
-                              const item = budgetItemById.get(m.budget_item_id);
-                              if (!item) return null;
-                              return (
-                                <button
-                                  key={m.id}
-                                  onClick={() => handleConfirm(selectedElement.id, item.id)}
-                                  className="block w-full text-left rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1.5 text-[11px] hover:border-[var(--accent)]"
-                                >
-                                  <span className="font-mono">{Math.round((m.score ?? 0) * 100)}%</span> — {item.code} —{" "}
-                                  {item.description}
-                                  {item.unit_price != null ? ` — ${formatMoney(item.unit_price, "PYG")}/${item.unit ?? ""}` : ""}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <div className="text-[11px] text-[var(--muted)]">Sin sugerencias compatibles.</div>
-                        )}
-                      </div>
+                      {selectedElement.group_id ? (
+                        <button
+                          onClick={() => focusGroup(selectedElement.group_id!)}
+                          className="text-[11px] text-[var(--accent)] underline"
+                        >
+                          Ver los {elementsByGroup.get(selectedElement.group_id)?.length ?? 1} elementos de este grupo
+                        </button>
+                      ) : null}
                     </>
                   )}
                 </div>
               </div>
 
-              {/* Listado de elementos (selección alternativa al click en 3D) */}
+              {/* Listado de elementos (selección alternativa al click en 3D; se filtra si hay un grupo enfocado) */}
               <div className="space-y-1.5">
-                {currentElements.map((el) => {
+                {visibleElements.map((el) => {
                   const isSelected = el.id === selectedElementId;
-                  const elMatches = (matchesByElement.get(el.id) ?? []).filter((m) => m.status !== "DESCARTADO");
-                  const hasConfirmed = elMatches.some((m) => m.status === "CONFIRMADO");
                   return (
                     <button
                       key={el.id}
@@ -503,7 +571,6 @@ export function BimSection({ projectId }: { projectId: string }) {
                       }`}
                     >
                       <span>
-                        {hasConfirmed ? "✓ " : ""}
                         {el.name || el.ifc_type}
                         <span className="text-[11px] text-[var(--muted)] ml-2">
                           {el.ifc_type}
@@ -522,67 +589,178 @@ export function BimSection({ projectId }: { projectId: string }) {
         </div>
       )}
 
-      {aggregationRows.length > 0 ? (
-        <div className="space-y-1.5">
-          <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">
-            Rubros con elementos BIM confirmados
+      {/* --- Revisión por grupo --- */}
+      {currentGroups.length > 0 ? (
+        <div ref={reviewSectionRef} className="space-y-2 pt-2">
+          <div className="flex items-center justify-between">
+            <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Revisión por grupo</div>
+            <button onClick={() => setShowReview((v) => !v)} className="text-[11px] text-[var(--accent)] underline">
+              {showReview ? "Ocultar" : "Mostrar"}
+            </button>
           </div>
+
+          {showReview ? (
+            <div className="space-y-2">
+              {currentGroups.map((group) => {
+                const match = latestMatchByGroup.get(group.id);
+                const suggestedItem = match?.budget_item_id ? budgetItemById.get(match.budget_item_id) ?? null : null;
+                const total =
+                  group.total_quantity != null && suggestedItem?.unit_price != null
+                    ? calcLineSubtotal(group.total_quantity, suggestedItem.unit_price)
+                    : null;
+                const status = match?.status ?? "REVIEW";
+
+                return (
+                  <div
+                    key={group.id}
+                    className={`rounded border p-3 space-y-2 ${
+                      focusedGroupId === group.id ? "border-[var(--accent)]" : "border-[var(--border)]"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <button onClick={() => focusGroup(group.id)} className="text-left">
+                        <div className="font-medium text-[13px]">{group.normalized_name}</div>
+                        <div className="text-[11px] text-[var(--muted)]">
+                          {group.ifc_type}
+                          {group.material ? ` · ${group.material}` : ""} · {group.element_count} elemento
+                          {group.element_count !== 1 ? "s" : ""}
+                        </div>
+                      </button>
+                      <span
+                        className={`rounded px-2 py-0.5 text-[11px] ${
+                          status === "CONFIRMED"
+                            ? "bg-[var(--accent)]/15 text-[var(--accent)]"
+                            : status === "REJECTED"
+                              ? "bg-[var(--panel-2)] text-[var(--muted)]"
+                              : status === "NO_MATCH"
+                                ? "bg-[var(--error-bg)] text-[var(--error)]"
+                                : status === "REVIEW"
+                                  ? "bg-[var(--panel-2)] text-[var(--fg)]"
+                                  : "bg-[var(--panel-2)] text-[var(--fg)]"
+                        }`}
+                      >
+                        {GROUP_STATUS_LABEL[status] ?? status}
+                      </span>
+                    </div>
+
+                    <div className="font-mono text-[12px]">
+                      {group.total_quantity != null ? `${formatNumber(group.total_quantity, 2)} ${group.quantity_unit}` : "sin cantidad"}
+                    </div>
+
+                    {status === "CONFIRMED" && suggestedItem ? (
+                      <div className="rounded bg-[var(--panel-2)] px-2.5 py-1.5 text-[12px] flex items-center justify-between">
+                        <span>
+                          ✓ {suggestedItem.code} — {suggestedItem.description} — {formatMoney(suggestedItem.unit_price, "PYG")}/
+                          {suggestedItem.unit}
+                        </span>
+                        <span className="font-mono">{total != null ? formatMoney(total, "PYG") : "—"}</span>
+                      </div>
+                    ) : status === "SUGGESTED" && suggestedItem ? (
+                      <div className="rounded border border-[var(--border)] px-2.5 py-1.5 text-[12px] space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span>
+                            {suggestedItem.code} — {suggestedItem.description} — {formatMoney(suggestedItem.unit_price, "PYG")}/
+                            {suggestedItem.unit}
+                          </span>
+                          <span className="font-mono text-[11px]">
+                            {match?.score != null ? `${Math.round(match.score * 100)}%` : ""}
+                          </span>
+                        </div>
+                        {total != null ? <div className="font-mono text-[13px]">Total: {formatMoney(total, "PYG")}</div> : null}
+                        {match?.reason ? <div className="text-[11px] text-[var(--muted)]">{match.reason}</div> : null}
+                      </div>
+                    ) : status === "REVIEW" ? (
+                      <div className="text-[11px] text-[var(--muted)]">
+                        {match?.reason || "Requiere revisión manual: información insuficiente para elegir un rubro con confianza."}
+                      </div>
+                    ) : status === "NO_MATCH" ? (
+                      <div className="text-[11px] text-[var(--muted)]">
+                        {match?.reason || "No se encontró un rubro económico equivalente en el catálogo."}
+                      </div>
+                    ) : null}
+
+                    {status !== "REJECTED" ? (
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {status === "SUGGESTED" && match?.budget_item_id ? (
+                          <Button onClick={() => handleConfirmGroup(group.id, match.budget_item_id!)}>Confirmar</Button>
+                        ) : null}
+                        {changingGroupId === group.id ? (
+                          <select
+                            className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-[12px]"
+                            defaultValue=""
+                            onChange={(e) => {
+                              if (e.target.value) handleConfirmGroup(group.id, e.target.value);
+                            }}
+                          >
+                            <option value="" disabled>
+                              Elegir rubro…
+                            </option>
+                            {matchableBudgetItems.map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {b.code} — {b.description} ({b.unit})
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <Button variant="secondary" onClick={() => setChangingGroupId(group.id)}>
+                            Cambiar rubro
+                          </Button>
+                        )}
+                        <Button variant="secondary" onClick={() => handleRejectGroup(group.id)}>
+                          Dejar sin asignar
+                        </Button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setChangingGroupId(group.id)} className="text-[11px] text-[var(--accent)] underline">
+                        Asignar un rubro igualmente
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* --- Presupuesto resultante --- */}
+      {finalBudgetRows.length > 0 ? (
+        <div className="space-y-1.5 pt-2">
+          <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Presupuesto resultante (grupos confirmados)</div>
           <div className="overflow-x-auto rounded border border-[var(--border)]">
             <table>
               <thead>
                 <tr>
                   <th>Rubro</th>
-                  <th className="num">Elementos</th>
-                  <th className="num">Cant. presupuesto</th>
-                  <th className="num">Cant. BIM</th>
-                  <th className="num">Diferencia</th>
-                  <th className="num">P. Unit.</th>
-                  <th className="num">Total (cant. BIM)</th>
-                  <th></th>
+                  <th className="num">Cantidad BIM</th>
+                  <th>Unidad</th>
+                  <th className="num">Precio unitario</th>
+                  <th className="num">Total</th>
                 </tr>
               </thead>
               <tbody>
-                {aggregationRows.map(({ item, elementCount, totalQuantity, incompatible, unit }) => {
-                  const diff = totalQuantity != null && item.quantity != null ? totalQuantity - item.quantity : null;
-                  const total =
-                    totalQuantity != null && item.unit_price != null ? calcLineSubtotal(totalQuantity, item.unit_price) : null;
-                  return (
-                    <tr key={item.id}>
-                      <td>
-                        {item.code} — {item.description}
-                        {incompatible.length > 0 ? (
-                          <div className="text-[11px] text-[var(--error)]">
-                            {incompatible.length} elemento(s) con unidad incompatible excluido(s)
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="num">{elementCount}</td>
-                      <td className="num">{item.quantity != null ? `${formatNumber(item.quantity, 2)} ${unit ?? ""}` : "—"}</td>
-                      <td className="num">{totalQuantity != null ? `${formatNumber(totalQuantity, 2)} ${unit ?? ""}` : "—"}</td>
-                      <td className={`num ${diff != null && Math.abs(diff) > 0.01 ? "text-[var(--error)]" : ""}`}>
-                        {diff != null ? `${diff > 0 ? "+" : ""}${formatNumber(diff, 2)}` : "—"}
-                      </td>
-                      <td className="num">{item.unit_price != null ? formatMoney(item.unit_price, "PYG") : "PRECIO NO DISPONIBLE"}</td>
-                      <td className="num font-mono">{total != null ? formatMoney(total, "PYG") : "—"}</td>
-                      <td>
-                        {totalQuantity != null ? (
-                          <button
-                            onClick={() => handleApplyQuantity(item.id)}
-                            className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-[11px] hover:border-[var(--accent)]"
-                          >
-                            Actualizar cant. presupuesto
-                          </button>
-                        ) : null}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {finalBudgetRows.map(({ item, totalQuantity, total, incompatibleCount }) => (
+                  <tr key={item.id}>
+                    <td>
+                      {item.code} — {item.description}
+                      {incompatibleCount > 0 ? (
+                        <div className="text-[11px] text-[var(--error)]">
+                          {incompatibleCount} grupo(s) con unidad incompatible excluido(s)
+                        </div>
+                      ) : null}
+                    </td>
+                    <td className="num">{totalQuantity != null ? formatNumber(totalQuantity, 2) : "—"}</td>
+                    <td>{item.unit}</td>
+                    <td className="num">{formatMoney(item.unit_price, "PYG")}</td>
+                    <td className="num font-mono">{total != null ? formatMoney(total, "PYG") : "—"}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
           <p className="text-[11px] text-[var(--muted)]">
-            &quot;Actualizar cant. presupuesto&quot; sobrescribe la cantidad del rubro con la suma BIM — es una acción
-            explícita, nunca automática.
+            El precio siempre viene de budget_items — DeepSeek nunca genera precio, solo propone a qué rubro
+            corresponde cada grupo.
           </p>
         </div>
       ) : null}
