@@ -34,15 +34,20 @@ export interface HistoricalCheckpoint {
   last_updated_at: string;
 }
 
-const CHECKPOINT_FILE = path.resolve(process.cwd(), "data/construction-v1-backfill-checkpoint.json");
+let activeCheckpointFile = path.resolve(process.cwd(), "data/construction-v1-backfill-checkpoint.json");
 const BASE_RECORD_URL = "https://www.contrataciones.gov.py/datos/api/v3/doc/ocds/record";
 export const LAB_PROJECT_REF = "klvvlybltcmowoptogpe";
 export const PROD_PROJECT_REF = "ezucivipgmbvamhugkbj";
 
-export function loadCheckpoint(): HistoricalCheckpoint {
-  if (fs.existsSync(CHECKPOINT_FILE)) {
+export function setCheckpointFile(customPath: string) {
+  activeCheckpointFile = path.resolve(process.cwd(), customPath);
+}
+
+export function loadCheckpoint(customPath?: string): HistoricalCheckpoint {
+  const filePath = customPath ? path.resolve(process.cwd(), customPath) : activeCheckpointFile;
+  if (fs.existsSync(filePath)) {
     try {
-      const data = JSON.parse(fs.readFileSync(CHECKPOINT_FILE, "utf8"));
+      const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
       return {
         ...data,
         current_record_index: data.current_record_index ?? 0,
@@ -73,12 +78,13 @@ export function loadCheckpoint(): HistoricalCheckpoint {
   };
 }
 
-export function saveCheckpoint(cp: HistoricalCheckpoint) {
+export function saveCheckpoint(cp: HistoricalCheckpoint, customPath?: string) {
+  const filePath = customPath ? path.resolve(process.cwd(), customPath) : activeCheckpointFile;
   cp.last_updated_at = new Date().toISOString();
-  if (!fs.existsSync(path.dirname(CHECKPOINT_FILE))) {
-    fs.mkdirSync(path.dirname(CHECKPOINT_FILE), { recursive: true });
+  if (!fs.existsSync(path.dirname(filePath))) {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
   }
-  fs.writeFileSync(CHECKPOINT_FILE, JSON.stringify(cp, null, 2), "utf8");
+  fs.writeFileSync(filePath, JSON.stringify(cp, null, 2), "utf8");
 }
 
 export function extractProjectRef(supabaseUrl: string): string | null {
@@ -142,9 +148,19 @@ export async function runHistoricalBackfill(options?: {
   maxProcesses?: number;
   startYear?: number;
   endYear?: number;
+  targetWindow?: string;
+  checkpointPath?: string;
   cliArgs?: string[];
   stopAfterFirstWindow?: boolean;
 }) {
+  const cliArgs = options?.cliArgs || process.argv;
+  const windowArg = cliArgs.find((a) => a.startsWith("--window="))?.split("=")[1] || options?.targetWindow;
+  const cpPathArg = cliArgs.find((a) => a.startsWith("--checkpoint="))?.split("=")[1] || options?.checkpointPath;
+
+  if (cpPathArg) {
+    setCheckpointFile(cpPathArg);
+  }
+
   const env = Object.fromEntries(
     fs.readFileSync(path.resolve(process.cwd(), ".env.local"), "utf8")
       .split("\n")
@@ -159,13 +175,21 @@ export async function runHistoricalBackfill(options?: {
   const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
 
   // 1. Production safety verification
-  verifyProductionSafety(supabaseUrl, options?.cliArgs || process.argv);
+  verifyProductionSafety(supabaseUrl, cliArgs);
 
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false },
   });
 
   const enumerator = new HistoricalDncpEnumerator(options?.startYear ?? 2020, options?.endYear ?? 2026);
+  if (windowArg) {
+    const matchedWindow = enumerator.windows.find((w) => w.id === windowArg);
+    if (!matchedWindow) {
+      throw new Error(`Window '${windowArg}' not found in enumerator windows`);
+    }
+    enumerator.windows.splice(0, enumerator.windows.length, matchedWindow);
+  }
+
   const cp = loadCheckpoint();
   const maxToProcess = options?.maxProcesses ?? Infinity;
 

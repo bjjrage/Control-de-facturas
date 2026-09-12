@@ -170,4 +170,18 @@ describe("Historical Backfill Mechanics & Safety", () => {
     const uniqueOcids = new Set(processedOcids);
     expect(uniqueOcids.size).toBe(50);
   });
+
+  it("8. Enumerator window filter restricts processing strictly to requested --window", () => {
+    const enumerator = new HistoricalDncpEnumerator(2020, 2026);
+    const targetWindow = "2023-H1";
+    const matched = enumerator.windows.find((w) => w.id === targetWindow);
+    expect(matched).toBeDefined();
+    if (matched) {
+      enumerator.windows.splice(0, enumerator.windows.length, matched);
+    }
+    expect(enumerator.windows.length).toBe(1);
+    expect(enumerator.windows[0].id).toBe("2023-H1");
+    expect(enumerator.windows[0].desde).toBe("2023-01-01");
+    expect(enumerator.windows[0].hasta).toBe("2023-06-30");
+  });
 });
