@@ -168,9 +168,7 @@ export function createIfcViewer(
     // matriz identidad en vez de la transformación real de cada elemento.
     modelRoot.updateMatrixWorld(true);
     const box = boundsOf(modelRoot.children);
-    console.log("[bim-viewer-diag2] fitAll box =", box, "children=", modelRoot.children.length);
     if (box) fitToBox(box);
-    console.log("[bim-viewer-diag2] camera after fitAll", camera.position.toArray(), "target", controls.target.toArray(), "near/far", camera.near, camera.far);
   }
 
   function fitSelection() {
@@ -191,12 +189,6 @@ export function createIfcViewer(
 
     const geometryCache = new Map<number, THREE.BufferGeometry>();
     const flatMeshes = api.LoadAllGeometry(modelID);
-    console.log(
-      "[bim-viewer-diag3] flatMeshes.size()=",
-      flatMeshes.size(),
-      "geometries per mesh=",
-      Array.from({ length: flatMeshes.size() }, (_, k) => flatMeshes.get(k).geometries.size())
-    );
 
     for (let i = 0; i < flatMeshes.size(); i++) {
       const flatMesh = flatMeshes.get(i);
@@ -215,19 +207,6 @@ export function createIfcViewer(
           geometry = buildGeometry(vertexData, indexData);
           geometryCache.set(placed.geometryExpressID, geometry);
           ifcGeometry.delete();
-          if (geometryCache.size <= 3) {
-            geometry.computeBoundingBox();
-            console.log(
-              `[bim-viewer-diag3] i=${i} g=${g} vlen=${vertexData.length} ilen=${indexData.length}`,
-              "first9vertex=",
-              Array.from(vertexData.slice(0, 9)),
-              "geomBBox=",
-              geometry.boundingBox?.min.toArray(),
-              geometry.boundingBox?.max.toArray(),
-              "flatTransformation=",
-              Array.from(placed.flatTransformation)
-            );
-          }
         }
 
         const { x: r, y: gC, z: b, w: a } = placed.color;
