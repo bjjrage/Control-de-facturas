@@ -11,6 +11,7 @@ import { DeepSeekSemanticMatcher } from "@/lib/bim/deepseek-matcher";
 import { DeepSeekBatchSemanticMatcher, type BatchMatchItem } from "@/lib/bim/deepseek-batch-matcher";
 import { groupElements } from "@/lib/bim/grouping";
 import { planRegroup } from "@/lib/bim/regroup-planning";
+import { checkTechnicalIntegrity } from "@/lib/bim/technical-integrity";
 import type { BimElement, BimModel, BimBudgetMatch, BimElementGroup, BimGroupMatch, BudgetItem } from "@/lib/types";
 
 async function assertProjectAccess(projectId: string) {
@@ -239,6 +240,7 @@ export interface ProcessBimGroupsResult {
   groupCount: number;
   suggested: number;
   review: number;
+  reviewRequired: number;
   noMatch: number;
   totalTokens: number;
   latencyMs: number;
@@ -257,6 +259,7 @@ export async function processBimGroups(projectId: string, bimModelId: string): P
     groupCount: 0,
     suggested: 0,
     review: 0,
+    reviewRequired: 0,
     noMatch: 0,
     totalTokens: 0,
     latencyMs: 0,
@@ -332,6 +335,7 @@ export async function processBimGroups(projectId: string, bimModelId: string): P
       groupCount: lockedGroupCount,
       suggested: 0,
       review: 0,
+      reviewRequired: 0,
       noMatch: 0,
       totalTokens: 0,
       latencyMs: Date.now() - startedAt,
@@ -384,17 +388,35 @@ export async function processBimGroups(projectId: string, bimModelId: string): P
 
   let suggested = 0;
   let review = 0;
+  let reviewRequired = 0;
   let noMatch = 0;
   let totalTokens = 0;
-  const rows: { group_id: string; budget_item_id: string | null; method: "SEMANTIC"; score: number; reason: string; status: "SUGGESTED" | "REVIEW" | "NO_MATCH" }[] = [];
+  const rows: {
+    group_id: string;
+    budget_item_id: string | null;
+    method: "SEMANTIC";
+    score: number;
+    reason: string;
+    status: "SUGGESTED" | "REVIEW" | "REVIEW_REQUIRED" | "NO_MATCH";
+  }[] = [];
 
   for (let i = 0; i < drafts.length; i += GROUP_BATCH_SIZE) {
     const batchDrafts = drafts.slice(i, i + GROUP_BATCH_SIZE);
     const batchGroupIds = groupIds.slice(i, i + GROUP_BATCH_SIZE);
+    // Validación técnica ANTES de llamar a DeepSeek: si el input de un grupo
+    // ya viene contradictorio (espesor/resistencia/material en conflicto
+    // entre name/material/properties) o expresa un rango que deja más de un
+    // candidato plausible, se marca acá — pero igual se le manda a DeepSeek
+    // (ver más abajo), que sigue proponiendo un candidato informativo.
+    const integrityByGroup = new Map<string, ReturnType<typeof checkTechnicalIntegrity>>();
     const items: BatchMatchItem[] = batchDrafts.map((draft, idx) => {
       const rep = draft.representative;
       const groupElement: BimElement = { ...rep, quantity_value: draft.totalQuantity ?? rep.quantity_value };
       const candidates = buildCandidatePool(groupElement, matchableItems);
+      // matchableItems (no `candidates`): el chequeo de rango necesita ver el
+      // catálogo completo, porque buildCandidatePool ya colapsa un rango a un
+      // solo extremo de espesor y ocultaría la ambigüedad.
+      integrityByGroup.set(batchGroupIds[idx], checkTechnicalIntegrity(groupElement, matchableItems));
       return { elementId: batchGroupIds[idx], input: toSemanticMatchInput(groupElement, candidates) };
     });
 
@@ -407,10 +429,11 @@ export async function processBimGroups(projectId: string, bimModelId: string): P
         groupCount: lockedGroupCount + drafts.length,
         suggested,
         review,
+        reviewRequired,
         noMatch,
         totalTokens,
         latencyMs: Date.now() - startedAt,
-        error: `Se procesaron ${suggested + review + noMatch} grupos antes de un error de DeepSeek: ${e instanceof Error ? e.message : String(e)}`,
+        error: `Se procesaron ${suggested + review + reviewRequired + noMatch} grupos antes de un error de DeepSeek: ${e instanceof Error ? e.message : String(e)}`,
       };
     }
     totalTokens += matcher.lastUsage?.totalTokens ?? 0;
@@ -418,6 +441,22 @@ export async function processBimGroups(projectId: string, bimModelId: string): P
     for (const groupId of batchGroupIds) {
       const result = batchResults.get(groupId);
       if (!result) continue;
+      const integrity = integrityByGroup.get(groupId);
+
+      if (integrity?.vicious) {
+        // El input está viciado: nunca se auto-confirma, sin importar lo que
+        // haya decidido DeepSeek. Si DeepSeek propuso un candidato, se
+        // conserva como sugerencia informativa (budget_item_id permitido
+        // para REVIEW_REQUIRED) — la UI exige elección manual explícita.
+        const suggestedCandidateId = result.decision === "MATCH" ? result.candidateId : null;
+        const reasonText = result.reason
+          ? `[${integrity.reason}] ${result.reason}`
+          : `[${integrity.reason}] Input técnico contradictorio o ambiguo — requiere revisión humana.`;
+        rows.push({ group_id: groupId, budget_item_id: suggestedCandidateId, method: "SEMANTIC", score: result.confidence, reason: reasonText, status: "REVIEW_REQUIRED" });
+        reviewRequired++;
+        continue;
+      }
+
       if (result.decision === "MATCH" && result.candidateId) {
         rows.push({ group_id: groupId, budget_item_id: result.candidateId, method: "SEMANTIC", score: result.confidence, reason: result.reason, status: "SUGGESTED" });
         suggested++;
@@ -434,13 +473,13 @@ export async function processBimGroups(projectId: string, bimModelId: string): P
   if (rows.length > 0) {
     const { error } = await supabase.from("bim_group_matches").insert(rows);
     if (error) {
-      return { elementCount: elements.length, groupCount: lockedGroupCount + drafts.length, suggested, review, noMatch, totalTokens, latencyMs: Date.now() - startedAt, error: error.message };
+      return { elementCount: elements.length, groupCount: lockedGroupCount + drafts.length, suggested, review, reviewRequired, noMatch, totalTokens, latencyMs: Date.now() - startedAt, error: error.message };
     }
   }
 
   await logAudit(supabase, {
     action: "bim.groups_processed",
-    detail: { project_id: projectId, bim_model_id: bimModelId, element_count: elements.length, group_count: drafts.length, suggested, review, no_match: noMatch },
+    detail: { project_id: projectId, bim_model_id: bimModelId, element_count: elements.length, group_count: drafts.length, suggested, review, review_required: reviewRequired, no_match: noMatch },
   });
 
   revalidatePath(`/projects/${projectId}`);
@@ -449,6 +488,7 @@ export async function processBimGroups(projectId: string, bimModelId: string): P
     groupCount: lockedGroupCount + drafts.length,
     suggested,
     review,
+    reviewRequired,
     noMatch,
     totalTokens,
     latencyMs: Date.now() - startedAt,
@@ -501,7 +541,7 @@ export async function confirmGroupMatch(
     .from("bim_group_matches")
     .select("id, budget_item_id")
     .eq("group_id", groupId)
-    .in("status", ["SUGGESTED", "REVIEW"])
+    .in("status", ["SUGGESTED", "REVIEW", "REVIEW_REQUIRED"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

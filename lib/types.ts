@@ -852,7 +852,7 @@ export interface BimElementGroup {
 }
 
 export type BimGroupMatchMethod = "SEMANTIC" | "MANUAL";
-export type BimGroupMatchStatus = "SUGGESTED" | "REVIEW" | "NO_MATCH" | "CONFIRMED" | "REJECTED";
+export type BimGroupMatchStatus = "SUGGESTED" | "REVIEW" | "REVIEW_REQUIRED" | "NO_MATCH" | "CONFIRMED" | "REJECTED";
 
 export interface BimGroupMatch {
   id: string;

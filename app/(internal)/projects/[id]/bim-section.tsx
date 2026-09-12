@@ -33,6 +33,7 @@ const QUANTITY_LABEL: Record<string, string> = {
 const GROUP_STATUS_LABEL: Record<string, string> = {
   SUGGESTED: "Sugerido",
   REVIEW: "A revisar",
+  REVIEW_REQUIRED: "Revisión obligatoria",
   NO_MATCH: "Sin correspondencia",
   CONFIRMED: "Confirmado",
   REJECTED: "Sin asignar",
@@ -363,6 +364,7 @@ export function BimSection({ projectId }: { projectId: string }) {
           <div className="text-[12px] flex flex-wrap gap-x-4">
             <span>{processingResult.suggested} matches sugeridos</span>
             <span>{processingResult.review} requieren revisión</span>
+            <span>{processingResult.reviewRequired} con conflicto técnico (revisión obligatoria)</span>
             <span>{processingResult.noMatch} sin correspondencia</span>
           </div>
           <Button
@@ -634,9 +636,11 @@ export function BimSection({ projectId }: { projectId: string }) {
                               ? "bg-[var(--panel-2)] text-[var(--muted)]"
                               : status === "NO_MATCH"
                                 ? "bg-[var(--error-bg)] text-[var(--error)]"
-                                : status === "REVIEW"
-                                  ? "bg-[var(--panel-2)] text-[var(--fg)]"
-                                  : "bg-[var(--panel-2)] text-[var(--fg)]"
+                                : status === "REVIEW_REQUIRED"
+                                  ? "bg-[var(--warn-bg)] text-[var(--warn)]"
+                                  : status === "REVIEW"
+                                    ? "bg-[var(--panel-2)] text-[var(--fg)]"
+                                    : "bg-[var(--panel-2)] text-[var(--fg)]"
                         }`}
                       >
                         {GROUP_STATUS_LABEL[status] ?? status}
@@ -667,6 +671,18 @@ export function BimSection({ projectId }: { projectId: string }) {
                           </span>
                         </div>
                         {total != null ? <div className="font-mono text-[13px]">Total: {formatMoney(total, "PYG")}</div> : null}
+                        {match?.reason ? <div className="text-[11px] text-[var(--muted)]">{match.reason}</div> : null}
+                      </div>
+                    ) : status === "REVIEW_REQUIRED" ? (
+                      <div className="rounded border border-[var(--warn)]/40 bg-[var(--warn-bg)] px-2.5 py-1.5 text-[12px] space-y-1">
+                        <div className="text-[var(--warn)]">
+                          ⚠ Input técnico contradictorio o ambiguo — revisión humana obligatoria, no se puede confirmar automáticamente.
+                        </div>
+                        {suggestedItem ? (
+                          <div className="text-[11px] text-[var(--muted)]">
+                            Sugerencia de DeepSeek (no auto-confirmable): {suggestedItem.code} — {suggestedItem.description}
+                          </div>
+                        ) : null}
                         {match?.reason ? <div className="text-[11px] text-[var(--muted)]">{match.reason}</div> : null}
                       </div>
                     ) : status === "REVIEW" ? (
