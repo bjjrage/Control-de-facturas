@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { PolicyConfigForm } from '@/components/auction-bot/policy-config-form';
 import { FrozenAuctionPolicy } from '@/lib/auction-bot/types';
+import { PollController, TimeoutError, isNextRedirect, ReconcilingError, DRAIN_TIMEOUT_MESSAGE, createResponseGuard } from '@/lib/auction-sandbox/poll-controller';
 import {
   authorizeAssistedBid,
   authorizeSandboxPolicy,
@@ -37,40 +38,120 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
   // Transient unequivocal feedback right after a freeze (same pattern as the
   // standalone bot page).
   const [justFrozenVersion, setJustFrozenVersion] = useState<number | null>(null);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  // True while a timed-out mutation is still unconfirmed: mutation buttons
+  // stay disabled (no blind retry) while reads keep flowing for reconcile.
+  const [reconciling, setReconciling] = useState(false);
+  // True when the first snapshot never arrived within LOAD_TIMEOUT_MS:
+  // the "Cargando…" state must never wedge forever — offer a retry.
+  const [loadExpired, setLoadExpired] = useState(false);
+  const controllerRef = useRef<PollController | null>(null);
+  const guardRef = useRef(createResponseGuard());
 
   const poll = useCallback(async () => {
-    // Managers heartbeat (advance + bot tick); comercial gets a read-only view.
-    const res = canManage ? await pollOperatorRoom(roomId) : await getOperatorRoomState(roomId);
-    if (res.error) {
-      setError(res.error);
-      return;
-    }
-    if (res.view) {
-      setView(res.view);
-      setError(null);
+    // Epoch guard: a late response must never overwrite fresher state
+    // (e.g. an ACTIVE snapshot landing after CLOSED stopped the timer).
+    const seq = guardRef.current.begin();
+    const alive = () => guardRef.current.isCurrent(seq);
+    try {
+      // Managers heartbeat (advance + bot tick); comercial gets a read-only view.
+      const res = canManage ? await pollOperatorRoom(roomId) : await getOperatorRoomState(roomId);
+      if (!alive()) return;
+      if (res.error) {
+        setError(res.error);
+        return;
+      }
+      if (res.view) {
+        setView(res.view);
+        setError(null);
+      }
+    } catch (e) {
+      if (!alive()) return;
+      // Auth expiry arrives as a redirect digest. It must never be swallowed
+      // into a frozen view: stop polling and send the user to login. (A
+      // rethrow would die inside the controller's guarded tick.)
+      if (isNextRedirect(e)) {
+        controllerRef.current?.stop();
+        window.location.assign('/login');
+        return;
+      }
+      setError('Error de conexión. Revisá tu sesión si persiste.');
     }
   }, [roomId, canManage]);
 
+  const pollRef = useRef(poll);
+  pollRef.current = poll;
+
   useEffect(() => {
-    void poll();
-    timer.current = setInterval(() => void poll(), 1000);
+    const ctl = new PollController(() => pollRef.current(), { intervalMs: 1000 });
+    controllerRef.current = ctl;
+    ctl.onOrphanSettled = () => setReconciling(false);
+    void ctl.tick();
+    ctl.start();
     return () => {
-      if (timer.current) clearInterval(timer.current);
+      ctl.stop();
+      guardRef.current.reset();
+      controllerRef.current = null;
     };
-  }, [poll]);
+  }, []);
+
+  useEffect(() => {
+    if (view) return;
+    const t = setTimeout(() => setLoadExpired(true), 30000);
+    return () => clearTimeout(t);
+  }, [view]);
+
+  const MUTATION_LABELS: Record<string, string> = {
+    start: 'Iniciar subasta',
+    authz: 'Autorizar lance',
+    pause: 'Pausar/reanudar bot',
+    finalize: 'Finalizar demo',
+    links: 'Regenerar links',
+    policy: 'Autorizar policy',
+  };
 
   async function run(key: string, fn: () => Promise<{ error?: string }>) {
+    const ctl = controllerRef.current;
+    const label = MUTATION_LABELS[key] ?? 'Acción';
+    if (ctl?.hasUnsettledMutation) {
+      setError('Hay una acción anterior sin confirmar. Esperá a que se resuelva antes de reintentar.');
+      return;
+    }
     setBusy(key);
     setError(null);
     try {
-      const res = await fn();
-      if (res.error) setError(res.error);
-    } catch {
-      setError('Error de conexión.');
+      const out = ctl
+        ? await ctl.runMutation(fn, 25000, label)
+        : { status: 'done' as const, value: await fn() };
+      if (out.status === 'unknown') {
+        if (out.detail === DRAIN_TIMEOUT_MESSAGE) {
+          // Nothing ran (a stuck read blocked the mutation): safe to retry,
+          // so do NOT enter reconciling lock — that path has no orphan and
+          // would wedge the buttons with no one to clear them.
+          setError(out.detail);
+          return;
+        }
+        // Timeout is NOT a verdict: UI enters reconciling mode (mutations
+        // locked, reads flowing) until the orphan settles or the cap hits.
+        setReconciling(true);
+        setError(
+          `Sin confirmación: ${label} tardó demasiado. Mirá el estado actual de la sala: si ya refleja el cambio, no hace falta reintentar.`
+        );
+        return;
+      }
+      if (out.value.error) setError(out.value.error);
+    } catch (e) {
+      // Redirect digests must navigate here (stop+assign like the poll path):
+      // rethrowing into a floating onClick promise is an unhandled rejection
+      // Next cannot intercept.
+      if (isNextRedirect(e)) {
+        controllerRef.current?.stop();
+        window.location.assign('/login');
+        return;
+      }
+      setError(e instanceof ReconcilingError ? e.message : e instanceof TimeoutError ? e.message : 'Error de conexión.');
+    } finally {
+      setBusy(null);
     }
-    setBusy(null);
-    await poll();
   }
 
   async function copy(text: string, which: string) {
@@ -84,23 +165,65 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
   }
 
   async function handleFrozen(frozen: FrozenAuctionPolicy) {
-    setBusy('policy');
-    const res = await authorizeSandboxPolicy(roomId, frozen, frozen.authorizedBy);
-    setBusy(null);
-    if (res.error) {
-      setError(res.error);
+    const ctl = controllerRef.current;
+    if (ctl?.hasUnsettledMutation) {
+      setError('Hay una acción anterior sin confirmar. Esperá a que se resuelva antes de reintentar.');
       return;
     }
-    setShowPolicy(false);
-    setJustFrozenVersion(res.version ?? null);
-    await poll();
+    setBusy('policy');
+    setError(null);
+    try {
+      const out = ctl
+        ? await ctl.runMutation(() => authorizeSandboxPolicy(roomId, frozen, frozen.authorizedBy), 25000, 'Autorizar policy')
+        : { status: 'done' as const, value: await authorizeSandboxPolicy(roomId, frozen, frozen.authorizedBy) };
+      if (out.status === 'unknown') {
+        if (out.detail === DRAIN_TIMEOUT_MESSAGE) {
+          setError(out.detail);
+          return;
+        }
+        setReconciling(true);
+        setError('Sin confirmación: la autorización tardó demasiado. Revisá si aparece la nueva versión antes de reintentar.');
+        return;
+      }
+      if (out.value.error) {
+        setError(out.value.error);
+        return;
+      }
+      setShowPolicy(false);
+      setJustFrozenVersion(out.value.version ?? null);
+    } catch (e) {
+      // Same stop+assign rule as run(): never rethrow into a floating promise.
+      if (isNextRedirect(e)) {
+        controllerRef.current?.stop();
+        window.location.assign('/login');
+        return;
+      }
+      setError(e instanceof ReconcilingError ? e.message : e instanceof TimeoutError ? e.message : 'Error de conexión.');
+    } finally {
+      setBusy(null);
+    }
   }
 
   if (error && !view) {
-    return <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-[13px] text-[var(--error)]">{error}</div>;
+    return (
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-[13px] text-[var(--error)]">
+        {error}{' '}
+        <button className="underline" onClick={() => window.location.reload()}>Reintentar</button>
+        {' · '}
+        <Link href="/licitaciones/auction-lab" className="underline">Volver a Auction Lab</Link>
+      </div>
+    );
   }
   if (!view) {
-    return <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-[13px] text-[var(--muted)]">Cargando sala…</div>;
+    return (
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-[13px] text-[var(--muted)]">
+        {loadExpired ? (
+          <span>La sala tarda demasiado en cargar. <button className="underline" onClick={() => window.location.reload()}>Reintentar</button></span>
+        ) : (
+          'Cargando sala…'
+        )}
+      </div>
+    );
   }
 
   const { room, ranking, bot } = view;
@@ -126,24 +249,25 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
           ) : (
             <>
           {room.status === 'DRAFT' ? (
-            <Button className="h-8 text-xs" disabled={busy !== null} onClick={() => run('start', () => startSandboxRoom(roomId))}>
+            <Button className="h-8 text-xs" disabled={busy !== null || reconciling} onClick={() => run('start', () => startSandboxRoom(roomId))}>
               {busy === 'start' ? 'Iniciando…' : 'Iniciar subasta'}
             </Button>
           ) : null}
           {room.status !== 'CLOSED' && room.status !== 'DRAFT' ? (
-            <Button variant="secondary" className="h-8 text-xs" disabled={busy !== null} onClick={() => run('pause', () => setSandboxBotPaused(roomId, !view.botPaused))}>
+            <Button variant="secondary" className="h-8 text-xs" disabled={busy !== null || reconciling} onClick={() => run('pause', () => setSandboxBotPaused(roomId, !view.botPaused))}>
               {view.botPaused ? 'Reanudar bot' : 'Pausar bot'}
             </Button>
           ) : null}
           {room.status !== 'CLOSED' && room.status !== 'DRAFT' ? (
-            <Button variant="secondary" className="h-8 text-xs" disabled={busy !== null} onClick={() => run('finalize', () => finalizeSandboxRoom(roomId))}>
+            <Button variant="secondary" className="h-8 text-xs" disabled={busy !== null || reconciling} onClick={() => run('finalize', () => finalizeSandboxRoom(roomId))}>
               Finalizar demo
             </Button>
           ) : null}
+          {room.status !== 'CLOSED' ? (
           <Button
             variant="secondary"
             className="h-8 text-xs"
-            disabled={busy !== null}
+            disabled={busy !== null || reconciling}
             onClick={() =>
               run('links', async () => {
                 const res = await regenerateSandboxLinks(roomId);
@@ -159,9 +283,12 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
           >
             Regenerar links
           </Button>
-          <Button variant="secondary" className="h-8 text-xs" onClick={() => setShowPolicy((s) => !s)}>
+          ) : null}
+          {room.status !== 'CLOSED' ? (
+          <Button variant="secondary" className="h-8 text-xs" disabled={busy !== null || reconciling} onClick={() => setShowPolicy((s) => !s)}>
             {showPolicy ? 'Ocultar policy' : 'Cambiar policy'}
           </Button>
+          ) : null}
             </>
           )}
         </div>
@@ -169,7 +296,13 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
 
       {error ? <p className="text-[12px] text-[var(--error)]">{error}</p> : null}
 
-      {justFrozenVersion !== null && bot.policyVersion === justFrozenVersion ? (
+      {reconciling && room.status !== 'CLOSED' ? (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-[12px] font-medium text-amber-600 dark:text-amber-400">
+          Acción sin confirmar — reconciliando con el servidor. Las acciones están pausadas hasta confirmar el resultado; no hace falta reintentar.
+        </div>
+      ) : null}
+
+      {justFrozenVersion !== null && bot.policyVersion === justFrozenVersion && room.status !== 'CLOSED' ? (
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 flex items-center gap-2.5">
           <div className="text-[13px]">
             <span className="font-semibold text-[var(--foreground)]">
@@ -189,6 +322,7 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
       {links ? (
         <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-2 text-[13px]">
           <p className="font-semibold text-emerald-600 dark:text-emerald-400">Links nuevos — se muestran una sola vez.</p>
+          <p className="text-[11px] text-[var(--muted)]">Copiá ambos links antes de salir o recargar: si perdés uno vas a tener que regenerar (y el otro se invalida).</p>
           {([['competidor', links.competitor], ['observer', links.observer]] as const).map(([which, url]) => (
             <div key={which} className="flex items-center gap-2">
               <span className="text-[11px] uppercase text-[var(--muted)] w-24 shrink-0">{which}</span>
@@ -244,7 +378,7 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
               <div className="text-[var(--muted)]">{String(bot.lastDecision.reasonDescription ?? bot.lastDecision.reasonCode ?? '')}</div>
             </div>
           ) : null}
-          {bot.pendingCandidate && room.status !== 'CLOSED' ? (
+          {bot.pendingCandidate && (room.status === 'ACTIVE_NORMAL' || room.status === 'ACTIVE_RANDOM') ? (
             <div className="rounded-lg border-2 border-amber-500/40 bg-amber-500/10 p-3">
               <p className="text-[12px] font-semibold text-amber-600 dark:text-amber-400">
                 BOT PROPONE ₲ {Number(bot.pendingCandidate.pricePyg).toLocaleString('es-PY')}
@@ -252,7 +386,7 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
               {canManage ? (
                 <Button
                   className="h-8 text-xs mt-2"
-                  disabled={busy !== null}
+                  disabled={busy !== null || reconciling}
                   onClick={() => run('authz', () => authorizeAssistedBid(roomId).then((r) => ({ error: r.error })))}
                 >
                   {busy === 'authz' ? 'Autorizando…' : 'Autorizar lance'}
@@ -293,7 +427,7 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
         </div>
       </div>
 
-      {showPolicy && canManage ? (
+      {showPolicy && canManage && room.status !== 'CLOSED' ? (
         <div className="space-y-2">
           <h2 className="text-[13px] font-semibold">Autorizar policy {bot.policyVersion !== null ? `v${bot.policyVersion + 1}` : 'v1'}</h2>
           <PolicyConfigForm

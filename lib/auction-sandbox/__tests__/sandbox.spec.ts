@@ -8,8 +8,8 @@ import { describe, it, expect } from 'vitest';
 import { snapshotToAuctionState } from '../auction-state-adapter';
 import { planAssistedSubmit, recheckAndSubmit, roomSbeConstraints, runBotTick } from '../bot-runner';
 import { rankBids, validateSandboxBid, computePhase } from '../engine';
-import { buildPolicyVersionRecord, checkPolicyContinuity, policyFromSnapshot } from '../policies';
-import { buildJoinView, buildWatchView, publicRoomInfo } from '../server';
+import { buildPolicyVersionRecord, checkPolicyContinuity, policyFromSnapshot, samePolicyContent } from '../policies';
+import { buildJoinView, buildWatchView, missingPolicyEvents, publicRoomInfo } from '../server';
 import { calculateAutoLimitPyg, freezePolicy } from '../../auction-bot/policy';
 import { evaluateAuctionStep } from '../../auction-bot/engine';
 import { AuctionBotStateMachine } from '../../auction-bot/state-machine';
@@ -453,5 +453,83 @@ describe('recentBids is real history, ranking stays collapsed (F1/F3)', () => {
     expect(view.recentBids).toHaveLength(4);
     expect(view.recentBids.map((x) => x.server_sequence)).toEqual([4, 3, 2, 1]);
     expect(view.recentBids[0]).toMatchObject({ participant_id: 'bot', price_pyg: 999_989, display_alias: 'Nuestro Bot', kind: 'BOT' });
+  });
+});
+
+describe('samePolicyContent — retry idempotency without version inflation', () => {
+  function draft(): AuctionPolicy {
+    return {
+      policyId: 'pol-sandbox-room-acc',
+      auctionId: 'room-acc',
+      groupId: 'item-1',
+      scope: 'ITEM',
+      positionStrategy: 'TARGET_RANK_1',
+      targetRank: 1,
+      defenseStepPyg: 1,
+      normalPhaseBehavior: 'WAIT',
+      safeWindowBehavior: 'WAIT',
+      enterTargetPositionInEntryWindow: true,
+      defendImmediatelyInCloseRisk: true,
+      targetPricePyg: 1_000_000,
+      autoDefenseToleranceBps: 200,
+      autoLimitPyg: 980_000,
+      mipymePolicy: { enabled: false, executionMode: 'OBSERVE', defenseStepPyg: 1, economicLimitMode: 'USE_CURRENT_AUTO_LIMIT' },
+      executionMode: 'BOUNDED_AUTO',
+      maxStalenessMs: 5000,
+      authorizedBy: 'Anyone',
+    };
+  }
+
+  it('ignores metadata, compares economics', () => {
+    const a = draft();
+    expect(samePolicyContent(a, { ...a, authorizedBy: 'Else' })).toBe(true);
+    expect(samePolicyContent(a, { ...a, policyId: 'other' })).toBe(true);
+    expect(samePolicyContent(a, { ...a, targetPricePyg: 2 })).toBe(false);
+    expect(samePolicyContent(a, { ...a, autoDefenseToleranceBps: 300, autoLimitPyg: 970_000 })).toBe(false);
+    expect(samePolicyContent(a, { ...a, executionMode: 'ASSISTED' })).toBe(false);
+  });
+});
+
+describe('missingPolicyEvents + version-gated pending display', () => {
+  it('flags only truly-missing versions under complete history', () => {
+    const ev = (seq: number, version?: number) => ({
+      id: `e${seq}`, room_id: 'room-acc',
+      type: version === undefined ? 'ROOM_CREATED' : 'POLICY_AUTHORIZED',
+      payload: version === undefined ? {} : { version },
+      server_sequence: seq, created_at: T0,
+    });
+    const base = snap(room(), []);
+    const mk = (policies: number[], events: ReturnType<typeof ev>[]) => ({
+      ...base,
+      policies: policies.map((version) => ({
+        room_id: 'room-acc', version, policy_id: 'p', snapshot: {}, fingerprint: 'f',
+        authorized_by: 'op', authorized_at: T0,
+      })),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      events: events as any,
+    });
+    expect(missingPolicyEvents(mk([1, 2], [ev(0), ev(1, 1), ev(2, 2)]))).toEqual([]);
+    expect(missingPolicyEvents(mk([1, 2], [ev(0), ev(1, 1)]))).toEqual([2]);
+    // Truncated history (max >= 200): never backfill.
+    expect(missingPolicyEvents(mk([1], [ev(250)]))).toEqual([]);
+  });
+
+  it('hides a pending candidate bound to a stale version', () => {
+    const base = snap(room(), [humanBid(1, 999_999, T0)]);
+    const withStalePending = {
+      ...base,
+      policies: [{
+        room_id: 'room-acc', version: 2, policy_id: 'p', snapshot: {}, fingerprint: 'f',
+        authorized_by: 'op', authorized_at: T0,
+      }],
+      events: [],
+      room: {
+        ...base.room,
+        bot_runtime: { pendingCandidate: { pricePyg: 1, basisObservedAt: T0, policyVersion: 1, decidedAt: T0 } },
+      },
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const view = buildWatchView(withStalePending as any, T0);
+    expect(view.pendingCandidate).toBeNull();
   });
 });

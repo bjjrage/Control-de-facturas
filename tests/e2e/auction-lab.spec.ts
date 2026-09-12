@@ -30,13 +30,13 @@ test.describe('Auction Lab', () => {
     await expect(page.getByText(/bot/i).first()).toBeVisible();
   });
 
-  test('link de competidor inválido muestra 404', async ({ page }) => {
-    const res = await page.goto('/auction-lab/join/' + '0'.repeat(43));
-    expect(res?.status()).toBe(404);
+  test('link de competidor inválido muestra ayuda, no 404 seco', async ({ page }) => {
+    await page.goto('/auction-lab/join/' + '0'.repeat(43));
+    await expect(page.getByText(/ya no es válido/i)).toBeVisible({ timeout: 15_000 });
   });
 
-  test('link de observer inválido muestra 404', async ({ page }) => {
-    const res = await page.goto('/auction-lab/watch/' + '0'.repeat(43));
-    expect(res?.status()).toBe(404);
+  test('link de observer inválido muestra ayuda, no 404 seco', async ({ page }) => {
+    await page.goto('/auction-lab/watch/' + '0'.repeat(43));
+    await expect(page.getByText(/ya no es válido/i)).toBeVisible({ timeout: 15_000 });
   });
 });

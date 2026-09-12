@@ -49,19 +49,22 @@ export async function loadSandboxBundle(db: Db, roomId: string): Promise<{ bundl
   const typedRoom = room as unknown as SandboxRoom;
   const [participants, bids, policies, events] = await Promise.all([
     db.from('auction_sandbox_participants').select('*').eq('room_id', roomId).order('created_at'),
-    db.from('auction_sandbox_bids').select('*').eq('room_id', roomId).eq('accepted', true).order('server_sequence'),
+    // Latest 200 by sequence DESC (a rejection-spam flood can never push the
+    // close/winner tail out of view), then back to ASC for the bundle contract.
+    db.from('auction_sandbox_bids').select('*').eq('room_id', roomId).eq('accepted', true).order('server_sequence', { ascending: false }).limit(200),
     db.from('auction_sandbox_policy_versions').select('*').eq('room_id', roomId).order('version'),
-    db.from('auction_sandbox_events').select('*').eq('room_id', roomId).order('server_sequence').limit(200),
+    db.from('auction_sandbox_events').select('*').eq('room_id', roomId).order('server_sequence', { ascending: false }).limit(200),
   ]);
   const failed = [participants, bids, policies, events].find((q) => q.error);
   if (failed?.error) return { error: `No se pudo leer la sala (${failed.error.code ?? 'read-error'}).` };
+  const asc = <T,>(rows: T[] | null): T[] => [...(rows ?? [])].reverse();
   return {
     bundle: {
       room: typedRoom,
       participants: (participants.data ?? []) as SandboxParticipant[],
-      bids: (bids.data ?? []) as SandboxBid[],
+      bids: asc(bids.data as SandboxBid[] | null),
       policies: (policies.data ?? []) as SandboxPolicyVersion[],
-      events: (events.data ?? []) as SandboxEvent[],
+      events: asc(events.data as SandboxEvent[] | null),
     },
   };
 }
@@ -80,6 +83,95 @@ export interface AssistedCandidate {
   basisObservedAt: string;
   policyVersion: number;
   decidedAt: string;
+}
+
+/**
+ * STOP terminal gate per policy version: once the persisted runtime records
+ * a STOP decision for the CURRENT policy version, further ticks must not
+ * re-evaluate or emit — a fresh Core machine deterministically re-derives
+ * STOP from the same (monotonically decreasing) snapshot, so skipping is
+ * pure hardening against decision/event spam. A newly authorized policy
+ * version revives the bot (v differs from the recorded STOP).
+ */
+export function botStoppedOnVersion(
+  runtime: Record<string, unknown> | null | undefined,
+  policyVersion: number
+): boolean {
+  const last = ((runtime ?? {}).lastBotStatus ?? {}) as { action?: unknown; v?: unknown };
+  return last.action === 'STOP' && last.v === policyVersion;
+}
+
+export type BotTickSkipReason = 'PAUSED' | 'NO_POLICY' | 'NOT_ACTIVE' | 'STOPPED';
+
+/**
+ * Every botTick early-exit in ONE pure, tested place: paused, no authorized
+ * policy, room not active, or STOP-terminal on the current policy version.
+ * Null means "evaluate". Keeps the server action a thin wire to this.
+ */
+export function botTickSkipReason(bundle: SandboxBundle): BotTickSkipReason | null {
+  if (bundle.room.bot_paused) return 'PAUSED';
+  if (bundle.policies.length === 0) return 'NO_POLICY';
+  if (bundle.room.status !== 'ACTIVE_NORMAL' && bundle.room.status !== 'ACTIVE_RANDOM') return 'NOT_ACTIVE';
+  const latest = bundle.policies[bundle.policies.length - 1];
+  if (botStoppedOnVersion(bundle.room.bot_runtime as unknown as Record<string, unknown>, latest.version)) {
+    return 'STOPPED';
+  }
+  return null;
+}
+
+/**
+ * Fail-fast refusal for authorize paths on a dead room. Pure + tested so the
+ * message and the CLOSED check cannot drift between authorizeSandboxPolicy
+ * and authorizeAssistedBid.
+ */
+export function refuseIfRoomClosed(status: SandboxRoom['status']): string | null {
+  return status === 'CLOSED' ? 'La sala está cerrada.' : null;
+}
+
+/**
+ * Version-level continuity: the version a candidate was computed under must
+ * still be the latest. Note !== (not >): a decision bound to a
+ * NEWER-than-latest version is equally invalid — fail closed in both
+ * directions (there is no policy-delete path, so newer-than-latest means a
+ * torn read, never a legitimate state).
+ */
+export function isVersionSuperseded(latestVersion: number | null, decisionVersion: number): boolean {
+  return latestVersion === null || latestVersion !== decisionVersion;
+}
+
+/**
+ * Policy continuity across a fresh re-read: the version a candidate was
+ * computed under must still be the latest. A newly authorized version (e.g.
+ * a tighter autoLimit) invalidates the in-flight candidate — submitting it
+ * would breach the CURRENT policy. Fail closed: abort, the next tick or
+ * operator retry re-evaluates under the new version.
+ */
+export function policyVersionSuperseded(freshBundle: SandboxBundle, decisionPolicyVersion: number): boolean {
+  const latest = freshBundle.policies[freshBundle.policies.length - 1];
+  return isVersionSuperseded(latest?.version ?? null, decisionPolicyVersion);
+}
+
+/**
+ * STOPPED-event backfill proof: the runtime records a STOP on version v but
+ * no BOT_STOPPED event carries that version — i.e. the decision committed
+ * while the terminal marker write failed. Provable only under the same
+ * history-completeness rule as the other backfills (else absence proves
+ * nothing). Returns the stopped versions to backfill (at most one: STOP is
+ * terminal per version).
+ */
+export function missingStoppedEvents(bundle: SandboxBundle): number[] {
+  const seqs = bundle.events.map((e) => e.server_sequence);
+  const complete = seqs.length === 0 || Math.max(...seqs) < 200;
+  if (!complete) return [];
+  const last = bundle.room.bot_runtime?.lastBotStatus;
+  if (!last || last.action !== 'STOP') return [];
+  const marked = new Set(
+    bundle.events
+      .filter((e) => e.type === 'BOT_STOPPED')
+      .map((e) => (e.payload as Record<string, unknown>).policyVersion)
+      .filter((v): v is number => typeof v === 'number')
+  );
+  return marked.has(last.v) ? [] : [last.v];
 }
 
 /**
@@ -108,6 +200,68 @@ export function computeNextRuntime(
 
 export function rankBundle(bundle: SandboxBundle): SandboxRankedEntry[] {
   return rankBids(bundle.bids, (pid) => aliasOf(bundle, pid));
+}
+
+export interface DecisionFingerprint {
+  action: string;
+  reasonCode: string;
+  candidatePricePyg: number | null;
+  policyVersion: number;
+}
+
+/**
+ * True when no identical BOT_DECISION is already recorded in the loaded
+ * bundle: prevents duplicate decision events when a previous tick committed
+ * the event but failed to persist the runtime (or two tabs race). The check
+ * is advisory (TOCTOU across tabs remains, narrowed to one RPC round trip),
+ * never a correctness gate for bidding.
+ */
+export function shouldEmitDecision(bundle: SandboxBundle, decision: DecisionFingerprint): boolean {
+  return !bundle.events.some(
+    (e) =>
+      e.type === 'BOT_DECISION' &&
+      (e.payload as Record<string, unknown>).action === decision.action &&
+      (e.payload as Record<string, unknown>).reasonCode === decision.reasonCode &&
+      ((e.payload as Record<string, unknown>).candidatePricePyg ?? null) === (decision.candidatePricePyg ?? null) &&
+      (e.payload as Record<string, unknown>).policyVersion === decision.policyVersion
+  );
+}
+
+/**
+ * Initial-event backfill proof (fail-closed): returns which of ROOM_CREATED /
+ * AUCTION_STARTED are provably missing. Provable only when the loaded history
+ * is complete — i.e. max server_sequence < 200 (nothing could have aged out
+ * of the 200-event window) — otherwise absence proves nothing and no
+ * backfill is attempted (avoids duplicates).
+ */
+export function missingInitialEvents(bundle: SandboxBundle): Array<'ROOM_CREATED' | 'AUCTION_STARTED'> {  const seqs = bundle.events.map((e) => e.server_sequence);
+  const complete = seqs.length === 0 || Math.max(...seqs) < 200;
+  if (!complete) return [];
+  const types = new Set(bundle.events.map((e) => e.type));
+  const missing: Array<'ROOM_CREATED' | 'AUCTION_STARTED'> = [];
+  if (!types.has('ROOM_CREATED')) missing.push('ROOM_CREATED');
+  if (bundle.room.status !== 'DRAFT' && bundle.room.started_at && !types.has('AUCTION_STARTED')) {
+    missing.push('AUCTION_STARTED');
+  }
+  return missing;
+}
+
+/**
+ * Policy-event backfill proof: versions persisted without their
+ * POLICY_AUTHORIZED event, provable only under the same completeness rule
+ * as missingInitialEvents. Returns the version numbers to backfill.
+ */
+export function missingPolicyEvents(bundle: SandboxBundle): number[] {
+  const seqs = bundle.events.map((e) => e.server_sequence);
+  const complete = seqs.length === 0 || Math.max(...seqs) < 200;
+  if (!complete || bundle.policies.length === 0) return [];
+  const announced = new Set(
+    bundle.events
+      .filter((e) => e.type === 'POLICY_AUTHORIZED')
+      .map((e) => (e.payload as Record<string, unknown>).version)
+      .filter((v): v is number => typeof v === 'number')
+  );
+  return bundle.policies.map((p) => p.version).filter((v) => !announced.has(v));
 }
 
 // NOTE: phase transitions run EXCLUSIVELY inside the advance_sandbox_room /
@@ -282,7 +436,11 @@ export function buildWatchView(bundle: SandboxBundle, nowIso: string): WatchView
     // Canonical: persisted lastBotStatus is ALWAYS the object shape (see
     // SandboxBotRuntime); only .action (a string) leaves the server.
     botStatus: bundle.room.bot_runtime?.lastBotStatus?.action ?? null,
-    pendingCandidate: bundle.room.bot_runtime?.pendingCandidate ?? null,
+    // A stored candidate is only exposed when bound to the ACTIVE version.
+    pendingCandidate:
+      bundle.room.bot_runtime?.pendingCandidate?.policyVersion === latestPolicy?.version
+        ? (bundle.room.bot_runtime?.pendingCandidate ?? null)
+        : null,
     timeline,
     kpis: {
       botBids: botBids.length,

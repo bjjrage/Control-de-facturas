@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { WatchView } from '@/lib/auction-sandbox/server';
+import { PollController, isNextRedirect, createResponseGuard } from '@/lib/auction-sandbox/poll-controller';
 import { getWatchView } from './actions';
 
 function fmtT(iso: string): string {
@@ -12,39 +13,94 @@ function fmtT(iso: string): string {
 export function WatchConsole({ token }: { token: string }) {
   const [view, setView] = useState<WatchView | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [loadExpired, setLoadExpired] = useState(false);
+  const controllerRef = useRef<PollController | null>(null);
+  const guardRef = useRef(createResponseGuard());
 
   const poll = useCallback(async () => {
-    const res = await getWatchView(token);
-    if (res.error) {
-      setError(res.error);
-      return;
-    }
-    if (res.view) {
-      setView(res.view);
-      setError(null);
+    // Epoch guard: a late response must never overwrite fresher state.
+    const seq = guardRef.current.begin();
+    const alive = () => guardRef.current.isCurrent(seq);
+    try {
+      const res = await getWatchView(token);
+      if (!alive()) return;
+      if (res.error) {
+        setError(res.error);
+        if (/inválido|vencido/i.test(res.error)) controllerRef.current?.stop();
+        return;
+      }
+      if (res.view) {
+        setView(res.view);
+        setError(null);
+        if (res.view.room.status === 'CLOSED') controllerRef.current?.stop();
+      }
+    } catch (e) {
+      if (!alive()) return;
+      if (isNextRedirect(e)) {
+        controllerRef.current?.stop();
+        window.location.reload();
+        return;
+      }
+      setError('Error de conexión. Revisá tu sesión si persiste.');
     }
   }, [token]);
+  const pollRef = useRef(poll);
+  pollRef.current = poll;
 
   useEffect(() => {
-    void poll();
-    timer.current = setInterval(() => void poll(), 1000);
+    const ctl = new PollController(() => pollRef.current(), { intervalMs: 1000 });
+    controllerRef.current = ctl;
+    void ctl.tick();
+    ctl.start();
     return () => {
-      if (timer.current) clearInterval(timer.current);
+      ctl.stop();
+      guardRef.current.reset();
+      controllerRef.current = null;
     };
-  }, [poll]);
+  }, []);
+
+  useEffect(() => {
+    if (view) return;
+    const t = setTimeout(() => setLoadExpired(true), 30000);
+    return () => clearTimeout(t);
+  }, [view]);
+
+  // A token error with a loaded view means the link died mid-session:
+  // replace the stale board instead of a live-looking screen + banner.
+  const linkDead = error !== null && /inválido|vencido/i.test(error);
+  if (linkDead) {
+    return (
+      <div className="min-h-screen bg-[var(--background)] px-4 py-8">
+        <div className="mx-auto w-full max-w-3xl space-y-4">
+          <Image src="/logo/niupack-wordmark.svg" alt="niupack" width={120} height={26} priority />
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-[13px] space-y-2">
+            <p className="font-semibold text-[14px]">Este enlace ya no es válido.</p>
+            <p className="text-[var(--muted)]">{error} Pedile al operador el link actual de observer.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (error && !view) {
     return (
       <div className="min-h-screen bg-[var(--background)] px-4 py-8">
-        <div className="mx-auto w-full max-w-3xl rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-[13px] text-[var(--error)]">{error}</div>
+        <div className="mx-auto w-full max-w-3xl rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-[13px] text-[var(--error)]">
+          {error} <button className="underline" onClick={() => window.location.reload()}>Reintentar</button>
+        </div>
       </div>
     );
   }
   if (!view) {
     return (
       <div className="min-h-screen bg-[var(--background)] px-4 py-8">
-        <div className="mx-auto w-full max-w-3xl text-[13px] text-[var(--muted)]">Conectando a la sala…</div>
+        <div className="mx-auto w-full max-w-3xl text-[13px] text-[var(--muted)]">
+          {loadExpired ? (
+            <span>La sala tarda demasiado en conectar. <button className="underline" onClick={() => window.location.reload()}>Reintentar</button></span>
+          ) : (
+            'Conectando a la sala…'
+          )}
+        </div>
       </div>
     );
   }
@@ -57,17 +113,22 @@ export function WatchConsole({ token }: { token: string }) {
         <div className="flex items-center justify-between">
           <Image src="/logo/niupack-wordmark.svg" alt="niupack" width={120} height={26} priority />
           <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> SUBASTA EN VIVO · SIMULACIÓN
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> {view.room.status === 'CLOSED' ? 'SUBASTA CERRADA · SIMULACIÓN' : view.room.status === 'DRAFT' ? 'SIMULACIÓN SIN INICIAR' : 'SUBASTA EN VIVO · SIMULACIÓN'}
           </span>
         </div>
 
         <div>
-          <h1 className="text-[18px] font-bold tracking-tight">{view.room.title}</h1>
-          <p className="text-[13px] text-[var(--muted)]">
+          <h1 className="text-[18px] font-bold tracking-tight">{view.room.title}</h1>          <p className="text-[13px] text-[var(--muted)]">
             {view.room.status}
             {view.room.closeRisk ? <span className="ml-2 font-semibold text-rose-600 dark:text-rose-400">RIESGO DE CIERRE</span> : null}
           </p>
         </div>
+
+        {error ? (
+          <div className="rounded-xl border border-[var(--error)]/30 bg-[var(--error-bg)] p-3 text-[12px] text-[var(--error)]">
+            {error}
+          </div>
+        ) : null}
 
         {view.result ? (
           <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
@@ -114,7 +175,7 @@ export function WatchConsole({ token }: { token: string }) {
               <div className="inline-flex items-center rounded-md bg-blue-600 px-2.5 py-1 text-[12px] font-bold text-white mb-2">
                 {view.botStatus ?? '—'}
               </div>
-              {view.pendingCandidate ? (
+              {view.pendingCandidate && (view.room.status === 'ACTIVE_NORMAL' || view.room.status === 'ACTIVE_RANDOM') ? (
                 <p className="text-[12px] font-semibold text-amber-600 dark:text-amber-400 mb-2">
                   Propone ₲{view.pendingCandidate.pricePyg.toLocaleString('es-PY')} · esperando autorización
                 </p>

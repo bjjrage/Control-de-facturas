@@ -70,6 +70,9 @@ export function planAssistedSubmit(input: AssistedSubmitInput): AssistedSubmitPl
   void input.operatorId;
   const state = snapshotToAuctionState(input.snapshot, input.nowIso);
   const machine = new AuctionBotStateMachine(input.policy);
+  // The pre-submit recheck must run against the SAME constraints as the
+  // original decision (Core contract) — never an implicit null.
+  machine.setSbeConstraints(input.constraints);
   machine.startMonitoring();
   machine.beginEvaluation();
   const decision = evaluateAuctionStep(state, input.policy, input.constraints, {

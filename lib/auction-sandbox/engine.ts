@@ -153,9 +153,24 @@ export function validateSandboxBid(
   return { ok: true };
 }
 
-/** Builds a deterministic idempotency key for bot bids. */
-export function buildBotIdempotencyKey(roomId: string, policyVersion: number, basisObservedAt: string, pricePyg: number): string {
-  return `bot:${roomId}:v${policyVersion}:${basisObservedAt}:${pricePyg}`;
+/**
+ * Stable key for BOUNDED_AUTO submits: bound to (room, version, price) ONLY —
+ * deliberately wall-clock-free (same pattern as the assisted key) so two tabs
+ * evaluating the same candidate dedupe in the RPC instead of double-submitting.
+ * Safe: keys persist only on ACCEPT, and re-bidding an identical price is
+ * economically invalid anyway (strictly decreasing prices).
+ */
+export function buildBotIdempotencyKey(roomId: string, policyVersion: number, pricePyg: number): string {
+  return `bot:${roomId}:v${policyVersion}:${pricePyg}`;
+}
+
+/**
+ * Stable key for ASSISTED authorizations: bound to (room, version, price)
+ * ONLY — deliberately wall-clock-free so concurrent authorizations of the
+ * same candidate dedupe in the RPC instead of double-submitting.
+ */
+export function buildAssistedIdempotencyKey(roomId: string, policyVersion: number, pricePyg: number): string {
+  return `assist:${roomId}:v${policyVersion}:${pricePyg}`;
 }
 
 /** Winner = rank #1 accepted bid (null when no bids). */

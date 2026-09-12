@@ -4,8 +4,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { buildJoinView, loadSandboxBundle, JoinView } from '@/lib/auction-sandbox/server';
 import { resolveSandboxRoom } from '../../token-gate';
 
-/** Phase heartbeat through the atomic advance RPC (server clock). */
-async function advanceIfNeeded(roomId: string) {
+/** Phase advance is a MUTATION: only real mutations (like this submit) may
+ * trigger it. Polling views (getJoinView/getWatchView) are strictly READ ONLY. */
+async function advanceRoomHeartbeat(roomId: string) {
   const admin = createAdminClient();
   await admin.rpc('advance_sandbox_room', { p_room_id: roomId });
 }
@@ -13,7 +14,8 @@ async function advanceIfNeeded(roomId: string) {
 export async function getJoinView(token: string): Promise<{ view?: JoinView; error?: string }> {
   const resolved = await resolveSandboxRoom(token, 'competitor');
   if ('error' in resolved) return { error: resolved.error };
-  await advanceIfNeeded(resolved.bundle.room.id);
+  // READ ONLY: no phase advance on polling. The operator heartbeat is the
+  // exclusive mutating poller; token views never write (F-G1).
   const admin = createAdminClient();
   const loaded = await loadSandboxBundle(admin, resolved.bundle.room.id);
   if ('error' in loaded) return { error: loaded.error };
@@ -30,7 +32,8 @@ export async function submitHumanBid(
   if ('error' in resolved) return { error: resolved.error };
   if (!Number.isInteger(pricePyg) || pricePyg <= 0) return { error: 'Precio inválido.' };
   if (!idempotencyKey || idempotencyKey.length < 8 || idempotencyKey.length > 80) return { error: 'Clave de idempotencia inválida.' };
-  await advanceIfNeeded(resolved.bundle.room.id);
+  // A submit IS a real mutation, so it advances phases first (server clock).
+  await advanceRoomHeartbeat(resolved.bundle.room.id);
   const admin = createAdminClient();
   // Server clock lives inside the RPC: no client timestamp is sent.
   const { data, error } = await admin.rpc('submit_sandbox_bid', {

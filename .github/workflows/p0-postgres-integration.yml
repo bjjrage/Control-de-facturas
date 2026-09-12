@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   p0-integration:
-    name: Real PostgreSQL & Supabase Integration (0001 -> 0069)
+    name: Real PostgreSQL & Supabase Integration (0001 -> 0070)
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -43,7 +43,7 @@ jobs:
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY" >> "$GITHUB_ENV"
           supabase status
 
-      - name: Reset Database and Apply All Migrations (0001 -> 0069)
+      - name: Reset Database and Apply All Migrations (0001 -> 0070)
         run: |
           echo "Aplicando stack completo de migraciones desde DB vacía..."
           supabase db reset

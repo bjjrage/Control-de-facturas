@@ -9,6 +9,26 @@
 import { freezePolicy, generateTechnicalFingerprint, validateAuctionPolicy } from '../auction-bot/policy';
 import { AuctionPolicy, FrozenAuctionPolicy } from '../auction-bot/types';
 
+/**
+ * Canonical economic content of a policy: everything EXCEPT version/audit
+ * metadata (policyId, version, authorizedBy/At, fingerprint). Two drafts with
+ * equal content authorize the same economics — used for retry idempotency
+ * (same content twice must not inflate the version).
+ */
+const CONTENT_FIELDS = [
+  'auctionId', 'groupId', 'scope', 'positionStrategy', 'targetRank',
+  'defenseStepPyg', 'normalPhaseBehavior', 'safeWindowBehavior',
+  'enterTargetPositionInEntryWindow', 'defendImmediatelyInCloseRisk',
+  'targetPricePyg', 'autoDefenseToleranceBps', 'autoLimitPyg',
+  'mipymePolicy', 'executionMode', 'maxStalenessMs',
+] as const;
+
+export function samePolicyContent(a: AuctionPolicy, b: AuctionPolicy): boolean {
+  return CONTENT_FIELDS.every(
+    (f) => JSON.stringify(a[f]) === JSON.stringify((b as AuctionPolicy)[f])
+  );
+}
+
 export interface SandboxPolicyRecord {
   room_id: string;
   version: number;
@@ -42,8 +62,7 @@ export function buildPolicyVersionRecord(
   };
 }
 
-/** Restores a frozen policy from its persisted snapshot (with integrity check). */
-export function policyFromSnapshot(record: { snapshot: unknown; version: number; fingerprint: string; policy_id: string }): FrozenAuctionPolicy {
+/** Restores a frozen policy from its persisted snapshot (with integrity check). */export function policyFromSnapshot(record: { snapshot: unknown; version: number; fingerprint: string; policy_id: string }): FrozenAuctionPolicy {
   const policy = record.snapshot as FrozenAuctionPolicy | null | undefined;
   if (!policy || policy.isFrozen !== true) {
     throw new Error('Snapshot de política corrupto: no está congelado.');

@@ -5,6 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
+  buildAssistedIdempotencyKey,
   buildBotIdempotencyKey,
   computePhase,
   rankBids,
@@ -180,12 +181,23 @@ describe('Sandbox engine — ranking, winner, idempotency', () => {
     expect(winnerOfRanking([])).toBeNull();
   });
 
-  it('builds stable bot idempotency keys', () => {
-    const k1 = buildBotIdempotencyKey('room-1', 1, '2026-01-01T00:00:01.000Z', 999_998);
-    const k2 = buildBotIdempotencyKey('room-1', 1, '2026-01-01T00:00:01.000Z', 999_998);
-    const k3 = buildBotIdempotencyKey('room-1', 1, '2026-01-01T00:00:02.000Z', 999_998);
+  it('builds wall-clock-free bot keys (same candidate always dedupes)', () => {
+    const k1 = buildBotIdempotencyKey('room-1', 1, 999_998);
+    const k2 = buildBotIdempotencyKey('room-1', 1, 999_998);
     expect(k1).toBe(k2);
-    expect(k1).not.toBe(k3);
     expect(k1).toContain('room-1');
+    expect(k1).toContain('999998');
+    expect(k1).not.toContain('2026');
+    expect(buildBotIdempotencyKey('room-1', 1, 999_997)).not.toBe(k1);
+    expect(buildBotIdempotencyKey('room-1', 2, 999_998)).not.toBe(k1);
+  });
+
+  it('builds wall-clock-free assisted keys (same candidate always dedupes)', () => {
+    const k1 = buildAssistedIdempotencyKey('room-1', 2, 999_998);
+    const k2 = buildAssistedIdempotencyKey('room-1', 2, 999_998);
+    expect(k1).toBe(k2);
+    expect(k1).toContain('999998');
+    expect(k1).not.toContain('2026');
+    expect(buildAssistedIdempotencyKey('room-1', 2, 999_997)).not.toBe(k1);
   });
 });
