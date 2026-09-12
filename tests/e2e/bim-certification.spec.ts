@@ -96,11 +96,14 @@ test.describe("BIM E2E Certification — Edificio Aurora", () => {
       await page.locator("#np_code").fill(PROJECT_CODE);
       await page.locator("#np_client").fill("Cliente Demo");
       await page.getByRole("button", { name: /crear proyecto/i }).click();
-      await expect(page.getByText(PROJECT_CODE).first()).toBeVisible({ timeout: 30_000 });
-      const href = await page
-        .getByRole("link", { name: /edificio aurora/i })
-        .first()
-        .getAttribute("href");
+      // El diálogo debe cerrarse al crear. Si queda abierto con error (ej.
+      // código duplicado), fallar ACÁ en vez de colgarse buscando el link:
+      // el mensaje de error del diálogo contiene el código y daría un
+      // falso positivo en assertions de texto.
+      await expect(page.locator("#np_name")).toBeHidden({ timeout: 60_000 });
+      const projectLink = page.getByRole("link", { name: /edificio aurora/i }).first();
+      await expect(projectLink).toBeVisible({ timeout: 60_000 });
+      const href = await projectLink.getAttribute("href");
       expect(href, "link al detalle del proyecto").toBeTruthy();
       projectId = href!.split("/").pop()!;
       await page.goto(`${BASE_URL}/projects/${projectId}?tab=bim`);
