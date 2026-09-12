@@ -209,6 +209,22 @@ export function createIfcViewer(
           geometry = buildGeometry(vertexData, indexData);
           geometryCache.set(placed.geometryExpressID, geometry);
           ifcGeometry.delete();
+          if (i === 0 && g === 0) {
+            geometry.computeBoundingBox();
+            console.log(
+              "[bim-viewer-diag3] vertexData.length=",
+              vertexData.length,
+              "indexData.length=",
+              indexData.length,
+              "first9vertex=",
+              Array.from(vertexData.slice(0, 9)),
+              "geomBBox=",
+              geometry.boundingBox?.min.toArray(),
+              geometry.boundingBox?.max.toArray(),
+              "flatTransformation=",
+              Array.from(placed.flatTransformation)
+            );
+          }
         }
 
         const { x: r, y: gC, z: b, w: a } = placed.color;
