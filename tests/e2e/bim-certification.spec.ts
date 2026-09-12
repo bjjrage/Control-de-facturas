@@ -101,6 +101,16 @@ test.describe("BIM E2E Certification — Edificio Aurora", () => {
       // el mensaje de error del diálogo contiene el código y daría un
       // falso positivo en assertions de texto.
       await expect(page.locator("#np_name")).toBeHidden({ timeout: 60_000 });
+      // Diagnóstico: si requirePlan/requireProfile redirige (ej. rol no
+      // permitido) el diálogo también desaparece (toda la página navega),
+      // dando el mismo falso positivo que un cierre normal. Capturamos la
+      // URL y un screenshot ACÁ para distinguir ambos casos en el reporte.
+      metrics.urlAfterCreateSubmit = page.url();
+      await shot(page, "00b-after-create-submit.png");
+      expect(
+        new URL(page.url()).pathname,
+        `tras crear el proyecto la URL es ${page.url()} (¿redirect por rol/plan en requirePlan?)`
+      ).toBe("/projects");
       const projectLink = page.getByRole("link", { name: /edificio aurora/i }).first();
       await expect(projectLink).toBeVisible({ timeout: 60_000 });
       const href = await projectLink.getAttribute("href");
