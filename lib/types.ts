@@ -799,6 +799,89 @@ export interface ExecutionEntry {
   submitted_by_portal: boolean;
 }
 
+export type BimModelStatus = "PROCESANDO" | "LISTO" | "ERROR";
+
+export interface BimModel {
+  id: string;
+  project_id: string;
+  file_name: string;
+  storage_path: string;
+  schema: string | null;
+  status: BimModelStatus;
+  error_message: string | null;
+  element_count: number;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+export type BimQuantityType = "length" | "area" | "volume" | "count" | "weight";
+export type BimQuantitySource = "IFC_QTO" | "IFC_PROPERTY" | "GEOMETRY";
+
+export interface BimElement {
+  id: string;
+  bim_model_id: string;
+  project_id: string;
+  ifc_guid: string;
+  ifc_type: string;
+  express_id: number | null;
+  name: string | null;
+  building_storey: string | null;
+  material: string | null;
+  properties: Record<string, unknown>;
+  quantity_type: BimQuantityType | null;
+  quantity_value: number | null;
+  quantity_unit: string | null;
+  quantity_source: BimQuantitySource | null;
+  quantity_property: string | null;
+  created_at: string;
+  group_id: string | null;
+}
+
+export interface BimElementGroup {
+  id: string;
+  bim_model_id: string;
+  project_id: string;
+  ifc_type: string;
+  material: string | null;
+  normalized_name: string;
+  quantity_type: BimQuantityType | null;
+  quantity_unit: string | null;
+  total_quantity: number | null;
+  element_count: number;
+  created_at: string;
+}
+
+export type BimGroupMatchMethod = "SEMANTIC" | "MANUAL";
+export type BimGroupMatchStatus = "SUGGESTED" | "REVIEW" | "REVIEW_REQUIRED" | "NO_MATCH" | "CONFIRMED" | "REJECTED";
+
+export interface BimGroupMatch {
+  id: string;
+  group_id: string;
+  budget_item_id: string | null;
+  method: BimGroupMatchMethod;
+  score: number | null;
+  reason: string | null;
+  status: BimGroupMatchStatus;
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+  created_at: string;
+}
+
+export type BimMatchMethod = "DETERMINISTIC" | "SEMANTIC" | "MANUAL";
+export type BimMatchStatus = "PROPUESTO" | "CONFIRMADO" | "DESCARTADO";
+
+export interface BimBudgetMatch {
+  id: string;
+  bim_element_id: string;
+  budget_item_id: string;
+  method: BimMatchMethod;
+  score: number | null;
+  status: BimMatchStatus;
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+  created_at: string;
+}
+
 // ============================================================================
 // Módulo Construcción — Caterpillar (migración 0030)
 // ============================================================================

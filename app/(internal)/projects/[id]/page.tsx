@@ -40,6 +40,7 @@ const ALL_TABS = [
   "subcontratistas",
   "certificados",
   "avance-fisico",
+  "bim",
 ];
 
 export default async function ProjectDetailPage({

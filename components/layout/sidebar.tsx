@@ -49,6 +49,7 @@ const PROJECT_TAB_GROUPS: { label: string; tabs: ProjectTab[] }[] = [
   { label: "Preparar", tabs: [
     { key: "presupuesto", label: "Presupuesto", icon: ClipboardCheck },
     { key: "cronograma", label: "Cronograma", icon: GanttChartSquare },
+    { key: "bim", label: "BIM", icon: Boxes, caterpillarOnly: true },
   ]},
   { label: "Comprar", tabs: [
     { key: "proveedores", label: "Proveedores", icon: Truck },

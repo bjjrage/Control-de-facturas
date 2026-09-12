@@ -1,0 +1,178 @@
+name: BIM E2E Certification
+
+# Certificación end-to-end del módulo BIM + Presupuesto sobre infraestructura
+# 100% efímera. MANUAL (workflow_dispatch): no corre en pushes ni es required.
+#
+# Flujo: GitHub Ubuntu runner -> Supabase local efímero (Docker del runner) ->
+# Next.js local -> Playwright contra loopback. NUNCA toca producción:
+#   - Sin project ref productivo, sin Vercel, sin admin productivo.
+#   - Fail-fast si alguna URL menciona el proyecto cloud productivo.
+#   - DEEPSEEK_API_KEY solo desde GitHub Actions Secrets (nunca en logs).
+
+on:
+  workflow_dispatch:
+  # TEMPORAL (run #2: fix colisión seed/UI en código de proyecto): permite
+  # ejecutar el workflow desde feature/bim-presupuesto sin mergear a main
+  # (GitHub solo resuelve workflow_dispatch si el archivo existe en la rama
+  # default). Dispara únicamente cuando cambia ESTE archivo.
+  # Quitar este bloque una vez obtenida la evidencia E2E.
+  # (run #4: diagnóstico de redirect a /dashboard tras crear proyecto)
+  push:
+    branches:
+      - feature/bim-presupuesto
+    paths:
+      - ".github/workflows/bim-e2e-certification.yml"
+
+concurrency:
+  group: bim-e2e-certification
+  cancel-in-progress: false
+
+env:
+  PROD_PROJECT_REF: ezucivipgmbvamhugkbj
+
+jobs:
+  bim-e2e:
+    name: BIM E2E (ephemeral Supabase + local app + Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Require DEEPSEEK_API_KEY secret
+        env:
+          HAS_DEEPSEEK: ${{ secrets.DEEPSEEK_API_KEY != '' }}
+        run: |
+          if [ "$HAS_DEEPSEEK" != "true" ]; then
+            echo "DEEPSEEK_API_KEY GitHub Actions secret is required for BIM live E2E"
+            exit 1
+          fi
+          echo "DeepSeek secret presente (no se muestra ni se loguea su valor)."
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Ephemeral Local Supabase Stack
+        run: |
+          supabase start
+          eval "$(supabase status -o env)"
+          {
+            echo "BIM_SUPABASE_URL=$API_URL"
+            echo "BIM_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "BIM_SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "BIM_DB_URL=$DB_URL"
+          } >> "$GITHUB_ENV"
+          echo "::add-mask::$SERVICE_ROLE_KEY"
+          echo "API_URL=$API_URL"
+          if echo "$API_URL" | grep -q "$PROD_PROJECT_REF"; then
+            echo "La URL de Supabase apunta al proyecto productivo. Abortando."
+            exit 1
+          fi
+          case "$API_URL" in
+            http://127.0.0.1*|http://localhost*) echo "Supabase local confirmado: $API_URL" ;;
+            *) echo "Supabase URL no es loopback ($API_URL). Abortando."; exit 1 ;;
+          esac
+
+      - name: Reset Database (full history 0001 -> 0073)
+        run: supabase db reset
+        env:
+          TEST_DATABASE_URL: ${{ env.BIM_DB_URL }}
+
+      - name: Verify BIM migrations 0071-0073
+        run: npx tsx scripts/bim-e2e-verify-migrations.ts
+        env:
+          TEST_DATABASE_URL: ${{ env.BIM_DB_URL }}
+
+      - name: Seed demo env (user + empresa + proyecto, sin BIM)
+        run: npx tsx scripts/bim-e2e-seed.ts
+        env:
+          BIM_SUPABASE_URL: ${{ env.BIM_SUPABASE_URL }}
+          BIM_SERVICE_ROLE_KEY: ${{ env.BIM_SUPABASE_SERVICE_ROLE_KEY }}
+          BIM_TEST_EMAIL: bim-e2e@test.local
+          BIM_TEST_PASSWORD: ${{ secrets.BIM_E2E_PASSWORD != '' && secrets.BIM_E2E_PASSWORD || 'bim-e2e-local-01' }}
+
+      - name: Generate Aurora catalog XLSX (para importador real)
+        run: |
+          npx tsx scripts/bim-e2e-gen-catalog-xlsx.ts /tmp/aurora-catalog.xlsx
+          ls -la /tmp/aurora-catalog.xlsx
+
+      - name: Write ephemeral local env (NO .env.local del desarrollador)
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          cat > .env.local <<EOF
+          NEXT_PUBLIC_SUPABASE_URL=${{ env.BIM_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ env.BIM_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY=${{ env.BIM_SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000
+          DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY
+          EOF
+          if grep -q "$PROD_PROJECT_REF" .env.local; then
+            echo "El env generado menciona el proyecto productivo. Abortando."
+            exit 1
+          fi
+          echo "Env efímero escrito (valores no mostrados)."
+
+      - name: Production Next.js Build
+        run: npm run build
+
+      - name: Start local app + wait ready
+        run: |
+          (npm run start -- -p 3000 > /tmp/next-start.log 2>&1 & echo $! > /tmp/next.pid)
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://127.0.0.1:3000/login; then
+              echo "App lista en http://127.0.0.1:3000"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "La app no respondió a tiempo. Últimas líneas del log:"
+          tail -50 /tmp/next-start.log
+          exit 1
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run BIM certification spec (DeepSeek real)
+        run: npx playwright test --config=playwright.bim.config.ts
+        env:
+          BIM_BASE_URL: http://127.0.0.1:3000
+          BIM_TEST_EMAIL: bim-e2e@test.local
+          BIM_TEST_PASSWORD: ${{ secrets.BIM_E2E_PASSWORD != '' && secrets.BIM_E2E_PASSWORD || 'bim-e2e-local-01' }}
+          BIM_CATALOG_XLSX: /tmp/aurora-catalog.xlsx
+          BIM_EVIDENCE_DIR: bim-evidence
+
+      - name: Upload BIM evidence (screenshots + metrics)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bim-evidence
+          path: bim-evidence/
+          retention-days: 7
+
+      - name: Upload Playwright BIM report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-bim-report
+          path: playwright-report/bim/
+          retention-days: 7
+
+      - name: Stop app + Supabase stack
+        if: always()
+        run: |
+          kill "$(cat /tmp/next.pid)" 2>/dev/null || true
+          rm -f .env.local
+          supabase stop || true
