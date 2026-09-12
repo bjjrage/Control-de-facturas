@@ -243,9 +243,16 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
   const { room, ranking, bot } = view;
   const lb = view.limitBreach;
   // Principal presentation: while the ONLY reason the bot holds fire is the
-  // crossed Ground Floor, the operative state is AWAITING_AUTHORIZATION —
-  // STOP stays reserved for terminal/fail-closed states.
-  const displayStatus = lb ? 'AWAITING_AUTHORIZATION' : bot.status;
+  // crossed Ground Floor, the operative state is AWAITING_AUTHORIZATION;
+  // after CEDER on a still-active room the bot keeps monitoring (MONITORING),
+  // so a stale backend STOP must not paint the board as halted. STOP stays
+  // reserved for terminal/fail-closed states.
+  const roomActive = room.status === 'ACTIVE_NORMAL' || room.status === 'ACTIVE_RANDOM';
+  const displayStatus = lb
+    ? 'AWAITING_AUTHORIZATION'
+    : view.limitBreachDeclined && roomActive
+      ? 'MONITORING'
+      : bot.status;
   const targetRank = view.activePolicy?.targetRank ?? 1;
 
   async function handleOverride(p: { candidatePricePyg: number; policyVersion: number }) {
