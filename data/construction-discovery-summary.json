@@ -1,0 +1,169 @@
+{
+  "grandTotal": 59847,
+  "grandConstruction": 15912,
+  "yearStats": {
+    "2020": {
+      "year": 2020,
+      "totalProcesses": 9117,
+      "constructionCount": 2177,
+      "byBucket": {
+        "BUILDINGS": 759,
+        "BRIDGES": 38,
+        "MAINTENANCE_REHABILITATION": 52,
+        "ROAD_INFRASTRUCTURE": 505,
+        "WATER_SANITATION": 109,
+        "CIVIL_INFRASTRUCTURE": 629,
+        "CONSTRUCTION_MATERIALS": 25,
+        "MECHANICAL_INSTALLATIONS": 57,
+        "ELECTRICAL_INSTALLATIONS": 3
+      },
+      "byMethod": {
+        "STRUCTURED_WORKS": 1915,
+        "TEXT_INCLUSION": 262
+      }
+    },
+    "2021": {
+      "year": 2021,
+      "totalProcesses": 9648,
+      "constructionCount": 2402,
+      "byBucket": {
+        "BRIDGES": 40,
+        "ROAD_INFRASTRUCTURE": 807,
+        "BUILDINGS": 714,
+        "CIVIL_INFRASTRUCTURE": 597,
+        "CONSTRUCTION_MATERIALS": 39,
+        "WATER_SANITATION": 80,
+        "MECHANICAL_INSTALLATIONS": 56,
+        "MAINTENANCE_REHABILITATION": 56,
+        "ELECTRICAL_INSTALLATIONS": 13
+      },
+      "byMethod": {
+        "STRUCTURED_WORKS": 2114,
+        "TEXT_INCLUSION": 288
+      }
+    },
+    "2022": {
+      "year": 2022,
+      "totalProcesses": 10370,
+      "constructionCount": 2393,
+      "byBucket": {
+        "CIVIL_INFRASTRUCTURE": 644,
+        "ROAD_INFRASTRUCTURE": 643,
+        "BUILDINGS": 790,
+        "CONSTRUCTION_MATERIALS": 47,
+        "BRIDGES": 43,
+        "WATER_SANITATION": 72,
+        "MAINTENANCE_REHABILITATION": 84,
+        "MECHANICAL_INSTALLATIONS": 66,
+        "ELECTRICAL_INSTALLATIONS": 4
+      },
+      "byMethod": {
+        "STRUCTURED_WORKS": 2041,
+        "TEXT_INCLUSION": 352
+      }
+    },
+    "2023": {
+      "year": 2023,
+      "totalProcesses": 9453,
+      "constructionCount": 2326,
+      "byBucket": {
+        "BUILDINGS": 868,
+        "CIVIL_INFRASTRUCTURE": 533,
+        "ROAD_INFRASTRUCTURE": 587,
+        "WATER_SANITATION": 71,
+        "MAINTENANCE_REHABILITATION": 103,
+        "BRIDGES": 37,
+        "CONSTRUCTION_MATERIALS": 58,
+        "MECHANICAL_INSTALLATIONS": 66,
+        "ELECTRICAL_INSTALLATIONS": 3
+      },
+      "byMethod": {
+        "STRUCTURED_WORKS": 1977,
+        "TEXT_INCLUSION": 349
+      }
+    },
+    "2024": {
+      "year": 2024,
+      "totalProcesses": 8312,
+      "constructionCount": 2544,
+      "byBucket": {
+        "ROAD_INFRASTRUCTURE": 487,
+        "CIVIL_INFRASTRUCTURE": 652,
+        "CONSTRUCTION_MATERIALS": 37,
+        "BRIDGES": 32,
+        "BUILDINGS": 730,
+        "MAINTENANCE_REHABILITATION": 72,
+        "WATER_SANITATION": 76,
+        "OTHER_CONSTRUCTION_RELEVANT": 398,
+        "MECHANICAL_INSTALLATIONS": 55,
+        "ELECTRICAL_INSTALLATIONS": 5
+      },
+      "byMethod": {
+        "STRUCTURED_WORKS": 1893,
+        "TEXT_INCLUSION": 96,
+        "STRUCTURED_CATEGORY": 555
+      }
+    },
+    "2025": {
+      "year": 2025,
+      "totalProcesses": 8734,
+      "constructionCount": 2859,
+      "byBucket": {
+        "OTHER_CONSTRUCTION_RELEVANT": 399,
+        "CIVIL_INFRASTRUCTURE": 821,
+        "BUILDINGS": 794,
+        "ROAD_INFRASTRUCTURE": 533,
+        "MAINTENANCE_REHABILITATION": 98,
+        "WATER_SANITATION": 79,
+        "CONSTRUCTION_MATERIALS": 43,
+        "MECHANICAL_INSTALLATIONS": 51,
+        "BRIDGES": 40,
+        "ELECTRICAL_INSTALLATIONS": 1
+      },
+      "byMethod": {
+        "STRUCTURED_CATEGORY": 608,
+        "TEXT_INCLUSION": 69,
+        "STRUCTURED_WORKS": 2182
+      }
+    },
+    "2026": {
+      "year": 2026,
+      "totalProcesses": 4213,
+      "constructionCount": 1211,
+      "byBucket": {
+        "ROAD_INFRASTRUCTURE": 297,
+        "BUILDINGS": 301,
+        "CIVIL_INFRASTRUCTURE": 286,
+        "WATER_SANITATION": 29,
+        "BRIDGES": 14,
+        "OTHER_CONSTRUCTION_RELEVANT": 206,
+        "CONSTRUCTION_MATERIALS": 27,
+        "MAINTENANCE_REHABILITATION": 30,
+        "MECHANICAL_INSTALLATIONS": 19,
+        "ELECTRICAL_INSTALLATIONS": 2
+      },
+      "byMethod": {
+        "STRUCTURED_CATEGORY": 299,
+        "STRUCTURED_WORKS": 874,
+        "TEXT_INCLUSION": 38
+      }
+    }
+  },
+  "globalBuckets": {
+    "BUILDINGS": 4956,
+    "BRIDGES": 244,
+    "MAINTENANCE_REHABILITATION": 495,
+    "ROAD_INFRASTRUCTURE": 3859,
+    "WATER_SANITATION": 516,
+    "CIVIL_INFRASTRUCTURE": 4162,
+    "CONSTRUCTION_MATERIALS": 276,
+    "MECHANICAL_INSTALLATIONS": 370,
+    "ELECTRICAL_INSTALLATIONS": 31,
+    "OTHER_CONSTRUCTION_RELEVANT": 1003
+  },
+  "globalMethods": {
+    "STRUCTURED_WORKS": 12996,
+    "STRUCTURED_CATEGORY": 1462,
+    "TEXT_INCLUSION": 1454
+  }
+}
