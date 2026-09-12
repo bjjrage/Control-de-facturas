@@ -7,8 +7,12 @@ describe("Regression: Currency Precedence & Fail-Closed Integrity", () => {
   let supabase: any;
 
   beforeAll(() => {
+    const envPath = fs.existsSync(path.resolve(process.cwd(), ".env.lab"))
+      ? path.resolve(process.cwd(), ".env.lab")
+      : path.resolve(process.cwd(), ".env.local");
+
     const env = Object.fromEntries(
-      fs.readFileSync(path.resolve(process.cwd(), ".env.local"), "utf8")
+      fs.readFileSync(envPath, "utf8")
         .split("\n")
         .filter((l) => l.includes("=") && !l.trimStart().startsWith("#"))
         .map((l) => {

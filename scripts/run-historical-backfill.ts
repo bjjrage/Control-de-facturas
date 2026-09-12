@@ -18,6 +18,7 @@ import { HistoricalDncpEnumerator, DateWindow } from "../lib/procurement/histori
 export interface HistoricalCheckpoint {
   current_window_idx: number;
   current_page: number;
+  current_record_index: number;
   last_ocid: string | null;
   total_enumerated: number;
   total_attempted: number;
@@ -32,12 +33,17 @@ export interface HistoricalCheckpoint {
 
 const CHECKPOINT_FILE = path.resolve(process.cwd(), "data/historical-backfill-checkpoint.json");
 const BASE_RECORD_URL = "https://www.contrataciones.gov.py/datos/api/v3/doc/ocds/record";
-const PROD_PROJECT_REF = "ezucivipgmbvamhugkbj";
+export const LAB_PROJECT_REF = "klvvlybltcmowoptogpe";
+export const PROD_PROJECT_REF = "ezucivipgmbvamhugkbj";
 
 export function loadCheckpoint(): HistoricalCheckpoint {
   if (fs.existsSync(CHECKPOINT_FILE)) {
     try {
-      return JSON.parse(fs.readFileSync(CHECKPOINT_FILE, "utf8"));
+      const data = JSON.parse(fs.readFileSync(CHECKPOINT_FILE, "utf8"));
+      return {
+        ...data,
+        current_record_index: data.current_record_index ?? 0,
+      };
     } catch {
       // ignore and start fresh
     }
@@ -46,6 +52,7 @@ export function loadCheckpoint(): HistoricalCheckpoint {
   return {
     current_window_idx: 0,
     current_page: 1,
+    current_record_index: 0,
     last_ocid: null,
     total_enumerated: 0,
     total_attempted: 0,
@@ -67,24 +74,40 @@ export function saveCheckpoint(cp: HistoricalCheckpoint) {
   fs.writeFileSync(CHECKPOINT_FILE, JSON.stringify(cp, null, 2), "utf8");
 }
 
+export function extractProjectRef(supabaseUrl: string): string | null {
+  const match = supabaseUrl.match(/https:\/\/([a-z0-9-]+)\.supabase\.co/i);
+  return match ? match[1] : null;
+}
+
 export function verifyProductionSafety(supabaseUrl: string, args: string[]) {
-  const isProduction = supabaseUrl.includes(PROD_PROJECT_REF);
+  const projectRef = extractProjectRef(supabaseUrl);
   const allowProdFlag = args.includes("--allow-production");
 
-  if (isProduction && !allowProdFlag) {
-    console.error("\n================================================================================");
-    console.error("FATAL: PRODUCTION SAFETY GUARD TRIGGERED!");
-    console.error(`Target database is PRODUCTION (${PROD_PROJECT_REF}), but --allow-production flag was NOT provided.`);
-    console.error("Execution aborted to protect production data.");
-    console.error("================================================================================\n");
-    throw new Error("PRODUCTION_SAFETY_GUARD_BLOCKED");
+  if (!projectRef) {
+    console.error(`\nFATAL: UNKNOWN_PROJECT_REF - Unable to parse project ref from URL: ${supabaseUrl}`);
+    throw new Error("UNKNOWN_PROJECT_REF");
   }
 
-  if (isProduction && allowProdFlag) {
-    console.log(`[SAFETY WARNING] Explicit --allow-production provided. Targeting PRODUCTION (${PROD_PROJECT_REF}).`);
-  } else {
-    console.log(`[SAFETY CHECK PASSED] Targeting non-production database (${supabaseUrl}).`);
+  if (projectRef === LAB_PROJECT_REF) {
+    console.log(`[SAFETY CHECK PASSED] Targeting authorized LAB database (${projectRef}).`);
+    return;
   }
+
+  if (projectRef === PROD_PROJECT_REF) {
+    if (!allowProdFlag) {
+      console.error("\n================================================================================");
+      console.error("FATAL: PRODUCTION SAFETY GUARD TRIGGERED!");
+      console.error(`Target database is PRODUCTION (${PROD_PROJECT_REF}), but --allow-production flag was NOT provided.`);
+      console.error("Execution aborted to protect production data.");
+      console.error("================================================================================\n");
+      throw new Error("PRODUCTION_SAFETY_GUARD_BLOCKED");
+    }
+    console.log(`[SAFETY WARNING] Explicit --allow-production provided. Targeting PRODUCTION (${PROD_PROJECT_REF}).`);
+    return;
+  }
+
+  console.error(`\nFATAL: UNKNOWN_PROJECT_REF - Target database ref '${projectRef}' is neither authorized LAB nor PRODUCTION.`);
+  throw new Error("UNKNOWN_PROJECT_REF");
 }
 
 async function fetchWithRetry(url: string, attempt = 0): Promise<any> {
@@ -147,26 +170,47 @@ export async function runHistoricalBackfill(options?: {
   console.log("================================================================================\n");
 
   let processedInThisRun = 0;
+  const recentOcids = new Set<string>();
+  const MAX_DEDUP_CACHE = 5000;
 
   for (let wIdx = cp.current_window_idx; wIdx < enumerator.windows.length; wIdx++) {
     const currentWindow = enumerator.windows[wIdx];
-    const startPage = (wIdx === cp.current_window_idx) ? cp.current_page : 1;
-    console.log(`\n>>> Processing Window [${currentWindow.id}] (${currentWindow.desde}..${currentWindow.hasta}) starting from Page ${startPage} <<<`);
-
-    let pageInWindow = startPage;
+    const isResumeWindow = (wIdx === cp.current_window_idx);
+    let pageInWindow = isResumeWindow ? cp.current_page : 1;
     let totalPages = 1;
+
+    console.log(`\n>>> Processing Window [${currentWindow.id}] (${currentWindow.desde}..${currentWindow.hasta}) starting from Page ${pageInWindow}, Record ${isResumeWindow ? cp.current_record_index : 0} <<<`);
 
     while (pageInWindow <= totalPages && processedInThisRun < maxToProcess) {
       const { records, pagination } = await enumerator.fetchSearchPage(currentWindow, pageInWindow, 50);
       totalPages = pagination.total_pages || totalPages;
 
-      console.log(`  Window ${currentWindow.id} | Page ${pageInWindow}/${totalPages} (${records.length} items)`);
+      const recordStartIndex = (wIdx === cp.current_window_idx && pageInWindow === cp.current_page)
+        ? cp.current_record_index
+        : 0;
 
-      for (const rec of records) {
-        if (processedInThisRun >= maxToProcess) break;
+      console.log(`  Window ${currentWindow.id} | Page ${pageInWindow}/${totalPages} (${records.length} items, starting at index ${recordStartIndex})`);
 
+      let rIdx = recordStartIndex;
+      while (rIdx < records.length && processedInThisRun < maxToProcess) {
+        const rec = records[rIdx];
         const ocid = rec.ocid || rec.compiledRelease?.ocid;
-        if (!ocid) continue;
+
+        if (!ocid) {
+          rIdx++;
+          cp.current_record_index = rIdx;
+          saveCheckpoint(cp);
+          continue;
+        }
+
+        // Bounded in-runner dedup check
+        if (recentOcids.has(ocid)) {
+          console.log(`  [DEDUP SKIP] OCID ${ocid} already processed in current session.`);
+          rIdx++;
+          cp.current_record_index = rIdx;
+          saveCheckpoint(cp);
+          continue;
+        }
 
         cp.total_enumerated++;
         const yKey = String(currentWindow.year);
@@ -217,6 +261,11 @@ export async function runHistoricalBackfill(options?: {
           cp.total_succeeded++;
           cp.by_year[yKey].succeeded++;
           cp.last_ocid = ocid;
+          recentOcids.add(ocid);
+          if (recentOcids.size > MAX_DEDUP_CACHE) {
+            const firstAdded = recentOcids.values().next().value;
+            if (firstAdded) recentOcids.delete(firstAdded);
+          }
           process.stdout.write(`.`);
         } catch (err: any) {
           cp.total_failed++;
@@ -225,19 +274,32 @@ export async function runHistoricalBackfill(options?: {
           cp.failure_reasons[reason] = (cp.failure_reasons[reason] || 0) + 1;
           process.stdout.write(`x`);
         }
+
+        rIdx++;
+        cp.current_window_idx = wIdx;
+        cp.current_page = pageInWindow;
+        cp.current_record_index = rIdx;
+        saveCheckpoint(cp);
       }
 
-      // Advance page checkpoint
-      pageInWindow++;
-      cp.current_window_idx = wIdx;
-      cp.current_page = pageInWindow;
-      saveCheckpoint(cp);
+      // Only advance page if we finished all records in this page
+      if (rIdx >= records.length) {
+        pageInWindow++;
+        cp.current_window_idx = wIdx;
+        cp.current_page = pageInWindow;
+        cp.current_record_index = 0;
+        saveCheckpoint(cp);
+      } else {
+        // We stopped early due to processedInThisRun >= maxToProcess
+        break;
+      }
     }
 
     if (pageInWindow > totalPages) {
       cp.completed_windows.push(currentWindow.id);
       cp.current_window_idx = wIdx + 1;
       cp.current_page = 1;
+      cp.current_record_index = 0;
       saveCheckpoint(cp);
       console.log(`\n  ✓ Window ${currentWindow.id} COMPLETED.`);
     }
