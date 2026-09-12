@@ -14,6 +14,7 @@ import { createClient } from "@supabase/supabase-js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { HistoricalDncpEnumerator, DateWindow } from "../lib/procurement/historical-enumerator";
+import { classifyProcess } from "../lib/procurement/construction-classifier";
 
 export interface HistoricalCheckpoint {
   current_window_idx: number;
@@ -21,6 +22,8 @@ export interface HistoricalCheckpoint {
   current_record_index: number;
   last_ocid: string | null;
   total_enumerated: number;
+  total_construction_matched?: number;
+  total_skipped_non_construction?: number;
   total_attempted: number;
   total_succeeded: number;
   total_failed: number;
@@ -31,7 +34,7 @@ export interface HistoricalCheckpoint {
   last_updated_at: string;
 }
 
-const CHECKPOINT_FILE = path.resolve(process.cwd(), "data/historical-backfill-checkpoint.json");
+const CHECKPOINT_FILE = path.resolve(process.cwd(), "data/construction-v1-backfill-checkpoint.json");
 const BASE_RECORD_URL = "https://www.contrataciones.gov.py/datos/api/v3/doc/ocds/record";
 export const LAB_PROJECT_REF = "klvvlybltcmowoptogpe";
 export const PROD_PROJECT_REF = "ezucivipgmbvamhugkbj";
@@ -43,6 +46,8 @@ export function loadCheckpoint(): HistoricalCheckpoint {
       return {
         ...data,
         current_record_index: data.current_record_index ?? 0,
+        total_construction_matched: data.total_construction_matched ?? 0,
+        total_skipped_non_construction: data.total_skipped_non_construction ?? 0,
       };
     } catch {
       // ignore and start fresh
@@ -55,6 +60,8 @@ export function loadCheckpoint(): HistoricalCheckpoint {
     current_record_index: 0,
     last_ocid: null,
     total_enumerated: 0,
+    total_construction_matched: 0,
+    total_skipped_non_construction: 0,
     total_attempted: 0,
     total_succeeded: 0,
     total_failed: 0,
@@ -158,15 +165,15 @@ export async function runHistoricalBackfill(options?: {
     auth: { persistSession: false },
   });
 
-  const enumerator = new HistoricalDncpEnumerator(options?.startYear ?? 2015, options?.endYear ?? 2026);
+  const enumerator = new HistoricalDncpEnumerator(options?.startYear ?? 2020, options?.endYear ?? 2026);
   const cp = loadCheckpoint();
   const maxToProcess = options?.maxProcesses ?? Infinity;
 
   console.log("================================================================================");
-  console.log("HISTORICAL DNCP BACKFILL RUNNER (2015–2026)");
+  console.log("CONSTRUCTION HISTORICAL DNCP BACKFILL RUNNER (2020–2026)");
   console.log(`- Target Database: ${supabaseUrl}`);
   console.log(`- Checkpoint Window: ${enumerator.windows[cp.current_window_idx]?.id || "DONE"} (Index ${cp.current_window_idx}/${enumerator.windows.length})`);
-  console.log(`- Checkpoint Page: ${cp.current_page} | Total Succeeded: ${cp.total_succeeded} | Failed: ${cp.total_failed}`);
+  console.log(`- Checkpoint Page: ${cp.current_page} | Matched: ${cp.total_construction_matched} | Succeeded: ${cp.total_succeeded} | Failed: ${cp.total_failed}`);
   console.log("================================================================================\n");
 
   let processedInThisRun = 0;
@@ -202,6 +209,22 @@ export async function runHistoricalBackfill(options?: {
           saveCheckpoint(cp);
           continue;
         }
+
+        // ONE-PASS CONSTRUCTION CLASSIFIER FILTER
+        const tender = rec.compiledRelease?.tender || rec.tender || {};
+        const classification = classifyProcess(tender);
+
+        if (!classification.isConstructionRelevant) {
+          cp.total_skipped_non_construction = (cp.total_skipped_non_construction || 0) + 1;
+          rIdx++;
+          cp.current_window_idx = wIdx;
+          cp.current_page = pageInWindow;
+          cp.current_record_index = rIdx;
+          saveCheckpoint(cp);
+          continue;
+        }
+
+        cp.total_construction_matched = (cp.total_construction_matched || 0) + 1;
 
         // Bounded in-runner dedup check
         if (recentOcids.has(ocid)) {
@@ -246,7 +269,7 @@ export async function runHistoricalBackfill(options?: {
 
           const { data: dbId, error: rpcErr } = await supabase.rpc("ingestar_proceso_ocds_global", {
             p_cr: fullPayload,
-            p_fuente: `HISTORICAL_BACKFILL_${currentWindow.id}`,
+            p_fuente: `DNCP_CONSTRUCTION_V1_${currentWindow.id}`,
           });
 
           if (rpcErr) {
