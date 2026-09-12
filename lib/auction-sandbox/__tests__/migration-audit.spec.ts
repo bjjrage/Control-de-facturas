@@ -1,12 +1,12 @@
 /**
  * AUCTION SANDBOX — Static migration audit (no DB available).
  *
- * 0068 is APPLIED to the live project; 0069 (policy-bound submit) ships in
+ * 0068 is APPLIED to the live project; 0070 (policy-bound submit) ships in
  * this branch and MUST be pushed (`supabase db push`) before deploying app
  * code. Skew is fail-closed by construction: new-code + old-DB errors on the
  * unknown 5th arg inside rpcSubmit's try/catch (no write, liveness stall
- * only); old-code + new-DB behaves exactly as pre-0069 (param defaults
- * NULL). Ship DB first, then app — see the rollout checklist in 0069.
+ * only); old-code + new-DB behaves exactly as pre-0070 (param defaults
+ * NULL). Ship DB first, then app — see the rollout checklist in 0070.
  * These tests audit the migration FILES statically. If any assertion fails,
  * the migrations are NOT safe to apply.
  */
@@ -27,8 +27,8 @@ const stripSql = (s: string): string =>
     .replace(/\/\*[\s\S]*?\*\//g, '');
 const sqlRaw = readFileSync(resolve(ROOT, 'supabase', 'migrations', '0068_auction_sandbox.sql'), 'utf8');
 const sql = stripSql(sqlRaw);
-const sql69Raw = readFileSync(resolve(ROOT, 'supabase', 'migrations', '0069_auction_sandbox_policy_bound_submit.sql'), 'utf8');
-const sql69 = stripSql(sql69Raw);
+const sql70Raw = readFileSync(resolve(ROOT, 'supabase', 'migrations', '0070_auction_sandbox_policy_bound_submit.sql'), 'utf8');
+const sql70 = stripSql(sql70Raw);
 
 function read(rel: string): string {
   return readFileSync(resolve(ROOT, rel), 'utf8');
@@ -229,16 +229,16 @@ describe('0068 static safety audit', () => {
   });
 });
 
-describe('0069 static safety audit — policy-bound submit', () => {
+describe('0070 static safety audit — policy-bound submit', () => {
   it('submit carries an optional expected policy version (human path unaffected)', () => {
-    expect(sql69).toContain('p_expected_policy_version integer default null');
-    expect(sql69).not.toMatch(/p_now_iso/);
+    expect(sql70).toContain('p_expected_policy_version integer default null');
+    expect(sql70).not.toMatch(/p_now_iso/);
   });
 
   it('a newer persisted version rejects with POLICY_SUPERSEDED before any bid write', () => {
-    const bodyStart = sql69.indexOf('create function public.submit_sandbox_bid(');
+    const bodyStart = sql70.indexOf('create function public.submit_sandbox_bid(');
     expect(bodyStart).toBeGreaterThan(-1);
-    const body = sql69.slice(bodyStart);
+    const body = sql70.slice(bodyStart);
     expect(body).toContain('POLICY_SUPERSEDED');
     // Gate block: from the NULL-guard to the phase computation. Anchors are
     // CODE (comment markers are stripped above — never slice on prose).
@@ -257,18 +257,18 @@ describe('0069 static safety audit — policy-bound submit', () => {
   });
 
   it('replaces the 4-arg signature with grants re-applied on the 5-arg form', () => {
-    expect(sql69).toMatch(/drop function if exists public\.submit_sandbox_bid\(uuid, uuid, bigint, text\)/);
+    expect(sql70).toMatch(/drop function if exists public\.submit_sandbox_bid\(uuid, uuid, bigint, text\)/);
     // Exactly ONE submit definition: a re-added ungated 4-arg overload
     // alongside the 5-arg form would silently route 4-arg callers around
     // the POLICY_SUPERSEDED gate.
-    expect(sql69.match(/create function public\.submit_sandbox_bid\(/g)?.length ?? 0).toBe(1);
-    expect(sql69).toMatch(/security definer/);
-    expect(sql69).toMatch(/revoke all on function public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\) from public, anon, authenticated;/);
-    expect(sql69).toMatch(/grant execute on function public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\)[^;]*to service_role/);
+    expect(sql70.match(/create function public\.submit_sandbox_bid\(/g)?.length ?? 0).toBe(1);
+    expect(sql70).toMatch(/security definer/);
+    expect(sql70).toMatch(/revoke all on function public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\) from public, anon, authenticated;/);
+    expect(sql70).toMatch(/grant execute on function public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\)[^;]*to service_role/);
     // No anon/public execution on the new form either (case-tolerant).
-    expect(sql69).not.toMatch(/grant\s+execute\s+on\s+function\s+public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\)[^;]*to\s+anon/i);
-    expect(sql69).not.toMatch(/grant\s+execute\s+on\s+function\s+public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\)[^;]*to\s+public[,\s;]/i);
-    expect(sql69).not.toMatch(/p_client/i);
+    expect(sql70).not.toMatch(/grant\s+execute\s+on\s+function\s+public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\)[^;]*to\s+anon/i);
+    expect(sql70).not.toMatch(/grant\s+execute\s+on\s+function\s+public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\)[^;]*to\s+public[,\s;]/i);
+    expect(sql70).not.toMatch(/p_client/i);
   });
 
   it('app callers bind bot/assisted submits, never human submits', () => {

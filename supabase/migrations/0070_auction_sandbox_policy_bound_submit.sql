@@ -1,4 +1,4 @@
--- 0069_auction_sandbox_policy_bound_submit.sql
+-- 0070_auction_sandbox_policy_bound_submit.sql
 --
 -- Binds bot/assisted submits to the authorizing policy version, closing the
 -- refresh→submit race at the AUTHORITY (not just best-effort in app code):
@@ -30,12 +30,12 @@
 --      Reload the PostgREST schema cache if 5-arg calls miss (fail-closed
 --      stall, never corruption).
 --   3. Deploy app code. Skew behavior (by design, never worse than baseline):
---      old-code + new-DB behaves exactly as pre-0069 (param defaults NULL);
+--      old-code + new-DB behaves exactly as pre-0070 (param defaults NULL);
 --      new-code + old-DB fails closed on bot submits (unknown-arg error is
 --      caught → no write) until the DB migrates. Ship DB first, then app.
 --
 -- DEPLOY NOTE: cannot be verified from CI (no DB here); static pins live in
--- lib/auction-sandbox/__tests__/migration-audit.spec.ts (0069 describe).
+-- lib/auction-sandbox/__tests__/migration-audit.spec.ts (0070 describe).
 
 -- Signature change: DROP first (grants die with the old signature).
 drop function if exists public.submit_sandbox_bid(uuid, uuid, bigint, text);
@@ -97,7 +97,7 @@ begin
     end if;
   end if;
 
-  -- Policy binding (0069): the caller passes the version its candidate was
+  -- Policy binding (0070): the caller passes the version its candidate was
   -- authorized under. A newer persisted version aborts — the candidate was
   -- computed off a superseded policy and could breach the CURRENT autoLimit
   -- (which this RPC does not enforce). NULL skips (human path).

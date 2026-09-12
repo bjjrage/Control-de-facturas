@@ -160,9 +160,9 @@ async function rpcSubmit(
     p_participant_id: participantId,
     p_price_pyg: pricePyg,
     p_idempotency_key: idempotencyKey,
-    // Policy binding (0069): bot/assisted submits carry the authorizing
+    // Policy binding (0070): bot/assisted submits carry the authorizing
     // version; the RPC rejects when a newer version exists. Human submits
-    // pass nothing (not policy-bound). Requires migration 0069 applied.
+    // pass nothing (not policy-bound). Requires migration 0070 applied.
     ...(expectedPolicyVersion !== undefined && expectedPolicyVersion !== null
       ? { p_expected_policy_version: expectedPolicyVersion }
       : {}),
