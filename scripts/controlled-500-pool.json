@@ -1,0 +1,5002 @@
+[
+  {
+    "id": 295000,
+    "ocid": "ocds-03ad3f-295000-1",
+    "year": 2015,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 295125,
+    "ocid": "ocds-03ad3f-295125-1",
+    "year": 2015,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 295250,
+    "ocid": "ocds-03ad3f-295250-2",
+    "year": 2015,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 295500,
+    "ocid": "ocds-03ad3f-295500-1",
+    "year": 2015,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 295625,
+    "ocid": "ocds-03ad3f-295625-1",
+    "year": 2015,
+    "category": "Bienes - Textiles, vestuarios y calzados",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 295750,
+    "ocid": "ocds-03ad3f-295750-1",
+    "year": 2015,
+    "category": "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 295875,
+    "ocid": "ocds-03ad3f-295875-1",
+    "year": 2015,
+    "category": "Bienes - Utensilios de cocina y comedor, Productos de Porcelana, vidrio y loza",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 296000,
+    "ocid": "ocds-03ad3f-296000-1",
+    "year": 2015,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 296125,
+    "ocid": "ocds-03ad3f-296125-1",
+    "year": 2015,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": true
+  },
+  {
+    "id": 296250,
+    "ocid": "ocds-03ad3f-296250-1",
+    "year": 2015,
+    "category": "Servicios - Servicios de ceremonial, gastronomico y funerarios",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 9,
+    "has_amendments": false
+  },
+  {
+    "id": 296375,
+    "ocid": "ocds-03ad3f-296375-1",
+    "year": 2015,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 296500,
+    "ocid": "ocds-03ad3f-296500-1",
+    "year": 2015,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 12,
+    "has_amendments": false
+  },
+  {
+    "id": 296625,
+    "ocid": "ocds-03ad3f-296625-1",
+    "year": 2015,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 14,
+    "has_amendments": false
+  },
+  {
+    "id": 296875,
+    "ocid": "ocds-03ad3f-296875-1",
+    "year": 2015,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 297000,
+    "ocid": "ocds-03ad3f-297000-1",
+    "year": 2015,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 297125,
+    "ocid": "ocds-03ad3f-297125-1",
+    "year": 2015,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 297250,
+    "ocid": "ocds-03ad3f-297250-1",
+    "year": 2015,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 297375,
+    "ocid": "ocds-03ad3f-297375-1",
+    "year": 2015,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 297500,
+    "ocid": "ocds-03ad3f-297500-1",
+    "year": 2015,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": true
+  },
+  {
+    "id": 297625,
+    "ocid": "ocds-03ad3f-297625-1",
+    "year": 2015,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 297750,
+    "ocid": "ocds-03ad3f-297750-1",
+    "year": 2015,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 5,
+    "awards_count": 5,
+    "parties_count": 11,
+    "has_amendments": true
+  },
+  {
+    "id": 297875,
+    "ocid": "ocds-03ad3f-297875-1",
+    "year": 2015,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 1,
+    "parties_count": 10,
+    "has_amendments": false
+  },
+  {
+    "id": 298000,
+    "ocid": "ocds-03ad3f-298000-1",
+    "year": 2015,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 298125,
+    "ocid": "ocds-03ad3f-298125-1",
+    "year": 2015,
+    "category": "Servicios - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 298250,
+    "ocid": "ocds-03ad3f-298250-1",
+    "year": 2015,
+    "category": "Bienes - Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 10,
+    "has_amendments": false
+  },
+  {
+    "id": 298375,
+    "ocid": "ocds-03ad3f-298375-1",
+    "year": 2015,
+    "category": "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 298500,
+    "ocid": "ocds-03ad3f-298500-1",
+    "year": 2015,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 298625,
+    "ocid": "ocds-03ad3f-298625-1",
+    "year": 2015,
+    "category": "Locación Inmuebles - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 298750,
+    "ocid": "ocds-03ad3f-298750-1",
+    "year": 2015,
+    "category": "Bienes - Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": true
+  },
+  {
+    "id": 298875,
+    "ocid": "ocds-03ad3f-298875-1",
+    "year": 2015,
+    "category": "Locación Inmuebles - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 10,
+    "awards_count": 10,
+    "parties_count": 21,
+    "has_amendments": true
+  },
+  {
+    "id": 299000,
+    "ocid": "ocds-03ad3f-299000-1",
+    "year": 2015,
+    "category": "Bienes - Equipos, Productos e instrumentales Médicos y de Laboratorio. Servicios asistenciales de salud",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 299125,
+    "ocid": "ocds-03ad3f-299125-1",
+    "year": 2015,
+    "category": "Locación Inmuebles - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 299250,
+    "ocid": "ocds-03ad3f-299250-1",
+    "year": 2015,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 299375,
+    "ocid": "ocds-03ad3f-299375-1",
+    "year": 2015,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 299500,
+    "ocid": "ocds-03ad3f-299500-1",
+    "year": 2015,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 299625,
+    "ocid": "ocds-03ad3f-299625-1",
+    "year": 2015,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 299875,
+    "ocid": "ocds-03ad3f-299875-1",
+    "year": 2015,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 3,
+    "awards_count": 3,
+    "parties_count": 5,
+    "has_amendments": true
+  },
+  {
+    "id": 300000,
+    "ocid": "ocds-03ad3f-300000-1",
+    "year": 2015,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 300125,
+    "ocid": "ocds-03ad3f-300125-1",
+    "year": 2015,
+    "category": "Bienes - Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 300250,
+    "ocid": "ocds-03ad3f-300250-1",
+    "year": 2015,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 308000,
+    "ocid": "ocds-03ad3f-308000-1",
+    "year": 2016,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 308125,
+    "ocid": "ocds-03ad3f-308125-2",
+    "year": 2016,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": true
+  },
+  {
+    "id": 308250,
+    "ocid": "ocds-03ad3f-308250-1",
+    "year": 2016,
+    "category": "Bienes - Combustibles y Lubricantes",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 308375,
+    "ocid": "ocds-03ad3f-308375-2",
+    "year": 2016,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 308500,
+    "ocid": "ocds-03ad3f-308500-1",
+    "year": 2016,
+    "category": "Servicios - Servicios de ceremonial, gastronomico y funerarios",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 308625,
+    "ocid": "ocds-03ad3f-308625-1",
+    "year": 2016,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 308750,
+    "ocid": "ocds-03ad3f-308750-1",
+    "year": 2016,
+    "category": "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 308875,
+    "ocid": "ocds-03ad3f-308875-1",
+    "year": 2016,
+    "category": "Bienes - Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 12,
+    "has_amendments": false
+  },
+  {
+    "id": 309000,
+    "ocid": "ocds-03ad3f-309000-1",
+    "year": 2016,
+    "category": "Bienes - Muebles y Enseres",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 309125,
+    "ocid": "ocds-03ad3f-309125-1",
+    "year": 2016,
+    "category": "Bienes - Muebles y Enseres",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 309375,
+    "ocid": "ocds-03ad3f-309375-1",
+    "year": 2016,
+    "category": "Bienes - Productos Alimenticios",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 309500,
+    "ocid": "ocds-03ad3f-309500-1",
+    "year": 2016,
+    "category": "Bienes - Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 309625,
+    "ocid": "ocds-03ad3f-309625-1",
+    "year": 2016,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 309875,
+    "ocid": "ocds-03ad3f-309875-1",
+    "year": 2016,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 310000,
+    "ocid": "ocds-03ad3f-310000-1",
+    "year": 2016,
+    "category": "Servicios - Servicios de ceremonial, gastronomico y funerarios",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 9,
+    "has_amendments": false
+  },
+  {
+    "id": 310125,
+    "ocid": "ocds-03ad3f-310125-1",
+    "year": 2016,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 310250,
+    "ocid": "ocds-03ad3f-310250-1",
+    "year": 2016,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 310375,
+    "ocid": "ocds-03ad3f-310375-1",
+    "year": 2016,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 310500,
+    "ocid": "ocds-03ad3f-310500-1",
+    "year": 2016,
+    "category": "Bienes - Equipos, Productos e instrumentales Médicos y de Laboratorio. Servicios asistenciales de salud",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 310625,
+    "ocid": "ocds-03ad3f-310625-1",
+    "year": 2016,
+    "category": "Bienes - Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 9,
+    "has_amendments": false
+  },
+  {
+    "id": 310750,
+    "ocid": "ocds-03ad3f-310750-2",
+    "year": 2016,
+    "category": "Bienes - Muebles y Enseres",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 310875,
+    "ocid": "ocds-03ad3f-310875-2",
+    "year": 2016,
+    "category": "Servicios - Publicidad y Propaganda",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 311000,
+    "ocid": "ocds-03ad3f-311000-1",
+    "year": 2016,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 311125,
+    "ocid": "ocds-03ad3f-311125-1",
+    "year": 2016,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 311250,
+    "ocid": "ocds-03ad3f-311250-1",
+    "year": 2016,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 311375,
+    "ocid": "ocds-03ad3f-311375-1",
+    "year": 2016,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 311500,
+    "ocid": "ocds-03ad3f-311500-1",
+    "year": 2016,
+    "category": "Bienes - Muebles y Enseres",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": true
+  },
+  {
+    "id": 311750,
+    "ocid": "ocds-03ad3f-311750-1",
+    "year": 2016,
+    "category": "Bienes - Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 311875,
+    "ocid": "ocds-03ad3f-311875-1",
+    "year": 2016,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 312000,
+    "ocid": "ocds-03ad3f-312000-1",
+    "year": 2016,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 312125,
+    "ocid": "ocds-03ad3f-312125-1",
+    "year": 2016,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 312250,
+    "ocid": "ocds-03ad3f-312250-1",
+    "year": 2016,
+    "category": "Bienes - Productos quimicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 312375,
+    "ocid": "ocds-03ad3f-312375-1",
+    "year": 2016,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 312500,
+    "ocid": "ocds-03ad3f-312500-1",
+    "year": 2016,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 3,
+    "awards_count": 3,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 312750,
+    "ocid": "ocds-03ad3f-312750-1",
+    "year": 2016,
+    "category": "Servicios - Servicios de ceremonial, gastronomico y funerarios",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 312875,
+    "ocid": "ocds-03ad3f-312875-1",
+    "year": 2016,
+    "category": "Bienes - Equipos, Productos e instrumentales Médicos y de Laboratorio. Servicios asistenciales de salud",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 313000,
+    "ocid": "ocds-03ad3f-313000-1",
+    "year": 2016,
+    "category": "Bienes - Muebles y Enseres",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 313125,
+    "ocid": "ocds-03ad3f-313125-2",
+    "year": 2016,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 313250,
+    "ocid": "ocds-03ad3f-313250-1",
+    "year": 2016,
+    "category": "Servicios - Servicios de ceremonial, gastronomico y funerarios",
+    "contracts_count": 0,
+    "awards_count": 1,
+    "parties_count": 11,
+    "has_amendments": false
+  },
+  {
+    "id": 313375,
+    "ocid": "ocds-03ad3f-313375-1",
+    "year": 2016,
+    "category": "Bienes - Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 322000,
+    "ocid": "ocds-03ad3f-322000-1",
+    "year": 2017,
+    "category": "Servicios - Servicios de ceremonial, gastronomico y funerarios",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 322125,
+    "ocid": "ocds-03ad3f-322125-1",
+    "year": 2017,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 322250,
+    "ocid": "ocds-03ad3f-322250-1",
+    "year": 2017,
+    "category": "Servicios - Pasajes y Transportes",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 322375,
+    "ocid": "ocds-03ad3f-322375-1",
+    "year": 2017,
+    "category": "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 322500,
+    "ocid": "ocds-03ad3f-322500-1",
+    "year": 2017,
+    "category": "Bienes - Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 9,
+    "has_amendments": true
+  },
+  {
+    "id": 322625,
+    "ocid": "ocds-03ad3f-322625-1",
+    "year": 2017,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 322750,
+    "ocid": "ocds-03ad3f-322750-1",
+    "year": 2017,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 13,
+    "has_amendments": false
+  },
+  {
+    "id": 322875,
+    "ocid": "ocds-03ad3f-322875-1",
+    "year": 2017,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 323125,
+    "ocid": "ocds-03ad3f-323125-1",
+    "year": 2017,
+    "category": "Bienes - Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 323250,
+    "ocid": "ocds-03ad3f-323250-1",
+    "year": 2017,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 323375,
+    "ocid": "ocds-03ad3f-323375-1",
+    "year": 2017,
+    "category": "Bienes - Productos Alimenticios",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 323500,
+    "ocid": "ocds-03ad3f-323500-1",
+    "year": 2017,
+    "category": "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 323625,
+    "ocid": "ocds-03ad3f-323625-1",
+    "year": 2017,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 323750,
+    "ocid": "ocds-03ad3f-323750-1",
+    "year": 2017,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 11,
+    "has_amendments": false
+  },
+  {
+    "id": 323875,
+    "ocid": "ocds-03ad3f-323875-1",
+    "year": 2017,
+    "category": "Bienes - Combustibles y Lubricantes",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 324000,
+    "ocid": "ocds-03ad3f-324000-1",
+    "year": 2017,
+    "category": "Bienes - Elementos e insumos de limpieza",
+    "contracts_count": 4,
+    "awards_count": 4,
+    "parties_count": 10,
+    "has_amendments": false
+  },
+  {
+    "id": 324125,
+    "ocid": "ocds-03ad3f-324125-1",
+    "year": 2017,
+    "category": "Bienes - Productos quimicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 9,
+    "has_amendments": false
+  },
+  {
+    "id": 324250,
+    "ocid": "ocds-03ad3f-324250-1",
+    "year": 2017,
+    "category": "Bienes - Equipos Militares y de Seguridad. Servicio de Seguridad y Vigilancia",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 324375,
+    "ocid": "ocds-03ad3f-324375-1",
+    "year": 2017,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 5,
+    "awards_count": 5,
+    "parties_count": 10,
+    "has_amendments": false
+  },
+  {
+    "id": 324500,
+    "ocid": "ocds-03ad3f-324500-1",
+    "year": 2017,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": true
+  },
+  {
+    "id": 324625,
+    "ocid": "ocds-03ad3f-324625-1",
+    "year": 2017,
+    "category": "Bienes - Productos quimicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 324750,
+    "ocid": "ocds-03ad3f-324750-1",
+    "year": 2017,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 324875,
+    "ocid": "ocds-03ad3f-324875-1",
+    "year": 2017,
+    "category": "Bienes - Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 325000,
+    "ocid": "ocds-03ad3f-325000-1",
+    "year": 2017,
+    "category": "Bienes - Minerales",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 325125,
+    "ocid": "ocds-03ad3f-325125-1",
+    "year": 2017,
+    "category": "Bienes - Muebles y Enseres",
+    "contracts_count": 4,
+    "awards_count": 4,
+    "parties_count": 11,
+    "has_amendments": false
+  },
+  {
+    "id": 325250,
+    "ocid": "ocds-03ad3f-325250-1",
+    "year": 2017,
+    "category": "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 325375,
+    "ocid": "ocds-03ad3f-325375-1",
+    "year": 2017,
+    "category": "Servicios - Equipos Militares y de Seguridad. Servicio de Seguridad y Vigilancia",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 9,
+    "has_amendments": false
+  },
+  {
+    "id": 325500,
+    "ocid": "ocds-03ad3f-325500-1",
+    "year": 2017,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 9,
+    "has_amendments": false
+  },
+  {
+    "id": 325625,
+    "ocid": "ocds-03ad3f-325625-1",
+    "year": 2017,
+    "category": "Bienes - Productos quimicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 325750,
+    "ocid": "ocds-03ad3f-325750-1",
+    "year": 2017,
+    "category": "Bienes - Elementos e insumos de limpieza",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 325875,
+    "ocid": "ocds-03ad3f-325875-1",
+    "year": 2017,
+    "category": "Bienes - Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 326000,
+    "ocid": "ocds-03ad3f-326000-1",
+    "year": 2017,
+    "category": "Bienes - Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 9,
+    "has_amendments": false
+  },
+  {
+    "id": 326125,
+    "ocid": "ocds-03ad3f-326125-1",
+    "year": 2017,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 3,
+    "awards_count": 3,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 326250,
+    "ocid": "ocds-03ad3f-326250-1",
+    "year": 2017,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 326375,
+    "ocid": "ocds-03ad3f-326375-1",
+    "year": 2017,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 326500,
+    "ocid": "ocds-03ad3f-326500-1",
+    "year": 2017,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 326625,
+    "ocid": "ocds-03ad3f-326625-1",
+    "year": 2017,
+    "category": "Bienes - Productos Alimenticios",
+    "contracts_count": 5,
+    "awards_count": 5,
+    "parties_count": 9,
+    "has_amendments": true
+  },
+  {
+    "id": 326750,
+    "ocid": "ocds-03ad3f-326750-1",
+    "year": 2017,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 326875,
+    "ocid": "ocds-03ad3f-326875-1",
+    "year": 2017,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 327000,
+    "ocid": "ocds-03ad3f-327000-1",
+    "year": 2017,
+    "category": "Servicios - Equipos, Productos e instrumentales Médicos y de Laboratorio. Servicios asistenciales de salud",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 338000,
+    "ocid": "ocds-03ad3f-338000-1",
+    "year": 2018,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 338238,
+    "ocid": "ocds-03ad3f-338238-1",
+    "year": 2018,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 338357,
+    "ocid": "ocds-03ad3f-338357-1",
+    "year": 2018,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 338476,
+    "ocid": "ocds-03ad3f-338476-1",
+    "year": 2018,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 338595,
+    "ocid": "ocds-03ad3f-338595-1",
+    "year": 2018,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 9,
+    "has_amendments": false
+  },
+  {
+    "id": 338714,
+    "ocid": "ocds-03ad3f-338714-1",
+    "year": 2018,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 338833,
+    "ocid": "ocds-03ad3f-338833-1",
+    "year": 2018,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 338952,
+    "ocid": "ocds-03ad3f-338952-1",
+    "year": 2018,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 339071,
+    "ocid": "ocds-03ad3f-339071-1",
+    "year": 2018,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 339190,
+    "ocid": "ocds-03ad3f-339190-1",
+    "year": 2018,
+    "category": "Bienes - Combustibles y Lubricantes",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 339309,
+    "ocid": "ocds-03ad3f-339309-1",
+    "year": 2018,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 4,
+    "awards_count": 4,
+    "parties_count": 5,
+    "has_amendments": false
+  },
+  {
+    "id": 339428,
+    "ocid": "ocds-03ad3f-339428-1",
+    "year": 2018,
+    "category": "Tierras - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 339547,
+    "ocid": "ocds-03ad3f-339547-1",
+    "year": 2018,
+    "category": "Bienes - Productos Alimenticios",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 339666,
+    "ocid": "ocds-03ad3f-339666-1",
+    "year": 2018,
+    "category": "Bienes - Textiles, vestuarios y calzados",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 339785,
+    "ocid": "ocds-03ad3f-339785-1",
+    "year": 2018,
+    "category": "Bienes - Combustibles y Lubricantes",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 339904,
+    "ocid": "ocds-03ad3f-339904-1",
+    "year": 2018,
+    "category": "Bienes - Equipos, Productos e instrumentales Médicos y de Laboratorio. Servicios asistenciales de salud",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 340023,
+    "ocid": "ocds-03ad3f-340023-1",
+    "year": 2018,
+    "category": "Bienes - Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 340142,
+    "ocid": "ocds-03ad3f-340142-1",
+    "year": 2018,
+    "category": "Servicios - Servicios de ceremonial, gastronomico y funerarios",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 340261,
+    "ocid": "ocds-03ad3f-340261-1",
+    "year": 2018,
+    "category": "Servicios - Servicios de ceremonial, gastronomico y funerarios",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 340380,
+    "ocid": "ocds-03ad3f-340380-1",
+    "year": 2018,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 340499,
+    "ocid": "ocds-03ad3f-340499-1",
+    "year": 2018,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 340618,
+    "ocid": "ocds-03ad3f-340618-1",
+    "year": 2018,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 340737,
+    "ocid": "ocds-03ad3f-340737-1",
+    "year": 2018,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 3,
+    "awards_count": 3,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 340856,
+    "ocid": "ocds-03ad3f-340856-1",
+    "year": 2018,
+    "category": "Bienes - Productos quimicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 340975,
+    "ocid": "ocds-03ad3f-340975-1",
+    "year": 2018,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 6,
+    "awards_count": 6,
+    "parties_count": 12,
+    "has_amendments": false
+  },
+  {
+    "id": 341094,
+    "ocid": "ocds-03ad3f-341094-1",
+    "year": 2018,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 341213,
+    "ocid": "ocds-03ad3f-341213-1",
+    "year": 2018,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": true
+  },
+  {
+    "id": 341332,
+    "ocid": "ocds-03ad3f-341332-1",
+    "year": 2018,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 12,
+    "has_amendments": false
+  },
+  {
+    "id": 341451,
+    "ocid": "ocds-03ad3f-341451-1",
+    "year": 2018,
+    "category": "Bienes - Muebles y Enseres",
+    "contracts_count": 3,
+    "awards_count": 3,
+    "parties_count": 10,
+    "has_amendments": false
+  },
+  {
+    "id": 341570,
+    "ocid": "ocds-03ad3f-341570-1",
+    "year": 2018,
+    "category": "Bienes - Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 341689,
+    "ocid": "ocds-03ad3f-341689-1",
+    "year": 2018,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 10,
+    "has_amendments": false
+  },
+  {
+    "id": 341808,
+    "ocid": "ocds-03ad3f-341808-1",
+    "year": 2018,
+    "category": "Bienes - Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+    "contracts_count": 8,
+    "awards_count": 8,
+    "parties_count": 13,
+    "has_amendments": true
+  },
+  {
+    "id": 341927,
+    "ocid": "ocds-03ad3f-341927-1",
+    "year": 2018,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 9,
+    "has_amendments": false
+  },
+  {
+    "id": 342046,
+    "ocid": "ocds-03ad3f-342046-1",
+    "year": 2018,
+    "category": "Servicios - Servicios de ceremonial, gastronomico y funerarios",
+    "contracts_count": 0,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 342165,
+    "ocid": "ocds-03ad3f-342165-1",
+    "year": 2018,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 342284,
+    "ocid": "ocds-03ad3f-342284-1",
+    "year": 2018,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 3,
+    "awards_count": 3,
+    "parties_count": 15,
+    "has_amendments": false
+  },
+  {
+    "id": 342403,
+    "ocid": "ocds-03ad3f-342403-1",
+    "year": 2018,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 342879,
+    "ocid": "ocds-03ad3f-342879-1",
+    "year": 2018,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 9,
+    "has_amendments": true
+  },
+  {
+    "id": 342998,
+    "ocid": "ocds-03ad3f-342998-1",
+    "year": 2018,
+    "category": "Bienes - Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 343117,
+    "ocid": "ocds-03ad3f-343117-1",
+    "year": 2018,
+    "category": "Servicios - Servicios de ceremonial, gastronomico y funerarios",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 343236,
+    "ocid": "ocds-03ad3f-343236-1",
+    "year": 2018,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 5,
+    "awards_count": 5,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 343355,
+    "ocid": "ocds-03ad3f-343355-1",
+    "year": 2018,
+    "category": "Bienes - Productos quimicos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 358000,
+    "ocid": "ocds-03ad3f-358000-1",
+    "year": 2019,
+    "category": "Bienes - Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 358155,
+    "ocid": "ocds-03ad3f-358155-1",
+    "year": 2019,
+    "category": "Servicios - Equipos, Productos e instrumentales Médicos y de Laboratorio. Servicios asistenciales de salud",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 358310,
+    "ocid": "ocds-03ad3f-358310-1",
+    "year": 2019,
+    "category": "Servicios - Servicios de ceremonial, gastronomico y funerarios",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 11,
+    "has_amendments": false
+  },
+  {
+    "id": 358465,
+    "ocid": "ocds-03ad3f-358465-1",
+    "year": 2019,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 358620,
+    "ocid": "ocds-03ad3f-358620-1",
+    "year": 2019,
+    "category": "Servicios - Seguros",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 358775,
+    "ocid": "ocds-03ad3f-358775-1",
+    "year": 2019,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 359085,
+    "ocid": "ocds-03ad3f-359085-1",
+    "year": 2019,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 359240,
+    "ocid": "ocds-03ad3f-359240-1",
+    "year": 2019,
+    "category": "Servicios - Pasajes y Transportes",
+    "contracts_count": 3,
+    "awards_count": 3,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 359395,
+    "ocid": "ocds-03ad3f-359395-1",
+    "year": 2019,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 359550,
+    "ocid": "ocds-03ad3f-359550-1",
+    "year": 2019,
+    "category": "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 359705,
+    "ocid": "ocds-03ad3f-359705-1",
+    "year": 2019,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 359860,
+    "ocid": "ocds-03ad3f-359860-1",
+    "year": 2019,
+    "category": "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 360015,
+    "ocid": "ocds-03ad3f-360015-1",
+    "year": 2019,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 360170,
+    "ocid": "ocds-03ad3f-360170-1",
+    "year": 2019,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 360325,
+    "ocid": "ocds-03ad3f-360325-1",
+    "year": 2019,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 13,
+    "has_amendments": true
+  },
+  {
+    "id": 360480,
+    "ocid": "ocds-03ad3f-360480-1",
+    "year": 2019,
+    "category": "Servicios - Pasajes y Transportes",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 360635,
+    "ocid": "ocds-03ad3f-360635-1",
+    "year": 2019,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 360790,
+    "ocid": "ocds-03ad3f-360790-1",
+    "year": 2019,
+    "category": "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 360945,
+    "ocid": "ocds-03ad3f-360945-1",
+    "year": 2019,
+    "category": "Bienes - Equipos, Productos e instrumentales Médicos y de Laboratorio. Servicios asistenciales de salud",
+    "contracts_count": 7,
+    "awards_count": 7,
+    "parties_count": 13,
+    "has_amendments": false
+  },
+  {
+    "id": 361255,
+    "ocid": "ocds-03ad3f-361255-1",
+    "year": 2019,
+    "category": "Bienes - Elementos e insumos de limpieza",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 361410,
+    "ocid": "ocds-03ad3f-361410-1",
+    "year": 2019,
+    "category": "Bienes - Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 361565,
+    "ocid": "ocds-03ad3f-361565-1",
+    "year": 2019,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 9,
+    "has_amendments": false
+  },
+  {
+    "id": 361720,
+    "ocid": "ocds-03ad3f-361720-1",
+    "year": 2019,
+    "category": "Bienes - Muebles y Enseres",
+    "contracts_count": 4,
+    "awards_count": 4,
+    "parties_count": 9,
+    "has_amendments": false
+  },
+  {
+    "id": 361875,
+    "ocid": "ocds-03ad3f-361875-1",
+    "year": 2019,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": true
+  },
+  {
+    "id": 362030,
+    "ocid": "ocds-03ad3f-362030-1",
+    "year": 2019,
+    "category": "Locación Inmuebles - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 5,
+    "has_amendments": true
+  },
+  {
+    "id": 362185,
+    "ocid": "ocds-03ad3f-362185-1",
+    "year": 2019,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 362340,
+    "ocid": "ocds-03ad3f-362340-1",
+    "year": 2019,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 362495,
+    "ocid": "ocds-03ad3f-362495-1",
+    "year": 2019,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 362650,
+    "ocid": "ocds-03ad3f-362650-1",
+    "year": 2019,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": true
+  },
+  {
+    "id": 362805,
+    "ocid": "ocds-03ad3f-362805-1",
+    "year": 2019,
+    "category": "Servicios - Servicios de ceremonial, gastronomico y funerarios",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 363115,
+    "ocid": "ocds-03ad3f-363115-1",
+    "year": 2019,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 363270,
+    "ocid": "ocds-03ad3f-363270-1",
+    "year": 2019,
+    "category": "Locación Inmuebles - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": true
+  },
+  {
+    "id": 363425,
+    "ocid": "ocds-03ad3f-363425-1",
+    "year": 2019,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 363580,
+    "ocid": "ocds-03ad3f-363580-1",
+    "year": 2019,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 363735,
+    "ocid": "ocds-03ad3f-363735-1",
+    "year": 2019,
+    "category": "Bienes - Combustibles y Lubricantes",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 363890,
+    "ocid": "ocds-03ad3f-363890-1",
+    "year": 2019,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 364045,
+    "ocid": "ocds-03ad3f-364045-1",
+    "year": 2019,
+    "category": "Bienes - Muebles y Enseres",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 364200,
+    "ocid": "ocds-03ad3f-364200-1",
+    "year": 2019,
+    "category": "Locación Inmuebles - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 364355,
+    "ocid": "ocds-03ad3f-364355-1",
+    "year": 2019,
+    "category": "Bienes - Equipos, Productos e instrumentales Médicos y de Laboratorio. Servicios asistenciales de salud",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 364510,
+    "ocid": "ocds-03ad3f-364510-1",
+    "year": 2019,
+    "category": "Servicios - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 364665,
+    "ocid": "ocds-03ad3f-364665-1",
+    "year": 2019,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 10,
+    "has_amendments": false
+  },
+  {
+    "id": 364820,
+    "ocid": "ocds-03ad3f-364820-1",
+    "year": 2019,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 10,
+    "has_amendments": true
+  },
+  {
+    "id": 364975,
+    "ocid": "ocds-03ad3f-364975-1",
+    "year": 2019,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 365130,
+    "ocid": "ocds-03ad3f-365130-1",
+    "year": 2019,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 10,
+    "has_amendments": false
+  },
+  {
+    "id": 365285,
+    "ocid": "ocds-03ad3f-365285-1",
+    "year": 2019,
+    "category": "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 375000,
+    "ocid": "ocds-03ad3f-375000-1",
+    "year": 2020,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 12,
+    "has_amendments": true
+  },
+  {
+    "id": 375144,
+    "ocid": "ocds-03ad3f-375144-1",
+    "year": 2020,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 375288,
+    "ocid": "ocds-03ad3f-375288-1",
+    "year": 2020,
+    "category": "Bienes - Equipos, Productos e instrumentales Médicos y de Laboratorio. Servicios asistenciales de salud",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 375432,
+    "ocid": "ocds-03ad3f-375432-1",
+    "year": 2020,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 375576,
+    "ocid": "ocds-03ad3f-375576-1",
+    "year": 2020,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 375720,
+    "ocid": "ocds-03ad3f-375720-1",
+    "year": 2020,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 375864,
+    "ocid": "ocds-03ad3f-375864-1",
+    "year": 2020,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 376008,
+    "ocid": "ocds-03ad3f-376008-1",
+    "year": 2020,
+    "category": "Bienes - Muebles y Enseres",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 376152,
+    "ocid": "ocds-03ad3f-376152-1",
+    "year": 2020,
+    "category": "Bienes - Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 376296,
+    "ocid": "ocds-03ad3f-376296-1",
+    "year": 2020,
+    "category": "Bienes - Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+    "contracts_count": 0,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 376440,
+    "ocid": "ocds-03ad3f-376440-1",
+    "year": 2020,
+    "category": "Servicios - Publicidad y Propaganda",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 376584,
+    "ocid": "ocds-03ad3f-376584-1",
+    "year": 2020,
+    "category": "Bienes - Productos quimicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": true
+  },
+  {
+    "id": 376728,
+    "ocid": "ocds-03ad3f-376728-1",
+    "year": 2020,
+    "category": "Bienes - Elementos e insumos de limpieza",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 376872,
+    "ocid": "ocds-03ad3f-376872-1",
+    "year": 2020,
+    "category": "Locación Inmuebles - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 377016,
+    "ocid": "ocds-03ad3f-377016-1",
+    "year": 2020,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 377160,
+    "ocid": "ocds-03ad3f-377160-1",
+    "year": 2020,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 377304,
+    "ocid": "ocds-03ad3f-377304-1",
+    "year": 2020,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 377448,
+    "ocid": "ocds-03ad3f-377448-1",
+    "year": 2020,
+    "category": "Bienes - Muebles y Enseres",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 377592,
+    "ocid": "ocds-03ad3f-377592-1",
+    "year": 2020,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 377736,
+    "ocid": "ocds-03ad3f-377736-1",
+    "year": 2020,
+    "category": "Locación Muebles - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 377880,
+    "ocid": "ocds-03ad3f-377880-1",
+    "year": 2020,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": true
+  },
+  {
+    "id": 378024,
+    "ocid": "ocds-03ad3f-378024-1",
+    "year": 2020,
+    "category": "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 378168,
+    "ocid": "ocds-03ad3f-378168-1",
+    "year": 2020,
+    "category": "Servicios - Servicios de ceremonial, gastronomico y funerarios",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 378312,
+    "ocid": "ocds-03ad3f-378312-1",
+    "year": 2020,
+    "category": "Bienes - Textiles, vestuarios y calzados",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 378456,
+    "ocid": "ocds-03ad3f-378456-1",
+    "year": 2020,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 378600,
+    "ocid": "ocds-03ad3f-378600-1",
+    "year": 2020,
+    "category": "Locación Inmuebles - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": true
+  },
+  {
+    "id": 378744,
+    "ocid": "ocds-03ad3f-378744-1",
+    "year": 2020,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": true
+  },
+  {
+    "id": 378888,
+    "ocid": "ocds-03ad3f-378888-1",
+    "year": 2020,
+    "category": "Bienes - Equipos, Productos e instrumentales Médicos y de Laboratorio. Servicios asistenciales de salud",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 379032,
+    "ocid": "ocds-03ad3f-379032-1",
+    "year": 2020,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 379176,
+    "ocid": "ocds-03ad3f-379176-1",
+    "year": 2020,
+    "category": "Servicios - Seguros",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 13,
+    "has_amendments": false
+  },
+  {
+    "id": 379320,
+    "ocid": "ocds-03ad3f-379320-1",
+    "year": 2020,
+    "category": "Servicios - Equipos, Productos e instrumentales Médicos y de Laboratorio. Servicios asistenciales de salud",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 379464,
+    "ocid": "ocds-03ad3f-379464-1",
+    "year": 2020,
+    "category": "Bienes - Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 10,
+    "has_amendments": false
+  },
+  {
+    "id": 379608,
+    "ocid": "ocds-03ad3f-379608-1",
+    "year": 2020,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 379752,
+    "ocid": "ocds-03ad3f-379752-1",
+    "year": 2020,
+    "category": "Bienes - Muebles y Enseres",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 379896,
+    "ocid": "ocds-03ad3f-379896-1",
+    "year": 2020,
+    "category": "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 380040,
+    "ocid": "ocds-03ad3f-380040-1",
+    "year": 2020,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 380184,
+    "ocid": "ocds-03ad3f-380184-1",
+    "year": 2020,
+    "category": "Locación Inmuebles - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 380328,
+    "ocid": "ocds-03ad3f-380328-1",
+    "year": 2020,
+    "category": "Bienes - Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 380472,
+    "ocid": "ocds-03ad3f-380472-1",
+    "year": 2020,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 380616,
+    "ocid": "ocds-03ad3f-380616-1",
+    "year": 2020,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 380760,
+    "ocid": "ocds-03ad3f-380760-1",
+    "year": 2020,
+    "category": "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 380904,
+    "ocid": "ocds-03ad3f-380904-1",
+    "year": 2020,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 10,
+    "has_amendments": false
+  },
+  {
+    "id": 381048,
+    "ocid": "ocds-03ad3f-381048-1",
+    "year": 2020,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 12,
+    "has_amendments": false
+  },
+  {
+    "id": 381192,
+    "ocid": "ocds-03ad3f-381192-1",
+    "year": 2020,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 381336,
+    "ocid": "ocds-03ad3f-381336-1",
+    "year": 2020,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 392000,
+    "ocid": "ocds-03ad3f-392000-1",
+    "year": 2021,
+    "category": "Bienes - Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 392154,
+    "ocid": "ocds-03ad3f-392154-1",
+    "year": 2021,
+    "category": "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 392308,
+    "ocid": "ocds-03ad3f-392308-1",
+    "year": 2021,
+    "category": "Bienes - Productos Alimenticios",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 392462,
+    "ocid": "ocds-03ad3f-392462-1",
+    "year": 2021,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 392616,
+    "ocid": "ocds-03ad3f-392616-1",
+    "year": 2021,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 10,
+    "has_amendments": false
+  },
+  {
+    "id": 392770,
+    "ocid": "ocds-03ad3f-392770-1",
+    "year": 2021,
+    "category": "Bienes - Combustibles y Lubricantes",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 392924,
+    "ocid": "ocds-03ad3f-392924-1",
+    "year": 2021,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 393078,
+    "ocid": "ocds-03ad3f-393078-1",
+    "year": 2021,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 7,
+    "has_amendments": true
+  },
+  {
+    "id": 393232,
+    "ocid": "ocds-03ad3f-393232-1",
+    "year": 2021,
+    "category": "Bienes - Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 393386,
+    "ocid": "ocds-03ad3f-393386-1",
+    "year": 2021,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 393540,
+    "ocid": "ocds-03ad3f-393540-1",
+    "year": 2021,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 393694,
+    "ocid": "ocds-03ad3f-393694-1",
+    "year": 2021,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 393848,
+    "ocid": "ocds-03ad3f-393848-1",
+    "year": 2021,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": true
+  },
+  {
+    "id": 394002,
+    "ocid": "ocds-03ad3f-394002-1",
+    "year": 2021,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 394156,
+    "ocid": "ocds-03ad3f-394156-1",
+    "year": 2021,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 12,
+    "has_amendments": true
+  },
+  {
+    "id": 394310,
+    "ocid": "ocds-03ad3f-394310-1",
+    "year": 2021,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 49,
+    "has_amendments": true
+  },
+  {
+    "id": 394618,
+    "ocid": "ocds-03ad3f-394618-1",
+    "year": 2021,
+    "category": "Servicios - Equipos, Productos e instrumentales Médicos y de Laboratorio. Servicios asistenciales de salud",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 394926,
+    "ocid": "ocds-03ad3f-394926-1",
+    "year": 2021,
+    "category": "Servicios - Pasajes y Transportes",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 395388,
+    "ocid": "ocds-03ad3f-395388-1",
+    "year": 2021,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 3,
+    "awards_count": 3,
+    "parties_count": 12,
+    "has_amendments": false
+  },
+  {
+    "id": 395542,
+    "ocid": "ocds-03ad3f-395542-1",
+    "year": 2021,
+    "category": "Bienes - Muebles y Enseres",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 17,
+    "has_amendments": false
+  },
+  {
+    "id": 395850,
+    "ocid": "ocds-03ad3f-395850-1",
+    "year": 2021,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 396004,
+    "ocid": "ocds-03ad3f-396004-1",
+    "year": 2021,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 396158,
+    "ocid": "ocds-03ad3f-396158-1",
+    "year": 2021,
+    "category": "Bienes - Textiles, vestuarios y calzados",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 11,
+    "has_amendments": false
+  },
+  {
+    "id": 396466,
+    "ocid": "ocds-03ad3f-396466-1",
+    "year": 2021,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 396620,
+    "ocid": "ocds-03ad3f-396620-1",
+    "year": 2021,
+    "category": "Bienes - Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 396928,
+    "ocid": "ocds-03ad3f-396928-1",
+    "year": 2021,
+    "category": "Locación Inmuebles - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 4,
+    "awards_count": 4,
+    "parties_count": 9,
+    "has_amendments": false
+  },
+  {
+    "id": 397082,
+    "ocid": "ocds-03ad3f-397082-1",
+    "year": 2021,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 397390,
+    "ocid": "ocds-03ad3f-397390-1",
+    "year": 2021,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 397698,
+    "ocid": "ocds-03ad3f-397698-1",
+    "year": 2021,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 397852,
+    "ocid": "ocds-03ad3f-397852-1",
+    "year": 2021,
+    "category": "Bienes - Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 398006,
+    "ocid": "ocds-03ad3f-398006-1",
+    "year": 2021,
+    "category": "Servicios - Seguros",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 398160,
+    "ocid": "ocds-03ad3f-398160-1",
+    "year": 2021,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 398314,
+    "ocid": "ocds-03ad3f-398314-1",
+    "year": 2021,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 398776,
+    "ocid": "ocds-03ad3f-398776-1",
+    "year": 2021,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 398930,
+    "ocid": "ocds-03ad3f-398930-1",
+    "year": 2021,
+    "category": "Bienes - Equipos, Productos e instrumentales Médicos y de Laboratorio. Servicios asistenciales de salud",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 399546,
+    "ocid": "ocds-03ad3f-399546-1",
+    "year": 2021,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 399700,
+    "ocid": "ocds-03ad3f-399700-1",
+    "year": 2021,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 399854,
+    "ocid": "ocds-03ad3f-399854-1",
+    "year": 2021,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 400162,
+    "ocid": "ocds-03ad3f-400162-1",
+    "year": 2021,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 400316,
+    "ocid": "ocds-03ad3f-400316-1",
+    "year": 2021,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": true
+  },
+  {
+    "id": 400470,
+    "ocid": "ocds-03ad3f-400470-1",
+    "year": 2021,
+    "category": "Servicios - Servicios de ceremonial, gastronomico y funerarios",
+    "contracts_count": 0,
+    "awards_count": 1,
+    "parties_count": 11,
+    "has_amendments": false
+  },
+  {
+    "id": 400624,
+    "ocid": "ocds-03ad3f-400624-1",
+    "year": 2021,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 410000,
+    "ocid": "ocds-03ad3f-410000-1",
+    "year": 2022,
+    "category": "Servicios - Equipos, Productos e instrumentales Médicos y de Laboratorio. Servicios asistenciales de salud",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 410142,
+    "ocid": "ocds-03ad3f-410142-1",
+    "year": 2022,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 410284,
+    "ocid": "ocds-03ad3f-410284-1",
+    "year": 2022,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 410426,
+    "ocid": "ocds-03ad3f-410426-1",
+    "year": 2022,
+    "category": "Bienes - Productos Alimenticios",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 410568,
+    "ocid": "ocds-03ad3f-410568-1",
+    "year": 2022,
+    "category": "Bienes - Equipos, Productos e instrumentales Médicos y de Laboratorio. Servicios asistenciales de salud",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 410710,
+    "ocid": "ocds-03ad3f-410710-1",
+    "year": 2022,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 410852,
+    "ocid": "ocds-03ad3f-410852-1",
+    "year": 2022,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 410994,
+    "ocid": "ocds-03ad3f-410994-1",
+    "year": 2022,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 411136,
+    "ocid": "ocds-03ad3f-411136-1",
+    "year": 2022,
+    "category": "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 411278,
+    "ocid": "ocds-03ad3f-411278-1",
+    "year": 2022,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 411420,
+    "ocid": "ocds-03ad3f-411420-1",
+    "year": 2022,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 411562,
+    "ocid": "ocds-03ad3f-411562-1",
+    "year": 2022,
+    "category": "Bienes - Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 411704,
+    "ocid": "ocds-03ad3f-411704-1",
+    "year": 2022,
+    "category": "Bienes - Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 411846,
+    "ocid": "ocds-03ad3f-411846-1",
+    "year": 2022,
+    "category": "Bienes - Equipos, Productos e instrumentales Médicos y de Laboratorio. Servicios asistenciales de salud",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 412130,
+    "ocid": "ocds-03ad3f-412130-1",
+    "year": 2022,
+    "category": "Bienes - Textiles, vestuarios y calzados",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 412272,
+    "ocid": "ocds-03ad3f-412272-1",
+    "year": 2022,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 412414,
+    "ocid": "ocds-03ad3f-412414-1",
+    "year": 2022,
+    "category": "Bienes - Equipos, Productos e instrumentales Médicos y de Laboratorio. Servicios asistenciales de salud",
+    "contracts_count": 5,
+    "awards_count": 5,
+    "parties_count": 22,
+    "has_amendments": false
+  },
+  {
+    "id": 412556,
+    "ocid": "ocds-03ad3f-412556-1",
+    "year": 2022,
+    "category": "Bienes - Muebles y Enseres",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 7,
+    "has_amendments": true
+  },
+  {
+    "id": 412698,
+    "ocid": "ocds-03ad3f-412698-1",
+    "year": 2022,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 412840,
+    "ocid": "ocds-03ad3f-412840-1",
+    "year": 2022,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": true
+  },
+  {
+    "id": 412982,
+    "ocid": "ocds-03ad3f-412982-1",
+    "year": 2022,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 413266,
+    "ocid": "ocds-03ad3f-413266-1",
+    "year": 2022,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 413408,
+    "ocid": "ocds-03ad3f-413408-1",
+    "year": 2022,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 11,
+    "has_amendments": true
+  },
+  {
+    "id": 413550,
+    "ocid": "ocds-03ad3f-413550-1",
+    "year": 2022,
+    "category": "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 413692,
+    "ocid": "ocds-03ad3f-413692-1",
+    "year": 2022,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 413976,
+    "ocid": "ocds-03ad3f-413976-1",
+    "year": 2022,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 414118,
+    "ocid": "ocds-03ad3f-414118-1",
+    "year": 2022,
+    "category": "Servicios - Seguros",
+    "contracts_count": 3,
+    "awards_count": 3,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 414402,
+    "ocid": "ocds-03ad3f-414402-1",
+    "year": 2022,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 10,
+    "has_amendments": false
+  },
+  {
+    "id": 414686,
+    "ocid": "ocds-03ad3f-414686-1",
+    "year": 2022,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 414828,
+    "ocid": "ocds-03ad3f-414828-1",
+    "year": 2022,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": true
+  },
+  {
+    "id": 414970,
+    "ocid": "ocds-03ad3f-414970-1",
+    "year": 2022,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 415112,
+    "ocid": "ocds-03ad3f-415112-1",
+    "year": 2022,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 415396,
+    "ocid": "ocds-03ad3f-415396-1",
+    "year": 2022,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 415822,
+    "ocid": "ocds-03ad3f-415822-1",
+    "year": 2022,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 415964,
+    "ocid": "ocds-03ad3f-415964-1",
+    "year": 2022,
+    "category": "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 416106,
+    "ocid": "ocds-03ad3f-416106-1",
+    "year": 2022,
+    "category": "Bienes - Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+    "contracts_count": 3,
+    "awards_count": 3,
+    "parties_count": 9,
+    "has_amendments": true
+  },
+  {
+    "id": 416248,
+    "ocid": "ocds-03ad3f-416248-1",
+    "year": 2022,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 0,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 416390,
+    "ocid": "ocds-03ad3f-416390-1",
+    "year": 2022,
+    "category": "Bienes - Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 416532,
+    "ocid": "ocds-03ad3f-416532-1",
+    "year": 2022,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": true
+  },
+  {
+    "id": 416674,
+    "ocid": "ocds-03ad3f-416674-1",
+    "year": 2022,
+    "category": "Servicios - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": true
+  },
+  {
+    "id": 416816,
+    "ocid": "ocds-03ad3f-416816-1",
+    "year": 2022,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 416958,
+    "ocid": "ocds-03ad3f-416958-1",
+    "year": 2022,
+    "category": "Locación Inmuebles - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": true
+  },
+  {
+    "id": 426000,
+    "ocid": "ocds-03ad3f-426000-1",
+    "year": 2023,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 426284,
+    "ocid": "ocds-03ad3f-426284-1",
+    "year": 2023,
+    "category": "Locación Inmuebles - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": true
+  },
+  {
+    "id": 426426,
+    "ocid": "ocds-03ad3f-426426-1",
+    "year": 2023,
+    "category": "Bienes - Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+    "contracts_count": 4,
+    "awards_count": 4,
+    "parties_count": 10,
+    "has_amendments": false
+  },
+  {
+    "id": 426568,
+    "ocid": "ocds-03ad3f-426568-1",
+    "year": 2023,
+    "category": "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 426710,
+    "ocid": "ocds-03ad3f-426710-1",
+    "year": 2023,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 426852,
+    "ocid": "ocds-03ad3f-426852-1",
+    "year": 2023,
+    "category": "Servicios - Servicios de ceremonial, gastronomico y funerarios",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 426994,
+    "ocid": "ocds-03ad3f-426994-1",
+    "year": 2023,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 427136,
+    "ocid": "ocds-03ad3f-427136-1",
+    "year": 2023,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 427278,
+    "ocid": "ocds-03ad3f-427278-1",
+    "year": 2023,
+    "category": "Locación Inmuebles - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 427420,
+    "ocid": "ocds-03ad3f-427420-1",
+    "year": 2023,
+    "category": "Bienes - Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 427562,
+    "ocid": "ocds-03ad3f-427562-1",
+    "year": 2023,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 15,
+    "has_amendments": true
+  },
+  {
+    "id": 427846,
+    "ocid": "ocds-03ad3f-427846-1",
+    "year": 2023,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 11,
+    "has_amendments": false
+  },
+  {
+    "id": 427988,
+    "ocid": "ocds-03ad3f-427988-1",
+    "year": 2023,
+    "category": "Bienes - Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 428130,
+    "ocid": "ocds-03ad3f-428130-1",
+    "year": 2023,
+    "category": "Bienes - Combustibles y Lubricantes",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 428272,
+    "ocid": "ocds-03ad3f-428272-1",
+    "year": 2023,
+    "category": "Locación Inmuebles - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 428556,
+    "ocid": "ocds-03ad3f-428556-1",
+    "year": 2023,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 3,
+    "awards_count": 3,
+    "parties_count": 9,
+    "has_amendments": true
+  },
+  {
+    "id": 428840,
+    "ocid": "ocds-03ad3f-428840-1",
+    "year": 2023,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 12,
+    "has_amendments": true
+  },
+  {
+    "id": 428982,
+    "ocid": "ocds-03ad3f-428982-1",
+    "year": 2023,
+    "category": "Locación Inmuebles - Adquisición y Locación de inmuebles. Alquiler de muebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 429124,
+    "ocid": "ocds-03ad3f-429124-2",
+    "year": 2023,
+    "category": "Bienes - Utiles de oficina, Productos de papel y cartón e impresos",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 3,
+    "has_amendments": true
+  },
+  {
+    "id": 429266,
+    "ocid": "ocds-03ad3f-429266-1",
+    "year": 2023,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 429550,
+    "ocid": "ocds-03ad3f-429550-1",
+    "year": 2023,
+    "category": "Bienes - Minerales",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 429692,
+    "ocid": "ocds-03ad3f-429692-1",
+    "year": 2023,
+    "category": "Servicios - Seguros",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 429976,
+    "ocid": "ocds-03ad3f-429976-1",
+    "year": 2023,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 430118,
+    "ocid": "ocds-03ad3f-430118-1",
+    "year": 2023,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 430260,
+    "ocid": "ocds-03ad3f-430260-1",
+    "year": 2023,
+    "category": "Consultoria - Consultorías, Asesorías e Investigaciones. Estudios y Proyectos de inversión",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 430402,
+    "ocid": "ocds-03ad3f-430402-1",
+    "year": 2023,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 430544,
+    "ocid": "ocds-03ad3f-430544-1",
+    "year": 2023,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 430828,
+    "ocid": "ocds-03ad3f-430828-1",
+    "year": 2023,
+    "category": "Servicios - Servicios de ceremonial, gastronomico y funerarios",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 430970,
+    "ocid": "ocds-03ad3f-430970-1",
+    "year": 2023,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 431112,
+    "ocid": "ocds-03ad3f-431112-1",
+    "year": 2023,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 431254,
+    "ocid": "ocds-03ad3f-431254-1",
+    "year": 2023,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 431396,
+    "ocid": "ocds-03ad3f-431396-1",
+    "year": 2023,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 11,
+    "has_amendments": false
+  },
+  {
+    "id": 431538,
+    "ocid": "ocds-03ad3f-431538-1",
+    "year": 2023,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 431680,
+    "ocid": "ocds-03ad3f-431680-1",
+    "year": 2023,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 431822,
+    "ocid": "ocds-03ad3f-431822-1",
+    "year": 2023,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 432248,
+    "ocid": "ocds-03ad3f-432248-1",
+    "year": 2023,
+    "category": "Bienes - Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 432532,
+    "ocid": "ocds-03ad3f-432532-1",
+    "year": 2023,
+    "category": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 432674,
+    "ocid": "ocds-03ad3f-432674-1",
+    "year": 2023,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 432958,
+    "ocid": "ocds-03ad3f-432958-1",
+    "year": 2023,
+    "category": "Bienes - Productos quimicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 10,
+    "has_amendments": false
+  },
+  {
+    "id": 433100,
+    "ocid": "ocds-03ad3f-433100-1",
+    "year": 2023,
+    "category": "Bienes - Maquinarias, Equipos y herramientas mayores - Equipos de transporte",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 433242,
+    "ocid": "ocds-03ad3f-433242-1",
+    "year": 2023,
+    "category": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 433526,
+    "ocid": "ocds-03ad3f-433526-1",
+    "year": 2023,
+    "category": "Servicios - Servicios Técnicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 443710,
+    "ocid": "ocds-03ad3f-443710-1",
+    "year": 2024,
+    "category": "Servicios - Servicios Editoriales  de Diseño, Graficos y de Bellas Artes",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 443852,
+    "ocid": "ocds-03ad3f-443852-1",
+    "year": 2024,
+    "category": "Bienes - Maquinaria y Accesorios para Agricultura Pesca, Silvicultura y Fauna.",
+    "contracts_count": 3,
+    "awards_count": 3,
+    "parties_count": 5,
+    "has_amendments": false
+  },
+  {
+    "id": 443994,
+    "ocid": "ocds-03ad3f-443994-1",
+    "year": 2024,
+    "category": "Servicios - Servicios de Gestion Profesionales de Empresa y Administrativos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 444562,
+    "ocid": "ocds-03ad3f-444562-1",
+    "year": 2024,
+    "category": "Bienes - Suministros componentes y accesorios electricos y de iluminacion",
+    "contracts_count": 4,
+    "awards_count": 4,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 445130,
+    "ocid": "ocds-03ad3f-445130-1",
+    "year": 2024,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 3,
+    "awards_count": 2,
+    "parties_count": 15,
+    "has_amendments": true
+  },
+  {
+    "id": 445840,
+    "ocid": "ocds-03ad3f-445840-1",
+    "year": 2024,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 446124,
+    "ocid": "ocds-03ad3f-446124-1",
+    "year": 2024,
+    "category": "Bienes - Medicamentos y Productos Farmaceuticos",
+    "contracts_count": 5,
+    "awards_count": 5,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 446266,
+    "ocid": "ocds-03ad3f-446266-1",
+    "year": 2024,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 28,
+    "has_amendments": false
+  },
+  {
+    "id": 446692,
+    "ocid": "ocds-03ad3f-446692-1",
+    "year": 2024,
+    "category": "Servicios - Tecnologias de Informacion, Telecomunicaciones y Radiodifusiones",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 447260,
+    "ocid": "ocds-03ad3f-447260-1",
+    "year": 2024,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 2,
+    "awards_count": 1,
+    "parties_count": 5,
+    "has_amendments": true
+  },
+  {
+    "id": 447402,
+    "ocid": "ocds-03ad3f-447402-1",
+    "year": 2024,
+    "category": "Servicios - Servicios Financieros y de Seguros",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 447544,
+    "ocid": "ocds-03ad3f-447544-1",
+    "year": 2024,
+    "category": "Bienes - Equipos Accesorios y Suministros Medicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 449106,
+    "ocid": "ocds-03ad3f-449106-1",
+    "year": 2024,
+    "category": "Bienes - Tecnologias de Informacion, Telecomunicaciones y Radiodifusiones",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 5,
+    "has_amendments": false
+  },
+  {
+    "id": 449248,
+    "ocid": "ocds-03ad3f-449248-1",
+    "year": 2024,
+    "category": "Servicios - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 449674,
+    "ocid": "ocds-03ad3f-449674-1",
+    "year": 2024,
+    "category": "Servicios - Servicios Editoriales  de Diseño, Graficos y de Bellas Artes",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 449958,
+    "ocid": "ocds-03ad3f-449958-1",
+    "year": 2024,
+    "category": "Servicios - Servicios de Produccion, Fabricacion Industrial y Mantenimientos de maquinarias",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 450242,
+    "ocid": "ocds-03ad3f-450242-1",
+    "year": 2024,
+    "category": "Servicios - Servicios de Transporte Almacenaje y Correo",
+    "contracts_count": 5,
+    "awards_count": 5,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 450384,
+    "ocid": "ocds-03ad3f-450384-1",
+    "year": 2024,
+    "category": "Servicios - Servicios basados en ingenieria investigacion y tecnologia",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 450526,
+    "ocid": "ocds-03ad3f-450526-1",
+    "year": 2024,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 450668,
+    "ocid": "ocds-03ad3f-450668-1",
+    "year": 2024,
+    "category": "Bienes - Ropas, Maletas y Productos de Aseo Personal",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 451094,
+    "ocid": "ocds-03ad3f-451094-1",
+    "year": 2024,
+    "category": "Bienes - Muebles y mobiliario",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 451378,
+    "ocid": "ocds-03ad3f-451378-1",
+    "year": 2024,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 5,
+    "has_amendments": false
+  },
+  {
+    "id": 451662,
+    "ocid": "ocds-03ad3f-451662-1",
+    "year": 2024,
+    "category": "Bienes - Equipos Accesorios y Suministros de Oficina",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 5,
+    "has_amendments": false
+  },
+  {
+    "id": 451804,
+    "ocid": "ocds-03ad3f-451804-1",
+    "year": 2024,
+    "category": "Servicios - Servicios Financieros y de Seguros",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 452230,
+    "ocid": "ocds-03ad3f-452230",
+    "year": 2024,
+    "category": "Equipos, accesorios y programas computacionales, de oficina, educativos, de imprenta, de comunicación y señalamiento",
+    "contracts_count": 629,
+    "awards_count": 629,
+    "parties_count": 126,
+    "has_amendments": false
+  },
+  {
+    "id": 452372,
+    "ocid": "ocds-03ad3f-452372-1",
+    "year": 2024,
+    "category": "Bienes - Tecnologias de Informacion, Telecomunicaciones y Radiodifusiones",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 452514,
+    "ocid": "ocds-03ad3f-452514-1",
+    "year": 2024,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 453082,
+    "ocid": "ocds-03ad3f-453082-1",
+    "year": 2024,
+    "category": "Bienes - Tecnologias de Informacion, Telecomunicaciones y Radiodifusiones",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 453508,
+    "ocid": "ocds-03ad3f-453508-1",
+    "year": 2024,
+    "category": "Bienes - Medicamentos y Productos Farmaceuticos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 453650,
+    "ocid": "ocds-03ad3f-453650-1",
+    "year": 2024,
+    "category": "Bienes - Tecnologias de Informacion, Telecomunicaciones y Radiodifusiones",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 453792,
+    "ocid": "ocds-03ad3f-453792-1",
+    "year": 2024,
+    "category": "Bienes - Vehiculos Comerciales, Militares y Particulares - Accesorios y Componentes",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 454218,
+    "ocid": "ocds-03ad3f-454218-1",
+    "year": 2024,
+    "category": "Servicios - Servicios de Produccion, Fabricacion Industrial y Mantenimientos de maquinarias",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 5,
+    "has_amendments": false
+  },
+  {
+    "id": 454360,
+    "ocid": "ocds-03ad3f-454360-1",
+    "year": 2024,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 454502,
+    "ocid": "ocds-03ad3f-454502-1",
+    "year": 2024,
+    "category": "Bienes - Tecnologias de Informacion, Telecomunicaciones y Radiodifusiones",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 454644,
+    "ocid": "ocds-03ad3f-454644-1",
+    "year": 2024,
+    "category": "Bienes - Tecnologias de Informacion, Telecomunicaciones y Radiodifusiones",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 5,
+    "has_amendments": false
+  },
+  {
+    "id": 454786,
+    "ocid": "ocds-03ad3f-454786-1",
+    "year": 2024,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 462000,
+    "ocid": "ocds-03ad3f-462000-1",
+    "year": 2025,
+    "category": "Bienes - Muebles y mobiliario",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 462750,
+    "ocid": "ocds-03ad3f-462750-1",
+    "year": 2025,
+    "category": "Bienes - Maquinaria y Accesorios de Fabricacion y Transformacion Industrial",
+    "contracts_count": 8,
+    "awards_count": 8,
+    "parties_count": 18,
+    "has_amendments": false
+  },
+  {
+    "id": 463000,
+    "ocid": "ocds-03ad3f-463000-1",
+    "year": 2025,
+    "category": "Servicios - Servicios de Viajes, Alimentacion, Alojamiento y Entretenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 463250,
+    "ocid": "ocds-03ad3f-463250-1",
+    "year": 2025,
+    "category": "Servicios - Servicios de Transporte Almacenaje y Correo",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 463375,
+    "ocid": "ocds-03ad3f-463375-1",
+    "year": 2025,
+    "category": "Consultoria - Servicios basados en ingenieria investigacion y tecnologia",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 463500,
+    "ocid": "ocds-03ad3f-463500-1",
+    "year": 2025,
+    "category": "Bienes - Productos quimicos incluyendo los bio-quimicos y gases industriales",
+    "contracts_count": 5,
+    "awards_count": 5,
+    "parties_count": 9,
+    "has_amendments": false
+  },
+  {
+    "id": 463750,
+    "ocid": "ocds-03ad3f-463750-1",
+    "year": 2025,
+    "category": "Bienes - Tecnologias de Informacion, Telecomunicaciones y Radiodifusiones",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 464000,
+    "ocid": "ocds-03ad3f-464000-1",
+    "year": 2025,
+    "category": "Servicios - Servicios Sanitarios",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 464125,
+    "ocid": "ocds-03ad3f-464125-1",
+    "year": 2025,
+    "category": "Servicios - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 464250,
+    "ocid": "ocds-03ad3f-464250-1",
+    "year": 2025,
+    "category": "Servicios - Servicios Financieros y de Seguros",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 464375,
+    "ocid": "ocds-03ad3f-464375-1",
+    "year": 2025,
+    "category": "Servicios - Servicios de Gestion Profesionales de Empresa y Administrativos",
+    "contracts_count": 2,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": true
+  },
+  {
+    "id": 464750,
+    "ocid": "ocds-03ad3f-464750-1",
+    "year": 2025,
+    "category": "Servicios - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 5,
+    "has_amendments": false
+  },
+  {
+    "id": 465125,
+    "ocid": "ocds-03ad3f-465125-1",
+    "year": 2025,
+    "category": "Servicios - Equipos y Suministros de Defensa Orden Publico, Proteccion y Seguridad",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 465250,
+    "ocid": "ocds-03ad3f-465250-1",
+    "year": 2025,
+    "category": "Consultoria - Servicios basados en ingenieria investigacion y tecnologia",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 465500,
+    "ocid": "ocds-03ad3f-465500-1",
+    "year": 2025,
+    "category": "Servicios - Servicios Editoriales  de Diseño, Graficos y de Bellas Artes",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 465875,
+    "ocid": "ocds-03ad3f-465875-1",
+    "year": 2025,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 5,
+    "has_amendments": false
+  },
+  {
+    "id": 466125,
+    "ocid": "ocds-03ad3f-466125-1",
+    "year": 2025,
+    "category": "Bienes - Componentes y Suministros de Fabricacion Estructuras, Obras y Construcciones",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 466500,
+    "ocid": "ocds-03ad3f-466500-1",
+    "year": 2025,
+    "category": "Bienes - Equipos Accesorios y Suministros de Oficina",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 466750,
+    "ocid": "ocds-03ad3f-466750-1",
+    "year": 2025,
+    "category": "Servicios - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 467000,
+    "ocid": "ocds-03ad3f-467000-1",
+    "year": 2025,
+    "category": "Bienes - Maquinaria de mineria y perforacion de pozos y accesorios",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 5,
+    "has_amendments": false
+  },
+  {
+    "id": 467125,
+    "ocid": "ocds-03ad3f-467125-1",
+    "year": 2025,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 467375,
+    "ocid": "ocds-03ad3f-467375-1",
+    "year": 2025,
+    "category": "Servicios - Servicios de Gestion Profesionales de Empresa y Administrativos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 467750,
+    "ocid": "ocds-03ad3f-467750-1",
+    "year": 2025,
+    "category": "Servicios - Servicios de Contratacion Agricola Pesquera, Forestal y de Fauna",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 31,
+    "has_amendments": false
+  },
+  {
+    "id": 467875,
+    "ocid": "ocds-03ad3f-467875-1",
+    "year": 2025,
+    "category": "Servicios - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 468500,
+    "ocid": "ocds-03ad3f-468500-1",
+    "year": 2025,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 469250,
+    "ocid": "ocds-03ad3f-469250-1",
+    "year": 2025,
+    "category": "Servicios - Servicios basados en ingenieria investigacion y tecnologia",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 8,
+    "has_amendments": false
+  },
+  {
+    "id": 469375,
+    "ocid": "ocds-03ad3f-469375-1",
+    "year": 2025,
+    "category": "Bienes - Servicios Editoriales  de Diseño, Graficos y de Bellas Artes",
+    "contracts_count": 2,
+    "awards_count": 2,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 469625,
+    "ocid": "ocds-03ad3f-469625-1",
+    "year": 2025,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 469875,
+    "ocid": "ocds-03ad3f-469875-1",
+    "year": 2025,
+    "category": "Bienes - Tecnologias de Informacion, Telecomunicaciones y Radiodifusiones",
+    "contracts_count": 2,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": true
+  },
+  {
+    "id": 470375,
+    "ocid": "ocds-03ad3f-470375-1",
+    "year": 2025,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 470500,
+    "ocid": "ocds-03ad3f-470500-1",
+    "year": 2025,
+    "category": "Servicios - Servicios de Transporte Almacenaje y Correo",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 5,
+    "has_amendments": false
+  },
+  {
+    "id": 470625,
+    "ocid": "ocds-03ad3f-470625-1",
+    "year": 2025,
+    "category": "Servicios - Servicios de Viajes, Alimentacion, Alojamiento y Entretenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 470750,
+    "ocid": "ocds-03ad3f-470750-1",
+    "year": 2025,
+    "category": "Servicios - Servicios Financieros y de Seguros",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 470875,
+    "ocid": "ocds-03ad3f-470875-1",
+    "year": 2025,
+    "category": "Bienes - Vehiculos Comerciales, Militares y Particulares - Accesorios y Componentes",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 471000,
+    "ocid": "ocds-03ad3f-471000-1",
+    "year": 2025,
+    "category": "Bienes - Material Accesorios y Suministros de Plantas y Animales Vivos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 471750,
+    "ocid": "ocds-03ad3f-471750-1",
+    "year": 2025,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 478125,
+    "ocid": "ocds-03ad3f-478125-1",
+    "year": 2026,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 7,
+    "has_amendments": false
+  },
+  {
+    "id": 479125,
+    "ocid": "ocds-03ad3f-479125-1",
+    "year": 2026,
+    "category": "Bienes - Tecnologias de Informacion, Telecomunicaciones y Radiodifusiones",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 479250,
+    "ocid": "ocds-03ad3f-479250-1",
+    "year": 2026,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 479625,
+    "ocid": "ocds-03ad3f-479625-1",
+    "year": 2026,
+    "category": "Servicios - Servicios de Defensa Nacional Orden Publico y Seguridad",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 5,
+    "has_amendments": false
+  },
+  {
+    "id": 479750,
+    "ocid": "ocds-03ad3f-479750-1",
+    "year": 2026,
+    "category": "Bienes - Materiales didacticos profesionales, Instrumentos musicales juegos, juguetes, artesania y equipamiento, material, accesorios y suministr",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 479875,
+    "ocid": "ocds-03ad3f-479875-1",
+    "year": 2026,
+    "category": "Bienes - Equipos Accesorios y Suministros de Oficina",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 480000,
+    "ocid": "ocds-03ad3f-480000-1",
+    "year": 2026,
+    "category": "Servicios - Servicios basados en ingenieria investigacion y tecnologia",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 480125,
+    "ocid": "ocds-03ad3f-480125-1",
+    "year": 2026,
+    "category": "Bienes - Materiales de Minerales y Tejidos y de Plantas y Animales no Comestibles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 480375,
+    "ocid": "ocds-03ad3f-480375-1",
+    "year": 2026,
+    "category": "Servicios - Servicios Editoriales  de Diseño, Graficos y de Bellas Artes",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 480625,
+    "ocid": "ocds-03ad3f-480625-1",
+    "year": 2026,
+    "category": "Bienes - Equipos Accesorios y Suministros de Oficina",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 481375,
+    "ocid": "ocds-03ad3f-481375-1",
+    "year": 2026,
+    "category": "Servicios - Servicios de Gestion Profesionales de Empresa y Administrativos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 481750,
+    "ocid": "ocds-03ad3f-481750-1",
+    "year": 2026,
+    "category": "Servicios - Servicios de Viajes, Alimentacion, Alojamiento y Entretenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 481875,
+    "ocid": "ocds-03ad3f-481875-1",
+    "year": 2026,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 482250,
+    "ocid": "ocds-03ad3f-482250-1",
+    "year": 2026,
+    "category": "Bienes - Equipos y Suministros de limpieza",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 482500,
+    "ocid": "ocds-03ad3f-482500-1",
+    "year": 2026,
+    "category": "Bienes - Vehiculos Comerciales, Militares y Particulares - Accesorios y Componentes",
+    "contracts_count": 3,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 482875,
+    "ocid": "ocds-03ad3f-482875-1",
+    "year": 2026,
+    "category": "Servicios - Servicios de Transporte Almacenaje y Correo",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 484250,
+    "ocid": "ocds-03ad3f-484250-1",
+    "year": 2026,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 484375,
+    "ocid": "ocds-03ad3f-484375-1",
+    "year": 2026,
+    "category": "Servicios - Servicios Editoriales  de Diseño, Graficos y de Bellas Artes",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 484625,
+    "ocid": "ocds-03ad3f-484625-1",
+    "year": 2026,
+    "category": "Bienes - Equipos Accesorios y Suministros de Oficina",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 484750,
+    "ocid": "ocds-03ad3f-484750-1",
+    "year": 2026,
+    "category": "Servicios - Servicios Financieros y de Seguros",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 486000,
+    "ocid": "ocds-03ad3f-486000-1",
+    "year": 2026,
+    "category": "Servicios - Servicios de Transporte Almacenaje y Correo",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 486125,
+    "ocid": "ocds-03ad3f-486125-1",
+    "year": 2026,
+    "category": "Bienes - Vehiculos Comerciales, Militares y Particulares - Accesorios y Componentes",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 486250,
+    "ocid": "ocds-03ad3f-486250-1",
+    "year": 2026,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 3,
+    "awards_count": 3,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 486500,
+    "ocid": "ocds-03ad3f-486500-1",
+    "year": 2026,
+    "category": "Servicios - Servicios de Gestion Profesionales de Empresa y Administrativos",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 487875,
+    "ocid": "ocds-03ad3f-487875-1",
+    "year": 2026,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 0,
+    "awards_count": 0,
+    "parties_count": 1,
+    "has_amendments": false
+  },
+  {
+    "id": 445000,
+    "ocid": "ocds-03ad3f-445000-1",
+    "year": 2024,
+    "category": "Servicios - Servicios basados en ingenieria investigacion y tecnologia",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 445034,
+    "ocid": "ocds-03ad3f-445034-1",
+    "year": 2024,
+    "category": "Bienes - Materiales de Minerales y Tejidos y de Plantas y Animales no Comestibles",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 5,
+    "has_amendments": false
+  },
+  {
+    "id": 445051,
+    "ocid": "ocds-03ad3f-445051-1",
+    "year": 2024,
+    "category": "Bienes - Materiales de Minerales y Tejidos y de Plantas y Animales no Comestibles",
+    "contracts_count": 16,
+    "awards_count": 16,
+    "parties_count": 27,
+    "has_amendments": false
+  },
+  {
+    "id": 445068,
+    "ocid": "ocds-03ad3f-445068-1",
+    "year": 2024,
+    "category": "Bienes - Equipos Accesorios y Suministros de Oficina",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 445085,
+    "ocid": "ocds-03ad3f-445085-1",
+    "year": 2024,
+    "category": "Bienes - Muebles y mobiliario",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 445102,
+    "ocid": "ocds-03ad3f-445102-1",
+    "year": 2024,
+    "category": "Servicios - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 445221,
+    "ocid": "ocds-03ad3f-445221-1",
+    "year": 2024,
+    "category": "Bienes - Equipos Accesorios y Suministros Medicos",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 10,
+    "has_amendments": false
+  },
+  {
+    "id": 445255,
+    "ocid": "ocds-03ad3f-445255-1",
+    "year": 2024,
+    "category": "Bienes - Muebles Accesorios, Electrodomesticos y Productos Electronicos de Consumo",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 445391,
+    "ocid": "ocds-03ad3f-445391-1",
+    "year": 2024,
+    "category": "Servicios - Servicios basados en ingenieria investigacion y tecnologia",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 445459,
+    "ocid": "ocds-03ad3f-445459-1",
+    "year": 2024,
+    "category": "Bienes - Sistemas Equipos y Componentes de Distribucion y Acondicionamiento",
+    "contracts_count": 5,
+    "awards_count": 4,
+    "parties_count": 7,
+    "has_amendments": true
+  },
+  {
+    "id": 445493,
+    "ocid": "ocds-03ad3f-445493-1",
+    "year": 2024,
+    "category": "Bienes - Muebles y mobiliario",
+    "contracts_count": 3,
+    "awards_count": 3,
+    "parties_count": 6,
+    "has_amendments": false
+  },
+  {
+    "id": 445510,
+    "ocid": "ocds-03ad3f-445510-1",
+    "year": 2024,
+    "category": "Servicios - Servicios Editoriales  de Diseño, Graficos y de Bellas Artes",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 445527,
+    "ocid": "ocds-03ad3f-445527-1",
+    "year": 2024,
+    "category": "Servicios - Servicios Editoriales  de Diseño, Graficos y de Bellas Artes",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 445578,
+    "ocid": "ocds-03ad3f-445578-1",
+    "year": 2024,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 445595,
+    "ocid": "ocds-03ad3f-445595-1",
+    "year": 2024,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 445629,
+    "ocid": "ocds-03ad3f-445629-1",
+    "year": 2024,
+    "category": "Servicios - Servicios Sanitarios",
+    "contracts_count": 3,
+    "awards_count": 3,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 445816,
+    "ocid": "ocds-03ad3f-445816-1",
+    "year": 2024,
+    "category": "Bienes - Medicamentos y Productos Farmaceuticos",
+    "contracts_count": 2,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": true
+  },
+  {
+    "id": 445833,
+    "ocid": "ocds-03ad3f-445833-1",
+    "year": 2024,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 445935,
+    "ocid": "ocds-03ad3f-445935-1",
+    "year": 2024,
+    "category": "Bienes - Tecnologias de Informacion, Telecomunicaciones y Radiodifusiones",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  },
+  {
+    "id": 445952,
+    "ocid": "ocds-03ad3f-445952-1",
+    "year": 2024,
+    "category": "Bienes - Equipos Accesorios y Suministros Medicos",
+    "contracts_count": 10,
+    "awards_count": 11,
+    "parties_count": 26,
+    "has_amendments": false
+  },
+  {
+    "id": 445969,
+    "ocid": "ocds-03ad3f-445969-1",
+    "year": 2024,
+    "category": "Servicios - Servicios basados en ingenieria investigacion y tecnologia",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 446003,
+    "ocid": "ocds-03ad3f-446003-1",
+    "year": 2024,
+    "category": "Servicios - Servicios basados en ingenieria investigacion y tecnologia",
+    "contracts_count": 2,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": true
+  },
+  {
+    "id": 446190,
+    "ocid": "ocds-03ad3f-446190-1",
+    "year": 2024,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 4,
+    "has_amendments": false
+  },
+  {
+    "id": 446224,
+    "ocid": "ocds-03ad3f-446224-1",
+    "year": 2024,
+    "category": "Obras - Servicios de Construccion y Mantenimiento",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 2,
+    "has_amendments": false
+  },
+  {
+    "id": 446275,
+    "ocid": "ocds-03ad3f-446275-1",
+    "year": 2024,
+    "category": "Servicios - Servicios Editoriales  de Diseño, Graficos y de Bellas Artes",
+    "contracts_count": 1,
+    "awards_count": 1,
+    "parties_count": 3,
+    "has_amendments": false
+  }
+]

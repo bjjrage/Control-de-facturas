@@ -35,7 +35,7 @@ const CHECKPOINT_PATH = path.resolve(process.cwd(), "data", "backfill-checkpoint
 const BACKFILL_DIR = path.resolve(process.cwd(), "data", "backfill");
 const BASE_URL = "https://www.contrataciones.gov.py/datos/api/v3/doc";
 
-// Conexión Supabase (opcional para dry-run o persistencia relacional)
+// Conexión Supabase (ESTRICTAMENTE LAB ONLY: klvvlybltcmowoptogpe)
 let supabase: any = null;
 try {
   const env = Object.fromEntries(
@@ -47,13 +47,19 @@ try {
         return [l.slice(0, i).trim(), l.slice(i + 1).trim()];
       })
   );
+  if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.NEXT_PUBLIC_SUPABASE_URL.includes("klvvlybltcmowoptogpe")) {
+    console.error("FATAL SAFETY ERROR: NEXT_PUBLIC_SUPABASE_URL is NOT targeting klvvlybltcmowoptogpe!");
+    process.exit(1);
+  }
   if (env.NEXT_PUBLIC_SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY) {
     supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false },
     });
+    console.log("[LAB SAFETY VERIFIED] Connected to:", env.NEXT_PUBLIC_SUPABASE_URL);
   }
-} catch {
-  // Continuar en modo local si no hay .env.local
+} catch (err: any) {
+  console.error("FATAL: Could not initialize Supabase client:", err.message);
+  process.exit(1);
 }
 
 // ---------------------------------------------------------------------------
@@ -194,9 +200,11 @@ export async function runBackfill(options?: {
   maxRecords?: number;
   idList?: number[];
   stride?: number;
+  allCategories?: boolean;
 }) {
   const wave = options?.wave ?? 1;
   const max = options?.maxRecords ?? 150;
+  const allCategories = options?.allCategories ?? false;
   const cp = loadCheckpoint(wave);
 
   console.log("================================================================================");
@@ -261,7 +269,7 @@ export async function runBackfill(options?: {
       const parsedDate = dateStr ? new Date(dateStr) : null;
       const year = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate.getFullYear() : null;
 
-      const isConst = isConstructionRelevant(tender);
+      const isConst = allCategories || isConstructionRelevant(tender);
 
       if (isConst) {
         cp.total_identified_construction++;
@@ -361,5 +369,12 @@ export async function runBackfill(options?: {
 if (process.argv[1]?.includes("backfill-dncp-history")) {
   const limitArg = process.argv.find((a) => a.startsWith("--limit="));
   const limit = limitArg ? parseInt(limitArg.split("=")[1], 10) : 60;
-  runBackfill({ wave: 1, maxRecords: limit }).catch(console.error);
+  const idFileArg = process.argv.find((a) => a.startsWith("--id-file="));
+  let idList: number[] | undefined = undefined;
+  if (idFileArg) {
+    const filePath = path.resolve(process.cwd(), idFileArg.split("=")[1]);
+    idList = JSON.parse(fs.readFileSync(filePath, "utf8"));
+  }
+  const allCategories = process.argv.includes("--all-categories");
+  runBackfill({ wave: 1, maxRecords: idList ? idList.length : limit, idList, allCategories }).catch(console.error);
 }
