@@ -230,7 +230,7 @@ export async function parseIfcFile(
 ): Promise<ParsedIfcModel> {
   onProgress?.("Cargando motor IFC…");
   const api = new WebIFC.IfcAPI();
-  api.SetWasmPath("/wasm/");
+  api.SetWasmPath("/wasm/", true);
   await api.Init();
 
   const buffer = new Uint8Array(await file.arrayBuffer());

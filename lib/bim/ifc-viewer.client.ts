@@ -177,7 +177,7 @@ export function createIfcViewer(
 
   async function loadFromBuffer(buffer: Uint8Array): Promise<{ elementCount: number }> {
     api = new WebIFC.IfcAPI();
-    api.SetWasmPath("/wasm/");
+    api.SetWasmPath("/wasm/", true);
     await api.Init();
     modelID = api.OpenModel(buffer);
     if (modelID < 0) throw new Error("No se pudo abrir el modelo IFC para visualizarlo.");

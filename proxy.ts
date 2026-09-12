@@ -32,6 +32,7 @@ export async function proxy(request: NextRequest) {
   const STATIC_DOCS = ["/manual-obra", "/flujo-obra"];
   const isPublic =
     path.endsWith(".html") ||
+    path.endsWith(".wasm") ||
     STATIC_DOCS.includes(path) ||
     path.startsWith("/login") ||
     path.startsWith("/reset-password") ||
