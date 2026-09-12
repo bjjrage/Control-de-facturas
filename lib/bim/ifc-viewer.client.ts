@@ -191,6 +191,12 @@ export function createIfcViewer(
 
     const geometryCache = new Map<number, THREE.BufferGeometry>();
     const flatMeshes = api.LoadAllGeometry(modelID);
+    console.log(
+      "[bim-viewer-diag3] flatMeshes.size()=",
+      flatMeshes.size(),
+      "geometries per mesh=",
+      Array.from({ length: flatMeshes.size() }, (_, k) => flatMeshes.get(k).geometries.size())
+    );
 
     for (let i = 0; i < flatMeshes.size(); i++) {
       const flatMesh = flatMeshes.get(i);
@@ -209,13 +215,10 @@ export function createIfcViewer(
           geometry = buildGeometry(vertexData, indexData);
           geometryCache.set(placed.geometryExpressID, geometry);
           ifcGeometry.delete();
-          if (i === 0 && g === 0) {
+          if (geometryCache.size <= 3) {
             geometry.computeBoundingBox();
             console.log(
-              "[bim-viewer-diag3] vertexData.length=",
-              vertexData.length,
-              "indexData.length=",
-              indexData.length,
+              `[bim-viewer-diag3] i=${i} g=${g} vlen=${vertexData.length} ilen=${indexData.length}`,
               "first9vertex=",
               Array.from(vertexData.slice(0, 9)),
               "geomBBox=",
