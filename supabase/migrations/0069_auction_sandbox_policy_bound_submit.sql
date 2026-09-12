@@ -11,15 +11,31 @@
 -- change requires DROP + CREATE (CREATE OR REPLACE cannot alter args);
 -- grants are re-applied for the new signature below.
 --
--- Residual (documented, accepted): the check runs inside the submit
--- transaction, so the race narrows to an intra-transaction sliver. Full
--- serializability would additionally require the authorize path to take the
--- room lock (tracked, out of scope for the V0 simulation).
+-- Residual (documented, accepted): the check is one EXISTS predicate inside
+-- the submit transaction. An authorize COMMIT landing after the gate SELECT
+-- but before the bid/event INSERTs (same transaction: gate → seq bump →
+-- 2 inserts → commit) is invisible under READ COMMITTED — the window is
+-- intra-transaction (sub-millisecond, same backend), reachable only by a
+-- MANAGE insider committing a tighter policy at that exact instant, and the
+-- next tick converges under the new version. Full serializability would
+-- additionally require the authorize path to take the room lock (tracked,
+-- out of scope for the V0 simulation).
 --
--- DEPLOY NOTE: apply with `supabase db push` BEFORE deploying app code that
--- passes p_expected_policy_version (older code keeps working: the param
--- defaults NULL). Cannot be verified from CI (no DB); static pins live in
--- lib/auction-sandbox/__tests__/migration-audit.spec.ts.
+-- ROLLOUT CHECKLIST (order matters, each step verified before the next):
+--   1. `supabase db push` applies this file atomically (one transaction per
+--      file — never apply statement-wise: the CREATE must never be visible
+--      without the REVOKE below).
+--   2. Verify live: `submit_sandbox_bid(uuid,uuid,bigint,text,integer)`
+--      exists and a superseded-version call returns POLICY_SUPERSEDED.
+--      Reload the PostgREST schema cache if 5-arg calls miss (fail-closed
+--      stall, never corruption).
+--   3. Deploy app code. Skew behavior (by design, never worse than baseline):
+--      old-code + new-DB behaves exactly as pre-0069 (param defaults NULL);
+--      new-code + old-DB fails closed on bot submits (unknown-arg error is
+--      caught → no write) until the DB migrates. Ship DB first, then app.
+--
+-- DEPLOY NOTE: cannot be verified from CI (no DB here); static pins live in
+-- lib/auction-sandbox/__tests__/migration-audit.spec.ts (0069 describe).
 
 -- Signature change: DROP first (grants die with the old signature).
 drop function if exists public.submit_sandbox_bid(uuid, uuid, bigint, text);

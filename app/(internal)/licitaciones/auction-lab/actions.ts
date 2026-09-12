@@ -696,12 +696,14 @@ export async function authorizeAssistedBid(roomId: string): Promise<{ price?: nu
   } catch {
     return { error: 'No se pudo confirmar el envío.' };
   }
-  // Display-only cleanup (best-effort, checked): the submit path re-derived
-  // everything from the current policy, and the next tick recomputes the
-  // proposal box from scratch — so a failed clear converges on its own.
-  // Never fail an already-executed economic action over display state.
+  // Display-only cleanup (best-effort, checked): spread the FRESHEST runtime
+  // (freshBundle, not the action-input bundle) so a tick write landing
+  // mid-flight (e.g. a fresh STOP marker) is not clobbered for a heartbeat.
+  // The submit path re-derived everything from the current policy, and the
+  // next tick recomputes the proposal box from scratch — so a failed clear
+  // converges on its own. Never fail an executed economic action over display.
   await res.db.from('auction_sandbox_rooms').update({
-    bot_runtime: { ...((bundle.room.bot_runtime ?? {}) as Record<string, unknown>), pendingCandidate: null },
+    bot_runtime: { ...((freshBundle.room.bot_runtime ?? {}) as Record<string, unknown>), pendingCandidate: null },
   }).eq('id', roomId);
   return { price: result.pricePyg };
 }
@@ -709,6 +711,11 @@ export async function authorizeAssistedBid(roomId: string): Promise<{ price?: nu
 export async function setSandboxBotPaused(roomId: string, paused: boolean): Promise<{ error?: string }> {
   const res = await manageOperatorBundle(roomId);
   if ('error' in res) return { error: res.error };
+  // Terminal rooms take no state flips: an in-flight click landing after
+  // CLOSE (or a direct call) must not silently pollute a CLOSED room with an
+  // untraced bot_paused flip. Same pattern as the other manage mutations.
+  const closedPauseRefusal = refuseIfRoomClosed(res.bundle.room.status);
+  if (closedPauseRefusal) return { error: closedPauseRefusal };
   const { data, error } = await res.db.from('auction_sandbox_rooms').update({ bot_paused: paused }).eq('id', roomId).select('id');
   if (error || !data || data.length !== 1) return { error: 'No se pudo actualizar.' };
   return {};

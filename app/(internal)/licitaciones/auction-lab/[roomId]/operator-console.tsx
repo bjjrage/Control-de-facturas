@@ -296,13 +296,13 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
 
       {error ? <p className="text-[12px] text-[var(--error)]">{error}</p> : null}
 
-      {reconciling ? (
+      {reconciling && room.status !== 'CLOSED' ? (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-[12px] font-medium text-amber-600 dark:text-amber-400">
           Acción sin confirmar — reconciliando con el servidor. Las acciones están pausadas hasta confirmar el resultado; no hace falta reintentar.
         </div>
       ) : null}
 
-      {justFrozenVersion !== null && bot.policyVersion === justFrozenVersion ? (
+      {justFrozenVersion !== null && bot.policyVersion === justFrozenVersion && room.status !== 'CLOSED' ? (
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 flex items-center gap-2.5">
           <div className="text-[13px]">
             <span className="font-semibold text-[var(--foreground)]">

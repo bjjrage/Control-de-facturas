@@ -3,9 +3,10 @@
  *
  * 0068 is APPLIED to the live project; 0069 (policy-bound submit) ships in
  * this branch and MUST be pushed (`supabase db push`) before deploying app
- * code that passes p_expected_policy_version (older code keeps working:
- * the param defaults NULL; new code omits it against old DBs via
- * conditional spread in rpcSubmit — skew fails closed, never corrupt).
+ * code. Skew is fail-closed by construction: new-code + old-DB errors on the
+ * unknown 5th arg inside rpcSubmit's try/catch (no write, liveness stall
+ * only); old-code + new-DB behaves exactly as pre-0069 (param defaults
+ * NULL). Ship DB first, then app — see the rollout checklist in 0069.
  * These tests audit the migration FILES statically. If any assertion fails,
  * the migrations are NOT safe to apply.
  */
@@ -15,11 +16,19 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+// Strip SQL comments (line AND block) so assertions target real code.
+// A mutant hiding code in a block comment (e.g. /* security definer */)
+// must not satisfy a presence pin.
+const stripSql = (s: string): string =>
+  s
+    .split('\n')
+    .map((l) => (l.includes('--') ? l.slice(0, l.indexOf('--')) : l))
+    .join('\n')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
 const sqlRaw = readFileSync(resolve(ROOT, 'supabase', 'migrations', '0068_auction_sandbox.sql'), 'utf8');
-// Strip SQL line comments so assertions target real code, not prose.
-const sql = sqlRaw.split('\n').map((l) => (l.includes('--') ? l.slice(0, l.indexOf('--')) : l)).join('\n');
+const sql = stripSql(sqlRaw);
 const sql69Raw = readFileSync(resolve(ROOT, 'supabase', 'migrations', '0069_auction_sandbox_policy_bound_submit.sql'), 'utf8');
-const sql69 = sql69Raw.split('\n').map((l) => (l.includes('--') ? l.slice(0, l.indexOf('--')) : l)).join('\n');
+const sql69 = stripSql(sql69Raw);
 
 function read(rel: string): string {
   return readFileSync(resolve(ROOT, rel), 'utf8');
@@ -48,6 +57,12 @@ describe('0068 static safety audit', () => {
       expect(sql).toMatch(new RegExp(`grant execute on function public\\.${fn}[^;]*to service_role`));
     }
     expect(sql).not.toMatch(/grant execute on function public\.\w+\([^;]*to authenticated/);
+    // No anon/public execution either (an appended `to anon` grant would hand
+    // a SECURITY DEFINER allocator to unauthenticated callers).
+    expect(sql).not.toMatch(/grant execute on function public\.\w+\([^;]*to anon/);
+    expect(sql).not.toMatch(/grant execute on function public\.\w+\([^;]*to public[,\s;]/);
+    // No client-clock smuggling under a renamed param.
+    expect(sql).not.toMatch(/p_client/i);
   });
 
   it('random_close_at lives ONLY in the private table (never in rooms)', () => {
@@ -55,8 +70,13 @@ describe('0068 static safety audit', () => {
     const start = sql.indexOf('create table if not exists public.auction_sandbox_rooms');
     const roomsDef = sql.slice(start, sql.indexOf('\n);', start));
     expect(roomsDef).not.toMatch(/random_close_at/);
-    // No SELECT policy on the private table (deny by default).
+    // No ALTER smuggling the secret into an RLS-readable table later.
+    expect(sql).not.toMatch(/add column random_close_at/i);
+    // No SELECT policy on the private table (deny by default) — and RLS must
+    // actually be enabled (an empty slice from a deleted line must not pass).
+    expect(sql).toContain('auction_sandbox_room_private enable row level security');
     const privStart = sql.indexOf('auction_sandbox_room_private enable row level security');
+    expect(privStart).toBeGreaterThan(-1);
     const privSection = sql.slice(privStart, sql.indexOf('create table if not exists public.auction_sandbox_participants'));
     expect(privSection).not.toMatch(/create policy/);
   });
@@ -75,9 +95,10 @@ describe('0068 static safety audit', () => {
     expect(writeSection).toMatch(/sandbox_participants_delete/);
     expect(writeSection).not.toContain("'comercial'");
     const writePolicies = sql
+      .toLowerCase()
       .split('create policy ')
       .slice(1)
-      .filter((seg) => /^sandbox_participants_(write|update|delete|insert)\b/.test(seg));
+      .filter((seg) => /^sandbox_participants_(write|update|delete|insert)/.test(seg));
     expect(writePolicies.length).toBeGreaterThanOrEqual(4);
     for (const seg of writePolicies) {
       expect(seg).not.toContain("'comercial'");
@@ -124,9 +145,11 @@ describe('0068 static safety audit', () => {
     for (const f of files) {
       const src = read(f);
       // Direct event inserts were removed with the events_insert policy:
-      // everything flows through append_sandbox_event.
-      expect(src).not.toMatch(/from\(['"]auction_sandbox_events['"]\)\.insert/);
-      expect(src).not.toMatch(/from\(['"]auction_sandbox_bids['"]\)\.insert/);
+      // everything flows through append_sandbox_event. Ban upsert/backtick/
+      // spaced variants too — any direct write bypasses the allocator.
+      expect(src).not.toMatch(/from\(['"`]auction_sandbox_events['"`]\)\.(insert|upsert)/);
+      expect(src).not.toMatch(/from\(['"`]auction_sandbox_bids['"`]\)\.(insert|upsert)/);
+      expect(src).not.toMatch(/from\(\s+['"]auction_sandbox_(events|bids)['"]/);
     }
     // ...except the RPC allocator call itself.
     const ops = read('app/(internal)/licitaciones/auction-lab/actions.ts');
@@ -214,7 +237,16 @@ describe('0069 static safety audit — policy-bound submit', () => {
     expect(bodyStart).toBeGreaterThan(-1);
     const body = sql69.slice(bodyStart);
     expect(body).toContain('POLICY_SUPERSEDED');
-    expect(body).toMatch(/version\s*>\s*p_expected_policy_version/);
+    // Gate block: from the NULL-guard to the phase computation. Anchors are
+    // CODE (comment markers are stripped above — never slice on prose).
+    const gateStart = body.indexOf('if p_expected_policy_version is not null');
+    expect(gateStart).toBeGreaterThan(-1);
+    const gateEnd = body.indexOf('v_effective := v_room.status');
+    expect(gateEnd).toBeGreaterThan(gateStart);
+    const gate = body.slice(gateStart, gateEnd);
+    expect(gate).toMatch(/from public\.auction_sandbox_policy_versions/);
+    expect(gate).toMatch(/where room_id = p_room_id/);
+    expect(gate).toMatch(/and version > p_expected_policy_version\)/);
     // The gate precedes the sequence bump + bid insert (fail before mutate).
     expect(body.indexOf('POLICY_SUPERSEDED')).toBeLessThan(body.indexOf('next_sequence + 1'));
     // NULL skips the gate (human submits are not policy-bound).
@@ -224,8 +256,12 @@ describe('0069 static safety audit — policy-bound submit', () => {
   it('replaces the 4-arg signature with grants re-applied on the 5-arg form', () => {
     expect(sql69).toMatch(/drop function if exists public\.submit_sandbox_bid\(uuid, uuid, bigint, text\)/);
     expect(sql69).toMatch(/security definer/);
-    expect(sql69).toMatch(/revoke all on function public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\)[^;]*authenticated/);
+    expect(sql69).toMatch(/revoke all on function public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\) from public, anon, authenticated;/);
     expect(sql69).toMatch(/grant execute on function public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\)[^;]*to service_role/);
+    // No anon/public execution on the new form either.
+    expect(sql69).not.toMatch(/grant execute on function public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\)[^;]*to anon/);
+    expect(sql69).not.toMatch(/grant execute on function public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\)[^;]*to public[,\s;]/);
+    expect(sql69).not.toMatch(/p_client/i);
   });
 
   it('app callers bind bot/assisted submits, never human submits', () => {
