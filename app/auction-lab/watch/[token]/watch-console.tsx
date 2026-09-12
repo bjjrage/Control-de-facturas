@@ -11,10 +11,22 @@ function fmtT(iso: string): string {
   return new Date(iso).toLocaleTimeString('es-PY', { hour12: false });
 }
 
+/** Elapsed mm:ss from a server anchor (never remaining time). */
+function fmtElapsed(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+
 export function WatchConsole({ token }: { token: string }) {
   const [view, setView] = useState<WatchView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadExpired, setLoadExpired] = useState(false);
+  // Phase elapsed clock (display only, no controls for observers).
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
   const controllerRef = useRef<PollController | null>(null);
   const guardRef = useRef(createResponseGuard());
 
@@ -123,6 +135,17 @@ export function WatchConsole({ token }: { token: string }) {
             {view.room.status}
             {view.room.closeRisk ? <span className="ml-2 font-semibold text-rose-600 dark:text-rose-400">RIESGO DE CIERRE</span> : null}
           </p>
+          {view.room.status === 'ACTIVE_NORMAL' && view.room.started_at ? (
+            <p className="text-[12px] text-[var(--muted)]">
+              FASE NORMAL · {fmtElapsed(nowMs - Date.parse(view.room.started_at))} transcurridos
+            </p>
+          ) : null}
+          {view.room.status === 'ACTIVE_RANDOM' && view.room.random_started_at ? (
+            <p className="text-[12px] text-[var(--muted)]">
+              FASE ALEATORIA · {fmtElapsed(nowMs - Date.parse(view.room.random_started_at))} transcurridos{' '}
+              <span className="font-semibold text-amber-600 dark:text-amber-400">CIERRE EN CUALQUIER MOMENTO</span>
+            </p>
+          ) : null}
         </div>
 
         {error ? (

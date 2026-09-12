@@ -310,6 +310,9 @@ export interface PublicRoomInfo {
   bot_paused: boolean;
   winner_participant_id: string | null;
   total_bids: number;
+  /** Phase anchors for elapsed-time display (server clock instants, never remaining time). */
+  started_at: string | null;
+  random_started_at: string | null;
 }
 
 export function publicRoomInfo(bundle: SandboxBundle, nowIso: string): PublicRoomInfo {
@@ -326,6 +329,8 @@ export function publicRoomInfo(bundle: SandboxBundle, nowIso: string): PublicRoo
     bot_paused: bundle.room.bot_paused,
     winner_participant_id: bundle.room.winner_participant_id,
     total_bids: bundle.bids.length,
+    started_at: bundle.room.started_at,
+    random_started_at: bundle.room.random_started_at,
   };
 }
 

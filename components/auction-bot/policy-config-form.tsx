@@ -46,15 +46,10 @@ export function PolicyConfigForm({
   const [normalPhaseBehavior, setNormalPhaseBehavior] = useState<NormalPhaseBehavior>(
     initialPolicy?.normalPhaseBehavior || "WAIT"
   );
-  const [safeWindowBehavior, setSafeWindowBehavior] = useState<SafeWindowBehavior>(
-    initialPolicy?.safeWindowBehavior || "WAIT"
-  );
-  const [enterInEntryWindow, setEnterInEntryWindow] = useState<boolean>(
-    initialPolicy?.enterTargetPositionInEntryWindow ?? true
-  );
-  const [defendInCloseRisk, setDefendInCloseRisk] = useState<boolean>(
-    initialPolicy?.defendImmediatelyInCloseRisk ?? true
-  );
+  // Timing flags below the normal phase are FIXED (RANDOM_CLOSE is always
+  // ACTIVE by product rule): kept in frozen policies for snapshot
+  // compatibility only — the motor no longer reads them, and this UI no
+  // longer exposes them.
 
   const [targetPricePyg, setTargetPricePyg] = useState<number>(
     initialPolicy?.targetPricePyg || 1_000_000
@@ -167,9 +162,10 @@ export function PolicyConfigForm({
       targetRank,
       defenseStepPyg,
       normalPhaseBehavior,
-      safeWindowBehavior,
-      enterTargetPositionInEntryWindow: enterInEntryWindow,
-      defendImmediatelyInCloseRisk: defendInCloseRisk,
+      // Fixed always-active equivalents (compat only — motor ignores them).
+      safeWindowBehavior: "ACTIVE" as SafeWindowBehavior,
+      enterTargetPositionInEntryWindow: true,
+      defendImmediatelyInCloseRisk: true,
       targetPricePyg,
       autoDefenseToleranceBps: toleranceBps,
       autoLimitPyg: calculatedAutoLimit,
@@ -209,9 +205,10 @@ export function PolicyConfigForm({
       targetRank,
       defenseStepPyg,
       normalPhaseBehavior,
-      safeWindowBehavior,
-      enterTargetPositionInEntryWindow: enterInEntryWindow,
-      defendImmediatelyInCloseRisk: defendInCloseRisk,
+      // Fixed always-active equivalents (compat only — motor ignores them).
+      safeWindowBehavior: "ACTIVE" as SafeWindowBehavior,
+      enterTargetPositionInEntryWindow: true,
+      defendImmediatelyInCloseRisk: true,
       targetPricePyg,
       autoDefenseToleranceBps: toleranceBps,
       autoLimitPyg: calculatedAutoLimit,
@@ -417,48 +414,19 @@ export function PolicyConfigForm({
               onChange={(e) => setNormalPhaseBehavior(e.target.value as NormalPhaseBehavior)}
               className="w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-1.5 text-[13px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
-              <option value="WAIT">WAIT (Espera táctica - no revelar estrategia)</option>
-              <option value="ACTIVE">ACTIVE (Ofertar activamente)</option>
+              <option value="WAIT">WAIT — Esperar tácticamente</option>
+              <option value="ACTIVE">ACTIVE — Defender posición</option>
             </select>
           </div>
 
-          <div>
-            <label className="block text-[12px] font-medium text-[var(--muted)] mb-1">
-              Fase Aleatoria: Safe Window (Sin riesgo de cierre)
-            </label>
-            <select
-              value={safeWindowBehavior}
-              onChange={(e) => setSafeWindowBehavior(e.target.value as SafeWindowBehavior)}
-              className="w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-1.5 text-[13px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="WAIT">WAIT (Continuar en espera táctica)</option>
-              <option value="ACTIVE">ACTIVE (Ofertar activamente)</option>
-            </select>
+          <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
+            <p className="text-[12px] font-semibold text-[var(--foreground)] mb-0.5">
+              Fase Aleatoria
+            </p>
+            <p className="text-[11px] text-[var(--muted)]">
+              Defensa activa automática. El grupo puede cerrar en cualquier momento.
+            </p>
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          <label className="flex items-center gap-2 text-[12px] text-[var(--foreground)] cursor-pointer">
-            <input
-              type="checkbox"
-              checked={enterInEntryWindow}
-              onChange={(e) => setEnterInEntryWindow(e.target.checked)}
-              className="rounded border-[var(--border)] text-blue-600 focus:ring-blue-500"
-            />
-            <span>Adquirir posición objetivo en <strong>Entry Window</strong></span>
-          </label>
-
-          <label className="flex items-center gap-2 text-[12px] text-[var(--foreground)] cursor-pointer">
-            <input
-              type="checkbox"
-              checked={defendInCloseRisk}
-              onChange={(e) => setDefendInCloseRisk(e.target.checked)}
-              className="rounded border-[var(--border)] text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-amber-600 dark:text-amber-400 font-medium">
-              Defensa inmediata ante desplazamiento en <strong>Close-Risk Window</strong>
-            </span>
-          </label>
         </div>
       </div>
 

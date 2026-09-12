@@ -31,6 +31,12 @@ function fmtTime(iso: string): string {
   return d.toLocaleTimeString('es-PY', { hour12: false });
 }
 
+/** Elapsed mm:ss from a server anchor (never remaining time). */
+function fmtElapsed(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+
 export function OperatorConsole({ roomId, canManage }: { roomId: string; canManage: boolean }) {
   const [view, setView] = useState<OperatorView | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -107,6 +113,13 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
     const t = setTimeout(() => setLoadExpired(true), 30000);
     return () => clearTimeout(t);
   }, [view]);
+
+  // Phase elapsed clock: client-side 1s re-render over server anchors.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const MUTATION_LABELS: Record<string, string> = {
     start: 'Iniciar subasta',
@@ -292,6 +305,17 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
             {room.closeRisk ? <span className="ml-2 font-semibold text-rose-600 dark:text-rose-400">CLOSE RISK</span> : null}
             {room.bot_paused ? <span className="ml-2 text-amber-600 dark:text-amber-400">BOT PAUSADO</span> : null}
           </p>
+          {room.status === 'ACTIVE_NORMAL' && room.started_at ? (
+            <p className="text-[12px] text-[var(--muted)] mt-0.5">
+              FASE NORMAL · {fmtElapsed(nowMs - Date.parse(room.started_at))} transcurridos
+            </p>
+          ) : null}
+          {room.status === 'ACTIVE_RANDOM' && room.random_started_at ? (
+            <p className="text-[12px] text-[var(--muted)] mt-0.5">
+              FASE ALEATORIA · {fmtElapsed(nowMs - Date.parse(room.random_started_at))} transcurridos{' '}
+              <span className="font-semibold text-amber-600 dark:text-amber-400">CIERRE EN CUALQUIER MOMENTO</span>
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           {!canManage ? (
