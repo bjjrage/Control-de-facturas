@@ -59,6 +59,7 @@ export async function createInvoice(formData: FormData) {
   const invoiceDate = str(formData, "invoice_date");
   const dueDate = str(formData, "due_date");
   const currency = str(formData, "currency");
+  const exchangeRate = num(formData, "exchange_rate");
   const total = num(formData, "total");
   const file = formData.get("file") as File | null;
 
@@ -105,6 +106,7 @@ export async function createInvoice(formData: FormData) {
       invoice_date: invoiceDate,
       due_date: dueDate || null,
       currency,
+      exchange_rate: exchangeRate ?? null,
       subtotal: num(formData, "subtotal"),
       vat: num(formData, "vat"),
       total,
@@ -157,6 +159,7 @@ export async function createInvoice(formData: FormData) {
         orderId: activeOrderId,
         itemDescription: str(formData, "product_description") || undefined,
         currency: currency || "PYG",
+        exchangeRate: exchangeRate ?? undefined,
         invoiceDate: invoiceDate || undefined
       });
     } catch {
@@ -277,7 +280,7 @@ export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Pr
 
   const { data: invoice } = await supabase
     .from("invoices")
-    .select("id, status, provider_id, currency, invoice_date")
+    .select("id, status, provider_id, currency, exchange_rate, invoice_date")
     .eq("id", invoiceId)
     .eq("empresa_id", empresaId)
     .single();
@@ -307,6 +310,7 @@ export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Pr
       providerId: invoice.provider_id || "",
       orderId,
       currency: invoice.currency || "PYG",
+      exchangeRate: (invoice as any).exchange_rate ?? undefined,
       invoiceDate: invoice.invoice_date || undefined
     });
   } catch {

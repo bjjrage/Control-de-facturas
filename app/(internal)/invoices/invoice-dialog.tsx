@@ -28,6 +28,7 @@ export function InvoiceDialog({
   const [pending, setPending] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
+  const [currency, setCurrency] = useState("PYG");
   const router = useRouter();
 
   const providerRef = useRef<HTMLSelectElement>(null);
@@ -176,7 +177,13 @@ export function InvoiceDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="currency">Moneda</Label>
-              <Select id="currency" name="currency" defaultValue="PYG" required>
+              <Select
+                id="currency"
+                name="currency"
+                defaultValue="PYG"
+                required
+                onChange={(e) => setCurrency(e.target.value)}
+              >
                 <option value="PYG">PYG</option>
                 <option value="USD">USD</option>
                 <option value="EUR">EUR</option>
@@ -189,6 +196,25 @@ export function InvoiceDialog({
               <Input id="timbrado" name="timbrado" ref={timbradoRef} />
             </div>
           </div>
+          {currency !== "PYG" ? (
+            <div>
+              <Label htmlFor="exchange_rate">
+                Tipo de cambio (1 {currency} = ? PYG)
+              </Label>
+              <Input
+                id="exchange_rate"
+                name="exchange_rate"
+                type="number"
+                step="0.01"
+                min="0.01"
+                placeholder="Ej: 7900"
+                required
+              />
+              <p className="text-[11px] text-[var(--muted)] mt-1">
+                Necesario para registrar el costo en el motor de precios.
+              </p>
+            </div>
+          ) : null}
           <div>
             <Label htmlFor="observations">Observaciones</Label>
             <Textarea id="observations" name="observations" />
