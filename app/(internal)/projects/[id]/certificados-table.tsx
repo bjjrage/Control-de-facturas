@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronDown, ChevronRight } from "lucide-react";
@@ -31,6 +31,8 @@ import {
   resyncCertificateFromExecution,
   upsertCertificateUnitProgress,
   autoFillCertificateFromUnits,
+  getClientsForSelect,
+  createSalesDocumentFromCertificate,
 } from "../certificado-actions";
 
 const STATUS_LABEL: Record<ProjectCertificateStatus, string> = {
@@ -197,6 +199,29 @@ function CertificadoDetalle({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [facturaNumero, setFacturaNumero] = useState("");
+  // Generar factura desde certificado
+  const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState("");
+  const [generatingInvoice, setGeneratingInvoice] = useState(false);
+
+  useEffect(() => {
+    if (c.status === "APROBADO") {
+      getClientsForSelect().then(setClients);
+    }
+  }, [c.status]);
+
+  async function handleGenerarFactura() {
+    if (!selectedClientId) return;
+    setGeneratingInvoice(true);
+    setError(null);
+    const res = await createSalesDocumentFromCertificate(c.id, selectedClientId);
+    setGeneratingInvoice(false);
+    if (res.error) {
+      setError(res.error);
+    } else {
+      router.push(`/facturas-venta/${res.salesDocumentId}`);
+    }
+  }
   const editableQty = c.status === "BORRADOR";
   const editableDeduc = c.status === "ELABORADO" || c.status === "VERIFICADO";
 
@@ -254,6 +279,29 @@ function CertificadoDetalle({
         />
         </div>
       </div>
+
+      {/* Generar factura de venta desde el certificado aprobado */}
+      {c.status === "APROBADO" && clients.length > 0 ? (
+        <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2.5 flex flex-wrap items-center gap-2 text-[13px]">
+          <span className="text-[var(--muted)] shrink-0">Generar factura:</span>
+          <select
+            value={selectedClientId}
+            onChange={(e) => setSelectedClientId(e.target.value)}
+            className="h-8 rounded border border-[var(--border)] bg-[var(--panel)] px-2 text-[13px] text-[var(--foreground)] flex-1 min-w-[160px]"
+          >
+            <option value="">— Elegir cliente —</option>
+            {clients.map((cl) => (
+              <option key={cl.id} value={cl.id}>{cl.name}</option>
+            ))}
+          </select>
+          <Button
+            disabled={!selectedClientId || generatingInvoice}
+            onClick={handleGenerarFactura}
+          >
+            {generatingInvoice ? "Generando…" : "Crear borrador de factura"}
+          </Button>
+        </div>
+      ) : null}
 
       {error ? (
         <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">

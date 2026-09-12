@@ -54,6 +54,26 @@ export function MovimientoDialog({
       .then(({ data }) => setProjects((data as ProjectLite[]) ?? []));
   }, [open]);
 
+  // Pre-selección de proyecto: cuando el usuario elige SALIDA, sugerir el proyecto
+  // que compró este material más recientemente (la OC ya lo sabe; se propaga aquí).
+  useEffect(() => {
+    if (!open || tipo !== "SALIDA" || projectId) return;
+    const supabase = createClient();
+    supabase
+      .from("stock_movimientos")
+      .select("project_id")
+      .eq("producto_id", productoId)
+      .eq("tipo", "ENTRADA")
+      .not("project_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.project_id) setProjectId(data.project_id);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tipo]);
+
   // Rubros del proyecto elegido
   useEffect(() => {
     if (!projectId) return;

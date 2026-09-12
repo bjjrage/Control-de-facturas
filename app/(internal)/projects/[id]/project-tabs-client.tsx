@@ -43,6 +43,7 @@ import { CertificadosTable } from "./certificados-table";
 import { AvanceFisicoPanel } from "./avance-fisico-panel";
 import { PresupuestoTable } from "./presupuesto-table";
 import { BimSection } from "./bim-section";
+import { ComputoSection } from "./computo-section";
 import { EjecucionTable } from "./ejecucion-table";
 import { PersonalTable } from "./personal-table";
 import { ProyectoComprasTable } from "./proyecto-compras-table";
@@ -294,7 +295,12 @@ export function ProjectTabsClient({
         </div>
       ) : null}
 
-      {tab === "bim" ? <BimSection projectId={project.id} /> : null}
+      {tab === "bim" ? (
+        <div className="space-y-6">
+          <BimSection projectId={project.id} />
+          <ComputoSection projectId={project.id} />
+        </div>
+      ) : null}
 
       {tab === "cronograma" ? (
         <ProjectGantt projectId={project.id} budgetItems={items} execEntries={entries} />

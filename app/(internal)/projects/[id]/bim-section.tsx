@@ -57,6 +57,7 @@ export function BimSection({ projectId }: { projectId: string }) {
   const [showReview, setShowReview] = useState(false);
   const [changingGroupId, setChangingGroupId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [updateQtyOnConfirm, setUpdateQtyOnConfirm] = useState(true);
 
   const viewerContainerRef = useRef<HTMLDivElement | null>(null);
   const viewerHandleRef = useRef<IfcViewerHandle | null>(null);
@@ -260,7 +261,7 @@ export function BimSection({ projectId }: { projectId: string }) {
 
   async function handleConfirmGroup(groupId: string, budgetItemId: string) {
     setError(null);
-    const result = await confirmGroupMatch(projectId, groupId, budgetItemId);
+    const result = await confirmGroupMatch(projectId, groupId, budgetItemId, updateQtyOnConfirm);
     if (result.error) setError(result.error);
     setChangingGroupId(null);
     if (selectedModelId) await refreshGroups(selectedModelId);
@@ -699,9 +700,20 @@ export function BimSection({ projectId }: { projectId: string }) {
                     ) : null}
 
                     {status !== "REJECTED" ? (
-                      <div className="flex flex-wrap gap-2 pt-1">
+                      <div className="flex flex-wrap gap-2 pt-1 items-center">
                         {status === "SUGGESTED" && match?.budget_item_id ? (
-                          <Button onClick={() => handleConfirmGroup(group.id, match.budget_item_id!)}>Confirmar</Button>
+                          <>
+                            <Button onClick={() => handleConfirmGroup(group.id, match.budget_item_id!)}>Confirmar</Button>
+                            <label className="flex items-center gap-1 text-[11px] text-[var(--muted)] cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={updateQtyOnConfirm}
+                                onChange={(e) => setUpdateQtyOnConfirm(e.target.checked)}
+                                className="accent-[var(--primary)]"
+                              />
+                              Actualizar cantidad en presupuesto
+                            </label>
+                          </>
                         ) : null}
                         {changingGroupId === group.id ? (
                           <select

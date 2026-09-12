@@ -54,7 +54,7 @@ export default async function FlujoCajaPage() {
       .in("status", INVOICE_PENDIENTES),
     supabase
       .from("project_certificates")
-      .select("id, numero, project_id, monto_liquido, status, period_end, aprobado_at, facturado_at")
+      .select("id, numero, project_id, monto_liquido, status, period_end, aprobado_at, facturado_at, sales_documents!certificate_id(id, status)")
       .in("status", ["APROBADO", "FACTURADO"]),
   ]);
 
@@ -81,8 +81,14 @@ export default async function FlujoCajaPage() {
   }
 
   // Cobros de certificados de obra (estimado: fecha + 30 días)
+  // Se excluyen los que ya tienen una factura de venta activa para evitar doble conteo.
+  // (El cobro de esa factura ya aparece en el bucket cobro_factura arriba.)
   for (const c of certificados ?? []) {
     if (!c.monto_liquido || c.monto_liquido <= 0) continue;
+    const hasActiveSalesDoc = (c as any).sales_documents?.some(
+      (d: { id: string; status: string }) => d.status !== "ANULADA"
+    );
+    if (hasActiveSalesDoc) continue;
     const base = c.status === "FACTURADO" ? (c.facturado_at ?? c.period_end) : (c.aprobado_at ?? c.period_end);
     items.push({
       tipo: "cobro_certificado",

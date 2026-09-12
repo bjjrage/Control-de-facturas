@@ -533,7 +533,9 @@ export async function getBimGroupsData(
 export async function confirmGroupMatch(
   projectId: string,
   groupId: string,
-  budgetItemId: string
+  budgetItemId: string,
+  /** Si true, actualiza budget_items.quantity con la cantidad medida en el IFC. */
+  updateQuantity = false
 ): Promise<{ error: string | null }> {
   const { profile, supabase } = await assertProjectAccess(projectId);
 
@@ -565,7 +567,23 @@ export async function confirmGroupMatch(
     if (error) return { error: error.message };
   }
 
-  await logAudit(supabase, { action: "bim.group_match_confirmed", detail: { project_id: projectId, group_id: groupId, budget_item_id: budgetItemId } });
+  // Propagar la cantidad medida en el IFC al rubro del presupuesto si el usuario lo pidió.
+  if (updateQuantity) {
+    const { data: group } = await supabase
+      .from("bim_element_groups")
+      .select("total_quantity")
+      .eq("id", groupId)
+      .maybeSingle();
+    if (group?.total_quantity != null) {
+      await supabase
+        .from("budget_items")
+        .update({ quantity: group.total_quantity })
+        .eq("id", budgetItemId)
+        .eq("project_id", projectId);
+    }
+  }
+
+  await logAudit(supabase, { action: "bim.group_match_confirmed", detail: { project_id: projectId, group_id: groupId, budget_item_id: budgetItemId, update_quantity: updateQuantity } });
   revalidatePath(`/projects/${projectId}`);
   return { error: null };
 }

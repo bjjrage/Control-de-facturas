@@ -335,7 +335,13 @@ export async function getComputoData(
   }
 }
 
-export async function confirmComputoMatch(projectId: string, computoItemId: string, budgetItemId: string): Promise<{ error: string | null }> {
+export async function confirmComputoMatch(
+  projectId: string,
+  computoItemId: string,
+  budgetItemId: string,
+  /** Si true, actualiza budget_items.quantity con la cantidad del ítem de cómputo. */
+  updateQuantity = false
+): Promise<{ error: string | null }> {
   const { profile, supabase } = await assertProjectAccess(projectId);
 
   const { data: existing } = await supabase
@@ -365,7 +371,23 @@ export async function confirmComputoMatch(projectId: string, computoItemId: stri
     if (error) return { error: error.message };
   }
 
-  await logAudit(supabase, { action: "computo.match_confirmed", detail: { project_id: projectId, computo_item_id: computoItemId, budget_item_id: budgetItemId } });
+  // Propagar la cantidad del cómputo al rubro del presupuesto si el usuario lo pidió.
+  if (updateQuantity) {
+    const { data: item } = await supabase
+      .from("computo_items")
+      .select("quantity_value")
+      .eq("id", computoItemId)
+      .maybeSingle();
+    if (item?.quantity_value != null) {
+      await supabase
+        .from("budget_items")
+        .update({ quantity: item.quantity_value })
+        .eq("id", budgetItemId)
+        .eq("project_id", projectId);
+    }
+  }
+
+  await logAudit(supabase, { action: "computo.match_confirmed", detail: { project_id: projectId, computo_item_id: computoItemId, budget_item_id: budgetItemId, update_quantity: updateQuantity } });
   revalidatePath(`/projects/${projectId}`);
   return { error: null };
 }

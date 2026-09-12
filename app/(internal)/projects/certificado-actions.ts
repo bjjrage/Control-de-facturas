@@ -747,6 +747,18 @@ export async function resyncCertificateFromExecution(certificateId: string): Pro
   return { error: null };
 }
 
+/** Lista de clientes de la empresa para el selector de facturación. */
+export async function getClientsForSelect(): Promise<{ id: string; name: string }[]> {
+  const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("clients")
+    .select("id, name")
+    .eq("empresa_id", profile.empresa_id)
+    .order("name");
+  return data ?? [];
+}
+
 /**
  * Crea un borrador de factura de venta pre-llenado desde un certificado aprobado.
  * Establece la FK certificate_id en sales_documents para trazabilidad real

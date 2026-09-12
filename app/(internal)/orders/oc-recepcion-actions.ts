@@ -22,12 +22,12 @@ export async function registrarRecepcion(
   const supabase = await createClient();
   const profile = await requireProfile(["comercial", "administracion", "admin"]);
 
-  // Verify order belongs to this empresa
+  // Verify order belongs to this empresa; traer project_id para imputar el stock al proyecto
   const { data: order } = await supabase
     .from("authorized_orders")
-    .select("id, code")
+    .select("id, code, project_id")
     .eq("id", order_id)
-    .single<{ id: string; code: string | null }>();
+    .single<{ id: string; code: string | null; project_id: string | null }>();
 
   if (!order) return { error: "Orden no encontrada" };
 
@@ -86,6 +86,7 @@ export async function registrarRecepcion(
       p_referencia_id: recepcion.id,
       p_notas: `Recepción OC ${order.code ?? ""}`.trim(),
       p_created_by: profile.id,
+      p_project_id: order.project_id ?? null,  // bug fix: propagar el proyecto de la OC al movimiento de stock
     });
     if (stockErr) {
       // Revertir todo: la recepción no se registra si el stock no puede aplicarse
