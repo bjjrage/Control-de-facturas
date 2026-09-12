@@ -867,6 +867,64 @@ export interface BimGroupMatch {
   created_at: string;
 }
 
+// ---------------------------------------------------------------------------
+// Cómputo métrico (Excel/PDF) — segundo origen de cantidades para el mismo
+// pipeline de matching semántico que BIM, para proyectos sin modelo IFC. Ver
+// supabase/migrations/0075_computo_import.sql. Sin capa de agrupación: acá
+// una fila ya es un ítem, no hace falta sumar elementos técnicamente iguales.
+// ---------------------------------------------------------------------------
+export type ComputoSourceType = "EXCEL" | "PDF";
+export type ComputoImportStatus = "PROCESANDO" | "LISTO" | "BAJA_CONFIANZA" | "ERROR";
+
+export interface ComputoConfidenceSummary {
+  textLayerOk: boolean;
+  llmConfidence: number | null;
+  sanityIssues: string[];
+}
+
+export interface ComputoImport {
+  id: string;
+  project_id: string;
+  source_type: ComputoSourceType;
+  file_name: string;
+  storage_path: string;
+  status: ComputoImportStatus;
+  error_message: string | null;
+  confidence_summary: ComputoConfidenceSummary | null;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+export interface ComputoItem {
+  id: string;
+  computo_import_id: string;
+  project_id: string;
+  row_index: number;
+  description: string;
+  quantity_value: number | null;
+  quantity_unit: string | null;
+  raw_row: Record<string, unknown>;
+  row_confidence: number | null;
+  created_at: string;
+}
+
+// Mismo vocabulario de estados que BimGroupMatchStatus — a propósito el mismo
+// significado (SUGGESTED/REVIEW/REVIEW_REQUIRED/NO_MATCH/CONFIRMED/REJECTED).
+export type ComputoItemMatchStatus = BimGroupMatchStatus;
+
+export interface ComputoItemMatch {
+  id: string;
+  computo_item_id: string;
+  budget_item_id: string | null;
+  method: BimGroupMatchMethod;
+  score: number | null;
+  reason: string | null;
+  status: ComputoItemMatchStatus;
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+  created_at: string;
+}
+
 export type BimMatchMethod = "DETERMINISTIC" | "SEMANTIC" | "MANUAL";
 export type BimMatchStatus = "PROPUESTO" | "CONFIRMADO" | "DESCARTADO";
 
