@@ -173,6 +173,17 @@ export function buildAssistedIdempotencyKey(roomId: string, policyVersion: numbe
   return `assist:${roomId}:v${policyVersion}:${pricePyg}`;
 }
 
+/**
+ * Stable key for HUMAN OVERRIDE authorizations: bound to (room, version,
+ * price) ONLY — deliberately wall-clock-free (same pattern as bot/assisted
+ * keys) so a double-click or a post-timeout operator retry dedupes in the
+ * RPC instead of double-submitting. One-shot by construction: the key names
+ * the exact authorized candidate, never a spending authority.
+ */
+export function buildOverrideIdempotencyKey(roomId: string, policyVersion: number, pricePyg: number): string {
+  return `override:${roomId}:v${policyVersion}:${pricePyg}`;
+}
+
 /** Winner = rank #1 accepted bid (null when no bids). */
 export function winnerOfRanking(ranking: SandboxRankedEntry[]): SandboxRankedEntry | null {
   return ranking.length > 0 ? ranking[0] : null;
@@ -187,6 +198,8 @@ export const SANDBOX_EVENT_TYPES: SandboxEventType[] = [
   'BOT_DECISION',
   'POLICY_AUTHORIZED',
   'BOT_STOPPED',
+  'HUMAN_OVERRIDE_AUTHORIZED',
+  'HUMAN_OVERRIDE_DECLINED',
   'AUCTION_CLOSED',
   'WINNER_DECLARED',
 ];

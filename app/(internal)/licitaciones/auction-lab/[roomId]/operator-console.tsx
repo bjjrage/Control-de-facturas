@@ -8,7 +8,9 @@ import { FrozenAuctionPolicy } from '@/lib/auction-bot/types';
 import { PollController, TimeoutError, isNextRedirect, ReconcilingError, DRAIN_TIMEOUT_MESSAGE, createResponseGuard } from '@/lib/auction-sandbox/poll-controller';
 import {
   authorizeAssistedBid,
+  authorizeLimitBreachBid,
   authorizeSandboxPolicy,
+  declineLimitBreachBid,
   finalizeSandboxRoom,
   getOperatorRoomState,
   pollOperatorRoom,
@@ -17,6 +19,7 @@ import {
   startSandboxRoom,
   OperatorView,
 } from '../actions';
+import { formatPctBelowGroundFloor } from '@/lib/auction-sandbox/format';
 
 function fmtPyg(n: number | null | undefined): string {
   if (n === null || n === undefined) return '—';
@@ -38,6 +41,11 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
   // Transient unequivocal feedback right after a freeze (same pattern as the
   // standalone bot page).
   const [justFrozenVersion, setJustFrozenVersion] = useState<number | null>(null);
+  // Transient unequivocal feedback right after an override submit (same
+  // pattern as the policy freeze above): the bid is one-shot, the note
+  // proves which exact price was authorized.
+  const [justOverrodePrice, setJustOverrodePrice] = useState<number | null>(null);
+  const [justCeded, setJustCeded] = useState(false);
   // True while a timed-out mutation is still unconfirmed: mutation buttons
   // stay disabled (no blind retry) while reads keep flowing for reconcile.
   const [reconciling, setReconciling] = useState(false);
@@ -103,13 +111,15 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
   const MUTATION_LABELS: Record<string, string> = {
     start: 'Iniciar subasta',
     authz: 'Autorizar lance',
+    override: 'Defender posición',
+    cede: 'Ceder',
     pause: 'Pausar/reanudar bot',
     finalize: 'Finalizar demo',
     links: 'Regenerar links',
     policy: 'Autorizar policy',
   };
 
-  async function run(key: string, fn: () => Promise<{ error?: string }>) {
+  async function run(key: string, fn: () => Promise<{ error?: string }>, onSuccess?: () => void) {
     const ctl = controllerRef.current;
     const label = MUTATION_LABELS[key] ?? 'Acción';
     if (ctl?.hasUnsettledMutation) {
@@ -138,7 +148,11 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
         );
         return;
       }
-      if (out.value.error) setError(out.value.error);
+      if (out.value.error) {
+        setError(out.value.error);
+      } else if (onSuccess) {
+        onSuccess();
+      }
     } catch (e) {
       // Redirect digests must navigate here (stop+assign like the poll path):
       // rethrowing into a floating onClick promise is an unhandled rejection
@@ -227,6 +241,35 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
   }
 
   const { room, ranking, bot } = view;
+  const lb = view.limitBreach;
+  // Principal presentation: while the ONLY reason the bot holds fire is the
+  // crossed Ground Floor, the operative state is AWAITING_AUTHORIZATION —
+  // STOP stays reserved for terminal/fail-closed states.
+  const displayStatus = lb ? 'AWAITING_AUTHORIZATION' : bot.status;
+  const targetRank = view.activePolicy?.targetRank ?? 1;
+
+  async function handleOverride(p: { candidatePricePyg: number; policyVersion: number }) {
+    let price: number | undefined;
+    await run(
+      'override',
+      () =>
+        authorizeLimitBreachBid(roomId, p.candidatePricePyg, p.policyVersion).then((r) => {
+          price = r.price;
+          return { error: r.error };
+        }),
+      () => {
+        if (price !== undefined) setJustOverrodePrice(price);
+      }
+    );
+  }
+
+  async function handleCede(p: { candidatePricePyg: number; policyVersion: number }) {
+    await run(
+      'cede',
+      () => declineLimitBreachBid(roomId, p.candidatePricePyg, p.policyVersion),
+      () => setJustCeded(true)
+    );
+  }
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
   return (
@@ -367,8 +410,71 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
             <span className="text-[var(--muted)]">Auto Limit</span>
             <span className="font-medium text-rose-600 dark:text-rose-400">{fmtPyg(bot.autoLimitPyg)}</span>
             <span className="text-[var(--muted)]">Estado</span>
-            <span className="font-semibold">{bot.status ?? '—'}</span>
+            <span className="font-semibold">{displayStatus ?? '—'}</span>
           </div>
+          {lb ? (
+            <div className="rounded-lg border-2 border-amber-500/40 bg-amber-500/10 p-3 space-y-2">
+              <p className="text-[12px] font-bold text-amber-600 dark:text-amber-400">⚠ LÍMITE AUTOMÁTICO SUPERADO</p>
+              <p className="text-[12px]">
+                El competidor está {formatPctBelowGroundFloor(lb.groundFloorPyg, lb.competitorPricePyg)} por debajo de tu Ground Floor.
+              </p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[12px]">
+                <span className="text-[var(--muted)]">Competidor</span>
+                <span className="font-mono font-bold text-right">{fmtPyg(lb.competitorPricePyg)}</span>
+                <span className="text-[var(--muted)]">Ground Floor</span>
+                <span className="font-mono font-bold text-right">{fmtPyg(lb.groundFloorPyg)}</span>
+                <span className="text-[var(--muted)]">Próximo lance</span>
+                <span className="font-mono font-bold text-right">{fmtPyg(lb.candidatePricePyg)}</span>
+                <span className="text-[var(--muted)]">Paso de defensa</span>
+                <span className="font-mono text-right">{fmtPyg(lb.defenseStepPyg)}</span>
+              </div>
+              <p className="text-[12px] text-[var(--muted)]">
+                Para mantener la posición #{targetRank} el bot necesita tu autorización.
+              </p>
+              {canManage ? (
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    className="h-8 text-xs"
+                    disabled={busy !== null || reconciling}
+                    onClick={() => handleCede(lb)}
+                  >
+                    {busy === 'cede' ? 'Cediendo…' : 'CEDER'}
+                  </Button>
+                  <Button
+                    className="h-8 text-xs flex-1"
+                    disabled={busy !== null || reconciling}
+                    onClick={() => handleOverride(lb)}
+                  >
+                    {busy === 'override' ? 'Defendiendo…' : `DEFENDER POSICIÓN · ${fmtPyg(lb.candidatePricePyg)}`}
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-[11px] text-[var(--muted)]">Solo un administrador puede decidir.</p>
+              )}
+            </div>
+          ) : null}
+          {!lb && view.limitBreachDeclined ? (
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-3 text-[12px] text-[var(--muted)]">
+              Cediste {fmtPyg(view.limitBreachDeclined.candidatePricePyg)} (v{view.limitBreachDeclined.policyVersion}). El bot sigue monitoreando.
+            </div>
+          ) : null}
+          {justOverrodePrice !== null && !lb ? (
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-[12px] flex items-center gap-2">
+              <span>Lance {fmtPyg(justOverrodePrice)} enviado por override humano (one-shot).</span>
+              <button
+                onClick={() => setJustOverrodePrice(null)}
+                className="ml-auto text-[11px] text-[var(--muted)] hover:text-[var(--foreground)] cursor-pointer shrink-0"
+              >
+                Cerrar
+              </button>
+            </div>
+          ) : null}
+          {justCeded && !lb && !view.limitBreachDeclined ? (
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-3 text-[12px] text-[var(--muted)]">
+              Cedido registrado.
+            </div>
+          ) : null}
           {bot.lastDecision ? (
             <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] p-2.5 text-[12px] space-y-0.5">
               <div><span className="text-[var(--muted)]">Última decisión: </span><strong>{String(bot.lastDecision.action ?? '?')}</strong></div>
