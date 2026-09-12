@@ -163,6 +163,10 @@ export function createIfcViewer(
   }
 
   function fitAll() {
+    // Box3.expandByObject usa matrixWorld — sin esto, un fitAll() llamado
+    // antes del primer render (ej. justo tras cargar el modelo) mide con la
+    // matriz identidad en vez de la transformación real de cada elemento.
+    modelRoot.updateMatrixWorld(true);
     const box = boundsOf(modelRoot.children);
     if (box) fitToBox(box);
   }
@@ -171,6 +175,7 @@ export function createIfcViewer(
     if (selectedExpressId == null) return fitAll();
     const entry = elementsByExpressId.get(selectedExpressId);
     if (!entry) return fitAll();
+    modelRoot.updateMatrixWorld(true);
     const box = boundsOf(entry.meshes);
     if (box) fitToBox(box);
   }
@@ -184,7 +189,6 @@ export function createIfcViewer(
 
     const geometryCache = new Map<number, THREE.BufferGeometry>();
     const flatMeshes = api.LoadAllGeometry(modelID);
-    console.log("[bim-viewer-diag] flatMeshes.size() =", flatMeshes.size());
 
     for (let i = 0; i < flatMeshes.size(); i++) {
       const flatMesh = flatMeshes.get(i);
@@ -225,14 +229,7 @@ export function createIfcViewer(
       elementsByExpressId.set(flatMesh.expressID, { group, meshes, originalMaterials });
     }
 
-    console.log(
-      "[bim-viewer-diag] modelRoot.children.length =",
-      modelRoot.children.length,
-      "bounds =",
-      boundsOf(modelRoot.children)
-    );
     fitAll();
-    console.log("[bim-viewer-diag] camera.position after fitAll =", camera.position.toArray(), "target =", controls.target.toArray());
     return { elementCount: elementsByExpressId.size };
   }
 
