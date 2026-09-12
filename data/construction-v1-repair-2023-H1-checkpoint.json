@@ -1,0 +1,27 @@
+{
+  "current_window_idx": 1,
+  "current_page": 1,
+  "current_record_index": 0,
+  "last_ocid": "ocds-03ad3f-426998-1",
+  "total_enumerated": 763,
+  "total_construction_matched": 763,
+  "total_skipped_non_construction": 3234,
+  "total_attempted": 763,
+  "total_succeeded": 761,
+  "total_failed": 2,
+  "failure_reasons": {
+    "RPC_ERROR [57014]: canceling statement due to statement timeout": 2
+  },
+  "by_year": {
+    "2023": {
+      "enumerated": 763,
+      "succeeded": 761,
+      "failed": 2
+    }
+  },
+  "completed_windows": [
+    "2023-H1"
+  ],
+  "start_time": "2026-09-12T15:19:47.169Z",
+  "last_updated_at": "2026-09-12T15:33:57.482Z"
+}

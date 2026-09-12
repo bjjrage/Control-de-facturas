@@ -1,0 +1,34 @@
+{
+  "attempted": 500,
+  "succeeded": 497,
+  "failed": 3,
+  "failure_reasons": {
+    "RPC_ERROR [23502]: null value in column \"moneda\" of relation \"procurement_processes\" violates not-null constraint": 3
+  },
+  "metrics": {
+    "processes": 594,
+    "lots": 2797,
+    "items": 13268,
+    "suppliers": 1944,
+    "bids": 1055,
+    "awards": 597,
+    "award_supplier_links": 597,
+    "contracts": 583,
+    "contract_supplier_links": 572,
+    "amendments": 109,
+    "documents": 11276,
+    "embedded_amendments": 109,
+    "extends_amendments": 0,
+    "orphan_amendments": 0,
+    "multi_supplier_contracts": 0,
+    "multi_supplier_awards": 0,
+    "consortia_count": 59,
+    "sme_suppliers_count": 128,
+    "base64_items_count": 1000,
+    "planning_only_count": 125,
+    "currencies_distribution": {
+      "PYG": 593,
+      "USD": 1
+    }
+  }
+}

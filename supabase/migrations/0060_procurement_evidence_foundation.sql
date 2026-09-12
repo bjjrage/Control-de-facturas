@@ -17,6 +17,7 @@ begin
     return null;
   end if;
   v_clean := regexp_replace(trim(p_ruc), '\s+', '', 'g');
+  v_clean := regexp_replace(v_clean, '^(PY-)?RUC-', '', 'i');
   if position('-' in v_clean) > 0 then
     v_clean := split_part(v_clean, '-', 1);
   end if;
@@ -37,6 +38,7 @@ begin
     return null;
   end if;
   v_clean := regexp_replace(trim(p_ruc), '\s+', '', 'g');
+  v_clean := regexp_replace(v_clean, '^(PY-)?RUC-', '', 'i');
   if position('-' in v_clean) > 0 then
     return split_part(v_clean, '-', 2);
   end if;

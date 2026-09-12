@@ -44,6 +44,15 @@ CREATE INDEX IF NOT EXISTS idx_cost_obs_empresa_fecha
 CREATE INDEX IF NOT EXISTS idx_cost_obs_empresa_categoria 
     ON public.cost_observations (empresa_id, categoria_insumo, fecha_observacion DESC);
 
+-- Función trigger para updated_at
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = clock_timestamp();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Trigger de updated_at
 CREATE OR REPLACE TRIGGER trg_cost_observations_updated_at
     BEFORE UPDATE ON public.cost_observations

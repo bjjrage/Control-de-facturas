@@ -1,0 +1,352 @@
+[
+  {
+    "ocid": "ocds-03ad3f-375096-1",
+    "title": "Mejoramiento Plaza San José del Norte del Distrito de San Vicente Pancholo",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "BUILDINGS",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-374262-1",
+    "title": "CONSTRUCCION DE CANAL A CIELO ABIERTO Bº VIRGEN DE LOURDES",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-374171-1",
+    "title": "CONSTRUCCION DE EMPEDRADO EN CALLE FELIX LEGUIZAMON, TRAMO: 4354 Y AREA NO CENSADA CÑIA. 18º LOMA BARRERO, BARRIO VIRGEN DE LOS DOLORES",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "ROAD_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-373909-1",
+    "title": "SERVICIO DE LIMPIEZA E HIGIENIZACION DEL HOSPITAL DE CLINICAS - AD REFERENDUM 2020",
+    "catDet": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "bucket": "BUILDINGS",
+    "method": "TEXT_INCLUSION"
+  },
+  {
+    "ocid": "ocds-03ad3f-376729-1",
+    "title": "CONSTRUCCION DE PAVIMENTO TIPO EMPEDRADO SOBRE LA CALLE SARGENTO SERVIN Y LA CALLE SIN NOMBRE UBICADA AL COSTADO DE LA IGLESIA DEL BARRIO SANTA ROSA DE LA CIUDAD DE YBYCUI",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "ROAD_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-376731-1",
+    "title": "CONSTRUCCION DE PAVIMENTO TIPO EMPEDRADO SOBRE LA CALLE SIN NOMBRE DEL BARRIO SANTA TERESITA DE LA CIUDAD DE YBYCUI",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "ROAD_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-374201-1",
+    "title": "REPARACION DE CAMINOS URBANOS Y RURALES",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-374872-1",
+    "title": "Construccion de Pavimento Tipo Empedrado en Tramo CV-10-025 Loma 3° Linea - Linea de Ande ",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "ROAD_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-380569-1",
+    "title": "CONSTRUCCION DE CASETA PARA ATM EN EL DISTRITO DE 25 DE DICIEMBRE",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-374167-1",
+    "title": "CONSTRUCCION DE EMPEDRADO CON DRENAJE EN CALLE SIN NOMBRE, TRAMO: 3808 Y 3809 CASCO URBANO, BARRIO BALNEARIO",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "ROAD_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-376359-1",
+    "title": "MANTENIMIENTO Y REPARACIÓN DE MAQUINARIAS VIALES Y AGRICOLAS ",
+    "catDet": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "bucket": "ROAD_INFRASTRUCTURE",
+    "method": "TEXT_INCLUSION"
+  },
+  {
+    "ocid": "ocds-03ad3f-378457-1",
+    "title": "Construcción de Empedrados en la compañía Tacuary",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "ROAD_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-376390-1",
+    "title": "CONSTRUCCIÓN DE PAVIMENTO PÉTREO EN EL BARRIO SAN VICENTE DE LA CIUDAD DE LIMPIO - TRAMO 1",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "ROAD_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-377988-1",
+    "title": "Construccion de Empedrado sobre la calle Cerro Leon entre Tacuary y Boulevar Luque",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "ROAD_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-376625-1",
+    "title": "CONSTRUCCION DE 1048 M2 DE EMPEDRADO EN LA CALLE INDEPENDENCIA NACIONAL E/ CURUPAY Y JOSE GASPAR RODRIGUEZ DE FRANCIA",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "ROAD_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-372668-1",
+    "title": "ADQUISICIÓN DE MATERIALES ELECTRICOS, FERRETERIA Y MATERIALES DE CONSTRUCCIÓN",
+    "catDet": "Bienes - Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "TEXT_INCLUSION"
+  },
+  {
+    "ocid": "ocds-03ad3f-374467-1",
+    "title": "Mantenimiento y Reparación de Baño Taller E de la FADA/UNA",
+    "catDet": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "bucket": "BUILDINGS",
+    "method": "TEXT_INCLUSION"
+  },
+  {
+    "ocid": "ocds-03ad3f-375290-1",
+    "title": "MEJORAMIENTO DE PLAZAS DE LA CIUDAD DE PUERTO PINASCO",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-382215-1",
+    "title": "Ampliacion de Sala de Internacion del Hospital Distrital de Capiibary",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "BUILDINGS",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-381837-1",
+    "title": "Reparación de 40 metros de pavimento tipo empedrado en centro urbano",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "ROAD_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-378591-1",
+    "title": "Construcción de empedrado, calle Pozo Azul hasta Junta de Saneamiento del Bº SAN ROQUE del Distrito de Villeta. ",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "WATER_SANITATION",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-382149-1",
+    "title": "CONSTRUCCION DE CANAL DE Hº MASA DON BOSCO Y MCAL ESTIGARRIBIA",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-381737-1",
+    "title": "CONSTRUCCIÓN DE EMPEDRADO CON CORDÓN CUNETA EN LA CALLE ITURBE E/ JOSE F. BOGADO Y MCAL ESTIGARRIBIA.",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "ROAD_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-382115-1",
+    "title": "Construcción de Tinglado en el Vertedero Municipal",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "BUILDINGS",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-374030-1",
+    "title": "CEMENTADO DE LA CALLE VILLA HAYES, 11 DE SETIEMBRE Y MANORA",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-375307-1",
+    "title": "Construcción de Enripiados en el Tramo de Arroyito - Ñu Pyahu de María Anonia",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-377098-1",
+    "title": "CONSTRUCCION DE PUENTE PEATONAL MARIA AUXILIADORA",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "BRIDGES",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-381986-1",
+    "title": "REGULARIZACIÓN ASFÁLTICA DE LA CALLE FORTIN TOLEDO HASTA YATAITY CORA",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-377430-1",
+    "title": "SERV. DE MANTENIMIENTO Y REPARACIÓN DE ASCENSOR",
+    "catDet": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "bucket": "MECHANICAL_INSTALLATIONS",
+    "method": "TEXT_INCLUSION"
+  },
+  {
+    "ocid": "ocds-03ad3f-376955-1",
+    "title": "CONSTRUCCIÓN DE VEREDA SOBRE CONT. DE AVDA. PEDRO JUAN CABALLERO, DE LA LOCALIDAD DE CARONAY, DISTRITO DE ALTO VERÁ",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-377989-1",
+    "title": "CONSTRUCCION DE EMPEDRADO EN DIVERSAS CALLES Y ENRIPIADO EN LA CALLE 15 DE MAYO ACCESO A VILLA ACEPAR",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "ROAD_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-374966-1",
+    "title": "CONSTRUCCION DE UN TAJAMAR MUNICIPAL DE 22,050M3 PARA LOS CIUDADANOS DE FORTIN CABALLERO",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-382883-1",
+    "title": "CONSTRUCCIÓN, REPARACIÓN Y MANTENIMIENTO DE OBRAS DISTRITO DE TRINIDAD",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-373526-1",
+    "title": "Construcción de Pavimento Tipo Empedrado en Distintos Barrios del Km. 14 Acaray y Construcción de Canal de Hº Aº Portal de Minga Guazu",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "ROAD_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-373535-1",
+    "title": "Construcción de Pavimento Tipo Empedrado en Distintos Barrios del Distrito de Minga Guazú",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "ROAD_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-383375-1",
+    "title": "\"CONSTRUCCION DE EMPEDRADO SOBRE CALLE ING. HERNANDO BERTONI ENTRE LAS CALLES CARLOS ANTONIO LOPEZ Y DR. EUSEBIO AYALA ",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "ROAD_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-383477-1",
+    "title": "CONSTRUCCION DE CERCADO PERIMETRAL DEL MERCADO MUNICIPAL DE BERNARDINO CABALLERO",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-382722-1",
+    "title": "CONSTRUCCION DE EMPEDRADO Y CANAL A CIELO ABIERTO CON TAPA DE HºAº, TRAMO: 3188, 3189, 3695, 2379, 2380, 2381, 2382 Y 2383 CÑIA. 4º COSTA SALINARES, BARRIO PUERTA DEL SOL",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "ROAD_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-383329-1",
+    "title": "Construcción de empedrado en la Calle Leopoldo Silvio Mensch",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "ROAD_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-382809-1",
+    "title": "Construcción de local para oficinas Públicas",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-379116-1",
+    "title": "MANTENIMIENTO DE OBRAS CIVILES:REFACCIONES Y PINTURA",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-374996-1",
+    "title": "Habilitación de camino vecinal ",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-374935-1",
+    "title": "CONSTRUCCION DE CERCADO PERIMETRAL EN LA CANCHA DE FUTBOL 11 DE ALBORADA Y CONSTRUCCIONES Y REPARACION DE SS HH EN EL POLIDEPORTIVO MUNICIPAL DE TERCER ASENTAMIENTO.",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "BUILDINGS",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-377229-1",
+    "title": "Remodelación de Paseo Central. ",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-379436-1",
+    "title": "Construcción de Desagüe Pluvial y Acceso al Campus de la Universidad Nacional de Concepción (U.N.C.)",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "WATER_SANITATION",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-377008-1",
+    "title": "Contrucciones Varias en la Playa Piraju de la localidad de Carmen del Paraná.-",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  },
+  {
+    "ocid": "ocds-03ad3f-383138-1",
+    "title": "Contratación de Servicio de Mano de Obra para la Reparación de la Aislación de los Techos de los Silos de Cemento en Fábrica Vallemi",
+    "catDet": "Servicios - Servicios de Limpiezas, Mantenimientos y reparaciones menores y mayores de Instalaciones, Maquinarias y Vehículos",
+    "bucket": "CONSTRUCTION_MATERIALS",
+    "method": "TEXT_INCLUSION"
+  },
+  {
+    "ocid": "ocds-03ad3f-372492-1",
+    "title": "ADQUISICION DE ACCESORIOS Y TUBERIAS PARA LA RED DE AGUA POTABLE DE LA ESSAP",
+    "catDet": "Bienes - Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+    "bucket": "WATER_SANITATION",
+    "method": "TEXT_INCLUSION"
+  },
+  {
+    "ocid": "ocds-03ad3f-373723-1",
+    "title": "Adquisición de Materiales de Construcción y Otros Ad Referéndum",
+    "catDet": "Bienes - Materiales e insumos eléctricos, metálicos y no metálicos, Plásticos, cauchos. Repuestos, herramientas, cámaras y cubiertas.",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "TEXT_INCLUSION"
+  },
+  {
+    "ocid": "ocds-03ad3f-373944-1",
+    "title": "Obra de Contención de los Cauces Antequera y Tacuary y Obras de Compensación",
+    "catDet": "Obras - Construcción, Restauración, Reconstrucción o Remodelación y Reparación de Inmuebles",
+    "bucket": "CIVIL_INFRASTRUCTURE",
+    "method": "STRUCTURED_WORKS"
+  }
+]
