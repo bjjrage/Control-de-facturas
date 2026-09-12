@@ -21,6 +21,7 @@ import {
   type ParsedElementInput,
   type ProcessBimGroupsResult,
 } from "./bim-actions";
+import { ComputoSection } from "./computo-section";
 
 const QUANTITY_LABEL: Record<string, string> = {
   length: "Longitud",
@@ -333,6 +334,8 @@ export function BimSection({ projectId }: { projectId: string }) {
         equivalentes se agrupan y se consultan en lote contra el catálogo de costos. Vos confirmás cada grupo —
         ningún precio se calcula sin tu confirmación.
       </div>
+
+      <ComputoSection projectId={projectId} />
 
       {error ? (
         <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
