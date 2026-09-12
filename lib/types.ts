@@ -823,6 +823,7 @@ export interface BimElement {
   project_id: string;
   ifc_guid: string;
   ifc_type: string;
+  express_id: number | null;
   name: string | null;
   building_storey: string | null;
   material: string | null;

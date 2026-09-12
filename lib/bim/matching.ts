@@ -144,6 +144,42 @@ export interface MatchCandidate {
   score: number;
 }
 
+// ---------------------------------------------------------------------------
+// Agregación: varios elementos BIM pueden mapear al mismo rubro (ej. 57
+// muros -> "Mampostería cerámica 15 cm"). El total económico del rubro usa la
+// SUMA de las cantidades BIM confirmadas, no una línea por elemento. Un
+// elemento con unidad incompatible respecto al rubro se excluye de la suma y
+// se reporta aparte — nunca se mezclan unidades en un total.
+// ---------------------------------------------------------------------------
+
+export interface AggregationResult {
+  compatible: BimElement[];
+  incompatible: BimElement[];
+  totalQuantity: number | null;
+  unit: string | null;
+}
+
+export function aggregateElementsForBudgetItem(elements: BimElement[], item: BudgetItem): AggregationResult {
+  const itemUnit = normalizeUnit(item.unit);
+  const compatible: BimElement[] = [];
+  const incompatible: BimElement[] = [];
+
+  for (const el of elements) {
+    const elUnit = normalizeUnit(el.quantity_unit);
+    if (el.quantity_value == null) continue;
+    if (itemUnit && elUnit && itemUnit !== elUnit) {
+      incompatible.push(el);
+    } else {
+      compatible.push(el);
+    }
+  }
+
+  const totalQuantity =
+    compatible.length > 0 ? compatible.reduce((sum, el) => sum + (el.quantity_value ?? 0), 0) : null;
+
+  return { compatible, incompatible, totalQuantity, unit: item.unit };
+}
+
 export function suggestMatches(
   element: BimElement,
   candidates: BudgetItem[],

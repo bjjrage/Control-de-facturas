@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePlan } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
-import { suggestMatches } from "@/lib/bim/matching";
+import { suggestMatches, aggregateElementsForBudgetItem } from "@/lib/bim/matching";
 import type { BimElement, BimModel, BimBudgetMatch, BudgetItem } from "@/lib/types";
 
 async function assertProjectAccess(projectId: string) {
@@ -34,6 +34,7 @@ export async function getBimUploadSlot(
 export interface ParsedElementInput {
   ifcGuid: string;
   ifcType: string;
+  expressId: number;
   name: string | null;
   buildingStorey: string | null;
   material: string | null;
@@ -86,6 +87,7 @@ export async function registerBimModel(
         project_id: projectId,
         ifc_guid: el.ifcGuid,
         ifc_type: el.ifcType,
+        express_id: el.expressId,
         name: el.name,
         building_storey: el.buildingStorey,
         material: el.material,
@@ -250,6 +252,77 @@ export async function discardBimMatch(projectId: string, matchId: string): Promi
   const { error } = await supabase.from("bim_budget_matches").update({ status: "DESCARTADO" }).eq("id", matchId);
   revalidatePath(`/projects/${projectId}`);
   return { error: error?.message ?? null };
+}
+
+// Actualiza budget_items.quantity con la suma de cantidades BIM confirmadas
+// para ese rubro. SOLO por acción explícita del usuario (botón "Actualizar
+// cantidad desde BIM" en la UI) — nunca se dispara automáticamente al
+// confirmar un match, y nunca reconcilia en el otro sentido.
+export async function applyBimQuantityToBudgetItem(
+  projectId: string,
+  budgetItemId: string
+): Promise<{ error: string | null; appliedQuantity: number | null; warning: string | null }> {
+  const { supabase } = await assertProjectAccess(projectId);
+
+  const { data: item } = await supabase
+    .from("budget_items")
+    .select("*")
+    .eq("id", budgetItemId)
+    .eq("project_id", projectId)
+    .single<BudgetItem>();
+  if (!item) return { error: "Ítem de presupuesto no encontrado.", appliedQuantity: null, warning: null };
+
+  const { data: confirmedMatches } = await supabase
+    .from("bim_budget_matches")
+    .select("bim_element_id")
+    .eq("budget_item_id", budgetItemId)
+    .eq("status", "CONFIRMADO");
+  const elementIds = (confirmedMatches ?? []).map((m) => m.bim_element_id as string);
+  if (elementIds.length === 0) {
+    return { error: "Este rubro no tiene elementos BIM confirmados.", appliedQuantity: null, warning: null };
+  }
+
+  const { data: elements } = await supabase
+    .from("bim_elements")
+    .select("*")
+    .in("id", elementIds)
+    .returns<BimElement[]>();
+
+  const { totalQuantity, incompatible } = aggregateElementsForBudgetItem(elements ?? [], item);
+  if (totalQuantity == null) {
+    return {
+      error: "Ninguno de los elementos confirmados tiene una cantidad con unidad compatible.",
+      appliedQuantity: null,
+      warning: null,
+    };
+  }
+
+  const { error } = await supabase.from("budget_items").update({ quantity: totalQuantity }).eq("id", budgetItemId);
+  if (error) return { error: error.message, appliedQuantity: null, warning: null };
+
+  revalidatePath(`/projects/${projectId}`);
+  const warning =
+    incompatible.length > 0
+      ? `${incompatible.length} elemento(s) con unidad incompatible se excluyeron de la suma.`
+      : null;
+  return { error: null, appliedQuantity: totalQuantity, warning };
+}
+
+export async function getBimModelFileUrl(
+  projectId: string,
+  modelId: string
+): Promise<{ url: string | null; error: string | null }> {
+  const { supabase } = await assertProjectAccess(projectId);
+  const { data: model } = await supabase
+    .from("bim_models")
+    .select("storage_path")
+    .eq("id", modelId)
+    .eq("project_id", projectId)
+    .single();
+  if (!model) return { url: null, error: "Modelo no encontrado." };
+  const { data, error } = await supabase.storage.from("bim-models").createSignedUrl(model.storage_path, 600);
+  if (error || !data) return { url: null, error: error?.message ?? "No se pudo generar la URL del archivo." };
+  return { url: data.signedUrl, error: null };
 }
 
 export async function deleteBimModel(projectId: string, modelId: string): Promise<{ error: string | null }> {

@@ -9,6 +9,7 @@ function makeElement(overrides: Partial<BimElement> = {}): BimElement {
     project_id: "proj-1",
     ifc_guid: "GUID-1",
     ifc_type: "IfcWall",
+    express_id: 1,
     name: "External Ceramic Wall 150",
     building_storey: "Nivel 1",
     material: "Ceramic Brick",

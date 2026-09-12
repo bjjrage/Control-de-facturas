@@ -16,6 +16,7 @@ import * as WebIFC from "web-ifc";
 export interface ParsedIfcElement {
   ifcGuid: string;
   ifcType: string;
+  expressId: number;
   name: string | null;
   buildingStorey: string | null;
   material: string | null;
@@ -51,13 +52,20 @@ const RELEVANT_TYPES: { type: number; name: string; preferredQty: Array<"volume"
   { type: WebIFC.IFCRAILING, name: "IfcRailing", preferredQty: ["length"] },
 ];
 
-const QTO_KIND_BY_TYPE: Record<string, { kind: "length" | "area" | "volume" | "count" | "weight"; field: string }> = {
-  IFCQUANTITYLENGTH: { kind: "length", field: "LengthValue" },
-  IFCQUANTITYAREA: { kind: "area", field: "AreaValue" },
-  IFCQUANTITYVOLUME: { kind: "volume", field: "VolumeValue" },
-  IFCQUANTITYCOUNT: { kind: "count", field: "CountValue" },
-  IFCQUANTITYWEIGHT: { kind: "weight", field: "WeightValue" },
+// web-ifc devuelve el `type` de cada quantity/pset como el ID numérico IFC
+// (el mismo valor que las constantes exportadas por el paquete, ej.
+// WebIFC.IFCQUANTITYAREA === 2044713172), NO como el nombre en texto. Un
+// lookup por nombre de string acá silenciosamente no matchea nunca — bug
+// real detectado por el fixture de test (lib/bim/__tests__/ifc-fixture.spec.ts).
+const QTO_KIND_BY_TYPE: Record<number, { kind: "length" | "area" | "volume" | "count" | "weight"; field: string }> = {
+  [WebIFC.IFCQUANTITYLENGTH]: { kind: "length", field: "LengthValue" },
+  [WebIFC.IFCQUANTITYAREA]: { kind: "area", field: "AreaValue" },
+  [WebIFC.IFCQUANTITYVOLUME]: { kind: "volume", field: "VolumeValue" },
+  [WebIFC.IFCQUANTITYCOUNT]: { kind: "count", field: "CountValue" },
+  [WebIFC.IFCQUANTITYWEIGHT]: { kind: "weight", field: "WeightValue" },
 };
+
+const IFCELEMENTQUANTITY_TYPE = WebIFC.IFCELEMENTQUANTITY;
 
 const QTO_UNIT_BY_KIND: Record<string, string> = {
   length: "m",
@@ -80,7 +88,7 @@ async function buildStoreyMap(api: WebIFC.IfcAPI, modelID: number): Promise<Map<
     const root = await api.properties.getSpatialStructure(modelID, false);
     const walk = async (node: { expressID: number; type: string; children: unknown[] }, storeyName: string | null) => {
       let current = storeyName;
-      if (node.type === "IFCBUILDINGSTOREY") {
+      if (node.type.toUpperCase() === "IFCBUILDINGSTOREY") {
         try {
           const props = await api.properties.getItemProperties(modelID, node.expressID);
           current = (unwrap(props?.Name) as string) || (unwrap(props?.LongName) as string) || null;
@@ -100,21 +108,20 @@ async function buildStoreyMap(api: WebIFC.IfcAPI, modelID: number): Promise<Map<
   return map;
 }
 
-function extractQuantity(
+export function extractQuantity(
   psets: Array<Record<string, unknown>>,
   preferredKinds: Array<"volume" | "area" | "length" | "count">
 ): { kind: "length" | "area" | "volume" | "count" | "weight"; value: number; property: string } | null {
   const found: { kind: "length" | "area" | "volume" | "count" | "weight"; value: number; property: string }[] = [];
 
   for (const pset of psets) {
-    const psetType = String(unwrap(pset.type) ?? pset.__ifcType__ ?? "").toUpperCase();
-    const isQto = psetType.includes("ELEMENTQUANTITY") || Array.isArray(pset.Quantities);
+    const isQto = pset.type === IFCELEMENTQUANTITY_TYPE || Array.isArray(pset.Quantities);
     if (!isQto) continue;
     const psetName = String(unwrap(pset.Name) ?? "");
     const quantities = (pset.Quantities as Array<Record<string, unknown>>) ?? [];
     for (const q of quantities) {
-      const qType = String((q as { type?: unknown; __ifcType__?: unknown }).type ?? (q as { __ifcType__?: unknown }).__ifcType__ ?? "").toUpperCase();
-      const spec = QTO_KIND_BY_TYPE[qType];
+      const qType = (q as { type?: unknown }).type;
+      const spec = typeof qType === "number" ? QTO_KIND_BY_TYPE[qType] : undefined;
       if (!spec) continue;
       const raw = unwrap(q[spec.field]);
       const value = typeof raw === "number" ? raw : Number(raw);
@@ -200,7 +207,7 @@ export async function parseIfcFile(
 
         let material: string | null = null;
         try {
-          const materials = await api.properties.getMaterialsProperties(modelID, expressID, false, true);
+          const materials = await api.properties.getMaterialsProperties(modelID, expressID, false, false);
           const first = materials?.[0];
           material =
             (unwrap(first?.Name) as string) ||
@@ -240,6 +247,7 @@ export async function parseIfcFile(
         elements.push({
           ifcGuid,
           ifcType: typeDef.name,
+          expressId: expressID,
           name,
           buildingStorey: storeyMap.get(expressID) ?? null,
           material,

@@ -1,16 +1,20 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/browser";
 import { formatNumber, formatMoney } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { aggregateElementsForBudgetItem } from "@/lib/bim/matching";
 import type { BimModel, BimElement, BimBudgetMatch, BudgetItem } from "@/lib/types";
+import type { IfcViewerHandle } from "@/lib/bim/ifc-viewer.client";
 import {
   getBimData,
   getBimUploadSlot,
+  getBimModelFileUrl,
   registerBimModel,
   generateMatchSuggestions,
   confirmBimMatch,
+  applyBimQuantityToBudgetItem,
   deleteBimModel,
   type ParsedElementInput,
 } from "./bim-actions";
@@ -30,9 +34,15 @@ export function BimSection({ projectId }: { projectId: string }) {
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [viewerStatus, setViewerStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const viewerContainerRef = useRef<HTMLDivElement | null>(null);
+  const viewerHandleRef = useRef<IfcViewerHandle | null>(null);
+  const loadedModelIdRef = useRef<string | null>(null);
 
   async function refresh() {
     setLoading(true);
@@ -50,6 +60,74 @@ export function BimSection({ projectId }: { projectId: string }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
     refresh();
   }, [projectId]);
+
+  // Carga (o recarga) el viewer 3D cuando cambia el modelo seleccionado. Solo
+  // recrea el viewer si el modelo cargado cambió (loadedModelIdRef) — si el
+  // efecto vuelve a correr porque cambió `elements` (ej. tras confirmar un
+  // match), reusa el viewer ya creado y solo refresca el closure de
+  // selección con la lista de elementos actual.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadViewer() {
+      if (!selectedModelId || !viewerContainerRef.current) return;
+      if (loadedModelIdRef.current === selectedModelId) return;
+
+      viewerHandleRef.current?.dispose();
+      viewerHandleRef.current = null;
+      loadedModelIdRef.current = null;
+      setViewerStatus("Cargando visor 3D…");
+      try {
+        const { createIfcViewer } = await import("@/lib/bim/ifc-viewer.client");
+        const { url, error: urlError } = await getBimModelFileUrl(projectId, selectedModelId);
+        if (urlError || !url) throw new Error(urlError ?? "No se pudo obtener el archivo.");
+        const res = await fetch(url);
+        const buffer = new Uint8Array(await res.arrayBuffer());
+        if (cancelled || !viewerContainerRef.current) return;
+
+        const handle = createIfcViewer(viewerContainerRef.current, {
+          onSelect: (expressId) => {
+            if (expressId == null) {
+              setSelectedElementId(null);
+              return;
+            }
+            const el = elements.find((e) => e.bim_model_id === selectedModelId && e.express_id === expressId);
+            setSelectedElementId(el?.id ?? null);
+          },
+        });
+        await handle.loadFromBuffer(buffer);
+        if (cancelled) {
+          handle.dispose();
+          return;
+        }
+        viewerHandleRef.current = handle;
+        loadedModelIdRef.current = selectedModelId;
+        setViewerStatus(null);
+      } catch (e) {
+        if (!cancelled) setViewerStatus(e instanceof Error ? e.message : "No se pudo cargar el visor 3D.");
+      }
+    }
+    loadViewer();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedModelId, elements]);
+
+  // Selección desde el listado -> resaltar en el viewer.
+  useEffect(() => {
+    if (!selectedElementId) {
+      viewerHandleRef.current?.selectByExpressId(null);
+      return;
+    }
+    const el = elements.find((e) => e.id === selectedElementId);
+    if (el?.express_id != null) viewerHandleRef.current?.selectByExpressId(el.express_id);
+  }, [selectedElementId, elements]);
+
+  useEffect(() => {
+    return () => {
+      viewerHandleRef.current?.dispose();
+    };
+  }, []);
 
   async function handleUpload(file: File) {
     setError(null);
@@ -72,6 +150,7 @@ export function BimSection({ projectId }: { projectId: string }) {
       const elementsInput: ParsedElementInput[] = parsed.elements.map((e) => ({
         ifcGuid: e.ifcGuid,
         ifcType: e.ifcType,
+        expressId: e.expressId,
         name: e.name,
         buildingStorey: e.buildingStorey,
         material: e.material,
@@ -101,12 +180,43 @@ export function BimSection({ projectId }: { projectId: string }) {
   }
 
   const currentModel = models.find((m) => m.id === selectedModelId) ?? null;
-  const currentElements = elements.filter((e) => e.bim_model_id === selectedModelId);
-  const budgetItemById = new Map(budgetItems.map((b) => [b.id, b]));
-  const matchesByElement = new Map<string, BimBudgetMatch[]>();
-  for (const m of matches) {
-    (matchesByElement.get(m.bim_element_id) ?? matchesByElement.set(m.bim_element_id, []).get(m.bim_element_id)!).push(m);
-  }
+  const currentElements = useMemo(
+    () => elements.filter((e) => e.bim_model_id === selectedModelId),
+    [elements, selectedModelId]
+  );
+  const budgetItemById = useMemo(() => new Map(budgetItems.map((b) => [b.id, b])), [budgetItems]);
+  const matchesByElement = useMemo(() => {
+    const map = new Map<string, BimBudgetMatch[]>();
+    for (const m of matches) (map.get(m.bim_element_id) ?? map.set(m.bim_element_id, []).get(m.bim_element_id)!).push(m);
+    return map;
+  }, [matches]);
+
+  const selectedElement = currentElements.find((e) => e.id === selectedElementId) ?? null;
+  const selectedElMatches = selectedElement ? (matchesByElement.get(selectedElement.id) ?? []).filter((m) => m.status !== "DESCARTADO") : [];
+  const confirmedMatch = selectedElMatches.find((m) => m.status === "CONFIRMADO") ?? null;
+  const proposedMatches = selectedElMatches.filter((m) => m.status === "PROPUESTO").sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  const confirmedItem = confirmedMatch ? budgetItemById.get(confirmedMatch.budget_item_id) ?? null : null;
+
+  // Rubros con al menos un match confirmado -> agregación de cantidad BIM.
+  const aggregationRows = useMemo(() => {
+    const confirmedByBudgetItem = new Map<string, string[]>();
+    for (const m of matches) {
+      if (m.status !== "CONFIRMADO") continue;
+      (confirmedByBudgetItem.get(m.budget_item_id) ?? confirmedByBudgetItem.set(m.budget_item_id, []).get(m.budget_item_id)!).push(
+        m.bim_element_id
+      );
+    }
+    const elementById = new Map(elements.map((e) => [e.id, e]));
+    return [...confirmedByBudgetItem.entries()]
+      .map(([budgetItemId, elIds]) => {
+        const item = budgetItemById.get(budgetItemId);
+        if (!item) return null;
+        const els = elIds.map((id) => elementById.get(id)).filter((e): e is BimElement => !!e);
+        const agg = aggregateElementsForBudgetItem(els, item);
+        return { item, elementCount: els.length, ...agg };
+      })
+      .filter((r): r is NonNullable<typeof r> => !!r);
+  }, [matches, elements, budgetItemById]);
 
   async function handleConfirm(elementId: string, budgetItemId: string) {
     setError(null);
@@ -115,8 +225,21 @@ export function BimSection({ projectId }: { projectId: string }) {
     await refresh();
   }
 
+  async function handleApplyQuantity(budgetItemId: string) {
+    setError(null);
+    const result = await applyBimQuantityToBudgetItem(projectId, budgetItemId);
+    if (result.error) setError(result.error);
+    else if (result.warning) setError(result.warning);
+    await refresh();
+  }
+
   async function handleDeleteModel(modelId: string) {
     if (!confirm("¿Eliminar este modelo IFC y todos sus elementos/matches? Esta acción no se puede deshacer.")) return;
+    if (loadedModelIdRef.current === modelId) {
+      viewerHandleRef.current?.dispose();
+      viewerHandleRef.current = null;
+      loadedModelIdRef.current = null;
+    }
     const result = await deleteBimModel(projectId, modelId);
     if (result.error) setError(result.error);
     if (selectedModelId === modelId) setSelectedModelId(null);
@@ -126,8 +249,8 @@ export function BimSection({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-4">
       <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-[12px] text-[var(--muted)]">
-        El BIM aporta cantidades; el presupuesto aporta precios. Subí un IFC para extraer sus elementos y
-        cantidades, y confirmá manualmente a qué ítem del presupuesto corresponde cada uno. Ningún precio se
+        El BIM aporta cantidades; el presupuesto aporta precios. Subí un IFC, seleccioná un elemento (en el
+        visor o en la lista) y confirmá manualmente a qué ítem del presupuesto corresponde. Ningún precio se
         calcula sin tu confirmación.
       </div>
 
@@ -162,7 +285,10 @@ export function BimSection({ projectId }: { projectId: string }) {
             {models.map((m) => (
               <button
                 key={m.id}
-                onClick={() => setSelectedModelId(m.id)}
+                onClick={() => {
+                  setSelectedElementId(null);
+                  setSelectedModelId(m.id);
+                }}
                 className={`rounded-md border px-3 py-1.5 text-[12px] ${
                   m.id === selectedModelId
                     ? "border-[var(--accent)] bg-[var(--accent)]/10"
@@ -176,7 +302,7 @@ export function BimSection({ projectId }: { projectId: string }) {
           </div>
 
           {currentModel ? (
-            <div className="space-y-2">
+            <>
               <div className="flex items-center justify-between">
                 <div className="text-[12px] text-[var(--muted)]">
                   Esquema {currentModel.schema ?? "?"} · {currentElements.length} elementos
@@ -208,84 +334,239 @@ export function BimSection({ projectId }: { projectId: string }) {
                 </div>
               ) : null}
 
-              <div className="space-y-2">
-                {currentElements.map((el) => {
-                  const elMatches = (matchesByElement.get(el.id) ?? []).filter((m) => m.status !== "DESCARTADO");
-                  const confirmed = elMatches.find((m) => m.status === "CONFIRMADO");
-                  const proposed = elMatches.filter((m) => m.status === "PROPUESTO").sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-                  const confirmedItem = confirmed ? budgetItemById.get(confirmed.budget_item_id) : null;
+              {/* Área central: visor 3D + inspector del elemento seleccionado */}
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Modelo 3D</span>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => viewerHandleRef.current?.fitAll()}
+                        className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 py-0.5 text-[11px]"
+                      >
+                        Fit all
+                      </button>
+                      <button
+                        onClick={() => viewerHandleRef.current?.fitSelection()}
+                        disabled={!selectedElementId}
+                        className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 py-0.5 text-[11px] disabled:opacity-40"
+                      >
+                        Fit selection
+                      </button>
+                    </div>
+                  </div>
+                  <div className="relative rounded border border-[var(--border)] bg-[#f4f4f5] h-[480px] overflow-hidden">
+                    <div ref={viewerContainerRef} className="absolute inset-0" />
+                    {viewerStatus ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/70 text-[12px] text-[var(--muted)]">
+                        {viewerStatus}
+                      </div>
+                    ) : null}
+                  </div>
+                  <p className="text-[11px] text-[var(--muted)]">
+                    Click en un elemento para seleccionarlo · arrastrar para orbitar · rueda para zoom.
+                  </p>
+                </div>
 
-                  return (
-                    <div key={el.id} className="rounded border border-[var(--border)] p-3">
-                      <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <div>
-                          <span className="font-medium">{el.name || el.ifc_type}</span>
-                          <span className="text-[11px] text-[var(--muted)] ml-2">
-                            {el.ifc_type}
-                            {el.building_storey ? ` · ${el.building_storey}` : ""}
-                            {el.material ? ` · ${el.material}` : ""}
-                          </span>
-                        </div>
-                        <div className="text-[13px] font-mono">
-                          {el.quantity_value != null ? (
-                            <>
-                              {formatNumber(el.quantity_value, 2)} {el.quantity_unit}
-                              <span className="text-[11px] text-[var(--muted)] ml-1">
-                                ({QUANTITY_LABEL[el.quantity_type ?? ""] ?? el.quantity_type},{" "}
-                                {el.quantity_source === "IFC_QTO" ? "Qto IFC" : "propiedad IFC"})
-                              </span>
-                            </>
-                          ) : (
-                            <span className="text-[var(--muted)]">Sin cantidad en el IFC</span>
-                          )}
-                        </div>
+                {/* Inspector: propiedades + flujo económico del elemento seleccionado */}
+                <div className="rounded border border-[var(--border)] p-3 space-y-3 max-h-[480px] overflow-y-auto">
+                  {!selectedElement ? (
+                    <div className="text-[12px] text-[var(--muted)]">
+                      Seleccioná un elemento en el visor o en la lista de abajo para ver sus propiedades.
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <div className="font-medium">{selectedElement.name || selectedElement.ifc_type}</div>
+                        <dl className="text-[12px] text-[var(--muted)] mt-1 space-y-0.5">
+                          <div>
+                            <dt className="inline">IFC Type: </dt>
+                            <dd className="inline text-[var(--fg)]">{selectedElement.ifc_type}</dd>
+                          </div>
+                          <div>
+                            <dt className="inline">GUID: </dt>
+                            <dd className="inline font-mono text-[11px] text-[var(--fg)]">{selectedElement.ifc_guid}</dd>
+                          </div>
+                          <div>
+                            <dt className="inline">Nivel: </dt>
+                            <dd className="inline text-[var(--fg)]">{selectedElement.building_storey ?? "—"}</dd>
+                          </div>
+                          <div>
+                            <dt className="inline">Material: </dt>
+                            <dd className="inline text-[var(--fg)]">{selectedElement.material ?? "—"}</dd>
+                          </div>
+                        </dl>
                       </div>
 
-                      {confirmedItem ? (
-                        <div className="mt-2 rounded bg-[var(--success-bg,var(--panel-2))] px-2.5 py-1.5 text-[12px] flex items-center justify-between">
-                          <span>
-                            ✓ {confirmedItem.code} — {confirmedItem.description}
-                          </span>
-                          {el.quantity_value != null && confirmedItem.unit_price != null ? (
-                            <span className="font-mono">
-                              {formatNumber(el.quantity_value, 2)} {el.quantity_unit} ×{" "}
-                              {formatMoney(confirmedItem.unit_price, "PYG")} ={" "}
-                              {formatMoney(el.quantity_value * confirmedItem.unit_price, "PYG")}
-                            </span>
-                          ) : (
-                            <span className="text-[var(--muted)]">PRECIO NO DISPONIBLE</span>
-                          )}
+                      <div className="rounded bg-[var(--panel-2)] px-2.5 py-2 text-[12px]">
+                        {selectedElement.quantity_value != null ? (
+                          <>
+                            <div className="font-mono text-[14px]">
+                              {formatNumber(selectedElement.quantity_value, 2)} {selectedElement.quantity_unit}
+                            </div>
+                            <div className="text-[11px] text-[var(--muted)] mt-0.5">
+                              {QUANTITY_LABEL[selectedElement.quantity_type ?? ""] ?? selectedElement.quantity_type} ·{" "}
+                              {selectedElement.quantity_source === "IFC_QTO" ? "Quantity Set IFC" : "Propiedad IFC"}
+                              {selectedElement.quantity_property ? ` · ${selectedElement.quantity_property}` : ""}
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-[var(--muted)]">Sin cantidad extraída del IFC</span>
+                        )}
+                      </div>
+
+                      <div className="border-t border-[var(--border)] pt-2">
+                        <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide mb-1.5">
+                          Rubro económico
                         </div>
-                      ) : proposed.length > 0 ? (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {proposed.map((m) => {
-                            const item = budgetItemById.get(m.budget_item_id);
-                            if (!item) return null;
-                            return (
-                              <button
-                                key={m.id}
-                                onClick={() => handleConfirm(el.id, item.id)}
-                                className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-[11px] hover:border-[var(--accent)]"
-                                title={`Confirmar match con ${item.code} — ${item.description}`}
-                              >
-                                [{Math.round((m.score ?? 0) * 100)}%] {item.code} — {item.description}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="mt-2 text-[11px] text-[var(--muted)]">
-                          Sin sugerencias compatibles en el presupuesto actual.
-                        </div>
-                      )}
-                    </div>
+                        {confirmedItem ? (
+                          <div className="space-y-1.5">
+                            <div className="text-[12px]">
+                              ✓ {confirmedItem.code} — {confirmedItem.description}
+                            </div>
+                            {selectedElement.quantity_value != null && confirmedItem.unit_price != null ? (
+                              selectedElement.quantity_unit &&
+                              confirmedItem.unit &&
+                              selectedElement.quantity_unit !== confirmedItem.unit ? (
+                                <div className="text-[11px] text-[var(--error)]">
+                                  Unidad BIM ({selectedElement.quantity_unit}) incompatible con la unidad del rubro (
+                                  {confirmedItem.unit}) — no se calcula total.
+                                </div>
+                              ) : (
+                                <div className="font-mono text-[13px]">
+                                  {formatNumber(selectedElement.quantity_value, 2)} {selectedElement.quantity_unit} ×{" "}
+                                  {formatMoney(confirmedItem.unit_price, "PYG")} ={" "}
+                                  <strong>{formatMoney(selectedElement.quantity_value * confirmedItem.unit_price, "PYG")}</strong>
+                                </div>
+                              )
+                            ) : (
+                              <div className="text-[12px] text-[var(--muted)]">PRECIO NO DISPONIBLE</div>
+                            )}
+                          </div>
+                        ) : proposedMatches.length > 0 ? (
+                          <div className="space-y-1.5">
+                            {proposedMatches.map((m) => {
+                              const item = budgetItemById.get(m.budget_item_id);
+                              if (!item) return null;
+                              return (
+                                <button
+                                  key={m.id}
+                                  onClick={() => handleConfirm(selectedElement.id, item.id)}
+                                  className="block w-full text-left rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1.5 text-[11px] hover:border-[var(--accent)]"
+                                >
+                                  <span className="font-mono">{Math.round((m.score ?? 0) * 100)}%</span> — {item.code} —{" "}
+                                  {item.description}
+                                  {item.unit_price != null ? ` — ${formatMoney(item.unit_price, "PYG")}/${item.unit ?? ""}` : ""}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="text-[11px] text-[var(--muted)]">Sin sugerencias compatibles.</div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Listado de elementos (selección alternativa al click en 3D) */}
+              <div className="space-y-1.5">
+                {currentElements.map((el) => {
+                  const isSelected = el.id === selectedElementId;
+                  const elMatches = (matchesByElement.get(el.id) ?? []).filter((m) => m.status !== "DESCARTADO");
+                  const hasConfirmed = elMatches.some((m) => m.status === "CONFIRMADO");
+                  return (
+                    <button
+                      key={el.id}
+                      onClick={() => setSelectedElementId(el.id)}
+                      className={`w-full text-left rounded border px-2.5 py-1.5 text-[12px] flex items-center justify-between ${
+                        isSelected ? "border-[var(--accent)] bg-[var(--accent)]/10" : "border-[var(--border)]"
+                      }`}
+                    >
+                      <span>
+                        {hasConfirmed ? "✓ " : ""}
+                        {el.name || el.ifc_type}
+                        <span className="text-[11px] text-[var(--muted)] ml-2">
+                          {el.ifc_type}
+                          {el.building_storey ? ` · ${el.building_storey}` : ""}
+                        </span>
+                      </span>
+                      <span className="font-mono text-[11px]">
+                        {el.quantity_value != null ? `${formatNumber(el.quantity_value, 2)} ${el.quantity_unit}` : "—"}
+                      </span>
+                    </button>
                   );
                 })}
               </div>
-            </div>
+            </>
           ) : null}
         </div>
       )}
+
+      {aggregationRows.length > 0 ? (
+        <div className="space-y-1.5">
+          <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">
+            Rubros con elementos BIM confirmados
+          </div>
+          <div className="overflow-x-auto rounded border border-[var(--border)]">
+            <table>
+              <thead>
+                <tr>
+                  <th>Rubro</th>
+                  <th className="num">Elementos</th>
+                  <th className="num">Cant. presupuesto</th>
+                  <th className="num">Cant. BIM</th>
+                  <th className="num">Diferencia</th>
+                  <th className="num">P. Unit.</th>
+                  <th className="num">Total (cant. BIM)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {aggregationRows.map(({ item, elementCount, totalQuantity, incompatible, unit }) => {
+                  const diff = totalQuantity != null && item.quantity != null ? totalQuantity - item.quantity : null;
+                  const total = totalQuantity != null && item.unit_price != null ? totalQuantity * item.unit_price : null;
+                  return (
+                    <tr key={item.id}>
+                      <td>
+                        {item.code} — {item.description}
+                        {incompatible.length > 0 ? (
+                          <div className="text-[11px] text-[var(--error)]">
+                            {incompatible.length} elemento(s) con unidad incompatible excluido(s)
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="num">{elementCount}</td>
+                      <td className="num">{item.quantity != null ? `${formatNumber(item.quantity, 2)} ${unit ?? ""}` : "—"}</td>
+                      <td className="num">{totalQuantity != null ? `${formatNumber(totalQuantity, 2)} ${unit ?? ""}` : "—"}</td>
+                      <td className={`num ${diff != null && Math.abs(diff) > 0.01 ? "text-[var(--error)]" : ""}`}>
+                        {diff != null ? `${diff > 0 ? "+" : ""}${formatNumber(diff, 2)}` : "—"}
+                      </td>
+                      <td className="num">{item.unit_price != null ? formatMoney(item.unit_price, "PYG") : "PRECIO NO DISPONIBLE"}</td>
+                      <td className="num font-mono">{total != null ? formatMoney(total, "PYG") : "—"}</td>
+                      <td>
+                        {totalQuantity != null ? (
+                          <button
+                            onClick={() => handleApplyQuantity(item.id)}
+                            className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-[11px] hover:border-[var(--accent)]"
+                          >
+                            Actualizar cant. presupuesto
+                          </button>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[11px] text-[var(--muted)]">
+            &quot;Actualizar cant. presupuesto&quot; sobrescribe la cantidad del rubro con la suma BIM — es una acción
+            explícita, nunca automática.
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }
