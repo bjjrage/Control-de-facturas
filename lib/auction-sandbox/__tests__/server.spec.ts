@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { botStoppedOnVersion, computeNextRuntime, loadSandboxBundle, missingInitialEvents, shouldEmitDecision, SandboxBundle } from '../server';
+import { botStoppedOnVersion, botTickSkipReason, computeNextRuntime, loadSandboxBundle, missingInitialEvents, missingStoppedEvents, policyVersionSuperseded, refuseIfRoomClosed, shouldEmitDecision, SandboxBundle } from '../server';
 import { SandboxBid } from '../types';
 
 const ROOM_ROW = {
@@ -136,7 +136,7 @@ describe('loadSandboxBundle fail-closed', () => {
 });
 
 function bundleWithEvents(
-  status: 'DRAFT' | 'ACTIVE_NORMAL' | 'CLOSED',
+  status: 'DRAFT' | 'ACTIVE_NORMAL' | 'ACTIVE_RANDOM' | 'CLOSED',
   startedAt: string | null,
   seqs: number[],
   types: string[]
@@ -209,8 +209,7 @@ describe('shouldEmitDecision — no duplicate decision events', () => {  const d
   });
 });
 
-describe('loadSandboxBundle keeps the latest-200 window in ASC contract', () => {
-  function descStub(rows: Array<{ server_sequence: number; type: string }>): SupabaseClient {
+describe('loadSandboxBundle keeps the latest-200 window in ASC contract', () => {  function descStub(rows: Array<{ server_sequence: number; type: string }>): SupabaseClient {
     const orderChain = {
       eq: (_c: string, _v: unknown) => orderChain,
       maybeSingle: async () => ({ data: { ...ROOM_ROW }, error: null }),
@@ -234,5 +233,93 @@ describe('loadSandboxBundle keeps the latest-200 window in ASC contract', () => 
     if ('bundle' in res) {
       expect(res.bundle.events.map((e) => e.server_sequence)).toEqual([3, 5, 9]);
     }
+  });
+});
+
+function tickBundle(overrides: {
+  status?: 'DRAFT' | 'ACTIVE_NORMAL' | 'ACTIVE_RANDOM' | 'CLOSED';
+  bot_paused?: boolean;
+  policies?: number[];
+  runtime?: unknown;
+}): SandboxBundle {
+  const b = bundleWithEvents(overrides.status ?? 'ACTIVE_NORMAL', '2026-01-01T00:00:00.000Z', [0], ['ROOM_CREATED']);
+  b.room.bot_paused = overrides.bot_paused ?? false;
+  b.policies = (overrides.policies ?? [1]).map((version) => ({
+    room_id: 'room-1', version, policy_id: 'p', snapshot: {}, fingerprint: 'f',
+    authorized_by: 'op', authorized_at: '2026-01-01T00:00:00.000Z',
+  }));
+  b.room.bot_runtime = (overrides.runtime ?? {}) as never;
+  return b;
+}
+
+describe('botTickSkipReason — every tick skip in one tested place', () => {
+  it('evaluates a live room (null)', () => {
+    expect(botTickSkipReason(tickBundle({}))).toBeNull();
+  });
+
+  it('skips paused / policyless / inactive rooms', () => {
+    expect(botTickSkipReason(tickBundle({ bot_paused: true }))).toBe('PAUSED');
+    expect(botTickSkipReason(tickBundle({ policies: [] }))).toBe('NO_POLICY');
+    expect(botTickSkipReason(tickBundle({ status: 'DRAFT' }))).toBe('NOT_ACTIVE');
+    expect(botTickSkipReason(tickBundle({ status: 'CLOSED' }))).toBe('NOT_ACTIVE');
+  });
+
+  it('skips STOP on the current version, revives on a new version', () => {
+    const stopped = { lastBotStatus: { action: 'STOP', reasonCode: 'ECONOMIC_LIMIT_BREACHED', candidate: null, v: 1 } };
+    expect(botTickSkipReason(tickBundle({ runtime: stopped }))).toBe('STOPPED');
+    expect(botTickSkipReason(tickBundle({ policies: [1, 2], runtime: stopped }))).toBeNull();
+  });
+});
+
+describe('refuseIfRoomClosed — one message, both authorize paths', () => {
+  it('refuses CLOSED, allows the rest', () => {
+    expect(refuseIfRoomClosed('CLOSED')).toBe('La sala está cerrada.');
+    expect(refuseIfRoomClosed('DRAFT')).toBeNull();
+    expect(refuseIfRoomClosed('ACTIVE_NORMAL')).toBeNull();
+    expect(refuseIfRoomClosed('ACTIVE_RANDOM')).toBeNull();
+  });
+});
+
+describe('policyVersionSuperseded — never submit off a stale policy', () => {
+  it('same latest version → not superseded', () => {
+    expect(policyVersionSuperseded(tickBundle({ policies: [1, 2] }), 2)).toBe(false);
+  });
+
+  it('newer version authorized mid-flight → superseded', () => {
+    expect(policyVersionSuperseded(tickBundle({ policies: [1, 2] }), 1)).toBe(true);
+  });
+
+  it('policies vanished → superseded (fail closed)', () => {
+    expect(policyVersionSuperseded(tickBundle({ policies: [] }), 1)).toBe(true);
+  });
+});
+
+describe('missingStoppedEvents — terminal-marker backfill proof', () => {
+  it('STOP recorded without BOT_STOPPED marker → backfill the version', () => {
+    const b = tickBundle({
+      runtime: { lastBotStatus: { action: 'STOP', reasonCode: 'ECONOMIC_LIMIT_BREACHED', candidate: null, v: 1 } },
+    });
+    expect(missingStoppedEvents(b)).toEqual([1]);
+  });
+
+  it('marker present → nothing to backfill', () => {
+    const b = tickBundle({
+      runtime: { lastBotStatus: { action: 'STOP', reasonCode: 'X', candidate: null, v: 1 } },
+    });
+    b.events.push({
+      id: 'e9', room_id: 'room-1', type: 'BOT_STOPPED',
+      payload: { reasonCode: 'X', policyVersion: 1 }, server_sequence: 1,
+      created_at: '2026-01-01T00:00:00.000Z',
+    });
+    expect(missingStoppedEvents(b)).toEqual([]);
+  });
+
+  it('non-STOP runtime or truncated history → nothing', () => {
+    expect(missingStoppedEvents(tickBundle({}))).toEqual([]);
+    const b = tickBundle({
+      runtime: { lastBotStatus: { action: 'STOP', reasonCode: 'X', candidate: null, v: 1 } },
+    });
+    b.events = [{ id: 'e', room_id: 'room-1', type: 'ROOM_CREATED', payload: {}, server_sequence: 250, created_at: '2026-01-01T00:00:00.000Z' }];
+    expect(missingStoppedEvents(b)).toEqual([]);
   });
 });

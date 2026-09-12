@@ -140,7 +140,14 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
       }
       if (out.value.error) setError(out.value.error);
     } catch (e) {
-      if (isNextRedirect(e)) throw e;
+      // Redirect digests must navigate here (stop+assign like the poll path):
+      // rethrowing into a floating onClick promise is an unhandled rejection
+      // Next cannot intercept.
+      if (isNextRedirect(e)) {
+        controllerRef.current?.stop();
+        window.location.assign('/login');
+        return;
+      }
       setError(e instanceof ReconcilingError ? e.message : e instanceof TimeoutError ? e.message : 'Error de conexión.');
     } finally {
       setBusy(null);
@@ -185,7 +192,12 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
       setShowPolicy(false);
       setJustFrozenVersion(out.value.version ?? null);
     } catch (e) {
-      if (isNextRedirect(e)) throw e;
+      // Same stop+assign rule as run(): never rethrow into a floating promise.
+      if (isNextRedirect(e)) {
+        controllerRef.current?.stop();
+        window.location.assign('/login');
+        return;
+      }
       setError(e instanceof ReconcilingError ? e.message : e instanceof TimeoutError ? e.message : 'Error de conexión.');
     } finally {
       setBusy(null);

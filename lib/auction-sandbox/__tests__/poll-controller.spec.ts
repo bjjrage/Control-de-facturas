@@ -49,8 +49,7 @@ describe('isNextRedirect', () => {
   });
 });
 
-describe('createResponseGuard — stale poll responses never win', () => {
-  it('only the latest begun sequence is current', () => {
+describe('createResponseGuard — stale poll responses never win', () => {  it('only the latest begun sequence is current', () => {
     const g = createResponseGuard();
     const a = g.begin();
     const b = g.begin();
@@ -285,8 +284,7 @@ describe('PollController', () => {
     expect(calls).toBe(2);
   });
 
-  it('runMutation propagates mutation errors and still refreshes', async () => {
-    const order: string[] = [];
+  it('runMutation propagates mutation errors and still refreshes', async () => {    const order: string[] = [];
     const ctl = new PollController(
       async () => {
         order.push('poll');
@@ -300,6 +298,33 @@ describe('PollController', () => {
     ).rejects.toThrow('Error de conexión.');
     expect(order).toEqual(['poll']);
     expect(ctl.isSuspended).toBe(false);
+  });
+
+  it('refuses a second concurrent mutation — never two fn() overlapping', async () => {
+    const gate = deferred<string>();
+    let concurrent = 0;
+    let maxConcurrent = 0;
+    const ctl = new PollController(async () => {}, { intervalMs: 1000 });
+    const tracked = () => {
+      concurrent += 1;
+      maxConcurrent = Math.max(maxConcurrent, concurrent);
+      return gate.promise.finally(() => {
+        concurrent -= 1;
+      });
+    };
+    const first = ctl.runMutation(tracked, 5000, 'Enviar lance');
+    // A double-fire while the first mutation executes collapses into refusal.
+    await expect(ctl.runMutation(() => Promise.resolve('second'), 5000, 'Enviar lance')).rejects.toBeInstanceOf(
+      ReconcilingError
+    );
+    gate.resolve('first');
+    await expect(first).resolves.toEqual({ status: 'done', value: 'first' });
+    expect(maxConcurrent).toBe(1);
+    // The guard clears: sequential mutations still work.
+    await expect(ctl.runMutation(() => Promise.resolve('third'), 5000, 'Enviar lance')).resolves.toEqual({
+      status: 'done',
+      value: 'third',
+    });
   });
 
   it('start is idempotent and stop halts the timer', () => {

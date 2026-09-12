@@ -101,6 +101,68 @@ export function botStoppedOnVersion(
   return last.action === 'STOP' && last.v === policyVersion;
 }
 
+export type BotTickSkipReason = 'PAUSED' | 'NO_POLICY' | 'NOT_ACTIVE' | 'STOPPED';
+
+/**
+ * Every botTick early-exit in ONE pure, tested place: paused, no authorized
+ * policy, room not active, or STOP-terminal on the current policy version.
+ * Null means "evaluate". Keeps the server action a thin wire to this.
+ */
+export function botTickSkipReason(bundle: SandboxBundle): BotTickSkipReason | null {
+  if (bundle.room.bot_paused) return 'PAUSED';
+  if (bundle.policies.length === 0) return 'NO_POLICY';
+  if (bundle.room.status !== 'ACTIVE_NORMAL' && bundle.room.status !== 'ACTIVE_RANDOM') return 'NOT_ACTIVE';
+  const latest = bundle.policies[bundle.policies.length - 1];
+  if (botStoppedOnVersion(bundle.room.bot_runtime as unknown as Record<string, unknown>, latest.version)) {
+    return 'STOPPED';
+  }
+  return null;
+}
+
+/**
+ * Fail-fast refusal for authorize paths on a dead room. Pure + tested so the
+ * message and the CLOSED check cannot drift between authorizeSandboxPolicy
+ * and authorizeAssistedBid.
+ */
+export function refuseIfRoomClosed(status: SandboxRoom['status']): string | null {
+  return status === 'CLOSED' ? 'La sala está cerrada.' : null;
+}
+
+/**
+ * Policy continuity across a fresh re-read: the version a candidate was
+ * computed under must still be the latest. A newly authorized version (e.g.
+ * a tighter autoLimit) invalidates the in-flight candidate — submitting it
+ * would breach the CURRENT policy. Fail closed: abort, the next tick or
+ * operator retry re-evaluates under the new version.
+ */
+export function policyVersionSuperseded(freshBundle: SandboxBundle, decisionPolicyVersion: number): boolean {
+  if (freshBundle.policies.length === 0) return true;
+  return freshBundle.policies[freshBundle.policies.length - 1].version !== decisionPolicyVersion;
+}
+
+/**
+ * STOPPED-event backfill proof: the runtime records a STOP on version v but
+ * no BOT_STOPPED event carries that version — i.e. the decision committed
+ * while the terminal marker write failed. Provable only under the same
+ * history-completeness rule as the other backfills (else absence proves
+ * nothing). Returns the stopped versions to backfill (at most one: STOP is
+ * terminal per version).
+ */
+export function missingStoppedEvents(bundle: SandboxBundle): number[] {
+  const seqs = bundle.events.map((e) => e.server_sequence);
+  const complete = seqs.length === 0 || Math.max(...seqs) < 200;
+  if (!complete) return [];
+  const last = bundle.room.bot_runtime?.lastBotStatus;
+  if (!last || last.action !== 'STOP') return [];
+  const marked = new Set(
+    bundle.events
+      .filter((e) => e.type === 'BOT_STOPPED')
+      .map((e) => (e.payload as Record<string, unknown>).policyVersion)
+      .filter((v): v is number => typeof v === 'number')
+  );
+  return marked.has(last.v) ? [] : [last.v];
+}
+
 /**
  * Builds the next bot_runtime in ONE pure step (no I/O): the caller persists
  * the result exactly once per tick. lastBotStatus always refreshes from the

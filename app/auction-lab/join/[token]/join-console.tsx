@@ -110,7 +110,13 @@ export function JoinConsole({ token }: { token: string }) {
         setPrice('');
       }
     } catch (e) {
-      if (isNextRedirect(e)) throw e;
+      // Redirects must reload here (stop+reload like the poll path): submit()
+      // runs from an onClick promise Next cannot intercept a rethrow from.
+      if (isNextRedirect(e)) {
+        controllerRef.current?.stop();
+        window.location.reload();
+        return;
+      }
       say(e instanceof ReconcilingError ? e.message : e instanceof TimeoutError ? e.message : 'Error de conexión.', 'error');
     } finally {
       setBusy(false);

@@ -109,6 +109,8 @@ export class PollController {
   private pollCount = 0;
   private skippedCount = 0;
   private orphanHold = false;
+  /** True while a runMutation body is executing (second callers are refused). */
+  private mutating = false;
   private orphanCapTimer: ReturnType<typeof setTimeout> | null = null;
   private lastPollErrorValue: unknown = null;
   /** Called (at most once per orphan) when a held orphan finally settles. */
@@ -202,6 +204,10 @@ export class PollController {
   /**
    * Runs an interactive mutation with full exclusion:
    *  1. refuse while a previous mutation is unconfirmed (ReconcilingError);
+   *  1b. refuse while another mutation is still executing (ReconcilingError):
+   *    the UI disables buttons while busy, but a double-fire (double-click
+   *    before re-render) must collapse into a refusal, never into two
+   *    concurrent fn() executions against the same room row;
    *  2. suspend new ticks;
    *  3. wait for any currently in-flight poll to settle — with a SHORT
    *     timeout: a stuck poll must never wedge a mutation. On drain timeout
@@ -221,6 +227,8 @@ export class PollController {
     opts?: { drainTimeoutMs?: number }
   ): Promise<MutationOutcome<T>> {
     if (this.orphanHold) throw new ReconcilingError();
+    if (this.mutating) throw new ReconcilingError();
+    this.mutating = true;
     this.suspend();
     try {
       // Drain with a leash: never overlap the mutation with a stuck poll.
@@ -258,6 +266,8 @@ export class PollController {
       // Defensive: never leak a suspension on unexpected paths.
       this.resume();
       throw e;
+    } finally {
+      this.mutating = false;
     }
   }
 

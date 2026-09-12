@@ -13,13 +13,16 @@ import { buildPolicyVersionRecord, checkPolicyContinuity, policyFromSnapshot, sa
 import {
   bundleToSnapshot,
   buildWatchView,
-  botStoppedOnVersion,
+  botTickSkipReason,
   computeNextRuntime,
   loadSandboxBundle,
   missingInitialEvents,
   missingPolicyEvents,
+  missingStoppedEvents,
+  policyVersionSuperseded,
   publicRoomInfo,
   rankBundle,
+  refuseIfRoomClosed,
   shouldEmitDecision,
   SandboxBundle,
   WatchView,
@@ -107,6 +110,18 @@ async function ensureInitialEvents(admin: Db, bundle: SandboxBundle): Promise<vo
       backfilled: true,
     });
   }
+  // Terminal-marker backfill: a STOP decision committed while its BOT_STOPPED
+  // write failed would otherwise leave the timeline permanently headless (the
+  // dedupe gate never re-enters the emission branch). Convergent: absence is
+  // proved under the completeness rule, and a concurrent duplicate is
+  // timeline spam at worst (never economic: the STOP gate already holds).
+  for (const version of missingStoppedEvents(bundle)) {
+    await appendEvent(admin, bundle.room.id, 'BOT_STOPPED', {
+      reasonCode: bundle.room.bot_runtime?.lastBotStatus?.reasonCode ?? 'UNKNOWN',
+      policyVersion: version,
+      backfilled: true,
+    });
+  }
 }
 
 type RpcResult = { accepted: boolean; duplicate?: boolean; bid_id?: string; sequence?: number; rejection_code?: string; rejection_message?: string };
@@ -134,16 +149,11 @@ async function rpcSubmit(
 // ---------------------------------------------------------------------------
 
 async function botTick(admin: Db, db: Db, bundle: SandboxBundle, atIso: string): Promise<SandboxBundle> {
-  if (bundle.room.bot_paused) return bundle;
-  if (bundle.policies.length === 0) return bundle;
-  if (bundle.room.status !== 'ACTIVE_NORMAL' && bundle.room.status !== 'ACTIVE_RANDOM') return bundle;
+  // Every skip (paused / no policy / inactive / STOP-terminal per version)
+  // lives in one pure, tested helper — the tick never evaluates when skipped.
+  if (botTickSkipReason(bundle) !== null) return bundle;
 
   const latest = bundle.policies[bundle.policies.length - 1];
-  // STOP is terminal per policy version: never re-evaluate or emit after it
-  // (a fresh Core machine would deterministically re-derive STOP). A newly
-  // authorized policy version revives the bot.
-  const runtimeBefore = (bundle.room.bot_runtime ?? {}) as Record<string, unknown>;
-  if (botStoppedOnVersion(runtimeBefore, latest.version)) return bundle;
   let policy;
   try {
     policy = policyFromSnapshot(latest);
@@ -215,7 +225,7 @@ async function botTick(admin: Db, db: Db, bundle: SandboxBundle, atIso: string):
   }
 
   if (policy.executionMode === 'BOUNDED_AUTO' && decision.action === 'BID_CANDIDATE' && decision.candidatePricePyg !== null) {
-    await botAutoSubmit(admin, db, next, policy, decision.candidatePricePyg, decision.evaluatedAt, atIso);
+    await botAutoSubmit(admin, db, next, policy, decision.candidatePricePyg, atIso);
   }
   // Return the freshest authoritative bundle; fall back to the tick input
   // (fully loaded seconds ago) only when the reload itself fails.
@@ -230,7 +240,6 @@ async function botAutoSubmit(
   bundle: SandboxBundle,
   policy: ReturnType<typeof policyFromSnapshot>,
   candidatePricePyg: number,
-  basisObservedAt: string,
   atIso: string
 ): Promise<void> {
   const bot = bundle.participants.find((p) => p.kind === 'BOT');
@@ -239,6 +248,8 @@ async function botAutoSubmit(
 
   // Initial authoritative evaluation → candidate (binds the basis).
   const machine = new AuctionBotStateMachine(policy);
+  // Rechecks must run against the SAME constraints (Core contract).
+  machine.setSbeConstraints(constraints);
   machine.startMonitoring();
   machine.beginEvaluation();
   const state0 = snapshotToAuctionState(bundleToSnapshot(bundle), atIso);
@@ -254,8 +265,13 @@ async function botAutoSubmit(
   if ('error' in advanced) return; // phase unconfirmed → NO SUBMIT
   const freshAt = new Date().toISOString();
   const freshBundle = advanced.bundle;
+  // Policy continuity: a version authorized mid-flight (e.g. a tighter
+  // autoLimit) invalidates this candidate — fail closed, the next tick
+  // re-evaluates under the current version. Never submit off a superseded
+  // policy (the RPC does not enforce autoLimit).
+  if (policyVersionSuperseded(freshBundle, policy.version)) return;
   const freshState = snapshotToAuctionState(bundleToSnapshot(freshBundle), freshAt);
-  const bidKey = buildBotIdempotencyKey(bundle.room.id, policy.version, basisObservedAt, candidatePricePyg);
+  const bidKey = buildBotIdempotencyKey(bundle.room.id, policy.version, candidatePricePyg);
 
   const result = await recheckAndSubmit({
     machine,
@@ -470,7 +486,8 @@ export async function authorizeSandboxPolicy(
   const room = res.bundle.room;
   // A closed auction takes no new policy versions: authorizing one would
   // inflate the version chain and timeline with zero economic effect.
-  if (room.status === 'CLOSED') return { error: 'La sala está cerrada.' };
+  const closedPolicyRefusal = refuseIfRoomClosed(room.status);
+  if (closedPolicyRefusal) return { error: closedPolicyRefusal };
   const prev = res.bundle.policies.length > 0 ? res.bundle.policies[res.bundle.policies.length - 1] : null;
   const nextVersion = prev ? prev.version + 1 : 1;
   // Audit identity comes from the logged-in operator, NEVER from the browser:
@@ -549,7 +566,8 @@ export async function authorizeAssistedBid(roomId: string): Promise<{ price?: nu
   // Authorizing into a closed auction is incoherent (the Core would STOP on
   // the CLOSED state anyway): fail fast with a clear message instead of a
   // confusing "sin candidate" error after wasted RPCs.
-  if (res.bundle.room.status === 'CLOSED') return { error: 'La sala está cerrada.' };
+  const closedBidRefusal = refuseIfRoomClosed(res.bundle.room.status);
+  if (closedBidRefusal) return { error: closedBidRefusal };
   const profile = await requireProfile([...MANAGE_ROLES]);
   const atIso = nowIso();
   const advanced = await advanceRoom(res.admin, res.db, roomId);
@@ -574,6 +592,8 @@ export async function authorizeAssistedBid(roomId: string): Promise<{ price?: nu
     return { error: `Sin candidate para autorizar (${decision.action}/${decision.reasonCode}).` };
   }
   const machine = new AuctionBotStateMachine(policy);
+  // Rechecks must run against the SAME constraints (Core contract).
+  machine.setSbeConstraints(constraints);
   machine.startMonitoring();
   machine.beginEvaluation();
   machine.handleDecision(decision, state);
@@ -588,6 +608,12 @@ export async function authorizeAssistedBid(roomId: string): Promise<{ price?: nu
   const refreshed = await advanceRoom(res.admin, res.db, roomId);
   if ('error' in refreshed) return { error: refreshed.error };
   const freshBundle = refreshed.bundle;
+  // Policy continuity across the grant→recheck window: a version authorized
+  // mid-flight invalidates the granted candidate (it could breach the new
+  // autoLimit). Fail closed — the operator retries under the current version.
+  if (policyVersionSuperseded(freshBundle, policy.version)) {
+    return { error: 'La policy cambió durante la autorización. Revisá la versión actual y reintentá.' };
+  }
   const freshAt = new Date().toISOString();
   const freshState = snapshotToAuctionState(bundleToSnapshot(freshBundle), freshAt);
   // STABLE key per (room, version, price): concurrent authorizations of the
