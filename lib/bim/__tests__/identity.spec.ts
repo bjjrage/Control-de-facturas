@@ -47,7 +47,7 @@ describe("findElementByExpressId — express_id es identidad efímera, no durabl
 
   it("ifc_guid es canónico DENTRO de un bim_model, no una garantía entre versiones — dos modelos distintos pueden reusar el mismo GUID sin que eso implique reconciliación automática", () => {
     // La unicidad real en bim_elements es (bim_model_id, ifc_guid) — ver
-    // 0070_bim_presupuesto.sql. Este test documenta que findElementByExpressId
+    // 0071_bim_presupuesto.sql. Este test documenta que findElementByExpressId
     // (y por extensión, cualquier lookup de este módulo) nunca asume que un
     // ifc_guid repetido entre dos bim_model distintos se refiere al "mismo"
     // elemento real — la reconciliación entre versiones no está implementada.

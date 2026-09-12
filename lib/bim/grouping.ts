@@ -21,25 +21,30 @@
 // fila original (bim_elements.group_id apunta al grupo), nunca se pierde la
 // trazabilidad grupo -> elementos.
 import type { BimElement } from "@/lib/types";
-import { extractSpecs, localTokenScorer, normalizeUnit } from "./matching";
+import { extractSpecs, normalizeText, normalizeUnit } from "./matching";
 import { roundQuantity4 } from "@/lib/format";
 
 const THICKNESS_TOLERANCE_MM = 15;
 
-// Umbral deliberadamente bajo: agrupar de más solo le agrega candidatos al
-// mismo grupo que igual pasa por DeepSeek después (ya certificado con 100%
-// accuracy incluso ante variantes de idioma/nomenclatura de material — ver
-// live-stress-test.spec.ts). Agrupar de menos multiplica llamadas sin
-// necesidad. Exigir texto EXACTO acá fallaría con variantes reales del mismo
-// material ("Ceramic Brick" / "Cerámico" / "Ceramic Block" en el mismo
-// dataset) — un umbral de similitud es más fiel a "misma sustancia" que una
-// igualdad de string.
-const MATERIAL_SIMILARITY_THRESHOLD = 0.25;
-
+// CONSERVADOR A PROPÓSITO: la agrupación ocurre ANTES del matcher semántico,
+// así que fusionar dos elementos acá es una decisión FÍSICA/estructural
+// (bim_elements.group_id), no una sugerencia reversible — a diferencia de un
+// ranking de candidatos, un merge incorrecto acá no lo corrige DeepSeek
+// después. Por eso exige evidencia (igualdad exacta tras normalizar texto),
+// no similitud lexical: un intento anterior con un umbral de similitud
+// (>= 0.25 sobre bigramas) fusionaba "Ceramic Brick" con "Ceramic Block"
+// (score real 0.69 — comparten "Ceramic" y ambas palabras riman en "-ck") y
+// hasta "H30" con "H40" (score 0.30) pese a ser productos/resistencias
+// distintas. Bigramas miden parecido de texto, no evidencia técnica.
+//
+// Es preferible generar MÁS grupos de los estrictamente necesarios y dejar
+// que DeepSeek relacione varios grupos distintos al mismo budget_item
+// después (el review/presupuesto ya agrega por budget_item_id, no por
+// group_id — ver finalBudgetRows en bim-section.tsx) que fusionar de más y
+// perder la distinción para siempre antes de que la IA la vea.
 function materialCompatible(a: string | null, b: string | null): boolean {
   if (!a || !b) return true; // sin dato de un lado no es evidencia de diferencia
-  if (a === b) return true;
-  return localTokenScorer.score(a, b) >= MATERIAL_SIMILARITY_THRESHOLD;
+  return normalizeText(a) === normalizeText(b);
 }
 
 function specsCompatible(a: BimElement, b: BimElement): boolean {

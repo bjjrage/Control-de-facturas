@@ -1,5 +1,5 @@
 -- =============================================================================
--- 0071_bim_elements_express_id.sql
+-- 0072_bim_elements_express_id.sql
 --
 -- El viewer 3D necesita, para cada bim_element, el STEP expressID del
 -- elemento dentro del archivo IFC original (no solo el GlobalId): es lo que

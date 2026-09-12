@@ -49,9 +49,9 @@ describe("areElementsGroupable", () => {
     expect(areElementsGroupable(a, b)).toBe(false);
   });
 
-  it("SÍ agrupa cuando el espesor no es detectable en uno de los dos (no es evidencia de diferencia)", () => {
+  it("SÍ agrupa cuando el espesor no es detectable en uno de los dos y el material es idéntico (no es evidencia de diferencia)", () => {
     const a = makeElement({ id: "a", name: "External Wall - Ceramic Brick - 150", material: "Ceramic Brick" });
-    const b = makeElement({ id: "b", name: "Wall - Ceramic - 150mm - F", material: "Ceramic" });
+    const b = makeElement({ id: "b", name: "Wall - Ceramic Brick - 150mm - F", material: "Ceramic Brick" });
     expect(areElementsGroupable(a, b)).toBe(true);
   });
 
@@ -65,6 +65,47 @@ describe("areElementsGroupable", () => {
     const a = makeElement({ id: "a", material: "Ceramic" });
     const b = makeElement({ id: "b", material: null });
     expect(areElementsGroupable(a, b)).toBe(true);
+  });
+
+  // --- Adversariales: agrupación conservadora ------------------------------
+  // La agrupación ocurre ANTES del semantic matcher — fusionar de más acá es
+  // una decisión física irreversible (bim_elements.group_id), no una
+  // sugerencia que la IA pueda corregir después. Por eso exige igualdad
+  // exacta de material (normalizada), nunca similitud lexical.
+
+  it("ADVERSARIAL: 'Ceramic Brick' vs 'Ceramic Block' NO se fusionan solo por parecido lexical", () => {
+    // Bigram similarity real entre estos dos strings es ~0.69 (comparten
+    // "Ceramic" y ambas palabras terminan parecido) — un umbral de similitud
+    // los fusionaría por error. Ladrillo cerámico y bloque cerámico son
+    // productos distintos con costos distintos.
+    const a = makeElement({ id: "a", name: "Ceramic Brick Wall", material: "Ceramic Brick" });
+    const b = makeElement({ id: "b", name: "Ceramic Block Wall", material: "Ceramic Block" });
+    expect(areElementsGroupable(a, b)).toBe(false);
+  });
+
+  it("ADVERSARIAL: 'Ceramic' vs 'Ceramic Brick' NO se fusionan sin evidencia de que son el mismo producto", () => {
+    // Aunque uno sea un prefijo textual del otro, "Ceramic" a secas es
+    // ambiguo (¿ladrillo? ¿bloque? ¿revestimiento?) — sin más evidencia, no
+    // se asume que es el mismo material que "Ceramic Brick".
+    const a = makeElement({ id: "a", material: "Ceramic" });
+    const b = makeElement({ id: "b", material: "Ceramic Brick" });
+    expect(areElementsGroupable(a, b)).toBe(false);
+  });
+
+  it("ADVERSARIAL: variantes de idioma del mismo material ('Ceramic' vs 'Cerámico') tampoco se fusionan automáticamente", () => {
+    // Preferible generar más grupos y dejar que DeepSeek los relacione al
+    // mismo budget_item después (ver finalBudgetRows, que agrega por
+    // budget_item_id sumando varios grupos confirmados) — nunca fusionar
+    // físicamente antes de que la IA los vea.
+    const a = makeElement({ id: "a", material: "Ceramic" });
+    const b = makeElement({ id: "b", material: "Cerámico" });
+    expect(areElementsGroupable(a, b)).toBe(false);
+  });
+
+  it("ADVERSARIAL: 'H30' vs 'H40' en el campo material tampoco se fusionan (similitud de texto alta, resistencia distinta)", () => {
+    const a = makeElement({ id: "a", ifc_type: "IfcColumn", quantity_type: "volume", quantity_unit: "m3", material: "H30" });
+    const b = makeElement({ id: "b", ifc_type: "IfcColumn", quantity_type: "volume", quantity_unit: "m3", material: "H40" });
+    expect(areElementsGroupable(a, b)).toBe(false);
   });
 });
 
@@ -92,6 +133,38 @@ describe("groupElements", () => {
     expect(groups[0].elements).toHaveLength(10);
     // 15+16+...+24 = 195
     expect(groups[0].totalQuantity).toBe(195);
+  });
+
+  it("con variantes REALES de material (idioma/nomenclatura distinta), genera VARIOS grupos en vez de fusionar por similitud — comportamiento esperado tras el fix de agrupación conservadora", () => {
+    // Mismo dataset que el test de arriba, pero con las variantes de
+    // material reales que trae aurora-stress-dataset.ts (Ceramic / Cerámico
+    // / Ceramic Brick / Ceramic Block). Antes del fix (umbral de similitud
+    // 0.25) esto colapsaba a 1 solo grupo. Ahora, sin evidencia de que son
+    // el mismo material exacto, quedan separados — y es DeepSeek quien los
+    // relaciona al mismo budget_item después, no la agrupación.
+    const entries: Array<[string, string]> = [
+      ["External Ceramic Wall 150 - A", "Ceramic"],
+      ["External Ceramic Wall 150 - B", "Ceramic"],
+      ["Muro cerámico e=0.15 - C", "Cerámico"],
+      ["Ceramic Brick Wall 150 - D", "Ceramic Brick"],
+      ["Mampostería cerámica 15cm - E", "Cerámico"],
+      ["Wall - Ceramic - 150mm - F", "Ceramic"],
+      ["Ceramic masonry wall 15 cm - G", "Ceramic"],
+      ["Muro de mampostería cerámica espesor 15 - H", "Cerámico"],
+      ["15cm Ceramic Block Wall - I", "Ceramic Block"],
+      ["Ext. Wall Ceramic 150mm - J", "Ceramic"],
+    ];
+    const elements = entries.map(([name, material], i) =>
+      makeElement({ id: `w${i}`, name, material, quantity_value: 15 + i })
+    );
+
+    const groups = groupElements(elements);
+
+    // Ceramic / Cerámico / Ceramic Brick / Ceramic Block -> 4 materiales
+    // textualmente distintos -> al menos 4 grupos (nunca 1).
+    expect(groups.length).toBeGreaterThanOrEqual(4);
+    const totalElementsAcrossGroups = groups.reduce((s, g) => s + g.elements.length, 0);
+    expect(totalElementsAcrossGroups).toBe(10); // ningún elemento se pierde
   });
 
   it("separa en grupos distintos cuando el tipo/unidad/espesor difiere", () => {

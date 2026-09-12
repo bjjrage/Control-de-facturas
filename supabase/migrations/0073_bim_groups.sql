@@ -1,5 +1,5 @@
 -- =============================================================================
--- 0072_bim_groups.sql
+-- 0073_bim_groups.sql
 --
 -- Agrupación de elementos BIM antes del matching semántico. Hasta 0071, cada
 -- bim_element se emparejaba contra el presupuesto de forma individual — un

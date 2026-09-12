@@ -10,6 +10,7 @@ import { runSemanticMatch, buildCandidatePool, toSemanticMatchInput } from "@/li
 import { DeepSeekSemanticMatcher } from "@/lib/bim/deepseek-matcher";
 import { DeepSeekBatchSemanticMatcher, type BatchMatchItem } from "@/lib/bim/deepseek-batch-matcher";
 import { groupElements } from "@/lib/bim/grouping";
+import { planRegroup } from "@/lib/bim/regroup-planning";
 import type { BimElement, BimModel, BimBudgetMatch, BimElementGroup, BimGroupMatch, BudgetItem } from "@/lib/types";
 
 async function assertProjectAccess(projectId: string) {
@@ -224,7 +225,7 @@ export async function generateMatchSuggestions(
 }
 
 // ---------------------------------------------------------------------------
-// Flujo agrupado (0072_bim_groups.sql): agrupa elementos técnicamente
+// Flujo agrupado (0073_bim_groups.sql): agrupa elementos técnicamente
 // equivalentes ANTES de llamar a DeepSeek, y llama al matcher EN LOTE
 // (5-10 grupos por request) en vez de una vez por elemento. Reemplaza a
 // generateMatchSuggestions como flujo principal de la UI; esa función queda
@@ -274,36 +275,73 @@ export async function processBimGroups(projectId: string, bimModelId: string): P
   const parentIds = new Set(budgetItems.map((b) => b.parent_id).filter(Boolean));
   const matchableItems = budgetItems.filter((b) => !parentIds.has(b.id) && b.unit_price != null);
 
-  // Idempotencia: si este modelo ya tiene grupos, NO volver a agrupar ni a
-  // llamar a DeepSeek. Sin este guard, un segundo click en "Recalcular
-  // sugerencias" duplicaría bim_element_groups en cada corrida y, si en vez
-  // de duplicar se hubiera optado por borrar los grupos viejos primero, el
-  // ON DELETE CASCADE se habría llevado puestas las confirmaciones humanas
-  // ya hechas (bim_group_matches CONFIRMED/REJECTED). Recalcular de verdad
-  // requiere borrar el modelo y volver a subir el IFC — no está en alcance
-  // de este batch.
+  // Idempotencia SIN destruir decisiones humanas:
+  //   - CONFIRMED/REJECTED son decisiones de una persona -> el grupo queda
+  //     "bloqueado": no se borra, no se recalcula, sus elementos NO vuelven
+  //     al pool de reagrupación (nunca se reasignan silenciosamente).
+  //   - SUGGESTED/REVIEW/NO_MATCH son propuestas de la IA sin confirmar ->
+  //     se pueden regenerar: se borran esos grupos (el ON DELETE CASCADE de
+  //     bim_group_matches solo se lleva propuestas, nunca una confirmación,
+  //     porque los grupos CONFIRMED/REJECTED ni se tocan) y sus elementos
+  //     vuelven a agruparse desde cero.
   const { data: existingGroups } = await supabase
     .from("bim_element_groups")
     .select("id")
-    .eq("bim_model_id", bimModelId);
+    .eq("bim_model_id", bimModelId)
+    .returns<{ id: string }[]>();
+
+  let lockedGroupCount = 0;
+  let elementsToGroup = elements;
+
   if (existingGroups && existingGroups.length > 0) {
     const existingGroupIds = existingGroups.map((g) => g.id);
-    const { data: existingMatches } = await supabase.from("bim_group_matches").select("status").in("group_id", existingGroupIds);
-    const rows = existingMatches ?? [];
+    const { data: existingMatches } = await supabase
+      .from("bim_group_matches")
+      .select("group_id, status")
+      .in("group_id", existingGroupIds)
+      .returns<{ group_id: string; status: string }[]>();
+    const { lockedGroupIds, staleGroupIds } = planRegroup(existingGroupIds, existingMatches ?? []);
+    lockedGroupCount = lockedGroupIds.size;
+
+    if (staleGroupIds.length > 0) {
+      // Borra SOLO los grupos sin decisión humana. El CASCADE se lleva sus
+      // bim_group_matches (todas SUGGESTED/REVIEW/NO_MATCH — nunca hay una
+      // CONFIRMED/REJECTED entre ellas porque las excluimos arriba) y libera
+      // bim_elements.group_id (ON DELETE SET NULL) solo de esos elementos.
+      const { error: deleteError } = await supabase.from("bim_element_groups").delete().in("id", staleGroupIds);
+      if (deleteError) return { ...empty, elementCount: elements.length, error: deleteError.message };
+    }
+
+    // Releer elementos: los de grupos bloqueados conservan su group_id (no
+    // entran al pool de reagrupación); los de grupos borrados quedaron con
+    // group_id NULL y sí vuelven a agruparse.
+    const { data: freshElements } = await supabase
+      .from("bim_elements")
+      .select("*")
+      .eq("bim_model_id", bimModelId)
+      .returns<BimElement[]>();
+    elementsToGroup = (freshElements ?? []).filter((e) => e.group_id == null);
+  }
+
+  if (elementsToGroup.length === 0) {
+    // Nada para reagrupar: todo lo que había quedó bloqueado (CONFIRMED/
+    // REJECTED). suggested/review/noMatch en 0 a propósito — un grupo
+    // bloqueado ya está resuelto, no cuenta como "pendiente de revisión".
     return {
       elementCount: elements.length,
-      groupCount: existingGroups.length,
-      suggested: rows.filter((r) => r.status === "SUGGESTED").length,
-      review: rows.filter((r) => r.status === "REVIEW").length,
-      noMatch: rows.filter((r) => r.status === "NO_MATCH").length,
+      groupCount: lockedGroupCount,
+      suggested: 0,
+      review: 0,
+      noMatch: 0,
       totalTokens: 0,
       latencyMs: Date.now() - startedAt,
       error: null,
     };
   }
 
-  // 1) Agrupar (puro, en memoria) y persistir grupos + group_id en cada elemento.
-  const drafts = groupElements(elements);
+  // 1) Agrupar (puro, en memoria, solo sobre los elementos libres) y
+  // persistir grupos nuevos + group_id en cada elemento.
+  const drafts = groupElements(elementsToGroup);
   const groupIds: string[] = [];
   for (const draft of drafts) {
     const { data: group, error } = await supabase
@@ -341,7 +379,7 @@ export async function processBimGroups(projectId: string, bimModelId: string): P
   try {
     matcher = new DeepSeekBatchSemanticMatcher();
   } catch (e) {
-    return { ...empty, elementCount: elements.length, groupCount: drafts.length, error: e instanceof Error ? e.message : "No se pudo inicializar el matcher semántico." };
+    return { ...empty, elementCount: elements.length, groupCount: lockedGroupCount + drafts.length, error: e instanceof Error ? e.message : "No se pudo inicializar el matcher semántico." };
   }
 
   let suggested = 0;
@@ -366,7 +404,7 @@ export async function processBimGroups(projectId: string, bimModelId: string): P
     } catch (e) {
       return {
         elementCount: elements.length,
-        groupCount: drafts.length,
+        groupCount: lockedGroupCount + drafts.length,
         suggested,
         review,
         noMatch,
@@ -396,7 +434,7 @@ export async function processBimGroups(projectId: string, bimModelId: string): P
   if (rows.length > 0) {
     const { error } = await supabase.from("bim_group_matches").insert(rows);
     if (error) {
-      return { elementCount: elements.length, groupCount: drafts.length, suggested, review, noMatch, totalTokens, latencyMs: Date.now() - startedAt, error: error.message };
+      return { elementCount: elements.length, groupCount: lockedGroupCount + drafts.length, suggested, review, noMatch, totalTokens, latencyMs: Date.now() - startedAt, error: error.message };
     }
   }
 
@@ -408,7 +446,7 @@ export async function processBimGroups(projectId: string, bimModelId: string): P
   revalidatePath(`/projects/${projectId}`);
   return {
     elementCount: elements.length,
-    groupCount: drafts.length,
+    groupCount: lockedGroupCount + drafts.length,
     suggested,
     review,
     noMatch,

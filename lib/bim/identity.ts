@@ -14,7 +14,7 @@
 //   ifc_guid     IfcGloballyUniqueId (GlobalId). Es la identidad CANÓNICA del
 //                elemento DENTRO DE UN bim_model concreto — la unicidad en
 //                bim_elements es (bim_model_id, ifc_guid), ver
-//                0070_bim_presupuesto.sql. La clave persistente hoy sigue
+//                0071_bim_presupuesto.sql. La clave persistente hoy sigue
 //                siendo, conceptualmente, `bim_model_id + ifc_guid`: no hay
 //                identidad de elemento independiente del archivo subido.
 //
