@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { WatchView } from '@/lib/auction-sandbox/server';
 import { PollController, isNextRedirect, createResponseGuard } from '@/lib/auction-sandbox/poll-controller';
+import { formatPctBelowGroundFloor } from '@/lib/auction-sandbox/format';
 import { getWatchView } from './actions';
 
 function fmtT(iso: string): string {
@@ -178,6 +179,26 @@ export function WatchConsole({ token }: { token: string }) {
               {view.pendingCandidate && (view.room.status === 'ACTIVE_NORMAL' || view.room.status === 'ACTIVE_RANDOM') ? (
                 <p className="text-[12px] font-semibold text-amber-600 dark:text-amber-400 mb-2">
                   Propone ₲{view.pendingCandidate.pricePyg.toLocaleString('es-PY')} · esperando autorización
+                </p>
+              ) : null}
+              {view.limitBreach ? (
+                <div className="rounded-lg border-2 border-amber-500/40 bg-amber-500/10 p-3 text-[12px] space-y-1 mb-2">
+                  <p className="font-bold text-amber-600 dark:text-amber-400">Esperando decisión del operador</p>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                    <span className="text-[var(--muted)]">Competidor</span>
+                    <span className="font-mono font-bold text-right">₲{view.limitBreach.competitorPricePyg.toLocaleString('es-PY')}</span>
+                    <span className="text-[var(--muted)]">Ground Floor</span>
+                    <span className="font-mono font-bold text-right">₲{view.limitBreach.groundFloorPyg.toLocaleString('es-PY')}</span>
+                    <span className="text-[var(--muted)]">Candidate</span>
+                    <span className="font-mono font-bold text-right">₲{view.limitBreach.candidatePricePyg.toLocaleString('es-PY')}</span>
+                    <span className="text-[var(--muted)]">Debajo del límite</span>
+                    <span className="font-mono text-right">{formatPctBelowGroundFloor(view.limitBreach.groundFloorPyg, view.limitBreach.competitorPricePyg)}</span>
+                  </div>
+                </div>
+              ) : null}
+              {!view.limitBreach && view.limitBreachDeclined ? (
+                <p className="text-[12px] text-[var(--muted)] mb-2">
+                  Operador cedió ₲{view.limitBreachDeclined.candidatePricePyg.toLocaleString('es-PY')} — monitoreo continúa.
                 </p>
               ) : null}
               {d ? (

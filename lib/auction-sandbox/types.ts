@@ -20,6 +20,8 @@ export type SandboxEventType =
   | 'BOT_DECISION'
   | 'POLICY_AUTHORIZED'
   | 'BOT_STOPPED'
+  | 'HUMAN_OVERRIDE_AUTHORIZED'
+  | 'HUMAN_OVERRIDE_DECLINED'
   | 'AUCTION_CLOSED'
   | 'WINNER_DECLARED';
 
@@ -69,6 +71,32 @@ export interface SandboxBotRuntime {
     reasonCode: string;
     candidate: number | null;
     v: number;
+  } | null;
+  /**
+   * Human-override declines (CEDER): one entry per declined breach candidate.
+   * The prompt is suppressed while the live proposal matches an entry;
+   * a materially new candidate prompts again. Bounded by the writer.
+   */
+  declinedLimitBreaches?: Array<{
+    v: number;
+    candidate: number;
+    competitor: number;
+    at: string;
+  }> | null;
+  /**
+   * Last executed human override (audit payload mirror): lets the heartbeat
+   * backfill a lost HUMAN_OVERRIDE_AUTHORIZED event with full fidelity.
+   * Cleared (set null) by the next tick's coherent runtime rewrite once the
+   * matching event is observed — never a spending authority.
+   */
+  overrideAudit?: {
+    v: number;
+    candidate: number;
+    groundFloor: number;
+    competitor: number;
+    step: number;
+    by: string;
+    at: string;
   } | null;
 }
 

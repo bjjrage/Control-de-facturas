@@ -8,7 +8,7 @@ import { AuctionBotStateMachine } from '@/lib/auction-bot/state-machine';
 import { evaluateAuctionStep } from '@/lib/auction-bot/engine';
 import { recheckAndSubmit, runBotTick, roomSbeConstraints } from '@/lib/auction-sandbox/bot-runner';
 import { snapshotToAuctionState } from '@/lib/auction-sandbox/auction-state-adapter';
-import { buildAssistedIdempotencyKey, buildBotIdempotencyKey, rankBids } from '@/lib/auction-sandbox/engine';
+import { buildAssistedIdempotencyKey, buildBotIdempotencyKey, buildOverrideIdempotencyKey, rankBids } from '@/lib/auction-sandbox/engine';
 import { buildPolicyVersionRecord, checkPolicyContinuity, policyFromSnapshot, samePolicyContent } from '@/lib/auction-sandbox/policies';
 import {
   bundleToSnapshot,
@@ -18,6 +18,7 @@ import {
   isVersionSuperseded,
   loadSandboxBundle,
   missingInitialEvents,
+  missingOverrideEvents,
   missingPolicyEvents,
   missingStoppedEvents,
   policyVersionSuperseded,
@@ -29,6 +30,7 @@ import {
   WatchView,
 } from '@/lib/auction-sandbox/server';
 import { generateSandboxToken, hashSandboxToken } from '@/lib/auction-sandbox/tokens';
+import { deriveLimitBreach, validateOverrideRequest, DeclinedLimitBreach, LimitBreachProposal } from '@/lib/auction-sandbox/override';
 import { AuctionPolicy, FrozenAuctionPolicy } from '@/lib/auction-bot/types';
 
 type Db = SupabaseClient;
@@ -120,6 +122,25 @@ async function ensureInitialEvents(admin: Db, bundle: SandboxBundle): Promise<vo
     await appendEvent(admin, bundle.room.id, 'BOT_STOPPED', {
       reasonCode: bundle.room.bot_runtime?.lastBotStatus?.reasonCode ?? 'UNKNOWN',
       policyVersion: version,
+      backfilled: true,
+    });
+  }
+  // Override-audit backfill: an executed HUMAN OVERRIDE whose audit event
+  // write failed. The bid itself stands (BID_ACCEPTED is atomic in the RPC);
+  // this heals only the who/why marker, with full fidelity from the runtime
+  // audit mirror. Same completeness rule; duplicates are timeline spam only.
+  for (const version of missingOverrideEvents(bundle)) {
+    const audit = bundle.room.bot_runtime?.overrideAudit;
+    if (!audit || audit.v !== version) continue;
+    await appendEvent(admin, bundle.room.id, 'HUMAN_OVERRIDE_AUTHORIZED', {
+      policyVersion: audit.v,
+      groundFloorPyg: audit.groundFloor,
+      competitorPricePyg: audit.competitor,
+      candidatePricePyg: audit.candidate,
+      defenseStepPyg: audit.step,
+      authorizedBy: audit.by,
+      authorizedAt: audit.at,
+      reason: 'ECONOMIC_LIMIT_OVERRIDE',
       backfilled: true,
     });
   }
@@ -352,6 +373,10 @@ export interface OperatorView {
   };
   /** Full active policy snapshot (internal operator only — never exposed to token views). */
   activePolicy: FrozenAuctionPolicy | null;
+  /** Live Ground-Floor breach proposal (one-shot authorize/decline). */
+  limitBreach: LimitBreachProposal | null;
+  /** Recorded CEDER suppressing the live prompt (muted note only). */
+  limitBreachDeclined: DeclinedLimitBreach | null;
   watch: WatchView;
 }
 
@@ -371,6 +396,10 @@ function toOperatorView(bundle: SandboxBundle, atIso: string): OperatorView {
   const storedPending = (runtime.pendingCandidate as OperatorView['bot']['pendingCandidate']) ?? null;
   const pendingCandidate =
     storedPending && latest && storedPending.policyVersion === latest.version ? storedPending : null;
+  // Live breach state re-derived from authority every read (same deterministic
+  // evaluation the tick runs): monitoring stays live while STOPPED ticks hold.
+  const breachAt = nowIso();
+  const breach = deriveLimitBreach(bundle, breachAt);
   return {
     room: publicRoomInfo(bundle, atIso),
     ranking: rankBundle(bundle),
@@ -385,6 +414,8 @@ function toOperatorView(bundle: SandboxBundle, atIso: string): OperatorView {
       pendingCandidate,
     },
     activePolicy,
+    limitBreach: breach.proposal,
+    limitBreachDeclined: breach.declined,
     watch: buildWatchView(bundle, atIso),
   };
 }
@@ -706,6 +737,181 @@ export async function authorizeAssistedBid(roomId: string): Promise<{ price?: nu
     bot_runtime: { ...((freshBundle.room.bot_runtime ?? {}) as Record<string, unknown>), pendingCandidate: null },
   }).eq('id', roomId);
   return { price: result.pricePyg };
+}
+
+// ---------------------------------------------------------------------------
+// Human override (one-shot Ground-Floor authorization).
+// DEFENDER = submit EXACTLY the live breach candidate, once. CEDER = record
+// the decline, submit nothing. Neither mutates target / autoLimit /
+// defenseStep / rank / mode / policy — the key names one (version, price).
+// ---------------------------------------------------------------------------
+
+/**
+ * DEFENDER POSICIÓN: authorize exactly the live breach candidate, one-shot.
+ * Fail-closed chain: MANAGE gate → CLOSED refusal → advance → fresh Core
+ * derivation → EXACT match with the clicked proposal (candidate + version)
+ * → version continuity → stable-key submit (0070 RPC gate) → audit event →
+ * runtime unfreeze. Any mismatch aborts BEFORE the irreversible submit.
+ */
+export async function authorizeLimitBreachBid(
+  roomId: string,
+  candidatePricePyg: number,
+  policyVersion: number
+): Promise<{ price?: number; error?: string }> {
+  const res = await manageOperatorBundle(roomId);
+  if ('error' in res) return { error: res.error };
+  const closedRefusal = refuseIfRoomClosed(res.bundle.room.status);
+  if (closedRefusal) return { error: closedRefusal };
+  const profile = await requireProfile([...MANAGE_ROLES]);
+  const who = profile.full_name?.trim() || profile.id;
+  const advanced = await advanceRoom(res.admin, res.db, roomId);
+  if ('error' in advanced) return { error: advanced.error };
+  const bundle = advanced.bundle;
+  if (bundle.policies.length === 0) return { error: 'Sin policy autorizada.' };
+  const latest = bundle.policies[bundle.policies.length - 1];
+  // The click authorizes the LIVE breach bid, never a remembered number:
+  // re-derive from authority and require an exact match.
+  const fresh = deriveLimitBreach(bundle, nowIso());
+  const reqError = validateOverrideRequest(fresh, { candidatePricePyg, policyVersion }, latest.version);
+  if (reqError) return { error: reqError };
+  const proposal = fresh.proposal;
+  if (!proposal) return { error: 'La propuesta cambió. Recargá la sala y revisá la nueva decisión.' };
+  const bot = bundle.participants.find((p) => p.kind === 'BOT');
+  if (!bot) return { error: 'Sin participante BOT.' };
+  // STABLE key per (room, version, price): double-clicks and post-timeout
+  // operator retries dedupe in the RPC instead of double-submitting. (Never
+  // bind wall-clock here: time-varying keys defeat idempotency.)
+  const bidKey = buildOverrideIdempotencyKey(roomId, proposal.policyVersion, proposal.candidatePricePyg);
+  // Last-millimetre continuity (same pattern as auto/assisted submits).
+  if (isVersionSuperseded(await latestPolicyVersion(res.db, roomId), proposal.policyVersion)) {
+    return { error: 'No se pudo confirmar la versión actual de la policy. Reintentá.' };
+  }
+  let rpcRes;
+  try {
+    rpcRes = await rpcSubmit(res.admin, roomId, bot.id, proposal.candidatePricePyg, bidKey, proposal.policyVersion);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Falló el envío.' };
+  }
+  if (!rpcRes.accepted) return { error: rpcRes.rejection_message ?? rpcRes.rejection_code ?? 'Oferta rechazada.' };
+  // Audit FIRST-class: the bid stands via BID_ACCEPTED; this records who/why.
+  // No new policy version is created for a one-shot override — ever.
+  const authorizedAt = new Date().toISOString();
+  const auditSeq = await appendEvent(res.admin, roomId, 'HUMAN_OVERRIDE_AUTHORIZED', {
+    policyVersion: proposal.policyVersion,
+    groundFloorPyg: proposal.groundFloorPyg,
+    competitorPricePyg: proposal.competitorPricePyg,
+    candidatePricePyg: proposal.candidatePricePyg,
+    defenseStepPyg: proposal.defenseStepPyg,
+    authorizedBy: who,
+    authorizedAt,
+    reason: 'ECONOMIC_LIMIT_OVERRIDE',
+  });
+  // Unfreeze ticks: the STOP is superseded by executed human action. Spread
+  // the POST-submit reload's runtime (narrowest LWW window) and persist the
+  // audit mirror for backfill fidelity. Both writes are checked: the bid
+  // already landed, so any failure surfaces as "reload, don't retry".
+  const post = await loadSandboxBundle(res.db, roomId);
+  const postRuntime = ('bundle' in post ? post.bundle.room.bot_runtime : bundle.room.bot_runtime) ?? {};
+  const { error: runtimeError } = await res.db
+    .from('auction_sandbox_rooms')
+    .update({
+      bot_runtime: {
+        ...(postRuntime as Record<string, unknown>),
+        lastBotStatus: {
+          action: 'OVERRIDE_SUBMITTED',
+          reasonCode: 'ECONOMIC_LIMIT_OVERRIDE',
+          candidate: proposal.candidatePricePyg,
+          v: proposal.policyVersion,
+        },
+        overrideAudit: {
+          v: proposal.policyVersion,
+          candidate: proposal.candidatePricePyg,
+          groundFloor: proposal.groundFloorPyg,
+          competitor: proposal.competitorPricePyg,
+          step: proposal.defenseStepPyg,
+          by: who,
+          at: authorizedAt,
+        },
+      },
+    })
+    .eq('id', roomId);
+  if (auditSeq === null || runtimeError) {
+    return {
+      price: proposal.candidatePricePyg,
+      error: `Lance ₲${proposal.candidatePricePyg.toLocaleString('es-PY')} enviado, pero falló la registración (evento/estado). Recargá la sala — no reintentes.`,
+    };
+  }
+  return { price: proposal.candidatePricePyg };
+}
+
+/**
+ * CEDER: submit nothing, record the decline. The prompt is suppressed while
+ * the live proposal matches the recorded decline; a materially new candidate
+ * prompts again. Monitoring continues (ticks + views are untouched).
+ */
+export async function declineLimitBreachBid(
+  roomId: string,
+  candidatePricePyg: number,
+  policyVersion: number
+): Promise<{ error?: string }> {
+  const res = await manageOperatorBundle(roomId);
+  if ('error' in res) return { error: res.error };
+  const closedRefusal = refuseIfRoomClosed(res.bundle.room.status);
+  if (closedRefusal) return { error: closedRefusal };
+  const profile = await requireProfile([...MANAGE_ROLES]);
+  const who = profile.full_name?.trim() || profile.id;
+  const advanced = await advanceRoom(res.admin, res.db, roomId);
+  if ('error' in advanced) return { error: advanced.error };
+  const bundle = advanced.bundle;
+  if (bundle.policies.length === 0) return { error: 'Sin policy autorizada.' };
+  const latest = bundle.policies[bundle.policies.length - 1];
+  // Decline targets the LIVE proposal only: declining a vanished prompt is
+  // meaningless, and the exact-match rule keeps cede/authorize symmetric.
+  const fresh = deriveLimitBreach(bundle, nowIso());
+  const reqError = validateOverrideRequest(fresh, { candidatePricePyg, policyVersion }, latest.version);
+  if (reqError) return { error: reqError };
+  const proposal = fresh.proposal;
+  if (!proposal) return { error: 'La propuesta cambió. Recargá la sala y revisá la nueva decisión.' };
+  // Event dedupe (advisory, same pattern as shouldEmitDecision): a retry
+  // after a lost response converges instead of double-recording.
+  const already = bundle.events.some(
+    (e) =>
+      e.type === 'HUMAN_OVERRIDE_DECLINED' &&
+      (e.payload as Record<string, unknown>).policyVersion === proposal.policyVersion &&
+      (e.payload as Record<string, unknown>).candidatePricePyg === proposal.candidatePricePyg
+  );
+  if (!already) {
+    const declinedSeq = await appendEvent(res.admin, roomId, 'HUMAN_OVERRIDE_DECLINED', {
+      policyVersion: proposal.policyVersion,
+      competitorPricePyg: proposal.competitorPricePyg,
+      candidatePricePyg: proposal.candidatePricePyg,
+      groundFloorPyg: proposal.groundFloorPyg,
+      declinedBy: who,
+      declinedAt: new Date().toISOString(),
+    });
+    // No economic action happened: a failure here is safely retryable (the
+    // dedupe above converges), so fail BEFORE touching runtime.
+    if (declinedSeq === null) return { error: 'No se pudo registrar la decisión. Reintentá.' };
+  }
+  const prevRuntime = (bundle.room.bot_runtime ?? {}) as Record<string, unknown>;
+  const prevDeclined = Array.isArray(prevRuntime.declinedLimitBreaches)
+    ? (prevRuntime.declinedLimitBreaches as Array<{ v: number; candidate: number; competitor: number; at: string }>)
+    : [];
+  const declined = [
+    ...prevDeclined.filter((d) => !(d.v === proposal.policyVersion && d.candidate === proposal.candidatePricePyg)),
+    {
+      v: proposal.policyVersion,
+      candidate: proposal.candidatePricePyg,
+      competitor: proposal.competitorPricePyg,
+      at: new Date().toISOString(),
+    },
+  ].slice(-20);
+  const { error: runtimeError } = await res.db
+    .from('auction_sandbox_rooms')
+    .update({ bot_runtime: { ...prevRuntime, declinedLimitBreaches: declined } })
+    .eq('id', roomId);
+  if (runtimeError) return { error: 'No se pudo registrar la decisión. Reintentá.' };
+  return {};
 }
 
 export async function setSandboxBotPaused(roomId: string, paused: boolean): Promise<{ error?: string }> {

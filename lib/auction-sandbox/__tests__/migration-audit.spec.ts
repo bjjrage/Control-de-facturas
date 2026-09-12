@@ -29,6 +29,8 @@ const sqlRaw = readFileSync(resolve(ROOT, 'supabase', 'migrations', '0068_auctio
 const sql = stripSql(sqlRaw);
 const sql70Raw = readFileSync(resolve(ROOT, 'supabase', 'migrations', '0070_auction_sandbox_policy_bound_submit.sql'), 'utf8');
 const sql70 = stripSql(sql70Raw);
+const sql71Raw = readFileSync(resolve(ROOT, 'supabase', 'migrations', '0071_auction_sandbox_override_event_types.sql'), 'utf8');
+const sql71 = stripSql(sql71Raw);
 
 function read(rel: string): string {
   return readFileSync(resolve(ROOT, rel), 'utf8');
@@ -271,18 +273,56 @@ describe('0070 static safety audit — policy-bound submit', () => {
     expect(sql70).not.toMatch(/p_client/i);
   });
 
-  it('app callers bind bot/assisted submits, never human submits', () => {
-    const ops = read('app/(internal)/licitaciones/auction-lab/actions.ts');
+  it('app callers bind bot/assisted submits, never human submits', () => {    const ops = read('app/(internal)/licitaciones/auction-lab/actions.ts');
     expect(ops).toMatch(/rpcSubmit\(admin, bundle\.room\.id, bot\.id, pricePyg, bidKey, policy\.version\)/);
     expect(ops).toMatch(/rpcSubmit\(res\.admin, roomId, bot\.id, pricePyg, bidKey, policy\.version\)/);
     // Universal: EVERY rpcSubmit call in operator actions binds a version —
     // an added unversioned call (NULL skips the gate) must fail loudly.
+    // (Matched loosely on purpose: bot/assisted pass policy.version, the
+    // override passes proposal.policyVersion — any version binding counts.
+    // An unversioned rpcSubmit(admin, room, bot, price, key) has neither.)
     const calls = ops.split('\n').filter((l) => /(?<!\.)rpcSubmit\(/.test(l) && !l.trim().startsWith('async function rpcSubmit'));
     expect(calls.length).toBeGreaterThan(0);
     for (const line of calls) {
-      expect(line).toContain('policy.version');
+      expect(line).toMatch(/polic(y\.version|yVersion)/);
     }
     const join = read('app/auction-lab/join/[token]/actions.ts');
     expect(join).not.toContain('p_expected_policy_version');
+  });
+});
+
+describe('0071 static safety audit — override event types', () => {
+  it('widens the events CHECK with exactly the two override labels', () => {
+    expect(sql71).toContain('HUMAN_OVERRIDE_AUTHORIZED');
+    expect(sql71).toContain('HUMAN_OVERRIDE_DECLINED');
+    // All 10 pre-existing labels preserved verbatim (historical rows keep
+    // validating after the constraint swap).
+    for (const label of [
+      'ROOM_CREATED', 'AUCTION_STARTED', 'RANDOM_PHASE_STARTED',
+      'BID_ACCEPTED', 'BID_REJECTED', 'BOT_DECISION',
+      'POLICY_AUTHORIZED', 'BOT_STOPPED',
+      'AUCTION_CLOSED', 'WINNER_DECLARED',
+    ]) {
+      expect(sql71).toContain(`'${label}'`);
+    }
+  });
+
+  it('swaps the same constraint (drop + re-add), nothing else', () => {
+    expect(sql71).toMatch(/drop constraint if exists auction_sandbox_events_type_check/);
+    expect(sql71).toMatch(/add constraint auction_sandbox_events_type_check check/);
+    // No RPC, RLS, grant, or sequence change in this file.
+    expect(sql71).not.toMatch(/create (or replace )?function/i);
+    expect(sql71).not.toMatch(/create policy/i);
+    expect(sql71).not.toMatch(/grant execute/i);
+    expect(sql71).not.toMatch(/next_sequence/i);
+  });
+
+  it('app event-type union mirrors the widened CHECK', () => {
+    const types = read('lib/auction-sandbox/types.ts');
+    expect(types).toContain("'HUMAN_OVERRIDE_AUTHORIZED'");
+    expect(types).toContain("'HUMAN_OVERRIDE_DECLINED'");
+    const engine = read('lib/auction-sandbox/engine.ts');
+    expect(engine).toContain("'HUMAN_OVERRIDE_AUTHORIZED'");
+    expect(engine).toContain("'HUMAN_OVERRIDE_DECLINED'");
   });
 });

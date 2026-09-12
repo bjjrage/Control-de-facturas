@@ -11,6 +11,7 @@
  */
 import { SupabaseClient } from '@supabase/supabase-js';
 import { computePhase, rankBids, rollRandomCloseAt, winnerOfRanking } from './engine';
+import { deriveLimitBreach, DeclinedLimitBreach, LimitBreachProposal } from './override';
 import {
   SandboxBid,
   SandboxEvent,
@@ -172,6 +173,28 @@ export function missingStoppedEvents(bundle: SandboxBundle): number[] {
       .filter((v): v is number => typeof v === 'number')
   );
   return marked.has(last.v) ? [] : [last.v];
+}
+
+/**
+ * Override-audit backfill proof: the runtime records an OVERRIDE_SUBMITTED
+ * send on version v but no HUMAN_OVERRIDE_AUTHORIZED event carries that
+ * (version, candidate) — i.e. the bid committed while the audit write
+ * failed. Same completeness rule as the other backfills. The bid itself
+ * stands (BID_ACCEPTED is written atomically by the RPC); this heals only
+ * the who/why audit marker.
+ */
+export function missingOverrideEvents(bundle: SandboxBundle): number[] {
+  const seqs = bundle.events.map((e) => e.server_sequence);
+  const complete = seqs.length === 0 || Math.max(...seqs) < 200;
+  if (!complete) return [];
+  const audit = bundle.room.bot_runtime?.overrideAudit;
+  if (!audit || typeof audit.v !== 'number' || typeof audit.candidate !== 'number') return [];
+  const marked = new Set(
+    bundle.events
+      .filter((e) => e.type === 'HUMAN_OVERRIDE_AUTHORIZED')
+      .map((e) => `${String((e.payload as Record<string, unknown>).policyVersion)}:${String((e.payload as Record<string, unknown>).candidatePricePyg)}`)
+  );
+  return marked.has(`${audit.v}:${audit.candidate}`) ? [] : [audit.v];
 }
 
 /**
@@ -367,6 +390,10 @@ export interface WatchView {
   policy: { version: number; targetPricePyg: number; autoLimitPyg: number; targetRank: number; executionMode: string; authorizedBy: string } | null;
   lastDecision: Record<string, unknown> | null;
   botStatus: string | null;
+  /** Live Ground-Floor breach proposal (observer sees data, never buttons). */
+  limitBreach: LimitBreachProposal | null;
+  /** Recorded CEDER suppressing the live prompt (muted note only). */
+  limitBreachDeclined: DeclinedLimitBreach | null;
   pendingCandidate: {
     pricePyg: number;
     basisObservedAt: string;
@@ -405,6 +432,8 @@ export function buildWatchView(bundle: SandboxBundle, nowIso: string): WatchView
     ? ranking.find((r) => r.participant_id === bundle.room.winner_participant_id) ?? null
     : null;
 
+  const breach = deriveLimitBreach(bundle, nowIso);
+
   return {
     room: publicRoomInfo(bundle, nowIso),
     ranking,
@@ -436,6 +465,8 @@ export function buildWatchView(bundle: SandboxBundle, nowIso: string): WatchView
     // Canonical: persisted lastBotStatus is ALWAYS the object shape (see
     // SandboxBotRuntime); only .action (a string) leaves the server.
     botStatus: bundle.room.bot_runtime?.lastBotStatus?.action ?? null,
+    limitBreach: breach.proposal,
+    limitBreachDeclined: breach.declined,
     // A stored candidate is only exposed when bound to the ACTIVE version.
     pendingCandidate:
       bundle.room.bot_runtime?.pendingCandidate?.policyVersion === latestPolicy?.version
@@ -467,6 +498,8 @@ function eventText(type: string, payload: Record<string, unknown>): string {
     case 'BOT_DECISION': return `Bot → ${String(payload.action ?? '?')}${payload.candidatePricePyg ? ` ${pyg(payload.candidatePricePyg)}` : ''}`;
     case 'POLICY_AUTHORIZED': return `Policy v${String(payload.version ?? '?')} autorizada`;
     case 'BOT_STOPPED': return 'Bot detenido';
+    case 'HUMAN_OVERRIDE_AUTHORIZED': return `Override autorizado ${pyg(payload.candidatePricePyg)} (v${String(payload.policyVersion ?? '?')})`;
+    case 'HUMAN_OVERRIDE_DECLINED': return `Override cedido ${pyg(payload.candidatePricePyg)} (v${String(payload.policyVersion ?? '?')})`;
     case 'AUCTION_CLOSED': return 'Subasta cerrada';
     case 'WINNER_DECLARED': return `Ganador: ${String(payload.alias ?? '—')} ${pyg(payload.price_pyg)}`;
     default: return type;
