@@ -103,7 +103,12 @@ export class HistoricalDncpEnumerator {
 
     try {
       const res = await this.throttled(() =>
-        fetch(url, { headers: { Accept: "application/json" } })
+        fetch(url, {
+          headers: {
+            Accept: "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)",
+          },
+        })
       );
 
       if (res.status === 429 && attempt < 6) {
