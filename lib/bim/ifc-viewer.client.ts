@@ -168,7 +168,9 @@ export function createIfcViewer(
     // matriz identidad en vez de la transformación real de cada elemento.
     modelRoot.updateMatrixWorld(true);
     const box = boundsOf(modelRoot.children);
+    console.log("[bim-viewer-diag2] fitAll box =", box, "children=", modelRoot.children.length);
     if (box) fitToBox(box);
+    console.log("[bim-viewer-diag2] camera after fitAll", camera.position.toArray(), "target", controls.target.toArray(), "near/far", camera.near, camera.far);
   }
 
   function fitSelection() {
