@@ -746,3 +746,106 @@ export async function resyncCertificateFromExecution(certificateId: string): Pro
   revalidatePath(`/projects/${cert.project_id}`);
   return { error: null };
 }
+
+/**
+ * Crea un borrador de factura de venta pre-llenado desde un certificado aprobado.
+ * Establece la FK certificate_id en sales_documents para trazabilidad real
+ * (reemplaza el campo texto libre factura_numero sin romper compatibilidad).
+ *
+ * El borrador queda en /ventas para revisión y emisión por el usuario.
+ * El certificado NO se marca FACTURADO aquí — eso ocurre al emitir la factura.
+ *
+ * @param certificateId  ID del certificado (debe estar en estado APROBADO)
+ * @param clientId       FK al cliente en la tabla clients (lo elige el botón en UI)
+ */
+export async function createSalesDocumentFromCertificate(
+  certificateId: string,
+  clientId: string
+): Promise<{ error: string | null; salesDocumentId?: string }> {
+  const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
+  const supabase = await createClient();
+
+  // Cargar certificado con datos del proyecto
+  const { data: cert } = await supabase
+    .from("project_certificates")
+    .select(`
+      id,
+      numero,
+      period_start,
+      period_end,
+      monto_liquido,
+      status,
+      project_id,
+      projects!inner(name, empresa_id)
+    `)
+    .eq("id", certificateId)
+    .eq("projects.empresa_id", profile.empresa_id)
+    .maybeSingle();
+
+  if (!cert) return { error: "Certificado no encontrado." };
+  if (cert.status !== "APROBADO") return { error: "Solo se puede facturar un certificado APROBADO." };
+
+  // Verificar que no existe ya una factura activa para este certificado
+  const { data: existing } = await supabase
+    .from("sales_documents")
+    .select("id, status")
+    .eq("certificate_id", certificateId)
+    .not("status", "eq", "ANULADA")
+    .maybeSingle();
+
+  if (existing) {
+    return { error: `Ya existe una factura para este certificado (estado: ${existing.status}).` };
+  }
+
+  // Descripción de la línea: "Certificado Nº 3 — Obra X (01/06 al 30/06/2026)"
+  const periodStr = `${cert.period_start} al ${cert.period_end}`;
+  const projectName = (cert as any).projects?.name ?? "Obra";
+  const itemDescription = `Certificado de avance Nº ${cert.numero} — ${projectName} (período ${periodStr})`;
+
+  // Crear el borrador de factura de venta
+  const { data: doc, error: docError } = await supabase
+    .from("sales_documents")
+    .insert({
+      client_id: clientId,
+      doc_type: "FACTURA",
+      issue_date: new Date().toISOString().slice(0, 10),
+      currency: "PYG",
+      certificate_id: certificateId,
+      created_by: profile.id,
+    })
+    .select("id")
+    .single();
+
+  if (docError || !doc) {
+    return { error: docError?.message ?? "No se pudo crear la factura." };
+  }
+
+  // Insertar línea con el monto líquido del certificado (IVA incluido, tasa 10%)
+  const montoLiquido = Number(cert.monto_liquido) || 0;
+  const { error: itemError } = await supabase
+    .from("sales_document_items")
+    .insert({
+      sales_document_id: doc.id,
+      description: itemDescription,
+      quantity: 1,
+      unit_price: montoLiquido,
+      vat_rate: 10,
+      line_total: montoLiquido,
+    });
+
+  if (itemError) {
+    // Rollback manual: borrar el documento huérfano
+    await supabase.from("sales_documents").delete().eq("id", doc.id);
+    return { error: itemError.message };
+  }
+
+  await logAudit(supabase, {
+    action: "sales_document.created_from_certificate",
+    detail: { sales_document_id: doc.id, certificate_id: certificateId, certificate_numero: cert.numero },
+  });
+
+  revalidatePath("/ventas");
+  revalidatePath(`/projects/${cert.project_id}`);
+
+  return { error: null, salesDocumentId: doc.id };
+}

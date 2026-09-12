@@ -108,6 +108,8 @@ export interface CostObservationRecordResult {
   recorded: boolean;
   reason?: string;
   observationId?: string;
+  /** true cuando la observación se registró pero queda pendiente de tipo de cambio (estado_evidencia = REVISION_REQUERIDA) */
+  pendingFx?: boolean;
 }
 
 /**
@@ -186,15 +188,20 @@ export async function recordCostObservationFromInvoice(
 
     // Regla P0: Moneda canónica normalizada
     let tipoCambio: number = 1.0;
-    let precioUnitarioNormalizadoPyg: number;
+    let precioUnitarioNormalizadoPyg: number = 0;
+    // Cuando la factura es en USD y no se proveyó tipo de cambio, la observación
+    // se registra con estado_evidencia = 'REVISION_REQUERIDA' y precio_unitario = NULL
+    // en lugar de descartarse silenciosamente. El dato bruto (precio en USD) queda
+    // preservado en precio_unitario_original para cuando el usuario provea el TC.
+    let pendingFx = false;
 
     if (currency === "USD") {
       if (!exchangeRate || exchangeRate <= 0) {
-        console.warn(`[Flywheel] Omitiendo observación para factura USD ${params.invoiceId}: falta tipo de cambio verificado (evita contaminar CPP).`);
-        return { recorded: false, reason: 'MISSING_EXCHANGE_RATE_FOR_USD' };
+        pendingFx = true;
+      } else {
+        tipoCambio = exchangeRate;
+        precioUnitarioNormalizadoPyg = Math.round(unitPrice * tipoCambio);
       }
-      tipoCambio = exchangeRate;
-      precioUnitarioNormalizadoPyg = Math.round(unitPrice * tipoCambio);
     } else if (currency === "PYG") {
       tipoCambio = 1.0;
       precioUnitarioNormalizadoPyg = Math.round(unitPrice);
@@ -226,6 +233,40 @@ export async function recordCostObservationFromInvoice(
 
     if (existingObs) {
       return { recorded: false, reason: 'DUPLICATE_ITEM_OBSERVATION', observationId: existingObs.id };
+    }
+
+    // Factura en USD sin tipo de cambio: registrar como REVISION_REQUERIDA
+    // para que el dato no se pierda y pueda completarse cuando el usuario provea el TC.
+    if (pendingFx) {
+      const { data: pendingData, error: pendingError } = await supabase
+        .from("cost_observations")
+        .insert({
+          empresa_id: params.empresaId,
+          project_id: projectId || null,
+          proveedor_id: params.providerId || null,
+          fuente: "FACTURA",
+          documento_id: params.invoiceId,
+          descripcion_item: description,
+          categoria_insumo: categoria,
+          cantidad: qty,
+          unidad: unit,
+          precio_unitario: null,          // NULL permitido por constraint cuando estado_evidencia = REVISION_REQUERIDA
+          moneda: 'PYG',
+          moneda_original: currency,
+          precio_unitario_original: unitPrice,
+          tipo_cambio: null,
+          fecha_observacion: invoiceDate,
+          es_volatil: categoria === 'COMBUSTIBLE',
+          estado_evidencia: 'REVISION_REQUERIDA'
+        })
+        .select('id')
+        .maybeSingle();
+
+      if (pendingError) {
+        console.error("[Flywheel] Error al registrar observación USD pendiente de TC:", pendingError);
+        return { recorded: false, reason: `DB_INSERT_ERROR: ${pendingError.message}` };
+      }
+      return { recorded: true, pendingFx: true, observationId: pendingData?.id };
     }
 
     const insertQuery = supabase
