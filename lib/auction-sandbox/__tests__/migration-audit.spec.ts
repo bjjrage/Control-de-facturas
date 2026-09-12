@@ -57,10 +57,12 @@ describe('0068 static safety audit', () => {
       expect(sql).toMatch(new RegExp(`grant execute on function public\\.${fn}[^;]*to service_role`));
     }
     expect(sql).not.toMatch(/grant execute on function public\.\w+\([^;]*to authenticated/);
-    // No anon/public execution either (an appended `to anon` grant would hand
-    // a SECURITY DEFINER allocator to unauthenticated callers).
-    expect(sql).not.toMatch(/grant execute on function public\.\w+\([^;]*to anon/);
-    expect(sql).not.toMatch(/grant execute on function public\.\w+\([^;]*to public[,\s;]/);
+    // No anon/public execution either — case/whitespace-tolerant (SQL is
+    // case-insensitive; a `GRANT … TO ANON` or double-spaced variant must
+    // also fail). An unauthenticated SECURITY DEFINER grant bypasses all
+    // empresa/token/MANAGE scoping.
+    expect(sql).not.toMatch(/grant\s+execute\s+on\s+function\s+public\.\w+\([^;]*to\s+anon/i);
+    expect(sql).not.toMatch(/grant\s+execute\s+on\s+function\s+public\.\w+\([^;]*to\s+public[,\s;]/i);
     // No client-clock smuggling under a renamed param.
     expect(sql).not.toMatch(/p_client/i);
   });
@@ -70,8 +72,9 @@ describe('0068 static safety audit', () => {
     const start = sql.indexOf('create table if not exists public.auction_sandbox_rooms');
     const roomsDef = sql.slice(start, sql.indexOf('\n);', start));
     expect(roomsDef).not.toMatch(/random_close_at/);
-    // No ALTER smuggling the secret into an RLS-readable table later.
-    expect(sql).not.toMatch(/add column random_close_at/i);
+    // No ALTER smuggling the secret into an RLS-readable table later —
+    // variant-tolerant (IF NOT EXISTS / quoted identifiers must also fail).
+    expect(sql).not.toMatch(/add\s+column\s+(if\s+not\s+exists\s+)?["']?random_close_at/i);
     // No SELECT policy on the private table (deny by default) — and RLS must
     // actually be enabled (an empty slice from a deleted line must not pass).
     expect(sql).toContain('auction_sandbox_room_private enable row level security');
@@ -146,10 +149,10 @@ describe('0068 static safety audit', () => {
       const src = read(f);
       // Direct event inserts were removed with the events_insert policy:
       // everything flows through append_sandbox_event. Ban upsert/backtick/
-      // spaced variants too — any direct write bypasses the allocator.
-      expect(src).not.toMatch(/from\(['"`]auction_sandbox_events['"`]\)\.(insert|upsert)/);
-      expect(src).not.toMatch(/from\(['"`]auction_sandbox_bids['"`]\)\.(insert|upsert)/);
-      expect(src).not.toMatch(/from\(\s+['"]auction_sandbox_(events|bids)['"]/);
+      // spaced variants too — any direct write bypasses the allocator
+      // (`admin.from ('…').insert(…)` is valid JS and must also fail).
+      expect(src).not.toMatch(/from\s*\(\s*['"`]auction_sandbox_events['"`]\s*\)\s*\.\s*(insert|upsert)/);
+      expect(src).not.toMatch(/from\s*\(\s*['"`]auction_sandbox_bids['"`]\s*\)\s*\.\s*(insert|upsert)/);
     }
     // ...except the RPC allocator call itself.
     const ops = read('app/(internal)/licitaciones/auction-lab/actions.ts');
@@ -255,12 +258,16 @@ describe('0069 static safety audit — policy-bound submit', () => {
 
   it('replaces the 4-arg signature with grants re-applied on the 5-arg form', () => {
     expect(sql69).toMatch(/drop function if exists public\.submit_sandbox_bid\(uuid, uuid, bigint, text\)/);
+    // Exactly ONE submit definition: a re-added ungated 4-arg overload
+    // alongside the 5-arg form would silently route 4-arg callers around
+    // the POLICY_SUPERSEDED gate.
+    expect(sql69.match(/create function public\.submit_sandbox_bid\(/g)?.length ?? 0).toBe(1);
     expect(sql69).toMatch(/security definer/);
     expect(sql69).toMatch(/revoke all on function public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\) from public, anon, authenticated;/);
     expect(sql69).toMatch(/grant execute on function public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\)[^;]*to service_role/);
-    // No anon/public execution on the new form either.
-    expect(sql69).not.toMatch(/grant execute on function public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\)[^;]*to anon/);
-    expect(sql69).not.toMatch(/grant execute on function public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\)[^;]*to public[,\s;]/);
+    // No anon/public execution on the new form either (case-tolerant).
+    expect(sql69).not.toMatch(/grant\s+execute\s+on\s+function\s+public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\)[^;]*to\s+anon/i);
+    expect(sql69).not.toMatch(/grant\s+execute\s+on\s+function\s+public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\)[^;]*to\s+public[,\s;]/i);
     expect(sql69).not.toMatch(/p_client/i);
   });
 
@@ -268,6 +275,13 @@ describe('0069 static safety audit — policy-bound submit', () => {
     const ops = read('app/(internal)/licitaciones/auction-lab/actions.ts');
     expect(ops).toMatch(/rpcSubmit\(admin, bundle\.room\.id, bot\.id, pricePyg, bidKey, policy\.version\)/);
     expect(ops).toMatch(/rpcSubmit\(res\.admin, roomId, bot\.id, pricePyg, bidKey, policy\.version\)/);
+    // Universal: EVERY rpcSubmit call in operator actions binds a version —
+    // an added unversioned call (NULL skips the gate) must fail loudly.
+    const calls = ops.split('\n').filter((l) => /(?<!\.)rpcSubmit\(/.test(l) && !l.trim().startsWith('async function rpcSubmit'));
+    expect(calls.length).toBeGreaterThan(0);
+    for (const line of calls) {
+      expect(line).toContain('policy.version');
+    }
     const join = read('app/auction-lab/join/[token]/actions.ts');
     expect(join).not.toContain('p_expected_policy_version');
   });
