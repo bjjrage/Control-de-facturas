@@ -20,6 +20,7 @@ export function WatchConsole({ token }: { token: string }) {
       const res = await getWatchView(token);
       if (res.error) {
         setError(res.error);
+        if (/inválido|vencido/i.test(res.error)) controllerRef.current?.stop();
         return;
       }
       if (res.view) {
@@ -28,7 +29,11 @@ export function WatchConsole({ token }: { token: string }) {
         if (res.view.room.status === 'CLOSED') controllerRef.current?.stop();
       }
     } catch (e) {
-      if (isNextRedirect(e)) throw e;
+      if (isNextRedirect(e)) {
+        controllerRef.current?.stop();
+        window.location.reload();
+        return;
+      }
       setError('Error de conexión. Revisá tu sesión si persiste.');
     }
   }, [token]);
@@ -45,6 +50,23 @@ export function WatchConsole({ token }: { token: string }) {
       controllerRef.current = null;
     };
   }, []);
+
+  // A token error with a loaded view means the link died mid-session:
+  // replace the stale board instead of a live-looking screen + banner.
+  const linkDead = error !== null && /inválido|vencido/i.test(error);
+  if (linkDead) {
+    return (
+      <div className="min-h-screen bg-[var(--background)] px-4 py-8">
+        <div className="mx-auto w-full max-w-3xl space-y-4">
+          <Image src="/logo/niupack-wordmark.svg" alt="niupack" width={120} height={26} priority />
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-[13px] space-y-2">
+            <p className="font-semibold text-[14px]">Este enlace ya no es válido.</p>
+            <p className="text-[var(--muted)]">{error} Pedile al operador el link actual de observer.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (error && !view) {
     return (
@@ -69,7 +91,7 @@ export function WatchConsole({ token }: { token: string }) {
         <div className="flex items-center justify-between">
           <Image src="/logo/niupack-wordmark.svg" alt="niupack" width={120} height={26} priority />
           <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> SUBASTA EN VIVO · SIMULACIÓN
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> {view.room.status === 'CLOSED' ? 'SUBASTA CERRADA · SIMULACIÓN' : view.room.status === 'DRAFT' ? 'SIMULACIÓN SIN INICIAR' : 'SUBASTA EN VIVO · SIMULACIÓN'}
           </span>
         </div>
 

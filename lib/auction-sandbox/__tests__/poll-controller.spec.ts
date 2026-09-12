@@ -183,6 +183,24 @@ describe('PollController', () => {
     // NOTE: `polling` intentionally left pending (stuck poll simulation).
   });
 
+  it('drain-unknown never locks retries: nothing ran, so retry is immediately allowed', async () => {
+    const ctl = new PollController(
+      async () => {
+        await new Promise(() => {}); // stuck forever
+      },
+      { intervalMs: 1000 }
+    );
+    const stuck = ctl.tick();
+    void stuck;
+    await new Promise((r) => setTimeout(r, 10));
+    const first = await ctl.runMutation(async () => 'x', 5000, 'Start', { drainTimeoutMs: 20 });
+    expect(first.status).toBe('unknown');
+    // No orphan was raised (mutation never started): no ReconcilingError.
+    expect(ctl.hasUnsettledMutation).toBe(false);
+    const second = await ctl.runMutation(async () => 'y', 5000, 'Start', { drainTimeoutMs: 20 });
+    expect(second).toEqual({ status: 'unknown', label: 'Start', elapsedMs: 20, detail: expect.stringContaining('Recargá') });
+  });
+
   it('GAP3: timeout holds mutations, keeps reads flowing, refreshes on settle', async () => {
     const order: string[] = [];
     let calls = 0;

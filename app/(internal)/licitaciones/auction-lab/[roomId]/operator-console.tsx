@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { PolicyConfigForm } from '@/components/auction-bot/policy-config-form';
 import { FrozenAuctionPolicy } from '@/lib/auction-bot/types';
-import { PollController, TimeoutError, isNextRedirect, ReconcilingError } from '@/lib/auction-sandbox/poll-controller';
+import { PollController, TimeoutError, isNextRedirect, ReconcilingError, DRAIN_TIMEOUT_MESSAGE } from '@/lib/auction-sandbox/poll-controller';
 import {
   authorizeAssistedBid,
   authorizeSandboxPolicy,
@@ -56,8 +56,14 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
         setError(null);
       }
     } catch (e) {
-      // Auth expiry (redirect digest) must propagate to Next, never swallow.
-      if (isNextRedirect(e)) throw e;
+      // Auth expiry arrives as a redirect digest. It must never be swallowed
+      // into a frozen view: stop polling and send the user to login. (A
+      // rethrow would die inside the controller's guarded tick.)
+      if (isNextRedirect(e)) {
+        controllerRef.current?.stop();
+        window.location.assign('/login');
+        return;
+      }
       setError('Error de conexión. Revisá tu sesión si persiste.');
     }
   }, [roomId, canManage]);
@@ -100,12 +106,18 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
         ? await ctl.runMutation(fn, 25000, label)
         : { status: 'done' as const, value: await fn() };
       if (out.status === 'unknown') {
+        if (out.detail === DRAIN_TIMEOUT_MESSAGE) {
+          // Nothing ran (a stuck read blocked the mutation): safe to retry,
+          // so do NOT enter reconciling lock — that path has no orphan and
+          // would wedge the buttons with no one to clear them.
+          setError(out.detail);
+          return;
+        }
         // Timeout is NOT a verdict: UI enters reconciling mode (mutations
         // locked, reads flowing) until the orphan settles or the cap hits.
         setReconciling(true);
         setError(
-          out.detail ??
-            `Sin confirmación: ${label} tardó demasiado. Mirá el estado actual de la sala: si ya refleja el cambio, no hace falta reintentar.`
+          `Sin confirmación: ${label} tardó demasiado. Mirá el estado actual de la sala: si ya refleja el cambio, no hace falta reintentar.`
         );
         return;
       }
@@ -141,6 +153,10 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
         ? await ctl.runMutation(() => authorizeSandboxPolicy(roomId, frozen, frozen.authorizedBy), 25000, 'Autorizar policy')
         : { status: 'done' as const, value: await authorizeSandboxPolicy(roomId, frozen, frozen.authorizedBy) };
       if (out.status === 'unknown') {
+        if (out.detail === DRAIN_TIMEOUT_MESSAGE) {
+          setError(out.detail);
+          return;
+        }
         setReconciling(true);
         setError('Sin confirmación: la autorización tardó demasiado. Revisá si aparece la nueva versión antes de reintentar.');
         return;
@@ -222,7 +238,7 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
           >
             Regenerar links
           </Button>
-          <Button variant="secondary" className="h-8 text-xs" onClick={() => setShowPolicy((s) => !s)}>
+          <Button variant="secondary" className="h-8 text-xs" disabled={busy !== null || reconciling} onClick={() => setShowPolicy((s) => !s)}>
             {showPolicy ? 'Ocultar policy' : 'Cambiar policy'}
           </Button>
             </>
@@ -258,6 +274,7 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
       {links ? (
         <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-2 text-[13px]">
           <p className="font-semibold text-emerald-600 dark:text-emerald-400">Links nuevos — se muestran una sola vez.</p>
+          <p className="text-[11px] text-[var(--muted)]">Copiá ambos links antes de salir o recargar: si perdés uno vas a tener que regenerar (y el otro se invalida).</p>
           {([['competidor', links.competitor], ['observer', links.observer]] as const).map(([which, url]) => (
             <div key={which} className="flex items-center gap-2">
               <span className="text-[11px] uppercase text-[var(--muted)] w-24 shrink-0">{which}</span>
