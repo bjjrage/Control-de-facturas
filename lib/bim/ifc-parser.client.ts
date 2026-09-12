@@ -12,6 +12,8 @@
 "use client";
 
 import * as WebIFC from "web-ifc";
+import { selectCanonicalQuantity, type RawQuantityCandidate } from "./quantity-policy";
+import { readProjectUnitScales, scaleForKind, type ProjectUnitScales } from "./unit-conversion";
 
 export interface ParsedIfcElement {
   ifcGuid: string;
@@ -35,6 +37,20 @@ export interface ParsedIfcModel {
 
 // Tipos constructivos relevantes para cómputo métrico. Se ignoran a propósito
 // tipos puramente espaciales/organizativos (IfcSpace, IfcBuildingStorey, etc.)
+//
+// AUDITORÍA DOUBLE COUNTING (decomposición/assemblies): ninguno de estos
+// tipos es un CONTENEDOR de decomposición (IfcElementAssembly, IfcCurtainWall)
+// — todos son elementos "hoja". Por eso hoy no hay riesgo de contar la misma
+// superficie/volumen dos veces por IfcRelAggregates padre+hijo (ej. una
+// IfcCurtainWall Y sus IfcPlate/IfcMember hijos, ambos representando el área
+// del mismo paño de vidrio). SÍ puede pasar que un IfcStair (kind: count o
+// volume) tenga IfcRailing hijos (kind: length) por IfcRelAggregates — pero
+// como son unidades distintas y normalmente van a rubros distintos
+// (estructura de escalera vs baranda), aggregateElementsForBudgetItem los
+// separa solo. ADVERTENCIA para quien agregue tipos a esta lista: si en el
+// futuro se agrega un tipo contenedor (IfcElementAssembly, IfcCurtainWall,
+// IfcRoof como ensamble de IfcSlab), auditar de nuevo — sumar padre + hijos
+// mapeados al mismo rubro SÍ sería double counting real.
 const RELEVANT_TYPES: { type: number; name: string; preferredQty: Array<"volume" | "area" | "length" | "count"> }[] = [
   { type: WebIFC.IFCWALL, name: "IfcWall", preferredQty: ["area", "volume", "length"] },
   { type: WebIFC.IFCWALLSTANDARDCASE, name: "IfcWallStandardCase", preferredQty: ["area", "volume", "length"] },
@@ -108,12 +124,14 @@ async function buildStoreyMap(api: WebIFC.IfcAPI, modelID: number): Promise<Map<
   return map;
 }
 
-export function extractQuantity(
-  psets: Array<Record<string, unknown>>,
-  preferredKinds: Array<"volume" | "area" | "length" | "count">
-): { kind: "length" | "area" | "volume" | "count" | "weight"; value: number; property: string } | null {
-  const found: { kind: "length" | "area" | "volume" | "count" | "weight"; value: number; property: string }[] = [];
-
+// Recolecta TODAS las quantities Qto disponibles del elemento (sin elegir
+// todavía) y delega la elección de la canónica a quantity-policy.ts — nunca
+// "la primera que aparece". Si hay ambigüedad real (ej. dos NetSideArea con
+// valores distintos en dos Quantity Sets), se falla cerrado: se documenta en
+// `properties._quantity_ambiguous` (ver parseIfcFile) y quantity_value queda
+// null en vez de adivinar.
+export function collectQuantityCandidates(psets: Array<Record<string, unknown>>): RawQuantityCandidate[] {
+  const candidates: RawQuantityCandidate[] = [];
   for (const pset of psets) {
     const isQto = pset.type === IFCELEMENTQUANTITY_TYPE || Array.isArray(pset.Quantities);
     if (!isQto) continue;
@@ -126,16 +144,58 @@ export function extractQuantity(
       const raw = unwrap(q[spec.field]);
       const value = typeof raw === "number" ? raw : Number(raw);
       if (!Number.isFinite(value)) continue;
-      const qName = String(unwrap(q.Name) ?? spec.field);
-      found.push({ kind: spec.kind, value, property: `${psetName}.${qName}` });
+      const name = String(unwrap(q.Name) ?? spec.field);
+      candidates.push({ kind: spec.kind, value, name, psetName });
     }
   }
+  return candidates;
+}
 
-  for (const kind of preferredKinds) {
-    const match = found.find((f) => f.kind === kind);
-    if (match) return match;
+export function extractQuantity(
+  psets: Array<Record<string, unknown>>,
+  preferredKinds: Array<"volume" | "area" | "length" | "count">
+): { kind: "length" | "area" | "volume" | "count" | "weight"; value: number; property: string; ambiguous: false } | null {
+  const selection = selectCanonicalQuantity(collectQuantityCandidates(psets), preferredKinds);
+  if (!selection || selection.ambiguous) return null;
+  return selection;
+}
+
+// getMaterialsProperties(recursive=true) puede devolver varias formas según
+// cómo el autor del IFC asoció el material — nunca un IfcMaterial suelto en
+// la práctica para muros/losas de Revit/ARCHICAD:
+//   IfcMaterial                    -> .Name
+//   IfcMaterialList                -> .Materials[].Name
+//   IfcMaterialLayerSetUsage       -> .ForLayerSet.MaterialLayers[].Material.Name
+//   IfcMaterialLayerSet            -> .MaterialLayers[].Material.Name
+//   IfcMaterialConstituentSet      -> .MaterialConstituents[].Material.Name (IFC4)
+// Si hay varias capas con materiales distintos, se listan todas (ej. muro
+// multicapa "Ladrillo / Aislación / Yeso") — de una sola no se pierde nada.
+export function extractMaterialNames(materials: Array<Record<string, unknown>> | undefined): string | null {
+  const names = new Set<string>();
+  for (const m of materials ?? []) {
+    const direct = unwrap(m.Name) as string | undefined;
+    if (direct) names.add(direct);
+
+    const list = m.Materials as Array<Record<string, unknown>> | undefined;
+    for (const mat of list ?? []) {
+      const n = unwrap(mat.Name) as string | undefined;
+      if (n) names.add(n);
+    }
+
+    const layerSet = (m.ForLayerSet as Record<string, unknown> | undefined) ?? (m.MaterialLayers ? m : undefined);
+    const layers = (layerSet?.MaterialLayers as Array<Record<string, unknown>> | undefined) ?? [];
+    for (const layer of layers) {
+      const n = unwrap((layer.Material as Record<string, unknown> | undefined)?.Name) as string | undefined;
+      if (n) names.add(n);
+    }
+
+    const constituents = (m.MaterialConstituents as Array<Record<string, unknown>> | undefined) ?? [];
+    for (const c of constituents) {
+      const n = unwrap((c.Material as Record<string, unknown> | undefined)?.Name) as string | undefined;
+      if (n) names.add(n);
+    }
   }
-  return found[0] ?? null;
+  return names.size > 0 ? [...names].join(" / ") : null;
 }
 
 function extractNumericPsetFallback(
@@ -185,6 +245,15 @@ export async function parseIfcFile(
     onProgress?.("Mapeando niveles del edificio…");
     const storeyMap = await buildStoreyMap(api, modelID);
 
+    // Escalas de unidad del proyecto (ver unit-conversion.ts): un
+    // IfcQuantityLength puede estar en milímetros aunque persistamos todo en
+    // metros — hay que leer la unidad DECLARADA por el archivo, nunca asumir.
+    let unitScales: ProjectUnitScales = { lengthToMetres: null, areaToSquareMetres: null, volumeToCubicMetres: null };
+    const projectIds = api.GetLineIDsWithType(modelID, WebIFC.IFCPROJECT, false);
+    if (projectIds.size() > 0) {
+      unitScales = await readProjectUnitScales(api, modelID, projectIds.get(0));
+    }
+
     const elements: ParsedIfcElement[] = [];
     let processed = 0;
 
@@ -207,12 +276,14 @@ export async function parseIfcFile(
 
         let material: string | null = null;
         try {
-          const materials = await api.properties.getMaterialsProperties(modelID, expressID, false, false);
-          const first = materials?.[0];
-          material =
-            (unwrap(first?.Name) as string) ||
-            (unwrap((first?.Materials as Array<Record<string, unknown>>)?.[0]?.Name) as string) ||
-            null;
+          // recursive=true: Revit/ARCHICAD casi nunca asocian un IfcMaterial
+          // suelto, sino un IfcMaterialLayerSetUsage (muro multicapa) — sin
+          // recursive=true la respuesta queda en la capa "usage" sin resolver
+          // hasta el nombre del material real (bug real detectado con el
+          // fixture de ARCHICAD: material quedaba null siempre para muros
+          // reales aunque sí tuvieran material asignado).
+          const materials = await api.properties.getMaterialsProperties(modelID, expressID, true, false);
+          material = extractMaterialNames(materials);
         } catch {
           // sin material asociado
         }
@@ -224,16 +295,43 @@ export async function parseIfcFile(
           psets = [];
         }
 
-        const qto = extractQuantity(psets, typeDef.preferredQty);
+        const qtoSelection = selectCanonicalQuantity(collectQuantityCandidates(psets), typeDef.preferredQty);
+        const qto = qtoSelection && !qtoSelection.ambiguous ? qtoSelection : null;
         const fallback = qto ? null : extractNumericPsetFallback(psets);
 
-        const quantityType = qto?.kind ?? fallback?.kind ?? null;
-        const quantityValue = qto?.value ?? fallback?.value ?? null;
-        const quantitySource: "IFC_QTO" | "IFC_PROPERTY" | null = qto ? "IFC_QTO" : fallback ? "IFC_PROPERTY" : null;
-        const quantityProperty = qto?.property ?? fallback?.property ?? null;
+        const rawKind = qto?.kind ?? fallback?.kind ?? null;
+        const rawValue = qto?.value ?? fallback?.value ?? null;
+        const rawSource: "IFC_QTO" | "IFC_PROPERTY" | null = qto ? "IFC_QTO" : fallback ? "IFC_PROPERTY" : null;
+        const rawProperty = qto?.property ?? fallback?.property ?? null;
+
+        let quantityType = rawKind;
+        let quantityValue = rawValue;
+        let quantitySource = rawSource;
+        let quantityProperty = rawProperty;
+        let unitUnresolved = false;
+
+        if (rawKind && rawValue != null) {
+          const scale = scaleForKind(rawKind, unitScales);
+          if (scale == null) {
+            // Fail closed: no se pudo determinar con certeza la unidad de
+            // proyecto para este tipo de magnitud (no es un IfcSIUnit
+            // reconocido, ej. pies/pulgadas) — mejor no reportar la cantidad
+            // que arriesgar un valor mal escalado silenciosamente.
+            quantityType = null;
+            quantityValue = null;
+            quantitySource = null;
+            quantityProperty = null;
+            unitUnresolved = true;
+          } else {
+            quantityValue = rawValue * scale;
+          }
+        }
         const quantityUnit = quantityType ? QTO_UNIT_BY_KIND[quantityType] : null;
 
         const flatProps: Record<string, unknown> = {};
+        if (unitUnresolved) {
+          flatProps["_quantity_unit_unresolved"] = `${rawKind} (${rawProperty}) — unidad de proyecto no reconocida como SI`;
+        }
         for (const pset of psets) {
           const psetName = String(unwrap(pset.Name) ?? "pset");
           const props = (pset.HasProperties as Array<Record<string, unknown>>) ?? [];
@@ -242,6 +340,15 @@ export async function parseIfcFile(
             const pVal = unwrap((p as { NominalValue?: unknown }).NominalValue);
             if (pName) flatProps[`${psetName}.${pName}`] = pVal;
           }
+        }
+        // Ambigüedad real (dos quantities del mismo rango de prioridad con
+        // valores distintos): se deja constancia auditable en vez de
+        // silenciarla — la cantidad queda en null (fail closed) y quien
+        // revise el elemento ve por qué.
+        if (qtoSelection?.ambiguous) {
+          flatProps["_quantity_ambiguous"] = qtoSelection.candidates.map(
+            (c) => `${c.psetName}.${c.name}=${c.value}`
+          );
         }
 
         elements.push({

@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/browser";
 import { formatNumber, formatMoney } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { aggregateElementsForBudgetItem } from "@/lib/bim/matching";
+import { aggregateElementsForBudgetItem, unitsCompatibleForCosting } from "@/lib/bim/matching";
+import { findElementByExpressId } from "@/lib/bim/identity";
 import type { BimModel, BimElement, BimBudgetMatch, BudgetItem } from "@/lib/types";
 import type { IfcViewerHandle } from "@/lib/bim/ifc-viewer.client";
 import {
@@ -90,7 +91,7 @@ export function BimSection({ projectId }: { projectId: string }) {
               setSelectedElementId(null);
               return;
             }
-            const el = elements.find((e) => e.bim_model_id === selectedModelId && e.express_id === expressId);
+            const el = selectedModelId ? findElementByExpressId(elements, selectedModelId, expressId) : null;
             setSelectedElementId(el?.id ?? null);
           },
         });
@@ -410,6 +411,23 @@ export function BimSection({ projectId }: { projectId: string }) {
                               {selectedElement.quantity_property ? ` · ${selectedElement.quantity_property}` : ""}
                             </div>
                           </>
+                        ) : Array.isArray(selectedElement.properties?._quantity_ambiguous) ? (
+                          <div className="text-[var(--error)]">
+                            Cantidad ambigua — hay más de un Quantity Set candidato con valores distintos, requiere
+                            revisión manual:
+                            <ul className="list-disc list-inside mt-1 font-mono text-[11px]">
+                              {(selectedElement.properties._quantity_ambiguous as string[]).map((c) => (
+                                <li key={c}>{c}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : typeof selectedElement.properties?._quantity_unit_unresolved === "string" ? (
+                          <div className="text-[var(--error)]">
+                            Unidad de proyecto no reconocida — no se puede convertir de forma segura a m/m²/m³:
+                            <div className="font-mono text-[11px] mt-1">
+                              {selectedElement.properties._quantity_unit_unresolved as string}
+                            </div>
+                          </div>
                         ) : (
                           <span className="text-[var(--muted)]">Sin cantidad extraída del IFC</span>
                         )}
@@ -425,18 +443,16 @@ export function BimSection({ projectId }: { projectId: string }) {
                               ✓ {confirmedItem.code} — {confirmedItem.description}
                             </div>
                             {selectedElement.quantity_value != null && confirmedItem.unit_price != null ? (
-                              selectedElement.quantity_unit &&
-                              confirmedItem.unit &&
-                              selectedElement.quantity_unit !== confirmedItem.unit ? (
-                                <div className="text-[11px] text-[var(--error)]">
-                                  Unidad BIM ({selectedElement.quantity_unit}) incompatible con la unidad del rubro (
-                                  {confirmedItem.unit}) — no se calcula total.
-                                </div>
-                              ) : (
+                              unitsCompatibleForCosting(selectedElement.quantity_unit, confirmedItem.unit) ? (
                                 <div className="font-mono text-[13px]">
                                   {formatNumber(selectedElement.quantity_value, 2)} {selectedElement.quantity_unit} ×{" "}
                                   {formatMoney(confirmedItem.unit_price, "PYG")} ={" "}
                                   <strong>{formatMoney(selectedElement.quantity_value * confirmedItem.unit_price, "PYG")}</strong>
+                                </div>
+                              ) : (
+                                <div className="text-[11px] text-[var(--error)]">
+                                  Unidad BIM ({selectedElement.quantity_unit ?? "sin unidad"}) incompatible con la
+                                  unidad del rubro ({confirmedItem.unit ?? "sin unidad"}) — no se calcula total.
                                 </div>
                               )
                             ) : (

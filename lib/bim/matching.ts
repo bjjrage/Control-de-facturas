@@ -45,6 +45,22 @@ export function normalizeUnit(raw: string | null | undefined): string | null {
   return UNIT_ALIASES[norm] ?? null;
 }
 
+// Autoridad única para decidir si cantidad BIM × precio unitario puede
+// calcularse. A propósito MÁS estricta que `isTechnicallyCompatible`: si
+// cualquiera de las dos unidades no se pudo normalizar (texto no reconocido,
+// nulo, vacío), o normalizan a magnitudes distintas (m2 vs m3, kg vs u...),
+// se falla cerrado. Nunca convierte implícitamente entre magnitudes distintas
+// (m2<->m3, kg<->u); una conversión segura dentro de la MISMA magnitud (ej.
+// kg<->t) requeriría una función explícita y testeada aparte — no existe hoy.
+export function unitsCompatibleForCosting(
+  bimUnit: string | null | undefined,
+  economicUnit: string | null | undefined
+): boolean {
+  const a = normalizeUnit(bimUnit);
+  const b = normalizeUnit(economicUnit);
+  return a !== null && b !== null && a === b;
+}
+
 // ---------------------------------------------------------------------------
 // Extracción de especificaciones técnicas desde texto libre
 // ---------------------------------------------------------------------------
@@ -78,6 +94,13 @@ export function extractSpecs(text: string): ExtractedSpecs {
 // catálogo: "15 cm" en el Excel vs "150 mm" u observado 148mm real en el IFC).
 const THICKNESS_TOLERANCE_MM = 15;
 
+// NOTA DE ALCANCE: este filtro es deliberadamente permisivo cuando una
+// unidad no se puede normalizar (candidatos con unidad no reconocida no se
+// descartan de las SUGERENCIAS, para no ocultarle al usuario un posible match
+// legítimo con unidad mal escrita). NO es la autoridad para decidir si se
+// puede calcular un total en guaraníes — para eso usar
+// `unitsCompatibleForCosting`, que sí falla cerrado (unidad ausente o no
+// reconocida en cualquiera de los dos lados = NO se calcula).
 export function isTechnicallyCompatible(element: BimElement, item: BudgetItem): boolean {
   const elementUnit = normalizeUnit(element.quantity_unit);
   const itemUnit = normalizeUnit(item.unit);
@@ -160,17 +183,18 @@ export interface AggregationResult {
 }
 
 export function aggregateElementsForBudgetItem(elements: BimElement[], item: BudgetItem): AggregationResult {
-  const itemUnit = normalizeUnit(item.unit);
   const compatible: BimElement[] = [];
   const incompatible: BimElement[] = [];
 
   for (const el of elements) {
-    const elUnit = normalizeUnit(el.quantity_unit);
     if (el.quantity_value == null) continue;
-    if (itemUnit && elUnit && itemUnit !== elUnit) {
-      incompatible.push(el);
-    } else {
+    // Fail closed: unidad ausente/no reconocida en cualquiera de los dos
+    // lados EXCLUYE al elemento de la suma (antes se incluía por defecto —
+    // bug real corregido en este batch de certificación).
+    if (unitsCompatibleForCosting(el.quantity_unit, item.unit)) {
       compatible.push(el);
+    } else {
+      incompatible.push(el);
     }
   }
 

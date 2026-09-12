@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isTechnicallyCompatible, normalizeUnit, suggestMatches } from "../matching";
+import { aggregateElementsForBudgetItem, isTechnicallyCompatible, normalizeUnit, suggestMatches, unitsCompatibleForCosting } from "../matching";
 import type { BimElement, BudgetItem } from "@/lib/types";
 
 function makeElement(overrides: Partial<BimElement> = {}): BimElement {
@@ -115,5 +115,55 @@ describe("suggestMatches", () => {
     const candidates = [makeBudgetItem({ unit_price: null })];
     const results = suggestMatches(element, candidates);
     expect(results[0].budgetItem.unit_price).toBeNull();
+  });
+});
+
+describe("unitsCompatibleForCosting — autoridad para calcular cantidad × precio (fail closed)", () => {
+  it("acepta unidades iguales tras normalizar: m, m2, m3, u", () => {
+    expect(unitsCompatibleForCosting("m", "ML")).toBe(true);
+    expect(unitsCompatibleForCosting("m2", "m²")).toBe(true);
+    expect(unitsCompatibleForCosting("m3", "Metros Cúbicos")).toBe(true);
+    expect(unitsCompatibleForCosting("u", "unidad")).toBe(true);
+  });
+
+  it("nunca convierte implícitamente entre magnitudes distintas: BIM m3 + rubro m2 no calcula", () => {
+    expect(unitsCompatibleForCosting("m3", "m2")).toBe(false);
+    expect(unitsCompatibleForCosting("kg", "u")).toBe(false);
+  });
+
+  it("falla cerrado si cualquiera de las dos unidades no se reconoce (antes fallaba abierto)", () => {
+    expect(unitsCompatibleForCosting("cosa-rara", "m2")).toBe(false);
+    expect(unitsCompatibleForCosting("m2", "cosa-rara")).toBe(false);
+    expect(unitsCompatibleForCosting(null, "m2")).toBe(false);
+    expect(unitsCompatibleForCosting("m2", null)).toBe(false);
+    expect(unitsCompatibleForCosting(null, null)).toBe(false);
+  });
+});
+
+describe("aggregateElementsForBudgetItem — agregación N elementos -> 1 rubro sin double counting", () => {
+  it("suma solo elementos con unidad compatible con el rubro; excluye los demás (fail closed)", () => {
+    const item = makeBudgetItem({ unit: "m2", quantity: 50 });
+    const elements = [
+      makeElement({ id: "wall-a", quantity_value: 18, quantity_unit: "m2" }),
+      makeElement({ id: "wall-b", quantity_value: 23, quantity_unit: "m2" }),
+      makeElement({ id: "wall-c", quantity_value: 14, quantity_unit: "m2" }),
+      // Unidad no reconocida: antes se sumaba igual (bug), ahora se excluye.
+      makeElement({ id: "wall-d", quantity_value: 999, quantity_unit: "cosa-rara" }),
+      // Volumen en vez de área: nunca se mezcla con la suma de área.
+      makeElement({ id: "column-e", quantity_value: 5, quantity_unit: "m3" }),
+    ];
+
+    const result = aggregateElementsForBudgetItem(elements, item);
+
+    expect(result.totalQuantity).toBe(55); // 18 + 23 + 14, caso del enunciado del batch
+    expect(result.compatible.map((e) => e.id).sort()).toEqual(["wall-a", "wall-b", "wall-c"]);
+    expect(result.incompatible.map((e) => e.id).sort()).toEqual(["column-e", "wall-d"]);
+  });
+
+  it("no cuenta elementos sin cantidad extraída", () => {
+    const item = makeBudgetItem({ unit: "m2" });
+    const elements = [makeElement({ quantity_value: null, quantity_unit: "m2" })];
+    const result = aggregateElementsForBudgetItem(elements, item);
+    expect(result.totalQuantity).toBeNull();
   });
 });
