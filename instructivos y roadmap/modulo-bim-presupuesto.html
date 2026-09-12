@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BIM + Cómputo Métrico — Bloque de conocimiento</title>
+<style>
+:root{--bg:#0b0d10;--panel:#11151a;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.14);--text:#f5f7fa;--muted:#96a1ad;--accent:#8ee3c6;--blue:#77b8ff;--warn:#f4c66d;--danger:#ff8b8b;--ok:#79deb3}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(circle at 10% -10%,rgba(142,227,198,.07),transparent 25%),radial-gradient(circle at 90% 0%,rgba(119,184,255,.07),transparent 30%),var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{position:sticky;top:0;z-index:10;background:rgba(11,13,16,.86);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}.top{max-width:1400px;margin:auto;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;gap:15px}.brand{display:flex;gap:11px;align-items:center}.logo{width:34px;height:34px;border:1px solid var(--line2);border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.03)}.logo:before{content:"";width:13px;height:13px;border:2px solid var(--accent);border-radius:4px;transform:rotate(45deg)}h1{font-size:14px;margin:0}.sub{font-size:11px;color:var(--muted);margin-top:2px}.actions{display:flex;gap:7px}.btn{border:1px solid var(--line);background:rgba(255,255,255,.025);color:#cbd2d9;border-radius:10px;padding:8px 10px;font-size:10px;cursor:pointer}.btn.primary{border-color:rgba(142,227,198,.22);background:rgba(142,227,198,.07);color:#e8fff7}
+.container{max-width:1400px;margin:auto;padding:26px 22px 52px}.card{border:1px solid var(--line);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.012))}
+.hero{display:grid;grid-template-columns:1.3fr .7fr;gap:16px}.hero-main,.hero-side{padding:22px}.kicker{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:800}.hero h2{font-size:31px;line-height:1.07;letter-spacing:-.035em;margin:8px 0 10px}.hero p{font-size:12.5px;line-height:1.55;color:var(--muted);margin:0;max-width:760px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.stat{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(255,255,255,.02)}.stat b{font-size:15px;display:block}.stat span{font-size:9.5px;color:var(--muted)}
+.idx{position:sticky;top:67px;z-index:9;margin-top:16px;padding:11px;display:flex;gap:7px;flex-wrap:wrap;background:rgba(11,13,16,.86);backdrop-filter:blur(18px)}.idx a{border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--muted);border-radius:999px;padding:7px 9px;font-size:9.5px;cursor:pointer;text-decoration:none}.idx a:hover{color:#fff;border-color:var(--line2)}.idx a.fut{border-style:dashed}
+.section{margin-top:24px;scroll-margin-top:140px}.title{display:flex;justify-content:space-between;align-items:end;margin-bottom:10px;gap:10px}.title h3{margin:0;font-size:14px}.title h3 .n{color:var(--blue);font-weight:750;margin-right:8px}.title p{margin:0;color:var(--muted);font-size:10.5px;text-align:right}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.grid1{display:grid;grid-template-columns:minmax(0,1fr);gap:11px}
+.item{border:1px solid var(--line);border-radius:17px;background:rgba(255,255,255,.016);overflow:hidden}.item .head{padding:14px 15px;display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:start}.num{width:31px;height:31px;border:1px solid var(--line);border-radius:10px;display:grid;place-items:center;color:var(--blue);background:rgba(119,184,255,.05);font-size:10px;font-weight:750}.item h4{margin:0 0 4px;font-size:12.5px}.summary{margin:0;color:var(--muted);font-size:10.8px;line-height:1.45}.item .body{border-top:1px solid rgba(255,255,255,.04);padding:12px 15px 15px;font-size:11px;color:var(--muted);line-height:1.55}.item .body b,.item .body strong{color:#e2e7ec}.item .body code{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:var(--accent);background:rgba(142,227,198,.06);padding:1px 5px;border-radius:6px}.item .body ul{margin:6px 0 0;padding-left:16px}.item .body li{margin:3px 0}
+.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.badge{font-size:8.5px;padding:4px 6px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}.badge.ok{color:var(--ok);border-color:rgba(121,222,179,.22);background:rgba(121,222,179,.05)}.badge.warn{color:#ffd28a;border-color:rgba(244,198,109,.22);background:rgba(244,198,109,.06)}.badge.info{color:#dcecff;border-color:rgba(119,184,255,.2);background:rgba(119,184,255,.06)}.badge.fut{color:#ffb1b1;border-color:rgba(255,139,139,.2);background:rgba(255,139,139,.05)}.badge.legacy{color:#c9b8ff;border-color:rgba(160,140,255,.2);background:rgba(160,140,255,.05)}
+.state{min-width:88px;text-align:center;padding:6px 7px;border:1px solid var(--line);border-radius:999px;font-size:8.5px;color:var(--muted)}.state.done{color:var(--ok);border-color:rgba(121,222,179,.22);background:rgba(121,222,179,.05)}.state.future{color:var(--danger);border-color:rgba(255,139,139,.22);background:rgba(255,139,139,.05)}
+.flow{padding:16px;overflow:auto}.flowline{display:flex;align-items:stretch;min-width:920px}.node{flex:1;min-width:120px;text-align:center;padding:11px;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.02);font-size:9px;color:var(--muted)}.node strong{display:block;color:#fff;font-size:10.5px;margin-bottom:3px}.node.hot{border-color:rgba(244,198,109,.25);background:rgba(244,198,109,.05)}.node.hot strong{color:#ffd28a}.arrow{padding:0 7px;color:#4b5560;align-self:center}
+.vflow{display:flex;flex-direction:column;gap:0}.vnode{border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.02);padding:10px 12px;font-size:10.5px;color:var(--muted)}.vnode strong{display:block;color:#fff;font-size:11px;margin-bottom:2px}.vnode code{font-family:ui-monospace,Consolas,monospace;font-size:10px;color:var(--accent)}.varrow{text-align:center;color:#4b5560;padding:3px 0;font-size:11px}.vnode.hot{border-color:rgba(244,198,109,.25);background:rgba(244,198,109,.05)}.vnode.hot strong{color:#ffd28a}
+table.tbl{width:100%;border-collapse:collapse;font-size:10.8px;margin-top:8px}table.tbl th{text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:7px 9px;border-bottom:1px solid var(--line2)}table.tbl td{padding:7px 9px;border-bottom:1px solid rgba(255,255,255,.05);color:#dbe1e7;vertical-align:top}table.tbl tr:last-child td{border-bottom:0}table.tbl code{font-family:ui-monospace,Consolas,monospace;font-size:10px;color:var(--accent)}
+.kv{display:grid;grid-template-columns:1fr auto;gap:8px;padding:7px 0;border-top:1px solid rgba(255,255,255,.04);font-size:11px}.kv:first-of-type{border-top:0;padding-top:0}.kv span:first-child{color:var(--muted)}.kv b{font-weight:600;color:#e2e7ec;text-align:right}
+.mono{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:var(--accent)}
+.note{margin-top:12px;padding:14px 16px;border:1px solid rgba(142,227,198,.14);border-radius:16px;background:rgba(142,227,198,.03)}.note strong{font-size:11px}.note p{margin:6px 0 0;color:var(--muted);font-size:10.8px;line-height:1.5}
+.warnbox{margin-top:12px;padding:14px 16px;border:1px solid rgba(244,198,109,.2);border-radius:16px;background:linear-gradient(180deg,rgba(244,198,109,.07),rgba(244,198,109,.025))}.warnbox strong{font-size:11px;color:#ffd28a}.warnbox p{margin:6px 0 0;color:var(--muted);font-size:10.8px;line-height:1.5}
+.futbox{margin-top:12px;padding:14px 16px;border:1px dashed rgba(255,139,139,.25);border-radius:16px;background:rgba(255,139,139,.03)}.futbox strong{font-size:11px;color:#ffb1b1}.futbox p{margin:6px 0 0;color:var(--muted);font-size:10.8px;line-height:1.5}
+@media(max-width:950px){.hero,.grid{grid-template-columns:1fr}.flowline{min-width:640px}}@media(max-width:620px){.container{padding:18px 13px 40px}.top{padding:13px}.actions{display:none}.hero h2{font-size:25px}.stats{grid-template-columns:1fr}.idx{top:60px}}
+</style>
+</head>
+<body>
+<header><div class="top"><div class="brand"><div class="logo"></div><div><h1>Control de Facturas · Bloque de conocimiento</h1><div class="sub">Módulo BIM + Cómputo Métrico · main <span class="mono">58c6f4c</span> · NO es manual de usuario final</div></div></div><div class="actions"><span class="btn primary">IMPLEMENTADO · main</span></div></div></header>
+<div class="container">
+
+<section class="hero">
+  <div class="card hero-main">
+    <div class="kicker">Resumen ejecutivo</div>
+    <h2>Cruzar cantidades de obra contra el presupuesto sin cargarlo a mano, con o sin modelo 3D.</h2>
+    <p><strong style="color:#e2e7ec">BIM Viewer</strong> parsea un IFC, renderiza el modelo 3D y agrupa elementos por tipo + material. <strong style="color:#e2e7ec">Pipeline semántica</strong> usa DeepSeek para sugerir qué rubro del presupuesto corresponde a cada grupo o ítem, con una capa de integridad técnica determinística previa. <strong style="color:#e2e7ec">Cómputo Métrico</strong> extiende la misma pipeline a Excel y PDF para proyectos sin modelo IFC: el costeador sube su planilla y el sistema sugiere los rubros automáticamente.</p>
+    <div class="badges"><span class="badge ok">VISOR 3D: IMPLEMENTADO</span><span class="badge ok">PIPELINE SEMÁNTICA: IMPLEMENTADO</span><span class="badge ok">EXCEL IMPORT: IMPLEMENTADO</span><span class="badge ok">PDF + GATE 3 CAPAS: IMPLEMENTADO</span><span class="badge ok">REVISIÓN HUMANA: IMPLEMENTADO</span><span class="badge ok">EXPORT EXCEL: IMPLEMENTADO</span></div>
+  </div>
+  <div class="card hero-side">
+    <div style="padding-bottom:12px"><strong>Estado del módulo</strong></div>
+    <div class="stats">
+      <div class="stat"><b>362</b><span>tests vitest</span></div>
+      <div class="stat"><b>IFC</b><span>web-ifc 0.0.68</span></div>
+      <div class="stat"><b>3D</b><span>Three.js + OrbitControls</span></div>
+      <div class="stat"><b>LLM</b><span>DeepSeek v4-flash</span></div>
+      <div class="stat"><b>TSC</b><span>limpio</span></div>
+      <div class="stat"><b>PRs</b><span>#6 · #7 · #8</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="card idx">
+  <a href="#s01">01 Resumen</a><a href="#s02">02 Arquitectura</a><a href="#s03">03 Visor 3D</a><a href="#s04">04 Parser IFC</a><a href="#s05">05 Agrupador</a><a href="#s06">06 Pipeline</a><a href="#s07">07 Integridad técnica</a><a href="#s08">08 DeepSeek matcher</a><a href="#s09">09 Estados</a><a href="#s10">10 Revisión humana</a><a href="#s11">11 Cómputo Excel</a><a href="#s12">12 Cómputo PDF</a><a href="#s13">13 Gate de confianza</a><a href="#s14">14 Data model</a><a href="#s15">15 Migraciones</a><a href="#s16">16 Seguridad</a><a href="#s17">17 Testing</a><a href="#s18">18 Decisiones</a><a href="#s19">19 Estado</a><a href="#s20">20 Handoff</a>
+</div>
+
+<section class="section" id="s01"><div class="title"><div><h3><span class="n">01</span>Resumen ejecutivo</h3><p>Qué hace cada pieza y qué problema resuelve.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">A</div><div><h4>BIM Viewer — el visor 3D</h4><p class="summary">Renderiza un archivo IFC en WebGL (web-ifc + Three.js). Permite navegar el modelo en 3D, seleccionar elementos individuales y ver sus propiedades. Calcula automáticamente bounding box y centra la cámara.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">B</div><div><h4>Pipeline semántica — el matcher</h4><p class="summary">Agrupa elementos IFC por tipo + material → filtra candidatos de presupuesto técnicamente compatibles → corre integridad determinística → pasa a DeepSeek que sugiere el rubro con mayor confianza. Sin modelo IFC el input son filas de Excel/PDF.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">C</div><div><h4>Revisión humana — el cockpit</h4><p class="summary">Cards de revisión con badges de estado (SUGGESTED · REVIEW · REVIEW_REQUIRED · NO_MATCH). El costeador confirma, cambia rubro o deja sin asignar. Solo las confirmadas cuentan para el export.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">D</div><div><h4>Cómputo Métrico — sin IFC</h4><p class="summary">Para proyectos sin modelo BIM. El costeador sube su planilla Excel o PDF. El sistema extrae filas (descripción / cantidad / unidad) y las pasa por la misma pipeline semántica. El PDF tiene un gate de confianza de 3 capas antes de correr el matching.</p></div></div></div>
+</div>
+<div class="note"><strong>Idea central</strong><p>El costeador ya tiene su planilla de presupuesto y recibe el cómputo métrico (desde BIM o desde Excel/PDF). El módulo cruza ambos automáticamente y solo le pide al humano que confirme las sugerencias dudosas — no que las cargue a mano.</p></div>
+</section>
+
+<section class="section" id="s02"><div class="title"><div><h3><span class="n">02</span>Arquitectura</h3><p>Capas y dirección de dependencias.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><div class="vflow">
+<div class="vnode"><strong>Entrada — IFC / Excel / PDF</strong>Tres orígenes de datos, misma salida: lista de ítems con descripción, cantidad y unidad.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>Parser / Extractor</strong><code>ifc-parser.client.ts</code> (web-ifc) · <code>computo-actions.ts</code> (xlsx client-side) · <code>pdf-extractor.ts</code> (pdf-parse + DeepSeek).</div><div class="varrow">↓</div>
+<div class="vnode"><strong>Agrupador BIM</strong><code>grouper.ts</code> — agrupa por tipo IFC + material + storey. Solo aplica al origen IFC. Excel/PDF ya vienen como una fila = un ítem.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>Pipeline semántica</strong><code>buildCandidatePool</code> (retrieval determinístico) → <code>checkTechnicalIntegrity</code> → <code>DeepSeekBatchSemanticMatcher</code>.</div><div class="varrow">↓</div>
+<div class="vnode hot"><strong>Revisión humana</strong>SUGGESTED → confirmar. REVIEW / REVIEW_REQUIRED → revisar antes de confirmar. NO_MATCH → asignar manualmente.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>Export a Excel</strong>Solo ítems CONFIRMED: rubro · cantidad · unidad · precio unitario · total.</div>
+</div></div>
+<div class="note"><strong>Separación cliente/servidor</strong><p>El parser IFC y el visor 3D corren SOLO en el browser (<code>.client.ts</code>) — no pueden importarse en server actions. El PDF extractor y el matcher DeepSeek corren SOLO server-side: necesitan la API key que nunca sale al cliente.</p></div>
+</section>
+
+<section class="section" id="s03"><div class="title"><div><h3><span class="n">03</span>Visor 3D</h3><p>web-ifc + Three.js en el browser.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">W</div><div><h4>web-ifc v0.0.68 — WASM</h4><p class="summary">El parser IFC usa un módulo WebAssembly. Requiere <code>SetWasmPath("/wasm/", true)</code> — el segundo argumento <code>true</code> es obligatorio para que la ruta sea absoluta. Sin él, web-ifc prepende la ruta del bundle JS y falla.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">P</div><div><h4>Proxy middleware — WASM público</h4><p class="summary"><code>proxy.ts</code> (middleware Next.js) protege todas las rutas excepto las declaradas públicas. Se agregó <code>path.endsWith(".wasm")</code> a la lista de rutas públicas para que el browser pueda descargar el WASM sin ser redirigido a login.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">F</div><div><h4>fitAll / fitSelection</h4><p class="summary"><code>modelRoot.updateMatrixWorld(true)</code> debe llamarse ANTES de <code>Box3.expandByObject()</code>. Sin esa llamada, Three.js calcula el bounding box con matrices identidad (pre-primer-render) y la cámara queda mirando al origen, con el modelo fuera de vista.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">I</div><div><h4>Inspector de propiedades</h4><p class="summary">Al clickear un elemento en el visor, el inspector muestra expressId, tipo IFC, nombre, storey y property sets. Los property sets solo existen si el arquitecto habilitó la opción de exportación en Revit/ArchiCAD — no todos los IFC los tienen.</p></div></div></div>
+</div>
+<div class="warnbox"><strong>IFC sin geometría — comportamiento esperado</strong><p>Un IFC puede tener elementos sin geometría (<code>IFCEXTRUDEDAREASOLID</code> = 0). El visor carga correctamente pero muestra canvas en negro. No es un bug: algunos IFC se construyen solo para pruebas semánticas. El fixture <code>aurora-mixed-elements.ifc</code> es de ese tipo; <code>IfcOpenHouse.ifc</code> tiene geometría real (43 meshes).</p></div>
+</section>
+
+<section class="section" id="s04"><div class="title"><div><h3><span class="n">04</span>Parser IFC</h3><p>Extracción de elementos y propiedades.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">E</div><div><h4>Elementos — <code>ifc-parser.client.ts</code></h4><p class="summary">Itera todos los tipos IFC relevantes (<code>IFCWALL</code>, <code>IFCSLAB</code>, <code>IFCCOLUMN</code>, …). Por cada elemento extrae expressId, name, type, storey, material, property sets y quantity sets. El resultado es un array de <code>BimElement</code>.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">Q</div><div><h4>Quantity Sets</h4><p class="summary">Cuando el IFC los tiene (<code>IfcQuantityArea</code>, <code>IfcQuantityLength</code>, …) se leen directamente. Si no existen, la cantidad queda <code>null</code>. El sistema nunca inventa cantidades — o las lee del IFC o las deja vacías.</p></div></div></div>
+</div>
+<div class="note"><strong>Lazy import de web-ifc</strong><p>El módulo web-ifc solo se importa dentro de funciones, nunca en el top-level del archivo. Next.js haría SSR del bundle de cliente si el import fuera top-level y el WASM no existe en el servidor.</p></div>
+</section>
+
+<section class="section" id="s05"><div class="title"><div><h3><span class="n">05</span>Agrupador BIM</h3><p>Muchos elementos idénticos → un grupo → una línea de presupuesto.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">G</div><div><h4>Clave de grupo</h4><p class="summary"><code>groupKey = ifc_type + "|" + normalize(material) + "|" + storey</code>. Elementos con la misma clave se consolidan en un único <code>BimElementGroup</code>. La cantidad del grupo es la suma de las cantidades individuales.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">R</div><div><h4>Por qué agrupar</h4><p class="summary">Un modelo real tiene 200 columnas de hormigón H-30 distintas (cada una con su expressId). En el presupuesto hay una sola línea "Hormigón armado H-30 columnas". El agrupador colapsa las 200 en un grupo; el matcher trabaja sobre el grupo, no sobre cada columna individual.</p></div></div></div>
+</div>
+<div class="note"><strong>Cómputo Métrico no necesita agrupar</strong><p>Una planilla Excel o PDF ya viene como una fila = un ítem de presupuesto. El agrupador no se usa en ese camino. La función <code>computoItemToBimElement</code> convierte cada fila directamente al shape de <code>BimElement</code> para reutilizar la misma pipeline.</p></div>
+</section>
+
+<section class="section" id="s06"><div class="title"><div><h3><span class="n">06</span>Pipeline semántica</h3><p>Retrieval determinístico → integridad → DeepSeek.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><div class="flowline">
+<div class="node"><strong>Budget Items</strong>Todos los rubros hoja del proyecto (con precio unitario).</div>
+<div class="arrow">→</div>
+<div class="node"><strong>buildCandidatePool</strong>Filtro determinístico: unidad compatible + specs técnicas compatibles (espesor/resistencia). Máx. 12 candidatos.</div>
+<div class="arrow">→</div>
+<div class="node hot"><strong>checkTechnicalIntegrity</strong>¿El elemento tiene contradicciones internas? Si sí → fuerza REVIEW_REQUIRED.</div>
+<div class="arrow">→</div>
+<div class="node"><strong>DeepSeekBatchSemanticMatcher</strong>Prompt estructurado + JSON mode. Devuelve: MATCH + candidateId + score + reason, o REVIEW, o NO_MATCH.</div>
+<div class="arrow">→</div>
+<div class="node"><strong>Status assignment</strong>SUGGESTED · REVIEW · REVIEW_REQUIRED · NO_MATCH según resultado y flags de integridad.</div>
+</div></div>
+<div class="note"><strong>Batch de 8</strong><p>El matcher agrupa hasta 8 elementos por llamada a DeepSeek para reducir latencia. Cada llamada devuelve un <code>Map&lt;elementId, MatchResult&gt;</code>. Si la llamada falla a mitad, se reportan los ítems procesados antes del error y el error es transparente — nunca hay un fallback silencioso.</p></div>
+</section>
+
+<section class="section" id="s07"><div class="title"><div><h3><span class="n">07</span>Integridad técnica</h3><p>Capa determinística previa al matching — detecta contradicciones en el input.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">1</div><div><h4>CONFLICTING_MATERIAL</h4><p class="summary">El nombre del elemento clasifica en una familia de material (ej. "cerámica") pero el campo <code>material</code> clasifica en otra (ej. "hormigón"). Solo se activa cuando AMBAS fuentes clasifican con confianza y difieren.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">2</div><div><h4>CONFLICTING_THICKNESS</h4><p class="summary">El espesor extraído del texto (nombre/material/tipo) difiere en más de 15mm del espesor declarado en <code>properties</code>. Ej.: nombre dice "150mm" pero properties.thickness = 100.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">3</div><div><h4>CONFLICTING_STRENGTH</h4><p class="summary">El grado/resistencia extraído del texto (H-30, CA-50) difiere del declarado en properties. Mismo patrón que espesor pero para resistencia de hormigón y acero.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">4</div><div><h4>AMBIGUOUS_RANGE</h4><p class="summary">El texto contiene un rango explícito ("entre 15 y 20 cm") y existen rubros de presupuesto con espesores DISTINTOS dentro de ese rango. DeepSeek podría elegir cualquiera correctamente — se fuerza revisión humana.</p></div></div></div>
+</div>
+<div class="warnbox"><strong>Comportamiento cuando es vicious</strong><p>La integridad NO descarta candidatos ni bloquea DeepSeek. DeepSeek sigue corriendo y sigue proponiendo. Lo que cambia es que el status final se fuerza a <strong>REVIEW_REQUIRED</strong> independientemente de la confianza del matcher. El reason del matcher queda adjunto como información para el humano.</p></div>
+</section>
+
+<section class="section" id="s08"><div class="title"><div><h3><span class="n">08</span>DeepSeek Batch Matcher</h3><p>Matching semántico vía LLM — deepseek-v4-flash.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">M</div><div><h4>Modelo y modo</h4><p class="summary"><code>deepseek-v4-flash</code>, <code>temperature: 0</code>, <code>response_format: { type: "json_object" }</code>. JSON mode garantiza output parseable. Temperature 0 para reproducibilidad.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">P</div><div><h4>Prompt estructurado</h4><p class="summary">El sistema explica el dominio (construcción paraguaya, rubros de presupuesto). El usuario entrega el elemento + sus candidatos pre-filtrados. El modelo devuelve <code>{ decision, candidateId, confidence, reason }</code> por elemento.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">K</div><span class="mono">DEEPSEEK_API_KEY</span><div><p class="summary" style="margin-top:4px">Variable de entorno requerida en Vercel. Nunca se loguea. Si no está, el matcher lanza inmediatamente — sin fallback silencioso. Nombre exacto: <code>DEEPSEEK_API_KEY</code> (no <code>DEEPSEEK</code>).</p></div></div></div>
+<div class="item"><div class="head"><div class="num">S</div><div><h4>Safety taxonomy</h4><p class="summary"><code>EXACT_CORRECT</code> · <code>SAFE_ABSTENTION</code> · <code>REVIEW_REQUIRED</code> · <code>UNSAFE_MATCH</code> · <code>WRONG_MATCH</code>. Usada en los benchmarks adversariales para medir la calidad del matcher, no en producción directamente.</p></div></div></div>
+</div>
+</section>
+
+<section class="section" id="s09"><div class="title"><div><h3><span class="n">09</span>Estados de match</h3><p>El ciclo de vida de cada ítem desde sugerencia hasta confirmación.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><div class="flowline">
+<div class="node"><strong>SUGGESTED</strong>DeepSeek encontró un match con confianza alta y sin flags de integridad. Listo para confirmar con un click.</div>
+<div class="arrow">→</div>
+<div class="node hot"><strong>REVIEW</strong>DeepSeek no pudo decidir (ambigüedad semántica). Requiere que el humano elija manualmente.</div>
+<div class="arrow">→</div>
+<div class="node hot"><strong>REVIEW_REQUIRED</strong>Integridad técnica detectó contradicción. Aunque DeepSeek propone, el humano DEBE revisar antes de confirmar.</div>
+<div class="arrow">→</div>
+<div class="node"><strong>NO_MATCH</strong>Ningún candidato plausible. El humano puede buscar manualmente o dejar sin asignar.</div>
+</div></div>
+<div class="grid" style="margin-top:11px">
+<div class="item"><div class="head"><div class="num">✓</div><div><h4>CONFIRMED</h4><p class="summary">Decisión humana final. Se escribe en DB con <code>confirmed_by</code> y <code>confirmed_at</code>. Solo los CONFIRMED aparecen en el export a Excel. Un ítem solo puede tener un CONFIRMED activo (unique index).</p></div></div></div>
+<div class="item"><div class="head"><div class="num">✗</div><div><h4>REJECTED</h4><p class="summary">El humano decidió que el ítem no tiene rubro equivalente. Se registra con <code>method: MANUAL</code>. No aparece en el export. El costeador puede reactivarlo manualmente si cambia de opinión.</p></div></div></div>
+</div>
+</section>
+
+<section class="section" id="s10"><div class="title"><div><h3><span class="n">10</span>Revisión humana</h3><p>El cockpit de confirmación — cards por ítem.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">C</div><div><h4>Cards de revisión</h4><p class="summary">Una card por grupo BIM o ítem de cómputo. Muestra: badge de estado, descripción del ítem, cantidad + unidad, rubro sugerido (si hay), score de confianza y reason del matcher.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">A</div><div><h4>Acciones disponibles</h4><p class="summary"><strong>Confirmar</strong>: acepta la sugerencia actual (o el rubro elegido manualmente). <strong>Cambiar rubro</strong>: abre selector de presupuesto para asignar manualmente. <strong>Dejar sin asignar</strong>: marca como REJECTED.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">E</div><div><h4>Export a Excel</h4><p class="summary">Botón por import de cómputo. Genera una hoja con: código de rubro, descripción, cantidad confirmada, unidad, precio unitario y total. Usa <code>XLSX.writeFile</code> (misma librería que el import de presupuesto). Solo items CONFIRMED.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">R</div><div><h4>Retry tras BAJA_CONFIANZA</h4><p class="summary">Un PDF marcado como BAJA_CONFIANZA (gate activado) no corre el matching automáticamente. El humano puede revisar las filas extraídas, editar las sospechosas y luego pedir el matching manualmente vía <code>retryComputoMatching</code>.</p></div></div></div>
+</div>
+</section>
+
+<section class="section" id="s11"><div class="title"><div><h3><span class="n">11</span>Cómputo Métrico — Excel</h3><p>Import de planilla, sin gate de confianza.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><div class="vflow">
+<div class="vnode"><strong>Upload client-side</strong>El browser parsea el Excel con <code>xlsx</code> (SheetJS). Auto-detección de columnas: headers normalizados para reconocer variantes ("Descripción", "Desc.", "Item", etc.).</div><div class="varrow">↓</div>
+<div class="vnode"><strong>Server action — <code>importComputoExcel</code></strong>Recibe las filas ya parseadas (descripción / cantidad / unidad). Inserta en <code>computo_imports</code> (<code>source_type: EXCEL</code>) y <code>computo_items</code>. No sube archivo a Storage: el Excel no se guarda, solo sus filas.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>runComputoMatching</strong>Convierte cada <code>computo_item</code> a <code>BimElement</code> sintético vía <code>computoItemToBimElement</code>. Corre <code>buildCandidatePool</code> → <code>checkTechnicalIntegrity</code> → <code>DeepSeekBatchSemanticMatcher</code>. Inserta resultados en <code>computo_item_matches</code>.</div>
+</div></div>
+<div class="note"><strong>¿Por qué no hay gate de confianza para Excel?</strong><p>El Excel ya viene estructurado — el usuario mismo mapeó las columnas. La ambigüedad de "¿es una tabla legible?" no existe. El gate de 3 capas solo aplica a PDF, donde la extracción es no determinística.</p></div>
+</section>
+
+<section class="section" id="s12"><div class="title"><div><h3><span class="n">12</span>Cómputo Métrico — PDF</h3><p>Upload a Storage → extracción → gate → matching.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><div class="vflow">
+<div class="vnode"><strong>Upload a Storage</strong>El PDF se sube al bucket <code>computo-imports</code> client-side (mismo patrón que <code>bim-models</code>). Se obtiene una <code>storagePath</code> pre-acordada via <code>getComputoUploadSlot</code>.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>Server action — <code>importComputoPdf</code></strong>Descarga el PDF desde Storage. Corre <code>extractComputoFromPdf</code> (gate de 3 capas). Inserta en <code>computo_imports</code> con <code>confidence_summary</code> y <code>status</code>.</div><div class="varrow">↓</div>
+<div class="vnode hot"><strong>Gate de confianza (ver sección 13)</strong>Si <code>vicious = true</code> → status <code>BAJA_CONFIANZA</code>. El matching NO corre automáticamente. Las filas se guardan igual para que el humano las revise.</div><div class="varrow">↓ solo si no vicious</div>
+<div class="vnode"><strong>runComputoMatching</strong>Mismo flow que Excel.</div>
+</div></div>
+</section>
+
+<section class="section" id="s13"><div class="title"><div><h3><span class="n">13</span>Gate de confianza — PDF</h3><p>3 capas determinísticas antes de gastar tokens de IA en matching.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">1</div><div><h4>Señal estructural — gratis</h4><p class="summary"><code>pdf-parse</code> extrae el texto. Si el texto tiene menos de 40 caracteres → el PDF es probablemente un escaneo sin capa de texto → <code>vicious = true</code> inmediatamente, sin llamar a DeepSeek.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">2</div><div><h4>Confianza auto-reportada por DeepSeek</h4><p class="summary">El prompt pide un flag <code>tabla_clara: boolean</code> además de las filas. Si DeepSeek mismo dice que no encontró una tabla clara → <code>vicious = true</code>. La IA admite cuando no puede leer.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">3</div><div><h4>Sanidad determinística por fila</h4><p class="summary">Por cada fila extraída: descripción vacía → issue. Cantidad no finita o ≤ 0 → issue. Unidad no reconocida por <code>normalizeUnit</code> → issue. Si más del 33% de filas tienen issues o la confianza promedio &lt; 0.5 → <code>vicious = true</code>.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">!</div><div><h4>Cualquiera de las 3 alcanza</h4><p class="summary">No hace falta que fallen las 3 capas. Una sola captura basta para marcar BAJA_CONFIANZA. Preferimos falsos positivos (pedir revisión de más) a falsos negativos silenciosos.</p></div></div></div>
+</div>
+<div class="warnbox"><strong>pdf-parse — import perezoso obligatorio</strong><p><code>pdf-parse</code> tiene una dependencia nativa (<code>pdfjs-dist</code>) que rompe en Vercel si se importa en el top-level del archivo. Se importa dentro de la función con <code>await import("pdf-parse")</code>. Mismo patrón que <code>lib/invoice-extraction.ts</code>.</p></div>
+</section>
+
+<section class="section" id="s14"><div class="title"><div><h3><span class="n">14</span>Data model</h3><p>Tablas BIM y Cómputo — aisladas entre sí.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><table class="tbl"><tr><th>Tabla</th><th>Rol</th></tr>
+<tr><td><code>bim_models</code></td><td>Un registro por archivo IFC subido. Referencia al bucket <code>bim-models</code> en Storage.</td></tr>
+<tr><td><code>bim_elements</code></td><td>Elementos IFC parseados. FK a <code>bim_models</code>. Incluye <code>ifc_guid</code>, <code>ifc_type</code>, <code>quantity_*</code>, <code>properties</code> jsonb.</td></tr>
+<tr><td><code>bim_element_groups</code></td><td>Grupos por tipo+material+storey. Cantidad = suma de elementos del grupo.</td></tr>
+<tr><td><code>bim_group_matches</code></td><td>Match por grupo. Status: SUGGESTED/REVIEW/REVIEW_REQUIRED/NO_MATCH/CONFIRMED/REJECTED. Unique index: un CONFIRMED por grupo.</td></tr>
+<tr><td><code>computo_imports</code></td><td>Un registro por import (EXCEL o PDF). Status: PROCESANDO/LISTO/BAJA_CONFIANZA/ERROR. <code>confidence_summary</code> jsonb solo en PDF.</td></tr>
+<tr><td><code>computo_items</code></td><td>Filas extraídas del import. FK a <code>computo_imports</code>. <code>row_confidence</code> solo en PDF.</td></tr>
+<tr><td><code>computo_item_matches</code></td><td>Match por ítem. Mismos 6 estados que BIM. Unique index: un CONFIRMED por ítem.</td></tr>
+</table></div>
+<div class="note"><strong>Tablas paralelas, no mezcladas</strong><p>BIM y Cómputo tienen sus propias tablas. <code>bim_elements</code> tiene <code>ifc_guid</code> NOT NULL — meter una fila de Excel ahí rompería el constraint. La separación también evita que un bug en Cómputo pueda corromper datos BIM.</p></div>
+</section>
+
+<section class="section" id="s15"><div class="title"><div><h3><span class="n">15</span>Migraciones</h3><p>Qué hace cada una, todas aplicadas en producción.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">72</div><div><h4>0072 — bim_models + bim_elements</h4><p class="summary">Tablas base del módulo BIM. Bucket <code>bim-models</code> en Storage. RLS con <code>current_empresa_id()</code> + <code>is_internal_role()</code>. Policy de Storage: solo el dueño de la empresa puede subir/leer.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">73</div><div><h4>0073 — bim_element_groups + bim_group_matches</h4><p class="summary">Agrupador y matches. Unique index <code>uq_bim_group_confirmed_match</code> sobre <code>bim_element_group_id</code> WHERE status = 'CONFIRMED'. CHECK que exige budget_item_id cuando status es CONFIRMED o SUGGESTED.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">74</div><div><h4>0074 — presupuesto base</h4><p class="summary">Tablas <code>budget_items</code> (árbol de rubros con <code>parent_id</code> para categorías) y función <code>current_empresa_id()</code>. Dependencia de 0072/0073.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">75</div><div><h4>0075 — computo_imports + items + matches</h4><p class="summary">Las 3 tablas del módulo Cómputo Métrico. Bucket <code>computo-imports</code>. Misma RLS que BIM. CHECK: <code>source_type IN ('EXCEL','PDF')</code> · <code>status IN ('PROCESANDO','LISTO','BAJA_CONFIANZA','ERROR')</code>. Unique index en CONFIRMED igual que BIM.</p></div></div></div>
+</div>
+</section>
+
+<section class="section" id="s16"><div class="title"><div><h3><span class="n">16</span>Seguridad</h3><p>RLS, storage y secretos.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="body"><ul>
+<li><strong>RLS por empresa</strong>: toda tabla filtra por <code>current_empresa_id()</code> — una empresa nunca puede leer datos de otra aunque conozca el UUID.</li>
+<li><strong>is_internal_role()</strong>: escritura restringida a roles <code>administracion</code> / <code>admin</code>. Rol <code>comercial</code> solo lectura.</li>
+<li><strong>requirePlan("caterpillar", [...])</strong>: todas las server actions verifican plan + rol antes de tocar DB.</li>
+</ul></div></div>
+<div class="item"><div class="body"><ul>
+<li><strong>DEEPSEEK_API_KEY</strong>: nunca se loguea, nunca sale al cliente. Si falta, las actions lanzan con mensaje claro — sin fallback silencioso que enmascare el error.</li>
+<li><strong>Storage privado</strong>: buckets <code>bim-models</code> y <code>computo-imports</code> no son públicos. Los archivos se descargan server-side vía service role.</li>
+<li><strong>storagePath</strong>: incluye <code>project_id + UUID</code>. Path collision imposible entre proyectos.</li>
+</ul></div></div>
+</div>
+</section>
+
+<section class="section" id="s17"><div class="title"><div><h3><span class="n">17</span>Testing</h3><p>Cobertura verificada en main.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><div class="kv"><span>vitest — total</span><b>362 / 362</b></div><div class="kv"><span>computo-mapper.spec.ts</span><b>7 tests — mapeo BimElement sintético</b></div><div class="kv"><span>pdf-extractor.spec.ts</span><b>7 tests — gate de confianza 3 capas</b></div><div class="kv"><span>computo-actions.spec.ts</span><b>7 tests — integración server action con mock Supabase + DeepSeek</b></div><div class="kv"><span>matching.spec.ts</span><b>normalizeUnit, extractSpecs, isTechnicallyCompatible</b></div><div class="kv"><span>technical-integrity.spec.ts</span><b>4 conflictos × variantes</b></div><div class="kv"><span>grouping.spec.ts</span><b>agrupador + claves + suma de cantidades</b></div><div class="kv"><span>stress-dataset-guardrail.spec.ts</span><b>benchmark adversarial con fixtures de edge cases</b></div></div>
+<div class="note"><strong>Tests live con DeepSeek real</strong><p><code>live-semantic-matching.spec.ts</code> y <code>live-stress-test.spec.ts</code> tienen 12 tests skipped por defecto. Corren solo con <code>RUN_LIVE_BIM_AI_TESTS=1</code>. Llaman a la API real de DeepSeek — tienen costo. No incluir en CI sin el flag.</p></div>
+</section>
+
+<section class="section" id="s18"><div class="title"><div><h3><span class="n">18</span>Decisiones de producto</h3><p>Definitivas, no reabrir sin motivo.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid"><div class="item"><div class="body"><ul>
+<li><strong>Tablas separadas para BIM y Cómputo</strong>: no mezclar <code>bim_elements</code> con filas de Excel/PDF — el constraint <code>ifc_guid NOT NULL</code> lo impediría y la semántica es distinta.</li>
+<li><strong>DeepSeek, no OpenAI</strong>: todo el módulo usa un solo proveedor de IA. No agregar un segundo proveedor para el extractor PDF.</li>
+<li><strong>Gate de confianza solo en PDF</strong>: Excel ya viene estructurado por el usuario — el gate no aplica.</li>
+<li><strong>Temperature 0 en todos los prompts</strong>: reproducibilidad sobre creatividad. El matcher no debe inventar.</li>
+</ul></div></div><div class="item"><div class="body"><ul>
+<li><strong>El visor 3D es informativo, no operativo</strong>: no se puede confirmar un match desde el visor. Matching y confirmación van en la sección de cards debajo.</li>
+<li><strong>Cantidad del grupo = suma, no promedio</strong>: en presupuesto lo que importa es la cantidad total de material a comprar, no la cantidad promedio por elemento.</li>
+<li><strong>REVIEW_REQUIRED no bloquea DeepSeek</strong>: el matcher siempre propone. La integridad solo cambia el status final — el reason del matcher queda visible para ayudar al humano.</li>
+<li><strong>Export solo CONFIRMED</strong>: nada ambiguo sale al Excel final. El costeador exporta cuando está listo, no antes.</li>
+</ul></div></div></div>
+</section>
+
+<section class="section" id="s19"><div class="title"><div><h3><span class="n">19</span>Estado del módulo</h3><p>Foto final.</p></div></div>
+<div class="card flow"><table class="tbl"><tr><th>Pieza</th><th>Estado</th></tr>
+<tr><td>Visor 3D IFC (web-ifc + Three.js)</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Parser IFC — elementos + property sets + quantity sets</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Agrupador BIM (tipo + material + storey)</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Pipeline semántica (buildCandidatePool → integridad → DeepSeek)</td><td>IMPLEMENTADO</td></tr>
+<tr><td>4 razones de integridad técnica</td><td>IMPLEMENTADO</td></tr>
+<tr><td>6 estados de match (SUGGESTED · REVIEW · REVIEW_REQUIRED · NO_MATCH · CONFIRMED · REJECTED)</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Revisión humana (confirmar / cambiar / rechazar)</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Cómputo Métrico — Excel import</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Cómputo Métrico — PDF + gate 3 capas</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Export a Excel (solo CONFIRMED)</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Migraciones 0072–0075 en producción</td><td>IMPLEMENTADO</td></tr>
+<tr><td>362 tests vitest</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Panel resumen de costos (sticky sidebar con totales)</td><td>PENDIENTE</td></tr>
+<tr><td>Edición inline de filas extraídas de PDF</td><td>PENDIENTE</td></tr>
+</table></div>
+</section>
+
+<section class="section" id="s20"><div class="title"><div><h3><span class="n">20</span>Handoff para futuro agente</h3><p>Instrucciones de ingesta al manual maestro.</p></div></div>
+<div class="note"><strong>INSTRUCCIONES PARA EL AGENTE QUE INTEGRE EL MANUAL FINAL</strong><p>Este HTML es un módulo independiente ("bloque de conocimiento"). Al integrarlo al capítulo "BIM / Cómputo Métrico" del manual maestro: (1) mantener la separación BIM vs Cómputo — son dos caminos de entrada a la misma pipeline, no el mismo feature; (2) no confundir "visor 3D" con "matching" — el visor es informativo, el matching es el valor; (3) preservar los 6 estados tal cual, especialmente la diferencia entre REVIEW (ambigüedad semántica) y REVIEW_REQUIRED (contradicción técnica); (4) no presentar las funcionalidades PENDIENTE como existentes; (5) recordar que DEEPSEEK_API_KEY debe estar en Vercel con ese nombre exacto y nunca puede loguearse; (6) el flag <code>absolute=true</code> en <code>SetWasmPath</code> es obligatorio — sin él el WASM no carga.</p></div>
+</section>
+
+</div>
+<script>
+document.querySelectorAll('.idx a').forEach(a=>{
+  a.addEventListener('click',()=>{
+    document.querySelectorAll('.idx a').forEach(x=>x.style.borderColor='');
+    a.style.borderColor='rgba(142,227,198,.35)';
+  });
+});
+</script>
+</body></html>

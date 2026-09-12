@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Modo Agente — Frictionless ERP</title>
+<style>
+  :root{
+    --bg:#0b0d10;
+    --panel:#11151a;
+    --panel2:#151a20;
+    --panel3:#0f1317;
+    --line:rgba(255,255,255,.08);
+    --line2:rgba(255,255,255,.12);
+    --text:#f5f7fa;
+    --muted:#9aa4af;
+    --soft:#c7ced6;
+    --accent:#8ee3c6;
+    --accent2:#73b7ff;
+    --warn:#ffcc7a;
+    --danger:#ff8b8b;
+    --ok:#7de2b8;
+    --shadow:0 20px 60px rgba(0,0,0,.35);
+    --radius:22px;
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 70% -10%, rgba(115,183,255,.09), transparent 28%),
+      radial-gradient(circle at 20% 0%, rgba(142,227,198,.07), transparent 24%),
+      var(--bg);
+    color:var(--text);
+    font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    overflow:hidden;
+  }
+
+  .app{
+    height:100vh;
+    display:grid;
+    grid-template-rows:68px 1fr;
+  }
+
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 22px;
+    border-bottom:1px solid var(--line);
+    background:rgba(11,13,16,.72);
+    backdrop-filter: blur(18px);
+  }
+
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    min-width:0;
+  }
+  .brandmark{
+    width:32px;height:32px;border-radius:10px;
+    border:1px solid var(--line2);
+    display:grid;place-items:center;
+    background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+  }
+  .brandmark:before{
+    content:"";
+    width:13px;height:13px;border-radius:4px;
+    border:2px solid var(--accent);
+    box-shadow:10px 8px 0 -5px var(--accent2);
+    transform:rotate(45deg);
+  }
+  .brand h1{
+    font-size:14px;margin:0;font-weight:650;letter-spacing:.01em;
+  }
+  .brand small{
+    color:var(--muted);font-size:12px;display:block;margin-top:2px;
+  }
+
+  .top-actions{display:flex;align-items:center;gap:10px}
+  .pill{
+    display:flex;align-items:center;gap:8px;
+    padding:8px 11px;
+    border:1px solid var(--line);
+    border-radius:999px;
+    background:rgba(255,255,255,.03);
+    color:var(--soft);
+    font-size:12px;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 4px rgba(125,226,184,.08)}
+  .avatar{
+    width:34px;height:34px;border-radius:50%;
+    border:1px solid var(--line2);
+    display:grid;place-items:center;
+    background:#171c22;color:#e9edf1;font-weight:700;font-size:12px;
+  }
+
+  .workspace{
+    min-height:0;
+    display:grid;
+    grid-template-columns:72px minmax(0,1fr) 340px;
+  }
+
+  nav{
+    border-right:1px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;
+    padding:14px 0;gap:8px;
+    background:rgba(10,12,15,.58);
+  }
+  .navbtn{
+    width:42px;height:42px;border-radius:13px;border:1px solid transparent;
+    display:grid;place-items:center;color:#7f8a96;
+    cursor:pointer;transition:.18s ease;
+  }
+  .navbtn:hover{background:rgba(255,255,255,.04);color:#dfe6ed}
+  .navbtn.active{
+    background:linear-gradient(180deg,rgba(142,227,198,.12),rgba(142,227,198,.06));
+    border-color:rgba(142,227,198,.18);color:var(--accent);
+  }
+  .nav-spacer{flex:1}
+  .nav-icon{
+    width:18px;height:18px;border:1.6px solid currentColor;border-radius:5px;position:relative;
+  }
+  .nav-icon.circle{border-radius:50%}
+  .nav-icon.lines:before,.nav-icon.lines:after{
+    content:"";position:absolute;left:3px;right:3px;height:1.5px;background:currentColor
+  }
+  .nav-icon.lines:before{top:5px}.nav-icon.lines:after{bottom:5px}
+
+  main{
+    min-width:0;min-height:0;
+    display:flex;flex-direction:column;
+  }
+
+  .main-head{
+    padding:22px 28px 14px;
+    display:flex;justify-content:space-between;align-items:flex-start;gap:16px;
+  }
+  .eyebrow{
+    color:var(--accent);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+    margin-bottom:8px;
+  }
+  .main-head h2{font-size:28px;line-height:1.1;margin:0 0 7px;font-weight:720;letter-spacing:-.03em}
+  .main-head p{margin:0;color:var(--muted);font-size:13px;max-width:720px;line-height:1.55}
+  .mode-toggle{
+    display:flex;border:1px solid var(--line);border-radius:12px;padding:3px;background:rgba(255,255,255,.025);
+  }
+  .mode-toggle button{
+    border:0;background:transparent;color:var(--muted);padding:8px 11px;border-radius:9px;cursor:pointer;font-size:12px;
+  }
+  .mode-toggle button.active{background:#1a2027;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.24)}
+
+  .content{
+    min-height:0;flex:1;overflow:auto;
+    padding:0 28px 28px;
+  }
+
+  .command-card{
+    border:1px solid var(--line2);
+    background:
+      linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.018)),
+      var(--panel3);
+    border-radius:26px;
+    padding:18px;
+    box-shadow:var(--shadow);
+  }
+
+  .input-wrap{
+    display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;
+  }
+  .mic{
+    width:46px;height:46px;border-radius:15px;border:1px solid rgba(142,227,198,.2);
+    background:rgba(142,227,198,.08);color:var(--accent);cursor:pointer;
+    display:grid;place-items:center;position:relative;
+  }
+  .mic.live:after{
+    content:"";position:absolute;inset:-6px;border:1px solid rgba(142,227,198,.35);
+    border-radius:20px;animation:pulse 1.3s infinite;
+  }
+  @keyframes pulse{0%{transform:scale(.94);opacity:.7}100%{transform:scale(1.08);opacity:0}}
+  .mic-shape{
+    width:13px;height:18px;border:2px solid currentColor;border-radius:8px;position:relative;
+  }
+  .mic-shape:after{
+    content:"";position:absolute;left:50%;transform:translateX(-50%);bottom:-7px;width:10px;height:5px;border-bottom:2px solid currentColor;border-radius:0 0 10px 10px;
+  }
+
+  .command-input{
+    background:transparent;border:0;outline:0;color:#fff;font-size:16px;width:100%;
+    padding:13px 2px;
+  }
+  .command-input::placeholder{color:#69737e}
+  .run{
+    border:1px solid rgba(142,227,198,.22);
+    background:linear-gradient(180deg,rgba(142,227,198,.18),rgba(142,227,198,.10));
+    color:#ddfff4;padding:12px 15px;border-radius:13px;font-size:12px;font-weight:700;cursor:pointer;
+  }
+
+  .quick{
+    display:flex;gap:8px;flex-wrap:wrap;margin-top:13px;
+  }
+  .chip{
+    border:1px solid var(--line);background:rgba(255,255,255,.025);color:#aeb7c1;
+    padding:8px 10px;border-radius:999px;font-size:11px;cursor:pointer;transition:.15s ease;
+  }
+  .chip:hover{border-color:var(--line2);color:#fff;background:rgba(255,255,255,.04)}
+
+  .grid{
+    margin-top:18px;
+    display:grid;
+    grid-template-columns:minmax(0,1.3fr) minmax(300px,.7fr);
+    gap:18px;
+  }
+  .panel{
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.012));
+    overflow:hidden;
+  }
+  .panel-head{
+    padding:15px 17px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+  }
+  .panel-title{font-size:13px;font-weight:700}
+  .panel-sub{font-size:11px;color:var(--muted);margin-top:3px}
+  .status{
+    padding:6px 8px;border-radius:999px;border:1px solid var(--line);
+    font-size:10px;color:var(--muted);white-space:nowrap
+  }
+  .status.active{color:var(--accent);border-color:rgba(142,227,198,.18);background:rgba(142,227,198,.06)}
+
+  .flow{padding:10px 17px 17px}
+  .step{
+    display:grid;grid-template-columns:24px 1fr auto;gap:11px;padding:12px 0;align-items:start;
+    border-bottom:1px solid rgba(255,255,255,.045)
+  }
+  .step:last-child{border-bottom:0}
+  .stepdot{
+    width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+    border:1px solid var(--line2);font-size:10px;color:var(--muted);margin-top:1px;
+  }
+  .step.done .stepdot{color:var(--ok);border-color:rgba(125,226,184,.22);background:rgba(125,226,184,.06)}
+  .step.doing .stepdot{color:var(--accent2);border-color:rgba(115,183,255,.22);background:rgba(115,183,255,.06)}
+  .step.warn .stepdot{color:var(--warn);border-color:rgba(255,204,122,.25);background:rgba(255,204,122,.07)}
+  .step h4{font-size:12.5px;margin:1px 0 4px;font-weight:650}
+  .step p{font-size:11.5px;line-height:1.45;color:var(--muted);margin:0}
+  .step time{font-size:10px;color:#66717c;margin-top:3px}
+
+  .approval{
+    margin:14px 16px 16px;padding:14px;border-radius:16px;
+    border:1px solid rgba(255,204,122,.18);
+    background:linear-gradient(180deg,rgba(255,204,122,.07),rgba(255,204,122,.025));
+  }
+  .approval-top{display:flex;justify-content:space-between;gap:10px;align-items:center}
+  .approval h4{margin:0;font-size:12.5px}
+  .approval p{font-size:11.5px;color:var(--muted);line-height:1.45;margin:7px 0 12px}
+  .approval-actions{display:flex;gap:8px}
+  .btn{
+    border:1px solid var(--line2);background:#171c22;color:#dce3e9;padding:9px 11px;border-radius:10px;font-size:11px;cursor:pointer
+  }
+  .btn.primary{border-color:rgba(142,227,198,.22);background:rgba(142,227,198,.1);color:#e6fff7}
+
+  .tasklist{padding:8px}
+  .task{
+    padding:13px;border-radius:15px;display:flex;gap:11px;align-items:flex-start;cursor:pointer;
+    transition:.15s ease;
+  }
+  .task:hover{background:rgba(255,255,255,.025)}
+  .task + .task{border-top:1px solid rgba(255,255,255,.04)}
+  .taskicon{
+    width:32px;height:32px;border:1px solid var(--line);border-radius:10px;display:grid;place-items:center;
+    color:var(--accent2);background:rgba(115,183,255,.05);font-size:12px;flex:0 0 auto;
+  }
+  .task h4{margin:0 0 4px;font-size:12px}
+  .task p{margin:0;color:var(--muted);font-size:11px;line-height:1.4}
+  .task .arrow{margin-left:auto;color:#59636e}
+
+  aside{
+    border-left:1px solid var(--line);
+    min-height:0;overflow:auto;
+    padding:18px;
+    background:rgba(10,12,15,.45);
+  }
+  .aside-title{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin:3px 2px 10px}
+  .context-card{
+    border:1px solid var(--line);border-radius:18px;padding:14px;background:rgba(255,255,255,.022);margin-bottom:12px;
+  }
+  .context-card h3{font-size:12px;margin:0 0 10px}
+  .kv{display:grid;grid-template-columns:1fr auto;gap:8px;padding:7px 0;border-top:1px solid rgba(255,255,255,.04);font-size:11px}
+  .kv:first-of-type{border-top:0;padding-top:0}
+  .kv span:first-child{color:var(--muted)}
+  .kv b{font-weight:600;color:#e2e7ec;text-align:right}
+  .person{
+    display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid rgba(255,255,255,.04)
+  }
+  .person:first-of-type{border-top:0}
+  .person .badge{
+    width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+    background:#171c22;border:1px solid var(--line);font-size:10px;font-weight:700;
+  }
+  .person strong{display:block;font-size:11.5px}
+  .person small{display:block;color:var(--muted);font-size:10.5px;margin-top:2px}
+  .tag{
+    margin-left:auto;font-size:9.5px;border:1px solid var(--line);padding:4px 6px;border-radius:999px;color:var(--muted)
+  }
+
+  .audit{
+    padding:10px 0 0;margin-top:6px;border-top:1px solid var(--line);
+    color:#79838e;font-size:10px;line-height:1.5
+  }
+
+  .toast{
+    position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);
+    opacity:0;pointer-events:none;
+    background:#171d23;border:1px solid var(--line2);border-radius:12px;
+    padding:11px 14px;color:#e9eef3;font-size:11.5px;box-shadow:var(--shadow);
+    transition:.22s ease;z-index:50;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  @media(max-width:1100px){
+    .workspace{grid-template-columns:64px 1fr}
+    aside{display:none}
+  }
+  @media(max-width:760px){
+    .workspace{grid-template-columns:1fr}
+    nav{display:none}
+    .grid{grid-template-columns:1fr}
+    .main-head{padding:18px 16px 12px}
+    .content{padding:0 16px 18px}
+    .main-head{flex-direction:column}
+    header{padding:0 14px}
+    .pill.hide-mobile{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="brandmark"></div>
+      <div>
+        <h1>Control de Facturas</h1>
+        <small>Frictionless ERP · Construcción</small>
+      </div>
+    </div>
+    <div class="top-actions">
+      <div class="pill hide-mobile"><span class="dot"></span> Agente operativo disponible</div>
+      <div class="pill">Obra: Parque Industrial Norte</div>
+      <div class="avatar">ME</div>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <nav>
+      <div class="navbtn"><div class="nav-icon lines"></div></div>
+      <div class="navbtn active"><div class="nav-icon circle"></div></div>
+      <div class="navbtn"><div class="nav-icon"></div></div>
+      <div class="navbtn"><div class="nav-icon lines"></div></div>
+      <div class="nav-spacer"></div>
+      <div class="navbtn"><div class="nav-icon circle"></div></div>
+    </nav>
+
+    <main>
+      <div class="main-head">
+        <div>
+          <div class="eyebrow">Modo agente</div>
+          <h2>Decime qué querés hacer.</h2>
+          <p>El agente usa la información del ERP, ejecuta el trabajo administrativo y te devuelve únicamente decisiones, excepciones y autorizaciones.</p>
+        </div>
+        <div class="mode-toggle">
+          <button class="active">Con aprobación</button>
+          <button>Automático seguro</button>
+        </div>
+      </div>
+
+      <div class="content">
+        <section class="command-card">
+          <div class="input-wrap">
+            <button class="mic" id="micBtn" title="Simular entrada por voz"><span class="mic-shape"></span></button>
+            <input id="commandInput" class="command-input" value="Pedí cotización de cemento, arena y varillas a Acero Sur, Construmax y Materiales Central para esta obra." />
+            <button class="run" id="runBtn">Ejecutar</button>
+          </div>
+          <div class="quick">
+            <button class="chip">Pedir cotización</button>
+            <button class="chip">Perseguir una entrega</button>
+            <button class="chip">Registrar necesidad de obra</button>
+            <button class="chip">Comparar propuestas</button>
+            <button class="chip">Preparar una OC</button>
+            <button class="chip">Cerrar pendientes de hoy</button>
+          </div>
+        </section>
+
+        <div class="grid">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Ejecución del agente</div>
+                <div class="panel-sub">Pedido de cotización · RFQ-0248</div>
+              </div>
+              <div id="agentStatus" class="status active">En curso</div>
+            </div>
+
+            <div class="flow" id="flow">
+              <div class="step done">
+                <div class="stepdot">✓</div>
+                <div>
+                  <h4>Interpreté la solicitud</h4>
+                  <p>3 proveedores, 3 familias de materiales, entrega asociada a Parque Industrial Norte.</p>
+                </div>
+                <time>23:58</time>
+              </div>
+
+              <div class="step done">
+                <div class="stepdot">✓</div>
+                <div>
+                  <h4>Recuperé datos del ERP</h4>
+                  <p>Encontré emails, condiciones habituales, dirección de obra y referencias de compras anteriores.</p>
+                </div>
+                <time>23:58</time>
+              </div>
+
+              <div class="step doing">
+                <div class="stepdot">↻</div>
+                <div>
+                  <h4>Preparé el pedido y los links individuales</h4>
+                  <p>Cada proveedor recibe su propio link de respuesta. El sistema estructurará precio, plazo y condiciones automáticamente.</p>
+                </div>
+                <time>ahora</time>
+              </div>
+
+              <div class="step">
+                <div class="stepdot">4</div>
+                <div>
+                  <h4>Enviar por email</h4>
+                  <p>Listo para enviar a los contactos registrados de los tres proveedores.</p>
+                </div>
+                <time>pendiente</time>
+              </div>
+
+              <div class="step">
+                <div class="stepdot">5</div>
+                <div>
+                  <h4>Preparar WhatsApp</h4>
+                  <p>Generará mensaje y link por proveedor. Si el canal está integrado, podrá enviarlo directamente.</p>
+                </div>
+                <time>pendiente</time>
+              </div>
+            </div>
+
+            <div class="approval" id="approval">
+              <div class="approval-top">
+                <h4>Requiere tu aprobación</h4>
+                <span class="status">Comunicación externa</span>
+              </div>
+              <p>Voy a enviar 3 solicitudes de cotización usando los contactos comerciales registrados. No existe compromiso económico todavía.</p>
+              <div class="approval-actions">
+                <button class="btn primary" id="approveBtn">Aprobar y enviar</button>
+                <button class="btn" id="reviewBtn">Revisar mensajes</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Delegaciones rápidas</div>
+                <div class="panel-sub">Trabajo administrativo que el agente puede absorber</div>
+              </div>
+            </div>
+            <div class="tasklist">
+              <div class="task" data-command="Perseguí todas las órdenes vencidas de esta obra y pedí nueva fecha de entrega.">
+                <div class="taskicon">01</div>
+                <div><h4>Perseguir entregas</h4><p>Contactar proveedores y registrar nuevas fechas prometidas.</p></div>
+                <div class="arrow">›</div>
+              </div>
+              <div class="task" data-command="Procesá los documentos nuevos, vinculalos a sus OC y marcá cualquier diferencia.">
+                <div class="taskicon">02</div>
+                <div><h4>Procesar documentos</h4><p>Leer facturas/remitos, vincularlos y detectar diferencias.</p></div>
+                <div class="arrow">›</div>
+              </div>
+              <div class="task" data-command="Compará las cotizaciones abiertas y resumime precio, plazo y condiciones.">
+                <div class="taskicon">03</div>
+                <div><h4>Comparar cotizaciones</h4><p>Normalizar propuestas y traer sólo la decisión.</p></div>
+                <div class="arrow">›</div>
+              </div>
+              <div class="task" data-command="Mostrame sólo lo que requiere atención hoy en esta obra.">
+                <div class="taskicon">04</div>
+                <div><h4>Buscar excepciones</h4><p>Retrasos, faltantes, diferencias, vencimientos y bloqueos.</p></div>
+                <div class="arrow">›</div>
+              </div>
+              <div class="task" data-command="Prepará la orden de compra con la propuesta seleccionada, pero no la emitas sin mi aprobación.">
+                <div class="taskicon">05</div>
+                <div><h4>Preparar OC</h4><p>Crear el documento completo y detenerse antes del compromiso económico.</p></div>
+                <div class="arrow">›</div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <aside>
+      <div class="aside-title">Contexto ERP</div>
+
+      <div class="context-card">
+        <h3>Parque Industrial Norte</h3>
+        <div class="kv"><span>Estado</span><b>En ejecución</b></div>
+        <div class="kv"><span>Centro de costo</span><b>OB-2026-014</b></div>
+        <div class="kv"><span>Pañol</span><b>Depósito Obra Norte</b></div>
+        <div class="kv"><span>Presupuesto</span><b>Gs. 4.820 M</b></div>
+      </div>
+
+      <div class="aside-title">Proveedores detectados</div>
+      <div class="context-card">
+        <div class="person">
+          <div class="badge">AS</div>
+          <div><strong>Acero Sur</strong><small>compras@acerosur.com.py</small></div>
+          <span class="tag">Email + WA</span>
+        </div>
+        <div class="person">
+          <div class="badge">CM</div>
+          <div><strong>Construmax</strong><small>ventas@construmax.com.py</small></div>
+          <span class="tag">Email</span>
+        </div>
+        <div class="person">
+          <div class="badge">MC</div>
+          <div><strong>Materiales Central</strong><small>Contacto comercial verificado</small></div>
+          <span class="tag">WA</span>
+        </div>
+      </div>
+
+      <div class="aside-title">Límites del agente</div>
+      <div class="context-card">
+        <div class="kv"><span>Leer ERP</span><b>Permitido</b></div>
+        <div class="kv"><span>Crear borradores</span><b>Permitido</b></div>
+        <div class="kv"><span>Contactar proveedor</span><b>Con regla</b></div>
+        <div class="kv"><span>Emitir OC</span><b>Requiere aprobación</b></div>
+        <div class="kv"><span>Movimiento de dinero</span><b>Bloqueado</b></div>
+        <div class="audit">Todas las acciones quedan registradas con usuario, timestamp, inputs utilizados y resultado.</div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const input = document.getElementById('commandInput');
+  const toast = document.getElementById('toast');
+  const status = document.getElementById('agentStatus');
+  const mic = document.getElementById('micBtn');
+
+  function notify(msg){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(()=>toast.classList.remove('show'), 2200);
+  }
+
+  document.querySelectorAll('.chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      const map = {
+        'Pedir cotización':'Pedí cotización de cemento, arena y varillas a Acero Sur, Construmax y Materiales Central para esta obra.',
+        'Perseguir una entrega':'Perseguí las órdenes vencidas de esta obra y pedí nueva fecha de entrega.',
+        'Registrar necesidad de obra':'Necesito 50 bolsas de cemento y 2 cajas de electrodos mañana en esta obra.',
+        'Comparar propuestas':'Compará las cotizaciones abiertas y resumime precio, plazo y condiciones.',
+        'Preparar una OC':'Prepará la orden de compra con la propuesta seleccionada. No la emitas sin mi aprobación.',
+        'Cerrar pendientes de hoy':'Revisá esta obra y resolvé todo lo administrativo que puedas. Traeme sólo lo que necesita decisión.'
+      };
+      input.value = map[chip.textContent] || chip.textContent;
+      input.focus();
+    });
+  });
+
+  document.querySelectorAll('.task').forEach(task=>{
+    task.addEventListener('click', ()=>{
+      input.value = task.dataset.command;
+      input.focus();
+      window.scrollTo({top:0,behavior:'smooth'});
+    })
+  });
+
+  document.getElementById('runBtn').addEventListener('click', ()=>{
+    status.textContent='Ejecutando';
+    status.classList.add('active');
+    notify('El agente comenzó a trabajar con el contexto del ERP.');
+    setTimeout(()=>{ status.textContent='En curso'; }, 1200);
+  });
+
+  document.getElementById('approveBtn').addEventListener('click', ()=>{
+    document.getElementById('approval').style.borderColor='rgba(125,226,184,.24)';
+    document.getElementById('approval').style.background='rgba(125,226,184,.045)';
+    document.querySelector('#approval h4').textContent='Aprobado';
+    document.querySelector('#approval p').textContent='Solicitudes enviadas. El agente hará seguimiento y estructurará las respuestas automáticamente.';
+    document.querySelector('.approval-actions').innerHTML='';
+    status.textContent='Esperando respuestas';
+    notify('3 solicitudes enviadas y seguimiento activado.');
+  });
+
+  document.getElementById('reviewBtn').addEventListener('click', ()=>{
+    notify('Vista previa de los mensajes preparada.');
+  });
+
+  mic.addEventListener('click', ()=>{
+    mic.classList.toggle('live');
+    if(mic.classList.contains('live')){
+      input.value='Escuchando…';
+      notify('Simulación de entrada por voz activada.');
+      setTimeout(()=>{
+        input.value='Pedí cotización de cemento, arena y varillas a Acero Sur, Construmax y Materiales Central para esta obra.';
+        mic.classList.remove('live');
+      },1600);
+    }
+  });
+
+  document.querySelectorAll('.mode-toggle button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.mode-toggle button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      notify('Modo cambiado a: '+btn.textContent);
+    })
+  });
+</script>
+</body>
+</html>

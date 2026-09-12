@@ -1,0 +1,377 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flujo de una obra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+  :root{
+    --bg:#0a0b0f; --panel:#14151b; --panel-2:#191b22; --panel-3:#1e2028; --border:#24262f;
+    --fg:#f2f3f5; --muted:#8b93a3; --dim:#5f6673;
+    --amber:#f5a524; --blue:#5b7cfa; --teal:#2dd4bf; --purple:#a78bfa; --green:#34d399; --orange:#fb923c; --red:#f2685c;
+    --sans:'Inter',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{color-scheme:dark}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+
+  .wrap{max-width:780px;margin:0 auto;padding:44px 22px 120px}
+
+  .kicker{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.16em;color:var(--amber);margin-bottom:12px}
+  h1{font-size:clamp(27px,5.5vw,40px);font-weight:800;line-height:1.06;letter-spacing:-.02em;margin:0 0 14px;text-wrap:balance}
+  .lead{font-size:15px;color:var(--muted);max-width:60ch;margin:0 0 24px}
+  .lead b{color:var(--fg);font-weight:600}
+
+  /* progreso */
+  .progress-bar{position:sticky;top:0;z-index:30;background:var(--bg);padding:12px 0 14px;margin-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .ptrack{flex:1;min-width:160px;height:6px;border-radius:3px;background:var(--panel-2);overflow:hidden}
+  .pfill{height:100%;background:linear-gradient(90deg,var(--blue),var(--teal));border-radius:3px;transition:width .35s ease;width:0}
+  .pcount{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .pbtns{display:flex;gap:6px}
+  .pbtn{font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--muted)}
+  .pbtn:hover{color:var(--fg);border-color:var(--muted)}
+
+  /* fase */
+  .phase{position:relative;padding-left:52px;margin-top:34px}
+  .phase::before{content:"";position:absolute;left:17px;top:6px;bottom:-34px;width:2px;background:var(--border)}
+  .phase:last-of-type::before{display:none}
+  .pnode{position:absolute;left:0;top:0;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;border:2px solid;background:var(--bg);z-index:1}
+  .p1 .pnode{border-color:var(--blue);color:var(--blue)}
+  .p2 .pnode{border-color:var(--teal);color:var(--teal)}
+  .p3 .pnode{border-color:var(--orange);color:var(--orange)}
+  .p4 .pnode{border-color:var(--purple);color:var(--purple)}
+  .p5 .pnode{border-color:var(--green);color:var(--green)}
+  .p6 .pnode{border-color:var(--amber);color:var(--amber)}
+
+  .phead{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding-top:3px;margin-bottom:3px}
+  .phead h2{font-size:19px;font-weight:700;margin:0;letter-spacing:-.01em}
+  .cadence{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:20px}
+  .cad-once{background:#1c2536;color:#8fb3ff}
+  .cad-loop{background:#3a2c0f;color:var(--amber)}
+  .cad-loop::before{content:"⟳ "}
+  .cad-perm{background:#10241f;color:var(--green)}
+  .psub{font-size:12.5px;color:var(--muted);margin:0 0 12px}
+
+  /* pasos acordeón */
+  .steps{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
+  .step{border:1px solid var(--border);border-radius:11px;background:var(--panel);overflow:hidden}
+  .step.open{border-color:var(--dim)}
+  .step-btn{width:100%;display:flex;align-items:center;gap:12px;padding:13px 14px;background:none;border:none;color:inherit;text-align:left;font:inherit;cursor:pointer}
+  .step-btn:hover{background:var(--panel-2)}
+  .check{width:20px;height:20px;flex-shrink:0;border-radius:6px;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;color:transparent;transition:.12s}
+  .step.done .check{background:var(--green);border-color:var(--green);color:#04160c}
+  .step-t{flex:1;font-size:14px;font-weight:600;min-width:0}
+  .step.done .step-t{color:var(--muted)}
+  .step-screen{flex-shrink:0;font-size:10.5px;font-weight:600;color:var(--muted);background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:3px 7px;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis}
+  .step-screen.auto{color:var(--green);border-color:#1d3a2e;background:#0f2018}
+  .chev{flex-shrink:0;color:var(--dim);transition:transform .18s;font-size:12px}
+  .step.open .chev{transform:rotate(90deg)}
+
+  .step-body{display:none;padding:0 14px 16px 46px;font-size:13.5px;color:var(--muted)}
+  .step.open .step-body{display:block}
+  .step-body .what{color:var(--fg);margin:0 0 12px}
+  .step-body h4{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin:14px 0 7px}
+  .step-body ol{margin:0;padding-left:18px;line-height:1.85}
+  .step-body ol li{margin-bottom:3px}
+  .step-body ol b{color:var(--fg);font-weight:600}
+  .step-body .tip{display:flex;gap:8px;margin-top:12px;padding:9px 11px;border-radius:8px;background:var(--panel-2);font-size:12.5px}
+  .step-body .tip.warn{background:#2a1f0c;color:var(--amber)}
+  .step-body .tip.ok{background:#10241f;color:var(--green)}
+  .step-body .tip .i{flex-shrink:0}
+  .step-body code{background:var(--panel-3);padding:1px 5px;border-radius:4px;color:var(--fg);font-size:12px}
+
+  .connector{padding-left:52px;position:relative;margin:20px 0 6px}
+  .connector::before{content:"";position:absolute;left:17px;top:-14px;height:28px;width:2px;background:var(--border)}
+  .connector span{font-size:12px;color:var(--amber);font-style:italic}
+
+  .foot{margin-top:44px;border:1px solid var(--border);background:var(--panel);border-radius:13px;padding:20px 22px;font-size:13px;color:var(--muted)}
+  .foot b{color:var(--fg)}
+  .foot a{color:var(--blue)}
+
+  @media(max-width:560px){
+    .phase{padding-left:40px}
+    .phase::before,.connector::before{left:15px}
+    .pnode{width:32px;height:32px;font-size:13px}
+    .step-body{padding-left:14px}
+    .step-screen{max-width:110px}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="kicker">niu.pack · Módulo Construcción</div>
+  <h1>El flujo de una obra, paso a paso</h1>
+  <p class="lead">Tocá cada punto para abrir <b>cómo se usa</b>. Marcá los que ya tenés claros — la barra de arriba lleva el avance. Las fases del medio <b>se repiten</b>: con cada compra, cada día, cada mes.</p>
+
+  <div class="progress-bar">
+    <div class="ptrack"><div class="pfill" id="pfill"></div></div>
+    <span class="pcount" id="pcount">0 de 0 revisados</span>
+    <div class="pbtns">
+      <button class="pbtn" id="expandAll">Abrir todo</button>
+      <button class="pbtn" id="collapseAll">Cerrar todo</button>
+    </div>
+  </div>
+
+  <div id="flow"></div>
+
+  <div class="foot">
+    <p style="margin:0 0 8px"><b>¿Y el detalle fino de cada pantalla?</b></p>
+    <p style="margin:0">Este documento es el <b>recorrido</b> — qué hacés y en qué orden. Para la referencia completa de cada módulo (con widgets para probar cada concepto), está el Manual de Obra.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const KEY = 'flujo-obra-done-v1';
+
+  const PHASES = [
+    {
+      n:1, cls:'p1', title:'Preparar la obra', cad:'cad-once', cadTxt:'Una vez · antes de arrancar',
+      sub:'Dejás la obra lista para operar: contrato, presupuesto, cronograma.',
+      steps:[
+        { id:'crear', t:'Crear el proyecto', screen:'Proyectos → Nuevo',
+          what:'Un proyecto es una obra. Presupuesto, avance, certificados, stock — todo cuelga de acá.',
+          how:['Botón <b>"Nuevo proyecto"</b> en la lista de Proyectos.',
+               'Cargá <b>nombre</b>, <b>código</b> (ej. <code>OBR-001</code>), cliente, ubicación.',
+               'Datos del contrato: <b>comitente</b>, N° de contrato, <b>monto contractual</b>, <b>% de anticipo</b>, <b>% de retención</b>, plazo en meses. (Esto lo usa el certificado para calcular las deducciones.)',
+               'Dejá tildado <b>"Crear depósito/pañol para esta obra"</b> si vas a controlar stock por obra.'],
+          tip:{k:'ok', t:'Adentro del proyecto las tabs están agrupadas por fase: Preparar · Comprar · Ejecutar · Certificar y controlar. Seguí ese orden.'} },
+        { id:'panol', t:'Se crea el pañol/depósito de la obra', screen:'automático', auto:true,
+          what:'Un depósito físico vinculado al proyecto. Todo el material de esta obra entra y sale de acá.',
+          how:['Se crea solo al crear el proyecto (si dejaste la opción tildada).',
+               'Queda con el nombre <code>Pañol OBR-001 — Nombre de la obra</code>.',
+               'Si no lo creaste ahí, lo podés crear después desde <b>Stock → Depósitos</b> y vincularlo al proyecto.'] },
+        { id:'presup', t:'Importar el presupuesto', screen:'tab Presupuesto',
+          what:'El cómputo métrico de la obra. Es la base de todo: cronograma, avance, certificados y consumo de materiales.',
+          how:['Botón <b>"Importar Excel"</b> → subís el <code>.xlsx</code> o <code>.csv</code> del cómputo.',
+               '<b>Mapeás las columnas</b>: cuál es Código, Descripción, Unidad, Cantidad, Precio. Se auto-detecta por el encabezado; lo corregís a mano si hace falta.',
+               'Previsualizás — las filas con problemas se marcan en rojo y se saltean.',
+               'Si tus códigos son jerárquicos (<code>1</code>, <code>1.1</code>, <code>1.2</code>) la jerarquía se arma sola.'],
+          tip:{k:'warn', t:'Si vas a hacer certificados, importá del MISMO Excel de medición que vas a usar para pegar el avance — así los códigos coinciden y el emparejamiento es exacto.'} },
+        { id:'crono', t:'Poner fechas en cada ítem', screen:'tab Cronograma',
+          what:'El Gantt de la obra. No se dibuja a mano — sale de las fechas de cada rubro.',
+          how:['En Presupuesto, editás cada ítem y le ponés <b>fecha de inicio y fin</b>.',
+               'En Cronograma se dibuja el Gantt. Los ítems sin fecha no aparecen.',
+               'Podés arrastrar una barra para mover sus fechas — se guarda solo.',
+               'Selector <b>Día / Semana / Mes</b> para el zoom.'] },
+        { id:'subc', t:'Cargar contratos de subcontratistas', screen:'tab Subcontratistas',
+          what:'Cada rubro que tercerizás es un contrato con un subcontratista.',
+          how:['Botón <b>"Agregar contrato"</b>.',
+               'Elegís un subcontratista del catálogo o cargás uno nuevo en el momento.',
+               'Asignás el <b>rubro del presupuesto</b>, el <b>monto contratado</b> y el <b>% de retención</b> (5% por defecto).'],
+          tip:{k:'ok', t:'El subcontratista carga sus certificados desde un link propio sin login. El sistema bloquea aprobar más del monto contratado.'} },
+      ]
+    },
+    {
+      n:2, cls:'p2', title:'Comprar materiales', cad:'cad-loop', cadTxt:'Se repite con cada compra',
+      sub:'El circuito de aprovisionamiento. Cada vez que la obra necesita material, este ciclo entero.',
+      steps:[
+        { id:'cotizar', t:'Pedir precio a proveedores', screen:'Cotizaciones',
+          what:'Le pedís precio a varios proveedores para el mismo producto, sin llamarlos uno por uno.',
+          how:['Creás la solicitud: producto, cantidad, unidad, especificaciones, fecha requerida.',
+               'Invitás proveedores del catálogo — cada uno recibe un <b>link propio, sin login</b>.',
+               'El proveedor entra y carga su oferta: precio, plazo de entrega, validez, PDF opcional.',
+               'Comparás las ofertas y elegís una <b>marcando el motivo</b> (menor precio, mejor plazo, proveedor habitual).'] },
+        { id:'oc', t:'Se genera la Orden de Compra — asignála a la obra', screen:'Órdenes de compra',
+          what:'El compromiso formal de compra. Nace sola de la cotización elegida.',
+          how:['Al seleccionar la oferta, la OC se genera automáticamente con su código (<code>OC-2026-0012</code>).',
+               'Abrís la OC y le <b>asignás el proyecto</b> — así aparece en las compras de esa obra.',
+               'La OC lleva su <b>saldo</b>: cuánto se facturó y cuánto queda.'],
+          tip:{k:'warn', t:'Si no le asignás el proyecto, la compra no aparece en el tab "Compras" de la obra ni suma a "comprado vs presupuesto".'} },
+        { id:'recep', t:'Llega el camión → recepción de la OC', screen:'Stock → Recepcionar OC',
+          what:'Registrás que la mercadería llegó físicamente. Es requisito para que la factura pase a apta para pago.',
+          how:['Desde la OC (o desde Stock), botón <b>"Recepcionar OC"</b>.',
+               'Marcás <b>qué llegó</b> y <b>cuánto</b> de cada línea (puede llegar en varias entregas).',
+               'Elegís a qué <b>producto de stock</b> corresponde cada línea → el material entra al pañol al precio de la OC.',
+               'El sistema recalcula el <b>Costo Promedio Ponderado</b> del producto.'],
+          tip:{k:'ok', t:'La recepción actualiza sola el estado de la OC a "Recibido" en el módulo de Compras.'} },
+        { id:'facprov', t:'Llega la factura del proveedor', screen:'Facturas',
+          what:'Una IA lee las facturas que subís (foto o PDF) e intenta identificar todo.',
+          how:['Carga masiva: subís todas las facturas del día juntas.',
+               'La IA lee cada una: proveedor por RUC, número, fecha, montos, timbrado.',
+               '<b>Auto-conciliación 2-de-3</b>: si coinciden proveedor + monto + código OC, se vincula sola.',
+               'Si algo no cierra, va a la cola de <b>revisión manual</b> con los datos pre-cargados.'],
+          tip:{k:'warn', t:'El matching nunca cruza proveedores: una factura de "Cartones SA" jamás se ofrece vincular con una OC de otro proveedor.'} },
+        { id:'pagoprov', t:'Orden de Pago → pagar', screen:'Pagos',
+          what:'Agrupás facturas aptas del mismo proveedor en una Orden de Pago y queda el respaldo formal.',
+          how:['Elegís el proveedor → el sistema muestra sus facturas aptas para pago.',
+               'Marcás cuáles pagás → se crea la OP con código propio.',
+               '<b>"Ver OP"</b>: documento con proveedor, facturas, OC de cada una, total — para imprimir.',
+               'Al marcarla <b>Ejecutada</b>, todas sus facturas pasan a Pagado.'] },
+      ]
+    },
+    {
+      n:3, cls:'p3', title:'Ejecutar en obra', cad:'cad-loop', cadTxt:'Se repite todos los días',
+      sub:'Lo que pasa en el frente de obra, cargado desde el celular del capataz.',
+      steps:[
+        { id:'avance', t:'El capataz carga el avance del día con foto', screen:'tab Ejecución',
+          what:'El capataz o residente registra lo ejecutado, día a día. No necesita cuenta.',
+          how:['En la tab Ejecución, botón <b>"QR para el capataz"</b> → <b>"Descargar QR"</b> (PNG).',
+               'Se lo mandás por WhatsApp o lo imprimís y lo pegás en el obrador.',
+               'El capataz lo escanea <b>una vez</b>, entra al parte de avance y lo <b>agrega a la pantalla de inicio</b>.',
+               'Carga: ítem del presupuesto, cantidad ejecutada, fecha, y hasta 5 fotos con <b>"Abrir cámara"</b>.'],
+          tip:{k:'ok', t:'Captura verificada: la cámara se abre DENTRO de la app (no la galería) y sella cada foto con GPS + fecha/hora. No se puede mandar una foto vieja, de otra obra o editada.'} },
+        { id:'salida', t:'El material sale del pañol al frente', screen:'Stock → Salida',
+          what:'Registrás el consumo. Es lo que alimenta el reporte de consumo vs presupuesto.',
+          how:['En Stock, movimiento <b>SALIDA</b>: elegís producto, cantidad, depósito de origen.',
+               '<b>Imputás a la obra</b> y, opcionalmente, al <b>rubro del presupuesto</b>.',
+               'El stock baja y la salida queda registrada contra esa obra.'],
+          tip:{k:'ok', t:'En el proyecto, tab "Stock / Materiales" ves comprado / consumido / disponible por producto para esa obra.'} },
+        { id:'personal', t:'Parte diario de personal', screen:'tab Personal',
+          what:'Partes de mano de obra: quién trabajó, cuántas horas, a qué costo.',
+          how:['En la tab Personal, cargás cada parte: fecha, trabajador, horas, costo por hora.',
+               'El total se suma al KPI <b>"Costo de Mano de Obra"</b> del proyecto.'] },
+        { id:'lluvia', t:'Marcar días de lluvia / no trabajados', screen:'tab Avance físico',
+          what:'Calendario que registra por qué no se trabajó cada día. Justifica prórrogas de plazo.',
+          how:['En la tab Avance físico, el calendario. Un clic por día cicla: trabajo → Lluvia (LL) → No hábil (NH) → Huelga (HH) → Otro (O).',
+               'El total por tipo se imprime en el certificado del período como parte del acta.'] },
+      ]
+    },
+    {
+      n:4, cls:'p4', title:'Certificar al comitente', cad:'cad-loop', cadTxt:'Se repite a fin de cada mes',
+      sub:'El documento con el que le cobrás al comitente lo ejecutado en el mes (obra pública).',
+      steps:[
+        { id:'nuevocert', t:'Nuevo certificado', screen:'tab Certificados',
+          what:'Congela el avance del período con columnas Anterior / Presente / Acumulado por rubro.',
+          how:['Botón <b>"+ Nuevo certificado"</b> — sale numerado solo (N°1, N°2…).',
+               'Nace en <b>BORRADOR</b> con todos los rubros del presupuesto.',
+               'La columna <b>"Anterior"</b> ya viene calculada de los certificados aprobados previos.'] },
+        { id:'pegar', t:'Pegar el avance del mes desde el Excel', screen:'tab Certificados',
+          what:'El avance real vive en tu planilla de medición. No se tipea rubro por rubro.',
+          how:['Copiás la columna <b>"Presente"</b> de tu Excel de medición (hoja ACTA / registro).',
+               'La pegás en el certificado → el sistema empareja por código de rubro (o por orden de fila) y llena todos los <code>qty_presente</code> de un golpe.',
+               'Alternativa para obras con unidades repetidas (viviendas, locales): cargás el <b>% de avance por unidad</b> y el botón "Calcular rubros desde unidades" hace la cuenta.'] },
+        { id:'deducc', t:'El sistema calcula las deducciones', screen:'automático', auto:true,
+          what:'Acumulado, devolución de anticipo, retención y monto líquido — todo desde los datos del contrato.',
+          how:['<b>Acumulado</b> = Anterior + Presente.',
+               '<b>Devolución de anticipo</b> = bruto × % anticipo del contrato.',
+               '<b>Retención</b> = bruto × % retención.',
+               'Fiscalización puede cargar <b>penalidades</b> (por avance o por presentación).',
+               '<b>Monto líquido</b> = lo que te van a pagar.'] },
+        { id:'firmas', t:'Circuito de firmas', screen:'tab Certificados',
+          what:'El certificado avanza por estados que mapean a las firmas reales.',
+          how:['<b>Borrador</b> → cargás y ajustás.',
+               '<b>Elaborado</b> → congelás las líneas (ya no cambian).',
+               '<b>Verificado</b> → Fiscalización revisa.',
+               '<b>Aprobado</b> → Supervisión firma. Listo para facturar.'] },
+        { id:'pdf', t:'Descargar el PDF y presentarlo', screen:'tab Certificados',
+          what:'El documento en A4 landscape, listo para firmar.',
+          how:['En cada certificado, enlace <b>"Descargar PDF"</b>.',
+               'Se genera en el servidor y se abre en una pestaña nueva — no necesitás ningún programa.',
+               'Incluye: encabezado (empresa / comitente / contrato), tabla de rubros completa, bloque de liquidación y bloque de firmas.'] },
+      ]
+    },
+    {
+      n:5, cls:'p5', title:'Cobrar', cad:'cad-once', cadTxt:'Cuando el comitente aprueba el certificado',
+      sub:'Acá el proyecto se conecta con el módulo Ventas que ya conocés.',
+      steps:[
+        { id:'fv', t:'Del certificado aprobado → Factura de Venta', screen:'Facturas de Venta',
+          what:'Facturás al comitente por el monto del certificado. Genera cuenta por cobrar.',
+          how:['Creás la Factura de Venta al comitente por el monto del certificado.',
+               'Podés emitirla como <b>factura electrónica (SIFEN)</b> con el botón "Emitir FE" — vuelve el CDC y el KUDE.',
+               'Queda con saldo pendiente hasta que se registre un cobro.'] },
+        { id:'cobro', t:'El comitente paga → registrás el cobro', screen:'Cobros',
+          what:'Cerrás el círculo. La factura queda saldada.',
+          how:['En Cobros, botón <b>"+ Cobro"</b> sobre la factura: monto, método, fecha.',
+               'La factura aparece en la <b>antigüedad de saldos</b> por cliente hasta que se cobra del todo.'],
+          tip:{k:'warn', t:'Si hubo un ajuste o devolución después de facturar, se emite una Nota de Crédito (desde la factura origen o libre), también con FE vía Goekua.'} },
+      ]
+    },
+    {
+      n:6, cls:'p6', title:'Controlar', cad:'cad-perm', cadTxt:'Permanente · en paralelo a todo',
+      sub:'No es un paso al final — lo mirás durante toda la obra para saber si vas bien.',
+      steps:[
+        { id:'curva', t:'Curva S — avance planificado vs real', screen:'tab Avance físico',
+          what:'Compara lo que deberías haber avanzado (cronograma) con lo que certificaste.',
+          how:['La línea gris = planificado acumulado (del cronograma vigente).',
+               'La línea de color = ejecutado acumulado (de los certificados en Elaborado o superior).',
+               'Si el real está por debajo, hay atraso — el sistema te dice cuánto en guaraníes (brecha % × monto contractual).'] },
+        { id:'consumo', t:'Consumo de materiales vs presupuesto', screen:'tab Presupuesto',
+          what:'Cuánto material salió a cada rubro contra lo presupuestado de ese rubro.',
+          how:['Aparece automáticamente debajo de la tabla del presupuesto cuando hay salidas de stock imputadas a la obra.',
+               'Verde = dentro del presupuesto · amarillo = pasó el 80% · rojo = pasó el 100%.',
+               'Cada fila se expande para ver los productos individuales con cantidad y costo.'] },
+        { id:'informes', t:'Informes ejecutivos', screen:'tab Informes',
+          what:'El resumen de la obra: tres gráficas y dos exportes.',
+          how:['<b>Curva S de costos</b> (planificado vs real), <b>presupuesto vs compras</b>, <b>distribución por rubro</b>.',
+               '<b>"Exportar Excel"</b> — 3 hojas: Presupuesto / Ejecución / Compras.',
+               '<b>"Exportar PDF"</b> — con membrete de la empresa.'] },
+      ]
+    },
+  ];
+
+  const CONNECTORS = { 1:'la obra arranca — de acá en adelante todo se repite', 4:'el comitente aprueba y paga → pasás al flujo de Ventas' };
+
+  let done = new Set();
+  try { done = new Set(JSON.parse(localStorage.getItem(KEY) || '[]')); } catch(e){}
+  function save(){ try { localStorage.setItem(KEY, JSON.stringify([...done])); } catch(e){} }
+
+  const allIds = PHASES.flatMap(p => p.steps.map(s => s.id));
+
+  function updateProgress(){
+    const n = allIds.filter(id => done.has(id)).length;
+    document.getElementById('pfill').style.width = (n/allIds.length*100) + '%';
+    document.getElementById('pcount').textContent = `${n} de ${allIds.length} revisados`;
+  }
+
+  function render(){
+    const root = document.getElementById('flow');
+    root.innerHTML = PHASES.map(p => {
+      const steps = p.steps.map(s => {
+        const isDone = done.has(s.id);
+        const how = s.how.map(h => `<li>${h}</li>`).join('');
+        const tip = s.tip ? `<div class="tip ${s.tip.k}"><span class="i">${s.tip.k==='warn'?'⚠':'✓'}</span><span>${s.tip.t}</span></div>` : '';
+        return `<div class="step${isDone?' done':''}" data-id="${s.id}">
+          <button class="step-btn" data-act="toggle">
+            <span class="check" data-act="check">✓</span>
+            <span class="step-t">${s.t}</span>
+            <span class="step-screen${s.auto?' auto':''}">${s.screen}</span>
+            <span class="chev">▶</span>
+          </button>
+          <div class="step-body">
+            <p class="what">${s.what}</p>
+            <h4>Cómo se usa</h4>
+            <ol>${how}</ol>
+            ${tip}
+          </div>
+        </div>`;
+      }).join('');
+      const conn = CONNECTORS[p.n] ? `<div class="connector"><span>${CONNECTORS[p.n]}</span></div>` : '';
+      return `<section class="phase ${p.cls}">
+        <div class="pnode">${p.n}</div>
+        <div class="phead"><h2>${p.title}</h2><span class="cadence ${p.cad}">${p.cadTxt}</span></div>
+        <p class="psub">${p.sub}</p>
+        <div class="steps">${steps}</div>
+      </section>${conn}`;
+    }).join('');
+    updateProgress();
+  }
+
+  document.getElementById('flow').addEventListener('click', e => {
+    const step = e.target.closest('.step');
+    if(!step) return;
+    const id = step.dataset.id;
+    if(e.target.closest('[data-act="check"]')){
+      e.stopPropagation();
+      done.has(id) ? done.delete(id) : done.add(id);
+      step.classList.toggle('done');
+      save(); updateProgress();
+      return;
+    }
+    step.classList.toggle('open');
+  });
+
+  document.getElementById('expandAll').addEventListener('click', ()=> document.querySelectorAll('.step').forEach(s=>s.classList.add('open')));
+  document.getElementById('collapseAll').addEventListener('click', ()=> document.querySelectorAll('.step').forEach(s=>s.classList.remove('open')));
+
+  render();
+})();
+</script>
+
+</body>
+</html>

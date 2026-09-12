@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Auction Bot / Auction Lab — Bloque de conocimiento</title>
+<style>
+:root{--bg:#0b0d10;--panel:#11151a;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.14);--text:#f5f7fa;--muted:#96a1ad;--accent:#8ee3c6;--blue:#77b8ff;--warn:#f4c66d;--danger:#ff8b8b;--ok:#79deb3}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(circle at 10% -10%,rgba(142,227,198,.07),transparent 25%),radial-gradient(circle at 90% 0%,rgba(119,184,255,.07),transparent 30%),var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{position:sticky;top:0;z-index:10;background:rgba(11,13,16,.86);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}.top{max-width:1400px;margin:auto;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;gap:15px}.brand{display:flex;gap:11px;align-items:center}.logo{width:34px;height:34px;border:1px solid var(--line2);border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.03)}.logo:before{content:"";width:13px;height:13px;border:2px solid var(--accent);border-radius:4px;transform:rotate(45deg)}h1{font-size:14px;margin:0}.sub{font-size:11px;color:var(--muted);margin-top:2px}.actions{display:flex;gap:7px}.btn{border:1px solid var(--line);background:rgba(255,255,255,.025);color:#cbd2d9;border-radius:10px;padding:8px 10px;font-size:10px;cursor:pointer}.btn.primary{border-color:rgba(142,227,198,.22);background:rgba(142,227,198,.07);color:#e8fff7}
+.container{max-width:1400px;margin:auto;padding:26px 22px 52px}.card{border:1px solid var(--line);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.012))}
+.hero{display:grid;grid-template-columns:1.3fr .7fr;gap:16px}.hero-main,.hero-side{padding:22px}.kicker{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:800}.hero h2{font-size:31px;line-height:1.07;letter-spacing:-.035em;margin:8px 0 10px}.hero p{font-size:12.5px;line-height:1.55;color:var(--muted);margin:0;max-width:760px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.stat{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(255,255,255,.02)}.stat b{font-size:15px;display:block}.stat span{font-size:9.5px;color:var(--muted)}
+.idx{position:sticky;top:67px;z-index:9;margin-top:16px;padding:11px;display:flex;gap:7px;flex-wrap:wrap;background:rgba(11,13,16,.86);backdrop-filter:blur(18px)}.idx a{border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--muted);border-radius:999px;padding:7px 9px;font-size:9.5px;cursor:pointer;text-decoration:none}.idx a:hover{color:#fff;border-color:var(--line2)}.idx a.fut{border-style:dashed}
+.section{margin-top:24px;scroll-margin-top:140px}.title{display:flex;justify-content:space-between;align-items:end;margin-bottom:10px;gap:10px}.title h3{margin:0;font-size:14px}.title h3 .n{color:var(--blue);font-weight:750;margin-right:8px}.title p{margin:0;color:var(--muted);font-size:10.5px;text-align:right}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.grid1{display:grid;grid-template-columns:minmax(0,1fr);gap:11px}
+.item{border:1px solid var(--line);border-radius:17px;background:rgba(255,255,255,.016);overflow:hidden}.item .head{padding:14px 15px;display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:start}.num{width:31px;height:31px;border:1px solid var(--line);border-radius:10px;display:grid;place-items:center;color:var(--blue);background:rgba(119,184,255,.05);font-size:10px;font-weight:750}.item h4{margin:0 0 4px;font-size:12.5px}.summary{margin:0;color:var(--muted);font-size:10.8px;line-height:1.45}.item .body{border-top:1px solid rgba(255,255,255,.04);padding:12px 15px 15px;font-size:11px;color:var(--muted);line-height:1.55}.item .body b,.item .body strong{color:#e2e7ec}.item .body code{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:var(--accent);background:rgba(142,227,198,.06);padding:1px 5px;border-radius:6px}.item .body ul{margin:6px 0 0;padding-left:16px}.item .body li{margin:3px 0}
+.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.badge{font-size:8.5px;padding:4px 6px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}.badge.ok{color:var(--ok);border-color:rgba(121,222,179,.22);background:rgba(121,222,179,.05)}.badge.warn{color:#ffd28a;border-color:rgba(244,198,109,.22);background:rgba(244,198,109,.06)}.badge.info{color:#dcecff;border-color:rgba(119,184,255,.2);background:rgba(119,184,255,.06)}.badge.fut{color:#ffb1b1;border-color:rgba(255,139,139,.2);background:rgba(255,139,139,.05)}.badge.legacy{color:#c9b8ff;border-color:rgba(160,140,255,.2);background:rgba(160,140,255,.05)}
+.state{min-width:88px;text-align:center;padding:6px 7px;border:1px solid var(--line);border-radius:999px;font-size:8.5px;color:var(--muted)}.state.done{color:var(--ok);border-color:rgba(121,222,179,.22);background:rgba(121,222,179,.05)}.state.future{color:var(--danger);border-color:rgba(255,139,139,.22);background:rgba(255,139,139,.05)}
+.flow{padding:16px;overflow:auto}.flowline{display:flex;align-items:stretch;min-width:920px}.node{flex:1;min-width:120px;text-align:center;padding:11px;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.02);font-size:9px;color:var(--muted)}.node strong{display:block;color:#fff;font-size:10.5px;margin-bottom:3px}.node.hot{border-color:rgba(244,198,109,.25);background:rgba(244,198,109,.05)}.node.hot strong{color:#ffd28a}.arrow{padding:0 7px;color:#4b5560;align-self:center}
+.vflow{display:flex;flex-direction:column;gap:0}.vnode{border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.02);padding:10px 12px;font-size:10.5px;color:var(--muted)}.vnode strong{display:block;color:#fff;font-size:11px;margin-bottom:2px}.vnode code{font-family:ui-monospace,Consolas,monospace;font-size:10px;color:var(--accent)}.varrow{text-align:center;color:#4b5560;padding:3px 0;font-size:11px}.vnode.hot{border-color:rgba(244,198,109,.25);background:rgba(244,198,109,.05)}.vnode.hot strong{color:#ffd28a}
+table.tbl{width:100%;border-collapse:collapse;font-size:10.8px;margin-top:8px}table.tbl th{text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:7px 9px;border-bottom:1px solid var(--line2)}table.tbl td{padding:7px 9px;border-bottom:1px solid rgba(255,255,255,.05);color:#dbe1e7;vertical-align:top}table.tbl tr:last-child td{border-bottom:0}table.tbl code{font-family:ui-monospace,Consolas,monospace;font-size:10px;color:var(--accent)}
+.kv{display:grid;grid-template-columns:1fr auto;gap:8px;padding:7px 0;border-top:1px solid rgba(255,255,255,.04);font-size:11px}.kv:first-of-type{border-top:0;padding-top:0}.kv span:first-child{color:var(--muted)}.kv b{font-weight:600;color:#e2e7ec;text-align:right}
+.mono{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:var(--accent)}
+.note{margin-top:12px;padding:14px 16px;border:1px solid rgba(142,227,198,.14);border-radius:16px;background:rgba(142,227,198,.03)}.note strong{font-size:11px}.note p{margin:6px 0 0;color:var(--muted);font-size:10.8px;line-height:1.5}
+.warnbox{margin-top:12px;padding:14px 16px;border:1px solid rgba(244,198,109,.2);border-radius:16px;background:linear-gradient(180deg,rgba(244,198,109,.07),rgba(244,198,109,.025))}.warnbox strong{font-size:11px;color:#ffd28a}.warnbox p{margin:6px 0 0;color:var(--muted);font-size:10.8px;line-height:1.5}
+.futbox{margin-top:12px;padding:14px 16px;border:1px dashed rgba(255,139,139,.25);border-radius:16px;background:rgba(255,139,139,.03)}.futbox strong{font-size:11px;color:#ffb1b1}.futbox p{margin:6px 0 0;color:var(--muted);font-size:10.8px;line-height:1.5}
+.hidden{display:none}
+@media(max-width:950px){.hero,.grid{grid-template-columns:1fr}.flowline{min-width:640px}}@media(max-width:620px){.container{padding:18px 13px 40px}.top{padding:13px}.actions{display:none}.hero h2{font-size:25px}.stats{grid-template-columns:1fr}.idx{top:60px}}
+</style>
+</head>
+<body>
+<header><div class="top"><div class="brand"><div class="logo"></div><div><h1>Control de Facturas · Bloque de conocimiento</h1><div class="sub">Módulo Auction Bot / Auction Lab · main <span class="mono">efd0712</span> · NO es manual de usuario final</div></div></div><div class="actions"><span class="btn primary">IMPLEMENTADO · main</span></div></div></header>
+<div class="container">
+
+<section class="hero">
+  <div class="card hero-main">
+    <div class="kicker">Resumen ejecutivo</div>
+    <h2>No perder una subasta porque un humano no pudo reaccionar a tiempo, sin regalar precio.</h2>
+    <p><strong style="color:#e2e7ec">Auction Bot Core</strong> es el motor determinístico (sin LLM) que evalúa posición, timing y economía, y propone u ejecuta lances. <strong style="color:#e2e7ec">Auction Lab</strong> es el simulador / entorno de validación multiplayer (Operator, Competitor, Observer) donde el motor se prueba contra mercado simulado. <strong style="color:#e2e7ec">SBE real</strong> es integración futura. <strong style="color:#e2e7ec">Command Center</strong> es la UX final futura.</p>
+    <div class="badges"><span class="badge ok">CORE: IMPLEMENTADO</span><span class="badge ok">AUCTION LAB: IMPLEMENTADO</span><span class="badge ok">HUMAN OVERRIDE: IMPLEMENTADO</span><span class="badge ok">TIMING FINAL: IMPLEMENTADO</span><span class="badge fut">COMMAND CENTER: PENDIENTE</span><span class="badge fut">SBE REAL: PENDIENTE</span></div>
+  </div>
+  <div class="card hero-side">
+    <div class="proghead"><strong>Estado del módulo</strong><span>253/253 vitest</span></div>
+    <div class="stats">
+      <div class="stat"><b>Core</b><span>motor determinístico</span></div>
+      <div class="stat"><b>Lab</b><span>simulador 3 roles</span></div>
+      <div class="stat"><b>Override</b><span>one-shot humano</span></div>
+      <div class="stat"><b>TSC</b><span>limpio</span></div>
+      <div class="stat"><b>Build</b><span>verde 44/44</span></div>
+      <div class="stat"><b>PRs</b><span>#3 · #4 · #5</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="card idx">
+  <a href="#s01">01 Resumen</a><a href="#s02">02 Arquitectura</a><a href="#s03">03 Core</a><a href="#s04">04 Modos</a><a href="#s05">05 Estrategia</a><a href="#s06">06 Timing</a><a href="#s07">07 Cronómetro</a><a href="#s08">08 Autorización</a><a href="#s09">09 Override</a><a href="#s10">10 Lab</a><a href="#s11">11 Flujo</a><a href="#s12">12 Canónico</a><a href="#s13">13 Data model</a><a href="#s14">14 Migraciones</a><a href="#s15">15 Seguridad</a><a href="#s16">16 Testing</a><a href="#s17">17 Decisiones</a><a href="#s18" class="fut">18 Command Center ∗</a><a href="#s19" class="fut">19 SBE real ∗</a><a href="#s20">20 Estado</a><a href="#s21">21 Handoff</a>
+</div>
+
+<section class="section" id="s01"><div class="title"><div><h3><span class="n">01</span>Resumen ejecutivo</h3><p>Qué es cada pieza y qué problema resuelve.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid"><div class="item"><div class="head"><div class="num">A</div><div><h4>Auction Bot Core — el motor</h4><p class="summary">Evaluación determinística por tick: snapshot → estado → decisión (WAIT / BID_CANDIDATE / STOP / HALT). Sin LLM, sin red, sin reloj propio: todo tiempo y toda verdad vienen del snapshot que le entrega el adapter.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">B</div><div><h4>Auction Lab — el simulador</h4><p class="summary">Salas multiplayer con Operator (cockpit interno), Competitor (humano simulado por token) y Observer (war-room read-only por token). Aquí se valida el motor contra mercado simulado antes de cualquier integración real.</p></div></div></div></div>
+<div class="note"><strong>Idea central</strong><p>No perder una subasta porque un humano no pudo reaccionar / clickear / administrar posiciones suficientemente rápido, sin regalar precio innecesariamente: el bot defiende solo dentro de lo autorizado y pide decisión humana exacta cuando hay que cruzar el Ground Floor.</p></div>
+</section>
+
+<section class="section" id="s02"><div class="title"><div><h3><span class="n">02</span>Arquitectura</h3><p>Capas y dirección de dependencias.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><div class="vflow">
+<div class="vnode"><strong>SBE / Sandbox</strong>Mundo: salas, fases, bids, ranking. Supabase es autoridad.</div><div class="varrow">↓ adapter (snapshot + constraints + reloj)</div>
+<div class="vnode"><strong>Auction Adapter</strong><span class="mono">auction-state-adapter · bot-runner</span> — snapshot→AuctionState, máquina fresca por evaluación.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>Auction Bot Core</strong><span class="mono">lib/auction-bot — engine · state-machine · policy</span> — determinístico, sin I/O.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>Policy / Position / Timing / Economics</strong>Objetivo de posición × timing × autorización económica.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>Execution</strong>Recheck fresco → submit único vía RPC → confirmación.</div><div class="varrow">↓</div>
+<div class="vnode hot"><strong>Human Override</strong>STOP por Ground Floor → AWAITING_AUTHORIZATION → DEFENDER / CEDER (one-shot).</div><div class="varrow">↓</div>
+<div class="vnode"><strong>Audit Log</strong>Eventos + idempotency keys. Todo verificado, nada inventado.</div>
+</div></div>
+<div class="note"><strong>Separación estricta</strong><p><span class="mono">auction-sandbox → auction-bot</span>. Nunca al revés: el Core no importa nada del sandbox, no conoce Supabase, React ni tokens. Sandbox y producción real comparten el mismo Core.</p></div>
+</section>
+
+<section class="section" id="s03"><div class="title"><div><h3><span class="n">03</span>Auction Bot Core</h3><p>Motor determinístico, fail-closed, auditable.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">1</div><div><h4>Deterministic engine · sin LLM</h4><p class="summary"><span class="mono">evaluateAuctionStep(state, policy, constraints)</span>: mismo input → misma decisión, siempre. Máquina fresca por evaluación (<span class="mono">startMonitoring → beginEvaluation → handleDecision</span>).</p></div></div></div>
+<div class="item"><div class="head"><div class="num">2</div><div><h4>Fail-closed + freshness</h4><p class="summary">Estado más viejo que <span class="mono">maxStalenessMs</span> → HALT. Policy corrupta o fingerprint inválido → HALT. Desconocido → HALT. Nunca actúa en duda.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">3</div><div><h4>Frozen policies + versionado</h4><p class="summary">Toda policy se congela (<span class="mono">freezePolicy</span>: inmutable + fingerprint + authorizedBy + version). Nueva versión invalida candidates viejos. STOPPED exige versión nueva para revivir.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">4</div><div><h4>Pre-submit recheck + exactly-once</h4><p class="summary">ASSISTED: <span class="mono">grantHumanAuthorization → recheckCandidate(fresco) → startSubmission</span>. BOUNDED_AUTO: decisión → reload real → recheck → un submit. Timeout ≠ veredicto: <span class="mono">unknown</span> + reconciliación, jamás blind retry.</p></div></div></div>
+</div>
+<div class="card flow" style="margin-top:11px"><div style="padding:4px 2px 10px;font-size:11px;font-weight:700">Invariantes críticas</div><table class="tbl"><tr><th>#</th><th>Invariante</th><th>Qué significa</th></tr>
+<tr><td>1</td><td>State freshness</td><td>Solo se decide desde estado válido y fresco.</td></tr>
+<tr><td>2</td><td>Fail closed</td><td>Ante duda: HALT / STOP / abortar, nunca actuar.</td></tr>
+<tr><td>3</td><td>Timeout ≠ blind retry</td><td>Un timeout es <span class="mono">unknown</span>; se reconcilia desde autoridad, no se reintenta a ciegas.</td></tr>
+<tr><td>4</td><td>Pre-submit recheck</td><td>Ningún submit sale de un snapshot viejo.</td></tr>
+<tr><td>5</td><td>Log immutable / auditable</td><td>Toda decisión y cada submit quedan registrados con versión de policy.</td></tr>
+<tr><td>6</td><td>Nueva policy invalida candidate viejo</td><td>Un candidate atado a vN no vale bajo vN+1.</td></tr>
+<tr><td>7</td><td>Engine decide sólo desde estado válido</td><td>CLOSED / UNKNOWN / corrupto → STOP o HALT.</td></tr>
+<tr><td>8</td><td>No policy upgrade durante submission</td><td>El submit verifica versión vigente en el momento atómico (gate <span class="mono">POLICY_SUPERSEDED</span> en el RPC).</td></tr>
+<tr><td>9</td><td>Policy identity continuity</td><td>Versiones encadenadas por identidad (<span class="mono">policy_id</span> + versión monótona); sin saltos ni bifurcaciones.</td></tr>
+</table></div>
+</section>
+
+<section class="section" id="s04"><div class="title"><div><h3><span class="n">04</span>Modos de ejecución</h3><p>Cuánta autonomía tiene el bot.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">O</div><div><h4>OBSERVE</h4><p class="summary">Solo observa y registra decisiones. Nunca envía lances. Para estudiar mercado sin intervenir.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">A</div><div><h4>ASSISTED</h4><p class="summary">El bot propone <span class="mono">BID_CANDIDATE</span> (proposal box) y un humano con rol manage lo autoriza caso por caso (grant → recheck fresco → submit único).</p></div></div></div>
+</div>
+<div class="item" style="margin-top:11px"><div class="head"><div class="num">B</div><div><h4>BOUNDED_AUTO — el modo operativo</h4><p class="summary">Auto-envío acotado: defiende/adquiere solo mientras el candidate respeta el Ground Floor. Si hay que cruzarlo → STOP + <strong style="color:#ffd28a">AWAITING_AUTHORIZATION</strong> (human override one-shot).</p></div><div class="state done">EN USO</div></div></div>
+</section>
+
+<section class="section" id="s05"><div class="title"><div><h3><span class="n">05</span>Estrategia</h3><p>Posición × timing × economía.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><div class="flowline"><div class="node"><strong>POSITION GOAL</strong>#1 · Top 2 · Top 3</div><div class="arrow">×</div><div class="node"><strong>TIMING POLICY</strong>normal configurable · random siempre ACTIVE</div><div class="arrow">×</div><div class="node"><strong>ECONOMIC AUTHORIZATION</strong>target · tolerancia · Ground Floor</div><div class="arrow">=</div><div class="node"><strong>DECISIÓN</strong>WAIT · BID · STOP · HALT</div></div></div>
+<div class="grid" style="margin-top:11px"><div class="item"><div class="head"><div class="num">D</div><div><h4>Defense Step (configurable, nunca hardcodeado)</h4><p class="summary">Monto por cliente. Regla de defensa: <span class="mono">candidate = precio relevante del competidor − defenseStep</span>. Ej.: competidor ₲1.000.000, step ₲1 → candidate ₲999.999. Con step ₲10 → ₲999.990. El bot nunca inventa el precio.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">P</div><div><h4>Position targets</h4><p class="summary"><span class="mono">TARGET_RANK_1</span> / <span class="mono">TARGET_TOP_2</span> / <span class="mono">TARGET_TOP_3</span> (+ alias legacy <span class="mono">MAINTAIN_*</span>). El motor nunca toma una posición mejor que la pedida.</p></div></div></div></div>
+</section>
+
+<section class="section" id="s06"><div class="title"><div><h3><span class="n">06</span>Timing actual definitivo</h3><p>La regla de producto vigente (PR #5).</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid"><div class="item"><div class="head"><div class="num">N</div><div><h4>NORMAL_BIDDING — configurable</h4><p class="summary"><strong>WAIT</strong> = espera táctica (no revelar estrategia). <strong>ACTIVE</strong> = defiende/adquiere posición inmediatamente. Único timing que el usuario configura.</p></div><div class="state done">VIGENTE</div></div></div>
+<div class="item"><div class="head"><div class="num">R</div><div><h4>RANDOM_CLOSE — SIEMPRE ACTIVE</h4><p class="summary">Iniciada la fase aleatoria, el grupo puede cerrarse en cualquier momento: no existe WAIT táctico. Si se pierde la posición, el bot actúa de inmediato con el defenseStep, respetando Ground Floor (y pidiendo override si debe cruzarlo).</p></div><div class="state done">VIGENTE</div></div></div></div>
+<div class="warnbox"><strong>Nota de compatibilidad (legacy, inerte)</strong><p>Los campos <span class="mono">safeWindowBehavior</span>, <span class="mono">enterTargetPositionInEntryWindow</span> y <span class="mono">defendImmediatelyInCloseRisk</span> pueden seguir existiendo en tipos y snapshots viejos por compatibilidad, pero <strong>ya NO gobiernan el motor durante RANDOM_CLOSE</strong>. No presentar Safe Window, Entry Window ni Close Risk Window como estrategia de usuario: no son configurables ni consultadas.</p></div>
+</section>
+
+<section class="section" id="s07"><div class="title"><div><h3><span class="n">07</span>Cronómetro / fase</h3><p>Tiempo transcurrido, jamás countdown.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid"><div class="item"><div class="head"><div class="num">N</div><div><h4>ACTIVE_NORMAL</h4><p class="summary"><span class="mono">FASE NORMAL · mm:ss transcurridos</span> — calculado desde <span class="mono">started_at</span>. Tick visual de 1s en cliente.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">R</div><div><h4>ACTIVE_RANDOM</h4><p class="summary"><span class="mono">FASE ALEATORIA · mm:ss transcurridos</span> + <span class="mono">CIERRE EN CUALQUIER MOMENTO</span> — desde <span class="mono">random_started_at</span>. Observer ve lo mismo, sin controles.</p></div></div></div></div>
+<div class="note"><strong>Regla dura</strong><p>Es tiempo TRANSCURRIDO. No es countdown. No inventamos tiempo restante: el cierre aleatorio es secreto del servidor (<span class="mono">random_close_at</span> vive solo en tabla privada, jamás sale al cliente).</p></div>
+</section>
+
+<section class="section" id="s08"><div class="title"><div><h3><span class="n">08</span>Autorización económica</h3><p>Hasta dónde puede actuar solo el bot.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><table class="tbl"><tr><th>Concepto</th><th>Ejemplo canónico</th><th>Significado</th></tr>
+<tr><td>Target Price</td><td>₲1.000.000</td><td>Precio objetivo del cliente.</td></tr>
+<tr><td>Auto Defense Tolerance</td><td>2% (200 bps)</td><td>Concesión automática autorizada bajo el target.</td></tr>
+<tr><td>Auto Limit / Ground Floor</td><td>₲980.000</td><td>Límite hasta donde el bot actúa SOLO bajo la policy actual.</td></tr>
+</table></div>
+<div class="warnbox"><strong>Auto Limit NO es piso absoluto de negocio</strong><p>Es el límite de actuación automática. Cruzarlo no está prohibido: requiere decisión humana explícita (human override one-shot) o una nueva versión de policy. El motor frena con STOP y pide autorización en vez de cruzar solo.</p></div>
+</section>
+
+<section class="section" id="s09"><div class="title"><div><h3><span class="n">09</span>Human Override</h3><p>DEFENDER o CEDER, una sola vez, precio exacto.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><div class="vflow">
+<div class="vnode"><strong>candidate ≥ Ground Floor</strong>El bot actúa normalmente (BOUNDED_AUTO).</div><div class="varrow">↓ si cruza</div>
+<div class="vnode"><strong>candidate &lt; Ground Floor</strong>STOP automático <span class="mono">ECONOMIC_LIMIT_BREACHED</span> (con candidate adjunto, sin ejecutar).</div><div class="varrow">↓</div>
+<div class="vnode hot"><strong>AWAITING_AUTHORIZATION</strong>Card dominante: competitor · Ground Floor · próximo lance · paso · <span class="mono">% debajo</span>.</div><div class="varrow">↓ operador decide</div>
+<div class="vnode"><strong>DEFENDER POSICIÓN · ₲X</strong>Autoriza EXACTAMENTE ese lance. <strong>CEDER</strong>: no oferta, sigue monitoreando.</div>
+</div></div>
+<div class="grid" style="margin-top:11px">
+<div class="item"><div class="head"><div class="num">D</div><div><h4>DEFENDER — semántica</h4><p class="summary">Revalida estado authoritative (sala activa, best esperado, versión vigente, candidate exacto = competitor − step). Si cambió algo: no envía nada stale, refresca. Si sigue válido: envía exactamente ₲X. Audita <span class="mono">HUMAN_OVERRIDE_AUTHORIZED</span> (policyVersion, groundFloor, competitor, candidate, step, authorizedBy/At, ECONOMIC_LIMIT_OVERRIDE). No crea policy version, no toca target/límite/step/modo.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">C</div><div><h4>CEDER — semántica</h4><p class="summary">Cero bids. Audita <span class="mono">HUMAN_OVERRIDE_DECLINED</span>. El prompt NO reaparece para el mismo estado (supresión por tupla versión+candidate). El bot sigue monitoreando; un NUEVO competitor bid con NUEVO candidate vuelve a pedir decisión.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">%</div><div><h4>% debajo del Ground Floor</h4><p class="summary"><span class="mono">((floor − competitor) / floor) × 100</span>, solo información: 979.999 vs 980.000 → ~0,0001%; 833.000 vs 980.000 → ~15%. Sin bandas, sin thresholds, sin cambios de comportamiento.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">1</div><div><h4>One-shot + idempotencia</h4><p class="summary">Key estable <span class="mono">override:room:v:price</span>: doble click y reintento post-timeout deduplican en el RPC (segundo = <span class="mono">duplicate:true</span>, cero doble bid). Nunca amplía Auto Limit, nunca autoriza futuros, nunca cambia defenseStep, nunca blind retry.</p></div></div></div>
+</div>
+</section>
+
+<section class="section" id="s10"><div class="title"><div><h3><span class="n">10</span>Auction Lab — el simulador</h3><p>Multiplayer por roles y tokens.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">O</div><div><h4>Operator — panel interno</h4><p class="summary">Cockpit: ranking, bot (policy/modo/target/límite/estado/decisión), proposal boxes (ASSISTED y override), timeline auditado, resultado, links. <span class="mono">/licitaciones/auction-lab</span> y <span class="mono">/licitaciones/auction-lab/[roomId]</span>. Comercial ve solo lectura.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">C</div><div><h4>Competitor — humano simulado</h4><p class="summary">Solo precios y posición propia. JAMÁS ve internals (policy, Ground Floor, candidates, estado del bot). <span class="mono">/auction-lab/join/[token]</span>.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">V</div><div><h4>Observer — war-room read-only</h4><p class="summary">Ranking, bot, límites, KPIs, timeline, override en espera (datos, sin botones). <span class="mono">/auction-lab/watch/[token]</span>. Sin mutaciones.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">T</div><div><h4>Tokens efímeros</h4><p class="summary">Links de competidor/observer por token hasheado, regenerables (invalidan los anteriores). Tratarlos como credenciales efímeras: quien tiene el link ve la sala.</p></div></div></div>
+</div>
+</section>
+
+<section class="section" id="s11"><div class="title"><div><h3><span class="n">11</span>Flujo de una subasta</h3><p>Paso a paso + rama override.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><div class="vflow">
+<div class="vnode"><strong>1–3 · Preparar</strong>Crear sala → <code>freeze policy</code> (fingerprint + authorizedBy + v1) → iniciar (exactly-once: <code>ACTIVE_NORMAL + started_at + 1× AUCTION_STARTED</code>).</div><div class="varrow">↓ cada segundo (heartbeat)</div>
+<div class="vnode"><strong>4–6 · Observar y calcular</strong>Avanzar fase por reloj servidor → snapshot authoritative → evaluar posición → calcular <code>candidate = competitor − defenseStep</code>.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>7–8 · Validar timing y economía</strong>Timing (normal configurable / random siempre ACTIVE) → economía (¿candidate ≥ Ground Floor?).</div><div class="varrow">↓</div>
+<div class="vnode"><strong>9–10 · Ejecutar</strong>Recheck fresco → <strong>un</strong> submit vía RPC (reloj servidor, idempotency key) → confirmar.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>11–12 · Reconciliar y seguir</strong>Timeout = <code>unknown</code> (reconciliar, no reintentar) → continuar observación.</div><div class="varrow">↓ rama</div>
+<div class="vnode hot"><strong>Rama: candidate &lt; Ground Floor</strong>STOP → <code>AWAITING_AUTHORIZATION</code> → DEFENDER (exacto, auditado) o CEDER (auditado, monitorea).</div>
+</div></div>
+</section>
+
+<section class="section" id="s12"><div class="title"><div><h3><span class="n">12</span>Ejemplo canónico</h3><p>El caso que pinean los tests.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><table class="tbl"><tr><th>Paso</th><th>Mercado</th><th>Bot / UI</th></tr>
+<tr><td>Config</td><td>Opening ₲1.050.000 · Target ₲1.000.000 · Ground Floor ₲980.000 · Step ₲1 · BOUNDED_AUTO · #1</td><td>—</td></tr>
+<tr><td>1</td><td>Competidor ₲999.999</td><td>Bot oferta <strong>₲999.998</strong> automático.</td></tr>
+<tr><td>2</td><td>Competidor ₲979.999</td><td>Sin bid automático → <strong>AWAITING_AUTHORIZATION</strong>. Competidor 979.999 · Floor 980.000 · Candidate <strong>979.998</strong>.</td></tr>
+<tr><td>3a</td><td>DEFENDER POSICIÓN · 979.998</td><td>Bot oferta <strong>exactamente ₲979.998</strong> (one-shot auditado).</td></tr>
+<tr><td>3b</td><td>CEDER</td><td>Cero bids. Decline auditado. Sin reprompt del mismo estado; monitoreo continúa.</td></tr>
+<tr><td>4</td><td>Nuevo bid rival más bajo</td><td>Nuevo candidate → nuevo warning y nueva decisión.</td></tr>
+</table></div>
+</section>
+
+<section class="section" id="s13"><div class="title"><div><h3><span class="n">13</span>Data model del sandbox</h3><p>Supabase es autoridad; React renderiza.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><table class="tbl"><tr><th>Tabla</th><th>Rol</th></tr>
+<tr><td><span class="mono">auction_sandbox_rooms</span></td><td>Sala: estado, precios, fases, <span class="mono">bot_runtime</span> (blob: status, pending, declines, override-audit), <span class="mono">next_sequence</span>. Sin secretos.</td></tr>
+<tr><td><span class="mono">auction_sandbox_room_private</span></td><td>Secreto: <span class="mono">random_close_at</span> + hashes de token. Sin policies SELECT (deny by default).</td></tr>
+<tr><td><span class="mono">auction_sandbox_participants</span></td><td>BOT + HUMAN por sala.</td></tr>
+<tr><td><span class="mono">auction_sandbox_bids</span></td><td>Ofertas aceptadas con <span class="mono">idempotency_key</span> única + secuencia monótona del servidor.</td></tr>
+<tr><td><span class="mono">auction_sandbox_events</span></td><td>Log append-only (<span class="mono">ROOM_CREATED … WINNER_DECLARED</span> + override events). CHECK de tipos vigente.</td></tr>
+<tr><td><span class="mono">auction_sandbox_policy_versions</span></td><td>Policies congeladas versionadas (snapshot inmutable + fingerprint + authorized_by).</td></tr>
+</table></div>
+<div class="note"><strong>Regla de autoridad</strong><p>Server/Supabase decide (reloj, secuencias, validaciones). React solo renderiza, suscribe y pide. Ningún timestamp de cliente entra al motor.</p></div>
+</section>
+
+<section class="section" id="s14"><div class="title"><div><h3><span class="n">14</span>Migraciones importantes</h3><p>Qué hace cada una (sin SQL).</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid"><div class="item"><div class="head"><div class="num">70</div><div><h4>0070 — policy-bound submit</h4><p class="summary"><span class="mono">submit_sandbox_bid(…, p_expected_policy_version)</span>: el RPC rechaza con <span class="mono">POLICY_SUPERSEDED</span> si existe una versión más nueva (una policy nueva invalida candidates viejos, también contra races). Idempotency por key estable. Aplicada en producción.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">71</div><div><h4>0071 — override event types</h4><p class="summary">Amplía el CHECK de tipos de evento con <span class="mono">HUMAN_OVERRIDE_AUTHORIZED</span> y <span class="mono">HUMAN_OVERRIDE_DECLINED</span>. Solo eso: sin RPC, RLS, grants ni secuencias nuevas. Aplicada en producción.</p></div></div></div></div>
+</section>
+
+<section class="section" id="s15"><div class="title"><div><h3><span class="n">15</span>Seguridad / consistencia</h3><p>Controles vigentes.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="body"><ul><li><strong>service_role RPC</strong>: toda escritura con secuencia pasa por RPCs atómicos (submit / append / advance / close).</li><li><strong>Server clock</strong>: fases y recepciones usan reloj DB, nunca cliente.</li><li><strong>Room lock</strong>: <span class="mono">SELECT … FOR UPDATE</span> + secuencia monótona por sala.</li></ul></div></div>
+<div class="item"><div class="body"><ul><li><strong>No blind retries</strong>: timeout = unknown + reconciliación; doble click colapsa en rechazo o <span class="mono">duplicate:true</span>.</li><li><strong>Idempotency</strong>: keys estables <span class="mono">bot: / assist: / override: / hum:</span> + <span class="mono">room:v:price</span>.</li><li><strong>Policy version binding</strong> + rechazo de candidate stale + rechazo en sala cerrada.</li></ul></div></div>
+<div class="item"><div class="body"><ul><li><strong>Competitor</strong> no ve internals (precios y posición propia, nada más).</li><li><strong>Observer</strong> read-only total (ni siquiera botones de override).</li><li><strong>Roles</strong>: comercial solo lectura; mutaciones solo administracion/admin + misma empresa.</li></ul></div></div>
+<div class="item"><div class="body"><ul><li><strong>Empresa scoping</strong>: RLS + doble chequeo en servidor (<span class="mono">Sala inexistente</span> ante mismatch).</li><li><strong>Secretos</strong>: <span class="mono">random_close_at</span> y hashes jamás salen del servidor.</li></ul></div></div>
+</div>
+</section>
+
+<section class="section" id="s16"><div class="title"><div><h3><span class="n">16</span>Testing / estado actual</h3><p>Lo verificado en main.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><div class="kv"><span>vitest</span><b>253/253</b></div><div class="kv"><span>tsc --noEmit</span><b>limpio</b></div><div class="kv"><span>next build</span><b>verde (44/44 rutas)</b></div><div class="kv"><span>PR #3</span><b>Auction Lab poll/hotfix hardening (poll controller, reconciliación, backfills, idempotencia)</b></div><div class="kv"><span>PR #4</span><b>Human override one-shot (DEFENDER/CEDER, auditoría, 0070/0071)</b></div><div class="kv"><span>PR #5</span><b>Timing simplification (RANDOM siempre ACTIVE) + timers de fase</b></div></div>
+</section>
+
+<section class="section" id="s17"><div class="title"><div><h3><span class="n">17</span>Decisiones de producto</h3><p>Definitivas, no reabrir sin motivo.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid"><div class="item"><div class="body"><ul>
+<li><strong>NO LLM</strong> en el loop de execution: el motor es determinístico.</li>
+<li><strong>NO hardcodear</strong> defense step: monto configurable por cliente.</li>
+<li><strong>Auto Limit NO es floor absoluto</strong>: es autorización automática; cruzar = decisión humana o nueva policy.</li>
+<li><strong>RANDOM_CLOSE siempre ACTIVE</strong>: sin espera táctica en aleatoria.</li>
+</ul></div></div><div class="item"><div class="body"><ul>
+<li><strong>Human Override es one-shot</strong>: un (versión, precio), sin ampliar autoridad.</li>
+<li><strong>Auction Lab no es DNCP</strong>: simulador, etiquetado como tal en UI.</li>
+<li><strong>Command Center será la UX final</strong> (futura).</li>
+<li><strong>Sandbox y producción real comparten el Core</strong>: un solo motor.</li>
+</ul></div></div></div>
+</section>
+
+<section class="section" id="s18"><div class="title"><div><h3><span class="n">18</span>Command Center — FUTURO</h3><p>UX final, no implementada.</p></div><div class="state future">PENDIENTE</div></div>
+<div class="futbox"><strong>FUTURO / NO IMPLEMENTADO</strong><p>Concepto: Dashboard → Centro de Comando de Subasta. Una sola pantalla con: feed SBE, posición, mejor oferta competidora, fase, timer, bot status, policy, Target, Ground Floor, Defense Step, latest decision, Human Override, timeline/audit. El usuario no “entra al bot”: entra al Command Center y desde ahí supervisa todo.</p></div>
+</section>
+
+<section class="section" id="s19"><div class="title"><div><h3><span class="n">19</span>Integración SBE real — FUTURO</h3><p>Roadmap, sin asumir nada.</p></div><div class="state future">PENDIENTE</div></div>
+<div class="futbox"><strong>FUTURO / NO IMPLEMENTADO — roadmap</strong><p>1. SBE Discovery · 2. Read-only Adapter · 3. Shadow Mode · 4. Capture → sanitize → fixtures → replay · 5. Assisted real · 6. Bounded Auto real. Reglas duras: NO asumir endpoints, NO inventar protocolo, NO hardcodear reglas técnicas no verificadas.</p></div>
+</section>
+
+<section class="section" id="s20"><div class="title"><div><h3><span class="n">20</span>Estado del módulo</h3><p>Foto final.</p></div></div><div class="card flow"><table class="tbl"><tr><th>Pieza</th><th>Estado</th></tr>
+<tr><td>CORE</td><td>IMPLEMENTADO</td></tr>
+<tr><td>AUCTION LAB</td><td>IMPLEMENTADO</td></tr>
+<tr><td>HUMAN OVERRIDE</td><td>IMPLEMENTADO</td></tr>
+<tr><td>TIMING FINAL</td><td>IMPLEMENTADO</td></tr>
+<tr><td>AUDIT / IDEMPOTENCY</td><td>IMPLEMENTADO</td></tr>
+<tr><td>COMMAND CENTER</td><td>PENDIENTE</td></tr>
+<tr><td>SBE REAL ADAPTER</td><td>PENDIENTE</td></tr>
+<tr><td>SHADOW MODE</td><td>PENDIENTE</td></tr>
+<tr><td>PRODUCCIÓN REAL SBE</td><td>PENDIENTE</td></tr>
+</table></div>
+</section>
+
+<section class="section" id="s21"><div class="title"><div><h3><span class="n">21</span>Handoff para futuro agente</h3><p>Instrucciones de ingesta al manual maestro.</p></div></div>
+<div class="note"><strong>INSTRUCCIONES PARA EL AGENTE QUE INTEGRE EL MANUAL FINAL</strong><p>Este HTML es un módulo independiente (“bloque de conocimiento”). Al integrarlo al capítulo “Licitaciones / Subastas” del manual maestro: (1) mantener las decisiones arquitectónicas tal cual (Core determinístico, fail-closed, one-shot, RANDOM siempre ACTIVE); (2) mantener los estados IMPLEMENTADO / PENDIENTE sinIds alterarlos; (3) no confundir Auction Lab (simulador) con SBE real; (4) no presentar roadmap futuro (Command Center, SBE real) como funcionalidad existente; (5) conservar los invariantes 1–9 y el ejemplo canónico como referencia de comportamiento.</p></div>
+</section>
+
+</div>
+<script>
+// Smooth anchor offset is handled by CSS scroll-margin-top; tiny helpers only.
+document.querySelectorAll('.idx a').forEach(a=>{
+  a.addEventListener('click',()=>{
+    document.querySelectorAll('.idx a').forEach(x=>x.style.borderColor='');
+    a.style.borderColor='rgba(142,227,198,.35)';
+  });
+});
+</script>
+</body></html>
