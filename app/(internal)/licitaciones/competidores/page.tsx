@@ -57,10 +57,10 @@ export default async function CompetidoresIndexPage({
         <BackButton label="Volver a licitaciones" />
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)] sm:text-3xl">
               Radar de Competidores
             </h1>
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-[var(--muted)]">
               Directorio analítico 360° de empresas constructoras y oferentes observados en licitaciones públicas (Gate 5A).
             </p>
           </div>
