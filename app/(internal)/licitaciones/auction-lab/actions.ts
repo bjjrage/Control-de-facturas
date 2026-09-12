@@ -152,13 +152,20 @@ async function rpcSubmit(
   roomId: string,
   participantId: string,
   pricePyg: number,
-  idempotencyKey: string | null
+  idempotencyKey: string | null,
+  expectedPolicyVersion?: number | null
 ): Promise<RpcResult> {
   const { data, error } = await admin.rpc('submit_sandbox_bid', {
     p_room_id: roomId,
     p_participant_id: participantId,
     p_price_pyg: pricePyg,
     p_idempotency_key: idempotencyKey,
+    // Policy binding (0069): bot/assisted submits carry the authorizing
+    // version; the RPC rejects when a newer version exists. Human submits
+    // pass nothing (not policy-bound). Requires migration 0069 applied.
+    ...(expectedPolicyVersion !== undefined && expectedPolicyVersion !== null
+      ? { p_expected_policy_version: expectedPolicyVersion }
+      : {}),
   });
   if (error) throw new Error(`submit_sandbox_bid: ${error.message}`);
   return data as RpcResult;
@@ -308,7 +315,7 @@ async function botAutoSubmit(
         return { accepted: false, reason: 'La policy cambió durante el envío.' };
       }
       try {
-        const res = await rpcSubmit(admin, bundle.room.id, bot.id, pricePyg, bidKey);
+        const res = await rpcSubmit(admin, bundle.room.id, bot.id, pricePyg, bidKey, policy.version);
         return res.accepted ? { accepted: true } : { accepted: false, reason: res.rejection_message ?? res.rejection_code };
       } catch (e) {
         return { accepted: false, reason: e instanceof Error ? e.message : 'RPC failed' };
@@ -392,7 +399,11 @@ export async function pollOperatorRoom(roomId: string): Promise<{ view?: Operato
   // operator keeps a cheap read so post-mortem review stays live.)
   if (res.bundle.room.status === 'CLOSED') {
     await ensureInitialEvents(res.admin, res.bundle);
-    return { view: toOperatorView(res.bundle, nowIso()) };
+    // Re-read so backfilled markers (and any coincident tail) are visible
+    // immediately instead of lagging one heartbeat; fall back to the
+    // pre-backfill bundle when the reload itself fails (fail-closed read).
+    const fresh = await loadSandboxBundle(res.db, roomId);
+    return { view: toOperatorView('bundle' in fresh ? fresh.bundle : res.bundle, nowIso()) };
   }
   const advanced = await advanceRoom(res.admin, res.db, roomId);
   if ('error' in advanced) return { error: advanced.error };
@@ -471,7 +482,9 @@ export async function createSandboxRoom(input: {
     { room_id: roomId, kind: 'HUMAN', display_alias: 'Competidor' },
   ]);
   if (participantsError) {
-    await db.from('auction_sandbox_rooms').delete().eq('id', roomId);
+    // Compensation must bypass RLS: the user client has no rooms DELETE
+    // grant, so deleting through it silently persists a half-built room.
+    await createAdminClient().from('auction_sandbox_rooms').delete().eq('id', roomId);
     return { error: 'No se pudo crear la sala (participantes).' };
   }
   // ROOM_CREATED goes through the authoritative event allocator (admin RPC):
@@ -664,12 +677,13 @@ export async function authorizeAssistedBid(roomId: string): Promise<{ price?: nu
     submit: async ({ pricePyg }) => {
       // Last-millimetre continuity (see botAutoSubmit): a version landing
       // between the refresh and this submit still aborts with an
-      // operator-actionable message.
+      // operator-actionable message. (Neutral wording: a failed re-read
+      // aborts the same way as a genuine change — fail closed either way.)
       if (isVersionSuperseded(await latestPolicyVersion(res.db, roomId), policy.version)) {
-        return { accepted: false, reason: 'La policy cambió durante el envío. Revisá la versión actual y reintentá.' };
+        return { accepted: false, reason: 'No se pudo confirmar la versión actual de la policy. Reintentá.' };
       }
       try {
-        const rpcRes = await rpcSubmit(res.admin, roomId, bot.id, pricePyg, bidKey);
+        const rpcRes = await rpcSubmit(res.admin, roomId, bot.id, pricePyg, bidKey, policy.version);
         return rpcRes.accepted ? { accepted: true } : { accepted: false, reason: rpcRes.rejection_message ?? rpcRes.rejection_code };
       } catch (e) {
         return { accepted: false, reason: e instanceof Error ? e.message : 'Falló el envío.' };

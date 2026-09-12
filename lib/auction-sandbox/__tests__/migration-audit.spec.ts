@@ -1,10 +1,13 @@
 /**
  * AUCTION SANDBOX — Static migration audit (no DB available).
  *
- * 0068 has NOT been applied (no valid access; remote is production), so these
- * tests audit the migration FILE statically: security grants, server clock,
- * private secrets table, RLS splits. If any assertion fails, the migration
- * is NOT safe to apply.
+ * 0068 is APPLIED to the live project; 0069 (policy-bound submit) ships in
+ * this branch and MUST be pushed (`supabase db push`) before deploying app
+ * code that passes p_expected_policy_version (older code keeps working:
+ * the param defaults NULL; new code omits it against old DBs via
+ * conditional spread in rpcSubmit — skew fails closed, never corrupt).
+ * These tests audit the migration FILES statically. If any assertion fails,
+ * the migrations are NOT safe to apply.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -15,6 +18,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const sqlRaw = readFileSync(resolve(ROOT, 'supabase', 'migrations', '0068_auction_sandbox.sql'), 'utf8');
 // Strip SQL line comments so assertions target real code, not prose.
 const sql = sqlRaw.split('\n').map((l) => (l.includes('--') ? l.slice(0, l.indexOf('--')) : l)).join('\n');
+const sql69Raw = readFileSync(resolve(ROOT, 'supabase', 'migrations', '0069_auction_sandbox_policy_bound_submit.sql'), 'utf8');
+const sql69 = sql69Raw.split('\n').map((l) => (l.includes('--') ? l.slice(0, l.indexOf('--')) : l)).join('\n');
 
 function read(rel: string): string {
   return readFileSync(resolve(ROOT, rel), 'utf8');
@@ -24,8 +29,14 @@ describe('0068 static safety audit', () => {
   it('bid RPC takes NO client timestamp (server clock only)', () => {
     expect(sql).not.toMatch(/p_now_iso/);
     expect(sql).toMatch(/v_now\s+timestamptz\s*:=\s*clock_timestamp\(\)/);
-    // submit inserts server_received_at from the DB clock variable.
-    const submitFn = sql.slice(sql.indexOf('submit_sandbox_bid('), sql.indexOf('7b. append_sandbox_event'));
+    // submit inserts server_received_at from the DB clock variable. Slice
+    // with CODE markers (comment markers are stripped above — a comment-only
+    // end marker yields indexOf -1 and a false-green slice of the whole file).
+    const submitFn = sql.slice(
+      sql.indexOf('create or replace function public.submit_sandbox_bid('),
+      sql.indexOf('create or replace function public.append_sandbox_event(')
+    );
+    expect(submitFn.length).toBeGreaterThan(100);
     expect(submitFn).toContain('server_received_at');
     expect(submitFn).toContain('v_now');
   });
@@ -55,12 +66,22 @@ describe('0068 static safety audit', () => {
     expect(sql).toMatch(/sandbox_participants_select/);
     const selectBlock = sql.slice(sql.indexOf('sandbox_participants_select'), sql.indexOf('sandbox_participants_write'));
     expect(selectBlock).toContain("'comercial'");
-    // Only the three write policies, all restricted to admin roles.
+    // Only the write policies, all restricted to admin roles — checked over
+    // the whole file (a second INSERT policy lives past sandbox_bids_select,
+    // outside the slice above; every participants write policy is pinned).
     const writeSection = sql.slice(sql.indexOf('sandbox_participants_write'), sql.indexOf('create policy sandbox_bids_select'));
     expect(writeSection).toMatch(/sandbox_participants_write/);
     expect(writeSection).toMatch(/sandbox_participants_update/);
     expect(writeSection).toMatch(/sandbox_participants_delete/);
     expect(writeSection).not.toContain("'comercial'");
+    const writePolicies = sql
+      .split('create policy ')
+      .slice(1)
+      .filter((seg) => /^sandbox_participants_(write|update|delete|insert)\b/.test(seg));
+    expect(writePolicies.length).toBeGreaterThanOrEqual(4);
+    for (const seg of writePolicies) {
+      expect(seg).not.toContain("'comercial'");
+    }
   });
 
   it('sequence allocation is lock-guarded in SQL (FOR UPDATE + single bump)', () => {
@@ -179,5 +200,39 @@ describe('0068 static safety audit', () => {
     ]) {
       expect(read(f)).not.toMatch(/competitor_token_hash|observer_token_hash/);
     }
+  });
+});
+
+describe('0069 static safety audit — policy-bound submit', () => {
+  it('submit carries an optional expected policy version (human path unaffected)', () => {
+    expect(sql69).toContain('p_expected_policy_version integer default null');
+    expect(sql69).not.toMatch(/p_now_iso/);
+  });
+
+  it('a newer persisted version rejects with POLICY_SUPERSEDED before any bid write', () => {
+    const bodyStart = sql69.indexOf('create function public.submit_sandbox_bid(');
+    expect(bodyStart).toBeGreaterThan(-1);
+    const body = sql69.slice(bodyStart);
+    expect(body).toContain('POLICY_SUPERSEDED');
+    expect(body).toMatch(/version\s*>\s*p_expected_policy_version/);
+    // The gate precedes the sequence bump + bid insert (fail before mutate).
+    expect(body.indexOf('POLICY_SUPERSEDED')).toBeLessThan(body.indexOf('next_sequence + 1'));
+    // NULL skips the gate (human submits are not policy-bound).
+    expect(body).toMatch(/p_expected_policy_version is not null/);
+  });
+
+  it('replaces the 4-arg signature with grants re-applied on the 5-arg form', () => {
+    expect(sql69).toMatch(/drop function if exists public\.submit_sandbox_bid\(uuid, uuid, bigint, text\)/);
+    expect(sql69).toMatch(/security definer/);
+    expect(sql69).toMatch(/revoke all on function public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\)[^;]*authenticated/);
+    expect(sql69).toMatch(/grant execute on function public\.submit_sandbox_bid\(uuid, uuid, bigint, text, integer\)[^;]*to service_role/);
+  });
+
+  it('app callers bind bot/assisted submits, never human submits', () => {
+    const ops = read('app/(internal)/licitaciones/auction-lab/actions.ts');
+    expect(ops).toMatch(/rpcSubmit\(admin, bundle\.room\.id, bot\.id, pricePyg, bidKey, policy\.version\)/);
+    expect(ops).toMatch(/rpcSubmit\(res\.admin, roomId, bot\.id, pricePyg, bidKey, policy\.version\)/);
+    const join = read('app/auction-lab/join/[token]/actions.ts');
+    expect(join).not.toContain('p_expected_policy_version');
   });
 });

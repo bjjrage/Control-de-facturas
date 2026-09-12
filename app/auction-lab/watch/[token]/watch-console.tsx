@@ -175,7 +175,7 @@ export function WatchConsole({ token }: { token: string }) {
               <div className="inline-flex items-center rounded-md bg-blue-600 px-2.5 py-1 text-[12px] font-bold text-white mb-2">
                 {view.botStatus ?? '—'}
               </div>
-              {view.pendingCandidate ? (
+              {view.pendingCandidate && (view.room.status === 'ACTIVE_NORMAL' || view.room.status === 'ACTIVE_RANDOM') ? (
                 <p className="text-[12px] font-semibold text-amber-600 dark:text-amber-400 mb-2">
                   Propone ₲{view.pendingCandidate.pricePyg.toLocaleString('es-PY')} · esperando autorización
                 </p>

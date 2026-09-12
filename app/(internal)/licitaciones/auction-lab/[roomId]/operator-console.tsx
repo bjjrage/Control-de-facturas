@@ -207,7 +207,10 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
   if (error && !view) {
     return (
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-[13px] text-[var(--error)]">
-        {error} <button className="underline" onClick={() => window.location.reload()}>Reintentar</button>
+        {error}{' '}
+        <button className="underline" onClick={() => window.location.reload()}>Reintentar</button>
+        {' · '}
+        <Link href="/licitaciones/auction-lab" className="underline">Volver a Auction Lab</Link>
       </div>
     );
   }
@@ -424,7 +427,7 @@ export function OperatorConsole({ roomId, canManage }: { roomId: string; canMana
         </div>
       </div>
 
-      {showPolicy && canManage ? (
+      {showPolicy && canManage && room.status !== 'CLOSED' ? (
         <div className="space-y-2">
           <h2 className="text-[13px] font-semibold">Autorizar policy {bot.policyVersion !== null ? `v${bot.policyVersion + 1}` : 'v1'}</h2>
           <PolicyConfigForm
