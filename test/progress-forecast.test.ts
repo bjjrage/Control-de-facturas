@@ -862,5 +862,59 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
     expect(mat.deficit_compra_neta).toBeCloseTo(0, 1);
     expect(mat.caja_adicional_requerida).toBeCloseTo(0, 1);
   });
+
+  // 19. Preservación estricta de productive_factor = 0 (partida bloqueada)
+  it("19. preserva workability_factor = 0 sin convertirlo a 1.0 por evaluación falsy", () => {
+    // Simula la recuperación de factor persistido en base de datos
+    const rawFactorZero = 0;
+    const rawFactorNull = null;
+    const rawFactorUndefined = undefined;
+
+    const parseFactor = (val: any) => {
+      const raw = val !== null && val !== undefined ? Number(val) : 1.0;
+      return Number.isFinite(raw) ? Math.min(1.0, Math.max(0.0, raw)) : 1.0;
+    };
+
+    expect(parseFactor(rawFactorZero)).toBe(0.0);
+    expect(parseFactor(rawFactorNull)).toBe(1.0);
+    expect(parseFactor(rawFactorUndefined)).toBe(1.0);
+    expect(parseFactor(0.4)).toBe(0.4);
+
+    // Motor con factor = 0
+    const input: ProgressForecastEngineInput = {
+      project_id: "proj-100",
+      horizon_days: 7,
+      start_date: "2026-09-15",
+      budget_items: [
+        {
+          ...baseItem,
+          quantity: 100,
+          start_date: "2026-09-15",
+          end_date: "2026-09-22",
+        },
+      ],
+      executed_quantities_by_item: { "item-1": 0 },
+      materials_by_item: {},
+      stock_and_inbound: {},
+      operational_assessments: {
+        "item-1": {
+          budget_item_id: "item-1",
+          workability: "BLOCKED",
+          productive_factor: parseFactor(rawFactorZero), // 0.0 strictly
+          reason: "Bloqueado por lluvia extrema.",
+        },
+      },
+      forecasts: sampleForecasts,
+      llm_used: true,
+    };
+
+    const result = computeProgressForecast(input);
+    const item = result.items[0];
+
+    expect(item.workability_factor).toBe(0.0);
+    expect(item.projected_quantity).toBe(0.0);
+    expect(item.operational_status).toBe("BLOCKED");
+  });
 });
+
 

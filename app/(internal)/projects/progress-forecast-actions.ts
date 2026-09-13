@@ -271,10 +271,15 @@ export async function runProgressForecastAction(
         operationalAnalysis = {
           items: activeItemsToAssess.map((it) => {
             const ci = itemMap.get(it.budget_item_id)!;
+            const rawFactor = ci.workability_factor !== null && ci.workability_factor !== undefined
+              ? Number(ci.workability_factor)
+              : 1.0;
+            const parsedFactor = Number.isFinite(rawFactor) ? Math.min(1.0, Math.max(0.0, rawFactor)) : 1.0;
+
             return {
               budget_item_id: it.budget_item_id,
               workability: ci.operational_status,
-              productive_factor: Number(ci.workability_factor) || 1.0,
+              productive_factor: parsedFactor,
               reason: ci.operational_reasoning || "Análisis recuperado de corrida persistida reciente.",
             };
           }),
