@@ -115,6 +115,7 @@ export interface Rfq {
   required_date: string | null;
   internal_reference: string | null;
   observations: string | null;
+  project_id: string | null;
   status: RfqStatus;
   expires_at: string;
   selected_rfq_provider_id: string | null;
@@ -264,6 +265,148 @@ export interface StockMovimiento {
   created_at: string;
 }
 
+// ============================================================================
+// Inventario / pañol canónico (migración 0080)
+// ============================================================================
+
+export type InventoryMovementType = "RECEIPT" | "TRANSFER" | "CONSUMPTION" | "RETURN" | "ADJUSTMENT";
+export type InventoryLocationType = "CENTRAL" | "PROJECT" | "AUXILIARY";
+export type InventoryMovementStatus = "DRAFT" | "CONFIRMED" | "VOIDED";
+export type WarehouseSubmissionStatus =
+  | "UPLOADED"
+  | "PROCESSING"
+  | "NEEDS_REVIEW"
+  | "READY"
+  | "CONFIRMED"
+  | "VOIDED";
+export type WarehouseSubmissionLineState = "PROPOSED" | "CONFIRMED" | "REJECTED";
+
+export interface InventoryLocation {
+  id: string;
+  empresa_id: string;
+  location_type: InventoryLocationType;
+  name: string;
+  project_id: string | null;
+  parent_location_id: string | null;
+  is_primary: boolean;
+  active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InventoryBalance {
+  id: string;
+  empresa_id: string;
+  producto_id: string;
+  location_id: string;
+  cost_currency: CurrencyCode;
+  quantity: number;
+  total_cost: number;
+  updated_at: string;
+}
+
+export interface InventoryMovement {
+  id: string;
+  empresa_id: string;
+  producto_id: string;
+  quantity: number;
+  unit: string;
+  movement_type: InventoryMovementType;
+  from_location_id: string | null;
+  to_location_id: string | null;
+  project_id: string | null;
+  budget_item_id: string | null;
+  source_type: string;
+  source_id: string | null;
+  source_line_id: string | null;
+  status: InventoryMovementStatus;
+  idempotency_key: string;
+  cost_currency: CurrencyCode | null;
+  unit_cost: number | null;
+  cost_total: number | null;
+  exchange_rate_to_company: number | null;
+  cost_total_company: number | null;
+  metadata: Record<string, unknown>;
+  created_by: string | null;
+  confirmed_by: string | null;
+  created_at: string;
+  confirmed_at: string;
+}
+
+export interface WarehousePortalLink {
+  id: string;
+  empresa_id: string;
+  location_id: string;
+  token_hint: string;
+  active: boolean;
+  expires_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+export interface WarehouseSubmission {
+  id: string;
+  empresa_id: string;
+  location_id: string;
+  project_id: string;
+  portal_link_id: string | null;
+  period_start: string;
+  period_end: string;
+  remision_number: string | null;
+  notes: string | null;
+  status: WarehouseSubmissionStatus;
+  processing_error: string | null;
+  submitted_by: string | null;
+  reviewed_by: string | null;
+  confirmed_by: string | null;
+  processing_started_at: string | null;
+  processed_at: string | null;
+  confirmed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WarehouseSubmissionEvidence {
+  id: string;
+  empresa_id: string;
+  submission_id: string;
+  storage_bucket: string;
+  storage_path: string;
+  file_name: string;
+  mime_type: string | null;
+  size_bytes: number | null;
+  sha256: string | null;
+  uploaded_external: boolean;
+  extraction_status: "NOT_PROCESSED" | "PROCESSING" | "PROPOSED" | "FAILED" | "REVIEWED";
+  extraction_result: Record<string, unknown> | null;
+  extraction_error: string | null;
+  confidence: number | null;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+export interface WarehouseSubmissionLine {
+  id: string;
+  empresa_id: string;
+  submission_id: string;
+  line_number: number;
+  raw_description: string;
+  producto_id: string | null;
+  quantity: number | null;
+  unit: string | null;
+  budget_item_id: string | null;
+  state: WarehouseSubmissionLineState;
+  uncertainty_reason: string | null;
+  confidence: number | null;
+  source_evidence_id: string | null;
+  inventory_movement_id: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface OcRecepcionItem {
   id: string;
   recepcion_id: string;
@@ -272,6 +415,7 @@ export interface OcRecepcionItem {
   producto_id: string | null;
   cantidad_recibida: number;
   notas: string | null;
+  inventory_movement_id: string | null;
   created_at: string;
 }
 
@@ -282,6 +426,12 @@ export interface OcRecepcion {
   fecha: string;
   recibido_por: string;
   notas: string | null;
+  delivery_location_id: string | null;
+  status: "DRAFT" | "CONFIRMED" | "VOIDED";
+  remision_number: string | null;
+  idempotency_key: string | null;
+  confirmed_by: string | null;
+  confirmed_at: string | null;
   created_by: string | null;
   created_at: string;
   oc_recepcion_items?: OcRecepcionItem[];
@@ -332,6 +482,7 @@ export interface AuthorizedOrder {
   is_cheapest: boolean;
   selection_reason: SelectionReason | null;
   selection_reason_detail: string | null;
+  project_id: string | null;
   status: OrderStatus;
   created_at: string;
 }
