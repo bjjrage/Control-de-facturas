@@ -28,6 +28,7 @@ import {
   activateSchedulePlan,
   deleteSchedulePlan,
 } from "../certificado-anexos-actions";
+import { ProgressForecastSection } from "./progress-forecast-section";
 
 const WEATHER_CYCLE: (WeatherCode | null)[] = [null, "B", "LL", "HH", "O"];
 const WEATHER_LABEL: Record<WeatherCode, string> = {
@@ -110,7 +111,8 @@ export function AvanceFisicoPanel({
   planMonths: Record<string, ProjectSchedulePlanMonth[]>;
 }) {
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      <ProgressForecastSection project={project} />
       <CurvaAvance
         project={project}
         certificates={certificates}

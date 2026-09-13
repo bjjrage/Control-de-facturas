@@ -746,6 +746,8 @@ export interface Project {
   code: string;
   client: string | null;
   location: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   start_date: string | null;
   end_date: string | null;
   status: ProjectStatus;
@@ -1142,3 +1144,88 @@ export interface SalesReceipt {
   created_by: string;
   created_at: string;
 }
+
+// ============================================================================
+// Proyección Inteligente de Avance de Obra (migración 0054)
+// ============================================================================
+
+export interface BudgetItemMaterial {
+  id: string;
+  empresa_id: string;
+  project_id: string;
+  budget_item_id: string;
+  producto_id: string;
+  cantidad_por_unidad_ejecutada: number;
+  desperdicio_pct: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type OperationalStatus = "NORMAL" | "PARTIAL" | "BLOCKED";
+
+export interface DailyWeatherForecast {
+  date: string; // YYYY-MM-DD
+  precipitation_sum_mm: number;
+  precipitation_hours: number;
+  precipitation_probability_max?: number;
+  wind_gusts_max_kmh: number;
+  temperature_max_c?: number;
+  temperature_min_c?: number;
+  weather_code: number;
+}
+
+export interface MaterialRequirementDetail {
+  producto_id: string;
+  producto_nombre: string;
+  producto_codigo?: string | null;
+  unidad_medida: string;
+  cantidad_unitaria: number;
+  desperdicio_pct: number;
+  demanda_bruta: number;
+  stock_disponible: number;
+  oc_inbound: number;
+  deficit_compra_neta: number;
+  costo_unitario: number | null; // null si no tiene antecedente de costo
+  valor_consumo_proyectado: number;
+  caja_adicional_requerida: number;
+  requiere_atencion_costo: boolean;
+}
+
+export interface ForecastItemResult {
+  budget_item_id: string;
+  item_code: string;
+  item_description: string;
+  unit: string;
+  quantity_presupuestada: number;
+  quantity_ejecutada_previa: number;
+  remaining_quantity: number;
+  base_daily_velocity: number;
+  workability_factor: number; // 0.0 a 1.0
+  operational_status: OperationalStatus;
+  operational_reasoning: string;
+  projected_quantity: number;
+  new_projected_cumulative_quantity: number;
+  new_projected_progress_pct: number;
+  materials: MaterialRequirementDetail[];
+  valor_fisico_proyectado: number; // contractual client value
+}
+
+export interface ProgressForecastRunSummary {
+  id?: string;
+  project_id: string;
+  horizon_days: number;
+  start_date: string;
+  end_date: string;
+  total_projected_physical_value: number;
+  total_material_consumption_value: number;
+  total_additional_cash_required: number;
+  currency: string;
+  days_in_horizon: number;
+  workable_days_count: number;
+  partially_blocked_days_count: number;
+  fully_blocked_days_count: number;
+  items: ForecastItemResult[];
+  llm_analysis_used: boolean;
+  llm_summary?: string;
+}
+
