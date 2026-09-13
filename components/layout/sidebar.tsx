@@ -19,7 +19,6 @@ import {
   ClipboardList,
   Banknote,
   Wallet,
-  HardHat,
   ClipboardCheck,
   GanttChartSquare,
   Hammer,
@@ -31,6 +30,11 @@ import {
   FileX,
   Landmark,
   Gavel,
+  LayoutGrid,
+  Radar,
+  FolderClosed,
+  Swords,
+  Bot,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { EmpresaPlan } from "@/lib/auth";
@@ -39,6 +43,9 @@ import { uploadLogo } from "./branding-actions";
 import { LOGO_STORAGE_PATH } from "./branding-constants";
 import { getProjectNavInfo } from "@/app/(internal)/projects/actions";
 import { SHELL_PATHS } from "./app-shell-client";
+import { AdminConfigSection } from "./admin-config-section";
+import { ObraSelector } from "./obra-selector";
+import { workspaceForPath } from "./workspace";
 
 // Sub-secciones de un proyecto — mismas tabs que /projects/[id]?tab=X, pero
 // como items de sidebar cuando estás "adentro" del proyecto (modo carpeta).
@@ -91,26 +98,17 @@ type NavItem = {
   minPlan?: EmpresaPlan;
 };
 
-const GLOBAL_ITEMS: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", roles: ["comercial", "administracion", "admin"], icon: LayoutDashboard },
-];
-
-// Proyectos va justo debajo de Dashboard — es una acción/módulo de trabajo,
-// no una configuración, así que vive en el nav izquierdo con todo lo demás.
-// Gateado por plan (Pro o superior), no por module: no depende de compras/ventas.
-const PROYECTOS_ITEM: NavItem = {
-  href: "/projects",
-  label: "Proyectos",
-  roles: ["administracion", "admin"],
-  icon: HardHat,
-};
-
-const LICITACIONES_ITEM: NavItem = {
-  href: "/licitaciones",
-  label: "Licitaciones",
+const DASHBOARD_ITEM: NavItem = {
+  href: "/dashboard",
+  label: "Resumen",
   roles: ["comercial", "administracion", "admin"],
-  icon: Gavel,
+  icon: LayoutDashboard,
 };
+
+// Workspace Operativo: gateado por plan (Pro o superior) igual que antes,
+// cuando Proyectos y Licitaciones convivían en el mismo ítem de nav.
+const OPERATIVO_ROLES: UserRole[] = ["administracion", "admin"];
+const LICITACIONES_ROLES: UserRole[] = ["comercial", "administracion", "admin"];
 
 const COMPRAS_ITEMS: NavItem[] = [
   { href: "/providers", label: "Proveedores", roles: ["admin"], icon: Truck, module: "compras" },
@@ -118,7 +116,7 @@ const COMPRAS_ITEMS: NavItem[] = [
   { href: "/orders", label: "Órdenes de compra", roles: ["comercial", "administracion", "admin"], icon: Package, module: "compras" },
   { href: "/invoices", label: "Facturas", roles: ["administracion", "admin"], icon: Receipt, module: "compras" },
   { href: "/pagos", label: "Pagos", roles: ["administracion", "admin"], icon: Wallet, module: "compras" },
-  { href: "/stock", label: "Stock", roles: ["administracion", "admin"], icon: Boxes, module: "compras", minPlan: "pro" },
+  { href: "/stock", label: "Inventario global", roles: ["administracion", "admin"], icon: Boxes, module: "compras", minPlan: "pro" },
 ];
 
 const FINANZAS_ITEMS: NavItem[] = [
@@ -133,6 +131,14 @@ const VENTAS_ITEMS: NavItem[] = [
   { href: "/facturas-venta", label: "Facturas de Venta", roles: ["administracion", "admin"], icon: ReceiptText, module: "ventas" },
   { href: "/notas-credito", label: "Notas de Crédito", roles: ["administracion", "admin"], icon: FileX, module: "ventas" },
   { href: "/cobros", label: "Cobros", roles: ["administracion", "admin"], icon: Banknote, module: "ventas" },
+];
+
+const LICITACIONES_ITEMS: NavItem[] = [
+  { href: "/licitaciones", label: "Resumen", roles: LICITACIONES_ROLES, icon: Gavel },
+  { href: "/licitaciones/competidores", label: "Radar de competidores", roles: LICITACIONES_ROLES, icon: Radar },
+  { href: "/licitaciones/documentos", label: "Documentos", roles: LICITACIONES_ROLES, icon: FolderClosed },
+  { href: "/licitaciones/auction-lab", label: "Subastas", roles: LICITACIONES_ROLES, icon: Swords },
+  { href: "/licitaciones/auction-bot", label: "Bot de subasta", roles: LICITACIONES_ROLES, icon: Bot },
 ];
 
 const logoBucketUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -165,6 +171,10 @@ export function Sidebar({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isAdmin = role === "admin";
   const initial = fullName.trim().charAt(0).toUpperCase() || "?";
+
+  const workspace = workspaceForPath(pathname);
+  const canUseOperativo = PLAN_RANK[plan] >= PLAN_RANK.pro && OPERATIVO_ROLES.includes(role);
+  const canUseLicitaciones = PLAN_RANK[plan] >= PLAN_RANK.pro && LICITACIONES_ROLES.includes(role);
 
   // Modo "carpeta": adentro de un proyecto, todo el nav de la izquierda pasa
   // a ser sub-secciones de ESE proyecto (Compras/Facturas/Pagos incluidos)
@@ -248,14 +258,11 @@ export function Sidebar({
     });
   }
 
-  // Pro/Caterpillar SUMAN Proyectos sobre todo lo que la empresa ya tiene —
-  // no reemplazan ni ocultan Compras/Ventas. Un plan más alto nunca debe
-  // sacar funciones que la empresa ya usaba en Básico.
-  const globalItems = filterItems(GLOBAL_ITEMS);
-  const proyectosItems = PLAN_RANK[plan] >= PLAN_RANK.pro ? filterItems([PROYECTOS_ITEM, LICITACIONES_ITEM]) : [];
+  const dashboardItem = filterItems([DASHBOARD_ITEM]);
   const comprasItems = filterItems(COMPRAS_ITEMS);
   const ventasItems = filterItems(VENTAS_ITEMS);
   const finanzasItems = filterItems(FINANZAS_ITEMS);
+  const licitacionesItems = canUseLicitaciones ? filterItems(LICITACIONES_ITEMS) : [];
 
   async function handleLogoFile(file: File | null) {
     if (!file) return;
@@ -398,13 +405,13 @@ export function Sidebar({
         </button>
       ) : null}
 
-      {inProjectMode && projectInfo ? (
+      {workspace === "operativo" && canUseOperativo && inProjectMode && projectInfo ? (
         <div className={cn("border-b border-[var(--border)] bg-[var(--panel-2)]", collapsed ? "px-1.5 py-2" : "px-3 py-2.5")}>
           {!collapsed ? (
             <>
               <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--primary)]">
                 <FolderOpen size={12} />
-                Proyecto
+                Obra
               </div>
               <div className="text-[13px] font-medium truncate mt-0.5" title={projectInfo.name}>
                 {projectInfo.name}
@@ -414,7 +421,7 @@ export function Sidebar({
                 <Link
                   href="/projects"
                   className="flex items-center gap-0.5 text-[11px] text-[var(--muted)] hover:text-[var(--foreground)]"
-                  title="Salir del proyecto"
+                  title="Salir de la obra"
                 >
                   <X size={11} /> Salir
                 </Link>
@@ -426,78 +433,85 @@ export function Sidebar({
             </Link>
           )}
         </div>
-      ) : isLoadingProjectMode && !collapsed ? (
+      ) : workspace === "operativo" && canUseOperativo && isLoadingProjectMode && !collapsed ? (
         <div className="border-b border-[var(--border)] bg-[var(--panel-2)] px-3 py-2.5 space-y-1.5">
           <div className="h-2 w-14 rounded bg-[var(--hover)]" />
           <div className="h-3.5 w-36 rounded bg-[var(--hover)]" />
           <div className="h-2 w-20 rounded bg-[var(--hover)]" />
         </div>
+      ) : workspace === "operativo" && canUseOperativo && !inProjectMode && !isLoadingProjectMode ? (
+        <ObraSelector activeProjectId={null} activeName={null} collapsed={collapsed} />
       ) : null}
 
       <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
-        {inProjectMode ? (
-          <>
-            {globalItems.map(renderLink)}
-            {PROJECT_TAB_GROUPS.map((group) => {
-              const tabs = group.tabs.filter((t) => !t.caterpillarOnly || isCaterpillarPlan);
-              if (tabs.length === 0) return null;
-              return (
-                <div key={group.label} className="space-y-0.5">
-                  {!collapsed ? (
-                    <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--primary)]">
-                      {group.label}
-                    </div>
-                  ) : (
-                    <div className="border-t border-[var(--border)] my-1.5" />
+        {workspace === "operativo" && canUseOperativo ? (
+          inProjectMode ? (
+            <>
+              {PROJECT_TAB_GROUPS.map((group) => {
+                const tabs = group.tabs.filter((t) => !t.caterpillarOnly || isCaterpillarPlan);
+                if (tabs.length === 0) return null;
+                return (
+                  <div key={group.label} className="space-y-0.5">
+                    {!collapsed ? (
+                      <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--primary)]">
+                        {group.label}
+                      </div>
+                    ) : (
+                      <div className="border-t border-[var(--border)] my-1.5" />
+                    )}
+                    {tabs.map((t) => {
+                      const Icon = t.icon;
+                      const active = currentTab === t.key;
+                      return (
+                        <button
+                          key={t.key}
+                          title={collapsed ? t.label : undefined}
+                          onClick={() => {
+                            const url = `/projects/${activeProjectId}?tab=${t.key}`;
+                            window.history.pushState({}, "", url);
+                            window.dispatchEvent(new CustomEvent("niupack:tab", { detail: t.key }));
+                          }}
+                          className={cn(
+                            "w-full flex items-center gap-2.5 h-9 rounded-lg text-[13px] transition-colors",
+                            collapsed ? "justify-center px-0" : "px-3",
+                            active
+                              ? "bg-[var(--nav-active)] text-white font-medium"
+                              : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+                          )}
+                        >
+                          <Icon size={16} className="shrink-0" />
+                          {!collapsed ? <span className="truncate">{t.label}</span> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </>
+          ) : isLoadingProjectMode ? (
+            <div className="space-y-1">
+              {[...Array(7)].map((_, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    "h-9 rounded-lg bg-[var(--hover)]",
+                    collapsed ? "w-9 mx-auto" : "w-full"
                   )}
-                  {tabs.map((t) => {
-                    const Icon = t.icon;
-                    const active = currentTab === t.key;
-                    return (
-                      <button
-                        key={t.key}
-                        title={collapsed ? t.label : undefined}
-                        onClick={() => {
-                          const url = `/projects/${activeProjectId}?tab=${t.key}`;
-                          window.history.pushState({}, "", url);
-                          window.dispatchEvent(new CustomEvent("niupack:tab", { detail: t.key }));
-                        }}
-                        className={cn(
-                          "w-full flex items-center gap-2.5 h-9 rounded-lg text-[13px] transition-colors",
-                          collapsed ? "justify-center px-0" : "px-3",
-                          active
-                            ? "bg-[var(--nav-active)] text-white font-medium"
-                            : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
-                        )}
-                      >
-                        <Icon size={16} className="shrink-0" />
-                        {!collapsed ? <span className="truncate">{t.label}</span> : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </>
-        ) : isLoadingProjectMode ? (
-          <div className="space-y-1">
-            {[...Array(7)].map((_, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "h-9 rounded-lg bg-[var(--hover)]",
-                  collapsed ? "w-9 mx-auto" : "w-full"
-                )}
-              />
-            ))}
-          </div>
+                />
+              ))}
+            </div>
+          ) : (
+            renderLink({ href: "/projects", label: "Portafolio de obras", roles: OPERATIVO_ROLES, icon: LayoutGrid })
+          )
+        ) : workspace === "licitaciones" && canUseLicitaciones ? (
+          licitacionesItems.map(renderLink)
         ) : (
           <>
-            {globalItems.map(renderLink)}
-            {proyectosItems.map(renderLink)}
+            {dashboardItem.map(renderLink)}
             {renderSection("Comprar", comprasItems)}
             {renderSection("Vender", ventasItems)}
             {renderSection("Finanzas", finanzasItems)}
+            <AdminConfigSection role={role} plan={plan} isSuperAdmin={isSuperAdmin} collapsed={collapsed} />
           </>
         )}
       </nav>
