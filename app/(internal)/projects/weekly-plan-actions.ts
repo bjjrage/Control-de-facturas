@@ -9,6 +9,7 @@ import {
   WeeklyPlanCalculationSummary,
   WeeklyPlanInputMode,
   WeeklyPlanStatus,
+  DailyWeatherForecast,
 } from "@/lib/types";
 import {
   BudgetItemMaterialInput,
@@ -19,6 +20,13 @@ import {
   calculateWeeklyPlanRequirements,
   WeeklyPlanItemTargetInput,
 } from "@/lib/procurement/weekly-plan-engine";
+import { fetchWeatherForecast } from "@/lib/procurement/weather-client";
+import {
+  analyzeOperationalWorkability,
+  createDegradedOperationalFallback,
+  BudgetItemOperationalInput,
+  OperationalAnalysisOutput,
+} from "@/lib/procurement/operational-analyst-llm";
 
 export interface SaveWeeklyPlanParams {
   planId?: string;
@@ -39,6 +47,7 @@ export interface SaveWeeklyPlanParams {
 export interface GetWeeklyPlanParams {
   projectId: string;
   planId?: string;
+  weatherOverlay?: boolean;
 }
 
 /**
@@ -59,12 +68,12 @@ export async function getWeeklyPlanDetailsAction(
     const profile = await requirePlan("pro", ["administracion", "admin"]);
     const empresaId = profile.empresa_id;
     const supabase = await createClient();
-    const { projectId, planId } = params;
+    const { projectId, planId, weatherOverlay = false } = params;
 
     // 1. Verify project access
     const { data: project, error: projErr } = await supabase
       .from("projects")
-      .select("id, name, start_date, plazo_dias, currency:contract_amount")
+      .select("id, name, start_date, plazo_dias, latitude, longitude, currency:contract_amount")
       .eq("id", projectId)
       .eq("empresa_id", empresaId)
       .single();
@@ -90,7 +99,7 @@ export async function getWeeklyPlanDetailsAction(
 
     // 3. Fetch execution entries:
     // IMPORTANT CONTRACT: execution_entries DOES NOT have empresa_id.
-    // Tenant scoping is enforced via project_id -> projects.empresa_id (already verified above).
+    // Tenant scoping is enforced via project_id -> projects.empresa_id.
     const { data: rawEntries, error: eErr } = await supabase
       .from("execution_entries")
       .select("budget_item_id, quantity_executed, entry_date")
@@ -120,7 +129,6 @@ export async function getWeeklyPlanDetailsAction(
     }
 
     // 4. Fetch BOM materials (budget_item_materials joined with productos)
-    // productos columns: id, nombre, sku, unidad, costo_promedio (NOT codigo, NOT unidad_medida)
     const { data: rawMaterials, error: mErr } = await supabase
       .from("budget_item_materials")
       .select(
@@ -158,7 +166,7 @@ export async function getWeeklyPlanDetailsAction(
       });
     }
 
-    // 5. Fetch stock disponible en obra (stock_por_proyecto, now security_invoker = true)
+    // 5. Fetch stock disponible en obra (stock_por_proyecto, security_invoker = true)
     const { data: rawStock, error: sErr } = await supabase
       .from("stock_por_proyecto")
       .select("producto_id, qty_disponible, costo_promedio")
@@ -175,9 +183,10 @@ export async function getWeeklyPlanDetailsAction(
     // 6. Fetch authorized inbound orders
     // Real order_status enum: 'AUTORIZADO', 'FACTURADO', 'CONCILIADO', 'APTO_PARA_PAGO', 'PAGADO'.
     // Orders in status 'AUTORIZADO' represent pending deliveries not yet fully received.
+    // Query includes canonical producto_id on authorized_order_items (migration 0083)
     const { data: rawOrders, error: oErr } = await supabase
       .from("authorized_orders")
-      .select("id, status, authorized_order_items(id, product, quantity, unit)")
+      .select("id, status, authorized_order_items(id, product, producto_id, quantity, unit)")
       .eq("project_id", projectId)
       .eq("empresa_id", empresaId)
       .eq("status", "AUTORIZADO");
@@ -209,8 +218,7 @@ export async function getWeeklyPlanDetailsAction(
       }
     }
 
-    // Map order item names to product ids if matching
-    // Also build stock and inbound lookup
+    // Build stock and inbound lookup
     const stockAndInbound: Record<string, StockDisponibilidadInput> = {};
     for (const st of rawStock ?? []) {
       const pId = st.producto_id;
@@ -221,32 +229,17 @@ export async function getWeeklyPlanDetailsAction(
       };
     }
 
-    // Map inbound quantities: netInbound = max(0, totalOrdered - physicallyReceived)
-    // Note: If authorized_order_items matches producto_id from bom materials
-    const allBomProductIds = new Set<string>();
-    for (const mList of Object.values(materialsByItem)) {
-      for (const m of mList) {
-        allBomProductIds.add(m.producto_id);
-      }
-    }
-
-    // Lookup products to match order item text to producto_id if needed
-    const { data: productsLookup } = await supabase
-      .from("productos")
-      .select("id, nombre")
-      .eq("empresa_id", empresaId);
-
-    const productIdByName = new Map<string, string>();
-    for (const p of productsLookup ?? []) {
-      productIdByName.set(p.nombre.toLowerCase().trim(), p.id);
-    }
-
+    // Canonical product mapping for inbound:
+    // Only items with explicit authorized_order_items.producto_id participate in inbound calculations.
+    // Legacy rows without producto_id are NOT matched by string or guessed.
     for (const ord of rawOrders ?? []) {
       const items = (ord as any).authorized_order_items ?? [];
       for (const it of items) {
-        const prodName = (it.product || "").toLowerCase().trim();
-        const pId = productIdByName.get(prodName);
-        if (!pId) continue;
+        const pId = it.producto_id;
+        if (!pId) {
+          // Unmapped canonical product -> skip from inbound stock deduction (fail-safe)
+          continue;
+        }
 
         if (!stockAndInbound[pId]) {
           stockAndInbound[pId] = {
@@ -280,7 +273,6 @@ export async function getWeeklyPlanDetailsAction(
         .single();
       plan = (pData as ProjectWeeklyPlan) || null;
     } else {
-      // Find latest plan for project
       const { data: pData } = await supabase
         .from("project_weekly_plans")
         .select("*")
@@ -305,7 +297,6 @@ export async function getWeeklyPlanDetailsAction(
       }));
     }
 
-    // Default dates for new plan: next Monday to Sunday or current week
     const now = new Date();
     const defaultStart = now.toISOString().split("T")[0];
     const defaultEnd = new Date(now.getTime() + 6 * 24 * 60 * 60 * 1000)
@@ -316,13 +307,81 @@ export async function getWeeklyPlanDetailsAction(
     const endDate = plan ? plan.end_date : defaultEnd;
     const status = plan ? plan.status : "DRAFT";
 
-    // Build target inputs
+    // Build target inputs with multi-front support
     const targets: WeeklyPlanItemTargetInput[] = savedItems.map((si) => ({
       budget_item_id: si.budget_item_id,
+      front_label: si.front_label,
       input_mode: si.input_mode,
       input_value: si.input_value,
-      front_label: si.front_label,
     }));
+
+    // 8. Optional Weather Overlay Execution
+    let weatherForecasts: DailyWeatherForecast[] = [];
+    let weatherSnapshotId: string | null = null;
+    let weatherFailedClosed = false;
+    let operationalAssessments: Record<string, any> = {};
+
+    if (weatherOverlay) {
+      const lat = project.latitude ? Number(project.latitude) : -25.455;
+      const lon = project.longitude ? Number(project.longitude) : -57.534;
+
+      try {
+        weatherForecasts = await fetchWeatherForecast(lat, lon, 7);
+        if (weatherForecasts.length > 0) {
+          // Persist snapshot to project_weather_forecast_snapshots
+          const snapshotDate = weatherForecasts[0].date;
+          const { data: snapData } = await supabase
+            .from("project_weather_forecast_snapshots")
+            .upsert(
+              {
+                empresa_id: empresaId,
+                project_id: projectId,
+                forecast_date: snapshotDate,
+                precipitation_sum_mm: weatherForecasts[0].precipitation_sum_mm,
+                precipitation_hours: weatherForecasts[0].precipitation_hours,
+                precipitation_probability_max: weatherForecasts[0].precipitation_probability_max,
+                wind_gusts_max_kmh: weatherForecasts[0].wind_gusts_max_kmh,
+                temperature_max_c: weatherForecasts[0].temperature_max_c,
+                temperature_min_c: weatherForecasts[0].temperature_min_c,
+                weather_code: weatherForecasts[0].weather_code,
+                source: "open-meteo",
+                raw_payload: weatherForecasts as any,
+              },
+              { onConflict: "project_id,forecast_date" }
+            )
+            .select("id")
+            .single();
+
+          weatherSnapshotId = snapData?.id || null;
+
+          // Operational assessment for active items
+          const candidateItems: BudgetItemOperationalInput[] = budgetItems
+            .filter((it) => targets.some((t) => t.budget_item_id === it.id && t.input_value > 0))
+            .map((it) => ({
+              budget_item_id: it.id,
+              item_code: it.code,
+              description: it.description,
+              unit: it.unit || "unid",
+            }));
+
+          const opAnalysis = await analyzeOperationalWorkability(
+            projectId,
+            candidateItems,
+            weatherForecasts
+          );
+
+          if (opAnalysis) {
+            for (const itemOp of opAnalysis.items) {
+              operationalAssessments[itemOp.budget_item_id] = itemOp;
+            }
+          }
+        }
+      } catch (wErr) {
+        console.warn("Weather overlay failed closed:", wErr);
+        weatherFailedClosed = true;
+        weatherForecasts = [];
+      }
+    }
 
     // Run pure calculation engine
     const calculation = calculateWeeklyPlanRequirements({
@@ -338,6 +397,12 @@ export async function getWeeklyPlanDetailsAction(
       stock_and_inbound: stockAndInbound,
       recent_execution_entries: recentEntriesList,
       currency: "PYG",
+      weather_overlay_enabled: weatherOverlay,
+      weather_forecasts: weatherForecasts,
+      operational_assessments: operationalAssessments,
+      weather_snapshot_id: weatherSnapshotId,
+      weather_provider: "open-meteo",
+      weather_failed_closed: weatherFailedClosed,
     });
 
     return {
@@ -355,7 +420,7 @@ export async function getWeeklyPlanDetailsAction(
 }
 
 /**
- * Saves or updates a Weekly Plan and its item targets.
+ * Saves or updates a Weekly Plan and its item targets atomically via PostgreSQL RPC.
  */
 export async function saveWeeklyPlanAction(
   params: SaveWeeklyPlanParams
@@ -363,7 +428,6 @@ export async function saveWeeklyPlanAction(
   try {
     const profile = await requirePlan("pro", ["administracion", "admin"]);
     const empresaId = profile.empresa_id;
-    const userId = profile.id;
     const supabase = await createClient();
 
     const { planId, projectId, startDate, endDate, status, notes, items } = params;
@@ -380,85 +444,51 @@ export async function saveWeeklyPlanAction(
       return { data: null, error: "Proyecto no encontrado o sin permisos." };
     }
 
-    let currentPlanId = planId;
+    // Format items payload for atomic RPC
+    const itemsPayload = items
+      .filter((it) => it.inputValue > 0)
+      .map((it) => ({
+        budget_item_id: it.budgetItemId,
+        front_label: it.frontLabel || null,
+        input_mode: it.inputMode,
+        input_value: it.inputValue,
+        unit: it.unit || "unid",
+      }));
 
-    if (!currentPlanId) {
-      // Create new plan
-      const { data: newPlan, error: insErr } = await supabase
-        .from("project_weekly_plans")
-        .insert({
-          empresa_id: empresaId,
-          project_id: projectId,
-          start_date: startDate,
-          end_date: endDate,
-          status,
-          notes: notes || null,
-          created_by: userId,
-        })
-        .select()
-        .single();
-
-      if (insErr || !newPlan) {
-        return { data: null, error: `Error al crear el plan semanal: ${insErr?.message}` };
+    // Invoke atomic RPC function
+    const { data: rpcResult, error: rpcErr } = await supabase.rpc(
+      "save_weekly_plan_atomic",
+      {
+        p_plan_id: planId || null,
+        p_project_id: projectId,
+        p_start_date: startDate,
+        p_end_date: endDate,
+        p_status: status,
+        p_notes: notes || null,
+        p_items: itemsPayload,
       }
-      currentPlanId = newPlan.id;
-    } else {
-      // Update existing plan
-      const { error: upErr } = await supabase
-        .from("project_weekly_plans")
-        .update({
-          start_date: startDate,
-          end_date: endDate,
-          status,
-          notes: notes || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", currentPlanId)
-        .eq("empresa_id", empresaId);
+    );
 
-      if (upErr) {
-        return { data: null, error: `Error al actualizar el plan: ${upErr.message}` };
-      }
+    if (rpcErr) {
+      return {
+        data: null,
+        error: `Error al persistir plan de forma atómica: ${rpcErr.message}`,
+      };
     }
 
-    // Upsert items for this plan:
-    // Delete items not in current list or update/insert
-    await supabase
-      .from("project_weekly_plan_items")
-      .delete()
-      .eq("plan_id", currentPlanId);
-
-    if (items.length > 0) {
-      const itemsToInsert = items
-        .filter((it) => it.inputValue > 0)
-        .map((it) => ({
-          plan_id: currentPlanId,
-          budget_item_id: it.budgetItemId,
-          front_label: it.frontLabel || null,
-          input_mode: it.inputMode,
-          input_value: it.inputValue,
-          target_quantity: it.inputValue, // will be capped by pure engine
-          unit: it.unit || "unid",
-        }));
-
-      if (itemsToInsert.length > 0) {
-        const { error: itemsErr } = await supabase
-          .from("project_weekly_plan_items")
-          .insert(itemsToInsert);
-
-        if (itemsErr) {
-          return { data: null, error: `Error al guardar partidas del plan: ${itemsErr.message}` };
-        }
-      }
-    }
+    const savedPlanId = (rpcResult as any)?.plan_id || planId;
 
     // Retrieve saved plan
-    const { data: savedPlan } = await supabase
+    const { data: savedPlan, error: fetchErr } = await supabase
       .from("project_weekly_plans")
       .select("*")
-      .eq("id", currentPlanId)
+      .eq("id", savedPlanId)
       .eq("empresa_id", empresaId)
       .single();
+
+    if (fetchErr || !savedPlan) {
+      return { data: null, error: "Plan guardado pero no se pudo recuperar." };
+    }
 
     revalidatePath(`/projects/${projectId}`);
     return { data: savedPlan as ProjectWeeklyPlan, error: null };

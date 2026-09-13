@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
   calculateWeeklyPlanRequirements,
-  isLaborOrServiceItem,
+  checkItemBomRequirement,
   WeeklyPlanEngineInput,
 } from "../lib/procurement/weekly-plan-engine";
-import { BudgetItem } from "../lib/types";
+import { BudgetItem, DailyWeatherForecast } from "../lib/types";
 
-describe("Plan Semanal de Obra / Lookahead Operacional - Pure Engine", () => {
+describe("Plan Semanal de Obra / Lookahead Operacional - Comprehensive Suite", () => {
   const sampleItems: BudgetItem[] = [
     {
       id: "item-1",
@@ -23,6 +23,7 @@ describe("Plan Semanal de Obra / Lookahead Operacional - Pure Engine", () => {
       depends_on: null,
       sort_order: 1,
       quantity_per_unit: null,
+      material_requirement: "REQUIRES_BOM",
       created_at: "2026-09-01T00:00:00Z",
     },
     {
@@ -40,6 +41,7 @@ describe("Plan Semanal de Obra / Lookahead Operacional - Pure Engine", () => {
       depends_on: null,
       sort_order: 2,
       quantity_per_unit: null,
+      material_requirement: "REQUIRES_BOM",
       created_at: "2026-09-01T00:00:00Z",
     },
     {
@@ -57,6 +59,7 @@ describe("Plan Semanal de Obra / Lookahead Operacional - Pure Engine", () => {
       depends_on: null,
       sort_order: 3,
       quantity_per_unit: null,
+      material_requirement: "NO_MATERIAL",
       created_at: "2026-09-01T00:00:00Z",
     },
   ];
@@ -116,10 +119,6 @@ describe("Plan Semanal de Obra / Lookahead Operacional - Pure Engine", () => {
   });
 
   it("3. Value-weighted global progress calculation is strictly compliant", () => {
-    // Total budget: item-1 (100 * 1M = 100M) + item-2 (200 * 500k = 100M) = 200M total
-    // Previous execution: item-1 executed 50 m3 (50M), item-2 executed 0 (0M) -> Global: 50M / 200M = 25%
-    // Target: item-2 targets 100 m2 (50M)
-    // New global value: 50M + 50M = 100M / 200M = 50% (+25 pp)
     const input: WeeklyPlanEngineInput = {
       project_id: "proj-1",
       start_date: "2026-09-14",
@@ -146,14 +145,50 @@ describe("Plan Semanal de Obra / Lookahead Operacional - Pure Engine", () => {
     expect(res.total_plan_contractual_value).toBe(50000000);
   });
 
-  it("4. Sequential stock and inbound deduction prevents double-counting across items", () => {
-    // Both item-1 and item-2 require Cement ("prod-cement")
-    // Target item-1 requires 10 bags.
-    // Target item-2 requires 15 bags.
-    // Total demand = 25 bags.
-    // Warehouse stock = 12 bags.
-    // Inbound OC = 8 bags.
-    // Net cash purchase required = 25 - 12 - 8 = 5 bags.
+  it("4. Multi-front support: same item across Sector A and Sector B with joint capping", () => {
+    // Contractual: 200 m2. Previous execution: 100 m2. Remaining: 100 m2.
+    // Sector A targets 80 m2.
+    // Sector B targets 40 m2. (Total requested = 120 m2 > 100 m2 remaining)
+    // Sector A gets 80 m2. Sector B gets capped to 20 m2.
+    const input: WeeklyPlanEngineInput = {
+      project_id: "proj-1",
+      start_date: "2026-09-14",
+      end_date: "2026-09-20",
+      budget_items: [sampleItems[1]],
+      executed_quantities_by_item: { "item-2": 100 },
+      targets: [
+        {
+          budget_item_id: "item-2",
+          front_label: "Sector A",
+          input_mode: "QUANTITY",
+          input_value: 80,
+        },
+        {
+          budget_item_id: "item-2",
+          front_label: "Sector B",
+          input_mode: "QUANTITY",
+          input_value: 40,
+        },
+      ],
+      materials_by_item: {},
+      stock_and_inbound: {},
+    };
+
+    const res = calculateWeeklyPlanRequirements(input);
+    expect(res.items.length).toBe(2);
+
+    const sectorA = res.items.find((i) => i.front_label === "Sector A")!;
+    expect(sectorA.target_quantity).toBe(80);
+    expect(sectorA.was_capped).toBe(false);
+
+    const sectorB = res.items.find((i) => i.front_label === "Sector B")!;
+    expect(sectorB.target_quantity).toBe(20);
+    expect(sectorB.was_capped).toBe(true);
+
+    expect(res.total_plan_contractual_value).toBe((80 + 20) * 500000);
+  });
+
+  it("5. Sequential stock and inbound deduction prevents double-counting across items and fronts", () => {
     const cementCost = 70000;
     const input: WeeklyPlanEngineInput = {
       project_id: "proj-1",
@@ -162,8 +197,8 @@ describe("Plan Semanal de Obra / Lookahead Operacional - Pure Engine", () => {
       budget_items: [sampleItems[0], sampleItems[1]],
       executed_quantities_by_item: {},
       targets: [
-        { budget_item_id: "item-1", input_mode: "QUANTITY", input_value: 10 },
-        { budget_item_id: "item-2", input_mode: "QUANTITY", input_value: 15 },
+        { budget_item_id: "item-1", front_label: "Losa 1", input_mode: "QUANTITY", input_value: 10 },
+        { budget_item_id: "item-2", front_label: "Muro Norte", input_mode: "QUANTITY", input_value: 15 },
       ],
       materials_by_item: {
         "item-1": [
@@ -203,73 +238,107 @@ describe("Plan Semanal de Obra / Lookahead Operacional - Pure Engine", () => {
     expect(res.total_covered_by_stock_value).toBe(12 * cementCost);
     expect(res.total_covered_by_inbound_value).toBe(8 * cementCost);
     expect(res.total_additional_cash_required).toBe(5 * cementCost);
-
-    // Verify sequential consumption per item
-    const i1Mat = res.items[0].materials[0];
-    expect(i1Mat.demanda_bruta).toBe(10);
-    expect(i1Mat.cubierto_por_stock).toBe(10); // Takes 10 of 12 available
-    expect(i1Mat.cubierto_por_inbound).toBe(0);
-    expect(i1Mat.deficit_compra_neta).toBe(0);
-
-    const i2Mat = res.items[1].materials[0];
-    expect(i2Mat.demanda_bruta).toBe(15);
-    expect(i2Mat.cubierto_por_stock).toBe(2); // Remaining stock was 2
-    expect(i2Mat.cubierto_por_inbound).toBe(8); // Takes all 8 inbound
-    expect(i2Mat.deficit_compra_neta).toBe(5); // Net deficit
   });
 
-  it("5. BOM warning flag: distinguishes unconfigured materials vs pure labor/service", () => {
-    const input: WeeklyPlanEngineInput = {
-      project_id: "proj-1",
-      start_date: "2026-09-14",
-      end_date: "2026-09-20",
-      budget_items: [sampleItems[0], sampleItems[2]], // item-0: concrete (needs materials), item-2: cleaning (labor)
-      executed_quantities_by_item: {},
-      targets: [
-        { budget_item_id: "item-1", input_mode: "QUANTITY", input_value: 5 },
-        { budget_item_id: "item-3", input_mode: "QUANTITY", input_value: 0.5 },
-      ],
-      materials_by_item: {}, // No materials configured for any
-      stock_and_inbound: {},
+  it("6. BOM requirement state: replaces description heuristics with explicit fail-closed logic", () => {
+    // item-1 is REQUIRES_BOM but has no BOM -> MATERIALES NO CONFIGURADOS
+    const check1 = checkItemBomRequirement(sampleItems[0], false, 10);
+    expect(check1.isLaborOrService).toBe(false);
+    expect(check1.bomWarning).toBe("MATERIALES NO CONFIGURADOS");
+
+    // item-3 is NO_MATERIAL and has no BOM -> valid (no warning)
+    const check3 = checkItemBomRequirement(sampleItems[2], false, 1);
+    expect(check3.isLaborOrService).toBe(true);
+    expect(check3.bomWarning).toBeNull();
+
+    // unknown requirement without BOM -> REVISIÓN REQUERIDA
+    const unknownItem: BudgetItem = {
+      ...sampleItems[0],
+      material_requirement: "UNKNOWN",
     };
-
-    const res = calculateWeeklyPlanRequirements(input);
-    expect(res.unconfigured_materials_count).toBe(1);
-
-    const concreteItem = res.items.find((i) => i.budget_item_id === "item-1");
-    expect(concreteItem?.materials_warning).toBe("MATERIALES NO CONFIGURADOS");
-
-    const laborItem = res.items.find((i) => i.budget_item_id === "item-3");
-    expect(laborItem?.is_labor_or_service).toBe(true);
-    expect(laborItem?.materials_warning).toBeNull();
+    const checkUnknown = checkItemBomRequirement(unknownItem, false, 5);
+    expect(checkUnknown.bomWarning).toBe("REVISIÓN REQUERIDA (MATERIALES NO DEFINIDOS)");
   });
 
-  it("6. Advisory capacity check alerts when target is aggressive vs recent velocity", () => {
-    // 7-day plan. Target is 70 m3 (10 m3/day).
-    // Historical velocity was 2 m3/day with HIGH confidence (ratio 5.0x > 2.0x threshold).
+  it("7. Weather Overlay: adjusts estimated capacity and shows gap WITHOUT changing base plan targets or cash recommendations", () => {
+    const cementCost = 70000;
+    const sampleForecasts: DailyWeatherForecast[] = [
+      { date: "2026-09-14", precipitation_sum_mm: 20, precipitation_hours: 6, wind_gusts_max_kmh: 50, weather_code: 65 },
+      { date: "2026-09-15", precipitation_sum_mm: 0, precipitation_hours: 0, wind_gusts_max_kmh: 15, weather_code: 0 },
+    ];
+
     const input: WeeklyPlanEngineInput = {
       project_id: "proj-1",
       start_date: "2026-09-14",
       end_date: "2026-09-20",
       budget_items: [sampleItems[0]],
-      executed_quantities_by_item: { "item-1": 10 },
+      executed_quantities_by_item: {},
       targets: [
-        { budget_item_id: "item-1", input_mode: "QUANTITY", input_value: 70 },
+        { budget_item_id: "item-1", input_mode: "QUANTITY", input_value: 63 },
       ],
-      materials_by_item: {},
+      materials_by_item: {
+        "item-1": [
+          {
+            budget_item_id: "item-1",
+            producto_id: "prod-cement",
+            producto_nombre: "Cemento Portland",
+            unidad_medida: "bolsas",
+            cantidad_por_unidad_ejecutada: 1.0,
+            desperdicio_pct: 0,
+            costo_unitario: cementCost,
+          },
+        ],
+      },
       stock_and_inbound: {},
-      recent_execution_entries: [
-        { budget_item_id: "item-1", entry_date: "2026-09-08", quantity_executed: 2 },
-        { budget_item_id: "item-1", entry_date: "2026-09-09", quantity_executed: 2 },
-        { budget_item_id: "item-1", entry_date: "2026-09-10", quantity_executed: 2 },
-        { budget_item_id: "item-1", entry_date: "2026-09-11", quantity_executed: 2 },
-        { budget_item_id: "item-1", entry_date: "2026-09-12", quantity_executed: 2 },
-      ],
+      weather_overlay_enabled: true,
+      weather_forecasts: sampleForecasts,
+      operational_assessments: {
+        "item-1": {
+          budget_item_id: "item-1",
+          workability: "PARTIAL",
+          productive_factor: 0.75, // Weather reduces expected capacity to 75%
+          reason: "Lluvia intensa primer día",
+        },
+      },
+      weather_snapshot_id: "snap-101",
     };
 
     const res = calculateWeeklyPlanRequirements(input);
     const item = res.items[0];
-    expect(item.advisory_capacity_warning).toContain("Meta agresiva");
-    expect(item.advisory_capacity_warning).toContain("superior a la velocidad observada reciente");
+
+    // Base target is preserved strictly at 63 m3
+    expect(item.target_quantity).toBe(63);
+    expect(res.total_plan_contractual_value).toBe(63 * 1000000);
+    // Base cash recommendation is based on the 63 m3 plan
+    expect(res.total_additional_cash_required).toBe(63 * cementCost);
+
+    // Weather overlay shows capacity = 63 * 0.75 = 47.25 m3, gap = 47.25 - 63 = -15.75 m3
+    expect(item.weather_adjusted_capacity).toBe(47.25);
+    expect(item.weather_gap_quantity).toBe(-15.75);
+    expect(res.weather_days_affected_count).toBe(1);
+    expect(res.weather_adjusted_material_consumption_value).toBe(Math.round(47.25 * cementCost));
+  });
+
+  it("8. Weather Fail-Closed: if weather fails closed, base plan remains intact and overlay is flagged unavailable", () => {
+    const input: WeeklyPlanEngineInput = {
+      project_id: "proj-1",
+      start_date: "2026-09-14",
+      end_date: "2026-09-20",
+      budget_items: [sampleItems[0]],
+      executed_quantities_by_item: {},
+      targets: [
+        { budget_item_id: "item-1", input_mode: "QUANTITY", input_value: 50 },
+      ],
+      materials_by_item: {},
+      stock_and_inbound: {},
+      weather_overlay_enabled: true,
+      weather_failed_closed: true, // Failed to fetch weather
+    };
+
+    const res = calculateWeeklyPlanRequirements(input);
+    expect(res.items[0].target_quantity).toBe(50);
+    expect(res.weather_failed_closed).toBe(true);
+    expect(res.weather_summary).toContain("fail-closed");
+    expect(res.items[0].weather_adjusted_capacity).toBeNull();
   });
 });

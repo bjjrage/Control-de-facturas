@@ -785,6 +785,7 @@ export interface BudgetItem {
   end_date: string | null;
   depends_on: string | null;
   quantity_per_unit: number | null;
+  material_requirement?: "REQUIRES_BOM" | "NO_MATERIAL" | "UNKNOWN" | null;
   created_at: string;
 }
 
@@ -1275,6 +1276,7 @@ export interface ProjectWeeklyPlanItem {
 
 export interface WeeklyPlanItemCalculation {
   budget_item_id: string;
+  front_label?: string | null;
   item_code: string;
   item_description: string;
   unit: string;
@@ -1296,6 +1298,10 @@ export interface WeeklyPlanItemCalculation {
   materials_warning?: string | null; // e.g. "MATERIALES NO CONFIGURADOS"
   advisory_capacity_warning?: string | null; // e.g. aggressive target compared to recent velocity
   materials: MaterialRequirementDetail[];
+  // Weather overlay projections per item
+  weather_adjusted_capacity?: number | null;
+  weather_gap_quantity?: number | null;
+  weather_workability_factor?: number | null;
 }
 
 export interface WeeklyPlanCalculationSummary {
@@ -1317,4 +1323,14 @@ export interface WeeklyPlanCalculationSummary {
   currency: string;
   items: WeeklyPlanItemCalculation[];
   unconfigured_materials_count: number;
+  // Weather overlay properties
+  weather_overlay_enabled?: boolean;
+  weather_snapshot_id?: string | null;
+  weather_provider?: string;
+  weather_forecasts_count?: number;
+  weather_days_affected_count?: number;
+  weather_adjusted_material_consumption_value?: number | null;
+  weather_adjusted_additional_cash_required?: number | null;
+  weather_summary?: string | null;
+  weather_failed_closed?: boolean;
 }

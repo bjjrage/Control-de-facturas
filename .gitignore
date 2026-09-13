@@ -54,3 +54,4 @@ next-env.d.ts
 /tests/e2e/.auth/
 /tests/e2e/debug-*.ts
 E2E_PASSWORD*
+.worktrees/
