@@ -10,6 +10,11 @@ import { AttentionItem } from "./attention-section";
 
 const PLAN_RANK = { basico: 0, pro: 1, caterpillar: 2 } as const;
 
+// Ventana de "próximo/por vencer" para todo el resumen ejecutivo (pagos,
+// cobros, ofertas de licitación) — un solo lugar para no repetir el número
+// mágico en cada cálculo y en el texto de "Requiere atención".
+const DASHBOARD_UPCOMING_DAYS = 7;
+
 function addDays(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() + days);
@@ -39,7 +44,7 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
   const supabase = await createClient();
   const empresaId = p.empresa_id;
   const today = addDays(0);
-  const en7dias = addDays(7);
+  const en7dias = addDays(DASHBOARD_UPCOMING_DAYS);
   const en3diasAtras = addDays(-3);
 
   const isAdminOrAdministracion = p.role === "administracion" || p.role === "admin";
@@ -284,7 +289,7 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
   if (canUseLicitaciones && (ofertasPorVencer ?? 0) > 0) {
     attentionItems.push({
       key: "licitaciones-vencen",
-      text: `${ofertasPorVencer} oferta${ofertasPorVencer !== 1 ? "s" : ""} vence${ofertasPorVencer !== 1 ? "n" : ""} en los próximos 7 días`,
+      text: `${ofertasPorVencer} oferta${ofertasPorVencer !== 1 ? "s" : ""} vence${ofertasPorVencer !== 1 ? "n" : ""} en los próximos ${DASHBOARD_UPCOMING_DAYS} días`,
       href: "/licitaciones",
       iconKey: "gavel",
       severity: "warn",
