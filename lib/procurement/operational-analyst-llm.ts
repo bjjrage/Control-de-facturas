@@ -31,6 +31,63 @@ interface AnalysisCacheEntry {
 const analysisCache = new Map<string, AnalysisCacheEntry>();
 const CACHE_TTL_MS = 1000 * 60 * 60 * 4; // 4 hours
 
+import crypto from "crypto";
+
+export interface OperationalHashInput {
+  projectId: string;
+  startDate: string;
+  horizonDays: number;
+  latitude: number;
+  longitude: number;
+  items: BudgetItemOperationalInput[];
+  forecasts: DailyWeatherForecast[];
+}
+
+/**
+ * Computes deterministic SHA-256 hash of operational inputs for persistent LLM cache validation.
+ * Includes: project_id, start_date, horizon_days, latitude, longitude,
+ * sorted active items (id, code, description, unit),
+ * sorted daily forecasts (date, precipitation_sum_mm, precipitation_hours, wind_gusts_max_kmh, temperature_min_c, temperature_max_c, weather_code).
+ */
+export function calculateOperationalInputHash(params: OperationalHashInput): string {
+  const { projectId, startDate, horizonDays, latitude, longitude, items, forecasts } = params;
+
+  // Deterministically sort items by budget_item_id
+  const sortedItems = [...items]
+    .sort((a, b) => a.budget_item_id.localeCompare(b.budget_item_id))
+    .map((it) => ({
+      id: it.budget_item_id,
+      code: it.item_code,
+      desc: it.description,
+      unit: it.unit,
+    }));
+
+  // Deterministically sort forecasts by date
+  const sortedForecasts = [...forecasts]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((f) => ({
+      date: f.date,
+      rain_mm: Number(f.precipitation_sum_mm.toFixed(2)),
+      rain_h: Number(f.precipitation_hours.toFixed(1)),
+      wind_kmh: Number(f.wind_gusts_max_kmh.toFixed(1)),
+      t_min: f.temperature_min_c !== undefined && f.temperature_min_c !== null ? Number(f.temperature_min_c.toFixed(1)) : null,
+      t_max: f.temperature_max_c !== undefined && f.temperature_max_c !== null ? Number(f.temperature_max_c.toFixed(1)) : null,
+      w_code: f.weather_code,
+    }));
+
+  const payload = JSON.stringify({
+    projectId,
+    startDate,
+    horizonDays,
+    lat: Number(latitude.toFixed(5)),
+    lon: Number(longitude.toFixed(5)),
+    items: sortedItems,
+    forecasts: sortedForecasts,
+  });
+
+  return crypto.createHash("sha256").update(payload).digest("hex");
+}
+
 function generateCacheKey(
   projectId: string,
   items: BudgetItemOperationalInput[],

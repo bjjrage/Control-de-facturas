@@ -11,6 +11,8 @@ import {
 import { fetchWeatherForecast } from "@/lib/procurement/weather-client";
 import {
   analyzeOperationalWorkability,
+  createDegradedOperationalFallback,
+  calculateOperationalInputHash,
   BudgetItemOperationalInput,
   OperationalAnalysisOutput,
 } from "@/lib/procurement/operational-analyst-llm";
@@ -76,26 +78,19 @@ export async function runProgressForecastAction(
 
     // 2. Fetch daily weather forecasts (Open-Meteo)
     let forecasts: DailyWeatherForecast[] = [];
+    let weatherFailed = false;
+    let weatherErrorMessage: string | null = null;
     try {
       forecasts = await fetchWeatherForecast(
         effectiveLat,
         effectiveLon,
         horizonDays
       );
-    } catch (wErr) {
-      console.warn("Weather forecast fetch error:", wErr);
-      const today = new Date(startDate);
-      for (let i = 0; i < horizonDays; i++) {
-        const d = new Date(today);
-        d.setDate(d.getDate() + i);
-        forecasts.push({
-          date: d.toISOString().split("T")[0],
-          precipitation_sum_mm: 0,
-          precipitation_hours: 0,
-          wind_gusts_max_kmh: 15,
-          weather_code: 0,
-        });
-      }
+    } catch (wErr: any) {
+      console.warn("Weather forecast fetch error (fail-closed):", wErr);
+      weatherFailed = true;
+      weatherErrorMessage = wErr?.message || "No se pudo obtener el pronóstico meteorológico.";
+      forecasts = [];
     }
 
     // 3. Fetch budget items (tenant scoped via project_id and empresa_id check)
@@ -244,58 +239,93 @@ export async function runProgressForecastAction(
       }));
 
     // 9. Operational Analysis: Persistent cache from DB (project_progress_forecast_runs) + LLM
-    // Per user hardening requirement: in-memory cache is insufficient for serverless/Next.js.
-    // Check if there is an active run for this project in the last 24 hours with matching horizon and valid LLM analysis.
+    // Per user hardening requirement:
+    // - If weather fetch failed: fail-closed immediately to DEGRADED mode (do NOT invent sunny weather).
+    // - Calculate deterministic operational_input_hash over project, horizon, start_date, coordinates, sorted active items and sorted forecasts.
+    // - For cache hit: exact match on operational_input_hash, created within 24h, llm_analysis_used = true.
+    // - Strict factor validation: if ANY cached factor is invalid (null, undefined, NaN, < 0 or > 1), REJECT cache completely and re-run LLM.
     let operationalAnalysis: OperationalAnalysisOutput | null = null;
+    let currentOperationalHash: string | null = null;
 
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { data: recentRuns } = await supabase
-      .from("project_progress_forecast_runs")
-      .select("id, created_at, llm_summary, llm_analysis_used, project_progress_forecast_items(budget_item_id, workability_factor, operational_status, operational_reasoning)")
-      .eq("project_id", projectId)
-      .eq("empresa_id", empresaId)
-      .eq("horizon_days", horizonDays)
-      .eq("llm_analysis_used", true)
-      .gte("created_at", twentyFourHoursAgo)
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    if (recentRuns && recentRuns.length > 0 && recentRuns[0].project_progress_forecast_items?.length > 0) {
-      const run = recentRuns[0];
-      const cachedItems = (run.project_progress_forecast_items as any[]) || [];
-      const itemMap = new Map(cachedItems.map((ci) => [ci.budget_item_id, ci]));
-
-      // Verify that all active items have cached analysis
-      const allFound = activeItemsToAssess.every((it) => itemMap.has(it.budget_item_id));
-      if (allFound) {
-        operationalAnalysis = {
-          items: activeItemsToAssess.map((it) => {
-            const ci = itemMap.get(it.budget_item_id)!;
-            const rawFactor = ci.workability_factor !== null && ci.workability_factor !== undefined
-              ? Number(ci.workability_factor)
-              : 1.0;
-            const parsedFactor = Number.isFinite(rawFactor) ? Math.min(1.0, Math.max(0.0, rawFactor)) : 1.0;
-
-            return {
-              budget_item_id: it.budget_item_id,
-              workability: ci.operational_status,
-              productive_factor: parsedFactor,
-              reason: ci.operational_reasoning || "Análisis recuperado de corrida persistida reciente.",
-            };
-          }),
-          overall_summary: `${run.llm_summary || "Análisis operacional"} (Persistido en BD < 24h)`,
-          llm_used: true,
-          is_degraded: false,
-        };
-      }
-    }
-
-    if (!operationalAnalysis) {
-      operationalAnalysis = await analyzeOperationalWorkability(
-        projectId,
+    if (weatherFailed || forecasts.length === 0) {
+      operationalAnalysis = createDegradedOperationalFallback(
         activeItemsToAssess,
-        forecasts
+        weatherErrorMessage || "Pronóstico meteorológico no disponible (fail-closed)."
       );
+    } else {
+      currentOperationalHash = calculateOperationalInputHash({
+        projectId,
+        startDate,
+        horizonDays,
+        latitude: effectiveLat,
+        longitude: effectiveLon,
+        items: activeItemsToAssess,
+        forecasts,
+      });
+
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: recentRuns } = await supabase
+        .from("project_progress_forecast_runs")
+        .select("id, created_at, llm_summary, llm_analysis_used, operational_input_hash, project_progress_forecast_items(budget_item_id, workability_factor, operational_status, operational_reasoning)")
+        .eq("project_id", projectId)
+        .eq("empresa_id", empresaId)
+        .eq("operational_input_hash", currentOperationalHash)
+        .eq("llm_analysis_used", true)
+        .gte("created_at", twentyFourHoursAgo)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (recentRuns && recentRuns.length > 0 && recentRuns[0].project_progress_forecast_items?.length > 0) {
+        const run = recentRuns[0];
+        const cachedItems = (run.project_progress_forecast_items as any[]) || [];
+        const itemMap = new Map(cachedItems.map((ci) => [ci.budget_item_id, ci]));
+
+        // Check if all active items are present
+        const allFound = activeItemsToAssess.every((it) => itemMap.has(it.budget_item_id));
+
+        // Strict factor validation helper:
+        // Valid factors are numbers between 0 and 1 inclusive.
+        // null, undefined, NaN, < 0, > 1 are INVALID and MUST invalidate the whole cache.
+        const isStrictlyValidFactor = (val: any): boolean => {
+          if (val === null || val === undefined) return false;
+          const num = Number(val);
+          return typeof num === "number" && !Number.isNaN(num) && Number.isFinite(num) && num >= 0 && num <= 1;
+        };
+
+        const allFactorsValid = allFound && activeItemsToAssess.every((it) => {
+          const ci = itemMap.get(it.budget_item_id);
+          return ci && isStrictlyValidFactor(ci.workability_factor);
+        });
+
+        if (allFound && allFactorsValid) {
+          operationalAnalysis = {
+            items: activeItemsToAssess.map((it) => {
+              const ci = itemMap.get(it.budget_item_id)!;
+              return {
+                budget_item_id: it.budget_item_id,
+                workability: ci.operational_status,
+                productive_factor: Number(ci.workability_factor),
+                reason: ci.operational_reasoning || "Análisis recuperado de corrida persistida reciente.",
+              };
+            }),
+            overall_summary: `${run.llm_summary || "Análisis operacional"} (Cache BD validado por hash)`,
+            llm_used: true,
+            is_degraded: false,
+          };
+        } else {
+          console.warn(
+            `Cache invalidado para proyecto ${projectId}: allFound=${allFound}, allFactorsValid=${allFactorsValid}. Re-ejecutando LLM.`
+          );
+        }
+      }
+
+      if (!operationalAnalysis) {
+        operationalAnalysis = await analyzeOperationalWorkability(
+          projectId,
+          activeItemsToAssess,
+          forecasts
+        );
+      }
     }
 
     const assessmentsMap: Record<string, any> = {};
@@ -344,6 +374,7 @@ export async function runProgressForecastAction(
         fully_blocked_days_count: forecastSummary.fully_blocked_days_count,
         llm_analysis_used: forecastSummary.llm_analysis_used,
         llm_summary: forecastSummary.llm_summary,
+        operational_input_hash: currentOperationalHash,
         created_by: profile.id,
       })
       .select("id")
