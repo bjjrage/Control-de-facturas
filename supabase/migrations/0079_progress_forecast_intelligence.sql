@@ -34,8 +34,8 @@ ALTER TABLE budget_item_materials ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "budget_item_materials_empresa_isolation"
   ON budget_item_materials
   FOR ALL
-  USING (empresa_id = current_setting('app.current_empresa_id', true)::uuid)
-  WITH CHECK (empresa_id = current_setting('app.current_empresa_id', true)::uuid);
+  USING (empresa_id = public.current_empresa_id())
+  WITH CHECK (empresa_id = public.current_empresa_id());
 
 -- 3. Snapshots de Pronóstico Meteorológico diario por proyecto
 CREATE TABLE IF NOT EXISTS project_weather_forecast_snapshots (
@@ -64,8 +64,8 @@ ALTER TABLE project_weather_forecast_snapshots ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "weather_forecast_snapshots_empresa_isolation"
   ON project_weather_forecast_snapshots
   FOR ALL
-  USING (empresa_id = current_setting('app.current_empresa_id', true)::uuid)
-  WITH CHECK (empresa_id = current_setting('app.current_empresa_id', true)::uuid);
+  USING (empresa_id = public.current_empresa_id())
+  WITH CHECK (empresa_id = public.current_empresa_id());
 
 -- 4. Cabecera de Corridas de Proyección de Avance
 CREATE TABLE IF NOT EXISTS project_progress_forecast_runs (
@@ -97,8 +97,8 @@ ALTER TABLE project_progress_forecast_runs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "progress_forecast_runs_empresa_isolation"
   ON project_progress_forecast_runs
   FOR ALL
-  USING (empresa_id = current_setting('app.current_empresa_id', true)::uuid)
-  WITH CHECK (empresa_id = current_setting('app.current_empresa_id', true)::uuid);
+  USING (empresa_id = public.current_empresa_id())
+  WITH CHECK (empresa_id = public.current_empresa_id());
 
 -- 5. Detalle de Proyección por Partida y Material
 CREATE TABLE IF NOT EXISTS project_progress_forecast_items (
@@ -130,6 +130,7 @@ CREATE POLICY "progress_forecast_items_empresa_isolation"
   USING (
     run_id IN (
       SELECT id FROM project_progress_forecast_runs
-      WHERE empresa_id = current_setting('app.current_empresa_id', true)::uuid
+      WHERE empresa_id = public.current_empresa_id()
     )
   );
+

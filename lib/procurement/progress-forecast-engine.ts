@@ -53,9 +53,15 @@ export interface ProgressForecastEngineInput {
  * 
  * Rules:
  * - Observes execution entries within a recent window (e.g. last 14 to 30 days before start_date).
- * - Distinguishes days where the item was actually active (> 0 quantity or logged activity)
- *   from days where the item was not meant to be worked.
- * - Confidence rating:
+ * - Distinguishes:
+ *   1. Days where the item was NOT scheduled / NOT active (not counted in denominator).
+ *   2. Days where the item WAS active/scheduled to be worked, but produced 0 (COUNTED in denominator).
+ *   3. Days where the item produced > 0 (counted in numerator and denominator).
+ * - An item is considered active on a date if:
+ *   - Explicitly logged in execution_entries for that date (even if quantity_executed == 0), OR
+ *   - The date falls within the item's planned active schedule [itemStartDate, itemEndDate]
+ *     AND other work occurred on that date in the project.
+ * - Confidence rating based on total active days observed:
  *   - HIGH: >= 5 active days observed.
  *   - MEDIUM: 2 to 4 active days observed.
  *   - LOW: 1 active day observed.
@@ -67,7 +73,8 @@ export function calculateRecentVelocity(
   plannedRemainingDays: number,
   entries: ExecutionHistoryEntry[],
   startDate: string,
-  windowDays: number = 30
+  windowDays: number = 30,
+  itemSchedule?: { start_date?: string | null; end_date?: string | null }
 ): {
   velocity: number;
   observationsCount: number;
@@ -77,27 +84,49 @@ export function calculateRecentVelocity(
   const startTs = new Date(startDate).getTime();
   const windowStartTs = startTs - windowDays * 24 * 60 * 60 * 1000;
 
-  // Filter entries for this item within the recent window
+  // 1. Group all relevant entries for this item within the window
   const relevantEntries = entries.filter((e) => {
     if (e.budget_item_id !== itemId) return false;
     const entryTs = new Date(e.entry_date).getTime();
     return entryTs >= windowStartTs && entryTs <= startTs;
   });
 
-  // Group by date to handle multiple entries on the same day
   const dailyTotals: Record<string, number> = {};
   for (const entry of relevantEntries) {
     dailyTotals[entry.entry_date] =
       (dailyTotals[entry.entry_date] || 0) + (Number(entry.quantity_executed) || 0);
   }
 
-  // Active days are those where work actually occurred (> 0)
-  const activeDays = Object.keys(dailyTotals).filter((date) => dailyTotals[date] > 0);
-  const activeCount = activeDays.length;
+  // 2. Identify active days where the item was active / scheduled to work:
+  // - Any day with an explicit entry logged for this item (even if quantity is 0)
+  const activeDatesSet = new Set<string>(Object.keys(dailyTotals));
+
+  // - If item has schedule dates, check if any project work day fell inside its active schedule
+  if (itemSchedule?.start_date && itemSchedule?.end_date) {
+    const itemSchedStartTs = new Date(itemSchedule.start_date).getTime();
+    const itemSchedEndTs = new Date(itemSchedule.end_date).getTime();
+
+    // Find all distinct project entry dates in the window
+    for (const e of entries) {
+      const eTs = new Date(e.entry_date).getTime();
+      if (eTs >= windowStartTs && eTs <= startTs) {
+        if (eTs >= itemSchedStartTs && eTs <= itemSchedEndTs) {
+          // The item was scheduled to be active on this project working day
+          activeDatesSet.add(e.entry_date);
+          if (!(e.entry_date in dailyTotals)) {
+            dailyTotals[e.entry_date] = 0;
+          }
+        }
+      }
+    }
+  }
+
+  const activeDates = Array.from(activeDatesSet);
+  const activeCount = activeDates.length;
 
   if (activeCount >= 5) {
-    // High confidence: median or mean of active days
-    const totalActiveQty = activeDays.reduce((sum, d) => sum + dailyTotals[d], 0);
+    // High confidence: total executed quantity / total active days (including zero-production active days)
+    const totalActiveQty = activeDates.reduce((sum, d) => sum + (dailyTotals[d] || 0), 0);
     const meanVelocity = totalActiveQty / activeCount;
     return {
       velocity: Number(meanVelocity.toFixed(4)),
@@ -107,7 +136,7 @@ export function calculateRecentVelocity(
     };
   } else if (activeCount >= 2) {
     // Medium confidence
-    const totalActiveQty = activeDays.reduce((sum, d) => sum + dailyTotals[d], 0);
+    const totalActiveQty = activeDates.reduce((sum, d) => sum + (dailyTotals[d] || 0), 0);
     const meanVelocity = totalActiveQty / activeCount;
     return {
       velocity: Number(meanVelocity.toFixed(4)),
@@ -117,7 +146,7 @@ export function calculateRecentVelocity(
     };
   } else if (activeCount === 1) {
     // Low confidence: single observation
-    const vel = dailyTotals[activeDays[0]];
+    const vel = dailyTotals[activeDates[0]] || 0;
     return {
       velocity: Number(vel.toFixed(4)),
       observationsCount: 1,
@@ -136,6 +165,7 @@ export function calculateRecentVelocity(
     };
   }
 }
+
 
 /**
  * Pure deterministic calculation engine for progress, material explosion,
@@ -263,7 +293,8 @@ export function computeProgressForecast(
       plannedDays,
       recent_execution_entries,
       start_date,
-      30
+      30,
+      { start_date: item.start_date, end_date: item.end_date }
     );
 
     const baseVelocityPerDay = velocityMetrics.velocity;

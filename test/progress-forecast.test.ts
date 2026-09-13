@@ -496,9 +496,11 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
       14
     );
 
-    // Active days: 20 + 30 + 25 + 35 + 40 = 150 / 5 = 30
-    expect(result.velocity).toBe(30);
-    expect(result.observationsCount).toBe(5);
+    // Active days: 6 observed days where work was tracked (including 2026-09-13 with 0 executed)
+    // Sum = 20 + 30 + 25 + 0 + 35 + 40 = 150. Denominator = 6 days. Velocity = 150 / 6 = 25
+    // Guarantees velocity is not artificially inflated by hiding 0-production active days.
+    expect(result.velocity).toBe(25);
+    expect(result.observationsCount).toBe(6);
     expect(result.confidence).toBe("HIGH");
   });
 
@@ -766,6 +768,99 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
     const flujoItems = proyeccionAvanceToFlujoItems(result, 7);
     const totalFlujoEgreso = flujoItems.reduce((sum, f) => sum + f.monto, 0);
     expect(Math.abs(totalFlujoEgreso)).toBeCloseTo(2700000, 1);
+  });
+
+  // 17. Distinción de días activos programados con producción 0 vs días fuera de cronograma
+  it("17. incluye en el denominador días activos en cronograma con producción 0 y excluye días no programados", () => {
+    const projectEntries = [
+      { budget_item_id: "other-item", entry_date: "2026-09-08", quantity_executed: 10 }, // Item 1 not scheduled yet
+      { budget_item_id: "other-item", entry_date: "2026-09-09", quantity_executed: 10 }, // Item 1 not scheduled yet
+      { budget_item_id: "item-1", entry_date: "2026-09-10", quantity_executed: 20 },      // Scheduled & produced 20
+      { budget_item_id: "other-item", entry_date: "2026-09-11", quantity_executed: 15 }, // Scheduled but produced 0!
+      { budget_item_id: "item-1", entry_date: "2026-09-12", quantity_executed: 40 },      // Scheduled & produced 40
+    ];
+
+    // Item-1 scheduled from 2026-09-10 to 2026-09-20
+    const result = calculateRecentVelocity(
+      "item-1",
+      500,
+      10,
+      projectEntries,
+      "2026-09-15",
+      10,
+      { start_date: "2026-09-10", end_date: "2026-09-20" }
+    );
+
+    // Days 2026-09-08 and 2026-09-09 were NOT scheduled for item-1 -> NOT counted in denominator.
+    // Days 2026-09-10 (20), 2026-09-11 (0 produced while scheduled), 2026-09-12 (40) -> COUNTED (3 active days)
+    // Mean velocity = (20 + 0 + 40) / 3 = 60 / 3 = 20
+    expect(result.observationsCount).toBe(3);
+    expect(result.velocity).toBe(20);
+    expect(result.confidence).toBe("MEDIUM");
+  });
+
+  // 18. Neteo de órdenes de compra basado en recepción física real (evitar doble cómputo con stock)
+  it("18. netea inbound de OC descontando lo recibido físicamente para no duplicar con stock en obra", () => {
+    // Si la OC autorizada tenía 1.000 unidades y ya se recibieron físicamente 400 (que ingresaron a stock),
+    // el stock disponible muestra 400 y el inbound pendiente debe ser 600, NO 1.000.
+    const totalOrdered = 1000;
+    const physicallyReceived = 400; // From oc_order_item_recibido
+    const netInbound = Math.max(0, totalOrdered - physicallyReceived);
+
+    const input: ProgressForecastEngineInput = {
+      project_id: "proj-100",
+      horizon_days: 7,
+      start_date: "2026-09-15",
+      budget_items: [
+        {
+          ...baseItem,
+          quantity: 1000,
+          start_date: "2026-09-15",
+          end_date: "2026-09-22",
+        },
+      ],
+      executed_quantities_by_item: { "item-1": 0 },
+      materials_by_item: {
+        "item-1": [
+          {
+            budget_item_id: "item-1",
+            producto_id: "prod-tubo",
+            producto_nombre: "Tubo PVC",
+            unidad_medida: "unid",
+            cantidad_por_unidad_ejecutada: 1,
+            desperdicio_pct: 0,
+            costo_unitario: 10000,
+          },
+        ],
+      },
+      stock_and_inbound: {
+        "prod-tubo": {
+          producto_id: "prod-tubo",
+          stock_disponible: physicallyReceived, // 400 en obra
+          oc_inbound: netInbound,               // 600 en tránsito neto
+        },
+      },
+      operational_assessments: {
+        "item-1": {
+          budget_item_id: "item-1",
+          workability: "NORMAL",
+          productive_factor: 1.0,
+          reason: "Ok",
+        },
+      },
+      forecasts: sampleForecasts,
+      llm_used: false,
+    };
+
+    const result = computeProgressForecast(input);
+    const mat = result.items[0].materials[0];
+
+    expect(mat.demanda_bruta).toBeCloseTo(1000, 1);
+    expect(mat.stock_disponible).toBe(400);
+    expect(mat.oc_inbound).toBe(600);
+    // Demanda 1000 cubierta por 400 stock + 600 inbound -> déficit de compra = 0
+    expect(mat.deficit_compra_neta).toBeCloseTo(0, 1);
+    expect(mat.caja_adicional_requerida).toBeCloseTo(0, 1);
   });
 });
 

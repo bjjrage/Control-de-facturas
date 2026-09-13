@@ -12,6 +12,7 @@ import { fetchWeatherForecast } from "@/lib/procurement/weather-client";
 import {
   analyzeOperationalWorkability,
   BudgetItemOperationalInput,
+  OperationalAnalysisOutput,
 } from "@/lib/procurement/operational-analyst-llm";
 import {
   computeProgressForecast,
@@ -173,13 +174,29 @@ export async function runProgressForecastAction(
       .eq("project_id", projectId)
       .eq("empresa_id", empresaId);
 
-    // 7. Fetch authorized inbound orders (strictly in transit / authorized without reception)
+    // 7. Fetch authorized inbound orders (strictly approved/authorized/in_transit)
+    // Audit: Net inbound must be based on actual physical goods reception (oc_recepciones / oc_recepcion_items / stock_movimientos)
+    // rather than invoiced quantity. Physical reception enters stock_movimientos (ENTRADA with referencia_tipo = 'oc_recepcion'),
+    // which is already reflected in stock_por_proyecto. Thus: netInbound = max(0, totalOrdered - totalPhysicallyReceived).
     const { data: rawOrders } = await supabase
       .from("authorized_orders")
-      .select("id, status, authorized_order_items(producto_id, quantity, quantity_invoiced)")
+      .select("id, status, authorized_order_items(id, producto_id, quantity)")
       .eq("project_id", projectId)
       .eq("empresa_id", empresaId)
       .in("status", ["approved", "authorized", "in_transit"]);
+
+    // Fetch total physically received quantities by order_item from view oc_order_item_recibido
+    const { data: rawReceived } = await supabase
+      .from("oc_order_item_recibido")
+      .select("order_item_id, cantidad_recibida_total")
+      .eq("empresa_id", empresaId);
+
+    const receivedByOrderItem: Record<string, number> = {};
+    for (const r of rawReceived ?? []) {
+      if (r.order_item_id) {
+        receivedByOrderItem[r.order_item_id] = Number(r.cantidad_recibida_total) || 0;
+      }
+    }
 
     const stockAndInbound: Record<string, StockDisponibilidadInput> = {};
 
@@ -204,10 +221,10 @@ export async function runProgressForecastAction(
             oc_inbound: 0,
           };
         }
-        // Deduct any quantity already invoiced/received to avoid double-counting
+        // Deduct quantity physically received/entered into stock to strictly avoid double counting
         const totalOrdered = Number(it.quantity) || 0;
-        const alreadyInvoiced = Number(it.quantity_invoiced) || 0;
-        const netInbound = Math.max(0, totalOrdered - alreadyInvoiced);
+        const physicallyReceived = receivedByOrderItem[it.id] || 0;
+        const netInbound = Math.max(0, totalOrdered - physicallyReceived);
         stockAndInbound[pId].oc_inbound += netInbound;
       }
     }
@@ -226,12 +243,55 @@ export async function runProgressForecastAction(
         unit: it.unit ?? "unid",
       }));
 
-    // 9. LLM Operational Analysis (with cache and explicit degraded status)
-    const operationalAnalysis = await analyzeOperationalWorkability(
-      projectId,
-      activeItemsToAssess,
-      forecasts
-    );
+    // 9. Operational Analysis: Persistent cache from DB (project_progress_forecast_runs) + LLM
+    // Per user hardening requirement: in-memory cache is insufficient for serverless/Next.js.
+    // Check if there is an active run for this project in the last 24 hours with matching horizon and valid LLM analysis.
+    let operationalAnalysis: OperationalAnalysisOutput | null = null;
+
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: recentRuns } = await supabase
+      .from("project_progress_forecast_runs")
+      .select("id, created_at, llm_summary, llm_analysis_used, project_progress_forecast_items(budget_item_id, workability_factor, operational_status, operational_reasoning)")
+      .eq("project_id", projectId)
+      .eq("empresa_id", empresaId)
+      .eq("horizon_days", horizonDays)
+      .eq("llm_analysis_used", true)
+      .gte("created_at", twentyFourHoursAgo)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (recentRuns && recentRuns.length > 0 && recentRuns[0].project_progress_forecast_items?.length > 0) {
+      const run = recentRuns[0];
+      const cachedItems = (run.project_progress_forecast_items as any[]) || [];
+      const itemMap = new Map(cachedItems.map((ci) => [ci.budget_item_id, ci]));
+
+      // Verify that all active items have cached analysis
+      const allFound = activeItemsToAssess.every((it) => itemMap.has(it.budget_item_id));
+      if (allFound) {
+        operationalAnalysis = {
+          items: activeItemsToAssess.map((it) => {
+            const ci = itemMap.get(it.budget_item_id)!;
+            return {
+              budget_item_id: it.budget_item_id,
+              workability: ci.operational_status,
+              productive_factor: Number(ci.workability_factor) || 1.0,
+              reason: ci.operational_reasoning || "Análisis recuperado de corrida persistida reciente.",
+            };
+          }),
+          overall_summary: `${run.llm_summary || "Análisis operacional"} (Persistido en BD < 24h)`,
+          llm_used: true,
+          is_degraded: false,
+        };
+      }
+    }
+
+    if (!operationalAnalysis) {
+      operationalAnalysis = await analyzeOperationalWorkability(
+        projectId,
+        activeItemsToAssess,
+        forecasts
+      );
+    }
 
     const assessmentsMap: Record<string, any> = {};
     for (const a of operationalAnalysis.items) {
