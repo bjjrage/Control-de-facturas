@@ -35,7 +35,9 @@ export async function runProgressForecastAction(
     const empresaId = profile.empresa_id;
     const supabase = await createClient();
 
-    const { projectId, horizonDays } = params;
+    const { projectId } = params;
+    // Enforce strictly: minimum 7 days
+    const horizonDays = Math.max(7, params.horizonDays || 7);
     const startDate =
       params.startDate || new Date().toISOString().split("T")[0];
 
@@ -81,7 +83,6 @@ export async function runProgressForecastAction(
       );
     } catch (wErr) {
       console.warn("Weather forecast fetch error:", wErr);
-      // Fallback synthetic neutral forecasts if network fails
       const today = new Date(startDate);
       for (let i = 0; i < horizonDays; i++) {
         const d = new Date(today);
@@ -96,7 +97,7 @@ export async function runProgressForecastAction(
       }
     }
 
-    // 3. Fetch budget items
+    // 3. Fetch budget items (tenant scoped via project_id and empresa_id check)
     const { data: rawBudgetItems } = await supabase
       .from("budget_items")
       .select("*")
@@ -111,18 +112,27 @@ export async function runProgressForecastAction(
       };
     }
 
-    // 4. Fetch real cumulative progress from execution_entries
+    // 4. Fetch execution entries: cumulative progress + recent entries (last 60 days)
     const { data: rawEntries } = await supabase
       .from("execution_entries")
-      .select("budget_item_id, quantity_executed")
+      .select("budget_item_id, quantity_executed, entry_date")
       .eq("project_id", projectId)
       .eq("empresa_id", empresaId);
 
     const executedQuantities: Record<string, number> = {};
+    const recentEntriesList: { budget_item_id: string; entry_date: string; quantity_executed: number }[] = [];
+
     for (const entry of rawEntries ?? []) {
       const bId = entry.budget_item_id;
-      executedQuantities[bId] =
-        (executedQuantities[bId] || 0) + (Number(entry.quantity_executed) || 0);
+      const q = Number(entry.quantity_executed) || 0;
+      executedQuantities[bId] = (executedQuantities[bId] || 0) + q;
+      if (entry.entry_date) {
+        recentEntriesList.push({
+          budget_item_id: bId,
+          entry_date: entry.entry_date,
+          quantity_executed: q,
+        });
+      }
     }
 
     // 5. Fetch BOM materials (budget_item_materials joined with productos)
@@ -163,11 +173,12 @@ export async function runProgressForecastAction(
       .eq("project_id", projectId)
       .eq("empresa_id", empresaId);
 
-    // 7. Fetch authorized inbound orders
+    // 7. Fetch authorized inbound orders (strictly in transit / authorized without reception)
     const { data: rawOrders } = await supabase
       .from("authorized_orders")
-      .select("id, authorized_order_items(producto_id, cantidad)")
+      .select("id, status, authorized_order_items(producto_id, quantity, quantity_invoiced)")
       .eq("project_id", projectId)
+      .eq("empresa_id", empresaId)
       .in("status", ["approved", "authorized", "in_transit"]);
 
     const stockAndInbound: Record<string, StockDisponibilidadInput> = {};
@@ -185,6 +196,7 @@ export async function runProgressForecastAction(
       const items = (ord as any).authorized_order_items ?? [];
       for (const it of items) {
         const pId = it.producto_id;
+        if (!pId) continue;
         if (!stockAndInbound[pId]) {
           stockAndInbound[pId] = {
             producto_id: pId,
@@ -192,7 +204,11 @@ export async function runProgressForecastAction(
             oc_inbound: 0,
           };
         }
-        stockAndInbound[pId].oc_inbound += Number(it.cantidad) || 0;
+        // Deduct any quantity already invoiced/received to avoid double-counting
+        const totalOrdered = Number(it.quantity) || 0;
+        const alreadyInvoiced = Number(it.quantity_invoiced) || 0;
+        const netInbound = Math.max(0, totalOrdered - alreadyInvoiced);
+        stockAndInbound[pId].oc_inbound += netInbound;
       }
     }
 
@@ -210,8 +226,9 @@ export async function runProgressForecastAction(
         unit: it.unit ?? "unid",
       }));
 
-    // 9. LLM Operational Analysis (or deterministic fallback)
+    // 9. LLM Operational Analysis (with cache and explicit degraded status)
     const operationalAnalysis = await analyzeOperationalWorkability(
+      projectId,
       activeItemsToAssess,
       forecasts
     );
@@ -228,11 +245,13 @@ export async function runProgressForecastAction(
       start_date: startDate,
       budget_items: budgetItems,
       executed_quantities_by_item: executedQuantities,
+      recent_execution_entries: recentEntriesList,
       materials_by_item: materialsByItem,
       stock_and_inbound: stockAndInbound,
       operational_assessments: assessmentsMap,
       forecasts,
       llm_used: operationalAnalysis.llm_used,
+      is_degraded: operationalAnalysis.is_degraded,
       llm_summary: operationalAnalysis.overall_summary,
       currency: "PYG",
     });

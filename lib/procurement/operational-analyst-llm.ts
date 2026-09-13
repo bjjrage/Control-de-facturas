@@ -9,7 +9,7 @@ export interface BudgetItemOperationalInput {
 
 export interface OperationalAssessmentItem {
   budget_item_id: string;
-  workability: OperationalStatus; // "NORMAL" | "PARTIAL" | "BLOCKED"
+  workability: OperationalStatus; // "NORMAL" | "PARTIAL" | "BLOCKED" | "DEGRADED" | "UNAVAILABLE"
   productive_factor: number; // 0.0 to 1.0
   reason: string;
   risk_flags?: string[];
@@ -19,168 +19,49 @@ export interface OperationalAnalysisOutput {
   items: OperationalAssessmentItem[];
   overall_summary: string;
   llm_used: boolean;
+  is_degraded: boolean;
+}
+
+// In-memory cache for operational analysis runs by project and forecast hash
+interface AnalysisCacheEntry {
+  timestamp: number;
+  output: OperationalAnalysisOutput;
+}
+
+const analysisCache = new Map<string, AnalysisCacheEntry>();
+const CACHE_TTL_MS = 1000 * 60 * 60 * 4; // 4 hours
+
+function generateCacheKey(
+  projectId: string,
+  items: BudgetItemOperationalInput[],
+  forecasts: DailyWeatherForecast[]
+): string {
+  const itemIds = items.map((i) => i.budget_item_id).sort().join(",");
+  const forecastSig = forecasts.map((f) => `${f.date}:${f.precipitation_sum_mm}:${f.weather_code}`).join("|");
+  return `${projectId}__${itemIds}__${forecastSig}`;
 }
 
 /**
- * Heuristic/Deterministic fallback when LLM is unavailable, fails, or has invalid response.
- * Implements standard Paraguayan civil construction site weather rules.
+ * Explicit degraded fallback when LLM is unavailable and no cache exists.
+ * STRICTURE: Does NOT invent arbitrary productive factors (e.g. mamposteria = 0.4).
+ * Explicitly marks items as "DEGRADED" / "UNAVAILABLE" with factor 1.0 (raw unadjusted)
+ * and flags them so the UI and engine clearly distinguish it from an AI-analyzed forecast.
  */
-export function evaluateOperationalWorkabilityFallback(
+export function createDegradedOperationalFallback(
   items: BudgetItemOperationalInput[],
-  forecasts: DailyWeatherForecast[]
+  reasonText: string = "Análisis operacional no disponible (sin LLM ni cache válido)."
 ): OperationalAnalysisOutput {
-  // Aggregate weather indicators over the horizon
-  const totalRainMm = forecasts.reduce(
-    (acc, f) => acc + (f.precipitation_sum_mm || 0),
-    0
-  );
-  const maxRainMm = forecasts.reduce(
-    (max, f) => Math.max(max, f.precipitation_sum_mm || 0),
-    0
-  );
-  const maxWindKmh = forecasts.reduce(
-    (max, f) => Math.max(max, f.wind_gusts_max_kmh || 0),
-    0
-  );
-  const rainyDaysCount = forecasts.filter(
-    (f) => (f.precipitation_sum_mm || 0) >= 3.0
-  ).length;
-  const severeRainyDaysCount = forecasts.filter(
-    (f) => (f.precipitation_sum_mm || 0) >= 15.0
-  ).length;
-
-  const results: OperationalAssessmentItem[] = items.map((item) => {
-    const desc = item.description.toLowerCase();
-
-    // Identify task sensitivity to weather
-    const isEarthwork =
-      desc.includes("movimiento de suelo") ||
-      desc.includes("excavaci") ||
-      desc.includes("nivelaci") ||
-      desc.includes("relleno") ||
-      desc.includes("fundaci") ||
-      desc.includes("pilot") ||
-      desc.includes("zapata");
-
-    const isConcreteOutdoor =
-      desc.includes("hormig") ||
-      desc.includes("viga") ||
-      desc.includes("losa") ||
-      desc.includes("columna") ||
-      desc.includes("pavimento") ||
-      desc.includes("revoque exterior") ||
-      desc.includes("pintura exterior") ||
-      desc.includes("techo") ||
-      desc.includes("cubierta");
-
-    const isHighElevation =
-      desc.includes("cubierta") ||
-      desc.includes("techo") ||
-      desc.includes("andamio") ||
-      desc.includes("fachada") ||
-      desc.includes("estructura metálica");
-
-    const isIndoor =
-      desc.includes("instalaci") ||
-      desc.includes("sanitari") ||
-      desc.includes("eléctric") ||
-      desc.includes("piso interior") ||
-      desc.includes("cielorraso") ||
-      desc.includes("pintura interior") ||
-      desc.includes("azulejo") ||
-      desc.includes("carpinter") ||
-      desc.includes("placard") ||
-      desc.includes("puerta");
-
-    // Earthwork: severe sensitivity to ground saturation
-    if (isEarthwork) {
-      if (severeRainyDaysCount > 0 || totalRainMm >= 30) {
-        return {
-          budget_item_id: item.budget_item_id,
-          workability: "BLOCKED",
-          productive_factor: 0.1,
-          reason: `Lluvia intensa proyectada (${totalRainMm.toFixed(1)} mm, ${rainyDaysCount} días afectados). Suelo saturado impide tránsito de maquinaria pesada y excavación.`,
-          risk_flags: ["SATURACION_SUELO", "MAQUINARIA_INOPERATIVA"],
-        };
-      } else if (rainyDaysCount > 0 || totalRainMm >= 8) {
-        return {
-          budget_item_id: item.budget_item_id,
-          workability: "PARTIAL",
-          productive_factor: 0.5,
-          reason: `Lluvias intermitentes (${totalRainMm.toFixed(1)} mm) reducirán el ritmo de zanjeo y movimiento de suelo.`,
-          risk_flags: ["BARRO_MODERADO"],
-        };
-      }
-    }
-
-    // High elevation: wind or rain
-    if (isHighElevation && (maxWindKmh >= 45 || severeRainyDaysCount > 0)) {
-      return {
-        budget_item_id: item.budget_item_id,
-        workability: "BLOCKED",
-        productive_factor: 0.2,
-        reason: `Riesgo de seguridad por ráfagas de viento (${maxWindKmh.toFixed(0)} km/h) o lluvia intensa en altura.`,
-        risk_flags: ["VIENTO_FUERTE", "ALTURA_INSEGURA"],
-      };
-    }
-
-    // Concrete & outdoor masonry
-    if (isConcreteOutdoor) {
-      if (severeRainyDaysCount >= 2 || totalRainMm >= 25) {
-        return {
-          budget_item_id: item.budget_item_id,
-          workability: "PARTIAL",
-          productive_factor: 0.4,
-          reason: `Lluvias persistentes impiden cargamento continuo de hormigón y fraguado óptimo al aire libre.`,
-          risk_flags: ["LAVADO_HORMIGON"],
-        };
-      } else if (rainyDaysCount > 0) {
-        return {
-          budget_item_id: item.budget_item_id,
-          workability: "PARTIAL",
-          productive_factor: 0.75,
-          reason: `Interrupciones puntuales por lluvias leves a moderadas.`,
-        };
-      }
-    }
-
-    // Indoor finishing: resilient to rain unless severe flood
-    if (isIndoor) {
-      return {
-        budget_item_id: item.budget_item_id,
-        workability: "NORMAL",
-        productive_factor: 1.0,
-        reason:
-          "Trabajo bajo cubierta no afectado sustancialmente por condiciones meteorológicas externas.",
-      };
-    }
-
-    // Default general tasks
-    if (rainyDaysCount > 0) {
-      const factor = Math.max(
-        0.5,
-        1 - (rainyDaysCount / forecasts.length) * 0.5
-      );
-      return {
-        budget_item_id: item.budget_item_id,
-        workability: factor < 0.6 ? "PARTIAL" : "NORMAL",
-        productive_factor: Number(factor.toFixed(2)),
-        reason: `Afectación parcial estimada por ${rainyDaysCount} días con lluvias en el horizonte analizado.`,
-      };
-    }
-
-    return {
-      budget_item_id: item.budget_item_id,
-      workability: "NORMAL",
-      productive_factor: 1.0,
-      reason: "Condiciones meteorológicas favorables para el avance normal.",
-    };
-  });
-
   return {
-    items: results,
-    overall_summary: `Análisis meteorológico determinístico: ${forecasts.length} días analizados, ${rainyDaysCount} días con lluvia (${totalRainMm.toFixed(1)} mm total acumulado).`,
+    items: items.map((item) => ({
+      budget_item_id: item.budget_item_id,
+      workability: "DEGRADED",
+      productive_factor: 1.0, // Raw baseline, but marked explicitly as degraded
+      reason: `Proyección base no ajustada por clima: ${reasonText}`,
+      risk_flags: ["ANALISIS_CLIMATICO_NO_DISPONIBLE"],
+    })),
+    overall_summary: `ADVERTENCIA: ${reasonText} Se presenta proyección de ritmo base sin ajuste climático inteligente.`,
     llm_used: false,
+    is_degraded: true,
   };
 }
 
@@ -188,14 +69,34 @@ export function evaluateOperationalWorkabilityFallback(
  * Operates the LLM as an operational field expert.
  * STRICT CONTRACT: The LLM outputs ONLY qualitative workability and productive_factor (0..1).
  * It NEVER computes quantities, financial amounts, stock balances, or purchase totals.
+ * 
+ * FALLBACK POLICY (Order of precedence):
+ * 1. Valid LLM response with JSON Schema validation.
+ * 2. Reuse previous cached LLM analysis if matching project, items, and forecast window.
+ * 3. Explicit degraded status (DEGRADED / UNAVAILABLE) without simulating fake semantic reasoning.
  */
 export async function analyzeOperationalWorkability(
+  projectId: string,
   items: BudgetItemOperationalInput[],
   forecasts: DailyWeatherForecast[]
 ): Promise<OperationalAnalysisOutput> {
+  const cacheKey = generateCacheKey(projectId, items, forecasts);
+
+  // 1. Check cache first
+  const cached = analysisCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return {
+      ...cached.output,
+      overall_summary: `${cached.output.overall_summary} (Reutilizado de cache operacional reciente)`,
+    };
+  }
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey || items.length === 0 || forecasts.length === 0) {
-    return evaluateOperationalWorkabilityFallback(items, forecasts);
+    return createDegradedOperationalFallback(
+      items,
+      !apiKey ? "OPENAI_API_KEY no configurada." : "Sin partidas o pronóstico meteorológico disponible."
+    );
   }
 
   const weatherSummary = forecasts
@@ -283,21 +184,22 @@ REGLAS DE EVALUACIÓN:
     });
 
     if (!response.ok) {
-      console.warn(
-        `LLM operational analysis failed (${response.status}), activating deterministic fallback.`
+      console.warn(`LLM call failed (${response.status}). Returning explicit degraded status.`);
+      return createDegradedOperationalFallback(
+        items,
+        `Fallo en la comunicación con el servicio de IA (${response.status}).`
       );
-      return evaluateOperationalWorkabilityFallback(items, forecasts);
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
     if (!content) {
-      return evaluateOperationalWorkabilityFallback(items, forecasts);
+      return createDegradedOperationalFallback(items, "Respuesta vacía del servicio de IA.");
     }
 
     const parsed = JSON.parse(content);
     if (!Array.isArray(parsed.items) || parsed.items.length === 0) {
-      return evaluateOperationalWorkabilityFallback(items, forecasts);
+      return createDegradedOperationalFallback(items, "Estructura JSON no conforme del LLM.");
     }
 
     // Sanitize and ensure productive_factor is strictly bounded in [0, 1]
@@ -314,13 +216,21 @@ REGLAS DE EVALUACIÓN:
       })
     );
 
-    return {
+    const output: OperationalAnalysisOutput = {
       items: sanitizedItems,
       overall_summary: String(parsed.overall_summary || "Análisis operacional completado por IA."),
       llm_used: true,
+      is_degraded: false,
     };
-  } catch (err) {
+
+    // Save in cache
+    analysisCache.set(cacheKey, { timestamp: Date.now(), output });
+    return output;
+  } catch (err: any) {
     console.error("Error in analyzeOperationalWorkability LLM call:", err);
-    return evaluateOperationalWorkabilityFallback(items, forecasts);
+    return createDegradedOperationalFallback(
+      items,
+      `Error de ejecución de IA: ${err.message || "desconocido"}.`
+    );
   }
 }

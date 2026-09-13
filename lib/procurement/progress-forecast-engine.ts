@@ -4,6 +4,7 @@ import {
   ForecastItemResult,
   MaterialRequirementDetail,
   ProgressForecastRunSummary,
+  VelocityConfidence,
 } from "@/lib/types";
 import { OperationalAssessmentItem } from "./operational-analyst-llm";
 
@@ -24,19 +25,116 @@ export interface StockDisponibilidadInput {
   oc_inbound: number;
 }
 
+export interface ExecutionHistoryEntry {
+  budget_item_id: string;
+  entry_date: string; // YYYY-MM-DD
+  quantity_executed: number;
+}
+
 export interface ProgressForecastEngineInput {
   project_id: string;
-  horizon_days: number;
+  horizon_days: number; // Minimum 7 days
   start_date: string; // YYYY-MM-DD
   budget_items: BudgetItem[];
   executed_quantities_by_item: Record<string, number>; // budget_item_id -> sum(quantity_executed)
+  recent_execution_entries?: ExecutionHistoryEntry[]; // Historical observations
   materials_by_item: Record<string, BudgetItemMaterialInput[]>; // budget_item_id -> materials
   stock_and_inbound: Record<string, StockDisponibilidadInput>; // producto_id -> availability
-  operational_assessments: Record<string, OperationalAssessmentItem>; // budget_item_id -> LLM/heuristic assessment
+  operational_assessments: Record<string, OperationalAssessmentItem>; // budget_item_id -> LLM/degraded assessment
   forecasts: DailyWeatherForecast[];
   llm_used: boolean;
+  is_degraded?: boolean;
   llm_summary?: string;
   currency?: string;
+}
+
+/**
+ * Computes observed recent execution velocity.
+ * 
+ * Rules:
+ * - Observes execution entries within a recent window (e.g. last 14 to 30 days before start_date).
+ * - Distinguishes days where the item was actually active (> 0 quantity or logged activity)
+ *   from days where the item was not meant to be worked.
+ * - Confidence rating:
+ *   - HIGH: >= 5 active days observed.
+ *   - MEDIUM: 2 to 4 active days observed.
+ *   - LOW: 1 active day observed.
+ *   - UNOBSERVED: 0 active days observed in the window (falls back to planned schedule velocity).
+ */
+export function calculateRecentVelocity(
+  itemId: string,
+  itemTotalQty: number,
+  plannedRemainingDays: number,
+  entries: ExecutionHistoryEntry[],
+  startDate: string,
+  windowDays: number = 30
+): {
+  velocity: number;
+  observationsCount: number;
+  windowDays: number;
+  confidence: VelocityConfidence;
+} {
+  const startTs = new Date(startDate).getTime();
+  const windowStartTs = startTs - windowDays * 24 * 60 * 60 * 1000;
+
+  // Filter entries for this item within the recent window
+  const relevantEntries = entries.filter((e) => {
+    if (e.budget_item_id !== itemId) return false;
+    const entryTs = new Date(e.entry_date).getTime();
+    return entryTs >= windowStartTs && entryTs <= startTs;
+  });
+
+  // Group by date to handle multiple entries on the same day
+  const dailyTotals: Record<string, number> = {};
+  for (const entry of relevantEntries) {
+    dailyTotals[entry.entry_date] =
+      (dailyTotals[entry.entry_date] || 0) + (Number(entry.quantity_executed) || 0);
+  }
+
+  // Active days are those where work actually occurred (> 0)
+  const activeDays = Object.keys(dailyTotals).filter((date) => dailyTotals[date] > 0);
+  const activeCount = activeDays.length;
+
+  if (activeCount >= 5) {
+    // High confidence: median or mean of active days
+    const totalActiveQty = activeDays.reduce((sum, d) => sum + dailyTotals[d], 0);
+    const meanVelocity = totalActiveQty / activeCount;
+    return {
+      velocity: Number(meanVelocity.toFixed(4)),
+      observationsCount: activeCount,
+      windowDays,
+      confidence: "HIGH",
+    };
+  } else if (activeCount >= 2) {
+    // Medium confidence
+    const totalActiveQty = activeDays.reduce((sum, d) => sum + dailyTotals[d], 0);
+    const meanVelocity = totalActiveQty / activeCount;
+    return {
+      velocity: Number(meanVelocity.toFixed(4)),
+      observationsCount: activeCount,
+      windowDays,
+      confidence: "MEDIUM",
+    };
+  } else if (activeCount === 1) {
+    // Low confidence: single observation
+    const vel = dailyTotals[activeDays[0]];
+    return {
+      velocity: Number(vel.toFixed(4)),
+      observationsCount: 1,
+      windowDays,
+      confidence: "LOW",
+    };
+  } else {
+    // Unobserved: fallback to planned rate
+    const safeDays = Math.max(1, plannedRemainingDays);
+    const plannedVelocity = itemTotalQty / safeDays;
+    return {
+      velocity: Number(plannedVelocity.toFixed(4)),
+      observationsCount: 0,
+      windowDays,
+      confidence: "UNOBSERVED",
+    };
+  }
 }
 
 /**
@@ -44,33 +142,40 @@ export interface ProgressForecastEngineInput {
  * stock/inbound deduction, and dual financial metrics.
  * 
  * Guarantees:
- * 1. Progress cannot exceed remaining quantity: Q_proyectada <= Q_presupuestada - Q_ejecutada_previa.
- * 2. If dependencies are not completed, projected progress is 0.
- * 3. Two financial metrics are computed separately:
+ * 1. Horizon minimum enforced at >= 7 days.
+ * 2. Progress cannot exceed remaining quantity: Q_proyectada <= Q_presupuestada - Q_ejecutada_previa.
+ * 3. If dependencies are not completed, projected progress is 0.
+ * 4. Two financial metrics are computed separately:
  *    - total_material_consumption_value: Gross demand * cost
  *    - total_additional_cash_required: Net deficit * cost
- * 4. Unpriced materials have cost null and are flagged for human review.
+ *    Also tracks total_covered_by_stock_value and total_covered_by_inbound_value.
+ * 5. Unpriced materials have cost null and are flagged for human review.
  */
 export function computeProgressForecast(
   input: ProgressForecastEngineInput
 ): ProgressForecastRunSummary {
   const {
     project_id,
-    horizon_days,
+    horizon_days: rawHorizon,
     start_date,
     budget_items,
     executed_quantities_by_item,
+    recent_execution_entries = [],
     materials_by_item,
     stock_and_inbound,
     operational_assessments,
     forecasts,
     llm_used,
+    is_degraded = false,
     llm_summary,
     currency = "PYG",
   } = input;
 
+  // Enforce minimum 7 days
+  const horizon_days = Math.max(7, rawHorizon);
+
   // Track stock and inbound allocations across items in this horizon
-  // so the same warehouse stock is not counted twice for two different items
+  // to guarantee that the same warehouse stock is not double counted
   const allocatedStock: Record<string, number> = {};
   const allocatedInbound: Record<string, number> = {};
 
@@ -108,6 +213,8 @@ export function computeProgressForecast(
   const itemResults: ForecastItemResult[] = [];
   let totalProjectedPhysicalValue = 0;
   let totalMaterialConsumptionValue = 0;
+  let totalCoveredByStockValue = 0;
+  let totalCoveredByInboundValue = 0;
   let totalAdditionalCashRequired = 0;
 
   let workableDaysCount = 0;
@@ -138,8 +245,7 @@ export function computeProgressForecast(
     // Check predecessor dependencies
     const dependenciesMet = checkDependenciesMet(item.depends_on);
 
-    // Calculate base daily velocity
-    // If planned dates exist, use planned remaining days, otherwise use horizon
+    // Determine planned days for fallback velocity
     let plannedDays = horizon_days;
     if (item.start_date && item.end_date) {
       const start = new Date(item.start_date).getTime();
@@ -150,13 +256,25 @@ export function computeProgressForecast(
       }
     }
 
-    const baseVelocityPerDay = itemQty / plannedDays;
+    // Calculate observed recent velocity
+    const velocityMetrics = calculateRecentVelocity(
+      item.id,
+      itemQty,
+      plannedDays,
+      recent_execution_entries,
+      start_date,
+      30
+    );
+
+    const baseVelocityPerDay = velocityMetrics.velocity;
 
     // Get operational assessment
     const assessment = operational_assessments[item.id] || {
-      workability: "NORMAL",
+      workability: is_degraded ? "DEGRADED" : "NORMAL",
       productive_factor: 1.0,
-      reason: "Sin factores limitantes.",
+      reason: is_degraded
+        ? "Análisis climático no disponible."
+        : "Sin factores limitantes.",
     };
 
     let effectiveWorkabilityFactor = assessment.productive_factor;
@@ -170,7 +288,6 @@ export function computeProgressForecast(
     }
 
     // Projected quantity in horizon
-    // projected = base_velocity * productive_factor * horizon_days
     const nominalProjected =
       baseVelocityPerDay * effectiveWorkabilityFactor * horizon_days;
     // Strictly cap at remaining quantity (never exceed 100% of budget item)
@@ -216,12 +333,15 @@ export function computeProgressForecast(
       const hasCost = mat.costo_unitario !== null && mat.costo_unitario > 0;
       const unitCost = hasCost ? (mat.costo_unitario as number) : 0;
 
-      // Economic consumption value = Demanda Bruta * Costo
+      // Economic values
       const valorConsumo = demandaBruta * unitCost;
-      // Additional cash required = Deficit * Costo
+      const valorCubiertoStock = stockToUse * unitCost;
+      const valorCubiertoInbound = inboundToUse * unitCost;
       const cajaRequerida = deficitCompraNeta * unitCost;
 
       totalMaterialConsumptionValue += valorConsumo;
+      totalCoveredByStockValue += valorCubiertoStock;
+      totalCoveredByInboundValue += valorCubiertoInbound;
       totalAdditionalCashRequired += cajaRequerida;
 
       materialDetails.push({
@@ -235,6 +355,8 @@ export function computeProgressForecast(
         stock_disponible: Number(currentStock.toFixed(4)),
         oc_inbound: Number(currentInbound.toFixed(4)),
         deficit_compra_neta: Number(deficitCompraNeta.toFixed(4)),
+        cubierto_por_stock: Number(stockToUse.toFixed(4)),
+        cubierto_por_inbound: Number(inboundToUse.toFixed(4)),
         costo_unitario: mat.costo_unitario,
         valor_consumo_proyectado: Number(valorConsumo.toFixed(2)),
         caja_adicional_requerida: Number(cajaRequerida.toFixed(2)),
@@ -251,6 +373,9 @@ export function computeProgressForecast(
       quantity_ejecutada_previa: Number(executedPrevia.toFixed(4)),
       remaining_quantity: Number(remainingQty.toFixed(4)),
       base_daily_velocity: Number(baseVelocityPerDay.toFixed(4)),
+      velocity_observations_count: velocityMetrics.observationsCount,
+      velocity_window_days: velocityMetrics.windowDays,
+      velocity_confidence: velocityMetrics.confidence,
       workability_factor: Number(effectiveWorkabilityFactor.toFixed(3)),
       operational_status: effectiveStatus,
       operational_reasoning: reasoning,
@@ -279,6 +404,12 @@ export function computeProgressForecast(
     total_material_consumption_value: Number(
       totalMaterialConsumptionValue.toFixed(2)
     ),
+    total_covered_by_stock_value: Number(
+      totalCoveredByStockValue.toFixed(2)
+    ),
+    total_covered_by_inbound_value: Number(
+      totalCoveredByInboundValue.toFixed(2)
+    ),
     total_additional_cash_required: Number(
       totalAdditionalCashRequired.toFixed(2)
     ),
@@ -289,6 +420,7 @@ export function computeProgressForecast(
     fully_blocked_days_count: fullyBlockedDaysCount,
     items: itemResults,
     llm_analysis_used: llm_used,
+    is_degraded,
     llm_summary,
   };
 }

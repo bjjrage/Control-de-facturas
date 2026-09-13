@@ -1161,7 +1161,9 @@ export interface BudgetItemMaterial {
   updated_at: string;
 }
 
-export type OperationalStatus = "NORMAL" | "PARTIAL" | "BLOCKED";
+export type OperationalStatus = "NORMAL" | "PARTIAL" | "BLOCKED" | "DEGRADED" | "UNAVAILABLE";
+
+export type VelocityConfidence = "HIGH" | "MEDIUM" | "LOW" | "UNOBSERVED";
 
 export interface DailyWeatherForecast {
   date: string; // YYYY-MM-DD
@@ -1185,6 +1187,8 @@ export interface MaterialRequirementDetail {
   stock_disponible: number;
   oc_inbound: number;
   deficit_compra_neta: number;
+  cubierto_por_stock: number;
+  cubierto_por_inbound: number;
   costo_unitario: number | null; // null si no tiene antecedente de costo
   valor_consumo_proyectado: number;
   caja_adicional_requerida: number;
@@ -1200,7 +1204,10 @@ export interface ForecastItemResult {
   quantity_ejecutada_previa: number;
   remaining_quantity: number;
   base_daily_velocity: number;
-  workability_factor: number; // 0.0 a 1.0
+  velocity_observations_count: number;
+  velocity_window_days: number;
+  velocity_confidence: VelocityConfidence;
+  workability_factor: number; // 0.0 a 1.0 (or null if climate unavailable)
   operational_status: OperationalStatus;
   operational_reasoning: string;
   projected_quantity: number;
@@ -1213,11 +1220,13 @@ export interface ForecastItemResult {
 export interface ProgressForecastRunSummary {
   id?: string;
   project_id: string;
-  horizon_days: number;
+  horizon_days: number; // Minimum 7
   start_date: string;
   end_date: string;
   total_projected_physical_value: number;
   total_material_consumption_value: number;
+  total_covered_by_stock_value: number;
+  total_covered_by_inbound_value: number;
   total_additional_cash_required: number;
   currency: string;
   days_in_horizon: number;
@@ -1226,6 +1235,8 @@ export interface ProgressForecastRunSummary {
   fully_blocked_days_count: number;
   items: ForecastItemResult[];
   llm_analysis_used: boolean;
+  is_degraded: boolean;
   llm_summary?: string;
 }
+
 

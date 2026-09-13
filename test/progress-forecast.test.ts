@@ -2,8 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   computeProgressForecast,
   ProgressForecastEngineInput,
+  calculateRecentVelocity,
 } from "../lib/procurement/progress-forecast-engine";
-import { evaluateOperationalWorkabilityFallback } from "../lib/procurement/operational-analyst-llm";
+import { createDegradedOperationalFallback } from "../lib/procurement/operational-analyst-llm";
 import { proyeccionAvanceToFlujoItems } from "../lib/flujo-caja";
 import { BudgetItem, DailyWeatherForecast } from "../lib/types";
 
@@ -457,80 +458,64 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
     expect(mat.caja_adicional_requerida).toBe(0);
   });
 
-  // 11. Heurística determinística ante lluvia intensa en movimiento de suelos
-  it("11. bloquea o penaliza fuertemente movimiento de suelo con lluvia fuerte", () => {
+  // 11. Modo degradado explícito: si no hay LLM ni cache, no inventa factores mágicos
+  it("11. activa modo degradado explícito sin inventar factores operacionales ficticios", () => {
     const items = [
       {
         budget_item_id: "item-excav",
         item_code: "01.01",
-        description: "Excavación y Movimiento de Suelos con retroexcavadora",
+        description: "Excavación y Movimiento de Suelos",
         unit: "m3",
       },
     ];
 
-    const severeRainForecast: DailyWeatherForecast[] = [
-      {
-        date: "2026-09-15",
-        precipitation_sum_mm: 35, // Heavy rain
-        precipitation_hours: 6,
-        wind_gusts_max_kmh: 30,
-        weather_code: 65,
-      },
-    ];
-
-    const assessment = evaluateOperationalWorkabilityFallback(
-      items,
-      severeRainForecast
-    );
-    expect(assessment.items[0].workability).toBe("BLOCKED");
-    expect(assessment.items[0].productive_factor).toBeLessThanOrEqual(0.2);
-    expect(assessment.items[0].risk_flags).toContain("SATURACION_SUELO");
+    const degradedOutput = createDegradedOperationalFallback(items, "Sin conexión al servicio LLM.");
+    expect(degradedOutput.is_degraded).toBe(true);
+    expect(degradedOutput.llm_used).toBe(false);
+    expect(degradedOutput.items[0].workability).toBe("DEGRADED");
+    expect(degradedOutput.items[0].risk_flags).toContain("ANALISIS_CLIMATICO_NO_DISPONIBLE");
   });
 
-  // 12. Heurística determinística: tareas interiores no se afectan por lluvia común
-  it("12. mantiene avance normal en tareas bajo cubierta frente a lluvia", () => {
-    const items = [
-      {
-        budget_item_id: "item-pintura",
-        item_code: "04.01",
-        description: "Pintura interior en departamentos y cielorraso",
-        unit: "m2",
-      },
+  // 12. Velocidad reciente observable en execution_entries
+  it("12. calcula velocidad reciente observando entries y asigna confianza según cantidad de días activos", () => {
+    const entries = [
+      { budget_item_id: "item-1", entry_date: "2026-09-10", quantity_executed: 20 },
+      { budget_item_id: "item-1", entry_date: "2026-09-11", quantity_executed: 30 },
+      { budget_item_id: "item-1", entry_date: "2026-09-12", quantity_executed: 25 },
+      { budget_item_id: "item-1", entry_date: "2026-09-13", quantity_executed: 0 }, // Inactive day
+      { budget_item_id: "item-1", entry_date: "2026-09-14", quantity_executed: 35 },
+      { budget_item_id: "item-1", entry_date: "2026-09-15", quantity_executed: 40 }, // 5 active days
     ];
 
-    const assessment = evaluateOperationalWorkabilityFallback(
-      items,
-      sampleForecasts
+    const result = calculateRecentVelocity(
+      "item-1",
+      1000,
+      50,
+      entries,
+      "2026-09-15",
+      14
     );
-    expect(assessment.items[0].workability).toBe("NORMAL");
-    expect(assessment.items[0].productive_factor).toBe(1.0);
+
+    // Active days: 20 + 30 + 25 + 35 + 40 = 150 / 5 = 30
+    expect(result.velocity).toBe(30);
+    expect(result.observationsCount).toBe(5);
+    expect(result.confidence).toBe("HIGH");
   });
 
-  // 13. Heurística determinística: vientos fuertes bloquean trabajos en altura
-  it("13. bloquea trabajos en altura o cubiertas si hay ráfagas de viento peligrosas", () => {
-    const items = [
-      {
-        budget_item_id: "item-techo",
-        item_code: "03.01",
-        description: "Montaje de estructura metálica de techo y cubierta",
-        unit: "m2",
-      },
-    ];
+  // 13. Partida sin observaciones recientes recibe confianza UNOBSERVED y ritmo planificado
+  it("13. asigna UNOBSERVED y velocidad planificada si no hay registros recientes", () => {
+    const result = calculateRecentVelocity(
+      "item-nuevo",
+      600,
+      30, // 30 days remaining => 20/day
+      [],
+      "2026-09-15",
+      30
+    );
 
-    const windyForecast: DailyWeatherForecast[] = [
-      {
-        date: "2026-09-15",
-        precipitation_sum_mm: 0,
-        precipitation_hours: 0,
-        wind_gusts_max_kmh: 55, // Strong wind
-        weather_code: 0,
-      },
-    ];
-
-    const assessment = evaluateOperationalWorkabilityFallback(items, windyForecast);
-    expect(assessment.items[0].workability).toBe("BLOCKED");
-    expect(assessment.items[0].productive_factor).toBeLessThanOrEqual(0.3);
-    expect(assessment.items[0].risk_flags).toContain("VIENTO_FUERTE");
+    expect(result.velocity).toBe(20);
+    expect(result.observationsCount).toBe(0);
+    expect(result.confidence).toBe("UNOBSERVED");
   });
 
   // 14. Integración con flujo de caja solo toma déficits de compra neta
@@ -573,7 +558,7 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
       description: "Columnas",
       quantity: 5,
       start_date: "2026-09-15",
-      end_date: "2026-09-18",
+      end_date: "2026-09-22",
     };
     const item2: BudgetItem = {
       ...baseItem,
@@ -581,12 +566,12 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
       description: "Vigas",
       quantity: 5,
       start_date: "2026-09-15",
-      end_date: "2026-09-18",
+      end_date: "2026-09-22",
     };
 
     const input: ProgressForecastEngineInput = {
       project_id: "proj-100",
-      horizon_days: 3,
+      horizon_days: 7,
       start_date: "2026-09-15",
       budget_items: [item1, item2],
       executed_quantities_by_item: { "item-col": 0, "item-vig": 0 },
@@ -630,40 +615,157 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
     const deficitItem1 = result.items[0].materials[0].deficit_compra_neta;
     const deficitItem2 = result.items[1].materials[0].deficit_compra_neta;
 
-    // Item 1 uses 50 of 60 stock -> deficit 0, remaining stock = 10
-    // Item 2 needs 50, uses remaining 10 -> deficit 40
     expect(deficitItem1 + deficitItem2).toBe(40);
   });
 
-  // 16. Horizontes variables (7d, 14d, 30d) ajustan proporcionalmente la proyección
-  it("16. escala el avance físico según el horizonte configurado", () => {
-    const makeInput = (horizon: number): ProgressForecastEngineInput => ({
-      project_id: "proj-100",
-      horizon_days: horizon,
+  // 16. TEST INTEGRADO E2E OBLIGATORIO:
+  // Partida: mampostería exterior. Q total = 2.000 m2. Ejecutado = 1.000 m2.
+  // Velocidad reciente = 100 m2/día.
+  // Forecast 7 días: 4 normales (1.0), 1 parcial (0.5), 2 bloqueados (0.0). Capacidad = 4.5 jornadas => 450 m2 proyectados.
+  // BOM: 10 ladrillos/m2, 2 kg cemento/m2.
+  // Demanda: 4.500 ladrillos, 900 kg cemento.
+  // Stock: 2.000 ladrillos, 500 kg cemento.
+  // OC inbound dentro de ventana: 1.000 ladrillos, 0 cemento.
+  // Faltante compra: 1.500 ladrillos, 400 kg cemento.
+  // Costos: ladrillo 1.000 Gs, cemento 3.000 Gs.
+  it("16. Recorrido E2E completo: avance real -> clima/LLM -> avance proyectado -> BOM -> stock -> OC -> costos -> caja", () => {
+    const itemMamposteria: BudgetItem = {
+      ...baseItem,
+      id: "item-mamposteria",
+      code: "02.01",
+      description: "Mampostería exterior de ladrillo visto",
+      unit: "m2",
+      quantity: 2000,
+      unit_price: 150000,
+      subtotal: 300000000,
+      start_date: "2026-09-01",
+      end_date: "2026-09-30",
+    };
+
+    // Historial reciente que arroja 100 m2/día
+    const recentEntries = [
+      { budget_item_id: "item-mamposteria", entry_date: "2026-09-10", quantity_executed: 100 },
+      { budget_item_id: "item-mamposteria", entry_date: "2026-09-11", quantity_executed: 100 },
+      { budget_item_id: "item-mamposteria", entry_date: "2026-09-12", quantity_executed: 100 },
+      { budget_item_id: "item-mamposteria", entry_date: "2026-09-13", quantity_executed: 100 },
+      { budget_item_id: "item-mamposteria", entry_date: "2026-09-14", quantity_executed: 100 },
+    ];
+
+    // Forecast meteorológico 7 días: 4 normales, 1 parcial (50%), 2 bloqueados (0%)
+    // Capacidad efectiva = (4 * 1.0 + 1 * 0.5 + 2 * 0.0) / 7 = 4.5 / 7 = 0.642857
+    const effectiveWorkabilityFactor = 4.5 / 7;
+
+    const input: ProgressForecastEngineInput = {
+      project_id: "proj-e2e",
+      horizon_days: 7,
       start_date: "2026-09-15",
-      budget_items: [
-        {
-          ...baseItem,
-          quantity: 300,
-          start_date: "2026-09-01",
-          end_date: "2026-10-31", // 60 days duration => 5 units/day
+      budget_items: [itemMamposteria],
+      executed_quantities_by_item: { "item-mamposteria": 1000 },
+      recent_execution_entries: recentEntries,
+      materials_by_item: {
+        "item-mamposteria": [
+          {
+            budget_item_id: "item-mamposteria",
+            producto_id: "prod-ladrillo",
+            producto_nombre: "Ladrillo Visto",
+            unidad_medida: "unid",
+            cantidad_por_unidad_ejecutada: 10,
+            desperdicio_pct: 0,
+            costo_unitario: 1000, // 1.000 Gs por ladrillo
+          },
+          {
+            budget_item_id: "item-mamposteria",
+            producto_id: "prod-cemento-e2e",
+            producto_nombre: "Cemento Portland",
+            unidad_medida: "kg",
+            cantidad_por_unidad_ejecutada: 2,
+            desperdicio_pct: 0,
+            costo_unitario: 3000, // 3.000 Gs por kg
+          },
+        ],
+      },
+      stock_and_inbound: {
+        "prod-ladrillo": {
+          producto_id: "prod-ladrillo",
+          stock_disponible: 2000,
+          oc_inbound: 1000,
         },
-      ],
-      executed_quantities_by_item: { "item-1": 0 },
-      materials_by_item: {},
-      stock_and_inbound: {},
-      operational_assessments: {},
+        "prod-cemento-e2e": {
+          producto_id: "prod-cemento-e2e",
+          stock_disponible: 500,
+          oc_inbound: 0,
+        },
+      },
+      operational_assessments: {
+        "item-mamposteria": {
+          budget_item_id: "item-mamposteria",
+          workability: "PARTIAL",
+          productive_factor: effectiveWorkabilityFactor,
+          reason: "4 días normales, 1 parcial, 2 con lluvia severa bloqueados.",
+        },
+      },
       forecasts: sampleForecasts,
-      llm_used: false,
-    });
+      llm_used: true,
+    };
 
-    const res7 = computeProgressForecast(makeInput(7));
-    const res14 = computeProgressForecast(makeInput(14));
+    const result = computeProgressForecast(input);
+    const item = result.items[0];
 
-    expect(res14.items[0].projected_quantity).toBeGreaterThan(
-      res7.items[0].projected_quantity
-    );
-    expect(res14.horizon_days).toBe(14);
-    expect(res7.horizon_days).toBe(7);
+    // 1. Verificación de velocidad y avance físico proyectado
+    expect(item.base_daily_velocity).toBe(100);
+    expect(item.velocity_confidence).toBe("HIGH");
+    // 100 m2/día * (4.5 / 7) * 7 días = 450 m2
+    expect(item.projected_quantity).toBeCloseTo(450, 1);
+    expect(item.new_projected_cumulative_quantity).toBeCloseTo(1450, 1);
+    expect(item.new_projected_progress_pct).toBeCloseTo(72.5, 1);
+
+    // 2. Verificación de demanda de materiales
+    const matLadrillo = item.materials.find((m) => m.producto_id === "prod-ladrillo")!;
+    const matCemento = item.materials.find((m) => m.producto_id === "prod-cemento-e2e")!;
+
+    // Demanda bruta
+    expect(matLadrillo.demanda_bruta).toBeCloseTo(4500, 1);
+    expect(matCemento.demanda_bruta).toBeCloseTo(900, 1);
+
+    // Cobertura y déficits netos
+    // Ladrillo: 4.500 demanda - 2.000 stock - 1.000 inbound = 1.500 déficit
+    expect(matLadrillo.stock_disponible).toBe(2000);
+    expect(matLadrillo.oc_inbound).toBe(1000);
+    expect(matLadrillo.deficit_compra_neta).toBeCloseTo(1500, 1);
+    expect(matLadrillo.cubierto_por_stock).toBe(2000);
+    expect(matLadrillo.cubierto_por_inbound).toBe(1000);
+
+    // Cemento: 900 demanda - 500 stock - 0 inbound = 400 déficit
+    expect(matCemento.stock_disponible).toBe(500);
+    expect(matCemento.oc_inbound).toBe(0);
+    expect(matCemento.deficit_compra_neta).toBeCloseTo(400, 1);
+    expect(matCemento.cubierto_por_stock).toBe(500);
+    expect(matCemento.cubierto_por_inbound).toBe(0);
+
+    // 3. Verificación de métricas financieras duales
+    // Valor consumo = (4.500 * 1.000) + (900 * 3.000) = 4.500.000 + 2.700.000 = 7.200.000 Gs
+    expect(result.total_material_consumption_value).toBeCloseTo(7200000, 1);
+
+    // Caja requerida = (1.500 * 1.000) + (400 * 3.000) = 1.500.000 + 1.200.000 = 2.700.000 Gs
+    expect(result.total_additional_cash_required).toBeCloseTo(2700000, 1);
+
+    // Cubierto por stock = (2.000 * 1.000) + (500 * 3.000) = 2.000.000 + 1.500.000 = 3.500.000 Gs
+    expect(result.total_covered_by_stock_value).toBeCloseTo(3500000, 1);
+
+    // Cubierto por inbound = (1.000 * 1.000) = 1.000.000 Gs
+    expect(result.total_covered_by_inbound_value).toBeCloseTo(1000000, 1);
+
+    // Total consumo == Cubierto Stock + Cubierto Inbound + Caja Requerida
+    expect(
+      result.total_covered_by_stock_value +
+        result.total_covered_by_inbound_value +
+        result.total_additional_cash_required
+    ).toBeCloseTo(result.total_material_consumption_value, 1);
+
+    // 4. Inyección en flujo de caja solo eroga la caja adicional (2.700.000 Gs)
+    const flujoItems = proyeccionAvanceToFlujoItems(result, 7);
+    const totalFlujoEgreso = flujoItems.reduce((sum, f) => sum + f.monto, 0);
+    expect(Math.abs(totalFlujoEgreso)).toBeCloseTo(2700000, 1);
   });
 });
+

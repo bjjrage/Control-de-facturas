@@ -27,8 +27,8 @@ import type {
 import { runProgressForecastAction } from "../progress-forecast-actions";
 
 export function ProgressForecastSection({ project }: { project: Project }) {
-  const [horizon, setHorizon] = useState<number>(14);
-  const [customDays, setCustomDays] = useState<string>("21");
+  const [horizon, setHorizon] = useState<number>(7);
+  const [customDays, setCustomDays] = useState<string>("7");
   const [isCustom, setIsCustom] = useState<boolean>(false);
   const [latitude, setLatitude] = useState<string>(
     project.latitude ? String(project.latitude) : "-25.2867"
@@ -43,7 +43,7 @@ export function ProgressForecastSection({ project }: { project: Project }) {
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const activeDays = isCustom ? Math.max(1, Number(customDays) || 14) : horizon;
+  const activeDays = isCustom ? Math.max(7, Number(customDays) || 7) : horizon;
 
   const handleRunForecast = () => {
     setErrorMsg(null);
@@ -75,11 +75,11 @@ export function ProgressForecastSection({ project }: { project: Project }) {
               <Sparkles className="h-4 w-4" />
             </div>
             <h3 className="text-base font-semibold text-[var(--foreground)]">
-              Proyección Inteligente de Avance + Materiales + Impacto en Caja
+              Proyección Semanal Inteligente de Obra + Materiales + Impacto en Caja
             </h3>
           </div>
           <p className="mt-1 text-xs text-[var(--muted)]">
-            Cálculo determinístico de avance físico y demanda de materiales asistido por analista operacional IA según pronóstico meteorológico.
+            Estimación de avance físico y demanda de compras a horizonte mínimo semanal (7d, 14d, 30d) asistida por operabilidad climática.
           </p>
         </div>
 
@@ -128,13 +128,17 @@ export function ProgressForecastSection({ project }: { project: Project }) {
           </div>
 
           {isCustom && (
-            <div className="w-16">
+            <div className="w-20">
               <Input
                 type="number"
-                min={1}
+                min={7}
                 max={90}
                 value={customDays}
-                onChange={(e) => setCustomDays(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setCustomDays(val);
+                }}
+                placeholder="≥ 7 días"
                 className="h-8 text-xs text-center"
               />
             </div>
@@ -153,7 +157,7 @@ export function ProgressForecastSection({ project }: { project: Project }) {
             ) : (
               <>
                 <Sparkles className="h-3.5 w-3.5" />
-                Proyectar
+                Proyectar ({activeDays}d)
               </>
             )}
           </Button>
@@ -225,14 +229,14 @@ export function ProgressForecastSection({ project }: { project: Project }) {
                 Gs. {forecastResult.total_projected_physical_value.toLocaleString("es-PY")}
               </div>
               <div className="mt-1 text-[11px] text-[var(--muted)]">
-                Valor contractual a certificar ({forecastResult.items.length} partidas activas)
+                Valor contractual esperado ({forecastResult.items.length} partidas activas)
               </div>
             </div>
 
             {/* KPI 2: Clima y Días Laborables */}
             <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-4">
               <div className="flex items-center justify-between text-xs text-[var(--muted)]">
-                <span>Condición Meteorológica</span>
+                <span>Operabilidad en {forecastResult.days_in_horizon} días</span>
                 <CloudRain className="h-4 w-4 text-blue-500" />
               </div>
               <div className="mt-2 text-lg font-bold text-[var(--foreground)]">
@@ -241,21 +245,22 @@ export function ProgressForecastSection({ project }: { project: Project }) {
               <div className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
                 {forecastResult.partially_blocked_days_count + forecastResult.fully_blocked_days_count > 0
                   ? `${forecastResult.partially_blocked_days_count} parciales, ${forecastResult.fully_blocked_days_count} bloqueados por lluvia/viento`
-                  : "Horizonte sin lluvias significativas"}
+                  : "Sin lluvias severas proyectadas"}
               </div>
             </div>
 
-            {/* KPI 3: Consumo de Materiales */}
+            {/* KPI 3: Consumo de Materiales y Cobertura */}
             <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-4">
               <div className="flex items-center justify-between text-xs text-[var(--muted)]">
-                <span>Consumo Económico Materiales</span>
+                <span>Material a Consumir</span>
                 <Boxes className="h-4 w-4 text-indigo-500" />
               </div>
               <div className="mt-2 text-lg font-bold text-[var(--foreground)]">
                 Gs. {forecastResult.total_material_consumption_value.toLocaleString("es-PY")}
               </div>
-              <div className="mt-1 text-[11px] text-[var(--muted)]">
-                Valor bruto de insumos a incorporar en obra
+              <div className="mt-1 text-[11px] text-[var(--muted)] space-y-0.5">
+                <div>Cubierto por stock: Gs. {forecastResult.total_covered_by_stock_value.toLocaleString("es-PY")}</div>
+                <div>Cubierto por OCs: Gs. {forecastResult.total_covered_by_inbound_value.toLocaleString("es-PY")}</div>
               </div>
             </div>
 
@@ -269,7 +274,7 @@ export function ProgressForecastSection({ project }: { project: Project }) {
                 Gs. {forecastResult.total_additional_cash_required.toLocaleString("es-PY")}
               </div>
               <div className="mt-1 text-[11px] text-amber-700/80 dark:text-amber-300/80">
-                Compras netas deducido stock en obra y OCs en tránsito
+                Déficit neto a comprar (impacto real en flujo de caja)
               </div>
             </div>
           </div>
@@ -281,12 +286,12 @@ export function ProgressForecastSection({ project }: { project: Project }) {
               <div className="font-semibold text-[var(--foreground)] flex items-center gap-2">
                 <span>Diagnóstico Operacional</span>
                 {forecastResult.llm_analysis_used ? (
-                  <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-[10px] text-purple-700 dark:text-purple-300">
-                    Asistido por IA (Gemini / OpenAI)
+                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-700 dark:text-emerald-300 font-medium">
+                    Ajustado con Inteligencia Operativa
                   </span>
                 ) : (
-                  <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] text-blue-700 dark:text-blue-300">
-                    Heurística determinística de obra
+                  <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-700 dark:text-amber-300 font-medium">
+                    Proyección Base (Degradada sin IA)
                   </span>
                 )}
               </div>
@@ -381,12 +386,32 @@ function ItemRow({
             Parcial ({(item.workability_factor * 100).toFixed(0)}%)
           </span>
         );
+      case "DEGRADED":
+      case "UNAVAILABLE":
+        return (
+          <span className="inline-flex items-center gap-1 rounded-md bg-[var(--panel-2)] px-2 py-0.5 text-[11px] font-medium text-[var(--muted)] border border-[var(--border)]">
+            Base sin clima
+          </span>
+        );
       default:
         return (
           <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
             Normal (100%)
           </span>
         );
+    }
+  };
+
+  const confidenceBadge = () => {
+    switch (item.velocity_confidence) {
+      case "HIGH":
+        return <span className="text-[10px] text-emerald-600 font-medium" title={`${item.velocity_observations_count} días observados en los últimos ${item.velocity_window_days}d`}>• Alta conf. ({item.velocity_observations_count}d)</span>;
+      case "MEDIUM":
+        return <span className="text-[10px] text-blue-600 font-medium" title={`${item.velocity_observations_count} días observados`}>• Media conf. ({item.velocity_observations_count}d)</span>;
+      case "LOW":
+        return <span className="text-[10px] text-amber-600 font-medium" title="1 día observado">• Baja conf. (1d)</span>;
+      default:
+        return <span className="text-[10px] text-[var(--muted)]" title="Sin registros recientes; usando ritmo planificado">• Teórica/Plan</span>;
     }
   };
 
@@ -406,8 +431,9 @@ function ItemRow({
         <td className="py-2.5 px-3 text-right">
           {item.remaining_quantity.toLocaleString("es-PY")} {item.unit}
         </td>
-        <td className="py-2.5 px-3 text-right font-mono text-[var(--muted)]">
-          {item.base_daily_velocity.toFixed(2)}/día
+        <td className="py-2.5 px-3 text-right font-mono">
+          <div className="text-[var(--foreground)] font-medium">{item.base_daily_velocity.toFixed(2)}/día</div>
+          <div>{confidenceBadge()}</div>
         </td>
         <td className="py-2.5 px-3 text-center">{statusBadge()}</td>
         <td className="py-2.5 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
