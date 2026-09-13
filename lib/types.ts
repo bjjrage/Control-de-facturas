@@ -300,9 +300,15 @@ export interface InventoryBalance {
   empresa_id: string;
   producto_id: string;
   location_id: string;
-  cost_currency: CurrencyCode;
+  cost_currency: CurrencyCode | null;
   quantity: number;
   total_cost: number;
+  cost_status: "COMPUTABLE" | "REVISION_REQUERIDA";
+  original_cost_currency: string | null;
+  original_unit_cost: number | null;
+  original_total_cost: number | null;
+  exchange_rate_to_company: number | null;
+  cost_source: string | null;
   updated_at: string;
 }
 

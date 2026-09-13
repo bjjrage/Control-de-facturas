@@ -83,7 +83,9 @@ export async function getCanonicalInventorySnapshot(
     .eq("empresa_id", empresaId);
   let locationsQuery = supabase
     .from("inventory_stock_by_location")
-    .select("empresa_id, location_id, location_name, location_type, project_id, producto_id, producto, unidad, cost_currency, quantity, total_cost")
+    .select(
+      "empresa_id, location_id, location_name, location_type, project_id, producto_id, producto, unidad, cost_currency, quantity, total_cost, cost_status, original_cost_currency, original_unit_cost, original_total_cost, exchange_rate_to_company, cost_source"
+    )
     .eq("empresa_id", empresaId);
   if (productoId) {
     globalQuery = globalQuery.eq("producto_id", productoId);
@@ -108,7 +110,7 @@ export async function getProjectInventorySnapshot(
 ) {
   let query = supabase
     .from("inventory_stock_by_project")
-    .select("empresa_id, project_id, producto_id, producto, unidad, cost_currency, quantity, total_cost")
+    .select("empresa_id, project_id, producto_id, producto, unidad, cost_currency, cost_status, quantity, total_cost")
     .eq("empresa_id", empresaId)
     .eq("project_id", projectId);
   if (productoId) query = query.eq("producto_id", productoId);

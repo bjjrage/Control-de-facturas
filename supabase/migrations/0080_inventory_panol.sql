@@ -51,17 +51,193 @@ CREATE TABLE IF NOT EXISTS public.inventory_balances (
   empresa_id     uuid NOT NULL REFERENCES public.empresas(id) ON DELETE CASCADE,
   producto_id    uuid NOT NULL REFERENCES public.productos(id) ON DELETE CASCADE,
   location_id    uuid NOT NULL REFERENCES public.inventory_locations(id) ON DELETE CASCADE,
-  cost_currency  public.currency_code NOT NULL,
+  cost_currency  public.currency_code,
   quantity       numeric(18,4) NOT NULL CHECK (quantity >= 0),
   total_cost     numeric(20,6) NOT NULL DEFAULT 0 CHECK (total_cost >= 0),
+  cost_status    text NOT NULL DEFAULT 'COMPUTABLE'
+                 CHECK (cost_status IN ('COMPUTABLE', 'REVISION_REQUERIDA')),
+  original_cost_currency text,
+  original_unit_cost numeric(20,6),
+  original_total_cost numeric(20,6),
+  exchange_rate_to_company numeric(20,8) CHECK (
+    exchange_rate_to_company IS NULL OR exchange_rate_to_company > 0
+  ),
+  cost_source    text,
   updated_at     timestamptz NOT NULL DEFAULT now(),
   UNIQUE (empresa_id, producto_id, location_id, cost_currency)
 );
+
+ALTER TABLE public.inventory_balances
+  ADD COLUMN IF NOT EXISTS cost_status text NOT NULL DEFAULT 'COMPUTABLE',
+  ADD COLUMN IF NOT EXISTS original_cost_currency text,
+  ADD COLUMN IF NOT EXISTS original_unit_cost numeric(20,6),
+  ADD COLUMN IF NOT EXISTS original_total_cost numeric(20,6),
+  ADD COLUMN IF NOT EXISTS exchange_rate_to_company numeric(20,8),
+  ADD COLUMN IF NOT EXISTS cost_source text;
+ALTER TABLE public.inventory_balances
+  ALTER COLUMN cost_currency DROP NOT NULL;
+ALTER TABLE public.inventory_balances
+  DROP CONSTRAINT IF EXISTS inventory_balances_cost_status_check;
+ALTER TABLE public.inventory_balances
+  ADD CONSTRAINT inventory_balances_cost_status_check
+  CHECK (cost_status IN ('COMPUTABLE', 'REVISION_REQUERIDA'));
+ALTER TABLE public.inventory_balances
+  DROP CONSTRAINT IF EXISTS inventory_balances_cost_currency_status_check;
+ALTER TABLE public.inventory_balances
+  ADD CONSTRAINT inventory_balances_cost_currency_status_check
+  CHECK (
+    (cost_status = 'COMPUTABLE' AND cost_currency IS NOT NULL)
+    OR (cost_status = 'REVISION_REQUERIDA' AND cost_currency IS NULL)
+  );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_inventory_balances_unknown_cost
+  ON public.inventory_balances(empresa_id, producto_id, location_id)
+  WHERE cost_currency IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_inventory_balances_product
   ON public.inventory_balances(empresa_id, producto_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_balances_location
   ON public.inventory_balances(empresa_id, location_id);
+
+-- Resuelve el costo legacy solo cuando existe evidencia inequívoca del mismo
+-- tenant. costo_promedio no trae moneda ni FX, por lo que jamás se interpreta
+-- como PYG por defecto.
+CREATE OR REPLACE FUNCTION public.resolve_legacy_inventory_cost(
+  p_empresa_id       uuid,
+  p_producto_id      uuid,
+  p_legacy_unit_cost numeric
+)
+RETURNS TABLE (
+  cost_status              text,
+  cost_currency            public.currency_code,
+  canonical_unit_cost      numeric,
+  original_cost_currency   text,
+  original_unit_cost       numeric,
+  exchange_rate_to_company numeric,
+  reason                   text
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_match_count integer;
+  v_evidence record;
+BEGIN
+  IF p_legacy_unit_cost IS NULL OR p_legacy_unit_cost < 0 THEN
+    RETURN QUERY SELECT
+      'REVISION_REQUERIDA', NULL::public.currency_code, NULL::numeric,
+      NULL::text, p_legacy_unit_cost, NULL::numeric,
+      'LEGACY_COST_INVALID';
+    RETURN;
+  END IF;
+
+  SELECT count(*) INTO v_match_count
+  FROM public.cost_observations co
+  WHERE co.empresa_id = p_empresa_id
+    AND co.producto_id = p_producto_id
+    AND co.moneda_original IS NOT NULL
+    AND length(trim(co.moneda_original)) > 0
+    AND co.precio_unitario_original IS NOT NULL
+    AND (
+      (
+        co.estado_evidencia = 'VALIDA'
+        AND upper(trim(co.moneda_original)) = 'PYG'
+        AND abs(co.precio_unitario_original - p_legacy_unit_cost) <= 0.0001
+      )
+      OR (
+        co.estado_evidencia = 'VALIDA'
+        AND upper(trim(co.moneda_original)) IN ('USD', 'EUR', 'BRL', 'ARS')
+        AND co.tipo_cambio IS NOT NULL AND co.tipo_cambio > 0
+        AND co.precio_unitario IS NOT NULL
+        AND abs(co.precio_unitario - p_legacy_unit_cost) <= 0.0001
+        AND abs((co.precio_unitario_original * co.tipo_cambio) - p_legacy_unit_cost) <= 0.0001
+      )
+      OR (
+        co.estado_evidencia = 'REVISION_REQUERIDA'
+        AND upper(trim(co.moneda_original)) IN ('USD', 'EUR', 'BRL', 'ARS')
+        AND (co.tipo_cambio IS NULL OR co.tipo_cambio <= 0)
+        AND abs(co.precio_unitario_original - p_legacy_unit_cost) <= 0.0001
+      )
+    );
+
+  -- Cero o múltiples evidencias candidatas no permiten elegir moneda/costo
+  -- con seguridad. Se preserva el nominal bruto y se fuerza revisión.
+  IF v_match_count <> 1 THEN
+    RETURN QUERY SELECT
+      'REVISION_REQUERIDA', NULL::public.currency_code, NULL::numeric,
+      NULL::text, p_legacy_unit_cost, NULL::numeric,
+      CASE WHEN v_match_count = 0 THEN 'LEGACY_COST_CURRENCY_UNKNOWN'
+           ELSE 'LEGACY_COST_EVIDENCE_AMBIGUOUS' END;
+    RETURN;
+  END IF;
+
+  SELECT co.* INTO v_evidence
+  FROM public.cost_observations co
+  WHERE co.empresa_id = p_empresa_id
+    AND co.producto_id = p_producto_id
+    AND co.moneda_original IS NOT NULL
+    AND length(trim(co.moneda_original)) > 0
+    AND co.precio_unitario_original IS NOT NULL
+    AND (
+      (
+        co.estado_evidencia = 'VALIDA'
+        AND upper(trim(co.moneda_original)) = 'PYG'
+        AND abs(co.precio_unitario_original - p_legacy_unit_cost) <= 0.0001
+      )
+      OR (
+        co.estado_evidencia = 'VALIDA'
+        AND upper(trim(co.moneda_original)) IN ('USD', 'EUR', 'BRL', 'ARS')
+        AND co.tipo_cambio IS NOT NULL AND co.tipo_cambio > 0
+        AND co.precio_unitario IS NOT NULL
+        AND abs(co.precio_unitario - p_legacy_unit_cost) <= 0.0001
+        AND abs((co.precio_unitario_original * co.tipo_cambio) - p_legacy_unit_cost) <= 0.0001
+      )
+      OR (
+        co.estado_evidencia = 'REVISION_REQUERIDA'
+        AND upper(trim(co.moneda_original)) IN ('USD', 'EUR', 'BRL', 'ARS')
+        AND (co.tipo_cambio IS NULL OR co.tipo_cambio <= 0)
+        AND abs(co.precio_unitario_original - p_legacy_unit_cost) <= 0.0001
+      )
+    )
+  ORDER BY co.fecha_observacion DESC, co.created_at DESC
+  LIMIT 1;
+
+  IF v_evidence.estado_evidencia = 'VALIDA'
+     AND upper(trim(v_evidence.moneda_original)) = 'PYG' THEN
+    RETURN QUERY SELECT
+      'COMPUTABLE', 'PYG'::public.currency_code, p_legacy_unit_cost,
+      upper(trim(v_evidence.moneda_original)), v_evidence.precio_unitario_original,
+      1::numeric, 'LEGACY_PYG_EVIDENCE';
+    RETURN;
+  END IF;
+
+  IF v_evidence.estado_evidencia = 'VALIDA'
+     AND upper(trim(v_evidence.moneda_original)) IN ('USD', 'EUR', 'BRL', 'ARS')
+     AND v_evidence.tipo_cambio IS NOT NULL
+     AND v_evidence.tipo_cambio > 0 THEN
+    RETURN QUERY SELECT
+      'COMPUTABLE', 'PYG'::public.currency_code,
+      round(v_evidence.precio_unitario_original * v_evidence.tipo_cambio, 4),
+      upper(trim(v_evidence.moneda_original)), v_evidence.precio_unitario_original,
+      v_evidence.tipo_cambio, 'LEGACY_FOREIGN_COST_NORMALIZED';
+    RETURN;
+  END IF;
+
+  IF upper(trim(v_evidence.moneda_original)) IN ('USD', 'EUR', 'BRL', 'ARS') THEN
+    RETURN QUERY SELECT
+      'REVISION_REQUERIDA', NULL::public.currency_code, NULL::numeric,
+      upper(trim(v_evidence.moneda_original)), v_evidence.precio_unitario_original,
+      NULL::numeric, 'LEGACY_FOREIGN_COST_REQUIRES_FX';
+    RETURN;
+  END IF;
+
+  RETURN QUERY SELECT
+    'REVISION_REQUERIDA', NULL::public.currency_code, NULL::numeric,
+    upper(trim(v_evidence.moneda_original)), v_evidence.precio_unitario_original,
+    NULL::numeric, 'LEGACY_COST_CURRENCY_UNKNOWN';
+END;
+$$;
 
 -- ---------------------------------------------------------------------------
 -- 2. Libro append-only de movimientos y costos
@@ -325,8 +501,8 @@ CREATE INDEX IF NOT EXISTS idx_warehouse_submission_lines_submission
 
 -- Puente de lectura no destructivo desde el inventario legacy. Reutilizamos
 -- los UUID de depositos cuando existen para que las pantallas actuales puedan
--- seguir mostrando el desglose. El costo legacy ya estaba expresado en la
--- moneda operativa de la empresa; no se hace ninguna conversión FX.
+-- seguir mostrando el desglose. costo_promedio no trae moneda ni FX propios:
+-- solo se computa en PYG con evidencia inequívoca de cost_observations.
 INSERT INTO public.inventory_locations (
   id, empresa_id, location_type, name, project_id, is_primary, active
 )
@@ -342,20 +518,33 @@ FROM public.depositos d
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.inventory_balances (
-  empresa_id, producto_id, location_id, cost_currency, quantity, total_cost
+  empresa_id, producto_id, location_id, cost_currency, quantity, total_cost,
+  cost_status, original_cost_currency, original_unit_cost, original_total_cost,
+  exchange_rate_to_company, cost_source
 )
 SELECT
   s.empresa_id,
   s.producto_id,
   s.deposito_id,
-  'PYG'::public.currency_code,
+  c.cost_currency,
   greatest(0, s.stock_actual),
-  greatest(0, s.stock_actual * coalesce(p.costo_promedio, 0))
+  CASE WHEN c.cost_status = 'COMPUTABLE'
+       THEN greatest(0, s.stock_actual * coalesce(c.canonical_unit_cost, 0))
+       ELSE 0 END,
+  c.cost_status,
+  c.original_cost_currency,
+  c.original_unit_cost,
+  greatest(0, s.stock_actual * coalesce(c.original_unit_cost, p.costo_promedio)),
+  c.exchange_rate_to_company,
+  c.reason
 FROM public.stock_por_deposito s
 JOIN public.productos p ON p.id = s.producto_id AND p.empresa_id = s.empresa_id
 JOIN public.inventory_locations l ON l.id = s.deposito_id AND l.empresa_id = s.empresa_id
+CROSS JOIN LATERAL public.resolve_legacy_inventory_cost(
+  s.empresa_id, s.producto_id, p.costo_promedio
+) c
 WHERE s.stock_actual > 0
-ON CONFLICT (empresa_id, producto_id, location_id, cost_currency) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('warehouse-evidence', 'warehouse-evidence', false)
@@ -964,9 +1153,11 @@ BEGIN
     v_cost_unit := p_unit_cost;
     v_total_cost := p_quantity * v_cost_unit;
     INSERT INTO public.inventory_balances (
-      empresa_id, producto_id, location_id, cost_currency, quantity, total_cost
+      empresa_id, producto_id, location_id, cost_currency, quantity, total_cost,
+      cost_status, cost_source
     ) VALUES (
-      p_empresa_id, p_producto_id, p_to_location_id, v_currency, p_quantity, v_total_cost
+      p_empresa_id, p_producto_id, p_to_location_id, v_currency, p_quantity, v_total_cost,
+      'COMPUTABLE', 'CANONICAL_MOVEMENT'
     )
     ON CONFLICT (empresa_id, producto_id, location_id, cost_currency)
     DO UPDATE SET
@@ -989,6 +1180,7 @@ BEGIN
     FROM public.inventory_balances
     WHERE empresa_id = p_empresa_id AND producto_id = p_producto_id
       AND location_id = p_from_location_id AND cost_currency = v_currency
+      AND cost_status = 'COMPUTABLE'
     FOR UPDATE;
     IF NOT FOUND OR v_balance.quantity < abs(p_quantity) THEN
       RAISE EXCEPTION 'Stock insuficiente para el ajuste';
@@ -1022,6 +1214,7 @@ BEGIN
       FROM public.inventory_balances
       WHERE empresa_id = p_empresa_id AND producto_id = p_producto_id
         AND location_id = p_from_location_id AND quantity > 0
+        AND cost_status = 'COMPUTABLE' AND cost_currency IS NOT NULL
       ORDER BY cost_currency::text
       FOR UPDATE
     LOOP
@@ -1047,10 +1240,11 @@ BEGIN
 
       IF v_type IN ('TRANSFER', 'RETURN') THEN
         INSERT INTO public.inventory_balances (
-          empresa_id, producto_id, location_id, cost_currency, quantity, total_cost
+          empresa_id, producto_id, location_id, cost_currency, quantity, total_cost,
+          cost_status, cost_source
         ) VALUES (
           p_empresa_id, p_producto_id, p_to_location_id, v_balance.cost_currency,
-          v_take, v_cost_take
+          v_take, v_cost_take, 'COMPUTABLE', 'CANONICAL_MOVEMENT'
         )
         ON CONFLICT (empresa_id, producto_id, location_id, cost_currency)
         DO UPDATE SET
@@ -1357,6 +1551,12 @@ SELECT
   b.cost_currency,
   b.quantity,
   b.total_cost,
+  b.cost_status,
+  b.original_cost_currency,
+  b.original_unit_cost,
+  b.original_total_cost,
+  b.exchange_rate_to_company,
+  b.cost_source,
   b.updated_at
 FROM public.inventory_balances b
 JOIN public.inventory_locations l ON l.id = b.location_id
@@ -1368,6 +1568,7 @@ SELECT
   empresa_id, producto_id, producto, unidad, cost_currency,
   sum(quantity) AS quantity, sum(total_cost) AS total_cost
 FROM public.inventory_stock_by_location
+WHERE cost_status = 'COMPUTABLE' AND cost_currency IS NOT NULL
 GROUP BY empresa_id, producto_id, producto, unidad, cost_currency;
 
 CREATE OR REPLACE VIEW public.inventory_stock_global_quantity AS
@@ -1377,11 +1578,11 @@ GROUP BY empresa_id, producto_id, producto, unidad;
 
 CREATE OR REPLACE VIEW public.inventory_stock_by_project AS
 SELECT
-  empresa_id, project_id, producto_id, producto, unidad, cost_currency,
+  empresa_id, project_id, producto_id, producto, unidad, cost_currency, cost_status,
   sum(quantity) AS quantity, sum(total_cost) AS total_cost
 FROM public.inventory_stock_by_location
 WHERE project_id IS NOT NULL
-GROUP BY empresa_id, project_id, producto_id, producto, unidad, cost_currency;
+GROUP BY empresa_id, project_id, producto_id, producto, unidad, cost_currency, cost_status;
 
 CREATE VIEW public.inventory_consumption_by_budget AS
 SELECT
@@ -1519,6 +1720,7 @@ REVOKE EXECUTE ON FUNCTION public.validate_warehouse_portal_link_tenant() FROM P
 REVOKE EXECUTE ON FUNCTION public.validate_warehouse_submission_tenant() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.validate_warehouse_submission_line_tenant() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.sync_inventory_legacy_projection(uuid, uuid, uuid[]) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.resolve_legacy_inventory_cost(uuid, uuid, numeric) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.inventory_post_movement(
   uuid, uuid, numeric, text, text, uuid, uuid, uuid, uuid, text, uuid, uuid,
   text, public.currency_code, numeric, numeric, uuid, jsonb
