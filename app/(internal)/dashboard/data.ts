@@ -1,6 +1,8 @@
 import { requireProfile, CurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { Project } from "@/lib/types";
+import { Project, InvoiceStatus, SalesDocStatus } from "@/lib/types";
+import { docSaldo } from "@/lib/sales";
+import { classifyPayable, classifyReceivable } from "@/lib/dashboard-kpis";
 import { PortfolioRow, PortfolioEstado } from "./portfolio-table";
 import { AdminKpi } from "./admin-kpis";
 import { LicitacionKpi } from "./licitaciones-kpis";
@@ -50,37 +52,26 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
   const noopCount = Promise.resolve({ data: null, count: null } as { data: null; count: number | null });
 
   const [
-    { data: pagosProximos },
-    { data: pagosVencidos },
-    { data: facturasVentaVencidas },
-    { data: cobrosEsperados },
+    { data: payableInvoices },
+    { data: receivableDocs },
     { data: projects },
     { count: ofertasPorVencer },
     { count: oportunidadesNuevas },
   ] = await Promise.all([
+    // CxP: nosotros debemos. Se trae todo lo no pagado con due_date — la
+    // clasificación próxima/vencida la hace classifyPayable, no la query.
     showInvoiceKpis
-      ? supabase
-          .from("invoices")
-          .select("total, currency")
-          .eq("status", "APTO_PARA_PAGO")
-          .gte("due_date", today)
-          .lte("due_date", en7dias)
+      ? supabase.from("invoices").select("total, currency, due_date, status").neq("status", "PAGADO").not("due_date", "is", null)
       : noopRows,
-    showInvoiceKpis
-      ? supabase.from("invoices").select("total, currency").eq("status", "APTO_PARA_PAGO").lt("due_date", today)
-      : noopRows,
+    // CxC: nos deben. EMITIDA/COBRADA_PARCIAL son los únicos estados con
+    // saldo potencialmente > 0; classifyReceivable vuelve a confirmarlo con
+    // el saldo real (total - cobrado_amount), no solo con el status.
     showSalesKpis
       ? supabase
           .from("sales_documents")
-          .select("total, cobrado_amount, currency")
+          .select("total, cobrado_amount, currency, due_date, status")
           .in("status", ["EMITIDA", "COBRADA_PARCIAL"])
-          .lt("due_date", today)
-      : noopRows,
-    showSalesKpis
-      ? supabase
-          .from("sales_documents")
-          .select("total, cobrado_amount, currency, due_date")
-          .in("status", ["EMITIDA", "COBRADA_PARCIAL"])
+          .not("due_date", "is", null)
       : noopRows,
     canUseOperativo
       ? supabase
@@ -108,58 +99,63 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
       : noopCount,
   ]);
 
+  type PayableRow = { total: number; currency: string; due_date: string | null; status: InvoiceStatus };
+  type ReceivableRow = { total: number; cobrado_amount: number; currency: string; due_date: string | null; status: SalesDocStatus };
+
+  const payableRows = (payableInvoices ?? []) as PayableRow[];
+  const pagosProximosRows = payableRows.filter((r) => classifyPayable(r, today, en7dias) === "proxima");
+  const facturasVencidasPorPagarRows = payableRows.filter((r) => classifyPayable(r, today, en7dias) === "vencida");
+
+  const receivableRows = (receivableDocs ?? []) as ReceivableRow[];
+  const cobrosEsperadosRows = receivableRows.filter((r) => classifyReceivable(r, today, en7dias) === "esperado");
+  const cobrosVencidosRows = receivableRows.filter((r) => classifyReceivable(r, today, en7dias) === "vencido");
+
   function sumPyg(rows: { total: number; currency: string }[]): number {
     return rows.filter((r) => r.currency === "PYG").reduce((s, r) => s + r.total, 0);
   }
   function sumPygSaldo(rows: { total: number; cobrado_amount: number; currency: string }[]): number {
-    return rows.filter((r) => r.currency === "PYG").reduce((s, r) => s + (r.total - r.cobrado_amount), 0);
+    return rows.filter((r) => r.currency === "PYG").reduce((s, r) => s + docSaldo(r.total, r.cobrado_amount), 0);
   }
 
-  const cobrosEsperadosRows = (cobrosEsperados ?? []) as { total: number; cobrado_amount: number; currency: string; due_date: string | null }[];
-  const cobrosEsperadosNoVencidos = cobrosEsperadosRows.filter((r) => !r.due_date || r.due_date >= today);
-
   const adminKpis: AdminKpi[] = [];
-  const pagosVencidosRows = (pagosVencidos ?? []) as { total: number; currency: string }[];
-  const facturasVencidasRows = (facturasVentaVencidas ?? []) as { total: number; cobrado_amount: number; currency: string }[];
   if (showInvoiceKpis) {
-    const rows = (pagosProximos ?? []) as { total: number; currency: string }[];
     adminKpis.push({
       key: "pagos-proximos",
       label: "Pagos próximos",
-      amountPyg: sumPyg(rows),
-      count: rows.length,
+      amountPyg: sumPyg(pagosProximosRows),
+      count: pagosProximosRows.length,
       href: "/pagos",
       iconKey: "calendar-clock",
       tone: "neutral",
     });
     adminKpis.push({
-      key: "pagos-vencidos",
-      label: "Pagos vencidos",
-      amountPyg: sumPyg(pagosVencidosRows),
-      count: pagosVencidosRows.length,
+      key: "facturas-vencidas-por-pagar",
+      label: "Facturas vencidas por pagar",
+      amountPyg: sumPyg(facturasVencidasPorPagarRows),
+      count: facturasVencidasPorPagarRows.length,
       href: "/pagos",
       iconKey: "alert-octagon",
-      tone: pagosVencidosRows.length > 0 ? "error" : "ok",
+      tone: facturasVencidasPorPagarRows.length > 0 ? "error" : "ok",
     });
   }
   if (showSalesKpis) {
     adminKpis.push({
-      key: "facturas-vencidas",
-      label: "Facturas vencidas",
-      amountPyg: sumPygSaldo(facturasVencidasRows),
-      count: facturasVencidasRows.length,
-      href: "/cobros",
-      iconKey: "file-x",
-      tone: facturasVencidasRows.length > 0 ? "error" : "ok",
-    });
-    adminKpis.push({
       key: "cobros-esperados",
       label: "Cobros esperados",
-      amountPyg: sumPygSaldo(cobrosEsperadosNoVencidos),
-      count: cobrosEsperadosNoVencidos.length,
+      amountPyg: sumPygSaldo(cobrosEsperadosRows),
+      count: cobrosEsperadosRows.length,
       href: "/cobros",
       iconKey: "wallet",
       tone: "neutral",
+    });
+    adminKpis.push({
+      key: "cobros-vencidos",
+      label: "Cobros vencidos",
+      amountPyg: sumPygSaldo(cobrosVencidosRows),
+      count: cobrosVencidosRows.length,
+      href: "/cobros",
+      iconKey: "file-x",
+      tone: cobrosVencidosRows.length > 0 ? "error" : "ok",
     });
   }
 
@@ -267,19 +263,19 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
       });
     }
   }
-  if (showInvoiceKpis && pagosVencidosRows.length > 0) {
+  if (showInvoiceKpis && facturasVencidasPorPagarRows.length > 0) {
     attentionItems.push({
-      key: "pagos-vencidos",
-      text: `${pagosVencidosRows.length} pago${pagosVencidosRows.length !== 1 ? "s" : ""} vencido${pagosVencidosRows.length !== 1 ? "s" : ""}`,
+      key: "facturas-vencidas-por-pagar",
+      text: `${facturasVencidasPorPagarRows.length} factura${facturasVencidasPorPagarRows.length !== 1 ? "s" : ""} vencida${facturasVencidasPorPagarRows.length !== 1 ? "s" : ""} por pagar`,
       href: "/pagos",
       iconKey: "wallet",
       severity: "error",
     });
   }
-  if (showSalesKpis && facturasVencidasRows.length > 0) {
+  if (showSalesKpis && cobrosVencidosRows.length > 0) {
     attentionItems.push({
-      key: "facturas-vencidas",
-      text: `${facturasVencidasRows.length} factura${facturasVencidasRows.length !== 1 ? "s" : ""} de venta vencida${facturasVencidasRows.length !== 1 ? "s" : ""}`,
+      key: "cobros-vencidos",
+      text: `${cobrosVencidosRows.length} cobro${cobrosVencidosRows.length !== 1 ? "s" : ""} vencido${cobrosVencidosRows.length !== 1 ? "s" : ""}`,
       href: "/cobros",
       iconKey: "file-x",
       severity: "error",
