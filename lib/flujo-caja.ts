@@ -10,7 +10,8 @@ export type FlujoItemTipo =
   | "cobro_factura"
   | "cobro_certificado"
   | "pago_factura"
-  | "gasto_recurrente";
+  | "gasto_recurrente"
+  | "salida_proyectada_material";
 
 export interface FlujoItem {
   tipo: FlujoItemTipo;
@@ -204,3 +205,50 @@ export function ocurrenciasGastoRecurrente(
   }
   return out;
 }
+
+/**
+ * Convierte los requerimientos de caja adicional por materiales de una corrida de proyección
+ * de avance de obra en FlujoItem[] listos para impactar el flujo de caja proyectado.
+ *
+ * Solo toma los materiales con déficit neto de compra (caja adicional requerida > 0).
+ */
+export function proyeccionAvanceToFlujoItems(
+  forecastSummary: {
+    project_id: string;
+    start_date: string;
+    currency: string;
+    items: {
+      item_description: string;
+      materials: {
+        producto_id: string;
+        producto_nombre: string;
+        caja_adicional_requerida: number;
+      }[];
+    }[];
+  },
+  diasPlazoPagoProveedor: number = 7
+): FlujoItem[] {
+  const items: FlujoItem[] = [];
+  const fechaDesembolso = new Date(forecastSummary.start_date);
+  fechaDesembolso.setDate(fechaDesembolso.getDate() + diasPlazoPagoProveedor);
+  const fechaStr = fechaDesembolso.toISOString().split("T")[0];
+
+  for (const it of forecastSummary.items) {
+    for (const mat of it.materials) {
+      if (mat.caja_adicional_requerida > 0) {
+        items.push({
+          tipo: "salida_proyectada_material",
+          descripcion: `Compra proyectada: ${mat.producto_nombre} (${it.item_description})`,
+          fecha: fechaStr,
+          monto: -mat.caja_adicional_requerida,
+          moneda: (forecastSummary.currency as CurrencyCode) || "PYG",
+          project_id: forecastSummary.project_id,
+          ref_id: `forecast_mat_${mat.producto_id}`,
+        });
+      }
+    }
+  }
+
+  return items;
+}
+

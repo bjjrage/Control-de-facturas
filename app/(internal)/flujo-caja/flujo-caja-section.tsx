@@ -51,6 +51,7 @@ const TIPO_LABEL: Record<FlujoItem["tipo"], string> = {
   cobro_certificado: "Cobro de certificado",
   pago_factura: "Pago de factura",
   gasto_recurrente: "Gasto recurrente",
+  salida_proyectada_material: "Salida proyectada de material",
 };
 
 const CURRENCIES: CurrencyCode[] = ["PYG", "USD", "EUR", "BRL", "ARS"];
