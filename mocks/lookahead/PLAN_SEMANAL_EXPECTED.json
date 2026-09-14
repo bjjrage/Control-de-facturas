@@ -1,0 +1,39 @@
+{
+  "project_code": "OBR-MOCK-001",
+  "period": {"start": "2026-09-14", "end": "2026-09-20"},
+  "current_weighted_progress": 0.14527376838533415,
+  "planned_value_pyg": 37485000,
+  "target_weighted_progress": 0.16865542234808317,
+  "increment_pp": 2.3381653962749036,
+  "plan_items": [
+    {"code":"4.1","front":"Sector A","mode":"CONTRACT_PERCENTAGE_POINTS","input":8,"target_quantity":72,"unit":"m2"},
+    {"code":"4.1","front":"Sector B","mode":"QUANTITY","input":48,"target_quantity":48,"unit":"m2"},
+    {"code":"3.2","front":"Frente estructura","mode":"QUANTITY","input":8,"target_quantity":8,"unit":"m3"},
+    {"code":"3.1","front":"Planta alta","mode":"CONTRACT_PERCENTAGE_POINTS","input":10,"target_quantity":3.5,"unit":"m3"}
+  ],
+  "materials": {
+    "LADRILLO": {"gross":6300,"stock":1800,"inbound":2500,"net_buy":2000,"unit_cost_pyg":2400,"additional_cash_pyg":4800000},
+    "CEM50": {"gross":117.008,"stock":90,"inbound":120,"net_buy":0},
+    "ARENA": {"gross":10.42125,"stock":6,"inbound":10,"net_buy":0},
+    "PIEDRA": {"gross":9.66,"stock":8,"inbound":15,"net_buy":0},
+    "ACERO": {"gross":1668.6,"stock":950,"inbound":2000,"net_buy":0},
+    "TERC": {"gross":23.375,"stock":15,"inbound":20,"net_buy":0},
+    "MADERA": {"gross":34.1,"stock":30,"inbound":20,"net_buy":0},
+    "CLAVOS": {"gross":4.4625,"stock":8,"inbound":0,"net_buy":0}
+  },
+  "additional_cash_pyg": 4800000,
+  "weather_fixture": [
+    {"date":"2026-09-14","class":"NORMAL","factor":1},
+    {"date":"2026-09-15","class":"NORMAL","factor":1},
+    {"date":"2026-09-16","class":"BLOCKED","factor":0},
+    {"date":"2026-09-17","class":"PARTIAL","factor":0.5},
+    {"date":"2026-09-18","class":"NORMAL","factor":1},
+    {"date":"2026-09-19","class":"NORMAL","factor":1},
+    {"date":"2026-09-20","class":"NORMAL","factor":1}
+  ],
+  "regression_cases": {
+    "percentage_conversion": {"contractual":500,"input_pp":10,"expected_target":50},
+    "shared_remaining": {"contractual":500,"executed":400,"front_a_pp":15,"front_b_pp":10,"expected_total_target":100},
+    "completed_item": {"contractual":420,"executed":420,"requested":25,"expected_target":0}
+  }
+}

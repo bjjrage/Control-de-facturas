@@ -105,7 +105,7 @@
 <div class="wrap">
   <div class="kicker">niu.pack · Módulo Construcción</div>
   <h1>El flujo de una obra, paso a paso</h1>
-  <p class="lead">Tocá cada punto para abrir <b>cómo se usa</b>. Marcá los que ya tenés claros — la barra de arriba lleva el avance. Las fases del medio <b>se repiten</b>: con cada compra, cada día, cada mes.</p>
+  <p class="lead">Tocá cada punto para abrir <b>cómo se usa</b>. Marcá los que ya tenés claros — la barra de arriba lleva el avance. Las fases del medio <b>se repiten</b>: cada semana planificás, cada día ejecutás, cada compra abastece y cada mes certificás.</p>
 
   <div class="progress-bar">
     <div class="ptrack"><div class="pfill" id="pfill"></div></div>
@@ -127,7 +127,7 @@
 <script>
 (function(){
   "use strict";
-  const KEY = 'flujo-obra-done-v1';
+  const KEY = 'flujo-obra-done-v2';
 
   const PHASES = [
     {
@@ -206,11 +206,18 @@
       ]
     },
     {
-      n:3, cls:'p3', title:'Ejecutar en obra', cad:'cad-loop', cadTxt:'Se repite todos los días',
-      sub:'Lo que pasa en el frente de obra, cargado desde el celular del capataz.',
+      n:3, cls:'p3', title:'Planificar y ejecutar en obra', cad:'cad-loop', cadTxt:'Plan semanal · ejecución diaria',
+      sub:'Primero definís qué querés ejecutar; después el frente registra lo que realmente pasó.',
       steps:[
+        { id:'plansemanal', t:'Armar el Plan Semanal / Lookahead', screen:'tab Avance físico',
+          what:'El residente define qué rubros y frentes quiere ejecutar en la semana. El ERP traduce esa intención a materiales, stock, compras en tránsito y caja adicional.',
+          how:['Elegís el período del plan y agregás cada <b>partida + frente/sector</b> que querés trabajar.',
+               'La meta puede ser <b>cantidad física</b> o <b>+ puntos porcentuales del contrato</b>; el sistema la convierte a unidad física y la limita al saldo pendiente.',
+               'El BOM calcula materiales; después se descuenta <b>stock</b> y <b>OC inbound físico</b> para mostrar el faltante real y la <b>caja adicional</b>.',
+               'Opcionalmente activás <b>Considerar clima</b>: el objetivo del plan no cambia; se muestra aparte la capacidad estimada con el pronóstico y su brecha.'],
+          tip:{k:'ok', t:'El sistema no adivina qué va a hacer la obra. Historial y clima son capas de factibilidad; la intención siempre la define el residente.'} },
         { id:'avance', t:'El capataz carga el avance del día con foto', screen:'tab Ejecución',
-          what:'El capataz o residente registra lo ejecutado, día a día. No necesita cuenta.',
+          what:'El capataz o residente registra lo ejecutado, día a día. No necesita cuenta. Este dato alimenta el avance real y, cuando hay suficiente historial, sirve como referencia de capacidad para comparar contra el Plan Semanal.',
           how:['En la tab Ejecución, botón <b>"QR para el capataz"</b> → <b>"Descargar QR"</b> (PNG).',
                'Se lo mandás por WhatsApp o lo imprimís y lo pegás en el obrador.',
                'El capataz lo escanea <b>una vez</b>, entra al parte de avance y lo <b>agrega a la pantalla de inicio</b>.',
@@ -292,7 +299,7 @@
                'La línea de color = ejecutado acumulado (de los certificados en Elaborado o superior).',
                'Si el real está por debajo, hay atraso — el sistema te dice cuánto en guaraníes (brecha % × monto contractual).'] },
         { id:'consumo', t:'Consumo de materiales vs presupuesto', screen:'tab Presupuesto',
-          what:'Cuánto material salió a cada rubro contra lo presupuestado de ese rubro.',
+          what:'Cuánto material salió a cada rubro contra lo presupuestado de ese rubro. El Plan Semanal agrega la mirada hacia adelante: cuánto material exige la meta y cuánto falta comprar después de stock e inbound.',
           how:['Aparece automáticamente debajo de la tabla del presupuesto cuando hay salidas de stock imputadas a la obra.',
                'Verde = dentro del presupuesto · amarillo = pasó el 80% · rojo = pasó el 100%.',
                'Cada fila se expande para ver los productos individuales con cantidad y costo.'] },

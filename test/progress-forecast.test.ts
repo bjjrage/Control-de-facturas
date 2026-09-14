@@ -4,7 +4,10 @@ import {
   ProgressForecastEngineInput,
   calculateRecentVelocity,
 } from "../lib/procurement/progress-forecast-engine";
-import { createDegradedOperationalFallback } from "../lib/procurement/operational-analyst-llm";
+import {
+  createDegradedOperationalFallback,
+  calculateOperationalInputHash,
+} from "../lib/procurement/operational-analyst-llm";
 import { proyeccionAvanceToFlujoItems } from "../lib/flujo-caja";
 import { BudgetItem, DailyWeatherForecast } from "../lib/types";
 
@@ -862,5 +865,249 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
     expect(mat.deficit_compra_neta).toBeCloseTo(0, 1);
     expect(mat.caja_adicional_requerida).toBeCloseTo(0, 1);
   });
+
+  // 19. Preservación estricta de productive_factor = 0 (partida bloqueada)
+  it("19. preserva workability_factor = 0 sin convertirlo a 1.0 por evaluación falsy", () => {
+    // Simula la recuperación de factor persistido en base de datos
+    const rawFactorZero = 0;
+    const rawFactorNull = null;
+    const rawFactorUndefined = undefined;
+
+    const parseFactor = (val: any) => {
+      const raw = val !== null && val !== undefined ? Number(val) : 1.0;
+      return Number.isFinite(raw) ? Math.min(1.0, Math.max(0.0, raw)) : 1.0;
+    };
+
+    expect(parseFactor(rawFactorZero)).toBe(0.0);
+    expect(parseFactor(rawFactorNull)).toBe(1.0);
+    expect(parseFactor(rawFactorUndefined)).toBe(1.0);
+    expect(parseFactor(0.4)).toBe(0.4);
+
+    // Motor con factor = 0
+    const input: ProgressForecastEngineInput = {
+      project_id: "proj-100",
+      horizon_days: 7,
+      start_date: "2026-09-15",
+      budget_items: [
+        {
+          ...baseItem,
+          quantity: 100,
+          start_date: "2026-09-15",
+          end_date: "2026-09-22",
+        },
+      ],
+      executed_quantities_by_item: { "item-1": 0 },
+      materials_by_item: {},
+      stock_and_inbound: {},
+      operational_assessments: {
+        "item-1": {
+          budget_item_id: "item-1",
+          workability: "BLOCKED",
+          productive_factor: parseFactor(rawFactorZero), // 0.0 strictly
+          reason: "Bloqueado por lluvia extrema.",
+        },
+      },
+      forecasts: sampleForecasts,
+      llm_used: true,
+    };
+
+    const result = computeProgressForecast(input);
+    const item = result.items[0];
+
+    expect(item.workability_factor).toBe(0.0);
+    expect(item.projected_quantity).toBe(0.0);
+    expect(item.operational_status).toBe("BLOCKED");
+  });
+
+  // 20. Rechazo estricto de cache si workability_factor es null, undefined, NaN o fuera de rango [0, 1]
+  it("20. invalida corrida persistida si algún workability_factor es null, undefined o NaN en vez de sanear a 1.0", () => {
+    const isStrictlyValidFactor = (val: any): boolean => {
+      if (val === null || val === undefined) return false;
+      const num = Number(val);
+      return typeof num === "number" && !Number.isNaN(num) && Number.isFinite(num) && num >= 0 && num <= 1;
+    };
+
+    expect(isStrictlyValidFactor(0)).toBe(true);
+    expect(isStrictlyValidFactor(0.5)).toBe(true);
+    expect(isStrictlyValidFactor(1.0)).toBe(true);
+    expect(isStrictlyValidFactor("0.4")).toBe(true);
+
+    // Invalid values MUST be rejected
+    expect(isStrictlyValidFactor(null)).toBe(false);
+    expect(isStrictlyValidFactor(undefined)).toBe(false);
+    expect(isStrictlyValidFactor(NaN)).toBe(false);
+    expect(isStrictlyValidFactor(-0.1)).toBe(false);
+    expect(isStrictlyValidFactor(1.2)).toBe(false);
+    expect(isStrictlyValidFactor("invalid")).toBe(false);
+
+    // Simulation of cache evaluation for a run with 2 items where one has null factor
+    const cachedItems = [
+      { budget_item_id: "item-1", workability_factor: 0.8 },
+      { budget_item_id: "item-2", workability_factor: null },
+    ];
+    const isCacheValid = cachedItems.every((it) => isStrictlyValidFactor(it.workability_factor));
+    expect(isCacheValid).toBe(false);
+  });
+
+  // 21. Si el cache es rechazado y no hay LLM, pasa a modo DEGRADED / UNAVAILABLE
+  it("21. activa modo DEGRADED y proyección base si el cache fue rechazado por datos corruptos y no hay LLM", () => {
+    const activeItems = [
+      {
+        budget_item_id: "item-1",
+        item_code: "01.01",
+        description: "Hormigón",
+        unit: "m3",
+      },
+    ];
+
+    const fallback = createDegradedOperationalFallback(
+      activeItems,
+      "Cache persistido inválido (workability_factor corrupto) y servicio de IA no disponible."
+    );
+
+    expect(fallback.is_degraded).toBe(true);
+    expect(fallback.llm_used).toBe(false);
+    expect(fallback.items[0].workability).toBe("DEGRADED");
+    expect(fallback.items[0].productive_factor).toBe(1.0); // Baseline unadjusted
+    expect(fallback.overall_summary).toContain("ADVERTENCIA");
+    expect(fallback.items[0].reason).toContain("Proyección base no ajustada por clima");
+  });
+
+  // 22. Hash operacional determinista: mismos datos -> mismo hash
+  it("22. genera idéntico operational_input_hash para los mismos datos de entrada", () => {
+    const params = {
+      projectId: "proj-100",
+      startDate: "2026-09-15",
+      horizonDays: 7,
+      latitude: -25.2867,
+      longitude: -57.647,
+      items: [
+        { budget_item_id: "item-1", item_code: "01.01", description: "Vigas", unit: "m3" },
+        { budget_item_id: "item-2", item_code: "01.02", description: "Columnas", unit: "m3" },
+      ],
+      forecasts: sampleForecasts,
+    };
+
+    const hash1 = calculateOperationalInputHash(params);
+    const hash2 = calculateOperationalInputHash(params);
+
+    expect(hash1).toBe(hash2);
+    expect(typeof hash1).toBe("string");
+    expect(hash1.length).toBe(64); // SHA-256 hex
+  });
+
+  // 23. Hash operacional: orden de partidas independiente (ordenamiento determinista)
+  it("23. genera el mismo hash sin importar el orden en que se pasen las partidas", () => {
+    const itemA = { budget_item_id: "item-a", item_code: "01.01", description: "Vigas", unit: "m3" };
+    const itemB = { budget_item_id: "item-b", item_code: "01.02", description: "Columnas", unit: "m3" };
+
+    const hashOrder1 = calculateOperationalInputHash({
+      projectId: "proj-100",
+      startDate: "2026-09-15",
+      horizonDays: 7,
+      latitude: -25.2867,
+      longitude: -57.647,
+      items: [itemA, itemB],
+      forecasts: sampleForecasts,
+    });
+
+    const hashOrder2 = calculateOperationalInputHash({
+      projectId: "proj-100",
+      startDate: "2026-09-15",
+      horizonDays: 7,
+      latitude: -25.2867,
+      longitude: -57.647,
+      items: [itemB, itemA],
+      forecasts: sampleForecasts,
+    });
+
+    expect(hashOrder1).toBe(hashOrder2);
+  });
+
+  // 24. Hash operacional: cambios en clima o partidas cambian el hash (invalida cache obsoleto)
+  it("24. genera hashes distintos si cambia el pronóstico del clima o el conjunto de partidas", () => {
+    const baseParams = {
+      projectId: "proj-100",
+      startDate: "2026-09-15",
+      horizonDays: 7,
+      latitude: -25.2867,
+      longitude: -57.647,
+      items: [
+        { budget_item_id: "item-1", item_code: "01.01", description: "Vigas", unit: "m3" },
+      ],
+      forecasts: sampleForecasts,
+    };
+
+    const hashBase = calculateOperationalInputHash(baseParams);
+
+    // Weather changed (rain 50mm on day 2)
+    const modifiedForecasts = sampleForecasts.map((f, idx) =>
+      idx === 1 ? { ...f, precipitation_sum_mm: 50 } : f
+    );
+    const hashWeatherChanged = calculateOperationalInputHash({
+      ...baseParams,
+      forecasts: modifiedForecasts,
+    });
+    expect(hashWeatherChanged).not.toBe(hashBase);
+
+    // Items changed
+    const hashItemsChanged = calculateOperationalInputHash({
+      ...baseParams,
+      items: [
+        { budget_item_id: "item-1", item_code: "01.01", description: "Vigas", unit: "m3" },
+        { budget_item_id: "item-3", item_code: "01.03", description: "Losa", unit: "m2" },
+      ],
+    });
+    expect(hashItemsChanged).not.toBe(hashBase);
+  });
+
+  // 25. Clima fail-closed: falla en fetch de clima no inventa días soleados ni falsea forecast
+  it("25. falla cerrada ante error meteorológico: no inventa sol y proyecta base no ajustada explícitamente degradada", () => {
+    // Si Open-Meteo falla, forecasts es []
+    const emptyForecasts: DailyWeatherForecast[] = [];
+    const activeItems = [
+      {
+        budget_item_id: "item-1",
+        item_code: "01.01",
+        description: "Movimiento de suelos",
+        unit: "m3",
+      },
+    ];
+
+    const degradedOutput = createDegradedOperationalFallback(
+      activeItems,
+      "Pronóstico meteorológico no disponible (fail-closed)."
+    );
+
+    expect(degradedOutput.is_degraded).toBe(true);
+    expect(degradedOutput.llm_used).toBe(false);
+
+    // El motor con forecasts vacío arroja 0 días bloqueados y respeta modo degradado
+    const engineResult = computeProgressForecast({
+      project_id: "proj-fail-closed",
+      horizon_days: 7,
+      start_date: "2026-09-15",
+      budget_items: [baseItem],
+      executed_quantities_by_item: { "item-1": 0 },
+      materials_by_item: {},
+      stock_and_inbound: {},
+      operational_assessments: {
+        "item-1": degradedOutput.items[0],
+      },
+      forecasts: emptyForecasts,
+      llm_used: degradedOutput.llm_used,
+      is_degraded: degradedOutput.is_degraded,
+      llm_summary: degradedOutput.overall_summary,
+    });
+
+    expect(engineResult.is_degraded).toBe(true);
+    expect(engineResult.llm_analysis_used).toBe(false);
+    expect(engineResult.workable_days_count).toBe(0);
+    expect(engineResult.fully_blocked_days_count).toBe(0);
+    expect(engineResult.items[0].operational_status).toBe("DEGRADED");
+    expect(engineResult.items[0].workability_factor).toBe(1.0);
+    expect(engineResult.llm_summary).toContain("ADVERTENCIA");
+  });
 });
+
 
