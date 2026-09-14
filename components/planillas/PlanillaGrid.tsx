@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { HotTable } from "@handsontable/react-wrapper";
 import type { HotTableRef } from "@handsontable/react-wrapper";
 import Handsontable from "handsontable";
@@ -68,8 +68,28 @@ export type PlanillaGridProps = {
  * conoce "cómputo" ni "presupuesto": solo columnas + filas + fórmulas. La
  * identidad de fila (_rowId/_version/_deleted) viaja oculta en cada objeto
  * de fila y nunca se deriva de la posición visual (REGLA #8).
+ *
+ * memo() a propósito: @handsontable/react-wrapper llama a
+ * hotInstance.updateSettings() en cada re-render de este componente, sin
+ * importar si las props cambiaron — y eso reinicializa/recalcula el motor
+ * HyperFormula, lo que puede reescribir celdas de fórmula y disparar un
+ * afterChange espurio → onChange del padre → autosave → el padre
+ * re-renderiza (p. ej. al pasar saveStatus a "saved") → este componente se
+ * re-renderiza → updateSettings otra vez — bucle perpetuo pausado solo por
+ * el debounce de autosave ("Maximum update depth exceeded" es la variante
+ * síncrona de este mismo problema; esta es la variante asíncrona, pausada
+ * por el debounce). Reproducido y confirmado en vivo (autosave disparando
+ * cada ~900ms indefinidamente sin tocar la grilla) antes de este fix.
+ * Requiere que el padre pase `onChange` con referencia estable (useCallback)
+ * — ver planilla-session-client.tsx — porque memo() compara props por
+ * referencia.
  */
-export function PlanillaGrid({ columns, initialRows, onChange, readOnly = false }: PlanillaGridProps) {
+export const PlanillaGrid = memo(function PlanillaGrid({
+  columns,
+  initialRows,
+  onChange,
+  readOnly = false,
+}: PlanillaGridProps) {
   const hotRef = useRef<HotTableRef>(null);
   const deletedRef = useRef<PlanillaGridRow[]>([]);
   const [formulaBarValue, setFormulaBarValue] = useState("");
@@ -175,9 +195,19 @@ export function PlanillaGrid({ columns, initialRows, onChange, readOnly = false 
   const handleAfterSelectionEnd = useCallback((row: number, column: number) => {
     const hot = hotRef.current?.hotInstance;
     if (!hot) return;
-    setSelectedCell({ row, col: column });
+    // setState con updater funcional que devuelve la MISMA referencia cuando
+    // la celda no cambió: Handsontable puede volver a disparar
+    // afterSelectionEnd para la celda ya seleccionada como efecto colateral
+    // de un updateSettings() (p. ej. al re-renderizar este componente por
+    // otro motivo). Si acá siempre creáramos un objeto/string nuevo, React
+    // nunca podría bailar del re-render aunque el valor sea idéntico, y ese
+    // re-render dispara el próximo updateSettings → afterSelectionEnd →
+    // setState — bucle infinito ("Maximum update depth exceeded"),
+    // reproducido y confirmado en vivo antes de este fix.
+    setSelectedCell((prev) => (prev && prev.row === row && prev.col === column ? prev : { row, col: column }));
     const raw = hot.getSourceDataAtCell(row, column);
-    setFormulaBarValue(raw === null || raw === undefined ? "" : String(raw));
+    const next = raw === null || raw === undefined ? "" : String(raw);
+    setFormulaBarValue((prev) => (prev === next ? prev : next));
   }, []);
 
   function commitFormulaBar() {
@@ -234,6 +264,6 @@ export function PlanillaGrid({ columns, initialRows, onChange, readOnly = false 
       </div>
     </div>
   );
-}
+});
 
 export { HANDSONTABLE_LICENSE_KEY };

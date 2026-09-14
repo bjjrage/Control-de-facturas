@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,13 @@ export function PlanillaSessionClient({
 
   const isReadOnly = estado !== "draft";
 
-  async function flushSave() {
+  // Ref indirecta para romper la dependencia circular flushSave↔scheduleFlush
+  // sin sacrificar la estabilidad de referencia de ninguna de las dos (ver
+  // comentario en handleGridChange más abajo sobre por qué esa estabilidad
+  // importa).
+  const scheduleFlushRef = useRef<() => void>(() => {});
+
+  const flushSave = useCallback(async () => {
     if (inFlightRef.current) return; // el próximo debounce reintentará con el snapshot más nuevo
     const rows = pendingRowsRef.current;
     if (rows === null) return;
@@ -58,21 +64,39 @@ export function PlanillaSessionClient({
       inFlightRef.current = false;
       if (pendingRowsRef.current !== null) {
         // Llegaron cambios (o falló) mientras guardábamos — programar otro flush.
-        scheduleFlush();
+        scheduleFlushRef.current();
       }
     }
-  }
+  }, [planillaId]);
 
-  function scheduleFlush() {
+  const scheduleFlush = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(flushSave, AUTOSAVE_DEBOUNCE_MS);
-  }
+  }, [flushSave]);
 
-  function handleGridChange(rows: PlanillaGridRow[]) {
-    if (isReadOnly) return;
-    pendingRowsRef.current = rows;
-    scheduleFlush();
-  }
+  useEffect(() => {
+    scheduleFlushRef.current = scheduleFlush;
+  }, [scheduleFlush]);
+
+  // useCallback con referencia estable a propósito: PlanillaGrid está
+  // memoizado (React.memo) precisamente para NO re-renderizar — y por lo
+  // tanto no volver a llamar hotInstance.updateSettings(), que dispara un
+  // recálculo de HyperFormula y por ende un afterChange espurio — cada vez
+  // que este componente se re-renderiza (p. ej. el indicador de saveStatus
+  // pasando a "saved"). Si `onChange` tuviera una referencia nueva en cada
+  // render, el memo de PlanillaGrid no serviría de nada: guardar → re-render
+  // → updateSettings → recálculo → afterChange → onChange → guardar de
+  // nuevo — bucle perpetuo pausado solo por el debounce de autosave,
+  // reproducido y confirmado en vivo (~2-3 PATCH/seg indefinidamente) antes
+  // de este fix.
+  const handleGridChange = useCallback(
+    (rows: PlanillaGridRow[]) => {
+      if (isReadOnly) return;
+      pendingRowsRef.current = rows;
+      scheduleFlush();
+    },
+    [isReadOnly, scheduleFlush]
+  );
 
   // Autosave al cerrar/navegar fuera con cambios pendientes sin confirmar aún
   // (best-effort — sendBeacon no espera respuesta, pero evita perder el
