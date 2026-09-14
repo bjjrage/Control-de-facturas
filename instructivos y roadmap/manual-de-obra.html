@@ -252,7 +252,7 @@
   <a href="#cert-sub" class="cat-link" data-tier="cat"><span class="toc-num">20</span>Aprobar certificados sub.</a>
   <a href="#stock" class="cat-link" data-tier="cat"><span class="toc-num">21</span>Stock e Inventario</a>
   <a href="#cert-comitente" class="cat-link" data-tier="cat"><span class="toc-num">22</span>Certificados al comitente</a>
-  <a href="#avance-fisico" class="cat-link" data-tier="cat"><span class="toc-num">23</span>Avance físico</a>
+  <a href="#avance-fisico" class="cat-link" data-tier="cat"><span class="toc-num">23</span>Avance + Plan Semanal</a>
 
   <div class="toc-group-label">Para probar</div>
   <a href="#mocks" data-tier="all"><span class="toc-num">24</span>Datos de prueba</a>
@@ -262,7 +262,7 @@
   <div class="hero-eyebrow">Control de Facturas · Módulo Construcción</div>
   <h1 class="page-title">De la excavación<br>al certificado</h1>
   <p class="page-sub">
-    Todo lo que tiene el sistema para gestionar obras: presupuesto, cronograma, avance con fotos, stock, certificados al comitente y avance físico. Paso a paso, sin dar nada por sabido.
+    Todo lo que tiene el sistema para gestionar obras: presupuesto, cronograma, avance con fotos, stock, certificados al comitente, avance físico y Plan Semanal de Obra con materiales, compras, caja y clima opcional. Paso a paso, sin dar nada por sabido.
   </p>
   <div class="tier-legend">
     <span class="tier-chip basico"><span class="tier-dot"></span>Básico — lo que ya tenías</span>
@@ -780,10 +780,51 @@
 
   <!-- 23 AVANCE FISICO -->
   <section class="feature cat" id="avance-fisico" data-tier="cat">
-    <div class="feat-head"><span class="feat-num">23</span><span class="feat-title">Avance físico</span><span class="tier-chip cat"><span class="tier-dot"></span>Caterpillar</span></div>
+    <div class="feat-head"><span class="feat-num">23</span><span class="feat-title">Avance físico + Plan Semanal de Obra</span><span class="tier-chip cat"><span class="tier-dot"></span>Caterpillar</span></div>
     <div class="feat-where">Dónde: detalle del proyecto → tab <code>Avance físico</code></div>
     <div class="feat-body">
-      <p>Dos herramientas en una tab: la <b>Curva S de avance</b> derivada de los certificados congelados, y el <b>Registro de días no trabajados</b> (lluvia, feriados, paros).</p>
+      <p>En esta tab conviven tres herramientas distintas: <b>Plan Semanal / Lookahead</b>, <b>Curva S de avance</b> y <b>Registro de días no trabajados</b>. El Plan Semanal expresa lo que la obra quiere ejecutar; no intenta adivinarlo a partir de un promedio histórico.</p>
+
+      <p style="margin-top:16px;font-weight:600;">Plan Semanal de Obra / Lookahead</p>
+      <p>Primero definís la ventana de trabajo y después cargás metas por partida. Cada meta puede expresarse como <b>cantidad física</b> (m², m³, kg, ml, unidades) o como <b>puntos porcentuales del contrato</b>. También podés separar una misma partida por <b>frente o sector</b>.</p>
+      <ol class="steps">
+        <li>Elegí la semana/período del plan.</li>
+        <li>Agregá los rubros que realmente querés ejecutar y, si corresponde, el frente: por ejemplo <code>Encofrado · Sector A · +15 pp</code> o <code>Mampostería · Sector B · 120 m²</code>.</li>
+        <li>Si usás <b>+pp</b>, el sistema lo convierte inmediatamente a cantidad física contractual. Ejemplo certificado: <b>500 m² + 10 pp = 50 m²</b>.</li>
+        <li>La meta se limita automáticamente al <b>saldo contractual pendiente</b>. Si la misma partida aparece en dos frentes, ambos comparten ese saldo.</li>
+        <li>Guardá el plan. La persistencia es atómica: si un ítem falla, no queda un plan medio borrado o medio guardado.</li>
+      </ol>
+
+      <div class="callout ok"><span class="ic">✓</span><span><b>La intención siempre la define la obra.</b> El historial puede servir como referencia de capacidad, pero nunca bloquea el cálculo de materiales/caja ni inventa qué rubros deberían avanzar.</span></div>
+
+      <p><b>Qué calcula el ERP a partir del plan:</b></p>
+      <table class="mock-table" style="max-width:76ch;">
+        <tr><th>Indicador</th><th>Qué significa</th></tr>
+        <tr><td>Avance actual → objetivo</td><td>Porcentaje global ponderado por valor contractual. No suma m² + m³ + kg entre sí.</td></tr>
+        <tr><td>Materiales para cumplir el plan</td><td>Demanda física obtenida del BOM/APU de cada partida, incluyendo desperdicio configurado.</td></tr>
+        <tr><td>Cubierto por stock</td><td>Parte de la demanda que ya existe físicamente en la obra.</td></tr>
+        <tr><td>Cubierto por OC en tránsito</td><td>Saldo físico real: ordenado menos recibido. Una factura no cuenta como recepción.</td></tr>
+        <tr><td>Faltante a comprar</td><td><code>max(0, demanda − stock − inbound físico)</code>.</td></tr>
+        <tr><td><b>Caja adicional requerida</b></td><td><b>Valor del faltante neto que todavía habría que comprar.</b> No es lo mismo que el valor total de materiales que se consumirán.</td></tr>
+      </table>
+
+      <p><b>BOM y datos faltantes:</b></p>
+      <p>Las partidas se clasifican como <code>REQUIRES_BOM</code>, <code>NO_MATERIAL</code> o <code>UNKNOWN</code>. Si una partida necesita materiales y no tiene receta, el sistema muestra <b>"MATERIALES NO CONFIGURADOS"</b>. Si el tipo es desconocido, pide revisión. Nunca convierte una falta de datos en <b>Gs 0</b> silencioso.</p>
+
+      <p><b>Capacidad histórica:</b></p>
+      <p>Cuando existe historial suficiente de esa actividad, el módulo puede comparar la meta con la capacidad observada (por ejemplo, plan 63 m² vs rango observado 48–55 m²/semana). Es una <b>advertencia consultiva</b>. Si no hay evidencia, muestra <b>"Sin historial suficiente para estimar capacidad"</b>.</p>
+
+      <p><b>Impacto meteorológico — opcional:</b></p>
+      <p>El switch <b>"Considerar clima"</b> agrega una segunda lectura sin tocar el plan base.</p>
+      <ol class="steps">
+        <li><b>OFF:</b> no se llama a Open-Meteo ni al analista operacional. El plan, BOM, stock, OC y caja funcionan igual.</li>
+        <li><b>ON:</b> se consulta Open-Meteo para las <b>fechas exactas del plan</b> y las coordenadas del proyecto.</li>
+        <li>La interfaz muestra por separado <b>Objetivo del plan</b>, <b>capacidad estimada con clima</b> y la <b>brecha</b>. El clima nunca reescribe la meta del usuario.</li>
+        <li>Si el proveedor sólo cubre parte del horizonte, se informa <b>"Cobertura meteorológica parcial: X de Y días"</b>. Los días faltantes no se rellenan con sol, 0 mm ni factor 1.</li>
+        <li>Cada consulta utilizada queda guardada como un <b>batch inmutable</b>; el plan conserva el forecast exacto que vio aunque mañana cambie el pronóstico.</li>
+      </ol>
+
+      <div class="callout warn"><span class="ic">⚠</span><span><b>Materiales del plan ≠ consumo esperado con clima.</b> Si querés ejecutar 63 m² pero el clima sugiere capacidad de 48 m², los materiales para cumplir el plan siguen calculándose sobre 63 m². El consumo esperado de la ventana puede mostrarse aparte sobre 48 m².</span></div>
 
       <p><b>Curva S de avance físico:</b></p>
       <p>Diferente a la Curva S de Informes (que compara presupuesto vs compras). Esta compara:</p>
@@ -804,6 +845,8 @@
       </table>
       <p>Un click en el día cicla entre los tipos (trabajo → LL → NH → HH → O → trabajo). Los días marcados quedan como respaldo formal para solicitar prórrogas de plazo ante el comitente.</p>
       <div class="callout"><span class="ic">📋</span><span>El total de días no trabajados por tipo se imprime en el certificado de avance como parte del acta del período.</span></div>
+
+      <div class="callout ok"><span class="ic">✓</span><span><b>Lectura correcta:</b> Ejecución registra lo que pasó. El Plan Semanal registra lo que la obra quiere hacer. Materiales/caja traducen esa intención a necesidades. El clima evalúa factibilidad. La Curva S muestra la trayectoria acumulada.</span></div>
     </div>
   </section>
 
@@ -832,7 +875,8 @@
         <li>En Stock, creá una categoría y un producto. Registrá una ENTRADA (vinculá a una OC). Luego una SALIDA imputada al proyecto OBR-TEST.</li>
         <li>Volvé al presupuesto del proyecto — debería aparecer el reporte de consumo de materiales.</li>
         <li>En la tab Certificados, creá un certificado N°1, pegá avance y elaboralo. Descargá el PDF.</li>
-        <li>Verificá la tab Avance físico — la curva S debe mostrar el primer punto real.</li>
+        <li>En Avance físico, armá un <b>Plan Semanal</b> con al menos dos rubros/frentes. Verificá materiales, stock, OC en tránsito, faltante y caja adicional; después activá <b>Considerar clima</b> y comprobá que el objetivo base no cambie.</li>
+        <li>Verificá también la Curva S — debe mostrar el primer punto real.</li>
       </ol>
     </div>
   </section>
