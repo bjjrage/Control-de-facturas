@@ -3,11 +3,11 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const migration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/0087_inventory_panol.sql"),
+  resolve(process.cwd(), "supabase/migrations/0080_inventory_panol.sql"),
   "utf8",
 );
 
-describe("0087 inventory migration contract", () => {
+describe("0080 inventory migration contract", () => {
   it("fails closed when legacy cost evidence is unavailable", () => {
     expect(migration).toContain("IF to_regclass('public.cost_observations') IS NULL");
     expect(migration).toContain("LEGACY_COST_EVIDENCE_TABLE_MISSING");
