@@ -50,7 +50,11 @@ export async function createCanonicalReceipt(args: {
     .eq("order_id", args.orderId)
     .eq("empresa_id", profile.empresa_id);
   const validOrderItems = new Map((orderItems ?? []).map((item) => [item.id, item.unit as string]));
-  if (args.items.some((item) => !validOrderItems.has(item.orderItemId) || !Number.isFinite(item.quantity) || item.quantity <= 0)) {
+  const requestedOrderItemIds = args.items.map((item) => item.orderItemId);
+  if (
+    new Set(requestedOrderItemIds).size !== requestedOrderItemIds.length
+    || args.items.some((item) => !validOrderItems.has(item.orderItemId) || !Number.isFinite(item.quantity) || item.quantity <= 0)
+  ) {
     return { error: "Una línea de recepción es inválida para la OC.", id: null };
   }
   const { data: receipt, error } = await supabase
@@ -262,11 +266,23 @@ export async function updateWarehouseSubmissionLine(args: {
   const supabase = await createClient();
   const { data: line } = await supabase
     .from("warehouse_submission_lines")
-    .select("id, submission_id")
+    .select("id, submission_id, inventory_movement_id")
     .eq("id", args.lineId)
     .eq("empresa_id", profile.empresa_id)
     .maybeSingle();
   if (!line) return { error: "Línea de rendición no encontrada." };
+  if (line.inventory_movement_id) {
+    return { error: "La línea ya está vinculada a un movimiento canónico y es inmutable." };
+  }
+  const { data: submission } = await supabase
+    .from("warehouse_submissions")
+    .select("status")
+    .eq("id", line.submission_id)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (submission?.status === "CONFIRMED") {
+    return { error: "Las líneas de una rendición confirmada son inmutables." };
+  }
   const { error } = await supabase
     .from("warehouse_submission_lines")
     .update({
