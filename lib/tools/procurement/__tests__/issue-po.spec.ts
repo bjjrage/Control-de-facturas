@@ -41,103 +41,34 @@ describe("BATCH 3: issue_purchase_order Tool & Domain Service", () => {
     ).not.toThrow();
   });
 
-  it("issuePurchaseOrderDomainService: emite orden en authorized_orders, inserta items y marca draft como ISSUED", async () => {
-    let draftStatus = "DRAFT";
-    let insertedOrder: any = null;
-    let insertedItems: any[] = [];
+  it("issuePurchaseOrderDomainService: emite orden via issue_purchase_order_atomic RPC de forma 100% atomica", async () => {
+    let rpcCalledWith: any = null;
 
     const mockDb = {
-      from: vi.fn((table: string) => {
-        if (table === "purchase_order_drafts") {
-          return {
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn((col: string, val: string) => {
-              return {
-                eq: vi.fn((col2: string, val2: string) => {
-                  return {
-                    single: vi.fn().mockResolvedValue({
-                      data: {
-                        id: validDraftId,
-                        empresa_id: empresaId,
-                        rfq_id: validRfqId,
-                        supplier_id: validSupplierId,
-                        supplier_nombre: "Proveedor Industrial S.A.",
-                        status: draftStatus,
-                        total_price_pyg: 15000000,
-                        currency: "PYG",
-                        project_id: "p0000000-0000-4000-8000-000000000001",
-                      },
-                      error: null,
-                    }),
-                  };
-                }),
-              };
-            }),
-            update: vi.fn((updates: any) => ({
-              eq: vi.fn((col: string, val: string) => ({
-                eq: vi.fn((col2: string, val2: string) => {
-                  draftStatus = updates.status;
-                  return Promise.resolve({ error: null });
-                }),
-              })),
-            })),
-          };
+      rpc: vi.fn((fnName: string, args: any) => {
+        if (fnName === "issue_purchase_order_atomic") {
+          rpcCalledWith = args;
+          return Promise.resolve({
+            data: {
+              orderId: "oc-uuid-001",
+              orderCode: "OC-2026-0042",
+              poDraftId: args.p_po_draft_id,
+              rfqId: validRfqId,
+              providerId: validSupplierId,
+              providerName: "Proveedor Industrial S.A.",
+              totalPrice: 15000000,
+              currency: "PYG",
+              itemsCount: 2,
+              status: "AUTORIZADO",
+            },
+            error: null,
+          });
         }
-
-        if (table === "purchase_order_draft_items") {
-          return {
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            order: vi.fn().mockResolvedValue({
-              data: [
-                {
-                  id: "item-1",
-                  purchase_order_draft_id: validDraftId,
-                  description: "Cemento CPN40 x 50kg",
-                  quantity: 200,
-                  unit: "bolsas",
-                  price_pyg: 75000,
-                },
-              ],
-              error: null,
-            }),
-          };
-        }
-
-        if (table === "authorized_orders") {
-          return {
-            insert: vi.fn((payload: any) => {
-              insertedOrder = { ...payload, id: "oc-uuid-001", code: "OC-2026-0042" };
-              return {
-                select: vi.fn().mockReturnThis(),
-                single: vi.fn().mockResolvedValue({
-                  data: { id: "oc-uuid-001", code: "OC-2026-0042", status: "AUTORIZADO" },
-                  error: null,
-                }),
-              };
-            }),
-            delete: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockResolvedValue({ error: null }),
-          };
-        }
-
-        if (table === "authorized_order_items") {
-          return {
-            insert: vi.fn((items: any[]) => {
-              insertedItems = items;
-              return Promise.resolve({ error: null });
-            }),
-          };
-        }
-
-        if (table === "audit_logs") {
-          return {
-            insert: vi.fn().mockResolvedValue({ error: null }),
-          };
-        }
-
-        return {} as any;
+        return Promise.resolve({ data: null, error: null });
       }),
+      from: vi.fn(() => ({
+        insert: vi.fn().mockResolvedValue({ error: null }),
+      })),
     };
 
     const result = await issuePurchaseOrderDomainService({
@@ -148,38 +79,63 @@ describe("BATCH 3: issue_purchase_order Tool & Domain Service", () => {
       confirmIssuance: true,
     });
 
+    expect(mockDb.rpc).toHaveBeenCalledWith("issue_purchase_order_atomic", {
+      p_empresa_id: empresaId,
+      p_user_id: userId,
+      p_po_draft_id: validDraftId,
+      p_confirm_issuance: true,
+    });
+
     expect(result.orderId).toBe("oc-uuid-001");
     expect(result.orderCode).toBe("OC-2026-0042");
     expect(result.status).toBe("AUTORIZADO");
     expect(result.totalPrice).toBe(15000000);
-    expect(result.providerName).toBe("Proveedor Industrial S.A.");
-    expect(draftStatus).toBe("ISSUED");
-    expect(insertedItems.length).toBe(1);
-    expect(insertedItems[0].product).toBe("Cemento CPN40 x 50kg");
-    expect(insertedItems[0].quantity).toBe(200);
+    expect(result.itemsCount).toBe(2);
   });
 
-  it("issuePurchaseOrderDomainService State Revalidation: no permite reemitir si el draft ya es ISSUED", async () => {
+  it("PO item insert failure -> RPC atomic rollback total en PostgreSQL", async () => {
+    // Si falla la inserción de ítems (ej. constraint check quantity > 0 o error FK),
+    // el RPC de PostgreSQL aborta la transacción completa. El domain service propaga el error.
     const mockDb = {
-      from: vi.fn((table: string) => {
-        if (table === "purchase_order_drafts") {
-          return {
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    id: validDraftId,
-                    empresa_id: empresaId,
-                    status: "ISSUED",
-                  },
-                  error: null,
-                }),
-              }),
-            }),
-          };
+      rpc: vi.fn((fnName: string) => {
+        if (fnName === "issue_purchase_order_atomic") {
+          return Promise.resolve({
+            data: null,
+            error: {
+              message: "new row for relation \"authorized_order_items\" violates check constraint \"authorized_order_items_quantity_check\"",
+              code: "23514",
+            },
+          });
         }
-        return {} as any;
+        return Promise.resolve({ data: null, error: null });
+      }),
+    };
+
+    await expect(
+      issuePurchaseOrderDomainService({
+        db: mockDb as any,
+        empresaId,
+        userId,
+        poDraftId: validDraftId,
+        confirmIssuance: true,
+      })
+    ).rejects.toThrow(/Error en emision atomica de Orden de Compra:.*violates check constraint/);
+  });
+
+  it("PO draft status update failure -> RPC atomic rollback total en PostgreSQL", async () => {
+    // Si el draft no se encuentra en estado DRAFT (o falla la actualización a ISSUED por concurrencia),
+    // el RPC aborta y lanza excepción garantizando 0 filas creadas en authorized_orders o authorized_order_items.
+    const mockDb = {
+      rpc: vi.fn((fnName: string) => {
+        if (fnName === "issue_purchase_order_atomic") {
+          return Promise.resolve({
+            data: null,
+            error: {
+              message: "La Orden de Compra ya fue emitida previamente para este borrador (id=" + validDraftId + ")",
+            },
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
       }),
     };
 
@@ -194,23 +150,18 @@ describe("BATCH 3: issue_purchase_order Tool & Domain Service", () => {
     ).rejects.toThrow("ya fue emitida previamente");
   });
 
-  it("issuePurchaseOrderDomainService: rechaza si el borrador pertenece a otro tenant", async () => {
+  it("Tenant isolation failure -> RPC atomic rollback", async () => {
     const mockDb = {
-      from: vi.fn((table: string) => {
-        if (table === "purchase_order_drafts") {
-          return {
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({
-                  data: null,
-                  error: { message: "No rows found" },
-                }),
-              }),
-            }),
-          };
+      rpc: vi.fn((fnName: string) => {
+        if (fnName === "issue_purchase_order_atomic") {
+          return Promise.resolve({
+            data: null,
+            error: {
+              message: "Borrador de Orden de Compra no encontrado o no pertenece a tu empresa (id=" + validDraftId + ")",
+            },
+          });
         }
-        return {} as any;
+        return Promise.resolve({ data: null, error: null });
       }),
     };
 

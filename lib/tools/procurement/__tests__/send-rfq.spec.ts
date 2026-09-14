@@ -170,4 +170,60 @@ describe("BATCH 3: send_rfq Tool & Domain Service", () => {
       })
     ).rejects.toThrow(/orden de compra autorizada/);
   });
+
+  it("RFQ action: output coincide exactamente con el side-effect real y no simula despacho externo", async () => {
+    let insertedRows: any[] = [];
+    const mockDb = {
+      from: vi.fn((table: string) => {
+        if (table === "rfqs") {
+          return {
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: {
+                id: "rfq-test-semantics",
+                code: "RFQ-2026-9999",
+                status: "BORRADOR",
+                empresa_id: "empresa-1",
+              },
+              error: null,
+            }),
+            update: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnThis(),
+            }),
+          };
+        }
+        if (table === "rfq_providers") {
+          return {
+            upsert: vi.fn((rows: any[]) => {
+              insertedRows = rows;
+              return { error: null };
+            }),
+          };
+        }
+        return {
+          insert: vi.fn().mockResolvedValue({ error: null }),
+        };
+      }),
+      rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+    } as unknown as SupabaseClient;
+
+    const result = await sendRfqDomainService({
+      db: mockDb,
+      empresaId: "empresa-1",
+      userId: "user-1",
+      rfqId: "rfq-test-semantics",
+      providerIds: ["prov-alpha", "prov-beta"],
+    });
+
+    // Validar semántica exacta
+    expect(result.status).toBe("COTIZANDO");
+    expect(result.providersInvitedCount).toBe(2);
+    expect(result.providerIds).toEqual(["prov-alpha", "prov-beta"]);
+    // Invariante: jamás afirmar que hubo despacho automático por email/whatsapp
+    expect(result.externalDispatchPerformed).toBe(false);
+    expect(result.message).toContain("No se realiza envío automático de email/WhatsApp");
+    expect(insertedRows.length).toBe(2);
+    expect(insertedRows.map((r) => r.status)).toEqual(["PENDIENTE", "PENDIENTE"]);
+  });
 });

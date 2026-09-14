@@ -98,9 +98,9 @@ export async function decideApproval(params: {
   approvalId: string;
   empresaId: string; // scoping: solo puede decidir dentro de su tenant
   decidedBy: string;
-  decision: "APPROVED" | "REJECTED" | "CANCELLED";
+  decision: "APPROVED" | "REJECTED" | "CANCELLED" | "EXPIRED";
 }): Promise<AgentApprovalRow> {
-  if (!["APPROVED", "REJECTED", "CANCELLED"].includes(params.decision)) {
+  if (!["APPROVED", "REJECTED", "CANCELLED", "EXPIRED"].includes(params.decision)) {
     throw new Error(`decision invalida: ${params.decision}`);
   }
   // Cargar y validar tenant + estado
@@ -122,6 +122,23 @@ export async function decideApproval(params: {
     .single();
   if (error || !data) throw new Error(`decideApproval fallo: ${error?.message ?? "sin data"}`);
   return data as AgentApprovalRow;
+}
+
+/**
+ * Transiciona una approval a EXPIRED (por timeout o scheduler de expiración).
+ */
+export async function expireApproval(params: {
+  db: SupabaseClient;
+  approvalId: string;
+  empresaId: string;
+}): Promise<AgentApprovalRow> {
+  return decideApproval({
+    db: params.db,
+    approvalId: params.approvalId,
+    empresaId: params.empresaId,
+    decidedBy: "system:timeout",
+    decision: "EXPIRED",
+  });
 }
 
 /**

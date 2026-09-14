@@ -39,7 +39,7 @@ async function handler(
 registerTool<SendRfqInput, SendRfqOutput>({
   name: "send_rfq",
   description:
-    "Envía y formaliza una Solicitud de Cotización (RFQ) a uno o más proveedores. Transiciona el estado a COTIZANDO y genera invitaciones. Requiere aprobación humana (Risk 2: acción externa). Usar cuando el usuario confirme explícitamente 'Enviála' o 'Mandá la cotización'.",
+    "Formaliza y publica una Solicitud de Cotización (RFQ) hacia proveedores: transiciona el estado de BORRADOR a COTIZANDO y genera invitaciones con tokens únicos en rfq_providers para el portal de cotizaciones (/cotizar/[token]). Requiere aprobación humana (Risk 2: acción externa/publicación a proveedores). Nota: genera los accesos e invitaciones en el sistema sin disparar emails o mensajes de WhatsApp automáticos.",
   inputSchema: SendRfqInputSchema,
   riskLevel: 2,
   requiredRoles: ["comercial", "admin"],

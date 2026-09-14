@@ -12,6 +12,7 @@ import {
 import {
   createApproval,
   decideApproval,
+  expireApproval,
   claimApprovalForExecution,
   markApprovalExecuted,
   hashPayload,
@@ -386,5 +387,53 @@ describe("BATCH 3: Approval Execution, Concurrency & Security Gateways", () => {
         payloadToExecute: payload,
       })
     ).rejects.toThrow(TenantError);
+  });
+
+  it("7. EXPIRED Lifecycle & Guard: un approval expirado persiste estado EXPIRED y jamas puede ejecutarse", async () => {
+    const db = createMockDb();
+    const payload = { destination: "Prov-A", amount: 500 };
+
+    // Crear approval en REQUESTED
+    const created = await createApproval({
+      db,
+      empresaId: "empresa-1",
+      taskId: "task-exp-1",
+      runId: "run-exp-1",
+      toolName: "test_send_action",
+      payload,
+      riskLevel: 2,
+      requestedBy: "user-admin",
+    });
+
+    expect(created.status).toBe("REQUESTED");
+
+    // Transicionar a EXPIRED
+    const expired = await expireApproval({
+      db,
+      approvalId: created.id,
+      empresaId: "empresa-1",
+    });
+
+    expect(expired.status).toBe("EXPIRED");
+    expect(mockApprovalStore.get(created.id).status).toBe("EXPIRED");
+
+    // Intentar reclamar para ejecución mediante claimApprovalForExecution -> debe fallar
+    await expect(
+      claimApprovalForExecution({
+        db,
+        approvalId: created.id,
+        empresaId: "empresa-1",
+      })
+    ).rejects.toThrow(/status actual es "EXPIRED" \(requiere APPROVED\)/);
+
+    // Intentar ejecutar mediante executeApprovedTool -> debe fallar
+    await expect(
+      executeApprovedTool({
+        db,
+        actor: actorAdmin,
+        approvalId: created.id,
+        payloadToExecute: payload,
+      })
+    ).rejects.toThrow(/no esta en estado valido para ejecucion \(no esta APPROVED, actual: EXPIRED\)/);
   });
 });

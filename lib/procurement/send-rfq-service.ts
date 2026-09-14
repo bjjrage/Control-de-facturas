@@ -17,9 +17,11 @@ export interface SendRfqParams {
 export interface SendRfqResult {
   rfqId: string;
   code: string;
-  status: string;
+  status: "COTIZANDO";
   providersInvitedCount: number;
   providerIds: string[];
+  externalDispatchPerformed: false;
+  message: string;
 }
 
 export async function sendRfqDomainService(params: SendRfqParams): Promise<SendRfqResult> {
@@ -105,5 +107,7 @@ export async function sendRfqDomainService(params: SendRfqParams): Promise<SendR
     status: "COTIZANDO",
     providersInvitedCount: providerIds.length,
     providerIds,
+    externalDispatchPerformed: false,
+    message: `RFQ ${rfq.code} transicionada a COTIZANDO e invitaciones creadas para ${providerIds.length} proveedor(es). No se realiza envío automático de email/WhatsApp (despacho manual por link o portal /cotizar/[token]).`,
   };
 }
