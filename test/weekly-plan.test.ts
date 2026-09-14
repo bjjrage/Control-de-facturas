@@ -441,5 +441,97 @@ describe("Plan Semanal de Obra / Lookahead Operacional - Comprehensive Suite", (
     expect(blocked.weather_adjusted_capacity!).toBeLessThan(blocked.target_quantity);
     expect(partial.weather_adjusted_capacity!).toBeLessThan(partial.target_quantity);
   });
+
+  it("11. Weather date alignment: forecasts strictly match plan range [start_date, end_date]", () => {
+    // Range 2026-09-14 to 2026-09-20 (7 days)
+    const startDate = "2026-09-14";
+    const endDate = "2026-09-20";
+
+    const alignedForecasts: DailyWeatherForecast[] = [
+      { date: "2026-09-14", precipitation_sum_mm: 0, precipitation_hours: 0, wind_gusts_max_kmh: 15, weather_code: 0 },
+      { date: "2026-09-15", precipitation_sum_mm: 5, precipitation_hours: 2, wind_gusts_max_kmh: 20, weather_code: 61 },
+      { date: "2026-09-16", precipitation_sum_mm: 0, precipitation_hours: 0, wind_gusts_max_kmh: 12, weather_code: 1 },
+      { date: "2026-09-17", precipitation_sum_mm: 20, precipitation_hours: 6, wind_gusts_max_kmh: 40, weather_code: 63 },
+      { date: "2026-09-18", precipitation_sum_mm: 0, precipitation_hours: 0, wind_gusts_max_kmh: 10, weather_code: 0 },
+      { date: "2026-09-19", precipitation_sum_mm: 0, precipitation_hours: 0, wind_gusts_max_kmh: 14, weather_code: 0 },
+      { date: "2026-09-20", precipitation_sum_mm: 2, precipitation_hours: 1, wind_gusts_max_kmh: 18, weather_code: 51 },
+    ];
+
+    // Invariant checks on alignment
+    expect(alignedForecasts[0].date).toBe(startDate);
+    expect(alignedForecasts[alignedForecasts.length - 1].date).toBe(endDate);
+    expect(alignedForecasts.every((f) => f.date >= startDate && f.date <= endDate)).toBe(true);
+
+    const input: WeeklyPlanEngineInput = {
+      project_id: "proj-1",
+      start_date: startDate,
+      end_date: endDate,
+      budget_items: [sampleItems[0]],
+      executed_quantities_by_item: {},
+      targets: [{ budget_item_id: "item-1", input_mode: "QUANTITY", input_value: 20 }],
+      materials_by_item: {},
+      stock_and_inbound: {},
+      weather_overlay_enabled: true,
+      weather_forecasts: alignedForecasts,
+      weather_plan_days_count: 7,
+      weather_covered_days_count: 7,
+      weather_coverage_is_partial: false,
+    };
+
+    const res = calculateWeeklyPlanRequirements(input);
+    expect(res.weather_plan_days_count).toBe(7);
+    expect(res.weather_covered_days_count).toBe(7);
+    expect(res.weather_coverage_is_partial).toBe(false);
+    expect(res.weather_days_affected_count).toBe(2); // 15/09 (5mm) and 17/09 (20mm)
+    expect(res.weather_summary).toContain("Pronóstico LIVE (7 días) evaluado con 2 días afectados");
+  });
+
+  it("12. Partial coverage: plan horizon exceeding provider is flagged without fabricating data", () => {
+    // Plan has 21 days (e.g. 3-week lookahead), but provider only covers first 16 days
+    const startDate = "2026-09-14";
+    const endDate = "2026-10-04"; // 21 days
+
+    // Only 16 days available from provider
+    const partialForecasts: DailyWeatherForecast[] = Array.from({ length: 16 }, (_, i) => {
+      const d = new Date(new Date(startDate).getTime() + i * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+      return {
+        date: d,
+        precipitation_sum_mm: i === 3 ? 15 : 0,
+        precipitation_hours: i === 3 ? 4 : 0,
+        wind_gusts_max_kmh: 15,
+        weather_code: i === 3 ? 61 : 0,
+      };
+    });
+
+    const input: WeeklyPlanEngineInput = {
+      project_id: "proj-1",
+      start_date: startDate,
+      end_date: endDate,
+      budget_items: [sampleItems[0]],
+      executed_quantities_by_item: {},
+      targets: [{ budget_item_id: "item-1", input_mode: "QUANTITY", input_value: 20 }],
+      materials_by_item: {},
+      stock_and_inbound: {},
+      weather_overlay_enabled: true,
+      weather_forecasts: partialForecasts,
+      weather_plan_days_count: 21,
+      weather_covered_days_count: 16,
+      weather_coverage_is_partial: true,
+    };
+
+    const res = calculateWeeklyPlanRequirements(input);
+    expect(res.weather_plan_days_count).toBe(21);
+    expect(res.weather_covered_days_count).toBe(16);
+    expect(res.weather_coverage_is_partial).toBe(true);
+    expect(res.weather_forecasts_count).toBe(16);
+    // Explicit partial summary without fabricating missing days with 0mm
+    expect(res.weather_summary).toBe(
+      "Cobertura meteorológica parcial: 16 de 21 días analizados (1 días afectados)."
+    );
+    // Base plan targets remain 100% intact
+    expect(res.items[0].target_quantity).toBe(20);
+  });
 });
 

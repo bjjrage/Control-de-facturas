@@ -1330,6 +1330,9 @@ export interface WeeklyPlanCalculationSummary {
   weather_provider?: string;
   weather_forecasts_count?: number;
   weather_days_affected_count?: number;
+  weather_plan_days_count?: number;
+  weather_covered_days_count?: number;
+  weather_coverage_is_partial?: boolean;
   weather_adjusted_material_consumption_value?: number | null;
   weather_adjusted_additional_cash_required?: number | null;
   weather_summary?: string | null;

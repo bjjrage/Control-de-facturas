@@ -321,13 +321,17 @@ export async function getWeeklyPlanDetailsAction(
     let weatherSnapshotId: string | null = null;
     let weatherFailedClosed = false;
     let operationalAssessments: Record<string, any> = {};
+    let weatherRangeResult: { forecasts: DailyWeatherForecast[]; partialCoverage: boolean; requestedDays: number; coveredDays: number } | null = null;
 
     if (weatherOverlay) {
       const lat = project.latitude ? Number(project.latitude) : -25.455;
       const lon = project.longitude ? Number(project.longitude) : -57.534;
 
       try {
-        weatherForecasts = await fetchWeatherForecast(lat, lon, 7);
+        const { fetchWeatherForecastRange } = await import("@/lib/procurement/weather-client");
+        weatherRangeResult = await fetchWeatherForecastRange(lat, lon, startDate, endDate);
+        weatherForecasts = weatherRangeResult.forecasts;
+        
         if (weatherForecasts.length > 0) {
           // 1. Create a dedicated immutable weather batch for this forecast run
           const { data: batchData, error: batchErr } = await supabase
@@ -349,7 +353,7 @@ export async function getWeeklyPlanDetailsAction(
           } else {
             weatherSnapshotId = batchData.id;
 
-            // 2. Insert all 7 days of snapshot linked to this batch (no destructive upsert across runs)
+            // 2. Insert snapshot rows linked to this batch (strict batch immutability)
             const snapshotRows = weatherForecasts.map((wf) => ({
               batch_id: batchData.id,
               empresa_id: empresaId,
@@ -424,6 +428,9 @@ export async function getWeeklyPlanDetailsAction(
       weather_snapshot_id: weatherSnapshotId,
       weather_provider: "open-meteo",
       weather_failed_closed: weatherFailedClosed,
+      weather_plan_days_count: weatherRangeResult ? weatherRangeResult.requestedDays : undefined,
+      weather_covered_days_count: weatherRangeResult ? weatherRangeResult.coveredDays : undefined,
+      weather_coverage_is_partial: weatherRangeResult ? weatherRangeResult.partialCoverage : undefined,
     });
 
     return {

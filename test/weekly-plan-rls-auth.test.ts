@@ -199,4 +199,87 @@ describe("Weekly Plan - Multi-tenant RLS & Security Invoker RPC Verification", (
     expect(sErr).toBeNull();
     expect(snapsB.length).toBe(0);
   });
+
+  it("8. Snapshot Immutability (Append-Only): UPDATE on snapshots is DENIED for authenticated user", async () => {
+    // Attempt to update precipitation_sum_mm on any snapshot of User A's project
+    const { data: snap } = await clientUserA
+      .from("project_weather_forecast_snapshots")
+      .select("id, precipitation_sum_mm")
+      .limit(1)
+      .maybeSingle();
+
+    if (snap) {
+      const { data: updateRes, error: updateErr } = await clientUserA
+        .from("project_weather_forecast_snapshots")
+        .update({ precipitation_sum_mm: 999 })
+        .eq("id", snap.id)
+        .select();
+
+      // Since there is NO UPDATE policy for authenticated users, RLS fail-closed blocks the update (returns 0 updated rows or error)
+      expect(updateRes === null || updateRes.length === 0).toBe(true);
+
+      // Verify value was NOT changed
+      const { data: verifySnap } = await clientUserA
+        .from("project_weather_forecast_snapshots")
+        .select("precipitation_sum_mm")
+        .eq("id", snap.id)
+        .single();
+      expect(verifySnap.precipitation_sum_mm).toBe(snap.precipitation_sum_mm);
+    }
+  });
+
+  it("9. Snapshot Immutability (Append-Only): DELETE on snapshots is DENIED for authenticated user", async () => {
+    const { data: snap } = await clientUserA
+      .from("project_weather_forecast_snapshots")
+      .select("id")
+      .limit(1)
+      .maybeSingle();
+
+    if (snap) {
+      const { data: delRes, error: delErr } = await clientUserA
+        .from("project_weather_forecast_snapshots")
+        .delete()
+        .eq("id", snap.id)
+        .select();
+
+      // No DELETE policy exists for authenticated users -> 0 deleted rows
+      expect(delRes === null || delRes.length === 0).toBe(true);
+
+      // Verify snapshot still exists
+      const { data: verifySnap } = await clientUserA
+        .from("project_weather_forecast_snapshots")
+        .select("id")
+        .eq("id", snap.id)
+        .single();
+      expect(verifySnap).not.toBeNull();
+    }
+  });
+
+  it("10. FK Integrity (ON DELETE RESTRICT): Attempting to delete a weather batch linked to an active plan is BLOCKED", async () => {
+    // Find a plan that has a linked weather_snapshot_batch_id
+    const { data: planWithBatch } = await clientUserA
+      .from("project_weekly_plans")
+      .select("id, weather_snapshot_batch_id")
+      .not("weather_snapshot_batch_id", "is", null)
+      .limit(1)
+      .maybeSingle();
+
+    if (planWithBatch && planWithBatch.weather_snapshot_batch_id) {
+      const { error: delErr } = await clientUserA
+        .from("project_weather_forecast_batches")
+        .delete()
+        .eq("id", planWithBatch.weather_snapshot_batch_id);
+
+      // Blocked by RLS (no delete policy) or by foreign key ON DELETE RESTRICT
+      // In either case, the batch cannot be deleted
+      const { data: batchStillExists } = await clientUserA
+        .from("project_weather_forecast_batches")
+        .select("id")
+        .eq("id", planWithBatch.weather_snapshot_batch_id)
+        .single();
+
+      expect(batchStillExists).not.toBeNull();
+      expect(batchStillExists.id).toBe(planWithBatch.weather_snapshot_batch_id);
+    }
+  });
 });

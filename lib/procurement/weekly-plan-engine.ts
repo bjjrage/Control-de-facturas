@@ -42,6 +42,9 @@ export interface WeeklyPlanEngineInput {
   weather_snapshot_id?: string | null;
   weather_provider?: string;
   weather_failed_closed?: boolean;
+  weather_plan_days_count?: number;
+  weather_covered_days_count?: number;
+  weather_coverage_is_partial?: boolean;
 }
 
 /**
@@ -431,13 +434,18 @@ export function calculateWeeklyPlanRequirements(
     weather_provider,
     weather_forecasts_count: weather_forecasts.length,
     weather_days_affected_count: weatherDaysAffectedCount,
+    weather_plan_days_count: input.weather_plan_days_count ?? planDays,
+    weather_covered_days_count: input.weather_covered_days_count ?? weather_forecasts.length,
+    weather_coverage_is_partial: input.weather_coverage_is_partial ?? (weather_overlay_enabled && weather_forecasts.length < planDays),
     weather_adjusted_material_consumption_value: weather_overlay_enabled
       ? Math.round(weatherAdjustedMaterialConsumptionValue)
       : null,
     weather_summary: weather_overlay_enabled
       ? weather_failed_closed
         ? "Pronóstico climático no disponible (fail-closed)."
-        : `Pronóstico LIVE (${weather_forecasts.length} días) evaluado con ${weatherDaysAffectedCount} días afectados.`
+        : input.weather_coverage_is_partial || (weather_forecasts.length < planDays)
+          ? `Cobertura meteorológica parcial: ${weather_forecasts.length} de ${planDays} días analizados (${weatherDaysAffectedCount} días afectados).`
+          : `Pronóstico LIVE (${weather_forecasts.length} días) evaluado con ${weatherDaysAffectedCount} días afectados.`
       : null,
     weather_failed_closed,
   };
