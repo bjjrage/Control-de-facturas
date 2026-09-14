@@ -286,52 +286,73 @@ async function runE2E() {
   // 4. Save Plan Atomi-test on OBR-MOCK-001 with weather linkage
   console.log("\n--- Testing Atomic Save RPC on OBR-MOCK-001 with Weather Linkage ---");
 
-  const saveResult = await querySql(`
-    DO $$
-    DECLARE
-      v_user_id UUID;
-    BEGIN
-      SELECT id INTO v_user_id FROM public.profiles WHERE empresa_id = '${project.empresa_id || "c040ee03-2302-49d2-8082-b2a4ae5b62af"}' LIMIT 1;
-      PERFORM set_config('request.jwt.claim.sub', v_user_id::text, true);
+  let testPlanId: string | null = null;
+  try {
+    const saveResult = await querySql(`
+      DO $$
+      DECLARE
+        v_user_id UUID;
+        v_res JSONB;
+      BEGIN
+        SELECT id INTO v_user_id FROM public.profiles WHERE empresa_id = '${project.empresa_id || "c040ee03-2302-49d2-8082-b2a4ae5b62af"}' LIMIT 1;
+        PERFORM set_config('request.jwt.claim.sub', v_user_id::text, true);
 
-      PERFORM public.save_weekly_plan_atomic(
-        NULL,
-        '${project.id}'::UUID,
-        '2026-09-14'::DATE,
-        '2026-09-20'::DATE,
-        'DRAFT',
-        'Plan semanal validado E2E Ypané con Weather Linkage',
-        '${JSON.stringify([
-          { budget_item_id: budgetItems[0].id, front_label: "Frente Norte", input_mode: "QUANTITY", input_value: 40, unit: "m2" },
-          { budget_item_id: budgetItems[0].id, front_label: "Frente Sur", input_mode: "QUANTITY", input_value: 30, unit: "m2" },
-          { budget_item_id: budgetItems[1].id, front_label: "Sector A", input_mode: "CONTRACT_PERCENTAGE_POINTS", input_value: 10, unit: "m2" },
-          { budget_item_id: budgetItems[2].id, front_label: "Planta Alta", input_mode: "QUANTITY", input_value: 15, unit: "m3" }
-        ])}'::JSONB,
-        '${batchId}'::UUID
-      );
-    END;
-    $$;
-  `);
-  console.log("RPC Save Result (Linkage & Atomic): OK");
+        SELECT public.save_weekly_plan_atomic(
+          NULL,
+          '${project.id}'::UUID,
+          '2026-09-14'::DATE,
+          '2026-09-20'::DATE,
+          'DRAFT',
+          'Plan semanal validado E2E Ypané con Weather Linkage',
+          '${JSON.stringify([
+            { budget_item_id: budgetItems[0].id, front_label: "Frente Norte", input_mode: "QUANTITY", input_value: 40, unit: "m2" },
+            { budget_item_id: budgetItems[0].id, front_label: "Frente Sur", input_mode: "QUANTITY", input_value: 30, unit: "m2" },
+            { budget_item_id: budgetItems[1].id, front_label: "Sector A", input_mode: "CONTRACT_PERCENTAGE_POINTS", input_value: 10, unit: "m2" },
+            { budget_item_id: budgetItems[2].id, front_label: "Planta Alta", input_mode: "QUANTITY", input_value: 15, unit: "m3" }
+          ])}'::JSONB,
+          '${batchId}'::UUID
+        ) INTO v_res;
+      END;
+      $$;
+    `);
+    console.log("RPC Save Result (Linkage & Atomic): OK");
 
-  // Read back and verify target_quantity conversion & weather linkage in DB
-  const verifyDb = await querySql(`
-    SELECT
-      pl.id as plan_id,
-      pl.weather_snapshot_batch_id,
-      b.code as item_code,
-      pi.front_label,
-      pi.input_mode,
-      pi.input_value::numeric as input_value,
-      pi.target_quantity::numeric as target_quantity,
-      b.quantity as contractual_quantity
-    FROM public.project_weekly_plans pl
-    JOIN public.project_weekly_plan_items pi ON pi.plan_id = pl.id
-    JOIN public.budget_items b ON b.id = pi.budget_item_id
-    WHERE pl.project_id = '${project.id}'
-    ORDER BY b.code, pi.front_label;
-  `);
-  console.log("\nVerified DB Plan Items & Linkage:", verifyDb);
+    // Read back and verify target_quantity conversion & weather linkage in DB
+    const verifyDb = await querySql(`
+      SELECT
+        pl.id as plan_id,
+        pl.weather_snapshot_batch_id,
+        b.code as item_code,
+        pi.front_label,
+        pi.input_mode,
+        pi.input_value::numeric as input_value,
+        pi.target_quantity::numeric as target_quantity,
+        b.quantity as contractual_quantity
+      FROM public.project_weekly_plans pl
+      JOIN public.project_weekly_plan_items pi ON pi.plan_id = pl.id
+      JOIN public.budget_items b ON b.id = pi.budget_item_id
+      WHERE pl.project_id = '${project.id}' AND pl.notes = 'Plan semanal validado E2E Ypané con Weather Linkage'
+      ORDER BY b.code, pi.front_label;
+    `);
+    console.log("\nVerified DB Plan Items & Linkage:", verifyDb);
+    if (verifyDb.length > 0) {
+      testPlanId = verifyDb[0].plan_id;
+    }
+  } finally {
+    // Teardown: Remove the test plan and its batch so only canonical COMMITTED plan remains
+    if (testPlanId) {
+      await querySql(`
+        DELETE FROM public.project_weekly_plan_items WHERE plan_id = '${testPlanId}';
+        DELETE FROM public.project_weekly_plans WHERE id = '${testPlanId}';
+      `);
+    }
+    // Clean weather batch created for this E2E run
+    await querySql(`
+      DELETE FROM public.project_weather_forecast_snapshots WHERE batch_id = '${batchId}';
+      DELETE FROM public.project_weather_forecast_batches WHERE id = '${batchId}';
+    `);
+    console.log("Cleaned up E2E test plan & weather batch fixtures.");
+  }
 
   console.log("\n=================================================");
   console.log("E2E VALIDATION FINISHED WITH 100% SUCCESS!");

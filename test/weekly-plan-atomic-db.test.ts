@@ -348,4 +348,50 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
     // Cleanup
     await querySql(`DELETE FROM public.projects WHERE code = 'PRJ-WTR-IMM';`);
   }, 30000);
+
+  it("7. TABLE PRIVILEGES & TRUNCATE DENIAL: database strictly enforces append-only grants", async () => {
+    // 1. Check anon table privileges: must be 0
+    const anonPrivs = await querySql(`
+      SELECT privilege_type, table_name
+      FROM information_schema.table_privileges
+      WHERE table_name IN ('project_weather_forecast_batches', 'project_weather_forecast_snapshots')
+        AND grantee = 'anon';
+    `);
+    expect(anonPrivs.length).toBe(0);
+
+    // 2. Check authenticated privileges: only SELECT and INSERT
+    const authPrivs = await querySql(`
+      SELECT privilege_type, table_name
+      FROM information_schema.table_privileges
+      WHERE table_name IN ('project_weather_forecast_batches', 'project_weather_forecast_snapshots')
+        AND grantee = 'authenticated';
+    `);
+    const authPrivTypes = authPrivs.map((p: any) => p.privilege_type).sort();
+    expect(authPrivTypes.includes("SELECT")).toBe(true);
+    expect(authPrivTypes.includes("INSERT")).toBe(true);
+    expect(authPrivTypes.includes("UPDATE")).toBe(false);
+    expect(authPrivTypes.includes("DELETE")).toBe(false);
+    expect(authPrivTypes.includes("TRUNCATE")).toBe(false);
+
+    // 3. Check TRUNCATE privilege denial via has_table_privilege
+    const truncateCheck = await querySql(`
+      SELECT
+        has_table_privilege('anon', 'public.project_weather_forecast_batches', 'TRUNCATE') as anon_batches_truncate,
+        has_table_privilege('anon', 'public.project_weather_forecast_snapshots', 'TRUNCATE') as anon_snapshots_truncate,
+        has_table_privilege('authenticated', 'public.project_weather_forecast_batches', 'TRUNCATE') as auth_batches_truncate,
+        has_table_privilege('authenticated', 'public.project_weather_forecast_snapshots', 'TRUNCATE') as auth_snapshots_truncate,
+        has_table_privilege('authenticated', 'public.project_weather_forecast_batches', 'UPDATE') as auth_batches_update,
+        has_table_privilege('authenticated', 'public.project_weather_forecast_batches', 'DELETE') as auth_batches_delete,
+        has_table_privilege('service_role', 'public.project_weather_forecast_batches', 'TRUNCATE') as service_truncate;
+    `);
+    expect(truncateCheck.length).toBe(1);
+    const tc = truncateCheck[0];
+    expect(tc.anon_batches_truncate).toBe(false);
+    expect(tc.anon_snapshots_truncate).toBe(false);
+    expect(tc.auth_batches_truncate).toBe(false);
+    expect(tc.auth_snapshots_truncate).toBe(false);
+    expect(tc.auth_batches_update).toBe(false);
+    expect(tc.auth_batches_delete).toBe(false);
+    expect(tc.service_truncate).toBe(true);
+  });
 });
