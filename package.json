@@ -15,6 +15,7 @@
     "e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@handsontable/react-wrapper": "^18.1.0",
     "@react-pdf/renderer": "^4.9.0",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.3",
@@ -23,6 +24,8 @@
     "date-fns": "^4.4.0",
     "dotenv": "^17.4.2",
     "frappe-gantt": "^1.2.2",
+    "handsontable": "^18.1.0",
+    "hyperformula": "^3.4.0",
     "lucide-react": "^1.31.0",
     "next": "16.3.1",
     "pdf-parse": "^2.4.5",
