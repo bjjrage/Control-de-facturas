@@ -222,4 +222,130 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
     // Cleanup
     await querySql(`DELETE FROM public.projects WHERE code = 'PRJ-PCT-01';`);
   }, 30000);
+
+  it("6. HISTORICAL WEATHER IMMUTABILITY PROOF: Batch A (10mm) and Batch B (30mm) remain distinct and unmodified", async () => {
+    await querySql(`DELETE FROM public.projects WHERE code = 'PRJ-WTR-IMM';`);
+
+    const setupSql = `
+      DO $$
+      DECLARE
+        v_user_id UUID;
+        v_empresa_id UUID;
+        v_proj_id UUID;
+        v_item UUID;
+        v_batch_a UUID;
+        v_batch_b UUID;
+        v_plan_a UUID;
+        v_plan_b UUID;
+      BEGIN
+        SELECT id, empresa_id INTO v_user_id, v_empresa_id FROM public.profiles LIMIT 1;
+        PERFORM set_config('request.jwt.claim.sub', v_user_id::text, true);
+
+        INSERT INTO public.projects (empresa_id, name, code, start_date, budget_total)
+        VALUES (v_empresa_id, 'TEST-WEATHER-IMMUTABILITY', 'PRJ-WTR-IMM', '2026-09-01', 10000000)
+        RETURNING id INTO v_proj_id;
+
+        INSERT INTO public.budget_items (project_id, code, description, quantity, unit_price)
+        VALUES (v_proj_id, '01', 'Item Base', 100, 1000)
+        RETURNING id INTO v_item;
+
+        -- 1. Create BATCH A (Forecast date 2026-09-15 with 10 mm)
+        INSERT INTO public.project_weather_forecast_batches (empresa_id, project_id, source, fetched_at)
+        VALUES (v_empresa_id, v_proj_id, 'open-meteo', '2026-09-14 08:00:00+00')
+        RETURNING id INTO v_batch_a;
+
+        INSERT INTO public.project_weather_forecast_snapshots (
+          batch_id, empresa_id, project_id, forecast_date, precipitation_sum_mm, wind_gusts_max_kmh, weather_code
+        ) VALUES (
+          v_batch_a, v_empresa_id, v_proj_id, '2026-09-15'::DATE, 10.00, 20.00, 61
+        );
+
+        -- Save Plan A linked to Batch A
+        PERFORM public.save_weekly_plan_atomic(
+          NULL,
+          v_proj_id,
+          '2026-09-14'::DATE,
+          '2026-09-20'::DATE,
+          'DRAFT',
+          'Plan Run A',
+          jsonb_build_array(
+            jsonb_build_object('budget_item_id', v_item, 'front_label', 'F1', 'input_mode', 'QUANTITY', 'input_value', 10, 'unit', 'u')
+          ),
+          v_batch_a
+        );
+
+        -- 2. Create BATCH B (Same date 2026-09-15 with 30 mm)
+        INSERT INTO public.project_weather_forecast_batches (empresa_id, project_id, source, fetched_at)
+        VALUES (v_empresa_id, v_proj_id, 'open-meteo', '2026-09-15 08:00:00+00')
+        RETURNING id INTO v_batch_b;
+
+        INSERT INTO public.project_weather_forecast_snapshots (
+          batch_id, empresa_id, project_id, forecast_date, precipitation_sum_mm, wind_gusts_max_kmh, weather_code
+        ) VALUES (
+          v_batch_b, v_empresa_id, v_proj_id, '2026-09-15'::DATE, 30.00, 45.00, 65
+        );
+
+        -- Save Plan B linked to Batch B
+        PERFORM public.save_weekly_plan_atomic(
+          NULL,
+          v_proj_id,
+          '2026-09-15'::DATE,
+          '2026-09-21'::DATE,
+          'DRAFT',
+          'Plan Run B',
+          jsonb_build_array(
+            jsonb_build_object('budget_item_id', v_item, 'front_label', 'F1', 'input_mode', 'QUANTITY', 'input_value', 10, 'unit', 'u')
+          ),
+          v_batch_b
+        );
+      END;
+      $$;
+    `;
+    await querySql(setupSql);
+
+    // Verify snapshots: Both batches must exist independently with their exact precipitation values
+    const snapshots = await querySql(`
+      SELECT
+        b.id as batch_id,
+        b.source,
+        s.forecast_date,
+        s.precipitation_sum_mm::numeric as precipitation_mm
+      FROM public.project_weather_forecast_batches b
+      JOIN public.project_weather_forecast_snapshots s ON s.batch_id = b.id
+      JOIN public.projects p ON p.id = b.project_id
+      WHERE p.code = 'PRJ-WTR-IMM'
+      ORDER BY s.precipitation_sum_mm ASC;
+    `);
+
+    expect(snapshots.length).toBe(2);
+    expect(Number(snapshots[0].precipitation_mm)).toBe(10);
+    expect(Number(snapshots[1].precipitation_mm)).toBe(30);
+    expect(snapshots[0].batch_id).not.toBe(snapshots[1].batch_id);
+
+    // Verify plans linkage
+    const plans = await querySql(`
+      SELECT
+        pl.notes,
+        pl.weather_snapshot_batch_id,
+        s.precipitation_sum_mm::numeric as rainfall
+      FROM public.project_weekly_plans pl
+      JOIN public.projects p ON p.id = pl.project_id
+      JOIN public.project_weather_forecast_snapshots s ON s.batch_id = pl.weather_snapshot_batch_id
+      WHERE p.code = 'PRJ-WTR-IMM'
+      ORDER BY pl.notes ASC;
+    `);
+
+    expect(plans.length).toBe(2);
+    const planA = plans.find((p: any) => p.notes === "Plan Run A");
+    const planB = plans.find((p: any) => p.notes === "Plan Run B");
+
+    expect(planA).toBeDefined();
+    expect(planB).toBeDefined();
+    expect(Number(planA.rainfall)).toBe(10);
+    expect(Number(planB.rainfall)).toBe(30);
+    expect(planA.weather_snapshot_batch_id).not.toBe(planB.weather_snapshot_batch_id);
+
+    // Cleanup
+    await querySql(`DELETE FROM public.projects WHERE code = 'PRJ-WTR-IMM';`);
+  }, 30000);
 });

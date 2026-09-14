@@ -329,31 +329,50 @@ export async function getWeeklyPlanDetailsAction(
       try {
         weatherForecasts = await fetchWeatherForecast(lat, lon, 7);
         if (weatherForecasts.length > 0) {
-          // Persist all 7 days of snapshot to project_weather_forecast_snapshots
-          const snapshotRows = weatherForecasts.map((wf) => ({
-            empresa_id: empresaId,
-            project_id: projectId,
-            forecast_date: wf.date,
-            precipitation_sum_mm: wf.precipitation_sum_mm,
-            precipitation_hours: wf.precipitation_hours,
-            precipitation_probability_max: wf.precipitation_probability_max,
-            wind_gusts_max_kmh: wf.wind_gusts_max_kmh,
-            temperature_max_c: wf.temperature_max_c,
-            temperature_min_c: wf.temperature_min_c,
-            weather_code: wf.weather_code,
-            source: "open-meteo",
-            raw_payload: wf as any,
-          }));
+          // 1. Create a dedicated immutable weather batch for this forecast run
+          const { data: batchData, error: batchErr } = await supabase
+            .from("project_weather_forecast_batches")
+            .insert({
+              empresa_id: empresaId,
+              project_id: projectId,
+              source: "open-meteo",
+              latitude: lat,
+              longitude: lon,
+              forecast_days: weatherForecasts.length,
+              fetched_at: new Date().toISOString(),
+            })
+            .select("id")
+            .single();
 
-          const { data: snapData, error: snapErr } = await supabase
-            .from("project_weather_forecast_snapshots")
-            .upsert(snapshotRows, { onConflict: "project_id,forecast_date" })
-            .select("id");
+          if (batchErr || !batchData) {
+            console.warn("Failed to create weather forecast batch:", batchErr?.message);
+          } else {
+            weatherSnapshotId = batchData.id;
 
-          if (snapErr) {
-            console.warn("Failed to persist weather forecast snapshots:", snapErr.message);
-          } else if (snapData && snapData.length > 0) {
-            weatherSnapshotId = snapData[0].id;
+            // 2. Insert all 7 days of snapshot linked to this batch (no destructive upsert across runs)
+            const snapshotRows = weatherForecasts.map((wf) => ({
+              batch_id: batchData.id,
+              empresa_id: empresaId,
+              project_id: projectId,
+              forecast_date: wf.date,
+              precipitation_sum_mm: wf.precipitation_sum_mm,
+              precipitation_hours: wf.precipitation_hours,
+              precipitation_probability_max: wf.precipitation_probability_max,
+              wind_gusts_max_kmh: wf.wind_gusts_max_kmh,
+              temperature_max_c: wf.temperature_max_c,
+              temperature_min_c: wf.temperature_min_c,
+              weather_code: wf.weather_code,
+              source: "open-meteo",
+              raw_payload: wf as any,
+            }));
+
+            const { error: snapErr } = await supabase
+              .from("project_weather_forecast_snapshots")
+              .insert(snapshotRows);
+
+            if (snapErr) {
+              console.warn("Failed to persist weather forecast snapshots:", snapErr.message);
+            }
           }
 
           // Operational assessment for active items

@@ -179,4 +179,24 @@ describe("Weekly Plan - Multi-tenant RLS & Security Invoker RPC Verification", (
       rpcErr.message.includes("Acceso denegado")
     ).toBe(true);
   });
+
+  it("7. Tenant Isolation on Weather Batches & Snapshots: User A cannot read User B batches/snapshots", async () => {
+    // User A reads batches from Project B (niu.pack)
+    const { data: batchesB, error: bErr } = await clientUserA
+      .from("project_weather_forecast_batches")
+      .select("*")
+      .eq("project_id", projectNiuPackId);
+
+    expect(bErr).toBeNull();
+    expect(batchesB.length).toBe(0);
+
+    // User A reads snapshots from Project B (niu.pack)
+    const { data: snapsB, error: sErr } = await clientUserA
+      .from("project_weather_forecast_snapshots")
+      .select("*")
+      .eq("project_id", projectNiuPackId);
+
+    expect(sErr).toBeNull();
+    expect(snapsB.length).toBe(0);
+  });
 });

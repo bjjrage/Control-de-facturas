@@ -226,9 +226,27 @@ async function runE2E() {
     }
   }
 
-  // 3. PERSIST ALL 7 DAYS OF WEATHER FORECAST INTO DB & LINK TO PLAN
-  console.log("\n--- Persisting all 7 days into project_weather_forecast_snapshots ---");
+  // 3. PERSIST ALL 7 DAYS OF WEATHER FORECAST INTO IMMUTABLE BATCH & DB
+  console.log("\n--- Creating immutable weather batch in project_weather_forecast_batches ---");
+  const batchRes = await querySql(`
+    INSERT INTO public.project_weather_forecast_batches (
+      empresa_id, project_id, source, latitude, longitude, forecast_days, fetched_at
+    ) VALUES (
+      '${project.empresa_id || "c040ee03-2302-49d2-8082-b2a4ae5b62af"}',
+      '${project.id}',
+      'open-meteo',
+      ${project.latitude || -25.4550},
+      ${project.longitude || -57.5340},
+      7,
+      now()
+    ) RETURNING id;
+  `);
+  const batchId = batchRes[0].id;
+  console.log(`Created immutable weather batch: ${batchId}`);
+
+  console.log("\n--- Inserting all 7 days into project_weather_forecast_snapshots with batch_id ---");
   const weatherRows = days.map((d: any) => ({
+    batch_id: batchId,
     empresa_id: project.empresa_id || "c040ee03-2302-49d2-8082-b2a4ae5b62af",
     project_id: project.id,
     forecast_date: d.date,
@@ -246,37 +264,27 @@ async function runE2E() {
   for (const wr of weatherRows) {
     await querySql(`
       INSERT INTO public.project_weather_forecast_snapshots (
-        empresa_id, project_id, forecast_date, precipitation_sum_mm, precipitation_hours,
+        batch_id, empresa_id, project_id, forecast_date, precipitation_sum_mm, precipitation_hours,
         precipitation_probability_max, wind_gusts_max_kmh, temperature_max_c, temperature_min_c,
         weather_code, source, raw_payload
       ) VALUES (
-        '${wr.empresa_id}', '${wr.project_id}', '${wr.forecast_date}', ${wr.precipitation_sum_mm},
+        '${wr.batch_id}', '${wr.empresa_id}', '${wr.project_id}', '${wr.forecast_date}', ${wr.precipitation_sum_mm},
         ${wr.precipitation_hours}, ${wr.precipitation_probability_max || 0}, ${wr.wind_gusts_max_kmh},
         ${wr.temperature_max_c}, ${wr.temperature_min_c}, ${wr.weather_code}, '${wr.source}', '${JSON.stringify(wr.raw_payload)}'::JSONB
-      ) ON CONFLICT (project_id, forecast_date) DO UPDATE SET
-        precipitation_sum_mm = EXCLUDED.precipitation_sum_mm,
-        precipitation_hours = EXCLUDED.precipitation_hours,
-        precipitation_probability_max = EXCLUDED.precipitation_probability_max,
-        wind_gusts_max_kmh = EXCLUDED.wind_gusts_max_kmh,
-        temperature_max_c = EXCLUDED.temperature_max_c,
-        temperature_min_c = EXCLUDED.temperature_min_c,
-        weather_code = EXCLUDED.weather_code,
-        raw_payload = EXCLUDED.raw_payload;
+      );
     `);
   }
 
   const persistedWeather = await querySql(`
     SELECT forecast_date, precipitation_sum_mm, wind_gusts_max_kmh, weather_code
     FROM public.project_weather_forecast_snapshots
-    WHERE project_id = '${project.id}'
+    WHERE batch_id = '${batchId}'
     ORDER BY forecast_date;
   `);
-  console.log(`Persisted ${persistedWeather.length} weather snapshot rows for ${project.code}:`, persistedWeather);
+  console.log(`Persisted ${persistedWeather.length} weather snapshot rows for batch ${batchId}:`, persistedWeather);
 
   // 4. Save Plan Atomi-test on OBR-MOCK-001 with weather linkage
   console.log("\n--- Testing Atomic Save RPC on OBR-MOCK-001 with Weather Linkage ---");
-  const weatherBatchSql = await querySql(`SELECT id FROM public.project_weather_forecast_snapshots WHERE project_id = '${project.id}' ORDER BY forecast_date LIMIT 1;`);
-  const batchId = weatherBatchSql[0].id;
 
   const saveResult = await querySql(`
     DO $$
