@@ -1,0 +1,139 @@
+// lib/agent/approvals.ts
+// Approval Engine — snapshot inmutable del payload a aprobar.
+// Server-only. Usa Supabase (service_role o RLS-scoped client).
+// El gateway crea el registro en estado REQUESTED; la ejecución posterior
+// valida que payload_hash coincida con lo aprobado (previene bug payload A->B).
+import { createHash } from "crypto";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+export type ApprovalStatus = "REQUESTED" | "APPROVED" | "REJECTED" | "EXPIRED" | "CANCELLED";
+
+export interface AgentApprovalRow {
+  id: string;
+  task_id: string;
+  run_id: string | null;
+  empresa_id: string;
+  tool_name: string;
+  payload_json: unknown;
+  payload_hash: string;
+  risk_level: number;
+  status: ApprovalStatus;
+  requested_by: string | null;
+  decided_by: string | null;
+  decided_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Serialización canónica determinística para hashing (keys ordenadas). */
+export function canonicalJsonStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) {
+    return "[" + value.map((v) => canonicalJsonStringify(v)).join(",") + "]";
+  }
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj).sort();
+  const parts = keys.map((k) => JSON.stringify(k) + ":" + canonicalJsonStringify(obj[k]));
+  return "{" + parts.join(",") + "}";
+}
+
+export function hashPayload(payload: unknown): string {
+  const canonical = canonicalJsonStringify(payload);
+  return createHash("sha256").update(canonical).digest("hex");
+}
+
+/** Crea un approval en REQUESTED con snapshot + hash. Retorna la fila creada. */
+export async function createApproval(params: {
+  db: SupabaseClient;
+  empresaId: string;
+  taskId: string;
+  runId?: string | null;
+  toolName: string;
+  payload: unknown;
+  riskLevel: number;
+  requestedBy?: string | null;
+  expiresAt?: string | null;
+}): Promise<AgentApprovalRow> {
+  const payloadHash = hashPayload(params.payload);
+  const { data, error } = await params.db
+    .from("agent_approvals")
+    .insert({
+      empresa_id: params.empresaId,
+      task_id: params.taskId,
+      run_id: params.runId ?? null,
+      tool_name: params.toolName,
+      payload_json: params.payload as never,
+      payload_hash: payloadHash,
+      risk_level: params.riskLevel,
+      status: "REQUESTED",
+      requested_by: params.requestedBy ?? null,
+      expires_at: params.expiresAt ?? null,
+    })
+    .select("*")
+    .single();
+  if (error || !data) throw new Error(`createApproval fallo: ${error?.message ?? "sin data"}`);
+  return data as AgentApprovalRow;
+}
+
+export async function getApproval(db: SupabaseClient, approvalId: string): Promise<AgentApprovalRow | null> {
+  const { data, error } = await db.from("agent_approvals").select("*").eq("id", approvalId).single();
+  if (error) {
+    if ((error as { code?: string }).code === "PGRST116") return null;
+    throw new Error(`getApproval fallo: ${error.message}`);
+  }
+  return data as AgentApprovalRow;
+}
+
+export async function decideApproval(params: {
+  db: SupabaseClient;
+  approvalId: string;
+  empresaId: string; // scoping: solo puede decidir dentro de su tenant
+  decidedBy: string;
+  decision: "APPROVED" | "REJECTED" | "CANCELLED";
+}): Promise<AgentApprovalRow> {
+  if (!["APPROVED", "REJECTED", "CANCELLED"].includes(params.decision)) {
+    throw new Error(`decision invalida: ${params.decision}`);
+  }
+  // Cargar y validar tenant + estado
+  const current = await getApproval(params.db, params.approvalId);
+  if (!current) throw new Error(`Approval no encontrado: ${params.approvalId}`);
+  if (current.empresa_id !== params.empresaId) throw new Error("Approval no pertenece a tu empresa");
+  if (current.status !== "REQUESTED") throw new Error(`Approval ya decidido: ${current.status}`);
+
+  const { data, error } = await params.db
+    .from("agent_approvals")
+    .update({
+      status: params.decision,
+      decided_by: params.decidedBy,
+      decided_at: new Date().toISOString(),
+    })
+    .eq("id", params.approvalId)
+    .eq("empresa_id", params.empresaId)
+    .select("*")
+    .single();
+  if (error || !data) throw new Error(`decideApproval fallo: ${error?.message ?? "sin data"}`);
+  return data as AgentApprovalRow;
+}
+
+/**
+ * Valida que el payload a ejecutar coincida con el snapshot aprobado.
+ * Debe llamarse justo antes de ejecutar un tool que requirio approval.
+ */
+export function assertPayloadMatchesApproval(approval: AgentApprovalRow, payloadToExecute: unknown): void {
+  const hash = hashPayload(payloadToExecute);
+  if (hash !== approval.payload_hash) {
+    throw new Error(
+      `Payload alterado despues de la aprobacion: hash esperado ${approval.payload_hash} vs actual ${hash}. ` +
+        `No se ejecuta.`
+    );
+  }
+  if (approval.status !== "APPROVED") {
+    throw new Error(`Approval no esta APPROVED (actual: ${approval.status})`);
+  }
+}
+
+/** Verifica que no hubo mutacion del snapshot en BD (trigger ya lo protege, esto es doble capa app). */
+export function isApprovalDecided(row: AgentApprovalRow): boolean {
+  return row.status !== "REQUESTED";
+}
