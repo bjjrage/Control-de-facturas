@@ -32,18 +32,20 @@ const PLANS: { value: EmpresaPlan; label: string; icon: typeof SignalLow; active
   { value: "caterpillar", label: "Caterpillar", icon: SignalHigh, activeBg: "#ffe600", activeText: "#241d00" },
 ];
 
-// Nav derecho = pura configuración (planes, administración, super admin).
-// Todo lo que es una acción o módulo de trabajo (Proyectos incluido) vive en
-// el sidebar izquierdo — acá conviven solo las cosas que ajustan cómo
-// funciona el sistema, no las que se usan para trabajar.
-export function PlanNav({
+// Sección de configuración embebida en el nav izquierdo del workspace
+// Administración (planes, configuración, usuarios, super admin). Todo lo que
+// es una acción o módulo de trabajo vive en el resto del sidebar — acá
+// conviven solo las cosas que ajustan cómo funciona el sistema.
+export function AdminConfigSection({
   role,
   plan,
   isSuperAdmin = false,
+  collapsed = false,
 }: {
   role: UserRole;
   plan: EmpresaPlan;
   isSuperAdmin?: boolean;
+  collapsed?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -76,15 +78,17 @@ export function PlanNav({
       <Link
         key={item.href}
         href={item.href}
+        title={collapsed ? item.label : undefined}
         className={cn(
-          "flex items-center gap-2.5 h-9 px-3 rounded-lg text-[13px] transition-colors",
+          "flex items-center gap-2.5 h-9 rounded-lg text-[13px] transition-colors",
+          collapsed ? "justify-center px-0" : "px-3",
           active
             ? "bg-[var(--primary)] text-white font-medium"
             : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
         )}
       >
         <Icon size={16} className="shrink-0" />
-        <span className="truncate">{item.label}</span>
+        {!collapsed ? <span className="truncate">{item.label}</span> : null}
       </Link>
     );
   }
@@ -92,50 +96,51 @@ export function PlanNav({
   function renderSection(label: string, children: React.ReactNode) {
     return (
       <div className="space-y-0.5">
-        <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">
-          {label}
-        </div>
+        {!collapsed ? (
+          <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">
+            {label}
+          </div>
+        ) : (
+          <div className="border-t border-[var(--border)] my-1.5" />
+        )}
         {children}
       </div>
     );
   }
 
   return (
-    <aside className="w-[190px] shrink-0 border-l border-[var(--border)] bg-[var(--panel)] hidden lg:flex flex-col h-screen sticky top-0">
-      <div className="h-14 flex items-center px-4 border-b border-[var(--border)]">
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">Configuración</span>
-      </div>
-      <nav className="flex-1 py-1 px-2 space-y-0.5 overflow-y-auto">
-        {canSeePlans
-          ? renderSection(
-              "Planes",
-              <div className="space-y-0.5">
-                {PLANS.map((p) => {
-                  const Icon = p.icon;
-                  const active = currentPlan === p.value;
-                  return (
-                    <button
-                      key={p.value}
-                      type="button"
-                      disabled={pending}
-                      onClick={() => handlePlanClick(p.value)}
-                      style={active ? { background: p.activeBg, color: p.activeText } : undefined}
-                      className={cn(
-                        "w-full flex items-center gap-2.5 h-9 px-3 rounded-lg text-[13px] transition-colors text-left disabled:opacity-60",
-                        active ? "font-semibold" : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
-                      )}
-                    >
-                      <Icon size={15} className="shrink-0" strokeWidth={2.25} />
-                      <span className="truncate">{p.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )
-          : null}
-        {adminItems.length > 0 ? renderSection("Administración", adminItems.map(renderLink)) : null}
-        {superAdminItems.length > 0 ? renderSection("Super admin", superAdminItems.map(renderLink)) : null}
-      </nav>
-    </aside>
+    <>
+      {canSeePlans
+        ? renderSection(
+            "Planes",
+            <div className="space-y-0.5">
+              {PLANS.map((p) => {
+                const Icon = p.icon;
+                const active = currentPlan === p.value;
+                return (
+                  <button
+                    key={p.value}
+                    type="button"
+                    disabled={pending}
+                    title={collapsed ? p.label : undefined}
+                    onClick={() => handlePlanClick(p.value)}
+                    style={active ? { background: p.activeBg, color: p.activeText } : undefined}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 h-9 rounded-lg text-[13px] transition-colors text-left disabled:opacity-60",
+                      collapsed ? "justify-center px-0" : "px-3",
+                      active ? "font-semibold" : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+                    )}
+                  >
+                    <Icon size={15} className="shrink-0" strokeWidth={2.25} />
+                    {!collapsed ? <span className="truncate">{p.label}</span> : null}
+                  </button>
+                );
+              })}
+            </div>
+          )
+        : null}
+      {adminItems.length > 0 ? renderSection("Configuración", adminItems.map(renderLink)) : null}
+      {superAdminItems.length > 0 ? renderSection("Super admin", superAdminItems.map(renderLink)) : null}
+    </>
   );
 }
