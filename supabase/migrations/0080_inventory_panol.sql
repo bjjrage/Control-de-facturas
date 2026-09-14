@@ -132,6 +132,18 @@ BEGIN
     RETURN;
   END IF;
 
+  -- Algunas instalaciones arrastran el historial de migraciones sin la tabla
+  -- materializada de observaciones. En ese caso la ausencia de evidencia debe
+  -- ser una revisión explícita, nunca un motivo para reinterpretar el nominal
+  -- legacy como PYG.
+  IF to_regclass('public.cost_observations') IS NULL THEN
+    RETURN QUERY SELECT
+      'REVISION_REQUERIDA', NULL::public.currency_code, NULL::numeric,
+      NULL::text, p_legacy_unit_cost, NULL::numeric,
+      'LEGACY_COST_EVIDENCE_TABLE_MISSING';
+    RETURN;
+  END IF;
+
   SELECT count(*) INTO v_match_count
   FROM public.cost_observations co
   WHERE co.empresa_id = p_empresa_id
@@ -1727,6 +1739,43 @@ REVOKE EXECUTE ON FUNCTION public.inventory_post_movement(
 ) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.inventory_confirm_receipt(uuid, uuid, uuid, text, uuid) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.inventory_confirm_warehouse_submission(uuid, uuid, uuid, text) FROM PUBLIC;
+
+-- 0006_grants también deja grants explícitos sobre objetos nuevos. PUBLIC no
+-- revoca esos permisos heredados, por lo que se cierran de forma explícita.
+REVOKE ALL ON TABLE public.inventory_locations,
+  public.inventory_balances,
+  public.inventory_movements,
+  public.inventory_movement_costs,
+  public.inventory_receipt_evidence,
+  public.warehouse_portal_links,
+  public.warehouse_submissions,
+  public.warehouse_submission_evidence,
+  public.warehouse_submission_lines
+  FROM anon;
+REVOKE ALL ON TABLE public.inventory_stock_by_location,
+  public.inventory_stock_global,
+  public.inventory_stock_global_quantity,
+  public.inventory_stock_by_project,
+  public.inventory_consumption_by_budget
+  FROM anon;
+
+REVOKE ALL ON FUNCTION public.prevent_inventory_movement_mutation() FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.validate_inventory_location_tenant() FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.validate_oc_receipt_inventory_location() FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.validate_inventory_balance_tenant() FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.validate_inventory_movement_tenant() FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.validate_inventory_movement_cost_tenant() FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.validate_warehouse_portal_link_tenant() FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.validate_warehouse_submission_tenant() FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.validate_warehouse_submission_line_tenant() FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.sync_inventory_legacy_projection(uuid, uuid, uuid[]) FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.resolve_legacy_inventory_cost(uuid, uuid, numeric) FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.inventory_post_movement(
+  uuid, uuid, numeric, text, text, uuid, uuid, uuid, uuid, text, uuid, uuid,
+  text, public.currency_code, numeric, numeric, uuid, jsonb
+) FROM anon;
+REVOKE ALL ON FUNCTION public.inventory_confirm_receipt(uuid, uuid, uuid, text, uuid) FROM anon;
+REVOKE ALL ON FUNCTION public.inventory_confirm_warehouse_submission(uuid, uuid, uuid, text) FROM anon;
 
 GRANT SELECT ON public.inventory_stock_by_location,
   public.inventory_stock_global,
