@@ -35,6 +35,7 @@ export interface SaveWeeklyPlanParams {
   endDate: string; // YYYY-MM-DD
   status: WeeklyPlanStatus;
   notes?: string | null;
+  weatherSnapshotBatchId?: string | null;
   items: {
     budgetItemId: string;
     frontLabel?: string | null;
@@ -328,31 +329,32 @@ export async function getWeeklyPlanDetailsAction(
       try {
         weatherForecasts = await fetchWeatherForecast(lat, lon, 7);
         if (weatherForecasts.length > 0) {
-          // Persist snapshot to project_weather_forecast_snapshots
-          const snapshotDate = weatherForecasts[0].date;
-          const { data: snapData } = await supabase
-            .from("project_weather_forecast_snapshots")
-            .upsert(
-              {
-                empresa_id: empresaId,
-                project_id: projectId,
-                forecast_date: snapshotDate,
-                precipitation_sum_mm: weatherForecasts[0].precipitation_sum_mm,
-                precipitation_hours: weatherForecasts[0].precipitation_hours,
-                precipitation_probability_max: weatherForecasts[0].precipitation_probability_max,
-                wind_gusts_max_kmh: weatherForecasts[0].wind_gusts_max_kmh,
-                temperature_max_c: weatherForecasts[0].temperature_max_c,
-                temperature_min_c: weatherForecasts[0].temperature_min_c,
-                weather_code: weatherForecasts[0].weather_code,
-                source: "open-meteo",
-                raw_payload: weatherForecasts as any,
-              },
-              { onConflict: "project_id,forecast_date" }
-            )
-            .select("id")
-            .single();
+          // Persist all 7 days of snapshot to project_weather_forecast_snapshots
+          const snapshotRows = weatherForecasts.map((wf) => ({
+            empresa_id: empresaId,
+            project_id: projectId,
+            forecast_date: wf.date,
+            precipitation_sum_mm: wf.precipitation_sum_mm,
+            precipitation_hours: wf.precipitation_hours,
+            precipitation_probability_max: wf.precipitation_probability_max,
+            wind_gusts_max_kmh: wf.wind_gusts_max_kmh,
+            temperature_max_c: wf.temperature_max_c,
+            temperature_min_c: wf.temperature_min_c,
+            weather_code: wf.weather_code,
+            source: "open-meteo",
+            raw_payload: wf as any,
+          }));
 
-          weatherSnapshotId = snapData?.id || null;
+          const { data: snapData, error: snapErr } = await supabase
+            .from("project_weather_forecast_snapshots")
+            .upsert(snapshotRows, { onConflict: "project_id,forecast_date" })
+            .select("id");
+
+          if (snapErr) {
+            console.warn("Failed to persist weather forecast snapshots:", snapErr.message);
+          } else if (snapData && snapData.length > 0) {
+            weatherSnapshotId = snapData[0].id;
+          }
 
           // Operational assessment for active items
           const candidateItems: BudgetItemOperationalInput[] = budgetItems
@@ -430,7 +432,7 @@ export async function saveWeeklyPlanAction(
     const empresaId = profile.empresa_id;
     const supabase = await createClient();
 
-    const { planId, projectId, startDate, endDate, status, notes, items } = params;
+    const { planId, projectId, startDate, endDate, status, notes, weatherSnapshotBatchId, items } = params;
 
     // Validate project access
     const { data: project, error: pErr } = await supabase
@@ -466,6 +468,7 @@ export async function saveWeeklyPlanAction(
         p_status: status,
         p_notes: notes || null,
         p_items: itemsPayload,
+        p_weather_snapshot_batch_id: weatherSnapshotBatchId || null,
       }
     );
 

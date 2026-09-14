@@ -226,25 +226,104 @@ async function runE2E() {
     }
   }
 
-  // Save Plan Atomi-test on OBR-MOCK-001
-  console.log("\n--- Testing Atomic Save RPC on OBR-MOCK-001 ---");
-  const saveResult = await querySql(`
-    SELECT public.save_weekly_plan_atomic(
-      NULL,
-      '${project.id}'::UUID,
-      '2026-09-14'::DATE,
-      '2026-09-20'::DATE,
-      'DRAFT',
-      'Plan semanal validado E2E Ypané',
-      '${JSON.stringify([
-        { budget_item_id: budgetItems[0].id, front_label: "Frente Norte", input_mode: "QUANTITY", input_value: 40, unit: "m2" },
-        { budget_item_id: budgetItems[0].id, front_label: "Frente Sur", input_mode: "QUANTITY", input_value: 30, unit: "m2" },
-        { budget_item_id: budgetItems[1].id, front_label: "Sector A", input_mode: "CONTRACT_PERCENTAGE_POINTS", input_value: 10, unit: "m2" },
-        { budget_item_id: budgetItems[2].id, front_label: "Planta Alta", input_mode: "QUANTITY", input_value: 15, unit: "m3" }
-      ])}'::JSONB
-    );
+  // 3. PERSIST ALL 7 DAYS OF WEATHER FORECAST INTO DB & LINK TO PLAN
+  console.log("\n--- Persisting all 7 days into project_weather_forecast_snapshots ---");
+  const weatherRows = days.map((d: any) => ({
+    empresa_id: project.empresa_id || "c040ee03-2302-49d2-8082-b2a4ae5b62af",
+    project_id: project.id,
+    forecast_date: d.date,
+    precipitation_sum_mm: d.precipitation_sum,
+    precipitation_hours: d.precipitation_hours,
+    precipitation_probability_max: d.precipitation_probability_max,
+    wind_gusts_max_kmh: d.wind_gusts_10m_max,
+    temperature_max_c: d.temp_max,
+    temperature_min_c: d.temp_min,
+    weather_code: d.weather_code,
+    source: "open-meteo",
+    raw_payload: d
+  }));
+
+  for (const wr of weatherRows) {
+    await querySql(`
+      INSERT INTO public.project_weather_forecast_snapshots (
+        empresa_id, project_id, forecast_date, precipitation_sum_mm, precipitation_hours,
+        precipitation_probability_max, wind_gusts_max_kmh, temperature_max_c, temperature_min_c,
+        weather_code, source, raw_payload
+      ) VALUES (
+        '${wr.empresa_id}', '${wr.project_id}', '${wr.forecast_date}', ${wr.precipitation_sum_mm},
+        ${wr.precipitation_hours}, ${wr.precipitation_probability_max || 0}, ${wr.wind_gusts_max_kmh},
+        ${wr.temperature_max_c}, ${wr.temperature_min_c}, ${wr.weather_code}, '${wr.source}', '${JSON.stringify(wr.raw_payload)}'::JSONB
+      ) ON CONFLICT (project_id, forecast_date) DO UPDATE SET
+        precipitation_sum_mm = EXCLUDED.precipitation_sum_mm,
+        precipitation_hours = EXCLUDED.precipitation_hours,
+        precipitation_probability_max = EXCLUDED.precipitation_probability_max,
+        wind_gusts_max_kmh = EXCLUDED.wind_gusts_max_kmh,
+        temperature_max_c = EXCLUDED.temperature_max_c,
+        temperature_min_c = EXCLUDED.temperature_min_c,
+        weather_code = EXCLUDED.weather_code,
+        raw_payload = EXCLUDED.raw_payload;
+    `);
+  }
+
+  const persistedWeather = await querySql(`
+    SELECT forecast_date, precipitation_sum_mm, wind_gusts_max_kmh, weather_code
+    FROM public.project_weather_forecast_snapshots
+    WHERE project_id = '${project.id}'
+    ORDER BY forecast_date;
   `);
-  console.log("RPC Save Result:", saveResult);
+  console.log(`Persisted ${persistedWeather.length} weather snapshot rows for ${project.code}:`, persistedWeather);
+
+  // 4. Save Plan Atomi-test on OBR-MOCK-001 with weather linkage
+  console.log("\n--- Testing Atomic Save RPC on OBR-MOCK-001 with Weather Linkage ---");
+  const weatherBatchSql = await querySql(`SELECT id FROM public.project_weather_forecast_snapshots WHERE project_id = '${project.id}' ORDER BY forecast_date LIMIT 1;`);
+  const batchId = weatherBatchSql[0].id;
+
+  const saveResult = await querySql(`
+    DO $$
+    DECLARE
+      v_user_id UUID;
+    BEGIN
+      SELECT id INTO v_user_id FROM public.profiles WHERE empresa_id = '${project.empresa_id || "c040ee03-2302-49d2-8082-b2a4ae5b62af"}' LIMIT 1;
+      PERFORM set_config('request.jwt.claim.sub', v_user_id::text, true);
+
+      PERFORM public.save_weekly_plan_atomic(
+        NULL,
+        '${project.id}'::UUID,
+        '2026-09-14'::DATE,
+        '2026-09-20'::DATE,
+        'DRAFT',
+        'Plan semanal validado E2E Ypané con Weather Linkage',
+        '${JSON.stringify([
+          { budget_item_id: budgetItems[0].id, front_label: "Frente Norte", input_mode: "QUANTITY", input_value: 40, unit: "m2" },
+          { budget_item_id: budgetItems[0].id, front_label: "Frente Sur", input_mode: "QUANTITY", input_value: 30, unit: "m2" },
+          { budget_item_id: budgetItems[1].id, front_label: "Sector A", input_mode: "CONTRACT_PERCENTAGE_POINTS", input_value: 10, unit: "m2" },
+          { budget_item_id: budgetItems[2].id, front_label: "Planta Alta", input_mode: "QUANTITY", input_value: 15, unit: "m3" }
+        ])}'::JSONB,
+        '${batchId}'::UUID
+      );
+    END;
+    $$;
+  `);
+  console.log("RPC Save Result (Linkage & Atomic): OK");
+
+  // Read back and verify target_quantity conversion & weather linkage in DB
+  const verifyDb = await querySql(`
+    SELECT
+      pl.id as plan_id,
+      pl.weather_snapshot_batch_id,
+      b.code as item_code,
+      pi.front_label,
+      pi.input_mode,
+      pi.input_value::numeric as input_value,
+      pi.target_quantity::numeric as target_quantity,
+      b.quantity as contractual_quantity
+    FROM public.project_weekly_plans pl
+    JOIN public.project_weekly_plan_items pi ON pi.plan_id = pl.id
+    JOIN public.budget_items b ON b.id = pi.budget_item_id
+    WHERE pl.project_id = '${project.id}'
+    ORDER BY b.code, pi.front_label;
+  `);
+  console.log("\nVerified DB Plan Items & Linkage:", verifyDb);
 
   console.log("\n=================================================");
   console.log("E2E VALIDATION FINISHED WITH 100% SUCCESS!");

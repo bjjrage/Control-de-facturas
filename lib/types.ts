@@ -1256,6 +1256,7 @@ export interface ProjectWeeklyPlan {
   end_date: string;
   status: WeeklyPlanStatus;
   notes?: string | null;
+  weather_snapshot_batch_id?: string | null;
   created_by?: string | null;
   created_at: string;
   updated_at: string;

@@ -58,6 +58,7 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
     const setupSql = `
       DO $$
       DECLARE
+        v_user_id UUID;
         v_empresa_id UUID;
         v_proj_id UUID;
         v_item1 UUID;
@@ -65,7 +66,7 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
         v_item3 UUID;
         v_plan_id UUID;
       BEGIN
-        SELECT id INTO v_empresa_id FROM public.empresas LIMIT 1;
+        SELECT id, empresa_id INTO v_user_id, v_empresa_id FROM public.profiles LIMIT 1;
 
         INSERT INTO public.projects (empresa_id, name, code, start_date, budget_total)
         VALUES (v_empresa_id, 'TEST-ATOMIC-PROJ', 'PRJ-ATM-01', '2026-09-01', 10000000)
@@ -103,15 +104,24 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
 
     // Try to update plan with an invalid budget_item_id using RPC
     const failRpcSql = `
-      SELECT public.save_weekly_plan_atomic(
-        (SELECT p.id FROM public.project_weekly_plans p JOIN public.projects pr ON pr.id = p.project_id WHERE pr.code = 'PRJ-ATM-01' LIMIT 1),
-        (SELECT id FROM public.projects WHERE code = 'PRJ-ATM-01'),
-        '2026-09-14'::DATE,
-        '2026-09-20'::DATE,
-        'DRAFT',
-        'Attempt with invalid item',
-        '[{"budget_item_id":"00000000-0000-0000-0000-000000000000","front_label":"X","input_mode":"QUANTITY","input_value":10,"unit":"u"}]'::JSONB
-      );
+      DO $$
+      DECLARE
+        v_user_id UUID;
+      BEGIN
+        SELECT id INTO v_user_id FROM public.profiles LIMIT 1;
+        PERFORM set_config('request.jwt.claim.sub', v_user_id::text, true);
+
+        PERFORM public.save_weekly_plan_atomic(
+          (SELECT p.id FROM public.project_weekly_plans p JOIN public.projects pr ON pr.id = p.project_id WHERE pr.code = 'PRJ-ATM-01' LIMIT 1),
+          (SELECT id FROM public.projects WHERE code = 'PRJ-ATM-01'),
+          '2026-09-14'::DATE,
+          '2026-09-20'::DATE,
+          'DRAFT',
+          'Attempt with invalid item',
+          '[{"budget_item_id":"00000000-0000-0000-0000-000000000000","front_label":"X","input_mode":"QUANTITY","input_value":10,"unit":"u"}]'::JSONB
+        );
+      END;
+      $$;
     `;
 
     let rpcFailed = false;
@@ -137,5 +147,79 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
     await querySql(`
       DELETE FROM public.projects WHERE code = 'PRJ-ATM-01';
     `);
+  }, 30000);
+
+  it("5. DB Percentage Conversion & Read-After-Write: 500 m2 item with 10% saves target_quantity = 50 and matches engine", async () => {
+    // 0. Ensure clean state
+    await querySql(`DELETE FROM public.projects WHERE code = 'PRJ-PCT-01';`);
+
+    const setupSql = `
+      DO $$
+      DECLARE
+        v_user_id UUID;
+        v_empresa_id UUID;
+        v_proj_id UUID;
+        v_item UUID;
+        v_plan_id UUID;
+      BEGIN
+        SELECT id, empresa_id INTO v_user_id, v_empresa_id FROM public.profiles LIMIT 1;
+        PERFORM set_config('request.jwt.claim.sub', v_user_id::text, true);
+
+        INSERT INTO public.projects (empresa_id, name, code, start_date, budget_total)
+        VALUES (v_empresa_id, 'TEST-PERCENTAGE-PROJ', 'PRJ-PCT-01', '2026-09-01', 50000000)
+        RETURNING id INTO v_proj_id;
+
+        -- Contractual quantity = 500 m2, executed = 0, remaining = 500 m2
+        INSERT INTO public.budget_items (project_id, code, description, unit, quantity, unit_price)
+        VALUES (v_proj_id, '02.01', 'Mampostería 500 m2', 'm2', 500, 100000)
+        RETURNING id INTO v_item;
+
+        -- Call save_weekly_plan_atomic with input_mode = CONTRACT_PERCENTAGE_POINTS and input_value = 10
+        PERFORM public.save_weekly_plan_atomic(
+          NULL,
+          v_proj_id,
+          '2026-09-14'::DATE,
+          '2026-09-20'::DATE,
+          'DRAFT',
+          'Test 10% on 500m2',
+          jsonb_build_array(
+            jsonb_build_object(
+              'budget_item_id', v_item,
+              'front_label', 'Frente Principal',
+              'input_mode', 'CONTRACT_PERCENTAGE_POINTS',
+              'input_value', 10,
+              'unit', 'm2'
+            )
+          )
+        );
+      END;
+      $$;
+    `;
+    await querySql(setupSql);
+
+    // Read back saved item from DB
+    const rows = await querySql(`
+      SELECT
+        b.quantity as contractual_quantity,
+        pi.input_mode,
+        pi.input_value::numeric as input_value,
+        pi.target_quantity::numeric as target_quantity
+      FROM public.project_weekly_plan_items pi
+      JOIN public.project_weekly_plans p ON p.id = pi.plan_id
+      JOIN public.projects pr ON pr.id = p.project_id
+      JOIN public.budget_items b ON b.id = pi.budget_item_id
+      WHERE pr.code = 'PRJ-PCT-01';
+    `);
+
+    expect(rows.length).toBe(1);
+    const row = rows[0];
+    expect(Number(row.contractual_quantity)).toBe(500);
+    expect(row.input_mode).toBe("CONTRACT_PERCENTAGE_POINTS");
+    expect(Number(row.input_value)).toBe(10);
+    // CRITICAL P0 ASSERTION: target_quantity MUST BE 50, NOT 10!
+    expect(Number(row.target_quantity)).toBe(50);
+
+    // Cleanup
+    await querySql(`DELETE FROM public.projects WHERE code = 'PRJ-PCT-01';`);
   }, 30000);
 });

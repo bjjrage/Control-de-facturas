@@ -341,4 +341,105 @@ describe("Plan Semanal de Obra / Lookahead Operacional - Comprehensive Suite", (
     expect(res.weather_summary).toContain("fail-closed");
     expect(res.items[0].weather_adjusted_capacity).toBeNull();
   });
+
+  it("9. Deterministic Rain Fixture: NORMAL=1.0, BLOCKED=0.0, PARTIAL=0.5 — factor 0 NEVER becomes 1", () => {
+    const testItems: BudgetItem[] = [
+      {
+        ...sampleItems[0],
+        id: "item-normal",
+        code: "01.01",
+        description: "Trabajo Interior (NORMAL)",
+        quantity: 100,
+        unit_price: 100000,
+      },
+      {
+        ...sampleItems[1],
+        id: "item-blocked",
+        code: "01.02",
+        description: "Movimiento de Suelos Lluvia Extrema (BLOCKED)",
+        quantity: 200,
+        unit_price: 200000,
+      },
+      {
+        ...sampleItems[2],
+        id: "item-partial",
+        code: "01.03",
+        description: "Hormigonado Exterior (PARTIAL)",
+        quantity: 50,
+        unit_price: 500000,
+      },
+    ];
+
+    const input: WeeklyPlanEngineInput = {
+      project_id: "proj-weather-det",
+      start_date: "2026-09-14",
+      end_date: "2026-09-20",
+      budget_items: testItems,
+      executed_quantities_by_item: {},
+      targets: [
+        { budget_item_id: "item-normal", input_mode: "QUANTITY", input_value: 40 },
+        { budget_item_id: "item-blocked", input_mode: "QUANTITY", input_value: 80 },
+        { budget_item_id: "item-partial", input_mode: "QUANTITY", input_value: 20 },
+      ],
+      materials_by_item: {},
+      stock_and_inbound: {},
+      weather_overlay_enabled: true,
+      weather_forecasts: [
+        { date: "2026-09-14", precipitation_sum_mm: 55, precipitation_hours: 12, wind_gusts_max_kmh: 60, weather_code: 65 },
+      ],
+      operational_assessments: {
+        "item-normal": {
+          budget_item_id: "item-normal",
+          workability: "NORMAL",
+          productive_factor: 1.0,
+          reason: "Bajo techo, sin afectación",
+        },
+        "item-blocked": {
+          budget_item_id: "item-blocked",
+          workability: "BLOCKED",
+          productive_factor: 0, // EXPLICIT ZERO — MUST REMAIN 0, NEVER 1.0 OR 0 || 1.0
+          reason: "Lluvia torrencial bloquea totalmente el suelo",
+        },
+        "item-partial": {
+          budget_item_id: "item-partial",
+          workability: "PARTIAL",
+          productive_factor: 0.5,
+          reason: "Rendimiento reducido al 50%",
+        },
+      },
+    };
+
+    const res = calculateWeeklyPlanRequirements(input);
+    expect(res.items.length).toBe(3);
+
+    const normal = res.items.find((i) => i.budget_item_id === "item-normal")!;
+    const blocked = res.items.find((i) => i.budget_item_id === "item-blocked")!;
+    const partial = res.items.find((i) => i.budget_item_id === "item-partial")!;
+
+    // 1. BASE TARGETS ARE 100% UNCHANGED
+    expect(normal.target_quantity).toBe(40);
+    expect(blocked.target_quantity).toBe(80);
+    expect(partial.target_quantity).toBe(20);
+    expect(res.total_plan_contractual_value).toBe(40 * 100000 + 80 * 200000 + 20 * 500000);
+
+    // 2. NORMAL (factor 1.0): adjusted = plan, gap = 0
+    expect(normal.weather_workability_factor).toBe(1.0);
+    expect(normal.weather_adjusted_capacity).toBe(40);
+    expect(normal.weather_gap_quantity).toBe(0);
+
+    // 3. BLOCKED (factor 0.0): adjusted = 0, gap = -80 (NEVER fallback to 1.0 or 80)
+    expect(blocked.weather_workability_factor).toBe(0);
+    expect(blocked.weather_adjusted_capacity).toBe(0);
+    expect(blocked.weather_gap_quantity).toBe(-80);
+
+    // 4. PARTIAL (factor 0.5): adjusted = 10, gap = -10
+    expect(partial.weather_workability_factor).toBe(0.5);
+    expect(partial.weather_adjusted_capacity).toBe(10);
+    expect(partial.weather_gap_quantity).toBe(-10);
+
+    // 5. Invariant: weather-adjusted capacity < plan for affected items
+    expect(blocked.weather_adjusted_capacity!).toBeLessThan(blocked.target_quantity);
+    expect(partial.weather_adjusted_capacity!).toBeLessThan(partial.target_quantity);
+  });
 });
+

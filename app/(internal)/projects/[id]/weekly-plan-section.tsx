@@ -175,6 +175,7 @@ export function WeeklyPlanSection({ project }: Props) {
         endDate,
         status,
         notes,
+        weatherSnapshotBatchId: calculation?.weather_snapshot_id || null,
         items: itemsToSave,
       });
 
