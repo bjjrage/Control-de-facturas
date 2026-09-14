@@ -87,12 +87,10 @@ async function handler(
       supplier_ruc: r.suppliers?.ruc || null,
       precio_oferta_pyg: r.precio_oferta_pyg,
       moneda: r.moneda,
-      validez_hasta: r.validez_hasta,
-      observaciones: r.observaciones,
       fecha_respuesta: r.fecha_respuesta,
       estado: r.estado,
       items_cubiertos: itemsCubiertos,
-    } as GetRfqResponse);
+    } as GetRfqResponse;
   });
 
   // 3. Resumen de precios

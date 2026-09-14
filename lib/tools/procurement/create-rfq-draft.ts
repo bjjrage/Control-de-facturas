@@ -8,7 +8,6 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentToolContext } from "@/lib/agent/context";
 import { registerTool } from "@/lib/agent/registry";
-import { v4 as uuidv4 } from "uuid";
 
 export const CreateRfqDraftInputSchema = z.object({
   project_id: z.string().uuid({ message: "project_id debe ser UUID valido" }),
@@ -20,9 +19,9 @@ export const CreateRfqDraftInputSchema = z.object({
       unit: z.string().optional(),
     })
   ).min(1, "al menos un item"),
-  required_by?: z.string().optional(), // fecha ISO string
-  notes?: z.string().optional(),
-  idempotency_key?: z.string().uuid().optional(),
+  required_by: z.string().optional(), // fecha ISO string
+  notes: z.string().optional(),
+  idempotency_key: z.string().uuid().optional(),
 });
 
 export type CreateRfqDraftInput = z.infer<typeof CreateRfqDraftInputSchema>;
@@ -117,8 +116,8 @@ async function handler(
 
   // 4. Aplicar idempotencia: si ya existe RFQ draft con misma key+empresa, retornar existente
   let idempotencyKey = input.idempotency_key;
-  if (!idempotency_key) {
-    idempotencyKey = uuidv4();
+  if (!idempotencyKey) {
+    idempotencyKey = crypto.randomUUID();
   }
 
   // Verificar si ya existe un draft con esta key para esta empresa

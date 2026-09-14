@@ -6,7 +6,15 @@
 import { createHash } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type ApprovalStatus = "REQUESTED" | "APPROVED" | "REJECTED" | "EXPIRED" | "CANCELLED";
+export type ApprovalStatus =
+  | "REQUESTED"
+  | "APPROVED"
+  | "EXECUTING"
+  | "EXECUTED"
+  | "REJECTED"
+  | "EXPIRED"
+  | "CANCELLED"
+  | "FAILED";
 
 export interface AgentApprovalRow {
   id: string;
@@ -117,6 +125,93 @@ export async function decideApproval(params: {
 }
 
 /**
+ * Consumo atómico: Adquiere el lock de ejecución para una approval en estado APPROVED.
+ * Utiliza CAS condicional (.eq("status", "APPROVED")).
+ * Si dos llamadas concurrentes intentan ejecutar la misma approval, exactamente una
+ * gana la transición a EXECUTING y la otra falla con error de concurrencia.
+ */
+export async function claimApprovalForExecution(params: {
+  db: SupabaseClient;
+  approvalId: string;
+  empresaId: string;
+}): Promise<AgentApprovalRow> {
+  const { data, error } = await params.db
+    .from("agent_approvals")
+    .update({ status: "EXECUTING" })
+    .eq("id", params.approvalId)
+    .eq("empresa_id", params.empresaId)
+    .eq("status", "APPROVED")
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`claimApprovalForExecution error: ${error.message}`);
+  }
+
+  if (!data) {
+    // Si no actualizó nada, verificar por qué
+    const current = await getApproval(params.db, params.approvalId);
+    if (!current) {
+      throw new Error(`Approval ${params.approvalId} no encontrado`);
+    }
+    if (current.empresa_id !== params.empresaId) {
+      throw new Error(`Approval no pertenece a tu empresa`);
+    }
+    throw new Error(
+      `No se pudo adquirir approval para ejecución: status actual es "${current.status}" (requiere APPROVED)`
+    );
+  }
+
+  return data as AgentApprovalRow;
+}
+
+/**
+ * Marca la approval como finalizada exitosamente tras completar los side-effects.
+ */
+export async function markApprovalExecuted(params: {
+  db: SupabaseClient;
+  approvalId: string;
+  empresaId: string;
+}): Promise<AgentApprovalRow> {
+  const { data, error } = await params.db
+    .from("agent_approvals")
+    .update({ status: "EXECUTED" })
+    .eq("id", params.approvalId)
+    .eq("empresa_id", params.empresaId)
+    .eq("status", "EXECUTING")
+    .select("*")
+    .single();
+
+  if (error || !data) {
+    throw new Error(`markApprovalExecuted fallo: ${error?.message ?? "sin data"}`);
+  }
+  return data as AgentApprovalRow;
+}
+
+/**
+ * Marca la approval como fallida si los side-effects fallaron en el domain service.
+ */
+export async function markApprovalFailed(params: {
+  db: SupabaseClient;
+  approvalId: string;
+  empresaId: string;
+  errorMessage: string;
+}): Promise<AgentApprovalRow> {
+  const { data, error } = await params.db
+    .from("agent_approvals")
+    .update({ status: "FAILED" })
+    .eq("id", params.approvalId)
+    .eq("empresa_id", params.empresaId)
+    .select("*")
+    .single();
+
+  if (error || !data) {
+    throw new Error(`markApprovalFailed fallo: ${error?.message ?? "sin data"}`);
+  }
+  return data as AgentApprovalRow;
+}
+
+/**
  * Valida que el payload a ejecutar coincida con el snapshot aprobado.
  * Debe llamarse justo antes de ejecutar un tool que requirio approval.
  */
@@ -128,8 +223,8 @@ export function assertPayloadMatchesApproval(approval: AgentApprovalRow, payload
         `No se ejecuta.`
     );
   }
-  if (approval.status !== "APPROVED") {
-    throw new Error(`Approval no esta APPROVED (actual: ${approval.status})`);
+  if (approval.status !== "APPROVED" && approval.status !== "EXECUTING") {
+    throw new Error(`Approval no esta en estado valido para ejecucion (no esta APPROVED, actual: ${approval.status})`);
   }
 }
 

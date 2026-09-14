@@ -7,7 +7,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentToolContext } from "./context";
 import { assertActorHasTenant } from "./context";
 import { getTool } from "./registry";
-import { createApproval } from "./approvals";
+import {
+  createApproval,
+  getApproval,
+  claimApprovalForExecution,
+  markApprovalExecuted,
+  markApprovalFailed,
+  assertPayloadMatchesApproval,
+} from "./approvals";
 import { createStep } from "./runtime";
 
 // ---------------------------------------------------------------------------
@@ -110,7 +117,7 @@ function sanitizeInputForLog(input: unknown): unknown {
 
 /**
  * Ejecuta un tool a traves del gateway con todas las validaciones.
- * - Si riskLevel >= 2 => no ejecuta, crea approval REQUESTED y lanza ApprovalRequiredError (BATCH 1: bloqueado).
+ * - Si riskLevel >= 2 => no ejecuta, crea approval REQUESTED y lanza ApprovalRequiredError.
  *   Llamadores que no quieren excepcion pueden capturar y convertir a GatewayApprovalPending.
  * - Si idempotencyKey hit => retorna cached output (via IdempotencyHit).
  */
@@ -131,7 +138,9 @@ export async function gatewayExecute(params: GatewayExecuteParams): Promise<Gate
   if (tool.requiredRoles && tool.requiredRoles.length > 0) {
     const role = actor.role;
     if (!role || !(tool.requiredRoles as string[]).includes(role)) {
-      throw new PermissionError(`Rol ${role ?? "sin rol"} no autorizado para ${toolName}. Requiere: ${tool.requiredRoles.join(",")}`);
+      throw new PermissionError(
+        `Rol ${role ?? "sin rol"} no autorizado para ${toolName}. Requiere: ${tool.requiredRoles.join(",")}`
+      );
     }
   }
 
@@ -160,7 +169,7 @@ export async function gatewayExecute(params: GatewayExecuteParams): Promise<Gate
   }
 
   // 6. Risk / approval policy
-  // BATCH 1: solo 0 y 1 son AUTO. 2..4 requieren approval y no se ejecutan todavia.
+  // Tools con riskLevel >= 2 requieren aprobación humana explícita previa
   if (tool.riskLevel >= 2) {
     if (!taskId || !runId) {
       throw new GatewayError(
@@ -309,4 +318,180 @@ export async function gatewayExecuteSafe(params: GatewayExecuteParams): Promise<
     }
     throw e;
   }
+}
+
+// ---------------------------------------------------------------------------
+// BATCH 3: executeApprovedTool — Consumo y ejecución de approvals
+// ---------------------------------------------------------------------------
+export interface ExecuteApprovedToolParams {
+  db: SupabaseClient;
+  actor: AgentToolContext;
+  approvalId: string;
+  payloadToExecute: unknown;
+  idempotencyKey?: string | null;
+}
+
+export interface ExecuteApprovedToolResult {
+  ok: true;
+  approvalId: string;
+  tool: string;
+  output: unknown;
+  stepId?: string | null;
+}
+
+/**
+ * Ejecuta un tool tras haber sido aprobado por un humano.
+ * Flujo obligatorio y fail-closed:
+ * 1. Cargar approval y validar tenant scoping.
+ * 2. Revalidar permisos actuales del actor (no confiar en permiso pasado).
+ * 3. Revalidar que payload coincida bit a bit con payload_hash.
+ * 4. Adquirir lock atómico (APPROVED -> EXECUTING). Falla si ya fue consumido.
+ * 5. Ejecutar tool handler del Domain Service.
+ * 6. Transicionar approval a EXECUTED.
+ * 7. Persistir step SUCCESS y auditoría.
+ */
+export async function executeApprovedTool(
+  params: ExecuteApprovedToolParams
+): Promise<ExecuteApprovedToolResult> {
+  const { db, actor, approvalId, payloadToExecute, idempotencyKey } = params;
+
+  // 1. Trusted actor context & tenant
+  assertActorHasTenant(actor);
+  if (!actor.empresaId) throw new TenantError("empresaId requerido en actor context");
+
+  const approval = await getApproval(db, approvalId);
+  if (!approval) {
+    throw new GatewayError("APPROVAL_NOT_FOUND", `Approval no encontrado: ${approvalId}`);
+  }
+  if (approval.empresa_id !== actor.empresaId) {
+    throw new TenantError("Approval no pertenece a tu empresa");
+  }
+
+  // 2. Allowlisted tool check
+  const tool = getTool(approval.tool_name);
+  if (!tool) {
+    throw new GatewayError("TOOL_NOT_FOUND", `Tool no allowlisteado: ${approval.tool_name}`);
+  }
+
+  // 3. Permission revalidation: verificar permisos ACTUALES del actor al momento de la ejecución
+  if (tool.requiredRoles && tool.requiredRoles.length > 0) {
+    const role = actor.role;
+    if (!role || !(tool.requiredRoles as string[]).includes(role)) {
+      throw new PermissionError(
+        `Rol actual ${role ?? "sin rol"} no autorizado para ejecutar ${approval.tool_name}. Requiere: ${tool.requiredRoles.join(",")}`
+      );
+    }
+  }
+
+  // 4. Payload integrity check (assertPayloadMatchesApproval)
+  assertPayloadMatchesApproval(approval, payloadToExecute);
+
+  // 5. Atomic claim: transicionar de APPROVED a EXECUTING (Optimistic CAS)
+  // Si otra llamada concurrente o doble click intenta ejecutarlo, esta llamada falla acá.
+  await claimApprovalForExecution({
+    db,
+    approvalId,
+    empresaId: actor.empresaId,
+  });
+
+  // 6. Execute domain service via tool handler
+  const toolCtx: AgentToolContext = {
+    ...actor,
+    taskId: approval.task_id,
+    runId: approval.run_id,
+  };
+
+  const started = Date.now();
+  let output: unknown;
+  try {
+    output = await tool.handler(toolCtx, payloadToExecute as never, { db });
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    // Marcar approval como FAILED si falló la ejecución
+    try {
+      await markApprovalFailed({
+        db,
+        approvalId,
+        empresaId: actor.empresaId,
+        errorMessage: errMsg,
+      });
+    } catch {
+      // ignore
+    }
+
+    // Persistir step de error
+    try {
+      await createStep({
+        db,
+        taskId: approval.task_id,
+        runId: approval.run_id ?? approval.task_id,
+        empresaId: actor.empresaId,
+        toolName: approval.tool_name,
+        input: sanitizeInputForLog(payloadToExecute),
+        output: null,
+        status: "ERROR",
+        errorMessage: errMsg.slice(0, 2000),
+        idempotencyKey: idempotencyKey ?? null,
+        durationMs: Date.now() - started,
+      });
+    } catch {
+      // ignore
+    }
+
+    throw new GatewayError("TOOL_EXECUTION_FAILED", `Error ejecutando tool aprobado ${approval.tool_name}: ${errMsg}`);
+  }
+
+  const durationMs = Date.now() - started;
+
+  // 7. Marcar approval como EXECUTED
+  await markApprovalExecuted({
+    db,
+    approvalId,
+    empresaId: actor.empresaId,
+  });
+
+  // 8. Persistir step SUCCESS
+  let stepId: string | null = null;
+  try {
+    const step = await createStep({
+      db,
+      taskId: approval.task_id,
+      runId: approval.run_id ?? approval.task_id,
+      empresaId: actor.empresaId,
+      toolName: approval.tool_name,
+      input: sanitizeInputForLog(payloadToExecute),
+      output,
+      status: "SUCCESS",
+      idempotencyKey: idempotencyKey ?? null,
+      durationMs,
+    });
+    stepId = step.id;
+  } catch {
+    // no bloquear retorno si falla la persistencia de step
+  }
+
+  // 9. Audit log
+  try {
+    await db.rpc("log_audit_event", {
+      p_action: `agent.tool.executed_approved:${approval.tool_name}`,
+      p_detail: {
+        empresa_id: actor.empresaId,
+        tool: approval.tool_name,
+        approval_id: approvalId,
+        task_id: approval.task_id,
+      } as never,
+      p_actor_type: "agent",
+      p_actor_label: actor.email ?? actor.userId ?? "agent",
+    } as never);
+  } catch {
+    // ignore
+  }
+
+  return {
+    ok: true,
+    approvalId,
+    tool: approval.tool_name,
+    output,
+    stepId,
+  };
 }

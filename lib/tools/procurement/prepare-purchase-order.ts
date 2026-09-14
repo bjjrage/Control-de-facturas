@@ -9,15 +9,14 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentToolContext } from "@/lib/agent/context";
 import { registerTool } from "@/lib/agent/registry";
-import { v4 as uuidv4 } from "uuid";
 
 export const PreparePurchaseOrderInputSchema = z.object({
   rfq_id: z.string().uuid({ message: "rfq_id debe ser UUID valido" }),
   selected_supplier_id: z.string().uuid({ message: "selected_supplier_id debe ser UUID valido" }),
   selected_price_pyg: z.number().optional().nullable(),
   selected_currency: z.string().default("Gs.").optional(),
-  notes?: z.string().optional(),
-  idempotency_key?: z.string().uuid().optional(),
+  notes: z.string().optional(),
+  idempotency_key: z.string().uuid().optional(),
 });
 
 export type PreparePurchaseOrderInput = z.infer<typeof PreparePurchaseOrderInputSchema>;
@@ -132,8 +131,8 @@ async function handler(
 
   // 6. Aplicar idempotencia
   let idempotencyKey = input.idempotency_key;
-  if (!idempotency_key) {
-    idempotencyKey = uuidv4();
+  if (!idempotencyKey) {
+    idempotencyKey = crypto.randomUUID();
   }
 
   // Verificar si ya existe un PO draft con misma key+rfq+empresa

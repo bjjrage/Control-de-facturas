@@ -70,34 +70,33 @@ async function handler(
     descripcion: string | null;
   }>;
 
-  // 3. Para cada material solicitado, verificar stock disponible
-  const materialsRequested = input.material_descriptions.map((desc) => {
-    // Intentar matching contra catálogo de productos usando item-matching
-    // Primero obtenemos el catálogo de productos de la empresa
-    const { data: catalog, error: catErr } = await db
-      .from("productos")
-      .select("id, nombre, unidad, stock_actual, activo")
-      .eq("empresa_id", empresaId)
-      .in("activo", [true]); // solo activos
+  // 3. Obtener catálogo de productos de la empresa una sola vez
+  const { data: catalog, error: catErr } = await db
+    .from("productos")
+    .select("id, nombre, unidad, stock_actual, activo")
+    .eq("empresa_id", empresaId)
+    .in("activo", [true]); // solo activos
 
+  const catalogItems = (catalog ?? []) as Array<{
+    id: string;
+    nombre: string;
+    unidad: string | null;
+    stock_actual: number;
+  }>;
+
+  // 4. Para cada material solicitado, verificar stock disponible
+  const materialsRequested = input.material_descriptions.map((desc) => {
     if (catErr) {
       // Si falla el catálogo, retornar resultado conservador
       return {
         description: desc,
-        required: false,
+        required: 0,
         net_available: 0,
         shortage: 0,
         unit: null,
         matched_catalog_item: null,
       };
     }
-
-    const catalogItems = (catalog ?? []) as Array<{
-      id: string;
-      nombre: string;
-      unidad: string | null;
-      stock_actual: number;
-    }>;
 
     // Usar matchTenderItem para encontrar el mejor match en catálogo
     const bestMatch = catalogItems.length > 0
