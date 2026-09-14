@@ -35,6 +35,10 @@ import {
   FolderClosed,
   Swords,
   Bot,
+  Layers,
+  PackageCheck,
+  Archive,
+  Tags,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { EmpresaPlan } from "@/lib/auth";
@@ -67,7 +71,14 @@ const PROJECT_TAB_GROUPS: { label: string; tabs: ProjectTab[] }[] = [
   ]},
   { label: "Ejecutar", tabs: [
     { key: "ejecucion", label: "Ejecución", icon: Hammer },
-    { key: "stock", label: "Stock / Materiales", icon: Boxes },
+    { key: "stock", label: "Stock / Materiales (legacy)", icon: Boxes },
+    // Dominio de inventario certificado (0080_inventory_panol): saldo por
+    // ubicación/obra, recepciones y pañol/rendiciones del depositero. Convive
+    // con "Stock / Materiales" legacy durante la transición — no lo reemplaza
+    // ni lo oculta, para no perder funcionalidad ya usada.
+    { key: "inventario", label: "Inventario (obra)", icon: Layers },
+    { key: "recepciones", label: "Recepciones", icon: PackageCheck },
+    { key: "panol", label: "Pañol / Rendiciones", icon: Archive },
     { key: "personal", label: "Personal", icon: Users, caterpillarOnly: true },
     { key: "subcontratistas", label: "Subcontratistas", icon: Truck, caterpillarOnly: true },
   ]},
@@ -116,7 +127,13 @@ const COMPRAS_ITEMS: NavItem[] = [
   { href: "/orders", label: "Órdenes de compra", roles: ["comercial", "administracion", "admin"], icon: Package, module: "compras" },
   { href: "/invoices", label: "Facturas", roles: ["administracion", "admin"], icon: Receipt, module: "compras" },
   { href: "/pagos", label: "Pagos", roles: ["administracion", "admin"], icon: Wallet, module: "compras" },
-  { href: "/stock", label: "Inventario global", roles: ["administracion", "admin"], icon: Boxes, module: "compras", minPlan: "pro" },
+  // Inventario global (dominio certificado 0080_inventory_panol): stock real
+  // por ubicación/obra, derivado de inventory_balances. "Catálogo de
+  // productos" es la pantalla legacy de alta/edición de productos — quedan
+  // separadas a propósito para no mostrar dos pantallas que aparenten ser lo
+  // mismo con backends distintos.
+  { href: "/inventario", label: "Inventario global", roles: ["administracion", "admin"], icon: Boxes, module: "compras", minPlan: "pro" },
+  { href: "/stock", label: "Catálogo de productos", roles: ["administracion", "admin"], icon: Tags, module: "compras", minPlan: "pro" },
 ];
 
 const FINANZAS_ITEMS: NavItem[] = [

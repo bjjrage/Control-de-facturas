@@ -23,6 +23,7 @@ import {
   ProjectUnit,
   ProjectCertificateUnitProgress,
 } from "@/lib/types";
+import { getProjectInventorySnapshot, getBudgetInventoryConsumption } from "@/lib/inventory/service";
 import { ProjectTabsClient } from "./project-tabs-client";
 
 const ALL_TABS = [
@@ -35,6 +36,9 @@ const ALL_TABS = [
   "facturas",
   "pagos",
   "stock",
+  "inventario",
+  "recepciones",
+  "panol",
   "informes",
   "personal",
   "subcontratistas",
@@ -241,10 +245,174 @@ export default async function ProjectDetailPage({
     costo_total: number;
   }[];
 
+  // Dominio de inventario certificado (0080_inventory_panol): stock/consumo
+  // canónicos de esta obra, recepciones confirmadas y rendiciones de pañol.
+  // Solo lectura acá — las RPCs de escritura siguen viviendo exclusivamente
+  // en app/(internal)/inventory/actions.ts.
+  const [
+    inventorySnapshot,
+    budgetConsumption,
+    { data: obraLocations },
+  ] = await Promise.all([
+    getProjectInventorySnapshot(supabase, empresaId, id),
+    getBudgetInventoryConsumption(supabase, empresaId, { projectId: id }),
+    supabase.from("inventory_locations").select("id, name").eq("project_id", id),
+  ]);
+  const stockObra = inventorySnapshot.data as import("./inventario-obra-section").StockObraRow[];
+  const consumoCanonico = budgetConsumption.data as import("./inventario-obra-section").ConsumoCanonicoRow[];
+  const locationNameById = new Map((obraLocations ?? []).map((l) => [l.id as string, l.name as string]));
+  const obraLocationIds = (obraLocations ?? []).map((l) => l.id as string);
+
+  let recepciones: import("./recepciones-obra-section").RecepcionRow[] = [];
+  if (obraLocationIds.length > 0) {
+    const { data: movementRows } = await supabase
+      .from("inventory_movements")
+      .select(
+        "id, quantity, unit, confirmed_at, to_location_id, source_type, source_id, cost_currency, cost_total_company, cost_total, productos(nombre)"
+      )
+      .eq("movement_type", "RECEIPT")
+      .eq("status", "CONFIRMED")
+      .in("to_location_id", obraLocationIds)
+      .order("confirmed_at", { ascending: false })
+      .returns<
+        {
+          id: string;
+          quantity: number;
+          unit: string;
+          confirmed_at: string;
+          to_location_id: string;
+          source_type: string;
+          source_id: string | null;
+          cost_currency: string | null;
+          cost_total_company: number | null;
+          cost_total: number | null;
+          productos: { nombre: string } | { nombre: string }[] | null;
+        }[]
+      >();
+
+    const ocReceiptIds = (movementRows ?? [])
+      .filter((m) => m.source_type === "OC_RECEPCION" && m.source_id)
+      .map((m) => m.source_id as string);
+    let orderCodeByReceiptId = new Map<string, { code: string; orderId: string; providerName: string | null }>();
+    if (ocReceiptIds.length > 0) {
+      const { data: receipts } = await supabase
+        .from("oc_recepciones")
+        .select("id, order_id")
+        .in("id", [...new Set(ocReceiptIds)]);
+      const orderIds = [...new Set((receipts ?? []).map((r) => r.order_id as string))];
+      if (orderIds.length > 0) {
+        const { data: orderRows } = await supabase
+          .from("authorized_orders")
+          .select("id, code, provider_id")
+          .in("id", orderIds);
+        const providerIds = [...new Set((orderRows ?? []).map((o) => o.provider_id as string).filter(Boolean))];
+        const { data: providerRows } =
+          providerIds.length > 0
+            ? await supabase.from("providers").select("id, name").in("id", providerIds)
+            : { data: [] };
+        const providerNameById = new Map((providerRows ?? []).map((p) => [p.id as string, p.name as string]));
+        const orderById = new Map(
+          (orderRows ?? []).map((o) => [
+            o.id as string,
+            { code: o.code as string, orderId: o.id as string, providerName: providerNameById.get(o.provider_id as string) ?? null },
+          ])
+        );
+        orderCodeByReceiptId = new Map(
+          (receipts ?? [])
+            .map((r) => {
+              const order = orderById.get(r.order_id as string);
+              return order ? [r.id as string, order] : null;
+            })
+            .filter((x): x is [string, { code: string; orderId: string; providerName: string | null }] => x !== null)
+        );
+      }
+    }
+
+    recepciones = (movementRows ?? []).map((m) => {
+      const productoRaw = Array.isArray(m.productos) ? m.productos[0] : m.productos;
+      const order = m.source_id ? orderCodeByReceiptId.get(m.source_id) : undefined;
+      return {
+        id: m.id,
+        producto: productoRaw?.nombre ?? "—",
+        unidad: m.unit,
+        quantity: m.quantity,
+        location_name: locationNameById.get(m.to_location_id) ?? "—",
+        confirmed_at: m.confirmed_at,
+        cost_currency: m.cost_currency,
+        cost_total: m.cost_total_company ?? m.cost_total,
+        order_code: order?.code ?? null,
+        order_id: order?.orderId ?? null,
+        provider_name: order?.providerName ?? null,
+      };
+    });
+  }
+
+  let panolSubmissions: import("./panol-obra-section").PanolSubmissionRow[] = [];
+  {
+    const { data: submissionRows } = await supabase
+      .from("warehouse_submissions")
+      .select("id, location_id, period_start, period_end, status")
+      .eq("project_id", id)
+      .order("period_end", { ascending: false });
+    const submissionIds = (submissionRows ?? []).map((s) => s.id as string);
+    const [{ data: lineRows }, { data: evidenceRows }] =
+      submissionIds.length > 0
+        ? await Promise.all([
+            supabase
+              .from("warehouse_submission_lines")
+              .select("id, submission_id, raw_description, quantity, unit, state, uncertainty_reason, productos(nombre)")
+              .in("submission_id", submissionIds)
+              .returns<
+                {
+                  id: string;
+                  submission_id: string;
+                  raw_description: string;
+                  quantity: number | null;
+                  unit: string | null;
+                  state: "PROPOSED" | "CONFIRMED" | "REJECTED";
+                  uncertainty_reason: string | null;
+                  productos: { nombre: string } | { nombre: string }[] | null;
+                }[]
+              >(),
+            supabase.from("warehouse_submission_evidence").select("submission_id").in("submission_id", submissionIds),
+          ])
+        : [{ data: [] }, { data: [] }];
+    const linesBySubmission = new Map<string, import("./panol-obra-section").PanolLineRow[]>();
+    for (const l of lineRows ?? []) {
+      const productoRaw = Array.isArray(l.productos) ? l.productos[0] : l.productos;
+      const list = linesBySubmission.get(l.submission_id) ?? [];
+      list.push({
+        id: l.id,
+        raw_description: l.raw_description,
+        producto: productoRaw?.nombre ?? null,
+        quantity: l.quantity,
+        unit: l.unit,
+        state: l.state,
+        uncertainty_reason: l.uncertainty_reason,
+      });
+      linesBySubmission.set(l.submission_id, list);
+    }
+    const evidenceCountBySubmission = new Map<string, number>();
+    for (const e of evidenceRows ?? []) {
+      const key = e.submission_id as string;
+      evidenceCountBySubmission.set(key, (evidenceCountBySubmission.get(key) ?? 0) + 1);
+    }
+    panolSubmissions = (submissionRows ?? []).map((s) => ({
+      id: s.id as string,
+      location_name: locationNameById.get(s.location_id as string) ?? "—",
+      period_start: s.period_start as string,
+      period_end: s.period_end as string,
+      status: s.status as import("./panol-obra-section").SubmissionStatus,
+      evidenceCount: evidenceCountBySubmission.get(s.id as string) ?? 0,
+      lines: linesBySubmission.get(s.id as string) ?? [],
+    }));
+  }
+
   const items = budgetItems ?? [];
   const entries = execEntries ?? [];
   const ocs = orders ?? [];
   const laborRows = laborEntries ?? [];
+  const budgetItemLabelById = new Map(items.map((i) => [i.id, `${i.code} — ${i.description}`]));
 
   // Cotizaciones y proveedores: derivados de las OCs del proyecto
   const orderIds = ocs.map((o) => o.id);
@@ -440,6 +608,11 @@ export default async function ProjectDetailPage({
       consumo={consumo}
       stockProyecto={(stockProyectoRows ?? []) as import("./proyecto-stock-section").StockProyectoRow[]}
       panoles={(panolesRows ?? []) as { id: string; nombre: string }[]}
+      stockObra={stockObra}
+      consumoCanonico={consumoCanonico}
+      budgetItemLabelById={Object.fromEntries(budgetItemLabelById)}
+      recepciones={recepciones}
+      panolSubmissions={panolSubmissions}
       isAdmin={profile.role === "admin"}
       duplicateSources={duplicateSources}
       itemsSubtotal={itemsSubtotal}
