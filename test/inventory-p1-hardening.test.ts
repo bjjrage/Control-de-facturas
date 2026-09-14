@@ -10,6 +10,10 @@ const actions = readFileSync(
   resolve(process.cwd(), "app/(internal)/inventory/actions.ts"),
   "utf8"
 );
+const propagationFix = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260914001000_inventory_p1_transfer_fix.sql"),
+  "utf8"
+);
 
 describe("P1 hardening del inventario canónico", () => {
   it("ata el acceso de Storage al tenant, contexto y path canónico", () => {
@@ -52,5 +56,11 @@ describe("P1 hardening del inventario canónico", () => {
     expect(migration).toContain("BEFORE INSERT OR UPDATE OR DELETE ON public.warehouse_submission_evidence");
     expect(actions).toContain("line.inventory_movement_id");
     expect(actions).toContain("submission?.status === \"CONFIRMED\"");
+  });
+
+  it("mantiene el metadato nominal al propagar capas de costo", () => {
+    expect(propagationFix).toContain("cost_status, original_cost_currency");
+    expect(propagationFix).toContain("original_unit_cost");
+    expect(propagationFix).toContain("p_total_cost_company =>");
   });
 });
