@@ -22,6 +22,10 @@ const gateFix = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260914020000_inventory_partial_upload_gate.sql"),
   "utf8"
 );
+const uploadResolution = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260914030000_inventory_partial_upload_resolution.sql"),
+  "utf8"
+);
 const portalRoute = readFileSync(
   resolve(process.cwd(), "app/api/warehouse-portal/[token]/route.ts"),
   "utf8"
@@ -105,9 +109,27 @@ describe("P1 hardening del inventario canónico", () => {
     expect(gateFix).toContain("upload_incomplete boolean NOT NULL DEFAULT false");
     expect(gateFix).toContain("IF v_submission.upload_incomplete THEN");
     expect(gateFix).toContain("RAISE EXCEPTION 'La rendición tiene cargas de archivos incompletas o pendientes';");
-    expect(portalRoute).toContain("upload_incomplete: true");
-    expect(portalRoute).toContain("upload_incomplete: false");
     expect(actions).toContain("upload_incomplete");
     expect(actions).toContain("submission.upload_incomplete ? submission.processing_error : null");
+  });
+
+  it("P1 partial upload resolution: persiste pendientes estructurados por sha256 y cierra el bypass de UPDATE directo", () => {
+    expect(uploadResolution).toContain("pending_uploads jsonb NOT NULL DEFAULT '[]'::jsonb");
+    expect(uploadResolution).toContain("CREATE OR REPLACE FUNCTION public.inventory_apply_warehouse_upload_result(");
+    expect(uploadResolution).toContain("IF auth.role() <> 'service_role' THEN");
+    expect(uploadResolution).toContain("RAISE EXCEPTION 'Acceso denegado: sólo el portal de rendiciones puede actualizar el estado de ingestión';");
+    expect(uploadResolution).toContain("WHERE NOT (elem ->> 'sha256' = ANY (v_resolved))");
+    expect(uploadResolution).toContain("upload_incomplete = (jsonb_array_length(v_pending) > 0)");
+    expect(uploadResolution).toContain("GRANT EXECUTE ON FUNCTION public.inventory_apply_warehouse_upload_result(uuid, uuid, text[], jsonb)\n  TO service_role;");
+    expect(uploadResolution).toContain("REVOKE UPDATE ON public.warehouse_submissions FROM authenticated;");
+    expect(uploadResolution).toContain("GRANT UPDATE (");
+    expect(uploadResolution).not.toMatch(/GRANT UPDATE \([^)]*upload_incomplete/);
+    expect(uploadResolution).not.toMatch(/GRANT UPDATE \([^)]*pending_uploads/);
+
+    expect(portalRoute).toContain('admin.rpc("inventory_apply_warehouse_upload_result"');
+    expect(portalRoute).toContain("resolvedSha256");
+    expect(portalRoute).toContain("failedUploads");
+    expect(portalRoute).not.toContain("upload_incomplete: true");
+    expect(portalRoute).not.toContain("upload_incomplete: false");
   });
 });

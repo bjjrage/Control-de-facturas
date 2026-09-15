@@ -101,6 +101,8 @@ export async function POST(request: Request, context: RouteContext) {
 
   const accepted: string[] = [];
   const rejected: Array<{ file: string; reason: string }> = [];
+  const resolvedSha256: string[] = [];
+  const failedUploads: Array<{ sha256: string; file_name: string; reason: string }> = [];
 
   for (const file of files) {
     const bytes = new Uint8Array(await file.arrayBuffer());
@@ -113,6 +115,7 @@ export async function POST(request: Request, context: RouteContext) {
       .maybeSingle();
     if (existingEvidence) {
       accepted.push(file.name);
+      resolvedSha256.push(sha256);
       continue;
     }
     const path = `${link.location_id}/${submission.id}/${randomUUID()}-${sanitizeFileName(file.name)}`;
@@ -121,7 +124,9 @@ export async function POST(request: Request, context: RouteContext) {
       upsert: false,
     });
     if (uploadError) {
-      rejected.push({ file: file.name, reason: uploadError.message ?? "error al subir a storage" });
+      const reason = uploadError.message ?? "error al subir a storage";
+      rejected.push({ file: file.name, reason });
+      failedUploads.push({ sha256, file_name: file.name, reason });
       continue;
     }
     const { error: evidenceError } = await admin.from("warehouse_submission_evidence").insert({
@@ -145,13 +150,42 @@ export async function POST(request: Request, context: RouteContext) {
       await admin.storage.from("warehouse-evidence").remove([path]);
       if (duplicateAfterRace) {
         accepted.push(file.name);
+        resolvedSha256.push(sha256);
       } else {
-        rejected.push({ file: file.name, reason: evidenceError.message ?? "error al registrar evidencia" });
+        const reason = evidenceError.message ?? "error al registrar evidencia";
+        rejected.push({ file: file.name, reason });
+        failedUploads.push({ sha256, file_name: file.name, reason });
       }
       continue;
     }
     accepted.push(file.name);
+    resolvedSha256.push(sha256);
   }
+
+  // Camino controlado: sólo esta RPC (SECURITY DEFINER, restringida a
+  // service_role) puede resolver o registrar pendientes estructurados y, por
+  // lo tanto, mover upload_incomplete. Un archivo pendiente de un POST
+  // anterior sólo se da por resuelto cuando su propio sha256 vuelve a
+  // subirse con éxito en este u otro lote; un POST sin rechazos propios no
+  // alcanza para limpiar pendientes ajenos.
+  const { data: gateRows, error: gateError } = await admin.rpc("inventory_apply_warehouse_upload_result", {
+    p_empresa_id: link.empresa_id,
+    p_submission_id: submission.id,
+    p_resolved_sha256: resolvedSha256,
+    p_failed: failedUploads,
+  });
+  if (gateError) {
+    return NextResponse.json(
+      { ok: false, error: "No se pudo actualizar el estado de ingestión.", submissionId: submission.id },
+      { status: 500 }
+    );
+  }
+  const gate = Array.isArray(gateRows) ? gateRows[0] : gateRows;
+  const uploadIncomplete = Boolean(gate?.upload_incomplete);
+  const pendingUploads = Array.isArray(gate?.pending_uploads) ? gate.pending_uploads : [];
+  const pendingSummary = pendingUploads
+    .map((p: { file_name?: string; reason?: string }) => `${p.file_name ?? "?"}: ${p.reason ?? "pendiente"}`)
+    .join("; ");
 
   await admin
     .from("warehouse_portal_links")
@@ -160,18 +194,26 @@ export async function POST(request: Request, context: RouteContext) {
     .eq("empresa_id", link.empresa_id);
 
   if (accepted.length === 0) {
+    const allFailedMsg = `Falló la carga de todos los archivos: ${rejected.map((r) => `${r.file}: ${r.reason}`).join("; ")}`;
     await admin
       .from("warehouse_submissions")
       .update({
         status: "NEEDS_REVIEW",
-        upload_incomplete: true,
-        processing_error: `Falló la carga de todos los archivos: ${rejected.map((r) => `${r.file}: ${r.reason}`).join("; ")}`,
+        processing_error: uploadIncomplete && pendingSummary ? `${allFailedMsg} | Pendientes: ${pendingSummary}` : allFailedMsg,
         updated_at: new Date().toISOString(),
       })
       .eq("id", submission.id)
       .eq("empresa_id", link.empresa_id);
     return NextResponse.json(
-      { ok: false, error: "No se pudo guardar ningún archivo.", submissionId: submission.id, accepted, rejected },
+      {
+        ok: false,
+        error: "No se pudo guardar ningún archivo.",
+        submissionId: submission.id,
+        accepted,
+        rejected,
+        uploadIncomplete,
+        pendingUploads,
+      },
       { status: 500 }
     );
   }
@@ -182,8 +224,7 @@ export async function POST(request: Request, context: RouteContext) {
       .from("warehouse_submissions")
       .update({
         status: "NEEDS_REVIEW",
-        upload_incomplete: true,
-        processing_error: partialMsg,
+        processing_error: pendingSummary ? `${partialMsg} | Pendientes: ${pendingSummary}` : partialMsg,
         updated_at: new Date().toISOString(),
       })
       .eq("id", submission.id)
@@ -198,16 +239,45 @@ export async function POST(request: Request, context: RouteContext) {
         total: files.length,
         accepted,
         rejected,
+        uploadIncomplete,
+        pendingUploads,
       },
       { status: 207 }
     );
   }
 
-  // Si no hubo rechazos en este lote de archivos, la carga está completa
+  // Este lote no tuvo rechazos propios, pero eso no alcanza para considerar
+  // la rendición completa: puede quedar pendiente un archivo de un lote
+  // anterior (uploadIncomplete/pendingUploads ya reflejan eso vía la RPC).
+  if (uploadIncomplete) {
+    await admin
+      .from("warehouse_submissions")
+      .update({
+        status: "NEEDS_REVIEW",
+        processing_error: pendingSummary ? `Quedan pendientes: ${pendingSummary}` : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", submission.id)
+      .eq("empresa_id", link.empresa_id);
+    return NextResponse.json(
+      {
+        ok: true,
+        partial: true,
+        submissionId: submission.id,
+        uploaded: accepted.length,
+        total: files.length,
+        accepted,
+        rejected: [],
+        uploadIncomplete: true,
+        pendingUploads,
+      },
+      { status: 207 }
+    );
+  }
+
   await admin
     .from("warehouse_submissions")
     .update({
-      upload_incomplete: false,
       processing_error: null,
       updated_at: new Date().toISOString(),
     })
@@ -220,6 +290,8 @@ export async function POST(request: Request, context: RouteContext) {
     submissionId: submission.id,
     uploaded: accepted.length,
     total: files.length,
+    uploadIncomplete: false,
+    pendingUploads: [],
     accepted,
     rejected: [],
   });
