@@ -1,7 +1,7 @@
 "use client";
 
 import { PieChart, Pie, Cell } from "recharts";
-import { TrendingUp, AlertTriangle, Clock } from "lucide-react";
+import { TrendingUp, AlertTriangle, Clock, ShoppingCart } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { PanoramaObras as PanoramaObrasData } from "./data";
 
@@ -16,7 +16,8 @@ const ESTADO_COLORS = {
 // plata activa, cuántas obras se desviaron y de qué tipo, avance ponderado
 // por presupuesto (una obra grande pesa más que una chica en el promedio).
 export function PanoramaObras({ data }: { data: PanoramaObrasData }) {
-  const { obrasActivas, carteraActivaPyg, desviosCosto, desviosPlazo, avanceFisicoPonderado, estadoBreakdown } = data;
+  const { obrasActivas, carteraActivaPyg, comprasRealizadasPyg, desviosCosto, desviosPlazo, avanceFisicoPonderado, estadoBreakdown } =
+    data;
   const donutData = [
     { key: "normal", value: estadoBreakdown.normal, color: ESTADO_COLORS.normal },
     { key: "atencion", value: estadoBreakdown.atencion, color: ESTADO_COLORS.atencion },
@@ -28,7 +29,7 @@ export function PanoramaObras({ data }: { data: PanoramaObrasData }) {
       <div className="flex items-center gap-4">
         <div className="relative h-[92px] w-[92px] shrink-0">
           {donutData.length > 0 ? (
-            <PieChart width={92} height={92}>
+            <PieChart width={92} height={92} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
               <Pie
                 data={donutData}
                 dataKey="value"
@@ -75,6 +76,14 @@ export function PanoramaObras({ data }: { data: PanoramaObrasData }) {
             <div className="text-[14px] font-semibold leading-none">{desviosPlazo}</div>
             <div className="text-[10px] text-[var(--muted)] mt-0.5 truncate">Desvíos de plazo</div>
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg bg-[var(--panel-2)] p-2.5 flex items-center gap-2">
+        <ShoppingCart size={14} className="text-[var(--primary)] shrink-0" />
+        <div className="min-w-0">
+          <div className="text-[14px] font-semibold leading-none truncate">{formatMoney(comprasRealizadasPyg)}</div>
+          <div className="text-[10px] text-[var(--muted)] mt-0.5 truncate">Compras realizadas</div>
         </div>
       </div>
 

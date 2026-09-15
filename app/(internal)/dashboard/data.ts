@@ -38,6 +38,7 @@ export type MetricChip = {
 export type PanoramaObras = {
   obrasActivas: number;
   carteraActivaPyg: number;
+  comprasRealizadasPyg: number;
   desviosCosto: number;
   desviosPlazo: number;
   avanceFisicoPonderado: number;
@@ -315,6 +316,7 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
   const panorama: PanoramaObras | null = canUseOperativo
     ? (() => {
         const carteraActivaPyg = portfolioRows.reduce((s, r) => s + r.presupuesto, 0);
+        const comprasRealizadasPyg = [...comprasByProject.values()].reduce((s, v) => s + v, 0);
         const pesoTotal = carteraActivaPyg;
         const avanceFisicoPonderado =
           pesoTotal > 0
@@ -325,6 +327,7 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
         return {
           obrasActivas: portfolioRows.length,
           carteraActivaPyg,
+          comprasRealizadasPyg,
           desviosCosto: portfolioRows.filter((r) => r.comprasPct !== null && r.comprasPct > 100).length,
           desviosPlazo: portfolioRows.filter((r) => r.atrasoDias !== null && r.atrasoDias > 0).length,
           avanceFisicoPonderado,
