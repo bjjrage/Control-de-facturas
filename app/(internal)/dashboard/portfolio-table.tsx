@@ -51,7 +51,9 @@ function ScheduleDeviation({ atrasoDias }: { atrasoDias: number | null }) {
 // Portafolio de obras — pieza central del workspace Operativo en el
 // dashboard. Compacto a propósito: nombre, avance, desvíos y estado, nada
 // más. Degrada a "—" cuando el dato no existe en vez de inventarlo.
-export function PortfolioTable({ rows }: { rows: PortfolioRow[] }) {
+// `totalCount` es el total real de obras activas — cuando hay más que las
+// filas mostradas (recortadas a 5), se muestra el link a /projects.
+export function PortfolioTable({ rows, totalCount }: { rows: PortfolioRow[]; totalCount: number }) {
   if (rows.length === 0) {
     return (
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 text-[13px] text-[var(--muted)]">
@@ -110,6 +112,14 @@ export function PortfolioTable({ rows }: { rows: PortfolioRow[] }) {
           ))}
         </tbody>
       </table>
+      {totalCount > rows.length ? (
+        <Link
+          href="/projects"
+          className="block px-3.5 py-2.5 text-[12px] text-action border-t border-[var(--border)] hover:bg-[var(--hover)]"
+        >
+          Ver las {totalCount} obras →
+        </Link>
+      ) : null}
     </div>
   );
 }

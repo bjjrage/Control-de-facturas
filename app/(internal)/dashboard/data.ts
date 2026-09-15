@@ -22,14 +22,14 @@ function addDays(days: number): string {
 
 export type DomainTone = "ok" | "warn" | "error";
 
-// Un chip por área de negocio (Compras/Ventas/Obras/Licitaciones), todos del
-// mismo tamaño y forma — la señal más urgente de esa área como subtítulo,
-// nunca varios KPIs sueltos de tamaños distintos compitiendo por atención.
-export type DomainChip = {
+// Un KPI atómico — un número, un label, una sección (Administración u
+// Obras/Licitaciones). Reemplaza el chip único "por dominio" que resumía 4
+// métricas en una sola línea de texto: cada métrica indispensable de cada
+// sección tiene su propio lugar, como en el diseño original.
+export type MetricChip = {
   key: string;
+  value: string;
   label: string;
-  status: string;
-  count: number;
   href: string;
   iconKey: DashboardIconKey;
   tone: DomainTone;
@@ -44,30 +44,18 @@ export type PanoramaObras = {
   estadoBreakdown: { normal: number; atencion: number; riesgo: number };
 };
 
+const PORTFOLIO_TABLE_LIMIT = 5;
+const ESTADO_PRIORITY: Record<PortfolioEstado, number> = { Riesgo: 0, Atención: 1, Normal: 2 };
+
 export type DashboardViewData = {
   firstName: string;
   canUseOperativo: boolean;
-  domainChips: DomainChip[];
+  adminKpis: MetricChip[];
+  licitacionesKpis: MetricChip[];
   portfolioRows: PortfolioRow[];
+  portfolioTotalCount: number;
   panorama: PanoramaObras | null;
 };
-
-function domainChip(args: {
-  key: string;
-  label: string;
-  href: string;
-  iconKey: DashboardIconKey;
-  errorCount: number;
-  errorLabel: (n: number) => string;
-  warnCount: number;
-  warnLabel: (n: number) => string;
-  okLabel: string;
-}): DomainChip {
-  const { key, label, href, iconKey, errorCount, errorLabel, warnCount, warnLabel, okLabel } = args;
-  if (errorCount > 0) return { key, label, status: errorLabel(errorCount), count: errorCount, href, iconKey, tone: "error" };
-  if (warnCount > 0) return { key, label, status: warnLabel(warnCount), count: warnCount, href, iconKey, tone: "warn" };
-  return { key, label, status: okLabel, count: 0, href, iconKey, tone: "ok" };
-}
 
 /**
  * Toda la data del resumen ejecutivo, compartida entre el render server
@@ -219,78 +207,71 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
   });
 
   // ---------------------------------------------------------------------
-  // Chips por área — una señal por dominio, todas del mismo tamaño. Compras
-  // y Ventas comparten la misma raíz de datos que antes (facturas/cobros),
-  // solo que ahora cada una es su propio chip en vez de 4 tiles sueltos.
+  // KPIs de Administración — uno por métrica, monto real como valor
+  // principal. Son los mismos 4 indicadores accionables de antes (cuánto
+  // debo, cuánto vence, cuánto me deben, qué cobro se venció); antes
+  // vivían aplanados en un solo chip de texto por Compras/Ventas.
   // ---------------------------------------------------------------------
-  const domainChips: DomainChip[] = [];
+  const adminKpis: MetricChip[] = [];
   if (showInvoiceKpis) {
-    domainChips.push(
-      domainChip({
-        key: "compras",
-        label: "Compras",
-        href: "/pagos",
-        iconKey: "wallet",
-        errorCount: facturasVencidasPorPagarRows.length,
-        errorLabel: (n) =>
-          `${n} factura${n !== 1 ? "s" : ""} vencida${n !== 1 ? "s" : ""} · ${formatMoney(sumPyg(facturasVencidasPorPagarRows))}`,
-        warnCount: pagosProximosRows.length,
-        warnLabel: (n) => `${n} pago${n !== 1 ? "s" : ""} próximo${n !== 1 ? "s" : ""} · ${formatMoney(sumPyg(pagosProximosRows))}`,
-        okLabel: "Al día",
-      })
-    );
+    adminKpis.push({
+      key: "pagos-proximos",
+      value: formatMoney(sumPyg(pagosProximosRows)),
+      label: `Pagos próximos · ${pagosProximosRows.length}`,
+      href: "/pagos",
+      iconKey: "calendar-clock",
+      tone: pagosProximosRows.length > 0 ? "warn" : "ok",
+    });
+    adminKpis.push({
+      key: "facturas-vencidas",
+      value: formatMoney(sumPyg(facturasVencidasPorPagarRows)),
+      label: `Facturas vencidas · ${facturasVencidasPorPagarRows.length}`,
+      href: "/pagos",
+      iconKey: "alert-octagon",
+      tone: facturasVencidasPorPagarRows.length > 0 ? "error" : "ok",
+    });
   }
   if (showSalesKpis) {
-    domainChips.push(
-      domainChip({
-        key: "ventas",
-        label: "Ventas",
-        href: "/cobros",
-        iconKey: "file-x",
-        errorCount: cobrosVencidosRows.length,
-        errorLabel: (n) =>
-          `${n} cobro${n !== 1 ? "s" : ""} vencido${n !== 1 ? "s" : ""} · ${formatMoney(sumPygSaldo(cobrosVencidosRows))}`,
-        warnCount: cobrosEsperadosRows.length,
-        warnLabel: (n) =>
-          `${n} cobro${n !== 1 ? "s" : ""} esperado${n !== 1 ? "s" : ""} · ${formatMoney(sumPygSaldo(cobrosEsperadosRows))}`,
-        okLabel: "Al día",
-      })
-    );
+    adminKpis.push({
+      key: "cobros-esperados",
+      value: formatMoney(sumPygSaldo(cobrosEsperadosRows)),
+      label: `Cobros esperados · ${cobrosEsperadosRows.length}`,
+      href: "/cobros",
+      iconKey: "wallet",
+      tone: cobrosEsperadosRows.length > 0 ? "warn" : "ok",
+    });
+    adminKpis.push({
+      key: "cobros-vencidos",
+      value: formatMoney(sumPygSaldo(cobrosVencidosRows)),
+      label: `Cobros vencidos · ${cobrosVencidosRows.length}`,
+      href: "/cobros",
+      iconKey: "file-x",
+      tone: cobrosVencidosRows.length > 0 ? "error" : "ok",
+    });
   }
-  if (canUseOperativo) {
-    const enRiesgo = portfolioRows.filter((r) => r.estado === "Riesgo").length;
-    const enAtencion = portfolioRows.filter((r) => r.estado === "Atención").length;
-    domainChips.push(
-      domainChip({
-        key: "obras",
-        label: "Obras",
-        href: "/projects",
-        iconKey: "hardhat",
-        errorCount: enRiesgo,
-        errorLabel: (n) => `${n} obra${n !== 1 ? "s" : ""} en riesgo`,
-        warnCount: enAtencion,
-        warnLabel: (n) => `${n} obra${n !== 1 ? "s" : ""} en atención`,
-        okLabel: portfolioRows.length > 0 ? "Todas en plazo" : "Sin obras activas",
-      })
-    );
-  }
-  if (canUseLicitaciones) {
-    const porVencer = ofertasPorVencer ?? 0;
-    const nuevas = oportunidadesNuevas ?? 0;
-    domainChips.push(
-      domainChip({
-        key: "licitaciones",
-        label: "Licitaciones",
-        href: "/licitaciones",
-        iconKey: "gavel",
-        errorCount: 0,
-        errorLabel: () => "",
-        warnCount: porVencer,
-        warnLabel: (n) => `${n} oferta${n !== 1 ? "s" : ""} por vencer`,
-        okLabel: nuevas > 0 ? `${nuevas} nueva${nuevas !== 1 ? "s" : ""} oportunidad${nuevas !== 1 ? "es" : ""}` : "Sin pendientes",
-      })
-    );
-  }
+
+  // KPIs de Licitaciones — qué vence pronto y qué apareció nuevo, sin monto
+  // potencial ni win rate (eso no es indispensable de un vistazo).
+  const licitacionesKpis: MetricChip[] = canUseLicitaciones
+    ? [
+        {
+          key: "ofertas-por-vencer",
+          value: String(ofertasPorVencer ?? 0),
+          label: "Ofertas próximas a vencer",
+          href: "/licitaciones",
+          iconKey: "calendar-clock",
+          tone: (ofertasPorVencer ?? 0) > 0 ? "warn" : "ok",
+        },
+        {
+          key: "oportunidades-nuevas",
+          value: String(oportunidadesNuevas ?? 0),
+          label: "Nuevas oportunidades (radar)",
+          href: "/licitaciones",
+          iconKey: "radar",
+          tone: "ok",
+        },
+      ]
+    : [];
 
   // ---------------------------------------------------------------------
   // Panorama de obras: lo que antes era un textito chico ("7 activas · 26%
@@ -324,11 +305,21 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
       })()
     : null;
 
+  // Tabla: vistazo rápido, no el listado completo — eso vive en /projects.
+  // Se muestran como máximo 5, priorizando las que necesitan ojo (Riesgo
+  // primero, luego Atención, luego Normal); el panorama de al lado sigue
+  // calculado sobre TODA la cartera, no solo estas 5.
+  const portfolioRowsTop = [...portfolioRows]
+    .sort((a, b) => ESTADO_PRIORITY[a.estado] - ESTADO_PRIORITY[b.estado])
+    .slice(0, PORTFOLIO_TABLE_LIMIT);
+
   return {
     firstName: p.full_name.split(" ")[0],
     canUseOperativo,
-    domainChips,
-    portfolioRows,
+    adminKpis,
+    licitacionesKpis,
+    portfolioRows: portfolioRowsTop,
+    portfolioTotalCount: portfolioRows.length,
     panorama,
   };
 }

@@ -1,6 +1,5 @@
 import { requireProfile } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/sidebar";
-import { WorkspaceRail } from "@/components/layout/workspace-rail";
 import { AdminRailPanel } from "@/components/layout/admin-rail-panel";
 import { Topbar } from "@/components/layout/topbar";
 import { AppShellClient } from "@/components/layout/app-shell-client";
@@ -29,12 +28,17 @@ export default async function InternalLayout({ children }: { children: React.Rea
         plan={profile.plan}
       />
       <div className="flex-1 min-w-0 flex flex-col">
-        <Topbar initial={initial} fullName={profile.full_name} role={profile.role} />
+        <Topbar
+          initial={initial}
+          fullName={profile.full_name}
+          role={profile.role}
+          showOperativo={showOperativo}
+          showLicitaciones={showLicitaciones}
+        />
         <main className="flex-1 min-w-0 p-5">
           <AppShellClient>{children}</AppShellClient>
         </main>
       </div>
-      <WorkspaceRail showOperativo={showOperativo} showLicitaciones={showLicitaciones} />
       <AdminRailPanel role={profile.role} plan={profile.plan} isSuperAdmin={profile.is_super_admin} />
     </div>
   );

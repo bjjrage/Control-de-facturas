@@ -1,9 +1,60 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Search, Bell, HelpCircle, ChevronDown } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Search, Bell, HelpCircle, ChevronDown, Building2, HardHat, Gavel, LucideIcon } from "lucide-react";
 import { UserRole } from "@/lib/types";
+import { cn } from "@/lib/cn";
 import { logout } from "@/app/(internal)/actions";
+import { Workspace, WORKSPACE_HOME, WORKSPACE_LABEL, workspaceForPath } from "./workspace";
+
+type WorkspaceItem = { key: Workspace; icon: LucideIcon };
+
+const WORKSPACE_ITEMS: WorkspaceItem[] = [
+  { key: "administracion", icon: Building2 },
+  { key: "operativo", icon: HardHat },
+  { key: "licitaciones", icon: Gavel },
+];
+
+// 3 botones, nada más: en qué workspace estoy. Antes era un segundo navbar
+// vertical propio (76px, toda la altura de pantalla) — acá vive junto al
+// resto de la topbar (buscador, notificaciones, ayuda, perfil), no como una
+// pieza de layout aparte.
+function WorkspaceSwitcher({ showOperativo, showLicitaciones }: { showOperativo: boolean; showLicitaciones: boolean }) {
+  const pathname = usePathname();
+  const active = workspaceForPath(pathname);
+
+  const items = WORKSPACE_ITEMS.filter((item) => {
+    if (item.key === "operativo") return showOperativo;
+    if (item.key === "licitaciones") return showLicitaciones;
+    return true;
+  });
+
+  return (
+    <div className="hidden md:flex items-center gap-1 rounded-full bg-[var(--panel-2)] border border-[var(--border)] p-1">
+      {items.map((item) => {
+        const Icon = item.icon;
+        const isActive = active === item.key;
+        return (
+          <Link
+            key={item.key}
+            href={WORKSPACE_HOME[item.key]}
+            className={cn(
+              "flex items-center gap-1.5 h-7 px-3 rounded-full text-[12px] font-medium transition-all duration-150",
+              isActive
+                ? "bg-[var(--nav-active)] text-white shadow-[0_0_0_1px_rgba(129,155,255,0.7),0_0_10px_-2px_rgba(91,124,250,0.75)]"
+                : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+            )}
+          >
+            <Icon size={14} className="shrink-0" strokeWidth={isActive ? 2.25 : 2} />
+            {WORKSPACE_LABEL[item.key]}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
 
 function UserMenu({ initial, fullName, role }: { initial: string; fullName: string; role: UserRole }) {
   const [open, setOpen] = useState(false);
@@ -57,10 +108,14 @@ export function Topbar({
   initial,
   fullName,
   role,
+  showOperativo,
+  showLicitaciones,
 }: {
   initial: string;
   fullName: string;
   role: UserRole;
+  showOperativo: boolean;
+  showLicitaciones: boolean;
 }) {
   return (
     <header className="h-14 shrink-0 border-b border-[var(--border)] bg-[var(--panel)] px-4 flex items-center gap-3 sticky top-0 z-10">
@@ -74,6 +129,7 @@ export function Topbar({
           />
         </div>
       </div>
+      <WorkspaceSwitcher showOperativo={showOperativo} showLicitaciones={showLicitaciones} />
       <div className="flex items-center gap-1 ml-auto">
         <button
           disabled

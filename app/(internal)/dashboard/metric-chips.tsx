@@ -1,25 +1,25 @@
 import Link from "next/link";
 import { DASHBOARD_ICONS } from "./icon-map";
-import { DomainChip, DomainTone } from "./data";
+import { MetricChip } from "./data";
 
-const TONE_CLASSES: Record<DomainTone, string> = {
+const TONE_CLASSES: Record<MetricChip["tone"], string> = {
   ok: "bg-[var(--ok-bg)] text-[var(--ok)]",
   warn: "bg-[var(--warn-bg)] text-[var(--warn)]",
   error: "bg-[var(--error-bg)] text-[var(--error)]",
 };
 
-const TONE_RING: Record<DomainTone, string> = {
+const TONE_RING: Record<MetricChip["tone"], string> = {
   ok: "",
   warn: "ring-1 ring-[var(--warn)]/25",
   error: "ring-1 ring-[var(--error)]/30",
 };
 
-// Un chip por área de negocio, todos exactamente del mismo tamaño — la señal
-// más urgente de esa área, nada más. Reemplaza el banner gigante de
-// "Requiere atención" + los KPIs sueltos de tamaños distintos que había
-// antes: acá la jerarquía es horizontal y simétrica, no una pila de cajas de
-// alturas distintas compitiendo entre sí.
-export function DomainChips({ chips }: { chips: DomainChip[] }) {
+// Fila de KPIs atómicos de una sección (Administración, Licitaciones) —
+// mismo tamaño y forma siempre, el valor grande es el número que importa
+// (monto o cantidad) y el label chico dice qué es. Reemplaza el chip único
+// "por dominio" que resumía 4 métricas en una sola línea de texto: acá cada
+// métrica tiene su propio lugar, como en el diseño original.
+export function MetricChips({ chips }: { chips: MetricChip[] }) {
   if (chips.length === 0) return null;
 
   return (
@@ -36,8 +36,8 @@ export function DomainChips({ chips }: { chips: DomainChip[] }) {
               <Icon size={16} />
             </div>
             <div className="min-w-0">
-              <div className="text-[12.5px] font-semibold truncate">{chip.label}</div>
-              <div className="text-[11px] text-[var(--muted)] mt-0.5 truncate">{chip.status}</div>
+              <div className="text-[15px] font-semibold leading-none truncate">{chip.value}</div>
+              <div className="text-[11px] text-[var(--muted)] mt-1 truncate">{chip.label}</div>
             </div>
           </Link>
         );
