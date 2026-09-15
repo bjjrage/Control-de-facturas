@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/cn";
 
 export type PortfolioEstado = "Normal" | "Atención" | "Riesgo";
 
@@ -13,6 +12,16 @@ export type PortfolioRow = {
   comprasPct: number | null;
   atrasoDias: number | null;
   estado: PortfolioEstado;
+  presupuesto: number;
+};
+
+// Gradiente por estado en vez de color plano — la barra de avance lee de un
+// vistazo si la obra viene bien (verde), necesita ojo (ámbar) o está en
+// riesgo (rojo), sin depender solo del texto de "Estado" al lado.
+const AVANCE_GRADIENT: Record<PortfolioEstado, string> = {
+  Normal: "linear-gradient(90deg, #2563eb, #38bdf8)",
+  Atención: "linear-gradient(90deg, #d97706, #fbbf24)",
+  Riesgo: "linear-gradient(90deg, #b91c1c, #f2685c)",
 };
 
 const ESTADO_TONE: Record<PortfolioEstado, "ok" | "warn" | "error"> = {
@@ -76,8 +85,14 @@ export function PortfolioTable({ rows }: { rows: PortfolioRow[] }) {
                 <div className="flex items-center gap-2">
                   <div className="h-1.5 flex-1 rounded-full bg-[var(--hover)] overflow-hidden">
                     <div
-                      className={cn("h-full rounded-full", r.avancePct >= 100 ? "bg-[var(--ok)]" : "bg-[var(--primary)]")}
-                      style={{ width: `${Math.min(100, r.avancePct)}%` }}
+                      className="h-full rounded-full transition-[width] duration-300"
+                      style={{
+                        width: `${Math.min(100, r.avancePct)}%`,
+                        background:
+                          r.avancePct >= 100
+                            ? "linear-gradient(90deg, #0f9e6f, #34d399)"
+                            : AVANCE_GRADIENT[r.estado],
+                      }}
                     />
                   </div>
                   <span className="text-[12px] tabular-nums shrink-0">{r.avancePct}%</span>

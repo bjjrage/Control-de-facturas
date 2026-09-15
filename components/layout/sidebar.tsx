@@ -37,7 +37,6 @@ import { uploadLogo } from "./branding-actions";
 import { LOGO_STORAGE_PATH } from "./branding-constants";
 import { getProjectNavInfo } from "@/app/(internal)/projects/actions";
 import { SHELL_PATHS } from "./app-shell-client";
-import { AdminConfigSection } from "./admin-config-section";
 import { workspaceForPath } from "./workspace";
 
 // Sub-secciones de un proyecto — mismas tabs que /projects/[id]?tab=X, pero
@@ -475,15 +474,21 @@ export function Sidebar({
               />
             ))}
           </div>
-        ) : inAdminWorkspace ? (
+        ) : (
           <>
+            {/* Dashboard queda siempre visible como ancla — sin esto, salir
+                de un proyecto en Operativo (o entrar a Licitaciones) deja el
+                nav izquierdo completamente vacío y parece roto. */}
             {globalItems.map(renderLink)}
-            {renderSection("Comprar", comprasItems)}
-            {renderSection("Vender", ventasItems)}
-            {renderSection("Finanzas", finanzasItems)}
-            <AdminConfigSection role={role} plan={plan} isSuperAdmin={isSuperAdmin} collapsed={collapsed} />
+            {inAdminWorkspace ? (
+              <>
+                {renderSection("Comprar", comprasItems)}
+                {renderSection("Vender", ventasItems)}
+                {renderSection("Finanzas", finanzasItems)}
+              </>
+            ) : null}
           </>
-        ) : null}
+        )}
       </nav>
 
     </aside>

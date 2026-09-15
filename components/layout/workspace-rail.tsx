@@ -38,7 +38,7 @@ export function WorkspaceRail({
       <div className="h-14 flex items-center justify-center border-b border-[var(--border)]">
         <span className="text-[9px] font-semibold uppercase tracking-widest text-[var(--muted)]">Workspace</span>
       </div>
-      <nav className="flex-1 py-3 px-2 space-y-1.5">
+      <nav className="flex-1 py-3 px-2 space-y-2">
         {items.map((item) => {
           const Icon = item.icon;
           const isActive = active === item.key;
@@ -48,14 +48,14 @@ export function WorkspaceRail({
               href={WORKSPACE_HOME[item.key]}
               title={WORKSPACE_LABEL[item.key]}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 h-16 rounded-lg text-[10px] font-medium transition-colors",
+                "flex flex-col items-center justify-center gap-1 min-h-16 py-2.5 rounded-xl text-[10px] font-medium transition-all duration-150",
                 isActive
-                  ? "bg-[var(--nav-active)] text-white shadow-[0_0_0_1px_rgba(91,124,250,0.35)]"
+                  ? "bg-[var(--nav-active)] text-white shadow-[0_0_0_1px_rgba(129,155,255,0.7),0_0_18px_-2px_rgba(91,124,250,0.75)]"
                   : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
               )}
             >
               <Icon size={18} className="shrink-0" strokeWidth={isActive ? 2.25 : 2} />
-              <span className="leading-[1.15] text-center px-1 break-words hyphens-auto">
+              <span className="leading-[1.2] text-center px-1.5 break-words">
                 {WORKSPACE_LABEL[item.key]}
               </span>
             </Link>

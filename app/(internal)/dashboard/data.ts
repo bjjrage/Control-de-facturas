@@ -2,18 +2,16 @@ import { requireProfile, CurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Project, InvoiceStatus, SalesDocStatus } from "@/lib/types";
 import { docSaldo } from "@/lib/sales";
+import { formatMoney } from "@/lib/format";
 import { classifyPayable, classifyReceivable } from "@/lib/dashboard-kpis";
 import { PortfolioRow, PortfolioEstado } from "./portfolio-table";
-import { AdminKpi } from "./admin-kpis";
-import { LicitacionKpi } from "./licitaciones-kpis";
-import { OperativoKpi } from "./operativo-kpis";
-import { AttentionItem } from "./attention-section";
+import { DashboardIconKey } from "./icon-map";
 
 const PLAN_RANK = { basico: 0, pro: 1, caterpillar: 2 } as const;
 
 // Ventana de "próximo/por vencer" para todo el resumen ejecutivo (pagos,
 // cobros, ofertas de licitación) — un solo lugar para no repetir el número
-// mágico en cada cálculo y en el texto de "Requiere atención".
+// mágico en cada cálculo y en el texto de los chips.
 const DASHBOARD_UPCOMING_DAYS = 7;
 
 function addDays(days: number): string {
@@ -22,17 +20,54 @@ function addDays(days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+export type DomainTone = "ok" | "warn" | "error";
+
+// Un chip por área de negocio (Compras/Ventas/Obras/Licitaciones), todos del
+// mismo tamaño y forma — la señal más urgente de esa área como subtítulo,
+// nunca varios KPIs sueltos de tamaños distintos compitiendo por atención.
+export type DomainChip = {
+  key: string;
+  label: string;
+  status: string;
+  count: number;
+  href: string;
+  iconKey: DashboardIconKey;
+  tone: DomainTone;
+};
+
+export type PanoramaObras = {
+  obrasActivas: number;
+  carteraActivaPyg: number;
+  desviosCosto: number;
+  desviosPlazo: number;
+  avanceFisicoPonderado: number;
+  estadoBreakdown: { normal: number; atencion: number; riesgo: number };
+};
+
 export type DashboardViewData = {
   firstName: string;
   canUseOperativo: boolean;
+  domainChips: DomainChip[];
   portfolioRows: PortfolioRow[];
-  avanceProm: number;
-  obrasEnRiesgo: number;
-  operativoKpis: OperativoKpi[];
-  adminKpis: AdminKpi[];
-  licitacionesKpis: LicitacionKpi[];
-  attentionItems: AttentionItem[];
+  panorama: PanoramaObras | null;
 };
+
+function domainChip(args: {
+  key: string;
+  label: string;
+  href: string;
+  iconKey: DashboardIconKey;
+  errorCount: number;
+  errorLabel: (n: number) => string;
+  warnCount: number;
+  warnLabel: (n: number) => string;
+  okLabel: string;
+}): DomainChip {
+  const { key, label, href, iconKey, errorCount, errorLabel, warnCount, warnLabel, okLabel } = args;
+  if (errorCount > 0) return { key, label, status: errorLabel(errorCount), count: errorCount, href, iconKey, tone: "error" };
+  if (warnCount > 0) return { key, label, status: warnLabel(warnCount), count: warnCount, href, iconKey, tone: "warn" };
+  return { key, label, status: okLabel, count: 0, href, iconKey, tone: "ok" };
+}
 
 /**
  * Toda la data del resumen ejecutivo, compartida entre el render server
@@ -124,69 +159,6 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
     return rows.filter((r) => r.currency === "PYG").reduce((s, r) => s + docSaldo(r.total, r.cobrado_amount), 0);
   }
 
-  const adminKpis: AdminKpi[] = [];
-  if (showInvoiceKpis) {
-    adminKpis.push({
-      key: "pagos-proximos",
-      label: "Pagos próximos",
-      amountPyg: sumPyg(pagosProximosRows),
-      count: pagosProximosRows.length,
-      href: "/pagos",
-      iconKey: "calendar-clock",
-      tone: "neutral",
-    });
-    adminKpis.push({
-      key: "facturas-vencidas-por-pagar",
-      label: "Facturas vencidas por pagar",
-      amountPyg: sumPyg(facturasVencidasPorPagarRows),
-      count: facturasVencidasPorPagarRows.length,
-      href: "/pagos",
-      iconKey: "alert-octagon",
-      tone: facturasVencidasPorPagarRows.length > 0 ? "error" : "ok",
-    });
-  }
-  if (showSalesKpis) {
-    adminKpis.push({
-      key: "cobros-esperados",
-      label: "Cobros esperados",
-      amountPyg: sumPygSaldo(cobrosEsperadosRows),
-      count: cobrosEsperadosRows.length,
-      href: "/cobros",
-      iconKey: "wallet",
-      tone: "neutral",
-    });
-    adminKpis.push({
-      key: "cobros-vencidos",
-      label: "Cobros vencidos",
-      amountPyg: sumPygSaldo(cobrosVencidosRows),
-      count: cobrosVencidosRows.length,
-      href: "/cobros",
-      iconKey: "file-x",
-      tone: cobrosVencidosRows.length > 0 ? "error" : "ok",
-    });
-  }
-
-  const licitacionesKpis: LicitacionKpi[] = canUseLicitaciones
-    ? [
-        {
-          key: "ofertas-por-vencer",
-          label: "Ofertas próximas a vencer",
-          count: ofertasPorVencer ?? 0,
-          href: "/licitaciones",
-          iconKey: "calendar-clock",
-          tone: (ofertasPorVencer ?? 0) > 0 ? "warn" : "primary",
-        },
-        {
-          key: "oportunidades-nuevas",
-          label: "Nuevas oportunidades (radar)",
-          count: oportunidadesNuevas ?? 0,
-          href: "/licitaciones",
-          iconKey: "radar",
-          tone: "primary",
-        },
-      ]
-    : [];
-
   // Portafolio: mismo cálculo de avance/compras que /projects, restringido a
   // obras activas y con menos columnas — pensado para lectura rápida, no
   // para gestión (eso sigue viviendo en /projects).
@@ -243,102 +215,120 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
     if ((atrasoDias && atrasoDias > 15) || (comprasPct !== null && comprasPct > 115)) estado = "Riesgo";
     else if (atrasoDias || (comprasPct !== null && comprasPct > 100)) estado = "Atención";
 
-    return { id: pr.id, code: pr.code, name: pr.name, avancePct, comprasPct, atrasoDias, estado };
+    return { id: pr.id, code: pr.code, name: pr.name, avancePct, comprasPct, atrasoDias, estado, presupuesto };
   });
 
-  const obrasEnRiesgo = portfolioRows.filter((r) => r.estado !== "Normal").length;
-  const avanceProm =
-    portfolioRows.length > 0 ? Math.round(portfolioRows.reduce((s, r) => s + r.avancePct, 0) / portfolioRows.length) : 0;
-
-  // KPIs operativos: cuánto portafolio hay y su salud, en tiles grandes —
-  // antes el único dato operativo del resumen era el texto chico arriba de
-  // la tabla, que no escala como "¿cuántas obras tengo?" cuando hay muchas.
-  const operativoKpis: OperativoKpi[] = canUseOperativo
-    ? [
-        {
-          key: "total-obras",
-          label: "Obras activas",
-          value: String(portfolioRows.length),
-          href: "/projects",
-          iconKey: "hardhat",
-          tone: "primary",
-        },
-        {
-          key: "obras-en-atencion",
-          label: "Requieren atención",
-          value: String(obrasEnRiesgo),
-          href: "/projects",
-          iconKey: "alert-octagon",
-          tone: obrasEnRiesgo > 0 ? "warn" : "primary",
-        },
-        {
-          key: "avance-promedio",
-          label: "Avance promedio",
-          value: `${avanceProm}%`,
-          href: "/projects",
-          iconKey: "trending-up",
-          tone: "primary",
-        },
-      ]
-    : [];
-
-  const attentionItems: AttentionItem[] = [];
-  for (const r of portfolioRows) {
-    if (r.estado === "Riesgo") {
-      attentionItems.push({
-        key: `obra-${r.id}`,
-        text: `${r.name}: ${r.atrasoDias ? `${r.atrasoDias} días de atraso` : "desvío de costo relevante"}`,
-        href: `/projects/${r.id}`,
+  // ---------------------------------------------------------------------
+  // Chips por área — una señal por dominio, todas del mismo tamaño. Compras
+  // y Ventas comparten la misma raíz de datos que antes (facturas/cobros),
+  // solo que ahora cada una es su propio chip en vez de 4 tiles sueltos.
+  // ---------------------------------------------------------------------
+  const domainChips: DomainChip[] = [];
+  if (showInvoiceKpis) {
+    domainChips.push(
+      domainChip({
+        key: "compras",
+        label: "Compras",
+        href: "/pagos",
+        iconKey: "wallet",
+        errorCount: facturasVencidasPorPagarRows.length,
+        errorLabel: (n) =>
+          `${n} factura${n !== 1 ? "s" : ""} vencida${n !== 1 ? "s" : ""} · ${formatMoney(sumPyg(facturasVencidasPorPagarRows))}`,
+        warnCount: pagosProximosRows.length,
+        warnLabel: (n) => `${n} pago${n !== 1 ? "s" : ""} próximo${n !== 1 ? "s" : ""} · ${formatMoney(sumPyg(pagosProximosRows))}`,
+        okLabel: "Al día",
+      })
+    );
+  }
+  if (showSalesKpis) {
+    domainChips.push(
+      domainChip({
+        key: "ventas",
+        label: "Ventas",
+        href: "/cobros",
+        iconKey: "file-x",
+        errorCount: cobrosVencidosRows.length,
+        errorLabel: (n) =>
+          `${n} cobro${n !== 1 ? "s" : ""} vencido${n !== 1 ? "s" : ""} · ${formatMoney(sumPygSaldo(cobrosVencidosRows))}`,
+        warnCount: cobrosEsperadosRows.length,
+        warnLabel: (n) =>
+          `${n} cobro${n !== 1 ? "s" : ""} esperado${n !== 1 ? "s" : ""} · ${formatMoney(sumPygSaldo(cobrosEsperadosRows))}`,
+        okLabel: "Al día",
+      })
+    );
+  }
+  if (canUseOperativo) {
+    const enRiesgo = portfolioRows.filter((r) => r.estado === "Riesgo").length;
+    const enAtencion = portfolioRows.filter((r) => r.estado === "Atención").length;
+    domainChips.push(
+      domainChip({
+        key: "obras",
+        label: "Obras",
+        href: "/projects",
         iconKey: "hardhat",
-        severity: "error",
-      });
-    } else if (r.estado === "Atención") {
-      attentionItems.push({
-        key: `obra-${r.id}`,
-        text: `${r.name}: requiere seguimiento`,
-        href: `/projects/${r.id}`,
-        iconKey: "hardhat",
-        severity: "warn",
-      });
-    }
+        errorCount: enRiesgo,
+        errorLabel: (n) => `${n} obra${n !== 1 ? "s" : ""} en riesgo`,
+        warnCount: enAtencion,
+        warnLabel: (n) => `${n} obra${n !== 1 ? "s" : ""} en atención`,
+        okLabel: portfolioRows.length > 0 ? "Todas en plazo" : "Sin obras activas",
+      })
+    );
   }
-  if (showInvoiceKpis && facturasVencidasPorPagarRows.length > 0) {
-    attentionItems.push({
-      key: "facturas-vencidas-por-pagar",
-      text: `${facturasVencidasPorPagarRows.length} factura${facturasVencidasPorPagarRows.length !== 1 ? "s" : ""} vencida${facturasVencidasPorPagarRows.length !== 1 ? "s" : ""} por pagar`,
-      href: "/pagos",
-      iconKey: "wallet",
-      severity: "error",
-    });
+  if (canUseLicitaciones) {
+    const porVencer = ofertasPorVencer ?? 0;
+    const nuevas = oportunidadesNuevas ?? 0;
+    domainChips.push(
+      domainChip({
+        key: "licitaciones",
+        label: "Licitaciones",
+        href: "/licitaciones",
+        iconKey: "gavel",
+        errorCount: 0,
+        errorLabel: () => "",
+        warnCount: porVencer,
+        warnLabel: (n) => `${n} oferta${n !== 1 ? "s" : ""} por vencer`,
+        okLabel: nuevas > 0 ? `${nuevas} nueva${nuevas !== 1 ? "s" : ""} oportunidad${nuevas !== 1 ? "es" : ""}` : "Sin pendientes",
+      })
+    );
   }
-  if (showSalesKpis && cobrosVencidosRows.length > 0) {
-    attentionItems.push({
-      key: "cobros-vencidos",
-      text: `${cobrosVencidosRows.length} cobro${cobrosVencidosRows.length !== 1 ? "s" : ""} vencido${cobrosVencidosRows.length !== 1 ? "s" : ""}`,
-      href: "/cobros",
-      iconKey: "file-x",
-      severity: "error",
-    });
-  }
-  if (canUseLicitaciones && (ofertasPorVencer ?? 0) > 0) {
-    attentionItems.push({
-      key: "licitaciones-vencen",
-      text: `${ofertasPorVencer} oferta${ofertasPorVencer !== 1 ? "s" : ""} vence${ofertasPorVencer !== 1 ? "n" : ""} en los próximos ${DASHBOARD_UPCOMING_DAYS} días`,
-      href: "/licitaciones",
-      iconKey: "gavel",
-      severity: "warn",
-    });
-  }
+
+  // ---------------------------------------------------------------------
+  // Panorama de obras: lo que antes era un textito chico ("7 activas · 26%
+  // avance prom.") pasa a ser la mitad derecha del análisis de obra —
+  // cartera activa en guaraníes, desvíos por tipo y avance ponderado por
+  // presupuesto (una obra grande pesa más que una chica, no todas valen lo
+  // mismo en el promedio).
+  // ---------------------------------------------------------------------
+  const panorama: PanoramaObras | null = canUseOperativo
+    ? (() => {
+        const carteraActivaPyg = portfolioRows.reduce((s, r) => s + r.presupuesto, 0);
+        const pesoTotal = carteraActivaPyg;
+        const avanceFisicoPonderado =
+          pesoTotal > 0
+            ? Math.round(portfolioRows.reduce((s, r) => s + r.avancePct * r.presupuesto, 0) / pesoTotal)
+            : portfolioRows.length > 0
+              ? Math.round(portfolioRows.reduce((s, r) => s + r.avancePct, 0) / portfolioRows.length)
+              : 0;
+        return {
+          obrasActivas: portfolioRows.length,
+          carteraActivaPyg,
+          desviosCosto: portfolioRows.filter((r) => r.comprasPct !== null && r.comprasPct > 100).length,
+          desviosPlazo: portfolioRows.filter((r) => r.atrasoDias !== null && r.atrasoDias > 0).length,
+          avanceFisicoPonderado,
+          estadoBreakdown: {
+            normal: portfolioRows.filter((r) => r.estado === "Normal").length,
+            atencion: portfolioRows.filter((r) => r.estado === "Atención").length,
+            riesgo: portfolioRows.filter((r) => r.estado === "Riesgo").length,
+          },
+        };
+      })()
+    : null;
 
   return {
     firstName: p.full_name.split(" ")[0],
     canUseOperativo,
+    domainChips,
     portfolioRows,
-    avanceProm,
-    obrasEnRiesgo,
-    operativoKpis,
-    adminKpis,
-    licitacionesKpis,
-    attentionItems,
+    panorama,
   };
 }
