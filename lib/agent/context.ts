@@ -22,14 +22,30 @@ export interface AgentActorContext {
   email?: string | null;
 }
 
+export interface AgentWorkspaceContext {
+  route?: string | null;
+  projectId?: string | null;
+  module?: string | null;
+  currentEntity?: { type: string; id: string } | null;
+  spreadsheet?: {
+    workbookId?: string | null;
+    sheetId?: string | null;
+    selection?: string | null;
+    selectedRows?: string[];
+  } | null;
+  document?: {
+    documentId?: string | null;
+  } | null;
+}
+
 export interface AgentToolContext extends AgentActorContext {
   // Identificadores del runtime persistente (opcional, solo si hay task/run)
   taskId?: string | null;
   runId?: string | null;
-  // Contexto de UI / proyecto actual (opcional, enriquecido por el frontend)
+  // Project ID directo (para compatibilidad con withRuntime y tests)
   projectId?: string | null;
-  route?: string | null;
-  module?: string | null;
+  // Contexto operativo del workspace (opcional, enriquecido por el frontend)
+  workspace?: AgentWorkspaceContext | null;
 }
 
 /**
@@ -101,6 +117,21 @@ export function withRuntime(
     taskId: runtime.taskId ?? null,
     runId: runtime.runId ?? null,
     projectId: runtime.projectId ?? null,
+    workspace: null,
+  };
+}
+
+/**
+ * Enriquecimiento con workspace context (proyecto actual, spreadsheet, documento, selección).
+ * El frontend envía esto via headers o body; el server lo valida contra tenant/project.
+ */
+export function withWorkspace(
+  actor: AgentActorContext,
+  workspace: AgentWorkspaceContext | null
+): AgentToolContext {
+  return {
+    ...actor,
+    workspace,
   };
 }
 

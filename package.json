@@ -12,12 +12,15 @@
     "worker": "tsx worker/index.ts",
     "e2e": "playwright test",
     "e2e:debug": "playwright test --debug",
-    "e2e:ui": "playwright test --ui"
+    "e2e:ui": "playwright test --ui",
+    "voice:proxy": "tsx server/voice-ws-proxy.ts",
+    "dev:voice": "concurrently \"npm run dev\" \"npm run voice:proxy\""
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.3",
+    "@types/ws": "^8.18.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
@@ -34,6 +37,7 @@
     "three": "^0.169.0",
     "tsx": "^4.23.12",
     "web-ifc": "^0.0.68",
+    "ws": "^8.21.3",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^4.4.3"
   },
@@ -51,6 +55,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "^0.186.0",
+    "concurrently": "^10.0.5",
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
     "pg": "^8.23.0",
