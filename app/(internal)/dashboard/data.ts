@@ -39,6 +39,8 @@ export type PanoramaObras = {
   obrasActivas: number;
   carteraActivaPyg: number;
   comprasRealizadasPyg: number;
+  // null cuando la empresa no tiene módulo de stock (plan/módulo no habilitado) — no es "0 productos en mínimo", es "no aplica".
+  productosStockMinimo: number | null;
   desviosCosto: number;
   desviosPlazo: number;
   avanceFisicoPonderado: number;
@@ -275,16 +277,6 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
       tone: cobrosVencidosRows.length > 0 ? "error" : "ok",
     });
   }
-  if (canUseStock) {
-    adminKpis.push({
-      key: "stock-minimo",
-      value: String(productosStockBajo.length),
-      label: "Productos en stock mínimo",
-      href: "/stock",
-      iconKey: "boxes",
-      tone: productosStockBajo.length > 0 ? "error" : "ok",
-    });
-  }
 
   // KPIs de Licitaciones — 4, igual que Administración, para que la fila no
   // quede con 2 chips estirados a lo ancho (se veían "alargados al pedo").
@@ -350,6 +342,7 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
           obrasActivas: portfolioRows.length,
           carteraActivaPyg,
           comprasRealizadasPyg,
+          productosStockMinimo: canUseStock ? productosStockBajo.length : null,
           desviosCosto: portfolioRows.filter((r) => r.comprasPct !== null && r.comprasPct > 100).length,
           desviosPlazo: portfolioRows.filter((r) => r.atrasoDias !== null && r.atrasoDias > 0).length,
           avanceFisicoPonderado,
