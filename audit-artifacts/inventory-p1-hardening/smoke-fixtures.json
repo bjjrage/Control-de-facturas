@@ -1,0 +1,59 @@
+{
+  "marker": "P1-SMOKE-20260914",
+  "project_ref": "mjbvxyvpojnpyrkiyujk",
+  "companies": {
+    "A": "f56e0f14-b06b-41bc-9498-fbf80e42f20d",
+    "B": "e60541ed-0556-4c2c-8e17-f042daffb069"
+  },
+  "users": {
+    "A": "18326bdb-202d-4d78-a2c5-11e1632f87a6",
+    "B": "91a59644-059c-4712-b728-4b2e938eb383"
+  },
+  "products": {
+    "A": "46faeda2-12f7-432c-8b68-4865cd5cdcab",
+    "A_FX": "10f9e128-7401-4587-b9bd-62ea7d4c2e18"
+  },
+  "project_and_locations": {
+    "project_A": "f1f8583c-9aa6-4e57-a1a7-b9983871d663",
+    "project_B": "daa818c9-d3d6-4167-b864-c17d49fee4c5",
+    "central_A": "4705fe6c-6d2b-4188-a245-6f7a5a60d7df",
+    "project_location_A": "8730818b-1efa-4a8c-aa6d-fc50654e9eb6",
+    "location_B": "eebb604f-0f26-4c00-9e3f-c4bfa49c2dfc",
+    "project_location_link_A": "8730818b-1efa-4a8c-aa6d-fc50654e9eb6"
+  },
+  "budget_and_order": {
+    "budget_A": "08b0427c-747d-4a82-ba21-4b53ba9fae77",
+    "order_A": "79a14f2e-713c-40f1-ae64-62feed9ab459",
+    "order_item_A": "74b00608-7535-4f13-a816-558e7504eb36",
+    "order_B": "9ebeb048-f8c3-43a5-8ffc-27ae6430fc7b"
+  },
+  "receipts": {
+    "receipt_A1": "3239ab53-be7e-4cfd-806d-3791340902a3",
+    "receipt_A2": "36d61ece-2cdc-4ed4-9256-d2a44ab656a3",
+    "duplicate_receipt": "b4bdc2da-906c-4a58-bd66-206a689ac9a9",
+    "receipt_B": "a3bf943b-17e0-4dc5-8240-a4ad4a69dfcc",
+    "concurrency_A": "a1111111-1111-4111-8111-111111111111",
+    "concurrency_B": "b2222222-2222-4222-8222-222222222222"
+  },
+  "warehouse_submission": {
+    "submission_A": "654247f0-f646-4b8c-a41e-e021598412f7",
+    "line_A": "b0e35b5a-feca-4483-9003-02032585de13",
+    "evidence_A": "d2b4aaa9-dff3-46ed-ae24-ae3beb72678e"
+  },
+  "movement_ids": {
+    "receipt_A1": "19858146-6bbe-4a0c-afc8-eeff6c6e1509",
+    "pyg_receipt": "67c5cedd-5d63-4710-a5e8-b846e3a53354",
+    "usd_fx_receipt": "1588b4a9-3ecf-485b-9bed-7cf43ba4b782",
+    "usd_no_fx_receipt": "e114b85f-d7e8-4f30-adc7-2e32ce48ad76",
+    "transfer": "e8a3478b-1700-424c-ae20-a8da0d0391ad",
+    "consumption": "72a3f109-5e01-46aa-b5db-2f9582d8892e",
+    "return": "7e8bc656-28c8-4b08-b471-4c9e197e3de1",
+    "concurrency_success": "50ae689e-54d6-4869-abec-77b2fca9580a"
+  },
+  "storage_paths": {
+    "receipt_A": "receipts/3239ab53-be7e-4cfd-806d-3791340902a3/a.pdf",
+    "receipt_B": "receipts/a3bf943b-17e0-4dc5-8240-a4ad4a69dfcc/b.pdf",
+    "orphan": "receipts/3239ab53-be7e-4cfd-806d-3791340902a3/orphan.pdf",
+    "warehouse_evidence": "8730818b-1efa-4a8c-aa6d-fc50654e9eb6/654247f0-f646-4b8c-a41e-e021598412f7/warehouse.pdf"
+  }
+}

@@ -55,6 +55,9 @@ import { ProyectoRfqsTable } from "./proyecto-rfqs-table";
 import { RfqDialog } from "@/app/(internal)/rfqs/rfq-dialog";
 import { ConsumoMaterialesSection, type ConsumoRow } from "./consumo-materiales-section";
 import { ProyectoStockSection, type StockProyectoRow } from "./proyecto-stock-section";
+import { InventarioObraSection, type StockObraRow, type ConsumoCanonicoRow } from "./inventario-obra-section";
+import { RecepcionesObraSection, type RecepcionRow } from "./recepciones-obra-section";
+import { PanolObraSection, type PanolSubmissionRow } from "./panol-obra-section";
 import { OrderDialog } from "@/app/(internal)/orders/order-dialog";
 import { AddProjectProviderDialog } from "./add-project-provider-dialog";
 import { ExecutionLinkDialog } from "./execution-link-dialog";
@@ -97,6 +100,11 @@ type Props = {
   consumo: ConsumoRow[];
   stockProyecto: StockProyectoRow[];
   panoles: { id: string; nombre: string }[];
+  stockObra: StockObraRow[];
+  consumoCanonico: ConsumoCanonicoRow[];
+  budgetItemLabelById: Record<string, string>;
+  recepciones: RecepcionRow[];
+  panolSubmissions: PanolSubmissionRow[];
   isAdmin: boolean;
   duplicateSources: { id: string; code: string; name: string; itemCount: number }[];
   itemsSubtotal: number;
@@ -139,6 +147,11 @@ export function ProjectTabsClient({
   consumo,
   stockProyecto,
   panoles,
+  stockObra,
+  consumoCanonico,
+  budgetItemLabelById: budgetItemLabelByIdRecord,
+  recepciones,
+  panolSubmissions,
   isAdmin,
   duplicateSources,
   itemsSubtotal,
@@ -158,6 +171,11 @@ export function ProjectTabsClient({
   const providerNameById = useMemo(
     () => new Map(Object.entries(providerNameByIdRecord)),
     [providerNameByIdRecord]
+  );
+
+  const budgetItemLabelById = useMemo(
+    () => new Map(Object.entries(budgetItemLabelByIdRecord)),
+    [budgetItemLabelByIdRecord]
   );
 
   const photoUrlMap = useMemo(
@@ -393,6 +411,14 @@ export function ProjectTabsClient({
       {tab === "stock" ? (
         <ProyectoStockSection rows={stockProyecto} panoles={panoles} />
       ) : null}
+
+      {tab === "inventario" ? (
+        <InventarioObraSection stock={stockObra} consumo={consumoCanonico} budgetItemLabelById={budgetItemLabelById} />
+      ) : null}
+
+      {tab === "recepciones" ? <RecepcionesObraSection rows={recepciones} /> : null}
+
+      {tab === "panol" ? <PanolObraSection submissions={panolSubmissions} /> : null}
 
       {tab === "informes" ? (
         <ProjectReports project={project} budgetItems={items} execEntries={entries} orders={ocs} />

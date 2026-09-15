@@ -1,6 +1,6 @@
 import { requireProfile } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/sidebar";
-import { PlanNav } from "@/components/layout/plan-nav";
+import { WorkspaceRail } from "@/components/layout/workspace-rail";
 import { Topbar } from "@/components/layout/topbar";
 import { AppShellClient } from "@/components/layout/app-shell-client";
 
@@ -9,9 +9,14 @@ import { AppShellClient } from "@/components/layout/app-shell-client";
 // timeout (10s on Vercel's Hobby plan).
 export const maxDuration = 60;
 
+const PLAN_RANK = { basico: 0, pro: 1, caterpillar: 2 } as const;
+
 export default async function InternalLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireProfile();
   const initial = profile.full_name.trim().charAt(0).toUpperCase() || "?";
+  const isProOrAbove = PLAN_RANK[profile.plan] >= PLAN_RANK.pro;
+  const showOperativo = isProOrAbove && (profile.role === "administracion" || profile.role === "admin");
+  const showLicitaciones = isProOrAbove && ["comercial", "administracion", "admin"].includes(profile.role);
 
   return (
     <div className="flex min-h-screen bg-[var(--background)]">
@@ -28,7 +33,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
           <AppShellClient>{children}</AppShellClient>
         </main>
       </div>
-      <PlanNav role={profile.role} plan={profile.plan} isSuperAdmin={profile.is_super_admin} />
+      <WorkspaceRail showOperativo={showOperativo} showLicitaciones={showLicitaciones} />
     </div>
   );
 }
