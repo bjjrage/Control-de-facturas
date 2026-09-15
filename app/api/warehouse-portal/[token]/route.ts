@@ -99,7 +99,9 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "El período ya está cerrado.", submissionId: submission.id }, { status: 409 });
   }
 
-  let uploaded = 0;
+  const accepted: string[] = [];
+  const rejected: Array<{ file: string; reason: string }> = [];
+
   for (const file of files) {
     const bytes = new Uint8Array(await file.arrayBuffer());
     const sha256 = sha256Bytes(bytes);
@@ -110,7 +112,7 @@ export async function POST(request: Request, context: RouteContext) {
       .eq("sha256", sha256)
       .maybeSingle();
     if (existingEvidence) {
-      uploaded++;
+      accepted.push(file.name);
       continue;
     }
     const path = `${link.location_id}/${submission.id}/${randomUUID()}-${sanitizeFileName(file.name)}`;
@@ -118,7 +120,10 @@ export async function POST(request: Request, context: RouteContext) {
       contentType: file.type || "application/octet-stream",
       upsert: false,
     });
-    if (uploadError) continue;
+    if (uploadError) {
+      rejected.push({ file: file.name, reason: uploadError.message ?? "error al subir a storage" });
+      continue;
+    }
     const { error: evidenceError } = await admin.from("warehouse_submission_evidence").insert({
       empresa_id: link.empresa_id,
       submission_id: submission.id,
@@ -138,16 +143,71 @@ export async function POST(request: Request, context: RouteContext) {
         .eq("sha256", sha256)
         .maybeSingle();
       await admin.storage.from("warehouse-evidence").remove([path]);
-      if (duplicateAfterRace) uploaded++;
+      if (duplicateAfterRace) {
+        accepted.push(file.name);
+      } else {
+        rejected.push({ file: file.name, reason: evidenceError.message ?? "error al registrar evidencia" });
+      }
       continue;
     }
-    uploaded++;
+    accepted.push(file.name);
   }
+
   await admin
     .from("warehouse_portal_links")
     .update({ last_used_at: new Date().toISOString() })
     .eq("id", link.id)
     .eq("empresa_id", link.empresa_id);
-  if (!uploaded) return NextResponse.json({ error: "No se pudo guardar la evidencia.", submissionId: submission.id }, { status: 500 });
-  return NextResponse.json({ ok: true, submissionId: submission.id, uploaded });
+
+  if (accepted.length === 0) {
+    await admin
+      .from("warehouse_submissions")
+      .update({
+        status: "NEEDS_REVIEW",
+        processing_error: `Falló la carga de todos los archivos: ${rejected.map((r) => `${r.file}: ${r.reason}`).join("; ")}`,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", submission.id)
+      .eq("empresa_id", link.empresa_id);
+    return NextResponse.json(
+      { ok: false, error: "No se pudo guardar ningún archivo.", submissionId: submission.id, accepted, rejected },
+      { status: 500 }
+    );
+  }
+
+  if (rejected.length > 0) {
+    const partialMsg = `Carga parcial (${accepted.length}/${files.length}). Fallaron: ${rejected.map((r) => `${r.file}: ${r.reason}`).join("; ")}`;
+    await admin
+      .from("warehouse_submissions")
+      .update({
+        status: "NEEDS_REVIEW",
+        processing_error: partialMsg,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", submission.id)
+      .eq("empresa_id", link.empresa_id);
+    return NextResponse.json(
+      {
+        ok: false,
+        partial: true,
+        error: partialMsg,
+        submissionId: submission.id,
+        uploaded: accepted.length,
+        total: files.length,
+        accepted,
+        rejected,
+      },
+      { status: 207 }
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+    partial: false,
+    submissionId: submission.id,
+    uploaded: accepted.length,
+    total: files.length,
+    accepted,
+    rejected: [],
+  });
 }

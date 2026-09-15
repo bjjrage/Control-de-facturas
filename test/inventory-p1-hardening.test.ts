@@ -14,6 +14,14 @@ const propagationFix = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260914001000_inventory_p1_transfer_fix.sql"),
   "utf8"
 );
+const auditFix = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260914010000_inventory_final_audit_hardening.sql"),
+  "utf8"
+);
+const portalRoute = readFileSync(
+  resolve(process.cwd(), "app/api/warehouse-portal/[token]/route.ts"),
+  "utf8"
+);
 
 describe("P1 hardening del inventario canónico", () => {
   it("ata el acceso de Storage al tenant, contexto y path canónico", () => {
@@ -62,5 +70,30 @@ describe("P1 hardening del inventario canónico", () => {
     expect(propagationFix).toContain("cost_status, original_cost_currency");
     expect(propagationFix).toContain("original_unit_cost");
     expect(propagationFix).toContain("p_total_cost_company =>");
+  });
+
+  it("P1 final audit: hace estrictamente inmutable la cabecera warehouse_submissions confirmada en DB", () => {
+    expect(auditFix).toContain("prevent_confirmed_warehouse_submission_mutation");
+    expect(auditFix).toContain("BEFORE UPDATE OR DELETE ON public.warehouse_submissions");
+    expect(auditFix).toContain("OLD.status = 'CONFIRMED'");
+    expect(auditFix).toContain("Una rendición confirmada es inmutable y no puede ser modificada ni reabierta");
+    expect(auditFix).toContain("Una rendición confirmada es inmutable y no puede ser eliminada");
+  });
+
+  it("P2 final audit: serializa la inserción de líneas con lock FOR UPDATE y numeración atómica", () => {
+    expect(auditFix).toContain("inventory_save_submission_lines_atomic");
+    expect(auditFix).toContain("FROM public.warehouse_submissions\n  WHERE id = p_submission_id AND empresa_id = p_empresa_id\n  FOR UPDATE;".replace(/\r\n/g, "\n"));
+    expect(auditFix).toContain("SELECT coalesce(max(line_number), 0) + 1 INTO v_next_line");
+    expect(auditFix).toContain("v_submission.status = 'CONFIRMED'");
+    expect(actions).toContain("saveWarehouseSubmissionLinesAtomic");
+  });
+
+  it("P2 final audit: portal maneja cargas parciales explícitamente sin presentar falso éxito", () => {
+    expect(portalRoute).toContain("const accepted: string[] = [];");
+    expect(portalRoute).toContain("const rejected: Array<{ file: string; reason: string }> = [];");
+    expect(portalRoute).toContain("partial: true");
+    expect(portalRoute).toContain("status: 207");
+    expect(portalRoute).toContain("NEEDS_REVIEW");
+    expect(portalRoute).toContain("Carga parcial");
   });
 });

@@ -5,7 +5,12 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlan } from "@/lib/auth";
-import { confirmInventoryReceipt, confirmWarehouseSubmission, postInventoryMovement } from "@/lib/inventory/service";
+import {
+  confirmInventoryReceipt,
+  confirmWarehouseSubmission,
+  postInventoryMovement,
+  saveWarehouseSubmissionLinesAtomic,
+} from "@/lib/inventory/service";
 import { generateWarehousePortalToken, sha256Bytes, warehousePortalUrl } from "@/lib/inventory/portal";
 import { parseInventorySpreadsheet, photoEvidenceProposal } from "@/lib/inventory/evidence";
 import { sanitizeFileName } from "@/lib/storage";
@@ -369,30 +374,36 @@ export async function processWarehouseSubmission(submissionId: string) {
     }
     const parsed = parseInventorySpreadsheet(new Uint8Array(await downloaded.data.arrayBuffer()));
     if (parsed.errors.length) errors.push(...parsed.errors.map((error) => `${item.file_name}: ${error}`));
-    const { count } = await supabase
-      .from("warehouse_submission_lines")
-      .select("id", { count: "exact", head: true })
-      .eq("submission_id", submissionId)
-      .eq("empresa_id", profile.empresa_id);
-    const offset = count ?? 0;
-    const rows = parsed.rows.map((row, index) => ({
-      empresa_id: profile.empresa_id,
-      submission_id: submissionId,
-      line_number: offset + index + 1,
-      raw_description: row.rawDescription,
+
+    const rows = parsed.rows.map((row) => ({
+      rawDescription: row.rawDescription,
       quantity: row.quantity,
       unit: row.unit,
-      state: "PROPOSED" as const,
       confidence: row.confidence,
-      uncertainty_reason: row.uncertaintyReason,
-      source_evidence_id: item.id,
+      uncertaintyReason: row.uncertaintyReason,
       notes: row.notes,
     }));
+
     if (rows.length) {
-      const { error } = await supabase.from("warehouse_submission_lines").insert(rows);
-      if (error) errors.push(`${item.file_name}: ${error.message}`);
-      else proposalCount += rows.length;
+      const { data: saveResult, error: saveError } = await saveWarehouseSubmissionLinesAtomic(supabase, {
+        empresaId: profile.empresa_id,
+        submissionId,
+        evidenceId: item.id,
+        lines: rows,
+      });
+      if (saveError || !saveResult) {
+        const errMsg = `${item.file_name}: ${saveError ?? "error al guardar líneas de rendición"}`;
+        errors.push(errMsg);
+        await supabase
+          .from("warehouse_submission_evidence")
+          .update({ extraction_status: "FAILED", extraction_error: errMsg })
+          .eq("id", item.id)
+          .eq("empresa_id", profile.empresa_id);
+        continue;
+      }
+      proposalCount += saveResult.inserted_count;
     }
+
     await supabase
       .from("warehouse_submission_evidence")
       .update({

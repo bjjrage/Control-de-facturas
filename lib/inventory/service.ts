@@ -54,6 +54,34 @@ export async function confirmInventoryReceipt(
   return { data: (data as string[] | null) ?? null, error: error?.message ?? null };
 }
 
+export async function saveWarehouseSubmissionLinesAtomic(
+  supabase: SupabaseClient,
+  args: {
+    empresaId: string;
+    submissionId: string;
+    evidenceId: string;
+    lines: Array<{
+      rawDescription: string;
+      quantity?: number | null;
+      unit?: string | null;
+      confidence?: number | null;
+      uncertaintyReason?: string | null;
+      notes?: string | null;
+    }>;
+  }
+): Promise<ServiceResult<{ inserted_count: number; next_line_number: number }>> {
+  const { data, error } = await supabase.rpc("inventory_save_submission_lines_atomic", {
+    p_empresa_id: args.empresaId,
+    p_submission_id: args.submissionId,
+    p_evidence_id: args.evidenceId,
+    p_lines: args.lines,
+  });
+  return {
+    data: (data as { inserted_count: number; next_line_number: number } | null) ?? null,
+    error: error?.message ?? null,
+  };
+}
+
 export async function confirmWarehouseSubmission(
   supabase: SupabaseClient,
   args: {
