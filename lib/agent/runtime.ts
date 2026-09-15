@@ -2,6 +2,7 @@
 // Persistent Agent Runtime — CRUD para agent_tasks / agent_runs / agent_steps.
 // Server-only. Usa Supabase (service_role / server client scoping por empresa_id).
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { validateTaskTransition } from "./task-states";
 
 export type TaskStatus =
   | "PENDING"
@@ -131,7 +132,23 @@ export async function updateTaskStatus(params: {
   status: TaskStatus;
   errorMessage?: string | null;
   completedAt?: string | null;
+  actorType?: "user" | "agent" | "system" | "worker";
+  actorRole?: string | null;
 }): Promise<AgentTaskRow> {
+  const { data: current, error: currentError } = await params.db
+    .from("agent_tasks")
+    .select("status")
+    .eq("id", params.taskId)
+    .single();
+  if (currentError || !current) {
+    throw new Error(`updateTaskStatus: no se pudo leer task actual: ${currentError?.message ?? "sin data"}`);
+  }
+  validateTaskTransition({
+    currentStatus: (current as { status: TaskStatus }).status,
+    newStatus: params.status,
+    actorType: params.actorType ?? "system",
+    actorRole: params.actorRole ?? null,
+  });
   const patch: Record<string, unknown> = { status: params.status };
   if (params.errorMessage !== undefined) patch.error_message = params.errorMessage;
   if (params.completedAt !== undefined) patch.completed_at = params.completedAt;
