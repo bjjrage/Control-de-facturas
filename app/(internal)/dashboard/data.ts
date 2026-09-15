@@ -87,6 +87,8 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
     { data: projects },
     { count: ofertasPorVencer },
     { count: oportunidadesNuevas },
+    { count: licitacionesEnCurso },
+    { count: licitacionesGanadas },
   ] = await Promise.all([
     // CxP: nosotros debemos. Se trae todo lo no pagado con due_date — la
     // clasificación próxima/vencida la hace classifyPayable, no la query.
@@ -126,6 +128,17 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
           .select("id", { count: "exact", head: true })
           .eq("decision", "SIN_REVISAR")
           .gte("synced_at", en3diasAtras)
+      : noopCount,
+    // "En curso": todavía activamente en juego (preparando oferta o ya
+    // presentada, esperando resultado) — ni descartada ni resuelta.
+    canUseLicitaciones
+      ? supabase
+          .from("licitaciones")
+          .select("id", { count: "exact", head: true })
+          .in("decision", ["EN_PREPARACION", "PRESENTADA"])
+      : noopCount,
+    canUseLicitaciones
+      ? supabase.from("licitaciones").select("id", { count: "exact", head: true }).eq("decision", "GANADA")
       : noopCount,
   ]);
 
@@ -250,8 +263,11 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
     });
   }
 
-  // KPIs de Licitaciones — qué vence pronto y qué apareció nuevo, sin monto
-  // potencial ni win rate (eso no es indispensable de un vistazo).
+  // KPIs de Licitaciones — 4, igual que Administración, para que la fila no
+  // quede con 2 chips estirados a lo ancho (se veían "alargados al pedo").
+  // Qué vence pronto, qué apareció nuevo, cuántas siguen en juego y cuántas
+  // se ganaron — sin monto potencial ni win rate (eso no es indispensable
+  // de un vistazo).
   const licitacionesKpis: MetricChip[] = canUseLicitaciones
     ? [
         {
@@ -268,6 +284,22 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
           label: "Nuevas oportunidades (radar)",
           href: "/licitaciones",
           iconKey: "radar",
+          tone: "ok",
+        },
+        {
+          key: "licitaciones-en-curso",
+          value: String(licitacionesEnCurso ?? 0),
+          label: "En curso",
+          href: "/licitaciones",
+          iconKey: "gavel",
+          tone: "ok",
+        },
+        {
+          key: "licitaciones-ganadas",
+          value: String(licitacionesGanadas ?? 0),
+          label: "Ganadas",
+          href: "/licitaciones",
+          iconKey: "trophy",
           tone: "ok",
         },
       ]

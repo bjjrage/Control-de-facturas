@@ -1,4 +1,4 @@
-import { FileX2, Wallet2, HardHat, Gavel, CalendarClock, AlertOctagon, Radar } from "lucide-react";
+import { FileX2, Wallet2, HardHat, Gavel, CalendarClock, AlertOctagon, Radar, Trophy } from "lucide-react";
 
 // Los datos del dashboard viajan como texto plano (server component o server
 // action, según la ruta de navegación) — el ícono se resuelve acá, del lado
@@ -11,6 +11,7 @@ export const DASHBOARD_ICONS = {
   "calendar-clock": CalendarClock,
   "alert-octagon": AlertOctagon,
   radar: Radar,
+  trophy: Trophy,
 } as const;
 
 export type DashboardIconKey = keyof typeof DASHBOARD_ICONS;

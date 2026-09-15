@@ -55,9 +55,9 @@ export function PanoramaObras({ data }: { data: PanoramaObrasData }) {
           </div>
         </div>
 
-        <div className="min-w-0 space-y-1.5">
-          <div className="text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">Cartera activa</div>
-          <div className="text-[17px] font-semibold leading-none">{formatMoney(carteraActivaPyg)}</div>
+        <div className="flex-1 min-w-0 space-y-1.5">
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)] truncate">Cartera activa</div>
+          <div className="text-[17px] font-semibold leading-none truncate">{formatMoney(carteraActivaPyg)}</div>
         </div>
       </div>
 
