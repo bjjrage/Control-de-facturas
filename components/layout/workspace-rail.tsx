@@ -55,7 +55,9 @@ export function WorkspaceRail({
               )}
             >
               <Icon size={18} className="shrink-0" strokeWidth={isActive ? 2.25 : 2} />
-              <span className="leading-none text-center px-1">{WORKSPACE_LABEL[item.key]}</span>
+              <span className="leading-[1.15] text-center px-1 break-words hyphens-auto">
+                {WORKSPACE_LABEL[item.key]}
+              </span>
             </Link>
           );
         })}

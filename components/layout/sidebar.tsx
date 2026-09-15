@@ -19,7 +19,6 @@ import {
   ClipboardList,
   Banknote,
   Wallet,
-  HardHat,
   ClipboardCheck,
   GanttChartSquare,
   Hammer,
@@ -30,7 +29,6 @@ import {
   FileCheck2,
   FileX,
   Landmark,
-  Gavel,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { EmpresaPlan } from "@/lib/auth";
@@ -39,6 +37,8 @@ import { uploadLogo } from "./branding-actions";
 import { LOGO_STORAGE_PATH } from "./branding-constants";
 import { getProjectNavInfo } from "@/app/(internal)/projects/actions";
 import { SHELL_PATHS } from "./app-shell-client";
+import { AdminConfigSection } from "./admin-config-section";
+import { workspaceForPath } from "./workspace";
 
 // Sub-secciones de un proyecto — mismas tabs que /projects/[id]?tab=X, pero
 // como items de sidebar cuando estás "adentro" del proyecto (modo carpeta).
@@ -94,23 +94,6 @@ type NavItem = {
 const GLOBAL_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", roles: ["comercial", "administracion", "admin"], icon: LayoutDashboard },
 ];
-
-// Proyectos va justo debajo de Dashboard — es una acción/módulo de trabajo,
-// no una configuración, así que vive en el nav izquierdo con todo lo demás.
-// Gateado por plan (Pro o superior), no por module: no depende de compras/ventas.
-const PROYECTOS_ITEM: NavItem = {
-  href: "/projects",
-  label: "Proyectos",
-  roles: ["administracion", "admin"],
-  icon: HardHat,
-};
-
-const LICITACIONES_ITEM: NavItem = {
-  href: "/licitaciones",
-  label: "Licitaciones",
-  roles: ["comercial", "administracion", "admin"],
-  icon: Gavel,
-};
 
 const COMPRAS_ITEMS: NavItem[] = [
   { href: "/providers", label: "Proveedores", roles: ["admin"], icon: Truck, module: "compras" },
@@ -248,14 +231,15 @@ export function Sidebar({
     });
   }
 
-  // Pro/Caterpillar SUMAN Proyectos sobre todo lo que la empresa ya tiene —
-  // no reemplazan ni ocultan Compras/Ventas. Un plan más alto nunca debe
-  // sacar funciones que la empresa ya usaba en Básico.
   const globalItems = filterItems(GLOBAL_ITEMS);
-  const proyectosItems = PLAN_RANK[plan] >= PLAN_RANK.pro ? filterItems([PROYECTOS_ITEM, LICITACIONES_ITEM]) : [];
   const comprasItems = filterItems(COMPRAS_ITEMS);
   const ventasItems = filterItems(VENTAS_ITEMS);
   const finanzasItems = filterItems(FINANZAS_ITEMS);
+  // El nav izquierdo muestra SOLO lo que corresponde al workspace activo (que
+  // ya se elige con el rail derecho) — Proyectos/Licitaciones dejaron de
+  // listarse acá porque son, cada uno, la entrada a su propio workspace.
+  const workspace = workspaceForPath(navPath ?? pathname);
+  const inAdminWorkspace = workspace === "administracion";
 
   async function handleLogoFile(file: File | null) {
     if (!file) return;
@@ -491,15 +475,15 @@ export function Sidebar({
               />
             ))}
           </div>
-        ) : (
+        ) : inAdminWorkspace ? (
           <>
             {globalItems.map(renderLink)}
-            {proyectosItems.map(renderLink)}
             {renderSection("Comprar", comprasItems)}
             {renderSection("Vender", ventasItems)}
             {renderSection("Finanzas", finanzasItems)}
+            <AdminConfigSection role={role} plan={plan} isSuperAdmin={isSuperAdmin} collapsed={collapsed} />
           </>
-        )}
+        ) : null}
       </nav>
 
     </aside>

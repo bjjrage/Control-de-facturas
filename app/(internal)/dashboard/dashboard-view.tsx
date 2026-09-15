@@ -1,6 +1,7 @@
 import { PortfolioTable } from "./portfolio-table";
 import { AdminKpis } from "./admin-kpis";
 import { LicitacionesKpis } from "./licitaciones-kpis";
+import { OperativoKpis } from "./operativo-kpis";
 import { AttentionSection } from "./attention-section";
 import { DashboardViewData } from "./data";
 
@@ -9,7 +10,17 @@ import { DashboardViewData } from "./data";
 // como dashboard-section.tsx (navegación instantánea del shell, client
 // component) para que ambas rutas de render se vean siempre idénticas.
 export function DashboardView({ data }: { data: DashboardViewData }) {
-  const { firstName, canUseOperativo, portfolioRows, avanceProm, obrasEnRiesgo, adminKpis, licitacionesKpis, attentionItems } = data;
+  const {
+    firstName,
+    canUseOperativo,
+    portfolioRows,
+    avanceProm,
+    obrasEnRiesgo,
+    operativoKpis,
+    adminKpis,
+    licitacionesKpis,
+    attentionItems,
+  } = data;
   const hasAnySection = canUseOperativo || adminKpis.length > 0 || licitacionesKpis.length > 0;
 
   return (
@@ -31,6 +42,13 @@ export function DashboardView({ data }: { data: DashboardViewData }) {
       {!hasAnySection ? (
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 text-[13px] text-[var(--muted)]">
           Todavía no hay datos suficientes para mostrar el resumen ejecutivo.
+        </div>
+      ) : null}
+
+      {operativoKpis.length > 0 ? (
+        <div>
+          <h2 className="text-[11px] font-semibold uppercase tracking-widest text-[var(--muted)] mb-2">Operativo</h2>
+          <OperativoKpis kpis={operativoKpis} />
         </div>
       ) : null}
 

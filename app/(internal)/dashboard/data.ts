@@ -6,6 +6,7 @@ import { classifyPayable, classifyReceivable } from "@/lib/dashboard-kpis";
 import { PortfolioRow, PortfolioEstado } from "./portfolio-table";
 import { AdminKpi } from "./admin-kpis";
 import { LicitacionKpi } from "./licitaciones-kpis";
+import { OperativoKpi } from "./operativo-kpis";
 import { AttentionItem } from "./attention-section";
 
 const PLAN_RANK = { basico: 0, pro: 1, caterpillar: 2 } as const;
@@ -27,6 +28,7 @@ export type DashboardViewData = {
   portfolioRows: PortfolioRow[];
   avanceProm: number;
   obrasEnRiesgo: number;
+  operativoKpis: OperativoKpi[];
   adminKpis: AdminKpi[];
   licitacionesKpis: LicitacionKpi[];
   attentionItems: AttentionItem[];
@@ -248,6 +250,38 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
   const avanceProm =
     portfolioRows.length > 0 ? Math.round(portfolioRows.reduce((s, r) => s + r.avancePct, 0) / portfolioRows.length) : 0;
 
+  // KPIs operativos: cuánto portafolio hay y su salud, en tiles grandes —
+  // antes el único dato operativo del resumen era el texto chico arriba de
+  // la tabla, que no escala como "¿cuántas obras tengo?" cuando hay muchas.
+  const operativoKpis: OperativoKpi[] = canUseOperativo
+    ? [
+        {
+          key: "total-obras",
+          label: "Obras activas",
+          value: String(portfolioRows.length),
+          href: "/projects",
+          iconKey: "hardhat",
+          tone: "primary",
+        },
+        {
+          key: "obras-en-atencion",
+          label: "Requieren atención",
+          value: String(obrasEnRiesgo),
+          href: "/projects",
+          iconKey: "alert-octagon",
+          tone: obrasEnRiesgo > 0 ? "warn" : "primary",
+        },
+        {
+          key: "avance-promedio",
+          label: "Avance promedio",
+          value: `${avanceProm}%`,
+          href: "/projects",
+          iconKey: "trending-up",
+          tone: "primary",
+        },
+      ]
+    : [];
+
   const attentionItems: AttentionItem[] = [];
   for (const r of portfolioRows) {
     if (r.estado === "Riesgo") {
@@ -302,6 +336,7 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
     portfolioRows,
     avanceProm,
     obrasEnRiesgo,
+    operativoKpis,
     adminKpis,
     licitacionesKpis,
     attentionItems,
