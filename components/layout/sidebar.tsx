@@ -37,7 +37,6 @@ import { uploadLogo } from "./branding-actions";
 import { LOGO_STORAGE_PATH } from "./branding-constants";
 import { getProjectNavInfo } from "@/app/(internal)/projects/actions";
 import { SHELL_PATHS } from "./app-shell-client";
-import { workspaceForPath } from "./workspace";
 
 // Sub-secciones de un proyecto — mismas tabs que /projects/[id]?tab=X, pero
 // como items de sidebar cuando estás "adentro" del proyecto (modo carpeta).
@@ -234,11 +233,12 @@ export function Sidebar({
   const comprasItems = filterItems(COMPRAS_ITEMS);
   const ventasItems = filterItems(VENTAS_ITEMS);
   const finanzasItems = filterItems(FINANZAS_ITEMS);
-  // El nav izquierdo muestra SOLO lo que corresponde al workspace activo (que
-  // ya se elige con el rail derecho) — Proyectos/Licitaciones dejaron de
-  // listarse acá porque son, cada uno, la entrada a su propio workspace.
-  const workspace = workspaceForPath(navPath ?? pathname);
-  const inAdminWorkspace = workspace === "administracion";
+  // Proyectos/Licitaciones dejaron de listarse acá porque son, cada uno, la
+  // entrada a su propio workspace (elegido con el switcher de la topbar) —
+  // el resto (Comprar/Vender/Finanzas) son funciones globales del ERP, no
+  // exclusivas de un workspace, así que siguen visibles siempre: esconderlas
+  // fuera de Administración dejaba el nav vacío al entrar a Operativo o
+  // Licitaciones.
 
   async function handleLogoFile(file: File | null) {
     if (!file) return;
@@ -476,17 +476,10 @@ export function Sidebar({
           </div>
         ) : (
           <>
-            {/* Dashboard queda siempre visible como ancla — sin esto, salir
-                de un proyecto en Operativo (o entrar a Licitaciones) deja el
-                nav izquierdo completamente vacío y parece roto. */}
             {globalItems.map(renderLink)}
-            {inAdminWorkspace ? (
-              <>
-                {renderSection("Comprar", comprasItems)}
-                {renderSection("Vender", ventasItems)}
-                {renderSection("Finanzas", finanzasItems)}
-              </>
-            ) : null}
+            {renderSection("Comprar", comprasItems)}
+            {renderSection("Vender", ventasItems)}
+            {renderSection("Finanzas", finanzasItems)}
           </>
         )}
       </nav>
