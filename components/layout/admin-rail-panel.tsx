@@ -1,16 +1,15 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import { UserRole } from "@/lib/types";
 import { EmpresaPlan } from "@/lib/auth";
 import { AdminConfigSection } from "./admin-config-section";
-import { workspaceForPath } from "./workspace";
 
-// Panel de cuenta: Planes/Configuración/Usuarios/Empresas. Vive pegado al
-// borde derecho, afuera del rail de workspaces (que es solo el selector de
-// ícono) — así el rail se mantiene angosto y este panel puede tener texto
-// legible. Solo aparece en el workspace Administración, que es donde esta
-// configuración tiene sentido.
+// Panel de cuenta: Planes/Configuración/Usuarios/Empresas. Visible en TODA
+// la app, sin importar el workspace activo — así era en el diseño original
+// (plan-nav.tsx) antes de que existiera el concepto de workspace; gatearlo
+// a "solo Administración" lo hacía desaparecer al entrar a Operativo o
+// Licitaciones, que es justamente donde alguien puede querer cambiar de
+// plan o revisar usuarios sin cortar lo que está haciendo.
 export function AdminRailPanel({
   role,
   plan,
@@ -20,9 +19,6 @@ export function AdminRailPanel({
   plan: EmpresaPlan;
   isSuperAdmin?: boolean;
 }) {
-  const pathname = usePathname();
-  if (workspaceForPath(pathname) !== "administracion") return null;
-
   return (
     <aside className="w-[190px] shrink-0 border-l border-[var(--border)] bg-[var(--panel)] hidden lg:flex flex-col h-screen sticky top-0 overflow-y-auto">
       <div className="h-14 flex items-center px-4 border-b border-[var(--border)] shrink-0">
