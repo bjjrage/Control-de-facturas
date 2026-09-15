@@ -78,6 +78,8 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
   const showSalesKpis = isAdminOrAdministracion && p.modulo_ventas;
   const canUseOperativo = PLAN_RANK[p.plan] >= PLAN_RANK.pro && isAdminOrAdministracion;
   const canUseLicitaciones = PLAN_RANK[p.plan] >= PLAN_RANK.pro && (p.role === "comercial" || isAdminOrAdministracion);
+  // Mismo gate que el item "Stock" del sidebar (minPlan: "pro").
+  const canUseStock = showInvoiceKpis && PLAN_RANK[p.plan] >= PLAN_RANK.pro;
 
   const noopRows = Promise.resolve({ data: [] as unknown[] });
   const noopCount = Promise.resolve({ data: null, count: null } as { data: null; count: number | null });
@@ -90,6 +92,7 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
     { count: oportunidadesNuevas },
     { count: licitacionesEnCurso },
     { count: licitacionesGanadas },
+    { data: stockProductos },
   ] = await Promise.all([
     // CxP: nosotros debemos. Se trae todo lo no pagado con due_date — la
     // clasificación próxima/vencida la hace classifyPayable, no la query.
@@ -141,6 +144,9 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
     canUseLicitaciones
       ? supabase.from("licitaciones").select("id", { count: "exact", head: true }).eq("decision", "GANADA")
       : noopCount,
+    canUseStock
+      ? supabase.from("productos").select("stock_actual, stock_minimo").eq("empresa_id", empresaId).eq("activo", true)
+      : noopRows,
   ]);
 
   type PayableRow = { total: number; currency: string; due_date: string | null; status: InvoiceStatus };
@@ -160,6 +166,12 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
   function sumPygSaldo(rows: { total: number; cobrado_amount: number; currency: string }[]): number {
     return rows.filter((r) => r.currency === "PYG").reduce((s, r) => s + docSaldo(r.total, r.cobrado_amount), 0);
   }
+
+  // Mismo criterio de "bajo stock" que /stock (stock-section.tsx): sin stock,
+  // o con mínimo definido y por debajo de él.
+  const productosStockBajo = ((stockProductos ?? []) as { stock_actual: number; stock_minimo: number }[]).filter(
+    (r) => r.stock_actual <= 0 || (r.stock_minimo > 0 && r.stock_actual <= r.stock_minimo)
+  );
 
   // Portafolio: mismo cálculo de avance/compras que /projects, restringido a
   // obras activas y con menos columnas — pensado para lectura rápida, no
@@ -261,6 +273,16 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
       href: "/cobros",
       iconKey: "file-x",
       tone: cobrosVencidosRows.length > 0 ? "error" : "ok",
+    });
+  }
+  if (canUseStock) {
+    adminKpis.push({
+      key: "stock-minimo",
+      value: String(productosStockBajo.length),
+      label: "Productos en stock mínimo",
+      href: "/stock",
+      iconKey: "boxes",
+      tone: productosStockBajo.length > 0 ? "error" : "ok",
     });
   }
 
