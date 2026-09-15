@@ -363,6 +363,7 @@ export interface WarehouseSubmission {
   remision_number: string | null;
   notes: string | null;
   status: WarehouseSubmissionStatus;
+  upload_incomplete?: boolean;
   processing_error: string | null;
   submitted_by: string | null;
   reviewed_by: string | null;

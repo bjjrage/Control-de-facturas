@@ -18,6 +18,10 @@ const auditFix = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260914010000_inventory_final_audit_hardening.sql"),
   "utf8"
 );
+const gateFix = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260914020000_inventory_partial_upload_gate.sql"),
+  "utf8"
+);
 const portalRoute = readFileSync(
   resolve(process.cwd(), "app/api/warehouse-portal/[token]/route.ts"),
   "utf8"
@@ -95,5 +99,15 @@ describe("P1 hardening del inventario canónico", () => {
     expect(portalRoute).toContain("status: 207");
     expect(portalRoute).toContain("NEEDS_REVIEW");
     expect(portalRoute).toContain("Carga parcial");
+  });
+
+  it("P1 partial upload gate: bloquea confirmación fail-closed cuando upload_incomplete = true", () => {
+    expect(gateFix).toContain("upload_incomplete boolean NOT NULL DEFAULT false");
+    expect(gateFix).toContain("IF v_submission.upload_incomplete THEN");
+    expect(gateFix).toContain("RAISE EXCEPTION 'La rendición tiene cargas de archivos incompletas o pendientes';");
+    expect(portalRoute).toContain("upload_incomplete: true");
+    expect(portalRoute).toContain("upload_incomplete: false");
+    expect(actions).toContain("upload_incomplete");
+    expect(actions).toContain("submission.upload_incomplete ? submission.processing_error : null");
   });
 });

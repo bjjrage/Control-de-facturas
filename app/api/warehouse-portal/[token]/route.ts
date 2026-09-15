@@ -164,6 +164,7 @@ export async function POST(request: Request, context: RouteContext) {
       .from("warehouse_submissions")
       .update({
         status: "NEEDS_REVIEW",
+        upload_incomplete: true,
         processing_error: `Falló la carga de todos los archivos: ${rejected.map((r) => `${r.file}: ${r.reason}`).join("; ")}`,
         updated_at: new Date().toISOString(),
       })
@@ -181,6 +182,7 @@ export async function POST(request: Request, context: RouteContext) {
       .from("warehouse_submissions")
       .update({
         status: "NEEDS_REVIEW",
+        upload_incomplete: true,
         processing_error: partialMsg,
         updated_at: new Date().toISOString(),
       })
@@ -200,6 +202,17 @@ export async function POST(request: Request, context: RouteContext) {
       { status: 207 }
     );
   }
+
+  // Si no hubo rechazos en este lote de archivos, la carga está completa
+  await admin
+    .from("warehouse_submissions")
+    .update({
+      upload_incomplete: false,
+      processing_error: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", submission.id)
+    .eq("empresa_id", link.empresa_id);
 
   return NextResponse.json({
     ok: true,

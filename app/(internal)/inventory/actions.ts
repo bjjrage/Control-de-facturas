@@ -312,7 +312,7 @@ export async function processWarehouseSubmission(submissionId: string) {
   const admin = createAdminClient();
   const { data: submission } = await supabase
     .from("warehouse_submissions")
-    .select("id, status")
+    .select("id, status, upload_incomplete, processing_error")
     .eq("id", submissionId)
     .eq("empresa_id", profile.empresa_id)
     .maybeSingle();
@@ -322,7 +322,11 @@ export async function processWarehouseSubmission(submissionId: string) {
   }
   await supabase
     .from("warehouse_submissions")
-    .update({ status: "PROCESSING", processing_started_at: new Date().toISOString(), processing_error: null })
+    .update({
+      status: "PROCESSING",
+      processing_started_at: new Date().toISOString(),
+      processing_error: submission.upload_incomplete ? submission.processing_error : null,
+    })
     .eq("id", submissionId)
     .eq("empresa_id", profile.empresa_id);
 
@@ -336,6 +340,9 @@ export async function processWarehouseSubmission(submissionId: string) {
 
   let proposalCount = 0;
   const errors: string[] = [];
+  if (submission.upload_incomplete && submission.processing_error) {
+    errors.push(submission.processing_error);
+  }
   for (const item of evidence ?? []) {
     const { data: claimed } = await supabase
       .from("warehouse_submission_evidence")
