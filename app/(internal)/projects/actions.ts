@@ -731,3 +731,29 @@ export async function getProjectNavInfo(
     return null;
   }
 }
+
+/**
+ * Listado liviano para el selector de obra del workspace Operativo (sidebar).
+ * Mismo criterio de degradación silenciosa que getProjectNavInfo: si el
+ * usuario no tiene plan/rol habilitado, devuelve lista vacía en vez de
+ * romper el nav. Activos primero, después el resto por nombre.
+ */
+export async function getProjectsForSwitcher(): Promise<
+  { id: string; name: string; code: string; status: ProjectStatus }[]
+> {
+  try {
+    const profile = await requirePlan("pro", ["administracion", "admin"]);
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("projects")
+      .select("id, name, code, status")
+      .eq("empresa_id", profile.empresa_id)
+      .order("status", { ascending: true })
+      .order("name", { ascending: true })
+      .limit(100)
+      .returns<{ id: string; name: string; code: string; status: ProjectStatus }[]>();
+    return data ?? [];
+  } catch {
+    return [];
+  }
+}
