@@ -511,53 +511,14 @@ CREATE TABLE IF NOT EXISTS public.warehouse_submission_lines (
 CREATE INDEX IF NOT EXISTS idx_warehouse_submission_lines_submission
   ON public.warehouse_submission_lines(empresa_id, submission_id, state);
 
--- Puente de lectura no destructivo desde el inventario legacy. Reutilizamos
--- los UUID de depositos cuando existen para que las pantallas actuales puedan
--- seguir mostrando el desglose. costo_promedio no trae moneda ni FX propios:
--- solo se computa en PYG con evidencia inequívoca de cost_observations.
-INSERT INTO public.inventory_locations (
-  id, empresa_id, location_type, name, project_id, is_primary, active
-)
-SELECT
-  d.id,
-  d.empresa_id,
-  CASE WHEN d.project_id IS NULL THEN 'CENTRAL' ELSE 'PROJECT' END,
-  d.nombre,
-  d.project_id,
-  d.es_principal,
-  d.activo
-FROM public.depositos d
-ON CONFLICT DO NOTHING;
-
-INSERT INTO public.inventory_balances (
-  empresa_id, producto_id, location_id, cost_currency, quantity, total_cost,
-  cost_status, original_cost_currency, original_unit_cost, original_total_cost,
-  exchange_rate_to_company, cost_source
-)
-SELECT
-  s.empresa_id,
-  s.producto_id,
-  s.deposito_id,
-  c.cost_currency,
-  greatest(0, s.stock_actual),
-  CASE WHEN c.cost_status = 'COMPUTABLE'
-       THEN greatest(0, s.stock_actual * coalesce(c.canonical_unit_cost, 0))
-       ELSE 0 END,
-  c.cost_status,
-  c.original_cost_currency,
-  c.original_unit_cost,
-  greatest(0, s.stock_actual * coalesce(c.original_unit_cost, p.costo_promedio)),
-  c.exchange_rate_to_company,
-  c.reason
-FROM public.stock_por_deposito s
-JOIN public.productos p ON p.id = s.producto_id AND p.empresa_id = s.empresa_id
-JOIN public.inventory_locations l ON l.id = s.deposito_id AND l.empresa_id = s.empresa_id
-CROSS JOIN LATERAL public.resolve_legacy_inventory_cost(
-  s.empresa_id, s.producto_id, p.costo_promedio
-) c
-WHERE s.stock_actual > 0
-ON CONFLICT DO NOTHING;
-
+-- Hotfix de compatibilidad con prod (2026-09-15): esta base ya no tiene el
+-- modelo de "depósitos" (public.depositos / public.stock_por_deposito fueron
+-- reemplazados por stock_movimientos + la vista stock_por_proyecto antes de
+-- esta migración). Los dos backfills que copiaban ese modelo a las tablas
+-- canónicas se eliminan: no hay origen del cual migrar. El inventario
+-- canónico arranca vacío; el stock legacy remanente (demo/fixture, sin
+-- correlato en stock_movimientos) queda accesible como siempre vía las
+-- pantallas legacy, sin puente automático.
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('warehouse-evidence', 'warehouse-evidence', false)
 ON CONFLICT (id) DO NOTHING;
@@ -876,21 +837,13 @@ BEGIN
   ), updated_at = now()
   WHERE id = p_producto_id AND empresa_id = p_empresa_id;
 
-  -- Keep old per-deposito screens coherent where the canonical location was
-  -- backfilled from the legacy deposito UUID. New canonical locations simply
-  -- have no legacy row and remain canonical-only.
-  INSERT INTO public.stock_por_deposito (empresa_id, producto_id, deposito_id, stock_actual)
-  SELECT
-    p_empresa_id, p_producto_id, d.id,
-    coalesce((SELECT sum(b.quantity)
-              FROM public.inventory_balances b
-              WHERE b.empresa_id = p_empresa_id
-                AND b.producto_id = p_producto_id
-                AND b.location_id = d.id), 0)
-  FROM public.depositos d
-  WHERE d.empresa_id = p_empresa_id AND d.id = ANY(p_location_ids)
-  ON CONFLICT (producto_id, deposito_id) DO UPDATE
-    SET stock_actual = EXCLUDED.stock_actual;
+  -- Hotfix de compatibilidad con prod (2026-09-15): public.depositos /
+  -- public.stock_por_deposito no existen en esta base (el modelo de
+  -- depósitos fue reemplazado por stock_movimientos + stock_por_proyecto
+  -- antes de esta migración). Se elimina la escritura al desglose legacy por
+  -- depósito; p_location_ids queda sin uso pero se conserva en la firma para
+  -- no romper a inventory_post_movement, que sigue invocando esta función.
+  NULL;
 END;
 $$;
 
