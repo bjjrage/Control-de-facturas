@@ -104,7 +104,14 @@ async function collectRunningRecoveryCandidates(db: AgentDb, args: Args, existin
   const { data, error } = await query;
   if (error) throw new Error(`worker recovery running tasks: ${error.message}`);
   for (const task of data ?? []) {
-    if (!existing.has(task.id)) existing.set(task.id, { taskId: task.id, recoverRunning: true });
+    const candidate = existing.get(task.id);
+    if (candidate) {
+      // A stale retry and a RUNNING task can be discovered in the same cycle.
+      // Preserve the retry/event trigger but still enable lease-expiry recovery.
+      existing.set(task.id, { ...candidate, recoverRunning: true });
+    } else {
+      existing.set(task.id, { taskId: task.id, recoverRunning: true });
+    }
   }
 }
 
