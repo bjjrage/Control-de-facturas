@@ -28,7 +28,6 @@ import {
   activateSchedulePlan,
   deleteSchedulePlan,
 } from "../certificado-anexos-actions";
-import { ProgressForecastSection } from "./progress-forecast-section";
 import { WeeklyPlanSection } from "./weekly-plan-section";
 
 const WEATHER_CYCLE: (WeatherCode | null)[] = [null, "B", "LL", "HH", "O"];
@@ -114,7 +113,6 @@ export function AvanceFisicoPanel({
   return (
     <div className="space-y-6">
       <WeeklyPlanSection project={project} />
-      <ProgressForecastSection project={project} />
       <CurvaAvance
         project={project}
         certificates={certificates}
@@ -383,6 +381,13 @@ function DiasNoTrabajados({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState<{ error: string | null; success: string | null }>({
+    error: null,
+    success: null,
+  });
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorDate, setEditorDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
+  const [editorCode, setEditorCode] = useState<string>("LL");
   const byDate = useMemo(() => {
     const m = new Map<string, WeatherCode>();
     for (const w of weatherLogs) m.set(w.log_date, w.code);
@@ -392,30 +397,68 @@ function DiasNoTrabajados({
   const months = useMemo(() => monthSpan(project), [project]);
 
   const counts = useMemo(() => {
-    let ll = 0, hh = 0, o = 0;
+    let b = 0, ll = 0, hh = 0, o = 0;
     for (const w of weatherLogs) {
-      if (w.code === "LL") ll++;
+      if (w.code === "B") b++;
+      else if (w.code === "LL") ll++;
       else if (w.code === "HH") hh++;
       else if (w.code === "O") o++;
     }
-    return { ll, hh, o, total: ll + hh + o };
+    return { b, ll, hh, o, total: ll + hh + o };
   }, [weatherLogs]);
 
-  async function cycle(dateStr: string) {
+  async function persist(dateStr: string, code: WeatherCode | null) {
     if (busy) return;
+    setBusy(true);
+    setFeedback({ error: null, success: null });
+    const res = await setWeatherDay(project.id, dateStr, code);
+    setBusy(false);
+    if (res.error) {
+      setFeedback({ error: res.error, success: null });
+      return;
+    }
+    setFeedback({
+      error: null,
+      success:
+        code === null
+          ? `Registro de ${dateStr} eliminado.`
+          : `${dateStr} registrado como ${WEATHER_LABEL[code]}.`,
+    });
+    router.refresh();
+  }
+
+  async function cycle(dateStr: string) {
     const current = byDate.get(dateStr) ?? null;
     const idx = WEATHER_CYCLE.indexOf(current);
     const next = WEATHER_CYCLE[(idx + 1) % WEATHER_CYCLE.length];
-    setBusy(true);
-    const res = await setWeatherDay(project.id, dateStr, next);
-    setBusy(false);
-    if (!res.error) router.refresh();
+    await persist(dateStr, next);
+    // Sincroniza editor si está abierto
+    setEditorDate(dateStr);
+    if (next) setEditorCode(next);
+  }
+
+  async function saveFromEditor() {
+    if (!editorDate) {
+      setFeedback({ error: "Elegí una fecha válida.", success: null });
+      return;
+    }
+    if (editorCode === "__CLEAR__") {
+      await persist(editorDate, null);
+    } else {
+      await persist(editorDate, editorCode as WeatherCode);
+    }
   }
 
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[13px] font-semibold">Días no trabajados (Libro de Obra)</div>
+        <div>
+          <div className="text-[13px] font-semibold">Días no trabajados (Libro de Obra) — registro histórico</div>
+          <p className="text-[11px] text-[var(--muted)]">
+            Lo que realmente ocurrió (contractual). No es pronóstico futuro — el clima futuro se ve en
+            Plan Semanal → Clima ON.
+          </p>
+        </div>
         <div className="flex gap-3 text-[12px]">
           <span>
             Lluvia <strong>{counts.ll}</strong>
@@ -433,13 +476,69 @@ function DiasNoTrabajados({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 text-[11px] text-[var(--muted)]">
-        <LegendChip code="B" />
-        <LegendChip code="LL" />
-        <LegendChip code="HH" />
-        <LegendChip code="O" />
-        <span className="ml-1">— clic en un día para cambiar</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          variant="secondary"
+          onClick={() => setEditorOpen((v) => !v)}
+          className="h-8 text-xs"
+        >
+          {editorOpen ? "Cerrar editor" : "Registrar día"}
+        </Button>
+        <div className="flex flex-wrap gap-2 text-[11px] text-[var(--muted)]">
+          <LegendChip code="B" />
+          <LegendChip code="LL" />
+          <LegendChip code="HH" />
+          <LegendChip code="O" />
+          <span className="ml-1">— clic en un día para avanzar B → LL → HH → O → vacío</span>
+        </div>
       </div>
+
+      {editorOpen ? (
+        <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] p-3 flex flex-wrap items-end gap-3">
+          <div>
+            <label className="text-[11px] text-[var(--muted)]">Fecha</label>
+            <Input
+              type="date"
+              value={editorDate}
+              onChange={(e) => setEditorDate(e.target.value)}
+              className="h-8 w-40"
+            />
+          </div>
+          <div>
+            <label className="text-[11px] text-[var(--muted)]">Estado</label>
+            <select
+              value={editorCode}
+              onChange={(e) => setEditorCode(e.target.value)}
+              className="h-8 rounded border border-[var(--border)] bg-[var(--panel)] px-2 text-[12px]"
+            >
+              <option value="B">Bueno / practicable (B)</option>
+              <option value="LL">Lluvioso (LL)</option>
+              <option value="HH">Húmedo / encharcado (HH)</option>
+              <option value="O">Otra circunstancia (O)</option>
+              <option value="__CLEAR__">Limpiar registro (borrar)</option>
+            </select>
+          </div>
+          <Button disabled={busy} onClick={saveFromEditor} className="h-8 text-xs">
+            {busy ? "Guardando…" : "Guardar día"}
+          </Button>
+          <span className="text-[11px] text-[var(--muted)]">
+            {editorDate && byDate.get(editorDate)
+              ? `Actual: ${WEATHER_LABEL[byDate.get(editorDate)!]}`
+              : "Sin registro en esa fecha"}
+          </span>
+        </div>
+      ) : null}
+
+      {feedback.error ? (
+        <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
+          {feedback.error}
+        </div>
+      ) : null}
+      {feedback.success ? (
+        <div className="rounded border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-[12px] text-emerald-700 dark:text-emerald-300">
+          {feedback.success}
+        </div>
+      ) : null}
 
       <div className="space-y-1 overflow-x-auto">
         {months.map(({ year, month }) => {
@@ -460,7 +559,8 @@ function DiasNoTrabajados({
                       key={dateStr}
                       type="button"
                       onClick={() => cycle(dateStr)}
-                      title={`${dateStr}${code ? ` · ${WEATHER_LABEL[code]}` : ""}`}
+                      disabled={busy}
+                      title={`${dateStr}${code ? ` · ${WEATHER_LABEL[code]} (clic para cambiar)` : " · sin registro (clic para B)"}`}
                       className={`h-6 w-6 rounded text-[10px] font-medium ${
                         code ? WEATHER_STYLE[code] : "bg-[var(--panel-2)] text-[var(--muted)]/40"
                       }`}

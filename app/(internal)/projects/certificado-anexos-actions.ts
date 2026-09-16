@@ -34,7 +34,7 @@ async function projectIdOfCertificate(supabase: SupabaseClient, certificateId: s
 // Días no trabajados
 // ---------------------------------------------------------------------------
 
-/** Fija (o borra, si code es null) el clima de un día. */
+/** Fija (o borra, si code es null) el clima de un día. Propaga el error real de Supabase. */
 export async function setWeatherDay(
   projectId: string,
   logDate: string,
@@ -49,14 +49,24 @@ export async function setWeatherDay(
   if (code !== null && !WEATHER_CODES.includes(code)) return { error: "Código inválido." };
 
   if (code === null) {
-    await supabase.from("project_weather_log").delete().eq("project_id", projectId).eq("log_date", logDate);
+    const { error: deleteError } = await supabase
+      .from("project_weather_log")
+      .delete()
+      .eq("project_id", projectId)
+      .eq("log_date", logDate);
+    if (deleteError) {
+      return { error: `No se pudo borrar el registro (${deleteError.message}).` };
+    }
   } else {
-    await supabase
+    const { error: upsertError } = await supabase
       .from("project_weather_log")
       .upsert(
         { project_id: projectId, log_date: logDate, code, recorded_by: profile.id },
         { onConflict: "project_id,log_date" }
       );
+    if (upsertError) {
+      return { error: `No se pudo guardar el día (${upsertError.message}).` };
+    }
   }
 
   revalidatePath(`/projects/${projectId}`);
