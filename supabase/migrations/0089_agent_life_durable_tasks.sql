@@ -1,5 +1,5 @@
 -- =============================================================================
--- 0082_agent_life_durable_tasks.sql
+-- 0089_agent_life_durable_tasks.sql
 --
 -- BATCH 6 - Agent Life / durable task lifecycle.
 --
@@ -219,7 +219,7 @@ create index if not exists idx_agent_approvals_decided_by
   on public.agent_approvals(decided_by)
   where decided_by is not null;
 
--- These DO blocks also repair a database that had an older 0082 definition.
+-- These DO blocks also repair a database that had an older Agent Life definition.
 do $$
 begin
   if not exists (select 1 from pg_constraint where conname = 'fk_agent_runs_task_empresa') then
@@ -729,5 +729,5 @@ grant execute on function public.process_agent_event(uuid, uuid, uuid) to servic
 grant execute on function public.replay_agent_event_to_wait(uuid, uuid) to service_role;
 
 -- =============================================================================
--- END 0082
+-- END 0089
 -- =============================================================================

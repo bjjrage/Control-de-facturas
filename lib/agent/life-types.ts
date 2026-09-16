@@ -1,5 +1,5 @@
 // lib/agent/life-types.ts
-// BATCH 6 — Tipos durables. Espejan supabase/migrations/0082_*.
+// BATCH 6 — Tipos durables. Espejan supabase/migrations/0089_*.
 
 export type TaskWaitKind = "EVENT" | "TIMER" | "APPROVAL";
 export type TaskWaitStatus = "WAITING" | "CLAIMED" | "SATISFIED" | "CANCELLED" | "EXPIRED";
