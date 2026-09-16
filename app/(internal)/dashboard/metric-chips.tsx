@@ -14,6 +14,14 @@ const TONE_RING: Record<MetricChip["tone"], string> = {
   error: "ring-1 ring-[var(--error)]/30",
 };
 
+// Mismo glow parejo (box-shadow en todo el perímetro, no drop-shadow que
+// solo se nota abajo) que se usa en los chips del panorama de obras.
+const TONE_GLOW: Record<MetricChip["tone"], string> = {
+  ok: "hover:shadow-[0_0_0_1px_rgba(45,212,191,0.35),0_0_16px_2px_rgba(45,212,191,0.25)]",
+  warn: "hover:shadow-[0_0_0_1px_rgba(245,165,36,0.35),0_0_16px_2px_rgba(245,165,36,0.25)]",
+  error: "hover:shadow-[0_0_0_1px_rgba(242,104,92,0.35),0_0_16px_2px_rgba(242,104,92,0.25)]",
+};
+
 // Fila de KPIs atómicos de una sección (Administración, Licitaciones) —
 // mismo tamaño y forma siempre, el valor grande es el número que importa
 // (monto o cantidad) y el label chico dice qué es. Reemplaza el chip único
@@ -30,7 +38,7 @@ export function MetricChips({ chips }: { chips: MetricChip[] }) {
           <Link
             key={chip.key}
             href={chip.href}
-            className={`group rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5 flex items-center gap-3 transition-all duration-150 hover:border-[var(--foreground)]/15 hover:shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_8px_24px_-8px_rgba(255,255,255,0.12)] ${TONE_RING[chip.tone]}`}
+            className={`group rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5 flex items-center gap-3 transition-shadow duration-200 ${TONE_GLOW[chip.tone]} ${TONE_RING[chip.tone]}`}
           >
             <div className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${TONE_CLASSES[chip.tone]}`}>
               <Icon size={16} />
