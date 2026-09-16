@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, Fragment } from "react";
 import {
   Calendar,
   Layers,
@@ -562,7 +562,7 @@ function BudgetItemGroup({
           const colSpan = weatherOverlay ? 11 : 10;
 
           return (
-            <>
+            <Fragment key={front.id}>
             <tr key={front.id} className="hover:bg-[var(--panel-2)]/40 transition-colors">
               <td className="py-2 px-3 font-mono font-medium text-[var(--foreground)]">
                 {idx === 0 ? budgetItem.code : ""}
@@ -763,7 +763,7 @@ function BudgetItemGroup({
                 </td>
               </tr>
             ) : null}
-            </>
+            </Fragment>
           );
         })
       )}
