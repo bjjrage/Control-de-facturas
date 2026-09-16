@@ -29,6 +29,12 @@ export const COMPUTO_PRESUPUESTO_COLUMNS: PlanillaColumn[] = [
     label: "Subtotal",
     type: "readonly-numeric",
     width: 140,
+    // Read-only a propósito, y no es capricho de la UI: budget_items.subtotal
+    // es GENERATED ALWAYS AS (quantity*unit_price) STORED en Postgres (ver
+    // 0028_construccion_pro.sql) — si se dejara editable, el usuario vería su
+    // propia fórmula en pantalla pero la base la pisaría en silencio al
+    // confirmar (el RPC ni siquiera envía subtotal). Las columnas realmente
+    // libres para fórmulas propias son quantity/unit_price.
     readOnly: true,
     // D=quantity, E=unit_price en el orden de columnas de arriba (0-indexed: code=A,
     // description=B, unit=C, quantity=D, unit_price=E, subtotal=F).

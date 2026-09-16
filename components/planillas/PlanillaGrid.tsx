@@ -41,10 +41,22 @@ const CONTEXT_MENU_ITEMS = [
 ] as const;
 const FILL_HANDLE_SETTINGS = { direction: "vertical", autoInsertRow: false } as const;
 
+// Tope de filas de la grilla — no atado a cuántas partidas tenía el
+// presupuesto de origen (el usuario tiene que poder agregar filas nuevas
+// libremente, como en Excel), pero tampoco ilimitado: nadie llena 500 filas
+// a mano, y sin tope una fila de fórmula en cascada o un paste accidental
+// podría degradar HyperFormula en el cliente.
+const MAX_ROWS = 500;
+
 function columnToHtConfig(col: PlanillaColumn): Handsontable.ColumnSettings {
   return {
     data: col.key,
     title: col.label,
+    // "numeric" en Handsontable solo define el editor/formateador por
+    // defecto de la celda — el plugin de fórmulas intercepta cualquier valor
+    // que empiece con "=" independientemente del tipo de columna, así que
+    // quantity/unit_price aceptan fórmulas libres igual que en Excel (sumas
+    // entre filas, referencias cruzadas, etc.), no solo el subtotal fijo.
     type: col.type === "text" ? "text" : "numeric",
     readOnly: col.readOnly ?? col.type === "readonly-numeric",
     width: col.width,
@@ -251,6 +263,7 @@ export const PlanillaGrid = memo(function PlanillaGrid({
           formulas={formulasSettings}
           contextMenu={CONTEXT_MENU_ITEMS as unknown as string[]}
           fillHandle={FILL_HANDLE_SETTINGS}
+          maxRows={MAX_ROWS}
           manualColumnResize
           manualRowResize
           readOnly={readOnly}
