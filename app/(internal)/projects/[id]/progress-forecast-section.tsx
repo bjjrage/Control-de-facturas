@@ -279,6 +279,21 @@ export function ProgressForecastSection({ project }: { project: Project }) {
             </div>
           </div>
 
+          {forecastResult.climate_metrics ? (
+            <div className="rounded-lg border border-blue-500/25 bg-blue-500/5 p-4 text-xs">
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold text-[var(--foreground)]">Impacto climático acumulado</h4>
+                <span className="text-[var(--muted)]">Incluido en este snapshot</span>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div><div className="text-[var(--muted)]">Días de lluvia</div><div className="mt-1 font-semibold">{forecastResult.climate_metrics.rain_lost_days}</div></div>
+                <div><div className="text-[var(--muted)]">Efectos de lluvia</div><div className="mt-1 font-semibold">{forecastResult.climate_metrics.rain_effect_lost_days}</div></div>
+                <div><div className="text-[var(--muted)]">Días disponibles</div><div className="mt-1 font-semibold">{forecastResult.climate_metrics.effective_available_days}</div></div>
+                <div><div className="text-[var(--muted)]">Varianza ajustada</div><div className="mt-1 font-semibold">{forecastResult.climate_metrics.weather_adjusted_variance}</div></div>
+              </div>
+            </div>
+          ) : null}
+
           {/* AI Operational Assessment Notice */}
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-3 flex items-start gap-3 text-xs">
             <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />

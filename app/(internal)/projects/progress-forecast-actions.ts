@@ -21,6 +21,7 @@ import {
   BudgetItemMaterialInput,
   StockDisponibilidadInput,
 } from "@/lib/procurement/progress-forecast-engine";
+import { deriveClimateForecastMetrics } from "@/lib/procurement/climate-metrics";
 
 export interface RunProgressForecastParams {
   projectId: string;
@@ -47,7 +48,7 @@ export async function runProgressForecastAction(
     // 1. Fetch project details
     const { data: project, error: projErr } = await supabase
       .from("projects")
-      .select("id, name, location, latitude, longitude, currency:contract_amount")
+      .select("id, name, location, latitude, longitude, start_date, currency:contract_amount")
       .eq("id", projectId)
       .eq("empresa_id", empresaId)
       .single();
@@ -107,6 +108,13 @@ export async function runProgressForecastAction(
         error: "El proyecto no tiene partidas presupuestarias cargadas.",
       };
     }
+
+    const { data: climateWorkdays } = await supabase
+      .from("project_workday_status")
+      .select("work_date, classification, decision_status")
+      .eq("project_id", projectId)
+      .eq("empresa_id", empresaId)
+      .lte("work_date", new Date().toISOString().slice(0, 10));
 
     // 4. Fetch execution entries: cumulative progress + recent entries (last 60 days)
     const { data: rawEntries } = await supabase
@@ -350,6 +358,12 @@ export async function runProgressForecastAction(
       llm_summary: operationalAnalysis.overall_summary,
       currency: "PYG",
     });
+    forecastSummary.climate_metrics = deriveClimateForecastMetrics({
+      projectStartDate: project.start_date ?? null,
+      asOfDate: new Date().toISOString().slice(0, 10),
+      workdays: (climateWorkdays ?? []) as { work_date: string; classification: "WORKABLE" | "NON_WORKABLE_RAIN" | "NON_WORKABLE_RAIN_EFFECT" | "NON_WORKABLE_OTHER"; decision_status: "PROPOSED" | "CONFIRMED" }[],
+      budgetItems,
+    });
 
     // 11. Persist run in project_progress_forecast_runs
     const { data: runRecord } = await supabase
@@ -375,6 +389,14 @@ export async function runProgressForecastAction(
         llm_analysis_used: forecastSummary.llm_analysis_used,
         llm_summary: forecastSummary.llm_summary,
         operational_input_hash: currentOperationalHash,
+        calendar_days_elapsed: forecastSummary.climate_metrics.calendar_days_elapsed,
+        workable_days_elapsed: forecastSummary.climate_metrics.workable_days_elapsed,
+        rain_lost_days: forecastSummary.climate_metrics.rain_lost_days,
+        rain_effect_lost_days: forecastSummary.climate_metrics.rain_effect_lost_days,
+        other_lost_days: forecastSummary.climate_metrics.other_lost_days,
+        effective_available_days: forecastSummary.climate_metrics.effective_available_days,
+        gross_schedule_variance: forecastSummary.climate_metrics.gross_schedule_variance,
+        weather_adjusted_variance: forecastSummary.climate_metrics.weather_adjusted_variance,
         created_by: profile.id,
       })
       .select("id")

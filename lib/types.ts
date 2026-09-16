@@ -748,6 +748,11 @@ export interface Project {
   location: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  precipitation_threshold_mm?: number;
+  weather_tracking_enabled?: boolean;
+  weather_station_id?: string | null;
+  weather_station_name?: string | null;
+  weather_source?: string;
   start_date: string | null;
   end_date: string | null;
   status: ProjectStatus;
@@ -1133,6 +1138,105 @@ export interface ProjectCertificateUnitProgress {
   updated_at: string;
 }
 
+// ============================================================================
+// Climate Workdays
+// ============================================================================
+
+export type ProjectWorkdayClassification =
+  | "WORKABLE"
+  | "NON_WORKABLE_RAIN"
+  | "NON_WORKABLE_RAIN_EFFECT"
+  | "NON_WORKABLE_OTHER";
+
+export type ClimateReasonCode =
+  | "TERRAIN_SATURATED"
+  | "ACCESS_BLOCKED"
+  | "FLOODED_EXCAVATION"
+  | "UNSAFE_CONDITIONS"
+  | "MATERIAL_IMPACT"
+  | "OTHER";
+
+export type ClimateEvidenceType =
+  | "RAIN_GAUGE_PHOTO"
+  | "SITE_CONDITION_PHOTO"
+  | "WEATHER_SOURCE"
+  | "RESIDENT_NOTE"
+  | "OTHER";
+
+export interface ClimateEvent {
+  id: string;
+  empresa_id: string;
+  project_id: string;
+  event_date: string;
+  source: string;
+  external_station_id: string | null;
+  external_station_name: string | null;
+  external_station_latitude: number | null;
+  external_station_longitude: number | null;
+  external_station_distance_km: number | null;
+  external_observed_at: string | null;
+  external_precipitation_mm: number | null;
+  local_precipitation_mm: number | null;
+  contract_threshold_mm: number | null;
+  external_threshold_exceeded: boolean;
+  local_threshold_exceeded: boolean;
+  threshold_exceeded: boolean;
+  local_source: string;
+  provider_fallback_reason: string | null;
+  raw_source_payload: Record<string, unknown> | null;
+  status: "OBSERVED" | "PROPOSED" | "CONFIRMED" | "OVERRIDDEN";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectWorkdayStatus {
+  id: string;
+  empresa_id: string;
+  project_id: string;
+  work_date: string;
+  classification: ProjectWorkdayClassification;
+  climate_event_id: string | null;
+  parent_workday_status_id: string | null;
+  reason_code: ClimateReasonCode | null;
+  notes: string | null;
+  source: "AUTOMATIC" | "MANUAL" | "RESIDENT" | "SYSTEM";
+  decision_status: "PROPOSED" | "CONFIRMED";
+  proposed_automatically: boolean;
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClimateEvidence {
+  id: string;
+  empresa_id: string;
+  project_id: string;
+  climate_event_id: string | null;
+  workday_status_id: string | null;
+  evidence_type: ClimateEvidenceType;
+  storage_bucket: string | null;
+  storage_path: string | null;
+  file_name: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  captured_at: string | null;
+  uploaded_by: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface ClimateForecastMetrics {
+  calendar_days_elapsed: number;
+  workable_days_elapsed: number;
+  rain_lost_days: number;
+  rain_effect_lost_days: number;
+  other_lost_days: number;
+  effective_available_days: number;
+  gross_schedule_variance: number;
+  weather_adjusted_variance: number;
+}
+
 export interface SalesReceipt {
   id: string;
   empresa_id: string;
@@ -1238,6 +1342,7 @@ export interface ProgressForecastRunSummary {
   llm_analysis_used: boolean;
   is_degraded: boolean;
   llm_summary?: string;
+  climate_metrics?: ClimateForecastMetrics;
 }
 
 // ============================================================================
