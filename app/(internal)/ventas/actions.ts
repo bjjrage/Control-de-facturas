@@ -91,9 +91,24 @@ export async function updateSalesDocument(id: string, formData: FormData) {
   await requireModule("ventas", ["administracion", "admin"]);
   const supabase = await createClient();
 
-  const { data: current } = await supabase.from("sales_documents").select("status").eq("id", id).single<{ status: string }>();
+  const { data: current } = await supabase
+    .from("sales_documents")
+    .select("status, doc_type, acceptance_status")
+    .eq("id", id)
+    .single<{ status: string; doc_type: string; acceptance_status: string }>();
   if (!current) return { error: "Documento no encontrado." };
   if (current.status !== "BORRADOR") return { error: "Solo se puede editar un borrador." };
+  // La cotizaci├│n aceptada es inmutable: la OT ya fotografi├│ sus ├¡tems.
+  // Editar una PENDING invalida el link (bump de quotation_version, migraci├│n 0090).
+  if (current.doc_type === "PROFORMA" && current.acceptance_status === "ACCEPTED") {
+    return { error: "La cotizaci├│n ya fue aceptada y gener├│ una Orden de Trabajo: no se puede editar." };
+  }
+  if (
+    current.doc_type === "PROFORMA" &&
+    (current.acceptance_status === "REJECTED" || current.acceptance_status === "EXPIRED")
+  ) {
+    return { error: "La cotizaci├│n fue rechazada o venci├│: reabrila a borrador antes de editarla." };
+  }
 
   const items = parseItems(formData);
   if ("error" in items) return items;

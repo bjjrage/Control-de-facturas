@@ -129,6 +129,7 @@ const FINANZAS_ITEMS: NavItem[] = [
 const VENTAS_ITEMS: NavItem[] = [
   { href: "/clientes", label: "Clientes", roles: ["administracion", "admin"], icon: Contact, module: "ventas" },
   { href: "/proformas", label: "Proformas", roles: ["administracion", "admin"], icon: FileClock, module: "ventas" },
+  { href: "/ordenes-trabajo", label: "Órdenes de Trabajo", roles: ["administracion", "admin"], icon: Hammer, module: "ventas" },
   { href: "/remisiones", label: "Remisiones", roles: ["administracion", "admin"], icon: ClipboardList, module: "ventas" },
   { href: "/facturas-venta", label: "Facturas de Venta", roles: ["administracion", "admin"], icon: ReceiptText, module: "ventas" },
   { href: "/notas-credito", label: "Notas de Crédito", roles: ["administracion", "admin"], icon: FileX, module: "ventas" },

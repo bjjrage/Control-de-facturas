@@ -472,6 +472,15 @@ export interface SalesDocument {
   xml_url: string | null;
   kude_url: string | null;
   source_document_id: string | null;
+  // Aceptación electrónica de cotizaciones (migración 0090). Solo PROFORMA.
+  quotation_version: number;
+  acceptance_status: QuotationAcceptanceStatus;
+  acceptance_expires_at: string | null;
+  accepted_at: string | null;
+  accepted_by_name: string | null;
+  accepted_by_doc: string | null;
+  rejected_at: string | null;
+  rejection_reason: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -481,6 +490,155 @@ export interface SalesDocumentItem {
   id: string;
   empresa_id: string;
   sales_document_id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  vat_rate: 0 | 5 | 10;
+  line_total: number;
+  created_at: string;
+}
+
+// ============================================================================
+// Aceptación electrónica de cotizaciones + Órdenes de Trabajo (migración 0090)
+// ============================================================================
+
+export type QuotationAcceptanceStatus =
+  | "DRAFT"
+  | "PENDING_ACCEPTANCE"
+  | "ACCEPTED"
+  | "REJECTED"
+  | "EXPIRED";
+
+export type WorkOrderStatus = "PENDIENTE" | "EN_CURSO" | "COMPLETADA" | "CANCELADA";
+
+export type WorkOrderApprovalMode = "RESPONSIBLE_APPROVAL" | "DIRECT_TO_PRODUCTION";
+
+export type WorkOrderWorkflowStatus = "PENDING_INTERNAL_APPROVAL" | "READY_FOR_PRODUCTION";
+
+export type RoutingPolicyScope = "TENANT_DEFAULT" | "CLIENT" | "PROJECT";
+
+export interface WorkOrderRoutingPolicy {
+  id: string;
+  empresa_id: string;
+  scope: RoutingPolicyScope;
+  client_id: string | null;
+  project_id: string | null;
+  mode: WorkOrderApprovalMode;
+  responsible_role: UserRole;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Registro inmutable de aceptación (migración 0091, PUNTO 1).
+ * Una fila por cotización aceptada: fuente de verdad del acto de aceptar,
+ * separada de la OT (documento interno derivado) y de los eventos (timeline).
+ * Fotografía totales, cliente, versión e ítems: aunque la proforma cambie
+ * después (no puede: guard de inmutabilidad), el registro no cambia.
+ */
+export interface SalesQuotationAcceptance {
+  id: string;
+  empresa_id: string;
+  sales_document_id: string;
+  quotation_version: number;
+  client_id: string;
+  client_name_snapshot: string;
+  subtotal_snapshot: number;
+  vat_snapshot: number;
+  total_snapshot: number;
+  currency_snapshot: CurrencyCode;
+  channel: "PORTAL";
+  recipient_email: string | null;
+  acceptor_name: string;
+  acceptor_doc: string | null;
+  acceptor_notes: string | null;
+  ip: string | null;
+  user_agent: string | null;
+  token_id: string | null;
+  token_prefix: string | null;
+  items_snapshot: { description: string; quantity: number; unit_price: number; vat_rate: number; line_total: number }[];
+  work_order_id: string | null;
+  accepted_at: string;
+  created_at: string;
+}
+
+export interface SalesQuotationToken {
+  id: string;
+  empresa_id: string;
+  sales_document_id: string;
+  quotation_version: number;
+  // Solo hash SHA-256 hex + prefijo de correlación (migración 0091). El raw
+  // de 256-bit vive únicamente en la URL y en memoria al generarse.
+  token_hash: string;
+  token_prefix: string;
+  created_at: string;
+  expires_at: string | null;
+  revoked_at: string | null;
+  created_by: string | null;
+  // Dirección para la que se PREPARÓ un mailto: (≠ email enviado: no hay
+  // provider SMTP, nunca se registra EMAIL_SENT).
+  prepared_for_email: string | null;
+  prepared_at: string | null;
+  notes: string | null;
+}
+
+export type QuotationEventType =
+  | "CREATED"
+  | "EMAIL_PREPARED"
+  | "LINK_COPIED"
+  | "VIEWED"
+  | "ACCEPTED"
+  | "REJECTED"
+  | "REVOKED"
+  | "EXPIRED"
+  | "VERSION_SUPERSEDED"
+  | "WORK_ORDER_CREATED"
+  | "WORKFLOW_RESOLVED"
+  | "OT_STATUS_CHANGED";
+
+export interface SalesQuotationEvent {
+  id: string;
+  empresa_id: string;
+  sales_document_id: string;
+  token_id: string | null;
+  event_type: QuotationEventType;
+  actor_label: string | null;
+  actor_ip: string | null;
+  actor_user_agent: string | null;
+  detail: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface WorkOrder {
+  id: string;
+  empresa_id: string;
+  code: string;
+  sales_document_id: string;
+  client_id: string;
+  project_id: string | null;
+  currency: CurrencyCode;
+  subtotal: number;
+  vat_amount: number;
+  total: number;
+  status: WorkOrderStatus;
+  // Workflow interno por configuración (migración 0091).
+  approval_mode: WorkOrderApprovalMode;
+  workflow_status: WorkOrderWorkflowStatus;
+  responsible_role: UserRole;
+  routing_policy_id: string | null;
+  approved_at: string | null;
+  approved_by: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkOrderItem {
+  id: string;
+  empresa_id: string;
+  work_order_id: string;
   description: string;
   quantity: number;
   unit_price: number;

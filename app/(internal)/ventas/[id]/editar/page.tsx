@@ -15,6 +15,13 @@ export default async function EditarVentaPage({ params }: { params: Promise<{ id
   const { data: doc } = await supabase.from("sales_documents").select("*").eq("id", id).single<SalesDocument>();
   if (!doc) notFound();
   if (doc.status !== "BORRADOR") redirect(`/ventas/${id}`);
+  if (doc.doc_type === "PROFORMA" && doc.acceptance_status === "ACCEPTED") redirect(`/ventas/${id}`);
+  if (
+    doc.doc_type === "PROFORMA" &&
+    (doc.acceptance_status === "REJECTED" || doc.acceptance_status === "EXPIRED")
+  ) {
+    redirect(`/ventas/${id}`);
+  }
 
   const [{ data: clients }, { data: items }] = await Promise.all([
     supabase.from("clients").select("id, name").order("name").returns<Pick<Client, "id" | "name">[]>(),
