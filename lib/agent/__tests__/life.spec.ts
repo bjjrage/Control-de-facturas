@@ -183,6 +183,35 @@ class FakeDb {
     };
   }
   rpc(name: string, args: Record<string, string>) {
+    if (name === "replay_agent_event_to_wait") {
+      const wait = this.tables.agent_task_waits.find(
+        (row) => row.id === args.p_wait_id && row.empresa_id === args.p_empresa_id
+      );
+      if (!wait) return Promise.resolve({ data: null, error: { message: "wait no encontrado" } });
+      if (wait.status !== "WAITING" || wait.kind === "TIMER") {
+        return Promise.resolve({ data: { replayed: false, eventId: null }, error: null });
+      }
+      const usedEventIds = new Set(
+        this.tables.agent_task_waits
+          .filter((row) => row.task_id === wait.task_id && row.empresa_id === wait.empresa_id && row.satisfied_by_event_id)
+          .map((row) => row.satisfied_by_event_id)
+      );
+      const event = this.tables.agent_events
+        .filter(
+          (row) =>
+            row.empresa_id === wait.empresa_id &&
+            row.event_type === wait.event_type &&
+            row.correlation_key === wait.correlation_key &&
+            row.processed_at &&
+            !usedEventIds.has(row.id)
+        )
+        .sort((a, b) => (a.occurred_at < b.occurred_at ? 1 : -1))[0];
+      if (!event) return Promise.resolve({ data: { replayed: false, eventId: null }, error: null });
+      wait.status = "SATISFIED";
+      wait.satisfied_by_event_id = event.id;
+      wait.satisfied_at = new Date().toISOString();
+      return Promise.resolve({ data: { replayed: true, eventId: event.id }, error: null });
+    }
     if (name !== "process_agent_event") return Promise.resolve({ data: null, error: null });
     const event = this.tables.agent_events.find(
       (row) => row.id === args.p_event_id && row.empresa_id === args.p_empresa_id
@@ -324,6 +353,28 @@ describe("BATCH 6 — backoff y dedup", () => {
       sourceType: "portal", sourceId: "p1", correlationKey: "RFQ:1", payloadJson: {},
     });
     expect(second).toBeNull();
+  });
+
+  it("wait nuevo recupera un evento ya procesado sin reutilizarlo en el mismo task", async () => {
+    const f = new FakeDb();
+    const d = asDb(f);
+    seedTask(f, { id: "t1", status: "WAITING_EXTERNAL" });
+    f.tables.agent_events.push({
+      id: "e1", empresa_id: "emp-1", event_type: "SUPPLIER_QUOTE_RECEIVED", source_type: "portal",
+      source_id: "p1", correlation_key: "RFQ:rfq-1", dedup_key: "d1", payload_json: {},
+      occurred_at: new Date().toISOString(), processed_at: new Date().toISOString(), processor_id: "worker-1", created_at: new Date().toISOString(),
+    });
+    const wait = await createTaskWait({
+      db: d, taskId: "t1", empresaId: "emp-1", kind: "EVENT",
+      eventType: "SUPPLIER_QUOTE_RECEIVED", correlationKey: "RFQ:rfq-1",
+    });
+    expect(wait.status).toBe("SATISFIED");
+    expect(wait.satisfied_by_event_id).toBe("e1");
+    const nextWait = await createTaskWait({
+      db: d, taskId: "t1", empresaId: "emp-1", kind: "EVENT",
+      eventType: "SUPPLIER_QUOTE_RECEIVED", correlationKey: "RFQ:rfq-1",
+    });
+    expect(nextWait.status).toBe("WAITING");
   });
 });
 

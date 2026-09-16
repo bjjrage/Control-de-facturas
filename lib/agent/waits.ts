@@ -41,6 +41,27 @@ export async function createTaskWait(params: {
     .select("*")
     .single();
   if (error || !data) throw new Error(`createTaskWait: ${error?.message ?? "sin data"}`);
+
+  // A worker can process an event in the same cycle before the next wait is
+  // persisted (notably when several RFQ suppliers answer together). Replay
+  // only an already-processed exact match, and let the DB RPC prevent reuse
+  // of the same event for another wait cycle of this task.
+  if (params.kind !== "TIMER") {
+    const { data: replayData, error: replayError } = await params.db.rpc("replay_agent_event_to_wait", {
+      p_wait_id: (data as AgentTaskWaitRow).id,
+      p_empresa_id: params.empresaId,
+    });
+    if (replayError) throw new Error(`createTaskWait replay: ${replayError.message}`);
+    const replay = replayData as { replayed?: boolean; eventId?: unknown } | null;
+    if (replay?.replayed && typeof replay.eventId === "string") {
+      return {
+        ...(data as AgentTaskWaitRow),
+        status: "SATISFIED",
+        satisfied_by_event_id: replay.eventId,
+        satisfied_at: new Date().toISOString(),
+      };
+    }
+  }
   return data as AgentTaskWaitRow;
 }
 

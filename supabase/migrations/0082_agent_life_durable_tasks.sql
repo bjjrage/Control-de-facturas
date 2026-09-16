@@ -631,6 +631,68 @@ begin
 end;
 $$;
 
+-- If a worker processed an event just before the next wait was created, the
+-- event must remain usable for that exact wait. This closes the RFQ
+-- multi-supplier race without reusing the same event for another wait cycle
+-- of the same task.
+create or replace function public.replay_agent_event_to_wait(
+  p_wait_id uuid,
+  p_empresa_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public, pg_temp
+as $$
+declare
+  v_wait public.agent_task_waits%rowtype;
+  v_event public.agent_events%rowtype;
+begin
+  select * into v_wait
+    from public.agent_task_waits
+   where id = p_wait_id
+     and empresa_id = p_empresa_id
+   for update;
+
+  if not found then
+    raise exception 'replay_agent_event_to_wait: wait no encontrado';
+  end if;
+  if v_wait.status <> 'WAITING' or v_wait.kind = 'TIMER' then
+    return jsonb_build_object('replayed', false, 'eventId', null);
+  end if;
+
+  select e.* into v_event
+    from public.agent_events e
+   where e.empresa_id = p_empresa_id
+     and e.event_type = v_wait.event_type
+     and e.correlation_key = v_wait.correlation_key
+     and e.processed_at is not null
+     and not exists (
+       select 1
+         from public.agent_task_waits used_wait
+        where used_wait.task_id = v_wait.task_id
+          and used_wait.empresa_id = p_empresa_id
+          and used_wait.satisfied_by_event_id = e.id
+     )
+   order by e.occurred_at desc, e.id desc
+   limit 1;
+
+  if not found then
+    return jsonb_build_object('replayed', false, 'eventId', null);
+  end if;
+
+  update public.agent_task_waits
+     set status = 'SATISFIED',
+         satisfied_by_event_id = v_event.id,
+         satisfied_at = clock_timestamp(),
+         updated_at = clock_timestamp()
+   where id = v_wait.id
+     and status = 'WAITING';
+
+  return jsonb_build_object('replayed', true, 'eventId', v_event.id);
+end;
+$$;
+
 -- ---------------------------------------------------------------------------
 -- 9. SECURITY DEFINER hardening
 -- ---------------------------------------------------------------------------
@@ -652,6 +714,7 @@ revoke all on function public.validate_agent_tasks_transition() from public, ano
 revoke all on function public.guard_agent_task_tenant_immutable() from public, anon, authenticated;
 revoke all on function public.validate_agent_life_tenant_link() from public, anon, authenticated;
 revoke all on function public.process_agent_event(uuid, uuid, uuid) from public, anon, authenticated;
+revoke all on function public.replay_agent_event_to_wait(uuid, uuid) from public, anon, authenticated;
 
 grant execute on function public.set_agent_tasks_empresa() to service_role;
 grant execute on function public.set_agent_runs_empresa() to service_role;
@@ -663,6 +726,7 @@ grant execute on function public.validate_agent_tasks_transition() to service_ro
 grant execute on function public.guard_agent_task_tenant_immutable() to service_role;
 grant execute on function public.validate_agent_life_tenant_link() to service_role;
 grant execute on function public.process_agent_event(uuid, uuid, uuid) to service_role;
+grant execute on function public.replay_agent_event_to_wait(uuid, uuid) to service_role;
 
 -- =============================================================================
 -- END 0082
