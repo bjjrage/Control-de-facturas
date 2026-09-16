@@ -16,6 +16,7 @@ import { claimTaskLease, releaseTaskLease } from "../leases";
 import { resumeTask, cancelTask } from "../resume";
 import { updateTaskStatus } from "../runtime";
 import { processDueTimers } from "../timers";
+import { processDueRetries } from "../retries";
 
 // ---------------------------------------------------------------------------
 // Fake DB en memoria: implementa solo los patrones usados por life/*.ts
@@ -181,8 +182,42 @@ class FakeDb {
       delete: () => new Q(self, table, "delete"),
     };
   }
-  rpc() {
-    return Promise.resolve({ data: null, error: null });
+  rpc(name: string, args: Record<string, string>) {
+    if (name !== "process_agent_event") return Promise.resolve({ data: null, error: null });
+    const event = this.tables.agent_events.find(
+      (row) => row.id === args.p_event_id && row.empresa_id === args.p_empresa_id
+    );
+    if (!event) return Promise.resolve({ data: null, error: { message: "evento no encontrado" } });
+    if (event.processed_at) {
+      return Promise.resolve({
+        data: { wokenCount: 0, wokenWaitIds: [], taskIds: [], woken: [] },
+        error: null,
+      });
+    }
+    const matching = this.tables.agent_task_waits.filter(
+      (wait) =>
+        wait.empresa_id === args.p_empresa_id &&
+        wait.status === "WAITING" &&
+        wait.event_type === event.event_type &&
+        wait.correlation_key === event.correlation_key
+    );
+    const woken = matching.map((wait) => {
+      wait.status = "SATISFIED";
+      wait.satisfied_by_event_id = event.id;
+      wait.satisfied_at = new Date().toISOString();
+      return { waitId: wait.id, taskId: wait.task_id };
+    });
+    event.processed_at = new Date().toISOString();
+    event.processor_id = args.p_processor_id;
+    return Promise.resolve({
+      data: {
+        wokenCount: woken.length,
+        wokenWaitIds: woken.map((wake) => wake.waitId),
+        taskIds: woken.map((wake) => wake.taskId),
+        woken,
+      },
+      error: null,
+    });
   }
 }
 
@@ -506,5 +541,50 @@ describe("BATCH 6 — timers, reintentos, approvals e inyección", () => {
     });
     const r = await processAgentEvent({ db: d, eventId: "e1", empresaId: "emp-1", processorId: "w1" });
     expect(r.wokenCount).toBe(0);
+  });
+
+  it("event_type exacto y resume no satisface waits hermanos", async () => {
+    const f = new FakeDb();
+    const d = asDb(f);
+    seedTask(f, { id: "t1", status: "WAITING_EXTERNAL" });
+    f.tables.agent_task_waits.push(
+      {
+        id: "w1", task_id: "t1", run_id: null, empresa_id: "emp-1", kind: "EVENT",
+        event_type: "EXPECTED", correlation_key: "C", wake_at: null, payload_json: {}, status: "WAITING",
+        satisfied_by_event_id: null, satisfied_at: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      },
+      {
+        id: "w2", task_id: "t1", run_id: null, empresa_id: "emp-1", kind: "EVENT",
+        event_type: "OTHER", correlation_key: "C", wake_at: null, payload_json: {}, status: "WAITING",
+        satisfied_by_event_id: null, satisfied_at: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      }
+    );
+    f.tables.agent_events.push({
+      id: "e1", empresa_id: "emp-1", event_type: "EXPECTED", source_type: "system", source_id: null,
+      correlation_key: "C", dedup_key: "d1", payload_json: {}, occurred_at: new Date().toISOString(),
+      processed_at: null, processor_id: null, created_at: new Date().toISOString(),
+    });
+
+    const processed = await processAgentEvent({ db: d, eventId: "e1", empresaId: "emp-1", processorId: "w1" });
+    expect(processed.woken).toEqual([{ waitId: "w1", taskId: "t1" }]);
+    expect(f.tables.agent_task_waits.find((w) => w.id === "w2")?.status).toBe("WAITING");
+
+    await resumeTask({ db: d, taskId: "t1", empresaId: "emp-1", actorId: "w1", actorType: "worker", triggerEventId: "e1", triggerWaitId: "w1" });
+    expect(f.tables.agent_task_waits.find((w) => w.id === "w2")?.status).toBe("WAITING");
+  });
+
+  it("retry EXECUTING stale vuelve a ser visible después de restart", async () => {
+    const f = new FakeDb();
+    const d = asDb(f);
+    seedTask(f, { id: "t1", status: "FAILED" });
+    f.tables.agent_task_retries.push({
+      id: "retry-1", task_id: "t1", run_id: null, empresa_id: "emp-1", attempt_number: 1,
+      max_attempts: 3, status: "EXECUTING", next_retry_at: new Date(Date.now() - 1000).toISOString(),
+      updated_at: new Date(Date.now() - 120_000).toISOString(), created_at: new Date().toISOString(),
+    });
+
+    const recovered = await processDueRetries({ db: d, staleExecutingAfterMs: 0 });
+    expect(recovered.retriedCount).toBe(1);
+    expect(f.tables.agent_task_retries[0].status).toBe("EXECUTING");
   });
 });

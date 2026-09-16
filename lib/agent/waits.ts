@@ -22,6 +22,9 @@ export async function createTaskWait(params: {
   if (params.kind === "TIMER" && !params.wakeAt) {
     throw new Error("TIMER wait requiere wakeAt");
   }
+  if (params.kind !== "TIMER" && (!params.eventType || !params.correlationKey)) {
+    throw new Error(`${params.kind} wait requiere eventType y correlationKey`);
+  }
   const { data, error } = await params.db
     .from("agent_task_waits")
     .insert({

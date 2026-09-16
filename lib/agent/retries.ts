@@ -3,6 +3,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentTaskRetryRow } from "./life-types";
+import { updateTaskStatus } from "./runtime";
 
 export function computeBackoffMs(params: {
   attemptNumber: number;
@@ -31,13 +32,29 @@ export async function scheduleRetry(params: {
     .select("*")
     .eq("task_id", params.taskId)
     .eq("empresa_id", params.empresaId)
-    .in("status", ["PENDING", "SCHEDULED", "EXECUTING"])
     .order("attempt_number", { ascending: false })
     .limit(1)
     .maybeSingle();
 
   const attemptNumber = existing ? (existing as AgentTaskRetryRow).attempt_number + 1 : 1;
   const maxAttempts = params.maxAttempts ?? (existing as AgentTaskRetryRow | null)?.max_attempts ?? 3;
+
+  const { data: task } = await params.db
+    .from("agent_tasks")
+    .select("status")
+    .eq("id", params.taskId)
+    .eq("empresa_id", params.empresaId)
+    .maybeSingle();
+  if (task && (task as { status: string }).status === "RUNNING") {
+    await updateTaskStatus({
+      db: params.db,
+      taskId: params.taskId,
+      empresaId: params.empresaId,
+      status: "FAILED",
+      errorMessage: params.errorMessage.slice(0, 2000),
+      actorType: "worker",
+    });
+  }
 
   if (attemptNumber > maxAttempts) {
     const { data, error } = await params.db
@@ -56,12 +73,28 @@ export async function scheduleRetry(params: {
       })
       .select("*")
       .single();
-    if (error || !data) throw new Error(`scheduleRetry: ${error?.message ?? "sin data"}`);
-    await params.db
-      .from("agent_tasks")
-      .update({ status: "FAILED", error_message: params.errorMessage.slice(0, 2000), updated_at: new Date().toISOString() })
-      .eq("id", params.taskId)
-      .eq("empresa_id", params.empresaId);
+    if (error || !data) {
+      if ((error as { code?: string } | null)?.code === "23505") {
+        const { data: concurrent } = await params.db
+          .from("agent_task_retries")
+          .select("*")
+          .eq("task_id", params.taskId)
+          .eq("attempt_number", attemptNumber)
+          .maybeSingle();
+        if (concurrent) return concurrent as AgentTaskRetryRow;
+      }
+      throw new Error(`scheduleRetry: ${error?.message ?? "sin data"}`);
+    }
+    if ((task as { status?: string } | null)?.status !== "FAILED") {
+      await updateTaskStatus({
+        db: params.db,
+        taskId: params.taskId,
+        empresaId: params.empresaId,
+        status: "FAILED",
+        errorMessage: params.errorMessage.slice(0, 2000),
+        actorType: "worker",
+      });
+    }
     return data as AgentTaskRetryRow;
   }
 
@@ -82,7 +115,18 @@ export async function scheduleRetry(params: {
     })
     .select("*")
     .single();
-  if (error || !data) throw new Error(`scheduleRetry: ${error?.message ?? "sin data"}`);
+  if (error || !data) {
+    if ((error as { code?: string } | null)?.code === "23505") {
+      const { data: concurrent } = await params.db
+        .from("agent_task_retries")
+        .select("*")
+        .eq("task_id", params.taskId)
+        .eq("attempt_number", attemptNumber)
+        .maybeSingle();
+      if (concurrent) return concurrent as AgentTaskRetryRow;
+    }
+    throw new Error(`scheduleRetry: ${error?.message ?? "sin data"}`);
+  }
   return data as AgentTaskRetryRow;
 }
 
@@ -106,7 +150,26 @@ export async function processDueRetries(params: {
   db: SupabaseClient;
   empresaId?: string;
   limit?: number;
+  staleExecutingAfterMs?: number;
 }): Promise<{ retriedCount: number; taskIds: string[] }> {
+  const staleBefore = new Date(Date.now() - (params.staleExecutingAfterMs ?? 60_000)).toISOString();
+  let staleQuery = params.db
+    .from("agent_task_retries")
+    .select("id, task_id, empresa_id")
+    .eq("status", "EXECUTING")
+    .lt("updated_at", staleBefore);
+  if (params.empresaId) staleQuery = staleQuery.eq("empresa_id", params.empresaId);
+  const { data: staleRows, error: staleError } = await staleQuery;
+  if (staleError) throw new Error(`processDueRetries recovery: ${staleError.message}`);
+  for (const row of (staleRows ?? []) as Array<{ id: string }>) {
+    const { error: recoverError } = await params.db
+      .from("agent_task_retries")
+      .update({ status: "SCHEDULED", next_retry_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("id", row.id)
+      .eq("status", "EXECUTING");
+    if (recoverError) throw new Error(`processDueRetries recovery: ${recoverError.message}`);
+  }
+
   let q = params.db
     .from("agent_task_retries")
     .select("id, task_id, empresa_id")
@@ -119,11 +182,14 @@ export async function processDueRetries(params: {
   if (error) throw new Error(`processDueRetries: ${error.message}`);
   const taskIds: string[] = [];
   for (const row of (data ?? []) as Array<{ id: string; task_id: string; empresa_id: string }>) {
-    await params.db
+    const { data: claimed, error: claimError } = await params.db
       .from("agent_task_retries")
       .update({ status: "EXECUTING", updated_at: new Date().toISOString() })
-      .eq("id", row.id);
-    taskIds.push(row.task_id);
+      .eq("id", row.id)
+      .in("status", ["PENDING", "SCHEDULED"])
+      .select("id");
+    if (claimError) throw new Error(`processDueRetries claim: ${claimError.message}`);
+    if ((claimed ?? []).length > 0) taskIds.push(row.task_id);
   }
   return { retriedCount: taskIds.length, taskIds };
 }

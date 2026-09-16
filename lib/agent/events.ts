@@ -4,7 +4,6 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentEventRow } from "./life-types";
-import { satisfyTaskWait } from "./waits";
 
 export type AgentEventSource = "portal" | "api" | "system" | "worker" | "user" | "webhook";
 
@@ -57,65 +56,63 @@ export async function emitAgentEvent(params: {
   return data as AgentEventRow;
 }
 
-export async function markEventProcessed(params: {
-  db: SupabaseClient;
-  eventId: string;
-  empresaId: string;
-  processorId?: string | null;
-}): Promise<boolean> {
-  const { error } = await params.db
-    .from("agent_events")
-    .update({
-      processed_at: new Date().toISOString(),
-      processor_id: params.processorId ?? null,
-    })
-    .eq("id", params.eventId)
-    .eq("empresa_id", params.empresaId)
-    .is("processed_at", null);
-  if (error) throw new Error(`markEventProcessed: ${error.message}`);
-  return true;
-}
-
 /**
- * Marca el evento como procesado (exactly-once) y satisface waits WAITING
- * correlacionados por correlation_key exacto. NO cambia tasks a RUNNING:
- * eso lo hace resumeTask(), única autoridad de reanudación.
+ * Procesa el evento y satisface waits WAITING en una única transacción DB.
+ * El RPC bloquea el evento, aplica sólo los waits con empresa_id + event_type
+ * + correlation_key exactos y recién después marca processed_at. Si cualquier
+ * efecto falla, Postgres revierte todo y el evento queda recuperable.
+ * NO cambia tasks a RUNNING: eso lo hace resumeTask(), única autoridad.
  * No interpreta texto libre del payload (defensa prompt-injection).
  */
+export interface AgentEventWake {
+  waitId: string;
+  taskId: string;
+}
+
+export interface ProcessAgentEventResult {
+  wokenCount: number;
+  wokenWaitIds: string[];
+  taskIds: string[];
+  woken: AgentEventWake[];
+}
+
 export async function processAgentEvent(params: {
   db: SupabaseClient;
   eventId: string;
   empresaId: string;
   processorId: string;
-}): Promise<{ wokenCount: number; wokenWaitIds: string[]; taskIds: string[] }> {
-  const { db, eventId, empresaId, processorId } = params;
+}): Promise<ProcessAgentEventResult> {
+  const { db } = params;
+  const { data, error } = await db.rpc("process_agent_event", {
+    p_event_id: params.eventId,
+    p_empresa_id: params.empresaId,
+    p_processor_id: params.processorId,
+  });
+  if (error) throw new Error(`processAgentEvent: ${error.message}`);
 
-  const { data: event, error: eventError } = await db
-    .from("agent_events")
-    .select("id, correlation_key, event_type, processed_at")
-    .eq("id", eventId)
-    .eq("empresa_id", empresaId)
-    .single();
-  if (eventError || !event) throw new Error(`processAgentEvent: evento no encontrado`);
-  if ((event as { processed_at: string | null }).processed_at) {
-    return { wokenCount: 0, wokenWaitIds: [], taskIds: [] };
-  }
-  await markEventProcessed({ db, eventId, empresaId, processorId });
+  const result = (data ?? {}) as {
+    wokenCount?: number;
+    wokenWaitIds?: unknown;
+    taskIds?: unknown;
+    woken?: unknown;
+  };
+  const wokenWaitIds = Array.isArray(result.wokenWaitIds)
+    ? result.wokenWaitIds.filter((id): id is string => typeof id === "string")
+    : [];
+  const taskIds = Array.isArray(result.taskIds)
+    ? result.taskIds.filter((id): id is string => typeof id === "string")
+    : [];
+  const woken = Array.isArray(result.woken)
+    ? result.woken.filter(
+        (wake): wake is AgentEventWake =>
+          !!wake && typeof wake === "object" && typeof (wake as AgentEventWake).waitId === "string" && typeof (wake as AgentEventWake).taskId === "string"
+      )
+    : wokenWaitIds.map((waitId, index) => ({ waitId, taskId: taskIds[index] })).filter((wake): wake is AgentEventWake => Boolean(wake.taskId));
 
-  const { data: waits, error: waitsError } = await db
-    .from("agent_task_waits")
-    .select("id, task_id")
-    .eq("empresa_id", empresaId)
-    .eq("status", "WAITING")
-    .eq("correlation_key", (event as { correlation_key: string }).correlation_key);
-  if (waitsError) throw new Error(`processAgentEvent: ${waitsError.message}`);
-
-  const wokenWaitIds: string[] = [];
-  const taskIds: string[] = [];
-  for (const wait of (waits ?? []) as Array<{ id: string; task_id: string }>) {
-    await satisfyTaskWait({ db, waitId: wait.id, empresaId, eventId });
-    wokenWaitIds.push(wait.id);
-    taskIds.push(wait.task_id);
-  }
-  return { wokenCount: wokenWaitIds.length, wokenWaitIds, taskIds };
+  return {
+    wokenCount: typeof result.wokenCount === "number" ? result.wokenCount : woken.length,
+    wokenWaitIds,
+    taskIds,
+    woken,
+  };
 }

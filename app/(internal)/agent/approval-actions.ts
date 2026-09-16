@@ -2,6 +2,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireProfile } from "@/lib/auth";
 import { actorFromProfile } from "@/lib/agent/context";
 import { decideApproval, getApproval } from "@/lib/agent/approvals";
@@ -146,8 +147,9 @@ export async function processApprovalDecidedEvent(params: {
     .eq("dedup_key", `APPROVAL_DECIDED:${params.approvalId}:${params.decision}`)
     .maybeSingle();
   if (decidedEvent) {
+    const admin = createAdminClient();
     await processAgentEvent({
-      db: supabase,
+      db: admin,
       eventId: (decidedEvent as { id: string }).id,
       empresaId: params.empresaId,
       processorId: params.decidedBy,

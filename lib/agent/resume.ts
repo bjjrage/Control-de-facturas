@@ -5,7 +5,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isResumableTaskStatus } from "./task-states";
 import type { TaskStatus } from "./runtime";
-import { claimTaskLease } from "./leases";
+import { claimTaskLease, releaseTaskLease } from "./leases";
+import { finishRun } from "./runtime";
 import { resolveOpenRetries } from "./retries";
 
 export interface ResumeTaskOptions {
@@ -15,6 +16,8 @@ export interface ResumeTaskOptions {
   actorId: string;
   actorType: "user" | "agent" | "system" | "worker";
   triggerEventId?: string | null;
+  triggerWaitId?: string | null;
+  allowRunningRecovery?: boolean;
 }
 
 export interface ResumeTaskResult {
@@ -35,8 +38,25 @@ export async function resumeTask(params: ResumeTaskOptions): Promise<ResumeTaskR
     .eq("empresa_id", params.empresaId)
     .single();
   if (taskError || !task) throw new Error(`resumeTask: task no encontrada`);
-  if (!isResumableTaskStatus((task as { status: TaskStatus }).status)) {
+  const currentStatus = (task as { status: TaskStatus }).status;
+  const recoveringRunning = currentStatus === "RUNNING" && params.allowRunningRecovery === true;
+  if (!isResumableTaskStatus(currentStatus) && !recoveringRunning) {
     throw new Error(`resumeTask: estado no resumible: ${(task as { status: string }).status}`);
+  }
+
+  if (params.triggerWaitId || params.triggerEventId) {
+    let waitQuery = params.db
+      .from("agent_task_waits")
+      .select("id, status, satisfied_by_event_id")
+      .eq("task_id", params.taskId)
+      .eq("empresa_id", params.empresaId)
+      .eq("status", "SATISFIED");
+    if (params.triggerWaitId) waitQuery = waitQuery.eq("id", params.triggerWaitId);
+    if (params.triggerEventId) waitQuery = waitQuery.eq("satisfied_by_event_id", params.triggerEventId);
+    const { data: triggerWait, error: triggerWaitError } = await waitQuery.maybeSingle();
+    if (triggerWaitError || !triggerWait) {
+      throw new Error(`resumeTask: trigger wait no satisfecho o no pertenece a la task`);
+    }
   }
 
   const lease = await claimTaskLease({
@@ -50,6 +70,26 @@ export async function resumeTask(params: ResumeTaskOptions): Promise<ResumeTaskR
   if (!lease.success) throw new Error(`resumeTask: ${lease.error ?? "lease ocupado"}`);
 
   try {
+    if (recoveringRunning) {
+      const { data: staleRuns } = await params.db
+        .from("agent_runs")
+        .select("id")
+        .eq("task_id", params.taskId)
+        .eq("empresa_id", params.empresaId)
+        .eq("status", "RUNNING")
+        .order("started_at", { ascending: false })
+        .limit(1);
+      const staleRunId = (staleRuns?.[0] as { id?: string } | undefined)?.id;
+      if (staleRunId) {
+        await finishRun({
+          db: params.db,
+          runId: staleRunId,
+          status: "FAILED",
+          errorMessage: "Recovered after worker lease expiry",
+        });
+      }
+    }
+
     const { data: run, error: runError } = await params.db
       .from("agent_runs")
       .insert({ task_id: params.taskId, empresa_id: params.empresaId, status: "RUNNING", started_at: new Date().toISOString() })
@@ -64,20 +104,6 @@ export async function resumeTask(params: ResumeTaskOptions): Promise<ResumeTaskR
       .eq("empresa_id", params.empresaId);
     if (taskUpdateError) throw new Error(`resumeTask: task update fallo`);
 
-    if (params.triggerEventId) {
-      await params.db
-        .from("agent_task_waits")
-        .update({
-          status: "SATISFIED",
-          satisfied_by_event_id: params.triggerEventId,
-          satisfied_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("task_id", params.taskId)
-        .eq("empresa_id", params.empresaId)
-        .eq("status", "WAITING");
-    }
-
     await resolveOpenRetries({ db: params.db, taskId: params.taskId, empresaId: params.empresaId });
 
     return {
@@ -88,7 +114,7 @@ export async function resumeTask(params: ResumeTaskOptions): Promise<ResumeTaskR
       status: "RUNNING",
     };
   } catch (err) {
-    await params.db.from("agent_task_leases").delete().eq("task_id", params.taskId).eq("empresa_id", params.empresaId).eq("holder_id", holderId);
+    await releaseTaskLease({ db: params.db, taskId: params.taskId, empresaId: params.empresaId, holderId });
     throw err;
   }
 }
@@ -122,7 +148,7 @@ export async function cancelTask(params: {
     .update({ status: "CANCELLED", updated_at: new Date().toISOString() })
     .eq("task_id", params.taskId)
     .eq("empresa_id", params.empresaId)
-    .in("status", ["PENDING", "SCHEDULED"]);
+    .in("status", ["PENDING", "SCHEDULED", "EXECUTING"]);
   await params.db.from("agent_task_leases").delete().eq("task_id", params.taskId).eq("empresa_id", params.empresaId);
 
   const { error } = await params.db

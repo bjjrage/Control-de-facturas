@@ -3,7 +3,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
-import { cancelAgentTaskAction } from "./actions";
+import { cancelAgentTaskFormAction } from "./actions";
 
 type TaskRow = {
   id: string;
@@ -60,7 +60,8 @@ export default async function AgentActivityPage() {
               </div>
               <div className="text-sm">{objectiveOf(t)}</div>
               {t.error_message ? <div className="text-xs text-[var(--error)]">{t.error_message}</div> : null}
-              <form action={cancelAgentTaskAction.bind(null, { taskId: t.id })}>
+              <form action={cancelAgentTaskFormAction}>
+                <input type="hidden" name="taskId" value={t.id} />
                 <button type="submit" className="mt-2 text-xs underline">
                   Cancelar tarea
                 </button>
@@ -79,7 +80,8 @@ export default async function AgentActivityPage() {
             <div key={t.id} className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
               <div className="text-sm font-semibold">[•] {t.status}</div>
               <div className="text-sm">{objectiveOf(t)}</div>
-              <form action={cancelAgentTaskAction.bind(null, { taskId: t.id })}>
+              <form action={cancelAgentTaskFormAction}>
+                <input type="hidden" name="taskId" value={t.id} />
                 <button type="submit" className="mt-2 text-xs underline">
                   Cancelar tarea
                 </button>
