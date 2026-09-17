@@ -1,5 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+/** Formato visual de una fila — puramente presentacional, nunca entra en
+ * ningún cálculo. Persistido en budget_items.style (jsonb) por el adaptador
+ * de cómputo/presupuesto (ver 0094_budget_items_row_style.sql). */
+export type PlanillaRowStyle = {
+  bold?: boolean;
+  align?: "left" | "center" | "right";
+  color?: string;
+  bg?: string;
+};
+
 /**
  * Toda fila que pasa por el motor de planillas lleva esta identidad interna,
  * oculta al usuario (no se renderiza como columna en Handsontable). Una fila
@@ -14,11 +24,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * adaptador de cómputo, el `updated_at` de budget_items al momento de crear
  * la planilla). `_deleted` marca una fila existente para borrado sin quitarla
  * del array — así el snapshot conserva su `_rowId`/`_version` hasta confirmar.
+ * `_style` es el formato visual de la fila (ver PlanillaRowStyle).
  */
 export type PlanillaRowMeta = {
   _rowId: string;
   _version?: string | null;
   _deleted?: boolean;
+  _style?: PlanillaRowStyle;
 };
 
 export type PlanillaRow = PlanillaRowMeta & Record<string, unknown>;

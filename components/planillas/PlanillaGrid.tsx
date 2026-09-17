@@ -6,8 +6,8 @@ import type { HotTableRef } from "@handsontable/react-wrapper";
 import Handsontable from "handsontable";
 import { registerAllModules } from "handsontable/registry";
 import { HyperFormula } from "hyperformula";
-import { Plus, Trash2, Undo2, Redo2 } from "lucide-react";
-import type { PlanillaColumn, PlanillaRowMeta } from "@/lib/planillas/types";
+import { Plus, Trash2, Undo2, Redo2, Bold, AlignLeft, AlignCenter, AlignRight, Ban } from "lucide-react";
+import type { PlanillaColumn, PlanillaRowMeta, PlanillaRowStyle } from "@/lib/planillas/types";
 import { colIndexToLetter, isNewRowId, newRowId, resolveFormulaTemplate } from "@/lib/planillas/grid-utils";
 
 registerAllModules();
@@ -41,6 +41,23 @@ const CONTEXT_MENU_ITEMS = [
   "cut",
 ] as const;
 const FILL_HANDLE_SETTINGS = { direction: "vertical", autoInsertRow: false } as const;
+
+// Paleta chica y fija (no un color picker libre) — alcanza para lo que se
+// pidió ("aunque sea las básicas") y evita el problema de generar clases CSS
+// dinámicas para cualquier hex arbitrario. Los valores ya están pensados
+// para verse bien tanto en modo claro como oscuro del tema del panel.
+const FONT_COLORS = [
+  { key: "red", hex: "#f2685c" },
+  { key: "amber", hex: "#f5a524" },
+  { key: "green", hex: "#2dd4bf" },
+  { key: "blue", hex: "#60a5fa" },
+] as const;
+const BG_COLORS = [
+  { key: "yellow", hex: "rgba(245,165,36,0.22)" },
+  { key: "red", hex: "rgba(242,104,92,0.18)" },
+  { key: "green", hex: "rgba(45,212,191,0.16)" },
+  { key: "blue", hex: "rgba(96,165,250,0.16)" },
+] as const;
 
 // Tope de filas de la grilla — no atado a cuántas partidas tenía el
 // presupuesto de origen (el usuario tiene que poder agregar filas nuevas
@@ -163,6 +180,15 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   // en su vida útil, así que una sola computación al montar es correcta.
   const [seedInitialRows] = useState(() => initialRows.map((r, i) => applyFormulaDefaults({ ...r }, i)));
 
+  // Espejo del formato por fila, indexado por posición física — NO se lee
+  // llamando a hot.getSourceDataAtRow() desde dentro de cells() (ver abajo):
+  // eso reentra en la resolución de metadatos de Handsontable mientras
+  // todavía está en curso y tira "Assertion failed: Expecting an unsigned
+  // number" (confirmado en vivo). cells() y el estado de los botones del
+  // toolbar leen de acá; applyRowStyle() y los handlers de alta/baja de fila
+  // son los únicos que lo escriben, en paralelo a la data real de Handsontable.
+  const rowStylesRef = useRef<(PlanillaRowStyle | undefined)[]>(seedInitialRows.map((r) => r._style));
+
   // El wrapper de React de Handsontable vuelve a registrar cada hook
   // (afterChange, afterSelectionEnd, etc.) cada vez que la función pasada
   // como prop cambia de referencia — y re-registrar afterSelectionEnd, por
@@ -218,6 +244,7 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     (index: number, amount: number) => {
       const hot = hotRef.current?.hotInstance;
       if (!hot) return;
+      rowStylesRef.current.splice(index, 0, ...new Array(amount).fill(undefined));
       for (let i = 0; i < amount; i++) {
         const rowIndex = index + i;
         hot.setDataAtRowProp(rowIndex, "_rowId", newRowId(), "PlanillaGrid.afterCreateRow");
@@ -249,6 +276,7 @@ export const PlanillaGrid = memo(function PlanillaGrid({
         deletedRef.current.push({ _rowId: row._rowId, _version: row._version, _deleted: true });
       }
     }
+    rowStylesRef.current.splice(index, amount);
   }, []);
 
   const handleAfterRemoveRow = useCallback(() => {
@@ -304,6 +332,42 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     hotRef.current?.hotInstance?.getPlugin("undoRedo").redo();
   }
 
+  // Formato por FILA (no por celda individual) — coincide con el caso de uso
+  // real (marcar toda la fila de un título de sección en negrita) y evita un
+  // modelo mucho más pesado. Se persiste en budget_items.style (ver
+  // 0094_budget_items_row_style.sql) — puramente visual, nunca entra en
+  // ningún cálculo ni lo toca el RPC de confirmación más que para guardarlo.
+  function applyRowStyle(patch: Partial<PlanillaRowStyle>) {
+    const hot = hotRef.current?.hotInstance;
+    if (!hot || !selectedCell) return;
+    const current: PlanillaRowStyle = rowStylesRef.current[selectedCell.row] ?? {};
+    const next: PlanillaRowStyle = { ...current, ...patch };
+    rowStylesRef.current[selectedCell.row] = next;
+    hot.setDataAtRowProp(selectedCell.row, "_style", next, "PlanillaGrid.style");
+    hot.render();
+    emitChange();
+  }
+
+  const selectedRowStyle: PlanillaRowStyle = selectedCell
+    ? rowStylesRef.current[selectedCell.row] ?? {}
+    : {};
+
+  // cells() se re-evalúa en cada render de Handsontable — lee del espejo
+  // (rowStylesRef), nunca llamando a métodos de la instancia acá adentro:
+  // hot.getSourceDataAtRow() reentra en la resolución de metadatos que
+  // Handsontable todavía tiene en curso al invocar este callback y tira
+  // "Assertion failed: Expecting an unsigned number" (confirmado en vivo).
+  const cellsSettings = useCallback((row: number): Handsontable.CellMeta => {
+    const style = rowStylesRef.current[row];
+    if (!style) return {};
+    const classes: string[] = [];
+    if (style.bold) classes.push("plr-bold");
+    if (style.align) classes.push(`plr-align-${style.align}`);
+    if (style.color) classes.push(`plr-fg-${style.color}`);
+    if (style.bg) classes.push(`plr-bg-${style.bg}`);
+    return classes.length ? { className: classes.join(" ") } : {};
+  }, []);
+
   const cellRef = selectedCell
     ? `${colIndexToLetter(selectedCell.col)}${selectedCell.row + 1}`
     : "";
@@ -348,6 +412,96 @@ export const PlanillaGrid = memo(function PlanillaGrid({
           </button>
         </div>
       ) : null}
+      {!readOnly ? (
+        <div className="flex items-center gap-1 h-9 px-2 border border-[var(--border)] border-b-0 bg-[var(--panel-2)] shrink-0 flex-wrap">
+          <button
+            type="button"
+            onClick={() => applyRowStyle({ bold: !selectedRowStyle.bold })}
+            disabled={!selectedCell}
+            title="Negrita (toda la fila)"
+            aria-pressed={Boolean(selectedRowStyle.bold)}
+            className={`flex items-center justify-center w-6 h-6 rounded disabled:opacity-40 ${
+              selectedRowStyle.bold ? "bg-[var(--primary)] text-[#1a0e00]" : "text-[var(--foreground)] hover:bg-[var(--hover)]"
+            }`}
+          >
+            <Bold size={13} />
+          </button>
+          <span className="w-px h-4 bg-[var(--border)] mx-1" />
+          {(
+            [
+              ["left", AlignLeft, "Alinear izquierda"],
+              ["center", AlignCenter, "Centrar"],
+              ["right", AlignRight, "Alinear derecha"],
+            ] as const
+          ).map(([align, Icon, label]) => (
+            <button
+              key={align}
+              type="button"
+              onClick={() => applyRowStyle({ align })}
+              disabled={!selectedCell}
+              title={label}
+              aria-pressed={selectedRowStyle.align === align}
+              className={`flex items-center justify-center w-6 h-6 rounded disabled:opacity-40 ${
+                selectedRowStyle.align === align
+                  ? "bg-[var(--primary)] text-[#1a0e00]"
+                  : "text-[var(--foreground)] hover:bg-[var(--hover)]"
+              }`}
+            >
+              <Icon size={13} />
+            </button>
+          ))}
+          <span className="w-px h-4 bg-[var(--border)] mx-1" />
+          <span className="text-[10px] text-[var(--muted)] mr-0.5">Color</span>
+          <button
+            type="button"
+            onClick={() => applyRowStyle({ color: undefined })}
+            disabled={!selectedCell}
+            title="Sin color de texto"
+            className="flex items-center justify-center w-5 h-5 rounded border border-[var(--border)] disabled:opacity-40 hover:bg-[var(--hover)]"
+          >
+            <Ban size={11} className="text-[var(--muted)]" />
+          </button>
+          {FONT_COLORS.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => applyRowStyle({ color: c.key })}
+              disabled={!selectedCell}
+              title={`Texto ${c.key}`}
+              aria-pressed={selectedRowStyle.color === c.key}
+              className={`w-5 h-5 rounded-full disabled:opacity-40 ${
+                selectedRowStyle.color === c.key ? "ring-2 ring-[var(--foreground)]" : ""
+              }`}
+              style={{ backgroundColor: c.hex }}
+            />
+          ))}
+          <span className="w-px h-4 bg-[var(--border)] mx-1" />
+          <span className="text-[10px] text-[var(--muted)] mr-0.5">Resaltar</span>
+          <button
+            type="button"
+            onClick={() => applyRowStyle({ bg: undefined })}
+            disabled={!selectedCell}
+            title="Sin resaltado"
+            className="flex items-center justify-center w-5 h-5 rounded border border-[var(--border)] disabled:opacity-40 hover:bg-[var(--hover)]"
+          >
+            <Ban size={11} className="text-[var(--muted)]" />
+          </button>
+          {BG_COLORS.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => applyRowStyle({ bg: c.key })}
+              disabled={!selectedCell}
+              title={`Resaltar ${c.key}`}
+              aria-pressed={selectedRowStyle.bg === c.key}
+              className={`w-5 h-5 rounded-full border border-[var(--border)] disabled:opacity-40 ${
+                selectedRowStyle.bg === c.key ? "ring-2 ring-[var(--foreground)]" : ""
+              }`}
+              style={{ backgroundColor: c.hex }}
+            />
+          ))}
+        </div>
+      ) : null}
       <div
         className={`flex items-center gap-2 h-9 px-2 border border-[var(--border)] border-b-0 bg-[var(--panel-2)] shrink-0 ${readOnly ? "rounded-t-lg" : ""}`}
       >
@@ -389,8 +543,25 @@ export const PlanillaGrid = memo(function PlanillaGrid({
           beforeRemoveRow={handleBeforeRemoveRow}
           afterRemoveRow={handleAfterRemoveRow}
           afterSelectionEnd={handleAfterSelectionEnd}
+          cells={cellsSettings}
         />
       </div>
+      {/* Clases fijas para la paleta de formato — no hay hex arbitrario, así
+          que no hace falta generar CSS dinámico por fila. */}
+      <style>{`
+        .plr-bold { font-weight: 700 !important; }
+        .plr-align-left { text-align: left !important; }
+        .plr-align-center { text-align: center !important; }
+        .plr-align-right { text-align: right !important; }
+        .plr-fg-red { color: #f2685c !important; }
+        .plr-fg-amber { color: #f5a524 !important; }
+        .plr-fg-green { color: #2dd4bf !important; }
+        .plr-fg-blue { color: #60a5fa !important; }
+        .plr-bg-yellow { background-color: rgba(245,165,36,0.22) !important; }
+        .plr-bg-red { background-color: rgba(242,104,92,0.18) !important; }
+        .plr-bg-green { background-color: rgba(45,212,191,0.16) !important; }
+        .plr-bg-blue { background-color: rgba(96,165,250,0.16) !important; }
+      `}</style>
     </div>
   );
 });
