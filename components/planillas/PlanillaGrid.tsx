@@ -344,7 +344,7 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     const next: PlanillaRowStyle = { ...current, ...patch };
     rowStylesRef.current[selectedCell.row] = next;
     hot.setDataAtRowProp(selectedCell.row, "_style", next, "PlanillaGrid.style");
-    hot.render();
+    applyStylesToDom();
     emitChange();
   }
 
@@ -352,20 +352,35 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     ? rowStylesRef.current[selectedCell.row] ?? {}
     : {};
 
-  // cells() se re-evalúa en cada render de Handsontable — lee del espejo
-  // (rowStylesRef), nunca llamando a métodos de la instancia acá adentro:
-  // hot.getSourceDataAtRow() reentra en la resolución de metadatos que
-  // Handsontable todavía tiene en curso al invocar este callback y tira
-  // "Assertion failed: Expecting an unsigned number" (confirmado en vivo).
-  const cellsSettings = useCallback((row: number): Handsontable.CellMeta => {
-    const style = rowStylesRef.current[row];
-    if (!style) return {};
-    const classes: string[] = [];
-    if (style.bold) classes.push("plr-bold");
-    if (style.align) classes.push(`plr-align-${style.align}`);
-    if (style.color) classes.push(`plr-fg-${style.color}`);
-    if (style.bg) classes.push(`plr-bg-${style.bg}`);
-    return classes.length ? { className: classes.join(" ") } : {};
+  // El setting `cells()` de Handsontable, combinado con el resto de plugins
+  // activos acá (formulas + undoRedo + filas dinámicas), tira "Assertion
+  // failed: Expecting an unsigned number" al primer setDataAtRowProp
+  // (confirmado en vivo, dos intentos distintos de implementación de cells()
+  // fallaron igual). En vez de pelear con esa combinación, el formato se
+  // aplica directo sobre el DOM ya renderizado (afterRender) — Handsontable
+  // vuelve a llamar afterRender después de cualquier cambio de datos, así
+  // que alcanza para mantenerlo sincronizado sin tocar su resolución interna
+  // de metadatos de celda para nada.
+  const applyStylesToDom = useCallback(() => {
+    const hot = hotRef.current?.hotInstance;
+    if (!hot) return;
+    const rowCount = hot.countRows();
+    for (let row = 0; row < rowCount; row++) {
+      const style = rowStylesRef.current[row];
+      const classes = [
+        style?.bold ? "plr-bold" : "",
+        style?.align ? `plr-align-${style.align}` : "",
+        style?.color ? `plr-fg-${style.color}` : "",
+        style?.bg ? `plr-bg-${style.bg}` : "",
+      ].filter(Boolean);
+      const colCount = hot.countCols();
+      for (let col = 0; col < colCount; col++) {
+        const td = hot.getCell(row, col);
+        if (!td) continue; // fuera del viewport virtualizado
+        td.className = td.className.replace(/\bplr-\S+/g, "").trim();
+        if (classes.length) td.classList.add(...classes);
+      }
+    }
   }, []);
 
   const cellRef = selectedCell
@@ -543,7 +558,7 @@ export const PlanillaGrid = memo(function PlanillaGrid({
           beforeRemoveRow={handleBeforeRemoveRow}
           afterRemoveRow={handleAfterRemoveRow}
           afterSelectionEnd={handleAfterSelectionEnd}
-          cells={cellsSettings}
+          afterRender={applyStylesToDom}
         />
       </div>
       {/* Clases fijas para la paleta de formato — no hay hex arbitrario, así
