@@ -4,6 +4,8 @@ import * as path from "node:path";
 import {
   fetchHistoricalWeatherRange,
   parseHistoricalDailyPayload,
+  isValidProjectCoords,
+  MISSING_PROJECT_LOCATION_MSG,
 } from "../lib/procurement/weather-client";
 
 const ROOT = path.resolve(__dirname, "..");
@@ -98,6 +100,24 @@ describe("G. Histórico por rango: una request mensual, nunca N+1", () => {
     expect(res.sources).toEqual(["open-meteo-past"]);
   });
 
+  it("P1-1: ningún endpoint pide precipitation_probability_max (no soportada en archive)", async () => {
+    const fetchMock = mockBothApis();
+    vi.stubGlobal("fetch", fetchMock);
+    // Reciente (forecast)
+    await fetchHistoricalWeatherRange(-25.28, -57.64, isoDaysAgo(30), isoDaysAgo(2));
+    // Remoto (archive)
+    await fetchHistoricalWeatherRange(-25.28, -57.64, isoDaysAgo(150), isoDaysAgo(120));
+    expect(fetchMock.mock.calls.length).toBe(2);
+    for (const call of fetchMock.mock.calls as unknown[]) {
+      const url = new URL(String((call as unknown[])[0]));
+      const daily = url.searchParams.get("daily") || "";
+      expect(daily).not.toContain("precipitation_probability_max");
+    }
+    const urls = (fetchMock.mock.calls as unknown[]).map((c) => String((c as unknown[])[0]));
+    expect(urls[0]).toContain("api.open-meteo.com/v1/forecast");
+    expect(urls[1]).toContain("archive-api.open-meteo.com/v1/archive");
+  });
+
   it("pasado remoto = UNA sola llamada al archive con fechas explícitas", async () => {
     const start = isoDaysAgo(150);
     const end = isoDaysAgo(120);
@@ -165,6 +185,47 @@ describe("H. Mapeo por día: 0/12/4 mm con fuente honesta", () => {
     expect(out.every((o) => o.source === "open-meteo-archive")).toBe(true);
   });
 
+  it("P2-1: 0 explícito se muestra; null/ausente/no-finito se OMITE (nunca 0 fabricado)", () => {
+    const payload = monthPayload(["2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10"], [0, 12, 4, 7]) as any;
+    payload.daily.precipitation_sum = [0, null, undefined, 7];
+    const out = parseHistoricalDailyPayload(payload, "2026-07-07", "2026-07-10", "open-meteo-past");
+    // Día 07: 0 explícito → presente con 0 mm válido
+    expect(out.find((o) => o.date === "2026-07-07")).toMatchObject({ precipitation_mm: 0 });
+    // Días 08/09: null/undefined → omitidos
+    expect(out.some((o) => o.date === "2026-07-08")).toBe(false);
+    expect(out.some((o) => o.date === "2026-07-09")).toBe(false);
+    // Día 10: valor válido → presente
+    expect(out.find((o) => o.date === "2026-07-10")).toMatchObject({ precipitation_mm: 7 });
+    expect(out.length).toBe(2);
+  });
+
+  it("P2-1: sin array precipitation_sum no se inventan días secos", () => {
+    const payload = monthPayload(["2026-07-07", "2026-07-08"], [0, 0]) as any;
+    delete payload.daily.precipitation_sum;
+    expect(
+      parseHistoricalDailyPayload(payload, "2026-07-07", "2026-07-08", "open-meteo-archive")
+    ).toEqual([]);
+  });
+
+  it("P2-1: coveredDays cuenta solo días con evidencia válida", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => ({
+        daily: {
+          time: [isoDaysAgo(5), isoDaysAgo(4), isoDaysAgo(3)],
+          precipitation_sum: [2, null, 0],
+        },
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const res = await fetchHistoricalWeatherRange(-25.28, -57.64, isoDaysAgo(5), isoDaysAgo(3));
+    expect(res.coveredDays).toBe(2);
+    expect(res.partialCoverage).toBe(true);
+    expect(res.observations.map((o) => o.precipitation_mm).sort()).toEqual([0, 2]);
+  });
+
   it("respeta la invariante estricta de rango (nada fuera de [inicio, fin])", () => {
     const out = parseHistoricalDailyPayload(
       monthPayload(["2026-06-30", "2026-07-01", "2026-07-02", "2026-07-31", "2026-08-01"], [9, 0, 5, 3, 8]) as any,
@@ -197,6 +258,48 @@ describe("I. Histórico es solo lectura: jamás escribe el Libro", () => {
     // Solo lectura del proyecto para validar tenant + coordenadas
     expect(src).toContain('from("projects")');
     expect(src).toContain("fetchHistoricalWeatherRange");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// P1-2. Sin coordenadas válidas: fail-closed, sin fallback Asunción
+// ---------------------------------------------------------------------------
+describe("P1-2. Ubicación faltante/inválida no consulta al provider", () => {
+  it("isValidProjectCoords rechaza null/indefinido/vacío/no-finito/fuera de rango", () => {
+    expect(isValidProjectCoords(null, -57.6)).toBe(false);
+    expect(isValidProjectCoords(-25.28, undefined)).toBe(false);
+    expect(isValidProjectCoords("", "")).toBe(false);
+    expect(isValidProjectCoords(Number.NaN, -57.6)).toBe(false);
+    expect(isValidProjectCoords(-25.28, Number.POSITIVE_INFINITY)).toBe(false);
+    expect(isValidProjectCoords("abc", -57.6)).toBe(false);
+    expect(isValidProjectCoords(-91, -57.6)).toBe(false);
+    expect(isValidProjectCoords(-25.28, 181)).toBe(false);
+  });
+
+  it("isValidProjectCoords acepta coordenadas válidas (número o string numérico)", () => {
+    expect(isValidProjectCoords(-25.2867, -57.647)).toBe(true);
+    expect(isValidProjectCoords("-25.2867", "-57.647")).toBe(true);
+    expect(isValidProjectCoords(-90, 180)).toBe(true);
+  });
+
+  it("la action valida ANTES de llamar al provider y no usa fallback Asunción", () => {
+    const src = readSource("app/(internal)/projects/historical-weather-actions.ts");
+    expect(src).toContain("isValidProjectCoords");
+    expect(src).toContain("MISSING_PROJECT_LOCATION_MSG");
+    const guardIdx = src.indexOf("isValidProjectCoords(project.latitude");
+    const fetchIdx = src.indexOf("fetchHistoricalWeatherRange(");
+    expect(guardIdx).toBeGreaterThan(-1);
+    expect(fetchIdx).toBeGreaterThan(guardIdx);
+    expect(src).not.toContain("-25.455");
+    expect(src).not.toContain("-57.534");
+  });
+
+  it("la UI muestra el mensaje de ubicación y el Libro manual sigue disponible", () => {
+    const ui = readSource("app/(internal)/projects/[id]/avance-fisico-panel.tsx");
+    expect(ui).toContain("ubicación geográfica");
+    // Libro manual intacto
+    expect(ui).toContain("Registrar día");
+    expect(ui).toContain("Guardar día");
   });
 });
 

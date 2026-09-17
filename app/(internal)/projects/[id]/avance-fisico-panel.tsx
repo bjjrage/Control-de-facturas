@@ -633,7 +633,9 @@ function DiasNoTrabajados({
                   <span className="text-[11px] text-[var(--muted)]">Cargando clima observado…</span>
                 ) : null}
                 {hist?.error ? (
-                  <span className="text-[11px] text-[var(--muted)]">Datos meteorológicos no disponibles.</span>
+                  <span className="text-[11px] text-[var(--muted)]">
+                    {hist.error.includes("ubicación geográfica") ? hist.error : "Datos meteorológicos no disponibles."}
+                  </span>
                 ) : null}
                 {hist && !hist.loading && !hist.error && Object.keys(hist.days).length > 0 ? (
                   <span className="text-[11px] text-[var(--muted)]" data-testid={`resumen-clima-${year}-${mm}`}>

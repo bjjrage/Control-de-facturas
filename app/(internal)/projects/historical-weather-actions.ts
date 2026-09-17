@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePlan } from "@/lib/auth";
 import {
   fetchHistoricalWeatherRange,
+  isValidProjectCoords,
+  MISSING_PROJECT_LOCATION_MSG,
   type DailyObservedWeather,
 } from "@/lib/procurement/weather-client";
 
@@ -77,9 +79,14 @@ export async function getHistoricalWeatherAction(
       return { data: null, error: "Proyecto no encontrado o sin permisos." };
     }
 
-    // Mismos defaults que el overlay de carga (Asunción, PY).
-    const lat = project.latitude ? Number(project.latitude) : -25.455;
-    const lon = project.longitude ? Number(project.longitude) : -57.534;
+    // P1-2 FAIL-CLOSED: sin ubicación válida NO se llama al provider.
+    // Mostrar clima de Asunción como si fuera el de la obra sería evidencia
+    // contractual falsa. (El overlay futuro conserva su comportamiento.)
+    if (!isValidProjectCoords(project.latitude, project.longitude)) {
+      return { data: null, error: MISSING_PROJECT_LOCATION_MSG };
+    }
+    const lat = Number(project.latitude);
+    const lon = Number(project.longitude);
 
     let result: Awaited<ReturnType<typeof fetchHistoricalWeatherRange>>;
     try {

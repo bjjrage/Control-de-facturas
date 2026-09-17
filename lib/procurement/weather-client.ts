@@ -224,6 +224,24 @@ export function describeWeatherCode(code: number): string {
   }
 }
 
+export const MISSING_PROJECT_LOCATION_MSG =
+  "El proyecto no tiene una ubicación geográfica configurada. Configurá latitud y longitud para consultar clima histórico.";
+
+/**
+ * P1-2: coordenadas válidas para evidencia histórica contractual.
+ * null/undefined/""/NaN/Infinity o fuera de rango → inválidas.
+ * (0,0 es rango válido pero nunca llega como default: sin dato se rechaza.)
+ */
+export function isValidProjectCoords(latitude: unknown, longitude: unknown): boolean {
+  if (latitude === null || latitude === undefined || latitude === "") return false;
+  if (longitude === null || longitude === undefined || longitude === "") return false;
+  const lat = typeof latitude === "string" ? Number(latitude) : (latitude as number);
+  const lon = typeof longitude === "string" ? Number(longitude) : (longitude as number);
+  if (typeof lat !== "number" || typeof lon !== "number") return false;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
+  return lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+}
+
 // ---------------------------------------------------------------------------
 // Clima HISTÓRICO observado (Libro de Obra) — contexto DISTINTO del overlay
 // de pronóstico futuro. Solo fechas pasadas (< hoy), mismo ecosistema
@@ -249,8 +267,14 @@ export interface DailyObservedWeather {
   source: HistoricalWeatherSource;
 }
 
-const HISTORICAL_DAILY_VARS =
-  "weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_hours,precipitation_probability_max,wind_gusts_10m_max";
+// P1-1: variables separadas por endpoint. El Archive API NO ofrece
+// precipitation_probability_max como daily (la devuelve null); pedirla es
+// incorrecto aunque hoy no dé 400. Solo se piden variables soportadas y
+// realmente consumidas por el parser/UI.
+const HISTORICAL_ARCHIVE_DAILY_VARS =
+  "weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_hours,wind_gusts_10m_max";
+const HISTORICAL_FORECAST_DAILY_VARS =
+  "weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_hours,wind_gusts_10m_max";
 
 /** El provider documenta pasado hasta 92 días en la API de forecast. */
 const FORECAST_PAST_LIMIT_DAYS = 92;
@@ -262,7 +286,6 @@ function toUtcDay(d: Date): Date {
   c.setUTCHours(0, 0, 0, 0);
   return c;
 }
-
 function isoDay(d: Date): string {
   return d.toISOString().split("T")[0];
 }
@@ -270,6 +293,11 @@ function isoDay(d: Date): string {
 /**
  * Parser puro y testeable: convierte el payload daily (forecast o archive,
  * mismo shape) en observaciones, con invariante estricta de rango.
+ *
+ * P2-1: dato ausente ≠ día seco. Solo se emite el día si el provider entregó
+ * un precipitation_sum numérico finito (incluido el 0 explícito). Si el array
+ * no existe, el índice falta, es null o no es finito, el día SE OMITE (nunca
+ * se fabrica "0 mm").
  */
 export function parseHistoricalDailyPayload(
   data: OpenMeteoDailyResponse,
@@ -279,13 +307,17 @@ export function parseHistoricalDailyPayload(
 ): DailyObservedWeather[] {
   const out: DailyObservedWeather[] = [];
   if (!data || !data.daily || !data.daily.time) return out;
+  const sums = data.daily.precipitation_sum;
   for (let i = 0; i < data.daily.time.length; i++) {
     const d = data.daily.time[i];
     // Invariante estricta: nada fuera del rango pedido.
     if (d < startDate || d > endDate) continue;
+    const raw = Array.isArray(sums) ? sums[i] : undefined;
+    // Evidencia mínima válida: número finito (0 explícito vale, null no).
+    if (typeof raw !== "number" || !Number.isFinite(raw)) continue;
     out.push({
       date: d,
-      precipitation_mm: data.daily.precipitation_sum?.[i] ?? 0,
+      precipitation_mm: raw,
       precipitation_hours: data.daily.precipitation_hours?.[i] ?? null,
       temperature_max_c: data.daily.temperature_2m_max?.[i] ?? null,
       temperature_min_c: data.daily.temperature_2m_min?.[i] ?? null,
@@ -303,13 +335,14 @@ async function fetchHistoricalSlice(
   longitude: number,
   startDate: string,
   endDate: string,
+  dailyVars: string,
   extraParams: Record<string, string>,
   source: HistoricalWeatherSource
 ): Promise<DailyObservedWeather[]> {
   const url = new URL(apiBase);
   url.searchParams.set("latitude", latitude.toFixed(4));
   url.searchParams.set("longitude", longitude.toFixed(4));
-  url.searchParams.set("daily", HISTORICAL_DAILY_VARS);
+  url.searchParams.set("daily", dailyVars);
   url.searchParams.set("timezone", "auto");
   // NOTA: past_days es mutuamente excluyente con start_date/end_date en la
   // API de forecast: cuando se usa past_days NO se envían fechas explícitas
@@ -398,6 +431,7 @@ export async function fetchHistoricalWeatherRange(
       longitude,
       startDate,
       effEndStr,
+      HISTORICAL_ARCHIVE_DAILY_VARS,
       {},
       "open-meteo-archive"
     );
@@ -416,6 +450,7 @@ export async function fetchHistoricalWeatherRange(
       longitude,
       startDate,
       effEndStr,
+      HISTORICAL_FORECAST_DAILY_VARS,
       { past_days: String(pastDays) },
       "open-meteo-past"
     );
@@ -431,6 +466,7 @@ export async function fetchHistoricalWeatherRange(
         longitude,
         startDate,
         isoDay(archiveEnd),
+        HISTORICAL_ARCHIVE_DAILY_VARS,
         {},
         "open-meteo-archive"
       ),
@@ -440,6 +476,7 @@ export async function fetchHistoricalWeatherRange(
         longitude,
         pastBoundaryStr,
         effEndStr,
+        HISTORICAL_FORECAST_DAILY_VARS,
         { past_days: String(FORECAST_PAST_LIMIT_DAYS) },
         "open-meteo-past"
       ),
