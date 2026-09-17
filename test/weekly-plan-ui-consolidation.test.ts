@@ -254,14 +254,22 @@ describe("Weather overlay no inventa ni recorta la meta", () => {
   };
 
   it("Weather OFF no llama al provider (fetch solo dentro de if weatherOverlay)", () => {
+    // Batch UX-preview: el acceso al provider vive en el helper compartido
+    // resolveWeeklyWeather (lib/procurement/weekly-plan-shared.ts), invocado
+    // desde las actions SOLO dentro de bloques `if (weatherOverlay)`.
     const src = readSource("app/(internal)/projects/weekly-plan-actions.ts");
     const overlayIdx = src.indexOf("if (weatherOverlay)");
     expect(overlayIdx).toBeGreaterThan(-1);
-    const fetchIdx = src.indexOf("fetchWeatherForecastRange");
-    expect(fetchIdx).toBeGreaterThan(overlayIdx);
-    // No hay llamada al provider fuera del bloque weatherOverlay
+    // Única vía al proveedor desde las actions: el helper compartido.
+    const helperIdx = src.indexOf("resolveWeeklyWeather(supabase");
+    expect(helperIdx).toBeGreaterThan(overlayIdx);
     const beforeBlock = src.slice(0, overlayIdx);
+    expect(beforeBlock).not.toContain("resolveWeeklyWeather(supabase");
     expect(beforeBlock).not.toContain("fetchWeatherForecastRange");
+    // Y el helper solo consulta el provider real dentro de su propio cuerpo
+    // (los llamadores con Clima OFF nunca lo invocan).
+    const shared = readSource("lib/procurement/weekly-plan-shared.ts");
+    expect(shared).toContain("fetchWeatherForecastRange");
   });
 
   it("Weather OFF: sin forecasts, sin overlay, meta intacta", () => {
