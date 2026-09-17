@@ -20,13 +20,12 @@ import {
   calculateWeeklyPlanRequirements,
   WeeklyPlanItemTargetInput,
 } from "@/lib/procurement/weekly-plan-engine";
-import { fetchWeatherForecast } from "@/lib/procurement/weather-client";
 import {
-  analyzeOperationalWorkability,
-  createDegradedOperationalFallback,
-  BudgetItemOperationalInput,
-  OperationalAnalysisOutput,
-} from "@/lib/procurement/operational-analyst-llm";
+  loadWeeklyPlanBaseData,
+  resolveWeeklyWeather,
+  toEngineTargets,
+  type PreviewWeeklyPlanItemInput,
+} from "@/lib/procurement/weekly-plan-shared";
 
 export interface SaveWeeklyPlanParams {
   planId?: string;
@@ -51,9 +50,20 @@ export interface GetWeeklyPlanParams {
   weatherOverlay?: boolean;
 }
 
+export interface PreviewWeeklyPlanActionParams {
+  projectId: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  weatherOverlay: boolean;
+  items: PreviewWeeklyPlanItemInput[];
+}
+
 /**
  * Loads the active/latest weekly plan or initializes a new one,
  * fetching all real database contracts without assuming non-existent columns.
+ *
+ * Data loading (presupuesto, ejecución, BOM, stock, inbound) is shared with
+ * previewWeeklyPlanAction via loadWeeklyPlanBaseData — single source of truth.
  */
 export async function getWeeklyPlanDetailsAction(
   params: GetWeeklyPlanParams
@@ -62,6 +72,7 @@ export async function getWeeklyPlanDetailsAction(
     plan: ProjectWeeklyPlan | null;
     calculation: WeeklyPlanCalculationSummary;
     budgetItems: BudgetItem[];
+    executedQuantities: Record<string, number>;
   } | null;
   error: string | null;
 }> {
@@ -71,192 +82,24 @@ export async function getWeeklyPlanDetailsAction(
     const supabase = await createClient();
     const { projectId, planId, weatherOverlay = false } = params;
 
-    // 1. Verify project access
-    const { data: project, error: projErr } = await supabase
-      .from("projects")
-      .select("id, name, start_date, plazo_dias, latitude, longitude, currency:contract_amount")
-      .eq("id", projectId)
-      .eq("empresa_id", empresaId)
-      .single();
-
-    if (projErr || !project) {
-      return { data: null, error: "Proyecto no encontrado o sin permisos." };
+    // Shared loader: proyecto + partidas + ejecución + BOM + stock + inbound.
+    // Misma fuente que usa el preview (sin duplicar ~300 líneas).
+    const baseRes = await loadWeeklyPlanBaseData(supabase, projectId, empresaId);
+    if (baseRes.error || !baseRes.data) {
+      return { data: null, error: baseRes.error || "Error al cargar datos base." };
     }
+    const {
+      project,
+      budgetItems,
+      executedQuantities,
+      recentEntries: recentEntriesList,
+      materialsByItem,
+      stockAndInbound,
+    } = baseRes.data;
 
-    // 2. Fetch budget items
-    const { data: rawBudgetItems, error: bErr } = await supabase
-      .from("budget_items")
-      .select("*")
-      .eq("project_id", projectId)
-      .order("code", { ascending: true });
-
-    if (bErr || !rawBudgetItems || rawBudgetItems.length === 0) {
-      return {
-        data: null,
-        error: "El proyecto no tiene partidas presupuestarias cargadas.",
-      };
-    }
-    const budgetItems = rawBudgetItems as BudgetItem[];
-
-    // 3. Fetch execution entries:
-    // IMPORTANT CONTRACT: execution_entries DOES NOT have empresa_id.
-    // Tenant scoping is enforced via project_id -> projects.empresa_id.
-    const { data: rawEntries, error: eErr } = await supabase
-      .from("execution_entries")
-      .select("budget_item_id, quantity_executed, entry_date")
-      .eq("project_id", projectId);
-
-    if (eErr) {
-      return {
-        data: null,
-        error: `Error al cargar el avance físico ejecutado: ${eErr.message}`,
-      };
-    }
-
-    const executedQuantities: Record<string, number> = {};
-    const recentEntriesList: ExecutionHistoryEntry[] = [];
-
-    for (const entry of rawEntries ?? []) {
-      const bId = entry.budget_item_id;
-      const q = Number(entry.quantity_executed) || 0;
-      executedQuantities[bId] = (executedQuantities[bId] || 0) + q;
-      if (entry.entry_date) {
-        recentEntriesList.push({
-          budget_item_id: bId,
-          entry_date: entry.entry_date,
-          quantity_executed: q,
-        });
-      }
-    }
-
-    // 4. Fetch BOM materials (budget_item_materials joined with productos)
-    const { data: rawMaterials, error: mErr } = await supabase
-      .from("budget_item_materials")
-      .select(
-        "id, budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, productos(id, nombre, sku, unidad, costo_promedio)"
-      )
-      .eq("project_id", projectId)
-      .eq("empresa_id", empresaId);
-
-    if (mErr) {
-      return {
-        data: null,
-        error: `Error al cargar los materiales de partidas: ${mErr.message}`,
-      };
-    }
-
-    const materialsByItem: Record<string, BudgetItemMaterialInput[]> = {};
-    for (const m of rawMaterials ?? []) {
-      const prod = (m as any).productos;
-      const bId = m.budget_item_id;
-      if (!materialsByItem[bId]) {
-        materialsByItem[bId] = [];
-      }
-      materialsByItem[bId].push({
-        budget_item_id: bId,
-        producto_id: m.producto_id,
-        producto_nombre: prod?.nombre || "Material sin nombre",
-        producto_codigo: prod?.sku || null,
-        unidad_medida: prod?.unidad || "unid",
-        cantidad_por_unidad_ejecutada: Number(m.cantidad_por_unidad_ejecutada),
-        desperdicio_pct: Number(m.desperdicio_pct || 0),
-        costo_unitario:
-          prod?.costo_promedio && Number(prod.costo_promedio) > 0
-            ? Number(prod.costo_promedio)
-            : null,
-      });
-    }
-
-    // 5. Fetch stock disponible en obra (stock_por_proyecto, security_invoker = true)
-    const { data: rawStock, error: sErr } = await supabase
-      .from("stock_por_proyecto")
-      .select("producto_id, qty_disponible, costo_promedio")
-      .eq("project_id", projectId)
-      .eq("empresa_id", empresaId);
-
-    if (sErr) {
-      return {
-        data: null,
-        error: `Error al consultar stock de obra: ${sErr.message}`,
-      };
-    }
-
-    // 6. Fetch authorized inbound orders
-    // Real order_status enum: 'AUTORIZADO', 'FACTURADO', 'CONCILIADO', 'APTO_PARA_PAGO', 'PAGADO'.
-    // Orders in status 'AUTORIZADO' represent pending deliveries not yet fully received.
-    // Query includes canonical producto_id on authorized_order_items (migration 0083)
-    const { data: rawOrders, error: oErr } = await supabase
-      .from("authorized_orders")
-      .select("id, status, authorized_order_items(id, product, producto_id, quantity, unit)")
-      .eq("project_id", projectId)
-      .eq("empresa_id", empresaId)
-      .eq("status", "AUTORIZADO");
-
-    if (oErr) {
-      return {
-        data: null,
-        error: `Error al consultar órdenes autorizadas: ${oErr.message}`,
-      };
-    }
-
-    // Fetch physical receipts from view oc_order_item_recibido (security_invoker = true)
-    const { data: rawReceived, error: rErr } = await supabase
-      .from("oc_order_item_recibido")
-      .select("order_item_id, cantidad_recibida_total")
-      .eq("empresa_id", empresaId);
-
-    if (rErr) {
-      return {
-        data: null,
-        error: `Error al consultar recepciones de órdenes: ${rErr.message}`,
-      };
-    }
-
-    const receivedByOrderItem: Record<string, number> = {};
-    for (const r of rawReceived ?? []) {
-      if (r.order_item_id) {
-        receivedByOrderItem[r.order_item_id] = Number(r.cantidad_recibida_total) || 0;
-      }
-    }
-
-    // Build stock and inbound lookup
-    const stockAndInbound: Record<string, StockDisponibilidadInput> = {};
-    for (const st of rawStock ?? []) {
-      const pId = st.producto_id;
-      stockAndInbound[pId] = {
-        producto_id: pId,
-        stock_disponible: Math.max(0, Number(st.qty_disponible) || 0),
-        oc_inbound: 0,
-      };
-    }
-
-    // Canonical product mapping for inbound:
-    // Only items with explicit authorized_order_items.producto_id participate in inbound calculations.
-    // Legacy rows without producto_id are NOT matched by string or guessed.
-    for (const ord of rawOrders ?? []) {
-      const items = (ord as any).authorized_order_items ?? [];
-      for (const it of items) {
-        const pId = it.producto_id;
-        if (!pId) {
-          // Unmapped canonical product -> skip from inbound stock deduction (fail-safe)
-          continue;
-        }
-
-        if (!stockAndInbound[pId]) {
-          stockAndInbound[pId] = {
-            producto_id: pId,
-            stock_disponible: 0,
-            oc_inbound: 0,
-          };
-        }
-        const totalOrdered = Number(it.quantity) || 0;
-        const physicallyReceived = receivedByOrderItem[it.id] || 0;
-        const netInbound = Math.max(0, totalOrdered - physicallyReceived);
-        stockAndInbound[pId].oc_inbound += netInbound;
-      }
-    }
-
-    // 7. Fetch existing plan or determine defaults
+    // Fetch existing plan or determine defaults.
+    // NOTA: esta es la ÚNICA lectura de project_weekly_plans en load.
+    // El preview NUNCA toca estas tablas (ver previewWeeklyPlanAction).
     let plan: ProjectWeeklyPlan | null = null;
     let savedItems: {
       budget_item_id: string;
@@ -286,10 +129,13 @@ export async function getWeeklyPlanDetailsAction(
     }
 
     if (plan) {
+      // P2-4: orden determinista para que el capping multi-front secuencial
+      // asigne el remanente al mismo frente tras recargar.
       const { data: piData } = await supabase
         .from("project_weekly_plan_items")
         .select("*")
-        .eq("plan_id", plan.id);
+        .eq("plan_id", plan.id)
+        .order("created_at", { ascending: true });
       savedItems = (piData ?? []).map((pi) => ({
         budget_item_id: pi.budget_item_id,
         front_label: pi.front_label,
@@ -316,99 +162,39 @@ export async function getWeeklyPlanDetailsAction(
       input_value: si.input_value,
     }));
 
-    // 8. Optional Weather Overlay Execution
+    // Optional Weather Overlay Execution (shared helper, mismas garantías).
+    // Clima OFF: cero llamadas meteorológicas, cero inserts de clima.
     let weatherForecasts: DailyWeatherForecast[] = [];
     let weatherSnapshotId: string | null = null;
     let weatherFailedClosed = false;
     let operationalAssessments: Record<string, any> = {};
-    let weatherRangeResult: { forecasts: DailyWeatherForecast[]; partialCoverage: boolean; requestedDays: number; coveredDays: number } | null = null;
+    let weatherRequestedDays: number | undefined;
+    let weatherCoveredDays: number | undefined;
+    let weatherPartial: boolean | undefined;
 
     if (weatherOverlay) {
       const lat = project.latitude ? Number(project.latitude) : -25.455;
       const lon = project.longitude ? Number(project.longitude) : -57.534;
-
-      try {
-        const { fetchWeatherForecastRange } = await import("@/lib/procurement/weather-client");
-        weatherRangeResult = await fetchWeatherForecastRange(lat, lon, startDate, endDate);
-        weatherForecasts = weatherRangeResult.forecasts;
-        
-        if (weatherForecasts.length > 0) {
-          // 1. Create a dedicated immutable weather batch for this forecast run
-          const { data: batchData, error: batchErr } = await supabase
-            .from("project_weather_forecast_batches")
-            .insert({
-              empresa_id: empresaId,
-              project_id: projectId,
-              source: "open-meteo",
-              latitude: lat,
-              longitude: lon,
-              forecast_days: weatherForecasts.length,
-              fetched_at: new Date().toISOString(),
-            })
-            .select("id")
-            .single();
-
-          if (batchErr || !batchData) {
-            console.warn("Failed to create weather forecast batch:", batchErr?.message);
-          } else {
-            weatherSnapshotId = batchData.id;
-
-            // 2. Insert snapshot rows linked to this batch (strict batch immutability)
-            const snapshotRows = weatherForecasts.map((wf) => ({
-              batch_id: batchData.id,
-              empresa_id: empresaId,
-              project_id: projectId,
-              forecast_date: wf.date,
-              precipitation_sum_mm: wf.precipitation_sum_mm,
-              precipitation_hours: wf.precipitation_hours,
-              precipitation_probability_max: wf.precipitation_probability_max,
-              wind_gusts_max_kmh: wf.wind_gusts_max_kmh,
-              temperature_max_c: wf.temperature_max_c,
-              temperature_min_c: wf.temperature_min_c,
-              weather_code: wf.weather_code,
-              source: "open-meteo",
-              raw_payload: wf as any,
-            }));
-
-            const { error: snapErr } = await supabase
-              .from("project_weather_forecast_snapshots")
-              .insert(snapshotRows);
-
-            if (snapErr) {
-              console.warn("Failed to persist weather forecast snapshots:", snapErr.message);
-            }
-          }
-
-          // Operational assessment for active items
-          const candidateItems: BudgetItemOperationalInput[] = budgetItems
-            .filter((it) => targets.some((t) => t.budget_item_id === it.id && t.input_value > 0))
-            .map((it) => ({
-              budget_item_id: it.id,
-              item_code: it.code,
-              description: it.description,
-              unit: it.unit || "unid",
-            }));
-
-          const opAnalysis = await analyzeOperationalWorkability(
-            projectId,
-            candidateItems,
-            weatherForecasts
-          );
-
-          if (opAnalysis) {
-            for (const itemOp of opAnalysis.items) {
-              operationalAssessments[itemOp.budget_item_id] = itemOp;
-            }
-          }
-        }
-      } catch (wErr) {
-        console.warn("Weather overlay failed closed:", wErr);
-        weatherFailedClosed = true;
-        weatherForecasts = [];
-      }
+      const resolved = await resolveWeeklyWeather(supabase, {
+        empresaId,
+        projectId,
+        latitude: lat,
+        longitude: lon,
+        startDate,
+        endDate,
+        budgetItems,
+        targets,
+      });
+      weatherForecasts = resolved.forecasts;
+      weatherSnapshotId = resolved.snapshotId;
+      operationalAssessments = resolved.assessments;
+      weatherFailedClosed = resolved.failedClosed;
+      weatherRequestedDays = resolved.requestedDays;
+      weatherCoveredDays = resolved.coveredDays;
+      weatherPartial = resolved.partialCoverage;
     }
 
-    // Run pure calculation engine
+    // Run pure calculation engine (MISMO engine que el preview)
     const calculation = calculateWeeklyPlanRequirements({
       plan_id: plan?.id,
       project_id: projectId,
@@ -428,9 +214,9 @@ export async function getWeeklyPlanDetailsAction(
       weather_snapshot_id: weatherSnapshotId,
       weather_provider: "open-meteo",
       weather_failed_closed: weatherFailedClosed,
-      weather_plan_days_count: weatherRangeResult ? weatherRangeResult.requestedDays : undefined,
-      weather_covered_days_count: weatherRangeResult ? weatherRangeResult.coveredDays : undefined,
-      weather_coverage_is_partial: weatherRangeResult ? weatherRangeResult.partialCoverage : undefined,
+      weather_plan_days_count: weatherRequestedDays,
+      weather_covered_days_count: weatherCoveredDays,
+      weather_coverage_is_partial: weatherPartial,
     });
 
     return {
@@ -438,6 +224,7 @@ export async function getWeeklyPlanDetailsAction(
         plan,
         calculation,
         budgetItems,
+        executedQuantities,
       },
       error: null,
     };
@@ -448,7 +235,147 @@ export async function getWeeklyPlanDetailsAction(
 }
 
 /**
+ * PREVIEW SIN GUARDAR — cambio funcional principal del batch UX.
+ *
+ * previewWeeklyPlanAction({ projectId, startDate, endDate, weatherOverlay, items })
+ *
+ * - Valida tenant/proyecto igual que la action de guardado (requirePlan + loader).
+ * - Carga los mismos datos reales vía loadWeeklyPlanBaseData
+ *   (presupuesto, ejecución, BOM, stock, inbound, costos, historial).
+ * - Usa EXACTAMENTE calculateWeeklyPlanRequirements(...) — mismo motor, sin fórmulas paralelas.
+ * - Recibe las metas desde la UI (locales, aún no guardadas).
+ * - NO inserta ni actualiza la tabla de planes semanales.
+ * - NO inserta ni actualiza la tabla de ítems del plan.
+ * - Devuelve WeeklyPlanCalculationSummary para renderizar.
+ *
+ * Clima:
+ * - OFF: no llama al proveedor meteorológico (cero llamadas, cero inserts).
+ * - ON: usa fechas exactas del plan, consulta el provider real vía
+ *   resolveWeeklyWeather (mismo helper que load), muestra factibilidad sin
+ *   modificar la meta base ni recortar compras/materiales.
+ * - Para mantener el contrato actual (save enlaza weather_snapshot_batch_id),
+ *   el preview con Clima=ON SÍ crea un batch append-only de forecast
+ *   (igual que load). NO toca plans/items. Ver weekly-plan-shared.ts.
+ */
+export async function previewWeeklyPlanAction(
+  params: PreviewWeeklyPlanActionParams
+): Promise<{
+  data: {
+    calculation: WeeklyPlanCalculationSummary;
+    budgetItems: BudgetItem[];
+    executedQuantities: Record<string, number>;
+  } | null;
+  error: string | null;
+}> {
+  try {
+    const profile = await requirePlan("pro", ["administracion", "admin"]);
+    const empresaId = profile.empresa_id;
+    const supabase = await createClient();
+    const { projectId, startDate, endDate, weatherOverlay, items } = params;
+
+    if (!projectId) {
+      return { data: null, error: "Proyecto requerido para previsualizar." };
+    }
+    if (!startDate || !endDate) {
+      return { data: null, error: "Período requerido para previsualizar (inicio y fin)." };
+    }
+    if (endDate < startDate) {
+      return {
+        data: null,
+        error: `Rango inválido: fin (${endDate}) anterior a inicio (${startDate}).`,
+      };
+    }
+
+    // Mismos datos reales que load/save (single source of truth).
+    const baseRes = await loadWeeklyPlanBaseData(supabase, projectId, empresaId);
+    if (baseRes.error || !baseRes.data) {
+      return { data: null, error: baseRes.error || "Error al cargar datos base." };
+    }
+    const {
+      project,
+      budgetItems,
+      executedQuantities,
+      recentEntries,
+      materialsByItem,
+      stockAndInbound,
+    } = baseRes.data;
+
+    // Metas LOCALES desde la UI (aún no guardadas). Sin persistencia.
+    const targets = toEngineTargets(items ?? []);
+
+    // Clima: OFF = cero llamadas; ON = rango exacto + provider real.
+    // P2-5: sin metas no hay assessment posible; no crear batch huérfano.
+    const withWeather = weatherOverlay && targets.length > 0;
+    let weatherForecasts: DailyWeatherForecast[] = [];
+    let weatherSnapshotId: string | null = null;
+    let weatherFailedClosed = false;
+    let operationalAssessments: Record<string, any> = {};
+    let weatherRequestedDays: number | undefined;
+    let weatherCoveredDays: number | undefined;
+    let weatherPartial: boolean | undefined;
+
+    if (withWeather) {
+      const lat = project.latitude ? Number(project.latitude) : -25.455;
+      const lon = project.longitude ? Number(project.longitude) : -57.534;
+      const resolved = await resolveWeeklyWeather(supabase, {
+        empresaId,
+        projectId,
+        latitude: lat,
+        longitude: lon,
+        startDate,
+        endDate,
+        budgetItems,
+        targets,
+      });
+      weatherForecasts = resolved.forecasts;
+      weatherSnapshotId = resolved.snapshotId;
+      operationalAssessments = resolved.assessments;
+      weatherFailedClosed = resolved.failedClosed;
+      weatherRequestedDays = resolved.requestedDays;
+      weatherCoveredDays = resolved.coveredDays;
+      weatherPartial = resolved.partialCoverage;
+    }
+
+    // MISMO motor que load/save. Sin plan_id (no existe plan persistido para este preview).
+    const calculation = calculateWeeklyPlanRequirements({
+      project_id: projectId,
+      start_date: startDate,
+      end_date: endDate,
+      status: "DRAFT",
+      budget_items: budgetItems,
+      executed_quantities_by_item: executedQuantities,
+      targets,
+      materials_by_item: materialsByItem,
+      stock_and_inbound: stockAndInbound,
+      recent_execution_entries: recentEntries,
+      currency: "PYG",
+      // Si se omitió el clima por falta de metas, el overlay queda OFF en el
+      // resultado aunque el toggle esté ON (sin forecasts no hay factibilidad).
+      weather_overlay_enabled: withWeather,
+      weather_forecasts: weatherForecasts,
+      operational_assessments: operationalAssessments,
+      weather_snapshot_id: weatherSnapshotId,
+      weather_provider: "open-meteo",
+      weather_failed_closed: weatherFailedClosed,
+      weather_plan_days_count: weatherRequestedDays,
+      weather_covered_days_count: weatherCoveredDays,
+      weather_coverage_is_partial: weatherPartial,
+    });
+
+    return {
+      data: { calculation, budgetItems, executedQuantities },
+      error: null,
+    };
+  } catch (err: any) {
+    console.error("Error in previewWeeklyPlanAction:", err);
+    return { data: null, error: err?.message || "Error interno al previsualizar el plan." };
+  }
+}
+
+/**
  * Saves or updates a Weekly Plan and its item targets atomically via PostgreSQL RPC.
+ * El guardado post-preview persiste EXACTAMENTE las metas previsualizadas
+ * (la UI reenvía los mismos items del preview). Sin duplicar persistencia.
  */
 export async function saveWeeklyPlanAction(
   params: SaveWeeklyPlanParams
@@ -459,6 +386,17 @@ export async function saveWeeklyPlanAction(
     const supabase = await createClient();
 
     const { planId, projectId, startDate, endDate, status, notes, weatherSnapshotBatchId, items } = params;
+
+    // P1-2: misma validación de rango que el preview (no persistir rangos invertidos).
+    if (!startDate || !endDate) {
+      return { data: null, error: "Período requerido para guardar (inicio y fin)." };
+    }
+    if (endDate < startDate) {
+      return {
+        data: null,
+        error: `Rango inválido: fin (${endDate}) anterior a inicio (${startDate}).`,
+      };
+    }
 
     // Validate project access
     const { data: project, error: pErr } = await supabase
@@ -472,12 +410,14 @@ export async function saveWeeklyPlanAction(
       return { data: null, error: "Proyecto no encontrado o sin permisos." };
     }
 
-    // Format items payload for atomic RPC
+    // Format items payload for atomic RPC.
+    // P2-1: mismo trim que el preview (toEngineTargets) para que lo calculado
+    // y lo persistido no diverjan con espacios accidentales.
     const itemsPayload = items
       .filter((it) => it.inputValue > 0)
       .map((it) => ({
         budget_item_id: it.budgetItemId,
-        front_label: it.frontLabel || null,
+        front_label: it.frontLabel?.trim() ? it.frontLabel.trim() : null,
         input_mode: it.inputMode,
         input_value: it.inputValue,
         unit: it.unit || "unid",
