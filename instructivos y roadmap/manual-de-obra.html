@@ -783,16 +783,18 @@
     <div class="feat-head"><span class="feat-num">23</span><span class="feat-title">Avance físico + Plan Semanal de Obra</span><span class="tier-chip cat"><span class="tier-dot"></span>Caterpillar</span></div>
     <div class="feat-where">Dónde: detalle del proyecto → tab <code>Avance físico</code></div>
     <div class="feat-body">
-      <p>En esta tab conviven tres herramientas distintas: <b>Plan Semanal / Lookahead</b>, <b>Curva S de avance</b> y <b>Registro de días no trabajados</b>. El Plan Semanal expresa lo que la obra quiere ejecutar; no intenta adivinarlo a partir de un promedio histórico.</p>
+      <p>En esta tab conviven tres herramientas distintas: <b>Plan Semanal de Obra</b> (una sola experiencia consolidada: metas + materiales + compras + caja + factibilidad), <b>Curva S de avance</b> y <b>Registro de días no trabajados / Libro de obra</b>. El Plan Semanal expresa lo que la obra quiere ejecutar; no intenta adivinarlo a partir de un promedio histórico.</p>
+      <div class="callout"><span class="ic">↗</span><span>Explicación visual completa del módulo: <a href="modulo-plan-semanal-obra.html" style="color:var(--accent);font-weight:600">abrir Plan Semanal de Obra</a>. Regla central: <b>vos definís qué ejecutar; el sistema calcula qué necesitás para cumplirlo</b>.</span></div>
 
-      <p style="margin-top:16px;font-weight:600;">Plan Semanal de Obra / Lookahead</p>
+      <p style="margin-top:16px;font-weight:600;">Plan Semanal de Obra — cómo crear el plan</p>
       <p>Primero definís la ventana de trabajo y después cargás metas por partida. Cada meta puede expresarse como <b>cantidad física</b> (m², m³, kg, ml, unidades) o como <b>puntos porcentuales del contrato</b>. También podés separar una misma partida por <b>frente o sector</b>.</p>
       <ol class="steps">
-        <li>Elegí la semana/período del plan.</li>
-        <li>Agregá los rubros que realmente querés ejecutar y, si corresponde, el frente: por ejemplo <code>Encofrado · Sector A · +15 pp</code> o <code>Mampostería · Sector B · 120 m²</code>.</li>
-        <li>Si usás <b>+pp</b>, el sistema lo convierte inmediatamente a cantidad física contractual. Ejemplo certificado: <b>500 m² + 10 pp = 50 m²</b>.</li>
-        <li>La meta se limita automáticamente al <b>saldo contractual pendiente</b>. Si la misma partida aparece en dos frentes, ambos comparten ese saldo.</li>
-        <li>Guardá el plan. La persistencia es atómica: si un ítem falla, no queda un plan medio borrado o medio guardado.</li>
+        <li><b>Elegí el período:</b> fecha de inicio y fin del plan (una semana típica) y el <b>estado</b>: <code>BORRADOR (DRAFT)</code> → <code>COMPROMETIDO (COMMITTED)</code> → <code>CERRADO (CLOSED)</code>.</li>
+        <li>Agregá los rubros que realmente querés ejecutar y, si corresponde, el frente: por ejemplo <code>Encofrado · Sector A · +15 pp</code> o <code>Mampostería · Sector B · 120 m²</code>. Sin frentes, la partida queda “sin frentes asignados” hasta que le pongas <b>Asignar Meta</b>.</li>
+        <li><b>Cantidad vs porcentaje:</b> podés cargar <b>cantidad física directa</b> (120 m²) o <b>+ puntos porcentuales del contrato</b> (+10 pp). Si usás <b>+pp</b>, el sistema lo convierte inmediatamente a cantidad física contractual. Ejemplo certificado: <b>500 m² + 10 pp = 50 m²</b>. No confundas % del contrato con % del remanente: la base canónica siempre es la cantidad física.</li>
+        <li><b>Cómo agregar frentes:</b> con el botón <b>+</b> agregás otro frente a la misma partida (Sector A, Sector B…). La clave es plan + partida + frente: un frente duplicado se rechaza. Todos los frentes comparten el mismo <b>saldo contractual pendiente</b> y el mismo pool de stock/inbound.</li>
+        <li>La meta se limita automáticamente al <b>saldo contractual pendiente</b> (muestra “limitado” si se recorta). Si la misma partida aparece en dos frentes, ambos comparten ese saldo.</li>
+        <li>Botón <b>Guardar Plan</b>. La persistencia es atómica: si un ítem falla, no queda un plan medio borrado o medio guardado.</li>
       </ol>
 
       <div class="callout ok"><span class="ic">✓</span><span><b>La intención siempre la define la obra.</b> El historial puede servir como referencia de capacidad, pero nunca bloquea el cálculo de materiales/caja ni inventa qué rubros deberían avanzar.</span></div>
@@ -804,9 +806,21 @@
         <tr><td>Materiales para cumplir el plan</td><td>Demanda física obtenida del BOM/APU de cada partida, incluyendo desperdicio configurado.</td></tr>
         <tr><td>Cubierto por stock</td><td>Parte de la demanda que ya existe físicamente en la obra.</td></tr>
         <tr><td>Cubierto por OC en tránsito</td><td>Saldo físico real: ordenado menos recibido. Una factura no cuenta como recepción.</td></tr>
-        <tr><td>Faltante a comprar</td><td><code>max(0, demanda − stock − inbound físico)</code>.</td></tr>
-        <tr><td><b>Caja adicional requerida</b></td><td><b>Valor del faltante neto que todavía habría que comprar.</b> No es lo mismo que el valor total de materiales que se consumirán.</td></tr>
+        <tr><td>Faltante a comprar</td><td><code>max(0, demanda − stock − inbound físico)</code>. Es lo único que se valoriza como caja.</td></tr>
+        <tr><td><b>Caja adicional requerida</b></td><td><b>Faltante neto × costo unitario.</b> Valor del faltante neto que todavía habría que comprar. No es lo mismo que el valor total de materiales que se consumirán ni que el valor contractual de la producción.</td></tr>
       </table>
+
+      <p><b>Cómo interpretar la caja — ejemplo certificado:</b></p>
+      <table class="mock-table" style="max-width:76ch;">
+        <tr><th>Dato (LADRILLO)</th><th>Valor</th></tr>
+        <tr><td>Necesidad bruta (120 m² × 52,5)</td><td class="num">6.300</td></tr>
+        <tr><td>Stock en obra</td><td class="num">1.800</td></tr>
+        <tr><td>OC en tránsito (ordenado − recibido)</td><td class="num">2.500</td></tr>
+        <tr><td><b>Faltante = 6.300 − 1.800 − 2.500</b></td><td class="num"><b>2.000</b></td></tr>
+        <tr><td>Costo unitario</td><td class="num">Gs. 2.400</td></tr>
+        <tr><td><b>Caja adicional = 2.000 × 2.400</b></td><td class="num"><b>Gs. 4.800.000</b></td></tr>
+      </table>
+      <div class="callout warn"><span class="ic">⚠</span><span><b>Tres números distintos:</b> valor contractual de la producción (precio de venta del rubro, referencial) ≠ valor de materiales del plan (toda la demanda, incluso lo ya comprado) ≠ <b>caja adicional</b> (solo el faltante). La tarjeta ámbar “Caja necesaria para cumplir el plan” es la decisión de compra. <b>Inbound</b> = material comprado pero todavía no recibido físicamente. Una factura no cuenta como recepción.</span></div>
 
       <p><b>BOM y datos faltantes:</b></p>
       <p>Las partidas se clasifican como <code>REQUIRES_BOM</code>, <code>NO_MATERIAL</code> o <code>UNKNOWN</code>. Si una partida necesita materiales y no tiene receta, el sistema muestra <b>"MATERIALES NO CONFIGURADOS"</b>. Si el tipo es desconocido, pide revisión. Nunca convierte una falta de datos en <b>Gs 0</b> silencioso.</p>
@@ -814,13 +828,13 @@
       <p><b>Capacidad histórica:</b></p>
       <p>Cuando existe historial suficiente de esa actividad, el módulo puede comparar la meta con la capacidad observada (por ejemplo, plan 63 m² vs rango observado 48–55 m²/semana). Es una <b>advertencia consultiva</b>. Si no hay evidencia, muestra <b>"Sin historial suficiente para estimar capacidad"</b>.</p>
 
-      <p><b>Impacto meteorológico — opcional:</b></p>
-      <p>El switch <b>"Considerar clima"</b> agrega una segunda lectura sin tocar el plan base.</p>
+      <p><b>Impacto meteorológico — opcional (Clima OFF / Clima ON):</b></p>
+      <p>Arriba del plan hay un switch <b>Clima OFF / Clima ON</b>. Agrega una segunda lectura sin tocar el plan base.</p>
       <ol class="steps">
-        <li><b>OFF:</b> no se llama a Open-Meteo ni al analista operacional. El plan, BOM, stock, OC y caja funcionan igual.</li>
-        <li><b>ON:</b> se consulta Open-Meteo para las <b>fechas exactas del plan</b> y las coordenadas del proyecto.</li>
-        <li>La interfaz muestra por separado <b>Objetivo del plan</b>, <b>capacidad estimada con clima</b> y la <b>brecha</b>. El clima nunca reescribe la meta del usuario.</li>
-        <li>Si el proveedor sólo cubre parte del horizonte, se informa <b>"Cobertura meteorológica parcial: X de Y días"</b>. Los días faltantes no se rellenan con sol, 0 mm ni factor 1.</li>
+        <li><b>OFF:</b> no se llama a Open-Meteo ni al analista operacional. El plan, BOM, stock, OC y caja funcionan igual. Ves el plan base sin overlay.</li>
+        <li><b>ON:</b> se consulta Open-Meteo para las <b>fechas exactas del plan</b> y las coordenadas del proyecto. Se generan <b>snapshots persistidos</b> (un batch inmutable, una fila por fecha).</li>
+        <li>La interfaz muestra por separado <b>Objetivo del plan</b>, <b>capacidad estimada con clima</b> (con días cubiertos / comprometidos) y la <b>brecha</b>. El clima nunca reescribe la meta del usuario.</li>
+        <li><b>Cómo interpretar factibilidad:</b> “quiero hacer la meta” (plan) vs “con clima/capacidad observada parece viable ejecutar X” (factibilidad). Si el proveedor sólo cubre parte del horizonte, se informa <b>"Cobertura meteorológica parcial: X de Y días"</b>. Los días faltantes no se rellenan con sol, 0 mm ni factor 1. Caso certificado: 7 snapshots 2026-09-16 → 2026-09-22, 7/7 cubiertos, 4 comprometidos, meta preservada.</li>
         <li>Cada consulta utilizada queda guardada como un <b>batch inmutable</b>; el plan conserva el forecast exacto que vio aunque mañana cambie el pronóstico.</li>
       </ol>
 
@@ -834,17 +848,15 @@
       </ul>
       <p>Si la curva real está por debajo de la planificada, hay atraso. Si está por encima, hay adelanto. La brecha en % × monto contractual da el valor de la desviación.</p>
 
-      <p><b>Registro de días no trabajados:</b></p>
-      <p>Calendario con un clic para marcar cada día como:</p>
-      <table class="mock-table" style="max-width:52ch;">
-        <tr><th>Tipo</th><th>Sigla</th><th>Efecto</th></tr>
-        <tr><td>Lluvia</td><td><b>LL</b></td><td>Justifica prórroga de plazo</td></tr>
-        <tr><td>Día no hábil</td><td><b>NH</b></td><td>Feriado / domingo</td></tr>
-        <tr><td>Huelga / paro</td><td><b>HH</b></td><td>Causa externa</td></tr>
-        <tr><td>Otro</td><td><b>O</b></td><td>Con nota aclaratoria</td></tr>
-      </table>
-      <p>Un click en el día cicla entre los tipos (trabajo → LL → NH → HH → O → trabajo). Los días marcados quedan como respaldo formal para solicitar prórrogas de plazo ante el comitente.</p>
-      <div class="callout"><span class="ic">📋</span><span>El total de días no trabajados por tipo se imprime en el certificado de avance como parte del acta del período.</span></div>
+      <p><b>Registro de días no trabajados / Libro de obra (histórico):</b></p>
+      <p>Esto es <b>distinto del Weather Overlay</b>. El overlay mira el <b>pronóstico futuro</b> de las fechas del plan; el Libro registra lo que <b>realmente ocurrió</b>. En la misma tab Avance físico hay un editor explícito con botón <b>Registrar día</b>.</p>
+      <ol class="steps">
+        <li><b>Registrar día:</b> elegí fecha y código, después <b>Guardar día</b>. También podés hacer click en un día para ciclar <code>B → LL → HH → O → vacío</code>.</li>
+        <li><b>Estados:</b> <code>B</code> Bueno/practicable · <code>LL</code> Lluvioso · <code>HH</code> Húmedo/encharcado · <code>O</code> Otra circunstancia.</li>
+        <li><b>Borrar:</b> <b>Limpiar registro</b> elimina el registro de esa fecha.</li>
+        <li>El flujo está probado como <b>CREATE → EDIT → DELETE</b>. Si algo falla al guardar o borrar, el error se muestra (<code>No se pudo guardar el día</code> / <code>No se pudo borrar el registro</code>); nunca se traga en silencio. Hay estados de <b>Guardando…</b>, éxito y error real.</li>
+      </ol>
+      <div class="callout"><span class="ic">ℹ</span><span><b>Clima futuro vs histórico:</b> el Weather Overlay del Plan Semanal estima factibilidad futura y no modifica la meta. El Libro documenta jornadas reales con confirmación explícita. El respaldo contractual de lluvia es un frente separado.</span></div>
 
       <div class="callout ok"><span class="ic">✓</span><span><b>Lectura correcta:</b> Ejecución registra lo que pasó. El Plan Semanal registra lo que la obra quiere hacer. Materiales/caja traducen esa intención a necesidades. El clima evalúa factibilidad. La Curva S muestra la trayectoria acumulada.</span></div>
     </div>
