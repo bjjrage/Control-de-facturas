@@ -3,7 +3,7 @@ import { ArrowLeft, Printer } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import { requireModule } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { Client, SalesDocument, SalesDocumentItem, SalesReceipt } from "@/lib/types";
+import { Client, SalesDocument, SalesDocumentItem, SalesQuotationAcceptance, SalesQuotationEvent, SalesQuotationToken, SalesReceipt, WorkOrder } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -18,6 +18,7 @@ import {
 } from "@/lib/sales";
 import { ReceiptDialog } from "./receipt-dialog";
 import { SifenButton } from "./sifen-button";
+import { QuotationPanel } from "./quotation-panel";
 import { emitSalesDocument, voidSalesDocument, deleteSalesDocument, deleteReceipt, convertSalesDocument } from "../actions";
 
 export default async function VentaDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -28,11 +29,23 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
   const { data: doc } = await supabase.from("sales_documents").select("*").eq("id", id).single<SalesDocument>();
   if (!doc) notFound();
 
-  const [{ data: client }, { data: items }, { data: receipts }, { data: cuentas }] = await Promise.all([
+  const [{ data: client }, { data: items }, { data: receipts }, { data: cuentas }, { data: tokens }, { data: events }, { data: workOrder }, { data: acceptance }] = await Promise.all([
     supabase.from("clients").select("*").eq("id", doc.client_id).single<Client>(),
     supabase.from("sales_document_items").select("*").eq("sales_document_id", id).order("created_at").returns<SalesDocumentItem[]>(),
     supabase.from("sales_receipts").select("*").eq("sales_document_id", id).order("receipt_date", { ascending: false }).returns<SalesReceipt[]>(),
     supabase.from("cuentas_financieras").select("id, nombre, moneda").eq("activo", true).order("nombre").returns<{ id: string; nombre: string; moneda: SalesDocument["currency"] }[]>(),
+    doc.doc_type === "PROFORMA"
+      ? supabase.from("sales_quotation_tokens").select("*").eq("sales_document_id", id).order("created_at", { ascending: false }).returns<SalesQuotationToken[]>()
+      : Promise.resolve({ data: [] as SalesQuotationToken[] } as { data: SalesQuotationToken[] }),
+    doc.doc_type === "PROFORMA"
+      ? supabase.from("sales_quotation_events").select("*").eq("sales_document_id", id).order("created_at", { ascending: false }).limit(30).returns<SalesQuotationEvent[]>()
+      : Promise.resolve({ data: [] as SalesQuotationEvent[] } as { data: SalesQuotationEvent[] }),
+    doc.doc_type === "PROFORMA"
+      ? supabase.from("work_orders").select("*").eq("sales_document_id", id).maybeSingle<WorkOrder>().then((r) => ({ data: (r.data ?? null) as WorkOrder | null }))
+      : Promise.resolve({ data: null as WorkOrder | null }),
+    doc.doc_type === "PROFORMA"
+      ? supabase.from("sales_quotation_acceptances").select("*").eq("sales_document_id", id).maybeSingle<SalesQuotationAcceptance>().then((r) => ({ data: (r.data ?? null) as SalesQuotationAcceptance | null }))
+      : Promise.resolve({ data: null as SalesQuotationAcceptance | null }),
   ]);
   const cuentasList = cuentas ?? [];
 
@@ -204,6 +217,10 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
           </table>
         </div>
       </div>
+
+      {doc.doc_type === "PROFORMA" ? (
+        <QuotationPanel doc={doc} tokens={tokens ?? []} events={events ?? []} workOrder={workOrder ?? null} acceptance={acceptance ?? null} />
+      ) : null}
 
       <div>
         <div className="flex items-center justify-between mb-2">

@@ -8,6 +8,7 @@ import { formatDate, formatMoney } from "@/lib/format";
 import { currentMonth, monthRange } from "@/lib/month-range";
 import { MonthFilter } from "@/app/(internal)/invoices/month-filter";
 import { docSaldo, isOverdue, SALES_DOC_STATUS_LABELS, SALES_STATUS_ORDER } from "@/lib/sales";
+import { QUOTATION_ACCEPTANCE_LABELS } from "@/lib/quotation";
 import { BackButton } from "@/components/ui/back-button";
 
 type Filters = { month?: string; q?: string; client?: string; status?: string };
@@ -178,6 +179,11 @@ export async function SalesList({
                           <Link href={`/ventas/${d.id}`} className="text-action font-medium">
                             {d.code}
                           </Link>
+                          {docType === "PROFORMA" && d.acceptance_status && d.acceptance_status !== "DRAFT" ? (
+                            <div className="text-[11px] text-[var(--muted)]">
+                              {QUOTATION_ACCEPTANCE_LABELS[d.acceptance_status]} ┬À v{d.quotation_version ?? 1}
+                            </div>
+                          ) : null}
                         </td>
                         <td>{clientById.get(d.client_id) ?? "-"}</td>
                         <td>{formatDate(d.issue_date)}</td>
