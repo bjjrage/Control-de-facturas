@@ -152,3 +152,95 @@ input::placeholder, textarea::placeholder {
 .text-action:hover {
   background-color: var(--hover);
 }
+
+/* ---------------------------------------------------------------------------
+ * Dark glass premium (Plan Semanal V2 / Libro de Obra).
+ * Reutiliza tokens existentes: --panel, --border, --foreground, --muted,
+ * --ok/--warn/--error y sus fondos. Sin paleta nueva, sin neón, sin 3D:
+ * fondo semitransparente + blur moderado + borde fino translúcido +
+ * sombra suave + highlight superior sutil.
+ * --------------------------------------------------------------------------- */
+.glass {
+  background: color-mix(in srgb, var(--panel) 78%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.25);
+  backdrop-filter: blur(14px) saturate(1.25);
+  border: 1px solid color-mix(in srgb, #ffffff 9%, transparent);
+  border-radius: 14px;
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.055);
+}
+.glass-soft {
+  background: color-mix(in srgb, var(--panel-2) 62%, transparent);
+  -webkit-backdrop-filter: blur(10px) saturate(1.15);
+  backdrop-filter: blur(10px) saturate(1.15);
+  border: 1px solid color-mix(in srgb, #ffffff 7%, transparent);
+  border-radius: 12px;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+/* Textura MUY sutil para cards principales (ruido SVG al 3%). */
+.glass-texture {
+  position: relative;
+}
+.glass-texture::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+}
+/* Acento lateral fino para jerarquía sin grandes superficies de color. */
+.glass-accent-amber {
+  border-left: 2px solid color-mix(in srgb, var(--warn) 65%, transparent);
+}
+.glass-accent-blue {
+  border-left: 2px solid color-mix(in srgb, #5b7cfa 65%, transparent);
+}
+.glass-accent-green {
+  border-left: 2px solid color-mix(in srgb, var(--ok) 65%, transparent);
+}
+.glass-accent-red {
+  border-left: 2px solid color-mix(in srgb, var(--error) 65%, transparent);
+}
+/* Chips de estado compactos (nada de rectángulos gigantes). */
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.5;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.status-chip-warn {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  border-color: color-mix(in srgb, var(--warn) 32%, transparent);
+}
+.status-chip-ok {
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  border-color: color-mix(in srgb, var(--ok) 32%, transparent);
+}
+.status-chip-info {
+  color: #8fb4ff;
+  background: color-mix(in srgb, #5b7cfa 13%, transparent);
+  border-color: color-mix(in srgb, #5b7cfa 32%, transparent);
+}
+.status-chip-error {
+  color: var(--error);
+  background: color-mix(in srgb, var(--error) 12%, transparent);
+  border-color: color-mix(in srgb, var(--error) 32%, transparent);
+}
+.status-chip-neutral {
+  color: var(--muted);
+  background: color-mix(in srgb, #ffffff 5%, transparent);
+  border-color: color-mix(in srgb, #ffffff 10%, transparent);
+}

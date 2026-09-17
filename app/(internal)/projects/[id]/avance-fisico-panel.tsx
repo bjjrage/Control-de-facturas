@@ -28,6 +28,8 @@ import {
   activateSchedulePlan,
   deleteSchedulePlan,
 } from "../certificado-anexos-actions";
+import { getHistoricalWeatherAction } from "../historical-weather-actions";
+import type { DailyObservedWeather } from "@/lib/procurement/weather-client";
 import { WeeklyPlanSection } from "./weekly-plan-section";
 
 const WEATHER_CYCLE: (WeatherCode | null)[] = [null, "B", "LL", "HH", "O"];
@@ -388,6 +390,20 @@ function DiasNoTrabajados({
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorDate, setEditorDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
   const [editorCode, setEditorCode] = useState<string>("LL");
+  // Evidencia meteorológica HISTÓRICA observada (solo lectura, por mes).
+  // El clima NUNCA escribe el Libro solo: solo setWeatherDay con acción
+  // explícita del usuario (ciclo de día, editor o "Usar como Lluvioso").
+  const [histByMonth, setHistByMonth] = useState<
+    Record<
+      string,
+      {
+        days: Record<string, DailyObservedWeather>;
+        sources: string[];
+        loading: boolean;
+        error: string | null;
+      }
+    >
+  >({});
   const byDate = useMemo(() => {
     const m = new Map<string, WeatherCode>();
     for (const w of weatherLogs) m.set(w.log_date, w.code);
@@ -449,6 +465,47 @@ function DiasNoTrabajados({
     }
   }
 
+  function monthKey(year: number, month: number): string {
+    return `${year}-${String(month + 1).padStart(2, "0")}`;
+  }
+
+  function monthRange(year: number, month: number): { start: string; end: string } {
+    const last = new Date(year, month + 1, 0).getDate();
+    const mm = String(month + 1).padStart(2, "0");
+    return { start: `${year}-${mm}-01`, end: `${year}-${mm}-${String(last).padStart(2, "0")}` };
+  }
+
+  // UNA sola consulta por rango mensual (nunca una request por día).
+  async function loadHistMonth(year: number, month: number) {
+    const key = monthKey(year, month);
+    const cur = histByMonth[key];
+    if (cur && (cur.loading || Object.keys(cur.days).length > 0 || cur.error)) return;
+    const { start, end } = monthRange(year, month);
+    setHistByMonth((prev) => ({
+      ...prev,
+      [key]: { days: {}, sources: [], loading: true, error: null },
+    }));
+    const res = await getHistoricalWeatherAction({ projectId: project.id, startDate: start, endDate: end });
+    if (res.error || !res.data) {
+      setHistByMonth((prev) => ({
+        ...prev,
+        [key]: { days: {}, sources: [], loading: false, error: res.error || "Datos meteorológicos no disponibles." },
+      }));
+      return;
+    }
+    const days: Record<string, DailyObservedWeather> = {};
+    for (const d of res.data.days) days[d.date] = d;
+    setHistByMonth((prev) => ({
+      ...prev,
+      [key]: { days, sources: res.data?.sources ?? [], loading: false, error: null },
+    }));
+  }
+
+  function fmtMm(v: number | null): string {
+    if (v === null || !Number.isFinite(v)) return "—";
+    return Number(v).toLocaleString("es-PY", { maximumFractionDigits: 1 });
+  }
+
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -456,7 +513,8 @@ function DiasNoTrabajados({
           <div className="text-[13px] font-semibold">Días no trabajados (Libro de Obra) — registro histórico</div>
           <p className="text-[11px] text-[var(--muted)]">
             Lo que realmente ocurrió (contractual). No es pronóstico futuro — el clima futuro se ve en
-            Plan Semanal → Clima ON.
+            Plan Semanal → Clima ON. Podés cargar el clima <em>observado</em> por mes como evidencia:
+            el dato meteorológico no decide por vos, el registro en el Libro siempre es humano.
           </p>
         </div>
         <div className="flex gap-3 text-[12px]">
@@ -540,35 +598,103 @@ function DiasNoTrabajados({
         </div>
       ) : null}
 
-      <div className="space-y-1 overflow-x-auto">
+      <div className="space-y-3 overflow-x-auto" data-testid="libro-calendario">
         {months.map(({ year, month }) => {
           const days = new Date(year, month + 1, 0).getDate();
+          const key = monthKey(year, month);
+          const hist = histByMonth[key];
+          const obsDays = hist ? Object.values(hist.days) : [];
+          const rainyDays = obsDays.filter((o) => Number(o.precipitation_mm) > 0);
+          const totalMm = rainyDays.reduce((s, o) => s + (Number(o.precipitation_mm) || 0), 0);
+          const mm = String(month + 1).padStart(2, "0");
+          let llInMonth = 0;
+          for (const [dateStr, code] of byDate) {
+            if (code === "LL" && dateStr.startsWith(`${year}-${mm}-`)) llInMonth++;
+          }
           return (
-            <div key={`${year}-${month}`} className="flex items-center gap-1">
-              <div className="w-28 shrink-0 text-[12px] text-[var(--muted)]">
-                {MONTHS_ES[month]} {year}
+            <div key={`${year}-${month}`} className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="w-28 shrink-0 text-[12px] text-[var(--muted)]">
+                  {MONTHS_ES[month]} {year}
+                </div>
+                {!hist || (!hist.loading && Object.keys(hist.days).length === 0 && !hist.error) ? (
+                  <button
+                    type="button"
+                    onClick={() => loadHistMonth(year, month)}
+                    disabled={busy || hist?.loading}
+                    data-testid={`ver-clima-${year}-${mm}`}
+                    className="h-6 px-2 rounded-md border border-[var(--border)] text-[11px] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--panel-2)]"
+                    title="Cargar clima observado de este mes (una sola consulta por rango)"
+                  >
+                    {hist?.loading ? "Cargando clima…" : "Ver clima observado"}
+                  </button>
+                ) : null}
+                {hist?.loading ? (
+                  <span className="text-[11px] text-[var(--muted)]">Cargando clima observado…</span>
+                ) : null}
+                {hist?.error ? (
+                  <span className="text-[11px] text-[var(--muted)]">Datos meteorológicos no disponibles.</span>
+                ) : null}
+                {hist && !hist.loading && !hist.error && Object.keys(hist.days).length > 0 ? (
+                  <span className="text-[11px] text-[var(--muted)]" data-testid={`resumen-clima-${year}-${mm}`}>
+                    Clima observado · {MONTHS_ES[month]}: {rainyDays.length}{" "}
+                    {rainyDays.length === 1 ? "día con precipitación" : "días con precipitación"},{" "}
+                    {fmtMm(totalMm)} mm acumulados | Libro: {llInMonth} {llInMonth === 1 ? "día LL" : "días LL"}
+                    {hist.sources.length > 0 ? ` · Fuente: ${hist.sources.join(" + ")}` : ""}
+                  </span>
+                ) : null}
               </div>
-              <div className="flex gap-0.5">
-                {Array.from({ length: days }, (_, d) => {
-                  const dd = String(d + 1).padStart(2, "0");
-                  const mm = String(month + 1).padStart(2, "0");
-                  const dateStr = `${year}-${mm}-${dd}`;
-                  const code = byDate.get(dateStr);
-                  return (
-                    <button
-                      key={dateStr}
-                      type="button"
-                      onClick={() => cycle(dateStr)}
-                      disabled={busy}
-                      title={`${dateStr}${code ? ` · ${WEATHER_LABEL[code]} (clic para cambiar)` : " · sin registro (clic para B)"}`}
-                      className={`h-6 w-6 rounded text-[10px] font-medium ${
-                        code ? WEATHER_STYLE[code] : "bg-[var(--panel-2)] text-[var(--muted)]/40"
-                      }`}
-                    >
-                      {code ?? d + 1}
-                    </button>
-                  );
-                })}
+              <div className="flex items-start gap-1">
+                <div className="w-28 shrink-0" />
+                <div className="flex gap-0.5">
+                  {Array.from({ length: days }, (_, d) => {
+                    const dd = String(d + 1).padStart(2, "0");
+                    const dateStr = `${year}-${mm}-${dd}`;
+                    const code = byDate.get(dateStr);
+                    const obs = hist?.days[dateStr];
+                    const mmVal = obs ? Number(obs.precipitation_mm) || 0 : null;
+                    const rainy = mmVal !== null && mmVal > 0;
+                    const obsLabel = obs
+                      ? `Clima observado: ${fmtMm(mmVal)} mm de precipitación. Fuente: ${obs.source}`
+                      : null;
+                    const regLabel = code ? `Registro de obra: ${WEATHER_LABEL[code]} (${code})` : "Registro de obra: sin registro";
+                    return (
+                      <div key={dateStr} className="flex flex-col items-center w-8 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => cycle(dateStr)}
+                          disabled={busy}
+                          title={`${dateStr}${code ? ` · ${WEATHER_LABEL[code]} (clic para cambiar)` : " · sin registro (clic para B)"}${obsLabel ? `\n${obsLabel}` : ""}\n${regLabel}`}
+                          className={`h-6 w-6 rounded text-[10px] font-medium ${
+                            code ? WEATHER_STYLE[code] : "bg-[var(--panel-2)] text-[var(--muted)]/40"
+                          }`}
+                        >
+                          {code ?? d + 1}
+                        </button>
+                        {mmVal !== null ? (
+                          <span
+                            className={`text-[9px] leading-tight ${rainy ? "text-blue-600 dark:text-blue-300" : "text-[var(--muted)]/50"}`}
+                            title={obsLabel ?? undefined}
+                          >
+                            {rainy ? `🌧 ${fmtMm(mmVal)}` : "0 mm"}
+                          </span>
+                        ) : null}
+                        {rainy && code !== "LL" ? (
+                          <button
+                            type="button"
+                            onClick={() => persist(dateStr, "LL")}
+                            disabled={busy}
+                            data-testid={`usar-como-ll-${dateStr}`}
+                            title={`Usar como Lluvioso (LL) — registra ${dateStr} en el Libro de Obra (acción explícita)`}
+                            className="mt-0.5 rounded border border-blue-500/40 px-1 text-[9px] font-semibold text-blue-600 dark:text-blue-300 hover:bg-blue-500/10"
+                          >
+                            LL
+                          </button>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           );
