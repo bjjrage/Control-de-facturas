@@ -227,6 +227,13 @@ export const PlanillaGrid = memo(function PlanillaGrid({
           resolved[col.key] = hot.getDataAtCell(rowIndex, colIndex);
         }
       });
+      // getSourceData() no devuelve de forma confiable el objeto _style que
+      // se mutó a mano en applyRowStyle (Handsontable no garantiza misma
+      // referencia) — rowStylesRef es la fuente de verdad para esto, no la
+      // data de Handsontable.
+      const style = rowStylesRef.current[rowIndex];
+      if (style) resolved._style = style;
+      else delete resolved._style;
       return resolved;
     });
     onChangeRef.current([...current, ...deletedRef.current]);
@@ -340,19 +347,17 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   function applyRowStyle(patch: Partial<PlanillaRowStyle>) {
     const hot = hotRef.current?.hotInstance;
     if (!hot || !selectedCell) return;
+    // rowStylesRef es la ÚNICA fuente de verdad para el formato — nunca pasa
+    // por la data de Handsontable. hot.setDataAtRowProp con un valor OBJETO
+    // en una prop no declarada como columna ("_style") rompe algo interno de
+    // Handsontable ("Assertion failed: Expecting an unsigned number",
+    // confirmado en vivo, tres implementaciones distintas fallaron igual). Y
+    // mutar a mano el objeto que devuelve getSourceDataAtRow() tampoco sirve:
+    // getSourceData() (que usa emitChange) no garantiza devolver esa misma
+    // referencia. cellsSettings/applyStylesToDom pintan desde acá, y
+    // emitChange también lee de acá para lo que viaja a autosave/confirmar.
     const current: PlanillaRowStyle = rowStylesRef.current[selectedCell.row] ?? {};
-    const next: PlanillaRowStyle = { ...current, ...patch };
-    rowStylesRef.current[selectedCell.row] = next;
-    // Mutación directa del objeto de datos, NO hot.setDataAtRowProp(): "_style"
-    // no es una columna declarada y escribirle un valor OBJETO (no string/
-    // number) vía esa API rompe algo interno de Handsontable con "Assertion
-    // failed: Expecting an unsigned number" (confirmado en vivo, tres intentos
-    // de implementación distintos fallaron igual apenas se llamaba a esa API
-    // con esta prop). Handsontable mantiene la MISMA referencia de objeto que
-    // se le pasó por `data` para filas ya existentes, así que mutarla acá
-    // alcanza para que emitChange() (que lee getSourceData()) la vea.
-    const sourceRow = hot.getSourceDataAtRow(selectedCell.row) as PlanillaGridRow | undefined;
-    if (sourceRow) sourceRow._style = next;
+    rowStylesRef.current[selectedCell.row] = { ...current, ...patch };
     applyStylesToDom();
     emitChange();
   }
