@@ -1,0 +1,364 @@
+/* Rodrigo 2.5D — composición por capas derivadas del modelo aprobado.
+   Las 5 capas comparten el mismo frame (772x831) y se apilan 1:1 con
+   píxeles idénticos, así que en reposo la unión es invisible.
+   El estado llega como .rodrigo--{state}. Poses estáticas con las
+   propiedades `translate`/`rotate`/`scale`; movimiento con `transform`
+   (ambas componen). Nada exagerado. */
+
+.rodrigo {
+  position: relative;
+  aspect-ratio: 772 / 831;
+  height: 100%;
+  margin-inline: auto;
+}
+
+.rodrigo__layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.rodrigo__body {
+  transform-origin: 50% 100%;
+}
+
+.rodrigo__head-group {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform-origin: 38% 47%;
+}
+
+.rodrigo__eyes {
+  transform-origin: 43% 36%;
+}
+
+.rodrigo__arm {
+  transform-origin: 25% 67%;
+}
+
+/* ---------- compartidos ---------- */
+
+@keyframes r-breathe {
+  0%,
+  100% {
+    transform: scaleY(1) scaleX(1);
+  }
+  50% {
+    transform: scaleY(1.008) scaleX(0.998);
+  }
+}
+
+@keyframes r-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes r-bob-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes r-blink {
+  0%,
+  91%,
+  100% {
+    transform: scaleY(1);
+  }
+  94% {
+    transform: scaleY(0.08);
+  }
+  97% {
+    transform: scaleY(1);
+  }
+}
+
+/* ---------- IDLE: respiración + bob + cabeza ±1° + blink ---------- */
+
+.rodrigo--idle {
+  animation: r-bob 3.2s ease-in-out infinite;
+}
+
+.rodrigo--idle .rodrigo__body {
+  animation: r-breathe 3.2s ease-in-out infinite;
+}
+
+.rodrigo--idle .rodrigo__head-group {
+  animation: r-head-idle 4.5s ease-in-out infinite;
+}
+
+.rodrigo--idle .rodrigo__eyes {
+  animation: r-blink 4.2s infinite;
+}
+
+@keyframes r-head-idle {
+  0%,
+  100% {
+    transform: rotate(-1deg);
+  }
+  50% {
+    transform: rotate(1deg);
+  }
+}
+
+/* ---------- THINKING: tilt -2/-3°, ojos arriba/lado, lento ---------- */
+
+.rodrigo--thinking {
+  animation: r-bob-soft 4.5s ease-in-out infinite;
+}
+
+.rodrigo--thinking .rodrigo__body {
+  animation: r-breathe 4s ease-in-out infinite;
+}
+
+.rodrigo--thinking .rodrigo__head-group {
+  rotate: -2.5deg;
+  animation: r-head-thinking 5s ease-in-out infinite;
+}
+
+.rodrigo--thinking .rodrigo__eyes {
+  translate: 2px -2px;
+  animation: r-blink 3s infinite;
+}
+
+@keyframes r-head-thinking {
+  0%,
+  100% {
+    transform: rotate(-0.5deg);
+  }
+  50% {
+    transform: rotate(0.5deg);
+  }
+}
+
+/* ---------- LISTENING: levemente adelante, ojos atentos, glow ---------- */
+
+.rodrigo--listening {
+  translate: 0 1px;
+  scale: 1.008;
+  filter: drop-shadow(0 0 6px rgb(47 158 68 / 0.45));
+}
+
+.rodrigo--listening .rodrigo__body {
+  animation: r-breathe 3.8s ease-in-out infinite;
+}
+
+.rodrigo--listening .rodrigo__head-group {
+  rotate: -0.5deg;
+}
+
+.rodrigo--listening .rodrigo__eyes {
+  animation: r-blink 5.5s infinite;
+}
+
+/* ---------- WORKING: cabeza al clipboard, clipboard micro, ojos abajo ---------- */
+
+.rodrigo--working {
+  animation: r-bob-work 1.8s ease-in-out infinite;
+}
+
+.rodrigo--working .rodrigo__body {
+  animation: r-breathe 2.4s ease-in-out infinite;
+}
+
+.rodrigo--working .rodrigo__head-group {
+  rotate: 2deg;
+  translate: 0 2px;
+  animation: r-head-work 1.8s ease-in-out infinite;
+}
+
+.rodrigo--working .rodrigo__eyes {
+  translate: 0 2px;
+  animation: r-blink 3.6s infinite;
+}
+
+.rodrigo--working .rodrigo__clipboard {
+  animation: r-clip 1.2s ease-in-out infinite;
+}
+
+@keyframes r-bob-work {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1.5px);
+  }
+}
+
+@keyframes r-head-work {
+  0%,
+  100% {
+    transform: rotate(-0.4deg);
+  }
+  50% {
+    transform: rotate(0.4deg);
+  }
+}
+
+@keyframes r-clip {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(1px, -1px);
+  }
+}
+
+/* ---------- APPROVAL: bounce al entrar + alerta ---------- */
+
+.rodrigo--approval {
+  animation:
+    r-approval-in 0.35s ease-out,
+    r-approval-bob 1.6s 0.35s ease-in-out infinite;
+}
+
+.rodrigo--approval .rodrigo__body {
+  animation: r-breathe 2s ease-in-out infinite;
+}
+
+.rodrigo--approval .rodrigo__head-group {
+  rotate: -1deg;
+}
+
+.rodrigo--approval .rodrigo__eyes {
+  animation: r-blink 2.4s infinite;
+}
+
+@keyframes r-approval-in {
+  0% {
+    transform: translateY(4px) scale(0.98);
+  }
+  60% {
+    transform: translateY(-2px) scale(1.005);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes r-approval-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2.5px);
+  }
+}
+
+/* ---------- SUCCESS: brazo/pulgar arriba + hop ---------- */
+
+.rodrigo--success {
+  animation:
+    r-hop 0.5s ease-out 2,
+    r-bob 3s 1s ease-in-out infinite;
+}
+
+.rodrigo--success .rodrigo__body {
+  animation: r-breathe 2.8s ease-in-out infinite;
+}
+
+.rodrigo--success .rodrigo__head-group {
+  rotate: -1deg;
+}
+
+.rodrigo--success .rodrigo__eyes {
+  animation: r-blink 4s infinite;
+}
+
+.rodrigo--success .rodrigo__arm {
+  translate: 0 -0.7%;
+  rotate: -2deg;
+  animation: r-arm-celebrate 0.6s ease-in-out 2;
+}
+
+@keyframes r-hop {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes r-arm-celebrate {
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(-1deg) scale(1.015);
+  }
+}
+
+/* ---------- ERROR: cabeza baja + shake corto + reposo ---------- */
+
+.rodrigo--error {
+  animation: r-shake 0.35s ease-in-out 2;
+}
+
+.rodrigo--error .rodrigo__head-group {
+  rotate: 2deg;
+  translate: 0 2px;
+}
+
+.rodrigo--error .rodrigo__eyes {
+  animation: r-blink 2.8s infinite;
+}
+
+@keyframes r-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+
+/* ---------- DISABLED: grayscale + tenue + casi quieto ---------- */
+
+.rodrigo--disabled {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.rodrigo--disabled,
+.rodrigo--disabled .rodrigo__layer,
+.rodrigo--disabled .rodrigo__head-group {
+  animation: none !important;
+}
+
+.rodrigo--disabled .rodrigo__head-group {
+  rotate: 2deg;
+  translate: 0 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rodrigo,
+  .rodrigo__layer,
+  .rodrigo__head-group {
+    animation: none !important;
+  }
+}
