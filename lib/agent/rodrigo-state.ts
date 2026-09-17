@@ -29,8 +29,14 @@ export type RodrigoStatePresentation = {
 
 export const RODRIGO_SUCCESS_FEEDBACK_MS = 12_000;
 
-const WORKING_TASK_STATUSES = new Set([
+const ACTIVE_TASK_STATUSES = new Set([
   "PENDING",
+  "RUNNING",
+  "WAITING_EXTERNAL",
+  "SCHEDULED",
+]);
+
+const WORKING_TASK_STATUSES = new Set([
   "RUNNING",
   "WAITING_EXTERNAL",
   "SCHEDULED",
@@ -84,6 +90,7 @@ function isRecent(isoDate: string | null | undefined, nowMs: number): boolean {
 export function deriveRodrigoState(tasks: readonly RodrigoTaskSnapshot[], nowMs = Date.now()): RodrigoState {
   if (tasks.some((task) => task.status === "WAITING_APPROVAL")) return "approval";
   if (tasks.some((task) => WORKING_TASK_STATUSES.has(task.status))) return "working";
+  if (tasks.some((task) => task.status === "PENDING")) return "thinking";
   if (tasks.some((task) => task.status === "FAILED")) return "error";
   if (tasks.some((task) => task.status === "COMPLETED" && isRecent(task.completedAt ?? task.updatedAt, nowMs))) {
     return "success";
@@ -100,5 +107,5 @@ export function getRodrigoStatePresentation(state: RodrigoState): RodrigoStatePr
 }
 
 export function isWorkingTaskStatus(status: string): boolean {
-  return WORKING_TASK_STATUSES.has(status);
+  return ACTIVE_TASK_STATUSES.has(status);
 }

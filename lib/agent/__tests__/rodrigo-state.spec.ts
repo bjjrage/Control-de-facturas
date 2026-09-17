@@ -25,7 +25,11 @@ describe("Rodrigo visual state", () => {
     ).toBe("approval");
   });
 
-  it.each(["PENDING", "RUNNING", "WAITING_EXTERNAL", "SCHEDULED"])("mapea %s a working", (status) => {
+  it("mapea PENDING a thinking desde el estado durable", () => {
+    expect(deriveRodrigoState([{ status: "PENDING" }], NOW)).toBe("thinking");
+  });
+
+  it.each(["RUNNING", "WAITING_EXTERNAL", "SCHEDULED"])("mapea %s a working", (status) => {
     expect(deriveRodrigoState([{ status }], NOW)).toBe("working");
   });
 
