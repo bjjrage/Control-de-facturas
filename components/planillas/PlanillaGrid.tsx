@@ -461,6 +461,19 @@ export const PlanillaGrid = memo(function PlanillaGrid({
         style?.bg ? `plr-bg-${style.bg}` : "",
         isMatch ? "plr-search-match" : "",
       ].filter(Boolean);
+      // Filtro real (ocultar, no solo resaltar) — pero por CSS sobre el <tr>
+      // ya renderizado, nunca vía el plugin de filtros de Handsontable. Ese
+      // plugin oculta filas remapeando índice visual/físico, y reconciliar
+      // eso con rowStylesRef (que asume visual === físico en todos lados:
+      // applyRowStyle, copiar formato, alta/baja de fila) en cada punto que
+      // ya lo usa es un trabajo mucho más grande y con más superficie para
+      // otro bug como el de autosuma. Ocultando el <tr> por fuera,
+      // Handsontable ni se entera — countRows()/getCell() siguen viendo
+      // TODAS las filas, visual sigue siendo igual a físico siempre, y todo
+      // lo demás sigue funcionando exactamente igual que sin filtro.
+      const firstTd = hot.getCell(visualRow, 0);
+      const tr = firstTd?.parentElement as HTMLTableRowElement | null | undefined;
+      if (tr) tr.style.display = term.length > 0 && !isMatch ? "none" : "";
       const colCount = hot.countCols();
       for (let col = 0; col < colCount; col++) {
         const td = hot.getCell(visualRow, col);
@@ -542,7 +555,8 @@ export const PlanillaGrid = memo(function PlanillaGrid({
             <input
               value={searchInputValue}
               onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Buscar en la planilla…"
+              placeholder="Filtrar…"
+              title="Oculta las filas que no coincidan con el texto"
               className="w-40 bg-transparent text-[11px] outline-none"
             />
           </div>
