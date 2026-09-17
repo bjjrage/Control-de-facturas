@@ -6,6 +6,7 @@ import type { HotTableRef } from "@handsontable/react-wrapper";
 import Handsontable from "handsontable";
 import { registerAllModules } from "handsontable/registry";
 import { HyperFormula } from "hyperformula";
+import { Plus, Trash2, Undo2, Redo2 } from "lucide-react";
 import type { PlanillaColumn, PlanillaRowMeta } from "@/lib/planillas/types";
 import { colIndexToLetter, isNewRowId, newRowId, resolveFormulaTemplate } from "@/lib/planillas/grid-utils";
 
@@ -278,13 +279,78 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     hot?.setDataAtCell(selectedCell.row, selectedCell.col, formulaBarValue, "PlanillaGrid.formulaBar");
   }
 
+  // Botones visibles para lo que antes solo vivía en el menú contextual
+  // (clic derecho) — insertar/eliminar fila, deshacer/rehacer. El menú
+  // contextual sigue existiendo, esto es un atajo explícito para quien no
+  // sabe que existe el clic derecho.
+  function handleAddRow() {
+    const hot = hotRef.current?.hotInstance;
+    if (!hot) return;
+    const targetRow = selectedCell ? selectedCell.row : hot.countRows() - 1;
+    hot.alter("insert_row_below", targetRow, 1);
+  }
+
+  function handleRemoveRow() {
+    const hot = hotRef.current?.hotInstance;
+    if (!hot || !selectedCell) return;
+    hot.alter("remove_row", selectedCell.row, 1);
+  }
+
+  function handleUndo() {
+    hotRef.current?.hotInstance?.getPlugin("undoRedo").undo();
+  }
+
+  function handleRedo() {
+    hotRef.current?.hotInstance?.getPlugin("undoRedo").redo();
+  }
+
   const cellRef = selectedCell
     ? `${colIndexToLetter(selectedCell.col)}${selectedCell.row + 1}`
     : "";
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex items-center gap-2 h-9 px-2 border border-[var(--border)] border-b-0 rounded-t-lg bg-[var(--panel-2)] shrink-0">
+      {!readOnly ? (
+        <div className="flex items-center gap-1 h-9 px-2 border border-[var(--border)] border-b-0 rounded-t-lg bg-[var(--panel-2)] shrink-0">
+          <button
+            type="button"
+            onClick={handleAddRow}
+            title="Agregar fila"
+            className="flex items-center gap-1 px-2 h-6 rounded text-[11px] text-[var(--foreground)] hover:bg-[var(--hover)]"
+          >
+            <Plus size={13} /> Fila
+          </button>
+          <button
+            type="button"
+            onClick={handleRemoveRow}
+            disabled={!selectedCell}
+            title="Eliminar fila seleccionada"
+            className="flex items-center gap-1 px-2 h-6 rounded text-[11px] text-[var(--foreground)] hover:bg-[var(--hover)] disabled:opacity-40 disabled:hover:bg-transparent"
+          >
+            <Trash2 size={13} /> Eliminar
+          </button>
+          <span className="w-px h-4 bg-[var(--border)] mx-1" />
+          <button
+            type="button"
+            onClick={handleUndo}
+            title="Deshacer"
+            className="flex items-center justify-center w-6 h-6 rounded text-[var(--foreground)] hover:bg-[var(--hover)]"
+          >
+            <Undo2 size={13} />
+          </button>
+          <button
+            type="button"
+            onClick={handleRedo}
+            title="Rehacer"
+            className="flex items-center justify-center w-6 h-6 rounded text-[var(--foreground)] hover:bg-[var(--hover)]"
+          >
+            <Redo2 size={13} />
+          </button>
+        </div>
+      ) : null}
+      <div
+        className={`flex items-center gap-2 h-9 px-2 border border-[var(--border)] border-b-0 bg-[var(--panel-2)] shrink-0 ${readOnly ? "rounded-t-lg" : ""}`}
+      >
         <span className="text-[11px] font-mono text-[var(--muted)] w-12 text-center shrink-0">{cellRef || "—"}</span>
         <span className="text-[var(--border)]">|</span>
         <input
