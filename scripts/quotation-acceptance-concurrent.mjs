@@ -66,7 +66,8 @@ assert(!docErr && doc, "crear proforma: " + docErr?.message);
 await admin.from("sales_document_items").insert({
   sales_document_id: doc.id, description: "SMOKE conc", quantity: 1, unit_price: 10000, vat_rate: 10, line_total: 10000,
 });
-await admin.rpc("recompute_sales_document", { p_doc: doc.id }).catch(() => ({}));
+// Sin recompute explícito: trg_sales_items_recompute (0020) recalcula solo
+// tras el INSERT del ítem, igual que en el flujo real de la app.
 const { data: docNow } = await admin.from("sales_documents").select("quotation_version").eq("id", doc.id).single();
 await admin.from("sales_quotation_tokens").insert({
   empresa_id: EMPRESA, sales_document_id: doc.id, quotation_version: docNow.quotation_version,
