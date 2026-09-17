@@ -15,7 +15,7 @@ function appBaseUrl() {
   return (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
 }
 
-export function portalUrlFor(rawToken: string) {
+function portalUrlFor(rawToken: string) {
   const base = appBaseUrl();
   return base ? `${base}${quotationPortalPath(rawToken)}` : quotationPortalPath(rawToken);
 }
