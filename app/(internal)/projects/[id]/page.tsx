@@ -22,6 +22,9 @@ import {
   ProjectSchedulePlanMonth,
   ProjectUnit,
   ProjectCertificateUnitProgress,
+  ClimateEvent,
+  ProjectWorkdayStatus,
+  ClimateEvidence,
 } from "@/lib/types";
 import { getProjectInventorySnapshot, getBudgetInventoryConsumption } from "@/lib/inventory/service";
 import { ProjectTabsClient } from "./project-tabs-client";
@@ -109,10 +112,13 @@ export default async function ProjectDetailPage({
   let projectUnits: ProjectUnit[] = [];
   const unitProgressByCert: Record<string, ProjectCertificateUnitProgress[]> = {};
   let projectWeatherLogs: ProjectWeatherLog[] = [];
+  let climateEvents: ClimateEvent[] = [];
+  let climateWorkdays: ProjectWorkdayStatus[] = [];
+  let climateEvidence: ClimateEvidence[] = [];
   let projectSchedulePlans: ProjectSchedulePlan[] = [];
   const schedulePlanMonths: Record<string, ProjectSchedulePlanMonth[]> = {};
   if (isCaterpillar) {
-    const [{ data: certRows }, { data: weatherRows }, { data: planRows }, { data: unitRows }] = await Promise.all([
+    const [{ data: certRows }, { data: weatherRows }, { data: planRows }, { data: unitRows }, { data: eventRows }, { data: workdayRows }, { data: evidenceRows }] = await Promise.all([
       supabase
         .from("project_certificates")
         .select("*")
@@ -138,11 +144,35 @@ export default async function ProjectDetailPage({
         .eq("activo", true)
         .order("sort_order")
         .returns<ProjectUnit[]>(),
+      supabase
+        .from("climate_events")
+        .select("*")
+        .eq("project_id", id)
+        .order("event_date", { ascending: false })
+        .limit(90)
+        .returns<ClimateEvent[]>(),
+      supabase
+        .from("project_workday_status")
+        .select("*")
+        .eq("project_id", id)
+        .order("work_date", { ascending: false })
+        .limit(90)
+        .returns<ProjectWorkdayStatus[]>(),
+      supabase
+        .from("climate_evidence")
+        .select("*")
+        .eq("project_id", id)
+        .order("created_at", { ascending: false })
+        .limit(180)
+        .returns<ClimateEvidence[]>(),
     ]);
     projectCertificates = certRows ?? [];
     projectWeatherLogs = weatherRows ?? [];
     projectSchedulePlans = planRows ?? [];
     projectUnits = unitRows ?? [];
+    climateEvents = eventRows ?? [];
+    climateWorkdays = workdayRows ?? [];
+    climateEvidence = evidenceRows ?? [];
 
     if (projectCertificates.length > 0) {
       const certIds = projectCertificates.map((c) => c.id);
@@ -182,6 +212,35 @@ export default async function ProjectDetailPage({
         .returns<ProjectSchedulePlanMonth[]>();
       for (const m of monthRows ?? []) (schedulePlanMonths[m.plan_id] ??= []).push(m);
     }
+  }
+
+  if (!isCaterpillar) {
+    const [{ data: eventRows }, { data: workdayRows }, { data: evidenceRows }] = await Promise.all([
+      supabase
+        .from("climate_events")
+        .select("*")
+        .eq("project_id", id)
+        .order("event_date", { ascending: false })
+        .limit(90)
+        .returns<ClimateEvent[]>(),
+      supabase
+        .from("project_workday_status")
+        .select("*")
+        .eq("project_id", id)
+        .order("work_date", { ascending: false })
+        .limit(90)
+        .returns<ProjectWorkdayStatus[]>(),
+      supabase
+        .from("climate_evidence")
+        .select("*")
+        .eq("project_id", id)
+        .order("created_at", { ascending: false })
+        .limit(180)
+        .returns<ClimateEvidence[]>(),
+    ]);
+    climateEvents = eventRows ?? [];
+    climateWorkdays = workdayRows ?? [];
+    climateEvidence = evidenceRows ?? [];
   }
 
   let subcontractorCatalog: Subcontractor[] = [];
@@ -603,6 +662,9 @@ export default async function ProjectDetailPage({
       projectUnits={projectUnits}
       unitProgressByCert={unitProgressByCert}
       projectWeatherLogs={projectWeatherLogs}
+      climateEvents={climateEvents}
+      climateWorkdays={climateWorkdays}
+      climateEvidence={climateEvidence}
       projectSchedulePlans={projectSchedulePlans}
       schedulePlanMonths={schedulePlanMonths}
       consumo={consumo}

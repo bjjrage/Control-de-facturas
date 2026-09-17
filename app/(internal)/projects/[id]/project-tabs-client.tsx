@@ -26,6 +26,9 @@ import {
   ProjectSchedulePlanMonth,
   ProjectUnit,
   ProjectCertificateUnitProgress,
+  ClimateEvent,
+  ProjectWorkdayStatus,
+  ClimateEvidence,
 } from "@/lib/types";
 import { AddBudgetItemForm } from "./add-budget-item-form";
 import { ImportBudgetDialog } from "./import-budget-dialog";
@@ -62,6 +65,7 @@ import { OrderDialog } from "@/app/(internal)/orders/order-dialog";
 import { AddProjectProviderDialog } from "./add-project-provider-dialog";
 import { ExecutionLinkDialog } from "./execution-link-dialog";
 import { ProyectoProveedoresTable } from "./proyecto-proveedores-table";
+import { ClimateWorkdaysPanel } from "./climate-workdays-panel";
 
 type Props = {
   project: Project;
@@ -95,6 +99,9 @@ type Props = {
   projectUnits: ProjectUnit[];
   unitProgressByCert: Record<string, ProjectCertificateUnitProgress[]>;
   projectWeatherLogs: ProjectWeatherLog[];
+  climateEvents: ClimateEvent[];
+  climateWorkdays: ProjectWorkdayStatus[];
+  climateEvidence: ClimateEvidence[];
   projectSchedulePlans: ProjectSchedulePlan[];
   schedulePlanMonths: Record<string, ProjectSchedulePlanMonth[]>;
   consumo: ConsumoRow[];
@@ -142,6 +149,9 @@ export function ProjectTabsClient({
   projectUnits,
   unitProgressByCert,
   projectWeatherLogs,
+  climateEvents,
+  climateWorkdays,
+  climateEvidence,
   projectSchedulePlans,
   schedulePlanMonths,
   consumo,
@@ -323,7 +333,15 @@ export function ProjectTabsClient({
       ) : null}
 
       {tab === "cronograma" ? (
-        <ProjectGantt projectId={project.id} budgetItems={items} execEntries={entries} />
+        <div className="space-y-5">
+          <ProjectGantt projectId={project.id} budgetItems={items} execEntries={entries} />
+          <ClimateWorkdaysPanel
+            project={project}
+            events={climateEvents}
+            workdays={climateWorkdays}
+            evidence={climateEvidence}
+          />
+        </div>
       ) : null}
 
       {tab === "ejecucion" ? (
