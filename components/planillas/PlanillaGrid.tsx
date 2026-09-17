@@ -6,7 +6,7 @@ import type { HotTableRef } from "@handsontable/react-wrapper";
 import Handsontable from "handsontable";
 import { registerAllModules } from "handsontable/registry";
 import { HyperFormula } from "hyperformula";
-import { Plus, Trash2, Undo2, Redo2, Bold, AlignLeft, AlignCenter, AlignRight, Ban } from "lucide-react";
+import { Plus, Trash2, Undo2, Redo2, Bold, AlignLeft, AlignCenter, AlignRight, Ban, Sigma, Paintbrush, Search } from "lucide-react";
 import type { PlanillaColumn, PlanillaRowMeta, PlanillaRowStyle } from "@/lib/planillas/types";
 import { colIndexToLetter, isNewRowId, newRowId, resolveFormulaTemplate } from "@/lib/planillas/grid-utils";
 
@@ -153,6 +153,26 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   const deletedRef = useRef<PlanillaGridRow[]>([]);
   const [formulaBarValue, setFormulaBarValue] = useState("");
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
+  // Copiar formato: dos clics, como el "brush" de Excel. El primero (botón
+  // Paintbrush) copia el estilo de la fila seleccionada acá; el siguiente
+  // clic en OTRA fila lo aplica (reemplaza, no mezcla) y apaga el modo.
+  const [isPainting, setIsPainting] = useState(false);
+  const paintedStyleRef = useRef<PlanillaRowStyle | null>(null);
+
+  // "Filtros": buscar y RESALTAR filas coincidentes, no ocultarlas. El
+  // filtro nativo de Handsontable (filters/dropdownMenu) oculta filas
+  // reordenando índice visual vs. físico — reconciliar eso con rowStylesRef
+  // (indexado por fila física) en todos los puntos que ya lo usan
+  // (applyRowStyle, autosuma, copiar formato, los botones de fila) es un
+  // trabajo mucho más grande y arriesgado que lo que da a entender agregar
+  // dos props. Resaltar sin ocultar evita ese problema por completo.
+  // searchTermRef en vez de un dependency de applyStylesToDom a propósito:
+  // ese callback se pasa como `afterRender`, y el wrapper de Handsontable
+  // llama a updateSettings() cada vez que esa prop cambia de referencia
+  // (ver el comentario grande sobre memo() más abajo) — si dependiera del
+  // estado de búsqueda, tipear en el buscador dispararía ese mismo problema.
+  const searchTermRef = useRef("");
+  const [searchInputValue, setSearchInputValue] = useState("");
 
   const htColumns = useMemo(() => columns.map(columnToHtConfig), [columns]);
   const colHeaders = useMemo(() => columns.map((c) => c.label), [columns]);
@@ -306,6 +326,22 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     const raw = hot.getSourceDataAtCell(row, column);
     const next = raw === null || raw === undefined ? "" : String(raw);
     setFormulaBarValue((prev) => (prev === next ? prev : next));
+
+    // Segundo clic del "copiar formato": aplica lo copiado a esta fila
+    // (reemplaza entera, no mezcla con lo que ya tenía) y apaga el modo.
+    // applyStylesToDom/emitChange no están en las deps a propósito (mismo
+    // criterio que el resto de los handlers de este componente): ambos
+    // memoizan a una referencia estable durante toda la vida del componente,
+    // así que este closure siempre ve la versión correcta sin necesidad de
+    // volver a registrar el hook — que es justamente lo que hay que evitar acá.
+    if (paintedStyleRef.current) {
+      rowStylesRef.current[row] = { ...paintedStyleRef.current };
+      paintedStyleRef.current = null;
+      setIsPainting(false);
+      applyStylesToDom();
+      emitChange();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function commitFormulaBar() {
@@ -337,6 +373,43 @@ export const PlanillaGrid = memo(function PlanillaGrid({
 
   function handleRedo() {
     hotRef.current?.hotInstance?.getPlugin("undoRedo").redo();
+  }
+
+  // Autosuma tipo Excel: toma el rango seleccionado en UNA columna y escribe
+  // =SUM(...) en la celda siguiente (crea la fila si hace falta). Usa
+  // hot.setDataAtCell sobre una columna DECLARADA — el mismo camino ya
+  // probado en vivo para fórmulas libres (commitFormulaBar) — nunca
+  // setDataAtRowProp sobre un prop oculto, que es lo que rompía con _style.
+  function handleAutosum() {
+    const hot = hotRef.current?.hotInstance;
+    if (!hot) return;
+    const range = hot.getSelectedRangeLast();
+    if (!range) return;
+    const { row: fromRow, col } = range.from;
+    const { row: toRow, col: toCol } = range.to;
+    if (fromRow === null || toRow === null || col === null || toCol === null) return;
+    if (col !== toCol) return; // autosuma de una sola columna, como el botón Σ de Excel
+    const startRow = Math.min(fromRow, toRow);
+    const endRow = Math.max(fromRow, toRow);
+    const targetRow = endRow + 1;
+    if (targetRow >= hot.countRows()) hot.alter("insert_row_below", endRow, 1);
+    const colLetter = colIndexToLetter(col);
+    const formula = `=SUM(${colLetter}${startRow + 1}:${colLetter}${endRow + 1})`;
+    hot.setDataAtCell(targetRow, col, formula, "PlanillaGrid.autosum");
+  }
+
+  // Copiar formato ("brush" de Excel): un botón, dos clics. Acá solo copia;
+  // quien lo APLICA es handleAfterSelectionEnd (arriba), en el próximo clic.
+  function handleStartPaintFormat() {
+    if (!selectedCell) return;
+    paintedStyleRef.current = { ...(rowStylesRef.current[selectedCell.row] ?? {}) };
+    setIsPainting(true);
+  }
+
+  function handleSearchChange(value: string) {
+    setSearchInputValue(value);
+    searchTermRef.current = value;
+    applyStylesToDom();
   }
 
   // Formato por FILA (no por celda individual) — coincide con el caso de uso
@@ -375,27 +448,61 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   // vuelve a llamar afterRender después de cualquier cambio de datos, así
   // que alcanza para mantenerlo sincronizado sin tocar su resolución interna
   // de metadatos de celda para nada.
+  // Índices de columnas numéricas (no de texto) — para el separador de
+  // miles de abajo. Se recalcula solo si cambian las columnas (estable en
+  // la vida de una sesión de planilla, mismo criterio que htColumns).
+  const numericColIndexes = useMemo(
+    () => columns.map((c, i) => (c.type !== "text" ? i : -1)).filter((i) => i >= 0),
+    [columns]
+  );
+
   const applyStylesToDom = useCallback(() => {
     const hot = hotRef.current?.hotInstance;
     if (!hot) return;
+    // rowStylesRef está indexado por fila FÍSICA (así se mantiene en
+    // afterCreateRow/beforeRemoveRow), pero hot.getCell()/getDataAtCell()
+    // esperan fila VISUAL — con los filtros activos ambas dejan de coincidir
+    // (una fila filtrada no tiene índice visual). Sin esta conversión, con
+    // un filtro puesto el formato terminaría pintando la fila equivocada.
+    const term = searchTermRef.current.trim().toLowerCase();
     const rowCount = hot.countRows();
-    for (let row = 0; row < rowCount; row++) {
-      const style = rowStylesRef.current[row];
+    for (let physicalRow = 0; physicalRow < rowCount; physicalRow++) {
+      const visualRow = hot.toVisualRow(physicalRow);
+      if (visualRow === null || visualRow === undefined || visualRow < 0) continue; // fila oculta por un filtro
+      const style = rowStylesRef.current[physicalRow];
+      const rowData = hot.getSourceDataAtRow(physicalRow) as PlanillaGridRow | undefined;
+      const isMatch =
+        term.length > 0 &&
+        rowData !== undefined &&
+        Object.entries(rowData).some(
+          ([key, v]) => !key.startsWith("_") && v !== null && v !== undefined && String(v).toLowerCase().includes(term)
+        );
       const classes = [
         style?.bold ? "plr-bold" : "",
         style?.align ? `plr-align-${style.align}` : "",
         style?.color ? `plr-fg-${style.color}` : "",
         style?.bg ? `plr-bg-${style.bg}` : "",
+        isMatch ? "plr-search-match" : "",
       ].filter(Boolean);
       const colCount = hot.countCols();
       for (let col = 0; col < colCount; col++) {
-        const td = hot.getCell(row, col);
+        const td = hot.getCell(visualRow, col);
         if (!td) continue; // fuera del viewport virtualizado
         td.className = td.className.replace(/\bplr-\S+/g, "").trim();
         if (classes.length) td.classList.add(...classes);
+        // Separador de miles — post-proceso sobre lo que Handsontable ya
+        // renderizó (mismo mecanismo que las clases de arriba), no toca la
+        // data ni un renderer custom: Cantidad/Precio unitario/Subtotal se
+        // ven con formato de miles en vez de un número corrido.
+        if (numericColIndexes.includes(col)) {
+          const value = hot.getDataAtCell(visualRow, col);
+          if (typeof value === "number" && Number.isFinite(value)) {
+            td.textContent = value.toLocaleString("es-PY", { maximumFractionDigits: 2 });
+          }
+        }
       }
     }
-  }, []);
+  }, [numericColIndexes]);
 
   const cellRef = selectedCell
     ? `${colIndexToLetter(selectedCell.col)}${selectedCell.row + 1}`
@@ -439,6 +546,38 @@ export const PlanillaGrid = memo(function PlanillaGrid({
           >
             <Redo2 size={13} />
           </button>
+          <span className="w-px h-4 bg-[var(--border)] mx-1" />
+          <button
+            type="button"
+            onClick={handleAutosum}
+            disabled={!selectedCell}
+            title="Autosuma (=SUM del rango seleccionado)"
+            className="flex items-center gap-1 px-2 h-6 rounded text-[11px] text-[var(--foreground)] hover:bg-[var(--hover)] disabled:opacity-40 disabled:hover:bg-transparent"
+          >
+            <Sigma size={13} /> Autosuma
+          </button>
+          <button
+            type="button"
+            onClick={handleStartPaintFormat}
+            disabled={!selectedCell}
+            title="Copiar formato — elegí la fila origen, después clic en la fila destino"
+            aria-pressed={isPainting}
+            className={`flex items-center gap-1 px-2 h-6 rounded text-[11px] disabled:opacity-40 disabled:hover:bg-transparent ${
+              isPainting ? "bg-[var(--primary)] text-[#1a0e00]" : "text-[var(--foreground)] hover:bg-[var(--hover)]"
+            }`}
+          >
+            <Paintbrush size={13} /> Copiar formato
+          </button>
+          <span className="w-px h-4 bg-[var(--border)] mx-1" />
+          <div className="flex items-center gap-1 h-6 px-2 rounded border border-[var(--border)] bg-[var(--panel)]">
+            <Search size={12} className="text-[var(--muted)]" />
+            <input
+              value={searchInputValue}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="Buscar en la planilla…"
+              className="w-40 bg-transparent text-[11px] outline-none"
+            />
+          </div>
         </div>
       ) : null}
       {!readOnly ? (
@@ -590,6 +729,10 @@ export const PlanillaGrid = memo(function PlanillaGrid({
         .plr-bg-red { background-color: rgba(242,104,92,0.18) !important; }
         .plr-bg-green { background-color: rgba(45,212,191,0.16) !important; }
         .plr-bg-blue { background-color: rgba(96,165,250,0.16) !important; }
+        /* Va al final a propósito: gana por orden de declaración (misma
+           especificidad + !important que las de fondo) cuando una fila con
+           resaltado propio también matchea la búsqueda. */
+        .plr-search-match { background-color: rgba(45,212,191,0.32) !important; }
       `}</style>
     </div>
   );
