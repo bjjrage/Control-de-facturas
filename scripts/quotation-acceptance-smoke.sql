@@ -287,6 +287,6 @@ BEGIN
   IF v_n_acc <> 1 OR v_n_wo <> 1 THEN
     RAISE EXCEPTION 'SMOKE §10: cadena de evidencia alterada acc=% ot=%', v_n_acc, v_n_wo;
   END IF;
-  SELECT v_wo.code INTO v_tok_prefix_tmp FROM public.work_orders v_wo WHERE sales_document_id = v_doc;
+  SELECT wo.code INTO v_tok_prefix_tmp FROM public.work_orders wo WHERE wo.sales_document_id = v_doc;
   RAISE NOTICE 'SMOKE COMPLETO OK: evidencia permanente doc=% ot=% (cadena aceptada bloqueada por diseño)', v_doc, v_tok_prefix_tmp;
 END $$;
