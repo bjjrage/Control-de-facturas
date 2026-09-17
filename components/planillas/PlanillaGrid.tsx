@@ -180,6 +180,15 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   // en su vida útil, así que una sola computación al montar es correcta.
   const [seedInitialRows] = useState(() => initialRows.map((r, i) => applyFormulaDefaults({ ...r }, i)));
 
+  // Espejo del formato por fila, indexado por posición física — NO se lee
+  // llamando a hot.getSourceDataAtRow() desde dentro de cells() (ver abajo):
+  // eso reentra en la resolución de metadatos de Handsontable mientras
+  // todavía está en curso y tira "Assertion failed: Expecting an unsigned
+  // number" (confirmado en vivo). cells() y el estado de los botones del
+  // toolbar leen de acá; applyRowStyle() y los handlers de alta/baja de fila
+  // son los únicos que lo escriben, en paralelo a la data real de Handsontable.
+  const rowStylesRef = useRef<(PlanillaRowStyle | undefined)[]>(seedInitialRows.map((r) => r._style));
+
   // El wrapper de React de Handsontable vuelve a registrar cada hook
   // (afterChange, afterSelectionEnd, etc.) cada vez que la función pasada
   // como prop cambia de referencia — y re-registrar afterSelectionEnd, por
@@ -235,6 +244,7 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     (index: number, amount: number) => {
       const hot = hotRef.current?.hotInstance;
       if (!hot) return;
+      rowStylesRef.current.splice(index, 0, ...new Array(amount).fill(undefined));
       for (let i = 0; i < amount; i++) {
         const rowIndex = index + i;
         hot.setDataAtRowProp(rowIndex, "_rowId", newRowId(), "PlanillaGrid.afterCreateRow");
@@ -266,6 +276,7 @@ export const PlanillaGrid = memo(function PlanillaGrid({
         deletedRef.current.push({ _rowId: row._rowId, _version: row._version, _deleted: true });
       }
     }
+    rowStylesRef.current.splice(index, amount);
   }, []);
 
   const handleAfterRemoveRow = useCallback(() => {
@@ -329,26 +340,25 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   function applyRowStyle(patch: Partial<PlanillaRowStyle>) {
     const hot = hotRef.current?.hotInstance;
     if (!hot || !selectedCell) return;
-    const row = hot.getSourceDataAtRow(selectedCell.row) as PlanillaGridRow;
-    const current: PlanillaRowStyle = row._style ?? {};
+    const current: PlanillaRowStyle = rowStylesRef.current[selectedCell.row] ?? {};
     const next: PlanillaRowStyle = { ...current, ...patch };
+    rowStylesRef.current[selectedCell.row] = next;
     hot.setDataAtRowProp(selectedCell.row, "_style", next, "PlanillaGrid.style");
     hot.render();
     emitChange();
   }
 
   const selectedRowStyle: PlanillaRowStyle = selectedCell
-    ? ((hotRef.current?.hotInstance?.getSourceDataAtRow(selectedCell.row) as PlanillaGridRow | undefined)
-        ?._style ?? {})
+    ? rowStylesRef.current[selectedCell.row] ?? {}
     : {};
 
-  // cells() se re-evalúa en cada render de Handsontable — leer el estilo acá
-  // (en vez de intentar sincronizarlo a mano) es lo que hace que aparezca al
-  // instante después de applyRowStyle()/hot.render() y también al recargar
-  // la planilla desde un snapshot ya guardado.
+  // cells() se re-evalúa en cada render de Handsontable — lee del espejo
+  // (rowStylesRef), nunca llamando a métodos de la instancia acá adentro:
+  // hot.getSourceDataAtRow() reentra en la resolución de metadatos que
+  // Handsontable todavía tiene en curso al invocar este callback y tira
+  // "Assertion failed: Expecting an unsigned number" (confirmado en vivo).
   const cellsSettings = useCallback((row: number): Handsontable.CellMeta => {
-    const hot = hotRef.current?.hotInstance;
-    const style = (hot?.getSourceDataAtRow(row) as PlanillaGridRow | undefined)?._style;
+    const style = rowStylesRef.current[row];
     if (!style) return {};
     const classes: string[] = [];
     if (style.bold) classes.push("plr-bold");
