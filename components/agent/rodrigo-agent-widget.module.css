@@ -1,0 +1,183 @@
+.widget {
+  isolation: isolate;
+}
+
+.panel {
+  animation: rodrigo-panel-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.mascotButton {
+  background:
+    radial-gradient(circle at 50% 34%, rgba(96, 165, 250, 0.22), transparent 56%),
+    var(--panel);
+}
+
+.mascot {
+  animation: rodrigo-float 5.6s ease-in-out infinite;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.26));
+  transform-origin: 50% 100%;
+  will-change: transform, filter;
+}
+
+.stateIcon {
+  background: var(--neutral-bg);
+  color: var(--muted);
+}
+
+.state-listening .mascot {
+  animation: rodrigo-listening 2.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 11px rgba(96, 165, 250, 0.7));
+}
+
+.state-listening .stateIcon {
+  background: rgba(56, 189, 248, 0.16);
+  color: #7dd3fc;
+}
+
+.state-thinking .mascot {
+  animation: rodrigo-thinking 2.6s ease-in-out infinite;
+}
+
+.state-thinking .stateIcon,
+.state-working .stateIcon {
+  background: var(--primary-bg);
+  color: var(--primary-hover);
+}
+
+.state-working .mascot {
+  animation: rodrigo-working 3.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 9px rgba(251, 191, 36, 0.24));
+}
+
+.state-approval .mascot {
+  filter: drop-shadow(0 0 11px rgba(245, 165, 36, 0.36));
+}
+
+.state-approval .stateIcon {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.state-success .mascot {
+  animation: rodrigo-success 650ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  filter: drop-shadow(0 0 10px rgba(52, 211, 153, 0.38));
+}
+
+.state-success .stateIcon {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+
+.state-error .mascot {
+  filter: drop-shadow(0 0 8px rgba(242, 104, 92, 0.24));
+}
+
+.state-error .stateIcon {
+  background: var(--error-bg);
+  color: var(--error);
+}
+
+.state-disabled {
+  opacity: 0.56;
+}
+
+.state-disabled .mascot {
+  animation: none;
+  filter: grayscale(0.35) saturate(0.55);
+}
+
+.state-disabled .stateIcon {
+  background: var(--neutral-bg);
+  color: var(--muted);
+}
+
+.approvalBadge {
+  animation: rodrigo-approval-badge 2.4s ease-in-out infinite;
+}
+
+@keyframes rodrigo-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes rodrigo-listening {
+  0%,
+  100% {
+    opacity: 0.98;
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.012);
+  }
+}
+
+@keyframes rodrigo-thinking {
+  0%,
+  100% {
+    transform: translateX(-1px) translateY(0);
+  }
+  50% {
+    transform: translateX(2px) translateY(-2px);
+  }
+}
+
+@keyframes rodrigo-working {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes rodrigo-success {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  45% {
+    transform: translateY(-4px) scale(1.025);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes rodrigo-approval-badge {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 165, 36, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(245, 165, 36, 0.16);
+  }
+}
+
+@keyframes rodrigo-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .mascot,
+  .state-listening .mascot,
+  .state-thinking .mascot,
+  .state-working .mascot,
+  .state-success .mascot,
+  .approvalBadge {
+    animation: none;
+  }
+}
