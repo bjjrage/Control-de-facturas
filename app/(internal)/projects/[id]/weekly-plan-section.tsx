@@ -16,6 +16,8 @@ import {
   Plus,
   Trash2,
   Calculator,
+  List,
+  Boxes,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +39,13 @@ import {
   remainingForItem,
   isGroupingItem,
 } from "@/lib/procurement/weekly-plan-shared";
+import {
+  buildBlockGroups,
+  blockSelectionTargets,
+  blockWeightedProgress,
+  aggregateMaterialsByProduct,
+  type BlockGroup,
+} from "@/lib/procurement/weekly-plan-blocks";
 
 interface Props {
   project: Project;
@@ -104,8 +113,28 @@ export function WeeklyPlanSection({ project }: Props) {
   // Metas LOCALES (aún no guardadas) — "¿qué quiero hacer?".
   const [frontTargets, setFrontTargets] = useState<EditableFrontTarget[]>([]);
 
-  // Qué editor inline está expandido (una partida por vez).
+  // Qué editor inline está expandido (una partida por vez, modo partida).
   const [editorItemId, setEditorItemId] = useState<string | null>(null);
+
+  // ---- Modo de planificación: BLOQUE (protagonista) vs PARTIDA (avanzado) --
+  type PlanMode = "BLOCK" | "ITEM";
+  const [planMode, setPlanMode] = useState<PlanMode>("BLOCK");
+  // Bloques derivados del presupuesto existente (parent_id + raíz de código).
+  const blocks: BlockGroup[] = useMemo(() => buildBlockGroups(budgetItems), [budgetItems]);
+  const [selectedBlockKey, setSelectedBlockKey] = useState<string | null>(null);
+  const [blockPp, setBlockPp] = useState<number>(10);
+  const [blockFront, setBlockFront] = useState<string>("Sector A");
+  const [excludedByBlock, setExcludedByBlock] = useState<Record<string, string[]>>({});
+  // Foto del bloque al momento de calcular (encabezado agregado honesto).
+  const [previewBlock, setPreviewBlock] = useState<{
+    key: string;
+    code: string;
+    description: string;
+    front: string;
+    pp: number;
+    includedCount: number;
+  } | null>(null);
+  const [blockDetailOpen, setBlockDetailOpen] = useState(false);
 
   // Resultado del preview SIN guardar — "¿qué necesito? / ¿es factible?".
   const [preview, setPreview] = useState<WeeklyPlanCalculationSummary | null>(null);
@@ -253,6 +282,103 @@ export function WeeklyPlanSection({ project }: Props) {
     );
   };
 
+  // ---- Modo bloque: el bloque genera metas (mismo pipeline aguas abajo) ----
+
+  const selectedBlock: BlockGroup | undefined = blocks.find((b) => b.key === selectedBlockKey) ?? undefined;
+  const excludedOf = (blockKey: string): string[] => excludedByBlock[blockKey] ?? [];
+  // Overrides manuales por fila del bloque ("blockKey::itemId"): sobreviven a
+  // re-aplicaciones de pp/frente. Si la fila vuelve a igualar al bloque, se
+  // re-vincula sola (override eliminado).
+  const [blockOverrides, setBlockOverrides] = useState<Record<string, { inputMode: WeeklyPlanInputMode; inputValue: number }>>({});
+  const overrideKey = (blockKey: string, itemId: string) => `${blockKey}::${itemId}`;
+
+  /**
+   * Aplica la selección del bloque a frontTargets (única fuente del pipeline
+   * resumen → preview → save). Usa el helper testeado blockSelectionTargets
+   * (misma semántica +pp que los tests): regenera las filas de las hijas
+   * incluidas; las filas de otras partidas no se tocan. Cambiar pp/frente
+   * re-aplica (default explícito, ver hint en la UI).
+   */
+  const applyBlock = (block: BlockGroup, pp: number, front: string, excludedIds: string[]) => {
+    const childIds = new Set(block.children.map((c) => c.id));
+    const kept = frontTargets.filter((t) => !childIds.has(t.budget_item_id));
+    const overrides: Record<string, { inputMode: WeeklyPlanInputMode; inputValue: number }> = {};
+    for (const c of block.children) {
+      const ov = blockOverrides[overrideKey(block.key, c.id)];
+      if (ov) overrides[c.id] = ov;
+    }
+    const fresh: EditableFrontTarget[] = blockSelectionTargets(block, {
+      pp,
+      front,
+      excludedIds,
+      overrides,
+    }).map((t) => ({
+      id: newFrontId(t.budgetItemId),
+      budget_item_id: t.budgetItemId,
+      front_label: t.frontLabel ?? "",
+      input_mode: t.inputMode,
+      input_value: t.inputValue,
+    }));
+    setFrontTargets([...kept, ...fresh]);
+  };
+
+  const handlePlanBlock = (block: BlockGroup) => {
+    if (selectedBlockKey === block.key) {
+      setSelectedBlockKey(null);
+      return;
+    }
+    setSelectedBlockKey(block.key);
+    setBlockDetailOpen(false);
+    applyBlock(block, blockPp, blockFront, excludedOf(block.key));
+  };
+
+  const handleBlockPp = (block: BlockGroup, pp: number) => {
+    const v = Math.max(0, pp || 0);
+    setBlockPp(v);
+    applyBlock(block, v, blockFront, excludedOf(block.key));
+  };
+
+  const handleBlockFront = (block: BlockGroup, front: string) => {
+    setBlockFront(front);
+    applyBlock(block, blockPp, front, excludedOf(block.key));
+  };
+
+  const handleBlockToggleChild = (block: BlockGroup, childId: string, include: boolean) => {
+    const prev = excludedOf(block.key);
+    const next = include ? prev.filter((id) => id !== childId) : [...prev, childId];
+    setExcludedByBlock({ ...excludedByBlock, [block.key]: next });
+    applyBlock(block, blockPp, blockFront, next);
+  };
+
+  // Edición fina por fila del bloque: actualiza la fila y registra override
+  // manual (sobrevive a re-aplicaciones de pp/frente). Si iguala al default
+  // del bloque, se re-vincula (override eliminado).
+  const handleBlockRowUpdate = (
+    block: BlockGroup,
+    childId: string,
+    targetId: string,
+    field: "input_value" | "input_mode",
+    val: string
+  ) => {
+    handleUpdateFront(targetId, field, val);
+    const row = frontTargets.find((t) => t.id === targetId);
+    if (!row) return;
+    const newMode = (field === "input_mode" ? val : row.input_mode) as WeeklyPlanInputMode;
+    const newValue = field === "input_value" ? Math.max(0, parseFloat(val) || 0) : Number(row.input_value);
+    const key = overrideKey(block.key, childId);
+    const matchesBlock =
+      newMode === "CONTRACT_PERCENTAGE_POINTS" && newValue === Math.max(0, blockPp);
+    setBlockOverrides((prev) => {
+      if (matchesBlock) {
+        if (!(key in prev)) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      }
+      return { ...prev, [key]: { inputMode: newMode, inputValue: newValue } };
+    });
+  };
+
   // ---- preview sin guardar (MISMO engine, vía server action) ----
 
   const handleCalcular = () => {
@@ -305,6 +431,20 @@ export function WeeklyPlanSection({ project }: Props) {
           setPreview(res.data.calculation);
           setPreviewKey(currentKey);
           setExpandedResultKey(null);
+          // Foto del bloque para el encabezado agregado (honesto a ese cálculo).
+          if (planMode === "BLOCK" && selectedBlock) {
+            const excl = new Set(excludedOf(selectedBlock.key));
+            setPreviewBlock({
+              key: selectedBlock.key,
+              code: selectedBlock.code,
+              description: selectedBlock.description,
+              front: blockFront.trim() || "Sector A",
+              pp: blockPp,
+              includedCount: selectedBlock.children.filter((c) => !excl.has(c.id)).length,
+            });
+          } else {
+            setPreviewBlock(null);
+          }
           // N1: el mensaje deriva del resultado real, no del toggle (si el
           // provider falló, el badge "overlay no disponible" lo informa).
           setSuccessMsg(
@@ -413,7 +553,7 @@ export function WeeklyPlanSection({ project }: Props) {
     preview?.items.filter((i) => i.advisory_capacity_warning).slice(0, 5) ?? [];
 
   return (
-    <div className="w-full max-w-full min-w-0 rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5 shadow-xs space-y-6">
+    <div className="w-full max-w-full min-w-0 glass glass-texture p-5 space-y-6">
       {/* ============ 1. PERÍODO ============ */}
       <div className="flex flex-col gap-3 border-b border-[var(--border)] pb-4">
         <div className="flex items-center gap-2">
@@ -503,7 +643,50 @@ export function WeeklyPlanSection({ project }: Props) {
         </div>
       )}
 
+      {/* ============ MODO: ¿CÓMO QUERÉS PLANIFICAR? ============ */}
+      <div className="flex flex-col gap-1.5">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+          ¿Cómo querés planificar?
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-0.5 text-xs">
+            <button
+              type="button"
+              onClick={() => setPlanMode("BLOCK")}
+              data-testid="modo-bloque"
+              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors ${
+                planMode === "BLOCK"
+                  ? "bg-emerald-600 text-white font-semibold"
+                  : "text-[var(--muted)] hover:text-[var(--foreground)]"
+              }`}
+            >
+              <Layers className="h-3.5 w-3.5" />
+              POR BLOQUE / RUBRO
+            </button>
+            <button
+              type="button"
+              onClick={() => setPlanMode("ITEM")}
+              data-testid="modo-partida"
+              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors ${
+                planMode === "ITEM"
+                  ? "bg-emerald-600 text-white font-semibold"
+                  : "text-[var(--muted)] hover:text-[var(--foreground)]"
+              }`}
+            >
+              <List className="h-3.5 w-3.5" />
+              POR PARTIDA
+            </button>
+          </div>
+          <span className="text-[11px] text-[var(--muted)]">
+            {planMode === "BLOCK"
+              ? "Elegí qué bloque avanzar; el sistema lo descompone en partidas, materiales y caja."
+              : "Modo avanzado: metas manuales por partida y frente (flujo V1)."}
+          </span>
+        </div>
+      </div>
+
       {/* ============ 2. LISTA DE PARTIDAS (cards compactas, sin scroll horizontal) ============ */}
+      {planMode === "ITEM" && (
       <div>
         <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
           1. ¿Qué quiero hacer? — partidas ({budgetItems.length})
@@ -541,7 +724,7 @@ export function WeeklyPlanSection({ project }: Props) {
               <div
                 key={bItem.id}
                 data-testid={`partida-${bItem.code}`}
-                className="w-full max-w-full min-w-0 rounded-lg border border-[var(--border)] bg-[var(--panel-2)]/40 p-3"
+                className="w-full max-w-full min-w-0 glass-soft p-3"
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
@@ -744,7 +927,7 @@ export function WeeklyPlanSection({ project }: Props) {
                     </div>
 
                     {exceeds && (
-                      <div className="flex items-start gap-1.5 rounded border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-800 dark:text-amber-300">
+                      <div className="flex items-start gap-1.5 glass-soft p-2 text-[11px] text-amber-700 dark:text-amber-300">
                         <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                         <span>
                           Lo solicitado ({requestedSum.toLocaleString("es-PY")} {bItem.unit})
@@ -760,6 +943,237 @@ export function WeeklyPlanSection({ project }: Props) {
           })}
         </div>
       </div>
+      )}
+
+      {/* ============ 2B. PLANIFICAR POR BLOQUE / RUBRO (modo protagonista) ============ */}
+      {planMode === "BLOCK" && (
+      <div>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+          1. ¿Qué bloque quiero avanzar? ({blocks.length} {blocks.length === 1 ? "bloque" : "bloques"})
+        </div>
+        <p className="mt-0.5 text-[11px] text-[var(--muted)]">
+          Decí qué bloque avanzar y cuántos puntos; el sistema lo descompone en partidas,
+          materiales, stock, compras, caja y riesgos. Sin scroll horizontal.
+        </p>
+
+        <div data-testid="bloques-list" className="mt-3 space-y-3">
+          {blocks.map((block) => {
+            const prog = blockWeightedProgress(block, executedQuantities);
+            const open = selectedBlockKey === block.key;
+            const excluded = excludedOf(block.key);
+            const rows = frontTargets.filter((t) =>
+              block.children.some((c) => c.id === t.budget_item_id)
+            );
+            const activeRows = rows.filter((t) => Number(t.input_value) > 0).length;
+            return (
+              <div
+                key={block.key}
+                data-testid={`bloque-${block.code || "suelto"}`}
+                className="w-full max-w-full min-w-0 glass-soft p-3"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {block.code && (
+                        <span className="font-mono text-[11px] text-[var(--muted)]">{block.code}</span>
+                      )}
+                      <span className="min-w-0 break-words text-xs font-semibold text-[var(--foreground)]">
+                        {block.description}
+                      </span>
+                      {block.isVirtual && (
+                        <span className="status-chip-neutral status-chip">derivado por código</span>
+                      )}
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-[var(--muted)]">
+                      <span>
+                        <strong className="text-[var(--foreground)]">{block.children.length}</strong>{" "}
+                        {block.children.length === 1 ? "partida ejecutable" : "partidas ejecutables"}
+                      </span>
+                      <span>
+                        Avance actual ponderado:{" "}
+                        <strong className="text-[var(--foreground)]">{prog.currentPct}%</strong>
+                      </span>
+                      {activeRows > 0 && (
+                        <span className="text-emerald-700 dark:text-emerald-300 font-medium">
+                          {activeRows} {activeRows === 1 ? "meta local" : "metas locales"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="shrink-0">
+                    <Button
+                      type="button"
+                      variant={open ? "secondary" : "primary"}
+                      onClick={() => handlePlanBlock(block)}
+                      data-testid={`planificar-bloque-${block.code || "suelto"}`}
+                      className="h-8 text-xs gap-1.5 whitespace-nowrap"
+                    >
+                      <Boxes className="h-3.5 w-3.5" />
+                      {open ? "Cerrar bloque" : "Planificar este bloque"}
+                    </Button>
+                  </div>
+                </div>
+
+                {open && (
+                  <div
+                    data-testid={`editor-bloque-${block.code || "suelto"}`}
+                    className="mt-3 rounded-md border border-[var(--border)] bg-[var(--panel)] p-3 space-y-3"
+                  >
+                    <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
+                      <div>
+                        <label className="block text-[11px] text-[var(--muted)]">Quiero avanzar</label>
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="number"
+                            step="any"
+                            min="0"
+                            value={blockPp || ""}
+                            onChange={(e) => handleBlockPp(block, parseFloat(e.target.value) || 0)}
+                            placeholder="10"
+                            data-testid="bloque-pp"
+                            className="h-8 w-24 text-xs text-right font-medium"
+                          />
+                          <span className="text-[11px] text-[var(--muted)]">pp del bloque</span>
+                        </div>
+                      </div>
+                      <div className="min-w-0">
+                        <label className="block text-[11px] text-[var(--muted)]">Frente / sector</label>
+                        <Input
+                          type="text"
+                          value={blockFront}
+                          onChange={(e) => handleBlockFront(block, e.target.value)}
+                          placeholder="Sector A"
+                          data-testid="bloque-frente"
+                          className="h-8 w-36 max-w-full text-xs"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-[var(--muted)]">
+                      +{blockPp} pp del bloque = +{blockPp} puntos porcentuales contractuales en cada
+                      partida incluida. Cambiar pp o frente actualiza las incluidas y reemplaza las metas existentes de estas partidas
+                      (incluidas las cargadas en modo Por partida). Las marcadas “manual” conservan
+                      su valor. Un frente por bloque; para varios frentes en la misma partida usá
+                      el modo Por partida.
+                    </p>
+
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                      Partidas incluidas
+                    </div>
+                    <div className="space-y-2">
+                      {block.children.map((child) => {
+                        const contractual = Number(child.quantity) || 0;
+                        const executed = executedOf(child.id);
+                        const remaining = remainingForItem(contractual, executed);
+                        const included = !excluded.includes(child.id);
+                        const row = rows.find((t) => t.budget_item_id === child.id);
+                        const effMode = row ? row.input_mode : "CONTRACT_PERCENTAGE_POINTS";
+                        const effValue = row ? Number(row.input_value) : blockPp;
+                        const physical =
+                          effMode === "QUANTITY"
+                            ? effValue
+                            : translateTargetToQuantity(contractual, "CONTRACT_PERCENTAGE_POINTS", effValue);
+                        const capped = included && effValue > 0 && physical > remaining + 1e-9;
+                        return (
+                          <div
+                            key={child.id}
+                            className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded border border-dashed border-[var(--border)] p-2"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={included}
+                              onChange={(e) => handleBlockToggleChild(block, child.id, e.target.checked)}
+                              data-testid={`bloque-incluir-${child.code}`}
+                              aria-label={`Incluir ${child.description}`}
+                              className="h-4 w-4 shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="break-words text-xs font-medium text-[var(--foreground)]">
+                                <span className="font-mono text-[var(--muted)] mr-1.5">{child.code}</span>
+                                {child.description}
+                              </div>
+                              <div className="text-[11px] text-[var(--muted)]">
+                                Contrato {contractual.toLocaleString("es-PY")} · Ejecutado{" "}
+                                {executed.toLocaleString("es-PY")} · Remanente{" "}
+                                {remaining.toLocaleString("es-PY")} {child.unit}
+                              </div>
+                              {included && effValue > 0 && (
+                                <div className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                                  +{Number(effValue).toLocaleString("es-PY")} pp →{" "}
+                                  {physical.toLocaleString("es-PY")} {child.unit}
+                                  {capped && (
+                                    <span className="ml-1.5 text-amber-700 dark:text-amber-300">
+                                      (limitado al remanente)
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            {included && row && (
+                              <div className="flex items-center gap-1">
+                                {blockOverrides[overrideKey(block.key, child.id)] && (
+                                  <span className="status-chip status-chip-neutral" title="Meta editada a mano: no se pisa al cambiar el pp del bloque">
+                                    manual
+                                  </span>
+                                )}
+                                <div className="flex rounded-lg border border-[var(--border)] p-0.5 text-[10px]">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleBlockRowUpdate(block, child.id, row.id, "input_mode", "QUANTITY")}
+                                    className={`px-1.5 py-0.5 rounded ${
+                                      row.input_mode === "QUANTITY"
+                                        ? "bg-emerald-600 text-white font-semibold"
+                                        : "text-[var(--muted)]"
+                                    }`}
+                                  >
+                                    Cant.
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleBlockRowUpdate(block, child.id, row.id, "input_mode", "CONTRACT_PERCENTAGE_POINTS")}
+                                    className={`px-1.5 py-0.5 rounded ${
+                                      row.input_mode === "CONTRACT_PERCENTAGE_POINTS"
+                                        ? "bg-emerald-600 text-white font-semibold"
+                                        : "text-[var(--muted)]"
+                                    }`}
+                                  >
+                                    +pp
+                                  </button>
+                                </div>
+                                <Input
+                                  type="number"
+                                  step="any"
+                                  min="0"
+                                  value={row.input_value || ""}
+                                  onChange={(e) => handleBlockRowUpdate(block, child.id, row.id, "input_value", e.target.value)}
+                                  className="h-7 w-20 text-[11px] text-right"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleBlockToggleChild(block, child.id, false)}
+                                  className="p-1 rounded text-red-500 hover:bg-[var(--panel-2)]"
+                                  title="Excluir esta partida del bloque (quita sus metas del plan local)"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {blocks.length === 0 && (
+          <p className="mt-2 text-xs text-[var(--muted)]">
+            Este proyecto aún no tiene partidas ejecutables. Cargá el presupuesto para planificar por bloque.
+          </p>
+        )}
+      </div>
+      )}
 
       {/* ============ 3. RESUMEN DE METAS + CALCULAR ============ */}
       <div>
@@ -771,7 +1185,7 @@ export function WeeklyPlanSection({ project }: Props) {
             Todavía no hay metas cargadas. Usá “+ Definir meta” en la partida que quieras ejecutar.
           </p>
         ) : (
-          <div data-testid="metas-resumen" className="mt-2 rounded-lg border border-[var(--border)] p-3 space-y-1.5">
+          <div data-testid="metas-resumen" className="mt-2 glass-soft p-3 space-y-1.5">
             {frontTargets
               .filter((t) => Number(t.input_value) > 0)
               .map((t) => {
@@ -831,14 +1245,14 @@ export function WeeklyPlanSection({ project }: Props) {
           </div>
 
           {previewStale && (
-            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs">
+            <div className="flex items-center gap-2 p-2.5 glass-soft text-amber-700 dark:text-amber-300 text-xs">
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <span>Cambiaste metas, período o clima después de calcular — presioná CALCULAR PLAN para actualizar. Si guardás ahora, se guarda sin enlazar el pronóstico climático del preview anterior.</span>
             </div>
           )}
 
           {preview.weather_overlay_enabled ? (
-            <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3.5 text-xs text-blue-800 dark:text-blue-300">
+            <div className="glass-soft glass-accent-blue p-3.5 text-xs text-blue-800 dark:text-blue-300">
               <div className="font-semibold text-blue-900 dark:text-blue-200 flex flex-wrap items-center gap-2">
                 <CloudRain className="h-4 w-4" />
                 <span>
@@ -875,8 +1289,67 @@ export function WeeklyPlanSection({ project }: Props) {
             </div>
           )}
 
+          {/* Encabezado agregado del bloque (modo bloque): BLOQUE → NECESIDAD TOTAL → DETALLE */}
+          {planMode === "BLOCK" && previewBlock && (
+            <div data-testid="resultado-bloque" className="glass glass-accent-green p-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="break-words text-sm font-bold text-[var(--foreground)]">
+                    {previewBlock.code && <span className="font-mono text-[var(--muted)] mr-2">{previewBlock.code}</span>}
+                    {previewBlock.description} — {previewBlock.front}
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-[var(--muted)]">
+                    Meta: +{previewBlock.pp} pp · {previewBlock.includedCount}{" "}
+                    {previewBlock.includedCount === 1 ? "partida incluida" : "partidas incluidas"}
+                  </div>
+                </div>
+              </div>
+              {(() => {
+                const agg = aggregateMaterialsByProduct(preview);
+                if (agg.length === 0) return null;
+                return (
+                  <div className="mt-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
+                      Materiales necesarios
+                    </div>
+                    <div data-testid="materiales-agregados" className="mt-1.5 rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-x-auto">
+                      <table className="w-full text-left text-[11px]">
+                        <thead>
+                          <tr className="border-b border-[var(--border)] bg-[var(--panel-2)] text-[var(--muted)]">
+                            <th className="py-1.5 px-2">Material</th>
+                            <th className="py-1.5 px-2 text-right">Requerido</th>
+                            <th className="py-1.5 px-2 text-right">− Stock</th>
+                            <th className="py-1.5 px-2 text-right">− OC en tránsito</th>
+                            <th className="py-1.5 px-2 text-right">= Faltante neto</th>
+                            <th className="py-1.5 px-2 text-right">Caja necesaria</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--border)]">
+                          {agg.map((m) => (
+                            <tr key={m.producto_id}>
+                              <td className="py-1.5 px-2 font-medium text-[var(--foreground)]">{m.producto_nombre}</td>
+                              <td className="py-1.5 px-2 text-right">{m.requerido.toLocaleString("es-PY")} {m.unidad_medida}</td>
+                              <td className="py-1.5 px-2 text-right text-emerald-700 dark:text-emerald-300">{m.cubierto_stock.toLocaleString("es-PY")} {m.unidad_medida}</td>
+                              <td className="py-1.5 px-2 text-right text-blue-700 dark:text-blue-300">{m.cubierto_inbound.toLocaleString("es-PY")} {m.unidad_medida}</td>
+                              <td className="py-1.5 px-2 text-right font-bold text-amber-700 dark:text-amber-300">{m.faltante.toLocaleString("es-PY")} {m.unidad_medida}</td>
+                              <td className="py-1.5 px-2 text-right font-bold">Gs. {m.caja.toLocaleString("es-PY")}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="mt-1 text-[11px] text-[var(--muted)]">
+                      requerido − stock − OC = faltante · agregado de las {previewBlock.includedCount}{" "}
+                      partidas del bloque
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           {/* Caja primero */}
-          <div className="rounded-xl border-2 border-amber-500/50 bg-amber-500/10 p-5">
+          <div className="glass glass-accent-amber p-5">
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-bold uppercase tracking-wide text-amber-800 dark:text-amber-200">
                 Caja necesaria para cumplir el plan
@@ -912,7 +1385,7 @@ export function WeeklyPlanSection({ project }: Props) {
           </div>
 
           {/* Factibilidad */}
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)]/40 p-4 space-y-2">
+          <div className="glass-soft p-4 space-y-2">
             <div className="text-xs font-semibold text-[var(--foreground)]">Factibilidad</div>
             <div className="text-[11px] text-[var(--muted)]">
               Capacidad observada:{" "}
@@ -965,15 +1438,30 @@ export function WeeklyPlanSection({ project }: Props) {
           </div>
 
           {preview.unconfigured_materials_count > 0 && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
-              <span>
-                <strong>Atención:</strong> {preview.unconfigured_materials_count} partidas planificadas no tienen receta de materiales configurada o requieren definición explícita.
+            <div className="glass-soft p-3 flex flex-col gap-1.5 text-xs">
+              <span className="status-chip status-chip-warn self-start">⚠ Materiales sin configurar</span>
+              <span className="text-[var(--muted)]">
+                <strong className="text-[var(--foreground)]">Atención:</strong> {preview.unconfigured_materials_count} partidas planificadas no tienen receta de materiales configurada o requieren definición explícita.
               </span>
             </div>
           )}
 
-          {/* Detalle por partida */}
+          {/* Detalle por partida: en modo bloque colapsado tras "Ver detalle por partida" */}
+          {planMode === "BLOCK" && (
+            <div>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setBlockDetailOpen((v) => !v)}
+                data-testid="ver-detalle-partida"
+                className="h-8 text-xs gap-1.5"
+              >
+                {blockDetailOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                {blockDetailOpen ? "Ocultar detalle por partida" : "Ver detalle por partida"}
+              </Button>
+            </div>
+          )}
+          {(planMode === "ITEM" || blockDetailOpen) && (
           <div className="rounded-lg border border-[var(--border)] overflow-hidden">
             <div className="bg-[var(--panel-2)] px-4 py-2.5 border-b border-[var(--border)]">
               <h4 className="text-xs font-semibold text-[var(--foreground)] uppercase tracking-wider">
@@ -1004,7 +1492,7 @@ export function WeeklyPlanSection({ project }: Props) {
                           </span>
                         )}
                         {ci.was_capped && (
-                          <span className="ml-2 inline-block px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 text-[10px]">
+                          <span className="ml-2 inline-block px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px]">
                             limitado al remanente
                           </span>
                         )}
@@ -1074,15 +1562,15 @@ export function WeeklyPlanSection({ project }: Props) {
                                     <td className="py-1.5 px-2 font-medium">
                                       {m.producto_nombre}
                                       {m.requiere_atencion_costo && (
-                                        <span className="ml-1.5 text-[10px] text-amber-600 font-normal">
+                                        <span className="ml-1.5 text-[10px] text-amber-600 dark:text-amber-300 font-normal">
                                           (Sin costo promedio — caja subdeclarada)
                                         </span>
                                       )}
                                     </td>
                                     <td className="py-1.5 px-2 text-right">{m.demanda_bruta.toLocaleString("es-PY")} {m.unidad_medida}</td>
-                                    <td className="py-1.5 px-2 text-right text-emerald-600">{m.cubierto_por_stock.toLocaleString("es-PY")} {m.unidad_medida}</td>
-                                    <td className="py-1.5 px-2 text-right text-blue-600">{m.cubierto_por_inbound.toLocaleString("es-PY")} {m.unidad_medida}</td>
-                                    <td className="py-1.5 px-2 text-right font-bold text-amber-700">{m.deficit_compra_neta.toLocaleString("es-PY")} {m.unidad_medida}</td>
+                                    <td className="py-1.5 px-2 text-right text-emerald-700 dark:text-emerald-300">{m.cubierto_por_stock.toLocaleString("es-PY")} {m.unidad_medida}</td>
+                                    <td className="py-1.5 px-2 text-right text-blue-700 dark:text-blue-300">{m.cubierto_por_inbound.toLocaleString("es-PY")} {m.unidad_medida}</td>
+                                    <td className="py-1.5 px-2 text-right font-bold text-amber-700 dark:text-amber-300">{m.deficit_compra_neta.toLocaleString("es-PY")} {m.unidad_medida}</td>
                                     <td className="py-1.5 px-2 text-right">{m.costo_unitario ? `Gs. ${m.costo_unitario.toLocaleString("es-PY")}` : "—"}</td>
                                     <td className="py-1.5 px-2 text-right font-bold">Gs. {m.caja_adicional_requerida.toLocaleString("es-PY")}</td>
                                   </tr>
@@ -1091,10 +1579,18 @@ export function WeeklyPlanSection({ project }: Props) {
                             </table>
                           </div>
                         ) : (
-                          <div className="rounded border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] font-semibold text-amber-800 dark:text-amber-300">
-                            {ci.materials_warning ?? "Sin materiales vinculados."}
+                          <div className="glass-soft p-2.5 text-[11px]">
+                            {ci.materials_warning ? (
+                              <span className="status-chip status-chip-warn">⚠ {ci.materials_warning}</span>
+                            ) : (
+                              <span className="text-[var(--muted)]">Sin materiales vinculados.</span>
+                            )}
+                            <span className="mt-1.5 block text-[var(--muted)]">
+                              No podemos calcular compras ni caja para esta partida hasta definir
+                              su receta de materiales.
+                            </span>
                             {ci.materials_warning && !ci.is_labor_or_service && (
-                              <span className="block font-normal">
+                              <span className="block font-normal text-[var(--muted)]">
                                 Contrato fail-closed (MATERIALES NO CONFIGURADOS / REVISIÓN REQUERIDA): la caja de esta partida no puede calcularse sin receta — no se muestra 0 como si estuviera todo bien.
                               </span>
                             )}
@@ -1107,9 +1603,10 @@ export function WeeklyPlanSection({ project }: Props) {
               })}
             </div>
           </div>
+          )}
 
           {/* ============ 5. GUARDAR / COMPROMETER (después de calcular) ============ */}
-          <div className="rounded-lg border border-[var(--border)] p-4 space-y-3">
+          <div className="glass-soft p-4 space-y-3">
             <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
               5. Guardar / Comprometer — el preview no guardó nada todavía
             </div>
