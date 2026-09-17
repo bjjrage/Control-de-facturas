@@ -48,45 +48,16 @@ const FILL_HANDLE_SETTINGS = { direction: "vertical", autoInsertRow: false } as 
 // podría degradar HyperFormula en el cliente.
 const MAX_ROWS = 500;
 
-// El validador nativo de Handsontable para type:"numeric" (numericValidator)
-// llama a isNumeric(value) y punto — "=120+80" no es numérico, así que
-// rechaza CUALQUIER fórmula tipeada en una columna numérica y Handsontable
-// revierte la celda a su valor anterior antes de que el plugin de fórmulas
-// llegue a verla. Confirmado en vivo contra producción: escribir una fórmula
-// en Cantidad no cambiaba nada, ni en pantalla ni en el autosave persistido.
-// Este validador reemplaza al default: deja pasar cualquier valor que
-// empiece con "=" (lo procesa HyperFormula) y valida como número el resto.
-function isPlainNumeric(value: unknown): boolean {
-  if (typeof value === "number") return Number.isFinite(value);
-  if (typeof value !== "string") return false;
-  return /^-?\d+([.,]\d+)?$/.test(value.trim());
-}
-
-function numericOrFormulaValidator(
-  this: Handsontable.CellProperties,
-  value: unknown,
-  callback: (valid: boolean) => void
-) {
-  if (typeof value === "string" && value.trim().startsWith("=")) {
-    callback(true);
-    return;
-  }
-  if (value === null || value === undefined || value === "") {
-    callback(this.allowEmpty !== false);
-    return;
-  }
-  callback(isPlainNumeric(value));
-}
-
 function columnToHtConfig(col: PlanillaColumn): Handsontable.ColumnSettings {
-  const isNumericColumn = col.type !== "text";
   return {
     data: col.key,
     title: col.label,
-    type: isNumericColumn ? "numeric" : "text",
-    // El validator explícito pisa al que trae "numeric" por default —
-    // mantiene el formateo/alineación numérica pero acepta fórmulas.
-    validator: isNumericColumn ? numericOrFormulaValidator : undefined,
+    // "numeric" en Handsontable solo define el editor/formateador por
+    // defecto de la celda — el plugin de fórmulas intercepta cualquier valor
+    // que empiece con "=" independientemente del tipo de columna, así que
+    // quantity/unit_price aceptan fórmulas libres igual que en Excel (sumas
+    // entre filas, referencias cruzadas, etc.), no solo el subtotal fijo.
+    type: col.type === "text" ? "text" : "numeric",
     readOnly: col.readOnly ?? col.type === "readonly-numeric",
     width: col.width,
   };
@@ -177,33 +148,12 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     onChangeRef.current = onChange;
   }, [onChange]);
 
-  // hot.getSourceData() devuelve el dato CRUDO por celda — para una celda con
-  // fórmula, el texto "=D4*E4" o "=120+80", nunca el resultado calculado (ver
-  // el propio comentario del plugin de fórmulas de Handsontable: "sync HOT's
-  // source data with HF's state so that getDataAtCell returns [el
-  // calculado]" — getSourceData explícitamente NO participa de esa sync).
-  // Enviar eso tal cual al servidor rompería confirmar: budget_items.quantity
-  // es una columna numeric de Postgres, castear el texto "=120+80" revienta
-  // el RPC. Por eso acá se resuelve cada celda que empiece con "=" a su valor
-  // ya calculado (getDataAtCell) antes de emitir — lo que viaja a autosave y
-  // a confirmar es siempre el número final, la fórmula en sí vive y se
-  // recalcula solo del lado de HyperFormula mientras se edita.
   const emitChange = useCallback(() => {
     const hot = hotRef.current?.hotInstance;
     if (!hot) return;
-    const sourceRows = hot.getSourceData() as PlanillaGridRow[];
-    const current = sourceRows.map((row, rowIndex) => {
-      const resolved: PlanillaGridRow = { ...row };
-      columns.forEach((col, colIndex) => {
-        const raw = resolved[col.key];
-        if (typeof raw === "string" && raw.trim().startsWith("=")) {
-          resolved[col.key] = hot.getDataAtCell(rowIndex, colIndex);
-        }
-      });
-      return resolved;
-    });
+    const current = (hot.getSourceData() as PlanillaGridRow[]).map((r) => ({ ...r }));
     onChangeRef.current([...current, ...deletedRef.current]);
-  }, [columns]);
+  }, []);
 
   const handleAfterChange = useCallback(
     (_changes: unknown, source: string) => {
