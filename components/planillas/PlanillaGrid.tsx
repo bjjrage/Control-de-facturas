@@ -202,9 +202,15 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   // la fila, REGLA #8 de este motor), NUNCA por posición. Confirmado leyendo
   // el código fuente de Handsontable: alter/setDataAtCell/getCell/
   // getDataAtCell usan índice VISUAL, pero getSourceDataAtRow usa índice
-  // FÍSICO — con el filtro nativo activo (filters/dropdownMenu) ninguno de
-  // los dos es estable entre re-renders (una fila puede aparecer/desaparecer
-  // de la vista, y su posición física puede no coincidir con la visual).
+  // FÍSICO — con un filtro que oculte filas ninguno de los dos es estable
+  // entre re-renders (una fila puede aparecer/desaparecer de la vista, y su
+  // posición física puede no coincidir con la visual). Este diseño ya
+  // resuelve ese problema; lo que se sacó fue el PLUGIN nativo de filtros de
+  // Handsontable en sí (filters/dropdownMenu) — probado en vivo, tira
+  // "Cannot read properties of null (reading 'getEntries')" y rompe toda la
+  // página al aplicar un filtro. El buscador propio (texto libre,
+  // searchTermRef más abajo) sigue andando y ya ejercita este mismo diseño
+  // ocultando filas, sin ese crash.
   // Atar el formato a la IDENTIDAD de la fila en vez de a un índice numérico
   // hace que el problema desaparezca solo: no importa dónde esté la fila
   // ni si está oculta por el filtro, su formato la sigue. Como bonus, ya no
@@ -715,8 +721,6 @@ export const PlanillaGrid = memo(function PlanillaGrid({
           themeName="ht-theme-main-dark"
           formulas={formulasSettings}
           contextMenu={CONTEXT_MENU_ITEMS as unknown as string[]}
-          dropdownMenu
-          filters
           fillHandle={FILL_HANDLE_SETTINGS}
           maxRows={MAX_ROWS}
           manualColumnResize
