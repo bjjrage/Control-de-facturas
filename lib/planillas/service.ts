@@ -69,15 +69,35 @@ export async function crearPlanilla(modulo: string, contextoRaw: unknown): Promi
   return data as PlanillaSessionRow;
 }
 
-export async function obtenerPlanilla(id: string): Promise<PlanillaSessionRow> {
-  const profile = await requireProfile(["administracion", "admin"]);
-  const supabase = await createClient();
+export async function obtenerPlanilla(id: string): Promise<PlanillaSessionRow>;
+export async function obtenerPlanilla(
+  supabase: SupabaseClient,
+  empresaId: string,
+  id: string
+): Promise<PlanillaSessionRow>;
+export async function obtenerPlanilla(
+  idOrSupabase: string | SupabaseClient,
+  empresaId?: string,
+  idMaybe?: string
+): Promise<PlanillaSessionRow> {
+  if (typeof idOrSupabase === "string") {
+    const profile = await requireProfile(["administracion", "admin"]);
+    const supabase = await createClient();
+    return obtenerPlanillaWithClient(supabase, profile.empresa_id, idOrSupabase);
+  }
+  return obtenerPlanillaWithClient(idOrSupabase, empresaId as string, idMaybe as string);
+}
 
+async function obtenerPlanillaWithClient(
+  supabase: SupabaseClient,
+  empresaId: string,
+  id: string
+): Promise<PlanillaSessionRow> {
   const { data, error } = await supabase
     .from("planillas")
     .select(SELECT_COLS)
     .eq("id", id)
-    .eq("empresa_id", profile.empresa_id) // defensa en profundidad — RLS ya lo filtra
+    .eq("empresa_id", empresaId) // defensa en profundidad — RLS ya lo filtra
     .maybeSingle();
 
   if (error) throw new Error(error.message);
@@ -87,15 +107,43 @@ export async function obtenerPlanilla(id: string): Promise<PlanillaSessionRow> {
 
 /** PATCH: solo actualiza el borrador (snapshot). Nunca toca las tablas del
  * módulo — ver REGLA #10. Rechaza si la planilla ya no está en draft. */
-export async function actualizarSnapshot(id: string, rows: PlanillaRowMeta[]): Promise<{ updated_at: string }> {
-  const profile = await requireProfile(["administracion", "admin"]);
-  const supabase = await createClient();
+export async function actualizarSnapshot(id: string, rows: PlanillaRowMeta[]): Promise<{ updated_at: string }>;
+export async function actualizarSnapshot(
+  supabase: SupabaseClient,
+  empresaId: string,
+  id: string,
+  rows: PlanillaRowMeta[]
+): Promise<{ updated_at: string }>;
+export async function actualizarSnapshot(
+  idOrSupabase: string | SupabaseClient,
+  rowsOrEmpresaId: PlanillaRowMeta[] | string,
+  idMaybe?: string,
+  rowsMaybe?: PlanillaRowMeta[]
+): Promise<{ updated_at: string }> {
+  if (typeof idOrSupabase === "string") {
+    const profile = await requireProfile(["administracion", "admin"]);
+    const supabase = await createClient();
+    return actualizarSnapshotWithClient(supabase, profile.empresa_id, idOrSupabase, rowsOrEmpresaId as PlanillaRowMeta[]);
+  }
+  return actualizarSnapshotWithClient(
+    idOrSupabase,
+    rowsOrEmpresaId as string,
+    idMaybe as string,
+    rowsMaybe as PlanillaRowMeta[]
+  );
+}
 
+async function actualizarSnapshotWithClient(
+  supabase: SupabaseClient,
+  empresaId: string,
+  id: string,
+  rows: PlanillaRowMeta[]
+): Promise<{ updated_at: string }> {
   const { data: current } = await supabase
     .from("planillas")
     .select("estado")
     .eq("id", id)
-    .eq("empresa_id", profile.empresa_id)
+    .eq("empresa_id", empresaId)
     .maybeSingle();
   if (!current) throw new PlanillaNotFoundError();
   if (current.estado !== "draft") {
@@ -106,7 +154,7 @@ export async function actualizarSnapshot(id: string, rows: PlanillaRowMeta[]): P
     .from("planillas")
     .update({ snapshot: { rows } })
     .eq("id", id)
-    .eq("empresa_id", profile.empresa_id)
+    .eq("empresa_id", empresaId)
     .select("updated_at")
     .single();
   if (error || !data) throw new Error(error?.message ?? "No se pudo guardar el borrador.");
@@ -115,21 +163,41 @@ export async function actualizarSnapshot(id: string, rows: PlanillaRowMeta[]): P
 
 export type ConfirmarResultado = { alreadyConfirmed: boolean; result: { inserted: number; updated: number; deleted: number } };
 
-export async function confirmarPlanilla(id: string): Promise<ConfirmarResultado> {
-  const profile = await requireProfile(["administracion", "admin"]);
-  const supabase: SupabaseClient = await createClient();
+export async function confirmarPlanilla(id: string): Promise<ConfirmarResultado>;
+export async function confirmarPlanilla(
+  supabase: SupabaseClient,
+  empresaId: string,
+  id: string
+): Promise<ConfirmarResultado>;
+export async function confirmarPlanilla(
+  idOrSupabase: string | SupabaseClient,
+  empresaIdMaybe?: string,
+  idMaybe?: string
+): Promise<ConfirmarResultado> {
+  if (typeof idOrSupabase === "string") {
+    const profile = await requireProfile(["administracion", "admin"]);
+    const supabase: SupabaseClient = await createClient();
+    return confirmarPlanillaWithClient(supabase, profile.empresa_id, idOrSupabase);
+  }
+  return confirmarPlanillaWithClient(idOrSupabase, empresaIdMaybe as string, idMaybe as string);
+}
 
+async function confirmarPlanillaWithClient(
+  supabase: SupabaseClient,
+  empresaId: string,
+  id: string
+): Promise<ConfirmarResultado> {
   const { data: planilla, error: fetchError } = await supabase
     .from("planillas")
     .select(SELECT_COLS)
     .eq("id", id)
-    .eq("empresa_id", profile.empresa_id)
+    .eq("empresa_id", empresaId)
     .maybeSingle();
   if (fetchError) throw new Error(fetchError.message);
   if (!planilla) throw new PlanillaNotFoundError();
 
   const adapter = getPlanillaAdapter(planilla.modulo);
-  const contexto = await adapter.resolverContexto(supabase, profile.empresa_id, planilla.contexto);
+  const contexto = await adapter.resolverContexto(supabase, empresaId, planilla.contexto);
   const cambios: PlanillaChanges<PlanillaRowMeta> = { rows: (planilla.snapshot as { rows: PlanillaRowMeta[] }).rows };
 
   const { alreadyConfirmed, ...result } = await adapter.aplicarCambios(supabase, id, cambios, contexto);

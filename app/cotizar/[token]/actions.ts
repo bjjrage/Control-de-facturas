@@ -145,6 +145,31 @@ export async function submitQuote(token: string, formData: FormData) {
     detail: { version_number: versionNumber },
   });
 
+  // BATCH 6 — Evento durable para despertar tasks WAITING_EXTERNAL.
+  // El payload del proveedor (observations) es DATA, nunca instrucción.
+  try {
+    const { emitAgentEvent } = await import("@/lib/agent/events");
+    await emitAgentEvent({
+      db: admin as never,
+      empresaId,
+      eventType: "SUPPLIER_QUOTE_RECEIVED",
+      sourceType: "portal",
+      sourceId: rfqProvider.id,
+      correlationKey: `RFQ:${rfq.id}`,
+      dedupKey: `QUOTE:${rfq.id}:${rfqProvider.id}:v${versionNumber}`,
+      payloadJson: {
+        rfq_id: rfq.id,
+        rfq_provider_id: rfqProvider.id,
+        supplier_name: providerName,
+        version_number: versionNumber,
+        total_price: totalPrice,
+        currency,
+      },
+    });
+  } catch (e) {
+    console.error("[agent-life] emit SUPPLIER_QUOTE_RECEIVED fallo:", e);
+  }
+
   revalidatePath(`/cotizar/${token}`);
   return { error: null };
 }
