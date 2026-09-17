@@ -153,20 +153,18 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   const deletedRef = useRef<PlanillaGridRow[]>([]);
   const [formulaBarValue, setFormulaBarValue] = useState("");
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
+  // _rowId de la fila actualmente seleccionada — ver el comentario grande
+  // sobre rowStylesRef más abajo sobre por qué el formato se indexa por acá
+  // y no por selectedCell.row.
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   // Copiar formato: dos clics, como el "brush" de Excel. El primero (botón
   // Paintbrush) copia el estilo de la fila seleccionada acá; el siguiente
   // clic en OTRA fila lo aplica (reemplaza, no mezcla) y apaga el modo.
   const [isPainting, setIsPainting] = useState(false);
   const paintedStyleRef = useRef<PlanillaRowStyle | null>(null);
 
-  // "Filtros": buscar y RESALTAR filas coincidentes, no ocultarlas. El
-  // filtro nativo de Handsontable (filters/dropdownMenu) oculta filas
-  // reordenando índice visual vs. físico — reconciliar eso con rowStylesRef
-  // (indexado por fila física) en todos los puntos que ya lo usan
-  // (applyRowStyle, autosuma, copiar formato, los botones de fila) es un
-  // trabajo mucho más grande y arriesgado que lo que da a entender agregar
-  // dos props. Resaltar sin ocultar evita ese problema por completo.
-  // searchTermRef en vez de un dependency de applyStylesToDom a propósito:
+  // Filtro real: oculta filas que no coincidan con el texto (ver
+  // applyStylesToDom). searchTermRef en vez de un dependency de applyStylesToDom a propósito:
   // ese callback se pasa como `afterRender`, y el wrapper de Handsontable
   // llama a updateSettings() cada vez que esa prop cambia de referencia
   // (ver el comentario grande sobre memo() más abajo) — si dependiera del
@@ -200,14 +198,28 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   // en su vida útil, así que una sola computación al montar es correcta.
   const [seedInitialRows] = useState(() => initialRows.map((r, i) => applyFormulaDefaults({ ...r }, i)));
 
-  // Espejo del formato por fila, indexado por posición física — NO se lee
-  // llamando a hot.getSourceDataAtRow() desde dentro de cells() (ver abajo):
+  // Espejo del formato por fila — indexado por _rowId (identidad estable de
+  // la fila, REGLA #8 de este motor), NUNCA por posición. Confirmado leyendo
+  // el código fuente de Handsontable: alter/setDataAtCell/getCell/
+  // getDataAtCell usan índice VISUAL, pero getSourceDataAtRow usa índice
+  // FÍSICO — con el filtro nativo activo (filters/dropdownMenu) ninguno de
+  // los dos es estable entre re-renders (una fila puede aparecer/desaparecer
+  // de la vista, y su posición física puede no coincidir con la visual).
+  // Atar el formato a la IDENTIDAD de la fila en vez de a un índice numérico
+  // hace que el problema desaparezca solo: no importa dónde esté la fila
+  // ni si está oculta por el filtro, su formato la sigue. Como bonus, ya no
+  // hace falta mantenerlo sincronizado a mano en alta/baja de fila (antes:
+  // splice en handleAfterCreateRow/handleBeforeRemoveRow) — un Map no
+  // necesita eso.
+  //
+  // No se lee llamando a hot.getSourceDataAtRow() desde DENTRO de cells():
   // eso reentra en la resolución de metadatos de Handsontable mientras
   // todavía está en curso y tira "Assertion failed: Expecting an unsigned
-  // number" (confirmado en vivo). cells() y el estado de los botones del
-  // toolbar leen de acá; applyRowStyle() y los handlers de alta/baja de fila
-  // son los únicos que lo escriben, en paralelo a la data real de Handsontable.
-  const rowStylesRef = useRef<(PlanillaRowStyle | undefined)[]>(seedInitialRows.map((r) => r._style));
+  // number" (confirmado en vivo) — por eso el formato se pinta en
+  // afterRender (applyStylesToDom), no en cells().
+  const rowStylesRef = useRef<Map<string, PlanillaRowStyle>>(
+    new Map(seedInitialRows.filter((r) => r._style).map((r) => [r._rowId, r._style!]))
+  );
 
   // El wrapper de React de Handsontable vuelve a registrar cada hook
   // (afterChange, afterSelectionEnd, etc.) cada vez que la función pasada
@@ -238,20 +250,29 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   const emitChange = useCallback(() => {
     const hot = hotRef.current?.hotInstance;
     if (!hot) return;
+    // getSourceData() devuelve en orden FÍSICO (mismo que getSourceDataAtRow),
+    // pero getDataAtCell espera índice VISUAL — hace falta convertir antes de
+    // usarlo, si no con un filtro activo se lee la celda equivocada.
     const sourceRows = hot.getSourceData() as PlanillaGridRow[];
-    const current = sourceRows.map((row, rowIndex) => {
+    const current = sourceRows.map((row, physicalRowIndex) => {
       const resolved: PlanillaGridRow = { ...row };
+      const visualRowIndex = hot.toVisualRow(physicalRowIndex);
       columns.forEach((col, colIndex) => {
         const raw = resolved[col.key];
         if (typeof raw === "string" && raw.trim().startsWith("=")) {
-          resolved[col.key] = hot.getDataAtCell(rowIndex, colIndex);
+          // Fila oculta por el filtro: no tiene índice visual, y por lo
+          // tanto no hay forma segura de pedirle a Handsontable el valor
+          // calculado. No debería pasar en la práctica (no se puede editar
+          // una celda que no está visible), pero mejor dejar el valor crudo
+          // tal cual que mandar un número incorrecto al servidor.
+          if (visualRowIndex !== null && visualRowIndex !== undefined) {
+            resolved[col.key] = hot.getDataAtCell(visualRowIndex, colIndex);
+          }
         }
       });
-      // getSourceData() no devuelve de forma confiable el objeto _style que
-      // se mutó a mano en applyRowStyle (Handsontable no garantiza misma
-      // referencia) — rowStylesRef es la fuente de verdad para esto, no la
-      // data de Handsontable.
-      const style = rowStylesRef.current[rowIndex];
+      // rowStylesRef es la fuente de verdad para el formato, indexado por
+      // _rowId (identidad estable) — no por posición.
+      const style = typeof row._rowId === "string" ? rowStylesRef.current.get(row._rowId) : undefined;
       if (style) resolved._style = style;
       else delete resolved._style;
       return resolved;
@@ -271,7 +292,9 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     (index: number, amount: number) => {
       const hot = hotRef.current?.hotInstance;
       if (!hot) return;
-      rowStylesRef.current.splice(index, 0, ...new Array(amount).fill(undefined));
+      // rowStylesRef ya no necesita sincronizarse a mano acá — es un Map por
+      // _rowId, no un array por posición. Una fila nueva no tiene entrada
+      // hasta que se le aplique formato explícitamente.
       for (let i = 0; i < amount; i++) {
         const rowIndex = index + i;
         hot.setDataAtRowProp(rowIndex, "_rowId", newRowId(), "PlanillaGrid.afterCreateRow");
@@ -292,18 +315,22 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     [emitChange, formulaColumns]
   );
 
-  const handleBeforeRemoveRow = useCallback((index: number, amount: number) => {
+  const handleBeforeRemoveRow = useCallback((_index: number, _amount: number, physicalRows: number[]) => {
     const hot = hotRef.current?.hotInstance;
     if (!hot) return;
-    for (let i = 0; i < amount; i++) {
-      const row = hot.getSourceDataAtRow(index + i) as PlanillaGridRow;
+    // physicalRows: Handsontable lo manda listo, son los índices FÍSICOS
+    // reales que se van a borrar — no calcularlos a mano a partir de index
+    // (VISUAL) + amount, que con un filtro activo no necesariamente son
+    // consecutivos ni coinciden con la posición física.
+    for (const physicalRow of physicalRows) {
+      const row = hot.getSourceDataAtRow(physicalRow) as PlanillaGridRow;
       // Una fila nueva (nunca confirmada) que se borra antes de confirmar no
       // necesita tombstone — simplemente nunca existió del lado del dominio.
       if (row && typeof row._rowId === "string" && !isNewRowId(row._rowId)) {
         deletedRef.current.push({ _rowId: row._rowId, _version: row._version, _deleted: true });
       }
+      if (row && typeof row._rowId === "string") rowStylesRef.current.delete(row._rowId);
     }
-    rowStylesRef.current.splice(index, amount);
   }, []);
 
   const handleAfterRemoveRow = useCallback(() => {
@@ -323,7 +350,19 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     // setState — bucle infinito ("Maximum update depth exceeded"),
     // reproducido y confirmado en vivo antes de este fix.
     setSelectedCell((prev) => (prev && prev.row === row && prev.col === column ? prev : { row, col: column }));
-    const raw = hot.getSourceDataAtCell(row, column);
+
+    // row/column acá son índices VISUALES (así los manda Handsontable en
+    // este hook) — getSourceDataAtCell/getSourceDataAtRow esperan índice
+    // FÍSICO. toPhysicalRow es la única conversión que hace falta en todo
+    // este componente ahora: de acá sale tanto el valor mostrado en la fx
+    // bar como el _rowId que identifica la fila para el formato (ver el
+    // comentario grande sobre rowStylesRef).
+    const physicalRow = hot.toPhysicalRow(row);
+    const rowData = physicalRow !== null ? (hot.getSourceDataAtRow(physicalRow) as PlanillaGridRow | undefined) : undefined;
+    const rowId = typeof rowData?._rowId === "string" ? rowData._rowId : null;
+    setSelectedRowId((prev) => (prev === rowId ? prev : rowId));
+
+    const raw = rowData ? rowData[columns[column]?.key ?? ""] : undefined;
     const next = raw === null || raw === undefined ? "" : String(raw);
     setFormulaBarValue((prev) => (prev === next ? prev : next));
 
@@ -334,8 +373,8 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     // memoizan a una referencia estable durante toda la vida del componente,
     // así que este closure siempre ve la versión correcta sin necesidad de
     // volver a registrar el hook — que es justamente lo que hay que evitar acá.
-    if (paintedStyleRef.current) {
-      rowStylesRef.current[row] = { ...paintedStyleRef.current };
+    if (paintedStyleRef.current && rowId) {
+      rowStylesRef.current.set(rowId, { ...paintedStyleRef.current });
       paintedStyleRef.current = null;
       setIsPainting(false);
       applyStylesToDom();
@@ -378,8 +417,8 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   // Copiar formato ("brush" de Excel): un botón, dos clics. Acá solo copia;
   // quien lo APLICA es handleAfterSelectionEnd (arriba), en el próximo clic.
   function handleStartPaintFormat() {
-    if (!selectedCell) return;
-    paintedStyleRef.current = { ...(rowStylesRef.current[selectedCell.row] ?? {}) };
+    if (!selectedRowId) return;
+    paintedStyleRef.current = { ...(rowStylesRef.current.get(selectedRowId) ?? {}) };
     setIsPainting(true);
   }
 
@@ -395,8 +434,7 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   // 0094_budget_items_row_style.sql) — puramente visual, nunca entra en
   // ningún cálculo ni lo toca el RPC de confirmación más que para guardarlo.
   function applyRowStyle(patch: Partial<PlanillaRowStyle>) {
-    const hot = hotRef.current?.hotInstance;
-    if (!hot || !selectedCell) return;
+    if (!selectedRowId) return;
     // rowStylesRef es la ÚNICA fuente de verdad para el formato — nunca pasa
     // por la data de Handsontable. hot.setDataAtRowProp con un valor OBJETO
     // en una prop no declarada como columna ("_style") rompe algo interno de
@@ -404,17 +442,15 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     // confirmado en vivo, tres implementaciones distintas fallaron igual). Y
     // mutar a mano el objeto que devuelve getSourceDataAtRow() tampoco sirve:
     // getSourceData() (que usa emitChange) no garantiza devolver esa misma
-    // referencia. cellsSettings/applyStylesToDom pintan desde acá, y
-    // emitChange también lee de acá para lo que viaja a autosave/confirmar.
-    const current: PlanillaRowStyle = rowStylesRef.current[selectedCell.row] ?? {};
-    rowStylesRef.current[selectedCell.row] = { ...current, ...patch };
+    // referencia. applyStylesToDom pinta desde acá, y emitChange también lee
+    // de acá para lo que viaja a autosave/confirmar.
+    const current: PlanillaRowStyle = rowStylesRef.current.get(selectedRowId) ?? {};
+    rowStylesRef.current.set(selectedRowId, { ...current, ...patch });
     applyStylesToDom();
     emitChange();
   }
 
-  const selectedRowStyle: PlanillaRowStyle = selectedCell
-    ? rowStylesRef.current[selectedCell.row] ?? {}
-    : {};
+  const selectedRowStyle: PlanillaRowStyle = selectedRowId ? rowStylesRef.current.get(selectedRowId) ?? {} : {};
 
   // El setting `cells()` de Handsontable, combinado con el resto de plugins
   // activos acá (formulas + undoRedo + filas dinámicas), tira "Assertion
@@ -436,18 +472,18 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   const applyStylesToDom = useCallback(() => {
     const hot = hotRef.current?.hotInstance;
     if (!hot) return;
-    // rowStylesRef está indexado por fila FÍSICA (así se mantiene en
-    // afterCreateRow/beforeRemoveRow), pero hot.getCell()/getDataAtCell()
-    // esperan fila VISUAL — con los filtros activos ambas dejan de coincidir
-    // (una fila filtrada no tiene índice visual). Sin esta conversión, con
-    // un filtro puesto el formato terminaría pintando la fila equivocada.
+    // getCell()/getDataAtCell() esperan índice VISUAL — con el filtro nativo
+    // de columna (dropdownMenu/filters) activo, una fila filtrada no tiene
+    // índice visual (toVisualRow devuelve null), así que se salta acá abajo.
+    // rowStylesRef en sí ya no depende de esto para nada — se indexa por
+    // _rowId (identidad estable), no por posición física ni visual.
     const term = searchTermRef.current.trim().toLowerCase();
     const rowCount = hot.countRows();
     for (let physicalRow = 0; physicalRow < rowCount; physicalRow++) {
       const visualRow = hot.toVisualRow(physicalRow);
-      if (visualRow === null || visualRow === undefined || visualRow < 0) continue; // fila oculta por un filtro
-      const style = rowStylesRef.current[physicalRow];
+      if (visualRow === null || visualRow === undefined || visualRow < 0) continue; // fila oculta por el filtro nativo de columna
       const rowData = hot.getSourceDataAtRow(physicalRow) as PlanillaGridRow | undefined;
+      const style = typeof rowData?._rowId === "string" ? rowStylesRef.current.get(rowData._rowId) : undefined;
       const isMatch =
         term.length > 0 &&
         rowData !== undefined &&
@@ -461,16 +497,13 @@ export const PlanillaGrid = memo(function PlanillaGrid({
         style?.bg ? `plr-bg-${style.bg}` : "",
         isMatch ? "plr-search-match" : "",
       ].filter(Boolean);
-      // Filtro real (ocultar, no solo resaltar) — pero por CSS sobre el <tr>
-      // ya renderizado, nunca vía el plugin de filtros de Handsontable. Ese
-      // plugin oculta filas remapeando índice visual/físico, y reconciliar
-      // eso con rowStylesRef (que asume visual === físico en todos lados:
-      // applyRowStyle, copiar formato, alta/baja de fila) en cada punto que
-      // ya lo usa es un trabajo mucho más grande y con más superficie para
-      // otro bug como el de autosuma. Ocultando el <tr> por fuera,
-      // Handsontable ni se entera — countRows()/getCell() siguen viendo
-      // TODAS las filas, visual sigue siendo igual a físico siempre, y todo
-      // lo demás sigue funcionando exactamente igual que sin filtro.
+      // Buscador propio (texto libre en cualquier columna): oculta por CSS
+      // sobre el <tr> ya renderizado, en paralelo al filtro nativo de
+      // columna (dropdownMenu/filters, en el <HotTable> de abajo) — ese sí
+      // usa el mecanismo real de Handsontable, con su propio dropdown por
+      // columna con checkboxes de valores. Ahora que rowStylesRef se indexa
+      // por _rowId y no por posición, ambos pueden convivir sin pisarse: da
+      // igual qué fila oculte cada uno, el formato la sigue de todos modos.
       const firstTd = hot.getCell(visualRow, 0);
       const tr = firstTd?.parentElement as HTMLTableRowElement | null | undefined;
       if (tr) tr.style.display = term.length > 0 && !isMatch ? "none" : "";
@@ -682,6 +715,8 @@ export const PlanillaGrid = memo(function PlanillaGrid({
           themeName="ht-theme-main-dark"
           formulas={formulasSettings}
           contextMenu={CONTEXT_MENU_ITEMS as unknown as string[]}
+          dropdownMenu
+          filters
           fillHandle={FILL_HANDLE_SETTINGS}
           maxRows={MAX_ROWS}
           manualColumnResize
