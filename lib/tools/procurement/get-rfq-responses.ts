@@ -100,7 +100,7 @@ async function handler(
   const precio_promedio = precios.length > 0
     ? Number((precios.reduce((a, b) => a + b, 0) / precios.length).toFixed(2))
     : null;
-  const monedas = [...new Set(formattedResponses.map((r) => r.moneda).filter((m: string | null) => m))];
+  const monedas = [...new Set(formattedResponses.map((r) => r.moneda).filter((m: string | undefined): m is string => Boolean(m)))];
 
   return {
     rfq_id: input.rfq_id,

@@ -64,6 +64,7 @@ async function handler(
       id,
       proyecto_id,
       status,
+      required_by,
       proyectos!inner(id, name, code)
     `)
     .eq("id", input.rfq_id)
@@ -90,7 +91,12 @@ async function handler(
     throw new Error(`Supplier ${input.selected_supplier_id} no está invitado a esta RFQ`);
   }
 
-  const supplierNombre = supplierInRfq.suppliers?.nombre || "Proveedor desconocido";
+  // supabase-js tipa el embed !inner como arreglo; en many-to-one llega objeto.
+  const inviteRow = supplierInRfq as unknown as {
+    suppliers?: { nombre: string; ruc: string | null } | Array<{ nombre: string; ruc: string | null }> | null;
+  };
+  const inviteSupplier = Array.isArray(inviteRow.suppliers) ? inviteRow.suppliers[0] : inviteRow.suppliers;
+  const supplierNombre = inviteSupplier?.nombre || "Proveedor desconocido";
 
   // 3. Obtener items de la RFQ y sus cotizaciones seleccionadas
   const { data: rfqItems, error: itemsErr } = await db

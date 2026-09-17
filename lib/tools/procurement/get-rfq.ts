@@ -18,17 +18,17 @@ export interface GetRfqOutput {
     proyecto_id: string;
     empresa_id: string;
     titulo: string;
-    descripcion?: string;
-    material_solicitado?: string;
-    cantidad_solicitada?: number;
-    unidad?: string;
-    proyecto_nombre?: string;
-    proyecto_codigo?: string;
+    descripcion?: string | null;
+    material_solicitado?: string | null;
+    cantidad_solicitada?: number | null;
+    unidad?: string | null;
+    proyecto_nombre?: string | null;
+    proyecto_codigo?: string | null;
     status: string;
     fecha_solicitud: string;
-    fecha_limite?: string;
-    presupuesto_referencial?: number;
-    creado_por?: string;
+    fecha_limite?: string | null;
+    presupuesto_referencial?: number | null;
+    creado_por?: string | null;
   };
   items: Array<{
     id: string;
@@ -71,6 +71,7 @@ async function handler(
       fecha_limite,
       presupuesto_referencial,
       creado_por,
+      created_at,
       projects!inner(id, name, code)
     `)
     .eq("id", input.rfq_id)
@@ -80,6 +81,27 @@ async function handler(
   if (rfqErr || !rfq) {
     throw new Error(`RFQ no encontrado o no pertenece a tu empresa (id=${input.rfq_id})`);
   }
+
+  // supabase-js tipa los embeds !inner como arreglo; en many-to-one llega objeto.
+  // Se aceptan ambas formas sin cambiar la consulta ni el filtrado.
+  const rfqRow = rfq as unknown as {
+    id: string;
+    proyecto_id: string;
+    empresa_id: string;
+    titulo: string;
+    descripcion: string | null;
+    material_solicitado: string | null;
+    cantidad_solicitada: number | null;
+    unidad: string | null;
+    status: string;
+    fecha_solicitud: string;
+    fecha_limite: string | null;
+    presupuesto_referencial: number | null;
+    creado_por: string | null;
+    created_at: string;
+    projects?: { name: string | null; code: string | null } | Array<{ name: string | null; code: string | null }> | null;
+  };
+  const proyecto = Array.isArray(rfqRow.projects) ? rfqRow.projects[0] : rfqRow.projects;
 
   // 2. Obtener items de la RFQ
   const { data: rfqItems, error: itemsErr } = await db
@@ -104,21 +126,21 @@ async function handler(
 
   return {
     rfq: {
-      id: rfq.id,
-      proyecto_id: rfq.proyecto_id,
-      empresa_id: rfq.empresa_id,
-      titulo: rfq.titulo,
-      descripcion: rfq.descripcion,
-      material_solicitado: rfq.material_solicitado,
-      cantidad_solicitada: rfq.cantidad_solicitada,
-      unidad: rfq.unidad,
-      status: rfq.status,
-      fecha_solicitud: rfq.fecha_solicitud,
-      fecha_limite: rfq.fecha_limite,
-      presupuesto_referencial: rfq.presupuesto_referencial,
-      creado_por: rfq.creado_por,
-      proyecto_nombre: rfq.projects?.name || null,
-      proyecto_codigo: rfq.projects?.code || null,
+      id: rfqRow.id,
+      proyecto_id: rfqRow.proyecto_id,
+      empresa_id: rfqRow.empresa_id,
+      titulo: rfqRow.titulo,
+      descripcion: rfqRow.descripcion,
+      material_solicitado: rfqRow.material_solicitado,
+      cantidad_solicitada: rfqRow.cantidad_solicitada,
+      unidad: rfqRow.unidad,
+      status: rfqRow.status,
+      fecha_solicitud: rfqRow.fecha_solicitud,
+      fecha_limite: rfqRow.fecha_limite,
+      presupuesto_referencial: rfqRow.presupuesto_referencial,
+      creado_por: rfqRow.creado_por,
+      proyecto_nombre: proyecto?.name || null,
+      proyecto_codigo: proyecto?.code || null,
     },
     items: (rfqItems ?? []) as Array<{
       id: string;
@@ -132,7 +154,7 @@ async function handler(
       ruc: si.suppliers?.ruc || null,
       estado_respuesta: si.estado_respuesta,
     })),
-    created_at: rfq.created_at,
+    created_at: rfqRow.created_at,
   };
 }
 

@@ -84,7 +84,7 @@ async function extractXlsxStructured(buffer: Buffer, maxRows: number, maxSheets:
 
   const sheets = workbook.SheetNames.slice(0, maxSheets).map((name) => {
     const sheet = workbook.Sheets[name];
-    const json = XLSX.utils.sheet_to_json(sheet, { defval: null, raw: false });
+    const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null, raw: false });
     const rows = json.slice(0, maxRows);
     const cols = rows.length > 0 ? Object.keys(rows[0] as Record<string, unknown>) : [];
     return { name, rows, cols };

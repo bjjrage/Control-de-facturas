@@ -89,9 +89,9 @@ describe("READ tools registration", () => {
 
     // Mock budget_items y execution_entries que el handler también consulta
     const origFrom = fakeDb.from;
-    // Fix: cast a any para evitar TS2348 sobre Mock no callable en entornos strict
-    (fakeDb as unknown as { from: any }).from = vi.fn((table: string) => {
-      if (table === "projects") return (origFrom as ReturnType<typeof vi.fn>)(table);
+    // Fix: cast a firma callable precisa para evitar TS2348 sobre Mock no callable en entornos strict
+    (fakeDb as unknown as { from: unknown }).from = vi.fn((table: string) => {
+      if (table === "projects") return (origFrom as unknown as (t: string) => unknown)(table);
       if (table === "budget_items" || table === "execution_entries") {
         // Retornar builder thenable que resuelve a array vacio
         const b: Record<string, unknown> = {};
@@ -100,9 +100,9 @@ describe("READ tools registration", () => {
         // thenable
         (b as unknown as { then: (cb: (v: unknown) => void) => void }).then = (cb: (v: unknown) => void) =>
           Promise.resolve({ data: [], error: null }).then(cb as never);
-        return (origFrom as ReturnType<typeof vi.fn>)(table);
+        return (origFrom as unknown as (t: string) => unknown)(table);
       }
-      return (origFrom as ReturnType<typeof vi.fn>)(table);
+      return (origFrom as unknown as (t: string) => unknown)(table);
     }) as unknown as ReturnType<typeof vi.fn>;
 
     const tool = getTool("get_project_context");

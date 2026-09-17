@@ -93,7 +93,6 @@ async function handler(
   // 3. Organizar respuestas por item
   // Primero, obtener todas las descripciones de items originales
   const allItemDescriptions = new Set(originalItems.map((i) => i.descripcion));
-
   // Agrupar respuestas por item
   const itemResponseMap = new Map<string, Array<{
     supplier_nombre: string;
@@ -109,12 +108,34 @@ async function handler(
     itemResponseMap.set(item.descripcion, []);
   }
 
+  // La consulta no hace embed de suppliers: a nivel de tipos se declara opcional
+  // y se conserva el fallback "Desconocido" sin cambiar la consulta ni el flujo.
+  type RfqResponseRow = {
+    id: string;
+    supplier_id: string;
+    precio_oferta_pyg: number | null;
+    moneda: string | null;
+    validez_hasta: string | null;
+    observaciones: string | null;
+    fecha_respuesta: string;
+    estado: string;
+    suppliers?: { nombre: string; ruc: string | null } | null;
+    rfq_items?: Array<{
+      id: string;
+      descripcion: string;
+      cantidad: number | null;
+      unidad: string | null;
+      precio_unitario: number | null;
+      cubre_item: boolean | null;
+    }> | null;
+  };
+
   // Llenar con respuestas
-  for (const r of (responses ?? [])) {
+  for (const r of ((responses ?? []) as RfqResponseRow[])) {
     const supplierResp = r.suppliers ? { nombre: r.suppliers.nombre, ruc: r.suppliers.ruc } : { nombre: "Desconocido", ruc: null };
-    
+
     // Buscar qué item cubre esta respuesta
-    const coveredItems = (r.rfq_items ?? []).filter((ir: any) => ir.cubre_item);
+    const coveredItems = (r.rfq_items ?? []).filter((ir) => ir.cubre_item);
     
     for (const ci of coveredItems) {
       const itemDesc = ci.descripcion;
@@ -189,9 +210,10 @@ async function handler(
   const prices = itemsComparison.flatMap((ic) =>
     ic.supplier_offs.filter((o) => o.price_pyg !== null && o.price_pyg !== undefined)
   );
+  const priceValues = prices.map((o) => o.price_pyg).filter((p): p is number => p !== null && p !== undefined);
   const priceRange = {
-    min: prices.length > 0 ? Math.min(...prices) : null,
-    max: prices.length > 0 ? Math.max(...prices) : null,
+    min: priceValues.length > 0 ? Math.min(...priceValues) : null,
+    max: priceValues.length > 0 ? Math.max(...priceValues) : null,
   };
 
   // has_unknowns: true si algun item tiene coverage UNKNOWN (null) o missing_items
@@ -207,7 +229,7 @@ async function handler(
       items_with_price: itemsWithPrice,
       items_with_coverage: itemsWithCoverage,
       suppliers_quoted: suppliersQuoted,
-      price_range,
+      price_range: priceRange,
       has_unknowns,
     },
   };

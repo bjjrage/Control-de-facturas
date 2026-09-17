@@ -54,8 +54,8 @@ async function handler(
   let query = db.from("company_bid_vault_items").select("*, metadatos");
 
   // Filter by empresa_id is already handled by RLS, but we scope explicitly
-  if (material_category) {
-    query = query.eq("categoria", material_category);
+  if (input.material_category) {
+    query = query.eq("categoria", input.material_category);
   }
 
   const { data: vaultItems, error: vaultErr } = await query.limit(input.limit);
@@ -77,7 +77,7 @@ async function handler(
         supplier_id: item.id,
         nombre_razon_social: nombre,
         ruc: ruc || null,
-        categoria_material: metadatos.categoria_material || material_category || null,
+        categoria_material: metadatos.categoria_material || input.material_category || null,
         ultima_compra: metadatos.ultima_compra
           ? {
               fecha: metadatos.ultima_compra.fecha,
@@ -99,7 +99,8 @@ async function handler(
       supplierMap.set(ruc || nombre, sup);
     } else {
       // Acumular datos: actualizar última compra si es más reciente
-      if (metadatos.ultima_compra && (!sup.ultima_compra || new Date(metadatos.ultima_compra.fecha) > new Date(sup.ultima_compra.fecha))) {
+      // (?? 0 preserva la semántica exacta de new Date(null) = epoch, solo satisface al tipado)
+      if (metadatos.ultima_compra && (!sup.ultima_compra || new Date(metadatos.ultima_compra.fecha) > new Date(sup.ultima_compra.fecha ?? 0))) {
         sup.ultima_compra = {
           fecha: metadatos.ultima_compra.fecha,
           monto_pyg: metadatos.ultima_compra.monto_pyg,

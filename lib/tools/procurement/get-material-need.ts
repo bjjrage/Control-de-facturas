@@ -20,7 +20,7 @@ export interface GetMaterialNeedOutput {
   project_id: string;
   materials_requested: Array<{
     description: string;
-    required: boolean;
+    required: number;
     net_available: number; // stock disponible - reservado
     shortage: number; //.required - available (0 if sufficient)
     unit: string | null;
@@ -77,12 +77,18 @@ async function handler(
     .eq("empresa_id", empresaId)
     .in("activo", [true]); // solo activos
 
-  const catalogItems = (catalog ?? []) as Array<{
+  const catalogItems = ((catalog ?? []) as Array<{
     id: string;
     nombre: string;
     unidad: string | null;
     stock_actual: number;
-  }>;
+  }>).map((c) => ({
+    // El motor de matching (CatalogItem) pide descripcion/unidad no nulas:
+    // se derivan de nombre/unidad sin cambiar la fuente ni el flujo.
+    ...c,
+    descripcion: c.nombre,
+    unidad: c.unidad ?? "",
+  }));
 
   // 4. Para cada material solicitado, verificar stock disponible
   const materialsRequested = input.material_descriptions.map((desc) => {
@@ -106,7 +112,9 @@ async function handler(
     const matchedItem = bestMatch.bestMatch
       ? {
           id: bestMatch.bestMatch.item.id,
-          nombre: bestMatch.bestMatch.item.nombre,
+          // El item devuelto es la misma referencia adaptada de arriba
+          // (con nombre preservado por spread); el cast solo lo expresa.
+          nombre: (bestMatch.bestMatch.item as typeof catalogItems[number]).nombre,
           similarity: bestMatch.bestMatch.similarityScore,
         }
       : null;

@@ -125,7 +125,7 @@ async function handler(
     .from("rfqs")
     .select("id")
     .eq("empresa_id", empresaId)
-    .eq("idempotency_key", idempotency_key)
+    .eq("idempotency_key", idempotencyKey)
     .maybeSingle();
 
   if (existErr) throw new Error(`Error checking idempotency: ${existErr.message}`);
@@ -189,7 +189,7 @@ async function handler(
       status: "DRAFT",
       required_by: input.required_by || null,
       notes: input.notes || null,
-      idempotency_key: idempotency_key,
+      idempotency_key: idempotencyKey,
     })
     .select("id, titulo, status, required_by, notes, created_at")
     .single();

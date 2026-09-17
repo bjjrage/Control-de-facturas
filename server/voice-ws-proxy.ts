@@ -9,7 +9,8 @@ import { parse } from "url";
 import { DeepgramSttProvider } from "../lib/voice/providers/deepgram-stt";
 
 const PORT = process.env.VOICE_WS_PORT ? parseInt(process.env.VOICE_WS_PORT) : 3001;
-const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY;
+// El guard de arranque (exit 1) garantiza presencia; el cast solo lo expresa al tipado.
+const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY as string;
 
 if (!DEEPGRAM_API_KEY) {
   console.error("[Voice WS Proxy] DEEPGRAM_API_KEY no configurada");
@@ -174,7 +175,8 @@ async function handleMessage(ws: WebSocket, session: ClientSession, message: any
 
       } catch (error) {
         console.error("[Voice WS] Error starting STT session:", error);
-        ws.send(JSON.stringify({ type: "error", message: `Failed to start STT: ${error.message}` }));
+        const detail = error instanceof Error ? error.message : String(error);
+        ws.send(JSON.stringify({ type: "error", message: `Failed to start STT: ${detail}` }));
       }
       break;
     }

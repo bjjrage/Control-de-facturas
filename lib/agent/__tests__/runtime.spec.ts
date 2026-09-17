@@ -67,8 +67,8 @@ describe("runtime idempotency", () => {
     // Forzar que insert capture el input sanitizado
     let capturedInsertPayload: unknown = null;
     const originalFrom = db.from;
-    (db as unknown as { from: any }).from = vi.fn((table: string) => {
-      const base = (originalFrom as ReturnType<typeof vi.fn>)(table);
+    (db as unknown as { from: unknown }).from = vi.fn((table: string) => {
+      const base = (originalFrom as unknown as (t: string) => unknown)(table);
       if (table === "agent_steps") {
         const origInsert = (base as unknown as { insert: ReturnType<typeof vi.fn> }).insert;
         // Cast to any to bypass strict type checking on Mock.insert, since vi.fn returns a fully callable Mock at runtime
