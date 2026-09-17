@@ -1,0 +1,141 @@
+/* Rodrigo widget — acentos visuales por estado durable + micrófono. */
+
+.widget {
+  --rodrigo-accent: var(--primary);
+}
+
+.mascotButton {
+  animation: rodrigo-float 4.5s ease-in-out infinite;
+}
+
+@keyframes rodrigo-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.mascotButton:hover {
+  animation-play-state: paused;
+}
+
+.mascot {
+  pointer-events: none;
+}
+
+.mascot canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.panel {
+  animation: rodrigo-panel-in 0.18s ease-out;
+  transform-origin: bottom right;
+}
+
+@keyframes rodrigo-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.stateIcon {
+  background: color-mix(in srgb, var(--rodrigo-accent) 14%, transparent);
+  color: var(--rodrigo-accent);
+}
+
+.approvalBadge {
+  animation: rodrigo-badge-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes rodrigo-badge-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.18);
+  }
+}
+
+.state-idle {
+  --rodrigo-accent: var(--primary);
+}
+
+.state-listening {
+  --rodrigo-accent: #2f9e44;
+}
+
+.state-listening .mascotButton {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, #2f9e44 55%, transparent),
+    0 10px 30px rgb(0 0 0 / 0.35);
+}
+
+.state-thinking,
+.state-working {
+  --rodrigo-accent: var(--primary);
+}
+
+.state-thinking .mascotButton,
+.state-working .mascotButton {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--primary) 55%, transparent),
+    0 10px 30px rgb(0 0 0 / 0.35);
+}
+
+.state-approval {
+  --rodrigo-accent: var(--warn);
+}
+
+.state-approval .mascotButton {
+  box-shadow:
+    0 0 0 2px var(--warn),
+    0 10px 30px rgb(0 0 0 / 0.35);
+}
+
+.state-success {
+  --rodrigo-accent: var(--ok);
+}
+
+.state-success .mascotButton {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--ok) 60%, transparent),
+    0 10px 30px rgb(0 0 0 / 0.35);
+}
+
+.state-error {
+  --rodrigo-accent: var(--error);
+}
+
+.state-error .mascotButton {
+  box-shadow:
+    0 0 0 2px var(--error),
+    0 10px 30px rgb(0 0 0 / 0.35);
+}
+
+.state-disabled {
+  --rodrigo-accent: var(--muted);
+}
+
+.state-disabled .mascotButton {
+  filter: grayscale(0.9) brightness(0.92);
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascotButton,
+  .approvalBadge,
+  .panel {
+    animation: none;
+  }
+}

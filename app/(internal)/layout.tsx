@@ -3,6 +3,8 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { AdminRailPanel } from "@/components/layout/admin-rail-panel";
 import { Topbar } from "@/components/layout/topbar";
 import { AppShellClient } from "@/components/layout/app-shell-client";
+import { RodrigoAgentProvider } from "@/components/agent/rodrigo-agent-provider";
+import { RodrigoAgentWidget } from "@/components/agent/rodrigo-agent-widget";
 
 // The logo upload in the Sidebar (present on every page under this layout)
 // can rasterize a PDF, which may outlast the platform's default serverless
@@ -19,7 +21,8 @@ export default async function InternalLayout({ children }: { children: React.Rea
   const showLicitaciones = isProOrAbove && ["comercial", "administracion", "admin"].includes(profile.role);
 
   return (
-    <div className="flex min-h-screen bg-[var(--background)]">
+    <RodrigoAgentProvider>
+      <div className="flex min-h-screen bg-[var(--background)]">
       <Sidebar
         role={profile.role}
         fullName={profile.full_name}
@@ -40,6 +43,8 @@ export default async function InternalLayout({ children }: { children: React.Rea
         </main>
       </div>
       <AdminRailPanel role={profile.role} plan={profile.plan} isSuperAdmin={profile.is_super_admin} />
-    </div>
+      </div>
+      <RodrigoAgentWidget />
+    </RodrigoAgentProvider>
   );
 }
