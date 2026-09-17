@@ -343,7 +343,16 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     const current: PlanillaRowStyle = rowStylesRef.current[selectedCell.row] ?? {};
     const next: PlanillaRowStyle = { ...current, ...patch };
     rowStylesRef.current[selectedCell.row] = next;
-    hot.setDataAtRowProp(selectedCell.row, "_style", next, "PlanillaGrid.style");
+    // Mutación directa del objeto de datos, NO hot.setDataAtRowProp(): "_style"
+    // no es una columna declarada y escribirle un valor OBJETO (no string/
+    // number) vía esa API rompe algo interno de Handsontable con "Assertion
+    // failed: Expecting an unsigned number" (confirmado en vivo, tres intentos
+    // de implementación distintos fallaron igual apenas se llamaba a esa API
+    // con esta prop). Handsontable mantiene la MISMA referencia de objeto que
+    // se le pasó por `data` para filas ya existentes, así que mutarla acá
+    // alcanza para que emitChange() (que lee getSourceData()) la vea.
+    const sourceRow = hot.getSourceDataAtRow(selectedCell.row) as PlanillaGridRow | undefined;
+    if (sourceRow) sourceRow._style = next;
     applyStylesToDom();
     emitChange();
   }
