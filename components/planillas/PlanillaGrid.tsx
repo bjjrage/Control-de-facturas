@@ -6,7 +6,7 @@ import type { HotTableRef } from "@handsontable/react-wrapper";
 import Handsontable from "handsontable";
 import { registerAllModules } from "handsontable/registry";
 import { HyperFormula } from "hyperformula";
-import { Plus, Trash2, Undo2, Redo2, Bold, AlignLeft, AlignCenter, AlignRight, Ban, Sigma, Paintbrush, Search } from "lucide-react";
+import { Plus, Trash2, Undo2, Redo2, Bold, AlignLeft, AlignCenter, AlignRight, Ban, Paintbrush, Search } from "lucide-react";
 import type { PlanillaColumn, PlanillaRowMeta, PlanillaRowStyle } from "@/lib/planillas/types";
 import { colIndexToLetter, isNewRowId, newRowId, resolveFormulaTemplate } from "@/lib/planillas/grid-utils";
 
@@ -375,29 +375,6 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     hotRef.current?.hotInstance?.getPlugin("undoRedo").redo();
   }
 
-  // Autosuma tipo Excel: toma el rango seleccionado en UNA columna y escribe
-  // =SUM(...) en la celda siguiente (crea la fila si hace falta). Usa
-  // hot.setDataAtCell sobre una columna DECLARADA — el mismo camino ya
-  // probado en vivo para fórmulas libres (commitFormulaBar) — nunca
-  // setDataAtRowProp sobre un prop oculto, que es lo que rompía con _style.
-  function handleAutosum() {
-    const hot = hotRef.current?.hotInstance;
-    if (!hot) return;
-    const range = hot.getSelectedRangeLast();
-    if (!range) return;
-    const { row: fromRow, col } = range.from;
-    const { row: toRow, col: toCol } = range.to;
-    if (fromRow === null || toRow === null || col === null || toCol === null) return;
-    if (col !== toCol) return; // autosuma de una sola columna, como el botón Σ de Excel
-    const startRow = Math.min(fromRow, toRow);
-    const endRow = Math.max(fromRow, toRow);
-    const targetRow = endRow + 1;
-    if (targetRow >= hot.countRows()) hot.alter("insert_row_below", endRow, 1);
-    const colLetter = colIndexToLetter(col);
-    const formula = `=SUM(${colLetter}${startRow + 1}:${colLetter}${endRow + 1})`;
-    hot.setDataAtCell(targetRow, col, formula, "PlanillaGrid.autosum");
-  }
-
   // Copiar formato ("brush" de Excel): un botón, dos clics. Acá solo copia;
   // quien lo APLICA es handleAfterSelectionEnd (arriba), en el próximo clic.
   function handleStartPaintFormat() {
@@ -547,15 +524,6 @@ export const PlanillaGrid = memo(function PlanillaGrid({
             <Redo2 size={13} />
           </button>
           <span className="w-px h-4 bg-[var(--border)] mx-1" />
-          <button
-            type="button"
-            onClick={handleAutosum}
-            disabled={!selectedCell}
-            title="Autosuma (=SUM del rango seleccionado)"
-            className="flex items-center gap-1 px-2 h-6 rounded text-[11px] text-[var(--foreground)] hover:bg-[var(--hover)] disabled:opacity-40 disabled:hover:bg-transparent"
-          >
-            <Sigma size={13} /> Autosuma
-          </button>
           <button
             type="button"
             onClick={handleStartPaintFormat}
