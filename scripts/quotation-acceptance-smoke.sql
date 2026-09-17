@@ -15,10 +15,11 @@
 --   7. edición de aceptada → bloqueada por guard de inmutabilidad
 --   8. SIN efectos colaterales: stock/OC/facturas/cobros/tesorería/pagos igual
 --   9. constraints de idempotencia presentes
---  10. limpieza de datos de prueba
+--  10. cierre: cadena aceptada bloqueada como evidencia permanente; solo se
+--      limpia la cotización sin aceptación (v_doc2) + eventos
 --  11. inmutabilidad del acceptance: UPDATE/DELETE directos bloqueados por
---      trigger; DELETE de cliente/cotización/tenant bloqueado por RESTRICT;
---      DELETE de token no destruye el record (SET NULL + snapshot)
+--      trigger; DELETE de cliente/cotización/token/tenant bloqueado por
+--      RESTRICT con la referencia intacta
 --
 -- CONCURRENCIA REAL (2 requests simultáneos): ver
 -- scripts/quotation-acceptance-concurrent.mjs (requiere anon key del branch).
@@ -41,6 +42,7 @@ DECLARE
   v_wo record;
   v_ver int;
   v_n_acc int; v_n_wo int;
+  v_tok_prefix_tmp text;
   c_oc0 int; c_inv0 int; c_rec0 int; c_stock0 int; c_tes0 int; c_pay0 int;
   c_oc1 int; c_inv1 int; c_rec1 int; c_stock1 int; c_tes1 int; c_pay1 int;
 BEGIN
@@ -248,12 +250,18 @@ BEGIN
   EXCEPTION WHEN foreign_key_violation THEN
     -- esperado
   END;
-  -- DELETE del token → permitido pero NO destruye el record (SET NULL;
-  -- el snapshot + prefijo conservan la referencia).
-  DELETE FROM public.sales_quotation_tokens WHERE id = v_tok;
+  -- DELETE del token usado en la aceptación → bloqueado por RESTRICT
+  -- (0093): el token es evidencia, se inutiliza con revoked_at, nunca DELETE.
+  BEGIN
+    DELETE FROM public.sales_quotation_tokens WHERE id = v_tok;
+    RAISE EXCEPTION 'SMOKE §11: DELETE de token usado NO bloqueado por RESTRICT';
+  EXCEPTION WHEN foreign_key_violation THEN
+    -- esperado
+  END;
+  -- La referencia se conserva intacta (token_id + prefijo, sin NULLs).
   IF NOT EXISTS (SELECT 1 FROM public.sales_quotation_acceptances
-                 WHERE sales_document_id = v_doc AND token_id IS NULL AND token_prefix IS NOT NULL) THEN
-    RAISE EXCEPTION 'SMOKE §11: borrar el token destruyó la referencia del acceptance';
+                 WHERE sales_document_id = v_doc AND token_id = v_tok AND token_prefix IS NOT NULL) THEN
+    RAISE EXCEPTION 'SMOKE §11: referencia del acceptance al token alterada';
   END IF;
   -- DELETE del tenant → bloqueado por RESTRICT (0092).
   BEGIN
@@ -264,13 +272,21 @@ BEGIN
   END;
   RAISE NOTICE 'SMOKE §11 OK: acceptance append-only, relacionadas no lo destruyen';
 
-  -- --- 10. Limpieza (orden por FKs RESTRICT) ---
-  DELETE FROM public.sales_quotation_events WHERE sales_document_id IN (v_doc, v_doc2);
-  DELETE FROM public.sales_quotation_acceptances WHERE sales_document_id IN (v_doc, v_doc2);
-  DELETE FROM public.work_order_items WHERE work_order_id IN (SELECT id FROM public.work_orders WHERE sales_document_id IN (v_doc, v_doc2));
-  DELETE FROM public.work_orders WHERE sales_document_id IN (v_doc, v_doc2);
-  DELETE FROM public.sales_quotation_tokens WHERE sales_document_id IN (v_doc, v_doc2);
-  DELETE FROM public.sales_document_items WHERE sales_document_id IN (v_doc, v_doc2);
-  DELETE FROM public.sales_documents WHERE id IN (v_doc, v_doc2);
-  RAISE NOTICE 'SMOKE COMPLETO OK + limpieza realizada';
+  -- --- 10. Cierre: la cadena aceptada queda bloqueada (evidencia), se
+  -- limpia solo lo eliminable (cotización v_doc2 sin aceptación + eventos).
+  -- v_doc2: sin acceptance → tokens, ítems, eventos y doc eliminables.
+  DELETE FROM public.sales_quotation_tokens WHERE sales_document_id = v_doc2;
+  DELETE FROM public.sales_document_items WHERE sales_document_id = v_doc2;
+  DELETE FROM public.sales_quotation_events WHERE sales_document_id = v_doc2;
+  DELETE FROM public.sales_documents WHERE id = v_doc2;
+  -- v_doc (aceptada): solo los eventos son eliminables; doc, ítems, token,
+  -- OT y acceptance quedan bloqueados como evidencia permanente del test.
+  DELETE FROM public.sales_quotation_events WHERE sales_document_id = v_doc;
+  SELECT count(*) INTO v_n_acc FROM public.sales_quotation_acceptances WHERE sales_document_id = v_doc;
+  SELECT count(*) INTO v_n_wo FROM public.work_orders WHERE sales_document_id = v_doc;
+  IF v_n_acc <> 1 OR v_n_wo <> 1 THEN
+    RAISE EXCEPTION 'SMOKE §10: cadena de evidencia alterada acc=% ot=%', v_n_acc, v_n_wo;
+  END IF;
+  SELECT v_wo.code INTO v_tok_prefix_tmp FROM public.work_orders v_wo WHERE sales_document_id = v_doc;
+  RAISE NOTICE 'SMOKE COMPLETO OK: evidencia permanente doc=% ot=% (cadena aceptada bloqueada por diseño)', v_doc, v_tok_prefix_tmp;
 END $$;

@@ -108,13 +108,8 @@ assert(nWo === 1, `work orders: ${nWo}`);
 assert(new Set(wos.map((w) => w.code)).size === 1, "una sola numeración OT");
 console.log(`OK: 1 acceptance, 1 OT (${wos[0].code}), ${N} requests concurrentes sin duplicados`);
 
-// 4. Limpieza.
-const woIds = wos.map((w) => w.id);
+// 4. Cierre: la cadena aceptada queda bloqueada como evidencia permanente
+// (acceptance append-only + FKs RESTRICT impiden borrar doc/ítems/token/OT).
+// Solo los eventos son eliminables; se informa el doc para verificación.
 await admin.from("sales_quotation_events").delete().eq("sales_document_id", doc.id);
-await admin.from("sales_quotation_acceptances").delete().eq("sales_document_id", doc.id);
-for (const id of woIds) await admin.from("work_order_items").delete().eq("work_order_id", id);
-await admin.from("work_orders").delete().eq("sales_document_id", doc.id);
-await admin.from("sales_quotation_tokens").delete().eq("sales_document_id", doc.id);
-await admin.from("sales_document_items").delete().eq("sales_document_id", doc.id);
-await admin.from("sales_documents").delete().eq("id", doc.id);
-console.log("Limpieza OK");
+console.log(`Evidencia permanente: doc=${doc.id} ot=${wos[0].code} (cadena aceptada bloqueada por diseño)`);
