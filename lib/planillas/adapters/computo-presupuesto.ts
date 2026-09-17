@@ -67,14 +67,15 @@ export const computoPresupuestoAdapter: PlanillaAdapter<ComputoRow, ComputoConte
   async obtenerFilasIniciales(supabase: SupabaseClient, contexto: ComputoContexto): Promise<ComputoRow[]> {
     const { data, error } = await supabase
       .from("budget_items")
-      .select("id, code, description, unit, quantity, unit_price, subtotal, updated_at")
+      .select("id, code, description, unit, quantity, unit_price, subtotal, updated_at, style")
       .eq("project_id", contexto.projectId)
       .order("sort_order")
-      .returns<(BudgetItem & { updated_at: string })[]>();
+      .returns<(BudgetItem & { updated_at: string; style: Record<string, unknown> | null })[]>();
     if (error) throw new Error(error.message);
     return (data ?? []).map((b) => ({
       _rowId: b.id,
       _version: b.updated_at,
+      _style: (b.style as ComputoRow["_style"]) ?? undefined,
       code: b.code,
       description: b.description,
       unit: b.unit,
