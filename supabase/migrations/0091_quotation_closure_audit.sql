@@ -328,6 +328,16 @@ CREATE TRIGGER trg_sales_items_accepted_guard
 -- ---------------------------------------------------------------------------
 -- 7. RPCs públicos reescritos: lookup por hash + acceptance record (P.1-4)
 -- ---------------------------------------------------------------------------
+-- 0090 creó estas funciones con primer parámetro `p_token`; recrearlas con
+-- `p_token_hash` vía CREATE OR REPLACE falla con 42P13 (PostgreSQL no
+-- permite renombrar parámetros de entrada). DROP previo sin CASCADE:
+-- verificado que no tienen dependientes (ni vistas, ni triggers, ni otras
+-- funciones las referencian). Los grants se re-aplican después de cada
+-- CREATE más abajo; SECURITY DEFINER + search_path se conservan.
+DROP FUNCTION IF EXISTS public.log_quotation_view(text, text, text);
+DROP FUNCTION IF EXISTS public.accept_quotation(text, text, text, text, text, text);
+DROP FUNCTION IF EXISTS public.reject_quotation(text, text, text, text, text);
+
 CREATE OR REPLACE FUNCTION public.log_quotation_view(
   p_token_hash text, p_ip text DEFAULT NULL, p_user_agent text DEFAULT NULL
 ) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
