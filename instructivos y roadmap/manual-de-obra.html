@@ -382,9 +382,22 @@
   <!-- 07 PROFORMAS -->
   <section class="feature basico" id="proformas" data-tier="basico">
     <div class="feat-head"><span class="feat-num">07</span><span class="feat-title">Proformas</span><span class="tier-chip basico"><span class="tier-dot"></span>Básico</span></div>
-    <div class="feat-where">Dónde: sidebar → <code>Proformas</code></div>
+    <div class="feat-where">Dónde: sidebar → <code>Proformas</code> · detalle → <code>/ventas/[id]</code> (panel “Aceptación electrónica”) · portal cliente → <code>/cotizacion/[token]</code></div>
     <div class="feat-body">
-      <p>Presupuesto formal para el cliente antes de facturar. Generás PDF con el diseño de tu empresa.</p>
+      <p>Presupuesto formal para el cliente antes de facturar. Generás PDF con el diseño de tu empresa. Y si querés, la proforma puede <b>aceptarse electrónicamente</b>: el cliente aprueba desde un link seguro y el sistema genera sola la Orden de Trabajo interna.</p>
+      <div class="callout"><span class="ic">🔗</span><span><b>Mini workflow:</b> <code>BORRADOR</code> → <code>PENDING_ACCEPTANCE</code> → <code>ACCEPTED</code> → <code>OT creada</code>. El cliente acepta la <b>cotización</b>; la OT es <b>interna</b> y nunca la ve ni la aprueba el cliente.</span></div>
+      <ol class="steps">
+        <li><b>Creá la cotización/proforma</b> con cliente, ítems, cantidades y precios (tiene que quedar en <b>Borrador</b> con total mayor a cero).</li>
+        <li><b>Dejala lista para aceptación:</b> revisá que la versión y los importes sean los finales — el link congela esa versión exacta.</li>
+        <li><b>Generá el link:</b> en el detalle, panel <b>“Aceptación electrónica”</b> → botón <b>“Generar link seguro”</b> (opcional: <b>Vencimiento</b> y <b>Email del cliente</b>). El link se muestra <b>una sola vez</b>: copialo en el momento.</li>
+        <li><b>Prepará el email o copiá el link:</b> si cargaste email aparece <b>“Abrir email preparado para el cliente”</b> (un <code>mailto:</code> — prepararlo <b>no</b> significa enviado). Si no, copiá el link y pegalo manualmente en WhatsApp, SMS o Telegram. Copiar <b>no</b> significa enviado. No hay integración WhatsApp API en este flujo.</li>
+        <li><b>El cliente abre el portal</b> (<code>/cotizacion/[token]</code>, sin login): ve solo la cotización — empresa, ítems, totales, validez. Abrir el link <b>no</b> acepta.</li>
+        <li><b>El cliente acepta o rechaza:</b> completa <b>Nombre y apellido</b> y pulsa <b>“Aceptar cotización”</b> → <b>“Confirmar aceptación”</b>; o <b>“No acepto esta cotización”</b> → <b>“Confirmar que no acepto”</b>.</li>
+        <li><b>Acceptance Record:</b> la aceptación queda guardada como registro <b>inmutable</b> (quién, cuándo, qué versión, importes, IP, link usado). Es la evidencia — no la OT.</li>
+        <li><b>OT automática:</b> con la aceptación se crea <b>exactamente 1 Orden de Trabajo interna</b> (código <code>OT-…</code>) con foto de los ítems. La ves en <b>Órdenes de Trabajo</b> (<code>/ordenes-trabajo</code>) y su detalle (<code>/ordenes-trabajo/[id]</code>).</li>
+      </ol>
+      <div class="callout"><span class="ic">🏭</span><span><b>Órdenes de Trabajo (internas).</b> Tras aceptar, la OT entra a <b>“Pendiente de aprobación interna”</b> (<code>PENDING_INTERNAL_APPROVAL</code>) y un responsable la aprueba con <b>“Aprobar para producción”</b>; solo con un permiso explícito va <b>“Lista para producción”</b> (<code>READY_FOR_PRODUCTION</code>) directo. En el detalle también podés mover su estado operativo (<b>Pendiente / En curso / Completada / Cancelada</b> + <b>Guardar</b>). La OT <b>no factura, no mueve stock, no genera OC ni tiene efecto fiscal</b> por sí misma. Las reglas de a quién va cada OT se configuran en base de datos (sin pantalla propia).</span></div>
+      <div class="callout warn"><span class="ic">⚠</span><span>Si editaste la proforma después de generar el link, ese link queda <b>obsoleto</b>: generá uno nuevo. Y si se perdió el link completo, también generá uno nuevo (el anterior se revoca solo).</span></div>
     </div>
   </section>
 
