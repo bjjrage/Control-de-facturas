@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { decideApprovalAction } from "@/app/(internal)/agent/approval-actions";
 import { getRodrigoStatePresentation, type RodrigoState } from "@/lib/agent/rodrigo-state";
-import { isSttSupported, startDictation } from "@/lib/voice/stt-client";
+import { isSttSupported, startDictation, type SttHandle } from "@/lib/voice/stt-client";
 import { useRodrigoAgent } from "./rodrigo-agent-provider";
 import styles from "./rodrigo-agent-widget.module.css";
 
@@ -52,6 +52,37 @@ function StateGlyph({ state }: { state: RodrigoState }) {
   return <Sparkles aria-hidden="true" size={14} />;
 }
 
+// Waveform real: 14 barras cuya altura escribe directo el nivel RMS del
+// micrófono (vía ref, sin re-renders). Memoizado para que el timer (500ms)
+// no las resetee. Sin volumen no hay movimiento (nada fake).
+const VoiceWaveform = memo(function VoiceWaveform({
+  barsRef,
+}: {
+  barsRef: React.MutableRefObject<Array<HTMLSpanElement | null>>;
+}) {
+  return (
+    <span aria-hidden="true" className="flex h-5 items-end gap-[3px]">
+      {Array.from({ length: 14 }, (_, i) => (
+        <span
+          key={i}
+          ref={(el) => {
+            barsRef.current[i] = el;
+          }}
+          className="w-[3px] origin-bottom rounded-full bg-[var(--primary)]"
+          style={{ height: "100%", transform: "scaleY(0.12)" }}
+        />
+      ))}
+    </span>
+  );
+});
+
+function formatVoiceElapsed(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
 export function RodrigoAgentWidget() {
   const {
     state,
@@ -66,12 +97,20 @@ export function RodrigoAgentWidget() {
     sending,
     sendMessage,
   } = useRodrigoAgent();
-  const stopSttRef = useRef<(() => void) | null>(null);
+  const stopSttRef = useRef<SttHandle | null>(null);
   const isOpenRef = useRef(isOpen);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const transcriptRef = useRef<HTMLDivElement | null>(null);
-  const [microphoneActive, setMicrophoneActive] = useState(false);
+  // Máquina de estados de voz (única fuente para la UI del micrófono; evita
+  // booleanos descoordinados). sending (chat) lo aporta el provider.
+  const [voice, setVoice] = useState<"idle" | "requesting" | "listening" | "transcribing">("idle");
+  const [vad, setVad] = useState<"waiting" | "speech">("waiting");
+  const [voiceElapsedMs, setVoiceElapsedMs] = useState(0);
   const [microphoneError, setMicrophoneError] = useState<string | null>(null);
+  const barsRef = useRef<Array<HTMLSpanElement | null>>([]);
+  const WAVE_TAPER = useRef([
+    0.45, 0.6, 0.78, 0.92, 1, 1, 0.95, 0.88, 0.95, 1, 1, 0.92, 0.78, 0.6,
+  ]);
   const [draft, setDraft] = useState("");
   const [approvalBusyId, setApprovalBusyId] = useState<string | null>(null);
   const [approvalError, setApprovalError] = useState<string | null>(null);
@@ -83,14 +122,17 @@ export function RodrigoAgentWidget() {
   }, [isOpen]);
 
   const stopMicrophone = useCallback(() => {
-    const stop = stopSttRef.current;
+    const handle = stopSttRef.current;
     stopSttRef.current = null;
     try {
-      stop?.();
+      // Cancelar (minimizar/desmontar/runtime caído): aborta sin transcribir
+      // ni enviar; cierra recorder, AudioContext, rAF, timers y tracks.
+      handle?.cancel();
     } catch {
       // Un stream ya cerrado no debe impedir que el panel se cierre.
     }
-    setMicrophoneActive(false);
+    setVoice("idle");
+    setVad("waiting");
     setVisualState(null);
   }, [setVisualState]);
 
@@ -104,10 +146,19 @@ export function RodrigoAgentWidget() {
 
   useEffect(() => {
     // Si el runtime se cae con el micrófono abierto, no dejar captura oculta.
-    if (state !== "disabled" || !microphoneActive) return;
+    if (state !== "disabled" || voice === "idle") return;
     const stopTimer = window.setTimeout(stopMicrophone, 0);
     return () => window.clearTimeout(stopTimer);
-  }, [microphoneActive, state, stopMicrophone]);
+  }, [voice, state, stopMicrophone]);
+
+  useEffect(() => {
+    // Cronómetro de grabación (solo display, 500ms).
+    if (voice !== "listening") return;
+    const startedAt = Date.now();
+    setVoiceElapsedMs(0);
+    const id = window.setInterval(() => setVoiceElapsedMs(Date.now() - startedAt), 500);
+    return () => window.clearInterval(id);
+  }, [voice]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -123,24 +174,61 @@ export function RodrigoAgentWidget() {
   }, [messages, isOpen]);
 
   const toggleMicrophone = useCallback(() => {
-    if (microphoneActive) {
-      stopMicrophone();
+    // Una sola sesión a la vez: la máquina voice impide reentradas
+    // (doble click, auto-stop + click simultáneo) por construcción.
+    if (voice !== "idle") {
+      if (voice !== "listening") return;
+      // Apagar manual (fallback): stop() → transcribe → onFinal/onError.
+      // El VAD auto-stop usa exactamente la misma vía (idempotente en cliente).
+      const handle = stopSttRef.current;
+      try {
+        handle?.stop();
+      } catch {
+        setVoice("idle");
+        setVisualState(null);
+        return;
+      }
+      setVoice("transcribing");
+      setVisualState("thinking");
       return;
     }
     if (state === "disabled" || sending) return;
     if (!isSttSupported()) {
-      setMicrophoneError("Tu navegador no expone reconocimiento de voz. Escribí el mensaje.");
+      setMicrophoneError("Tu navegador no permite grabar audio desde esta página. Escribí el mensaje.");
       setVisualState("error", { resetAfterMs: 5_000 });
       return;
     }
     setMicrophoneError(null);
-    setVisualState("listening");
-    setMicrophoneActive(true);
-    const stop = startDictation({
+    setVad("waiting");
+    setVoice("requesting");
+    const handle = startDictation({
       onInterim: (text) => setDraft(text),
+      onStarted: () => {
+        setVoice("listening");
+        setVad("waiting");
+        setVisualState("listening");
+      },
+      onSpeechStart: () => {
+        setVad("speech");
+      },
+      onLevel: (level) => {
+        const taper = WAVE_TAPER.current;
+        const bars = barsRef.current;
+        for (let i = 0; i < bars.length; i += 1) {
+          const el = bars[i];
+          if (!el) continue;
+          const h = 0.12 + Math.min(1, Math.max(0, level)) * (taper[i] ?? 1) * 0.88;
+          el.style.transform = `scaleY(${h.toFixed(3)})`;
+        }
+      },
+      onTranscribing: () => {
+        setVoice("transcribing");
+        setVisualState("thinking");
+      },
       onFinal: (text) => {
         setDraft("");
-        setMicrophoneActive(false);
+        setVoice("idle");
+        setVad("waiting");
         stopSttRef.current = null;
         setVisualState(null);
         if (text && isOpenRef.current) void sendMessage(text);
@@ -148,17 +236,30 @@ export function RodrigoAgentWidget() {
       onError: (message) => {
         if (!isOpenRef.current) return;
         setMicrophoneError(message);
-        setMicrophoneActive(false);
+        setVoice("idle");
+        setVad("waiting");
         setVisualState("error", { resetAfterMs: 5_000 });
       },
       onEnd: () => {
         stopSttRef.current = null;
-        setMicrophoneActive(false);
+        setVoice("idle");
+        setVad("waiting");
         setVisualState(null);
       },
     });
-    stopSttRef.current = stop;
-  }, [microphoneActive, sending, sendMessage, setVisualState, state, stopMicrophone]);
+    stopSttRef.current = handle;
+  }, [voice, sending, sendMessage, setVisualState, state]);
+
+  const cancelRecording = useCallback(() => {
+    // Cancelar: aborta sin transcribir ni enviar (el onEnd del cliente resetea).
+    try {
+      stopSttRef.current?.cancel();
+    } catch {
+      setVoice("idle");
+      setVad("waiting");
+      setVisualState(null);
+    }
+  }, [setVisualState]);
 
   const submitDraft = useCallback(() => {
     if (!draft.trim() || sending || state === "disabled") return;
@@ -281,16 +382,38 @@ export function RodrigoAgentWidget() {
             ) : null}
 
             <div className="flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={toggleMicrophone}
-                disabled={state === "disabled" || sending}
-                aria-pressed={microphoneActive}
-                className="inline-flex h-9 items-center gap-2 rounded-lg border border-[var(--border)] bg-transparent px-3 text-[12px] font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--hover)] disabled:opacity-50"
-              >
-                {microphoneActive ? <MicOff aria-hidden="true" size={15} /> : <Mic aria-hidden="true" size={15} />}
-                {microphoneActive ? "Apagar micrófono" : "Activar micrófono"}
-              </button>
+              <span className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleMicrophone}
+                  disabled={state === "disabled" || sending || voice === "requesting" || voice === "transcribing"}
+                  aria-pressed={voice === "listening"}
+                  aria-label={
+                    voice === "transcribing"
+                      ? "Transcribiendo audio"
+                      : voice === "listening"
+                        ? "Apagar micrófono y transcribir"
+                        : "Activar micrófono"
+                  }
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-[var(--border)] bg-transparent px-3 text-[12px] font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--hover)] disabled:opacity-50"
+                >
+                  {voice === "listening" ? <MicOff aria-hidden="true" size={15} /> : <Mic aria-hidden="true" size={15} />}
+                  {voice === "transcribing"
+                    ? "Transcribiendo…"
+                    : voice === "listening"
+                      ? "Apagar micrófono"
+                      : "Activar micrófono"}
+                </button>
+                {voice === "listening" ? (
+                  <button
+                    type="button"
+                    onClick={cancelRecording}
+                    className="inline-flex h-9 items-center rounded-lg px-2 text-[12px] font-medium text-[var(--muted)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+                  >
+                    Cancelar
+                  </button>
+                ) : null}
+              </span>
               <Link
                 href="/agent/activity"
                 onClick={() => void refreshStatus()}
@@ -303,6 +426,27 @@ export function RodrigoAgentWidget() {
 
             {microphoneError ? <p className="text-[11px] leading-4 text-[var(--error)]">{microphoneError}</p> : null}
           </div>
+
+          {voice === "listening" ? (
+            <div
+              className="flex items-center gap-2 border-t border-[var(--border)] px-4 py-2"
+              aria-live="polite"
+            >
+              <span className="relative flex h-2 w-2 shrink-0" aria-hidden="true">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+              </span>
+              <span className="text-[12px] font-medium">
+                {vad === "speech" ? "Te escucho…" : "Escuchando…"}
+              </span>
+              <span className="text-[11px] tabular-nums text-[var(--muted)]">
+                {formatVoiceElapsed(voiceElapsedMs)}
+              </span>
+              <span className="ml-auto">
+                <VoiceWaveform barsRef={barsRef} />
+              </span>
+            </div>
+          ) : null}
 
           <form
             className="flex items-center gap-2 border-t border-[var(--border)] px-3 py-2.5"
