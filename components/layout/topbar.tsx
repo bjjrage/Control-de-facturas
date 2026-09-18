@@ -32,7 +32,7 @@ function WorkspaceSwitcher({ showOperativo, showLicitaciones }: { showOperativo:
   });
 
   return (
-    <div className="hidden md:flex items-center gap-1 rounded-full bg-[var(--panel-2)] border border-[var(--border)] p-1">
+    <div className="hidden md:flex items-center gap-1 rounded-full border border-white/[0.09] bg-white/[0.035] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-xl">
       {items.map((item) => {
         const Icon = item.icon;
         const isActive = active === item.key;
@@ -43,7 +43,7 @@ function WorkspaceSwitcher({ showOperativo, showLicitaciones }: { showOperativo:
             className={cn(
               "flex items-center gap-1.5 h-7 px-3 rounded-full text-[12px] font-medium transition-all duration-150",
               isActive
-                ? "bg-[var(--nav-active)] text-white shadow-[0_0_0_1px_rgba(129,155,255,0.7),0_0_10px_-2px_rgba(91,124,250,0.75)]"
+                ? "bg-[linear-gradient(180deg,rgba(92,140,255,.72),rgba(57,95,190,.58))] text-white shadow-[0_0_0_1px_rgba(118,160,255,.45),0_8px_22px_rgba(31,73,166,.28)]"
                 : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
             )}
           >
@@ -72,7 +72,7 @@ function UserMenu({ initial, fullName, role }: { initial: string; fullName: stri
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 h-9 rounded-lg px-2 hover:bg-[var(--hover)] transition-colors"
+        className="flex items-center gap-2 h-9 rounded-xl px-2 hover:bg-white/[0.055] transition-colors"
       >
         <div className="h-7 w-7 rounded-full bg-[var(--primary)] text-[#1a0e00] flex items-center justify-center text-[12px] font-semibold shrink-0">
           {initial}
@@ -85,7 +85,7 @@ function UserMenu({ initial, fullName, role }: { initial: string; fullName: stri
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-full mt-1.5 w-44 rounded-lg border border-[var(--border)] bg-[var(--panel)] shadow-lg z-50 py-1">
+        <div className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-white/[0.10] bg-[#0c1829]/96 shadow-[0_24px_60px_rgba(0,0,0,.42)] backdrop-blur-2xl z-50 py-1.5">
           <div className="px-3 py-2 border-b border-[var(--border)]">
             <div className="text-[12px] font-medium truncate">{fullName}</div>
             <div className="text-[11px] text-[var(--muted)] capitalize">{role}</div>
@@ -118,9 +118,9 @@ export function Topbar({
   showLicitaciones: boolean;
 }) {
   return (
-    <header className="h-14 shrink-0 border-b border-[var(--border)] bg-[var(--panel)] px-4 flex items-center gap-3 sticky top-0 z-10">
+    <header className="h-14 shrink-0 border-b border-white/[0.07] bg-[#091524]/72 px-4 flex items-center gap-3 sticky top-0 z-10 backdrop-blur-2xl shadow-[0_8px_30px_rgba(0,0,0,.10)]">
       <div className="flex-1 max-w-md">
-        <div className="flex items-center gap-2 h-9 rounded-full bg-[var(--panel-2)] border border-[var(--border)] px-3.5">
+        <div className="flex items-center gap-2 h-9 rounded-xl bg-white/[0.035] border border-white/[0.08] px-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,.025)]">
           <Search size={15} className="text-[var(--muted)] shrink-0" />
           <input
             placeholder="Buscar en niu.pack…"
