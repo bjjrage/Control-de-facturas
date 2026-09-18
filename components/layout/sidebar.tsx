@@ -143,6 +143,7 @@ export function Sidebar({
     label: string;
     items: NavItem[];
   } | null>(null);
+  const [openProjectSection, setOpenProjectSection] = useState<string | null>(null);
   // Tracks the "active" path for shell-managed sections, since pushState doesn't
   // update usePathname(). Syncs from both our custom events and real Next.js nav.
   const [navPath, setNavPath] = useState<string | null>(null);
@@ -271,6 +272,7 @@ export function Sidebar({
       const target = event.target as HTMLElement;
       if (target.closest("[data-nav-overlay]") || target.closest("[data-nav-trigger]")) return;
       setOpenSection(null);
+      setOpenProjectSection(null);
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
@@ -278,6 +280,7 @@ export function Sidebar({
 
   useEffect(() => {
     setOpenSection(null);
+    setOpenProjectSection(null);
   }, [pathname, collapsed]);
 
   function renderLink(item: NavItem) {
@@ -359,6 +362,81 @@ export function Sidebar({
             </div>
             <div className="space-y-0.5">
               {items.map(renderLink)}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  function renderProjectSection(group: (typeof PROJECT_TAB_GROUPS)[number]) {
+    const tabs = group.tabs.filter((t) => !t.caterpillarOnly || isCaterpillarPlan);
+    if (tabs.length === 0) return null;
+    const isOpen = openProjectSection === group.label;
+
+    return (
+      <div key={group.label} className={cn("relative py-0.5", isOpen && "z-[60]")}>
+        <button
+          type="button"
+          data-nav-trigger
+          title={collapsed ? group.label : undefined}
+          onClick={() => setOpenProjectSection((current) => current === group.label ? null : group.label)}
+          className={cn(
+            "w-full flex items-center h-9 rounded-xl text-[12px] font-medium transition-colors",
+            collapsed ? "justify-center px-0" : "justify-between px-2.5",
+            isOpen
+              ? "bg-[linear-gradient(180deg,rgba(83,129,239,.34),rgba(48,82,162,.25))] text-[#eef4ff] shadow-[0_0_0_1px_rgba(104,151,255,.10)]"
+              : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
+          )}
+        >
+          {!collapsed ? <span>{group.label}</span> : <span className="text-[10px] font-bold">{group.label.slice(0, 1)}</span>}
+          {!collapsed ? (
+            <ChevronRight
+              size={13}
+              className={cn("transition-transform duration-150", isOpen && "rotate-90 text-[#8fb0ff]")}
+            />
+          ) : null}
+        </button>
+
+        {isOpen ? (
+          <div
+            data-nav-overlay
+            className={cn(
+              "absolute top-[calc(100%+4px)] overflow-hidden rounded-2xl border border-white/[0.11] bg-[#0b1728]/[0.985] p-2",
+              "shadow-[0_24px_58px_rgba(0,0,0,.48),inset_0_1px_0_rgba(255,255,255,.05)] backdrop-blur-2xl",
+              collapsed ? "left-0 w-[210px]" : "left-0 right-0"
+            )}
+          >
+            <div className="px-2.5 pt-1.5 pb-2">
+              <div className="erp-kicker">{group.label}</div>
+            </div>
+            <div className="space-y-0.5">
+              {tabs.map((t) => {
+                const Icon = t.icon;
+                const active = currentTab === t.key;
+                return (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => {
+                      setOpenProjectSection(null);
+                      const url = `/projects/${activeProjectId}?tab=${t.key}`;
+                      window.history.pushState({}, "", url);
+                      window.dispatchEvent(new CustomEvent("niupack:tab", { detail: t.key }));
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 h-9 rounded-xl text-[13px] transition-colors text-left",
+                      active
+                        ? "bg-[linear-gradient(180deg,rgba(83,129,239,.54),rgba(48,82,162,.42))] text-white font-medium"
+                        : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]",
+                      collapsed ? "px-2.5" : "px-2.5"
+                    )}
+                  >
+                    <Icon size={16} className="shrink-0" />
+                    <span className="truncate">{t.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         ) : null}
@@ -472,46 +550,7 @@ export function Sidebar({
         {inProjectMode ? (
           <>
             {globalItems.map(renderLink)}
-            {PROJECT_TAB_GROUPS.map((group) => {
-              const tabs = group.tabs.filter((t) => !t.caterpillarOnly || isCaterpillarPlan);
-              if (tabs.length === 0) return null;
-              return (
-                <div key={group.label} className="space-y-0.5">
-                  {!collapsed ? (
-                    <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--primary)]">
-                      {group.label}
-                    </div>
-                  ) : (
-                    <div className="border-t border-white/[0.08] my-1.5" />
-                  )}
-                  {tabs.map((t) => {
-                    const Icon = t.icon;
-                    const active = currentTab === t.key;
-                    return (
-                      <button
-                        key={t.key}
-                        title={collapsed ? t.label : undefined}
-                        onClick={() => {
-                          const url = `/projects/${activeProjectId}?tab=${t.key}`;
-                          window.history.pushState({}, "", url);
-                          window.dispatchEvent(new CustomEvent("niupack:tab", { detail: t.key }));
-                        }}
-                        className={cn(
-                          "w-full flex items-center gap-2.5 h-9 rounded-xl text-[13px] transition-colors",
-                          collapsed ? "justify-center px-0" : "px-2.5",
-                          active
-                            ? "bg-[linear-gradient(180deg,rgba(83,129,239,.54),rgba(48,82,162,.42))] text-white font-medium"
-                            : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
-                        )}
-                      >
-                        <Icon size={16} className="shrink-0" />
-                        {!collapsed ? <span className="truncate">{t.label}</span> : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            })}
+{PROJECT_TAB_GROUPS.map(renderProjectSection)}
           </>
         ) : isLoadingProjectMode ? (
           <div className="space-y-1">
