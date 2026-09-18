@@ -41,20 +41,30 @@ export function AdminConfigSection({
   plan,
   isSuperAdmin = false,
   collapsed = false,
+  focus,
 }: {
   role: UserRole;
   plan: EmpresaPlan;
   isSuperAdmin?: boolean;
   collapsed?: boolean;
+  focus?: "plans" | "configuracion" | "users" | "empresas";
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const [currentPlan, setCurrentPlan] = useState(plan);
   const [pending, startTransition] = useTransition();
 
-  const adminItems = ADMIN_ITEMS.filter((item) => item.roles.includes(role));
-  const superAdminItems = isSuperAdmin ? SUPER_ADMIN_ITEMS : [];
-  const canSeePlans = role === "admin";
+  const adminItems = ADMIN_ITEMS.filter((item) => {
+    if (!item.roles.includes(role)) return false;
+    if (focus === "configuracion") return item.href === "/configuracion";
+    if (focus === "users") return item.href === "/users";
+    if (focus === "plans" || focus === "empresas") return false;
+    return true;
+  });
+  const superAdminItems = isSuperAdmin
+    ? SUPER_ADMIN_ITEMS.filter((item) => !focus || focus === "empresas")
+    : [];
+  const canSeePlans = role === "admin" && (!focus || focus === "plans");
 
   if (!canSeePlans && adminItems.length === 0 && superAdminItems.length === 0) return null;
 
