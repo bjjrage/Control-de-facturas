@@ -23,9 +23,14 @@ import {
 import {
   loadWeeklyPlanBaseData,
   resolveWeeklyWeather,
+  loadCentralAvailability,
   toEngineTargets,
   type PreviewWeeklyPlanItemInput,
 } from "@/lib/procurement/weekly-plan-shared";
+import {
+  allocateMaterialCoverage,
+  type MrpCoverageLine,
+} from "@/lib/procurement/mrp-coverage";
 
 export interface SaveWeeklyPlanParams {
   planId?: string;
@@ -42,6 +47,17 @@ export interface SaveWeeklyPlanParams {
     inputValue: number;
     unit: string;
   }[];
+  /**
+   * Compromiso MRP (V3, opcional). Solo actúa si se provee:
+   * - COMMITTED → reserva atómica (replace) del central indicado.
+   * - DRAFT/CLOSED → libera las ACTIVE del plan (sin fingir consumo).
+   * Sin mrpCommit el guardado es idéntico a V1.
+   */
+  mrpCommit?: {
+    centralLocationId: string;
+    lines: { producto_id: string; quantity: number }[];
+    neededByDate: string;
+  };
 }
 
 export interface GetWeeklyPlanParams {
@@ -56,6 +72,29 @@ export interface PreviewWeeklyPlanActionParams {
   endDate: string; // YYYY-MM-DD
   weatherOverlay: boolean;
   items: PreviewWeeklyPlanItemInput[];
+  /**
+   * Cobertura MRP (V3, opcional; default LEGACY = comportamiento V1 intacto).
+   * En modo MRP el engine recibe SOLO stock de obra (oc_inbound=0) y la
+   * asignación central/inbound-a-tiempo/faltante la calcula allocateMaterialCoverage.
+   */
+  coverage?: { mode: "MRP"; neededByDate?: string };
+}
+
+export interface MrpPreviewResult {
+  lines: MrpCoverageLine[];
+  total_requerido_valor: number;
+  total_cubierto_obra_valor: number;
+  total_cubierto_central_valor: number;
+  total_cubierto_inbound_valor: number;
+  total_comprar_cantidad: number;
+  total_caja_adicional: number;
+  costos_pendientes: number;
+  centralLocation: { id: string; name: string } | null;
+  neededBy: string;
+  /** Error leyendo central: se muestra aviso en vez de ceros silenciosos. */
+  centralError?: string | null;
+  /** Inbound no confirmado (sin fecha o tardío): informativo, NO descuenta. */
+  unconfirmedInbound: { producto_id: string; producto_nombre: string; cantidad: number }[];
 }
 
 /**
@@ -73,6 +112,7 @@ export async function getWeeklyPlanDetailsAction(
     calculation: WeeklyPlanCalculationSummary;
     budgetItems: BudgetItem[];
     executedQuantities: Record<string, number>;
+    hasActiveReservations: boolean;
   } | null;
   error: string | null;
 }> {
@@ -128,6 +168,7 @@ export async function getWeeklyPlanDetailsAction(
       plan = (pData as ProjectWeeklyPlan) || null;
     }
 
+    let hasActiveReservations = false;
     if (plan) {
       // P2-4: orden determinista para que el capping multi-front secuencial
       // asigne el remanente al mismo frente tras recargar.
@@ -142,6 +183,13 @@ export async function getWeeklyPlanDetailsAction(
         input_mode: pi.input_mode as WeeklyPlanInputMode,
         input_value: Number(pi.input_value) || 0,
       }));
+      // V3: ¿el plan retiene reservas ACTIVE? (gating de re-commit).
+      const { count: activeResCount } = await supabase
+        .from("inventory_reservations")
+        .select("id", { count: "exact", head: true })
+        .eq("weekly_plan_id", plan.id)
+        .eq("status", "ACTIVE");
+      hasActiveReservations = (activeResCount ?? 0) > 0;
     }
 
     const now = new Date();
@@ -225,6 +273,7 @@ export async function getWeeklyPlanDetailsAction(
         calculation,
         budgetItems,
         executedQuantities,
+        hasActiveReservations,
       },
       error: null,
     };
@@ -264,6 +313,7 @@ export async function previewWeeklyPlanAction(
     calculation: WeeklyPlanCalculationSummary;
     budgetItems: BudgetItem[];
     executedQuantities: Record<string, number>;
+    mrp?: MrpPreviewResult | null;
   } | null;
   error: string | null;
 }> {
@@ -272,6 +322,9 @@ export async function previewWeeklyPlanAction(
     const empresaId = profile.empresa_id;
     const supabase = await createClient();
     const { projectId, startDate, endDate, weatherOverlay, items } = params;
+    // V3: modo MRP opt-in (LEGACY por defecto = V1 intacto).
+    const mrpMode = params.coverage?.mode === "MRP";
+    const neededBy = params.coverage?.neededByDate || endDate;
 
     if (!projectId) {
       return { data: null, error: "Proyecto requerido para previsualizar." };
@@ -337,6 +390,13 @@ export async function previewWeeklyPlanAction(
     }
 
     // MISMO motor que load/save. Sin plan_id (no existe plan persistido para este preview).
+    // V3 MRP: el engine recibe SOLO stock de obra (inbound lo asigna la capa
+    // MRP con regla de fecha); en LEGACY el mapa va completo como siempre.
+    const engineStockMap = mrpMode
+      ? Object.fromEntries(
+          Object.entries(stockAndInbound).map(([pid, v]) => [pid, { ...v, oc_inbound: 0 }])
+        )
+      : stockAndInbound;
     const calculation = calculateWeeklyPlanRequirements({
       project_id: projectId,
       start_date: startDate,
@@ -346,7 +406,7 @@ export async function previewWeeklyPlanAction(
       executed_quantities_by_item: executedQuantities,
       targets,
       materials_by_item: materialsByItem,
-      stock_and_inbound: stockAndInbound,
+      stock_and_inbound: engineStockMap,
       recent_execution_entries: recentEntries,
       currency: "PYG",
       // Si se omitió el clima por falta de metas, el overlay queda OFF en el
@@ -363,13 +423,121 @@ export async function previewWeeklyPlanAction(
     });
 
     return {
-      data: { calculation, budgetItems, executedQuantities },
+      data: {
+        calculation,
+        budgetItems,
+        executedQuantities,
+        mrp: mrpMode
+          ? await buildMrpPreview(supabase, empresaId, calculation, materialsByItem, baseRes.data, neededBy)
+          : null,
+      },
       error: null,
     };
   } catch (err: any) {
     console.error("Error in previewWeeklyPlanAction:", err);
     return { data: null, error: err?.message || "Error interno al previsualizar el plan." };
   }
+}
+
+/**
+ * Capa MRP sobre el resultado del engine (V3). READ-ONLY: lee central +
+ * inbound con fecha; NUNCA reserva (las reservas solo viven en el COMMIT).
+ */
+async function buildMrpPreview(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  empresaId: string,
+  calculation: WeeklyPlanCalculationSummary,
+  materialsByItem: Record<string, BudgetItemMaterialInput[]>,
+  baseData: {
+    stockAndInbound: Record<string, StockDisponibilidadInput>;
+    inboundDetails: { producto_id: string; net_quantity: number; expected_delivery_date: string | null }[] | null;
+  },
+  neededBy: string
+): Promise<MrpPreviewResult> {
+  // Nombres/unidades para filas sin BOM propio (ej. inbound sin demanda).
+  const names = new Map<string, { nombre: string; unidad: string }>();
+  for (const list of Object.values(materialsByItem)) {
+    for (const m of list) {
+      if (!names.has(m.producto_id)) {
+        names.set(m.producto_id, { nombre: m.producto_nombre, unidad: m.unidad_medida });
+      }
+    }
+  }
+
+  // Central disponible (físico − reservas ACTIVE). Sin central → ceros.
+  // Si la lectura FALLA, se propaga el error (la UI avisa en vez de
+  // mostrar ceros como "sin stock").
+  const centralRes = await loadCentralAvailability(supabase, empresaId);
+  const centralAvailable = centralRes.data?.availableByProduct ?? {};
+  const centralLocation = centralRes.data?.location ?? null;
+  const centralError = centralRes.error ?? null;
+
+  // Inbound con regla de fecha: válido solo con fecha <= neededBy.
+  // Sin detalle (columna ausente) o sin fecha → no confirmado, NO descuenta.
+  const validInbound: Record<string, number> = {};
+  const unconfirmed: MrpPreviewResult["unconfirmedInbound"] = [];
+  if (baseData.inboundDetails === null) {
+    // Fallback honesto: el neto legacy existe pero sin fecha → no confirmado.
+    for (const [pid, v] of Object.entries(baseData.stockAndInbound)) {
+      if (v.oc_inbound > 0) {
+        const nm = names.get(pid);
+        unconfirmed.push({
+          producto_id: pid,
+          producto_nombre: nm?.nombre || "Material",
+          cantidad: Number(v.oc_inbound.toFixed(4)),
+        });
+      }
+    }
+  } else {
+    for (const d of baseData.inboundDetails) {
+      const onTime = d.expected_delivery_date !== null && d.expected_delivery_date <= neededBy;
+      if (onTime) {
+        validInbound[d.producto_id] = (validInbound[d.producto_id] || 0) + d.net_quantity;
+      } else {
+        const nm = names.get(d.producto_id);
+        const prev = unconfirmed.find((u) => u.producto_id === d.producto_id);
+        if (prev) prev.cantidad = Number((prev.cantidad + d.net_quantity).toFixed(4));
+        else
+          unconfirmed.push({
+            producto_id: d.producto_id,
+            producto_nombre: nm?.nombre || "Material",
+            cantidad: Number(d.net_quantity.toFixed(4)),
+          });
+      }
+    }
+  }
+
+  const gross = calculation.items.flatMap((it) =>
+    it.materials.map((m) => ({
+      producto_id: m.producto_id,
+      producto_nombre: m.producto_nombre,
+      unidad_medida: m.unidad_medida,
+      costo_unitario: m.costo_unitario,
+      requerido: m.demanda_bruta,
+      cubierto_obra: m.cubierto_por_stock,
+    }))
+  );
+
+  const allocation = allocateMaterialCoverage({
+    gross,
+    centralAvailableByProduct: centralAvailable,
+    validInboundByProduct: validInbound,
+  });
+
+  return {
+    lines: allocation.lines,
+    total_requerido_valor: allocation.total_requerido_valor,
+    total_cubierto_obra_valor: allocation.total_cubierto_obra_valor,
+    total_cubierto_central_valor: allocation.total_cubierto_central_valor,
+    total_cubierto_inbound_valor: allocation.total_cubierto_inbound_valor,
+    total_comprar_cantidad: allocation.total_comprar_cantidad,
+    total_caja_adicional: allocation.total_caja_adicional,
+    costos_pendientes: allocation.costos_pendientes,
+    centralLocation,
+    neededBy,
+    centralError,
+    unconfirmedInbound: unconfirmed,
+  };
 }
 
 /**
@@ -457,6 +625,53 @@ export async function saveWeeklyPlanAction(
 
     if (fetchErr || !savedPlan) {
       return { data: null, error: "Plan guardado pero no se pudo recuperar." };
+    }
+
+    // V3 MRP lifecycle (aditivo; sin mrpCommit no hace nada).
+    if (params.mrpCommit && savedPlan) {
+      const savedId = (savedPlan as ProjectWeeklyPlan).id;
+      if (status === "COMMITTED" && params.mrpCommit.centralLocationId) {
+        // Siempre vía RPC (aunque no haya líneas: replace libera las viejas).
+        const reserveLines = (params.mrpCommit.lines ?? []).filter(
+          (l) => l.producto_id && Number(l.quantity) > 0
+        );
+        const { error: resErr } = await supabase.rpc("reserve_plan_stock", {
+            p_project_id: projectId,
+            p_plan_id: savedId,
+            p_location_id: params.mrpCommit.centralLocationId,
+            p_items: reserveLines.map((l) => ({
+              producto_id: l.producto_id,
+              quantity: Number(l.quantity),
+            })),
+            p_needed_by: params.mrpCommit.neededByDate,
+            p_idempotency_key: savedId,
+            p_replace: true,
+          });
+          if (resErr) {
+            // Compensación: el plan no queda COMMITTED sin su cobertura.
+            await supabase
+              .from("project_weekly_plans")
+              .update({ status: "DRAFT" })
+              .eq("id", savedId)
+              .eq("empresa_id", empresaId);
+            const msg = /insuficiente/i.test(resErr.message)
+              ? "El stock disponible cambió desde el cálculo. Recalculá el plan."
+              : `No se pudo reservar stock central: ${resErr.message}`;
+            return { data: null, error: msg };
+          }
+      } else {
+        // DRAFT/CLOSED: liberar (CLOSED libera sobrante sin fingir consumo).
+        // El error se reporta (con el plan igual guardado) en vez de tragarse.
+        const { error: relErr } = await supabase.rpc("release_plan_reservations", {
+          p_plan_id: savedId,
+        });
+        if (relErr) {
+          return {
+            data: savedPlan as ProjectWeeklyPlan,
+            error: `Plan guardado pero no se pudieron liberar reservas: ${relErr.message} (reintentá guardar).`,
+          };
+        }
+      }
     }
 
     revalidatePath(`/projects/${projectId}`);

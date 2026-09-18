@@ -1759,3 +1759,51 @@ export interface WeeklyPlanCalculationSummary {
   weather_summary?: string | null;
   weather_failed_closed?: boolean;
 }
+
+export type ProductionRecipeSource = "EXCEL" | "BIM" | "MANUAL";
+
+export interface ProductionRecipe {
+  id: string;
+  empresa_id: string;
+  project_id: string | null;
+  code: string;
+  name: string;
+  production_unit: string;
+  description?: string | null;
+  contract_total_quantity?: number | null;
+  source_type: ProductionRecipeSource;
+  source_file_name?: string | null;
+  source_version?: string | null;
+  active: boolean;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductionRecipeComponent {
+  id: string;
+  recipe_id: string;
+  budget_item_id: string;
+  quantity_per_production_unit: number;
+  unit: string;
+  sort_order: number;
+  created_at: string;
+}
+
+export type InventoryReservationStatus = "ACTIVE" | "RELEASED" | "CONSUMED";
+
+export interface InventoryReservation {
+  id: string;
+  empresa_id: string;
+  location_id: string;
+  producto_id: string;
+  project_id: string;
+  weekly_plan_id: string | null;
+  quantity: number;
+  status: InventoryReservationStatus;
+  needed_by_date: string | null;
+  idempotency_key: string | null;
+  created_by?: string | null;
+  created_at: string;
+  released_at: string | null;
+}
