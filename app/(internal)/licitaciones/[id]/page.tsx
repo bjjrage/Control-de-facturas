@@ -175,7 +175,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-3 text-[13px]">
-          <div className="rounded border border-[var(--border)] p-2.5 bg-[var(--panel-2)]">
+          <div className="kpi-hover rounded-xl border border-[var(--border)] p-2.5 bg-[var(--panel-2)]">
             <div className="text-[11px] text-[var(--muted)]">Presupuesto Convocante</div>
             <div className="text-[15px] font-semibold mt-0.5">
               {lic.monto_referencial ? formatMoney(lic.monto_referencial, moneda) : "—"}
@@ -185,7 +185,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
             </div>
           </div>
 
-          <div className="rounded border border-[var(--border)] p-2.5 bg-[var(--panel-2)]">
+          <div className="kpi-hover rounded-xl border border-[var(--border)] p-2.5 bg-[var(--panel-2)]">
             <div className="text-[11px] text-[var(--muted)]">Costo Directo Estimado (Inventario)</div>
             <div className="text-[15px] font-semibold mt-0.5">
               {(() => {
@@ -206,7 +206,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
             </div>
           </div>
 
-          <div className="rounded border border-[var(--border)] p-2.5 bg-[var(--panel-2)]">
+          <div className="kpi-hover rounded-xl border border-[var(--border)] p-2.5 bg-[var(--panel-2)]">
             <div className="text-[11px] text-[var(--muted)]">Ítems Emparejados</div>
             <div className="text-[15px] font-semibold mt-0.5">
               {costoPorItem.size} de {(items ?? []).length} ítems
@@ -402,7 +402,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
 
 function Dato({ label, valor }: { label: string; valor: string }) {
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2">
+    <div className="kpi-hover rounded-xl border border-[var(--border)] bg-[var(--panel)] px-3 py-2.5">
       <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">{label}</div>
       <div className="text-[13px] font-medium mt-0.5">{valor}</div>
     </div>
