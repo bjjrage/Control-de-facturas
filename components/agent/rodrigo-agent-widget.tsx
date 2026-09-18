@@ -115,7 +115,57 @@ export function RodrigoAgentWidget() {
   const [approvalBusyId, setApprovalBusyId] = useState<string | null>(null);
   const [approvalError, setApprovalError] = useState<string | null>(null);
 
+  const MASCOT_SIZE = 84;
+  const VIEWPORT_MARGIN = 12;
+  const [mascotPosition, setMascotPosition] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressMascotClickRef = useRef(false);
+
   const presentation = state === status.state ? status : getRodrigoStatePresentation(state);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("rodrigo-mascot-position");
+    let initial: { x: number; y: number } | null = null;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as { x?: number; y?: number };
+        if (typeof parsed.x === "number" && typeof parsed.y === "number") {
+          initial = { x: parsed.x, y: parsed.y };
+        }
+      } catch {
+        // Posición corrupta: volvemos al default.
+      }
+    }
+    const maxX = Math.max(VIEWPORT_MARGIN, window.innerWidth - MASCOT_SIZE - VIEWPORT_MARGIN);
+    const maxY = Math.max(VIEWPORT_MARGIN, window.innerHeight - MASCOT_SIZE - VIEWPORT_MARGIN);
+    setMascotPosition({
+      x: Math.min(maxX, Math.max(VIEWPORT_MARGIN, initial?.x ?? maxX)),
+      y: Math.min(maxY, Math.max(VIEWPORT_MARGIN, initial?.y ?? maxY)),
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setMascotPosition((current) => {
+        if (!current) return current;
+        const maxX = Math.max(VIEWPORT_MARGIN, window.innerWidth - MASCOT_SIZE - VIEWPORT_MARGIN);
+        const maxY = Math.max(VIEWPORT_MARGIN, window.innerHeight - MASCOT_SIZE - VIEWPORT_MARGIN);
+        return {
+          x: Math.min(maxX, Math.max(VIEWPORT_MARGIN, current.x)),
+          y: Math.min(maxY, Math.max(VIEWPORT_MARGIN, current.y)),
+        };
+      });
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     isOpenRef.current = isOpen;
@@ -285,20 +335,90 @@ export function RodrigoAgentWidget() {
   );
 
   function handleMascotClick() {
+    if (suppressMascotClickRef.current) {
+      suppressMascotClickRef.current = false;
+      return;
+    }
     if (isOpen) minimize();
     else open();
   }
 
+  function handleMascotPointerDown(event: React.PointerEvent<HTMLButtonElement>) {
+    if (!mascotPosition) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: mascotPosition.x,
+      originY: mascotPosition.y,
+      moved: false,
+    };
+  }
+
+  function handleMascotPointerMove(event: React.PointerEvent<HTMLButtonElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+    drag.moved = true;
+
+    const maxX = Math.max(VIEWPORT_MARGIN, window.innerWidth - MASCOT_SIZE - VIEWPORT_MARGIN);
+    const maxY = Math.max(VIEWPORT_MARGIN, window.innerHeight - MASCOT_SIZE - VIEWPORT_MARGIN);
+    setMascotPosition({
+      x: Math.min(maxX, Math.max(VIEWPORT_MARGIN, drag.originX + dx)),
+      y: Math.min(maxY, Math.max(VIEWPORT_MARGIN, drag.originY + dy)),
+    });
+  }
+
+  function handleMascotPointerUp(event: React.PointerEvent<HTMLButtonElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    dragRef.current = null;
+    suppressMascotClickRef.current = drag.moved;
+
+    if (drag.moved) {
+      const dx = event.clientX - drag.startX;
+      const dy = event.clientY - drag.startY;
+      const maxX = Math.max(VIEWPORT_MARGIN, window.innerWidth - MASCOT_SIZE - VIEWPORT_MARGIN);
+      const maxY = Math.max(VIEWPORT_MARGIN, window.innerHeight - MASCOT_SIZE - VIEWPORT_MARGIN);
+      const finalPosition = {
+        x: Math.min(maxX, Math.max(VIEWPORT_MARGIN, drag.originX + dx)),
+        y: Math.min(maxY, Math.max(VIEWPORT_MARGIN, drag.originY + dy)),
+      };
+      setMascotPosition(finalPosition);
+      window.localStorage.setItem("rodrigo-mascot-position", JSON.stringify(finalPosition));
+    }
+  }
+
   return (
     <div
-      className={`fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2 sm:bottom-5 sm:right-5 ${styles.widget} ${styles[`state-${state}`]}`}
+      className={`fixed z-40 h-[84px] w-[84px] ${styles.widget} ${styles[`state-${state}`]}`}
       data-state={state}
+      style={
+        mascotPosition
+          ? { left: mascotPosition.x, top: mascotPosition.y }
+          : { right: VIEWPORT_MARGIN, bottom: VIEWPORT_MARGIN }
+      }
     >
       {isOpen ? (
         <section
           id="rodrigo-agent-panel"
           aria-label="Panel del agente Rodrigo"
-          className={`flex max-h-[min(34rem,calc(100vh-8rem))] w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl ${styles.panel}`}
+          className={`absolute flex max-h-[min(34rem,calc(100vh-2rem))] w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl ${styles.panel}`}
+          style={{
+            ...(mascotPosition && mascotPosition.x < 360
+              ? { left: 0 }
+              : { right: 0 }),
+            ...(mascotPosition && mascotPosition.y < 420
+              ? { top: "calc(100% + 8px)" }
+              : { bottom: "calc(100% + 8px)" }),
+          }}
         >
           <div className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-4 py-3.5">
             <div className="flex min-w-0 items-center gap-2.5">
@@ -483,11 +603,15 @@ export function RodrigoAgentWidget() {
       <button
         type="button"
         onClick={handleMascotClick}
+        onPointerDown={handleMascotPointerDown}
+        onPointerMove={handleMascotPointerMove}
+        onPointerUp={handleMascotPointerUp}
+        onPointerCancel={handleMascotPointerUp}
         aria-expanded={isOpen}
         aria-controls="rodrigo-agent-panel"
         aria-label={isOpen ? "Minimizar el panel de Rodrigo" : "Abrir el panel de Rodrigo"}
         title={isOpen ? "Minimizar Rodrigo" : "Abrir Rodrigo"}
-        className={`relative flex h-[76px] w-[76px] items-end justify-center overflow-visible rounded-full border border-white/10 bg-[var(--panel)] shadow-xl transition-transform duration-200 hover:scale-[1.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] sm:h-[84px] sm:w-[84px] ${styles.mascotButton}`}
+        className={`relative flex h-[76px] w-[76px] touch-none select-none items-end justify-center overflow-visible rounded-full border border-white/10 bg-[var(--panel)] shadow-xl transition-transform duration-200 hover:scale-[1.035] active:cursor-grabbing cursor-grab focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] sm:h-[84px] sm:w-[84px] ${styles.mascotButton}`}
       >
         <span className="sr-only">{presentation.label}</span>
         <span className={`absolute inset-0 ${styles.mascot}`}>
