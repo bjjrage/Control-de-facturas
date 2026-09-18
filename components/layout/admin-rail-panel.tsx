@@ -21,12 +21,17 @@ export function AdminRailPanel({
   const [open, setOpen] = useState<RailSection | null>(null);
   const railRef = useRef<HTMLElement>(null);
 
-  const items: { key: RailSection; label: string; icon: typeof Settings; visible: boolean }[] = [
-    { key: "plans", label: "Planes", icon: SignalHigh, visible: role === "admin" },
-    { key: "configuracion", label: "Configuración", icon: Settings, visible: role === "admin" },
-    { key: "users", label: "Usuarios", icon: Users, visible: role === "admin" },
-    { key: "empresas", label: "Empresas", icon: Building2, visible: isSuperAdmin },
-  ].filter((item) => item.visible);
+  const items: Array<{ key: RailSection; label: string; icon: typeof Settings }> = [];
+  if (role === "admin") {
+    items.push(
+      { key: "plans", label: "Planes", icon: SignalHigh },
+      { key: "configuracion", label: "Configuración", icon: Settings },
+      { key: "users", label: "Usuarios", icon: Users }
+    );
+  }
+  if (isSuperAdmin) {
+    items.push({ key: "empresas", label: "Empresas", icon: Building2 });
+  }
 
   useEffect(() => {
     const close = (event: MouseEvent) => {
@@ -97,7 +102,7 @@ export function AdminRailPanel({
             role={role}
             plan={plan}
             isSuperAdmin={isSuperAdmin}
-            focus={open}
+            focus={open ?? undefined}
           />
         </div>
       ) : null}
