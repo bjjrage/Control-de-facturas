@@ -302,7 +302,7 @@ export function Sidebar({
         onClick={handleClick}
         className={cn(
           "flex items-center gap-2.5 h-9 rounded-xl text-[13px] transition-colors",
-          collapsed ? "justify-center px-0" : "px-3",
+          collapsed ? "justify-center px-0" : "px-2.5",
           active
             ? "bg-[linear-gradient(180deg,rgba(83,129,239,.54),rgba(48,82,162,.42))] text-white font-medium"
             : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
@@ -330,7 +330,7 @@ export function Sidebar({
           }}
           className={cn(
             "w-full flex items-center h-9 rounded-xl text-[12px] font-medium transition-colors",
-            collapsed ? "justify-center px-0" : "justify-between px-3",
+            collapsed ? "justify-center px-0" : "justify-between px-2.5",
             isOpen
               ? "bg-[linear-gradient(180deg,rgba(83,129,239,.34),rgba(48,82,162,.25))] text-[#eef4ff] shadow-[0_0_0_1px_rgba(104,151,255,.10)]"
               : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
@@ -370,15 +370,15 @@ export function Sidebar({
     <aside
       className={cn(
         "relative shrink-0 border-r border-white/[0.08] bg-[#0a1626]/88 flex flex-col h-screen sticky top-0 transition-[width] duration-150",
-        collapsed ? "w-[68px]" : "w-[220px]"
+        collapsed ? "w-[56px]" : "w-[188px]"
       )}
     >
-      <div className="h-14 flex items-center justify-between px-3 border-b border-white/[0.08]">
+      <div className="h-14 flex items-center justify-between px-2.5 border-b border-white/[0.08]">
         <div
           className={cn(
             "relative group h-9 flex items-center rounded-md",
             isAdmin && "cursor-pointer hover:bg-white/[0.055]",
-            collapsed ? "w-9 justify-center" : "px-1.5 flex-1 min-w-0"
+            collapsed ? "w-8 justify-center" : "px-1 flex-1 min-w-0"
           )}
           onClick={() => isAdmin && !uploading && fileInputRef.current?.click()}
           title={isAdmin ? "Subir logo de la empresa" : undefined}
@@ -474,7 +474,7 @@ export function Sidebar({
         </div>
       ) : null}
 
-      <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 py-3 px-1.5 space-y-0.5 overflow-y-auto">
         {inProjectMode ? (
           <>
             {globalItems.map(renderLink)}
@@ -504,7 +504,7 @@ export function Sidebar({
                         }}
                         className={cn(
                           "w-full flex items-center gap-2.5 h-9 rounded-xl text-[13px] transition-colors",
-                          collapsed ? "justify-center px-0" : "px-3",
+                          collapsed ? "justify-center px-0" : "px-2.5",
                           active
                             ? "bg-[linear-gradient(180deg,rgba(83,129,239,.54),rgba(48,82,162,.42))] text-white font-medium"
                             : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
