@@ -370,7 +370,7 @@ export function Sidebar({
     <aside
       className={cn(
         "relative shrink-0 border-r border-white/[0.08] bg-[#0a1626]/88 flex flex-col h-screen sticky top-0 transition-[width] duration-150",
-        collapsed ? "w-[56px]" : "w-[188px]"
+        collapsed ? "w-[52px]" : "w-[164px]"
       )}
     >
       <div className="h-14 flex items-center justify-between px-2.5 border-b border-white/[0.08]">
@@ -439,30 +439,24 @@ export function Sidebar({
       ) : null}
 
       {inProjectMode && projectInfo ? (
-        <div className={cn("border-b border-white/[0.08] bg-[var(--panel-2)]", collapsed ? "px-1.5 py-2" : "px-3 py-2.5")}>
+        <div className={cn("border-b border-white/[0.08] bg-[var(--panel-2)]", collapsed ? "px-1 py-2" : "px-2 py-2")}>
           {!collapsed ? (
-            <>
-              <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--primary)]">
-                <FolderOpen size={12} />
-                Proyecto
-              </div>
-              <div className="text-[13px] font-medium truncate mt-0.5" title={projectInfo.name}>
-                {projectInfo.name}
-              </div>
-              <div className="flex items-center justify-between mt-0.5">
-                <span className="text-[11px] text-[var(--muted)] font-mono">{projectInfo.code}</span>
-                <Link
-                  href="/projects"
-                  className="flex items-center gap-0.5 text-[11px] text-[var(--muted)] hover:text-[var(--foreground)]"
-                  title="Salir del proyecto"
-                >
-                  <X size={11} /> Salir
-                </Link>
-              </div>
-            </>
+            <div className="flex items-center justify-between gap-2">
+              <span className="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--primary)]">
+                <FolderOpen size={12} className="shrink-0" />
+                <span className="truncate">{projectInfo.code}</span>
+              </span>
+              <Link
+                href="/projects"
+                className="flex shrink-0 items-center gap-0.5 text-[10px] text-[var(--muted)] hover:text-[var(--foreground)]"
+                title={`Salir de ${projectInfo.name}`}
+              >
+                <X size={10} /> Salir
+              </Link>
+            </div>
           ) : (
             <Link href="/projects" title={`Salir de ${projectInfo.name}`} className="flex justify-center text-[var(--primary)]">
-              <FolderOpen size={16} />
+              <FolderOpen size={15} />
             </Link>
           )}
         </div>
@@ -526,7 +520,7 @@ export function Sidebar({
                 key={i}
                 className={cn(
                   "h-9 rounded-xl bg-white/[0.06]",
-                  collapsed ? "w-9 mx-auto" : "w-full"
+                  collapsed ? "w-8 mx-auto" : "w-full"
                 )}
               />
             ))}
