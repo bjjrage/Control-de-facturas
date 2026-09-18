@@ -281,11 +281,11 @@ export function Sidebar({
         title={collapsed ? item.label : undefined}
         onClick={handleClick}
         className={cn(
-          "flex items-center gap-2.5 h-9 rounded-lg text-[13px] transition-colors",
+          "flex items-center gap-2.5 h-9 rounded-xl text-[13px] transition-colors",
           collapsed ? "justify-center px-0" : "px-3",
           active
-            ? "bg-[var(--nav-active)] text-white font-medium"
-            : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+            ? "bg-[linear-gradient(180deg,rgba(83,129,239,.54),rgba(48,82,162,.42))] text-white font-medium"
+            : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
         )}
       >
         <Icon size={16} className="shrink-0" />
@@ -303,7 +303,7 @@ export function Sidebar({
             {label}
           </div>
         ) : (
-          <div className="border-t border-[var(--border)] my-1.5" />
+          <div className="border-t border-white/[0.08] my-1.5" />
         )}
         {items.map(renderLink)}
       </div>
@@ -313,15 +313,15 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "shrink-0 border-r border-[var(--border)] bg-[var(--panel)] flex flex-col h-screen sticky top-0 transition-[width] duration-150",
+        "shrink-0 border-r border-white/[0.08] bg-[#0a1626]/88 flex flex-col h-screen sticky top-0 transition-[width] duration-150",
         collapsed ? "w-[68px]" : "w-[220px]"
       )}
     >
-      <div className="h-14 flex items-center justify-between px-3 border-b border-[var(--border)]">
+      <div className="h-14 flex items-center justify-between px-3 border-b border-white/[0.08]">
         <div
           className={cn(
             "relative group h-9 flex items-center rounded-md",
-            isAdmin && "cursor-pointer hover:bg-[var(--hover)]",
+            isAdmin && "cursor-pointer hover:bg-white/[0.055]",
             collapsed ? "w-9 justify-center" : "px-1.5 flex-1 min-w-0"
           )}
           onClick={() => isAdmin && !uploading && fileInputRef.current?.click()}
@@ -375,7 +375,7 @@ export function Sidebar({
       {collapsed ? (
         <button
           onClick={() => setCollapsed(false)}
-          className="h-8 flex items-center justify-center text-[var(--muted)] hover:text-[var(--foreground)] border-b border-[var(--border)]"
+          className="h-8 flex items-center justify-center text-[var(--muted)] hover:text-[var(--foreground)] border-b border-white/[0.08]"
           title="Expandir menú"
         >
           <ChevronsRight size={16} />
@@ -383,7 +383,7 @@ export function Sidebar({
       ) : null}
 
       {inProjectMode && projectInfo ? (
-        <div className={cn("border-b border-[var(--border)] bg-[var(--panel-2)]", collapsed ? "px-1.5 py-2" : "px-3 py-2.5")}>
+        <div className={cn("border-b border-white/[0.08] bg-[var(--panel-2)]", collapsed ? "px-1.5 py-2" : "px-3 py-2.5")}>
           {!collapsed ? (
             <>
               <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--primary)]">
@@ -411,10 +411,10 @@ export function Sidebar({
           )}
         </div>
       ) : isLoadingProjectMode && !collapsed ? (
-        <div className="border-b border-[var(--border)] bg-[var(--panel-2)] px-3 py-2.5 space-y-1.5">
-          <div className="h-2 w-14 rounded bg-[var(--hover)]" />
-          <div className="h-3.5 w-36 rounded bg-[var(--hover)]" />
-          <div className="h-2 w-20 rounded bg-[var(--hover)]" />
+        <div className="border-b border-white/[0.08] bg-[var(--panel-2)] px-3 py-2.5 space-y-1.5">
+          <div className="h-2 w-14 rounded bg-white/[0.06]" />
+          <div className="h-3.5 w-36 rounded bg-white/[0.06]" />
+          <div className="h-2 w-20 rounded bg-white/[0.06]" />
         </div>
       ) : null}
 
@@ -432,7 +432,7 @@ export function Sidebar({
                       {group.label}
                     </div>
                   ) : (
-                    <div className="border-t border-[var(--border)] my-1.5" />
+                    <div className="border-t border-white/[0.08] my-1.5" />
                   )}
                   {tabs.map((t) => {
                     const Icon = t.icon;
@@ -447,11 +447,11 @@ export function Sidebar({
                           window.dispatchEvent(new CustomEvent("niupack:tab", { detail: t.key }));
                         }}
                         className={cn(
-                          "w-full flex items-center gap-2.5 h-9 rounded-lg text-[13px] transition-colors",
+                          "w-full flex items-center gap-2.5 h-9 rounded-xl text-[13px] transition-colors",
                           collapsed ? "justify-center px-0" : "px-3",
                           active
-                            ? "bg-[var(--nav-active)] text-white font-medium"
-                            : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
+                            ? "bg-[linear-gradient(180deg,rgba(83,129,239,.54),rgba(48,82,162,.42))] text-white font-medium"
+                            : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
                         )}
                       >
                         <Icon size={16} className="shrink-0" />
@@ -469,7 +469,7 @@ export function Sidebar({
               <div
                 key={i}
                 className={cn(
-                  "h-9 rounded-lg bg-[var(--hover)]",
+                  "h-9 rounded-xl bg-white/[0.06]",
                   collapsed ? "w-9 mx-auto" : "w-full"
                 )}
               />
