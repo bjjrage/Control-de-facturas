@@ -3,10 +3,10 @@ import { cn } from "@/lib/cn";
 type Tone = "ok" | "warn" | "error" | "neutral";
 
 const tones: Record<Tone, string> = {
-  ok: "bg-[var(--ok-bg)] text-[var(--ok)]",
-  warn: "bg-[var(--warn-bg)] text-[var(--warn)]",
-  error: "bg-[var(--error-bg)] text-[var(--error)]",
-  neutral: "bg-[var(--neutral-bg)] text-[var(--muted)]",
+  ok: "bg-[var(--ok-bg)]/80 text-[var(--ok)] ring-1 ring-[var(--ok)]/15",
+  warn: "bg-[var(--warn-bg)]/80 text-[var(--warn)] ring-1 ring-[var(--warn)]/15",
+  error: "bg-[var(--error-bg)]/80 text-[var(--error)] ring-1 ring-[var(--error)]/15",
+  neutral: "bg-white/[0.055] text-[var(--muted)] ring-1 ring-white/[0.06]",
 };
 
 export function Badge({
@@ -21,7 +21,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium leading-none",
+        "inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold leading-none tracking-[0.01em]",
         tones[tone],
         className
       )}
