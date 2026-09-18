@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import { FileText, Upload, Search, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { Invoice, InvoiceStatus, Provider } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -150,9 +151,13 @@ export function InvoicesSection({ initialData }: { initialData: InvoicesSectionD
   })).filter((g) => g.invoices.length > 0);
 
   return (
-    <div className="max-w-5xl space-y-5">
-      <div className="flex items-center justify-between mt-1">
-        <h1 className="text-[17px] font-semibold">Facturas</h1>
+    <div className="max-w-none space-y-4">
+      <div className="flex items-end justify-between gap-4 pt-1">
+        <div>
+          <div className="erp-kicker mb-2">Compras</div>
+          <h1 className="erp-page-title">Facturas de compra</h1>
+          <p className="erp-subtitle mt-1">Controlá conciliación, revisión y pagos sin salir de la misma superficie de trabajo.</p>
+        </div>
         <div className="flex gap-2">
           {reviewCount > 0 ? (
             <Link
@@ -166,25 +171,28 @@ export function InvoicesSection({ initialData }: { initialData: InvoicesSectionD
             href="/invoices/bulk"
             className="inline-flex items-center justify-center gap-1.5 rounded-md border px-3 h-8 text-[13px] font-medium transition-colors bg-[var(--panel)] text-[var(--foreground)] hover:bg-[var(--hover)] border-[var(--border)]"
           >
-            Carga masiva
+            <Upload size={14} /> Carga masiva
           </Link>
           <InvoiceDialog
             providers={providers.filter((p) => p.active)}
-            trigger={<Button>Nueva factura</Button>}
+            trigger={<Button>+ Nueva factura</Button>}
           />
         </div>
       </div>
 
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3 space-y-3">
+      <div className="erp-toolbar rounded-2xl p-3.5 space-y-3">
         <div>
-          <Label htmlFor="inv-q">Buscar por N° de factura</Label>
+          <Label htmlFor="inv-q">Buscar</Label>
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none" />
           <Input
             id="inv-q"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="ej: 001-001-2019"
-            className="w-64"
+            className="w-80 pl-8"
           />
+          </div>
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <div>
@@ -193,7 +201,7 @@ export function InvoicesSection({ initialData }: { initialData: InvoicesSectionD
               <button
                 onClick={() => month && loadMonth(prevMonth(month))}
                 disabled={!month || loading}
-                className="h-9 w-8 rounded border border-[var(--border)] hover:bg-[var(--hover)] disabled:opacity-40 text-[var(--muted)]"
+                className="h-9 w-8 rounded-lg border border-white/[0.08] bg-white/[0.025] hover:bg-white/[0.06] disabled:opacity-40 text-[var(--muted)] transition-colors"
               >
                 ‹
               </button>
@@ -203,7 +211,7 @@ export function InvoicesSection({ initialData }: { initialData: InvoicesSectionD
               <button
                 onClick={() => month && loadMonth(nextMonth(month))}
                 disabled={!month || loading}
-                className="h-9 w-8 rounded border border-[var(--border)] hover:bg-[var(--hover)] disabled:opacity-40 text-[var(--muted)]"
+                className="h-9 w-8 rounded-lg border border-white/[0.08] bg-white/[0.025] hover:bg-white/[0.06] disabled:opacity-40 text-[var(--muted)] transition-colors"
               >
                 ›
               </button>
@@ -270,14 +278,14 @@ export function InvoicesSection({ initialData }: { initialData: InvoicesSectionD
       </div>
 
       {groups.length === 0 ? (
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] text-center text-[var(--muted)] py-10 text-[13px]">
+        <div className="erp-surface rounded-2xl text-center text-[var(--muted)] py-12 text-[13px]">
           {month
             ? `No hay facturas con fecha en ${monthLabel(month)}.`
             : "No hay facturas para estos filtros."}
         </div>
       ) : (
         groups.map((g) => (
-          <div key={g.status}>
+          <section key={g.status} className="space-y-2">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <StatusBadge status={g.status} />
@@ -292,7 +300,7 @@ export function InvoicesSection({ initialData }: { initialData: InvoicesSectionD
                   .join(" · ")}
               </div>
             </div>
-            <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden mb-4">
+            <div className="erp-table-shell mb-4">
               <table>
                 <thead>
                   <tr>
@@ -307,11 +315,19 @@ export function InvoicesSection({ initialData }: { initialData: InvoicesSectionD
                   {g.invoices.map((i) => (
                     <tr key={i.id}>
                       <td>
-                        <Link href={`/invoices/${i.id}`} className="text-action font-medium">
-                          {i.invoice_number}
-                        </Link>
+                        <div className="flex items-center gap-2.5">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#6b93ff]/20 bg-[#4f7df5]/10 text-[#8fb0ff]">
+                            <FileText size={14} />
+                          </span>
+                          <div className="min-w-0">
+                            <Link href={`/invoices/${i.id}`} className="text-action font-medium text-[#eef4ff]">
+                              {i.invoice_number}
+                            </Link>
+                            <div className="text-[10px] text-[#6f829f] mt-0.5">Documento de compra</div>
+                          </div>
+                        </div>
                       </td>
-                      <td>{providerById.get(i.provider_id) ?? "-"}</td>
+                      <td className="text-[#c9d5e8]">{providerById.get(i.provider_id) ?? "-"}</td>
                       <td>{formatDate(i.invoice_date)}</td>
                       <td className="num">{formatMoney(i.total, i.currency)}</td>
                       {isAdmin ? (
@@ -331,7 +347,7 @@ export function InvoicesSection({ initialData }: { initialData: InvoicesSectionD
                 </tbody>
               </table>
             </div>
-          </div>
+          </section>
         ))
       )}
     </div>
