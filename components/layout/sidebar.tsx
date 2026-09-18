@@ -12,6 +12,7 @@ import {
   Truck,
   ChevronsLeft,
   ChevronsRight,
+  ChevronRight,
   ImagePlus,
   ReceiptText,
   Contact,
@@ -138,6 +139,12 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [openSection, setOpenSection] = useState<{
+    label: string;
+    items: NavItem[];
+    top: number;
+    left: number;
+  } | null>(null);
   // Tracks the "active" path for shell-managed sections, since pushState doesn't
   // update usePathname(). Syncs from both our custom events and real Next.js nav.
   const [navPath, setNavPath] = useState<string | null>(null);
@@ -261,6 +268,20 @@ export function Sidebar({
     }
   }
 
+  useEffect(() => {
+    const close = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.closest("[data-nav-overlay]") || target.closest("[data-nav-trigger]")) return;
+      setOpenSection(null);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+
+  useEffect(() => {
+    setOpenSection(null);
+  }, [pathname, collapsed]);
+
   function renderLink(item: NavItem) {
     const effectivePath = navPath ?? pathname;
     const active = effectivePath === item.href || effectivePath.startsWith(item.href + "/");
@@ -268,6 +289,7 @@ export function Sidebar({
     const isShellPath = (SHELL_PATHS as readonly string[]).includes(item.href);
 
     function handleClick(e: React.MouseEvent) {
+      setOpenSection(null);
       if (isShellPath) {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent("niupack:navigate", { detail: item.href }));
@@ -296,16 +318,42 @@ export function Sidebar({
 
   function renderSection(label: string, items: NavItem[]) {
     if (items.length === 0) return null;
+    const isOpen = openSection?.label === label;
     return (
-      <div className="space-y-0.5">
-        {!collapsed ? (
-          <div className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--primary)]">
-            {label}
-          </div>
-        ) : (
-          <div className="border-t border-white/[0.08] my-1.5" />
-        )}
-        {items.map(renderLink)}
+      <div className="py-0.5">
+        <button
+          type="button"
+          data-nav-trigger
+          title={collapsed ? label : undefined}
+          onClick={(event) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            setOpenSection((current) =>
+              current?.label === label
+                ? null
+                : {
+                    label,
+                    items,
+                    top: Math.max(8, Math.min(rect.top, window.innerHeight - Math.min(420, items.length * 40 + 64))),
+                    left: rect.right + 10,
+                  }
+            );
+          }}
+          className={cn(
+            "w-full flex items-center h-9 rounded-xl text-[12px] font-medium transition-colors",
+            collapsed ? "justify-center px-0" : "justify-between px-3",
+            isOpen
+              ? "bg-[linear-gradient(180deg,rgba(83,129,239,.30),rgba(48,82,162,.22))] text-[#eef4ff]"
+              : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
+          )}
+        >
+          {!collapsed ? <span>{label}</span> : <span className="text-[10px] font-bold">{label.slice(0, 1)}</span>}
+          {!collapsed ? (
+            <ChevronRight
+              size={13}
+              className={cn("transition-transform duration-150", isOpen && "rotate-90 text-[#8fb0ff]")}
+            />
+          ) : null}
+        </button>
       </div>
     );
   }
@@ -313,7 +361,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "shrink-0 border-r border-white/[0.08] bg-[#0a1626]/88 flex flex-col h-screen sticky top-0 transition-[width] duration-150",
+        "relative shrink-0 border-r border-white/[0.08] bg-[#0a1626]/88 flex flex-col h-screen sticky top-0 transition-[width] duration-150",
         collapsed ? "w-[68px]" : "w-[220px]"
       )}
     >
@@ -484,6 +532,21 @@ export function Sidebar({
           </>
         )}
       </nav>
+
+      {openSection ? (
+        <div
+          data-nav-overlay
+          className="fixed z-[70] w-[230px] overflow-hidden rounded-2xl border border-white/[0.11] bg-[#0d1b2e]/88 p-2 shadow-[0_26px_70px_rgba(0,0,0,.46),inset_0_1px_0_rgba(255,255,255,.055)] backdrop-blur-2xl"
+          style={{ top: openSection.top, left: openSection.left }}
+        >
+          <div className="px-2.5 pt-1.5 pb-2">
+            <div className="erp-kicker">{openSection.label}</div>
+          </div>
+          <div className="space-y-0.5">
+            {openSection.items.map(renderLink)}
+          </div>
+        </div>
+      ) : null}
 
     </aside>
   );
