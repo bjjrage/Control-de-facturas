@@ -338,3 +338,17 @@ input::placeholder, textarea::placeholder {
   background: linear-gradient(180deg, rgba(75, 119, 225, .38), rgba(43, 79, 163, .28));
   box-shadow: 0 0 0 1px rgba(76, 126, 255, .15), 0 8px 24px rgba(31, 73, 166, .18);
 }
+
+
+/* KPI interaction: light, no 3D. Shared across dashboard/project summary metrics. */
+.kpi-hover {
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 180ms ease;
+}
+.kpi-hover:hover {
+  border-color: rgba(111, 154, 255, .22);
+  background-color: rgba(38, 61, 96, .54);
+  box-shadow:
+    0 0 0 1px rgba(88, 133, 235, .10),
+    0 8px 24px rgba(5, 12, 24, .20),
+    0 0 22px rgba(73, 118, 220, .10);
+}
