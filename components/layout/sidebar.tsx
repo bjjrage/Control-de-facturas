@@ -142,8 +142,6 @@ export function Sidebar({
   const [openSection, setOpenSection] = useState<{
     label: string;
     items: NavItem[];
-    top: number;
-    left: number;
   } | null>(null);
   // Tracks the "active" path for shell-managed sections, since pushState doesn't
   // update usePathname(). Syncs from both our custom events and real Next.js nav.
@@ -320,29 +318,21 @@ export function Sidebar({
     if (items.length === 0) return null;
     const isOpen = openSection?.label === label;
     return (
-      <div className="py-0.5">
+      <div className={cn("relative py-0.5", isOpen && "z-[60]")}>
         <button
           type="button"
           data-nav-trigger
           title={collapsed ? label : undefined}
-          onClick={(event) => {
-            const rect = event.currentTarget.getBoundingClientRect();
+          onClick={() => {
             setOpenSection((current) =>
-              current?.label === label
-                ? null
-                : {
-                    label,
-                    items,
-                    top: Math.max(8, Math.min(rect.top, window.innerHeight - Math.min(420, items.length * 40 + 64))),
-                    left: rect.right + 10,
-                  }
+              current?.label === label ? null : { label, items }
             );
           }}
           className={cn(
             "w-full flex items-center h-9 rounded-xl text-[12px] font-medium transition-colors",
             collapsed ? "justify-center px-0" : "justify-between px-3",
             isOpen
-              ? "bg-[linear-gradient(180deg,rgba(83,129,239,.30),rgba(48,82,162,.22))] text-[#eef4ff]"
+              ? "bg-[linear-gradient(180deg,rgba(83,129,239,.34),rgba(48,82,162,.25))] text-[#eef4ff] shadow-[0_0_0_1px_rgba(104,151,255,.10)]"
               : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
           )}
         >
@@ -354,6 +344,24 @@ export function Sidebar({
             />
           ) : null}
         </button>
+
+        {isOpen ? (
+          <div
+            data-nav-overlay
+            className={cn(
+              "absolute top-[calc(100%+4px)] overflow-hidden rounded-2xl border border-white/[0.11] bg-[#0b1728]/[0.985] p-2",
+              "shadow-[0_24px_58px_rgba(0,0,0,.48),inset_0_1px_0_rgba(255,255,255,.05)] backdrop-blur-2xl",
+              collapsed ? "left-0 w-[210px]" : "left-0 right-0"
+            )}
+          >
+            <div className="px-2.5 pt-1.5 pb-2">
+              <div className="erp-kicker">{label}</div>
+            </div>
+            <div className="space-y-0.5">
+              {items.map(renderLink)}
+            </div>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -532,21 +540,6 @@ export function Sidebar({
           </>
         )}
       </nav>
-
-      {openSection ? (
-        <div
-          data-nav-overlay
-          className="fixed z-[70] w-[230px] overflow-hidden rounded-2xl border border-white/[0.11] bg-[#0d1b2e]/88 p-2 shadow-[0_26px_70px_rgba(0,0,0,.46),inset_0_1px_0_rgba(255,255,255,.055)] backdrop-blur-2xl"
-          style={{ top: openSection.top, left: openSection.left }}
-        >
-          <div className="px-2.5 pt-1.5 pb-2">
-            <div className="erp-kicker">{openSection.label}</div>
-          </div>
-          <div className="space-y-0.5">
-            {openSection.items.map(renderLink)}
-          </div>
-        </div>
-      ) : null}
 
     </aside>
   );
