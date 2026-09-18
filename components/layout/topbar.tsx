@@ -3,13 +3,16 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, Bell, HelpCircle, ChevronDown, Building2, HardHat, Gavel, LucideIcon } from "lucide-react";
+import { Bell, HelpCircle, ChevronDown, Building2, HardHat, Gavel, FolderOpen, LucideIcon } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { logout } from "@/app/(internal)/actions";
 import { Workspace, WORKSPACE_HOME, WORKSPACE_LABEL, workspaceForPath } from "./workspace";
+import { getProjectNavInfo } from "@/app/(internal)/projects/actions";
 
 type WorkspaceItem = { key: Workspace; icon: LucideIcon };
+
+const PROJECT_ID_RE = /^\/projects\/([0-9a-f-]{20,})/i;
 
 const WORKSPACE_ITEMS: WorkspaceItem[] = [
   { key: "administracion", icon: Building2 },
@@ -117,19 +120,37 @@ export function Topbar({
   showOperativo: boolean;
   showLicitaciones: boolean;
 }) {
+  const pathname = usePathname();
+  const projectId = pathname.match(PROJECT_ID_RE)?.[1] ?? null;
+  const [projectInfo, setProjectInfo] = useState<{ id: string; name: string; code: string } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!projectId) {
+      setProjectInfo(null);
+      return;
+    }
+    getProjectNavInfo(projectId).then((info) => {
+      if (!cancelled) setProjectInfo(info);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
   return (
-    <header className="h-14 shrink-0 border-b border-white/[0.07] bg-[#091524]/72 px-4 flex items-center gap-3 sticky top-0 z-10 backdrop-blur-2xl shadow-[0_8px_30px_rgba(0,0,0,.10)]">
-      <div className="flex-1 max-w-md">
-        <div className="flex items-center gap-2 h-9 rounded-xl bg-white/[0.035] border border-white/[0.08] px-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,.025)]">
-          <Search size={15} className="text-[var(--muted)] shrink-0" />
-          <input
-            placeholder="Buscar en niu.pack…"
-            disabled
-            className="bg-transparent outline-none text-[13px] w-full placeholder:text-[var(--muted)] disabled:cursor-default"
-          />
-        </div>
-      </div>
+    <header className="h-14 shrink-0 border-b border-white/[0.07] bg-[#091524]/72 px-3 flex items-center gap-3 sticky top-0 z-10 backdrop-blur-2xl shadow-[0_8px_30px_rgba(0,0,0,.10)]">
       <WorkspaceSwitcher showOperativo={showOperativo} showLicitaciones={showLicitaciones} />
+      {projectInfo ? (
+        <div
+          className="hidden min-w-0 max-w-[420px] items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 h-9 md:flex"
+          title={projectInfo.name}
+        >
+          <FolderOpen size={14} className="shrink-0 text-[#7fa4ff]" />
+          <span className="truncate text-[12px] font-medium text-[#eaf1ff]">{projectInfo.name}</span>
+          <span className="shrink-0 font-mono text-[10px] text-[var(--muted)]">{projectInfo.code}</span>
+        </div>
+      ) : null}
       <div className="flex items-center gap-1 ml-auto">
         <button
           disabled
