@@ -34,6 +34,7 @@ function ScannerContent() {
 
   const [flowState, setFlowState] = useState<ScannerFlowState>("join");
   const [token, setToken] = useState<string | null>(tokenParam);
+  const [mobileClaimToken, setMobileClaimToken] = useState<string | null>(null);
   const [pinInput, setPinInput] = useState("");
   const [sessionInfo, setSessionInfo] = useState<{
     id: string;
@@ -100,7 +101,10 @@ function ScannerContent() {
         return;
       }
 
-      setToken(activeToken);
+      setToken(data.token || activeToken);
+      if (data.mobileClaimToken) {
+        setMobileClaimToken(data.mobileClaimToken);
+      }
       setSessionInfo(data.session);
 
       // Revisar si había páginas guardadas offline
@@ -146,8 +150,13 @@ function ScannerContent() {
         return;
       }
 
-      // Si se conectó por PIN, guardamos el tokenHash para las solicitudes subsiguientes
-      setToken(data.session.token || null);
+      // Conexión por PIN exitosa: guardar mobileClaimToken emitido por el servidor
+      if (data.mobileClaimToken) {
+        setMobileClaimToken(data.mobileClaimToken);
+      }
+      if (data.token) {
+        setToken(data.token);
+      }
       setSessionInfo(data.session);
       setFlowState("ready");
     } catch {
@@ -253,8 +262,8 @@ function ScannerContent() {
 
       // 3. Crear FormData
       const formData = new FormData();
-      if (token) {
-        formData.set("token", token);
+      if (mobileClaimToken) {
+        formData.set("mobileClaimToken", mobileClaimToken);
       }
       formData.set("pageCount", String(pages.length));
       formData.set(
