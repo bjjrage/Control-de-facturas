@@ -334,27 +334,42 @@ describe("P1-2. Cantidades autoritativas salen de DB, no del browser", () => {
 // P1-3. Escritura directa revocada (migración) — RPCs con EXECUTE vigente
 // ---------------------------------------------------------------------------
 describe("P1-3. Tablas solo-lectura para authenticated; RPCs como única vía", () => {
-  const mig = () =>
+  const mig2 = () =>
     readSource("supabase/migrations/20260918000002_mrp_hardening.sql");
+  const mig3 = () =>
+    readSource("supabase/migrations/20260918000003_mrp_final_integrity.sql");
 
   it("revoca INSERT/UPDATE/DELETE en reservas y recetas", () => {
-    expect(mig()).toContain("REVOKE INSERT, UPDATE, DELETE ON public.inventory_reservations FROM authenticated");
-    expect(mig()).toContain("REVOKE INSERT, UPDATE, DELETE ON public.production_recipes FROM authenticated");
-    expect(mig()).toContain("REVOKE INSERT, UPDATE, DELETE ON public.production_recipe_components FROM authenticated");
+    expect(mig2()).toContain("REVOKE INSERT, UPDATE, DELETE ON public.inventory_reservations FROM authenticated");
+    expect(mig2()).toContain("REVOKE INSERT, UPDATE, DELETE ON public.production_recipes FROM authenticated");
+    expect(mig2()).toContain("REVOKE INSERT, UPDATE, DELETE ON public.production_recipe_components FROM authenticated");
   });
 
-  it("mantiene EXECUTE en las RPC controladas", () => {
-    expect(mig()).toContain("GRANT EXECUTE ON FUNCTION public.save_production_recipe_atomic");
-    expect(mig()).toContain("GRANT EXECUTE ON FUNCTION public.commit_production_plan_atomic");
-    const legacy = readSource("supabase/migrations/20260917000005_mrp_reservations.sql");
-    expect(legacy).toContain("GRANT EXECUTE ON FUNCTION public.reserve_plan_stock");
-    expect(legacy).toContain("GRANT EXECUTE ON FUNCTION public.release_plan_reservations");
+  it("P2-2: el lockdown final (00003) deja EXECUTE solo a service_role", () => {
+    for (const fn of [
+      "reserve_plan_stock",
+      "release_plan_reservations",
+      "save_production_recipe_atomic",
+      "commit_production_plan_atomic",
+    ]) {
+      expect(mig3()).toContain("REVOKE ALL ON FUNCTION public." + fn);
+      expect(mig3()).toContain("FROM PUBLIC, anon, authenticated");
+    }
+    expect(mig3()).toContain("GRANT EXECUTE ON FUNCTION public.reserve_plan_stock");
+    expect(mig3()).toContain("TO service_role");
+    expect(mig3()).not.toContain("TO authenticated, service_role");
+  });
+
+  it("las actions invocan por admin client con empresa/actor explícitos", () => {
+    const wa = readSource("app/(internal)/projects/weekly-plan-actions.ts");
+    expect(wa).toContain("createAdminClient");
+    expect(wa).toContain("p_empresa_id");
+    expect(wa).toContain("p_actor_id");
+    const ra = readSource("app/(internal)/projects/production-recipe-actions.ts");
+    expect(ra).toContain("createAdminClient");
   });
 });
 
-// ---------------------------------------------------------------------------
-// P1-4. Receta atómica vía RPC (P1-5 comparte el patrón commit único)
-// ---------------------------------------------------------------------------
 describe("P1-4/P1-5. Atomicidad real en DB (fuente)", () => {
   const mig = () =>
     readSource("supabase/migrations/20260918000002_mrp_hardening.sql");

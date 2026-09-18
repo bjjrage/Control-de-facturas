@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlan } from "@/lib/auth";
 import type {
   ProductionRecipe,
@@ -206,11 +207,14 @@ export async function saveProductionRecipe(
     );
     if (!check.ok) return { data: null, error: check.error! };
 
-    // P1-4: UNA sola RPC transaccional (los writes directos están revocados
-    // para authenticated; todo o nada, validado en DB).
-    const { data: rpcResult, error: rpcErr } = await supabase.rpc(
+    // P1-4: UNA sola RPC transaccional SERVER-ONLY (writes directos
+    // revocados para authenticated; todo o nada, validado en DB).
+    const admin = createAdminClient();
+    const { data: rpcResult, error: rpcErr } = await admin.rpc(
       "save_production_recipe_atomic",
       {
+        p_empresa_id: empresaId,
+        p_actor_id: profile.id,
         p_recipe_id: recipeId || null,
         p_project_id: projectId,
         p_code: code.trim(),

@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlan } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import {
@@ -597,7 +598,7 @@ export async function saveWeeklyPlanAction(
     // plan+reservas en UNA transacción (commit_production_plan_atomic).
     // Las cantidades del browser NUNCA son autoritativas.
     if (params.mrpCommit && status === "COMMITTED") {
-      return await commitProductionPlanWithMrp(supabase, empresaId, {
+      return await commitProductionPlanWithMrp(supabase, empresaId, profile.id, {
         planId: planId || null,
         projectId,
         startDate,
@@ -615,8 +616,12 @@ export async function saveWeeklyPlanAction(
 
     // V3 release-then-save para DRAFT/CLOSED con lifecycle: primero
     // liberar (si el save falla después, nada queda zombie).
+    // P1-3: RPC server-only (revocada para authenticated) con actor explícito.
     if (params.mrpCommit && status !== "COMMITTED" && planId) {
-      const { error: preRelErr } = await supabase.rpc("release_plan_reservations", {
+      const admin = createAdminClient();
+      const { error: preRelErr } = await admin.rpc("release_plan_reservations", {
+        p_empresa_id: empresaId,
+        p_actor_id: profile.id,
         p_plan_id: planId,
       });
       if (preRelErr) {
@@ -681,6 +686,7 @@ export async function saveWeeklyPlanAction(
 async function commitProductionPlanWithMrp(
   supabase: Awaited<ReturnType<typeof createClient>>,
   empresaId: string,
+  actorId: string,
   args: {
     planId: string | null;
     projectId: string;
@@ -755,7 +761,11 @@ async function commitProductionPlanWithMrp(
   }
 
   // 6. UNA transacción plan+reservas (rollback total si algo falla).
-  const { data: rpcResult, error: rpcErr } = await supabase.rpc("commit_production_plan_atomic", {
+  // P1-3: RPC server-only (revocada para authenticated) con empresa/actor explícitos.
+  const admin = createAdminClient();
+  const { data: rpcResult, error: rpcErr } = await admin.rpc("commit_production_plan_atomic", {
+    p_empresa_id: empresaId,
+    p_actor_id: actorId,
     p_plan_id: args.planId,
     p_project_id: projectId,
     p_start_date: startDate,
