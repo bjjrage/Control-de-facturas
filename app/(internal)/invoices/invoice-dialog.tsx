@@ -8,6 +8,7 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Provider } from "@/lib/types";
 import { createInvoice } from "./actions";
 import { extractInvoiceFromPhoto } from "./extract-actions";
+import { ScanButton } from "@/components/scanner/scan-button";
 
 const READABLE_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 
@@ -41,6 +42,7 @@ export function InvoiceDialog({
   const timbradoRef = useRef<HTMLInputElement>(null);
   const orderReferenceRef = useRef<HTMLInputElement>(null);
   const productDescriptionRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleFileChange(file: File | null) {
     setScanNotice(null);
@@ -116,8 +118,27 @@ export function InvoiceDialog({
           <input type="hidden" name="product_description" ref={productDescriptionRef} />
 
           <div>
-            <Label htmlFor="file">Foto o PDF de la factura</Label>
+            <div className="flex items-center justify-between mb-1">
+              <Label htmlFor="file">Foto o PDF de la factura</Label>
+              <ScanButton
+                contextType="invoice"
+                onDocumentReceived={(doc) => {
+                  try {
+                    const dt = new DataTransfer();
+                    dt.items.add(doc.file);
+                    if (fileInputRef.current) {
+                      fileInputRef.current.files = dt.files;
+                    }
+                  } catch {
+                    // Fallback for older browsers without DataTransfer files setter
+                  }
+                  handleFileChange(doc.file);
+                }}
+                className="h-6 text-[11px] px-2 py-0"
+              />
+            </div>
             <input
+              ref={fileInputRef}
               id="file"
               name="file"
               type="file"
@@ -129,7 +150,7 @@ export function InvoiceDialog({
             <p className="text-[11px] text-[var(--muted)] mt-1">
               {scanning
                 ? "Leyendo factura…"
-                : scanNotice ?? "Sacale una foto (JPG/PNG) o subí el PDF electrónico y se completan los campos solos."}
+                : scanNotice ?? "Sacale una foto (JPG/PNG), escaneá con el celular o subí el PDF electrónico."}
             </p>
           </div>
 
