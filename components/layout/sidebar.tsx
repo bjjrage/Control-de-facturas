@@ -53,7 +53,7 @@ const PROJECT_TAB_GROUPS: { label: string; tabs: ProjectTab[] }[] = [
   { label: "Comprar", tabs: [
     { key: "proveedores", label: "Proveedores", icon: Truck },
     { key: "cotizaciones", label: "Cotizaciones", icon: MessagesSquare },
-    { key: "compras", label: "Órdenes de Compra", icon: Package },
+    { key: "compras", label: "OC", icon: Package },
     { key: "facturas", label: "Facturas", icon: Receipt },
     { key: "pagos", label: "Pagos", icon: Wallet },
   ]},
@@ -63,7 +63,7 @@ const PROJECT_TAB_GROUPS: { label: string; tabs: ProjectTab[] }[] = [
     { key: "personal", label: "Personal", icon: Users, caterpillarOnly: true },
     { key: "subcontratistas", label: "Subcontratistas", icon: Truck, caterpillarOnly: true },
   ]},
-  { label: "Certificar y controlar", tabs: [
+  { label: "Certificar", tabs: [
     { key: "certificados", label: "Certificados", icon: FileCheck2, caterpillarOnly: true },
     { key: "avance-fisico", label: "Avance físico", icon: GanttChartSquare, caterpillarOnly: true },
     { key: "informes", label: "Informes", icon: FileText },
@@ -97,7 +97,7 @@ const GLOBAL_ITEMS: NavItem[] = [
 const COMPRAS_ITEMS: NavItem[] = [
   { href: "/providers", label: "Proveedores", roles: ["admin"], icon: Truck, module: "compras" },
   { href: "/rfqs", label: "Cotizaciones", roles: ["comercial", "admin"], icon: FileText, module: "compras" },
-  { href: "/orders", label: "Órdenes de compra", roles: ["comercial", "administracion", "admin"], icon: Package, module: "compras" },
+  { href: "/orders", label: "OC", roles: ["comercial", "administracion", "admin"], icon: Package, module: "compras" },
   { href: "/invoices", label: "Facturas", roles: ["administracion", "admin"], icon: Receipt, module: "compras" },
   { href: "/pagos", label: "Pagos", roles: ["administracion", "admin"], icon: Wallet, module: "compras" },
   { href: "/stock", label: "Stock", roles: ["administracion", "admin"], icon: Boxes, module: "compras", minPlan: "pro" },
@@ -111,10 +111,10 @@ const FINANZAS_ITEMS: NavItem[] = [
 const VENTAS_ITEMS: NavItem[] = [
   { href: "/clientes", label: "Clientes", roles: ["administracion", "admin"], icon: Contact, module: "ventas" },
   { href: "/proformas", label: "Proformas", roles: ["administracion", "admin"], icon: FileClock, module: "ventas" },
-  { href: "/ordenes-trabajo", label: "Órdenes de Trabajo", roles: ["administracion", "admin"], icon: Hammer, module: "ventas" },
+  { href: "/ordenes-trabajo", label: "OT", roles: ["administracion", "admin"], icon: Hammer, module: "ventas" },
   { href: "/remisiones", label: "Remisiones", roles: ["administracion", "admin"], icon: ClipboardList, module: "ventas" },
-  { href: "/facturas-venta", label: "Facturas de Venta", roles: ["administracion", "admin"], icon: ReceiptText, module: "ventas" },
-  { href: "/notas-credito", label: "Notas de Crédito", roles: ["administracion", "admin"], icon: FileX, module: "ventas" },
+  { href: "/facturas-venta", label: "Facturas", roles: ["administracion", "admin"], icon: ReceiptText, module: "ventas" },
+  { href: "/notas-credito", label: "NC", roles: ["administracion", "admin"], icon: FileX, module: "ventas" },
   { href: "/cobros", label: "Cobros", roles: ["administracion", "admin"], icon: Banknote, module: "ventas" },
 ];
 
