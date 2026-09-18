@@ -286,6 +286,14 @@ export function WeeklyPlanSection({ project }: Props) {
 
   const previewStale = preview !== null && previewKey !== null && previewKey !== currentKey;
 
+  // P1-1: un plan MRP (nace de receta, tiene preview MRP o retiene reservas
+  // de un commit previo) NO puede comprometerse con cobertura desactualizada.
+  const isMrpContext =
+    appliedRecipe !== null || previewMrp !== null ||
+    (savedStatus === "COMMITTED" && hasActiveReservations);
+  const mrpCommitBlocked =
+    isMrpContext && (!previewMrp || previewStale || !!previewMrp.centralError);
+
   // ---- edición local (sin persistir) ----
 
   const handleDefinirMeta = (budgetItemId: string) => {
@@ -631,7 +639,6 @@ export function WeeklyPlanSection({ project }: Props) {
     // stale se guarda el plan SIN reservas y se avisa explícitamente.
     const mrpCommit = previewMrp
       ? {
-          centralLocationId: previewMrp.centralLocation?.id ?? "",
           lines: previewStale
             ? []
             : previewMrp.lines
@@ -1804,9 +1811,9 @@ export function WeeklyPlanSection({ project }: Props) {
             <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
               5. Guardar / Comprometer — el preview no guardó nada todavía
             </div>
-            {savedStatus === "COMMITTED" && hasActiveReservations && !previewMrp && (
+            {mrpCommitBlocked && (
               <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                Este plan está comprometido: recalculá para re-comprometer con reservas actualizadas.
+                El cálculo de abastecimiento está desactualizado. Recalculá antes de comprometer el plan.
               </p>
             )}
             <div className="flex flex-wrap gap-2">
@@ -1823,9 +1830,9 @@ export function WeeklyPlanSection({ project }: Props) {
               <Button
                 type="button"
                 onClick={() => handleSaveWithStatus("COMMITTED")}
-                disabled={isSaving || (savedStatus === "COMMITTED" && hasActiveReservations && !previewMrp)}
+                disabled={isSaving || mrpCommitBlocked}
                 data-testid="comprometer-plan"
-                title={savedStatus === "COMMITTED" && hasActiveReservations && !previewMrp ? "Recalculá para re-comprometer con reservas actualizadas" : undefined}
+                title={mrpCommitBlocked ? "El cálculo de abastecimiento está desactualizado. Recalculá antes de comprometer el plan." : undefined}
                 className="h-9 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
               >
                 {isSaving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
@@ -1847,7 +1854,12 @@ export function WeeklyPlanSection({ project }: Props) {
               <button
                 type="button"
                 onClick={() => handleSaveWithStatus(compatStatus)}
-                disabled={isSaving}
+                disabled={isSaving || (compatStatus === "COMMITTED" && mrpCommitBlocked)}
+                title={
+                  compatStatus === "COMMITTED" && mrpCommitBlocked
+                    ? "El cálculo de abastecimiento está desactualizado. Recalculá antes de comprometer el plan."
+                    : undefined
+                }
                 className="h-7 px-2 rounded-md border border-[var(--border)] text-[11px] hover:bg-[var(--panel-2)]"
               >
                 Guardar con estado seleccionado

@@ -100,15 +100,17 @@ describe("TEST E. Reservas descuentan disponibilidad (oversell falla)", () => {
     expect(mig).toContain("RAISE EXCEPTION");
   });
 
-  it("el preview NUNCA llama al RPC de reserva (fuente)", () => {
+  it("el preview NUNCA llama a RPCs de reserva (fuente)", () => {
     const actions = readSource("app/(internal)/projects/weekly-plan-actions.ts");
     const previewStart = actions.indexOf("export async function previewWeeklyPlanAction");
     const saveStart = actions.indexOf("export async function saveWeeklyPlanAction");
     const previewSrc = actions.slice(previewStart, saveStart);
     expect(previewSrc).not.toContain("reserve_plan_stock");
     expect(previewSrc).not.toContain("release_plan_reservations");
-    // El save SÍ lo hace solo con mrpCommit
-    expect(actions.slice(saveStart)).toContain("reserve_plan_stock");
+    expect(previewSrc).not.toContain("commit_production_plan_atomic");
+    // El save usa la RPC única solo con mrpCommit (nunca reserve directo)
+    expect(actions.slice(saveStart)).toContain("commit_production_plan_atomic");
+    expect(actions.slice(saveStart)).not.toContain('"reserve_plan_stock"');
   });
 });
 
@@ -214,11 +216,11 @@ describe("Multi-tenant: recetas y reservas aisladas por empresa", () => {
     expect(m).toContain("SECURITY DEFINER");
   });
 
-  it("actions con scoping empresa + RPCs con gate tenant (fuente)", () => {
+  it("actions con scoping empresa + RPC única (fuente)", () => {
     const ra = readSource("app/(internal)/projects/production-recipe-actions.ts");
     expect(ra).toContain('eq("empresa_id",');
     const wa = readSource("app/(internal)/projects/weekly-plan-actions.ts");
-    expect(wa).toContain("reserve_plan_stock");
+    expect(wa).toContain("commit_production_plan_atomic");
     const mig = readSource("supabase/migrations/20260917000005_mrp_reservations.sql");
     expect(mig).toContain("Sin empresa (tenant fail-closed)");
   });
@@ -230,19 +232,19 @@ describe("Multi-tenant: recetas y reservas aisladas por empresa", () => {
 describe("P1. Guardado con reservas: sin commit parcial ni zombies", () => {
   const src = () => readSource("app/(internal)/projects/weekly-plan-actions.ts");
 
-  it("reserva fallida revierte el plan a DRAFT y devuelve error sin data", () => {
-    expect(src()).toContain('.update({ status: "DRAFT" })');
-    expect(src()).toContain("return { data: null, error: msg };");
+  it("reserva fallida no deja commit parcial: rollback real de la RPC única", () => {
+    // Una sola transacción plan+reservas: si falla, nada persiste (sin compensación).
+    expect(src()).toContain("commit_production_plan_atomic");
+    expect(src()).toContain("El abastecimiento cambió desde el último cálculo. Recalculá el plan.");
   });
 
-  it("release fallido se reporta (no se traga con console.warn)", () => {
-    expect(src()).toContain("no se pudieron liberar reservas");
-    expect(src()).not.toContain('console.warn("release_plan_reservations failed:"');
+  it("release fallido se reporta antes de guardar (release-then-save)", () => {
+    expect(src()).toContain("No se pudieron liberar reservas");
   });
 
   it("sin mrpCommit no hay lifecycle extra (V1 idéntico)", () => {
-    // El bloque MRP solo corre bajo params.mrpCommit.
-    const idx = src().indexOf("if (params.mrpCommit && savedPlan)");
+    // Las ramas MRP solo corren bajo params.mrpCommit.
+    const idx = src().indexOf("if (params.mrpCommit && status");
     expect(idx).toBeGreaterThan(-1);
   });
 });
@@ -266,5 +268,115 @@ describe("Central con error de lectura + recipeEffectiveQty única", () => {
     expect(panel).toContain("recipeEffectiveQty({");
     const section = readSource("app/(internal)/projects/[id]/weekly-plan-section.tsx");
     expect(section).toContain("libRecipeEffectiveQty({");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// P1-1. COMMITTED bloqueado con cobertura desactualizada (UI) — DRAFT libre
+// ---------------------------------------------------------------------------
+describe("P1-1. Sin cobertura MRP vigente no se puede comprometer", () => {
+  const ui = () =>
+    readSource("app/(internal)/projects/[id]/weekly-plan-section.tsx");
+
+  it("el botón comprometer se deshabilita con preview stale/ausente/central fallido", () => {
+    expect(ui()).toContain("mrpCommitBlocked");
+    expect(ui()).toContain("disabled={isSaving || mrpCommitBlocked}");
+    expect(ui()).toContain(
+      "El cálculo de abastecimiento está desactualizado. Recalculá antes de comprometer el plan."
+    );
+  });
+
+  it("DRAFT nunca se bloquea por cobertura (solo COMMITTED)", () => {
+    // El gate solo toca el botón comprometer; guardar borrador no lo usa.
+    // El botón borrador conserva su disabled original (el gate es solo de comprometer).
+    expect(ui()).toContain("guardar-borrador");
+    const src = ui();
+    const draftIdx = src.indexOf('handleSaveWithStatus("DRAFT")');
+    expect(draftIdx).toBeGreaterThan(-1);
+    const gateIdx = src.indexOf("mrpCommitBlocked");
+    expect(gateIdx).toBeGreaterThan(-1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// P1-2. El servidor recalcula; el cliente es referencia (compare + 1 RPC)
+// ---------------------------------------------------------------------------
+describe("P1-2. Cantidades autoritativas salen de DB, no del browser", () => {
+  it("compareCentralLines: igual dentro de eps, distinto si tamper/stock movido", async () => {
+    const { compareCentralLines } = await import("../lib/procurement/mrp-coverage");
+    const server = [
+      { producto_id: "p1", quantity: 400 },
+      { producto_id: "p2", quantity: 1880 },
+    ];
+    expect(compareCentralLines(server, server)).toBe(true);
+    // Tamper: cliente manda 1 en vez de 400.
+    expect(compareCentralLines(server, [{ producto_id: "p1", quantity: 1 }])).toBe(false);
+    expect(
+      compareCentralLines(server, [
+        { producto_id: "p1", quantity: 400 },
+        { producto_id: "p2", quantity: 1500 },
+      ])
+    ).toBe(false);
+    // Longitud distinta también rechaza.
+    expect(compareCentralLines(server, [{ producto_id: "p1", quantity: 400 }])).toBe(false);
+  });
+
+  it("el save recalcula (loader+engine+allocate) y usa UNA rpc commit (fuente)", () => {
+    const src = readSource("app/(internal)/projects/weekly-plan-actions.ts");
+    expect(src).toContain("commitProductionPlanWithMrp");
+    expect(src).toContain("compareCentralLines");
+    expect(src).toContain("commit_production_plan_atomic");
+    expect(src).toContain("El abastecimiento cambió desde el último cálculo. Recalculá el plan.");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// P1-3. Escritura directa revocada (migración) — RPCs con EXECUTE vigente
+// ---------------------------------------------------------------------------
+describe("P1-3. Tablas solo-lectura para authenticated; RPCs como única vía", () => {
+  const mig = () =>
+    readSource("supabase/migrations/20260918000002_mrp_hardening.sql");
+
+  it("revoca INSERT/UPDATE/DELETE en reservas y recetas", () => {
+    expect(mig()).toContain("REVOKE INSERT, UPDATE, DELETE ON public.inventory_reservations FROM authenticated");
+    expect(mig()).toContain("REVOKE INSERT, UPDATE, DELETE ON public.production_recipes FROM authenticated");
+    expect(mig()).toContain("REVOKE INSERT, UPDATE, DELETE ON public.production_recipe_components FROM authenticated");
+  });
+
+  it("mantiene EXECUTE en las RPC controladas", () => {
+    expect(mig()).toContain("GRANT EXECUTE ON FUNCTION public.save_production_recipe_atomic");
+    expect(mig()).toContain("GRANT EXECUTE ON FUNCTION public.commit_production_plan_atomic");
+    const legacy = readSource("supabase/migrations/20260917000005_mrp_reservations.sql");
+    expect(legacy).toContain("GRANT EXECUTE ON FUNCTION public.reserve_plan_stock");
+    expect(legacy).toContain("GRANT EXECUTE ON FUNCTION public.release_plan_reservations");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// P1-4. Receta atómica vía RPC (P1-5 comparte el patrón commit único)
+// ---------------------------------------------------------------------------
+describe("P1-4/P1-5. Atomicidad real en DB (fuente)", () => {
+  const mig = () =>
+    readSource("supabase/migrations/20260918000002_mrp_hardening.sql");
+
+  it("save_production_recipe_atomic valida tenant/proyecto/items y revierte todo", () => {
+    expect(mig()).toContain("CREATE OR REPLACE FUNCTION public.save_production_recipe_atomic(");
+    expect(mig()).toContain("no pertenece a este proyecto/empresa");
+    expect(mig()).toContain("Cantidad por unidad debe ser");
+  });
+
+  it("commit_production_plan_atomic compone save+reserve en una transacción", () => {
+    expect(mig()).toContain("CREATE OR REPLACE FUNCTION public.commit_production_plan_atomic(");
+    expect(mig()).toContain("public.save_weekly_plan_atomic(");
+    expect(mig()).toContain("public.reserve_plan_stock(");
+  });
+
+  it("la action de receta ya no escribe directo (usa la RPC)", () => {
+    const src = readSource("app/(internal)/projects/production-recipe-actions.ts");
+    expect(src).toContain("save_production_recipe_atomic");
+    // Solo SELECTs directos; toda mutación va por la RPC (revocada en DB).
+    expect(src).not.toContain(".insert(");
+    expect(src).not.toContain(".update(");
+    expect(src).not.toContain(".delete(");
   });
 });

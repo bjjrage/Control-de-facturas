@@ -206,74 +206,34 @@ export async function saveProductionRecipe(
     );
     if (!check.ok) return { data: null, error: check.error! };
 
-    let savedId = recipeId || null;
-    if (savedId) {
-      const { data: existing } = await supabase
-        .from("production_recipes")
-        .select("id")
-        .eq("id", savedId)
-        .eq("project_id", projectId)
-        .eq("empresa_id", empresaId)
-        .single();
-      if (!existing) {
-        return { data: null, error: "Receta no encontrada o sin permisos." };
+    // P1-4: UNA sola RPC transaccional (los writes directos están revocados
+    // para authenticated; todo o nada, validado en DB).
+    const { data: rpcResult, error: rpcErr } = await supabase.rpc(
+      "save_production_recipe_atomic",
+      {
+        p_recipe_id: recipeId || null,
+        p_project_id: projectId,
+        p_code: code.trim(),
+        p_name: name.trim(),
+        p_production_unit: productionUnit.trim(),
+        p_description: description?.trim() || null,
+        p_contract_total_quantity:
+          contractTotalQuantity !== undefined && contractTotalQuantity !== null
+            ? Number(contractTotalQuantity)
+            : null,
+        p_source_type: sourceType,
+        p_source_file_name: sourceFileName || null,
+        p_components: cleanComponents.map((c) => ({
+          budget_item_id: c.budgetItemId,
+          quantity_per_unit: Number(c.quantityPerUnit),
+          unit: c.unit?.trim() || "unid",
+        })),
       }
-      const { error: uErr } = await supabase
-        .from("production_recipes")
-        .update({
-          code: code.trim(),
-          name: name.trim(),
-          production_unit: productionUnit.trim(),
-          description: description?.trim() || null,
-          contract_total_quantity:
-            contractTotalQuantity !== undefined && contractTotalQuantity !== null
-              ? Number(contractTotalQuantity)
-              : null,
-          source_type: sourceType,
-          source_file_name: sourceFileName || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", savedId);
-      if (uErr) return { data: null, error: `Error al guardar receta: ${uErr.message}` };
-      await supabase.from("production_recipe_components").delete().eq("recipe_id", savedId);
-    } else {
-      const { data: inserted, error: iErr } = await supabase
-        .from("production_recipes")
-        .insert({
-          empresa_id: empresaId,
-          project_id: projectId,
-          code: code.trim(),
-          name: name.trim(),
-          production_unit: productionUnit.trim(),
-          description: description?.trim() || null,
-          contract_total_quantity:
-            contractTotalQuantity !== undefined && contractTotalQuantity !== null
-              ? Number(contractTotalQuantity)
-              : null,
-          source_type: sourceType,
-          source_file_name: sourceFileName || null,
-          active: true,
-          created_by: profile.id,
-        })
-        .select("id")
-        .single();
-      if (iErr || !inserted) {
-        return { data: null, error: `Error al crear receta: ${iErr?.message || "desconocido"}` };
-      }
-      savedId = (inserted as { id: string }).id;
+    );
+    if (rpcErr) {
+      return { data: null, error: `Error al guardar receta: ${rpcErr.message}` };
     }
-
-    const rows = cleanComponents.map((c, idx) => ({
-      recipe_id: savedId as string,
-      budget_item_id: c.budgetItemId,
-      quantity_per_production_unit: Number(c.quantityPerUnit),
-      unit: c.unit?.trim() || "unid",
-      sort_order: idx,
-    }));
-    const { error: cErr } = await supabase
-      .from("production_recipe_components")
-      .insert(rows);
-    if (cErr) return { data: null, error: `Error al guardar componentes: ${cErr.message}` };
+    const savedId = (rpcResult as { recipe_id?: string })?.recipe_id || recipeId || null;
 
     const { data: saved } = await supabase
       .from("production_recipes")

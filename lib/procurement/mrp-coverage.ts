@@ -45,6 +45,27 @@ export interface MrpCoverageSummary {
   costos_pendientes: number;
 }
 
+/**
+ * Compara líneas centrales cliente (referencia, NO autoritativa) vs
+ * recalculadas server-side. true solo si mismo conjunto e iguales dentro
+ * de eps. Cualquier divergencia (tamper, stock movido) => recalcular.
+ */
+export function compareCentralLines(
+  server: { producto_id: string; quantity: number }[],
+  client: { producto_id: string; quantity: number }[],
+  eps = 1e-6
+): boolean {
+  if (server.length !== client.length) return false;
+  const byId = new Map(server.map((l) => [l.producto_id, Number(l.quantity) || 0]));
+  for (const c of client) {
+    if (!byId.has(c.producto_id)) return false;
+    if (Math.abs((byId.get(c.producto_id) as number) - (Number(c.quantity) || 0)) > eps) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function num(v: unknown): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;

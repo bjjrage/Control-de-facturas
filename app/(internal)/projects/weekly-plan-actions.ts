@@ -29,6 +29,7 @@ import {
 } from "@/lib/procurement/weekly-plan-shared";
 import {
   allocateMaterialCoverage,
+  compareCentralLines,
   type MrpCoverageLine,
 } from "@/lib/procurement/mrp-coverage";
 
@@ -54,7 +55,7 @@ export interface SaveWeeklyPlanParams {
    * Sin mrpCommit el guardado es idéntico a V1.
    */
   mrpCommit?: {
-    centralLocationId: string;
+    /** Referencia del preview (NO autoritativa: el servidor recalcula). */
     lines: { producto_id: string; quantity: number }[];
     neededByDate: string;
   };
@@ -591,6 +592,41 @@ export async function saveWeeklyPlanAction(
         unit: it.unit || "unid",
       }));
 
+    // V3 MRP COMMIT (P1-2 + P1-5): recalcular server-side con datos DB
+    // actuales, comparar con la referencia del cliente y persistir
+    // plan+reservas en UNA transacción (commit_production_plan_atomic).
+    // Las cantidades del browser NUNCA son autoritativas.
+    if (params.mrpCommit && status === "COMMITTED") {
+      return await commitProductionPlanWithMrp(supabase, empresaId, {
+        planId: planId || null,
+        projectId,
+        startDate,
+        endDate,
+        status,
+        notes: notes || null,
+        weatherSnapshotBatchId: weatherSnapshotBatchId || null,
+        itemsPayload,
+        centralReference: (params.mrpCommit.lines ?? []).map((l) => ({
+          producto_id: l.producto_id,
+          quantity: Number(l.quantity) || 0,
+        })),
+      });
+    }
+
+    // V3 release-then-save para DRAFT/CLOSED con lifecycle: primero
+    // liberar (si el save falla después, nada queda zombie).
+    if (params.mrpCommit && status !== "COMMITTED" && planId) {
+      const { error: preRelErr } = await supabase.rpc("release_plan_reservations", {
+        p_plan_id: planId,
+      });
+      if (preRelErr) {
+        return {
+          data: null,
+          error: `No se pudieron liberar reservas: ${preRelErr.message} (reintentá guardar).`,
+        };
+      }
+    }
+
     // Invoke atomic RPC function
     const { data: rpcResult, error: rpcErr } = await supabase.rpc(
       "save_weekly_plan_atomic",
@@ -627,57 +663,130 @@ export async function saveWeeklyPlanAction(
       return { data: null, error: "Plan guardado pero no se pudo recuperar." };
     }
 
-    // V3 MRP lifecycle (aditivo; sin mrpCommit no hace nada).
-    if (params.mrpCommit && savedPlan) {
-      const savedId = (savedPlan as ProjectWeeklyPlan).id;
-      if (status === "COMMITTED" && params.mrpCommit.centralLocationId) {
-        // Siempre vía RPC (aunque no haya líneas: replace libera las viejas).
-        const reserveLines = (params.mrpCommit.lines ?? []).filter(
-          (l) => l.producto_id && Number(l.quantity) > 0
-        );
-        const { error: resErr } = await supabase.rpc("reserve_plan_stock", {
-            p_project_id: projectId,
-            p_plan_id: savedId,
-            p_location_id: params.mrpCommit.centralLocationId,
-            p_items: reserveLines.map((l) => ({
-              producto_id: l.producto_id,
-              quantity: Number(l.quantity),
-            })),
-            p_needed_by: params.mrpCommit.neededByDate,
-            p_idempotency_key: savedId,
-            p_replace: true,
-          });
-          if (resErr) {
-            // Compensación: el plan no queda COMMITTED sin su cobertura.
-            await supabase
-              .from("project_weekly_plans")
-              .update({ status: "DRAFT" })
-              .eq("id", savedId)
-              .eq("empresa_id", empresaId);
-            const msg = /insuficiente/i.test(resErr.message)
-              ? "El stock disponible cambió desde el cálculo. Recalculá el plan."
-              : `No se pudo reservar stock central: ${resErr.message}`;
-            return { data: null, error: msg };
-          }
-      } else {
-        // DRAFT/CLOSED: liberar (CLOSED libera sobrante sin fingir consumo).
-        // El error se reporta (con el plan igual guardado) en vez de tragarse.
-        const { error: relErr } = await supabase.rpc("release_plan_reservations", {
-          p_plan_id: savedId,
-        });
-        if (relErr) {
-          return {
-            data: savedPlan as ProjectWeeklyPlan,
-            error: `Plan guardado pero no se pudieron liberar reservas: ${relErr.message} (reintentá guardar).`,
-          };
-        }
-      }
-    }
-
     revalidatePath(`/projects/${projectId}`);
     return { data: savedPlan as ProjectWeeklyPlan, error: null };
   } catch (err: any) {
     console.error("Error in saveWeeklyPlanAction:", err);
     return { data: null, error: err?.message || "Error al guardar el plan semanal." };
   }
+}
+
+/**
+ * Commit MRP en DOS pasos server-side (P1-2 + P1-5):
+ * 1. Recalcula cobertura con datos DB actuales (engine + central + inbound).
+ * 2. Compara contra la referencia del cliente: si difiere (tamper, stock
+ *    movido, inbound cambiado) RECHAZA sin guardar nada.
+ * 3. UNA sola RPC transaccional plan+reservas (rollback total si falla).
+ */
+async function commitProductionPlanWithMrp(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  empresaId: string,
+  args: {
+    planId: string | null;
+    projectId: string;
+    startDate: string;
+    endDate: string;
+    status: WeeklyPlanStatus;
+    notes: string | null;
+    weatherSnapshotBatchId: string | null;
+    itemsPayload: {
+      budget_item_id: string;
+      front_label: string | null;
+      input_mode: WeeklyPlanInputMode;
+      input_value: number;
+      unit: string;
+    }[];
+    centralReference: { producto_id: string; quantity: number }[];
+  }
+): Promise<{ data: ProjectWeeklyPlan | null; error: string | null }> {
+  const { planId, projectId, startDate, endDate, status, notes } = args;
+
+  // 1. Datos frescos (misma fuente que preview/load).
+  const baseRes = await loadWeeklyPlanBaseData(supabase, projectId, empresaId);
+  if (baseRes.error || !baseRes.data) {
+    return { data: null, error: baseRes.error || "Error al cargar datos base." };
+  }
+  const { budgetItems, executedQuantities, recentEntries, materialsByItem, stockAndInbound } =
+    baseRes.data;
+
+  // 2. Targets desde los items a guardar (NO desde el payload del cliente
+  // más allá de metas/modofrente: las CANTIDADES de reserva se derivan aquí).
+  const targets = toEngineTargets(
+    args.itemsPayload.map((it) => ({
+      budgetItemId: it.budget_item_id,
+      frontLabel: it.front_label,
+      inputMode: it.input_mode,
+      inputValue: it.input_value,
+    }))
+  );
+
+  // 3. Mismo engine, mapa obra-only (el inbound lo asigna la capa MRP).
+  const obraOnly: Record<string, StockDisponibilidadInput> = Object.fromEntries(
+    Object.entries(stockAndInbound).map(([pid, v]) => [pid, { ...v, oc_inbound: 0 }])
+  );
+  const calculation = calculateWeeklyPlanRequirements({
+    project_id: projectId,
+    start_date: startDate,
+    end_date: endDate,
+    status,
+    budget_items: budgetItems,
+    executed_quantities_by_item: executedQuantities,
+    targets,
+    materials_by_item: materialsByItem,
+    stock_and_inbound: obraOnly,
+    recent_execution_entries: recentEntries,
+    currency: "PYG",
+    weather_overlay_enabled: false,
+    weather_forecasts: [],
+  });
+
+  // 4. Central + inbound con fecha, y asignación (pura, testeada).
+  const mrp = await buildMrpPreview(supabase, empresaId, calculation, materialsByItem, baseRes.data, endDate);
+  const serverLines = mrp.lines
+    .filter((l) => l.cubierto_central > 0)
+    .map((l) => ({ producto_id: l.producto_id, quantity: l.cubierto_central }));
+
+  // 5. Comparar: el cliente es referencia, la DB manda.
+  if (!compareCentralLines(serverLines, args.centralReference)) {
+    return {
+      data: null,
+      error: "El abastecimiento cambió desde el último cálculo. Recalculá el plan.",
+    };
+  }
+
+  // 6. UNA transacción plan+reservas (rollback total si algo falla).
+  const { data: rpcResult, error: rpcErr } = await supabase.rpc("commit_production_plan_atomic", {
+    p_plan_id: args.planId,
+    p_project_id: projectId,
+    p_start_date: startDate,
+    p_end_date: endDate,
+    p_status: status,
+    p_notes: args.notes,
+    p_items: args.itemsPayload,
+    p_weather_snapshot_batch_id: args.weatherSnapshotBatchId,
+    p_location_id: mrp.centralLocation?.id ?? null,
+    p_reserve_items: serverLines,
+    p_needed_by: endDate,
+    p_idempotency_key: args.planId,
+  });
+  if (rpcErr) {
+    const msg = /insuficiente/i.test(rpcErr.message)
+      ? "El stock disponible cambió desde el cálculo. Recalculá el plan."
+      : `No se pudo comprometer el plan: ${rpcErr.message}`;
+    return { data: null, error: msg };
+  }
+
+  const savedPlanId = (rpcResult as { plan_id?: string })?.plan_id || args.planId;
+  const { data: savedPlan, error: fetchErr } = await supabase
+    .from("project_weekly_plans")
+    .select("*")
+    .eq("id", savedPlanId)
+    .eq("empresa_id", empresaId)
+    .single();
+  if (fetchErr || !savedPlan) {
+    return { data: null, error: "Plan guardado pero no se pudo recuperar." };
+  }
+
+  revalidatePath(`/projects/${projectId}`);
+  return { data: savedPlan as ProjectWeeklyPlan, error: null };
 }
