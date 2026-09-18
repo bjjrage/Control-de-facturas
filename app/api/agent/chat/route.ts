@@ -41,6 +41,7 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as {
     message?: unknown;
     workspaceProjectId?: unknown;
+    draftId?: unknown;
     idempotencyKey?: unknown;
   };
   const message = typeof body.message === "string" ? body.message.trim() : "";
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
     typeof body.workspaceProjectId === "string" && body.workspaceProjectId.length > 0
       ? body.workspaceProjectId
       : null;
+  const draftId = typeof body.draftId === "string" && body.draftId.length > 0 ? body.draftId : null;
   const idempotencyKey =
     typeof body.idempotencyKey === "string" && body.idempotencyKey.length > 0 ? body.idempotencyKey : randomUUID();
 
@@ -109,16 +111,17 @@ export async function POST(request: Request) {
           state: "approval",
           label: presentation.label,
           approval: { id: result.approvalId },
+          emailPreview: result.emailPreview ?? null,
         });
       }
       await finishRun({ db, runId: run.id, status: "COMPLETED", usageJson: (result.usage ?? null) as never });
       await updateTaskStatus({ db, taskId: task.id, empresaId: profile.empresa_id, status: "COMPLETED", actorType: "system" });
       const state = deriveRodrigoState([{ status: "COMPLETED", completedAt: new Date().toISOString() }]);
-      return noStoreJson({ answer: result.answer, taskId: task.id, state, approval: null });
+      return noStoreJson({ answer: result.answer, taskId: task.id, state, approval: null, emailPreview: result.emailPreview ?? null });
     }
 
     // Camino 2: router determinista (certificación sin LLM). Mismo Gateway.
-    const route = routeChatIntent(message, workspaceProjectId);
+    const route = routeChatIntent(message, workspaceProjectId, draftId);
     if (route.kind === "help") {
       await finishRun({ db, runId: run.id, status: "COMPLETED" });
       await updateTaskStatus({ db, taskId: task.id, empresaId: profile.empresa_id, status: "COMPLETED", actorType: "system" });
@@ -155,13 +158,24 @@ export async function POST(request: Request) {
         state: "approval",
         label: presentation.label,
         approval: { id: gatewayResult.approvalId, tool: gatewayResult.tool },
+        emailPreview: null,
       });
     }
     const answer = formatToolAnswer(route.tool, gatewayResult.output);
     await finishRun({ db, runId: run.id, status: "COMPLETED" });
     await updateTaskStatus({ db, taskId: task.id, empresaId: profile.empresa_id, status: "COMPLETED", actorType: "system" });
     const state = deriveRodrigoState([{ status: "COMPLETED", completedAt: new Date().toISOString() }]);
-    return noStoreJson({ answer, taskId: task.id, state, approval: null });
+    const preparedEmail =
+      route.tool === "prepare_email" && gatewayResult.output && typeof gatewayResult.output === "object"
+        ? (gatewayResult.output as { draftId?: unknown })
+        : null;
+    return noStoreJson({
+      answer,
+      taskId: task.id,
+      state,
+      approval: null,
+      emailPreview: preparedEmail && typeof preparedEmail.draftId === "string" ? gatewayResult.output : null,
+    });
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     if (error instanceof DeepSeekConfigError) {
