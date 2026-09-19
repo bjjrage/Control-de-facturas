@@ -15,7 +15,6 @@ const PLAN_RANK = { basico: 0, pro: 1, caterpillar: 2 } as const;
 
 export default async function InternalLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireProfile();
-  const initial = profile.full_name.trim().charAt(0).toUpperCase() || "?";
   const isProOrAbove = PLAN_RANK[profile.plan] >= PLAN_RANK.pro;
   const showOperativo = isProOrAbove && (profile.role === "administracion" || profile.role === "admin");
   const showLicitaciones = isProOrAbove && ["comercial", "administracion", "admin"].includes(profile.role);
@@ -32,9 +31,6 @@ export default async function InternalLayout({ children }: { children: React.Rea
       />
       <div className="flex-1 min-w-0 flex flex-col">
         <Topbar
-          initial={initial}
-          fullName={profile.full_name}
-          role={profile.role}
           showOperativo={showOperativo}
           showLicitaciones={showLicitaciones}
         />
