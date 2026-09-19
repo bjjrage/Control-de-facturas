@@ -42,7 +42,7 @@ const WEATHER_LABEL: Record<WeatherCode, string> = {
 const WEATHER_STYLE: Record<WeatherCode, string> = {
   B: "bg-[var(--panel-2)] text-[var(--muted)]",
   LL: "bg-blue-500/25 text-blue-700 dark:text-blue-300",
-  HH: "bg-amber-500/25 text-amber-700 dark:text-amber-300",
+  HH: "bg-[var(--warn-bg)]/55 text-[#fff8e8] ring-1 ring-[var(--warn)]/20",
   O: "bg-[var(--hover)] text-[var(--foreground)]",
 };
 const MONTHS_ES = [
@@ -593,7 +593,7 @@ function DiasNoTrabajados({
         </div>
       ) : null}
       {feedback.success ? (
-        <div className="rounded border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-[12px] text-emerald-700 dark:text-emerald-300">
+        <div className="semantic-success rounded px-2.5 py-1.5 text-[12px]">
           {feedback.success}
         </div>
       ) : null}

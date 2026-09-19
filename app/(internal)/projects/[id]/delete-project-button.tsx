@@ -30,8 +30,8 @@ export function DeleteProjectButton({ projectId, projectName }: { projectId: str
   return (
     <div className="flex items-center gap-2">
       {error ? <span className="text-[12px] text-[var(--error)]">{error}</span> : null}
-      <Button variant="ghost" onClick={handleDelete} disabled={pending} title="Eliminar obra">
-        <Trash2 size={15} className="text-[var(--error)]" />
+      <Button variant="danger" size="icon" onClick={handleDelete} disabled={pending} title="Eliminar obra">
+        <Trash2 size={15} />
       </Button>
     </div>
   );

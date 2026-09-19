@@ -142,8 +142,8 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
                 ? latestSnapshot.decision === "COMPETIR"
                   ? "bg-[var(--ok-bg)] text-[var(--ok)]"
                   : latestSnapshot.decision === "REVISAR"
-                  ? "bg-amber-500/10 text-amber-600"
-                  : "bg-red-500/10 text-red-600"
+                  ? "bg-[var(--warn-bg)]/55 text-[#fff8e8] ring-1 ring-[var(--warn)]/20"
+                  : "bg-[var(--error-bg)]/55 text-[#fff1ef] ring-1 ring-[var(--error)]/20"
                 : "bg-[var(--panel-2)] text-[var(--muted)]"
             }`}>
               {latestSnapshot ? `${latestSnapshot.decision} (SCORE: ${latestSnapshot.overall_score}/100)` : "SIN EVALUACIÓN"}
@@ -175,7 +175,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-3 text-[13px]">
-          <div className="rounded border border-[var(--border)] p-2.5 bg-[var(--panel-2)]">
+          <div className="kpi-hover rounded-xl border border-[var(--border)] p-2.5 bg-[var(--panel-2)]">
             <div className="text-[11px] text-[var(--muted)]">Presupuesto Convocante</div>
             <div className="text-[15px] font-semibold mt-0.5">
               {lic.monto_referencial ? formatMoney(lic.monto_referencial, moneda) : "—"}
@@ -185,7 +185,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
             </div>
           </div>
 
-          <div className="rounded border border-[var(--border)] p-2.5 bg-[var(--panel-2)]">
+          <div className="kpi-hover rounded-xl border border-[var(--border)] p-2.5 bg-[var(--panel-2)]">
             <div className="text-[11px] text-[var(--muted)]">Costo Directo Estimado (Inventario)</div>
             <div className="text-[15px] font-semibold mt-0.5">
               {(() => {
@@ -206,7 +206,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
             </div>
           </div>
 
-          <div className="rounded border border-[var(--border)] p-2.5 bg-[var(--panel-2)]">
+          <div className="kpi-hover rounded-xl border border-[var(--border)] p-2.5 bg-[var(--panel-2)]">
             <div className="text-[11px] text-[var(--muted)]">Ítems Emparejados</div>
             <div className="text-[15px] font-semibold mt-0.5">
               {costoPorItem.size} de {(items ?? []).length} ítems
@@ -402,7 +402,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
 
 function Dato({ label, valor }: { label: string; valor: string }) {
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2">
+    <div className="kpi-hover rounded-xl border border-[var(--border)] bg-[var(--panel)] px-3 py-2.5">
       <div className="text-[10px] uppercase tracking-wide text-[var(--muted)]">{label}</div>
       <div className="text-[13px] font-medium mt-0.5">{valor}</div>
     </div>

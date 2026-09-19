@@ -5,17 +5,20 @@
 @import "handsontable/styles/ht-theme-main.css";
 
 :root {
-  --background: #0a0b0f;
-  --panel: #14151b;
-  --panel-2: #1a1c24;
-  --hover: #1e202a;
-  --foreground: #f2f3f5;
-  --muted: #8b93a3;
-  --border: #24262f;
-  --primary: #d97706;
-  --primary-hover: #f59e0b;
-  --primary-bg: #2d1d04;
-  --nav-active: #5b7cfa;
+  --background: #08111f;
+  --panel: rgba(14, 25, 42, 0.78);
+  --panel-2: rgba(23, 37, 58, 0.72);
+  --hover: rgba(104, 142, 205, 0.12);
+  --foreground: #f5f8ff;
+  --muted: #91a2bc;
+  --border: rgba(153, 180, 222, 0.12);
+  --primary: #5b8cff;
+  --primary-hover: #76a0ff;
+  --primary-bg: rgba(71, 115, 214, 0.18);
+  --nav-active: #4f7df5;
+  --surface-highlight: rgba(255,255,255,0.055);
+  --surface-shadow: 0 22px 60px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.045);
+  --surface-shadow-soft: 0 12px 34px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.035);
   --accent-red: #ef5b52;
   --ok: #34d399;
   --ok-bg: #103226;
@@ -30,6 +33,19 @@
   --accent-teal-bg: #0f2c29;
   --accent-orange: #fb923c;
   --accent-orange-bg: #3a230f;
+  --accent-admin: #6f8cff;
+  --accent-operativo: #2dd4bf;
+  --accent-licitaciones: #f5b942;
+  --accent-compras: #38bdf8;
+  --accent-ventas: #c084fc;
+  --accent-finanzas: #34d399;
+  --accent-preparar: #60a5fa;
+  --accent-ejecutar: #fb923c;
+  --accent-certificar: #f59e0b;
+  --cta: #f5b942;
+  --cta-hover: #ffc95e;
+  --cta-deep: #d88912;
+  --cta-ink: #241704;
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
 }
 
@@ -55,7 +71,11 @@ html {
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(circle at 78% -10%, rgba(76, 119, 214, 0.18), transparent 34%),
+    radial-gradient(circle at 30% 0%, rgba(29, 80, 144, 0.13), transparent 31%),
+    linear-gradient(180deg, #0a1424 0%, #07101d 48%, #060d18 100%);
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -69,24 +89,28 @@ table {
 th {
   text-align: left;
   font-weight: 600;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--muted);
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--border);
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0.015em;
+  color: #7f92af;
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(153, 180, 222, 0.10);
   white-space: nowrap;
 }
 
 td {
-  padding: 7px 10px;
-  border-bottom: 1px solid var(--border);
-  font-size: 13px;
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(153, 180, 222, 0.07);
+  font-size: 12px;
   vertical-align: middle;
 }
 
+tbody tr {
+  transition: background-color 140ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
 tbody tr:hover {
-  background: var(--hover);
+  background: rgba(89, 132, 214, 0.085);
 }
 
 .num {
@@ -121,22 +145,133 @@ input::placeholder, textarea::placeholder {
   color: #6b7180;
 }
 
-/* Botón primario — ambar/miel con gradiente y glow, sin efecto 3D */
+/* Unified ERP button system.
+ * Geometry, hover, disabled and depth are shared. Variants only change emphasis.
+ */
+.btn-base {
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+}
+.btn-base:disabled {
+  opacity: .42;
+  box-shadow: none !important;
+}
+.btn-base:focus-visible {
+  outline: 2px solid rgba(143, 176, 255, .68);
+  outline-offset: 2px;
+}
+
 .btn-primary {
-  background: linear-gradient(160deg, #fbbf24 0%, #b45309 100%);
-  border: 1px solid rgba(251, 191, 36, 0.35);
-  color: #1a0e00;
-  font-weight: 600;
-  transition: background 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  background: rgba(20, 33, 53, .90);
+  border-color: rgba(245, 185, 66, .38);
+  color: var(--foreground);
+  box-shadow:
+    inset 3px 0 0 rgba(245, 185, 66, .82),
+    inset 0 1px 0 rgba(255,255,255,.035);
 }
 .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(160deg, #fcd34d 0%, #d97706 100%);
-  border-color: rgba(252, 211, 77, 0.55);
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2), 0 4px 18px rgba(180, 83, 9, 0.35);
+  background: rgba(47, 45, 37, .72);
+  border-color: rgba(245, 185, 66, .58);
+  color: #fffaf0;
 }
-.btn-primary:active:not(:disabled) {
-  background: linear-gradient(160deg, #d97706 0%, #92400e 100%);
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+
+.btn-secondary {
+  background: rgba(20, 33, 53, .88);
+  border-color: rgba(96, 165, 250, .34);
+  color: #eef5ff;
+  box-shadow:
+    inset 3px 0 0 rgba(96, 165, 250, .72),
+    inset 0 1px 0 rgba(255,255,255,.035);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(27, 45, 70, .94);
+  border-color: rgba(96, 165, 250, .52);
+}
+
+.btn-neutral {
+  background: rgba(255,255,255,.04);
+  border-color: rgba(255,255,255,.10);
+  color: var(--foreground);
+}
+.btn-neutral:hover:not(:disabled) {
+  background: rgba(255,255,255,.075);
+  border-color: rgba(255,255,255,.16);
+}
+
+.btn-success {
+  background: rgba(20, 33, 53, .88);
+  border-color: rgba(52, 211, 153, .36);
+  color: #effdf8;
+  box-shadow:
+    inset 3px 0 0 rgba(52, 211, 153, .78),
+    inset 0 1px 0 rgba(255,255,255,.035);
+}
+.btn-success:hover:not(:disabled) {
+  background: rgba(22, 49, 48, .92);
+  border-color: rgba(52, 211, 153, .56);
+}
+
+.btn-danger {
+  background: rgba(20, 33, 53, .88);
+  border-color: rgba(242, 104, 92, .38);
+  color: #fff1ef;
+  box-shadow:
+    inset 3px 0 0 rgba(242, 104, 92, .82),
+    inset 0 1px 0 rgba(255,255,255,.035);
+}
+.btn-danger:hover:not(:disabled) {
+  background: rgba(54, 34, 39, .90);
+  border-color: rgba(242, 104, 92, .58);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+.btn-ghost:hover:not(:disabled) {
+  background: rgba(255,255,255,.055);
+  color: var(--foreground);
+  border-color: rgba(255,255,255,.07);
+}
+
+/* Legacy BUTTON color overrides are flattened into the same system.
+ * This is temporary migration coverage until all callers use Button variants.
+ */
+button[class*="bg-blue-"],
+button[class*="bg-sky-"],
+button[class*="bg-cyan-"],
+button[class*="bg-emerald-"],
+button[class*="bg-green-"],
+button[class*="bg-amber-"],
+button[class*="bg-orange-"],
+button[class*="bg-red-"],
+button[class*="bg-rose-"] {
+  background: rgba(20, 33, 53, .88) !important;
+  color: var(--foreground) !important;
+}
+
+button[class*="bg-blue-"],
+button[class*="bg-sky-"],
+button[class*="bg-cyan-"] {
+  border-color: rgba(96,165,250,.34) !important;
+  box-shadow: inset 3px 0 0 rgba(96,165,250,.72) !important;
+}
+button[class*="bg-emerald-"],
+button[class*="bg-green-"] {
+  border-color: rgba(52,211,153,.36) !important;
+  box-shadow: inset 3px 0 0 rgba(52,211,153,.78) !important;
+}
+button[class*="bg-amber-"],
+button[class*="bg-orange-"] {
+  border-color: rgba(245,185,66,.38) !important;
+  box-shadow: inset 3px 0 0 rgba(245,185,66,.82) !important;
+}
+button[class*="bg-red-"],
+button[class*="bg-rose-"] {
+  border-color: rgba(242,104,92,.38) !important;
+  box-shadow: inset 3px 0 0 rgba(242,104,92,.82) !important;
 }
 
 /* Wrapper interactivo para texto clickeable: hover con fondo sutil */
@@ -220,22 +355,22 @@ input::placeholder, textarea::placeholder {
   white-space: nowrap;
 }
 .status-chip-warn {
-  color: var(--warn);
+  color: #fff8e8;
   background: color-mix(in srgb, var(--warn) 12%, transparent);
   border-color: color-mix(in srgb, var(--warn) 32%, transparent);
 }
 .status-chip-ok {
-  color: var(--ok);
+  color: #effdf8;
   background: color-mix(in srgb, var(--ok) 12%, transparent);
   border-color: color-mix(in srgb, var(--ok) 32%, transparent);
 }
 .status-chip-info {
-  color: #8fb4ff;
+  color: #eef5ff;
   background: color-mix(in srgb, #5b7cfa 13%, transparent);
   border-color: color-mix(in srgb, #5b7cfa 32%, transparent);
 }
 .status-chip-error {
-  color: var(--error);
+  color: #fff1ef;
   background: color-mix(in srgb, var(--error) 12%, transparent);
   border-color: color-mix(in srgb, var(--error) 32%, transparent);
 }
@@ -243,4 +378,315 @@ input::placeholder, textarea::placeholder {
   color: var(--muted);
   background: color-mix(in srgb, #ffffff 5%, transparent);
   border-color: color-mix(in srgb, #ffffff 10%, transparent);
+}
+
+
+/* ---------------------------------------------------------------------------
+ * NIU UI V3 — skin piloto 2026.
+ * Superficies profundas, glass controlado y tablas densas sin look CRUD.
+ * --------------------------------------------------------------------------- */
+.erp-surface {
+  background: linear-gradient(180deg, rgba(21, 36, 58, .82), rgba(10, 22, 38, .78));
+  border: 1px solid rgba(153, 180, 222, .12);
+  -webkit-backdrop-filter: blur(18px) saturate(1.18);
+  backdrop-filter: blur(18px) saturate(1.18);
+  box-shadow: var(--surface-shadow-soft);
+}
+
+.erp-surface-strong {
+  background: linear-gradient(180deg, rgba(18, 32, 52, .94), rgba(9, 19, 33, .93));
+  border: 1px solid rgba(160, 187, 230, .14);
+  -webkit-backdrop-filter: blur(20px) saturate(1.22);
+  backdrop-filter: blur(20px) saturate(1.22);
+  box-shadow: var(--surface-shadow);
+}
+
+.erp-page-title {
+  font-size: 26px;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  font-weight: 680;
+}
+
+.erp-subtitle {
+  color: #8fa2bf;
+  font-size: 13px;
+}
+
+.erp-toolbar {
+  background: rgba(14, 27, 46, .64);
+  border: 1px solid rgba(153, 180, 222, .11);
+  -webkit-backdrop-filter: blur(16px) saturate(1.15);
+  backdrop-filter: blur(16px) saturate(1.15);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+.erp-table-shell {
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid rgba(153, 180, 222, .11);
+  background: linear-gradient(180deg, rgba(15, 28, 47, .78), rgba(8, 18, 32, .76));
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 16px 45px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+.erp-table-shell tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.erp-kicker {
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #7185a3;
+  font-weight: 700;
+}
+
+.erp-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(153,180,222,.11);
+  background: rgba(21, 38, 62, .62);
+  padding: 5px 10px;
+  color: #9db0ca;
+  font-size: 11px;
+}
+
+.erp-pill-active {
+  color: #eef4ff;
+  border-color: rgba(93, 142, 255, .58);
+  background: linear-gradient(180deg, rgba(75, 119, 225, .38), rgba(43, 79, 163, .28));
+  box-shadow: 0 0 0 1px rgba(76, 126, 255, .15), 0 8px 24px rgba(31, 73, 166, .18);
+}
+
+
+/* KPI interaction: light, no 3D. Shared across dashboard/project summary metrics. */
+.kpi-hover {
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 180ms ease;
+}
+.kpi-hover:hover {
+  border-color: rgba(111, 154, 255, .22);
+  background-color: rgba(38, 61, 96, .54);
+  box-shadow:
+    0 0 0 1px rgba(88, 133, 235, .10),
+    0 8px 24px rgba(5, 12, 24, .20),
+    0 0 22px rgba(73, 118, 220, .10);
+}
+
+
+/* Shared card depth — jerarquía visual consistente sin 3D. */
+:where(
+  .rounded-lg.border.bg-\[var\(--panel\)\],
+  .rounded-xl.border.bg-\[var\(--panel\)\],
+  .rounded-2xl.border.bg-\[var\(--panel\)\],
+  .rounded-lg.border.bg-\[var\(--panel-2\)\],
+  .rounded-xl.border.bg-\[var\(--panel-2\)\],
+  .rounded-2xl.border.bg-\[var\(--panel-2\)\]
+) {
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, .18),
+    inset 0 1px 0 rgba(255, 255, 255, .025);
+}
+
+
+/* Internal workspace width normalization.
+ * Legacy pages still carry max-w-4xl/5xl/6xl roots from the old layout.
+ * Remove only those ROOT limits inside AppShell; nested dialogs/forms keep theirs.
+ */
+.erp-workspace {
+  width: 100%;
+  min-width: 0;
+}
+
+.erp-workspace :where(
+  .max-w-3xl,
+  .max-w-4xl,
+  .max-w-5xl,
+  .max-w-6xl,
+  .max-w-7xl
+):not([role="dialog"]):not([data-dialog-content]) {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.erp-workspace > div,
+.erp-workspace > section,
+.erp-workspace > main {
+  width: 100%;
+  min-width: 0;
+}
+
+
+/* Semantic navigation accents — color orienta por dominio, sin teñir toda la UI. */
+.workspace-admin-active {
+  background: linear-gradient(180deg, rgba(111,140,255,.78), rgba(67,91,190,.58));
+  box-shadow: 0 0 0 1px rgba(142,163,255,.42), 0 8px 22px rgba(65,84,180,.24);
+  color: #fff;
+}
+.workspace-operativo-active {
+  background: linear-gradient(180deg, rgba(45,212,191,.72), rgba(20,132,120,.55));
+  box-shadow: 0 0 0 1px rgba(87,226,207,.34), 0 8px 22px rgba(16,124,112,.22);
+  color: #ecfffb;
+}
+.workspace-licitaciones-active {
+  background: linear-gradient(180deg, rgba(245,185,66,.78), rgba(174,113,25,.58));
+  box-shadow: 0 0 0 1px rgba(255,205,104,.36), 0 8px 22px rgba(132,84,20,.24);
+  color: #fff8e8;
+}
+
+.nav-domain-compras[data-open="true"] {
+  background: linear-gradient(180deg, rgba(56,189,248,.20), rgba(22,95,135,.14));
+  color: #bfeaff;
+  box-shadow: inset 3px 0 0 rgba(56,189,248,.72);
+}
+.nav-domain-ventas[data-open="true"] {
+  background: linear-gradient(180deg, rgba(192,132,252,.20), rgba(103,58,165,.14));
+  color: #ead7ff;
+  box-shadow: inset 3px 0 0 rgba(192,132,252,.72);
+}
+.nav-domain-finanzas[data-open="true"] {
+  background: linear-gradient(180deg, rgba(52,211,153,.20), rgba(22,115,79,.14));
+  color: #c8f9e6;
+  box-shadow: inset 3px 0 0 rgba(52,211,153,.72);
+}
+.nav-domain-preparar[data-open="true"] {
+  background: linear-gradient(180deg, rgba(96,165,250,.20), rgba(39,91,164,.14));
+  color: #d8e9ff;
+  box-shadow: inset 3px 0 0 rgba(96,165,250,.72);
+}
+.nav-domain-ejecutar[data-open="true"] {
+  background: linear-gradient(180deg, rgba(251,146,60,.20), rgba(143,72,20,.14));
+  color: #ffe2c7;
+  box-shadow: inset 3px 0 0 rgba(251,146,60,.72);
+}
+.nav-domain-certificar[data-open="true"] {
+  background: linear-gradient(180deg, rgba(245,158,11,.20), rgba(144,88,8,.14));
+  color: #ffe5ad;
+  box-shadow: inset 3px 0 0 rgba(245,158,11,.72);
+}
+
+.section-accent-admin { color: var(--accent-admin); }
+.section-accent-operativo { color: var(--accent-operativo); }
+.section-accent-licitaciones { color: var(--accent-licitaciones); }
+
+.project-context-accent {
+  border-color: rgba(45,212,191,.18) !important;
+  background: linear-gradient(180deg, rgba(45,212,191,.075), rgba(16,60,66,.055)) !important;
+}
+
+
+/* Project KPI accents — minimal color hierarchy, no full-card tint. */
+.kpi-accent-budget {
+  box-shadow:
+    inset 0 2px 0 rgba(96,165,250,.58),
+    0 10px 26px rgba(0,0,0,.18),
+    inset 0 1px 0 rgba(255,255,255,.025);
+}
+.kpi-accent-purchases {
+  box-shadow:
+    inset 0 2px 0 rgba(56,189,248,.58),
+    0 10px 26px rgba(0,0,0,.18),
+    inset 0 1px 0 rgba(255,255,255,.025);
+}
+.kpi-accent-progress {
+  box-shadow:
+    inset 0 2px 0 rgba(45,212,191,.58),
+    0 10px 26px rgba(0,0,0,.18),
+    inset 0 1px 0 rgba(255,255,255,.025);
+}
+.kpi-accent-labor {
+  box-shadow:
+    inset 0 2px 0 rgba(251,146,60,.58),
+    0 10px 26px rgba(0,0,0,.18),
+    inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+
+/* Semantic contrast guardrails.
+ * Tinted surfaces may use color in border/icon/glow, but body text must stay high-contrast.
+ * Prevents same-palette combinations like green-on-green or amber-on-brown.
+ */
+[class*="bg-emerald-"][class*="text-emerald-"],
+[class*="bg-green-"][class*="text-green-"],
+[class*="bg-amber-"][class*="text-amber-"],
+[class*="bg-orange-"][class*="text-orange-"],
+[class*="bg-red-"][class*="text-red-"],
+[class*="bg-rose-"][class*="text-rose-"] {
+  color: var(--foreground) !important;
+}
+
+.semantic-success {
+  background: rgba(16, 50, 38, .52);
+  border: 1px solid rgba(52, 211, 153, .28);
+  color: #effdf8;
+}
+.semantic-warning {
+  background: rgba(62, 48, 18, .42);
+  border: 1px solid rgba(245, 165, 36, .30);
+  color: #fff8e8;
+}
+.semantic-danger {
+  background: rgba(58, 28, 25, .46);
+  border: 1px solid rgba(242, 104, 92, .30);
+  color: #fff1ef;
+}
+.semantic-info {
+  background: rgba(27, 45, 73, .48);
+  border: 1px solid rgba(111, 154, 255, .24);
+  color: #eef5ff;
+}
+
+.semantic-success :where(p, span, strong, div):not([class*="text-[var(--muted)]"]),
+.semantic-warning :where(p, span, strong, div):not([class*="text-[var(--muted)]"]),
+.semantic-danger :where(p, span, strong, div):not([class*="text-[var(--muted)]"]),
+.semantic-info :where(p, span, strong, div):not([class*="text-[var(--muted)]"]) {
+  color: inherit;
+}
+
+
+/* Project navigation context persists even when dropdown is closed. */
+.nav-domain-preparar[data-active="true"],
+.nav-domain-compras[data-active="true"],
+.nav-domain-ejecutar[data-active="true"],
+.nav-domain-certificar[data-active="true"] {
+  background: rgba(255,255,255,.045);
+}
+.nav-domain-preparar[data-active="true"] { box-shadow: inset 3px 0 0 rgba(96,165,250,.72); }
+.nav-domain-compras[data-active="true"] { box-shadow: inset 3px 0 0 rgba(56,189,248,.72); }
+.nav-domain-ejecutar[data-active="true"] { box-shadow: inset 3px 0 0 rgba(251,146,60,.72); }
+.nav-domain-certificar[data-active="true"] { box-shadow: inset 3px 0 0 rgba(245,158,11,.72); }
+
+
+/* Segmented controls are selectors, not CTAs. */
+.segmented-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid rgba(255,255,255,.09);
+  background: rgba(255,255,255,.035);
+  border-radius: 10px;
+}
+.segmented-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 7px;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.segmented-item:hover {
+  color: var(--foreground);
+  background: rgba(255,255,255,.045);
+}
+.segmented-item-active {
+  color: var(--foreground);
+  background: rgba(45,212,191,.12);
+  border-color: rgba(45,212,191,.26);
+  box-shadow: inset 0 0 0 1px rgba(45,212,191,.04);
 }

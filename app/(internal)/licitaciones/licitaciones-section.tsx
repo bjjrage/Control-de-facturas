@@ -67,39 +67,13 @@ export function LicitacionesSection({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link
-            href="/licitaciones/auction-bot"
-            title="Configurar y simular estrategia SBE"
-            className="inline-flex items-center h-8 rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 text-[13px] font-medium hover:bg-[var(--hover)]"
-          >
-            Auction Bot
-          </Link>
-          <Link
-            href="/licitaciones/auction-lab"
-            title="Crear una subasta simulada y competir contra el bot"
-            className="inline-flex items-center h-8 rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 text-[13px] font-medium hover:bg-[var(--hover)]"
-          >
-            Auction Lab
-          </Link>
-          <Link
-            href="/licitaciones/competidores"
-            className="inline-flex items-center h-8 rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 text-[13px] font-medium hover:bg-[var(--hover)]"
-          >
-            Radar de Competidores
-          </Link>
-          <Link
-            href="/licitaciones/documentos"
-            className="inline-flex items-center h-8 rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 text-[13px] font-medium hover:bg-[var(--hover)]"
-          >
-            Bóveda de Documentos
-          </Link>
           <ImportarCostosDialog />
           <PerfilDialog perfil={perfil} />
           <ImportarDialog />
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="segmented-control flex-wrap">
         {([
           ["activas", "Activas"],
           ["SIN_REVISAR", "Sin revisar"],
@@ -112,10 +86,10 @@ export function LicitacionesSection({
           <button
             key={k}
             onClick={() => setFiltro(k)}
-            className={`text-[12px] px-2.5 py-1 rounded-md border transition-colors ${
+            className={`segmented-item px-2.5 py-1 text-[12px] ${
               filtro === k
-                ? "bg-[var(--nav-active)] text-white border-transparent"
-                : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
+                ? "segmented-item-active font-semibold"
+                : ""
             }`}
           >
             {label}

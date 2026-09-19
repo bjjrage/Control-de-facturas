@@ -1,27 +1,53 @@
 import { cn } from "@/lib/cn";
 import { ButtonHTMLAttributes, forwardRef } from "react";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonVariant = "primary" | "secondary" | "neutral" | "success" | "danger" | "ghost";
+export type ButtonSize = "sm" | "md" | "lg" | "icon";
 
-const variants: Record<Variant, string> = {
+const variants: Record<ButtonVariant, string> = {
   primary: "btn-primary",
-  secondary: "bg-[var(--panel-2)] text-[var(--foreground)] hover:bg-[var(--hover)] border-[var(--border)]",
-  ghost: "bg-transparent text-[var(--foreground)] hover:bg-[var(--hover)] border-transparent",
-  danger: "bg-[var(--panel-2)] text-[var(--error)] hover:bg-[var(--error-bg)] border-[var(--border)]",
+  secondary: "btn-secondary",
+  neutral: "btn-neutral",
+  success: "btn-success",
+  danger: "btn-danger",
+  ghost: "btn-ghost",
 };
+
+const sizes: Record<ButtonSize, string> = {
+  sm: "h-8 px-2.5 text-[11px] rounded-lg",
+  md: "h-9 px-3.5 text-[12px] rounded-xl",
+  lg: "h-11 px-4.5 text-[13px] rounded-xl",
+  icon: "h-8 w-8 p-0 rounded-lg",
+};
+
+export function buttonClassName({
+  variant = "primary",
+  size = "md",
+  className,
+}: {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  className?: string;
+} = {}) {
+  return cn(
+    "btn-base inline-flex items-center justify-center gap-1.5 border font-medium whitespace-nowrap disabled:pointer-events-none",
+    variants[variant],
+    sizes[size],
+    className
+  );
+}
 
 export const Button = forwardRef<
   HTMLButtonElement,
-  ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }
->(function Button({ className, variant = "primary", ...props }, ref) {
+  ButtonHTMLAttributes<HTMLButtonElement> & {
+    variant?: ButtonVariant;
+    size?: ButtonSize;
+  }
+>(function Button({ className, variant = "primary", size = "md", ...props }, ref) {
   return (
     <button
       ref={ref}
-      className={cn(
-        "inline-flex items-center justify-center gap-1.5 rounded-md border px-3 h-8 text-[13px] font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none",
-        variants[variant],
-        className
-      )}
+      className={buttonClassName({ variant, size, className })}
       {...props}
     />
   );
