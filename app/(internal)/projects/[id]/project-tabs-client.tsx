@@ -266,23 +266,23 @@ export function ProjectTabsClient({
       </div>
 
       <div className={`grid gap-3 ${isCaterpillar ? "grid-cols-4" : "grid-cols-3"}`}>
-        <div className="kpi-hover rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
+        <div className="kpi-hover kpi-accent-budget rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
           <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Presupuesto total</div>
           <div className="text-[16px] font-bold mt-1">{formatMoney(presupuestoTotal, "PYG")}</div>
         </div>
-        <div className="kpi-hover rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
+        <div className="kpi-hover kpi-accent-purchases rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
           <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Compras realizadas</div>
           <div className={`text-[16px] font-bold mt-1 ${comprasPct > 100 ? "text-[var(--error)]" : ""}`}>
             {formatMoney(comprasTotal, "PYG")}
           </div>
           <div className="text-[11px] text-[var(--muted)] mt-0.5">{comprasPct}% del presupuesto</div>
         </div>
-        <div className="kpi-hover rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
+        <div className="kpi-hover kpi-accent-progress rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
           <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Ítems / entradas de avance</div>
           <div className="text-[16px] font-bold mt-1">{items.length} / {entries.length}</div>
         </div>
         {isCaterpillar ? (
-          <div className="kpi-hover rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
+          <div className="kpi-hover kpi-accent-labor rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
             <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Costo M. de Obra</div>
             <div className="text-[16px] font-bold mt-1">{formatMoney(laborCostTotal, "PYG")}</div>
             <div className="text-[11px] text-[var(--muted)] mt-0.5">{laborHoursTotal} h totales</div>
