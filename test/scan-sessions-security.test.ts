@@ -60,6 +60,11 @@ class MockQueryBuilder {
     return this;
   }
 
+  gt(field: string, val: any) {
+    this.filters.push((row) => row[field] > val);
+    return this;
+  }
+
   order(_field: string, _opts?: { ascending?: boolean }) {
     return this;
   }

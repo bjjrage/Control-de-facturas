@@ -5,7 +5,7 @@ import * as path from "path";
 // Cargar .env.local para E2E_PASSWORD y demás variables
 dotenv.config({ path: path.resolve(__dirname, ".env.local") });
 
-const BASE_URL = "https://control-de-facturas-bay.vercel.app";
+const BASE_URL = process.env.BASE_URL ?? "http://127.0.0.1:3005";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -22,8 +22,6 @@ export default defineConfig({
 
   use: {
     baseURL: BASE_URL,
-    // Guardar sesión en un archivo para reusar entre tests y no loguear en cada uno
-    storageState: "tests/e2e/.auth/admin.json",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
     trace: "on-first-retry",
@@ -34,16 +32,17 @@ export default defineConfig({
     {
       name: "setup",
       testMatch: /.*\.setup\.ts/,
-      use: { storageState: undefined }, // setup no usa estado guardado
+      use: { storageState: undefined },
     },
     // Step 2: todos los tests E2E usando la sesión guardada
-    // (bim-certification.spec.ts excluido: solo corre con
-    // playwright.bim.config.ts contra Supabase local efímero, nunca en prod)
     {
       name: "e2e",
       testMatch: /.*\.spec\.ts/,
       testIgnore: /bim-certification\.spec\.ts/,
       dependencies: ["setup"],
+      use: {
+        storageState: "tests/e2e/.auth/admin.json",
+      },
     },
   ],
 });

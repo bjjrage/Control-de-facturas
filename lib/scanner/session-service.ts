@@ -28,36 +28,116 @@ export async function createScanSession(
 ): Promise<CreateSessionResult> {
   const token = generateScanToken();
   const tokenHash = hashScanToken(token);
-  const pinCode = generateScanPin();
   const ttlMinutes = options.ttlMinutes ?? 15;
   const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000).toISOString();
+  const contextType = options.contextType ?? 'general';
+  const contextId = options.contextId ?? null;
+  const targetField = options.targetField ?? null;
+  const metadata = options.metadata ?? {};
+  const storageBucket = 'invoice-files';
 
   const admin = createAdminClient();
 
-  const { data, error } = await admin
-    .from('scan_sessions')
-    .insert({
-      empresa_id: empresaId,
-      created_by: userId,
-      context_type: options.contextType ?? 'general',
-      context_id: options.contextId ?? null,
-      target_field: options.targetField ?? null,
-      status: 'waiting',
-      token_hash: tokenHash,
-      pin_code: pinCode,
-      expires_at: expiresAt,
-      storage_bucket: 'invoice-files',
-      metadata: options.metadata ?? {},
-      pin_failed_attempts: 0,
-    })
-    .select()
-    .single();
+  // Bucle de reintento para garantizar unicidad DB-backed del PIN entre sesiones reclamables
+  let session: ScanSession | null = null;
+  let lastError: Error | null = null;
+  const MAX_PIN_RETRIES = 5;
 
-  if (error || !data) {
-    throw new Error(`Error al crear sesión de escaneo: ${error?.message || 'desconocido'}`);
+  for (let attempt = 0; attempt < MAX_PIN_RETRIES; attempt++) {
+    const pinCode = generateScanPin();
+
+    // 1. Intentar creación atómica vía RPC si está disponible
+    try {
+      const { data: rpcData, error: rpcError } = await admin.rpc('scan_session_create_atomic', {
+        p_empresa_id: empresaId,
+        p_user_id: userId,
+        p_token_hash: tokenHash,
+        p_pin_code: pinCode,
+        p_expires_at: expiresAt,
+        p_context_type: contextType,
+        p_context_id: contextId,
+        p_target_field: targetField,
+        p_storage_bucket: storageBucket,
+      });
+
+      if (!rpcError && rpcData) {
+        session = (Array.isArray(rpcData) ? rpcData[0] : rpcData) as ScanSession;
+        break;
+      }
+
+      if (rpcError) {
+        const isCollision =
+          rpcError.code === '23505' ||
+          rpcError.message?.includes('unique') ||
+          rpcError.message?.includes('duplicate');
+        if (isCollision) {
+          continue; // Colisión de PIN: reintentar con nuevo PIN
+        }
+        if (rpcError.message?.includes('does not exist') || rpcError.message?.includes('function')) {
+          throw new Error('RPC_NOT_FOUND');
+        }
+        throw new Error(rpcError.message);
+      }
+    } catch (rpcErr: any) {
+      if (rpcErr?.message !== 'RPC_NOT_FOUND') {
+        // En caso de mock o fallback, continuar a inserción directa
+      }
+    }
+
+    // 2. Fallback de inserción directa con chequeo de colisión
+    const { data: existingActive } = await admin
+      .from('scan_sessions')
+      .select('id, expires_at')
+      .eq('pin_code', pinCode)
+      .eq('status', 'waiting')
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle();
+
+    if (existingActive) {
+      continue; // PIN en uso activo por otro tenant/sesión, reintentar
+    }
+
+    const { data, error } = await admin
+      .from('scan_sessions')
+      .insert({
+        empresa_id: empresaId,
+        created_by: userId,
+        context_type: contextType,
+        context_id: contextId,
+        target_field: targetField,
+        status: 'waiting',
+        token_hash: tokenHash,
+        pin_code: pinCode,
+        expires_at: expiresAt,
+        storage_bucket: storageBucket,
+        metadata,
+        pin_failed_attempts: 0,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      const isCollision =
+        error.code === '23505' ||
+        error.message?.includes('unique') ||
+        error.message?.includes('duplicate');
+      if (isCollision) {
+        continue; // Reintentar con nuevo PIN
+      }
+      lastError = new Error(`Error al crear sesión de escaneo: ${error.message}`);
+      break;
+    }
+
+    if (data) {
+      session = data as ScanSession;
+      break;
+    }
   }
 
-  const session = data as ScanSession;
+  if (!session) {
+    throw lastError || new Error('No se pudo generar un PIN único no colisionante tras múltiples intentos');
+  }
+
   const joinUrl = `/scanner?t=${token}`;
 
   return {
@@ -139,25 +219,39 @@ export async function verifyAndGetSessionByPin(
   const now = new Date();
   const admin = createAdminClient();
 
-  // 1. Verificar si el actor está bloqueado (en base de datos persistente o fallback en memoria)
+  // 1. Verificación atómica de bloqueo para este actor (IP / device fingerprint)
   let actorLocked = false;
   try {
-    const { data: attemptRow } = await admin
-      .from('scan_pin_attempts')
-      .select('*')
-      .eq('actor_key', clientKey)
-      .maybeSingle();
-
-    if (attemptRow && attemptRow.locked_until) {
-      if (new Date(attemptRow.locked_until).getTime() > now.getTime()) {
+    const { data: lockRows, error: lockErr } = await admin.rpc('scan_pin_check_actor_lock', {
+      p_actor_key: clientKey,
+    });
+    if (!lockErr && lockRows) {
+      const lockData = Array.isArray(lockRows) ? lockRows[0] : lockRows;
+      if (lockData?.is_locked) {
         actorLocked = true;
       }
+    } else {
+      throw new Error('RPC_FALLBACK');
     }
   } catch {
-    // Si la tabla no existe en entorno de test, usar tracker en memoria
-    const mem = pinAttemptTracker.get(clientKey);
-    if (mem && mem.lockedUntil > now.getTime()) {
-      actorLocked = true;
+    // Fallback: tabla directa o memoria
+    try {
+      const { data: attemptRow } = await admin
+        .from('scan_pin_attempts')
+        .select('*')
+        .eq('actor_key', clientKey)
+        .maybeSingle();
+
+      if (attemptRow && attemptRow.locked_until) {
+        if (new Date(attemptRow.locked_until).getTime() > now.getTime()) {
+          actorLocked = true;
+        }
+      }
+    } catch {
+      const mem = pinAttemptTracker.get(clientKey);
+      if (mem && mem.lockedUntil > now.getTime()) {
+        actorLocked = true;
+      }
     }
   }
 
@@ -165,48 +259,57 @@ export async function verifyAndGetSessionByPin(
     throw new Error('Demasiados intentos fallidos. Sesión bloqueada temporalmente por seguridad');
   }
 
-  // 2. Buscar sesión activa con ese PIN
+  // 2. Buscar sesión activa reclamable con ese PIN
+  // Filtro estricto: status = 'waiting' y expires_at > now.
+  // Gracias al índice único parcial DB-backed, existe como máximo 1 sesión claimable con este PIN en todo el sistema.
   const { data, error } = await admin
     .from('scan_sessions')
     .select('*')
     .eq('pin_code', cleanPin)
-    .order('created_at', { ascending: false })
-    .limit(1)
+    .eq('status', 'waiting')
+    .gt('expires_at', now.toISOString())
     .maybeSingle();
 
   if (error || !data) {
-    // Registrar intento fallido para este actor (IP/origen) en DB y en memoria
-    let currentAttempts = 0;
+    // 3. Registro ATÓMICO del intento fallido en PostgreSQL (sin lost-updates bajo concurrencia)
+    let isLocked = false;
     try {
-      const { data: prevRow } = await admin
-        .from('scan_pin_attempts')
-        .select('failed_attempts')
-        .eq('actor_key', clientKey)
-        .maybeSingle();
-
-      currentAttempts = (prevRow?.failed_attempts || 0) + 1;
-      const lockedUntil =
-        currentAttempts >= MAX_PIN_ATTEMPTS
-          ? new Date(now.getTime() + LOCKOUT_DURATION_MS).toISOString()
-          : null;
-
-      await admin.from('scan_pin_attempts').upsert({
-        actor_key: clientKey,
-        failed_attempts: currentAttempts,
-        locked_until: lockedUntil,
-        last_attempt_at: now.toISOString(),
+      const { data: rpcRes, error: rpcErr } = await admin.rpc('scan_pin_record_failed_attempt', {
+        p_actor_key: clientKey,
+        p_max_attempts: MAX_PIN_ATTEMPTS,
+        p_lockout_seconds: Math.floor(LOCKOUT_DURATION_MS / 1000),
       });
+
+      if (!rpcErr && rpcRes) {
+        const row = Array.isArray(rpcRes) ? rpcRes[0] : rpcRes;
+        isLocked = !!row?.is_locked;
+      } else {
+        throw new Error('RPC_FALLBACK');
+      }
     } catch {
+      // Fallback en memoria en caso de test ligero sin base de datos real
       const mem = pinAttemptTracker.get(clientKey) || { count: 0, lockedUntil: 0 };
-      currentAttempts = mem.count + 1;
+      const currentAttempts = mem.count + 1;
       const lockedUntil = currentAttempts >= MAX_PIN_ATTEMPTS ? now.getTime() + LOCKOUT_DURATION_MS : 0;
       pinAttemptTracker.set(clientKey, { count: currentAttempts, lockedUntil });
+      isLocked = currentAttempts >= MAX_PIN_ATTEMPTS;
+    }
+
+    if (isLocked) {
+      throw new Error('Demasiados intentos fallidos. Sesión bloqueada temporalmente por seguridad');
     }
 
     throw new Error('Código PIN inválido');
   }
 
   const session = data as ScanSession;
+
+  // 4. Éxito: limpiar contador de intentos atómicamente para este actor
+  try {
+    await admin.rpc('scan_pin_reset_actor_attempts', { p_actor_key: clientKey });
+  } catch {
+    pinAttemptTracker.delete(clientKey);
+  }
 
   // Verificar si la sesión en DB está bloqueada por intentos
   if (session.pin_locked_until && new Date(session.pin_locked_until).getTime() > now.getTime()) {
@@ -227,13 +330,6 @@ export async function verifyAndGetSessionByPin(
 
   if (session.status !== 'waiting') {
     throw new Error('Esta sesión ya fue reclamada por otro dispositivo');
-  }
-
-  // Éxito: limpiar contador de intentos para este actor
-  try {
-    await admin.from('scan_pin_attempts').delete().eq('actor_key', clientKey);
-  } catch {
-    pinAttemptTracker.delete(clientKey);
   }
 
   return session;

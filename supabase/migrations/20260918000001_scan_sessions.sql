@@ -38,19 +38,19 @@ alter table public.scan_sessions enable row level security;
 -- Política de lectura para usuarios internos de la misma empresa
 create policy "internal read scan_sessions" on public.scan_sessions
   for select using (
-    empresa_id = public.current_user_empresa_id()
+    empresa_id = public.current_empresa_id()
   );
 
 -- Política de inserción para usuarios internos de la misma empresa
 create policy "internal insert scan_sessions" on public.scan_sessions
   for insert with check (
-    empresa_id = public.current_user_empresa_id()
+    empresa_id = public.current_empresa_id()
   );
 
 -- Política de actualización para usuarios internos de la misma empresa
 create policy "internal update scan_sessions" on public.scan_sessions
   for update using (
-    empresa_id = public.current_user_empresa_id()
+    empresa_id = public.current_empresa_id()
   );
 
 -- Habilitar Realtime para scan_sessions
