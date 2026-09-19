@@ -456,19 +456,31 @@ export function Sidebar({
           className={cn(
             "relative group h-9 flex items-center rounded-md",
             isAdmin && "cursor-pointer hover:bg-white/[0.055]",
-            collapsed ? "w-8 justify-center" : "px-1 flex-1 min-w-0"
+            collapsed ? "w-8 justify-center" : "px-1 flex-1 min-w-0 overflow-hidden"
           )}
           onClick={() => isAdmin && !uploading && fileInputRef.current?.click()}
           title={isAdmin ? "Subir logo de la empresa" : undefined}
         >
           {logoBucketUrl && !logoFailed ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={`${logoBucketUrl}?v=${logoVersion}`}
-              alt="Logo"
-              className="h-8 max-w-full object-contain"
-              onError={() => setLogoFailed(true)}
-            />
+            <div
+              className={cn(
+                "flex min-w-0 items-center",
+                collapsed ? "w-8 justify-center" : "w-full max-w-[118px]"
+              )}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`${logoBucketUrl}?v=${logoVersion}`}
+                alt="Logo"
+                className={cn(
+                  "block object-contain",
+                  collapsed
+                    ? "h-6 w-6 object-center"
+                    : "h-8 w-full max-w-[118px] object-left"
+                )}
+                onError={() => setLogoFailed(true)}
+              />
+            </div>
           ) : !collapsed ? (
             <span className="text-[17px] font-semibold truncate">
               <span className="text-[var(--primary)]">niu</span>.pack
