@@ -151,6 +151,7 @@ export function Sidebar({
   const [navPath, setNavPath] = useState<string | null>(null);
   const [logoFailed, setLogoFailed] = useState(false);
   const [logoVersion, setLogoVersion] = useState(0);
+  const [processedLogoSrc, setProcessedLogoSrc] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isAdmin = role === "admin";
@@ -249,6 +250,87 @@ export function Sidebar({
   // fuera de Administración dejaba el nav vacío al entrar a Operativo o
   // Licitaciones.
 
+  function handleLogoLoad(event: React.SyntheticEvent<HTMLImageElement>) {
+    if (processedLogoSrc) return;
+
+    const img = event.currentTarget;
+    try {
+      const naturalWidth = img.naturalWidth;
+      const naturalHeight = img.naturalHeight;
+      if (!naturalWidth || !naturalHeight) return;
+
+      const sampleScale = Math.min(1, 1200 / Math.max(naturalWidth, naturalHeight));
+      const sampleWidth = Math.max(1, Math.round(naturalWidth * sampleScale));
+      const sampleHeight = Math.max(1, Math.round(naturalHeight * sampleScale));
+
+      const canvas = document.createElement("canvas");
+      canvas.width = sampleWidth;
+      canvas.height = sampleHeight;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return;
+
+      ctx.drawImage(img, 0, 0, sampleWidth, sampleHeight);
+      const { data } = ctx.getImageData(0, 0, sampleWidth, sampleHeight);
+
+      let minX = sampleWidth;
+      let minY = sampleHeight;
+      let maxX = -1;
+      let maxY = -1;
+
+      for (let y = 0; y < sampleHeight; y += 1) {
+        for (let x = 0; x < sampleWidth; x += 1) {
+          const i = (y * sampleWidth + x) * 4;
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          const a = data[i + 3];
+
+          // Transparente o casi blanco = margen/fondo. El resto cuenta como logo.
+          if (a < 12 || (r > 246 && g > 246 && b > 246)) continue;
+
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+
+      if (maxX < minX || maxY < minY) return;
+
+      const padX = Math.max(2, Math.round((maxX - minX + 1) * 0.04));
+      const padY = Math.max(2, Math.round((maxY - minY + 1) * 0.08));
+      minX = Math.max(0, minX - padX);
+      minY = Math.max(0, minY - padY);
+      maxX = Math.min(sampleWidth - 1, maxX + padX);
+      maxY = Math.min(sampleHeight - 1, maxY + padY);
+
+      const cropWidth = maxX - minX + 1;
+      const cropHeight = maxY - minY + 1;
+      const cropped = document.createElement("canvas");
+      cropped.width = cropWidth;
+      cropped.height = cropHeight;
+      const croppedCtx = cropped.getContext("2d");
+      if (!croppedCtx) return;
+
+      croppedCtx.drawImage(
+        canvas,
+        minX,
+        minY,
+        cropWidth,
+        cropHeight,
+        0,
+        0,
+        cropWidth,
+        cropHeight
+      );
+
+      setProcessedLogoSrc(cropped.toDataURL("image/png"));
+    } catch {
+      // Algunos orígenes/SVG pueden bloquear canvas. En ese caso mostramos
+      // el archivo original sin impedir el uso del navbar.
+    }
+  }
+
   async function handleLogoFile(file: File | null) {
     if (!file) return;
     setUploading(true);
@@ -260,6 +342,7 @@ export function Sidebar({
         alert(result.error);
       } else {
         setLogoFailed(false);
+        setProcessedLogoSrc(null);
         setLogoVersion((v) => v + 1);
       }
     } catch {
@@ -528,21 +611,23 @@ export function Sidebar({
           {logoBucketUrl && !logoFailed ? (
             <div
               className={cn(
-                "flex min-w-0 items-center",
+                "flex min-w-0 items-center overflow-hidden",
                 collapsed
-                  ? "h-8 w-8 justify-center overflow-hidden"
-                  : "h-10 w-full max-w-[136px] justify-start overflow-hidden"
+                  ? "h-8 w-8 justify-center"
+                  : "h-10 w-full justify-start"
               )}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={`${logoBucketUrl}?v=${logoVersion}`}
+                src={processedLogoSrc ?? `${logoBucketUrl}?v=${logoVersion}`}
                 alt="Logo"
+                crossOrigin="anonymous"
+                onLoad={handleLogoLoad}
                 className={cn(
-                  "block shrink-0",
+                  "block max-h-full max-w-full object-contain",
                   collapsed
-                    ? "h-full w-full object-contain object-center"
-                    : "h-full w-full object-contain object-left scale-[1.65] origin-left"
+                    ? "h-full w-full object-center"
+                    : "h-full w-full object-left"
                 )}
                 onError={() => setLogoFailed(true)}
               />
