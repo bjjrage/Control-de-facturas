@@ -304,6 +304,9 @@
 
   <div class="toc-group-label">Asistente</div>
   <a href="#rodrigo" data-tier="all"><span class="toc-num">27</span>Rodrigo · Agente</a>
+
+  <div class="toc-group-label">Captura Móvil</div>
+  <a href="#control-scanner" data-tier="all"><span class="toc-num">28</span>Control Scanner</a>
 </nav>
 
 <main>
@@ -1126,6 +1129,31 @@
         <li>“Leé este PDF y extraé los datos.”</li>
       </ol>
       <div class="callout"><span class="ic">↗</span><span>Documento visual completo del módulo: <a href="modulo-frictionless-agent-rodrigo.html" style="color:var(--accent);font-weight:600">abrir Frictionless Agent · Rodrigo</a>.</span></div>
+    </div>
+  </section>
+
+  <hr class="sep">
+
+  <!-- 28 CONTROL SCANNER -->
+  <section class="feature" id="control-scanner" data-tier="all">
+    <div class="feat-head"><span class="feat-num">28</span><span class="feat-title">Digitalizar documentos con Control Scanner</span></div>
+    <div class="feat-where">Dónde: Diálogo de Facturas / Compras → Botón <code>Escanear desde celular</code> (o acceso directo /scanner)</div>
+    <div class="feat-body">
+      <p><b>Control Scanner</b> es el companion web móvil de digitalización documental del ERP. Permite usar la cámara de cualquier teléfono (Android o iOS) sin instalar apps nativas de tiendas, transformar facturas físicas, remitos de obra y tickets arrugados en documentos PDF 1.4 normalizados, y transferirlos en tiempo real a la sesión de carga del operador en la computadora.</p>
+      <ol class="steps">
+        <li><b>Iniciar sesión en Desktop:</b> En el diálogo de carga de factura (o comprobante), presioná el botón <b>"Escanear desde celular"</b>.</li>
+        <li><b>Escanear QR o ingresar PIN:</b> Se abre un modal que muestra un código QR dinámico y un <b>PIN numérico de 6 dígitos</b> con validez temporal.</li>
+        <li><b>Vincular el celular:</b> Con la cámara del teléfono escaneás el QR o abrís la URL del scanner e ingresás el PIN. La sesión pasa de <code>waiting</code> a <code>connected</code> en Desktop de inmediato.</li>
+        <li><b>Encuadre asistido con detección de bordes:</b> Apuntá al papel sobre una superficie contrastada. El detector analiza el documento en tiempo real y resalta los vértices detectados (con margen seguro de fallback si no hay contraste).</li>
+        <li><b>Captura multipágina:</b> Tocá el disparador para capturar la primera página y continuá con las siguientes si el documento tiene múltiples hojas (por ejemplo, remito + factura + comprobante de pesaje).</li>
+        <li><b>Ajuste de vértices y rotación:</b> Si algún vértice no coincide con el borde real, arrastrá los puntos táctiles en pantalla para corregir la perspectiva, o rotá la página a 90°/180°/270°.</li>
+        <li><b>Filtros de imagen:</b> Seleccioná el filtro óptimo para legibilidad: <b>Color</b>, <b>Escala de Grises</b> o <b>Blanco y Negro (B&amp;N)</b> de alto contraste para sellos y texto impreso tenue.</li>
+        <li><b>Generar PDF client-side:</b> Presioná <b>"Finalizar y enviar"</b>. El motor local del navegador compila directamente un archivo <b>PDF 1.4 estándar</b> optimizado, sin enviar imágenes intermedias pesadas ni requerir servidores externos de renderizado.</li>
+        <li><b>Subida cifrada a Storage:</b> El archivo se almacena en el bucket <code>invoice-files</code> bajo la ruta aislada del tenant (<code>{empresa_id}/scans/{session_id}/...</code>) y se genera una URL temporal firmada.</li>
+        <li><b>Adjunto automático en Desktop:</b> La pantalla del operador en la PC recibe el evento Realtime, actualiza el estado a <code>completed</code>, descarga el PDF y lo deja adjuntado y previsualizado en el formulario listo para guardar.</li>
+      </ol>
+      <div class="callout ok"><span class="ic">✓</span><span><b>Seguridad y Aislamiento:</b> La sesión está protegida por RLS multi-tenant vinculada a la empresa del usuario operador, token unívoco de un solo uso para el claim móvil y rate-limiting en intentos de PIN.</span></div>
+      <div class="callout"><span class="ic">↗</span><span>Documento técnico e interactivo completo del módulo: <a href="modulo-control-scanner.html" style="color:var(--accent);font-weight:600">abrir Control Scanner · Digitalización Móvil V3</a>.</span></div>
     </div>
   </section>
 </main>
