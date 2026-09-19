@@ -608,7 +608,7 @@ export function WeeklyPlanSection({ project }: Props) {
               onClick={() => setWeatherOverlay(true)}
               className={`px-2.5 py-1 rounded-md flex items-center gap-1 transition-colors ${
                 weatherOverlay
-                  ? "bg-blue-600 text-white font-semibold"
+                  ? "bg-[var(--cta)] text-[var(--cta-ink)] font-semibold border-[var(--cta-hover)]/50"
                   : "text-[var(--muted)] hover:text-[var(--foreground)]"
               }`}
             >
