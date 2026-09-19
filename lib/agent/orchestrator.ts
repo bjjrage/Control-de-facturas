@@ -15,7 +15,7 @@ import type { EmailPreview } from "@/lib/email/types";
 import { markEmailDraftWaitingApproval } from "@/lib/email/domain-service";
 
 export const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
-export const DEEPSEEK_MODEL = "deepseek-chat"; // chat para tool-calling; matcher usa v4-flash
+export const DEEPSEEK_MODEL = "deepseek-v4-flash"; // modelo vigente para chat y tool-calling
 
 const DEFAULT_TIMEOUT_MS = 30000;
 const DEFAULT_MAX_ITERATIONS = 8;
