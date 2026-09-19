@@ -277,22 +277,22 @@ button[class*="bg-cyan-"]:hover {
   white-space: nowrap;
 }
 .status-chip-warn {
-  color: var(--warn);
+  color: #fff8e8;
   background: color-mix(in srgb, var(--warn) 12%, transparent);
   border-color: color-mix(in srgb, var(--warn) 32%, transparent);
 }
 .status-chip-ok {
-  color: var(--ok);
+  color: #effdf8;
   background: color-mix(in srgb, var(--ok) 12%, transparent);
   border-color: color-mix(in srgb, var(--ok) 32%, transparent);
 }
 .status-chip-info {
-  color: #8fb4ff;
+  color: #eef5ff;
   background: color-mix(in srgb, #5b7cfa 13%, transparent);
   border-color: color-mix(in srgb, #5b7cfa 32%, transparent);
 }
 .status-chip-error {
-  color: var(--error);
+  color: #fff1ef;
   background: color-mix(in srgb, var(--error) 12%, transparent);
   border-color: color-mix(in srgb, var(--error) 32%, transparent);
 }
@@ -523,4 +523,46 @@ button[class*="bg-cyan-"]:hover {
     inset 0 2px 0 rgba(251,146,60,.58),
     0 10px 26px rgba(0,0,0,.18),
     inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+
+/* Semantic contrast guardrails.
+ * Tinted surfaces may use color in border/icon/glow, but body text must stay high-contrast.
+ * Prevents same-palette combinations like green-on-green or amber-on-brown.
+ */
+[class*="bg-emerald-"][class*="text-emerald-"],
+[class*="bg-green-"][class*="text-green-"],
+[class*="bg-amber-"][class*="text-amber-"],
+[class*="bg-orange-"][class*="text-orange-"],
+[class*="bg-red-"][class*="text-red-"],
+[class*="bg-rose-"][class*="text-rose-"] {
+  color: var(--foreground) !important;
+}
+
+.semantic-success {
+  background: rgba(16, 50, 38, .52);
+  border: 1px solid rgba(52, 211, 153, .28);
+  color: #effdf8;
+}
+.semantic-warning {
+  background: rgba(62, 48, 18, .42);
+  border: 1px solid rgba(245, 165, 36, .30);
+  color: #fff8e8;
+}
+.semantic-danger {
+  background: rgba(58, 28, 25, .46);
+  border: 1px solid rgba(242, 104, 92, .30);
+  color: #fff1ef;
+}
+.semantic-info {
+  background: rgba(27, 45, 73, .48);
+  border: 1px solid rgba(111, 154, 255, .24);
+  color: #eef5ff;
+}
+
+.semantic-success :where(p, span, strong, div):not([class*="text-[var(--muted)]"]),
+.semantic-warning :where(p, span, strong, div):not([class*="text-[var(--muted)]"]),
+.semantic-danger :where(p, span, strong, div):not([class*="text-[var(--muted)]"]),
+.semantic-info :where(p, span, strong, div):not([class*="text-[var(--muted)]"]) {
+  color: inherit;
 }
