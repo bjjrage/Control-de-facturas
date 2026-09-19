@@ -347,15 +347,14 @@ export function Sidebar({
       // FINAL SLOT IS FIXED. Navbar never changes size for the logo.
       const SLOT_W = 120;
       const SLOT_H = 40;
-      const SLOT_PADDING = 2;
-      const scale = Math.min(
-        (SLOT_W - SLOT_PADDING * 2) / cropW,
-        (SLOT_H - SLOT_PADDING * 2) / cropH
-      );
-      const drawW = Math.max(1, cropW * scale);
-      const drawH = Math.max(1, cropH * scale);
-      const drawX = (SLOT_W - drawW) / 2;
-      const drawY = (SLOT_H - drawH) / 2;
+      const SLOT_PADDING_X = 2;
+      const SLOT_PADDING_Y = 2;
+      // El slot es autoritativo: el asset se normaliza al espacio disponible.
+      // No dejamos letterboxing por diferencias de aspect ratio.
+      const drawW = SLOT_W - SLOT_PADDING_X * 2;
+      const drawH = SLOT_H - SLOT_PADDING_Y * 2;
+      const drawX = SLOT_PADDING_X;
+      const drawY = SLOT_PADDING_Y;
 
       const output = document.createElement("canvas");
       output.width = SLOT_W;
@@ -678,7 +677,7 @@ export function Sidebar({
                 onLoad={normalizeLogoToFixedSlot}
                 className={cn(
                   "block object-contain",
-                  collapsed ? "max-h-8 max-w-8" : "h-10 w-[120px]"
+                  collapsed ? "h-8 w-8 object-fill" : "h-10 w-[120px] object-fill"
                 )}
                 onError={() => setLogoFailed(true)}
               />
