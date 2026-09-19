@@ -532,7 +532,7 @@ export function Sidebar({
             <div
               className={cn(
                 "flex min-w-0 items-center",
-                collapsed ? "h-9 w-9 justify-center" : "h-[42px] w-full justify-start"
+                collapsed ? "h-9 w-9 justify-center" : "h-[52px] w-full justify-start"
               )}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -543,7 +543,7 @@ export function Sidebar({
                   "block h-auto w-auto object-contain",
                   collapsed
                     ? "max-h-8 max-w-8"
-                    : "max-h-[42px] max-w-full"
+                    : "w-full max-w-[122px] h-auto max-h-[52px]"
                 )}
                 onError={() => setLogoFailed(true)}
               />
