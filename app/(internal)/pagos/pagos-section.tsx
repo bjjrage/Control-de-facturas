@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { PaymentOrder, Provider } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { buttonClassName } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { formatDate, formatMoney } from "@/lib/format";
 import { PagosSectionData } from "./section-action";
@@ -92,8 +92,8 @@ export function PagosSection({ initialData }: { initialData: PagosSectionData })
     <div className="max-w-5xl space-y-5">
       <div className="flex items-center justify-between mt-1">
         <h1 className="text-[17px] font-semibold">Órdenes de Pago</h1>
-        <Link href="/pagos/nueva">
-          <Button>Nueva OP</Button>
+        <Link href="/pagos/nueva" className={buttonClassName()}>
+          Nueva OP
         </Link>
       </div>
 
