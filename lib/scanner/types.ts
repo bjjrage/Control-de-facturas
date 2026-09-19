@@ -21,6 +21,12 @@ export interface QuadPoints {
   bottomLeft: Point2D;
 }
 
+export interface DetectedQuadResult {
+  quad: QuadPoints;
+  confidence: number;
+  isFallback: boolean;
+}
+
 export interface ScanSession {
   id: string;
   empresa_id: string;
@@ -34,6 +40,10 @@ export interface ScanSession {
   expires_at: string;
   claimed_by_user_id: string | null;
   claimed_device_info: Record<string, unknown>;
+  mobile_claim_token_hash: string | null;
+  claimed_at: string | null;
+  pin_failed_attempts: number;
+  pin_locked_until: string | null;
   storage_bucket: string;
   storage_path: string | null;
   file_name: string | null;
@@ -70,5 +80,6 @@ export interface CreateSessionResult {
 
 export interface ClaimSessionResult {
   session: ScanSession;
-  token: string;
+  token?: string;
+  mobileClaimToken?: string;
 }

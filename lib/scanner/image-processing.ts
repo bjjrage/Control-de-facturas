@@ -185,6 +185,45 @@ export function warpPerspective(
   return outData;
 }
 
+export { detectDocumentQuad } from './document-detector';
+
+/**
+ * Valida que los 4 puntos formen un cuadrilátero convexo estricto dentro de los límites de la imagen.
+ */
+export function isValidConvexQuad(quad: QuadPoints, width: number, height: number): boolean {
+  const pts = [quad.topLeft, quad.topRight, quad.bottomRight, quad.bottomLeft];
+
+  // Verificar que todos los puntos estén dentro de los límites físicos
+  for (const p of pts) {
+    if (p.x < 0 || p.x > width || p.y < 0 || p.y > height) return false;
+  }
+
+  // Verificar producto cruzado de los 4 vértices
+  let sign = 0;
+  for (let i = 0; i < 4; i++) {
+    const p1 = pts[i];
+    const p2 = pts[(i + 1) % 4];
+    const p3 = pts[(i + 2) % 4];
+
+    const dx1 = p2.x - p1.x;
+    const dy1 = p2.y - p1.y;
+    const dx2 = p3.x - p2.x;
+    const dy2 = p3.y - p2.y;
+
+    const cross = dx1 * dy2 - dy1 * dx2;
+    if (Math.abs(cross) < 1e-4) return false; // Colineales
+
+    const currentSign = cross > 0 ? 1 : -1;
+    if (sign === 0) {
+      sign = currentSign;
+    } else if (sign !== currentSign) {
+      return false; // Auto-intersectado o cóncavo
+    }
+  }
+
+  return true;
+}
+
 /**
  * Estimación inicial de esquinas del documento.
  * Si no se detectan bordes contrastados suficientes, genera un cuadrilátero

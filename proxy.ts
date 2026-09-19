@@ -41,8 +41,10 @@ export async function proxy(request: NextRequest) {
     path.startsWith("/cotizacion") ||
     path.startsWith("/certificados") ||
     path.startsWith("/avance") ||
+    path.startsWith("/scanner") ||
     path.startsWith("/_next") ||
     path.startsWith("/api/cotizar") ||
+    path.startsWith("/api/scanner") ||
     path === "/favicon.ico";
 
   if (!user && !isPublic) {

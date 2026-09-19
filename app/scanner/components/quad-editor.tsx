@@ -1,9 +1,14 @@
 ﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, RotateCcw, Sparkles } from "lucide-react";
+import { Check, RotateCcw, AlertTriangle, Sparkles } from "lucide-react";
 import { Point2D, QuadPoints } from "@/lib/scanner/types";
-import { detectDefaultCorners, warpPerspective } from "@/lib/scanner/image-processing";
+import {
+  detectDefaultCorners,
+  detectDocumentQuad,
+  isValidConvexQuad,
+  warpPerspective,
+} from "@/lib/scanner/image-processing";
 
 interface QuadEditorProps {
   imageDataUrl: string;
@@ -25,18 +30,51 @@ export function QuadEditor({ imageDataUrl, onConfirmCrop, onCancel }: QuadEditor
   const [displayScale, setDisplayScale] = useState<number>(1);
   const [processing, setProcessing] = useState(false);
 
-  // Cargar imagen y detectar esquinas iniciales
+  const [detectionNotice, setDetectionNotice] = useState<string | null>(null);
+  const [isQuadValid, setIsQuadValid] = useState<boolean>(true);
+
+  // Cargar imagen y ejecutar detección REAL tipo CamScanner
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
       imageObjRef.current = img;
-      setImgDims({ w: img.naturalWidth, h: img.naturalHeight });
-      const initialQuad = detectDefaultCorners(img.naturalWidth, img.naturalHeight);
-      setQuad(initialQuad);
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      setImgDims({ w, h });
+
+      // Extraer ImageData para el pipeline de visión por computadora
+      const offCanvas = document.createElement("canvas");
+      offCanvas.width = w;
+      offCanvas.height = h;
+      const ctx = offCanvas.getContext("2d", { willReadFrequently: true });
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const result = detectDocumentQuad(imgData);
+
+        setQuad(result.quad);
+        setIsQuadValid(isValidConvexQuad(result.quad, w, h));
+
+        if (result.isFallback) {
+          setDetectionNotice("No pudimos detectar completamente el documento. Ajustá las esquinas.");
+        } else {
+          setDetectionNotice(`Documento detectado automáticamente (${Math.round(result.confidence * 100)}% de coincidencia)`);
+        }
+      } else {
+        const initialQuad = detectDefaultCorners(w, h);
+        setQuad(initialQuad);
+      }
     };
     img.src = imageDataUrl;
   }, [imageDataUrl]);
+
+  // Validar cuadrilátero cada vez que cambia quad
+  useEffect(() => {
+    if (!quad || imgDims.w === 0) return;
+    const valid = isValidConvexQuad(quad, imgDims.w, imgDims.h);
+    setIsQuadValid(valid);
+  }, [quad, imgDims]);
 
   // Dibujar imagen y overlay de cuadrilátero
   useEffect(() => {
@@ -72,18 +110,20 @@ export function QuadEditor({ imageDataUrl, onConfirmCrop, onCancel }: QuadEditor
     const pBL = { x: quad.bottomLeft.x * scale, y: quad.bottomLeft.y * scale };
 
     // Sombra oscura fuera del documento
-    ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
-    ctx.beginPath();
-    ctx.rect(0, 0, canvasW, canvasH);
-    ctx.moveTo(pTL.x, pTL.y);
-    ctx.lineTo(pBL.x, pBL.y);
-    ctx.lineTo(pBR.x, pBR.y);
-    ctx.lineTo(pTR.x, pTR.y);
-    ctx.closePath();
-    ctx.fill("evenodd");
+    if (isQuadValid) {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+      ctx.beginPath();
+      ctx.rect(0, 0, canvasW, canvasH);
+      ctx.moveTo(pTL.x, pTL.y);
+      ctx.lineTo(pBL.x, pBL.y);
+      ctx.lineTo(pBR.x, pBR.y);
+      ctx.lineTo(pTR.x, pTR.y);
+      ctx.closePath();
+      ctx.fill("evenodd");
+    }
 
-    // Líneas conectoras del polígono
-    ctx.strokeStyle = "#10b981"; // Emerald
+    // Líneas conectoras del polígono (verde si es válido, rojo/ámbar si se cruza)
+    ctx.strokeStyle = isQuadValid ? "#10b981" : "#ef4444";
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.moveTo(pTL.x, pTL.y);
@@ -103,8 +143,8 @@ export function QuadEditor({ imageDataUrl, onConfirmCrop, onCancel }: QuadEditor
 
     corners.forEach(({ key, pt }) => {
       const isActive = activeCorner === key;
-      ctx.fillStyle = isActive ? "#34d399" : "#ffffff";
-      ctx.strokeStyle = "#059669";
+      ctx.fillStyle = isActive ? "#34d399" : isQuadValid ? "#ffffff" : "#fca5a5";
+      ctx.strokeStyle = isQuadValid ? "#059669" : "#dc2626";
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.arc(pt.x, pt.y, isActive ? 14 : 11, 0, Math.PI * 2);
@@ -112,12 +152,12 @@ export function QuadEditor({ imageDataUrl, onConfirmCrop, onCancel }: QuadEditor
       ctx.stroke();
 
       // Punto central
-      ctx.fillStyle = "#059669";
+      ctx.fillStyle = isQuadValid ? "#059669" : "#dc2626";
       ctx.beginPath();
       ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
       ctx.fill();
     });
-  }, [quad, imgDims, activeCorner]);
+  }, [quad, imgDims, activeCorner, isQuadValid]);
 
   // Manejo de eventos pointer/touch para mover las esquinas
   function getCanvasCoords(clientX: number, clientY: number): Point2D | null {
@@ -168,7 +208,7 @@ export function QuadEditor({ imageDataUrl, onConfirmCrop, onCancel }: QuadEditor
 
     setDragPos(coords);
 
-    // Mapear de coordenadas canvas a coordenadas originales de imagen
+    // Mapear y CLAMP estricto dentro de los límites de la imagen
     const origX = Math.max(0, Math.min(imgDims.w, Math.round(coords.x / displayScale)));
     const origY = Math.max(0, Math.min(imgDims.h, Math.round(coords.y / displayScale)));
 
@@ -194,7 +234,7 @@ export function QuadEditor({ imageDataUrl, onConfirmCrop, onCancel }: QuadEditor
   }
 
   async function handleApplyWarp() {
-    if (!quad || !imageObjRef.current) return;
+    if (!quad || !imageObjRef.current || !isQuadValid) return;
     setProcessing(true);
 
     try {
@@ -233,7 +273,7 @@ export function QuadEditor({ imageDataUrl, onConfirmCrop, onCancel }: QuadEditor
   return (
     <div className="relative flex flex-col h-full w-full bg-slate-950 select-none touch-none">
       {/* Barra superior */}
-      <div className="p-4 flex items-center justify-between bg-slate-900/90 border-b border-slate-800 z-10">
+      <div className="p-3 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between z-10">
         <button
           type="button"
           onClick={onCancel}
@@ -250,6 +290,22 @@ export function QuadEditor({ imageDataUrl, onConfirmCrop, onCancel }: QuadEditor
           <RotateCcw className="w-3.5 h-3.5" /> Restablecer
         </button>
       </div>
+
+      {/* Notificación de detección */}
+      {detectionNotice && (
+        <div className={`py-1.5 px-3 text-[11px] flex items-center justify-center gap-1.5 border-b ${
+          isQuadValid
+            ? "bg-slate-900 text-slate-300 border-slate-800"
+            : "bg-red-950/80 text-red-300 border-red-800"
+        }`}>
+          {!isQuadValid ? (
+            <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+          ) : (
+            <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+          )}
+          <span>{isQuadValid ? detectionNotice : "Las esquinas se cruzan. Movelás para formar un cuadrilátero."}</span>
+        </div>
+      )}
 
       {/* Área interactiva del Canvas */}
       <div
@@ -275,7 +331,6 @@ export function QuadEditor({ imageDataUrl, onConfirmCrop, onCancel }: QuadEditor
             }}
           >
             <div className="relative w-full h-full flex items-center justify-center">
-              {/* Cruz central de mira */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                 <div className="w-5 h-0.5 bg-emerald-400" />
                 <div className="h-5 w-0.5 bg-emerald-400 absolute" />
@@ -288,14 +343,18 @@ export function QuadEditor({ imageDataUrl, onConfirmCrop, onCancel }: QuadEditor
       {/* Barra de acción inferior */}
       <div className="p-4 pb-8 bg-slate-900/90 border-t border-slate-800 flex items-center justify-between gap-3 z-10">
         <p className="text-[11px] text-slate-400">
-          Arrastrá los puntos para alinear las 4 esquinas del documento.
+          {isQuadValid ? "Arrastrá las 4 esquinas sobre los límites del papel." : "Ajustá las esquinas para corregir la figura."}
         </p>
 
         <button
           type="button"
           onClick={handleApplyWarp}
-          disabled={processing}
-          className="py-2.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-medium text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-900/30 transition shrink-0"
+          disabled={processing || !isQuadValid}
+          className={`py-2.5 px-5 rounded-xl font-medium text-xs flex items-center gap-1.5 shadow-lg transition shrink-0 ${
+            isQuadValid
+              ? "bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white shadow-emerald-900/30"
+              : "bg-slate-800 text-slate-500 cursor-not-allowed"
+          }`}
         >
           <Check className="w-4 h-4" />
           {processing ? "Ajustando…" : "Confirmar"}
