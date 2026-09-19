@@ -221,6 +221,10 @@ vi.mock('@/lib/supabase/admin', () => ({
           pin_code: args.p_pin_code,
           expires_at: args.p_expires_at,
           context_type: args.p_context_type,
+          context_id: args.p_context_id,
+          target_field: args.p_target_field,
+          storage_bucket: args.p_storage_bucket,
+          metadata: args.p_metadata || {},
           status: 'waiting',
           created_at: new Date().toISOString(),
         };
@@ -253,6 +257,24 @@ describe('Scanner Session Service Lifecycle & Security', () => {
     expect(result.session.status).toBe('waiting');
     expect(result.session.token_hash).toBe(hashScanToken(result.token));
     expect(result.joinUrl).toContain(`/scanner?t=${result.token}`);
+  });
+
+  it('preserva metadata en creación de sesión tanto en retorno como en DB (vía RPC)', async () => {
+    const customMetadata = { source: 'invoice', foo: 'bar' };
+    const result = await createScanSession('empresa-123', 'user-456', {
+      metadata: customMetadata,
+    });
+
+    expect(result.session.metadata).toEqual({
+      source: 'invoice',
+      foo: 'bar',
+    });
+
+    const inDb = mockSessions.get(result.session.id);
+    expect(inDb?.metadata).toEqual({
+      source: 'invoice',
+      foo: 'bar',
+    });
   });
 
   it('obtiene la sesión correctamente a partir de su token', async () => {

@@ -58,6 +58,7 @@ export async function createScanSession(
         p_context_id: contextId,
         p_target_field: targetField,
         p_storage_bucket: storageBucket,
+        p_metadata: metadata,
       });
 
       if (!rpcError && rpcData) {
