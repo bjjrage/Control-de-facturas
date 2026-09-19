@@ -462,7 +462,6 @@ export function Sidebar({
           type="button"
           data-nav-trigger
           data-open={isOpen ? "true" : "false"}
-          data-active={isActiveGroup ? "true" : "false"}
           title={collapsed ? label : undefined}
           onClick={() => {
             setOpenSection((current) =>
@@ -475,7 +474,7 @@ export function Sidebar({
             label === "Vender" && "nav-domain-ventas",
             label === "Finanzas" && "nav-domain-finanzas",
             collapsed ? "justify-center px-0" : "justify-between px-2.5",
-            isOpen || isActiveGroup
+            isOpen
               ? "text-[var(--foreground)]"
               : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
           )}
@@ -519,6 +518,7 @@ export function Sidebar({
           type="button"
           data-nav-trigger
           data-open={isOpen ? "true" : "false"}
+          data-active={isActiveGroup ? "true" : "false"}
           title={collapsed ? group.label : undefined}
           onClick={() => setOpenProjectSection((current) => current === group.label ? null : group.label)}
           className={cn(
@@ -528,7 +528,7 @@ export function Sidebar({
             group.label === "Ejecutar" && "nav-domain-ejecutar",
             group.label === "Certificar" && "nav-domain-certificar",
             collapsed ? "justify-center px-0" : "justify-between px-2.5",
-            isOpen
+            isOpen || isActiveGroup
               ? "text-[var(--foreground)]"
               : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
           )}
