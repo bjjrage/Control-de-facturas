@@ -273,14 +273,14 @@ export function AppShellClient({ children }: { children: ReactNode }) {
   return (
     <>
       {/* Server-rendered content — shown on initial load and real Next.js navigations */}
-      <div hidden={mode !== "server"}>{children}</div>
+      <div className="erp-workspace" hidden={mode !== "server"}>{children}</div>
 
       {/* Loading skeleton — shown while fetching a new section */}
-      {mode === "loading" ? <SectionSkeleton /> : null}
+      {mode === "loading" ? <div className="erp-workspace"><SectionSkeleton /></div> : null}
 
       {/* Keep-alive client sections — stay mounted once loaded */}
       {Array.from(sections.entries()).map(([path, node]) => (
-        <div key={path} hidden={!showSections || path !== activePath}>
+        <div className="erp-workspace" key={path} hidden={!showSections || path !== activePath}>
           {node}
         </div>
       ))}
