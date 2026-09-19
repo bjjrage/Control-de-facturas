@@ -147,6 +147,78 @@ const logoBucketUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 
 const PLAN_RANK: Record<EmpresaPlan, number> = { basico: 0, pro: 1, caterpillar: 2 };
 
+function SidebarUserMenu({
+  collapsed,
+  fullName,
+  initial,
+  role,
+}: {
+  collapsed: boolean;
+  fullName: string;
+  initial: string;
+  role: string;
+}) {
+  const [userOpen, setUserOpen] = useState(false);
+  const userRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(event: MouseEvent) {
+      if (userRef.current && !userRef.current.contains(event.target as Node)) setUserOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  return (
+    <div ref={userRef} className="relative border-t border-white/[0.08] p-1.5">
+      <button
+        type="button"
+        onClick={() => setUserOpen((value) => !value)}
+        className={cn(
+          "w-full flex items-center h-10 rounded-xl transition-colors hover:bg-white/[0.055]",
+          collapsed ? "justify-center px-0" : "gap-2 px-2"
+        )}
+        title={collapsed ? fullName : undefined}
+      >
+        <div className="h-7 w-7 rounded-full bg-[var(--primary)] text-[#08111f] flex items-center justify-center text-[12px] font-semibold shrink-0">
+          {initial}
+        </div>
+        {!collapsed ? (
+          <>
+            <div className="min-w-0 flex-1 text-left">
+              <div className="truncate text-[11px] font-medium leading-tight">{fullName}</div>
+              <div className="truncate text-[10px] text-[var(--muted)] capitalize leading-tight">{role}</div>
+            </div>
+            <ChevronDown size={12} className={cn("shrink-0 text-[var(--muted)] transition-transform", userOpen && "rotate-180")} />
+          </>
+        ) : null}
+      </button>
+
+      {userOpen ? (
+        <div
+          className={cn(
+            "absolute bottom-[calc(100%+6px)] z-[80] w-48 overflow-hidden rounded-xl border border-white/[0.10] bg-[#0b1728]/[0.985] shadow-[0_24px_60px_rgba(0,0,0,.46)] backdrop-blur-2xl",
+            collapsed ? "left-1.5" : "left-1.5"
+          )}
+        >
+          <div className="border-b border-white/[0.08] px-3 py-2">
+            <div className="truncate text-[12px] font-medium">{fullName}</div>
+            <div className="text-[10px] text-[var(--muted)] capitalize">{role}</div>
+          </div>
+          <form action={logout}>
+            <button
+              type="submit"
+              className="w-full px-3 py-2 text-left text-[11px] text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
+            >
+              Cerrar sesión
+            </button>
+          </form>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function Sidebar({
   role,
   fullName,
@@ -195,6 +267,8 @@ export function Sidebar({
 
   useEffect(() => {
     if (!activeProjectId) {
+      // Clear project-specific navigation when the route leaves a project.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setProjectInfo(null);
       setFetchingId(null);
       return;
@@ -228,6 +302,8 @@ export function Sidebar({
   // que los clicks del sidebar no disparen re-renders del servidor.
   const [currentTab, setCurrentTab] = useState("presupuesto");
   useEffect(() => {
+    // The tab is initialized from the URL whenever the route changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentTab(new URLSearchParams(window.location.search).get("tab") ?? "presupuesto");
   }, [pathname]);
   useEffect(() => {
@@ -238,6 +314,8 @@ export function Sidebar({
 
   // Sync navPath from our custom navigation events and browser popstate.
   useEffect(() => {
+    // This keeps the client-side active styling synchronized with Next navigation.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNavPath(pathname);
   }, [pathname]);
   useEffect(() => {
@@ -439,6 +517,8 @@ export function Sidebar({
   }, []);
 
   useEffect(() => {
+    // Close transient menus when their route context changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpenSection(null);
     setOpenProjectSection(null);
   }, [pathname, collapsed]);
@@ -688,68 +768,6 @@ export function Sidebar({
     );
   }
 
-  function SidebarUserMenu() {
-    const [userOpen, setUserOpen] = useState(false);
-    const userRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-      function handleClick(event: MouseEvent) {
-        if (userRef.current && !userRef.current.contains(event.target as Node)) setUserOpen(false);
-      }
-      document.addEventListener("mousedown", handleClick);
-      return () => document.removeEventListener("mousedown", handleClick);
-    }, []);
-
-    return (
-      <div ref={userRef} className="relative border-t border-white/[0.08] p-1.5">
-        <button
-          type="button"
-          onClick={() => setUserOpen((value) => !value)}
-          className={cn(
-            "w-full flex items-center h-10 rounded-xl transition-colors hover:bg-white/[0.055]",
-            collapsed ? "justify-center px-0" : "gap-2 px-2"
-          )}
-          title={collapsed ? fullName : undefined}
-        >
-          <div className="h-7 w-7 rounded-full bg-[var(--primary)] text-[#08111f] flex items-center justify-center text-[12px] font-semibold shrink-0">
-            {initial}
-          </div>
-          {!collapsed ? (
-            <>
-              <div className="min-w-0 flex-1 text-left">
-                <div className="truncate text-[11px] font-medium leading-tight">{fullName}</div>
-                <div className="truncate text-[10px] text-[var(--muted)] capitalize leading-tight">{role}</div>
-              </div>
-              <ChevronDown size={12} className={cn("shrink-0 text-[var(--muted)] transition-transform", userOpen && "rotate-180")} />
-            </>
-          ) : null}
-        </button>
-
-        {userOpen ? (
-          <div
-            className={cn(
-              "absolute bottom-[calc(100%+6px)] z-[80] w-48 overflow-hidden rounded-xl border border-white/[0.10] bg-[#0b1728]/[0.985] shadow-[0_24px_60px_rgba(0,0,0,.46)] backdrop-blur-2xl",
-              collapsed ? "left-1.5" : "left-1.5"
-            )}
-          >
-            <div className="border-b border-white/[0.08] px-3 py-2">
-              <div className="truncate text-[12px] font-medium">{fullName}</div>
-              <div className="text-[10px] text-[var(--muted)] capitalize">{role}</div>
-            </div>
-            <form action={logout}>
-              <button
-                type="submit"
-                className="w-full px-3 py-2 text-left text-[11px] text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
-              >
-                Cerrar sesión
-              </button>
-            </form>
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
   return (
     <aside
       className={cn(
@@ -913,7 +931,7 @@ export function Sidebar({
         )}
       </nav>
 
-      <SidebarUserMenu />
+      <SidebarUserMenu collapsed={collapsed} fullName={fullName} initial={initial} role={role} />
 
     </aside>
   );

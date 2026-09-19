@@ -77,12 +77,16 @@ export function InvoicesSection({ initialData }: { initialData: InvoicesSectionD
   // viendo la factura en su estado viejo (ej. "conciliada" después de
   // marcarla como apta para pago en otra pantalla).
   useEffect(() => {
+    // Keep the mounted view aligned with freshly loaded server data.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setInvoices(initialData.invoices);
     setReviewCount(initialData.reviewCount);
   }, [initialData]);
 
   // Ref para que el handler de niupack:navigate lea siempre el estado actual.
   const filtersRef = useRef({ month, q, providerId, status });
+  // The navigation event can run before an effect; keep this event ref current.
+  // eslint-disable-next-line react-hooks/refs
   filtersRef.current = { month, q, providerId, status };
 
   function buildParams(f: typeof filtersRef.current) {

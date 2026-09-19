@@ -26,6 +26,8 @@ export function PagosSection({ initialData }: { initialData: PagosSectionData })
   const [filterTo, setFilterTo] = useState(() => getParam("to"));
 
   const filtersRef = useRef({ filterStatus, filterProvider, filterQuery, filterFrom, filterTo });
+  // The navigation event can run before an effect; keep this event ref current.
+  // eslint-disable-next-line react-hooks/refs
   filtersRef.current = { filterStatus, filterProvider, filterQuery, filterFrom, filterTo };
 
   function buildParams(f: typeof filtersRef.current) {

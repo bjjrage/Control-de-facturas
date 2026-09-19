@@ -106,6 +106,8 @@ export function Topbar({
   useEffect(() => {
     let cancelled = false;
     if (!projectId) {
+      // Clear stale project context when the route has no project id.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setProjectInfo(null);
       return;
     }

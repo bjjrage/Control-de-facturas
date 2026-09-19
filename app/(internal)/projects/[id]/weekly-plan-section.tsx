@@ -259,6 +259,8 @@ export function WeeklyPlanSection({ project }: Props) {
   };
 
   useEffect(() => {
+    // This fetch synchronizes the keep-alive panel when its project changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadBase();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.id]);

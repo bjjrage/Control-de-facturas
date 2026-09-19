@@ -148,6 +148,8 @@ export function RodrigoAgentWidget() {
     }
     const maxX = Math.max(VIEWPORT_MARGIN, window.innerWidth - MASCOT_SIZE - VIEWPORT_MARGIN);
     const maxY = Math.max(VIEWPORT_MARGIN, window.innerHeight - MASCOT_SIZE - VIEWPORT_MARGIN);
+    // Initialize persisted viewport-relative placement after the browser is available.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMascotPosition({
       x: Math.min(maxX, Math.max(VIEWPORT_MARGIN, initial?.x ?? maxX)),
       y: Math.min(maxY, Math.max(VIEWPORT_MARGIN, initial?.y ?? maxY)),

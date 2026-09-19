@@ -217,6 +217,8 @@ export function AppShellClient({ children }: { children: ReactNode }) {
     // el contenido server de la nueva ruta. Nunca dejamos un panel keep-alive
     // viejo tapando el workspace nuevo.
     if (!isSectionPath(pathname)) {
+      // Switching shell mode is an intentional synchronization with the route.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActivePath(null);
       setMode("server");
       return;

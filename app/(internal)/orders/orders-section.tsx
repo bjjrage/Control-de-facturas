@@ -40,6 +40,8 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
   // trae `initialData` fresco pero el componente sigue montado y su useState
   // no lo relee solo — sin esto una orden se veía desactualizada al volver.
   useEffect(() => {
+    // Keep the mounted view aligned with freshly loaded server data.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOrders(initialData.orders);
   }, [initialData]);
   const [filterProduct, setFilterProduct] = useState(() => getParam("product"));
@@ -51,6 +53,8 @@ export function OrdersSection({ initialData }: { initialData: OrdersSectionData 
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const filtersRef = useRef({ filterProduct, filterProvider, filterEtapa, filterEstado, filterQ, filterFrom });
+  // The navigation event can run before an effect; keep this event ref current.
+  // eslint-disable-next-line react-hooks/refs
   filtersRef.current = { filterProduct, filterProvider, filterEtapa, filterEstado, filterQ, filterFrom };
 
   function buildParams(f: typeof filtersRef.current) {
