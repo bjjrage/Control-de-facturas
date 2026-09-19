@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   FileText,
@@ -161,8 +161,7 @@ export function Sidebar({
   plan?: EmpresaPlan;
 }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const workspace = workspaceForPath(pathname, searchParams.get("workspace"));
+  const workspace = workspaceForPath(pathname);
   const [collapsed, setCollapsed] = useState(false);
   const [openSection, setOpenSection] = useState<{
     label: string;
@@ -448,9 +447,7 @@ export function Sidebar({
     const effectivePath = navPath ?? pathname;
     const active = effectivePath === item.href || effectivePath.startsWith(item.href + "/");
     const Icon = item.icon;
-    const keepOperativo = workspace === "operativo" && !inProjectMode && item.href !== "/dashboard";
-    const targetHref = keepOperativo ? `${item.href}?workspace=operativo` : item.href;
-    const isShellPath = (SHELL_PATHS as readonly string[]).includes(item.href) && !keepOperativo;
+    const isShellPath = (SHELL_PATHS as readonly string[]).includes(item.href);
 
     function handleClick(e: React.MouseEvent) {
       setOpenSection(null);
@@ -463,7 +460,7 @@ export function Sidebar({
     return (
       <Link
         key={item.href}
-        href={targetHref}
+        href={item.href}
         title={collapsed ? item.label : undefined}
         onClick={handleClick}
         className={cn(
@@ -520,6 +517,31 @@ export function Sidebar({
     if (label === "Ejecutar") return PlayCircle;
     if (label === "Certificar") return ShieldCheck;
     return LayoutDashboard;
+  }
+
+  function renderLockedSection(label: string) {
+    const SectionIcon = sectionIcon(label);
+    return (
+      <div
+        key={label}
+        className={cn(
+          "flex h-9 w-full cursor-not-allowed items-center rounded-xl text-[12px] text-[var(--muted)] opacity-40",
+          collapsed ? "justify-center px-0" : "justify-between px-2.5"
+        )}
+        title="Elegí una obra para habilitar"
+        aria-disabled="true"
+      >
+        {!collapsed ? (
+          <span className="flex items-center gap-2">
+            <SectionIcon size={15} className="shrink-0" />
+            <span>{label}</span>
+          </span>
+        ) : (
+          <SectionIcon size={15} />
+        )}
+        {!collapsed ? <ChevronRight size={13} /> : null}
+      </div>
+    );
   }
 
   function renderSection(label: string, items: NavItem[]) {
@@ -869,10 +891,21 @@ export function Sidebar({
             ) : null}
             {licitacionesItems.map(renderLicitacionesLink)}
           </>
+        ) : workspace === "operativo" ? (
+          <>
+            {operativoItems.map(renderLink)}
+            {!collapsed ? (
+              <div className="mx-1 my-2 rounded-xl border border-white/[0.06] bg-white/[0.025] px-2.5 py-2 text-[10px] leading-relaxed text-[var(--muted)]">
+                Elegí una obra para habilitar las herramientas operativas.
+              </div>
+            ) : null}
+            {renderLockedSection("Comprar")}
+            {renderLockedSection("Vender")}
+            {renderLockedSection("Finanzas")}
+          </>
         ) : (
           <>
             {globalItems.map(renderLink)}
-            {workspace === "operativo" ? operativoItems.map(renderLink) : null}
             {renderSection("Comprar", comprasItems)}
             {renderSection("Vender", ventasItems)}
             {renderSection("Finanzas", finanzasItems)}
