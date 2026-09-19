@@ -462,6 +462,7 @@ export function Sidebar({
           type="button"
           data-nav-trigger
           data-open={isOpen ? "true" : "false"}
+          data-active={isActiveGroup ? "true" : "false"}
           title={collapsed ? label : undefined}
           onClick={() => {
             setOpenSection((current) =>
@@ -474,7 +475,7 @@ export function Sidebar({
             label === "Vender" && "nav-domain-ventas",
             label === "Finanzas" && "nav-domain-finanzas",
             collapsed ? "justify-center px-0" : "justify-between px-2.5",
-            isOpen
+            isOpen || isActiveGroup
               ? "text-[var(--foreground)]"
               : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
           )}
@@ -510,6 +511,7 @@ export function Sidebar({
     const tabs = group.tabs.filter((t) => !t.caterpillarOnly || isCaterpillarPlan);
     if (tabs.length === 0) return null;
     const isOpen = openProjectSection === group.label;
+    const isActiveGroup = tabs.some((tab) => tab.key === currentTab);
 
     return (
       <div key={group.label} className={cn("relative py-0.5", isOpen && "z-[60]")}>
