@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plan Semanal de Obra / Lookahead — Bloque de conocimiento</title>
+<style>
+:root{--bg:#0b0d10;--panel:#11151a;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.14);--text:#f5f7fa;--muted:#96a1ad;--accent:#8ee3c6;--blue:#77b8ff;--warn:#f4c66d;--danger:#ff8b8b;--ok:#79deb3}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(circle at 10% -10%,rgba(142,227,198,.07),transparent 25%),radial-gradient(circle at 90% 0%,rgba(119,184,255,.07),transparent 30%),var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{position:sticky;top:0;z-index:10;background:rgba(11,13,16,.86);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}.top{max-width:1400px;margin:auto;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;gap:15px}.brand{display:flex;gap:11px;align-items:center}.logo{width:34px;height:34px;border:1px solid var(--line2);border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.03)}.logo:before{content:"";width:13px;height:13px;border:2px solid var(--accent);border-radius:4px;transform:rotate(45deg)}h1{font-size:14px;margin:0}.sub{font-size:11px;color:var(--muted);margin-top:2px}.actions{display:flex;gap:7px}.btn{border:1px solid var(--line);background:rgba(255,255,255,.025);color:#cbd2d9;border-radius:10px;padding:8px 10px;font-size:10px}.btn.primary{border-color:rgba(142,227,198,.22);background:rgba(142,227,198,.07);color:#e8fff7}
+.container{max-width:1400px;margin:auto;padding:26px 22px 52px}.card{border:1px solid var(--line);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.012))}
+.hero{display:grid;grid-template-columns:1.3fr .7fr;gap:16px}.hero-main,.hero-side{padding:22px}.kicker{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:800}.hero h2{font-size:31px;line-height:1.07;letter-spacing:-.035em;margin:8px 0 10px}.hero p{font-size:12.5px;line-height:1.55;color:var(--muted);margin:0;max-width:820px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.stat{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(255,255,255,.02)}.stat b{font-size:15px;display:block}.stat span{font-size:9.5px;color:var(--muted)}
+.idx{position:sticky;top:67px;z-index:9;margin-top:16px;padding:11px;display:flex;gap:7px;flex-wrap:wrap;background:rgba(11,13,16,.86);backdrop-filter:blur(18px)}.idx a{border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--muted);border-radius:999px;padding:7px 9px;font-size:9.5px;text-decoration:none}.idx a:hover{color:#fff;border-color:var(--line2)}
+.section{margin-top:24px;scroll-margin-top:140px}.title{display:flex;justify-content:space-between;align-items:end;margin-bottom:10px;gap:10px}.title h3{margin:0;font-size:14px}.title h3 .n{color:var(--blue);font-weight:750;margin-right:8px}.title p{margin:0;color:var(--muted);font-size:10.5px;text-align:right}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.grid1{display:grid;grid-template-columns:minmax(0,1fr);gap:11px}
+.item{border:1px solid var(--line);border-radius:17px;background:rgba(255,255,255,.016);overflow:hidden}.item .head{padding:14px 15px;display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:start}.num{width:31px;height:31px;border:1px solid var(--line);border-radius:10px;display:grid;place-items:center;color:var(--blue);background:rgba(119,184,255,.05);font-size:10px;font-weight:750}.item h4{margin:0 0 4px;font-size:12.5px}.summary{margin:0;color:var(--muted);font-size:10.8px;line-height:1.45}.item .body{border-top:1px solid rgba(255,255,255,.04);padding:12px 15px 15px;font-size:11px;color:var(--muted);line-height:1.55}.item .body b,.item .body strong{color:#e2e7ec}.item .body code{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:var(--accent);background:rgba(142,227,198,.06);padding:1px 5px;border-radius:6px}.item .body ul{margin:6px 0 0;padding-left:16px}.item .body li{margin:3px 0}
+.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.badge{font-size:8.5px;padding:4px 6px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}.badge.ok{color:var(--ok);border-color:rgba(121,222,179,.22);background:rgba(121,222,179,.05)}.badge.warn{color:#ffd28a;border-color:rgba(244,198,109,.22);background:rgba(244,198,109,.06)}.badge.info{color:#dcecff;border-color:rgba(119,184,255,.2);background:rgba(119,184,255,.06)}.badge.future{color:#ffb1b1;border-color:rgba(255,139,139,.2);background:rgba(255,139,139,.05)}
+.state{min-width:100px;text-align:center;padding:6px 7px;border:1px solid var(--line);border-radius:999px;font-size:8.5px;color:var(--muted)}.state.done{color:var(--ok);border-color:rgba(121,222,179,.22);background:rgba(121,222,179,.05)}
+.flow{padding:16px;overflow:auto}.flowline{display:flex;align-items:stretch;min-width:1080px}.node{flex:1;min-width:120px;text-align:center;padding:11px;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.02);font-size:9px;color:var(--muted)}.node strong{display:block;color:#fff;font-size:10.5px;margin-bottom:3px}.node.hot{border-color:rgba(142,227,198,.25);background:rgba(142,227,198,.05)}.node.hot strong{color:#b9f7e2}.arrow{padding:0 7px;color:#4b5560;align-self:center}
+.vflow{display:flex;flex-direction:column}.vnode{border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.02);padding:10px 12px;font-size:10.5px;color:var(--muted)}.vnode strong{display:block;color:#fff;font-size:11px;margin-bottom:2px}.vnode code{font-family:ui-monospace,Consolas,monospace;font-size:10px;color:var(--accent)}.varrow{text-align:center;color:#4b5560;padding:3px 0;font-size:11px}.vnode.hot{border-color:rgba(244,198,109,.25);background:rgba(244,198,109,.05)}.vnode.hot strong{color:#ffd28a}
+table.tbl{width:100%;border-collapse:collapse;font-size:10.8px;margin-top:8px}table.tbl th{text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:7px 9px;border-bottom:1px solid var(--line2)}table.tbl td{padding:7px 9px;border-bottom:1px solid rgba(255,255,255,.05);color:#dbe1e7;vertical-align:top}table.tbl tr:last-child td{border-bottom:0}table.tbl code{font-family:ui-monospace,Consolas,monospace;font-size:10px;color:var(--accent)}
+.note{margin-top:12px;padding:14px 16px;border:1px solid rgba(142,227,198,.14);border-radius:16px;background:rgba(142,227,198,.03)}.note strong{font-size:11px}.note p{margin:6px 0 0;color:var(--muted);font-size:10.8px;line-height:1.5}.warnbox{margin-top:12px;padding:14px 16px;border:1px solid rgba(244,198,109,.2);border-radius:16px;background:linear-gradient(180deg,rgba(244,198,109,.07),rgba(244,198,109,.025))}.warnbox strong{font-size:11px;color:#ffd28a}.warnbox p{margin:6px 0 0;color:var(--muted);font-size:10.8px;line-height:1.5}.futurebox{margin-top:12px;padding:14px 16px;border:1px dashed rgba(255,139,139,.25);border-radius:16px;background:rgba(255,139,139,.03)}.futurebox strong{font-size:11px;color:#ffb1b1}.futurebox p{margin:6px 0 0;color:var(--muted);font-size:10.8px;line-height:1.5}
+.mono{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:var(--accent)}
+@media(max-width:950px){.hero,.grid{grid-template-columns:1fr}.flowline{min-width:760px}}@media(max-width:620px){.container{padding:18px 13px 40px}.top{padding:13px}.actions{display:none}.hero h2{font-size:25px}.stats{grid-template-columns:1fr}.idx{top:60px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div class="brand"><div class="logo"></div><div><h1>Control de Facturas · Bloque de conocimiento</h1><div class="sub">Plan Semanal / Lookahead · main <span class="mono">935d84f</span> · integrado y certificado</div></div></div>
+    <div class="actions"><span class="btn primary">IMPLEMENTADO · MAIN</span></div>
+  </div>
+</header>
+
+<div class="container">
+<section class="hero">
+  <div class="card hero-main">
+    <div class="kicker">Resumen ejecutivo</div>
+    <h2>El residente define qué quiere ejecutar. El ERP traduce esa intención a materiales, compras, caja y factibilidad climática.</h2>
+    <p>El módulo de <strong style="color:#e2e7ec">Plan Semanal / Lookahead</strong> reemplaza la idea de “adivinar” automáticamente el avance futuro. El usuario selecciona partidas y frentes, fija metas físicas o puntos porcentuales del contrato y el sistema calcula de forma determinística qué materiales hacen falta, cuánto cubre el stock, cuánto llega por órdenes de compra, qué faltante queda y qué caja adicional se necesita. El clima y la capacidad histórica son capas de factibilidad: informan, pero no reescriben el plan.</p>
+    <div class="badges">
+      <span class="badge ok">PLAN BASE: DETERMINÍSTICO</span>
+      <span class="badge ok">MULTI-FRENTE: SOPORTADO</span>
+      <span class="badge ok">BOM + STOCK + OC: INTEGRADO</span>
+      <span class="badge ok">WEATHER OVERLAY: LIVE</span>
+      <span class="badge ok">SNAPSHOTS: INMUTABLES</span>
+      <span class="badge ok">RLS / GRANTS: CERTIFICADO</span>
+    </div>
+  </div>
+  <div class="card hero-side">
+    <div style="padding-bottom:12px"><strong>Estado del módulo</strong></div>
+    <div class="stats">
+      <div class="stat"><b>30/30</b><span>tests específicos</span></div>
+      <div class="stat"><b>433</b><span>tests globales pass</span></div>
+      <div class="stat"><b>0082–87</b><span>migraciones</span></div>
+      <div class="stat"><b>LIVE</b><span>Open-Meteo E2E</span></div>
+      <div class="stat"><b>TSC</b><span>0 errores</span></div>
+      <div class="stat"><b>MAIN</b><span>merge 935d84f</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="card idx">
+  <a href="#s01">01 Producto</a><a href="#s02">02 Arquitectura</a><a href="#s03">03 Modelo de datos</a><a href="#s04">04 Metas</a><a href="#s05">05 Multi-frente</a><a href="#s06">06 Motor</a><a href="#s07">07 Avance global</a><a href="#s08">08 BOM</a><a href="#s09">09 Stock + OC</a><a href="#s10">10 Caja</a><a href="#s11">11 Historial</a><a href="#s12">12 Clima</a><a href="#s13">13 Cobertura</a><a href="#s14">14 Snapshots</a><a href="#s15">15 Atomicidad</a><a href="#s16">16 Seguridad</a><a href="#s17">17 UI</a><a href="#s18">18 Testing</a><a href="#s19">19 Mock</a><a href="#s20">20 Handoff</a>
+</div>
+
+<section class="section" id="s01">
+  <div class="title"><div><h3><span class="n">01</span>Producto</h3><p>La pregunta que responde.</p></div><div class="state done">CERRADO</div></div>
+  <div class="grid">
+    <div class="item"><div class="head"><div class="num">A</div><div><h4>Qué quiero hacer</h4><p class="summary">El residente define el objetivo semanal por partida y, opcionalmente, por frente o sector.</p></div></div></div>
+    <div class="item"><div class="head"><div class="num">B</div><div><h4>Qué necesito para hacerlo</h4><p class="summary">El ERP devuelve cantidades, materiales, cobertura, faltantes y caja adicional, sin depender de una predicción automática de obra.</p></div></div></div>
+  </div>
+  <div class="note"><strong>Contrato mental</strong><p>La intención operativa pertenece al usuario. El sistema calcula consecuencias y restricciones; no inventa qué rubro debería avanzar.</p></div>
+</section>
+
+<section class="section" id="s02">
+  <div class="title"><div><h3><span class="n">02</span>Arquitectura</h3><p>Cadena determinística con overlays separados.</p></div><div class="state done">IMPLEMENTADO</div></div>
+  <div class="card flow"><div class="flowline">
+    <div class="node hot"><strong>Plan usuario</strong>partida + frente + meta</div><div class="arrow">→</div>
+    <div class="node"><strong>BOM / APU</strong>demanda física</div><div class="arrow">→</div>
+    <div class="node"><strong>Stock</strong>disponible</div><div class="arrow">→</div>
+    <div class="node"><strong>OC inbound</strong>ordenado − recibido</div><div class="arrow">→</div>
+    <div class="node"><strong>Faltante</strong>neto a comprar</div><div class="arrow">→</div>
+    <div class="node hot"><strong>Caja adicional</strong>faltante × costo</div>
+  </div></div>
+  <div class="grid" style="margin-top:11px">
+    <div class="item"><div class="head"><div class="num">H</div><div><h4>Capacidad histórica</h4><p class="summary">Benchmark consultivo cuando existe historial suficiente. Nunca bloquea BOM, materiales o caja.</p></div></div></div>
+    <div class="item"><div class="head"><div class="num">W</div><div><h4>Weather Overlay</h4><p class="summary">Capa opcional para evaluar factibilidad climática del mismo objetivo.</p></div></div></div>
+  </div>
+</section>
+
+<section class="section" id="s03">
+  <div class="title"><div><h3><span class="n">03</span>Modelo de datos</h3><p>Persistencia explícita del plan.</p></div><div class="state done">0082–0087</div></div>
+  <div class="grid">
+    <div class="item"><div class="head"><div class="num">P</div><div><h4>project_weekly_plans</h4><p class="summary">Empresa, proyecto, período, estado <span class="mono">DRAFT | COMMITTED | CLOSED</span>, metadata y vínculo al batch meteorológico.</p></div></div></div>
+    <div class="item"><div class="head"><div class="num">I</div><div><h4>project_weekly_plan_items</h4><p class="summary">Partida, frente opcional, modo de entrada, valor original, cantidad física canónica y unidad.</p></div></div></div>
+  </div>
+  <div class="warnbox"><strong>Fuente canónica</strong><p>La entrada puede ser cantidad o porcentaje, pero el motor siempre termina trabajando con una cantidad física normalizada.</p></div>
+</section>
+
+<section class="section" id="s04">
+  <div class="title"><div><h3><span class="n">04</span>Metas y porcentajes</h3><p>Semántica explícita, sin adivinanzas.</p></div><div class="state done">CERTIFICADO</div></div>
+  <div class="grid">
+    <div class="item"><div class="head"><div class="num">Q</div><div><h4>QUANTITY</h4><p class="summary">Ejemplo: “ejecutar 120 m²”. La cantidad ya viene en unidad física.</p></div></div></div>
+    <div class="item"><div class="head"><div class="num">PP</div><div><h4>CONTRACT_PERCENTAGE_POINTS</h4><p class="summary">Ejemplo certificado: <span class="mono">500 m² × 10 pp = 50 m²</span>.</p></div></div></div>
+  </div>
+  <div class="note"><strong>Capping contractual</strong><p>El target se limita por el remanente real de la partida. Ninguna combinación de frentes puede consumir más que el saldo contractual disponible.</p></div>
+</section>
+
+<section class="section" id="s05">
+  <div class="title"><div><h3><span class="n">05</span>Multi-frente</h3><p>Una misma partida puede ejecutarse en varios sectores.</p></div><div class="state done">IMPLEMENTADO</div></div>
+  <div class="card" style="padding:16px"><table class="tbl">
+    <tr><th>Partida</th><th>Frente</th><th>Meta</th><th>Estado</th></tr>
+    <tr><td>Mampostería</td><td>Sector A</td><td>80 m²</td><td>válido</td></tr>
+    <tr><td>Mampostería</td><td>Sector B</td><td>40 m²</td><td>válido</td></tr>
+    <tr><td>Mampostería</td><td>Sector A</td><td>duplicado</td><td>rechazado</td></tr>
+  </table></div>
+  <div class="note"><strong>Unicidad</strong><p>La clave lógica incluye plan + partida + frente normalizado. Todos los frentes comparten el mismo remanente contractual y el mismo pool de stock/inbound.</p></div>
+</section>
+
+<section class="section" id="s06">
+  <div class="title"><div><h3><span class="n">06</span>Motor base</h3><p>Determinístico y autónomo.</p></div><div class="state done">IMPLEMENTADO</div></div>
+  <div class="grid1"><div class="item"><div class="head"><div class="num">ƒ</div><div><h4>calculateWeeklyPlanRequirements</h4><p class="summary">Calcula remanentes, targets, avance ponderado, demanda de materiales, stock, inbound, faltante, valor de consumo y caja adicional.</p></div></div><div class="body"><ul><li>No usa clima ni LLM para el cálculo base.</li><li>Errores de datos críticos son fail-closed.</li><li>No convierte faltantes de configuración en Gs 0.</li><li>No usa precio de venta del rubro como costo de material.</li></ul></div></div></div>
+</section>
+
+<section class="section" id="s07">
+  <div class="title"><div><h3><span class="n">07</span>Avance físico global</h3><p>Partidas heterogéneas no se suman por unidad.</p></div><div class="state done">IMPLEMENTADO</div></div>
+  <div class="item"><div class="head"><div class="num">%</div><div><h4>Ponderación por valor contractual</h4><p class="summary"><span class="mono">Σ(min(ejecutado, contractual) × precio_unitario) / Σ(contractual × precio_unitario)</span>. El target aplica la misma lógica con ejecutado + plan, capado por contrato.</p></div></div></div>
+  <div class="warnbox"><strong>Semántica de UI</strong><p>El KPI se muestra como porcentaje ponderado. El valor monetario es una referencia secundaria; nunca se presenta Gs como si fuera una magnitud física homogénea.</p></div>
+</section>
+
+<section class="section" id="s08">
+  <div class="title"><div><h3><span class="n">08</span>BOM y materiales</h3><p>Del target a demanda real.</p></div><div class="state done">IMPLEMENTADO</div></div>
+  <div class="grid">
+    <div class="item"><div class="head"><div class="num">B</div><div><h4>budget_item_materials</h4><p class="summary">Fuente canónica de materiales por partida. Fórmula: <span class="mono">target × qty_per_unit × (1 + waste_pct/100)</span>.</p></div></div></div>
+    <div class="item"><div class="head"><div class="num">M</div><div><h4>material_requirement</h4><p class="summary"><span class="mono">REQUIRES_BOM | NO_MATERIAL | UNKNOWN</span>. Evita asumir que una partida “no usa material” por su nombre.</p></div></div></div>
+  </div>
+  <div class="note"><strong>Fail-closed</strong><p>REQUIRES_BOM sin receta y UNKNOWN sin receta generan advertencia explícita; sólo NO_MATERIAL acepta BOM vacío sin alerta.</p></div>
+</section>
+
+<section class="section" id="s09">
+  <div class="title"><div><h3><span class="n">09</span>Stock + órdenes de compra</h3><p>Evitar comprar dos veces.</p></div><div class="state done">CERTIFICADO</div></div>
+  <div class="card" style="padding:16px"><div class="vflow">
+    <div class="vnode"><strong>Demanda bruta</strong>BOM del plan</div><div class="varrow">↓</div>
+    <div class="vnode"><strong>− stock</strong>disponible físicamente</div><div class="varrow">↓</div>
+    <div class="vnode"><strong>− inbound físico</strong>ordenado − recibido</div><div class="varrow">↓</div>
+    <div class="vnode hot"><strong>= faltante neto</strong><code>max(0, demand − stock − inbound)</code></div>
+  </div></div>
+  <div class="grid" style="margin-top:11px">
+    <div class="item"><div class="head"><div class="num">FK</div><div><h4>producto_id canónico</h4><p class="summary">Las líneas de OC descuentan material sólo cuando existe identidad estructurada contra productos.</p></div></div></div>
+    <div class="item"><div class="head"><div class="num">R</div><div><h4>Recepción física</h4><p class="summary">Facturado no significa recibido. El inbound baja cuando la mercadería realmente ingresa.</p></div></div></div>
+  </div>
+</section>
+
+<section class="section" id="s10">
+  <div class="title"><div><h3><span class="n">10</span>Material consumido ≠ caja nueva</h3><p>Dos métricas distintas.</p></div><div class="state done">IMPLEMENTADO</div></div>
+  <div class="grid">
+    <div class="item"><div class="head"><div class="num">V</div><div><h4>Valor de materiales del plan</h4><p class="summary">Valúa toda la demanda física del objetivo, incluso material ya comprado y disponible.</p></div></div></div>
+    <div class="item"><div class="head"><div class="num">$</div><div><h4>Caja adicional requerida</h4><p class="summary">Sólo el faltante neto aún no cubierto, valuado con costo estructurado válido.</p></div></div></div>
+  </div>
+</section>
+
+<section class="section" id="s11">
+  <div class="title"><div><h3><span class="n">11</span>Capacidad histórica</h3><p>Benchmark, no piloto automático.</p></div><div class="state done">ADVISORY</div></div>
+  <div class="item"><div class="head"><div class="num">H</div><div><h4>Plan vs capacidad observada</h4><p class="summary">Con historial suficiente, el ERP muestra referencia de productividad por partida/frente. Sin evidencia suficiente, lo dice explícitamente y continúa con materiales/caja.</p></div></div></div>
+  <div class="warnbox"><strong>No existe una “velocidad global de obra”</strong><p>Rubros y sectores pueden estar activos, pausados o bloqueados al mismo tiempo. No se extrapola el ritmo de un rubro a otro.</p></div>
+</section>
+
+<section class="section" id="s12">
+  <div class="title"><div><h3><span class="n">12</span>Weather Overlay</h3><p>Opcional y separado del plan base.</p></div><div class="state done">LIVE</div></div>
+  <div class="grid">
+    <div class="item"><div class="head"><div class="num">OFF</div><div><h4>Clima apagado</h4><p class="summary">No se consulta Open-Meteo. Plan, BOM, stock, OC y caja funcionan completos.</p></div></div></div>
+    <div class="item"><div class="head"><div class="num">ON</div><div><h4>Clima encendido</h4><p class="summary">Se consulta el rango exacto del plan y se calcula un escenario de factibilidad separado del objetivo original.</p></div></div></div>
+  </div>
+  <div class="note"><strong>Dos números distintos</strong><p>“Plan 63 m²” y “capacidad climática estimada 48–53 m²” conviven. El segundo no reemplaza al primero.</p></div>
+</section>
+
+<section class="section" id="s13">
+  <div class="title"><div><h3><span class="n">13</span>Cobertura meteorológica</h3><p>Fechas reales, no 7 días genéricos.</p></div><div class="state done">IMPLEMENTADO</div></div>
+  <div class="grid">
+    <div class="item"><div class="head"><div class="num">R</div><div><h4>fetchWeatherForecastRange</h4><p class="summary">Consulta <span class="mono">start_date</span> y <span class="mono">end_date</span> del plan, no “hoy + N”.</p></div></div></div>
+    <div class="item"><div class="head"><div class="num">P</div><div><h4>Cobertura parcial</h4><p class="summary">Si el proveedor no cubre todo el horizonte, se muestra exactamente qué días están disponibles. No se fabrican días soleados.</p></div></div></div>
+  </div>
+</section>
+
+<section class="section" id="s14">
+  <div class="title"><div><h3><span class="n">14</span>Snapshots meteorológicos</h3><p>Auditoría reproducible.</p></div><div class="state done">APPEND-ONLY</div></div>
+  <div class="card" style="padding:16px"><div class="vflow">
+    <div class="vnode hot"><strong>project_weekly_plans</strong><code>weather_snapshot_batch_id</code></div><div class="varrow">↓</div>
+    <div class="vnode"><strong>project_weather_forecast_batches</strong>provider · coordenadas · fetched_at</div><div class="varrow">↓</div>
+    <div class="vnode"><strong>project_weather_forecast_snapshots</strong>una fila por fecha y batch</div>
+  </div></div>
+  <div class="note"><strong>Inmutabilidad real</strong><p>Un forecast nuevo crea otro batch. No pisa el histórico usado para decidir un plan anterior. La FK del plan impide borrar el batch referenciado.</p></div>
+</section>
+
+<section class="section" id="s15">
+  <div class="title"><div><h3><span class="n">15</span>Persistencia atómica</h3><p>Guardar el plan es una transacción.</p></div><div class="state done">RPC</div></div>
+  <div class="item"><div class="head"><div class="num">TX</div><div><h4>save_weekly_plan_atomic</h4><p class="summary">Valida empresa, proyecto y partidas; convierte porcentajes; comparte remanentes entre frentes y sincroniza items en una única transacción PostgreSQL.</p></div></div><div class="body">Si cualquier parte del payload falla, se revierte el cambio completo. No quedan encabezados o items a medio guardar.</div></div>
+</section>
+
+<section class="section" id="s16">
+  <div class="title"><div><h3><span class="n">16</span>Seguridad</h3><p>Tenant isolation y append-only.</p></div><div class="state done">CERTIFICADO</div></div>
+  <div class="grid">
+    <div class="item"><div class="head"><div class="num">A/B</div><div><h4>RLS entre empresas</h4><p class="summary">El acceso cruzado entre tenants queda denegado y el RPC no queda expuesto a anon.</p></div></div></div>
+    <div class="item"><div class="head"><div class="num">GR</div><div><h4>Forecast protegido</h4><p class="summary"><span class="mono">authenticated</span>: SELECT + INSERT. Sin UPDATE, DELETE o TRUNCATE. <span class="mono">anon</span>: sin privilegios.</p></div></div></div>
+  </div>
+</section>
+
+<section class="section" id="s17">
+  <div class="title"><div><h3><span class="n">17</span>UI</h3><p>Dentro de Avance Físico.</p></div><div class="state done">IMPLEMENTADO</div></div>
+  <div class="grid">
+    <div class="item"><div class="head"><div class="num">1</div><div><h4>Plan de esta semana</h4><p class="summary">Partidas, frentes, cantidad o +pp y conversión visible a cantidad física.</p></div></div></div>
+    <div class="item"><div class="head"><div class="num">2</div><div><h4>Materiales y caja</h4><p class="summary">Demanda, stock, inbound, faltante y caja adicional, con advertencias de configuración.</p></div></div></div>
+    <div class="item"><div class="head"><div class="num">3</div><div><h4>Capacidad observada</h4><p class="summary">Referencia histórica separada de la intención.</p></div></div></div>
+    <div class="item"><div class="head"><div class="num">4</div><div><h4>Impacto climático</h4><p class="summary">Toggle OFF/ON, cobertura real y escenario ajustado.</p></div></div></div>
+  </div>
+</section>
+
+<section class="section" id="s18">
+  <div class="title"><div><h3><span class="n">18</span>Testing y cierre</h3><p>Estado post-merge.</p></div><div class="state done">0 P0 · 0 P1</div></div>
+  <div class="card" style="padding:16px"><table class="tbl">
+    <tr><th>Chequeo</th><th>Resultado</th></tr>
+    <tr><td>Weekly Plan específico</td><td>30 / 30 PASS</td></tr>
+    <tr><td>TypeScript</td><td>PASS · 0 errores</td></tr>
+    <tr><td>Full suite</td><td>433 PASS · 15 skipped · 1 LAB guard conocido</td></tr>
+    <tr><td>Smoke post-merge</td><td>PASS</td></tr>
+    <tr><td>Merge a main</td><td><span class="mono">935d84fe0aea88d20bea1264d2a68ad9b30757f3</span></td></tr>
+  </table></div>
+  <div class="note"><strong>LAB guard</strong><p>La única falla global reportada corresponde al guard preexistente de laboratorio por <span class="mono">.env.local</span> ausente. No es una regresión del módulo.</p></div>
+</section>
+
+<section class="section" id="s19">
+  <div class="title"><div><h3><span class="n">19</span>Mock canónico</h3><p>Fixture para desarrollo y regresión.</p></div><div class="state done">PRESENTE</div></div>
+  <div class="grid">
+    <div class="item"><div class="head"><div class="num">XLSX</div><div><h4>09_PLAN_SEMANAL_LOOKAHEAD.xlsx</h4><p class="summary">Escenarios por cantidad, puntos porcentuales, multi-frente, BOM, stock, inbound, caja y clima.</p></div></div></div>
+    <div class="item"><div class="head"><div class="num">JSON</div><div><h4>PLAN_SEMANAL_EXPECTED.json</h4><p class="summary">Resultados esperados para controlar regresiones sin reinterpretar el fixture.</p></div></div></div>
+  </div>
+  <div class="note"><strong>Control de referencia</strong><p>OBR-MOCK-001 · semana 14/09/2026–20/09/2026 · 1 plan COMMITTED · 7 días meteorológicos · Mampostería 500 m² + 10 pp = target 50 m².</p></div>
+</section>
+
+<section class="section" id="s20">
+  <div class="title"><div><h3><span class="n">20</span>Handoff</h3><p>Qué no debe romper un cambio futuro.</p></div><div class="state done">CERRADO</div></div>
+  <div class="grid1"><div class="item"><div class="head"><div class="num">→</div><div><h4>Invariantes</h4><p class="summary">Plan del usuario ≠ capacidad estimada. Materiales del plan ≠ consumo esperado con clima. Valor de materiales ≠ caja nueva. Facturado ≠ recibido físicamente. Forecast histórico ≠ dato mutable. Sin BOM/costo confiable ≠ Gs 0.</p></div></div><div class="body">Este módulo quedó integrado a <strong>main</strong>. <strong>Climate Workdays / jornadas laborables perdidas</strong> es un frente separado y no debe mezclarse conceptualmente con el Weather Overlay del Plan Semanal.</div></div></div>
+  <div class="futurebox"><strong>Fuera de este hito</strong><p>Evaluación diaria contractual de días perdidos por clima, cron de climate-evaluation y lógica de prórrogas pertenecen a otro módulo. No forman parte del contrato funcional cerrado aquí.</p></div>
+</section>
+
+</div>
+</body>
+</html>

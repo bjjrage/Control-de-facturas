@@ -107,6 +107,24 @@
   <h1>El flujo de una obra, paso a paso</h1>
   <p class="lead">Tocá cada punto para abrir <b>cómo se usa</b>. Marcá los que ya tenés claros — la barra de arriba lleva el avance. Las fases del medio <b>se repiten</b>: cada semana planificás, cada día ejecutás, cada compra abastece y cada mes certificás.</p>
 
+  <div class="foot" style="margin-top:0;margin-bottom:20px;border-color:#1d3a2e;background:#0f2018">
+    <p style="margin:0 0 8px"><b>⛑ Capa transversal: Rodrigo — Frictionless Agent</b></p>
+    <p style="margin:0">Rodrigo no es un paso del flujo: opera <b>sobre</b> estos pasos. Desde la mascota abajo a la derecha pedís por <b>texto o voz</b> (“cotizame estos materiales”, “leé esta planilla”) y el agente ejecuta con las mismas reglas de cada pantalla. Responde siempre por escrito y <b>no habla</b>. Los pasos donde ayuda llevan la marca <b>“Disponible con Rodrigo”</b>. <a href="modulo-frictionless-agent-rodrigo.html" style="color:var(--blue)">Abrir explicación completa del módulo →</a></p>
+  </div>
+
+  <div class="foot" style="margin-top:0;margin-bottom:20px;border-color:#3a2c0f;background:#1c1608">
+    <p style="margin:0 0 8px"><b>⛏ La cadena del Plan Semanal V3 — de la intención a la caja</b></p>
+    <p style="margin:0 0 6px">PRESUPUESTO / CÓMPUTO ↓ <b>RECETA PRODUCTIVA</b> (Excel → partidas) ↓ <b>PLAN SEMANAL</b> ↓ OBJETIVO FÍSICO → PARTIDAS ↓ <b>MRP DE OBRA</b> (BOM/APU → stock obra → central disponible neto de reservas → inbound a tiempo → faltante a comprar) ↓ CAJA NECESARIA ↓ COMPROMETER (recalcula server + <b>reserva central atómica</b>) ↓ EJECUCIÓN ↓ AVANCE REAL ↓ CERTIFICACIÓN ↓ CONTROL</p>
+    <p style="margin:0 0 6px">↳ Regla del central: <b>DISPONIBLE = FÍSICO − RESERVAS ACTIVE</b>. El stock de otra obra no entra en tu cobertura (transferencia = proceso aparte). Inbound tarde o sin fecha confirmada: informa, no cubre.</p>
+    <p style="margin:0 0 6px">↳ Lateral 1: PLAN SEMANAL → <b>WEATHER OVERLAY</b> (pronóstico <b>futuro</b>, opcional Clima OFF/ON, advisory: no recorta materiales ni compra).</p>
+    <p style="margin:0">↳ Lateral 2: EJECUCIÓN REAL → <b>DÍAS NO TRABAJADOS HISTÓRICOS</b> (Libro B/LL/HH/O + evidencia Climate Workdays). <b>No mezclar</b> futuro con histórico. <a href="modulo-plan-semanal-obra.html" style="color:var(--blue)">Abrir explicación completa del módulo Plan Semanal V3 + MRP →</a></p>
+  </div>
+
+  <div class="foot" style="margin-top:0;margin-bottom:20px;border-color:#1e355b;background:#0d1829">
+    <p style="margin:0 0 8px"><b>📱 Digitalización física transversal: Control Scanner</b></p>
+    <p style="margin:0">Cualquier documento físico originado en obra (remitos de corralón, facturas de compras urgentes, comprobantes de pesaje, tickets o actas de recepción) se digitaliza en el momento usando la cámara del celular sin apps nativas. Conectás la PC con el teléfono escaneando un <b>código QR o ingresando un PIN</b>, corregís perspectiva con detección de bordes, aplicás filtro de contraste y el PDF multipágina entra directo al ERP adjunto a la transacción. <a href="modulo-control-scanner.html" style="color:var(--blue)">Abrir explicación completa de Control Scanner →</a></p>
+  </div>
+
   <div class="progress-bar">
     <div class="ptrack"><div class="pfill" id="pfill"></div></div>
     <span class="pcount" id="pcount">0 de 0 revisados</span>
@@ -120,7 +138,7 @@
 
   <div class="foot">
     <p style="margin:0 0 8px"><b>¿Y el detalle fino de cada pantalla?</b></p>
-    <p style="margin:0">Este documento es el <b>recorrido</b> — qué hacés y en qué orden. Para la referencia completa de cada módulo (con widgets para probar cada concepto), está el Manual de Obra.</p>
+    <p style="margin:0">Este documento es el <b>recorrido</b> — qué hacés y en qué orden. Para la referencia completa de cada módulo (con widgets para probar cada concepto), está el Manual de Obra (Plan Semanal: <a href="manual-de-obra.html#avance-fisico" style="color:var(--blue)">§24 Avance físico + Plan Semanal</a>; Digitalización con celular: <a href="manual-de-obra.html#control-scanner" style="color:var(--blue)">§28 Control Scanner</a>) y el bloque de conocimiento <a href="modulo-plan-semanal-obra.html" style="color:var(--blue)">Plan Semanal de Obra</a>. Para el agente que opera transversalmente sobre este flujo, <a href="modulo-frictionless-agent-rodrigo.html" style="color:var(--blue)">abrí el módulo Frictionless Agent · Rodrigo</a>, y para digitalización de comprobantes físicos <a href="modulo-control-scanner.html" style="color:var(--blue)">abrí Control Scanner</a>.</p>
   </div>
 </div>
 
@@ -153,6 +171,14 @@
                'Previsualizás — las filas con problemas se marcan en rojo y se saltean.',
                'Si tus códigos son jerárquicos (<code>1</code>, <code>1.1</code>, <code>1.2</code>) la jerarquía se arma sola.'],
           tip:{k:'warn', t:'Si vas a hacer certificados, importá del MISMO Excel de medición que vas a usar para pegar el avance — así los códigos coinciden y el emparejamiento es exacto.'} },
+        { id:'planilla', t:'Ajustar el presupuesto en la planilla embebida', screen:'tab Presupuesto',
+          what:'Una grilla tipo Excel adentro del ERP, para retocar el cómputo sin exportar/reimportar: fórmulas, copiar/pegar rangos, agregar y eliminar filas, deshacer/rehacer.',
+          how:['Botón <b>"Generar plantilla de trabajo"</b> arriba de la tabla de presupuesto.',
+               'Editás como en Excel — el <b>Subtotal</b> se recalcula solo con una fórmula mientras tipeás.',
+                'Se guarda como <b>borrador</b> en segundo plano; el presupuesto real todavía no cambia.',
+                'Botón <b>"Confirmar"</b>: recién ahí se aplican altas, bajas y ediciones juntas — todo o nada.',
+                'Disponible con Rodrigo: <b>“leé esta planilla y decime qué falta comprar”</b> — lee snapshot y rangos con las mismas reglas del motor.'],
+          tip:{k:'warn', t:'Si alguien más tocó esos mismos rubros mientras tenías la planilla abierta, "Confirmar" avisa el conflicto en vez de pisar el cambio ajeno.'} },
         { id:'crono', t:'Poner fechas en cada ítem', screen:'tab Cronograma',
           what:'El Gantt de la obra. No se dibuja a mano — sale de las fechas de cada rubro.',
           how:['En Presupuesto, editás cada ítem y le ponés <b>fecha de inicio y fin</b>.',
@@ -175,9 +201,10 @@
           what:'Le pedís precio a varios proveedores para el mismo producto, sin llamarlos uno por uno.',
           how:['Creás la solicitud: producto, cantidad, unidad, especificaciones, fecha requerida.',
                'Invitás proveedores del catálogo — cada uno recibe un <b>link propio, sin login</b>.',
-               'El proveedor entra y carga su oferta: precio, plazo de entrega, validez, PDF opcional.',
-               'Comparás las ofertas y elegís una <b>marcando el motivo</b> (menor precio, mejor plazo, proveedor habitual).'] },
-        { id:'oc', t:'Se genera la Orden de Compra — asignála a la obra', screen:'Órdenes de compra',
+                'El proveedor entra y carga su oferta: precio, plazo de entrega, validez, PDF opcional.',
+                'Comparás las ofertas y elegís una <b>marcando el motivo</b> (menor precio, mejor plazo, proveedor habitual).'],
+          tip:{k:'ok', t:'Disponible con Rodrigo: pedile “cotizame estos materiales” o “compará las respuestas de esta RFQ” por texto o voz — prepara y compara con las mismas reglas.'} },
+        { id:'oc', t:'Se genera la Orden de Compra — asignala a la obra', screen:'Órdenes de compra',
           what:'El compromiso formal de compra. Nace sola de la cotización elegida.',
           how:['Al seleccionar la oferta, la OC se genera automáticamente con su código (<code>OC-2026-0012</code>).',
                'Abrís la OC y le <b>asignás el proyecto</b> — así aparece en las compras de esa obra.',
@@ -209,13 +236,15 @@
       n:3, cls:'p3', title:'Planificar y ejecutar en obra', cad:'cad-loop', cadTxt:'Plan semanal · ejecución diaria',
       sub:'Primero definís qué querés ejecutar; después el frente registra lo que realmente pasó.',
       steps:[
-        { id:'plansemanal', t:'Armar el Plan Semanal / Lookahead', screen:'tab Avance físico',
-          what:'El residente define qué rubros y frentes quiere ejecutar en la semana. El ERP traduce esa intención a materiales, stock, compras en tránsito y caja adicional.',
-          how:['Elegís el período del plan y agregás cada <b>partida + frente/sector</b> que querés trabajar.',
-               'La meta puede ser <b>cantidad física</b> o <b>+ puntos porcentuales del contrato</b>; el sistema la convierte a unidad física y la limita al saldo pendiente.',
-               'El BOM calcula materiales; después se descuenta <b>stock</b> y <b>OC inbound físico</b> para mostrar el faltante real y la <b>caja adicional</b>.',
-               'Opcionalmente activás <b>Considerar clima</b>: el objetivo del plan no cambia; se muestra aparte la capacidad estimada con el pronóstico y su brecha.'],
-          tip:{k:'ok', t:'El sistema no adivina qué va a hacer la obra. Historial y clima son capas de factibilidad; la intención siempre la define el residente.'} },
+        { id:'plansemanal', t:'Armar el Plan Semanal de Obra', screen:'tab Avance físico',
+          what:'El residente define un <b>objetivo físico de producción</b> (ej.: 0,4 km de ruta). La <b>receta constructiva</b> —importada del Excel que la constructora ya usa— traduce ese objetivo a partidas físicas; el <b>BOM/APU</b> canónico (<code>budget_item_materials</code>) traduce cada partida a materiales; y el <b>MRP de obra</b> cruza la necesidad contra stock de obra, stock central disponible y OC inbound para mostrar el faltante real, la reserva y la caja.',
+          how:['Elegís el período, <b>importás/elegís una receta</b> (match exacto contra el presupuesto, fail-closed: código ambiguo bloquea y se corrige con mapeo manual) y ponés el <b>objetivo físico</b>: cantidad, % del tramo o "llegar a".',
+               'La receta produce <b>partidas físicas</b> (0,4 km → 600 t subbase · 440 t base · 240 t asfalto · 1.600 l emulsión) y el BOM calcula la <b>necesidad bruta</b> de materiales.',
+               '<b>Cobertura en orden:</b> stock de obra → <b>central DISPONIBLE</b> (físico − reservas ACTIVE de otros planes) → <b>inbound a tiempo</b> (OC con fecha de entrega ≤ fin del plan; tarde o sin fecha solo informa) → <b>faltante a comprar × costo real</b> = <b>caja adicional</b> (ej.: 200 t × Gs. 3.000 = <b>Gs. 600.000</b>).',
+               '<b>CALCULAR PLAN es preview (no reserva); COMPROMETER recalcula en el servidor y reserva el stock central atómicamente</b> (plan + ítems + reservas en una transacción). Al cerrar el plan, las reservas se liberan.',
+               'Opcionalmente activás <b>Clima ON</b>: advisory; nunca recorta materiales ni compra.',
+               '<a href="modulo-plan-semanal-obra.html" style="color:var(--blue)">Abrir explicación completa del módulo Plan Semanal V3 + MRP →</a>'],
+          tip:{k:'ok', t:'El sistema no adivina qué va a hacer la obra ni consume stock de otras obras automáticamente: la cobertura central es el disponible neto de reservas, y transferir material entre obras es un proceso operativo aparte. Historial y clima son capas de factibilidad; la intención siempre la define el residente.'} },
         { id:'avance', t:'El capataz carga el avance del día con foto', screen:'tab Ejecución',
           what:'El capataz o residente registra lo ejecutado, día a día. No necesita cuenta. Este dato alimenta el avance real y, cuando hay suficiente historial, sirve como referencia de capacidad para comparar contra el Plan Semanal.',
           how:['En la tab Ejecución, botón <b>"QR para el capataz"</b> → <b>"Descargar QR"</b> (PNG).',
@@ -233,10 +262,15 @@
           what:'Partes de mano de obra: quién trabajó, cuántas horas, a qué costo.',
           how:['En la tab Personal, cargás cada parte: fecha, trabajador, horas, costo por hora.',
                'El total se suma al KPI <b>"Costo de Mano de Obra"</b> del proyecto.'] },
-        { id:'lluvia', t:'Marcar días de lluvia / no trabajados', screen:'tab Avance físico',
-          what:'Calendario que registra por qué no se trabajó cada día. Justifica prórrogas de plazo.',
-          how:['En la tab Avance físico, el calendario. Un clic por día cicla: trabajo → Lluvia (LL) → No hábil (NH) → Huelga (HH) → Otro (O).',
-               'El total por tipo se imprime en el certificado del período como parte del acta.'] },
+        { id:'lluvia', t:'Validar días climáticos y efectos de lluvia', screen:'tab Cronograma',
+          what:'Climate Workdays cruza meteorología automática con la evidencia real de obra. Si la lluvia supera el umbral contractual, propone la jornada como no trabajable; el residente confirma, corrige o adjunta la foto del pluviómetro.',
+          how:['El proyecto guarda su <b>umbral contractual de precipitación</b> y sus coordenadas.',
+               '<b>DMH/DINAC</b> es la fuente automática primaria; Open-Meteo queda como fallback cuando la fuente oficial no es utilizable.',
+               'Si se supera el umbral, el sistema propone <b>No trabajable por lluvia</b>. La confirmación humana prevalece y la medición local del pluviómetro se conserva separada de la lectura externa.',
+               'Si al día siguiente no llueve pero el terreno, acceso o excavación siguen afectados, el residente marca <b>Efecto de lluvia</b> y lo vincula causalmente al día anterior.',
+               'La evidencia queda en la cronología climática y esos días alimentan el forecast para separar atraso bruto de atraso explicado por clima.',
+               '<a href="modulo-dias-climaticos.html" style="color:var(--blue)">Abrir explicación completa del módulo Climate Workdays →</a>'],
+          tip:{k:'ok', t:'Pronóstico futuro y Climate Workdays no son lo mismo: el Weather Overlay ayuda a planificar; Climate Workdays documenta lo que realmente ocurrió y deja evidencia auditable.'} },
       ]
     },
     {
@@ -302,12 +336,14 @@
           what:'Cuánto material salió a cada rubro contra lo presupuestado de ese rubro. El Plan Semanal agrega la mirada hacia adelante: cuánto material exige la meta y cuánto falta comprar después de stock e inbound.',
           how:['Aparece automáticamente debajo de la tabla del presupuesto cuando hay salidas de stock imputadas a la obra.',
                'Verde = dentro del presupuesto · amarillo = pasó el 80% · rojo = pasó el 100%.',
-               'Cada fila se expande para ver los productos individuales con cantidad y costo.'] },
+               'Cada fila se expande para ver los productos individuales con cantidad y costo.',
+               'Ojo: esto mira lo <b>ya consumido</b>. La decisión de compra hacia adelante vive en la tarjeta ámbar de caja del Plan Semanal (ej.: faltante 2.000 × Gs. 2.400 = <b>Gs. 4.800.000</b>).'] },
         { id:'informes', t:'Informes ejecutivos', screen:'tab Informes',
           what:'El resumen de la obra: tres gráficas y dos exportes.',
           how:['<b>Curva S de costos</b> (planificado vs real), <b>presupuesto vs compras</b>, <b>distribución por rubro</b>.',
-               '<b>"Exportar Excel"</b> — 3 hojas: Presupuesto / Ejecución / Compras.',
-               '<b>"Exportar PDF"</b> — con membrete de la empresa.'] },
+                '<b>"Exportar Excel"</b> — 3 hojas: Presupuesto / Ejecución / Compras.',
+                '<b>"Exportar PDF"</b> — con membrete de la empresa.',
+                'Disponible con Rodrigo: pedile el estado por texto o voz y te resume avance, faltantes y comparativas.'] },
       ]
     },
   ];

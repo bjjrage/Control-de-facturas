@@ -1,0 +1,1396 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Control Scanner — Companion Móvil Documental | ERP</title>
+<style>
+:root {
+  --bg: #0b0d10;
+  --panel: #11151a;
+  --line: rgba(255,255,255,.08);
+  --line2: rgba(255,255,255,.14);
+  --text: #f5f7fa;
+  --muted: #96a1ad;
+  --accent: #8ee3c6;
+  --blue: #77b8ff;
+  --warn: #f4c66d;
+  --danger: #ff8b8b;
+  --ok: #79deb3;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: radial-gradient(circle at 10% -10%, rgba(142,227,198,.07), transparent 25%),
+              radial-gradient(circle at 90% 0%, rgba(119,184,255,.07), transparent 30%),
+              var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(11,13,16,.86);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--line);
+}
+.top {
+  max-width: 1400px;
+  margin: auto;
+  padding: 16px 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+.brand {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+}
+.logo {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: rgba(255,255,255,.03);
+}
+.logo:before {
+  content: "";
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--accent);
+  border-radius: 4px;
+  transform: rotate(45deg);
+}
+h1 { font-size: 14px; margin: 0; }
+.sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.actions { display: flex; gap: 7px; }
+.btn {
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.025);
+  color: #cbd2d9;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 10px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.btn.primary {
+  border-color: rgba(142,227,198,.22);
+  background: rgba(142,227,198,.07);
+  color: #e8fff7;
+}
+.btn:hover { border-color: var(--line2); color: #fff; }
+.container {
+  max-width: 1400px;
+  margin: auto;
+  padding: 26px 22px 52px;
+}
+.card {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255,255,255,.028), rgba(255,255,255,.012));
+}
+.hero {
+  display: grid;
+  grid-template-columns: 1.3fr .7fr;
+  gap: 16px;
+}
+.hero-main, .hero-side { padding: 22px; }
+.kicker {
+  font-size: 10px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 800;
+}
+.hero h2 {
+  font-size: 30px;
+  line-height: 1.1;
+  letter-spacing: -.035em;
+  margin: 8px 0 10px;
+}
+.hero p {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 0;
+  max-width: 760px;
+}
+.badges {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.badge {
+  font-size: 8.5px;
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+}
+.badge.ok {
+  color: var(--ok);
+  border-color: rgba(121,222,179,.22);
+  background: rgba(121,222,179,.05);
+}
+.badge.warn {
+  color: #ffd28a;
+  border-color: rgba(244,198,109,.22);
+  background: rgba(244,198,109,.06);
+}
+.badge.info {
+  color: #dcecff;
+  border-color: rgba(119,184,255,.2);
+  background: rgba(119,184,255,.06);
+}
+.badge.fut {
+  color: #ffb1b1;
+  border-color: rgba(255,139,139,.2);
+  background: rgba(255,139,139,.05);
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+.stat {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(255,255,255,.02);
+}
+.stat b { font-size: 15px; display: block; }
+.stat span { font-size: 9.5px; color: var(--muted); }
+.idx {
+  position: sticky;
+  top: 67px;
+  z-index: 9;
+  margin-top: 16px;
+  padding: 11px;
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  background: rgba(11,13,16,.86);
+  backdrop-filter: blur(18px);
+}
+.idx a {
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.02);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 7px 9px;
+  font-size: 9.5px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: .15s;
+}
+.idx a:hover { color: #fff; border-color: var(--line2); }
+.section {
+  margin-top: 24px;
+  scroll-margin-top: 140px;
+}
+.title {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  margin-bottom: 10px;
+  gap: 10px;
+}
+.title h3 { margin: 0; font-size: 14px; }
+.title h3 .n {
+  color: var(--blue);
+  font-weight: 750;
+  margin-right: 8px;
+}
+.title p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  text-align: right;
+}
+.state {
+  min-width: 88px;
+  text-align: center;
+  padding: 6px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 8.5px;
+  color: var(--muted);
+}
+.state.done {
+  color: var(--ok);
+  border-color: rgba(121,222,179,.22);
+  background: rgba(121,222,179,.05);
+}
+.state.warn {
+  color: var(--warn);
+  border-color: rgba(244,198,109,.22);
+  background: rgba(244,198,109,.05);
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 11px;
+}
+.grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 11px;
+}
+.grid1 {
+  display: grid;
+  grid-template-columns: minmax(0,1fr);
+  gap: 11px;
+}
+.item {
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  background: rgba(255,255,255,.016);
+  overflow: hidden;
+}
+.item .head {
+  padding: 14px 15px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 11px;
+  align-items: start;
+}
+.num {
+  width: 31px;
+  height: 31px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: var(--blue);
+  background: rgba(119,184,255,.05);
+  font-size: 10px;
+  font-weight: 750;
+}
+.num.accent {
+  color: var(--accent);
+  background: rgba(142,227,198,.06);
+}
+.item h4 { margin: 0 0 4px; font-size: 12.5px; }
+.summary {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10.8px;
+  line-height: 1.45;
+}
+.item .body {
+  border-top: 1px solid rgba(255,255,255,.04);
+  padding: 12px 15px 15px;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.item .body b, .item .body strong { color: #e2e7ec; }
+.item .body code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 10.5px;
+  color: var(--accent);
+  background: rgba(142,227,198,.06);
+  padding: 1px 5px;
+  border-radius: 6px;
+}
+.item .body ul { margin: 6px 0 0; padding-left: 16px; }
+.item .body li { margin: 3px 0; }
+.flow { padding: 16px; overflow: auto; }
+.flowline {
+  display: flex;
+  align-items: stretch;
+  min-width: 980px;
+}
+.node {
+  flex: 1;
+  min-width: 115px;
+  text-align: center;
+  padding: 11px 8px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: rgba(255,255,255,.02);
+  font-size: 9px;
+  color: var(--muted);
+}
+.node strong {
+  display: block;
+  color: #fff;
+  font-size: 10.5px;
+  margin-bottom: 3px;
+}
+.node.hot {
+  border-color: rgba(142,227,198,.25);
+  background: rgba(142,227,198,.05);
+}
+.node.hot strong { color: var(--accent); }
+.node.step-phone {
+  border-color: rgba(119,184,255,.25);
+  background: rgba(119,184,255,.05);
+}
+.node.step-phone strong { color: var(--blue); }
+.arrow {
+  padding: 0 6px;
+  color: #4b5560;
+  align-self: center;
+  font-size: 11px;
+}
+.vflow { display: flex; flex-direction: column; gap: 0; }
+.vnode {
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: rgba(255,255,255,.02);
+  padding: 10px 12px;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+.vnode strong { display: block; color: #fff; font-size: 11px; margin-bottom: 2px; }
+.vnode code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 10px;
+  color: var(--accent);
+}
+.varrow { text-align: center; color: #4b5560; padding: 3px 0; font-size: 11px; }
+.vnode.hot {
+  border-color: rgba(142,227,198,.25);
+  background: rgba(142,227,198,.05);
+}
+.vnode.hot strong { color: var(--accent); }
+table.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10.8px;
+  margin-top: 8px;
+}
+table.tbl th {
+  text-align: left;
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--line2);
+}
+table.tbl td {
+  padding: 7px 9px;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+  color: #dbe1e7;
+  vertical-align: top;
+}
+table.tbl tr:last-child td { border-bottom: 0; }
+table.tbl code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 10px;
+  color: var(--accent);
+}
+.kv {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  padding: 7px 0;
+  border-top: 1px solid rgba(255,255,255,.04);
+  font-size: 11px;
+}
+.kv:first-of-type { border-top: 0; padding-top: 0; }
+.kv span:first-child { color: var(--muted); }
+.kv b { font-weight: 600; color: #e2e7ec; text-align: right; }
+.mono {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 10.5px;
+  color: var(--accent);
+}
+.note {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(142,227,198,.14);
+  border-radius: 16px;
+  background: rgba(142,227,198,.03);
+}
+.note strong { font-size: 11px; }
+.note p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 10.8px;
+  line-height: 1.5;
+}
+.warnbox {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(244,198,109,.2);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(244,198,109,.07), rgba(244,198,109,.025));
+}
+.warnbox strong { font-size: 11px; color: #ffd28a; }
+.warnbox p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 10.8px;
+  line-height: 1.5;
+}
+.futbox {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px dashed rgba(255,139,139,.25);
+  border-radius: 16px;
+  background: rgba(255,139,139,.03);
+}
+.futbox strong { font-size: 11px; color: #ffb1b1; }
+.futbox p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 10.8px;
+  line-height: 1.5;
+}
+
+/* Interactive Simulator / Widgets */
+.sim-card {
+  border: 1px solid var(--line2);
+  border-radius: 18px;
+  background: #0d1117;
+  padding: 16px;
+  margin-top: 12px;
+}
+.sim-stepper {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.sim-btn {
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.03);
+  color: var(--muted);
+  padding: 7px 11px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: .15s;
+}
+.sim-btn.active {
+  border-color: rgba(142,227,198,.3);
+  background: rgba(142,227,198,.08);
+  color: #fff;
+  font-weight: 600;
+}
+.sim-view {
+  border: 1px solid rgba(255,255,255,.05);
+  border-radius: 14px;
+  background: rgba(0,0,0,.35);
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: center;
+}
+.sim-screen {
+  border: 1px solid var(--line2);
+  border-radius: 14px;
+  background: #11161d;
+  padding: 14px;
+  position: relative;
+  min-height: 190px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.sim-screen.mobile {
+  max-width: 220px;
+  margin: auto;
+  border-width: 2px;
+  border-radius: 20px;
+}
+.sim-screen-title {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+}
+.sim-desc {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #cfd8e3;
+}
+.sim-desc strong { color: var(--accent); }
+.filter-tabs {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+.filter-tab {
+  flex: 1;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 9.5px;
+  background: rgba(255,255,255,.02);
+  color: var(--muted);
+  cursor: pointer;
+  text-align: center;
+}
+.filter-tab.active {
+  border-color: var(--accent);
+  background: rgba(142,227,198,.1);
+  color: #fff;
+}
+.preview-box {
+  width: 100%;
+  height: 120px;
+  border-radius: 8px;
+  border: 1px dashed var(--line2);
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  color: var(--muted);
+  transition: .2s;
+  background-size: cover;
+  background-position: center;
+}
+
+@media(max-width:950px){
+  .hero, .grid, .grid3, .sim-view { grid-template-columns: 1fr; }
+  .flowline { min-width: 720px; }
+}
+@media(max-width:620px){
+  .container { padding: 18px 13px 40px; }
+  .top { padding: 13px; }
+  .actions { display: none; }
+  .hero h2 { font-size: 24px; }
+  .stats { grid-template-columns: 1fr; }
+  .idx { top: 60px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="top">
+    <div class="brand">
+      <div class="logo"></div>
+      <div>
+        <h1>Control de Facturas · Bloque de conocimiento</h1>
+        <div class="sub">Módulo Control Scanner · main <span class="mono">5f41831</span> · Companion Móvil Documental</div>
+      </div>
+    </div>
+    <div class="actions">
+      <a href="roadmap_control_de_facturas.html" class="btn">← Volver al Roadmap</a>
+      <a href="manual-de-obra.html#control-scanner" class="btn">Manual de Obra §28</a>
+      <span class="btn primary">IMPLEMENTADO · main</span>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+<!-- HERO SECTION -->
+<section class="hero">
+  <div class="card hero-main">
+    <div class="kicker">Companion Móvil Zero-Install</div>
+    <h2>Convertir cualquier celular en un escáner documental de alta precisión sincronizado con el ERP.</h2>
+    <p>
+      <strong style="color:#e2e7ec">Control Scanner</strong> resuelve la captura física de facturas, remitos y recibos en obra o administración sin requerir que el usuario descargue una app de tienda ni inicie sesión completa en el sistema. 
+      El Desktop genera una sesión temporal con <strong style="color:#e2e7ec">Código QR y PIN de 6 dígitos</strong>. El celular abre una Web App ultraliviana, detecta bordes automáticamente, corrige perspectiva por homografía, aplica filtros de texto contrastado y compila un PDF multipágina que se inyecta de inmediato en el formulario de la PC.
+    </p>
+    <div class="badges">
+      <span class="badge ok">SESIONES EFÍMERAS (QR/PIN): IMPLEMENTADO</span>
+      <span class="badge ok">DETECCIÓN DE BORDES 4 PUNTOS: IMPLEMENTADO</span>
+      <span class="badge ok">PERSPECTIVA PROYECTIVA (WARP): IMPLEMENTADO</span>
+      <span class="badge ok">FILTROS DOC / B&W: IMPLEMENTADO</span>
+      <span class="badge ok">BUILDER PDF PROPIO CLIENT-SIDE: IMPLEMENTADO</span>
+      <span class="badge ok">SINCRONIZACIÓN AUTOMÁTICA DESKTOP ↔ MOBILE: IMPLEMENTADO</span>
+    </div>
+  </div>
+  <div class="card hero-side">
+    <div style="padding-bottom:12px"><strong>Estado del módulo</strong></div>
+    <div class="stats">
+      <div class="stat"><b>60</b><span>tests vitest</span></div>
+      <div class="stat"><b>Validado</b><span>multi-tenant RLS</span></div>
+      <div class="stat"><b>0</b><span>apps a instalar</span></div>
+      <div class="stat"><b>Automática</b><span>sync Desktop ↔ Mobile</span></div>
+      <div class="stat"><b>Motor propio</b><span>PDF 1.4 en browser</span></div>
+      <div class="stat"><b>Vercel</b><span>producción lista</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- NAVIGATION INDEX -->
+<div class="card idx">
+  <a href="#s01">01 Qué es</a>
+  <a href="#s02">02 Flujo Principal</a>
+  <a href="#s03">03 Uso Real (Facturas)</a>
+  <a href="#s04">04 QR y Ciclo de Sesiones</a>
+  <a href="#s05">05 Modo Celular</a>
+  <a href="#s06">06 Computer Vision</a>
+  <a href="#s07">07 PDF Multipágina Propio</a>
+  <a href="#s08">08 ¿Instalar App? (PWA)</a>
+  <a href="#s09">09 Seguridad y RLS</a>
+  <a href="#s10">10 Matriz de Integraciones</a>
+  <a href="#s11">11 Arquitectura Técnica</a>
+  <a href="#s12">12 Simulador Interactivo</a>
+  <a href="#s13">13 Handoff Operativo</a>
+</div>
+
+<!-- 01 QUÉ ES -->
+<section class="section" id="s01">
+  <div class="title">
+    <div><h3><span class="n">01</span>¿Qué es Control Scanner?</h3><p>Propósito funcional y eliminación de fricción documental.</p></div>
+    <div class="state done">IMPLEMENTADO</div>
+  </div>
+  <div class="grid">
+    <div class="item">
+      <div class="head">
+        <div class="num">A</div>
+        <div>
+          <h4>El problema: la fricción del papel en obra y oficina</h4>
+          <p class="summary">La carga de facturas físicas y remitos siempre fue lenta y deficiente: fotos torcidas tomadas con WhatsApp, sombras de dedos sobre el papel, arrugas y la necesidad de transferir archivos de un dispositivo a otro antes de cargarlos al ERP.</p>
+        </div>
+      </div>
+      <div class="body">
+        <ul>
+          <li><strong>Pérdida de legibilidad:</strong> WhatsApp comprime imágenes y degrada los números de timbrado y RUC.</li>
+          <li><strong>Fricción de cuentas:</strong> El apuntador de obra o el chofer no necesitan acceso completo a la contabilidad del ERP para digitalizar un papel.</li>
+          <li><strong>Tiempos muertos:</strong> Sacar foto, enviarse por correo, descargar en PC, arrastrar a la web.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="head">
+        <div class="num accent">B</div>
+        <div>
+          <h4>La solución: Companion Web Móvil instantáneo</h4>
+          <p class="summary">Control Scanner convierte cualquier teléfono (iOS o Android) en un escáner profesional estilo CamScanner con cero instalaciones y emparejamiento inmediato.</p>
+        </div>
+      </div>
+      <div class="body">
+        <ul>
+          <li><strong>Cero login en el teléfono:</strong> El celular se autentica por una credencial efímera vinculada a la acción que el usuario está realizando en su PC.</li>
+          <li><strong>Procesamiento en el dispositivo:</strong> El recorte de bordes, la homografía de perspectiva y el filtrado corren mediante procesamiento client-side en el navegador mediante Canvas/JavaScript.</li>
+          <li><strong>Inyección directa:</strong> Al presionar "Enviar", el PDF compilado aparece en pantalla en la PC sin tocar ningún botón adicional.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    <strong>Principio de Diseño Frictionless</strong>
+    <p>El teléfono actúa únicamente como un "ojo periférico inalámbrico" de la computadora. La sesión se crea para ese documento específico y se destruye una vez recibido el archivo.</p>
+  </div>
+</section>
+
+<!-- 02 FLUJO PRINCIPAL -->
+<section class="section" id="s02">
+  <div class="title">
+    <div><h3><span class="n">02</span>Flujo Principal End-to-End</h3><p>Secuencia visual desde el disparador en Desktop hasta la recepción del PDF.</p></div>
+    <div class="state done">IMPLEMENTADO</div>
+  </div>
+  <div class="card flow">
+    <div class="flowline">
+      <div class="node">
+        <strong>1. ERP Desktop</strong>
+        Usuario clica "Escanear desde celular"
+      </div>
+      <div class="arrow">→</div>
+      <div class="node hot">
+        <strong>2. Sesión Efímera</strong>
+        Token seguro + PIN de 6 dígitos (waiting)
+      </div>
+      <div class="arrow">→</div>
+      <div class="node hot">
+        <strong>3. QR en Pantalla</strong>
+        Monitor muestra QR dinámico
+      </div>
+      <div class="arrow">→</div>
+      <div class="node step-phone">
+        <strong>4. Celular Conecta</strong>
+        Abre <code>/scanner</code> y pasa a <code>connected</code>
+      </div>
+      <div class="arrow">→</div>
+      <div class="node step-phone">
+        <strong>5. Captura (scanning)</strong>
+        Detecta bordes del papel
+      </div>
+      <div class="arrow">→</div>
+      <div class="node step-phone">
+        <strong>6. Warp & Filtro (processing)</strong>
+        Endereza y realza contraste
+      </div>
+      <div class="arrow">→</div>
+      <div class="node step-phone">
+        <strong>7. Compila PDF Propio</strong>
+        1 o N páginas en navegador
+      </div>
+      <div class="arrow">→</div>
+      <div class="node">
+        <strong>8. Inyección PC (completed)</strong>
+        Realtime actualiza el formulario
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 USO REAL (FACTURAS) -->
+<section class="section" id="s03">
+  <div class="title">
+    <div><h3><span class="n">03</span>Uso Real: Carga de Factura en Desktop</h3><p>Paso a paso de la experiencia del operador contable o de compras.</p></div>
+    <div class="state done">IMPLEMENTADO</div>
+  </div>
+  <div class="grid">
+    <div class="item">
+      <div class="head">
+        <div class="num">1</div>
+        <div>
+          <h4>Paso 1: Abrir "Nueva Factura" en el ERP</h4>
+          <p class="summary">En la pantalla de Facturas (<code>/invoices</code>), el operador hace clic en "Nueva Factura". Junto al selector de archivos tradicional aparece el botón <strong style="color:var(--accent)">Escanear desde celular</strong> con ícono de smartphone.</p>
+        </div>
+      </div>
+      <div class="body">
+        Componente: <code>ScanButton</code> montado en <code>InvoiceDialog</code>. Al cliquear, invoca la API interna <code>/api/scanner/session</code> con el contexto <code>invoice</code>.
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="head">
+        <div class="num">2</div>
+        <div>
+          <h4>Paso 2: Presentación del QR y PIN</h4>
+          <p class="summary">El ERP abre el modal <code>ScanModal</code>. Genera un código QR criptográfico y un PIN de 6 dígitos numéricos (ej. <code>839 201</code>) como respaldo por si la cámara no puede enfocar la pantalla.</p>
+        </div>
+      </div>
+      <div class="body">
+        La sesión se crea en estado <code>waiting</code>. El Desktop escucha el canal Realtime de Supabase y mantiene un polling pasivo de respaldo.
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="head">
+        <div class="num">3</div>
+        <div>
+          <h4>Paso 3: Escaneo y Claim Móvil</h4>
+          <p class="summary">La persona con el comprobante físico abre su cámara nativa y apunta al QR (o navega a la URL e ingresa el PIN). El navegador móvil abre la Web App de escaneo y reclama la sesión.</p>
+        </div>
+      </div>
+      <div class="body">
+        El servidor valida el claim inicial de un solo uso y entrega un <code>mobileClaimToken</code>. El estado de la sesión transiciona a <code>connected</code> y el modal de la PC avisa: <em>"Dispositivo conectado. Capturando documento..."</em>.
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="head">
+        <div class="num">4</div>
+        <div>
+          <h4>Paso 4: Captura, Filtro y Envío</h4>
+          <p class="summary">El usuario fotografía la factura física (<code>scanning</code>). Ajusta el cuadrilátero táctil si fuera necesario, elige el filtro "Documento" (<code>processing</code>) y toca "Enviar documento". Si la factura tiene dorso u hojas anexas, pulsa "+ Agregar página".</p>
+        </div>
+      </div>
+      <div class="body">
+        Control Scanner genera el PDF multipágina directamente en el navegador mediante su propio motor PDF y lo sube mediante <code>/api/scanner/upload</code>. La sesión pasa a <code>completed</code>.
+      </div>
+    </div>
+  </div>
+
+  <div class="item" style="margin-top:11px">
+    <div class="head">
+      <div class="num accent">✓</div>
+      <div>
+        <h4>Paso 5: Recepción automática y Extracción IA en el ERP</h4>
+        <p class="summary">El modal en la PC se cierra automáticamente al recibir la notificación Realtime de <code>completed</code>. El archivo PDF generado se carga en el input de archivo de la factura y dispara de inmediato la extracción inteligente.</p>
+      </div>
+    </div>
+    <div class="body">
+      El archivo escaneado se transfiere a <code>handleFileChange</code>, el cual ejecuta <code>extractInvoiceFromPhoto</code>: analiza el PDF recién llegado, leyendo el RUC emisor, timbrado fiscal, número de comprobante (001-001-XXXXXXX), fecha de vencimiento, subtotal, IVA y monto total. <strong>El operador no necesita tipear los datos fiscales a mano.</strong>
+    </div>
+  </div>
+</section>
+
+<!-- 04 QR Y SESIONES -->
+<section class="section" id="s04">
+  <div class="title">
+    <div><h3><span class="n">04</span>Arquitectura de Sesiones y Códigos QR</h3><p>Gestión de estados, unicidad de PIN sin colisiones y credenciales efímeras.</p></div>
+    <div class="state done">IMPLEMENTADO</div>
+  </div>
+  <div class="card flow">
+    <table class="tbl">
+      <tr>
+        <th>Concepto</th>
+        <th>Comportamiento en Control Scanner</th>
+        <th>Garantía de Seguridad / Integridad</th>
+      </tr>
+      <tr>
+        <td><strong>Ciclo de Estados Real</strong></td>
+        <td><code>waiting</code> → <code>connected</code> → <code>scanning</code> → <code>processing</code> → <code>completed</code> (o <code>expired</code> / <code>canceled</code>).</td>
+        <td>Máquina de estados estricta. Al completarse, queda bloqueada contra replay attacks.</td>
+      </tr>
+      <tr>
+        <td><strong>Naturaleza del QR</strong></td>
+        <td>Es un puntero transaccional a una sesión efímera en base de datos (<code>scan_sessions</code>). <strong>NO</strong> es un link de descarga de app.</td>
+        <td>Caduca automáticamente a los 15 minutos (limpieza de expirados en DB).</td>
+      </tr>
+      <tr>
+        <td><strong>Aislamiento de Empresa</strong></td>
+        <td>La sesión nace ligada al <code>empresa_id</code> del usuario autenticado en la PC.</td>
+        <td>Políticas RLS en PostgreSQL impiden que una sesión sea leída o alterada por otra empresa.</td>
+      </tr>
+      <tr>
+        <td><strong>Token de 2 Fases</strong></td>
+        <td>El QR contiene un token de claim inicial. Al reclamarse, el teléfono recibe un <code>mobileClaimToken</code> firmado independiente.</td>
+        <td>El token de la URL pública queda invalidado tras el primer uso legítimo.</td>
+      </tr>
+      <tr>
+        <td><strong>Unicidad Global de PIN</strong></td>
+        <td>Generado por <code>generateScanPin()</code> en la capa de aplicación con un <strong>índice único parcial de PostgreSQL</strong> (<code>WHERE status = 'waiting'</code>).</td>
+        <td>Si ocurre un conflicto de unicidad <code>23505</code>, el servicio genera otro PIN y reintenta de forma transparente.</td>
+      </tr>
+      <tr>
+        <td><strong>Anti-Bruteforce</strong></td>
+        <td>Tabla persistente <code>scan_pin_attempts</code> con contador atómico indexado por actor/origen (IP/fingerprint).</td>
+        <td>Bloqueo automático tras 5 intentos fallidos consecutivos por origen.</td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- 05 MODO CELULAR -->
+<section class="section" id="s05">
+  <div class="title">
+    <div><h3><span class="n">05</span>El Modo Celular (Experiencia Móvil)</h3><p>Interfaz táctil diseñada para operar con una sola mano en obra o mostrador.</p></div>
+    <div class="state done">IMPLEMENTADO</div>
+  </div>
+  <div class="grid3">
+    <div class="item">
+      <div class="head">
+        <div class="num">A</div>
+        <div>
+          <h4>Captura con Cámara</h4>
+          <p class="summary">Feed en vivo con selección automática de lente trasera (<code>facingMode: environment</code>) y soporte para subir fotos de la galería si la factura ya fue fotografiada.</p>
+        </div>
+      </div>
+    </div>
+    <div class="item">
+      <div class="head">
+        <div class="num">B</div>
+        <div>
+          <h4>Ajuste de 4 Esquinas</h4>
+          <p class="summary">Editor táctil <code>QuadEditor</code> con 4 vértices interactivos. Si la hoja está inclinada o doblada, el usuario arrastra las esquinas con ayuda de una lupa amplificadora.</p>
+        </div>
+      </div>
+    </div>
+    <div class="item">
+      <div class="head">
+        <div class="num">C</div>
+        <div>
+          <h4>Filtros Profesionales</h4>
+          <p class="summary">Tres modos de procesamiento instantáneo: <em>Original Mejorado</em>, <em>Documento</em> (aclara fondo y enfoca letras) y <em>Blanco y Negro</em> (binarizado para peso mínimo).</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 06 COMPUTER VISION -->
+<section class="section" id="s06">
+  <div class="title">
+    <div><h3><span class="n">06</span>Computer Vision: Detección y Homografía</h3><p>Transformación matemática en el browser mediante Canvas y JavaScript.</p></div>
+    <div class="state done">IMPLEMENTADO</div>
+  </div>
+  <div class="grid">
+    <div class="item">
+      <div class="head">
+        <div class="num">CV</div>
+        <div>
+          <h4>Detección Automática de Contornos</h4>
+          <p class="summary">Módulo <code>document-detector.ts</code>. Evalúa gradientes de brillo y contraste sobre la imagen para ubicar el polígono convexo más grande que represente la hoja de papel.</p>
+        </div>
+      </div>
+      <div class="body">
+        <ul>
+          <li><strong>Downscaling veloz:</strong> La detección escala la imagen a <strong>320px máximo</strong> (<code>targetMaxDim = 320</code>) para responder en menos de 20ms sin trabar la interfaz.</li>
+          <li><strong>Ordenamiento canónico:</strong> Identifica Top-Left, Top-Right, Bottom-Right y Bottom-Left calculando sumas y diferencias de coordenadas.</li>
+          <li><strong>Fallback seguro:</strong> Si el fondo tiene textura confusa o bajo contraste, propone un cuadrilátero con <strong>6% de margen interno</strong> (<code>createFallbackQuad</code> con margen 0.06).</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="head">
+        <div class="num">2D</div>
+        <div>
+          <h4>Corrección de Perspectiva (Warping 2D)</h4>
+          <p class="summary">Módulo <code>image-processing.ts</code>. Aplica una matriz de homografía proyectiva de 3x3 calculada a partir de los 4 puntos de origen y las dimensiones destino del papel.</p>
+        </div>
+      </div>
+      <div class="body">
+        <ul>
+          <li><strong>Enderezado de documento:</strong> Transforma un trapecio inclinado en un rectángulo plano estándar.</li>
+          <li><strong>Interpolación bilineal:</strong> Mantiene la nitidez de letras pequeñas, códigos de barras y timbrados.</li>
+          <li><strong>Procesamiento client-side:</strong> Ejecutado íntegramente en el navegador mediante Canvas y JavaScript, sin enviar imágenes pesadas intermedias al servidor.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 07 PDF MULTIPÁGINA PROPIO -->
+<section class="section" id="s07">
+  <div class="title">
+    <div><h3><span class="n">07</span>Gestión Multipágina y Motor PDF Propio</h3><p>Construcción directa de documentos PDF 1.4 en el cliente sin librerías externas pesadas.</p></div>
+    <div class="state done">IMPLEMENTADO</div>
+  </div>
+  <div class="grid">
+    <div class="item">
+      <div class="head">
+        <div class="num">M</div>
+        <div>
+          <h4>Bandeja de Páginas</h4>
+          <p class="summary">El usuario puede escanear la hoja 1, revisar su recorte y pulsar "+ Agregar página". El escáner mantiene todas las páginas en memoria del navegador móvil.</p>
+        </div>
+      </div>
+      <div class="body">
+        <ul>
+          <li>Miniaturas visuales de cada página procesada en la bandeja inferior.</li>
+          <li>Reordenamiento sencillo antes de enviar.</li>
+          <li>Eliminación individual de páginas defectuosas sin perder el resto del documento.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="head">
+        <div class="num">PDF</div>
+        <div>
+          <h4>Motor PDF Propio Client-Side</h4>
+          <p class="summary">Módulo <code>pdf-builder.ts</code>. Control Scanner genera el PDF multipágina directamente en el navegador mediante su propio motor PDF.</p>
+        </div>
+      </div>
+      <div class="body">
+        <ul>
+          <li><strong>Estructura PDF 1.4 nativa:</strong> Ensambla directamente Catalog, Pages tree, Page objects, Image XObjects con compresión <code>DCTDecode</code>, content streams, xref y trailer.</li>
+          <li><strong>Cero dependencias pesadas:</strong> No requiere librerías externas de terceros para la compilación, garantizando bajo peso del bundle móvil.</li>
+          <li><strong>Archivos ultralivianos:</strong> Entre 150 KB y 350 KB por página A4, ideal para redes móviles de obra.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 08 ¿HAY QUE INSTALAR UNA APP? (PWA) -->
+<section class="section" id="s08">
+  <div class="title">
+    <div><h3><span class="n">08</span>¿Hay que instalar una App? (Web vs PWA)</h3><p>Diferencia entre el uso ocasional sin instalación y el modo PWA instalada.</p></div>
+    <div class="state done">IMPLEMENTADO</div>
+  </div>
+  <div class="grid">
+    <div class="item">
+      <div class="head">
+        <div class="num">1</div>
+        <div>
+          <h4>Uso Ocasional: 100% Web (Sin Instalación)</h4>
+          <p class="summary">Para el 90% de los casos (un proveedor que llega a la oficina, un administrativo eventual, o una persona en obra que presta su teléfono).</p>
+        </div>
+      </div>
+      <div class="body">
+        <p style="margin:0 0 8px"><strong>Flujo:</strong> Escanear QR con la cámara normal → se abre Safari o Chrome → capturar → enviar → cerrar.</p>
+        <ul>
+          <li>No requiere buscar en Google Play ni App Store.</li>
+          <li>No ocupa almacenamiento permanente en el teléfono.</li>
+          <li>Funciona al instante en cualquier teléfono moderno.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="item">
+      <div class="head">
+        <div class="num">2</div>
+        <div>
+          <h4>Uso Frecuente: PWA ("Instalada")</h4>
+          <p class="summary">Para usuarios recurrentes (encargado de compras, recepcionista de pañol o chofer de logística).</p>
+        </div>
+      </div>
+      <div class="body">
+        <p style="margin:0 0 8px"><strong>Cómo se activa:</strong> Desde el menú del navegador seleccionan <em>"Agregar a pantalla de inicio"</em>. Queda un ícono del ERP en el escritorio del celular.</p>
+        <ul>
+          <li>Se abre a pantalla completa (sin barras del navegador).</li>
+          <li>Carga instantánea gracias al caché PWA.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="warnbox">
+    <strong>Aclaración Operativa Crucial: La PWA NO reemplaza la vinculación por QR/PIN</strong>
+    <p>Aunque un usuario tenga la PWA instalada en su teléfono, <strong>para asociar una foto a una factura específica de la PC siempre hace falta el vínculo transaccional</strong>. Si el usuario abre la app desde su pantalla de inicio, la pantalla le pedirá simplemente: <em>"Ingresá el PIN de 6 dígitos que ves en el monitor de tu PC"</em>. Esto garantiza que ningún archivo vaya a parar al proyecto o factura equivocada.</p>
+  </div>
+</section>
+
+<!-- 09 SEGURIDAD Y RLS -->
+<section class="section" id="s09">
+  <div class="title">
+    <div><h3><span class="n">09</span>Seguridad y Aislamiento Multi-Tenant</h3><p>Auditoría P1 cerrada: protecciones contra colisión y fuerza bruta.</p></div>
+    <div class="state done">IMPLEMENTADO</div>
+  </div>
+  <div class="card flow">
+    <div class="vflow">
+      <div class="vnode">
+        <strong>1. RLS y Multi-Tenancy Estricto</strong>
+        Tabla <code>scan_sessions</code> con política RLS filtrada por <code>current_empresa_id()</code>. Ningún usuario puede ver sesiones de otra organización.
+      </div>
+      <div class="varrow">↓</div>
+      <div class="vnode">
+        <strong>2. Unicidad Global de PIN en Base de Datos</strong>
+        Índice único parcial <code>idx_scan_sessions_active_pin</code> sobre <code>pin_code</code> para sesiones con estado <code>waiting</code>. Resuelve colisiones reintentando automáticamente en la capa de aplicación.
+      </div>
+      <div class="varrow">↓</div>
+      <div class="vnode">
+        <strong>3. Rate Limiting Atómico en Base de Datos</strong>
+        Tabla <code>scan_pin_attempts</code> con contador por IP/actor. Bloqueo automático por ventana de tiempo ante intentos secuenciales de adivinación.
+      </div>
+      <div class="varrow">↓</div>
+      <div class="vnode">
+        <strong>4. Storage Tenant-Isolated con Signed URLs</strong>
+        Los archivos se almacenan en el bucket privado <code>invoice-files</code> bajo la ruta estructurada <code>{empresa_id}/scans/{session_id}/{safeFileName}</code>. Descarga mediante Service Role con Signed URLs temporales de 1 hora.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 10 MATRIZ DE INTEGRACIONES -->
+<section class="section" id="s10">
+  <div class="title">
+    <div><h3><span class="n">10</span>Matriz de Integraciones en el ERP</h3><p>Estado real de integración según componentes montados en el código.</p></div>
+    <div class="state done">AUDITADO</div>
+  </div>
+  <div class="card flow">
+    <table class="tbl">
+      <tr>
+        <th>Módulo / Pantalla</th>
+        <th>Estado</th>
+        <th>Componente / Comportamiento</th>
+      </tr>
+      <tr>
+        <td><strong>Facturas de Compra (<code>/invoices</code>)</strong></td>
+        <td><span class="badge ok">IMPLEMENTADO EN PRODUCCIÓN</span></td>
+        <td><code>ScanButton</code> montado en <code>InvoiceDialog</code>. Al recibir el PDF, <code>handleFileChange</code> ejecuta <code>extractInvoiceFromPhoto</code> (OCR con IA).</td>
+      </tr>
+      <tr>
+        <td><strong>Recepción de Materiales / Remitos de Obra</strong></td>
+        <td><span class="badge warn">INTEGRACIÓN CANDIDATA</span></td>
+        <td>Motor disponible para vincular el remito físico con la Orden de Compra y el Pañol del proyecto.</td>
+      </tr>
+      <tr>
+        <td><strong>Órdenes de Compra / Presupuestos Físicos</strong></td>
+        <td><span class="badge warn">MOTOR DISPONIBLE PARA INTEGRACIÓN</span></td>
+        <td>Capacidad de digitalizar cotizaciones en papel o especificaciones del proveedor para adjuntar a la RFQ/OC.</td>
+      </tr>
+      <tr>
+        <td><strong>Certificados de Obra en Papel</strong></td>
+        <td><span class="badge warn">INTEGRACIÓN CANDIDATA</span></td>
+        <td>Motor disponible para digitalizar hojas de medición y firmas de fiscalización en campo.</td>
+      </tr>
+      <tr>
+        <td><strong>Rendiciones de Caja Chica y Recibos</strong></td>
+        <td><span class="badge warn">INTEGRACIÓN CANDIDATA</span></td>
+        <td>Digitalización de tickets y recibos de combustibles por parte de choferes o residentes.</td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- 11 ARQUITECTURA TÉCNICA -->
+<section class="section" id="s11">
+  <div class="title">
+    <div><h3><span class="n">11</span>Ficha Técnica y Componentes en Código</h3><p>Estructura de archivos mergeados en main (commit 5f41831).</p></div>
+    <div class="state done">IMPLEMENTADO</div>
+  </div>
+  <div class="card flow">
+    <table class="tbl">
+      <tr>
+        <th>Archivo / Ruta</th>
+        <th>Tipo</th>
+        <th>Responsabilidad</th>
+      </tr>
+      <tr>
+        <td><code>app/(internal)/invoices/invoice-dialog.tsx</code></td>
+        <td>UI Desktop</td>
+        <td>Monta <code>ScanButton</code> junto al selector de facturas físicas con handler de extracción IA.</td>
+      </tr>
+      <tr>
+        <td><code>components/scanner/scan-button.tsx</code></td>
+        <td>Componente</td>
+        <td>Botón con ícono de smartphone que dispara el modal de escaneo.</td>
+      </tr>
+      <tr>
+        <td><code>components/scanner/scan-modal.tsx</code></td>
+        <td>Componente</td>
+        <td>Inicia sesión, dibuja el código QR con <code>qrcode</code>, muestra el PIN y escucha cambios Realtime.</td>
+      </tr>
+      <tr>
+        <td><code>app/scanner/page.tsx</code></td>
+        <td>Web App Móvil</td>
+        <td>Página responsive con flujo de captura, recorte, filtros, lista de páginas y envío.</td>
+      </tr>
+      <tr>
+        <td><code>app/scanner/components/quad-editor.tsx</code></td>
+        <td>Canvas UI</td>
+        <td>Editor interactivo táctil para reposicionar los 4 vértices del documento.</td>
+      </tr>
+      <tr>
+        <td><code>lib/scanner/document-detector.ts</code></td>
+        <td>Computer Vision</td>
+        <td>Detección automática de bordes (downscale a 320px) y fallback con margen del 6%.</td>
+      </tr>
+      <tr>
+        <td><code>lib/scanner/image-processing.ts</code></td>
+        <td>Algoritmo</td>
+        <td>Warp de perspectiva por homografía 2D y filtros de realce documental.</td>
+      </tr>
+      <tr>
+        <td><code>lib/scanner/pdf-builder.ts</code></td>
+        <td>Motor PDF Propio</td>
+        <td>Ensamblador client-side de especificación PDF 1.4 con compresión DCTDecode.</td>
+      </tr>
+      <tr>
+        <td><code>app/api/scanner/session/route.ts</code></td>
+        <td>API Route</td>
+        <td>Crea la sesión efímera en base de datos asociada a la empresa.</td>
+      </tr>
+      <tr>
+        <td><code>app/api/scanner/claim/route.ts</code></td>
+        <td>API Route</td>
+        <td>Reclama la sesión mediante token o PIN con rate-limiting atómico.</td>
+      </tr>
+      <tr>
+        <td><code>app/api/scanner/upload/route.ts</code></td>
+        <td>API Route</td>
+        <td>Recibe el PDF final, lo almacena en bucket <code>invoice-files</code> y completa la sesión.</td>
+      </tr>
+      <tr>
+        <td><code>supabase/migrations/20260918*</code></td>
+        <td>SQL</td>
+        <td>Migraciones de tablas <code>scan_sessions</code> y <code>scan_pin_attempts</code> con RLS y función atómica.</td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- 12 SIMULADOR INTERACTIVO -->
+<section class="section" id="s12">
+  <div class="title">
+    <div><h3><span class="n">12</span>Simulador Interactivo del Flujo</h3><p>Hacé clic en los pasos para ver la interacción entre la PC y el Celular en tiempo real.</p></div>
+    <div class="state done">INTERACTIVO</div>
+  </div>
+
+  <div class="sim-card">
+    <div class="sim-stepper">
+      <button class="sim-btn active" onclick="setStep(1)">1. Clic en PC</button>
+      <button class="sim-btn" onclick="setStep(2)">2. QR & PIN (waiting)</button>
+      <button class="sim-btn" onclick="setStep(3)">3. Celular Conecta (connected)</button>
+      <button class="sim-btn" onclick="setStep(4)">4. Recorte & Filtro (processing)</button>
+      <button class="sim-btn" onclick="setStep(5)">5. Documento en PC (completed)</button>
+    </div>
+
+    <div class="sim-view">
+      <!-- Pantalla Desktop Simulada -->
+      <div class="sim-screen" id="sim-desktop-screen">
+        <div class="sim-screen-title"><span>💻 PANTALLA PC (ERP)</span><span id="sim-desktop-badge" class="badge info">ESPERANDO</span></div>
+        <div id="sim-desktop-content">
+          <p style="font-size:11px;color:var(--muted)">Formulario de Factura</p>
+          <div style="border:1px solid var(--line);padding:8px;border-radius:8px;background:rgba(255,255,255,.02);display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:11px">Adjuntar Factura</span>
+            <span style="font-size:10px;padding:3px 8px;border-radius:6px;background:rgba(142,227,198,.1);color:var(--accent)">📱 Escanear desde celular</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pantalla Celular Simulada -->
+      <div class="sim-screen mobile" id="sim-mobile-screen">
+        <div class="sim-screen-title"><span>📱 CELULAR</span><span id="sim-mobile-badge" class="badge">STANDBY</span></div>
+        <div id="sim-mobile-content" style="text-align:center;padding:10px 0">
+          <div style="font-size:24px;margin-bottom:6px">📷</div>
+          <div style="font-size:10px;color:var(--muted)">Apuntá al QR de la pantalla</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;padding:12px;background:rgba(255,255,255,.02);border-radius:10px;border:1px solid var(--line)">
+      <div id="sim-explanation" class="sim-desc">
+        <strong>Paso 1:</strong> El operador en su computadora clica en <em>"Escanear desde celular"</em> dentro de la ventana de carga de factura.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 13 HANDOFF OPERATIVO -->
+<section class="section" id="s13">
+  <div class="title">
+    <div><h3><span class="n">13</span>Handoff Operativo y Resumen</h3><p>Guía de uso para operadores, fiscalizadores y personal de campo.</p></div>
+    <div class="state done">IMPLEMENTADO</div>
+  </div>
+  <div class="note">
+    <strong>Regla de Oro para el Personal</strong>
+    <p>
+      Para escanear un documento físico nunca es necesario pedir usuario y contraseña al personal de obra. Quien esté frente a la computadora abre la sesión en pantalla y quien tenga el papel a mano simplemente escanea el código QR con la cámara de su celular. El documento viaja encriptado y cae directo en la factura correspondiente.
+    </p>
+  </div>
+</section>
+
+</div>
+
+<script>
+// Highlight nav pills on click
+document.querySelectorAll('.idx a').forEach(a => {
+  a.addEventListener('click', () => {
+    document.querySelectorAll('.idx a').forEach(x => x.style.borderColor = '');
+    a.style.borderColor = 'rgba(142,227,198,.35)';
+  });
+});
+
+// Interactive Simulator Logic
+const steps = [
+  {
+    desktopBadge: 'MODAL ABIERTO (waiting)',
+    desktopBadgeClass: 'badge info',
+    desktopHtml: `
+      <div style="text-align:center;padding:10px 0">
+        <div style="display:inline-block;padding:8px;background:#fff;border-radius:8px;margin-bottom:6px">
+          <div style="width:70px;height:70px;background:#000;display:grid;place-items:center;color:#fff;font-size:9px;font-family:monospace">QR CODE</div>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:var(--accent)">PIN: 849 210</div>
+        <div style="font-size:9.5px;color:var(--muted)">Esperando conexión del celular...</div>
+      </div>`,
+    mobileBadge: 'ESCANER QR',
+    mobileBadgeClass: 'badge',
+    mobileHtml: `
+      <div style="text-align:center;padding:10px 0">
+        <div style="font-size:26px;margin-bottom:4px">🔍</div>
+        <div style="font-size:10px;color:#fff">Cámara apuntando al monitor</div>
+        <div style="font-size:9px;color:var(--accent);margin-top:4px">Detectando QR...</div>
+      </div>`,
+    desc: '<strong>Paso 2 (waiting):</strong> El ERP muestra un modal con un código QR efímero y un PIN de 6 dígitos. La computadora queda escuchando la llegada del documento vía canal Realtime.'
+  },
+  {
+    desktopBadge: 'CONECTADO (connected)',
+    desktopBadgeClass: 'badge ok',
+    desktopHtml: `
+      <div style="text-align:center;padding:20px 0">
+        <div style="font-size:18px;margin-bottom:6px">📲</div>
+        <div style="font-size:12px;font-weight:600;color:var(--ok)">Dispositivo Móvil Conectado</div>
+        <div style="font-size:10px;color:var(--muted)">El celular está capturando el documento...</div>
+      </div>`,
+    mobileBadge: 'CONECTADO (connected)',
+    mobileBadgeClass: 'badge ok',
+    mobileHtml: `
+      <div style="text-align:center;padding:10px 0">
+        <div style="border:1px dashed var(--accent);padding:14px 6px;border-radius:8px;margin-bottom:6px;background:rgba(142,227,198,.05)">
+          <div style="font-size:9px;color:var(--accent)">📄 Factura detectada</div>
+          <div style="font-size:8.5px;color:var(--muted)">4 esquinas identificadas (320px)</div>
+        </div>
+        <button style="border:none;background:var(--accent);color:#000;font-size:9px;font-weight:700;padding:5px 12px;border-radius:999px">Tomar foto</button>
+      </div>`,
+    desc: '<strong>Paso 3 (connected):</strong> Al escanear el QR, el teléfono abre la Web App y la sesión pasa a <code>connected</code> tras validar el claim inicial. El Desktop avisa que el teléfono ya está vinculado.'
+  },
+  {
+    desktopBadge: 'PROCESANDO (processing)',
+    desktopBadgeClass: 'badge warn',
+    desktopHtml: `
+      <div style="text-align:center;padding:20px 0">
+        <div style="font-size:18px;margin-bottom:6px">⚙️</div>
+        <div style="font-size:12px;font-weight:600;color:var(--warn)">Ajustando Documento</div>
+        <div style="font-size:10px;color:var(--muted)">El usuario está afinando el recorte y filtros en el teléfono.</div>
+      </div>`,
+    mobileBadge: 'WARP & FILTRO',
+    mobileBadgeClass: 'badge warn',
+    mobileHtml: `
+      <div style="text-align:center;padding:8px 0">
+        <div style="border:1px solid var(--accent);padding:8px;border-radius:6px;background:#fff;color:#000;font-size:9px;font-weight:700;margin-bottom:6px">
+          FACTURA Nº 001-001
+        </div>
+        <div style="display:flex;gap:4px;justify-content:center;margin-bottom:6px">
+          <span style="font-size:7.5px;padding:2px 5px;border-radius:4px;background:rgba(142,227,198,.2);color:var(--accent)">Doc</span>
+          <span style="font-size:7.5px;padding:2px 5px;border-radius:4px;background:rgba(255,255,255,.05);color:var(--muted)">B&W</span>
+        </div>
+        <button style="border:none;background:var(--ok);color:#000;font-size:9px;font-weight:700;padding:5px 12px;border-radius:999px">Enviar documento</button>
+      </div>`,
+    desc: '<strong>Paso 4 (processing):</strong> En el celular, el usuario ajusta el cuadrilátero táctil de las 4 esquinas si hiciera falta, selecciona el filtro <em>Documento</em> para texto nítido y presiona <em>"Enviar"</em>. El motor PDF propio compila el archivo en el navegador.'
+  },
+  {
+    desktopBadge: 'COMPLETADO (completed)',
+    desktopBadgeClass: 'badge ok',
+    desktopHtml: `
+      <div style="padding:10px 0">
+        <div style="font-size:12px;font-weight:700;color:var(--ok);margin-bottom:4px">✓ Factura_Escaneada.pdf recibido</div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Almacenado en invoice-files · 1 página</div>
+        <div style="border:1px solid rgba(142,227,198,.3);padding:8px;border-radius:8px;background:rgba(142,227,198,.06);font-size:9.5px">
+          <strong>Extracción IA iniciada:</strong> RUC 80021345-1 detectado. Timbrado 15894230. Total Gs. 4.500.000.
+        </div>
+      </div>`,
+    mobileBadge: 'ENVIADO',
+    mobileBadgeClass: 'badge ok',
+    mobileHtml: `
+      <div style="text-align:center;padding:20px 0">
+        <div style="font-size:24px;margin-bottom:4px">✅</div>
+        <div style="font-size:11px;font-weight:700;color:var(--ok)">¡Documento Enviado!</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:4px">Ya podés cerrar esta pestaña en tu celular.</div>
+      </div>`,
+    desc: '<strong>Paso 5 (completed):</strong> La PC recibe el archivo PDF terminado a través del canal Realtime, cierra el modal y transfiere el archivo a <code>handleFileChange</code> para ejecutar automáticamente la extracción con IA.'
+  }
+];
+
+function setStep(idx) {
+  document.querySelectorAll('.sim-btn').forEach((b, i) => {
+    b.classList.toggle('active', i === (idx - 1));
+  });
+
+  const desktopScreen = document.getElementById('sim-desktop-content');
+  const desktopBadge = document.getElementById('sim-desktop-badge');
+  const mobileScreen = document.getElementById('sim-mobile-content');
+  const mobileBadge = document.getElementById('sim-mobile-badge');
+  const explanation = document.getElementById('sim-explanation');
+
+  if (idx === 1) {
+    desktopBadge.textContent = 'ESPERANDO';
+    desktopBadge.className = 'badge info';
+    desktopScreen.innerHTML = `
+      <p style="font-size:11px;color:var(--muted)">Formulario de Factura</p>
+      <div style="border:1px solid var(--line);padding:8px;border-radius:8px;background:rgba(255,255,255,.02);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:11px">Adjuntar Factura</span>
+        <span style="font-size:10px;padding:3px 8px;border-radius:6px;background:rgba(142,227,198,.1);color:var(--accent)">📱 Escanear desde celular</span>
+      </div>`;
+    mobileBadge.textContent = 'STANDBY';
+    mobileBadge.className = 'badge';
+    mobileScreen.innerHTML = `
+      <div style="text-align:center;padding:10px 0">
+        <div style="font-size:24px;margin-bottom:6px">📷</div>
+        <div style="font-size:10px;color:var(--muted)">Apuntá al QR de la pantalla</div>
+      </div>`;
+    explanation.innerHTML = '<strong>Paso 1:</strong> El operador en su computadora clica en <em>"Escanear desde celular"</em> dentro de la ventana de carga de factura.';
+    return;
+  }
+
+  const s = steps[idx - 2];
+  desktopBadge.textContent = s.desktopBadge;
+  desktopBadge.className = s.desktopBadgeClass;
+  desktopScreen.innerHTML = s.desktopHtml;
+
+  mobileBadge.textContent = s.mobileBadge;
+  mobileBadge.className = s.mobileBadgeClass;
+  mobileScreen.innerHTML = s.mobileHtml;
+
+  explanation.innerHTML = s.desc;
+}
+</script>
+
+</body>
+</html>
