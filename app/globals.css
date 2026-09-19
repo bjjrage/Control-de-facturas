@@ -378,13 +378,20 @@ input::placeholder, textarea::placeholder {
   min-width: 0;
 }
 
-.erp-workspace > :where(
+.erp-workspace :where(
   .max-w-3xl,
   .max-w-4xl,
   .max-w-5xl,
   .max-w-6xl,
   .max-w-7xl
-) {
+):not([role="dialog"]):not([data-dialog-content]) {
   width: 100% !important;
   max-width: none !important;
+}
+
+.erp-workspace > div,
+.erp-workspace > section,
+.erp-workspace > main {
+  width: 100%;
+  min-width: 0;
 }
