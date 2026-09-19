@@ -42,6 +42,10 @@
   --accent-preparar: #60a5fa;
   --accent-ejecutar: #fb923c;
   --accent-certificar: #f59e0b;
+  --cta: #f5b942;
+  --cta-hover: #ffc95e;
+  --cta-deep: #d88912;
+  --cta-ink: #241704;
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
 }
 
@@ -141,24 +145,55 @@ input::placeholder, textarea::placeholder {
   color: #6b7180;
 }
 
-/* Primary V3 — azul eléctrico controlado, inspirado en el skin aprobado. */
+/* Primary CTA — cálido y de alto contraste contra el workspace navy.
+ * El azul queda reservado para navegación/contexto, no para acciones.
+ */
 .btn-primary {
-  background: linear-gradient(180deg, #6c9cff 0%, #4777e9 100%);
-  border: 1px solid rgba(133, 171, 255, 0.55);
-  color: #fff;
-  font-weight: 600;
-  box-shadow: 0 8px 24px rgba(43, 93, 199, 0.22), inset 0 1px 0 rgba(255,255,255,.22);
+  background: linear-gradient(180deg, var(--cta-hover) 0%, var(--cta) 48%, var(--cta-deep) 100%);
+  border: 1px solid rgba(255, 207, 105, .66);
+  color: var(--cta-ink);
+  font-weight: 700;
+  box-shadow:
+    0 8px 24px rgba(162, 96, 8, .24),
+    inset 0 1px 0 rgba(255,255,255,.34);
   transition: transform 140ms ease, background 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
 }
 .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(180deg, #80a9ff 0%, #5584ef 100%);
-  border-color: rgba(162, 190, 255, 0.78);
-  box-shadow: 0 0 0 1px rgba(111, 154, 255, 0.24), 0 10px 30px rgba(43, 93, 199, 0.34);
+  background: linear-gradient(180deg, #ffd77e 0%, #f8bd43 48%, #e3951b 100%);
+  border-color: rgba(255, 222, 143, .88);
+  box-shadow:
+    0 0 0 1px rgba(245,185,66,.18),
+    0 10px 30px rgba(162, 96, 8, .32),
+    inset 0 1px 0 rgba(255,255,255,.38);
   transform: translateY(-1px);
 }
 .btn-primary:active:not(:disabled) {
+  background: linear-gradient(180deg, #e9a82e 0%, #c9780b 100%);
   transform: translateY(0) scale(.985);
-  box-shadow: 0 5px 16px rgba(43, 93, 199, 0.25);
+  box-shadow: 0 5px 16px rgba(126, 72, 4, .28);
+}
+
+/* Guardrail de skin: botones legacy celestes/azules no vuelven a entrar.
+ * Se limita a BUTTON para no tocar tabs, badges, links ni navegación semántica.
+ */
+button[class*="bg-blue-"],
+button[class*="bg-sky-"],
+button[class*="bg-cyan-"],
+button[class*="bg-[#5b8cff]"],
+button[class*="bg-[#6c9cff]"],
+button[class*="bg-[#4777e9]"] {
+  background: linear-gradient(180deg, var(--cta-hover) 0%, var(--cta) 48%, var(--cta-deep) 100%) !important;
+  border-color: rgba(255, 207, 105, .66) !important;
+  color: var(--cta-ink) !important;
+  box-shadow:
+    0 8px 24px rgba(162, 96, 8, .22),
+    inset 0 1px 0 rgba(255,255,255,.32) !important;
+}
+
+button[class*="bg-blue-"]:hover,
+button[class*="bg-sky-"]:hover,
+button[class*="bg-cyan-"]:hover {
+  background: linear-gradient(180deg, #ffd77e 0%, #f8bd43 48%, #e3951b 100%) !important;
 }
 
 /* Wrapper interactivo para texto clickeable: hover con fondo sutil */
