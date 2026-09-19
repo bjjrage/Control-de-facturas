@@ -119,6 +119,7 @@ export async function POST(request: Request) {
 
     // Camino 1: LLM real cuando hay credencial server-side.
     if (deepseekConfigured) {
+      console.info("[rodrigo] chat path", { mode: "deepseek" });
       const orchestrator = new AgentOrchestrator({ maxIterations: 8, timeoutMs: 90_000 });
       const agentContext = withWorkspace(actor, workspaceProjectId ? { projectId: workspaceProjectId } : null);
       const result = await orchestrator.run({

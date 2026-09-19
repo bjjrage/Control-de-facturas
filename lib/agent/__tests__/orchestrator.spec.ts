@@ -166,6 +166,14 @@ describe("orchestrator", () => {
     expect(result.answer).toContain("Listo");
     expect(result.turns.some((t) => t.toolName === "echo")).toBe(true);
     expect(result.iterations).toBe(2);
+    const secondRequestMessages = JSON.parse(String((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[1]?.[1]?.body)).messages as Array<{
+      role: string;
+      tool_calls?: unknown[];
+    }>;
+    const assistantIndex = secondRequestMessages.findIndex((message) => message.role === "assistant" && message.tool_calls?.length);
+    const toolIndex = secondRequestMessages.findIndex((message) => message.role === "tool");
+    expect(assistantIndex).toBeGreaterThanOrEqual(0);
+    expect(toolIndex).toBeGreaterThan(assistantIndex);
   });
 
   it("pasa la idempotency key del writer de planillas al gateway con scope de planilla", async () => {
