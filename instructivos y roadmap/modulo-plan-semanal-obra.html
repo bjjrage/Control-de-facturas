@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Plan Semanal de Obra — Bloque de conocimiento</title>
+<title>Plan Semanal de Obra V3 + MRP — Bloque de conocimiento</title>
 <style>
 :root{--bg:#0b0d10;--panel:#11151a;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.14);--text:#f5f7fa;--muted:#96a1ad;--accent:#8ee3c6;--blue:#77b8ff;--warn:#f4c66d;--danger:#ff8b8b;--ok:#79deb3}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(circle at 10% -10%,rgba(142,227,198,.07),transparent 25%),radial-gradient(circle at 90% 0%,rgba(119,184,255,.07),transparent 30%),var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -14,7 +14,7 @@ header{position:sticky;top:0;z-index:10;background:rgba(11,13,16,.86);backdrop-f
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.grid1{display:grid;grid-template-columns:minmax(0,1fr);gap:11px}
 .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
 .item{border:1px solid var(--line);border-radius:17px;background:rgba(255,255,255,.016);overflow:hidden}.item .head{padding:14px 15px;display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:start}.num{width:31px;height:31px;border:1px solid var(--line);border-radius:10px;display:grid;place-items:center;color:var(--blue);background:rgba(119,184,255,.05);font-size:10px;font-weight:750}.item h4{margin:0 0 4px;font-size:12.5px}.summary{margin:0;color:var(--muted);font-size:10.8px;line-height:1.45}.item .body{border-top:1px solid rgba(255,255,255,.04);padding:12px 15px 15px;font-size:11px;color:var(--muted);line-height:1.55}.item .body b,.item .body strong{color:#e2e7ec}.item .body code{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:var(--accent);background:rgba(142,227,198,.06);padding:1px 5px;border-radius:6px}.item .body ul{margin:6px 0 0;padding-left:16px}.item .body li{margin:3px 0}
-.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.badge{font-size:8.5px;padding:4px 6px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}.badge.ok{color:var(--ok);border-color:rgba(121,222,179,.22);background:rgba(121,222,179,.05)}.badge.warn{color:#ffd28a;border-color:rgba(244,198,109,.22);background:rgba(244,198,109,.06)}.badge.info{color:#dcecff;border-color:rgba(119,184,255,.2);background:rgba(119,184,255,.06)}.badge.cash{color:#ffd28a;border-color:rgba(244,198,109,.35);background:rgba(244,198,109,.09);font-weight:800}
+.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.badge{font-size:8.5px;padding:4px 6px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}.badge.ok{color:var(--ok);border-color:rgba(121,222,179,.22);background:rgba(121,222,179,.05)}.badge.warn{color:#ffd28a;border-color:rgba(244,198,109,.22);background:rgba(244,198,109,.06)}.badge.info{color:#dcecff;border-color:rgba(119,184,255,.2);background:rgba(119,184,255,.06)}.badge.cash{color:#ffd28a;border-color:rgba(244,198,109,.35);background:rgba(244,198,109,.09);font-weight:800}.badge.fut{color:#ffb1b1;border-color:rgba(255,139,139,.2);background:rgba(255,139,139,.05)}
 .state{min-width:88px;text-align:center;padding:6px 7px;border:1px solid var(--line);border-radius:999px;font-size:8.5px;color:var(--muted)}.state.done{color:var(--ok);border-color:rgba(121,222,179,.22);background:rgba(121,222,179,.05)}
 .flow{padding:16px;overflow:auto}.flowline{display:flex;align-items:stretch;min-width:920px}.node{flex:1;min-width:120px;text-align:center;padding:11px;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.02);font-size:9px;color:var(--muted)}.node strong{display:block;color:#fff;font-size:10.5px;margin-bottom:3px}.node.hot{border-color:rgba(244,198,109,.25);background:rgba(244,198,109,.05)}.node.hot strong{color:#ffd28a}.node.cash{border-color:rgba(244,198,109,.45);background:rgba(244,198,109,.09)}.node.cash strong{color:#ffd28a}.arrow{padding:0 7px;color:#4b5560;align-self:center}
 .vflow{display:flex;flex-direction:column;gap:0}.vnode{border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.02);padding:10px 12px;font-size:10.5px;color:var(--muted)}.vnode strong{display:block;color:#fff;font-size:11px;margin-bottom:2px}.vnode code{font-family:ui-monospace,Consolas,monospace;font-size:10px;color:var(--accent)}.varrow{text-align:center;color:#4b5560;padding:3px 0;font-size:11px}.vnode.hot{border-color:rgba(244,198,109,.25);background:rgba(244,198,109,.05)}.vnode.hot strong{color:#ffd28a}.vnode.cash{border-color:rgba(244,198,109,.45);background:rgba(244,198,109,.09)}.vnode.cash strong{color:#ffd28a}
@@ -23,252 +23,300 @@ table.tbl{width:100%;border-collapse:collapse;font-size:10.8px;margin-top:8px}ta
 .mono{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:var(--accent)}
 .note{margin-top:12px;padding:14px 16px;border:1px solid rgba(142,227,198,.14);border-radius:16px;background:rgba(142,227,198,.03)}.note strong{font-size:11px}.note p{margin:6px 0 0;color:var(--muted);font-size:10.8px;line-height:1.5}
 .warnbox{margin-top:12px;padding:14px 16px;border:1px solid rgba(244,198,109,.2);border-radius:16px;background:linear-gradient(180deg,rgba(244,198,109,.07),rgba(244,198,109,.025))}.warnbox strong{font-size:11px;color:#ffd28a}.warnbox p{margin:6px 0 0;color:var(--muted);font-size:10.8px;line-height:1.5}
+.futbox{margin-top:12px;padding:14px 16px;border:1px dashed rgba(255,139,139,.25);border-radius:16px;background:rgba(255,139,139,.03)}.futbox strong{font-size:11px;color:#ffb1b1}.futbox p{margin:6px 0 0;color:var(--muted);font-size:10.8px;line-height:1.5}
 .cashbox{margin-top:12px;padding:18px;border:2px solid rgba(244,198,109,.45);border-radius:18px;background:linear-gradient(180deg,rgba(244,198,109,.12),rgba(244,198,109,.04))}.cashbox strong{font-size:12px;color:#ffd28a}.cashbox p{margin:6px 0 0;color:var(--muted);font-size:11px;line-height:1.55}.cashbox .big{font-size:30px;font-weight:800;color:#ffd28a;letter-spacing:-.02em;margin-top:6px}
 .demo{margin-top:12px;padding:14px 16px;border:1px solid var(--line2);border-radius:16px;background:rgba(255,255,255,.02)}.demo strong{font-size:11px}.demo p{margin:6px 0 0;color:var(--muted);font-size:10.8px;line-height:1.5}.demo input[type=range]{width:100%;accent-color:var(--accent)}.demo .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}.demo .pill{border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:10.5px;color:var(--muted);flex:1;min-width:130px}.demo .pill b{display:block;color:#fff;font-size:13px;margin-top:2px}.demo .tabs{display:flex;gap:6px;margin-top:10px}.demo .tabs button{border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--muted);border-radius:9px;padding:7px 10px;font-size:10px;cursor:pointer}.demo .tabs button.on{border-color:rgba(119,184,255,.4);color:#dcecff;background:rgba(119,184,255,.08)}
 @media(max-width:950px){.hero,.grid,.grid3{grid-template-columns:1fr}.flowline{min-width:640px}}@media(max-width:620px){.container{padding:18px 13px 40px}.top{padding:13px}.actions{display:none}.hero h2{font-size:25px}.stats{grid-template-columns:1fr}.idx{top:60px}}
 </style>
 </head>
 <body>
-<header><div class="top"><div class="brand"><div class="logo"></div><div><h1>Control de Facturas · Bloque de conocimiento</h1><div class="sub">Módulo Plan Semanal de Obra · main <span class="mono">309baa8</span> (PR #9) · UNA sola experiencia consolidada</div></div></div><div class="actions"><span class="btn primary">CONSOLIDADO · main</span></div></div></header>
+<header><div class="top"><div class="brand"><div class="logo"></div><div><h1>Control de Facturas · Bloque de conocimiento</h1><div class="sub">Módulo Plan Semanal de Obra V3 · main <span class="mono">92f2a0c</span> (PR #13) · objetivo físico → receta → MRP → caja</div></div></div><div class="actions"><span class="btn primary">IMPLEMENTADO · main</span></div></div></header>
 <div class="container">
 
 <section class="hero">
   <div class="card hero-main">
     <div class="kicker">Resumen ejecutivo</div>
-    <h2>Vos definís qué querés ejecutar. El sistema calcula qué necesitás para poder cumplirlo.</h2>
-    <p><strong style="color:#e2e7ec">Plan Semanal de Obra</strong> consolida Metas + Materiales + Compras + Caja + Factibilidad en una sola experiencia dentro de la tab <strong style="color:#e2e7ec">Avance físico</strong>. El residente fija metas físicas por partida y frente; el motor determinístico explota BOM/APU, descuenta stock y OC en tránsito, expone el faltante neto y la <strong style="color:#e2e7ec">caja adicional necesaria</strong>. La productividad histórica y el clima son overlays de factibilidad: informan, nunca reescriben la meta.</p>
-    <div class="badges"><span class="badge ok">PLAN BASE: DETERMINÍSTICO</span><span class="badge ok">MULTI-FRENTE: SOPORTADO</span><span class="badge ok">BOM + STOCK + OC: INTEGRADO</span><span class="badge cash">CAJA ADICIONAL: PROMINENTE</span><span class="badge ok">WEATHER OVERLAY: OFF/ON</span><span class="badge ok">LIBRO HISTÓRICO: B/LL/HH/O</span><span class="badge ok">CONSOLIDADO PR #9</span></div>
+    <h2>Definís qué querés producir. La receta traduce eso a partidas, el MRP a materiales, y el sistema te muestra qué falta comprar y cuánta caja necesita.</h2>
+    <p><strong style="color:#e2e7ec">Plan Semanal de Obra V3</strong> reemplazó la lógica de “+% de bloque aplicado a cada partida” por una cadena de <strong style="color:#e2e7ec">objetivo físico de producción</strong>: una <strong style="color:#e2e7ec">receta constructiva</strong> (importada del Excel que la constructora ya usa) dice cuántas partidas físicas produce cada unidad; el <strong style="color:#e2e7ec">BOM/APU</strong> canónico (<code>budget_item_materials</code>) dice qué materiales exige cada partida; y el <strong style="color:#e2e7ec">MRP de obra</strong> cruza esa necesidad contra stock de obra, central disponible (neto de reservas), inbound que llega a tiempo y faltante a comprar con su caja. Comprometer el plan <strong style="color:#e2e7ec">reserva stock central atómicamente</strong>: plan + ítems + reservas en una sola transacción.</p>
+    <div class="badges"><span class="badge ok">OBJETIVO FÍSICO: CANÓNICO</span><span class="badge ok">RECETA CONSTRUCTIVA: IMPLEMENTADO</span><span class="badge ok">IMPORT EXCEL: FAIL-CLOSED</span><span class="badge ok">UN ÚNICO MOTOR BOM</span><span class="badge ok">MRP OBRA: SERVER-ONLY</span><span class="badge ok">RESERVAS: ATÓMICAS</span><span class="badge cash">CAJA: PROMINENTE</span><span class="badge ok">WEATHER OVERLAY: OFF/ON</span></div>
   </div>
   <div class="card hero-side">
     <div style="padding-bottom:12px"><strong>Estado del módulo</strong></div>
     <div class="stats">
-      <div class="stat"><b>Gs. 4,8 M</b><span>caso control certificado</span></div>
-      <div class="stat"><b>7 / 7</b><span>días cubiertos E2E clima</span></div>
-      <div class="stat"><b>4 días</b><span>comprometidos E2E</span></div>
-      <div class="stat"><b>DRAFT</b><span>COMMITTED · CLOSED</span></div>
-      <div class="stat"><b>B·LL·HH·O</b><span>libro histórico</span></div>
-      <div class="stat"><b>PR #9</b><span>merge 309baa8</span></div>
+      <div class="stat"><b>30/30</b><span>E2E MRP (receta→caja→reserva)</span></div>
+      <div class="stat"><b>6/6</b><span>RLS / server-only E2E</span></div>
+      <div class="stat"><b>12/12</b><span>live RPC (rollback + concurrencia)</span></div>
+      <div class="stat"><b>3/3</b><span>lifecycle CLOSED/DRAFT live</span></div>
+<div class="stat"><b>3 estados</b><span>DRAFT · COMMITTED · CLOSED</span></div>
+      <div class="stat"><b>PR #13</b><span>merge <span class="mono">92f2a0c</span></span></div>
     </div>
   </div>
 </section>
 
 <div class="card idx">
-  <a href="#s01">01 Problema</a><a href="#s02">02 Filosofía</a><a href="#s03">03 Flujo general</a><a href="#s04">04 Plan semana</a><a href="#s05">05 Metas físicas</a><a href="#s06">06 Multi-frente</a><a href="#s07">07 BOM/APU</a><a href="#s08">08 Materiales</a><a href="#s09">09 Stock</a><a href="#s10">10 OC inbound</a><a href="#s11">11 Faltante</a><a href="#s12">12 Caja necesaria</a><a href="#s13">13 Caso 120 m²</a><a href="#s14">14 Factibilidad</a><a href="#s15">15 Histórica</a><a href="#s16">16 Weather Overlay</a><a href="#s17">17 Días no trabajados</a><a href="#s18">18 Consolidación</a><a href="#s19">19 Persistencia+Seguridad</a><a href="#s20">20 Qué NO hace + Estado</a>
+  <a href="#s01">01 Problema</a><a href="#s02">02 Filosofía</a><a href="#s03">03 Cadena canónica</a><a href="#s04">04 Receta constructiva</a><a href="#s05">05 Import Excel</a><a href="#s06">06 Ejemplo 0,4 km</a><a href="#s07">07 Objetivo físico</a><a href="#s08">08 Multi-frente</a><a href="#s09">09 BOM/APU</a><a href="#s10">10 MRP de obra</a><a href="#s11">11 Reservas</a><a href="#s12">12 Otras obras</a><a href="#s13">13 Inbound por fecha</a><a href="#s14">14 Faltante</a><a href="#s15">15 Caja</a><a href="#s16">16 Preview vs COMMIT</a><a href="#s17">17 Lifecycle</a><a href="#s18">18 Clima</a><a href="#s19">19 Histórica</a><a href="#s20">20 Días no trabajados</a><a href="#s21">21 Seguridad</a><a href="#s22">22 Integración</a><a href="#s23">23 Caso end-to-end</a><a href="#s24">24 Qué NO hace + Estado</a>
 </div>
 
 <section class="section" id="s01"><div class="title"><div><h3><span class="n">01</span>Problema operativo</h3><p>Qué duele sin este módulo.</p></div><div class="state done">VIGENTE</div></div>
 <div class="grid">
-<div class="item"><div class="head"><div class="num">A</div><div><h4>La semana arranca sin números</h4><p class="summary">El residente sabe qué quiere avanzar, pero no cuánto material exige, qué ya tiene, qué viene en camino ni cuánta plata necesita para comprar lo que falta.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">B</div><div><h4>Compra doble o compra tarde</h4><p class="summary">Sin neteo stock + inbound se compra material que ya está pedido, o se descubre el faltante cuando el frente ya está parado.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">C</div><div><h4>Clima e historia se mezclan con la meta</h4><p class="summary">Un pronóstico o un promedio histórico terminan “corrigiendo” lo que la obra quiere hacer, en vez de mostrarse como factibilidad separada.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">D</div><div><h4>Dos herramientas que se pisan</h4><p class="summary">Antes coexistían “Plan Semanal” y una proyección paralela. El residente no sabía cuál era la oficial. Eso ya no existe (ver §18).</p></div></div></div>
+<div class="item"><div class="head"><div class="num">A</div><div><h4>La semana arranca sin números</h4><p class="summary">El ingeniero sabe que quiere 0,4 km de ruta, pero no cuántas toneladas de subbase ni de base eso exige, qué ya tiene en obra, qué hay en el central, qué viene en camión y cuánta plata falta.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">B</div><div><h4>El plan en % no produce cantidades</h4><p class="summary">Aplicar “+10% del bloque” a todas las partidas por igual no refleja cómo produce una obra: el porcentaje no dice cuánta subbase, base ni emulsión necesita esta semana.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">C</div><div><h4>Stock central mal contado</h4><p class="summary">Contar el depósito central por su stock físico hace que dos obras prometan el mismo material y una se quede parada: se necesita el disponible neto de reservas, no el físico.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">D</div><div><h4>Compras sin fecha ni caja</h4><p class="summary">Una OC sin fecha confirmada no garantiza nada. Y el faltante sin costo real aparece como Gs. 0, escondiendo la necesidad de caja.</p></div></div></div>
 </div>
 </section>
 
 <section class="section" id="s02"><div class="title"><div><h3><span class="n">02</span>Filosofía del módulo</h3><p>La regla central, sin excepciones.</p></div><div class="state done">DEFINIDO</div></div>
 <div class="card flow"><div class="flowline">
-<div class="node hot"><strong>Usuario define</strong>qué quiere ejecutar</div><div class="arrow">→</div>
-<div class="node"><strong>Sistema calcula</strong>qué necesita para cumplirlo</div><div class="arrow">→</div>
-<div class="node"><strong>Sistema expone</strong>materiales · faltante · caja</div><div class="arrow">→</div>
-<div class="node"><strong>Sistema sugiere</strong>factibilidad histórica + climática</div>
+<div class="node hot"><strong>Usuario define</strong>objetivo físico de producción</div><div class="arrow">→</div>
+<div class="node"><strong>Receta traduce</strong>producción → partidas físicas</div><div class="arrow">→</div>
+<div class="node"><strong>BOM explota</strong>partidas → materiales</div><div class="arrow">→</div>
+<div class="node"><strong>MRP cruza</strong>necesidad vs stock+inbound real</div><div class="arrow">→</div>
+<div class="node cash"><strong>Sistema expone</strong>reservas · faltante · caja</div>
 </div></div>
-<div class="note"><strong>NO es un predictor autónomo</strong><p>El sistema no adivina cuánto va a avanzar la obra, no inventa velocidad si no hay datos, no bloquea el plan y no reescribe la meta. La intención operativa pertenece al residente; el motor traduce esa intención a consecuencias físicas y financieras.</p></div>
+<div class="note"><strong>NO es un predictor autónomo</strong><p>El sistema no adivina cuánto va a avanzar la obra, no inventa velocidad, no recorta la meta con clima y no decide por el residente. La intención es humana; el motor determinístico traduce esa intención a cantidades, reservas, faltante y caja. El clima y la productividad histórica son overlays informativos: nunca reescriben la compra.</p></div>
+<div class="warnbox"><strong>El viejo modelo “+% del bloque” ya no es canónico</strong><p>Aplicar el mismo porcentaje a todas las partidas quedó conceptualmente reemplazado: hoy la unidad de planeación es la <strong>unidad de producción</strong> (km de ruta, m² de muro). El sistema convierte producción → partidas usando la receta, y solo entonces calcula materiales. El modo “+puntos porcentuales del contrato” sigue existiendo como entrada auxiliar por partida, pero se convierte siempre a cantidad física antes de calcular nada.</p></div>
 </section>
 
-<section class="section" id="s03"><div class="title"><div><h3><span class="n">03</span>Flujo general</h3><p>La cadena canónica, en orden.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<section class="section" id="s03"><div class="title"><div><h3><span class="n">03</span>Cadena canónica</h3><p>El concepto central, en orden y sin atajos.</p></div><div class="state done">IMPLEMENTADO</div></div>
 <div class="card flow"><div class="vflow">
-<div class="vnode"><strong>Meta física definida por usuario</strong>partida + frente + período + cantidad o +pp. Ej.: Mampostería · Sector A · 120 m².</div><div class="varrow">↓</div>
-<div class="vnode"><strong>BOM / APU</strong><code>cantidad planificada × consumo por unidad × (1 + merma)</code> = material requerido.</div><div class="varrow">↓</div>
-<div class="vnode"><strong>Stock disponible</strong>lo que ya está físicamente en obra.</div><div class="varrow">↓</div>
-<div class="vnode"><strong>Órdenes de compra en tránsito / inbound físico</strong><code>ordenado − recibido físicamente</code>. Factura ≠ recepción.</div><div class="varrow">↓</div>
-<div class="vnode hot"><strong>Faltante neto</strong><code>max(0, demanda − stock − inbound)</code>. Lo que realmente hay que comprar.</div><div class="varrow">↓</div>
-<div class="vnode cash"><strong>Costo del faltante → caja adicional necesaria</strong><code>faltante neto × costo unitario</code>. Ver §12.</div><div class="varrow">↓ + lateral</div>
-<div class="vnode"><strong>Factibilidad histórica / climática</strong>capacidad observada + pronóstico futuro. Overlay lateral, no recorta la meta.</div>
+<div class="vnode"><strong>Objetivo físico de producción</strong>“esta semana quiero 0,4 km de ruta tipo A”.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>Receta constructiva</strong>1 km produce: 1.500 t subbase · 1.100 t base · 600 t asfalto · 4.000 l emulsión. Multiplico por 0,4 → metas de partida físicas.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>Partidas / cantidades físicas</strong><code>600 t subbase · 440 t base · 240 t asfalto · 1.600 l emulsión</code>. Capping por saldo contractual si corresponde.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>BOM / APU de materiales</strong><code>meta × cantidad_por_unidad_ejecutada × (1 + desperdicio_pct/100)</code> = necesidad bruta.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>Stock de obra</strong>lo que está físicamente en el depósito del proyecto. Cobertura 1.</div><div class="varrow">↓</div>
+<div class="vnode hot"><strong>Stock central DISPONIBLE</strong>físico <code>−</code> reservas ACTIVE de otros planes. NO es el stock físico. Cobertura 2. Al comprometer, se reserva.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>Inbound confirmado a tiempo</strong><code>ordenado − recibido</code>, y solo si <code>fecha_entrega ≤ fecha_necesidad</code>. Cobertura 3; tarde o sin fecha = informativo.</div><div class="varrow">↓</div>
+<div class="vnode hot"><strong>Faltante a comprar</strong><code>max(0, bruta − obra − central − inbound válido)</code>. Lo único que genera compra nueva.</div><div class="varrow">↓</div>
+<div class="vnode cash"><strong>Caja necesaria</strong><code>faltante × costo válido</code> (<code>productos.costo_promedio</code>); sin costo → “Costo no disponible”, nunca Gs. 0.</div><div class="varrow">↓ + lateral</div>
+<div class="vnode"><strong>Factibilidad (overlay)</strong>productividad histórica + clima. Informa capacidad y riesgo; no recorta materiales ni compra.</div>
 </div></div>
 </section>
 
-<section class="section" id="s04"><div class="title"><div><h3><span class="n">04</span>Plan de la semana</h3><p>Dónde vive y cómo se guarda.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<section class="section" id="s04"><div class="title"><div><h3><span class="n">04</span>Dos recetas distintas — y por qué no se mezclan</h3><p>Una traduce producción a partidas; la otra, partidas a materiales.</p></div><div class="state done">IMPLEMENTADO</div></div>
 <div class="grid">
-<div class="item"><div class="head"><div class="num">◉</div><div><h4>Dónde entrar</h4><p class="summary">Detalle del proyecto → tab <code>Avance físico</code> → sección <code>Plan Semanal de Obra</code>. Encabezado: “Metas + Materiales + Compras + Caja + Factibilidad”.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">▦</div><div><h4>Período + estado</h4><p class="summary">Elegís fecha inicio / fin del plan y estado <code>DRAFT</code> (borrador) · <code>COMMITTED</code> (comprometido) · <code>CLOSED</code> (cerrado). Botón <code>Guardar Plan</code>.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">TX</div><div><h4>Persistencia atómica</h4><p class="summary">Guardar es una transacción (<code>save_weekly_plan_atomic</code>). Si un ítem falla, se revierte todo: nunca queda un plan a medio guardar.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">≡</div><div><h4>Qué se planifica</h4><p class="summary">Partidas presupuestarias, frente/sector, período, meta física, cantidad directa o % contractual, y múltiples frentes para una misma partida.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">R</div><div><h4>1 · Receta de producción</h4><p class="summary">Responde: <strong>“¿qué partidas produce 1 unidad de producción?”</strong>. Ej.: 1 km de ruta → 1.500 t subbase → 1.100 t base → 600 t carpeta asfáltica → 4.000 l riego. Se guarda en <code>production_recipes</code> + <code>production_recipe_components</code> (partida presupuestaria + cantidad por unidad de producción). Fuente: el Excel/cómputo de la constructora (y más adelante BIM).</p></div></div></div>
+<div class="item"><div class="head"><div class="num">ƒ</div><div><h4>2 · BOM / APU</h4><p class="summary">Responde: <strong>“¿qué materiales exige 1 unidad de cada partida?”</strong>. Ej.: 1 t subbase → 1,5 t piedra; 1 t carpeta → 6 l emulsión. Fuente canónica: <code>budget_item_materials</code> (con merma). <strong>NO existe un segundo motor de materiales</strong>: la receta y el Plan Semanal reutilizan el mismo BOM del presupuesto.</p></div></div></div>
 </div>
+<div class="note"><strong>Cómo se combinan en el plan</strong><p>El objetivo físico (0,4 km) entra a la receta de producción → metas de partidas → esas metas entran al BOM/APU → necesidad bruta de materiales. Dos etapas bien separadas: primero <strong>producción→partidas</strong>, después <strong>partida→materiales</strong>.</p></div>
 </section>
 
-<section class="section" id="s05"><div class="title"><div><h3><span class="n">05</span>Metas físicas</h3><p>La cantidad física es la base canónica.</p></div><div class="state done">CERTIFICADO</div></div>
+<section class="section" id="s05"><div class="title"><div><h3><span class="n">05</span>Importación desde Excel</h3><p>Se aprovecha el Excel que la constructora ya usa. Fail-closed, sin fuzzy silencioso.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><div class="vflow">
+<div class="vnode"><strong>Excel de la empresa</strong>el archivo de cómputo/receta que ya utilizan. Columnas reconocidas: <code>PARTIDA_CODIGO / CANTIDAD / UNIDAD</code> (con variantes de encabezado) + <code>RECETA / UNIDAD_PRODUCCION</code>.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>Detectar código de partida</strong>el sistema normaliza encabezados y filas (formato numérico paraguayo: “gs.” fuera, coma decimal, punto de miles).</div><div class="varrow">↓</div>
+<div class="vnode hot"><strong>Match exacto contra el presupuesto</strong><code>resolveImportMapping</code>: código trimmeado contra el catálogo real de partidas del proyecto. ¿Error o ambiguo? <strong>BLOQUEA</strong> — no elige “el parecido” por su cuenta.</div><div class="varrow">↓</div>
+<div class="vnode hot"><strong>Errores visibles + corrección manual</strong>por fila: código vacío · inexistente · duplicado/ambiguo · cantidad inválida. Cada fila con error tiene un selector <strong>mapeo manual</strong> para elegir la partida real del presupuesto. La importación no se confirma mientras exista una fila con error: <em>“Corregí las filas con error (mapeo manual o Excel) antes de confirmar.”</em></div><div class="varrow">↓</div>
+<div class="vnode"><strong>Preview de la receta</strong>código + nombre + unidad de producción + componentes ya mapeados a partidas, revisable antes de guardar.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>Guardar receta estructurada</strong>vía <code>save_production_recipe_atomic</code> (RPC server-only): receta + componentes en una transacción, con trazabilidad del archivo (<code>source_file_name</code>) y tipo <code>EXCEL</code>.</div>
+</div></div>
+<div class="note"><strong>Qué garantiza</strong><p>No obligamos a la constructora a abandonar su proceso de cómputo: el mismo Excel entra al sistema. No hay fuzzy silencioso: si un código no existe o es ambiguo, la importación <strong>se bloquea con el motivo</strong> y se corrige por mano. Lo editado manualmente prevalece sobre el código del Excel (validado también en servidor).</p></div>
+</section>
+
+<section class="section" id="s06"><div class="title"><div><h3><span class="n">06</span>Ejemplo pedagógico: RUTA TIPO A — 0,4 km</h3><p>Receta × objetivo físico = partidas de la semana.</p></div><div class="state done">CERTIFICADO E2E</div></div>
 <div class="grid">
-<div class="item"><div class="head"><div class="num">Q</div><div><h4>Cantidad directa</h4><p class="summary"><code>QUANTITY</code>. “Quiero ejecutar 120 m²”. Ya viene en unidad física, sin conversión.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">PP</div><div><h4>Puntos porcentuales del contrato</h4><p class="summary"><code>CONTRACT_PERCENTAGE_POINTS</code>. “+10 puntos”. Conversión: <code>contractual × (pp / 100)</code>.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">km</div><div><h4>La receta dice (por 1 km)</h4><p class="summary">Partida física por unidad de producción, importada del Excel:<br>1.500 t subbase · 1.100 t base · 600 t asfalto (carpeta) · 4.000 l emulsión (riego de liga).</p></div></div></div>
+<div class="item"><div class="head"><div class="num">×</div><div><h4>Objetivo del plan: 0,4 km</h4><p class="summary"><code>t × cantidad_por_unidad_de_producción</code> → partida física a ejecutar esta semana:<br><strong>600 t subbase · 440 t base · 240 t asfalto · 1.600 l emulsión</strong>.</p></div></div></div>
 </div>
-<div class="card flow" style="margin-top:11px"><table class="tbl"><tr><th>Ejemplo conceptual</th><th>Valor</th></tr>
-<tr><td>Partida: Mampostería — cantidad contractual</td><td><code>500 m²</code></td></tr>
-<tr><td>Usuario suma</td><td><code>+10 puntos porcentuales</code></td></tr>
-<tr><td><strong>Meta física resultante</strong></td><td><strong>50 m²</strong></td></tr>
-<tr><td>Capping</td><td>La meta se limita al saldo pendiente real. Ninguna combinación de frentes puede consumir más que el remanente.</td></tr>
+<div class="card flow" style="margin-top:11px"><table class="tbl"><tr><th>Partida física</th><th>Por 1 km</th><th>× 0,4 → meta semanal</th></tr>
+<tr><td>02.1 Subbase granular</td><td>1.500 t</td><td><strong>600 t</strong></td></tr>
+<tr><td>02.2 Base granular</td><td>1.100 t</td><td><strong>440 t</strong></td></tr>
+<tr><td>02.3 Carpeta asfáltica</td><td>600 t</td><td><strong>240 t</strong></td></tr>
+<tr><td>02.4 Riego de liga</td><td>4.000 l</td><td><strong>1.600 l</strong></td></tr>
 </table></div>
-<div class="warnbox"><strong>No confundir tres porcentajes distintos</strong><p>Porcentaje del contrato ≠ porcentaje del remanente ≠ cantidad física. El motor convierte todo a cantidad física y la muestra como “Cantidad Final”. El avance global entre partidas heterogéneas (m² + m³ + kg) no se suma por unidad: se pondera por valor contractual.</p></div>
+<div class="demo"><strong>Probalo — mové el objetivo de producción</strong><p>La receta es lineal: lo que cambia es cuántos km querés ejecutar. Este es el caso E2E certificado (0,4 km).</p>
+<div class="row"><span style="font-size:10.5px;color:var(--muted)">Objetivo (km)</span><input id="km-slider" type="range" min="0" max="1000" step="25" value="400">&nbsp;<span class="mono" id="km-val">0,4 km</span></div>
+<div class="row"><div class="pill">Subbase<b id="km-sub">600 t</b></div><div class="pill">Base<b id="km-base">440 t</b></div><div class="pill">Asfalto<b id="km-asp">240 t</b></div><div class="pill">Emulsión<b id="km-emu">1.600 l</b></div></div>
+</div>
+<div class="note"><strong>Después de esto entra el MRP</strong><p>Las partidas físicas no son el final: son la entrada. El BOM las convierte en materiales y el MRP decide cobertura, reserva y compra. Ver §10 a §15.</p></div>
 </section>
 
-<section class="section" id="s06"><div class="title"><div><h3><span class="n">06</span>Multi-frente</h3><p>Una partida, varios sectores.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<section class="section" id="s07"><div class="title"><div><h3><span class="n">07</span>Objetivo físico: tres modos + capping</h3><p>Cantidad, % del tramo o “llegar a” — siempre se convierte a física.</p></div><div class="state done">CERTIFICADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">Q</div><div><h4>Modo Cantidad</h4><p class="summary"><code>QTY</code>. “Quiero producir 0,4 km / 120 m²”. Sin conversión.<code>meta por partida = cantidad × cantidad_por_unidad_de_producción</code>.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">PP</div><div><h4>% del tramo contractual</h4><p class="summary"><code>PCT</code>. “+10 puntos de la receta”. Se activa solo si la receta tiene <code>tramo contractual</code>: <code>(tramo × pp)/100</code> = unidades de producción → partidas. Sin tramo, hay error (fail-closed: sin tramo no hay conversión).</p></div></div></div>
+<div class="item"><div class="head"><div class="num">TO</div><div><h4>“Llegar a”</h4><p class="summary"><code>TO</code>. “Quiero estar al 35% de la receta”: <code>objetivo = max(0, llegada − avance estimado)</code>. El avance estimado se consulta por los componentes (informático, nunca escribe).</p></div></div></div>
+<div class="item"><div class="head"><div class="num">✎</div><div><h4>Partidas +pp y capping</h4><p class="summary">También podés cargar una partida directamente en cantidad o +pp contractual, sin receta. En todo caso la meta se limita al <strong>saldo contractual pendiente</strong> (chip <em>“limitado al remanente”</em>). Las metas editadas a mano muestran chip “manual”: no se pisan al cambiar el tramo del bloque.</p></div></div></div>
+</div>
+<div class="warnbox"><strong>No son tres porcentajes: contexto</strong><p>Porcentaje del contrato ≠ porcentaje del remanente ≠ cantidad física. Todo termina convertido en cantidad física, y el avance global entre partidas heterogéneas se pondera por valor contractual (referencial, secundario frente a la caja).</p></div>
+</section>
+
+<section class="section" id="s08"><div class="title"><div><h3><span class="n">08</span>Multi-frente</h3><p>Una partida, varios sectores. Un pool de materiales.</p></div><div class="state done">IMPLEMENTADO</div></div>
 <div class="card flow"><table class="tbl"><tr><th>Partida</th><th>Frente</th><th>Meta</th><th>Regla</th></tr>
-<tr><td>Mampostería</td><td>Sector A</td><td>80 m²</td><td>válido</td></tr>
-<tr><td>Mampostería</td><td>Sector B</td><td>40 m²</td><td>válido — comparte remanente</td></tr>
-<tr><td>Mampostería</td><td>Sector A</td><td>duplicado</td><td>rechazado — clave plan + partida + frente</td></tr>
+<tr><td>Subbase granular</td><td>Sector A</td><td>400 t</td><td>válido</td></tr>
+<tr><td>Subbase granular</td><td>Sector B</td><td>200 t</td><td>válido — comparte saldo</td></tr>
+<tr><td>Subbase granular</td><td>Sector A</td><td>duplicado</td><td>rechazado — clave plan + partida + frente</td></tr>
 </table></div>
-<div class="note"><strong>Mismo remanente, mismo pool</strong><p>Todos los frentes de una partida comparten el saldo contractual y el mismo pool de stock/inbound. El motor asigna stock e inbound secuencialmente para no contar dos veces el mismo material.</p></div>
+<div class="note"><strong>Mismo remanente, mismo pool</strong><p>Todos los frentes de una partida comparten el <strong>saldo contractual</strong> y el mismo pool de stock obra / central / inbound. El motor agrega la demanda bruta por producto antes de asignar cobertura: se asigna secuencialmente para no contar dos veces el mismo material.</p></div>
 </section>
 
-<section class="section" id="s07"><div class="title"><div><h3><span class="n">07</span>BOM / APU</h3><p>De la meta al material.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<section class="section" id="s09"><div class="title"><div><h3><span class="n">09</span>BOM / APU</h3><p>De la meta al material. Un único motor de materiales.</p></div><div class="state done">IMPLEMENTADO</div></div>
 <div class="grid">
-<div class="item"><div class="head"><div class="num">ƒ</div><div><h4>Fórmula</h4><p class="summary"><code>target × qty_per_unit × (1 + waste_pct / 100)</code>. Fuente canónica: <code>budget_item_materials</code> unido a productos (nombre, unidad, costo promedio).</p></div></div></div>
-<div class="item"><div class="head"><div class="num">⊕</div><div><h4>Motor puro</h4><p class="summary"><code>calculateWeeklyPlanRequirements</code>. Determinístico: no usa clima ni LLM para el cálculo base. Los errores críticos de datos son fail-closed.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">ƒ</div><div><h4>Fórmula</h4><p class="summary"><code>demanda bruta = meta_partida × cantidad_por_unidad_ejecutada × (1 + desperdicio_pct / 100)</code> (4 decimales). Ej.: 600 t subbase × 1,5 t piedra/t × (1+0) = <strong>900 t piedra</strong>. Fuente: <code>budget_item_materials</code> ⨝ <code>productos</code>.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">0</div><div><h4>Un solo motor, dos capas arriba</h4><p class="summary">Receta de producción y BOM/APU son niveles distintos de la misma cadena. No hay segundo motor de materiales: el plan semanal consume el BOM del presupuesto; lo que configures ahí es lo que planifica.</p></div></div></div>
 </div>
+<div class="warnbox"><strong>Sin BOM no hay cero silencioso</strong><p>REQUIRES_BOM sin materiales → <code>MATERIALES NO CONFIGURADOS</code>; UNKNOWN sin materiales → <code>REVISIÓN REQUERIDA (MATERIALES NO DEFINIDOS)</code>. Solo <code>NO_MATERIAL</code> (servicio / mano de obra) acepta BOM vacío sin alerta. Meta 0 no genera demanda bruta.</p></div>
 </section>
 
-<section class="section" id="s08"><div class="title"><div><h3><span class="n">08</span>Materiales: cuatro números distintos</h3><p>Leerlos en orden evita errores caros.</p></div><div class="state done">IMPLEMENTADO</div></div>
-<div class="card flow"><div class="flowline">
-<div class="node"><strong>Requerido</strong>demanda bruta del BOM</div><div class="arrow">−</div>
-<div class="node"><strong>Stock</strong>disponible físico</div><div class="arrow">−</div>
-<div class="node"><strong>Inbound</strong>OC en tránsito físico</div><div class="arrow">=</div>
-<div class="node hot"><strong>Faltante</strong>compra faltante neta</div>
+<section class="section" id="s10"><div class="title"><div><h3><span class="n">10</span>MRP DE OBRA</h3><p>Material Requirements Planning adaptado a construcción.</p></div><div class="state done">IMPLEMENTADO · server-only</div></div>
+<div class="note" style="margin-top:0"><strong>Qué significa</strong><p>A diferencia de un MRP industrial (producción fabril), acá la “demanda” nace de lo que la obra quiere ejecutar en una semana: el BOM de las partidas del plan. La pregunta que responde es simple: <strong>dado lo que quiero producir, ¿qué tengo, qué llega, qué falta comprar y cuánta caja necesito?</strong></p></div>
+<div class="card flow" style="margin-top:11px"><div class="flowline">
+<div class="node"><strong>MATERIAL REQUERIDO</strong>BOM · demanda bruta + merma</div><div class="arrow">→</div>
+<div class="node"><strong>1 · STOCK DE OBRA</strong>depósito del proyecto</div><div class="arrow">→</div>
+<div class="node hot"><strong>2 · CENTRAL DISPONIBLE</strong>físico − reservas ACTIVE</div><div class="arrow">→</div>
+<div class="node"><strong>3 · INBOUND A TIEMPO</strong>OC que llega ≤ fecha necesidad</div><div class="arrow">→</div>
+<div class="node hot"><strong>4 · COMPRA ADICIONAL</strong>lo que nada más cubre</div>
 </div></div>
 <div class="grid" style="margin-top:11px">
-<div class="item"><div class="head"><div class="num">!</div><div><h4>Sin BOM no hay cero silencioso</h4><p class="summary">Si una partida requiere materiales pero no tiene receta, NO se devuelve 0. Se muestra <code>MATERIALES NO CONFIGURADOS</code> (<code>REQUIRES_BOM</code>) o <code>REVISIÓN REQUERIDA</code> (<code>UNKNOWN</code>). Solo <code>NO_MATERIAL</code> (mano de obra / servicio puro) acepta BOM vacío sin alerta.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">◐</div><div><h4>Avance global ponderado</h4><p class="summary"><code>Σ(min(ejecutado, contractual) × precio) / Σ(contractual × precio)</code>. El target usa ejecutado + plan, capado por contrato. El % es el KPI; el Gs es referencia secundaria.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">!</div><div><h4>CENTRAL DISPONIBLE ≠ CENTRAL FÍSICO</h4><p class="summary"><strong>disponible = físico − reservas ACTIVE</strong>. Y no se cuenta el stock comprometido dos veces: lo reservado por obra A no vuelve a ofrecerse a obra B. Si no hay central configurada, el lote de central queda en 0 y el resto del cálculo igual corre (solo avisa “No se pudo leer el stock central: se muestra 0 sin asumir falta de stock”).</p></div></div></div>
+<div class="item"><div class="head"><div class="num">◈</div><div><h4>Ejemplo del neteo</h4><p class="summary">Central físico: <strong>1.000 bolsas</strong> · reservado obra A: <strong>300</strong> · reservado obra B: <strong>250</strong> · comprometido en el plan actual: <strong>100</strong>.<br>→ disponible para el plan = <strong>350</strong>. (“Comprometido” ya es una reserva ACTIVE: se descuenta una única vez, junto con A y B.)</p></div></div></div>
 </div>
 </section>
 
-<section class="section" id="s09"><div class="title"><div><h3><span class="n">09</span>Stock</h3><p>Lo que ya está en obra.</p></div><div class="state done">IMPLEMENTADO</div></div>
-<div class="grid1"><div class="item"><div class="head"><div class="num">S</div><div><h4>Disponible físico por obra</h4><p class="summary">El motor lee el disponible real (<code>stock_por_proyecto</code>). Es la primera cobertura que se descuenta. Ver el detalle por producto expandiendo cada frente (“requerido → stock → OC = faltante”).</p></div></div></div></div>
-</section>
-
-<section class="section" id="s10"><div class="title"><div><h3><span class="n">10</span>Órdenes de compra en tránsito</h3><p>Comprado pero todavía no recibido.</p></div><div class="state done">CERTIFICADO</div></div>
+<section class="section" id="s11"><div class="title"><div><h3><span class="n">11</span>Reservas de stock central</h3><p>El disponible se defiende: al comprometer, el stock queda apartado.</p></div><div class="state done">IMPLEMENTADO · RPC server-only</div></div>
 <div class="grid">
-<div class="item"><div class="head"><div class="num">1</div><div><h4>Prioridad estricta</h4><p class="summary">1) cubrir con stock. 2) cubrir con inbound físico. 3) recién después calcular faltante. El descuento secuencial evita el doble conteo entre frentes.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">2</div><div><h4>Inbound = ordenado − recibido</h4><p class="summary">Solo órdenes <code>AUTORIZADO</code> con <code>producto_id</code> canónico descuentan. Sin identidad estructurada contra productos, la línea se ignora (fail-safe): nunca se adivina por texto.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">≠</div><div><h4>Factura ≠ recepción física</h4><p class="summary">Una factura no baja el inbound. Solo la recepción física (<code>oc_order_item_recibido</code>) lo reduce. Comprado-y-facturado pero no recibido sigue siendo inbound.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">◈</div><div><h4>Sin doble conteo</h4><p class="summary">Stock e inbound son pools compartidos por frentes. Lo asignado a un frente ya no está disponible para el siguiente en el mismo cálculo.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">✓</div><div><h4>PREVIEW no reserva</h4><p class="summary">El preview es read-only: refleja el stock central tal como está montado ahora y avisa <em>“Al comprometer el plan se reserva (la reserva no ocurre en el preview)”</em>. Dos previews seguidos no cambian disponibilidades.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">TX</div><div><h4>COMMITTED reserva</h4><p class="summary">Al comprometer, la RPC <code>commit_production_plan_atomic</code> valida el disponible CON LOCK y hace INSERT de <code>inventory_reservations</code> ACTIVE por plan+producto. Si falta stock para alguna línea, <strong>aborta TODO</strong> el commit (<code>Stock central insuficiente</code>): sin reservas parciales.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">⟳</div><div><h4>Re-commit: replace sin duplicate violation</h4><p class="summary">Volver a comprometer el plan libera las reservas anteriores (ACTIVE→RELEASED con <code>released_at</code>) y crea las nuevas en la MISMA transacción con clave idempotente. El índice único parcial (solo registros ACTIVE con clave) garantiza una sola reserva ACTIVE por plan y producto; el historial RELEASED nunca bloquea el recommit.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">✗</div><div><h4>DRAFT / CLOSED liberan</h4><p class="summary">Un plan guardado como DRAFT (o pasando COMMITTED→DRAFT) o cerrado (CLOSED) libera sus reservas ACTIVE: <strong>RELEASED</strong>, con timestamp. Nunca se fingen consumos ni se “consume” stock por el solo hecho de cerrar: la reserva salió y el stock vuelve a disponible.</p></div></div></div>
 </div>
 </section>
 
-<section class="section" id="s11"><div class="title"><div><h3><span class="n">11</span>Faltante neto</h3><p>Lo único que hay que comprar.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<section class="section" id="s12"><div class="title"><div><h3><span class="n">12</span>Otras obras</h3><p>El stock de otro proyecto NO entra automáticamente en tu cobertura.</p></div><div class="state done">REGLA</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">✓</div><div><h4>Obra A ≠ disponible para obra B</h4><p class="summary">Si obra A tiene material y obra B necesita, ese stock NO entra automáticamente en la cobertura de B. Cobertura de obra B = stock propio de B + central disponible. Esto evita que un plan de una obra “canibalice” silenciosamente una obra.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">→</div><div><h4>Transferencia = proceso operativo</h4><p class="summary">Si querés mover material entre obras, se hace como transferencia/recepción operativa (stock sale de A y entra a B, registrado). Después de eso, B ya lo ve en su stock. No hay “transferencia virtual” por el solo hecho de planificar.</p></div></div></div>
+</div>
+</section>
+
+<section class="section" id="s13"><div class="title"><div><h3><span class="n">13</span>Inbound: solo lo que llega a tiempo cubre</h3><p>Comprado pero sin fecha ≠ cobertura asegurada.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">∑</div><div><h4>inbound útil = ordenado − recibido</h4><p class="summary">Sobre cada línea de OC <code>AUTORIZADO</code> con <code>producto_id</code> canónico: <code>neto = cantidad − cantidad_físicamente_recibida</code>. La <strong>factura no baja el inbound</strong>: solo la recepción física.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">◷</div><div><h4>La fecha decide</h4><p class="summary">La línea cubre el plan SOLO si <code>fecha_entrega_estimada ≤ fecha_necesidad (fin del plan)</code>. Si llegará después de la necesidad, o si <strong>no tiene fecha confirmada</strong>, aparece informativamente en el panel (<em>“En compra, fecha no confirmada (no descuenta el faltante): N producto”</em>) pero <strong>no reduce el faltante crítico</strong>.</p></div></div></div>
+</div>
+<div class="note"><strong>Ejemplo certificado (E2E)</strong><p>Emulsión con OC de 5.000 l con entrega 2026-12-31 (meses después del plan que termina el 24-09): se muestra aparte, pero <strong>no cubre</strong> — el sistema computa comprar 1.880 l de emulsión para el faltante real. Otra OC sin fecha (50 bolsas de cal) igual: visible, no computa. Fail-closed: sin columna de fecha, la recepción por defecto es <em>no confirmada</em>.</p></div>
+</section>
+
+<section class="section" id="s14"><div class="title"><div><h3><span class="n">14</span>Faltante a comprar</h3><p>Lo que sobra después de todo lo que realmente ofrece cobertura.</p></div><div class="state done">IMPLEMENTADO</div></div>
 <div class="card flow"><div class="vflow">
-<div class="vnode"><strong>Demanda bruta</strong>BOM del plan. Ej.: 6.300 ladrillos.</div><div class="varrow">− stock 1.800 → − inbound 2.500</div>
-<div class="vnode hot"><strong>Faltante neto = max(0, 6.300 − 1.800 − 2.500) = 2.000</strong>Solo este número se valoriza como caja.</div>
+<div class="vnode"><strong>Necesidad bruta</strong>e.g., 900 t piedra <code>(BOM)</code>.</div><div class="varrow">− obra 400 − central disponible 200 − inbound válido 100</div>
+<div class="vnode hot"><strong>Faltante por comprar = max(0, 900 − 400 − 200 − 100) = <strong>200 t</strong>. Lo que dispara explícitamente alta compra con caja.</div>
 </div></div>
+<div class="grid" style="margin-top:11px">
+<div class="item"><div class="head"><div class="num">◈</div><div><h4>Después del neteo, no del parcial</h4><p class="summary">El descuento es secuencial por producto (obra → central → inbound) agregando primero la demanda total de todos los frentes para no contar nada dos veces. La misma línea de cubrimiento por producto es la misma que después define la reserva al comprometer: no hay dos visiones del problema.</p></div></div></div>
+</div>
 </section>
 
-<section class="section" id="s12"><div class="title"><div><h3><span class="n">12</span>Caja necesaria — la función central</h3><p>Alta prominencia: es la pregunta que el residente trae a la oficina.</p></div><div class="state done">CERTIFICADO</div></div>
-<div class="cashbox"><strong>FALTANTE NETO × COSTO UNITARIO = CAJA ADICIONAL NECESARIA</strong>
-<div class="big">Gs. 4.800.000</div>
-<p>Caso real de control certificado (motor real, no mock visual): LADRILLO — necesidad bruta <strong style="color:#ffd28a">6.300</strong> · stock <strong style="color:#ffd28a">1.800</strong> · inbound <strong style="color:#ffd28a">2.500</strong> · <strong style="color:#ffd28a">faltante 2.000</strong> × costo unitario <strong style="color:#ffd28a">Gs. 2.400</strong> = <strong style="color:#ffd28a">Gs. 4.800.000</strong>. En pantalla vive en la tarjeta ámbar “Caja necesaria para cumplir el plan”, por encima del avance global.</p>
+<section class="section" id="s15"><div class="title"><div><h3><span class="n">15</span>Caja necesaria — el número que abre o cierra la semana</h3><p>Alta prominencia. Con costo real, no precio de venta.</p></div><div class="state done">CERTIFICADO</div></div>
+<div class="cashbox"><strong>CAJA ADICIONAL NECESARIA = Σ (faltante a comprar × costo válido)</strong>
+<div class="big">Gs. 600.000</div>
+<p>Caso E2E certificado (ruta tipo A, 0,4 km): piedra — necesidad 900 t · obra 400 · central 200 · inbound 100 · <strong style="color:#ffd28a">faltante 200 t</strong> × <strong style="color:#ffd28a">Gs. 3.000</strong> = <strong style="color:#ffd28a">Gs. 600.000</strong>. En pantalla es la tarjeta ámbar “Caja adicional necesaria” del panel MRP, junto al aviso: <em>“Costo no disponible en N material(es): esa parte no suma a la caja (no se muestra 0 como si no hiciera falta comprar).”</em></p>
 </div>
 <div class="grid" style="margin-top:11px">
-<div class="item"><div class="head"><div class="num">V</div><div><h4>Valor de materiales del plan</h4><p class="summary">Valúa TODA la demanda (incluso lo ya comprado). Referencia de consumo, no de caja.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">$</div><div><h4>Caja adicional requerida</h4><p class="summary">Valúa SOLO el faltante neto con costo estructurado válido (costo promedio). Sin costo confiable se marca “caja subdeclarada”, nunca Gs. 0 silencioso.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">V</div><div><h4>Valor de materiales del plan</h4><p class="summary">Valúa TODA la demanda (aunque ya esté comprada). Referencia de consumo, no de caja.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">$</div><div><h4>Costo válido = productos.costo_promedio</h4><p class="summary">El costo de material del MRP sale de <code>productos.costo_promedio</code>. <strong>NO se usa</strong> el <code>unit_price</code> del presupuesto (precio de venta del rubro). Si el producto no tiene costo &gt; 0, la línea marca <code>Costo no disponible</code> y <strong>no suma a la caja</strong>: nunca Gs. 0 silencioso.</p></div></div></div>
 </div>
-<div class="warnbox"><strong>Tres conceptos que no se mezclan</strong><p>Valor contractual de la producción (precio de venta del rubro) ≠ valor de materiales (toda la demanda) ≠ caja adicional necesaria (solo el faltante). La tarjeta contractual es referencial y secundaria; la caja ámbar es la decisión de compra.</p></div>
-<div class="demo"><strong>Probalo — la caja se mueve con la meta</strong><p>Mismo caso control (52,5 lad/m² · stock 1.800 · inbound 2.500 · Gs. 2.400). Movel el slider y mirá cómo el faltante y la caja reaccionan. El stock y el inbound se descuentan primero, siempre.</p>
+<div class="demo"><strong>Probalo — la caja reacciona a la meta</strong><p>Caso clásico BOM (52,5 lad/m² · stock obra 1.800 · inbound 2.500 · Gs. 2.400). Mové la meta y mirá cómo el faltante reacciona: los pools se descuentan primero, siempre.</p>
 <div class="row"><span style="font-size:10.5px;color:var(--muted)">Meta (m²)</span><input id="cash-slider" type="range" min="0" max="200" step="5" value="120"><span class="mono" id="cash-meta">120 m²</span></div>
 <div class="row"><div class="pill">Demanda bruta<b id="cash-dem">6.300 unid</b></div><div class="pill">Faltante neto<b id="cash-fal">2.000 unid</b></div><div class="pill">Caja adicional<b id="cash-caja" style="color:#ffd28a">Gs. 4.800.000</b></div></div>
 </div>
 </section>
 
-<section class="section" id="s13"><div class="title"><div><h3><span class="n">13</span>Caso de uso visual: “120 m² esta semana”</h3><p>El recorrido completo en un vistazo.</p></div><div class="state done">CERTIFICADO</div></div>
-<div class="card flow"><div class="vflow">
-<div class="vnode"><strong>META — 120 m²</strong>Lo que el residente quiere ejecutar. La meta base se conserva siempre.</div><div class="varrow">↓ BOM (52,5 lad/m²)</div>
-<div class="vnode"><strong>MATERIALES — 6.300 ladrillos</strong>Demanda bruta del plan.</div><div class="varrow">↓ cobertura</div>
-<div class="vnode"><strong>STOCK 1.800 · OC EN TRÁNSITO 2.500 · FALTANTE 2.000</strong><code>max(0, 6.300 − 1.800 − 2.500)</code></div><div class="varrow">↓ costo Gs. 2.400 / unidad</div>
-<div class="vnode cash"><strong>CAJA NECESARIA — Gs. 4.800.000</strong>Solo el faltante neto.</div>
-</div></div>
-<div class="note"><strong>En paralelo, sin tocar la meta</strong><p>FACTIBILIDAD lateral: capacidad histórica (¿el ritmo observado sostiene 120 m²?) + clima (¿el pronóstico deja trabajar?) + restricciones. Si la capacidad estimada es menor, se muestra la brecha aparte. Los materiales para cumplir el plan siguen calculados sobre 120 m².</p></div>
-</section>
-
-<section class="section" id="s14"><div class="title"><div><h3><span class="n">14</span>Factibilidad</h3><p>Plan ≠ factibilidad. Las dos frases conviven.</p></div><div class="state done">IMPLEMENTADO</div></div>
-<div class="grid">
-<div class="item"><div class="head"><div class="num">P</div><div><h4>Plan</h4><p class="summary">“Esto quiero ejecutar.” Intención del residente, con metas, materiales, faltante y caja.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">F</div><div><h4>Factibilidad</h4><p class="summary">“Con las condiciones observadas, qué tan razonable parece.” Considera productividad histórica, clima futuro, disponibilidad de materiales y restricciones.</p></div></div></div>
-</div>
-</section>
-
-<section class="section" id="s15"><div class="title"><div><h3><span class="n">15</span>Productividad histórica</h3><p>Advisory. Nunca bloquea.</p></div><div class="state done">ADVISORY</div></div>
-<div class="grid">
-<div class="item"><div class="head"><div class="num">H</div><div><h4>Benchmark consultivo</h4><p class="summary">Con historial suficiente, el frente expandido muestra “Capacidad observada” y advierte si la meta es agresiva (ej.: &gt;2× la velocidad reciente). Sin evidencia, dice explícitamente “historial insuficiente para estimar velocidad” y sigue con materiales/caja.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">≠</div><div><h4>Sin velocidad global</h4><p class="summary">No existe “la velocidad de la obra”. Rubros y sectores tienen ritmos propios; no se extrapola el ritmo de uno a otro. Nunca reemplaza la decisión del usuario ni inventa ritmo.</p></div></div></div>
-</div>
-</section>
-
-<section class="section" id="s16"><div class="title"><div><h3><span class="n">16</span>Weather Overlay — pronóstico futuro</h3><p>Clima OFF / Clima ON. La meta base se conserva.</p></div><div class="state done">LIVE · Open-Meteo</div></div>
-<div class="grid">
-<div class="item"><div class="head"><div class="num">OFF</div><div><h4>Clima OFF</h4><p class="summary">Funciona todo el motor base. No se consulta ningún provider meteorológico. Se muestra el plan base sin overlay.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">ON</div><div><h4>Clima ON</h4><p class="summary">Consulta pronóstico futuro (actualmente Open-Meteo) para las <strong>fechas exactas del plan</strong> y las coordenadas del proyecto. Genera snapshots persistidos, muestra cobertura, días comprometidos y capacidad climática estimada.</p></div></div></div>
-</div>
-<div class="card flow" style="margin-top:11px"><table class="tbl"><tr><th>Caso E2E certificado</th><th>Valor</th></tr>
-<tr><td>Snapshots persistidos</td><td><strong>7</strong> (uno por fecha, batch inmutable)</td></tr>
-<tr><td>Rango</td><td><code>2026-09-16 → 2026-09-22</code></td></tr>
-<tr><td>Cobertura</td><td><strong>7/7 días cubiertos</strong> (si el provider no cubre todo, se informa “cobertura parcial X de Y”, sin inventar soles)</td></tr>
-<tr><td>Días afectados / comprometidos</td><td><strong>4 días</strong> (lluvia ≥3 mm o ráfagas ≥45 km/h)</td></tr>
-<tr><td>Meta base</td><td><strong>Preservada.</strong> La capacidad climática vive en columna y bloque aparte, con su brecha.</td></tr>
+<section class="section" id="s16"><div class="title"><div><h3><span class="n">16</span>PREVIEW vs COMMITTED</h3><p>El preview calcula; el commit recalcula, valida y reserva.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><table class="tbl">
+<tr><th>Paso</th><th>PREVIEW (CALCULAR PLAN)</th><th>COMMITTED (Comprometer plan)</th></tr>
+<tr><td>Receta → partidas</td><td>calculado en vivo</td><td>re-calcula en servidor con datos frescos</td></tr>
+<tr><td>BOM → necesidad bruta</td><td>sí</td><td>re-calcula en servidor</td></tr>
+<tr><td>Stock obra / central / inbound</td><td>lee la DB actual</td><td>re-lee la DB justa antes de persistir</td></tr>
+<tr><td>Faltante + caja</td><td>sí</td><td>sí (con los datos frescos)</td></tr>
+<tr><td><strong>Reserva stock central</strong></td><td class="hot"><strong>NO. Read-only.</strong></td><td class="ok"><strong>SÍ (ACTIVE por plan+producto)</strong></td></tr>
+<tr><td>Comparación vs preview</td><td>—</td><td>compara líneas de central servidor vs. preview (<code>compareCentralLines</code>): si difieren, <strong>NO compromete</strong></td></tr>
+<tr><td>Guardado</td><td>no persiste nada</td><td>plan + ítems + reservas en UNA transacción</td></tr>
 </table></div>
-<div class="warnbox"><strong>El clima NO modifica automáticamente la meta</strong><p>“Plan 120 m²” y “capacidad climática estimada” son dos números distintos que conviven. El consumo esperado con clima puede mostrarse aparte; los materiales para cumplir el plan siguen calculados sobre la meta del usuario. Si el pronóstico falla, el overlay se cierra en fail-closed (“no disponible”) en vez de inventar.</p></div>
+<div class="warnbox"><strong>Si la disponibilidad cambió, NO se compromete en silencio</strong><p>El botón se bloquea mientras el preview esté desactualizado con el mensaje: <em>“El cálculo de abastecimiento está desactualizado. Recalculá antes de comprometer el plan.”</em> Si al comprometer el servidor detecta que el abastecimiento cambió (comparación central o stock insuficiente en la RPC), responde:<br>• <em>“El abastecimiento cambió desde el último cálculo. Recalculá el plan.”</em><br>• <em>“El stock disponible cambió desde el cálculo. Recalculá el plan.”</em><br>Nunca se compromete con menos cobertura que la que el usuario vio.</p></div>
+<div class="note"><strong>Guardar sin estado MRP (<code>DRAFT</code>)</strong><p>Guardar borrador es libre: se persiste el plan atómicamente (<code>DRAFT: “Borrador guardado de forma atómica.”</code>) <strong>sin reservas</strong>. Y si un plan COMMITTED se guarda de nuevo como borrador con preview desactualizado, el sistema guarda <em>SIN reservas</em> y avisa: <em>“Plan guardado SIN reservas (el preview estaba desactualizado). Recalculá y volvé a comprometer para reservar stock central.”</em></p></div>
+</section>
+
+<section class="section" id="s17"><div class="title"><div><h3><span class="n">17</span>Lifecycle del plan y de sus reservas</h3><p>DRAFT → COMMITTED → CLOSED, todo el cambio transaccional.</p></div><div class="state done">CERTIFICADO live</div></div>
+<div class="card flow"><div class="vflow">
+<div class="vnode"><strong>DRAFT</strong>borrador editable. <strong>Sin reservas activas</strong>. Persistencia atómica del plan + ítems (si algo falla, se revierte todo).</div><div class="varrow">↓ comprometer</div>
+<div class="vnode hot"><strong>COMMITTED</strong>plan cerrado + <strong>reservas ACTIVE</strong> en el depósito central. Recalculado y validado server-side antes de reservar. UNA transacción: plan + ítems + reservas, o nada.</div><div class="varrow">re-commit ↑ reemplaza (átomo) · → DRAFT ↑ libera · → partida ↓</div>
+<div class="vnode"><strong>RE-COMMIT (COMMITTED → COMMITTED)</strong>si recalcularon metas/periodo, el re-commit reemplaza las reservas anteriores atómicamente: libera las viejas, reserva las nuevas (o falla y el rollback deja todo como estaba, sin dejar nada a medio hacer).</div><div class="varrow">↓ cerrar</div>
+<div class="vnode"><strong>CLOSED</strong>plan cerrado. Libera las reservas remanentes (ACTIVE→RELEASED con <code>released_at</code>). No es consumo fijo: el stock vuelve a disponible para otro plan.</div><div class="varrow">↑ COMMITTED → DRAFT también libera (sin “consumo”)</div>
+</div></div>
+<div class="note"><strong>Atomicidad real, no dos pasos encadenados</strong><p>No existe el flujo viejo “libero primero y guardo después” en transacciones separadas (era una ventana de pérdida). En una sola transacción se hace: save del plan+ítems → release de las ACTIVE viejas → (si COMMITTED) reserve de las nuevas. Si el reserve falla (falta stock), el ROLLBACK restaura lo liberado: el plan queda COMMITTED con sus reservas intactas — caso comprobado en pruebas live de falla y concurrencia.</p></div>
+</section>
+
+<section class="section" id="s18"><div class="title"><div><h3><span class="n">18</span>Clima — capa advisory, siempre opcional</h3><p>OFF/ON. Informa factibilidad; no recorta materiales ni compra.</p></div><div class="state done">LIVE · Open-Meteo</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">OFF</div><div><h4>Clima OFF</h4><p class="summary">Funciona todo el motor base: receta, partidas, BOM, stock, reservas, faltante y caja. Sin consultas al provider: ni inserts.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">ON</div><div><h4>Clima ON</h4><p class="summary">Pronóstico para las <strong>fechas exactas del plan</strong> + coordenadas del proyecto (provider actual: Open-Meteo). Snapshots persistidos batch-inmutable (una fila por fecha). Muestra cobertura, días afectados (lluvia ≥3mm o ráfagas ≥45 km/h) y capacidad climática estimada con su brecha, <strong>aparte</strong> de la meta. Respaldo contractual de lo ocurrido: capas aparte (Climate Workdays, §20).</p></div></div></div>
+</div>
+<div class="warnbox"><strong>El clima NO recorta materiales ni compra</strong><p>“Plan 120 m²” y “capacidad con clima” conviven: la necesidad y la caja siguen naciendo de la meta física. Si el pronóstico falla o no cubre todo el rango, el overlay aparece <strong>no disponible / cobertura parcial</strong> (sin inventar soles) y <strong>el plan base sigue funcionando</strong> — fail-closed, sin inventar datos a medias.</p></div>
 <div class="demo"><strong>Probalo — OFF vs ON sin tocar la meta</strong><p>La meta queda fija en 120 m². El toggle solo cambia la lectura de factibilidad lateral.</p>
 <div class="tabs"><button id="wx-off" class="on">Clima OFF</button><button id="wx-on">Clima ON</button></div>
 <p id="wx-msg">OFF — plan base: 120 m² · materiales 6.300 · caja Gs. 4.800.000. Sin overlay.</p>
 </div>
 </section>
 
-<section class="section" id="s17"><div class="title"><div><h3><span class="n">17</span>Días no trabajados / Libro de obra — registro histórico</h3><p>Distinto del Weather Overlay. Futuro ≠ pasado.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<section class="section" id="s19"><div class="title"><div><h3><span class="n">19</span>Productividad histórica</h3><p>Advisory. Nunca bloquea. Sin velocidad global.</p></div><div class="state done">ADVISORY</div></div>
 <div class="grid">
-<div class="item"><div class="head"><div class="num">◷</div><div><h4>Weather Overlay = futuro</h4><p class="summary">Pronóstico de lo que podría pasar en las fechas del plan. Vive dentro del Plan Semanal, es opcional y no reescribe metas.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">◶</div><div><h4>Libro = histórico</h4><p class="summary">Registro de lo que realmente ocurrió en obra. Vive en Avance físico como “Días no trabajados”, con editor explícito y persistencia visible.</p></div></div></div>
-</div>
-<div class="card flow" style="margin-top:11px"><table class="tbl"><tr><th>Código</th><th>Estado</th><th>Uso</th></tr>
-<tr><td><code>B</code></td><td>Bueno / practicable</td><td>Día trabajable.</td></tr>
-<tr><td><code>LL</code></td><td>Lluvioso</td><td>Lluvia directa.</td></tr>
-<tr><td><code>HH</code></td><td>Húmedo / encharcado</td><td>Efecto posterior aunque ya no llueva.</td></tr>
-<tr><td><code>O</code></td><td>Otra circunstancia</td><td>Causa no climática / operativa.</td></tr>
-</table></div>
-<div class="grid" style="margin-top:11px">
-<div class="item"><div class="head"><div class="num">✎</div><div><h4>Editor explícito: Registrar día</h4><p class="summary">Botón <code>Registrar día</code> → elegís fecha y código → <code>Guardar día</code>. Click en un día cicla <code>B → LL → HH → O → vacío</code>. También podés borrar con <code>Limpiar registro</code>.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">✓</div><div><h4>Flujo probado CREATE · EDIT · DELETE</h4><p class="summary">Crear, editar y borrar están cubiertos. Los errores de persistencia se muestran al usuario (<code>No se pudo guardar el día</code> / <code>No se pudo borrar el registro</code>); nunca se tragan en silencio. Hay estados de <code>Guardando…</code>, éxito y error real.</p></div></div></div>
-</div>
-<div class="note"><strong>¿Y Climate Workdays?</strong><p>Es la capa contractual (DMH/DINAC como primario, umbral por obra, pluviómetro, evidencia y forecast que separa atraso bruto de atraso explicado). El Libro registra el día; ese respaldo contractual es un frente separado.</p></div>
-</section>
-
-<section class="section" id="s18"><div class="title"><div><h3><span class="n">18</span>Fin de la duplicación: una sola experiencia</h3><p>Lo viejo no es vigente.</p></div><div class="state done">PR #9 · 309baa8</div></div>
-<div class="grid">
-<div class="item"><div class="head"><div class="num">✕</div><div><h4>Antes: dos herramientas</h4><p class="summary">Coexistían “Plan Semanal” y “Proyección Semanal Inteligente de Obra + Materiales + Impacto en Caja”. El residente no sabía cuál mirar.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">✓</div><div><h4>Ahora: PLAN SEMANAL DE OBRA</h4><p class="summary">Una sola experiencia. La lógica útil de materiales, compras, caja, clima y capacidad vive dentro de ella. El panel ya no importa ni renderiza la proyección separada.</p></div></div></div>
-</div>
-<div class="warnbox"><strong>No documentar la vieja Proyección como módulo vigente</strong><p>El motor de pronóstico se conserva solo como dependencia interna (velocidad observada). No es una pantalla, no es un módulo, no es una alternativa al Plan Semanal.</p></div>
-</section>
-
-<section class="section" id="s19"><div class="title"><div><h3><span class="n">19</span>Persistencia, estados y seguridad</h3><p>Lo que sostiene al módulo.</p></div><div class="state done">CERTIFICADO</div></div>
-<div class="grid">
-<div class="item"><div class="head"><div class="num">TX</div><div><h4>Transacción + snapshots inmutables</h4><p class="summary">El plan se guarda vía RPC atómica. Cada consulta climática crea un batch nuevo (<code>project_weather_forecast_batches</code> + una fila por fecha en <code>snapshots</code>); nunca pisa el pronóstico con el que se decidió un plan anterior. La FK del plan impide borrar el batch referenciado.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">◩</div><div><h4>Estados del plan</h4><p class="summary"><code>DRAFT</code> → <code>COMMITTED</code> → <code>CLOSED</code>. El estado viaja en el encabezado del plan junto al período. Cerrar es una decisión explícita, no un efecto del clima.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">RLS</div><div><h4>Aislamiento por empresa</h4><p class="summary">Toda lectura filtra por empresa; el acceso cruzado entre tenants queda denegado. Escritura restringida a roles de administración. El forecast es append-only (SELECT + INSERT, sin UPDATE/DELETE) y anónimo sin privilegios.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">UI</div><div><h4>Jerarquía en pantalla</h4><p class="summary">Caja ámbar prominente primero → avance global → valor contractual referencial → tabla multi-frente (expandible a requerido → stock → OC = faltante) → capacidad observada → factibilidad climática. El warning de BOM aparece cuando corresponde.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">H</div><div><h4>Benchmark consultivo</h4><p class="summary">Con historial suficiente, el frente expandido muestra “Capacidad observada” y advierte si la meta es agresiva (ej.: &gt;2× la velocidad reciente: <em>“Meta agresiva: 2,4× superior a la velocidad observada reciente”</em>). Sin evidencia: <em>“historial insuficiente para estimar velocidad”</em>, y el plan sigue con materiales/caja.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">≠</div><div><h4>Sin velocidad global</h4><p class="summary">No existe “la velocidad de la obra”. Rubros y sectores tienen ritmos propios; no se extrapola el ritmo de uno a otro. Nunca reemplaza la decisión del usuario ni inventa ritmo.</p></div></div></div>
 </div>
 </section>
 
-<section class="section" id="s20"><div class="title"><div><h3><span class="n">20</span>Qué NO hace + flujo de usuario + estado técnico</h3><p>Límites, recorrido y certificación.</p></div><div class="state done">MAIN</div></div>
+<section class="section" id="s20"><div class="title"><div><h3><span class="n">20</span>Días no trabajados / Libro de obra</h3><p>Registro histórico: futuro ≠ pasado.</p></div><div class="state done">IMPLEMENTADO</div></div>
 <div class="grid">
-<div class="item"><div class="head"><div class="num">∅</div><div><h4>Qué NO hace</h4><p class="summary">No predice autónomamente el avance. No bloquea ni reemplaza la decisión del usuario. No inventa velocidad sin datos. No recorta la meta con clima. No convierte falta de BOM/costo en Gs. 0. No usa precio de venta como costo de material. No confunde factura con recepción. No mezcla pronóstico futuro con registro histórico. No mantiene la vieja Proyección como módulo.</p></div></div></div>
-<div class="item"><div class="head"><div class="num">→</div><div><h4>Flujo de usuario (2 min)</h4><p class="summary">Avance físico → período + estado → agregar partida + frente → meta en cantidad o +pp → expandir para ver requerido → stock → OC = faltante → leer caja ámbar → opcional Clima ON para factibilidad → Guardar Plan → registrar días reales en el Libro.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">◷</div><div><h4>Weather Overlay = futuro</h4><p class="summary">Pronóstico de las fechas del plan. Advisory, opcional, no reescribe metas ni compra.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">◶</div><div><h4>Libro = histórico</h4><p class="summary">“Días no trabajados” con editor explícito (<code>Registrar día</code>) y codes <code>B · LL · HH · O</code> — registro CREATE/EDIT/DELETE con errores visibles.</p></div></div></div>
+</div>
+<div class="note"><strong>¿Y Climate Workdays?</strong><p>Es la capa contractual (DMH/DINAC, umbral por obra, pluviómetro y evidencia). El Libro registra el día; Climate Workdays lo respalda contractualmente. Detalle en <a href="modulo-dias-climaticos.html" style="color:var(--accent)">modulo-dias-climaticos.html</a>.</p></div>
+</section>
+
+<section class="section" id="s21"><div class="title"><div><h3><span class="n">21</span>Seguridad — la parte técnica</h3><p>Multi-tenant, mutaciones server-only, tablas involucradas.</p></div><div class="state done">CERTIFICADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">╬</div><div><h4>Multi-tenant fail-closed</h4><p class="summary">Recetas aisladas por <code>empresa_id</code> (+ proyecto, opcional) y reservas aisladas por <code>empresa_id</code>, con RLS por empresa en todas las lecturas. Las RPC mutantes validan la empresa, que el actor tenga perfil <strong>y rol de administración</strong> (<code>assert_mrp_actor</code> — muy server-only). Acceso cruzado entre tenants: denegado (probado en E2E RLS).</p></div></div></div>
+<div class="item"><div class="head"><div class="num">TX</div><div><h4>La persistencia MRP es server-only</h4><p class="summary">El browser (JWT de usuario) NO puede escribir en <code>inventory_reservations</code>: INSERT/UPDATE/DELETE están revocados y las RPC mutantes solo tienen EXECUTE para <code>service_role</code>. La UI llama a server actions que invocan las RPC con <code>p_empresa_id</code> y <code>p_actor_id</code> explícitos.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">≡</div><div><h4>Tablas del módulo</h4><p class="summary"><code>production_recipes</code> (receta: código, unidad de producción, tramo contractual, origen EXCEL/BIM/MANUAL) · <code>production_recipe_components</code> (partida + cantidad por unidad de producción) · <code>inventory_reservations</code> (reservas ACTIVE/RELEASED por plan+producto, con fecha necesidad e idempotencia) · plan + ítems en <code>project_weekly_plans</code> / <code>project_weekly_plan_items</code>.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">🔒</div><div><h4>Commit recalculado server-side</h4><p class="summary">Al comprometer, el servidor re-corre el motor con datos frescos de la DB y compara su resultado contra lo que el usuario vio (líneas de central). Cualquier divulgación distinta → se rechaza la operación y se pide recalcular. El browser nunca dicta cantidades reservadas.</p></div></div></div>
+</div>
+</section>
+
+<section class="section" id="s22"><div class="title"><div><h3><span class="n">22</span>Integración con el resto del ERP</h3><p>El plan como puente entre ejecutación y recursos.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">⇄</div><div><h4>Compras (OC → inbound)</h4><p class="summary">Las OC <code>AUTORIZADO</code> crean inbound (neto = ordenado − recibido) y entran al MRP si llegan antes de la necesidad. La fecha de entrega esperada (<code>expected_delivery_date</code>) se carga al autorizar. La parte ya recibida baja el pool; el faltante que el MRP calcula es la lista de compras necesarias para esa semana.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">⇄</div><div><h4>Inventario (obras y central)</h4><p class="summary">El stock de obra viene del depósito del proyecto y el central del depósito <code>CENTRAL</code> de la empresa (neto de reservas). Al comprometer el plan, el stock central queda apartado como reserva (visible en cualquier disponibilidad central, sin transferencia física: un compromiso contra el inventario).</p></div></div></div>
+<div class="item"><div class="head"><div class="num">⇄</div><div><h4>Finanzas (caja adicional)</h4><p class="summary">La caja adicional necesaria (solo faltante neto × costo válido) es la insumo financiero de la semana: va a la decisión de compra de la obra y a la planificación de caja, no al gasto comercial del avance (que es el referencial contractual).</p></div></div></div>
+</div>
+</section>
+
+<section class="section" id="s23"><div class="title"><div><h3><span class="n">23</span>Caso completo end-to-end (certificado E2E)</h3><p>Receta 0,4 km → MRP → reserva → obra B → cierre → liberación.</p></div><div class="state done">30/30 E2E</div></div>
+<div class="card flow"><div class="vflow">
+<div class="vnode"><strong>1 · IMPORTAR RECETA</strong>Excel <code>RUTA-TIPO-A</code> → match exacto de partidas (600/440/240/1.600) → preview → guardar (atómico).</div><div class="varrow">↓</div>
+<div class="vnode"><strong>2 · OBJETIVO 0,4 km → PARTIDAS</strong>600 t subbase · 440 t base · 240 t asfalto · 1.600 l emulsión → <code>CALCULAR PLAN</code>.</div><div class="varrow">↓</div>
+<div class="vnode hot"><strong>3 · MRP (preview sin reservas)</strong>piedra: bruta 900 · obra 400 · central disponible 200 (físico 300 − 100 reservado de obra B) · inbound válido 100 (entrega 20-09 ≤ fin del plan) … emulsión: bruta 2.880 · obra 1.000 · OC 5.000 tardía no cubre → comprar <strong>1.880 l</strong>. Faltante piedra <strong>200 t</strong> → caja <strong>Gs. 600.000</strong>.</div><div class="varrow">↓ comprometer (recalcula+compara+reserva en forma atómica, si algo cambió el aviso bloqueado lo muestra)</div>
+<div class="vnode"><strong>4 · RESERVAS ACTIVE</strong>plan A reserva 200 t piedra (y emulsión) en el central. El stock físico no se mueve; el disponible neto baja para cualquier otra obra.</div><div class="varrow">↓</div>
+<div class="vnode hot"><strong>5 · OBRA B (mismo material)</strong>B recalcula y su central disponible para piedra queda <strong>0</strong> (todo reservado): B ve faltante a comprar <strong>225 t</strong>, o sea también número de caja real, no inventada.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>6 · CIERRE LIBERA</strong>A pasa a CLOSED → sus reservas ACTIVE→RELEASED → B recalcula y volvé a ver <strong>200 t de central disponible</strong>.</div>
+</div></div>
+<div class="note"><strong>Sin doble conteo ni transferencias fantasma</strong><p>El stock que A reservó no fue consumido: se apartó y, al cerrar, volvió. Nada se movió físicamente entre obras: eso lo hace transferencia operativa real si el equipo decide (cf. §12).</p></div>
+</section>
+
+<section class="section" id="s24"><div class="title"><div><h3><span class="n">24</span>Qué NO hace + estado técnico</h3><p>Límites, recorrido, certificación.</p></div><div class="state done">MAIN 92f2a0c</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">∅</div><div><h4>Qué NO hace</h4><p class="summary">No es un predictor autónomo del avance. No aplica “+X% de bloque” como motor canónico. No usa precio de venta como costo de material. No reserva en el preview. No consume stock de otra obra por defecto. No cuenta el stock comprometido dos veces. No considera inbound sin fecha/tardía como cobertura. No recorta materiales ni compra por clima. No convierte falta de BOM/costo en Gs. 0. No mezcla factura con recepción física. No muta reservas desde el browser.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">→</div><div><h4>Flujo de usuario (2 min)</h4><p class="summary">Avance físico → período → importar/receta (“+ Importar receta”) → objetivo físico (Cant. / % tramo / Llegar a) → CALCULAR PLAN → leer MRP: partidas · materiales · obra · central · inbound · comprar → caja ámbar → (opcional Clima ON) → GUARDAR BORRADOR o COMPROMETER → recálculo server + reserva atómica → registrar días reales en el Libro → CLOSE.</p></div></div></div>
 </div>
 <div class="card flow" style="margin-top:11px"><table class="tbl"><tr><th>Pieza</th><th>Estado</th></tr>
-<tr><td>Metas físicas + % contractual + capping + multi-frente</td><td>IMPLEMENTADO</td></tr>
-<tr><td>BOM/APU + requerido/stock/inbound/faltante + warnings</td><td>IMPLEMENTADO</td></tr>
-<tr><td>Caja adicional prominente + caso 6.300/1.800/2.500/2.000 × 2.400 = 4.800.000</td><td>CERTIFICADO</td></tr>
-<tr><td>Capacidad histórica advisory (nunca bloquea)</td><td>IMPLEMENTADO</td></tr>
-<tr><td>Weather Overlay OFF/ON + snapshots + cobertura + 7/7 con 4 afectados (E2E)</td><td>LIVE</td></tr>
-<tr><td>Libro histórico B/LL/HH/O + Registrar día + CREATE/EDIT/DELETE + errores visibles</td><td>IMPLEMENTADO</td></tr>
-<tr><td>Consolidación única (sin proyección separada) · PR #9</td><td>MERGE 309baa8</td></tr>
-<tr><td>Persistencia atómica + RLS por empresa + forecast append-only</td><td>CERTIFICADO</td></tr>
+<tr><td>Receta constructiva + import Excel fail-closed + traducción física</td><td>IMPLEMENTADO</td></tr>
+<tr><td>MRP: cobertura secuencial (obra → central neto → inbound a tiempo → compra) + caja con <code>costo_promedio</code></td><td>IMPLEMENTADO</td></tr>
+<tr><td>Reservas atómicas + re-commit replace + una ACTIVE por plan+producto</td><td>CERTIFICADO (live, conj.).</td></tr>
+<tr><td>Preview sin reservas + commit con recalculado server + anti-stale</td><td>CERTIFICADO</td></tr>
+<tr><td>Weather Overlay advisory + snapshots inmutables + fail-closed</td><td>LIVE</td></tr>
+<tr><td>RLS por empresa + mutaciones server-only + tenant fail-closed <code>assert_mrp_actor</code></td><td>CERTIFICADO (RLS E2E 6/6)</td></tr>
 </table></div>
-<div class="note"><strong>Lectura junto a otros documentos</strong><p>Uso operativo paso a paso en <a href="manual-de-obra.html#avance-fisico" style="color:var(--accent)">manual-de-obra.html §23</a> · recorrido de obra en <a href="flujo-de-obra.html" style="color:var(--accent)">flujo-de-obra.html</a>. Este bloque es el conocimiento canónico del módulo consolidado; el manual es la guía de uso.</p></div>
+<div class="note"><strong>Lectura junto a otros documentos</strong><p>Uso operativo paso a paso: <a href="manual-de-obra.html#avance-fisico" style="color:var(--accent)">manual-de-obra.html §24</a> · recorrido de obra: <a href="flujo-de-obra.html" style="color:var(--accent)">flujo-de-obra.html</a> · capa contractual del clima: <a href="modulo-dias-climaticos.html" style="color:var(--accent)">modulo-dias-climaticos.html</a>. Este bloque es el conocimiento canónico del módulo; el manual es la guía operativa.</p></div>
 </section>
 
 </div>
@@ -279,6 +327,23 @@ document.querySelectorAll('.idx a').forEach(function(a){
     a.style.borderColor='rgba(142,227,198,.35)';
   });
 });
+(function(){
+  var slider=document.getElementById('km-slider');
+  if(!slider) return;
+  var out=document.getElementById('km-val'),
+      sub=document.getElementById('km-sub'),base=document.getElementById('km-base'),
+      asp=document.getElementById('km-asp'),emu=document.getElementById('km-emu');
+  function fmt(n){return n.toLocaleString('es-PY');}
+  function update(){
+    var km=Number(slider.value)/1000;
+    out.textContent=km.toLocaleString('es-PY',{maximumFractionDigits:2})+' km';
+    sub.textContent=fmt(km*1500)+' t';
+    base.textContent=fmt(km*1100)+' t';
+    asp.textContent=fmt(km*600)+' t';
+    emu.textContent=fmt(km*4000)+' l';
+  }
+  slider.addEventListener('input',update);update();
+})();
 (function(){
   var slider=document.getElementById('cash-slider');
   if(!slider) return;
@@ -306,7 +371,7 @@ document.querySelectorAll('.idx a').forEach(function(a){
   });
   on.addEventListener('click',function(){
     on.classList.add('on');off.classList.remove('on');
-    msg.textContent='ON — meta intacta 120 m² · overlay aparte: 7/7 cubiertos, 4 comprometidos, capacidad estimada y brecha. No recorta meta ni compra.';
+    msg.textContent='ON — meta intacta 120 m² · overlay aparte: capacidad con clima y brecha. No recorta meta ni compra.';
   });
 })();
 </script>
