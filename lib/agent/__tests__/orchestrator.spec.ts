@@ -80,6 +80,43 @@ describe("orchestrator", () => {
     expect(callCount).toBe(2);
   });
 
+  it("envia el modelo Rodrigo vigente a DeepSeek", async () => {
+    toolRegistry.register({
+      name: "structured_tool",
+      description: "structured test tool",
+      inputSchema: z.object({ recipient: z.string(), objective: z.string().optional() }),
+      riskLevel: 0,
+      handler: async () => ({ ok: true }),
+    });
+    const response = {
+      choices: [{ message: { content: "Hola, soy Rodrigo." }, finish_reason: "stop" }],
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify(response),
+      json: async () => response,
+    } as unknown as Response);
+    globalThis.fetch = fetchMock;
+
+    const orch = new AgentOrchestrator({ apiKey: "test-key" });
+    const result = await orch.run({
+      db: mockDbNoOp(),
+      actor: { empresaId: "emp1", userId: "u1", role: "admin", actorType: "user", source: "web" },
+      userIntent: "Hola Rodrigo",
+    });
+
+    expect(result.answer).toContain("Hola");
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      model: string;
+      tools: Array<{ function: { name: string; parameters: { properties?: Record<string, unknown> } } }>;
+    };
+    expect(requestBody.model).toBe("deepseek-flash");
+    const structuredTool = requestBody.tools.find((tool) => tool.function.name === "structured_tool");
+    expect(structuredTool?.function.parameters.properties).toHaveProperty("recipient");
+  });
+
   it("ejecuta tool via gateway y retorna answer", async () => {
     toolRegistry.register({
       name: "echo",
@@ -120,6 +157,14 @@ describe("orchestrator", () => {
     expect(result.answer).toContain("Listo");
     expect(result.turns.some((t) => t.toolName === "echo")).toBe(true);
     expect(result.iterations).toBe(2);
+    const secondRequestMessages = JSON.parse(String((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[1]?.[1]?.body)).messages as Array<{
+      role: string;
+      tool_calls?: unknown[];
+    }>;
+    const assistantIndex = secondRequestMessages.findIndex((message) => message.role === "assistant" && message.tool_calls?.length);
+    const toolIndex = secondRequestMessages.findIndex((message) => message.role === "tool");
+    expect(assistantIndex).toBeGreaterThanOrEqual(0);
+    expect(toolIndex).toBeGreaterThan(assistantIndex);
   });
 
   it("respeta allowlist — rechaza tool no permitido sin ejecutar handler", async () => {

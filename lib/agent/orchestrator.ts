@@ -9,13 +9,14 @@
 
 import type { AgentToolContext } from "./context";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
 import { toolRegistry } from "./registry";
 import { gatewayExecuteSafe, GatewayError } from "./gateway";
 import type { EmailPreview } from "@/lib/email/types";
 import { markEmailDraftWaitingApproval } from "@/lib/email/domain-service";
 
 export const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
-export const DEEPSEEK_MODEL = "deepseek-v4-flash"; // modelo vigente para chat y tool-calling
+export const DEEPSEEK_MODEL = "deepseek-flash"; // DeepSeek V4.1 Flash para chat y tool-calling
 
 const DEFAULT_TIMEOUT_MS = 30000;
 const DEFAULT_MAX_ITERATIONS = 8;
@@ -88,21 +89,24 @@ Reglas duras:
 
 function buildToolsSchemaForLLM(allowlist?: string[] | null): Array<Record<string, unknown>> {
   const tools = toolRegistry.listForAllowlist(allowlist);
-  return tools.map((t) => ({
-    type: "function",
-    function: {
-      name: t.name,
-      description: t.description,
-      // Para BATCH 1 exponemos descripcion + nombre. El schema detallado (zod->jsonschema)
-      // se puede agregar mas adelante sin cambiar el gateway. Hoy el LLM recibe
-      // nombres y el orchestrator valida inputs via Zod de todos modos.
-      parameters: {
-        type: "object",
-        properties: {},
-        additionalProperties: true,
+  return tools.map((t) => {
+    let parameters: Record<string, unknown>;
+    try {
+      parameters = z.toJSONSchema(t.inputSchema) as Record<string, unknown>;
+    } catch {
+      // El Gateway sigue validando con Zod; si un schema futuro no se puede
+      // serializar, conservamos una forma segura en vez de romper el chat.
+      parameters = { type: "object", properties: {}, additionalProperties: true };
+    }
+    return {
+      type: "function",
+      function: {
+        name: t.name,
+        description: t.description,
+        parameters,
       },
-    },
-  }));
+    };
+  });
 }
 
 export class AgentOrchestrator {
@@ -185,6 +189,14 @@ export class AgentOrchestrator {
         };
       }
 
+      // DeepSeek/OpenAI exige que cada mensaje role=tool este precedido por
+      // el mensaje assistant que contiene exactamente sus tool_calls.
+      messages.push({
+        role: "assistant",
+        content: typeof msg?.content === "string" ? msg.content : null,
+        tool_calls: toolCalls,
+      });
+
       // Ejecutar tool_calls secuencialmente via gateway
       for (const tc of toolCalls) {
         const toolName = tc.function?.name;
@@ -196,6 +208,7 @@ export class AgentOrchestrator {
         }
 
         turns.push({ role: "assistant", content: `tool_call:${toolName}`, toolName, toolInput });
+        console.info("[rodrigo] tool call", { tool: toolName });
 
         // Validar allowlist (defensa en profundidad; gateway tambien valida)
         if (this.toolAllowlist && !this.toolAllowlist.includes(toolName)) {
@@ -309,6 +322,7 @@ export class AgentOrchestrator {
     const startedAt = Date.now();
     let response: Response;
     try {
+      console.info("[rodrigo] DeepSeek chat request", { model: this.model });
       response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: "POST",
         signal: controller.signal,
