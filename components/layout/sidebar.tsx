@@ -518,12 +518,15 @@ export function Sidebar({
         collapsed ? "w-[52px]" : "w-[164px]"
       )}
     >
-      <div className="h-14 flex items-center justify-between gap-2 px-2 border-b border-white/[0.08]">
+      <div className={cn(
+        "flex items-center justify-between gap-2 border-b border-white/[0.08]",
+        collapsed ? "min-h-14 px-1.5 py-2" : "min-h-14 px-2 py-2.5"
+      )}>
         <div
           className={cn(
             "relative group flex min-w-0 items-center rounded-md",
             isAdmin && "cursor-pointer hover:bg-white/[0.055]",
-            collapsed ? "h-10 w-10 justify-center" : "h-11 flex-1 justify-start"
+            collapsed ? "w-10 justify-center" : "flex-1 justify-center"
           )}
           onClick={() => isAdmin && !uploading && fileInputRef.current?.click()}
           title={isAdmin ? "Subir logo de la empresa" : undefined}
@@ -532,7 +535,7 @@ export function Sidebar({
             <div
               className={cn(
                 "flex min-w-0 items-center",
-                collapsed ? "h-9 w-9 justify-center" : "h-[52px] w-full justify-start"
+                collapsed ? "h-9 w-9 justify-center" : "w-full justify-center"
               )}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -543,7 +546,7 @@ export function Sidebar({
                   "block h-auto w-auto object-contain",
                   collapsed
                     ? "max-h-8 max-w-8"
-                    : "w-full max-w-[122px] h-auto max-h-[52px]"
+                    : "h-auto w-auto max-w-full max-h-[76px]"
                 )}
                 onError={() => setLogoFailed(true)}
               />
