@@ -591,13 +591,13 @@ export function WeeklyPlanSection({ project }: Props) {
             />
           </div>
 
-          <div className="flex items-center rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-0.5 text-xs">
+          <div className="segmented-control text-xs">
             <button
               type="button"
               onClick={() => setWeatherOverlay(false)}
-              className={`px-2.5 py-1 rounded-md transition-colors ${
+              className={`segmented-item px-2.5 py-1 ${
                 !weatherOverlay
-                  ? "bg-emerald-600 text-white font-semibold"
+                  ? "segmented-item-active font-semibold"
                   : "text-[var(--muted)] hover:text-[var(--foreground)]"
               }`}
             >
@@ -606,9 +606,9 @@ export function WeeklyPlanSection({ project }: Props) {
             <button
               type="button"
               onClick={() => setWeatherOverlay(true)}
-              className={`px-2.5 py-1 rounded-md flex items-center gap-1 transition-colors ${
+              className={`segmented-item px-2.5 py-1 ${
                 weatherOverlay
-                  ? "bg-[var(--cta)] text-[var(--cta-ink)] font-semibold border-[var(--cta-hover)]/50"
+                  ? "segmented-item-active font-semibold"
                   : "text-[var(--muted)] hover:text-[var(--foreground)]"
               }`}
             >
@@ -649,14 +649,14 @@ export function WeeklyPlanSection({ project }: Props) {
           ¿Cómo querés planificar?
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-0.5 text-xs">
+          <div className="segmented-control text-xs">
             <button
               type="button"
               onClick={() => setPlanMode("BLOCK")}
               data-testid="modo-bloque"
-              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors ${
+              className={`segmented-item px-3 py-1.5 ${
                 planMode === "BLOCK"
-                  ? "bg-emerald-600 text-white font-semibold"
+                  ? "segmented-item-active font-semibold"
                   : "text-[var(--muted)] hover:text-[var(--foreground)]"
               }`}
             >
@@ -667,9 +667,9 @@ export function WeeklyPlanSection({ project }: Props) {
               type="button"
               onClick={() => setPlanMode("ITEM")}
               data-testid="modo-partida"
-              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors ${
+              className={`segmented-item px-3 py-1.5 ${
                 planMode === "ITEM"
-                  ? "bg-emerald-600 text-white font-semibold"
+                  ? "segmented-item-active font-semibold"
                   : "text-[var(--muted)] hover:text-[var(--foreground)]"
               }`}
             >
@@ -864,13 +864,13 @@ export function WeeklyPlanSection({ project }: Props) {
 
                           <div>
                             <span className="block text-[11px] text-[var(--muted)]">Modo</span>
-                            <div className="flex rounded-lg border border-[var(--border)] p-0.5 text-[11px]">
+                            <div className="segmented-control text-[11px]">
                               <button
                                 type="button"
                                 onClick={() => handleUpdateFront(front.id, "input_mode", "QUANTITY")}
-                                className={`px-2 py-1 rounded-md ${
+                                className={`segmented-item px-2 py-1 ${
                                   front.input_mode === "QUANTITY"
-                                    ? "bg-emerald-600 text-white font-semibold"
+                                    ? "segmented-item-active font-semibold"
                                     : "text-[var(--muted)]"
                                 }`}
                               >
@@ -879,9 +879,9 @@ export function WeeklyPlanSection({ project }: Props) {
                               <button
                                 type="button"
                                 onClick={() => handleUpdateFront(front.id, "input_mode", "CONTRACT_PERCENTAGE_POINTS")}
-                                className={`px-2 py-1 rounded-md ${
+                                className={`segmented-item px-2 py-1 ${
                                   front.input_mode === "CONTRACT_PERCENTAGE_POINTS"
-                                    ? "bg-emerald-600 text-white font-semibold"
+                                    ? "segmented-item-active font-semibold"
                                     : "text-[var(--muted)]"
                                 }`}
                               >
@@ -1115,13 +1115,13 @@ export function WeeklyPlanSection({ project }: Props) {
                                     manual
                                   </span>
                                 )}
-                                <div className="flex rounded-lg border border-[var(--border)] p-0.5 text-[10px]">
+                                <div className="segmented-control text-[10px]">
                                   <button
                                     type="button"
                                     onClick={() => handleBlockRowUpdate(block, child.id, row.id, "input_mode", "QUANTITY")}
-                                    className={`px-1.5 py-0.5 rounded ${
+                                    className={`segmented-item px-1.5 py-0.5 ${
                                       row.input_mode === "QUANTITY"
-                                        ? "bg-emerald-600 text-white font-semibold"
+                                        ? "segmented-item-active font-semibold"
                                         : "text-[var(--muted)]"
                                     }`}
                                   >
@@ -1130,9 +1130,9 @@ export function WeeklyPlanSection({ project }: Props) {
                                   <button
                                     type="button"
                                     onClick={() => handleBlockRowUpdate(block, child.id, row.id, "input_mode", "CONTRACT_PERCENTAGE_POINTS")}
-                                    className={`px-1.5 py-0.5 rounded ${
+                                    className={`segmented-item px-1.5 py-0.5 ${
                                       row.input_mode === "CONTRACT_PERCENTAGE_POINTS"
-                                        ? "bg-emerald-600 text-white font-semibold"
+                                        ? "segmented-item-active font-semibold"
                                         : "text-[var(--muted)]"
                                     }`}
                                   >
@@ -1613,20 +1613,22 @@ export function WeeklyPlanSection({ project }: Props) {
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
+                variant="neutral"
+                size="md"
                 onClick={() => handleSaveWithStatus("DRAFT")}
                 disabled={isSaving}
                 data-testid="guardar-borrador"
-                className="h-9 gap-1.5 text-xs bg-[var(--panel-2)] border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--hover)]"
               >
                 {isSaving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                 Guardar borrador
               </Button>
               <Button
                 type="button"
+                variant="success"
+                size="md"
                 onClick={() => handleSaveWithStatus("COMMITTED")}
                 disabled={isSaving}
                 data-testid="comprometer-plan"
-                className="h-9 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
               >
                 {isSaving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                 Comprometer plan
