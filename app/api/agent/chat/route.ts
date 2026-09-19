@@ -102,8 +102,23 @@ export async function POST(request: Request) {
   };
 
   try {
+    const deepseekConfigured = Boolean(process.env.DEEPSEEK_API_KEY?.trim());
+
+    // Preview y Production deben fallar cerrado: una credencial ausente nunca
+    // puede convertir a Rodrigo silenciosamente en un router de keywords.
+    if (!deepseekConfigured && process.env.NODE_ENV !== "development") {
+      await failTask("Rodrigo no está configurado en este entorno.");
+      return noStoreJson(
+        {
+          error: "Rodrigo no está configurado en este entorno.",
+          diagnostics: { deepseekConfigured: false },
+        },
+        503
+      );
+    }
+
     // Camino 1: LLM real cuando hay credencial server-side.
-    if (process.env.DEEPSEEK_API_KEY) {
+    if (deepseekConfigured) {
       const orchestrator = new AgentOrchestrator({ maxIterations: 8, timeoutMs: 90_000 });
       const agentContext = withWorkspace(actor, workspaceProjectId ? { projectId: workspaceProjectId } : null);
       const result = await orchestrator.run({
@@ -140,6 +155,18 @@ export async function POST(request: Request) {
     }
 
     // Camino 2: router determinista (certificación sin LLM). Mismo Gateway.
+    if (process.env.RODRIGO_ALLOW_DETERMINISTIC_FALLBACK !== "true") {
+      await failTask("Rodrigo no está configurado en este entorno.");
+      return noStoreJson(
+        {
+          error: "Rodrigo no está configurado en este entorno.",
+          diagnostics: { deepseekConfigured: false },
+        },
+        503
+      );
+    }
+
+    // Router determinista unicamente para tests/desarrollo local explicito.
     const route = routeChatIntent(message, workspaceProjectId, draftId);
     if (route.kind === "help") {
       await finishRun({ db, runId: run.id, status: "COMPLETED" });
