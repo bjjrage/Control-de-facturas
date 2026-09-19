@@ -1,18 +1,16 @@
 import { requireProfile, CurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { Project, InvoiceStatus, SalesDocStatus } from "@/lib/types";
-import { docSaldo } from "@/lib/sales";
-import { formatMoney } from "@/lib/format";
-import { classifyPayable, classifyReceivable } from "@/lib/dashboard-kpis";
-import { PortfolioRow, PortfolioEstado } from "./portfolio-table";
-import { DashboardIconKey } from "./icon-map";
+import type { Project, InvoiceStatus, SalesDocStatus, CurrencyCode } from "@/lib/types";
+import type { PortfolioRow, PortfolioEstado } from "./portfolio-table";
+import type { DashboardIconKey } from "./icon-map";
+import type { MetricCardData, AttentionAlert } from "@/lib/dashboard/types";
+import { computeAdminKpis, RawSalesDocForKpi, RawReceiptForKpi, RawInvoiceForKpi, RawCuentaFinancieraForKpi, RawOrderForKpi } from "@/lib/dashboard/admin-kpis";
+import { generateAttentionAlerts } from "@/lib/dashboard/attention-alerts";
+import { build30DayCashflowItems } from "@/lib/dashboard/cashflow";
+import { computeTenderKpis, RawLicitacionForTenderKpi } from "@/lib/dashboard/tender-kpis";
+import { assessTendersReadiness, RawEmpresaDocumento, RawLicitacionForReadiness, RawLicitacionDocumento } from "@/lib/dashboard/document-readiness";
 
 const PLAN_RANK = { basico: 0, pro: 1, caterpillar: 2 } as const;
-
-// Ventana de "próximo/por vencer" para todo el resumen ejecutivo (pagos,
-// cobros, ofertas de licitación) — un solo lugar para no repetir el número
-// mágico en cada cálculo y en el texto de los chips.
-const DASHBOARD_UPCOMING_DAYS = 7;
 
 function addDays(days: number): string {
   const d = new Date();
@@ -22,10 +20,6 @@ function addDays(days: number): string {
 
 export type DomainTone = "ok" | "warn" | "error";
 
-// Un KPI atómico — un número, un label, una sección (Administración u
-// Obras/Licitaciones). Reemplaza el chip único "por dominio" que resumía 4
-// métricas en una sola línea de texto: cada métrica indispensable de cada
-// sección tiene su propio lugar, como en el diseño original.
 export type MetricChip = {
   key: string;
   value: string;
@@ -39,7 +33,6 @@ export type PanoramaObras = {
   obrasActivas: number;
   carteraActivaPyg: number;
   comprasRealizadasPyg: number;
-  // null cuando la empresa no tiene módulo de stock (plan/módulo no habilitado) — no es "0 productos en mínimo", es "no aplica".
   productosStockMinimo: number | null;
   desviosCosto: number;
   desviosPlazo: number;
@@ -53,7 +46,10 @@ const ESTADO_PRIORITY: Record<PortfolioEstado, number> = { Riesgo: 0, Atención:
 export type DashboardViewData = {
   firstName: string;
   canUseOperativo: boolean;
+  adminCards: MetricCardData[];
   adminKpis: MetricChip[];
+  attentionAlerts: AttentionAlert[];
+  licitacionesCards: MetricCardData[];
   licitacionesKpis: MetricChip[];
   portfolioRows: PortfolioRow[];
   portfolioTotalCount: number;
@@ -61,56 +57,143 @@ export type DashboardViewData = {
 };
 
 /**
- * Toda la data del resumen ejecutivo, compartida entre el render server
- * (page.tsx, primera carga) y el render client del shell de navegación
- * instantánea (section-action.ts + dashboard-section.tsx). Devuelve solo
- * datos serializables — el mapeo a íconos de React vive en icon-map.ts, del
- * lado de la presentación, para que este módulo sirva a ambos casos.
+ * Toda la data del Dashboard V2, centralizada y orquestada con agregaciones
+ * eficientes y queries en paralelo vía Promise.all.
  */
 export async function getDashboardViewData(profile?: CurrentProfile): Promise<DashboardViewData> {
   const p = profile ?? (await requireProfile());
   const supabase = await createClient();
   const empresaId = p.empresa_id;
   const today = addDays(0);
-  const en7dias = addDays(DASHBOARD_UPCOMING_DAYS);
-  const en3diasAtras = addDays(-3);
 
   const isAdminOrAdministracion = p.role === "administracion" || p.role === "admin";
   const showInvoiceKpis = isAdminOrAdministracion && p.modulo_compras;
   const showSalesKpis = isAdminOrAdministracion && p.modulo_ventas;
   const canUseOperativo = PLAN_RANK[p.plan] >= PLAN_RANK.pro && isAdminOrAdministracion;
   const canUseLicitaciones = PLAN_RANK[p.plan] >= PLAN_RANK.pro && (p.role === "comercial" || isAdminOrAdministracion);
-  // Mismo gate que el item "Stock" del sidebar (minPlan: "pro").
   const canUseStock = showInvoiceKpis && PLAN_RANK[p.plan] >= PLAN_RANK.pro;
 
   const noopRows = Promise.resolve({ data: [] as unknown[] });
-  const noopCount = Promise.resolve({ data: null, count: null } as { data: null; count: number | null });
 
+  // Ejecución en paralelo de todas las consultas de agregación del ERP
   const [
-    { data: payableInvoices },
-    { data: receivableDocs },
-    { data: projects },
-    { count: ofertasPorVencer },
-    { count: oportunidadesNuevas },
-    { count: licitacionesEnCurso },
-    { count: licitacionesGanadas },
-    { data: stockProductos },
+    { data: invoicesData },
+    { data: salesDocsData },
+    { data: receiptsData },
+    { data: cuentasData },
+    { data: ordersData },
+    { data: certificatesData },
+    { data: gastosData },
+    { data: productosData },
+    { data: invoiceJobsData },
+    { data: workOrdersData },
+    { data: licitacionesData },
+    { data: licDocsData },
+    { data: empresaDocsData },
+    { data: projectsData },
   ] = await Promise.all([
-    // CxP: nosotros debemos. Se trae todo lo no pagado con due_date — la
-    // clasificación próxima/vencida la hace classifyPayable, no la query.
+    // 1. Facturas de proveedor
     showInvoiceKpis
-      ? supabase.from("invoices").select("total, currency, due_date, status").neq("status", "PAGADO").not("due_date", "is", null)
+      ? supabase
+          .from("invoices")
+          .select("id, invoice_number, total, currency, due_date, invoice_date, status, provider_id")
+          .neq("status", "ANULADA")
       : noopRows,
-    // CxC: nos deben. EMITIDA/COBRADA_PARCIAL son los únicos estados con
-    // saldo potencialmente > 0; classifyReceivable vuelve a confirmarlo con
-    // el saldo real (total - cobrado_amount), no solo con el status.
+
+    // 2. Documentos de venta
     showSalesKpis
       ? supabase
           .from("sales_documents")
-          .select("total, cobrado_amount, currency, due_date, status")
-          .in("status", ["EMITIDA", "COBRADA_PARCIAL"])
-          .not("due_date", "is", null)
+          .select("id, code, total, cobrado_amount, currency, due_date, issue_date, status, doc_type, acceptance_status")
+          .neq("status", "ANULADA")
       : noopRows,
+
+    // 3. Cobros de venta registrados
+    showSalesKpis
+      ? supabase
+          .from("sales_receipts")
+          .select("id, amount, receipt_date, sales_document_id, sales_documents!sales_document_id(currency)")
+      : noopRows,
+
+    // 4. Cuentas financieras activas
+    isAdminOrAdministracion
+      ? supabase
+          .from("cuentas_financieras")
+          .select("id, nombre, tipo, moneda, saldo, activo")
+          .eq("activo", true)
+      : noopRows,
+
+    // 5. Órdenes de compra autorizadas
+    showInvoiceKpis
+      ? supabase
+          .from("authorized_orders")
+          .select("id, code, project_id, total_price, facturado_amount, currency, status")
+      : noopRows,
+
+    // 6. Certificados de obra para proyección de flujo de caja
+    canUseOperativo || isAdminOrAdministracion
+      ? supabase
+          .from("project_certificates")
+          .select("id, numero, project_id, monto_liquido, status, period_end, aprobado_at, facturado_at, sales_documents!certificate_id(id, status)")
+          .in("status", ["APROBADO", "FACTURADO"])
+      : noopRows,
+
+    // 7. Gastos recurrentes proyectados
+    isAdminOrAdministracion
+      ? supabase
+          .from("gastos_recurrentes")
+          .select("id, descripcion, monto_estimado, periodicidad, dia_del_mes, proximo_vencimiento, moneda, activo, project_id")
+          .eq("activo", true)
+      : noopRows,
+
+    // 8. Productos en catálogo
+    canUseStock
+      ? supabase
+          .from("productos")
+          .select("id, nombre, stock_actual, stock_minimo, activo")
+          .eq("empresa_id", empresaId)
+          .eq("activo", true)
+      : noopRows,
+
+    // 9. Jobs de ingesta de facturas observadas
+    showInvoiceKpis
+      ? supabase
+          .from("invoice_jobs")
+          .select("id, status")
+          .in("status", ["needs_review", "failed"])
+      : noopRows,
+
+    // 10. Órdenes de trabajo
+    showSalesKpis || canUseOperativo
+      ? supabase
+          .from("work_orders")
+          .select("id, status")
+          .in("status", ["PENDIENTE", "EN_CURSO"])
+      : noopRows,
+
+    // 11. Licitaciones
+    canUseLicitaciones
+      ? supabase
+          .from("licitaciones")
+          .select("id, titulo, dncp_nro, fecha_entrega_ofertas, decision, synced_at, monto_referencial, moneda, raw_json")
+          .order("synced_at", { ascending: false })
+      : noopRows,
+
+    // 12. Documentos de licitaciones (PBC / Pliegos)
+    canUseLicitaciones
+      ? supabase
+          .from("licitacion_documentos")
+          .select("id, licitacion_id, tipo, tipo_detalle, titulo, url_dncp, storage_path")
+      : noopRows,
+
+    // 13. Bóveda documental de la empresa
+    canUseLicitaciones
+      ? supabase
+          .from("empresa_documentos")
+          .select("id, tipo, descripcion, fecha_emision, fecha_vencimiento")
+      : noopRows,
+
+    // 14. Obras activas
     canUseOperativo
       ? supabase
           .from("projects")
@@ -120,67 +203,115 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
           .order("created_at", { ascending: false })
           .returns<Project[]>()
       : noopRows,
-    canUseLicitaciones
-      ? supabase
-          .from("licitaciones")
-          .select("id", { count: "exact", head: true })
-          .eq("decision", "EN_PREPARACION")
-          .gte("fecha_entrega_ofertas", today)
-          .lte("fecha_entrega_ofertas", en7dias)
-      : noopCount,
-    canUseLicitaciones
-      ? supabase
-          .from("licitaciones")
-          .select("id", { count: "exact", head: true })
-          .eq("decision", "SIN_REVISAR")
-          .gte("synced_at", en3diasAtras)
-      : noopCount,
-    // "En curso": todavía activamente en juego (preparando oferta o ya
-    // presentada, esperando resultado) — ni descartada ni resuelta.
-    canUseLicitaciones
-      ? supabase
-          .from("licitaciones")
-          .select("id", { count: "exact", head: true })
-          .in("decision", ["EN_PREPARACION", "PRESENTADA"])
-      : noopCount,
-    canUseLicitaciones
-      ? supabase.from("licitaciones").select("id", { count: "exact", head: true }).eq("decision", "GANADA")
-      : noopCount,
-    canUseStock
-      ? supabase.from("productos").select("stock_actual, stock_minimo").eq("empresa_id", empresaId).eq("activo", true)
-      : noopRows,
   ]);
 
-  type PayableRow = { total: number; currency: string; due_date: string | null; status: InvoiceStatus };
-  type ReceivableRow = { total: number; cobrado_amount: number; currency: string; due_date: string | null; status: SalesDocStatus };
+  // Tipado y normalización de filas
+  const allInvoices = (invoicesData ?? []) as RawInvoiceForKpi[];
+  const allSalesDocs = (salesDocsData ?? []) as RawSalesDocForKpi[];
+  const allReceipts = (receiptsData ?? []).map((r: any) => ({
+    id: r.id,
+    amount: r.amount,
+    receipt_date: r.receipt_date,
+    sales_document_id: r.sales_document_id,
+    currency: r.sales_documents?.currency || "PYG",
+  })) as RawReceiptForKpi[];
+  const allCuentas = (cuentasData ?? []) as RawCuentaFinancieraForKpi[];
+  const allOrders = (ordersData ?? []) as RawOrderForKpi[];
+  const allCertificates = (certificatesData ?? []) as any[];
+  const allGastos = (gastosData ?? []) as any[];
+  const allProductos = (productosData ?? []) as any[];
+  const allInvoiceJobs = (invoiceJobsData ?? []) as any[];
+  const allWorkOrders = (workOrdersData ?? []) as any[];
+  const allLicitaciones = (licitacionesData ?? []) as RawLicitacionForTenderKpi[];
+  const allLicDocs = (licDocsData ?? []) as RawLicitacionDocumento[];
+  const allEmpresaDocs = (empresaDocsData ?? []) as RawEmpresaDocumento[];
+  const projectList = (projectsData ?? []) as Project[];
 
-  const payableRows = (payableInvoices ?? []) as PayableRow[];
-  const pagosProximosRows = payableRows.filter((r) => classifyPayable(r, today, en7dias) === "proxima");
-  const facturasVencidasPorPagarRows = payableRows.filter((r) => classifyPayable(r, today, en7dias) === "vencida");
+  // =========================================================================
+  // Flujo de Caja a 30 días
+  // =========================================================================
+  const cashflowItems = build30DayCashflowItems({
+    todayIso: today,
+    ventaDocs: allSalesDocs.filter((d) => d.status === "EMITIDA" || d.status === "COBRADA_PARCIAL"),
+    certificados: allCertificates,
+    comprasInv: allInvoices.filter((i) => i.status !== "PAGADO"),
+    gastos: allGastos,
+  });
 
-  const receivableRows = (receivableDocs ?? []) as ReceivableRow[];
-  const cobrosEsperadosRows = receivableRows.filter((r) => classifyReceivable(r, today, en7dias) === "esperado");
-  const cobrosVencidosRows = receivableRows.filter((r) => classifyReceivable(r, today, en7dias) === "vencido");
+  // =========================================================================
+  // PARTE 1 — 8 KPIs de Administración
+  // =========================================================================
+  const adminCards = computeAdminKpis({
+    todayIso: today,
+    salesDocs: allSalesDocs,
+    receipts: allReceipts,
+    invoices: allInvoices,
+    cuentas: allCuentas,
+    orders: allOrders,
+    cashflowItems,
+    showSalesKpis,
+    showInvoiceKpis,
+  });
 
-  function sumPyg(rows: { total: number; currency: string }[]): number {
-    return rows.filter((r) => r.currency === "PYG").reduce((s, r) => s + r.total, 0);
-  }
-  function sumPygSaldo(rows: { total: number; cobrado_amount: number; currency: string }[]): number {
-    return rows.filter((r) => r.currency === "PYG").reduce((s, r) => s + docSaldo(r.total, r.cobrado_amount), 0);
-  }
+  // Mapeo legacy a MetricChip[] para componentes que consuman el formato anterior
+  const adminKpis: MetricChip[] = adminCards.map((c) => ({
+    key: c.key,
+    value: c.value,
+    label: c.secondaryText ? `${c.title} · ${c.secondaryText}` : c.title,
+    href: c.href,
+    iconKey: c.iconKey,
+    tone: c.tone === "neutral" ? "ok" : c.tone,
+  }));
 
-  // Mismo criterio de "bajo stock" que /stock (stock-section.tsx): sin stock,
-  // o con mínimo definido y por debajo de él.
-  const productosStockBajo = ((stockProductos ?? []) as { stock_actual: number; stock_minimo: number }[]).filter(
-    (r) => r.stock_actual <= 0 || (r.stock_minimo > 0 && r.stock_actual <= r.stock_minimo)
-  );
+  // =========================================================================
+  // PARTE 2 — Alertas Administrativas ("REQUIERE ATENCIÓN")
+  // =========================================================================
+  const attentionAlerts = generateAttentionAlerts({
+    todayIso: today,
+    invoices: allInvoices,
+    invoiceJobs: allInvoiceJobs,
+    salesDocs: allSalesDocs,
+    productos: allProductos,
+    orders: allOrders,
+    workOrders: allWorkOrders,
+    cuentas: allCuentas,
+  });
 
-  // Portafolio: mismo cálculo de avance/compras que /projects, restringido a
-  // obras activas y con menos columnas — pensado para lectura rápida, no
-  // para gestión (eso sigue viviendo en /projects).
-  const projectList = (projects ?? []) as Project[];
+  // =========================================================================
+  // PARTE 4 & 5 & 6 — Document Readiness Engine V1
+  // =========================================================================
+  const readinessAssessments = assessTendersReadiness({
+    licitaciones: allLicitaciones as unknown as RawLicitacionForReadiness[],
+    docs: allLicDocs,
+    empresaDocs: allEmpresaDocs,
+    todayIso: today,
+  });
+
+  // =========================================================================
+  // PARTE 3 — 8 KPIs de Licitaciones
+  // =========================================================================
+  const licitacionesCards = computeTenderKpis({
+    todayIso: today,
+    licitaciones: allLicitaciones,
+    empresaDocs: allEmpresaDocs,
+    readinessAssessments,
+    canUseLicitaciones,
+  });
+
+  const licitacionesKpis: MetricChip[] = licitacionesCards.map((c) => ({
+    key: c.key,
+    value: c.value,
+    label: c.secondaryText ? `${c.title} · ${c.secondaryText}` : c.title,
+    href: c.href,
+    iconKey: c.iconKey,
+    tone: c.tone === "neutral" ? "ok" : c.tone,
+  }));
+
+  // =========================================================================
+  // PARTE 9 — Bloque Obras (Preservado 100% fiel al diseño original)
+  // =========================================================================
   const projectIds = projectList.map((pr) => pr.id);
-  const [{ data: budgetItems }, { data: orders }, { data: execEntries }] = await Promise.all([
+  const [{ data: budgetItems }, { data: projectOrders }, { data: execEntries }] = await Promise.all([
     projectIds.length > 0
       ? supabase.from("budget_items").select("project_id, quantity, subtotal").in("project_id", projectIds)
       : noopRows,
@@ -202,11 +333,13 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
     subtotalByProject.set(b.project_id, (subtotalByProject.get(b.project_id) ?? 0) + b.subtotal);
     if (b.quantity != null) budgetQtyByProject.set(b.project_id, (budgetQtyByProject.get(b.project_id) ?? 0) + b.quantity);
   }
+
   const comprasByProject = new Map<string, number>();
-  for (const o of (orders ?? []) as { project_id: string | null; total_price: number }[]) {
+  for (const o of (projectOrders ?? []) as { project_id: string | null; total_price: number }[]) {
     if (!o.project_id) continue;
     comprasByProject.set(o.project_id, (comprasByProject.get(o.project_id) ?? 0) + o.total_price);
   }
+
   const execQtyByProject = new Map<string, number>();
   for (const e of (execEntries ?? []) as { project_id: string; quantity_executed: number }[]) {
     execQtyByProject.set(e.project_id, (execQtyByProject.get(e.project_id) ?? 0) + e.quantity_executed);
@@ -218,8 +351,6 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
     const budgetQty = budgetQtyByProject.get(pr.id) ?? 0;
     const execQty = execQtyByProject.get(pr.id) ?? 0;
     const avancePct = budgetQty > 0 ? Math.min(100, Math.round((execQty / budgetQty) * 100)) : 0;
-    // Sin compras registradas todavía no hay nada que desviarse — mostrar
-    // "-100%" ahí sería ruido, no señal (la obra recién está arrancando).
     const comprasPct = presupuesto > 0 && compras > 0 ? Math.round((compras / presupuesto) * 1000) / 10 : null;
     const atrasoBruto =
       pr.end_date && avancePct < 100
@@ -234,99 +365,10 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
     return { id: pr.id, code: pr.code, name: pr.name, avancePct, comprasPct, atrasoDias, estado, presupuesto };
   });
 
-  // ---------------------------------------------------------------------
-  // KPIs de Administración — uno por métrica, monto real como valor
-  // principal. Son los mismos 4 indicadores accionables de antes (cuánto
-  // debo, cuánto vence, cuánto me deben, qué cobro se venció); antes
-  // vivían aplanados en un solo chip de texto por Compras/Ventas.
-  // ---------------------------------------------------------------------
-  const adminKpis: MetricChip[] = [];
-  if (showInvoiceKpis) {
-    adminKpis.push({
-      key: "pagos-proximos",
-      value: formatMoney(sumPyg(pagosProximosRows)),
-      label: `Pagos próximos · ${pagosProximosRows.length}`,
-      href: "/pagos",
-      iconKey: "calendar-clock",
-      tone: pagosProximosRows.length > 0 ? "warn" : "ok",
-    });
-    adminKpis.push({
-      key: "facturas-vencidas",
-      value: formatMoney(sumPyg(facturasVencidasPorPagarRows)),
-      label: `Facturas vencidas · ${facturasVencidasPorPagarRows.length}`,
-      href: "/pagos",
-      iconKey: "alert-octagon",
-      tone: facturasVencidasPorPagarRows.length > 0 ? "error" : "ok",
-    });
-  }
-  if (showSalesKpis) {
-    adminKpis.push({
-      key: "cobros-esperados",
-      value: formatMoney(sumPygSaldo(cobrosEsperadosRows)),
-      label: `Cobros esperados · ${cobrosEsperadosRows.length}`,
-      href: "/cobros",
-      iconKey: "wallet",
-      tone: cobrosEsperadosRows.length > 0 ? "warn" : "ok",
-    });
-    adminKpis.push({
-      key: "cobros-vencidos",
-      value: formatMoney(sumPygSaldo(cobrosVencidosRows)),
-      label: `Cobros vencidos · ${cobrosVencidosRows.length}`,
-      href: "/cobros",
-      iconKey: "file-x",
-      tone: cobrosVencidosRows.length > 0 ? "error" : "ok",
-    });
-  }
+  const productosStockBajo = allProductos.filter(
+    (r) => r.stock_actual <= 0 || (r.stock_minimo > 0 && r.stock_actual <= r.stock_minimo)
+  );
 
-  // KPIs de Licitaciones — 4, igual que Administración, para que la fila no
-  // quede con 2 chips estirados a lo ancho (se veían "alargados al pedo").
-  // Qué vence pronto, qué apareció nuevo, cuántas siguen en juego y cuántas
-  // se ganaron — sin monto potencial ni win rate (eso no es indispensable
-  // de un vistazo).
-  const licitacionesKpis: MetricChip[] = canUseLicitaciones
-    ? [
-        {
-          key: "ofertas-por-vencer",
-          value: String(ofertasPorVencer ?? 0),
-          label: "Ofertas próximas a vencer",
-          href: "/licitaciones",
-          iconKey: "calendar-clock",
-          tone: (ofertasPorVencer ?? 0) > 0 ? "warn" : "ok",
-        },
-        {
-          key: "oportunidades-nuevas",
-          value: String(oportunidadesNuevas ?? 0),
-          label: "Nuevas oportunidades (radar)",
-          href: "/licitaciones",
-          iconKey: "radar",
-          tone: "ok",
-        },
-        {
-          key: "licitaciones-en-curso",
-          value: String(licitacionesEnCurso ?? 0),
-          label: "En curso",
-          href: "/licitaciones",
-          iconKey: "gavel",
-          tone: "ok",
-        },
-        {
-          key: "licitaciones-ganadas",
-          value: String(licitacionesGanadas ?? 0),
-          label: "Ganadas",
-          href: "/licitaciones",
-          iconKey: "trophy",
-          tone: "ok",
-        },
-      ]
-    : [];
-
-  // ---------------------------------------------------------------------
-  // Panorama de obras: lo que antes era un textito chico ("7 activas · 26%
-  // avance prom.") pasa a ser la mitad derecha del análisis de obra —
-  // cartera activa en guaraníes, desvíos por tipo y avance ponderado por
-  // presupuesto (una obra grande pesa más que una chica, no todas valen lo
-  // mismo en el promedio).
-  // ---------------------------------------------------------------------
   const panorama: PanoramaObras | null = canUseOperativo
     ? (() => {
         const carteraActivaPyg = portfolioRows.reduce((s, r) => s + r.presupuesto, 0);
@@ -355,10 +397,6 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
       })()
     : null;
 
-  // Tabla: vistazo rápido, no el listado completo — eso vive en /projects.
-  // Se muestran como máximo 5, priorizando las que necesitan ojo (Riesgo
-  // primero, luego Atención, luego Normal); el panorama de al lado sigue
-  // calculado sobre TODA la cartera, no solo estas 5.
   const portfolioRowsTop = [...portfolioRows]
     .sort((a, b) => ESTADO_PRIORITY[a.estado] - ESTADO_PRIORITY[b.estado])
     .slice(0, PORTFOLIO_TABLE_LIMIT);
@@ -366,7 +404,10 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
   return {
     firstName: p.full_name.split(" ")[0],
     canUseOperativo,
+    adminCards,
     adminKpis,
+    attentionAlerts,
+    licitacionesCards,
     licitacionesKpis,
     portfolioRows: portfolioRowsTop,
     portfolioTotalCount: portfolioRows.length,
