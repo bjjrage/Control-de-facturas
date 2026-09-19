@@ -410,6 +410,7 @@ export function Sidebar({
         <button
           type="button"
           data-nav-trigger
+          data-open={isOpen ? "true" : "false"}
           title={collapsed ? label : undefined}
           onClick={() => {
             setOpenSection((current) =>
@@ -418,6 +419,9 @@ export function Sidebar({
           }}
           className={cn(
             "w-full flex items-center h-9 rounded-xl text-[12px] font-medium transition-colors",
+            label === "Comprar" && "nav-domain-compras",
+            label === "Vender" && "nav-domain-ventas",
+            label === "Finanzas" && "nav-domain-finanzas",
             collapsed ? "justify-center px-0" : "justify-between px-2.5",
             isOpen
               ? "bg-[linear-gradient(180deg,rgba(83,129,239,.34),rgba(48,82,162,.25))] text-[#eef4ff] shadow-[0_0_0_1px_rgba(104,151,255,.10)]"
@@ -464,10 +468,15 @@ export function Sidebar({
         <button
           type="button"
           data-nav-trigger
+          data-open={isOpen ? "true" : "false"}
           title={collapsed ? group.label : undefined}
           onClick={() => setOpenProjectSection((current) => current === group.label ? null : group.label)}
           className={cn(
             "w-full flex items-center h-9 rounded-xl text-[12px] font-medium transition-colors",
+            group.label === "Preparar" && "nav-domain-preparar",
+            group.label === "Comprar" && "nav-domain-compras",
+            group.label === "Ejecutar" && "nav-domain-ejecutar",
+            group.label === "Certificar" && "nav-domain-certificar",
             collapsed ? "justify-center px-0" : "justify-between px-2.5",
             isOpen
               ? "bg-[linear-gradient(180deg,rgba(83,129,239,.34),rgba(48,82,162,.25))] text-[#eef4ff] shadow-[0_0_0_1px_rgba(104,151,255,.10)]"
