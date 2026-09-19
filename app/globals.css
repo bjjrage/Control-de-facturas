@@ -145,84 +145,133 @@ input::placeholder, textarea::placeholder {
   color: #6b7180;
 }
 
-/* Primary CTA — mismo lenguaje flat/glass del navbar.
- * El color semántico vive en borde/acento; nunca en un gradiente glossy.
+/* Unified ERP button system.
+ * Geometry, hover, disabled and depth are shared. Variants only change emphasis.
  */
+.btn-base {
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+}
+.btn-base:disabled {
+  opacity: .42;
+  box-shadow: none !important;
+}
+.btn-base:focus-visible {
+  outline: 2px solid rgba(143, 176, 255, .68);
+  outline-offset: 2px;
+}
+
 .btn-primary {
-  background: rgba(20, 33, 53, .88);
-  border: 1px solid rgba(245, 185, 66, .34);
+  background: rgba(20, 33, 53, .90);
+  border-color: rgba(245, 185, 66, .38);
   color: var(--foreground);
-  font-weight: 650;
   box-shadow:
-    inset 3px 0 0 rgba(245, 185, 66, .78),
-    0 8px 22px rgba(0, 0, 0, .16),
+    inset 3px 0 0 rgba(245, 185, 66, .82),
     inset 0 1px 0 rgba(255,255,255,.035);
 }
 .btn-primary:hover:not(:disabled) {
   background: rgba(47, 45, 37, .72);
-  border-color: rgba(245, 185, 66, .56);
+  border-color: rgba(245, 185, 66, .58);
   color: #fffaf0;
-  box-shadow:
-    inset 3px 0 0 rgba(255, 201, 94, .92),
-    0 10px 24px rgba(0, 0, 0, .20),
-    0 0 0 1px rgba(245,185,66,.06);
-}
-.btn-primary:active:not(:disabled) {
-  background: rgba(55, 49, 35, .80);
-  border-color: rgba(245, 185, 66, .62);
 }
 
-/* Legacy action buttons may keep their semantic hue, but never the glossy CSS.
- * These rules flatten old utility-colored BUTTONS into the same dark-surface pattern.
+.btn-secondary {
+  background: rgba(20, 33, 53, .88);
+  border-color: rgba(96, 165, 250, .34);
+  color: #eef5ff;
+  box-shadow:
+    inset 3px 0 0 rgba(96, 165, 250, .72),
+    inset 0 1px 0 rgba(255,255,255,.035);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(27, 45, 70, .94);
+  border-color: rgba(96, 165, 250, .52);
+}
+
+.btn-neutral {
+  background: rgba(255,255,255,.04);
+  border-color: rgba(255,255,255,.10);
+  color: var(--foreground);
+}
+.btn-neutral:hover:not(:disabled) {
+  background: rgba(255,255,255,.075);
+  border-color: rgba(255,255,255,.16);
+}
+
+.btn-success {
+  background: rgba(20, 33, 53, .88);
+  border-color: rgba(52, 211, 153, .36);
+  color: #effdf8;
+  box-shadow:
+    inset 3px 0 0 rgba(52, 211, 153, .78),
+    inset 0 1px 0 rgba(255,255,255,.035);
+}
+.btn-success:hover:not(:disabled) {
+  background: rgba(22, 49, 48, .92);
+  border-color: rgba(52, 211, 153, .56);
+}
+
+.btn-danger {
+  background: rgba(20, 33, 53, .88);
+  border-color: rgba(242, 104, 92, .38);
+  color: #fff1ef;
+  box-shadow:
+    inset 3px 0 0 rgba(242, 104, 92, .82),
+    inset 0 1px 0 rgba(255,255,255,.035);
+}
+.btn-danger:hover:not(:disabled) {
+  background: rgba(54, 34, 39, .90);
+  border-color: rgba(242, 104, 92, .58);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+.btn-ghost:hover:not(:disabled) {
+  background: rgba(255,255,255,.055);
+  color: var(--foreground);
+  border-color: rgba(255,255,255,.07);
+}
+
+/* Legacy BUTTON color overrides are flattened into the same system.
+ * This is temporary migration coverage until all callers use Button variants.
  */
 button[class*="bg-blue-"],
 button[class*="bg-sky-"],
-button[class*="bg-cyan-"] {
-  background: rgba(20, 33, 53, .88) !important;
-  border-color: rgba(56, 189, 248, .38) !important;
-  color: var(--foreground) !important;
-  box-shadow:
-    inset 3px 0 0 rgba(56, 189, 248, .78),
-    0 8px 22px rgba(0,0,0,.16) !important;
-}
+button[class*="bg-cyan-"],
 button[class*="bg-emerald-"],
-button[class*="bg-green-"] {
-  background: rgba(20, 33, 53, .88) !important;
-  border-color: rgba(52, 211, 153, .36) !important;
-  color: var(--foreground) !important;
-  box-shadow:
-    inset 3px 0 0 rgba(52, 211, 153, .78),
-    0 8px 22px rgba(0,0,0,.16) !important;
-}
+button[class*="bg-green-"],
 button[class*="bg-amber-"],
-button[class*="bg-orange-"] {
-  background: rgba(20, 33, 53, .88) !important;
-  border-color: rgba(245, 165, 36, .38) !important;
-  color: var(--foreground) !important;
-  box-shadow:
-    inset 3px 0 0 rgba(245, 165, 36, .80),
-    0 8px 22px rgba(0,0,0,.16) !important;
-}
+button[class*="bg-orange-"],
 button[class*="bg-red-"],
 button[class*="bg-rose-"] {
   background: rgba(20, 33, 53, .88) !important;
-  border-color: rgba(242, 104, 92, .40) !important;
   color: var(--foreground) !important;
-  box-shadow:
-    inset 3px 0 0 rgba(242, 104, 92, .80),
-    0 8px 22px rgba(0,0,0,.16) !important;
 }
 
-button[class*="bg-blue-"]:hover,
-button[class*="bg-sky-"]:hover,
-button[class*="bg-cyan-"]:hover,
-button[class*="bg-emerald-"]:hover,
-button[class*="bg-green-"]:hover,
-button[class*="bg-amber-"]:hover,
-button[class*="bg-orange-"]:hover,
-button[class*="bg-red-"]:hover,
-button[class*="bg-rose-"]:hover {
-  background: rgba(30, 45, 68, .94) !important;
+button[class*="bg-blue-"],
+button[class*="bg-sky-"],
+button[class*="bg-cyan-"] {
+  border-color: rgba(96,165,250,.34) !important;
+  box-shadow: inset 3px 0 0 rgba(96,165,250,.72) !important;
+}
+button[class*="bg-emerald-"],
+button[class*="bg-green-"] {
+  border-color: rgba(52,211,153,.36) !important;
+  box-shadow: inset 3px 0 0 rgba(52,211,153,.78) !important;
+}
+button[class*="bg-amber-"],
+button[class*="bg-orange-"] {
+  border-color: rgba(245,185,66,.38) !important;
+  box-shadow: inset 3px 0 0 rgba(245,185,66,.82) !important;
+}
+button[class*="bg-red-"],
+button[class*="bg-rose-"] {
+  border-color: rgba(242,104,92,.38) !important;
+  box-shadow: inset 3px 0 0 rgba(242,104,92,.82) !important;
 }
 
 /* Wrapper interactivo para texto clickeable: hover con fondo sutil */
