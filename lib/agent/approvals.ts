@@ -32,6 +32,8 @@ export interface AgentApprovalRow {
   expires_at: string | null;
   created_at: string;
   updated_at: string;
+  approved_revision?: number | null;
+  approved_content_hash?: string | null;
 }
 
 /** Serialización canónica determinística para hashing (keys ordenadas). */
@@ -64,6 +66,15 @@ export async function createApproval(params: {
   expiresAt?: string | null;
 }): Promise<AgentApprovalRow> {
   const payloadHash = hashPayload(params.payload);
+  const payloadRecord = params.payload as Record<string, unknown>;
+  const approvedRevision =
+    params.toolName === "send_email" && typeof payloadRecord?.draft_revision === "number"
+      ? payloadRecord.draft_revision
+      : null;
+  const approvedContentHash =
+    params.toolName === "send_email" && typeof payloadRecord?.draft_hash === "string"
+      ? payloadRecord.draft_hash
+      : null;
   const { data, error } = await params.db
     .from("agent_approvals")
     .insert({
@@ -77,6 +88,8 @@ export async function createApproval(params: {
       status: "REQUESTED",
       requested_by: params.requestedBy ?? null,
       expires_at: params.expiresAt ?? null,
+      approved_revision: approvedRevision,
+      approved_content_hash: approvedContentHash,
     })
     .select("*")
     .single();
@@ -103,7 +116,7 @@ export async function decideApproval(params: {
   if (!["APPROVED", "REJECTED", "CANCELLED", "EXPIRED"].includes(params.decision)) {
     throw new Error(`decision invalida: ${params.decision}`);
   }
-  // Cargar y validar tenant + estado
+  // Cargar para dar un error útil y validar tenant.
   const current = await getApproval(params.db, params.approvalId);
   if (!current) throw new Error(`Approval no encontrado: ${params.approvalId}`);
   if (current.empresa_id !== params.empresaId) throw new Error("Approval no pertenece a tu empresa");
@@ -118,9 +131,11 @@ export async function decideApproval(params: {
     })
     .eq("id", params.approvalId)
     .eq("empresa_id", params.empresaId)
+    .eq("status", "REQUESTED")
     .select("*")
-    .single();
-  if (error || !data) throw new Error(`decideApproval fallo: ${error?.message ?? "sin data"}`);
+    .maybeSingle();
+  if (error) throw new Error(`decideApproval fallo: ${error.message}`);
+  if (!data) throw new Error("Approval ya fue decidido por otra solicitud concurrente");
   return data as AgentApprovalRow;
 }
 

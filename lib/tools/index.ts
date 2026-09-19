@@ -20,6 +20,9 @@ import "@/lib/tools/spreadsheet/update-spreadsheet-rows";
 import "@/lib/tools/spreadsheet/confirm-spreadsheet";
 import "@/lib/tools/documents/get-document-content";
 import "@/lib/tools/documents/extract-document-data";
+// EMAIL V1 — drafts, frozen approvals and Gmail provider.
+import "@/lib/tools/email/prepare-email";
+import "@/lib/tools/email/send-email";
 
 // Re-export para uso directo en tests sin pasar por registry si se desea
 export * from "@/lib/tools/projects/get-project-context";
@@ -39,3 +42,5 @@ export * from "@/lib/tools/spreadsheet/update-spreadsheet-rows";
 export * from "@/lib/tools/spreadsheet/confirm-spreadsheet";
 export * from "@/lib/tools/documents/get-document-content";
 export * from "@/lib/tools/documents/extract-document-data";
+export * from "@/lib/tools/email/prepare-email";
+export * from "@/lib/tools/email/send-email";

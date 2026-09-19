@@ -100,17 +100,17 @@ function postMessage(message: unknown) {
 }
 
 const PROFILE = { id: "user-1", empresa_id: "emp-T" };
-const SAVED_DEEPSEEK = process.env.DEEPSEEK_API_KEY;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  delete process.env.DEEPSEEK_API_KEY;
+  vi.stubEnv("DEEPSEEK_API_KEY", "");
+  vi.stubEnv("NODE_ENV", "development");
+  vi.stubEnv("RODRIGO_ALLOW_DETERMINISTIC_FALLBACK", "true");
   mockRequireProfile.mockResolvedValue(PROFILE);
 });
 
 afterEach(() => {
-  if (SAVED_DEEPSEEK === undefined) delete process.env.DEEPSEEK_API_KEY;
-  else process.env.DEEPSEEK_API_KEY = SAVED_DEEPSEEK;
+  vi.unstubAllEnvs();
 });
 
 describe("POST /api/agent/chat", () => {

@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { isRodrigoState, type RodrigoState } from "@/lib/agent/rodrigo-state";
+import type { EmailPreview } from "@/lib/email/types";
 
 const STATUS_POLL_MS = 15_000;
 
@@ -18,6 +19,7 @@ export type RodrigoPendingApproval = {
   id: string;
   toolName: string;
   createdAt: string;
+  emailPreview?: EmailPreview | null;
 };
 
 export type RodrigoAgentStatus = {
@@ -53,6 +55,8 @@ type RodrigoAgentContextValue = {
   setVisualState: (state: RodrigoState | null, options?: RodrigoVisualStateOptions) => void;
   registerMicrophoneStop: (handler: MicrophoneStopHandler) => () => void;
   messages: RodrigoMessage[];
+  emailPreview: EmailPreview | null;
+  setEmailPreview: (preview: EmailPreview | null) => void;
   sending: boolean;
   sendMessage: (text: string) => Promise<void>;
 };
@@ -89,6 +93,7 @@ function parseStatus(value: unknown): RodrigoAgentStatus | null {
       id: a.id as string,
       toolName: a.toolName as string,
       createdAt: typeof a.createdAt === "string" ? (a.createdAt as string) : "",
+      emailPreview: a.emailPreview && typeof a.emailPreview === "object" ? (a.emailPreview as EmailPreview) : null,
     }));
 
   return {
@@ -107,6 +112,7 @@ export function RodrigoAgentProvider({ children }: { children: ReactNode }) {
   const [interactionState, setInteractionState] = useState<RodrigoState | null>(null);
   const [messages, setMessages] = useState<RodrigoMessage[]>([]);
   const [sending, setSending] = useState(false);
+  const [emailPreview, setEmailPreview] = useState<EmailPreview | null>(null);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const microphoneStopHandlersRef = useRef(new Set<MicrophoneStopHandler>());
   const sendingRef = useRef(false);
@@ -206,11 +212,12 @@ export function RodrigoAgentProvider({ children }: { children: ReactNode }) {
         const response = await fetch("/api/agent/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: trimmed }),
+          body: JSON.stringify({ message: trimmed, draftId: emailPreview?.draftId ?? null }),
         });
         const payload = (await response.json().catch(() => ({}))) as {
           answer?: unknown;
           state?: unknown;
+          emailPreview?: unknown;
         };
         const answer =
           typeof payload.answer === "string" && payload.answer.length > 0
@@ -223,6 +230,9 @@ export function RodrigoAgentProvider({ children }: { children: ReactNode }) {
           createdAt: new Date().toISOString(),
         };
         setMessages((prev) => [...prev.slice(-19), assistantMessage]);
+        if (payload.emailPreview && typeof payload.emailPreview === "object") {
+          setEmailPreview(payload.emailPreview as EmailPreview);
+        }
         const nextState: RodrigoState =
           payload.state === "approval"
             ? "approval"
@@ -247,7 +257,7 @@ export function RodrigoAgentProvider({ children }: { children: ReactNode }) {
         void refreshStatus();
       }
     },
-    [refreshStatus, setVisualState]
+    [emailPreview?.draftId, refreshStatus, setVisualState]
   );
 
   const state = status.state === "disabled" ? "disabled" : interactionState ?? status.state;
@@ -263,10 +273,12 @@ export function RodrigoAgentProvider({ children }: { children: ReactNode }) {
       setVisualState,
       registerMicrophoneStop,
       messages,
+      emailPreview,
+      setEmailPreview,
       sending,
       sendMessage,
     }),
-    [isOpen, messages, minimize, open, refreshStatus, registerMicrophoneStop, sendMessage, sending, setVisualState, state, status]
+    [emailPreview, isOpen, messages, minimize, open, refreshStatus, registerMicrophoneStop, sendMessage, sending, setVisualState, state, status]
   );
 
   return <RodrigoAgentContext.Provider value={value}>{children}</RodrigoAgentContext.Provider>;

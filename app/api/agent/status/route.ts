@@ -7,6 +7,7 @@ import {
   isWorkingTaskStatus,
   type RodrigoTaskSnapshot,
 } from "@/lib/agent/rodrigo-state";
+import type { EmailPreview } from "@/lib/email/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -21,6 +22,7 @@ type AgentApprovalPendingRow = {
   id: string;
   tool_name: string;
   created_at: string;
+  payload_json: unknown;
 };
 
 export type RodrigoPendingApproval = {
@@ -81,7 +83,7 @@ export async function GET() {
 
   const approvalsQuery = await db
     .from("agent_approvals")
-    .select("id, tool_name, created_at")
+    .select("id, tool_name, created_at, payload_json")
     .eq("empresa_id", empresaId)
     .eq("status", "REQUESTED")
     .order("created_at", { ascending: true })
@@ -100,6 +102,17 @@ export async function GET() {
         id: row.id,
         toolName: row.tool_name,
         createdAt: row.created_at,
+        ...(row.tool_name === "send_email"
+          ? {
+              emailPreview:
+                row.payload_json && typeof row.payload_json === "object"
+                  ? (() => {
+                      const snapshot = (row.payload_json as { draft_snapshot?: EmailPreview }).draft_snapshot;
+                      return snapshot ? { ...snapshot, status: "WAITING_APPROVAL", warnings: [] } : null;
+                    })()
+                  : null,
+            }
+          : {}),
       })));
 
   return noStoreJson({
