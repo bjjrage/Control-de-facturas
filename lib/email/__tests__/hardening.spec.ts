@@ -12,6 +12,10 @@ const hardeningMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260919003749_rodrigo_email_v1_hardening.sql"),
   "utf8"
 );
+const batch2Migration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260919022401_rodrigo_email_v1_hardening_batch2.sql"),
+  "utf8"
+);
 const providerSource = readFileSync(resolve(process.cwd(), "lib/email/provider.ts"), "utf8");
 const domainSource = readFileSync(resolve(process.cwd(), "lib/email/domain-service.ts"), "utf8");
 const callbackSource = readFileSync(resolve(process.cwd(), "app/api/integrations/gmail/callback/route.ts"), "utf8");
@@ -24,7 +28,9 @@ describe("Rodrigo email V1 adversarial hardening", () => {
     expect(hardeningMigration).toContain("grant insert on public.email_send_events to service_role");
     expect(hardeningMigration).toContain("revoke insert, update on public.email_connections from authenticated");
     expect(providerSource).toContain("const admin = createAdminClient();");
-    expect(providerSource).toContain('admin.rpc("email_read_oauth_secret"');
+    expect(providerSource).toContain('admin.rpc("email_read_oauth_secret_for_send"');
+    expect(batch2Migration).toContain("create or replace function public.email_read_oauth_secret_for_revoke");
+    expect(batch2Migration).toContain("revoke all on function public.email_read_oauth_secret(uuid, uuid, uuid) from public, anon, authenticated, service_role");
     expect(callbackSource).toContain("const admin = createAdminClient();");
     expect(callbackSource).toContain('admin.rpc("email_connect_gmail"');
   });
@@ -57,7 +63,7 @@ describe("Rodrigo email V1 adversarial hardening", () => {
       attachments: [{ ...base.attachments[0], contentSha256: mutated }],
     }));
     expect(hardeningMigration).toContain("add column if not exists content_sha256 text");
-    expect(domainSource).toContain('status: requiresReapproval ? "WAITING_APPROVAL" : "FAILED"');
+    expect(domainSource).toContain('prepareEmailAttachments(params.db, current)');
   });
 
   it("filters attachment candidates to the requested project", () => {

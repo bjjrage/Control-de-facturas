@@ -18,6 +18,7 @@ const EmailAttachmentSnapshotSchema = z.object({
 
 const EmailDraftSnapshotSchema = z.object({
   draftId: z.string().uuid(),
+  revision: z.number().int().positive(),
   to: z.array(z.string().email()).max(20),
   cc: z.array(z.string().email()).max(20),
   bcc: z.array(z.string().email()).max(20),
@@ -32,6 +33,7 @@ export const SendEmailInputSchema = z.object({
   draft_id: z.string().uuid(),
   idempotency_key: z.string().uuid(),
   draft_hash: z.string().regex(/^[a-f0-9]{64}$/u),
+  draft_revision: z.number().int().positive(),
   draft_snapshot: EmailDraftSnapshotSchema,
 });
 
@@ -48,6 +50,8 @@ async function handler(
     draftId: input.draft_id,
     idempotencyKey: input.idempotency_key,
     draftHash: input.draft_hash,
+    approvedRevision: input.draft_revision,
+    approvalId: ctx.approvalId,
     draftSnapshot: input.draft_snapshot as EmailDraftSnapshot,
   });
 }

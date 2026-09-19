@@ -17,6 +17,7 @@ export const PrepareEmailInputSchema = z.object({
   project_id: z.string().uuid().optional(),
   draft_id: z.string().uuid().optional(),
   revision_instruction: z.string().max(2_000).optional(),
+  force_resend: z.boolean().optional(),
 });
 
 export type PrepareEmailToolInput = z.infer<typeof PrepareEmailInputSchema>;

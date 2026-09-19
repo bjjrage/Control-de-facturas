@@ -11,7 +11,14 @@ export type EmailDraftStatus =
   | "SENDING"
   | "SENT"
   | "FAILED"
+  | "DELIVERY_UNKNOWN"
   | "CANCELLED";
+export type EmailSendAttemptStatus =
+  | "CLAIMED"
+  | "DISPATCHING"
+  | "SENT"
+  | "FAILED_SAFE"
+  | "DELIVERY_UNKNOWN";
 
 export type EmailAddress = string;
 
@@ -28,6 +35,7 @@ export interface EmailAttachmentPreview {
 
 export interface EmailDraftSnapshot {
   draftId: string;
+  revision: number;
   to: string[];
   cc: string[];
   bcc: string[];
@@ -63,6 +71,7 @@ export interface EmailSendResult {
   sentAt: string;
   alreadySent: boolean;
   recipientLabel: string;
+  sendAttemptId?: string;
 }
 
 export const GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
