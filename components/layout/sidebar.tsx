@@ -151,6 +151,7 @@ export function Sidebar({
   const [navPath, setNavPath] = useState<string | null>(null);
   const [logoFailed, setLogoFailed] = useState(false);
   const [logoVersion, setLogoVersion] = useState(0);
+  const [normalizedLogoSrc, setNormalizedLogoSrc] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isAdmin = role === "admin";
@@ -249,6 +250,139 @@ export function Sidebar({
   // fuera de Administración dejaba el nav vacío al entrar a Operativo o
   // Licitaciones.
 
+  function normalizeLogoToFixedSlot(event: React.SyntheticEvent<HTMLImageElement>) {
+    if (normalizedLogoSrc) return;
+
+    const img = event.currentTarget;
+    try {
+      const sourceWidth = img.naturalWidth;
+      const sourceHeight = img.naturalHeight;
+      if (!sourceWidth || !sourceHeight) return;
+
+      // Sample at a bounded resolution so large logos don't block the UI.
+      const sampleScale = Math.min(1, 1000 / Math.max(sourceWidth, sourceHeight));
+      const width = Math.max(1, Math.round(sourceWidth * sampleScale));
+      const height = Math.max(1, Math.round(sourceHeight * sampleScale));
+
+      const sample = document.createElement("canvas");
+      sample.width = width;
+      sample.height = height;
+      const ctx = sample.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      const image = ctx.getImageData(0, 0, width, height);
+      const data = image.data;
+
+      // Estimate background from the four corners instead of assuming white.
+      const corners = [
+        [0, 0],
+        [width - 1, 0],
+        [0, height - 1],
+        [width - 1, height - 1],
+      ];
+      let bgR = 0;
+      let bgG = 0;
+      let bgB = 0;
+      let bgCount = 0;
+      for (const [x, y] of corners) {
+        const i = (y * width + x) * 4;
+        if (data[i + 3] < 12) continue;
+        bgR += data[i];
+        bgG += data[i + 1];
+        bgB += data[i + 2];
+        bgCount += 1;
+      }
+      if (bgCount > 0) {
+        bgR /= bgCount;
+        bgG /= bgCount;
+        bgB /= bgCount;
+      } else {
+        bgR = 255;
+        bgG = 255;
+        bgB = 255;
+      }
+
+      let minX = width;
+      let minY = height;
+      let maxX = -1;
+      let maxY = -1;
+
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          const i = (y * width + x) * 4;
+          const alpha = data[i + 3];
+          if (alpha < 12) continue;
+
+          const dr = data[i] - bgR;
+          const dg = data[i + 1] - bgG;
+          const db = data[i + 2] - bgB;
+          const distance = Math.sqrt(dr * dr + dg * dg + db * db);
+
+          // Conservative threshold: keeps antialiasing and light logo details.
+          if (distance < 10) continue;
+
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+
+      if (maxX < minX || maxY < minY) return;
+
+      // Safety padding so no valid logo pixel is ever clipped.
+      const contentWidth = maxX - minX + 1;
+      const contentHeight = maxY - minY + 1;
+      const padX = Math.max(2, Math.round(contentWidth * 0.035));
+      const padY = Math.max(2, Math.round(contentHeight * 0.06));
+      minX = Math.max(0, minX - padX);
+      minY = Math.max(0, minY - padY);
+      maxX = Math.min(width - 1, maxX + padX);
+      maxY = Math.min(height - 1, maxY + padY);
+
+      const cropW = maxX - minX + 1;
+      const cropH = maxY - minY + 1;
+
+      // FINAL SLOT IS FIXED. Navbar never changes size for the logo.
+      const SLOT_W = 120;
+      const SLOT_H = 40;
+      const SLOT_PADDING = 2;
+      const scale = Math.min(
+        (SLOT_W - SLOT_PADDING * 2) / cropW,
+        (SLOT_H - SLOT_PADDING * 2) / cropH
+      );
+      const drawW = Math.max(1, cropW * scale);
+      const drawH = Math.max(1, cropH * scale);
+      const drawX = (SLOT_W - drawW) / 2;
+      const drawY = (SLOT_H - drawH) / 2;
+
+      const output = document.createElement("canvas");
+      output.width = SLOT_W;
+      output.height = SLOT_H;
+      const out = output.getContext("2d");
+      if (!out) return;
+
+      // Transparent final canvas: only the actual logo occupies the slot.
+      out.clearRect(0, 0, SLOT_W, SLOT_H);
+      out.drawImage(
+        sample,
+        minX,
+        minY,
+        cropW,
+        cropH,
+        drawX,
+        drawY,
+        drawW,
+        drawH
+      );
+
+      setNormalizedLogoSrc(output.toDataURL("image/png"));
+    } catch {
+      // Cross-origin/SVG edge case: original logo still renders inside fixed slot.
+    }
+  }
+
   async function handleLogoFile(file: File | null) {
     if (!file) return;
     setUploading(true);
@@ -260,6 +394,7 @@ export function Sidebar({
         alert(result.error);
       } else {
         setLogoFailed(false);
+        setNormalizedLogoSrc(null);
         setLogoVersion((v) => v + 1);
       }
     } catch {
@@ -518,15 +653,12 @@ export function Sidebar({
         collapsed ? "w-[52px]" : "w-[164px]"
       )}
     >
-      <div className={cn(
-        "flex items-center justify-between gap-2 border-b border-white/[0.08]",
-        collapsed ? "min-h-14 px-1.5 py-2" : "min-h-14 px-2 py-2.5"
-      )}>
+      <div className="h-14 flex items-center justify-between gap-2 px-2 border-b border-white/[0.08]">
         <div
           className={cn(
-            "relative group flex min-w-0 items-center rounded-md",
+            "relative group flex items-center rounded-md",
             isAdmin && "cursor-pointer hover:bg-white/[0.055]",
-            collapsed ? "w-10 justify-center" : "flex-1 justify-center"
+            collapsed ? "h-10 w-10 justify-center" : "h-10 w-[120px] shrink-0 justify-center"
           )}
           onClick={() => isAdmin && !uploading && fileInputRef.current?.click()}
           title={isAdmin ? "Subir logo de la empresa" : undefined}
@@ -534,19 +666,19 @@ export function Sidebar({
           {logoBucketUrl && !logoFailed ? (
             <div
               className={cn(
-                "flex min-w-0 items-center",
-                collapsed ? "h-9 w-9 justify-center" : "w-full justify-center"
+                "flex items-center justify-center overflow-visible",
+                collapsed ? "h-8 w-8" : "h-10 w-[120px]"
               )}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={`${logoBucketUrl}?v=${logoVersion}`}
+                src={normalizedLogoSrc ?? `${logoBucketUrl}?v=${logoVersion}`}
                 alt="Logo"
+                crossOrigin="anonymous"
+                onLoad={normalizeLogoToFixedSlot}
                 className={cn(
-                  "block h-auto w-auto object-contain",
-                  collapsed
-                    ? "max-h-8 max-w-8"
-                    : "h-auto w-auto max-w-full max-h-[76px]"
+                  "block object-contain",
+                  collapsed ? "max-h-8 max-w-8" : "h-10 w-[120px]"
                 )}
                 onError={() => setLogoFailed(true)}
               />
