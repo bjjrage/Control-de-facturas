@@ -21,7 +21,7 @@ export function DashboardView({ data }: { data: DashboardViewData }) {
   const hasAnyContent = adminKpis.length > 0 || (canUseOperativo && panorama) || licitacionesKpis.length > 0;
 
   return (
-    <div className="max-w-6xl space-y-6">
+    <div className="max-w-none space-y-6">
       <div>
         <h1 className="text-[17px] font-semibold">Resumen ejecutivo</h1>
         <p className="text-[13px] text-[var(--muted)] mt-0.5">Hola, {firstName}</p>
@@ -40,20 +40,20 @@ export function DashboardView({ data }: { data: DashboardViewData }) {
         </div>
       ) : null}
 
-      {canUseOperativo && panorama ? (
-        <div>
-          <SectionHeader title="Obras" />
-          <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-4 items-stretch">
-            <PortfolioTable rows={portfolioRows} totalCount={portfolioTotalCount} />
-            <PanoramaObras data={panorama} />
-          </div>
-        </div>
-      ) : null}
-
       {licitacionesKpis.length > 0 ? (
         <div>
           <SectionHeader title="Licitaciones" />
           <MetricChips chips={licitacionesKpis} />
+        </div>
+      ) : null}
+
+      {canUseOperativo && panorama ? (
+        <div>
+          <SectionHeader title="Obras" />
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)] gap-4 items-stretch">
+            <PortfolioTable rows={portfolioRows} totalCount={portfolioTotalCount} />
+            <PanoramaObras data={panorama} />
+          </div>
         </div>
       ) : null}
     </div>
