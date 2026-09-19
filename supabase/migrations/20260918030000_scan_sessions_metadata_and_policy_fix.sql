@@ -94,3 +94,6 @@ revoke all on function public.scan_session_create_atomic(
 grant execute on function public.scan_session_create_atomic(
   uuid, uuid, text, text, timestamptz, text, text, text, text, jsonb
 ) to service_role;
+
+-- 5. Limpieza de compatibilidad: eliminar función legacy temporal una vez migradas las policies
+drop function if exists public.current_user_empresa_id();
