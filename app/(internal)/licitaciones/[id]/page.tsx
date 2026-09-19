@@ -142,8 +142,8 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
                 ? latestSnapshot.decision === "COMPETIR"
                   ? "bg-[var(--ok-bg)] text-[var(--ok)]"
                   : latestSnapshot.decision === "REVISAR"
-                  ? "bg-amber-500/10 text-amber-600"
-                  : "bg-red-500/10 text-red-600"
+                  ? "bg-[var(--warn-bg)]/55 text-[#fff8e8] ring-1 ring-[var(--warn)]/20"
+                  : "bg-[var(--error-bg)]/55 text-[#fff1ef] ring-1 ring-[var(--error)]/20"
                 : "bg-[var(--panel-2)] text-[var(--muted)]"
             }`}>
               {latestSnapshot ? `${latestSnapshot.decision} (SCORE: ${latestSnapshot.overall_score}/100)` : "SIN EVALUACIÓN"}
