@@ -531,7 +531,7 @@ export function Sidebar({
                 "flex min-w-0 items-center",
                 collapsed
                   ? "h-8 w-8 justify-center overflow-hidden"
-                  : "h-9 w-full max-w-[124px] justify-start overflow-hidden"
+                  : "h-10 w-full max-w-[136px] justify-start overflow-hidden"
               )}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -542,7 +542,7 @@ export function Sidebar({
                   "block shrink-0",
                   collapsed
                     ? "h-full w-full object-contain object-center"
-                    : "h-full w-full object-contain object-left scale-[1.18] origin-left"
+                    : "h-full w-full object-contain object-left scale-[1.65] origin-left"
                 )}
                 onError={() => setLogoFailed(true)}
               />
