@@ -5,16 +5,20 @@ import { FrozenAuctionPolicy } from "@/lib/auction-bot/types";
 import { PolicySummaryCard } from "@/components/auction-bot/policy-summary-card";
 import { PolicyConfigForm } from "@/components/auction-bot/policy-config-form";
 import { SimulatorRunnerView } from "@/components/auction-bot/simulator-runner-view";
-import { Bot, Sliders, PlaySquare } from "lucide-react";
+import { Bot, Sliders, PlaySquare, CheckCircle2 } from "lucide-react";
 
 export function AuctionBotClient() {
   // No fake active policy: the UI starts with NO policy. Nothing is shown as
   // frozen/authorized until the operator configures and freezes version 1.
   const [activePolicy, setActivePolicy] = useState<FrozenAuctionPolicy | null>(null);
   const [activeTab, setActiveTab] = useState<"config" | "simulator">("config");
+  // Transient unequivocal feedback right after a freeze (policy lives in
+  // React state only — see persistence note below).
+  const [justFrozen, setJustFrozen] = useState<FrozenAuctionPolicy | null>(null);
 
   const handlePolicyFrozen = (newFrozenPolicy: FrozenAuctionPolicy) => {
     setActivePolicy(newFrozenPolicy);
+    setJustFrozen(newFrozenPolicy);
   };
 
   return (
@@ -67,6 +71,27 @@ export function AuctionBotClient() {
       </div>
 
       {/* Persistent Frozen Policy Banner */}
+      {justFrozen && activePolicy?.policyId === justFrozen.policyId &&
+       activePolicy?.version === justFrozen.version ? (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 flex items-center gap-2.5">
+          <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
+          <div className="text-[13px]">
+            <span className="font-semibold text-[var(--foreground)]">
+              Política v{justFrozen.version} autorizada
+            </span>
+            <span className="text-[var(--muted)]">
+              {" "}por {justFrozen.authorizedBy} — Auto Limit ₲{justFrozen.autoLimitPyg.toLocaleString("es-PY")}.
+              El Simulador de Subasta ya está habilitado.
+            </span>
+          </div>
+          <button
+            onClick={() => setJustFrozen(null)}
+            className="ml-auto text-[11px] text-[var(--muted)] hover:text-[var(--foreground)] cursor-pointer shrink-0"
+          >
+            Cerrar
+          </button>
+        </div>
+      ) : null}
       <PolicySummaryCard
         policy={activePolicy}
         onUnfreezeRequest={() => setActiveTab("config")}

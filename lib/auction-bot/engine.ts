@@ -182,43 +182,16 @@ export function evaluateAuctionStep(
       };
     }
   } else if (state.phase === 'RANDOM_CLOSE') {
-    if (state.timingWindow === 'SAFE_WINDOW' && policy.safeWindowBehavior === 'WAIT') {
-      return {
-        ...baseDecision,
-        action: 'WAIT',
-        reasonCode: 'TACTICAL_WAIT_SAFE_WINDOW',
-        reasonDescription: 'Fase aleatoria (Safe Window): aún no hay riesgo de cierre, espera táctica en ejecución.',
-        candidatePricePyg: null,
-        targetRank: null,
-        defenseStepAppliedPyg: null,
-      };
-    }
-    // ENTRY_WINDOW is only actionable when the policy explicitly allows
-    // acquiring the target position in that window.
-    if (state.timingWindow === 'ENTRY_WINDOW' && policy.enterTargetPositionInEntryWindow === false) {
-      return {
-        ...baseDecision,
-        action: 'WAIT',
-        reasonCode: 'ENTRY_WINDOW_DISABLED_BY_POLICY',
-        reasonDescription: 'Ventana de entrada (Entry Window): la política tiene deshabilitada la adquisición de posición en esta ventana. Espera.',
-        candidatePricePyg: null,
-        targetRank: null,
-        defenseStepAppliedPyg: null,
-      };
-    }
-    // Close-risk defense only fires when the policy explicitly enables it.
-    const isCloseRiskNow = state.closeRisk || state.timingWindow === 'CLOSE_RISK_WINDOW';
-    if (isCloseRiskNow && policy.defendImmediatelyInCloseRisk === false) {
-      return {
-        ...baseDecision,
-        action: 'WAIT',
-        reasonCode: 'CLOSE_RISK_DEFENSE_DISABLED_BY_POLICY',
-        reasonDescription: 'Ventana de riesgo de cierre (Close-Risk): la política tiene deshabilitada la defensa inmediata. Espera.',
-        candidatePricePyg: null,
-        targetRank: null,
-        defenseStepAppliedPyg: null,
-      };
-    }
+    // PRODUCT RULE: once the random phase starts, the group may close at any
+    // instant — there is NO tactical WAIT in RANDOM_CLOSE. Timing windows
+    // (SAFE / ENTRY / CLOSE_RISK) and their policy flags are deliberately
+    // NOT consulted here; evaluation falls straight through to the normal
+    // position/economic assessment (defenseStep, Ground Floor, human
+    // override all still apply unchanged).
+    // COMPAT: safeWindowBehavior / enterTargetPositionInEntryWindow /
+    // defendImmediatelyInCloseRisk remain on the policy TYPE (and in stored
+    // snapshots) so existing policies keep validating — they simply no
+    // longer gate RANDOM_CLOSE behavior.
   } else if (state.phase === 'POST_RANDOM') {
     const postRandom = state.postRandom;
     const mipymeStatus = postRandom?.mipymeBenefitStatus;

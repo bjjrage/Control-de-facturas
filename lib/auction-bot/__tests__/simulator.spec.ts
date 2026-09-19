@@ -18,7 +18,8 @@ describe('End-to-End Simulation & Policy Version Upgrade Specification', () => {
     // Key assertions:
     expect(report.results[0].decision.action).toBe('WAIT');
     expect(report.results[1].decision.action).toBe('WAIT'); // Normal bidding tactical wait
-    expect(report.results[2].decision.action).toBe('WAIT'); // Safe window tactical wait
+    expect(report.results[2].decision.action).toBe('BID_CANDIDATE'); // RANDOM_CLOSE always ACTIVE (no safe-window wait)
+    expect(report.results[2].decision.candidatePricePyg).toBe(1_009_990);
     expect(report.results[3].decision.action).toBe('BID_CANDIDATE'); // Entry window seek #1
     expect(report.results[3].decision.candidatePricePyg).toBe(1_009_990);
     expect(report.results[4].decision.action).toBe('WAIT'); // Already in #1

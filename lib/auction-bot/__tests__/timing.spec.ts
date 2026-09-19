@@ -80,8 +80,10 @@ describe('Independence of Position Goal vs Timing Strategy', () => {
     expect(decision.candidatePricePyg).toBe(1_019_990);
   });
 
-  it('tactically waits during SAFE_WINDOW in RANDOM_CLOSE phase', () => {
-    const policy = buildPolicy(2, 'WAIT', 'WAIT');
+  it('evaluates position normally in RANDOM_CLOSE even with safeWindowBehavior=WAIT', () => {
+    // PRODUCT RULE: no tactical WAIT exists in RANDOM_CLOSE. The Safe Window
+    // flag is kept for snapshot compatibility but no longer gates behavior.
+    const policy = buildPolicy(1, 'WAIT', 'WAIT');
     const safeState: AuctionState = {
       ...displacedState,
       phase: 'RANDOM_CLOSE',
@@ -89,8 +91,10 @@ describe('Independence of Position Goal vs Timing Strategy', () => {
     };
 
     const decision = evaluateAuctionStep(safeState, policy, undefined, { currentTimestampIso: baseTime });
-    expect(decision.action).toBe('WAIT');
-    expect(decision.reasonCode).toBe('TACTICAL_WAIT_SAFE_WINDOW');
+    expect(decision.action).toBe('BID_CANDIDATE');
+    expect(decision.targetRank).toBe(1);
+    expect(decision.reasonCode).toBe('TARGET_POSITION_DEFENSE_REQUIRED');
+    expect(decision.candidatePricePyg).toBe(999_990); // 1.000.000 - 10
   });
 
   it('triggers ENTRY_POSITION_REQUIRED during ENTRY_WINDOW for targetRank = 2', () => {
@@ -125,7 +129,8 @@ describe('Independence of Position Goal vs Timing Strategy', () => {
     expect(decision.candidatePricePyg).toBe(999_990); // 1.000.000 - 10
   });
 
-  it('WAITS in ENTRY_WINDOW when enterTargetPositionInEntryWindow is false', () => {
+  it('bids in RANDOM_CLOSE ENTRY_WINDOW even with enterTargetPositionInEntryWindow=false', () => {
+    // PRODUCT RULE: the Entry Window flag no longer blocks bidding.
     const policy = buildPolicy(2, 'WAIT', 'WAIT', false, true);
     const entryState: AuctionState = {
       ...displacedState,
@@ -134,12 +139,15 @@ describe('Independence of Position Goal vs Timing Strategy', () => {
     };
 
     const decision = evaluateAuctionStep(entryState, policy, undefined, { currentTimestampIso: baseTime });
-    expect(decision.action).toBe('WAIT');
-    expect(decision.reasonCode).toBe('ENTRY_WINDOW_DISABLED_BY_POLICY');
-    expect(decision.candidatePricePyg).toBeNull();
+    expect(decision.action).toBe('BID_CANDIDATE');
+    expect(decision.targetRank).toBe(2);
+    expect(decision.reasonCode).toBe('ENTRY_POSITION_REQUIRED');
+    // Undercuts Comp 2 (1.010.000) by 10 -> 1.009.990
+    expect(decision.candidatePricePyg).toBe(1_009_990);
   });
 
-  it('WAITS in CLOSE_RISK_WINDOW when defendImmediatelyInCloseRisk is false', () => {
+  it('bids in RANDOM_CLOSE CLOSE_RISK_WINDOW even with defendImmediatelyInCloseRisk=false', () => {
+    // PRODUCT RULE: the Close-Risk flag no longer blocks bidding.
     const policy = buildPolicy(1, 'WAIT', 'WAIT', true, false);
     const riskState: AuctionState = {
       ...displacedState,
@@ -149,12 +157,13 @@ describe('Independence of Position Goal vs Timing Strategy', () => {
     };
 
     const decision = evaluateAuctionStep(riskState, policy, undefined, { currentTimestampIso: baseTime });
-    expect(decision.action).toBe('WAIT');
-    expect(decision.reasonCode).toBe('CLOSE_RISK_DEFENSE_DISABLED_BY_POLICY');
-    expect(decision.candidatePricePyg).toBeNull();
+    expect(decision.action).toBe('BID_CANDIDATE');
+    expect(decision.targetRank).toBe(1);
+    expect(decision.reasonCode).toBe('TARGET_POSITION_DEFENSE_REQUIRED');
+    expect(decision.candidatePricePyg).toBe(999_990); // 1.000.000 - 10
   });
 
-  it('WAITS on closeRisk flag alone when defendImmediatelyInCloseRisk is false', () => {
+  it('bids on closeRisk flag alone even with defendImmediatelyInCloseRisk=false', () => {
     const policy = buildPolicy(1, 'ACTIVE', 'ACTIVE', true, false);
     const riskState: AuctionState = {
       ...displacedState,
@@ -164,8 +173,34 @@ describe('Independence of Position Goal vs Timing Strategy', () => {
     };
 
     const decision = evaluateAuctionStep(riskState, policy, undefined, { currentTimestampIso: baseTime });
-    expect(decision.action).toBe('WAIT');
-    expect(decision.reasonCode).toBe('CLOSE_RISK_DEFENSE_DISABLED_BY_POLICY');
-    expect(decision.candidatePricePyg).toBeNull();
+    expect(decision.action).toBe('BID_CANDIDATE');
+    expect(decision.targetRank).toBe(1);
+    expect(decision.reasonCode).toBe('TARGET_POSITION_DEFENSE_REQUIRED');
+    expect(decision.candidatePricePyg).toBe(999_990); // 1.000.000 - 10
+  });
+
+  it('RANDOM_CLOSE candidate below Ground Floor still STOPs (override path intact)', () => {
+    // Timing flags must not interfere with the economic gate: even with
+    // safeWindowBehavior=WAIT and both opt-outs disabled, a breaching
+    // candidate yields STOP/ECONOMIC_LIMIT_BREACHED with the candidate
+    // attached (the human-override flow authorizes exactly that price).
+    const policy = buildPolicy(1, 'WAIT', 'WAIT', false, false);
+    const breachState: AuctionState = {
+      ...displacedState,
+      phase: 'RANDOM_CLOSE',
+      timingWindow: 'CLOSE_RISK_WINDOW',
+      closeRisk: true,
+      rankedOffers: [
+        { rank: 1, participantId: 'comp-1', isOurOffer: false, pricePyg: 979_999, timestamp: baseTime },
+        { rank: 2, participantId: 'our-firm', isOurOffer: true, pricePyg: 999_998, timestamp: baseTime },
+      ],
+      ourRank: 2,
+      ourCurrentPricePyg: 999_998,
+    };
+
+    const decision = evaluateAuctionStep(breachState, policy, undefined, { currentTimestampIso: baseTime });
+    expect(decision.action).toBe('STOP');
+    expect(decision.reasonCode).toBe('ECONOMIC_LIMIT_BREACHED');
+    expect(decision.candidatePricePyg).toBe(979_989); // 979.999 - 10
   });
 });
