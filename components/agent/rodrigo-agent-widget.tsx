@@ -611,7 +611,7 @@ export function RodrigoAgentWidget() {
         aria-controls="rodrigo-agent-panel"
         aria-label={isOpen ? "Minimizar el panel de Rodrigo" : "Abrir el panel de Rodrigo"}
         title={isOpen ? "Minimizar Rodrigo" : "Abrir Rodrigo"}
-        className={`relative flex h-[76px] w-[76px] touch-none select-none items-end justify-center overflow-visible rounded-full border border-white/10 bg-[var(--panel)] shadow-xl transition-transform duration-200 hover:scale-[1.035] active:cursor-grabbing cursor-grab focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] sm:h-[84px] sm:w-[84px] ${styles.mascotButton}`}
+        className={`relative flex h-[76px] w-[76px] touch-none select-none items-end justify-center overflow-visible rounded-full border border-white/10 bg-[var(--panel)] shadow-xl transition-all duration-200 hover:scale-[1.035] hover:opacity-100 active:cursor-grabbing cursor-grab focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] sm:h-[84px] sm:w-[84px] ${isOpen ? "opacity-100" : "opacity-70"} ${styles.mascotButton}`}
       >
         <span className="sr-only">{presentation.label}</span>
         <span className={`absolute inset-0 ${styles.mascot}`}>
