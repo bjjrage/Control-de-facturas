@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentToolContext } from "@/lib/agent/context";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { buildRfc2822Message, encodeGmailRaw } from "./mime";
+import { EmailApprovalMismatchError, assertAttachmentDigest, isSha256Digest, sha256Bytes } from "./content-hash";
 import {
   GMAIL_SEND_SCOPE,
   MAX_EMAIL_ATTACHMENT_BYTES,
@@ -31,12 +33,16 @@ type ConnectionRow = {
   empresa_id: string;
   provider: "GMAIL";
   provider_email: string | null;
-  status: "CONNECTED" | "REVOKED" | "ERROR";
+  status: "CONNECTED" | "REVOKED" | "ERROR" | "REVOKE_PENDING" | "DISCONNECT_FAILED";
   scopes: string[];
   created_at: string;
   disconnected_at: string | null;
   refresh_token_secret_id: string | null;
 };
+
+export function isSendableEmailConnectionStatus(status: ConnectionRow["status"]): boolean {
+  return status === "CONNECTED";
+}
 
 type GoogleTokenResponse = {
   access_token?: string;
@@ -85,20 +91,26 @@ async function getConnection(db: SupabaseClient, actor: AgentToolContext, connec
   return data as ConnectionRow;
 }
 
-async function getRefreshToken(db: SupabaseClient, connectionId: string): Promise<string> {
-  const { data, error } = await db.rpc("email_read_oauth_secret", { p_connection_id: connectionId });
+async function getRefreshToken(connection: ConnectionRow, userId: string | null): Promise<string> {
+  if (!userId) throw new Error("No se puede leer el secreto OAuth sin usuario autenticado");
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc("email_read_oauth_secret", {
+    p_connection_id: connection.id,
+    p_empresa_id: connection.empresa_id,
+    p_user_id: userId,
+  });
   if (error || typeof data !== "string" || !data) {
     throw new Error("No se pudo leer el secreto OAuth desde Supabase Vault");
   }
   return data;
 }
 
-async function getAccessToken(db: SupabaseClient, connection: ConnectionRow): Promise<string> {
+async function getAccessToken(db: SupabaseClient, actor: AgentToolContext, connection: ConnectionRow): Promise<string> {
   if (!connection.refresh_token_secret_id) {
     throw new Error("La conexión Gmail no tiene secreto OAuth seguro asociado");
   }
   const { clientId, clientSecret } = requireGoogleConfig();
-  const refreshToken = await getRefreshToken(db, connection.id);
+  const refreshToken = await getRefreshToken(connection, actor.userId);
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -146,7 +158,17 @@ async function loadAttachments(db: SupabaseClient, draft: EmailDraftSnapshot): P
     if (error || !data) throw new Error(`No se pudo leer el adjunto ${attachment.fileName}`);
     const bytes = new Uint8Array(await data.arrayBuffer());
     if (bytes.byteLength !== attachment.sizeBytes && attachment.sizeBytes > 0) {
+      throw new EmailApprovalMismatchError("El tamaño del adjunto cambió después de preparar el correo");
+    }
+    assertAttachmentDigest(bytes, attachment.contentSha256);
+    if (bytes.byteLength !== attachment.sizeBytes && attachment.sizeBytes > 0) {
       throw new Error(`El tamaño del adjunto ${attachment.fileName} cambió después de preparar el correo`);
+    }
+    if (!isSha256Digest(attachment.contentSha256) || sha256Bytes(bytes) !== attachment.contentSha256) {
+      throw new EmailApprovalMismatchError("El contenido del adjunto cambió después de preparar el correo; se necesita una nueva aprobación");
+    }
+    if (!isSha256Digest(attachment.contentSha256) || sha256Bytes(bytes) !== attachment.contentSha256) {
+      throw new Error(`El contenido del adjunto ${attachment.fileName} cambiÃ³ despuÃ©s de preparar el correo; se necesita una nueva aprobaciÃ³n`);
     }
     output.push({ ...attachment, bytes });
   }
@@ -166,7 +188,9 @@ export class GmailEmailProvider implements EmailProvider {
       .eq("empresa_id", params.actor.empresaId)
       .eq("user_id", params.actor.userId)
       .eq("provider", "GMAIL")
-      .eq("status", "CONNECTED")
+      .in("status", ["CONNECTED", "REVOKE_PENDING", "DISCONNECT_FAILED"])
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
     if (error) throw new Error(`No se pudo consultar el estado Gmail: ${error.message}`);
     if (!data) return null;
@@ -189,11 +213,11 @@ export class GmailEmailProvider implements EmailProvider {
     draft: EmailDraftSnapshot;
   }): Promise<Pick<EmailSendResult, "provider" | "providerMessageId">> {
     const connection = await getConnection(params.db, params.actor, params.connectionId);
-    if (connection.status !== "CONNECTED") throw new Error("La conexión Gmail no está conectada");
+    if (!isSendableEmailConnectionStatus(connection.status)) throw new Error("La conexión Gmail no está conectada");
     if (!connection.scopes.includes(GMAIL_SEND_SCOPE)) {
       throw new Error("La conexión Gmail no tiene el scope mínimo gmail.send");
     }
-    const accessToken = await getAccessToken(params.db, connection);
+    const accessToken = await getAccessToken(params.db, params.actor, connection);
     const attachments = await loadAttachments(params.db, params.draft);
     const mimeMessage = buildRfc2822Message({
       from: requireSenderEmail(connection.provider_email),

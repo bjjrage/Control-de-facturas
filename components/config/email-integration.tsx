@@ -1,6 +1,13 @@
 import type { EmailConnectionSummary } from "@/lib/email/types";
 
 export function EmailIntegration({ connection }: { connection: EmailConnectionSummary | null }) {
+  const statusLabel = connection?.status === "REVOKE_PENDING"
+    ? "revocación pendiente"
+    : connection?.status === "DISCONNECT_FAILED"
+      ? "desconexión pendiente de reintento"
+      : connection?.status === "CONNECTED"
+        ? "conectada"
+        : "desconectada";
   return (
     <section className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4 space-y-3">
       <div>
@@ -14,7 +21,7 @@ export function EmailIntegration({ connection }: { connection: EmailConnectionSu
         <div className="flex items-center justify-between gap-3 rounded-md border border-[var(--border)] px-3 py-2">
           <div className="min-w-0">
             <p className="text-[13px] font-medium truncate">{connection.providerEmail ?? "Cuenta Gmail conectada"}</p>
-            <p className="text-[12px] text-[var(--muted)]">Estado: conectada</p>
+            <p className="text-[12px] text-[var(--muted)]">Estado: {statusLabel}</p>
           </div>
           <form action="/api/integrations/gmail/disconnect" method="post">
             <button

@@ -1,5 +1,10 @@
 export type EmailProviderName = "GMAIL";
-export type EmailConnectionStatus = "CONNECTED" | "REVOKED" | "ERROR";
+export type EmailConnectionStatus =
+  | "CONNECTED"
+  | "REVOKED"
+  | "ERROR"
+  | "REVOKE_PENDING"
+  | "DISCONNECT_FAILED";
 export type EmailDraftStatus =
   | "READY"
   | "WAITING_APPROVAL"
@@ -18,6 +23,7 @@ export interface EmailAttachmentPreview {
   sizeBytes: number;
   storageBucket: string;
   storagePath: string;
+  contentSha256: string | null;
 }
 
 export interface EmailDraftSnapshot {
@@ -56,6 +62,7 @@ export interface EmailSendResult {
   providerMessageId: string;
   sentAt: string;
   alreadySent: boolean;
+  recipientLabel: string;
 }
 
 export const GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
