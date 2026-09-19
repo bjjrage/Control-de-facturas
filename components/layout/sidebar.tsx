@@ -441,14 +441,11 @@ export function Sidebar({
           <div
             data-nav-overlay
             className={cn(
-              "absolute top-[calc(100%+4px)] overflow-hidden rounded-2xl border border-white/[0.11] bg-[#0b1728]/[0.985] p-2",
+              "absolute top-[calc(100%+4px)] overflow-hidden rounded-2xl border border-white/[0.11] bg-[#0b1728]/[0.985] p-1.5",
               "shadow-[0_24px_58px_rgba(0,0,0,.48),inset_0_1px_0_rgba(255,255,255,.05)] backdrop-blur-2xl",
               collapsed ? "left-0 w-[210px]" : "left-0 right-0"
             )}
           >
-            <div className="px-2.5 pt-1.5 pb-2">
-              <div className="erp-kicker">{label}</div>
-            </div>
             <div className="space-y-0.5">
               {items.map(renderLink)}
             </div>
@@ -496,14 +493,11 @@ export function Sidebar({
           <div
             data-nav-overlay
             className={cn(
-              "absolute top-[calc(100%+4px)] overflow-hidden rounded-2xl border border-white/[0.11] bg-[#0b1728]/[0.985] p-2",
+              "absolute top-[calc(100%+4px)] overflow-hidden rounded-2xl border border-white/[0.11] bg-[#0b1728]/[0.985] p-1.5",
               "shadow-[0_24px_58px_rgba(0,0,0,.48),inset_0_1px_0_rgba(255,255,255,.05)] backdrop-blur-2xl",
               collapsed ? "left-0 w-[210px]" : "left-0 right-0"
             )}
           >
-            <div className="px-2.5 pt-1.5 pb-2">
-              <div className="erp-kicker">{group.label}</div>
-            </div>
             <div className="space-y-0.5">
               {tabs.map((t) => {
                 const Icon = t.icon;
