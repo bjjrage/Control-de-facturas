@@ -23,7 +23,7 @@ import { EmailPreviewCard } from "./email-preview-card";
 import styles from "./rodrigo-agent-widget.module.css";
 
 type GmailConnectionState = {
-  status: "loading" | "connected" | "disconnected";
+  status: "loading" | "connected" | "incomplete" | "disconnected";
   email: string | null;
 };
 
@@ -200,15 +200,15 @@ export function RodrigoAgentWidget() {
     void fetch("/api/integrations/gmail/status", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) return null;
-        return response.json() as Promise<{ connection?: { status?: unknown; providerEmail?: unknown } | null }>;
+        return response.json() as Promise<{ connected?: unknown; serverConfigured?: unknown; providerEmail?: unknown }>;
       })
       .then((payload) => {
         if (!active) return;
-        const connection = payload?.connection;
-        const connected = connection?.status === "CONNECTED";
+        const connected = payload?.connected === true;
+        const serverConfigured = payload?.serverConfigured === true;
         setGmail({
-          status: connected ? "connected" : "disconnected",
-          email: connected && typeof connection?.providerEmail === "string" ? connection.providerEmail : null,
+          status: connected ? (serverConfigured ? "connected" : "incomplete") : "disconnected",
+          email: connected && typeof payload?.providerEmail === "string" ? payload.providerEmail : null,
         });
       })
       .catch(() => {
@@ -500,9 +500,11 @@ export function RodrigoAgentWidget() {
                 <p className="text-[11px] text-[var(--muted)]">
                   {gmail.status === "connected"
                     ? `Gmail conectado · ${gmail.email ? truncateEmailAddress(gmail.email) : "cuenta conectada"}`
-                    : gmail.status === "disconnected"
-                      ? "Gmail no conectado"
-                      : "Verificando Gmail…"}
+                    : gmail.status === "incomplete"
+                      ? "Gmail conectado · configuración incompleta"
+                      : gmail.status === "disconnected"
+                        ? "Gmail no conectado · Configurar"
+                        : "Verificando Gmail…"}
                 </p>
               </div>
             </div>
@@ -539,7 +541,7 @@ export function RodrigoAgentWidget() {
                     <p className="text-[13px] font-semibold">Redactar correo</p>
                     <p className="text-[11px] text-[var(--muted)]">Prepará el borrador y revisalo antes de enviarlo.</p>
                   </div>
-                  {gmail.status === "disconnected" ? (
+                  {gmail.status !== "connected" ? (
                     <Link href="/configuracion" className="text-[11px] font-medium text-[var(--primary-hover)] underline underline-offset-2">
                       Configurar Gmail
                     </Link>
