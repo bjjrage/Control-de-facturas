@@ -1,15 +1,14 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import { Settings, Users, Building2, SignalHigh, ChevronLeft } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { EmpresaPlan } from "@/lib/auth";
+import { cn } from "@/lib/cn";
 import { AdminConfigSection } from "./admin-config-section";
 
-// Panel de cuenta: Planes/Configuración/Usuarios/Empresas. Visible en TODA
-// la app, sin importar el workspace activo — así era en el diseño original
-// (plan-nav.tsx) antes de que existiera el concepto de workspace; gatearlo
-// a "solo Administración" lo hacía desaparecer al entrar a Operativo o
-// Licitaciones, que es justamente donde alguien puede querer cambiar de
-// plan o revisar usuarios sin cortar lo que está haciendo.
+type RailSection = "plans" | "configuracion" | "users" | "empresas";
+
 export function AdminRailPanel({
   role,
   plan,
@@ -19,14 +18,94 @@ export function AdminRailPanel({
   plan: EmpresaPlan;
   isSuperAdmin?: boolean;
 }) {
+  const [open, setOpen] = useState<RailSection | null>(null);
+  const railRef = useRef<HTMLElement>(null);
+
+  const items: Array<{ key: RailSection; label: string; icon: typeof Settings }> = [];
+  if (role === "admin") {
+    items.push(
+      { key: "plans", label: "Planes", icon: SignalHigh },
+      { key: "configuracion", label: "Configuración", icon: Settings },
+      { key: "users", label: "Usuarios", icon: Users }
+    );
+  }
+  if (isSuperAdmin) {
+    items.push({ key: "empresas", label: "Empresas", icon: Building2 });
+  }
+
+  useEffect(() => {
+    const close = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.closest("[data-admin-rail]") || target.closest("[data-admin-overlay]")) return;
+      setOpen(null);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+
   return (
-    <aside className="w-[190px] shrink-0 border-l border-[var(--border)] bg-[var(--panel)] hidden lg:flex flex-col h-screen sticky top-0 overflow-y-auto">
-      <div className="h-14 flex items-center px-4 border-b border-[var(--border)] shrink-0">
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">Cuenta</span>
+    <aside
+      ref={railRef}
+      data-admin-rail
+      className="relative z-30 hidden lg:flex w-[52px] shrink-0 flex-col items-center border-l border-white/[0.08] bg-[#0a1626]/90 py-2.5 backdrop-blur-2xl"
+    >
+      <div className="flex-1 flex flex-col items-center gap-2">
+        {items.map((item) => {
+          const Icon = item.icon;
+          const active = open === item.key;
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setOpen((current) => (current === item.key ? null : item.key))}
+              title={item.label}
+              aria-label={item.label}
+              className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-xl border transition-colors",
+                active
+                  ? "border-[#6f9aff]/30 bg-[linear-gradient(180deg,rgba(83,129,239,.42),rgba(48,82,162,.30))] text-white shadow-[0_0_0_1px_rgba(104,151,255,.10)]"
+                  : "border-transparent text-[var(--muted)] hover:border-white/[0.08] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
+              )}
+            >
+              <Icon size={16} />
+            </button>
+          );
+        })}
       </div>
-      <nav className="flex-1 py-2 px-2 space-y-0.5">
-        <AdminConfigSection role={role} plan={plan} isSuperAdmin={isSuperAdmin} />
-      </nav>
+
+      {open ? (
+        <div
+          data-admin-overlay
+          className="absolute right-[calc(100%+8px)] top-2 w-[230px] overflow-hidden rounded-2xl border border-white/[0.11] bg-[#0b1728]/[0.985] p-2 shadow-[0_24px_58px_rgba(0,0,0,.48),inset_0_1px_0_rgba(255,255,255,.05)] backdrop-blur-2xl"
+        >
+          <div className="flex items-center justify-between px-2.5 pt-1.5 pb-2">
+            <div className="erp-kicker">
+              {open === "plans"
+                ? "Planes"
+                : open === "configuracion"
+                  ? "Configuración"
+                  : open === "users"
+                    ? "Usuarios"
+                    : "Super admin"}
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(null)}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
+              aria-label="Cerrar"
+            >
+              <ChevronLeft size={14} />
+            </button>
+          </div>
+
+          <AdminConfigSection
+            role={role}
+            plan={plan}
+            isSuperAdmin={isSuperAdmin}
+            focus={open ?? undefined}
+          />
+        </div>
+      ) : null}
     </aside>
   );
 }

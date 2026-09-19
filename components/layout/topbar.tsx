@@ -1,15 +1,34 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, Bell, HelpCircle, ChevronDown, Building2, HardHat, Gavel, LucideIcon } from "lucide-react";
-import { UserRole } from "@/lib/types";
+import { Bell, HelpCircle, Building2, HardHat, Gavel, FolderOpen, LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { logout } from "@/app/(internal)/actions";
 import { Workspace, WORKSPACE_HOME, WORKSPACE_LABEL, workspaceForPath } from "./workspace";
+import { getProjectNavInfo } from "@/app/(internal)/projects/actions";
 
 type WorkspaceItem = { key: Workspace; icon: LucideIcon };
+
+const PROJECT_ID_RE = /^\/projects\/([0-9a-f-]{20,})/i;
+
+const PROJECT_TAB_CONTEXT: Record<string, { group: string; label: string }> = {
+  presupuesto: { group: "Preparar", label: "Presupuesto" },
+  cronograma: { group: "Preparar", label: "Cronograma" },
+  bim: { group: "Preparar", label: "BIM" },
+  proveedores: { group: "Comprar", label: "Proveedores" },
+  cotizaciones: { group: "Comprar", label: "Cotizaciones" },
+  compras: { group: "Comprar", label: "OC" },
+  facturas: { group: "Comprar", label: "Facturas" },
+  pagos: { group: "Comprar", label: "Pagos" },
+  ejecucion: { group: "Ejecutar", label: "Ejecución" },
+  stock: { group: "Ejecutar", label: "Stock / Materiales" },
+  personal: { group: "Ejecutar", label: "Personal" },
+  subcontratistas: { group: "Ejecutar", label: "Subcontratistas" },
+  certificados: { group: "Certificar", label: "Certificados" },
+  "avance-fisico": { group: "Certificar", label: "Avance físico" },
+  informes: { group: "Certificar", label: "Informes" },
+};
 
 const WORKSPACE_ITEMS: WorkspaceItem[] = [
   { key: "administracion", icon: Building2 },
@@ -32,7 +51,7 @@ function WorkspaceSwitcher({ showOperativo, showLicitaciones }: { showOperativo:
   });
 
   return (
-    <div className="hidden md:flex items-center gap-1 rounded-full bg-[var(--panel-2)] border border-[var(--border)] p-1">
+    <div className="hidden md:flex items-center gap-1 rounded-full border border-white/[0.09] bg-white/[0.035] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-xl">
       {items.map((item) => {
         const Icon = item.icon;
         const isActive = active === item.key;
@@ -43,7 +62,11 @@ function WorkspaceSwitcher({ showOperativo, showLicitaciones }: { showOperativo:
             className={cn(
               "flex items-center gap-1.5 h-7 px-3 rounded-full text-[12px] font-medium transition-all duration-150",
               isActive
-                ? "bg-[var(--nav-active)] text-white shadow-[0_0_0_1px_rgba(129,155,255,0.7),0_0_10px_-2px_rgba(91,124,250,0.75)]"
+                ? item.key === "administracion"
+                  ? "workspace-admin-active"
+                  : item.key === "operativo"
+                    ? "workspace-operativo-active"
+                    : "workspace-licitaciones-active"
                 : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
             )}
           >
@@ -56,81 +79,48 @@ function WorkspaceSwitcher({ showOperativo, showLicitaciones }: { showOperativo:
   );
 }
 
-function UserMenu({ initial, fullName, role }: { initial: string; fullName: string; role: UserRole }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 h-9 rounded-lg px-2 hover:bg-[var(--hover)] transition-colors"
-      >
-        <div className="h-7 w-7 rounded-full bg-[var(--primary)] text-[#1a0e00] flex items-center justify-center text-[12px] font-semibold shrink-0">
-          {initial}
-        </div>
-        <div className="text-left hidden sm:block">
-          <div className="text-[12px] font-medium leading-tight">{fullName}</div>
-          <div className="text-[11px] text-[var(--muted)] capitalize leading-tight">{role}</div>
-        </div>
-        <ChevronDown size={13} className={`text-[var(--muted)] transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-
-      {open ? (
-        <div className="absolute right-0 top-full mt-1.5 w-44 rounded-lg border border-[var(--border)] bg-[var(--panel)] shadow-lg z-50 py-1">
-          <div className="px-3 py-2 border-b border-[var(--border)]">
-            <div className="text-[12px] font-medium truncate">{fullName}</div>
-            <div className="text-[11px] text-[var(--muted)] capitalize">{role}</div>
-          </div>
-          <form action={logout}>
-            <button
-              type="submit"
-              className="w-full text-left px-3 py-2 text-[12px] text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)] transition-colors"
-            >
-              Cerrar sesión
-            </button>
-          </form>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 export function Topbar({
-  initial,
-  fullName,
-  role,
   showOperativo,
   showLicitaciones,
 }: {
-  initial: string;
-  fullName: string;
-  role: UserRole;
   showOperativo: boolean;
   showLicitaciones: boolean;
 }) {
+  const pathname = usePathname();
+  const projectId = pathname.match(PROJECT_ID_RE)?.[1] ?? null;
+  const [projectInfo, setProjectInfo] = useState<{ id: string; name: string; code: string } | null>(null);
+  const [projectTab, setProjectTab] = useState("presupuesto");
+
+  useEffect(() => {
+    const syncTab = () => setProjectTab(new URLSearchParams(window.location.search).get("tab") ?? "presupuesto");
+    syncTab();
+    const onTab = (event: Event) => setProjectTab((event as CustomEvent<string>).detail);
+    window.addEventListener("niupack:tab", onTab);
+    window.addEventListener("popstate", syncTab);
+    return () => {
+      window.removeEventListener("niupack:tab", onTab);
+      window.removeEventListener("popstate", syncTab);
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!projectId) {
+      setProjectInfo(null);
+      return;
+    }
+    getProjectNavInfo(projectId).then((info) => {
+      if (!cancelled) setProjectInfo(info);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
   return (
-    <header className="h-14 shrink-0 border-b border-[var(--border)] bg-[var(--panel)] px-4 flex items-center gap-3 sticky top-0 z-10">
-      <div className="flex-1 max-w-md">
-        <div className="flex items-center gap-2 h-9 rounded-full bg-[var(--panel-2)] border border-[var(--border)] px-3.5">
-          <Search size={15} className="text-[var(--muted)] shrink-0" />
-          <input
-            placeholder="Buscar en niu.pack…"
-            disabled
-            className="bg-transparent outline-none text-[13px] w-full placeholder:text-[var(--muted)] disabled:cursor-default"
-          />
-        </div>
-      </div>
+    <header className="h-14 shrink-0 border-b border-white/[0.07] bg-[#091524]/72 px-3 flex items-center gap-3 sticky top-0 z-10 backdrop-blur-2xl shadow-[0_8px_30px_rgba(0,0,0,.10)]">
       <WorkspaceSwitcher showOperativo={showOperativo} showLicitaciones={showLicitaciones} />
-      <div className="flex items-center gap-1 ml-auto">
+      <div className="hidden md:flex items-center gap-1">
         <button
           disabled
           className="h-9 w-9 rounded-full flex items-center justify-center text-[var(--muted)] hover:bg-[var(--hover)] disabled:hover:bg-transparent disabled:opacity-60"
@@ -145,8 +135,25 @@ export function Topbar({
         >
           <HelpCircle size={16} />
         </button>
-        <UserMenu initial={initial} fullName={fullName} role={role} />
       </div>
+      {projectInfo ? (
+        <div
+          className="project-context-accent hidden min-w-0 max-w-[620px] items-center gap-2 rounded-xl border px-3 h-9 md:flex"
+          title={projectInfo.name}
+        >
+          <FolderOpen size={14} className="shrink-0 text-[var(--accent-operativo)]" />
+          <span className="truncate text-[12px] font-medium text-[#eaf1ff]">{projectInfo.name}</span>
+          <span className="shrink-0 font-mono text-[10px] text-[var(--muted)]">{projectInfo.code}</span>
+          <span className="text-[var(--muted)]">/</span>
+          <span className="shrink-0 text-[11px] font-semibold text-[var(--accent-operativo)]">
+            {PROJECT_TAB_CONTEXT[projectTab]?.group ?? "Obra"}
+          </span>
+          <span className="text-[var(--muted)]">/</span>
+          <span className="shrink-0 text-[11px] text-[#dce9fb]">
+            {PROJECT_TAB_CONTEXT[projectTab]?.label ?? projectTab}
+          </span>
+        </div>
+      ) : null}
     </header>
   );
 }

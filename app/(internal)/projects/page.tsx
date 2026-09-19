@@ -106,32 +106,32 @@ export default async function ProjectsPage() {
       </div>
 
       <div className={`grid gap-3 ${isCaterpillar ? "grid-cols-5" : "grid-cols-4"}`}>
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3.5">
+        <div className="kpi-hover rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
           <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Proyectos activos</div>
           <div className="text-[22px] font-bold mt-1">{proyectosActivos}</div>
           {proyectosEnAlerta > 0 ? (
             <div className="text-[11px] text-[var(--error)] mt-0.5">{proyectosEnAlerta} en alerta</div>
           ) : null}
         </div>
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3.5">
+        <div className="kpi-hover rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
           <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Presupuesto total</div>
           <div className="text-[16px] font-bold mt-1">{formatMoney(presupuestoTotal, "PYG")}</div>
           <div className="text-[11px] text-[var(--muted)] mt-0.5">todos los proyectos</div>
         </div>
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3.5">
+        <div className="kpi-hover rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
           <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Compras realizadas</div>
           <div className="text-[16px] font-bold mt-1">{formatMoney(comprasTotal, "PYG")}</div>
           <div className="text-[11px] text-[var(--muted)] mt-0.5">
             {presupuestoTotal > 0 ? Math.round((comprasTotal / presupuestoTotal) * 100) : 0}% del total
           </div>
         </div>
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3.5">
+        <div className="kpi-hover rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
           <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Avance promedio</div>
           <div className="text-[22px] font-bold mt-1 text-[var(--ok)]">{avancePromedio}%</div>
           <div className="text-[11px] text-[var(--muted)] mt-0.5">ejecución en campo</div>
         </div>
         {isCaterpillar ? (
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3.5">
+          <div className="kpi-hover rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
             <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Certificados pendientes</div>
             <div className={`text-[22px] font-bold mt-1 ${certificadosPendientes > 0 ? "text-[var(--warn)]" : ""}`}>
               {certificadosPendientes}

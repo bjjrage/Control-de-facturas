@@ -760,13 +760,13 @@ export function WeeklyPlanSection({ project }: Props) {
             />
           </div>
 
-          <div className="flex items-center rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-0.5 text-xs">
+          <div className="segmented-control text-xs">
             <button
               type="button"
               onClick={() => setWeatherOverlay(false)}
-              className={`px-2.5 py-1 rounded-md transition-colors ${
+              className={`segmented-item px-2.5 py-1 ${
                 !weatherOverlay
-                  ? "bg-emerald-600 text-white font-semibold"
+                  ? "segmented-item-active font-semibold"
                   : "text-[var(--muted)] hover:text-[var(--foreground)]"
               }`}
             >
@@ -775,9 +775,9 @@ export function WeeklyPlanSection({ project }: Props) {
             <button
               type="button"
               onClick={() => setWeatherOverlay(true)}
-              className={`px-2.5 py-1 rounded-md flex items-center gap-1 transition-colors ${
+              className={`segmented-item px-2.5 py-1 ${
                 weatherOverlay
-                  ? "bg-blue-600 text-white font-semibold"
+                  ? "segmented-item-active font-semibold"
                   : "text-[var(--muted)] hover:text-[var(--foreground)]"
               }`}
             >
@@ -799,7 +799,7 @@ export function WeeklyPlanSection({ project }: Props) {
       </div>
 
       {errorMsg && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/15 border border-red-500/30 text-red-700 dark:text-red-300 text-xs">
+        <div className="semantic-danger flex items-center gap-2 p-3 rounded-lg text-xs">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>{errorMsg}</span>
         </div>
@@ -813,7 +813,7 @@ export function WeeklyPlanSection({ project }: Props) {
       )}
 
       {successMsg && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs">
+        <div className="semantic-success flex items-center gap-2 p-3 rounded-lg text-xs">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           <span>{successMsg}</span>
         </div>
@@ -825,14 +825,14 @@ export function WeeklyPlanSection({ project }: Props) {
           ¿Cómo querés planificar?
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-0.5 text-xs">
+          <div className="segmented-control text-xs">
             <button
               type="button"
               onClick={() => setPlanMode("BLOCK")}
               data-testid="modo-bloque"
-              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors ${
+              className={`segmented-item px-3 py-1.5 ${
                 planMode === "BLOCK"
-                  ? "bg-emerald-600 text-white font-semibold"
+                  ? "segmented-item-active font-semibold"
                   : "text-[var(--muted)] hover:text-[var(--foreground)]"
               }`}
             >
@@ -843,9 +843,9 @@ export function WeeklyPlanSection({ project }: Props) {
               type="button"
               onClick={() => setPlanMode("ITEM")}
               data-testid="modo-partida"
-              className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors ${
+              className={`segmented-item px-3 py-1.5 ${
                 planMode === "ITEM"
-                  ? "bg-emerald-600 text-white font-semibold"
+                  ? "segmented-item-active font-semibold"
                   : "text-[var(--muted)] hover:text-[var(--foreground)]"
               }`}
             >
@@ -935,7 +935,7 @@ export function WeeklyPlanSection({ project }: Props) {
                         </strong>
                       </span>
                       {fronts.filter((f) => Number(f.input_value) > 0).length > 0 && (
-                        <span className="text-emerald-700 dark:text-emerald-300 font-medium">
+                        <span className="text-[#d6f7ec] font-medium">
                           Meta local:{" "}
                           {fronts
                             .filter((f) => Number(f.input_value) > 0)
@@ -1040,13 +1040,13 @@ export function WeeklyPlanSection({ project }: Props) {
 
                           <div>
                             <span className="block text-[11px] text-[var(--muted)]">Modo</span>
-                            <div className="flex rounded-lg border border-[var(--border)] p-0.5 text-[11px]">
+                            <div className="segmented-control text-[11px]">
                               <button
                                 type="button"
                                 onClick={() => handleUpdateFront(front.id, "input_mode", "QUANTITY")}
-                                className={`px-2 py-1 rounded-md ${
+                                className={`segmented-item px-2 py-1 ${
                                   front.input_mode === "QUANTITY"
-                                    ? "bg-emerald-600 text-white font-semibold"
+                                    ? "segmented-item-active font-semibold"
                                     : "text-[var(--muted)]"
                                 }`}
                               >
@@ -1055,9 +1055,9 @@ export function WeeklyPlanSection({ project }: Props) {
                               <button
                                 type="button"
                                 onClick={() => handleUpdateFront(front.id, "input_mode", "CONTRACT_PERCENTAGE_POINTS")}
-                                className={`px-2 py-1 rounded-md ${
+                                className={`segmented-item px-2 py-1 ${
                                   front.input_mode === "CONTRACT_PERCENTAGE_POINTS"
-                                    ? "bg-emerald-600 text-white font-semibold"
+                                    ? "segmented-item-active font-semibold"
                                     : "text-[var(--muted)]"
                                 }`}
                               >
@@ -1067,7 +1067,7 @@ export function WeeklyPlanSection({ project }: Props) {
                           </div>
 
                           {translated !== null && Number(front.input_value) > 0 && (
-                            <div className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                            <div className="text-[11px] font-medium text-[#d6f7ec]">
                               +{Number(front.input_value).toLocaleString("es-PY")} pp →{" "}
                               {translated.toLocaleString("es-PY")} {bItem.unit}
                             </div>
@@ -1095,7 +1095,7 @@ export function WeeklyPlanSection({ project }: Props) {
                       <button
                         type="button"
                         onClick={() => handleAddFront(bItem.id)}
-                        className="flex items-center gap-1 rounded-md border border-dashed border-[var(--border)] px-2 py-1 text-[11px] text-emerald-700 dark:text-emerald-300 hover:bg-[var(--panel-2)]"
+                        className="flex items-center gap-1 rounded-md border border-dashed border-[var(--border)] px-2 py-1 text-[11px] text-[#d6f7ec] hover:bg-[var(--panel-2)]"
                       >
                         <Plus className="h-3.5 w-3.5" />
                         Agregar otro frente
@@ -1103,7 +1103,7 @@ export function WeeklyPlanSection({ project }: Props) {
                     </div>
 
                     {exceeds && (
-                      <div className="flex items-start gap-1.5 glass-soft p-2 text-[11px] text-amber-700 dark:text-amber-300">
+                      <div className="flex items-start gap-1.5 glass-soft p-2 text-[11px] text-[#fff0cf]">
                         <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                         <span>
                           Lo solicitado ({requestedSum.toLocaleString("es-PY")} {bItem.unit})
@@ -1170,7 +1170,7 @@ export function WeeklyPlanSection({ project }: Props) {
                         <strong className="text-[var(--foreground)]">{prog.currentPct}%</strong>
                       </span>
                       {activeRows > 0 && (
-                        <span className="text-emerald-700 dark:text-emerald-300 font-medium">
+                        <span className="text-[#d6f7ec] font-medium">
                           {activeRows} {activeRows === 1 ? "meta local" : "metas locales"}
                         </span>
                       )}
@@ -1292,11 +1292,11 @@ export function WeeklyPlanSection({ project }: Props) {
                                 {remaining.toLocaleString("es-PY")} {child.unit}
                               </div>
                               {included && effValue > 0 && (
-                                <div className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                                <div className="text-[11px] font-medium text-[#d6f7ec]">
                                   +{Number(effValue).toLocaleString("es-PY")} pp →{" "}
                                   {physical.toLocaleString("es-PY")} {child.unit}
                                   {capped && (
-                                    <span className="ml-1.5 text-amber-700 dark:text-amber-300">
+                                    <span className="ml-1.5 text-[#fff0cf]">
                                       (limitado al remanente)
                                     </span>
                                   )}
@@ -1310,13 +1310,13 @@ export function WeeklyPlanSection({ project }: Props) {
                                     manual
                                   </span>
                                 )}
-                                <div className="flex rounded-lg border border-[var(--border)] p-0.5 text-[10px]">
+                                <div className="segmented-control text-[10px]">
                                   <button
                                     type="button"
                                     onClick={() => handleBlockRowUpdate(block, child.id, row.id, "input_mode", "QUANTITY")}
-                                    className={`px-1.5 py-0.5 rounded ${
+                                    className={`segmented-item px-1.5 py-0.5 ${
                                       row.input_mode === "QUANTITY"
-                                        ? "bg-emerald-600 text-white font-semibold"
+                                        ? "segmented-item-active font-semibold"
                                         : "text-[var(--muted)]"
                                     }`}
                                   >
@@ -1325,9 +1325,9 @@ export function WeeklyPlanSection({ project }: Props) {
                                   <button
                                     type="button"
                                     onClick={() => handleBlockRowUpdate(block, child.id, row.id, "input_mode", "CONTRACT_PERCENTAGE_POINTS")}
-                                    className={`px-1.5 py-0.5 rounded ${
+                                    className={`segmented-item px-1.5 py-0.5 ${
                                       row.input_mode === "CONTRACT_PERCENTAGE_POINTS"
-                                        ? "bg-emerald-600 text-white font-semibold"
+                                        ? "segmented-item-active font-semibold"
                                         : "text-[var(--muted)]"
                                     }`}
                                   >
@@ -1416,7 +1416,7 @@ export function WeeklyPlanSection({ project }: Props) {
               onClick={handleCalcular}
               disabled={isCalculating}
               data-testid="calcular-plan"
-              className="mt-1 h-10 w-full gap-2 text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="mt-1 h-9 w-auto self-start gap-2 px-4 text-xs font-semibold"
             >
               {isCalculating ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />
@@ -1425,7 +1425,7 @@ export function WeeklyPlanSection({ project }: Props) {
               )}
               {isCalculating ? "Calculando…" : "CALCULAR PLAN"}
             </Button>
-            <p className="text-[11px] text-[var(--muted)] text-center">
+            <p className="text-[11px] text-[var(--muted)]">
               Calcula materiales, stock, OC en tránsito, faltante, caja y factibilidad SIN guardar.
             </p>
           </div>
@@ -1440,39 +1440,39 @@ export function WeeklyPlanSection({ project }: Props) {
           </div>
 
           {previewStale && (
-            <div className="flex items-center gap-2 p-2.5 glass-soft text-amber-700 dark:text-amber-300 text-xs">
+            <div className="semantic-warning flex items-center gap-2 p-2.5 rounded-lg text-xs">
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <span>Cambiaste metas, período o clima después de calcular — presioná CALCULAR PLAN para actualizar. Si guardás ahora, se guarda sin enlazar el pronóstico climático del preview anterior.</span>
             </div>
           )}
 
           {preview.weather_overlay_enabled ? (
-            <div className="glass-soft glass-accent-blue p-3.5 text-xs text-blue-800 dark:text-blue-300">
-              <div className="font-semibold text-blue-900 dark:text-blue-200 flex flex-wrap items-center gap-2">
+            <div className="semantic-info glass-accent-blue p-3.5 rounded-xl text-xs">
+              <div className="font-semibold flex flex-wrap items-center gap-2 text-[var(--foreground)]">
                 <CloudRain className="h-4 w-4" />
                 <span>
                   Factibilidad climática — pronóstico futuro {preview.weather_provider ?? "open-meteo"} · período{" "}
                   {preview.start_date} al {preview.end_date}
                 </span>
-                <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] font-medium">
+                <span className="rounded-full border border-white/[0.10] bg-white/[0.06] px-2 py-0.5 text-[10px] font-medium text-[#eef5ff]">
                   {preview.weather_days_affected_count ?? 0} días comprometidos
                 </span>
-                <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] font-medium">
+                <span className="rounded-full border border-white/[0.10] bg-white/[0.06] px-2 py-0.5 text-[10px] font-medium text-[#eef5ff]">
                   {preview.weather_covered_days_count ?? preview.weather_forecasts_count ?? 0}/
                   {preview.weather_plan_days_count ?? 0} días cubiertos
                 </span>
                 {preview.weather_coverage_is_partial ? (
-                  <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-800">
+                  <span className="rounded-full border border-[var(--warn)]/25 bg-white/[0.05] px-2 py-0.5 text-[10px] font-medium text-[#fff8e8]">
                     cobertura parcial
                   </span>
                 ) : null}
                 {preview.weather_failed_closed ? (
-                  <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-[10px] font-medium text-red-700">
+                  <span className="rounded-full border border-[var(--error)]/25 bg-white/[0.05] px-2 py-0.5 text-[10px] font-medium text-[#fff1ef]">
                     overlay no disponible
                   </span>
                 ) : null}
               </div>
-              <p className="mt-1 text-blue-800/90 dark:text-blue-300/90">
+              <p className="mt-1 text-[#dce9fb]">
                 {preview.weather_summary}. La meta base y la compra recomendada no se recortan
                 automáticamente.
               </p>
@@ -1524,9 +1524,9 @@ export function WeeklyPlanSection({ project }: Props) {
                             <tr key={m.producto_id}>
                               <td className="py-1.5 px-2 font-medium text-[var(--foreground)]">{m.producto_nombre}</td>
                               <td className="py-1.5 px-2 text-right">{m.requerido.toLocaleString("es-PY")} {m.unidad_medida}</td>
-                              <td className="py-1.5 px-2 text-right text-emerald-700 dark:text-emerald-300">{m.cubierto_stock.toLocaleString("es-PY")} {m.unidad_medida}</td>
-                              <td className="py-1.5 px-2 text-right text-blue-700 dark:text-blue-300">{m.cubierto_inbound.toLocaleString("es-PY")} {m.unidad_medida}</td>
-                              <td className="py-1.5 px-2 text-right font-bold text-amber-700 dark:text-amber-300">{m.faltante.toLocaleString("es-PY")} {m.unidad_medida}</td>
+                              <td className="py-1.5 px-2 text-right text-[#d6f7ec]">{m.cubierto_stock.toLocaleString("es-PY")} {m.unidad_medida}</td>
+                              <td className="py-1.5 px-2 text-right text-[#dce9fb]">{m.cubierto_inbound.toLocaleString("es-PY")} {m.unidad_medida}</td>
+                              <td className="py-1.5 px-2 text-right font-bold text-[#fff0cf]">{m.faltante.toLocaleString("es-PY")} {m.unidad_medida}</td>
                               <td className="py-1.5 px-2 text-right font-bold">Gs. {m.caja.toLocaleString("es-PY")}</td>
                             </tr>
                           ))}
@@ -1549,17 +1549,17 @@ export function WeeklyPlanSection({ project }: Props) {
 
           {/* Caja primero (modo LEGACY; en MRP la caja la muestra el bloque de arriba) */}
           {!previewMrp && (
-          <div className="glass glass-accent-amber p-5">
+          <div className="glass glass-accent-amber p-5 semantic-warning">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-bold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+              <span className="text-sm font-bold uppercase tracking-wide text-[var(--foreground)]">
                 Caja necesaria para cumplir el plan
               </span>
-              <DollarSign className="h-5 w-5 text-amber-600" />
+              <DollarSign className="h-5 w-5 text-[var(--warn)]" />
             </div>
-            <div data-testid="caja-necesaria" className="mt-1 text-3xl font-extrabold text-amber-800 dark:text-amber-200">
+            <div data-testid="caja-necesaria" className="mt-1 text-3xl font-extrabold text-[#fff8e8]">
               Gs. {preview.total_additional_cash_required.toLocaleString("es-PY")}
             </div>
-            <p className="mt-1 text-xs text-amber-700/90 dark:text-amber-300/90">
+            <p className="mt-1 text-xs text-[#f4ead2]">
               Para cumplir este plan necesito comprar el faltante neto y necesito Gs.{" "}
               {preview.total_additional_cash_required.toLocaleString("es-PY")}. = faltante neto a comprar ×
               costo válido. No incluye valor contractual ni stock ya existente.
@@ -1571,14 +1571,14 @@ export function WeeklyPlanSection({ project }: Props) {
               </div>
               <div className="rounded bg-[var(--panel)] border border-[var(--border)] p-2">
                 <div className="text-[var(--muted)]">Stock — cubierto por stock</div>
-                <div className="font-bold text-emerald-700">Gs. {preview.total_covered_by_stock_value.toLocaleString("es-PY")}</div>
+                <div className="font-bold text-[var(--foreground)]">Gs. {preview.total_covered_by_stock_value.toLocaleString("es-PY")}</div>
               </div>
               <div className="rounded bg-[var(--panel)] border border-[var(--border)] p-2">
                 <div className="text-[var(--muted)]">OC en tránsito — cubierto por inbound físico</div>
-                <div className="font-bold text-blue-700">Gs. {preview.total_covered_by_inbound_value.toLocaleString("es-PY")}</div>
+                <div className="font-bold text-[var(--foreground)]">Gs. {preview.total_covered_by_inbound_value.toLocaleString("es-PY")}</div>
               </div>
             </div>
-            <div className="mt-2 text-[11px] text-amber-700/90 dark:text-amber-300/90">
+            <div className="mt-2 text-[11px] text-[#f4ead2]">
               Faltante valorizado (lo que todavía debo comprar):{" "}
               <strong>Gs. {preview.total_additional_cash_required.toLocaleString("es-PY")}</strong>
             </div>
@@ -1591,7 +1591,7 @@ export function WeeklyPlanSection({ project }: Props) {
             <div className="text-[11px] text-[var(--muted)]">
               Capacidad observada:{" "}
               {advisoryList.length > 0 ? (
-                <span className="text-amber-700 dark:text-amber-300">
+                <span className="text-[#fff8e8]">
                   {advisoryList.map((a) => a.advisory_capacity_warning).join(" · ")}
                   {preview.items.some((i) => i.advisory_capacity_warning) && advisoryList.length < preview.items.filter((i) => i.advisory_capacity_warning).length
                     ? ` (+${preview.items.filter((i) => i.advisory_capacity_warning).length - advisoryList.length} más en el detalle)`
@@ -1607,21 +1607,21 @@ export function WeeklyPlanSection({ project }: Props) {
             </div>
             <div className="text-xl font-bold text-[var(--foreground)]">
               {preview.global_current_progress_pct}% →{" "}
-              <span className="text-emerald-600 dark:text-emerald-400">
+              <span className="text-[#effdf8]">
                 {preview.global_target_progress_pct}%
               </span>
-              <span className="ml-2 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+              <span className="ml-2 text-[11px] font-medium text-[#d6f7ec]">
                 +{preview.global_increment_pp} pp previstos
               </span>
             </div>
             {cappedCount > 0 && (
-              <div className="text-[11px] text-amber-700 dark:text-amber-300">
+              <div className="text-[11px] text-[#fff0cf]">
                 Restricciones: {cappedCount} {cappedCount === 1 ? "meta limitada" : "metas limitadas"} al
                 remanente contractual.
               </div>
             )}
             {preview.unconfigured_materials_count > 0 && (
-              <div className="text-[11px] text-amber-700 dark:text-amber-300">
+              <div className="text-[11px] text-[#fff0cf]">
                 Restricciones: {preview.unconfigured_materials_count}{" "}
                 {preview.unconfigured_materials_count === 1 ? "partida sin" : "partidas sin"} receta de
                 materiales (fail-closed, ver detalle).
@@ -1688,18 +1688,18 @@ export function WeeklyPlanSection({ project }: Props) {
                         {ci.item_description}
                         {ci.front_label ? ` · ${ci.front_label}` : ""}
                         {ci.materials_warning && (
-                          <span className="ml-2 inline-block px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-medium">
+                          <span className="ml-2 inline-block px-1.5 py-0.5 rounded bg-amber-500/15 text-[#fff0cf] text-[10px] font-medium">
                             {ci.materials_warning}
                           </span>
                         )}
                         {ci.was_capped && (
-                          <span className="ml-2 inline-block px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px]">
+                          <span className="ml-2 inline-block px-1.5 py-0.5 rounded bg-amber-500/15 text-[#fff0cf] text-[10px]">
                             limitado al remanente
                           </span>
                         )}
                       </span>
                       <span className="flex items-center gap-2 text-xs shrink-0">
-                        <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                        <span className="font-bold text-[#d6f7ec]">
                           {ci.target_quantity.toLocaleString("es-PY")} {ci.unit}
                         </span>
                         {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
@@ -1769,9 +1769,9 @@ export function WeeklyPlanSection({ project }: Props) {
                                       )}
                                     </td>
                                     <td className="py-1.5 px-2 text-right">{m.demanda_bruta.toLocaleString("es-PY")} {m.unidad_medida}</td>
-                                    <td className="py-1.5 px-2 text-right text-emerald-700 dark:text-emerald-300">{m.cubierto_por_stock.toLocaleString("es-PY")} {m.unidad_medida}</td>
-                                    <td className="py-1.5 px-2 text-right text-blue-700 dark:text-blue-300">{m.cubierto_por_inbound.toLocaleString("es-PY")} {m.unidad_medida}</td>
-                                    <td className="py-1.5 px-2 text-right font-bold text-amber-700 dark:text-amber-300">{m.deficit_compra_neta.toLocaleString("es-PY")} {m.unidad_medida}</td>
+                                    <td className="py-1.5 px-2 text-right text-[#d6f7ec]">{m.cubierto_por_stock.toLocaleString("es-PY")} {m.unidad_medida}</td>
+                                    <td className="py-1.5 px-2 text-right text-[#dce9fb]">{m.cubierto_por_inbound.toLocaleString("es-PY")} {m.unidad_medida}</td>
+                                    <td className="py-1.5 px-2 text-right font-bold text-[#fff0cf]">{m.deficit_compra_neta.toLocaleString("es-PY")} {m.unidad_medida}</td>
                                     <td className="py-1.5 px-2 text-right">{m.costo_unitario ? `Gs. ${m.costo_unitario.toLocaleString("es-PY")}` : "—"}</td>
                                     <td className="py-1.5 px-2 text-right font-bold">Gs. {m.caja_adicional_requerida.toLocaleString("es-PY")}</td>
                                   </tr>
@@ -1819,21 +1819,23 @@ export function WeeklyPlanSection({ project }: Props) {
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
+                variant="neutral"
+                size="md"
                 onClick={() => handleSaveWithStatus("DRAFT")}
                 disabled={isSaving}
                 data-testid="guardar-borrador"
-                className="h-9 gap-1.5 text-xs bg-[var(--panel-2)] border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--hover)]"
               >
                 {isSaving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                 Guardar borrador
               </Button>
               <Button
                 type="button"
+                variant="success"
+                size="md"
                 onClick={() => handleSaveWithStatus("COMMITTED")}
                 disabled={isSaving || mrpCommitBlocked}
                 data-testid="comprometer-plan"
                 title={mrpCommitBlocked ? "El cálculo de abastecimiento está desactualizado. Recalculá antes de comprometer el plan." : undefined}
-                className="h-9 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
               >
                 {isSaving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                 Comprometer plan

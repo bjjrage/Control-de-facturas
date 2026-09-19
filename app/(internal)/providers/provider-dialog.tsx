@@ -65,7 +65,7 @@ export function ProviderDialog({
             <Input id="tax_id" name="tax_id" defaultValue={provider?.tax_id ?? ""} />
           </div>
           <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               Cancelar
             </Button>
             <Button type="submit" disabled={pending}>
