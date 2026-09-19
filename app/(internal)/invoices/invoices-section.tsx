@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { FileText, Upload, Search, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { Invoice, InvoiceStatus, Provider } from "@/lib/types";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClassName } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/badge";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -162,14 +162,14 @@ export function InvoicesSection({ initialData }: { initialData: InvoicesSectionD
           {reviewCount > 0 ? (
             <Link
               href="/invoices/revision"
-              className="inline-flex items-center justify-center gap-1.5 rounded-md border px-3 h-8 text-[13px] font-medium transition-colors bg-[var(--warn-bg)] text-[var(--warn)] border-transparent hover:opacity-80"
+              className={buttonClassName({ variant: "secondary", size: "sm" })}
             >
               Revisión ({reviewCount})
             </Link>
           ) : null}
           <Link
             href="/invoices/bulk"
-            className="inline-flex items-center justify-center gap-1.5 rounded-md border px-3 h-8 text-[13px] font-medium transition-colors bg-[var(--panel)] text-[var(--foreground)] hover:bg-[var(--hover)] border-[var(--border)]"
+            className={buttonClassName({ variant: "neutral", size: "sm" })}
           >
             <Upload size={14} /> Carga masiva
           </Link>
