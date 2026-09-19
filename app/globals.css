@@ -145,55 +145,84 @@ input::placeholder, textarea::placeholder {
   color: #6b7180;
 }
 
-/* Primary CTA — cálido y de alto contraste contra el workspace navy.
- * El azul queda reservado para navegación/contexto, no para acciones.
+/* Primary CTA — mismo lenguaje flat/glass del navbar.
+ * El color semántico vive en borde/acento; nunca en un gradiente glossy.
  */
 .btn-primary {
-  background: linear-gradient(180deg, var(--cta-hover) 0%, var(--cta) 48%, var(--cta-deep) 100%);
-  border: 1px solid rgba(255, 207, 105, .66);
-  color: var(--cta-ink);
-  font-weight: 700;
+  background: rgba(20, 33, 53, .88);
+  border: 1px solid rgba(245, 185, 66, .34);
+  color: var(--foreground);
+  font-weight: 650;
   box-shadow:
-    0 8px 24px rgba(162, 96, 8, .24),
-    inset 0 1px 0 rgba(255,255,255,.34);
-  transition: transform 140ms ease, background 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+    inset 3px 0 0 rgba(245, 185, 66, .78),
+    0 8px 22px rgba(0, 0, 0, .16),
+    inset 0 1px 0 rgba(255,255,255,.035);
 }
 .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(180deg, #ffd77e 0%, #f8bd43 48%, #e3951b 100%);
-  border-color: rgba(255, 222, 143, .88);
+  background: rgba(47, 45, 37, .72);
+  border-color: rgba(245, 185, 66, .56);
+  color: #fffaf0;
   box-shadow:
-    0 0 0 1px rgba(245,185,66,.18),
-    0 10px 30px rgba(162, 96, 8, .32),
-    inset 0 1px 0 rgba(255,255,255,.38);
-  transform: translateY(-1px);
+    inset 3px 0 0 rgba(255, 201, 94, .92),
+    0 10px 24px rgba(0, 0, 0, .20),
+    0 0 0 1px rgba(245,185,66,.06);
 }
 .btn-primary:active:not(:disabled) {
-  background: linear-gradient(180deg, #e9a82e 0%, #c9780b 100%);
-  transform: translateY(0) scale(.985);
-  box-shadow: 0 5px 16px rgba(126, 72, 4, .28);
+  background: rgba(55, 49, 35, .80);
+  border-color: rgba(245, 185, 66, .62);
 }
 
-/* Guardrail de skin: botones legacy celestes/azules no vuelven a entrar.
- * Se limita a BUTTON para no tocar tabs, badges, links ni navegación semántica.
+/* Legacy action buttons may keep their semantic hue, but never the glossy CSS.
+ * These rules flatten old utility-colored BUTTONS into the same dark-surface pattern.
  */
 button[class*="bg-blue-"],
 button[class*="bg-sky-"],
-button[class*="bg-cyan-"],
-button[class*="bg-[#5b8cff]"],
-button[class*="bg-[#6c9cff]"],
-button[class*="bg-[#4777e9]"] {
-  background: linear-gradient(180deg, var(--cta-hover) 0%, var(--cta) 48%, var(--cta-deep) 100%) !important;
-  border-color: rgba(255, 207, 105, .66) !important;
-  color: var(--cta-ink) !important;
+button[class*="bg-cyan-"] {
+  background: rgba(20, 33, 53, .88) !important;
+  border-color: rgba(56, 189, 248, .38) !important;
+  color: var(--foreground) !important;
   box-shadow:
-    0 8px 24px rgba(162, 96, 8, .22),
-    inset 0 1px 0 rgba(255,255,255,.32) !important;
+    inset 3px 0 0 rgba(56, 189, 248, .78),
+    0 8px 22px rgba(0,0,0,.16) !important;
+}
+button[class*="bg-emerald-"],
+button[class*="bg-green-"] {
+  background: rgba(20, 33, 53, .88) !important;
+  border-color: rgba(52, 211, 153, .36) !important;
+  color: var(--foreground) !important;
+  box-shadow:
+    inset 3px 0 0 rgba(52, 211, 153, .78),
+    0 8px 22px rgba(0,0,0,.16) !important;
+}
+button[class*="bg-amber-"],
+button[class*="bg-orange-"] {
+  background: rgba(20, 33, 53, .88) !important;
+  border-color: rgba(245, 165, 36, .38) !important;
+  color: var(--foreground) !important;
+  box-shadow:
+    inset 3px 0 0 rgba(245, 165, 36, .80),
+    0 8px 22px rgba(0,0,0,.16) !important;
+}
+button[class*="bg-red-"],
+button[class*="bg-rose-"] {
+  background: rgba(20, 33, 53, .88) !important;
+  border-color: rgba(242, 104, 92, .40) !important;
+  color: var(--foreground) !important;
+  box-shadow:
+    inset 3px 0 0 rgba(242, 104, 92, .80),
+    0 8px 22px rgba(0,0,0,.16) !important;
 }
 
 button[class*="bg-blue-"]:hover,
 button[class*="bg-sky-"]:hover,
-button[class*="bg-cyan-"]:hover {
-  background: linear-gradient(180deg, #ffd77e 0%, #f8bd43 48%, #e3951b 100%) !important;
+button[class*="bg-cyan-"]:hover,
+button[class*="bg-emerald-"]:hover,
+button[class*="bg-green-"]:hover,
+button[class*="bg-amber-"]:hover,
+button[class*="bg-orange-"]:hover,
+button[class*="bg-red-"]:hover,
+button[class*="bg-rose-"]:hover {
+  background: rgba(30, 45, 68, .94) !important;
 }
 
 /* Wrapper interactivo para texto clickeable: hover con fondo sutil */
