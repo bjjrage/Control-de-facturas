@@ -12,6 +12,24 @@ type WorkspaceItem = { key: Workspace; icon: LucideIcon };
 
 const PROJECT_ID_RE = /^\/projects\/([0-9a-f-]{20,})/i;
 
+const PROJECT_TAB_CONTEXT: Record<string, { group: string; label: string }> = {
+  presupuesto: { group: "Preparar", label: "Presupuesto" },
+  cronograma: { group: "Preparar", label: "Cronograma" },
+  bim: { group: "Preparar", label: "BIM" },
+  proveedores: { group: "Comprar", label: "Proveedores" },
+  cotizaciones: { group: "Comprar", label: "Cotizaciones" },
+  compras: { group: "Comprar", label: "OC" },
+  facturas: { group: "Comprar", label: "Facturas" },
+  pagos: { group: "Comprar", label: "Pagos" },
+  ejecucion: { group: "Ejecutar", label: "Ejecución" },
+  stock: { group: "Ejecutar", label: "Stock / Materiales" },
+  personal: { group: "Ejecutar", label: "Personal" },
+  subcontratistas: { group: "Ejecutar", label: "Subcontratistas" },
+  certificados: { group: "Certificar", label: "Certificados" },
+  "avance-fisico": { group: "Certificar", label: "Avance físico" },
+  informes: { group: "Certificar", label: "Informes" },
+};
+
 const WORKSPACE_ITEMS: WorkspaceItem[] = [
   { key: "administracion", icon: Building2 },
   { key: "operativo", icon: HardHat },
@@ -71,6 +89,19 @@ export function Topbar({
   const pathname = usePathname();
   const projectId = pathname.match(PROJECT_ID_RE)?.[1] ?? null;
   const [projectInfo, setProjectInfo] = useState<{ id: string; name: string; code: string } | null>(null);
+  const [projectTab, setProjectTab] = useState("presupuesto");
+
+  useEffect(() => {
+    const syncTab = () => setProjectTab(new URLSearchParams(window.location.search).get("tab") ?? "presupuesto");
+    syncTab();
+    const onTab = (event: Event) => setProjectTab((event as CustomEvent<string>).detail);
+    window.addEventListener("niupack:tab", onTab);
+    window.addEventListener("popstate", syncTab);
+    return () => {
+      window.removeEventListener("niupack:tab", onTab);
+      window.removeEventListener("popstate", syncTab);
+    };
+  }, [pathname]);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,12 +138,20 @@ export function Topbar({
       </div>
       {projectInfo ? (
         <div
-          className="project-context-accent hidden min-w-0 max-w-[420px] items-center gap-2 rounded-xl border px-3 h-9 md:flex"
+          className="project-context-accent hidden min-w-0 max-w-[620px] items-center gap-2 rounded-xl border px-3 h-9 md:flex"
           title={projectInfo.name}
         >
           <FolderOpen size={14} className="shrink-0 text-[var(--accent-operativo)]" />
           <span className="truncate text-[12px] font-medium text-[#eaf1ff]">{projectInfo.name}</span>
           <span className="shrink-0 font-mono text-[10px] text-[var(--muted)]">{projectInfo.code}</span>
+          <span className="text-[var(--muted)]">/</span>
+          <span className="shrink-0 text-[11px] font-semibold text-[var(--accent-operativo)]">
+            {PROJECT_TAB_CONTEXT[projectTab]?.group ?? "Obra"}
+          </span>
+          <span className="text-[var(--muted)]">/</span>
+          <span className="shrink-0 text-[11px] text-[#dce9fb]">
+            {PROJECT_TAB_CONTEXT[projectTab]?.label ?? projectTab}
+          </span>
         </div>
       ) : null}
     </header>
