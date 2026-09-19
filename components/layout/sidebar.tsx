@@ -529,7 +529,9 @@ export function Sidebar({
             <div
               className={cn(
                 "flex min-w-0 items-center",
-                collapsed ? "w-8 justify-center" : "w-full max-w-[118px]"
+                collapsed
+                  ? "h-8 w-8 justify-center overflow-hidden"
+                  : "h-9 w-full max-w-[124px] justify-start overflow-hidden"
               )}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -537,10 +539,10 @@ export function Sidebar({
                 src={`${logoBucketUrl}?v=${logoVersion}`}
                 alt="Logo"
                 className={cn(
-                  "block object-contain",
+                  "block shrink-0",
                   collapsed
-                    ? "h-6 w-6 object-center"
-                    : "h-8 w-full max-w-[118px] object-left"
+                    ? "h-full w-full object-contain object-center"
+                    : "h-full w-full object-contain object-left scale-[1.18] origin-left"
                 )}
                 onError={() => setLogoFailed(true)}
               />
