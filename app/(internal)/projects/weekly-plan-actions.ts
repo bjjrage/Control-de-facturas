@@ -614,22 +614,21 @@ export async function saveWeeklyPlanAction(
       });
     }
 
-    // V3 release-then-save para DRAFT/CLOSED con lifecycle: primero
-    // liberar (si el save falla después, nada queda zombie).
-    // P1-3: RPC server-only (revocada para authenticated) con actor explícito.
+    // V3 DRAFT/CLOSED con lifecycle: UNA sola transacción (save+release).
+    // Sin recompute (nada que reservar); el release vive dentro de la RPC.
     if (params.mrpCommit && status !== "COMMITTED" && planId) {
-      const admin = createAdminClient();
-      const { error: preRelErr } = await admin.rpc("release_plan_reservations", {
-        p_empresa_id: empresaId,
-        p_actor_id: profile.id,
-        p_plan_id: planId,
+      return await commitProductionPlanWithMrp(supabase, empresaId, profile.id, {
+        planId: planId || null,
+        projectId,
+        startDate,
+        endDate,
+        status,
+        notes: notes || null,
+        weatherSnapshotBatchId: weatherSnapshotBatchId || null,
+        itemsPayload,
+        centralReference: [],
+        skipCoverage: true,
       });
-      if (preRelErr) {
-        return {
-          data: null,
-          error: `No se pudieron liberar reservas: ${preRelErr.message} (reintentá guardar).`,
-        };
-      }
     }
 
     // Invoke atomic RPC function
@@ -703,10 +702,15 @@ async function commitProductionPlanWithMrp(
       unit: string;
     }[];
     centralReference: { producto_id: string; quantity: number }[];
+    /** DRAFT/CLOSED: omitir recompute+compare (solo save+release). */
+    skipCoverage?: boolean;
   }
 ): Promise<{ data: ProjectWeeklyPlan | null; error: string | null }> {
   const { planId, projectId, startDate, endDate, status, notes } = args;
+  let serverLines: { producto_id: string; quantity: number }[] = [];
+  let centralLocationId: string | null = null;
 
+  if (!args.skipCoverage) {
   // 1. Datos frescos (misma fuente que preview/load).
   const baseRes = await loadWeeklyPlanBaseData(supabase, projectId, empresaId);
   if (baseRes.error || !baseRes.data) {
@@ -748,7 +752,8 @@ async function commitProductionPlanWithMrp(
 
   // 4. Central + inbound con fecha, y asignación (pura, testeada).
   const mrp = await buildMrpPreview(supabase, empresaId, calculation, materialsByItem, baseRes.data, endDate);
-  const serverLines = mrp.lines
+  centralLocationId = mrp.centralLocation?.id ?? null;
+  serverLines = mrp.lines
     .filter((l) => l.cubierto_central > 0)
     .map((l) => ({ producto_id: l.producto_id, quantity: l.cubierto_central }));
 
@@ -759,6 +764,7 @@ async function commitProductionPlanWithMrp(
       error: "El abastecimiento cambió desde el último cálculo. Recalculá el plan.",
     };
   }
+  } // fin recompute (DRAFT/CLOSED van directo a la RPC única)
 
   // 6. UNA transacción plan+reservas (rollback total si algo falla).
   // P1-3: RPC server-only (revocada para authenticated) con empresa/actor explícitos.
@@ -774,7 +780,7 @@ async function commitProductionPlanWithMrp(
     p_notes: args.notes,
     p_items: args.itemsPayload,
     p_weather_snapshot_batch_id: args.weatherSnapshotBatchId,
-    p_location_id: mrp.centralLocation?.id ?? null,
+    p_location_id: centralLocationId,
     p_reserve_items: serverLines,
     p_needed_by: endDate,
     p_idempotency_key: args.planId,

@@ -238,8 +238,12 @@ describe("P1. Guardado con reservas: sin commit parcial ni zombies", () => {
     expect(src()).toContain("El abastecimiento cambió desde el último cálculo. Recalculá el plan.");
   });
 
-  it("release fallido se reporta antes de guardar (release-then-save)", () => {
-    expect(src()).toContain("No se pudieron liberar reservas");
+  it("una sola RPC por guardado MRP (sin release-then-save en dos txns)", () => {
+    // Todo el lifecycle pasa por commit_production_plan_atomic; no quedan
+    // llamadas sueltas a release_plan_reservations en el flujo de save.
+    expect(src()).toContain("commit_production_plan_atomic");
+    expect(src()).not.toContain('rpc("release_plan_reservations"');
+    expect(src()).not.toContain("preRelErr");
   });
 
   it("sin mrpCommit no hay lifecycle extra (V1 idéntico)", () => {
