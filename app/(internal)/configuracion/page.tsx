@@ -23,7 +23,9 @@ export default async function ConfiguracionPage() {
     .eq("empresa_id", profile.empresa_id)
     .eq("user_id", profile.id)
     .eq("provider", "GMAIL")
-    .eq("status", "CONNECTED")
+    .in("status", ["CONNECTED", "REVOKE_PENDING", "DISCONNECT_FAILED"])
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (!empresa) return <p className="text-[13px] text-[var(--muted)]">No se encontró la empresa.</p>;

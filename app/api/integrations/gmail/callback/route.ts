@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { actorFromProfile } from "@/lib/agent/context";
 import { recordEmailEvent } from "@/lib/email/domain-service";
 import { exchangeGoogleCode, fetchGoogleIdentity, hashOAuthState } from "@/lib/email/google-oauth";
@@ -48,7 +49,10 @@ export async function GET(request: Request) {
     if (!providerEmail) {
       return resultRedirect(request, "gmail_identity_unavailable");
     }
-    const { data: connectionId, error: connectionError } = await db.rpc("email_connect_gmail", {
+    const admin = createAdminClient();
+    const { data: connectionId, error: connectionError } = await admin.rpc("email_connect_gmail", {
+      p_empresa_id: profile.empresa_id,
+      p_user_id: profile.id,
       p_provider_email: providerEmail,
       p_scopes: tokens.scopes,
       p_refresh_token: tokens.refreshToken,

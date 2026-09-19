@@ -5,6 +5,7 @@ import { getTool } from "@/lib/agent/registry";
 import "@/lib/tools/email/prepare-email";
 import "@/lib/tools/email/send-email";
 import { SendEmailInputSchema } from "@/lib/tools/email/send-email";
+import { sha256Bytes } from "../content-hash";
 
 const attachment = {
   id: "00000000-0000-4000-a000-000000000010",
@@ -14,6 +15,7 @@ const attachment = {
   sizeBytes: 3,
   storageBucket: "documents",
   storagePath: "empresa/documentos/cotizacion.pdf",
+  contentSha256: sha256Bytes(new Uint8Array([1, 2, 3])),
   bytes: new Uint8Array([1, 2, 3]),
 };
 

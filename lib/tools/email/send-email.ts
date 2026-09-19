@@ -13,6 +13,7 @@ const EmailAttachmentSnapshotSchema = z.object({
   sizeBytes: z.number().int().nonnegative(),
   storageBucket: z.string().max(100),
   storagePath: z.string().max(1_000),
+  contentSha256: z.string().regex(/^[a-f0-9]{64}$/u).nullable(),
 });
 
 const EmailDraftSnapshotSchema = z.object({

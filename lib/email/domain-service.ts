@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentToolContext } from "@/lib/agent/context";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { hashPayload } from "@/lib/agent/approvals";
 import { gmailEmailProvider, type EmailProvider } from "./provider";
+import { EmailApprovalMismatchError, sha256Bytes } from "./content-hash";
 import { applyEmailRevision, composeEmailBody, escapeHtml, inferEmailTemplate } from "./templates";
 import {
   MAX_EMAIL_ATTACHMENTS,
@@ -33,6 +35,7 @@ type AttachmentRow = {
   mime_type: string | null;
   size_bytes: number | null;
   created_at: string;
+  rfq_id: string | null;
   quote_version_id: string | null;
   rfq_provider_id: string | null;
 };
@@ -67,6 +70,7 @@ type DraftAttachmentRow = {
   size_bytes: number;
   storage_bucket: string;
   storage_path: string;
+  content_sha256: string | null;
 };
 
 export type PrepareEmailInput = {
@@ -114,7 +118,7 @@ function safeJsonArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
-function hashDraftContent(input: {
+export function hashDraftContent(input: {
   to: string[];
   cc: string[];
   bcc: string[];
@@ -131,12 +135,14 @@ function hashDraftContent(input: {
     bodyText: input.bodyText,
     bodyHtml: input.bodyHtml,
     attachments: input.attachments.map((attachment) => ({
-      id: attachment.documentId,
+      id: attachment.id,
+      documentId: attachment.documentId,
       fileName: attachment.fileName,
       mimeType: attachment.mimeType,
       sizeBytes: attachment.sizeBytes,
       storageBucket: attachment.storageBucket,
       storagePath: attachment.storagePath,
+      contentSha256: attachment.contentSha256,
     })),
   });
 }
@@ -150,6 +156,7 @@ function attachmentPreview(row: DraftAttachmentRow): EmailAttachmentPreview {
     sizeBytes: Number(row.size_bytes),
     storageBucket: row.storage_bucket,
     storagePath: row.storage_path,
+    contentSha256: row.content_sha256,
   };
 }
 
@@ -200,20 +207,159 @@ async function resolveContacts(db: SupabaseClient, empresaId: string, query: str
     .map((item) => item.candidate);
 }
 
-async function resolveAttachments(db: SupabaseClient, empresaId: string, queries: string[]): Promise<{
+async function resolveAttachmentProjects(
+  db: SupabaseClient,
+  empresaId: string,
+  rows: AttachmentRow[]
+): Promise<Map<string, string | null>> {
+  const directRfqIds = [...new Set(rows.map((row) => row.rfq_id).filter((id): id is string => Boolean(id)))];
+  const directProviderIds = [...new Set(rows.map((row) => row.rfq_provider_id).filter((id): id is string => Boolean(id)))];
+  const quoteVersionIds = [...new Set(rows.map((row) => row.quote_version_id).filter((id): id is string => Boolean(id)))];
+
+  const projectByRfq = new Map<string, string | null>();
+  const providerToRfq = new Map<string, string>();
+  const quoteVersionToQuote = new Map<string, string>();
+  const quoteToProvider = new Map<string, string>();
+
+  if (quoteVersionIds.length) {
+    const { data, error } = await db
+      .from("quote_versions")
+      .select("id, quote_id")
+      .eq("empresa_id", empresaId)
+      .in("id", quoteVersionIds);
+    if (error) throw new Error(`No se pudo verificar el proyecto de las cotizaciones: ${error.message}`);
+    for (const row of (data ?? []) as Array<{ id: string; quote_id: string }>) quoteVersionToQuote.set(row.id, row.quote_id);
+  }
+
+  const quoteIds = [...new Set([...quoteVersionToQuote.values()])];
+  if (quoteIds.length) {
+    const { data, error } = await db
+      .from("quotes")
+      .select("id, rfq_provider_id")
+      .eq("empresa_id", empresaId)
+      .in("id", quoteIds);
+    if (error) throw new Error(`No se pudo verificar el proyecto de las cotizaciones: ${error.message}`);
+    for (const row of (data ?? []) as Array<{ id: string; rfq_provider_id: string }>) quoteToProvider.set(row.id, row.rfq_provider_id);
+  }
+
+  const providerIds = [...new Set([...directProviderIds, ...quoteToProvider.values()])];
+  if (providerIds.length) {
+    const { data, error } = await db
+      .from("rfq_providers")
+      .select("id, rfq_id")
+      .eq("empresa_id", empresaId)
+      .in("id", providerIds);
+    if (error) throw new Error(`No se pudo verificar el proyecto de los adjuntos: ${error.message}`);
+    for (const row of (data ?? []) as Array<{ id: string; rfq_id: string }>) providerToRfq.set(row.id, row.rfq_id);
+  }
+
+  const rfqIds = [
+    ...new Set([
+      ...directRfqIds,
+      ...rows.map((row) => (row.rfq_provider_id ? providerToRfq.get(row.rfq_provider_id) : null)),
+      ...rows.map((row) => {
+        const quoteId = row.quote_version_id ? quoteVersionToQuote.get(row.quote_version_id) : null;
+        const providerId = quoteId ? quoteToProvider.get(quoteId) : null;
+        return providerId ? providerToRfq.get(providerId) : null;
+      }),
+    ].filter((id): id is string => Boolean(id))),
+  ];
+  if (rfqIds.length) {
+    const { data, error } = await db
+      .from("rfqs")
+      .select("id, project_id")
+      .eq("empresa_id", empresaId)
+      .in("id", rfqIds);
+    if (error) throw new Error(`No se pudo verificar el proyecto de los adjuntos: ${error.message}`);
+    for (const row of (data ?? []) as Array<{ id: string; project_id: string | null }>) projectByRfq.set(row.id, row.project_id);
+  }
+
+  const result = new Map<string, string | null>();
+  for (const row of rows) {
+    const rfqId =
+      row.rfq_id ??
+      (row.rfq_provider_id ? providerToRfq.get(row.rfq_provider_id) : null) ??
+      (() => {
+        const quoteId = row.quote_version_id ? quoteVersionToQuote.get(row.quote_version_id) : null;
+        const providerId = quoteId ? quoteToProvider.get(quoteId) : null;
+        return providerId ? providerToRfq.get(providerId) ?? null : null;
+      })();
+    result.set(row.id, rfqId ? projectByRfq.get(rfqId) ?? null : null);
+  }
+  return result;
+}
+
+export function filterAttachmentsForProject<T extends { id: string }>(
+  rows: T[],
+  projectByAttachment: Map<string, string | null>,
+  projectId: string | null
+): T[] {
+  return projectId ? rows.filter((row) => projectByAttachment.get(row.id) === projectId) : [];
+}
+
+async function hashStoredAttachment(db: SupabaseClient, row: AttachmentRow): Promise<string> {
+  const { data, error } = await db.storage.from(row.bucket).download(row.path);
+  if (error || !data) throw new Error(`No se pudo verificar el contenido del adjunto ${row.file_name}`);
+  const bytes = new Uint8Array(await data.arrayBuffer());
+  if (row.size_bytes !== null && bytes.byteLength !== Number(row.size_bytes)) {
+    throw new Error(`El tamaÃ±o del adjunto ${row.file_name} no coincide con el ERP`);
+  }
+  return sha256Bytes(bytes);
+}
+
+async function hashDraftAttachment(db: SupabaseClient, row: DraftAttachmentRow): Promise<string> {
+  const { data, error } = await db.storage.from(row.storage_bucket).download(row.storage_path);
+  if (error || !data) throw new Error(`No se pudo verificar el contenido del adjunto ${row.file_name}`);
+  const bytes = new Uint8Array(await data.arrayBuffer());
+  if (bytes.byteLength !== Number(row.size_bytes)) {
+    throw new Error(`El tamaño del adjunto ${row.file_name} no coincide con el borrador`);
+  }
+  return sha256Bytes(bytes);
+}
+
+async function refreshDraftAttachmentHashes(
+  db: SupabaseClient,
+  actor: AgentToolContext,
+  draftId: string,
+  attachments: DraftAttachmentRow[]
+): Promise<EmailAttachmentPreview[]> {
+  const refreshed: EmailAttachmentPreview[] = [];
+  for (const row of attachments) {
+    const contentSha256 = await hashDraftAttachment(db, row);
+    const { error } = await db
+      .from("email_draft_attachments")
+      .update({ content_sha256: contentSha256 })
+      .eq("id", row.id)
+      .eq("draft_id", draftId)
+      .eq("empresa_id", actor.empresaId);
+    if (error) throw new Error(`No se pudo actualizar la huella del adjunto ${row.file_name}: ${error.message}`);
+    refreshed.push({ ...attachmentPreview(row), contentSha256 });
+  }
+  return refreshed;
+}
+
+async function resolveAttachments(db: SupabaseClient, empresaId: string, projectId: string | null, queries: string[]): Promise<{
   attachments: EmailAttachmentPreview[];
   warnings: string[];
 }> {
   const warnings: string[] = [];
   if (!queries.length) return { attachments: [], warnings };
+  if (!projectId) {
+    return {
+      attachments: [],
+      warnings: queries.map((query) => `No adjunté «${query}» porque el proyecto no está identificado.`),
+    };
+  }
   const { data, error } = await db
     .from("attachments")
-    .select("id, empresa_id, bucket, path, file_name, mime_type, size_bytes, created_at, quote_version_id, rfq_provider_id")
+    .select("id, empresa_id, bucket, path, file_name, mime_type, size_bytes, created_at, rfq_id, quote_version_id, rfq_provider_id")
     .eq("empresa_id", empresaId)
     .order("created_at", { ascending: false })
     .limit(200);
   if (error) throw new Error(`No se pudieron buscar adjuntos: ${error.message}`);
-  const rows = (data ?? []) as AttachmentRow[];
+  const allRows = (data ?? []) as AttachmentRow[];
+  const projectByAttachment = await resolveAttachmentProjects(db, empresaId, allRows);
+  const rows = filterAttachmentsForProject(allRows, projectByAttachment, projectId);
   const selected: EmailAttachmentPreview[] = [];
   for (const query of queries) {
     const wanted = tokens(query);
@@ -245,6 +391,7 @@ async function resolveAttachments(db: SupabaseClient, empresaId: string, queries
       sizeBytes: Number(best.row.size_bytes ?? 0),
       storageBucket: best.row.bucket,
       storagePath: best.row.path,
+      contentSha256: await hashStoredAttachment(db, best.row),
     };
     if (!selected.some((item) => item.documentId === preview.documentId)) selected.push(preview);
   }
@@ -255,6 +402,24 @@ async function resolveAttachments(db: SupabaseClient, empresaId: string, queries
 async function getCompanyName(db: SupabaseClient, empresaId: string): Promise<string | null> {
   const { data } = await db.from("empresas").select("nombre").eq("id", empresaId).maybeSingle();
   return data && typeof (data as { nombre?: unknown }).nombre === "string" ? (data as { nombre: string }).nombre : null;
+}
+
+async function resolveProjectId(db: SupabaseClient, actor: AgentToolContext, requestedProjectId?: string): Promise<string | null> {
+  const contextProjectId = actor.projectId ?? actor.workspace?.projectId ?? null;
+  const projectId = requestedProjectId ?? contextProjectId;
+  if (!projectId) return null;
+  if (requestedProjectId && contextProjectId && requestedProjectId !== contextProjectId) {
+    throw new Error("El proyecto solicitado no coincide con el workspace actual");
+  }
+  const { data, error } = await db
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("empresa_id", actor.empresaId)
+    .maybeSingle();
+  if (error) throw new Error(`No se pudo validar el proyecto actual: ${error.message}`);
+  if (!data) throw new Error("El proyecto no existe o no pertenece a tu empresa");
+  return projectId;
 }
 
 async function getConnectionId(db: SupabaseClient, actor: AgentToolContext): Promise<string | null> {
@@ -282,7 +447,7 @@ async function getDraftWithAttachments(db: SupabaseClient, actor: AgentToolConte
   if (!data) throw new Error("El borrador no existe o no pertenece a tu usuario/empresa");
   const { data: attachmentRows, error: attachmentError } = await db
     .from("email_draft_attachments")
-    .select("id, document_id, file_name, mime_type, size_bytes, storage_bucket, storage_path")
+    .select("id, document_id, file_name, mime_type, size_bytes, storage_bucket, storage_path, content_sha256")
     .eq("draft_id", draftId)
     .eq("empresa_id", actor.empresaId)
     .order("sort_order", { ascending: true });
@@ -396,8 +561,12 @@ export async function prepareEmailDraft(
   const cc = validEmails(input.cc ?? (existing ? safeJsonArray(existing.row.cc_json) : []), "cc");
   const bcc = validEmails(input.bcc ?? (existing ? safeJsonArray(existing.row.bcc_json) : []), "bcc");
   const attachmentQueries = input.attachment_queries ?? [];
-  const resolvedAttachments = await resolveAttachments(db, actor.empresaId, attachmentQueries);
-  const existingAttachments = existing ? existing.attachments.map(attachmentPreview) : [];
+  const requestedProjectId = input.project_id ?? actor.projectId ?? actor.workspace?.projectId ?? existing?.row.project_id ?? undefined;
+  const projectId = await resolveProjectId(db, actor, requestedProjectId);
+  const resolvedAttachments = await resolveAttachments(db, actor.empresaId, projectId, attachmentQueries);
+  const existingAttachments = existing
+    ? await refreshDraftAttachmentHashes(db, actor, existing.row.id, existing.attachments)
+    : [];
   const attachments = attachmentQueries.length
     ? [...existingAttachments, ...resolvedAttachments.attachments].filter(
         (attachment, index, all) => all.findIndex((item) => item.documentId === attachment.documentId) === index
@@ -486,6 +655,7 @@ export async function prepareEmailDraft(
             size_bytes: attachment.sizeBytes,
             storage_bucket: attachment.storageBucket,
             storage_path: attachment.storagePath,
+            content_sha256: attachment.contentSha256,
             sort_order: index,
           }))
         );
@@ -506,7 +676,7 @@ export async function prepareEmailDraft(
       .insert({
         empresa_id: actor.empresaId,
         created_by: actor.userId,
-        project_id: input.project_id ?? actor.projectId ?? null,
+        project_id: projectId,
         provider_connection_id: connectionId,
         to_json: recipient.to,
         cc_json: cc,
@@ -533,6 +703,7 @@ export async function prepareEmailDraft(
           size_bytes: attachment.sizeBytes,
           storage_bucket: attachment.storageBucket,
           storage_path: attachment.storagePath,
+          content_sha256: attachment.contentSha256,
           sort_order: index,
         }))
       );
@@ -586,6 +757,20 @@ export async function getEmailDraftSendContext(
   return { row, snapshot, input: buildSendEmailInput(snapshot, row.idempotency_key) };
 }
 
+export async function getRecipientLabel(db: SupabaseClient, empresaId: string, recipientEmails: string[]): Promise<string> {
+  const email = recipientEmails[0] ?? "destinatario";
+  const [providers, clients, subcontractors] = await Promise.all([
+    db.from("providers").select("name, contact_name, email").eq("empresa_id", empresaId).eq("email", email).limit(1),
+    db.from("clients").select("name, contact_name, email").eq("empresa_id", empresaId).eq("email", email).limit(1),
+    db.from("subcontractors").select("name, contact_name, contact_email").eq("empresa_id", empresaId).eq("contact_email", email).limit(1),
+  ]);
+  const match = [providers.data?.[0], clients.data?.[0], subcontractors.data?.[0]].find(Boolean) as
+    | { name?: string | null; contact_name?: string | null }
+    | undefined;
+  const name = match?.contact_name?.trim() || match?.name?.trim();
+  return name ? `${name} (${email})` : email;
+}
+
 export async function sendEmailDraft(params: {
   db: SupabaseClient;
   actor: AgentToolContext;
@@ -614,6 +799,7 @@ export async function sendEmailDraft(params: {
       providerMessageId: row.provider_message_id,
       sentAt: row.sent_at,
       alreadySent: true,
+      recipientLabel: await getRecipientLabel(params.db, params.actor.empresaId, current.to),
     };
   }
   if (!["READY", "WAITING_APPROVAL"].includes(row.status)) {
@@ -667,15 +853,29 @@ export async function sendEmailDraft(params: {
       recipientEmails: current.to,
       metadata: { provider: provider.name },
     });
-    return { draftId: row.id, provider: sent.provider, providerMessageId: sent.providerMessageId, sentAt, alreadySent: false };
+    return {
+      draftId: row.id,
+      provider: sent.provider,
+      providerMessageId: sent.providerMessageId,
+      sentAt,
+      alreadySent: false,
+      recipientLabel: await getRecipientLabel(params.db, params.actor.empresaId, current.to),
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const requiresReapproval = error instanceof EmailApprovalMismatchError;
     await params.db
       .from("email_drafts")
-      .update({ status: "FAILED", failure_reason: message.slice(0, 1000) })
+      .update({ status: requiresReapproval ? "WAITING_APPROVAL" : "FAILED", failure_reason: message.slice(0, 1000) })
       .eq("id", row.id)
       .eq("empresa_id", params.actor.empresaId)
       .eq("status", "SENDING");
+    if (requiresReapproval) {
+      await params.db.rpc("cancel_email_approval_for_draft", {
+        p_draft_id: row.id,
+        p_empresa_id: params.actor.empresaId,
+      });
+    }
     await recordEmailEvent(params.db, params.actor, {
       eventType: "email.send.failed",
       draftId: row.id,
@@ -684,14 +884,14 @@ export async function sendEmailDraft(params: {
       subject: row.subject,
       recipientEmails: current.to,
       errorMessage: message,
-      metadata: { provider: provider.name },
+      metadata: { provider: provider.name, requiresReapproval },
     });
     throw error;
   }
 }
 
 export async function recordEmailEvent(
-  db: SupabaseClient,
+  _db: SupabaseClient,
   actor: AgentToolContext,
   params: {
     eventType: string;
@@ -707,7 +907,7 @@ export async function recordEmailEvent(
   }
 ) {
   const domains = [...new Set((params.recipientEmails ?? []).map((email) => email.split("@")[1]).filter(Boolean))];
-  await db.from("email_send_events").insert({
+  await createAdminClient().from("email_send_events").insert({
     empresa_id: actor.empresaId,
     draft_id: params.draftId ?? null,
     connection_id: params.connectionId ?? null,

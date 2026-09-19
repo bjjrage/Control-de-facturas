@@ -9,7 +9,7 @@ import { decideApproval, getApproval } from "@/lib/agent/approvals";
 import { executeApprovedTool } from "@/lib/agent/gateway";
 import { emitAgentEvent, processAgentEvent } from "@/lib/agent/events";
 import { createRun, createTask, finishRun, updateTaskStatus } from "@/lib/agent/runtime";
-import { getEmailDraftSendContext, getEmailDraftPreview, markEmailDraftWaitingApproval, recordEmailEvent } from "@/lib/email/domain-service";
+import { getEmailDraftSendContext, getEmailDraftPreview, getRecipientLabel, markEmailDraftWaitingApproval, recordEmailEvent } from "@/lib/email/domain-service";
 import type { EmailPreview } from "@/lib/email/types";
 import "@/lib/tools"; // auto-registro de todos los tools
 
@@ -78,7 +78,17 @@ export async function sendPreparedEmailAction(params: {
   const actor = actorFromProfile(profile);
   const context = await getEmailDraftSendContext(supabase, actor, params.draftId, params.previewHash);
   if (context.row.status === "SENT" && context.row.provider_message_id) {
-    return { error: null, result: { draftId: context.row.id, providerMessageId: context.row.provider_message_id, alreadySent: true } };
+    return {
+      error: null,
+      result: {
+        draftId: context.row.id,
+        provider: "GMAIL" as const,
+        providerMessageId: context.row.provider_message_id,
+        sentAt: context.row.sent_at ?? new Date().toISOString(),
+        alreadySent: true,
+        recipientLabel: await getRecipientLabel(supabase, profile.empresa_id, context.snapshot.to),
+      },
+    };
   }
   const task = await createTask({
     db: supabase,

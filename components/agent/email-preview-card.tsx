@@ -8,6 +8,7 @@ import {
   sendPreparedEmailAction,
 } from "@/app/(internal)/agent/approval-actions";
 import type { EmailPreview } from "@/lib/email/types";
+import { formatEmailSentMessage } from "@/lib/email/presentation";
 
 export function EmailPreviewCard(props: {
   preview: EmailPreview;
@@ -19,6 +20,7 @@ export function EmailPreviewCard(props: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [doneMessage, setDoneMessage] = useState<string | null>(null);
 
   async function send() {
     if (busy || done) return;
@@ -29,8 +31,13 @@ export function EmailPreviewCard(props: {
         ? await approveAndExecuteEmailApprovalAction({ approvalId: props.approvalId, previewHash: props.preview.contentHash })
         : await sendPreparedEmailAction({ draftId: props.preview.draftId, previewHash: props.preview.contentHash });
       if (result.error) throw new Error(result.error);
+      const recipientLabel = result.result && typeof result.result === "object" && "recipientLabel" in result.result
+        ? String(result.result.recipientLabel)
+        : props.preview.to[0] ?? "el destinatario";
+      const message = formatEmailSentMessage(recipientLabel);
       setDone(true);
-      props.onCompleted?.("Listo. El correo fue enviado.");
+      setDoneMessage(message);
+      props.onCompleted?.(message);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -85,7 +92,7 @@ export function EmailPreviewCard(props: {
 
       {props.preview.warnings.map((warning) => <p key={warning} className="text-[11px] text-[var(--warn)]">{warning}</p>)}
       {error ? <p className="rounded-md bg-[var(--error-bg)] p-2 text-[11px] text-[var(--error)]">{error}</p> : null}
-      {done ? <p className="text-[12px] font-medium text-[var(--success)]">Correo enviado.</p> : null}
+      {done ? <p className="text-[12px] font-medium text-[var(--success)]">{doneMessage ?? "Correo enviado."}</p> : null}
 
       {!done ? (
         <div className="flex justify-end gap-2 border-t border-[var(--border)] pt-2">
