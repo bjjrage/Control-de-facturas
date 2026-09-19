@@ -89,12 +89,12 @@ function fakeChatDb() {
   };
 }
 
-function postMessage(message: unknown) {
+function postMessage(message: unknown, conversationHistory?: unknown) {
   return POST(
     new Request("http://localhost/api/agent/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, conversationHistory }),
     })
   );
 }
@@ -175,14 +175,26 @@ describe("POST /api/agent/chat", () => {
       approvalId: null,
     });
 
-    const res = await postMessage("hola rodrigo");
+    const res = await postMessage("a Marcelo", [
+      { role: "user", content: "Necesito redactar un email." },
+      { role: "assistant", content: "Claro. ¿A quién va?" },
+      { role: "tool", content: "ignorar" },
+    ]);
     const body = (await res.json()) as { answer: string; state: string };
     expect(res.status).toBe(200);
     expect(body.answer).toBe("Respuesta del LLM.");
     expect(mockOrchestratorRun).toHaveBeenCalledTimes(1);
-    const input = mockOrchestratorRun.mock.calls[0]?.[0] as { userIntent: string; taskId: string };
-    expect(input.userIntent).toBe("hola rodrigo");
+    const input = mockOrchestratorRun.mock.calls[0]?.[0] as {
+      userIntent: string;
+      taskId: string;
+      conversationHistory?: Array<{ role: string; content: string }>;
+    };
+    expect(input.userIntent).toBe("a Marcelo");
     expect(typeof input.taskId).toBe("string");
+    expect(input.conversationHistory).toEqual([
+      { role: "user", content: "Necesito redactar un email." },
+      { role: "assistant", content: "Claro. ¿A quién va?" },
+    ]);
     expect(db.tasks[0]?.status).toBe("COMPLETED");
   });
 

@@ -80,6 +80,52 @@ describe("orchestrator", () => {
     expect(callCount).toBe(2);
   });
 
+  it("envia el modelo Rodrigo vigente a DeepSeek", async () => {
+    toolRegistry.register({
+      name: "structured_tool",
+      description: "structured test tool",
+      inputSchema: z.object({ recipient: z.string(), objective: z.string().optional() }),
+      riskLevel: 0,
+      handler: async () => ({ ok: true }),
+    });
+    const response = {
+      choices: [{ message: { content: "Hola, soy Rodrigo." }, finish_reason: "stop" }],
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify(response),
+      json: async () => response,
+    } as unknown as Response);
+    globalThis.fetch = fetchMock;
+
+    const orch = new AgentOrchestrator({ apiKey: "test-key" });
+    const result = await orch.run({
+      db: mockDbNoOp(),
+      actor: { empresaId: "emp1", userId: "u1", role: "admin", actorType: "user", source: "web" },
+      userIntent: "Hola Rodrigo",
+      conversationHistory: [
+        { role: "user", content: "Necesito redactar un mail." },
+        { role: "assistant", content: "Claro. ¿A quién va?" },
+      ],
+    });
+
+    expect(result.answer).toContain("Hola");
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      model: string;
+      tools: Array<{ function: { name: string; parameters: { properties?: Record<string, unknown> } } }>;
+      messages: Array<{ role: string; content?: string }>;
+    };
+    expect(requestBody.model).toBe("deepseek-flash");
+    expect(requestBody.messages).toContainEqual({ role: "user", content: "Necesito redactar un mail." });
+    expect(requestBody.messages).toContainEqual({ role: "assistant", content: "Claro. ¿A quién va?" });
+    expect(requestBody.messages[0]?.content).toContain("Sos Rodrigo");
+    expect(requestBody.messages[0]?.content).not.toContain("JSON valido");
+    const structuredTool = requestBody.tools.find((tool) => tool.function.name === "structured_tool");
+    expect(structuredTool?.function.parameters.properties).toHaveProperty("recipient");
+  });
+
   it("ejecuta tool via gateway y retorna answer", async () => {
     toolRegistry.register({
       name: "echo",
