@@ -4,7 +4,13 @@ import { PanoramaObras } from "./panorama-obras";
 import { DashboardViewData } from "./data";
 
 function SectionHeader({ title }: { title: string }) {
-  return <h2 className="text-[11px] font-semibold uppercase tracking-widest text-[var(--muted)] mb-2">{title}</h2>;
+  const tone =
+    title === "Administración"
+      ? "section-accent-admin"
+      : title === "Licitaciones"
+        ? "section-accent-licitaciones"
+        : "section-accent-operativo";
+  return <h2 className={`text-[11px] font-semibold uppercase tracking-widest mb-2 ${tone}`}>{title}</h2>;
 }
 
 // Composición del resumen ejecutivo — pura presentación a partir de datos ya
