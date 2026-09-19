@@ -10,9 +10,10 @@ function matches(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(prefix + "/");
 }
 
-export function workspaceForPath(pathname: string): Workspace {
+export function workspaceForPath(pathname: string, context?: string | null): Workspace {
   if (matches(pathname, OPERATIVO_PREFIX)) return "operativo";
   if (matches(pathname, LICITACIONES_PREFIX)) return "licitaciones";
+  if (context === "operativo") return "operativo";
   return "administracion";
 }
 
