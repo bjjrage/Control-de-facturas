@@ -18,7 +18,7 @@ export const Button = forwardRef<
     <button
       ref={ref}
       className={cn(
-        "inline-flex items-center justify-center gap-1.5 rounded-lg border px-3.5 h-9 text-[12px] font-medium transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.985]",
+        "inline-flex items-center justify-center gap-1.5 rounded-xl border px-3.5 h-9 text-[12px] font-medium transition-colors duration-150 disabled:opacity-50 disabled:pointer-events-none",
         variants[variant],
         className
       )}
