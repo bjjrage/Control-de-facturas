@@ -23,7 +23,7 @@ export function MetricChips({ chips }: { chips: MetricChip[] }) {
   if (chips.length === 0) return null;
 
   return (
-    <div className="grid gap-2.5" style={{ gridTemplateColumns: `repeat(${chips.length}, minmax(0, 1fr))` }}>
+    <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
       {chips.map((chip) => {
         const Icon = DASHBOARD_ICONS[chip.iconKey];
         return (
