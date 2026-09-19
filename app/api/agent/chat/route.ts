@@ -15,6 +15,17 @@ export const revalidate = 0;
 
 const MAX_MESSAGE_CHARS = 2000;
 
+/**
+ * Keeps upstream failures observable without allowing credentials or session
+ * material to leak into runtime logs.
+ */
+function sanitizeErrorMessage(message: string) {
+  return message
+    .replace(/\b(Bearer)\s+[A-Za-z0-9._~+/=-]+/gi, "$1 [REDACTED]")
+    .replace(/\b(api[_ -]?key|authorization|cookie|set-cookie|token)\s*[:=]\s*[^\s,;}]+/gi, "$1: [REDACTED]")
+    .replace(/\bsk-[A-Za-z0-9_-]+\b/gi, "[REDACTED]");
+}
+
 function noStoreJson(body: Record<string, unknown>, status = 200) {
   return NextResponse.json(body, {
     status,
@@ -206,6 +217,10 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
+    console.error("[rodrigo] chat failed", {
+      name: error instanceof Error ? error.name : "unknown",
+      message: sanitizeErrorMessage(detail),
+    });
     if (error instanceof DeepSeekConfigError) {
       await failTask("orchestrator no configurado");
       return noStoreJson({ error: "Agente no configurado en este entorno" }, 503);
