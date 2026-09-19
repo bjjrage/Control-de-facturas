@@ -399,6 +399,7 @@ export async function executeApprovedTool(
     ...actor,
     taskId: approval.task_id,
     runId: approval.run_id,
+    approvalId,
   };
 
   const started = Date.now();

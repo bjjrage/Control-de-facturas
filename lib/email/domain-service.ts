@@ -3,7 +3,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentToolContext } from "@/lib/agent/context";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hashPayload } from "@/lib/agent/approvals";
-import { gmailEmailProvider, type EmailProvider } from "./provider";
+import {
+  EmailDeliveryUnknownError,
+  gmailEmailProvider,
+  prepareEmailAttachments,
+  type EmailProvider,
+} from "./provider";
 import { EmailApprovalMismatchError, sha256Bytes } from "./content-hash";
 import { applyEmailRevision, composeEmailBody, escapeHtml, inferEmailTemplate } from "./templates";
 import {
@@ -53,6 +58,8 @@ type EmailDraftRow = {
   body_text: string;
   body_html: string | null;
   content_hash: string;
+  revision: number;
+  delivery_retry_authorized: boolean;
   status: string;
   idempotency_key: string;
   provider_message_id: string | null;
@@ -86,6 +93,7 @@ export type PrepareEmailInput = {
   project_id?: string;
   draft_id?: string;
   revision_instruction?: string;
+  force_resend?: boolean;
 };
 
 export type PrepareEmailOutput = Omit<EmailPreview, "draftId"> & {
@@ -163,6 +171,7 @@ function attachmentPreview(row: DraftAttachmentRow): EmailAttachmentPreview {
 function draftSnapshot(row: EmailDraftRow, attachments: DraftAttachmentRow[]): EmailDraftSnapshot {
   return {
     draftId: row.id,
+    revision: Number(row.revision),
     to: safeJsonArray(row.to_json),
     cc: safeJsonArray(row.cc_json),
     bcc: safeJsonArray(row.bcc_json),
@@ -552,6 +561,7 @@ export async function prepareEmailDraft(
       bodyHtml: null,
       attachments: [],
       contentHash: "",
+      revision: 0,
       status: "NEEDS_CLARIFICATION",
       warnings: [],
       clarification: recipient.clarification,
@@ -662,6 +672,13 @@ export async function prepareEmailDraft(
         if (attachmentError) throw new Error(`No se pudieron actualizar los adjuntos: ${attachmentError.message}`);
       }
     }
+    const { error: retryFlagError } = await db
+      .from("email_drafts")
+      .update({ delivery_retry_authorized: input.force_resend === true })
+      .eq("id", draftId)
+      .eq("empresa_id", actor.empresaId)
+      .eq("created_by", actor.userId);
+    if (retryFlagError) throw new Error(`No se pudo fijar el modo de reenvío: ${retryFlagError.message}`);
     await recordEmailEvent(db, actor, {
       eventType: "email.draft.updated",
       draftId,
@@ -709,6 +726,13 @@ export async function prepareEmailDraft(
       );
       if (attachmentError) throw new Error(`No se pudieron guardar los adjuntos: ${attachmentError.message}`);
     }
+    const { error: retryFlagError } = await db
+      .from("email_drafts")
+      .update({ delivery_retry_authorized: input.force_resend === true })
+      .eq("id", draftId)
+      .eq("empresa_id", actor.empresaId)
+      .eq("created_by", actor.userId);
+    if (retryFlagError) throw new Error(`No se pudo fijar el modo de reenvío: ${retryFlagError.message}`);
     await recordEmailEvent(db, actor, {
       eventType: "email.draft.created",
       draftId,
@@ -718,16 +742,10 @@ export async function prepareEmailDraft(
       metadata: { template, attachmentCount: attachments.length },
     });
   }
+  if (!draftId) throw new Error("No se pudo determinar el borrador preparado");
+  const persisted = await getDraftWithAttachments(db, actor, draftId);
   return {
-    draftId,
-    to: recipient.to,
-    cc,
-    bcc,
-    subject,
-    bodyText,
-    bodyHtml,
-    attachments,
-    contentHash,
+    ...draftSnapshot(persisted.row, persisted.attachments),
     status: "READY",
     warnings,
     template,
@@ -739,6 +757,7 @@ export function buildSendEmailInput(snapshot: EmailDraftSnapshot, idempotencyKey
     draft_id: snapshot.draftId,
     idempotency_key: idempotencyKey,
     draft_hash: snapshot.contentHash,
+    draft_revision: snapshot.revision,
     draft_snapshot: snapshot,
   };
 }
@@ -777,15 +796,26 @@ export async function sendEmailDraft(params: {
   draftId: string;
   idempotencyKey: string;
   draftHash: string;
+  approvedRevision: number;
+  approvalId?: string | null;
   draftSnapshot: EmailDraftSnapshot;
   provider?: EmailProvider;
 }): Promise<EmailSendResult> {
+  /* Legacy implementation retained in the diff for audit traceability; the atomic implementation below is authoritative.
   const { row, attachments } = await getDraftWithAttachments(params.db, params.actor, params.draftId);
   const current = draftSnapshot(row, attachments);
-  if (current.contentHash !== params.draftHash || hashDraftContent(current) !== params.draftHash) {
+  if (
+    current.contentHash !== params.draftHash ||
+    hashDraftContent(current) !== params.draftHash ||
+    current.revision !== params.approvedRevision
+  ) {
     throw new Error("El borrador cambió después de la aprobación; se necesita una nueva aprobación");
   }
-  if (hashDraftContent(params.draftSnapshot) !== params.draftHash || params.draftSnapshot.draftId !== params.draftId) {
+  if (
+    hashDraftContent(params.draftSnapshot) !== params.draftHash ||
+    params.draftSnapshot.draftId !== params.draftId ||
+    params.draftSnapshot.revision !== params.approvedRevision
+  ) {
     throw new Error("El snapshot aprobado no coincide con el borrador solicitado");
   }
   if (row.idempotency_key !== params.idempotencyKey) throw new Error("Idempotency key inválida para el borrador");
@@ -802,22 +832,50 @@ export async function sendEmailDraft(params: {
       recipientLabel: await getRecipientLabel(params.db, params.actor.empresaId, current.to),
     };
   }
-  if (!["READY", "WAITING_APPROVAL"].includes(row.status)) {
+  if (!params.approvalId) throw new Error("El envío requiere una aprobación humana consumible");
+  if (row.status !== "WAITING_APPROVAL") {
     throw new Error(`El borrador no puede enviarse en estado ${row.status}`);
   }
-  const { data: claimed, error: claimError } = await params.db
-    .from("email_drafts")
-    .update({ status: "SENDING", failure_reason: null })
-    .eq("id", row.id)
-    .eq("empresa_id", params.actor.empresaId)
-    .eq("created_by", params.actor.userId)
-    .in("status", ["READY", "WAITING_APPROVAL"])
-    .select("id")
-    .maybeSingle();
+  const preparedAttachments = await prepareEmailAttachments(params.db, current);
+  const deliveryFingerprint = hashPayload({
+    connectionId: row.provider_connection_id,
+    to: current.to,
+    cc: current.cc,
+    bcc: current.bcc,
+    subject: current.subject,
+    bodyText: current.bodyText,
+    bodyHtml: current.bodyHtml,
+    attachments: current.attachments.map((attachment) => ({
+      id: attachment.id,
+      fileName: attachment.fileName,
+      mimeType: attachment.mimeType,
+      sizeBytes: attachment.sizeBytes,
+      contentSha256: attachment.contentSha256,
+    })),
+  });
+  const admin = createAdminClient();
+  const { data: claimData, error: claimError } = await admin.rpc("claim_email_send", {
+    p_empresa_id: params.actor.empresaId,
+    p_user_id: params.actor.userId,
+    p_draft_id: row.id,
+    p_connection_id: row.provider_connection_id,
+    p_approval_id: params.approvalId,
+    p_approved_revision: params.approvedRevision,
+    p_approved_content_hash: params.draftHash,
+    p_delivery_fingerprint: deliveryFingerprint,
+    p_allow_delivery_unknown_retry: row.delivery_retry_authorized === true,
+  });
+  if (claimError || !claimData || typeof claimData !== "object") {
+    throw new Error(`No se pudo reservar atómicamente el envío: ${claimError?.message ?? "claim rechazado"}`);
+  }
+  const claim = claimData as { attempt_id?: string; client_message_id?: string };
+  if (!claim.attempt_id || !claim.client_message_id) throw new Error("El claim de envío no devolvió un intento válido");
   if (claimError) throw new Error(`No se pudo reservar el envío: ${claimError.message}`);
   if (!claimed) throw new Error("El borrador ya está siendo enviado o fue consumido por otro intento");
 
+  const claimed = true;
   const provider = params.provider ?? gmailEmailProvider;
+  let providerAccepted = false;
   await recordEmailEvent(params.db, params.actor, {
     eventType: "email.send.started",
     draftId: row.id,
@@ -834,7 +892,22 @@ export async function sendEmailDraft(params: {
       actor: params.actor,
       connectionId: row.provider_connection_id,
       draft: current,
+      sendAttemptId: claim.attempt_id,
+      clientMessageId: claim.client_message_id,
+      attachments: preparedAttachments,
     });
+    providerAccepted = true;
+    const { data: completed, error: completeError } = await admin.rpc("complete_email_send_attempt", {
+      p_send_attempt_id: claim.attempt_id,
+      p_empresa_id: params.actor.empresaId,
+      p_user_id: params.actor.userId,
+      p_provider_message_id: sent.providerMessageId,
+    });
+    if (completeError || !completed) {
+      throw new EmailDeliveryUnknownError(
+        `Gmail aceptó el correo, pero no se pudo persistir el resultado; no se reintentará automáticamente (${completeError?.message ?? "persistencia incierta"})`
+      );
+    }
     const sentAt = new Date().toISOString();
     const { error: updateError } = await params.db
       .from("email_drafts")
@@ -843,6 +916,7 @@ export async function sendEmailDraft(params: {
       .eq("empresa_id", params.actor.empresaId)
       .eq("status", "SENDING");
     if (updateError) throw new Error(`El proveedor aceptó el correo pero no se pudo guardar el resultado: ${updateError.message}`);
+    }
     await recordEmailEvent(params.db, params.actor, {
       eventType: "email.send.completed",
       draftId: row.id,
@@ -864,6 +938,20 @@ export async function sendEmailDraft(params: {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const requiresReapproval = error instanceof EmailApprovalMismatchError;
+    const deliveryUnknown = providerAccepted || error instanceof EmailDeliveryUnknownError;
+    await admin.rpc(deliveryUnknown ? "mark_email_send_attempt_unknown" : "fail_email_send_attempt", {
+      p_send_attempt_id: claim.attempt_id,
+      p_empresa_id: params.actor.empresaId,
+      p_user_id: params.actor.userId,
+      p_error_code: deliveryUnknown ? "DELIVERY_UNKNOWN" : "PROVIDER_REJECTED",
+      p_failure_reason: deliveryUnknown
+        ? "El resultado de entrega es incierto; no se reintentará automáticamente. Revisá el buzón antes de reenviar."
+        : message.slice(0, 1000),
+    });
+    if (deliveryUnknown && !(error instanceof EmailDeliveryUnknownError)) {
+      error = new EmailDeliveryUnknownError();
+    }
+    if (false) {
     await params.db
       .from("email_drafts")
       .update({ status: requiresReapproval ? "WAITING_APPROVAL" : "FAILED", failure_reason: message.slice(0, 1000) })
@@ -884,8 +972,189 @@ export async function sendEmailDraft(params: {
       subject: row.subject,
       recipientEmails: current.to,
       errorMessage: message,
-      metadata: { provider: provider.name, requiresReapproval },
+      metadata: { provider: provider.name, deliveryUnknown, attemptId: claim.attempt_id },
     });
+    throw deliveryUnknown && !(error instanceof EmailDeliveryUnknownError)
+      ? new EmailDeliveryUnknownError()
+      : error;
+  }
+}
+
+  */
+  return sendEmailDraftAtomic(params);
+}
+
+async function sendEmailDraftAtomic(params: {
+  db: SupabaseClient;
+  actor: AgentToolContext;
+  draftId: string;
+  idempotencyKey: string;
+  draftHash: string;
+  approvedRevision: number;
+  approvalId?: string | null;
+  draftSnapshot: EmailDraftSnapshot;
+  provider?: EmailProvider;
+}): Promise<EmailSendResult> {
+  const { row, attachments } = await getDraftWithAttachments(params.db, params.actor, params.draftId);
+  const current = draftSnapshot(row, attachments);
+  if (
+    current.contentHash !== params.draftHash ||
+    hashDraftContent(current) !== params.draftHash ||
+    current.revision !== params.approvedRevision ||
+    params.draftSnapshot.draftId !== params.draftId ||
+    params.draftSnapshot.revision !== params.approvedRevision ||
+    hashDraftContent(params.draftSnapshot) !== params.draftHash
+  ) {
+    throw new Error("El borrador cambió después de la aprobación; se necesita una nueva aprobación");
+  }
+  if (row.idempotency_key !== params.idempotencyKey) throw new Error("Idempotency key inválida para el borrador");
+  if (row.provider_message_id && row.sent_at) {
+    return {
+      draftId: row.id,
+      provider: "GMAIL",
+      providerMessageId: row.provider_message_id,
+      sentAt: row.sent_at,
+      alreadySent: true,
+      recipientLabel: await getRecipientLabel(params.db, params.actor.empresaId, current.to),
+    };
+  }
+  if (!params.approvalId) throw new Error("El envío requiere una aprobación humana consumible");
+  if (row.status !== "WAITING_APPROVAL") throw new Error(`El borrador no puede enviarse en estado ${row.status}`);
+
+  // The storage bytes are downloaded and verified before claim, then retained
+  // in memory and passed unchanged to the provider after claim.
+  let preparedAttachments: Awaited<ReturnType<typeof prepareEmailAttachments>>;
+  try {
+    preparedAttachments = await prepareEmailAttachments(params.db, current);
+  } catch (error) {
+    if (error instanceof EmailApprovalMismatchError) {
+      await params.db
+        .from("email_drafts")
+        .update({ status: "WAITING_APPROVAL", failure_reason: error.message })
+        .eq("id", row.id)
+        .eq("empresa_id", params.actor.empresaId)
+        .eq("status", "WAITING_APPROVAL");
+      await params.db.rpc("cancel_email_approval_for_draft", {
+        p_draft_id: row.id,
+        p_empresa_id: params.actor.empresaId,
+      });
+    }
+    throw error;
+  }
+
+  const deliveryFingerprint = hashPayload({
+    connectionId: row.provider_connection_id,
+    to: current.to,
+    cc: current.cc,
+    bcc: current.bcc,
+    subject: current.subject,
+    bodyText: current.bodyText,
+    bodyHtml: current.bodyHtml,
+    attachments: current.attachments.map((attachment) => ({
+      id: attachment.id,
+      fileName: attachment.fileName,
+      mimeType: attachment.mimeType,
+      sizeBytes: attachment.sizeBytes,
+      contentSha256: attachment.contentSha256,
+    })),
+  });
+  const admin = createAdminClient();
+  const { data: claimData, error: claimError } = await admin.rpc("claim_email_send", {
+    p_empresa_id: params.actor.empresaId,
+    p_user_id: params.actor.userId,
+    p_draft_id: row.id,
+    p_connection_id: row.provider_connection_id,
+    p_approval_id: params.approvalId,
+    p_approved_revision: params.approvedRevision,
+    p_approved_content_hash: params.draftHash,
+    p_delivery_fingerprint: deliveryFingerprint,
+    p_allow_delivery_unknown_retry: row.delivery_retry_authorized === true,
+  });
+  if (claimError || !claimData || typeof claimData !== "object") {
+    throw new Error(`No se pudo reservar atómicamente el envío: ${claimError?.message ?? "claim rechazado"}`);
+  }
+  const claim = claimData as { attempt_id?: string; client_message_id?: string };
+  if (!claim.attempt_id || !claim.client_message_id) throw new Error("El claim de envío no devolvió un intento válido");
+
+  const provider = params.provider ?? gmailEmailProvider;
+  let providerAccepted = false;
+  await recordEmailEvent(params.db, params.actor, {
+    eventType: "email.send.started",
+    draftId: row.id,
+    connectionId: row.provider_connection_id,
+    idempotencyKey: params.idempotencyKey,
+    subject: row.subject,
+    recipientEmails: current.to,
+    metadata: { provider: provider.name, attemptId: claim.attempt_id },
+  });
+  let recipientLabel = "";
+  try {
+    recipientLabel = await getRecipientLabel(params.db, params.actor.empresaId, current.to);
+    if (!row.provider_connection_id) throw new Error("No hay una conexión Gmail activa para enviar este correo");
+    const sent = await provider.sendMessage({
+      db: params.db,
+      actor: params.actor,
+      connectionId: row.provider_connection_id,
+      draft: current,
+      sendAttemptId: claim.attempt_id,
+      clientMessageId: claim.client_message_id,
+      attachments: preparedAttachments,
+    });
+    providerAccepted = true;
+    const { data: completed, error: completeError } = await admin.rpc("complete_email_send_attempt", {
+      p_send_attempt_id: claim.attempt_id,
+      p_empresa_id: params.actor.empresaId,
+      p_user_id: params.actor.userId,
+      p_provider_message_id: sent.providerMessageId,
+    });
+    if (completeError || !completed) {
+      throw new EmailDeliveryUnknownError(
+        `Gmail aceptó el correo, pero no se pudo persistir el resultado; no se reintentará automáticamente (${completeError?.message ?? "persistencia incierta"})`
+      );
+    }
+    const sentAt = new Date().toISOString();
+    await recordEmailEvent(params.db, params.actor, {
+      eventType: "email.send.completed",
+      draftId: row.id,
+      connectionId: row.provider_connection_id,
+      idempotencyKey: params.idempotencyKey,
+      providerMessageId: sent.providerMessageId,
+      subject: row.subject,
+      recipientEmails: current.to,
+      metadata: { provider: provider.name, attemptId: claim.attempt_id },
+    });
+    return {
+      draftId: row.id,
+      provider: sent.provider,
+      providerMessageId: sent.providerMessageId,
+      sentAt,
+      alreadySent: false,
+      recipientLabel,
+      sendAttemptId: claim.attempt_id,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const deliveryUnknown = providerAccepted || error instanceof EmailDeliveryUnknownError;
+    await admin.rpc(deliveryUnknown ? "mark_email_send_attempt_unknown" : "fail_email_send_attempt", {
+      p_send_attempt_id: claim.attempt_id,
+      p_empresa_id: params.actor.empresaId,
+      p_user_id: params.actor.userId,
+      p_error_code: deliveryUnknown ? "DELIVERY_UNKNOWN" : "PROVIDER_REJECTED",
+      p_failure_reason: deliveryUnknown
+        ? "El resultado de entrega es incierto; no se reintentará automáticamente. Revisá el buzón antes de reenviar."
+        : message.slice(0, 1000),
+    });
+    await recordEmailEvent(params.db, params.actor, {
+      eventType: "email.send.failed",
+      draftId: row.id,
+      connectionId: row.provider_connection_id,
+      idempotencyKey: params.idempotencyKey,
+      subject: row.subject,
+      recipientEmails: current.to,
+      errorMessage: message,
+      metadata: { provider: provider.name, deliveryUnknown, attemptId: claim.attempt_id },
+    });
+    if (deliveryUnknown && !(error instanceof EmailDeliveryUnknownError)) throw new EmailDeliveryUnknownError();
     throw error;
   }
 }

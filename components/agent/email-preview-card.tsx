@@ -27,9 +27,14 @@ export function EmailPreviewCard(props: {
     setBusy(true);
     setError(null);
     try {
-      const result = props.approvalId
+      const deliveryUnknown = props.preview.status === "DELIVERY_UNKNOWN";
+      const result = props.approvalId && !deliveryUnknown
         ? await approveAndExecuteEmailApprovalAction({ approvalId: props.approvalId, previewHash: props.preview.contentHash })
-        : await sendPreparedEmailAction({ draftId: props.preview.draftId, previewHash: props.preview.contentHash });
+        : await sendPreparedEmailAction({
+            draftId: props.preview.draftId,
+            previewHash: props.preview.contentHash,
+            forceResend: deliveryUnknown,
+          });
       if (result.error) throw new Error(result.error);
       const recipientLabel = result.result && typeof result.result === "object" && "recipientLabel" in result.result
         ? String(result.result.recipientLabel)
@@ -99,7 +104,7 @@ export function EmailPreviewCard(props: {
           <Button variant="ghost" disabled={busy} onClick={props.onEdit}>Editar</Button>
           <Button variant="secondary" disabled={busy} onClick={() => void cancel()}>Cancelar</Button>
           <Button disabled={busy || !props.preview.to.length} onClick={() => void send()}>
-            {busy ? "Procesando…" : "Enviar correo"}
+            {busy ? "Procesando…" : props.preview.status === "DELIVERY_UNKNOWN" ? "Enviar nuevamente" : "Enviar correo"}
           </Button>
         </div>
       ) : null}

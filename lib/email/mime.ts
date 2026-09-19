@@ -30,6 +30,7 @@ export function buildRfc2822Message(params: {
   bodyText: string;
   bodyHtml?: string | null;
   attachments?: MimeAttachment[];
+  messageId?: string;
 }): string {
   const attachments = params.attachments ?? [];
   const headers = [
@@ -38,6 +39,7 @@ export function buildRfc2822Message(params: {
     ...(params.cc?.length ? [`Cc: ${addressHeader(params.cc)}`] : []),
     ...(params.bcc?.length ? [`Bcc: ${addressHeader(params.bcc)}`] : []),
     `Subject: ${encodeHeader(assertHeaderSafe(params.subject, "Asunto"))}`,
+    ...(params.messageId ? [`Message-ID: ${assertHeaderSafe(params.messageId, "Message-ID")}`] : []),
     "MIME-Version: 1.0",
     "Date: " + new Date().toUTCString(),
   ];

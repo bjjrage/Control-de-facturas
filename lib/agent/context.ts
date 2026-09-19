@@ -42,6 +42,8 @@ export interface AgentToolContext extends AgentActorContext {
   // Identificadores del runtime persistente (opcional, solo si hay task/run)
   taskId?: string | null;
   runId?: string | null;
+  // Approval consumido por executeApprovedTool; lo usa el claim atómico de tools sensibles.
+  approvalId?: string | null;
   // Project ID directo (para compatibilidad con withRuntime y tests)
   projectId?: string | null;
   // Contexto operativo del workspace (opcional, enriquecido por el frontend)

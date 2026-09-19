@@ -72,11 +72,29 @@ export async function decideApprovalAction(params: {
 export async function sendPreparedEmailAction(params: {
   draftId: string;
   previewHash: string;
+  forceResend?: boolean;
 }) {
   const profile = await requireProfile(["comercial", "admin"]);
   const supabase = await createClient();
   const actor = actorFromProfile(profile);
-  const context = await getEmailDraftSendContext(supabase, actor, params.draftId, params.previewHash);
+  let context = await getEmailDraftSendContext(supabase, actor, params.draftId, params.previewHash);
+  if (context.row.status === "DELIVERY_UNKNOWN") {
+    if (!params.forceResend) {
+      return {
+        error: "El resultado del envío anterior es incierto. Usá «Enviar nuevamente» para crear una nueva aprobación explícita.",
+        result: null,
+      };
+    }
+    const { error: resendError } = await supabase
+      .from("email_drafts")
+      .update({ status: "READY", delivery_retry_authorized: true, failure_reason: null })
+      .eq("id", context.row.id)
+      .eq("empresa_id", profile.empresa_id)
+      .eq("created_by", profile.id)
+      .eq("status", "DELIVERY_UNKNOWN");
+    if (resendError) return { error: resendError.message, result: null };
+    context = await getEmailDraftSendContext(supabase, actor, params.draftId, params.previewHash);
+  }
   if (context.row.status === "SENT" && context.row.provider_message_id) {
     return {
       error: null,

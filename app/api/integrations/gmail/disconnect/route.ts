@@ -67,6 +67,14 @@ export async function POST(request: Request) {
 
     const lockedRow = locked.data as { provider_email: string | null; refresh_token_secret_id: string | null };
     const secretId = lockedRow.refresh_token_secret_id;
+    const { data: activeAttempts, error: activeAttemptsError } = await admin
+      .from("email_send_attempts")
+      .select("id")
+      .eq("empresa_id", profile.empresa_id)
+      .eq("connection_id", connection.id)
+      .in("status", ["CLAIMED", "DISPATCHING"]);
+    if (activeAttemptsError) return redirectResult(request, "gmail_disconnect_pending");
+    const hasInFlightAttempt = (activeAttempts ?? []).length > 0;
     if (!secretId) {
       const { data: revoked, error } = await admin
         .from("email_connections")
@@ -86,7 +94,7 @@ export async function POST(request: Request) {
       return redirectResult(request, "gmail_disconnected");
     }
 
-    const { data: refreshToken, error: secretError } = await admin.rpc("email_read_oauth_secret", {
+    const { data: refreshToken, error: secretError } = await admin.rpc("email_read_oauth_secret_for_revoke", {
       p_connection_id: connection.id,
       p_empresa_id: profile.empresa_id,
       p_user_id: profile.id,
@@ -102,6 +110,11 @@ export async function POST(request: Request) {
       await updateDisconnectState(admin, connection.id, profile.empresa_id, profile.id, "REVOKE_PENDING");
       return redirectResult(request, "gmail_disconnect_pending");
     }
+
+    // The external revoke succeeded, but an already-claimed send may still be
+    // using the credential/request. Keep the Vault secret until that attempt
+    // reaches a terminal state; the UI remains explicitly pending.
+    if (hasInFlightAttempt) return redirectResult(request, "gmail_disconnect_pending");
 
     const { error: deleteError } = await admin.rpc("email_delete_oauth_secret", {
       p_secret_id: secretId,

@@ -1,8 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentToolContext } from "@/lib/agent/context";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { buildRfc2822Message, encodeGmailRaw } from "./mime";
-import { EmailApprovalMismatchError, assertAttachmentDigest, isSha256Digest, sha256Bytes } from "./content-hash";
+import { buildRfc2822Message, encodeGmailRaw, type MimeAttachment } from "./mime";
+import { EmailApprovalMismatchError, assertAttachmentDigest } from "./content-hash";
 import {
   GMAIL_SEND_SCOPE,
   MAX_EMAIL_ATTACHMENT_BYTES,
@@ -12,7 +12,6 @@ import {
   type EmailProviderName,
   type EmailSendResult,
 } from "./types";
-import type { MimeAttachment } from "./mime";
 
 export interface EmailProvider {
   readonly name: EmailProviderName;
@@ -25,7 +24,21 @@ export interface EmailProvider {
     actor: AgentToolContext;
     connectionId: string;
     draft: EmailDraftSnapshot;
+    sendAttemptId: string;
+    clientMessageId: string;
+    attachments: MimeAttachment[];
   }): Promise<Pick<EmailSendResult, "provider" | "providerMessageId">>;
+}
+
+export class EmailDeliveryUnknownError extends Error {
+  readonly code = "DELIVERY_UNKNOWN" as const;
+
+  constructor(detail?: string) {
+    super(
+      `El resultado de entrega de Gmail es incierto. No se reintentará automáticamente; revisá el buzón antes de enviar nuevamente.${detail ? ` Detalle: ${detail}` : ""}`
+    );
+    this.name = "EmailDeliveryUnknownError";
+  }
 }
 
 type ConnectionRow = {
@@ -73,7 +86,7 @@ function safeProviderError(value: unknown): string {
 }
 
 function requireSenderEmail(value: string | null): string {
-  if (!value) throw new Error("La conexiÃ³n Gmail no tiene una cuenta remitente identificada; reconectÃ¡ Gmail");
+  if (!value) throw new Error("La conexión Gmail no tiene una cuenta remitente identificada; reconectá Gmail");
   return value;
 }
 
@@ -91,26 +104,27 @@ async function getConnection(db: SupabaseClient, actor: AgentToolContext, connec
   return data as ConnectionRow;
 }
 
-async function getRefreshToken(connection: ConnectionRow, userId: string | null): Promise<string> {
+async function getRefreshToken(connection: ConnectionRow, userId: string | null, sendAttemptId: string): Promise<string> {
   if (!userId) throw new Error("No se puede leer el secreto OAuth sin usuario autenticado");
   const admin = createAdminClient();
-  const { data, error } = await admin.rpc("email_read_oauth_secret", {
+  const { data, error } = await admin.rpc("email_read_oauth_secret_for_send", {
+    p_send_attempt_id: sendAttemptId,
     p_connection_id: connection.id,
     p_empresa_id: connection.empresa_id,
     p_user_id: userId,
   });
   if (error || typeof data !== "string" || !data) {
-    throw new Error("No se pudo leer el secreto OAuth desde Supabase Vault");
+    throw new Error("No se pudo leer el secreto OAuth para este intento de envío");
   }
   return data;
 }
 
-async function getAccessToken(db: SupabaseClient, actor: AgentToolContext, connection: ConnectionRow): Promise<string> {
+async function getAccessToken(actor: AgentToolContext, connection: ConnectionRow, sendAttemptId: string): Promise<string> {
   if (!connection.refresh_token_secret_id) {
     throw new Error("La conexión Gmail no tiene secreto OAuth seguro asociado");
   }
   const { clientId, clientSecret } = requireGoogleConfig();
-  const refreshToken = await getRefreshToken(connection, actor.userId);
+  const refreshToken = await getRefreshToken(connection, actor.userId, sendAttemptId);
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -125,7 +139,7 @@ async function getAccessToken(db: SupabaseClient, actor: AgentToolContext, conne
   const payload = (await response.json().catch(() => ({}))) as GoogleTokenResponse;
   if (!response.ok || !payload.access_token) {
     if (payload.error === "invalid_grant") {
-      await db
+      await createAdminClient()
         .from("email_connections")
         .update({ status: "ERROR" })
         .eq("id", connection.id)
@@ -140,7 +154,11 @@ function isAllowedMimeType(mimeType: string): boolean {
   return /^[\w.+-]+\/[\w.+-]+$/u.test(mimeType) && !/^text\/html$/iu.test(mimeType);
 }
 
-async function loadAttachments(db: SupabaseClient, draft: EmailDraftSnapshot): Promise<MimeAttachment[]> {
+/** Downloads and verifies bytes once. The returned bytes must be passed unchanged into sendMessage. */
+export async function prepareEmailAttachments(
+  db: SupabaseClient,
+  draft: EmailDraftSnapshot
+): Promise<MimeAttachment[]> {
   if (draft.attachments.length > MAX_EMAIL_ATTACHMENTS) {
     throw new Error(`Gmail permite como máximo ${MAX_EMAIL_ATTACHMENTS} adjuntos por correo`);
   }
@@ -161,15 +179,6 @@ async function loadAttachments(db: SupabaseClient, draft: EmailDraftSnapshot): P
       throw new EmailApprovalMismatchError("El tamaño del adjunto cambió después de preparar el correo");
     }
     assertAttachmentDigest(bytes, attachment.contentSha256);
-    if (bytes.byteLength !== attachment.sizeBytes && attachment.sizeBytes > 0) {
-      throw new Error(`El tamaño del adjunto ${attachment.fileName} cambió después de preparar el correo`);
-    }
-    if (!isSha256Digest(attachment.contentSha256) || sha256Bytes(bytes) !== attachment.contentSha256) {
-      throw new EmailApprovalMismatchError("El contenido del adjunto cambió después de preparar el correo; se necesita una nueva aprobación");
-    }
-    if (!isSha256Digest(attachment.contentSha256) || sha256Bytes(bytes) !== attachment.contentSha256) {
-      throw new Error(`El contenido del adjunto ${attachment.fileName} cambiÃ³ despuÃ©s de preparar el correo; se necesita una nueva aprobaciÃ³n`);
-    }
     output.push({ ...attachment, bytes });
   }
   return output;
@@ -184,7 +193,7 @@ export class GmailEmailProvider implements EmailProvider {
   }): Promise<EmailConnectionSummary | null> {
     const { data, error } = await params.db
       .from("email_connections")
-    .select("id, provider, provider_email, status, scopes, created_at, disconnected_at")
+      .select("id, provider, provider_email, status, scopes, created_at, disconnected_at")
       .eq("empresa_id", params.actor.empresaId)
       .eq("user_id", params.actor.userId)
       .eq("provider", "GMAIL")
@@ -211,14 +220,29 @@ export class GmailEmailProvider implements EmailProvider {
     actor: AgentToolContext;
     connectionId: string;
     draft: EmailDraftSnapshot;
+    sendAttemptId: string;
+    clientMessageId: string;
+    attachments: MimeAttachment[];
   }): Promise<Pick<EmailSendResult, "provider" | "providerMessageId">> {
     const connection = await getConnection(params.db, params.actor, params.connectionId);
-    if (!isSendableEmailConnectionStatus(connection.status)) throw new Error("La conexión Gmail no está conectada");
+    // A disconnect that wins before claim is rejected by claim_email_send. If
+    // it wins after claim, the attempt is already in flight and may continue.
+    if (connection.status === "REVOKED" || connection.status === "ERROR") {
+      throw new Error("La conexión Gmail no permite continuar el intento de envío");
+    }
     if (!connection.scopes.includes(GMAIL_SEND_SCOPE)) {
       throw new Error("La conexión Gmail no tiene el scope mínimo gmail.send");
     }
-    const accessToken = await getAccessToken(params.db, params.actor, connection);
-    const attachments = await loadAttachments(params.db, params.draft);
+
+    const admin = createAdminClient();
+    const { error: dispatchError } = await admin.rpc("mark_email_send_attempt_dispatching", {
+      p_send_attempt_id: params.sendAttemptId,
+      p_empresa_id: params.actor.empresaId,
+      p_user_id: params.actor.userId,
+    });
+    if (dispatchError) throw new Error(`No se pudo abrir el intento de envío: ${dispatchError.message}`);
+
+    const accessToken = await getAccessToken(params.actor, connection, params.sendAttemptId);
     const mimeMessage = buildRfc2822Message({
       from: requireSenderEmail(connection.provider_email),
       to: params.draft.to,
@@ -227,19 +251,29 @@ export class GmailEmailProvider implements EmailProvider {
       subject: params.draft.subject,
       bodyText: params.draft.bodyText,
       bodyHtml: params.draft.bodyHtml,
-      attachments,
+      attachments: params.attachments,
+      messageId: params.clientMessageId,
     });
-    const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ raw: encodeGmailRaw(mimeMessage) }),
-      cache: "no-store",
-    });
+
+    let response: Response;
+    try {
+      response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ raw: encodeGmailRaw(mimeMessage) }),
+        cache: "no-store",
+      });
+    } catch (error) {
+      throw new EmailDeliveryUnknownError(error instanceof Error ? error.message : undefined);
+    }
     const payload = (await response.json().catch(() => ({}))) as GmailSendResponse & Record<string, unknown>;
     if (!response.ok || typeof payload.id !== "string" || !payload.id) {
+      if (response.status >= 500) {
+        throw new EmailDeliveryUnknownError(`Gmail respondió ${response.status}; el resultado de entrega es incierto`);
+      }
       throw new Error(`Gmail no pudo enviar el correo: ${safeProviderError(payload)}`);
     }
     return { provider: "GMAIL", providerMessageId: payload.id };
