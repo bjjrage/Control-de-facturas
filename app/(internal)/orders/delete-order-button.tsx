@@ -59,15 +59,16 @@ export function DeleteOrderButton({
 
   if (compact) {
     return (
-      <button
+      <Button
         type="button"
+        variant="danger"
+        size="icon"
         disabled={pending}
         onClick={handleClick}
         title={error ?? "Eliminar orden"}
-        className="text-[var(--muted)] hover:text-[var(--error)] disabled:opacity-50"
       >
         <Trash2 size={14} />
-      </button>
+      </Button>
     );
   }
 
