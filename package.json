@@ -45,6 +45,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@playwright/test": "^1.62.1",
     "@radix-ui/react-dialog": "^1.1.23",
     "@radix-ui/react-label": "^2.1.15",
