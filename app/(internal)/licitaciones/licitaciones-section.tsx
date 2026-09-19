@@ -67,32 +67,6 @@ export function LicitacionesSection({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link
-            href="/licitaciones/auction-bot"
-            title="Configurar y simular estrategia SBE"
-            className="inline-flex items-center h-8 rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 text-[13px] font-medium hover:bg-[var(--hover)]"
-          >
-            Auction Bot
-          </Link>
-          <Link
-            href="/licitaciones/auction-lab"
-            title="Crear una subasta simulada y competir contra el bot"
-            className="inline-flex items-center h-8 rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 text-[13px] font-medium hover:bg-[var(--hover)]"
-          >
-            Auction Lab
-          </Link>
-          <Link
-            href="/licitaciones/competidores"
-            className="inline-flex items-center h-8 rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 text-[13px] font-medium hover:bg-[var(--hover)]"
-          >
-            Radar de Competidores
-          </Link>
-          <Link
-            href="/licitaciones/documentos"
-            className="inline-flex items-center h-8 rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 text-[13px] font-medium hover:bg-[var(--hover)]"
-          >
-            Bóveda de Documentos
-          </Link>
           <ImportarCostosDialog />
           <PerfilDialog perfil={perfil} />
           <ImportarDialog />
