@@ -12,7 +12,21 @@ export async function GET() {
     const profile = await requireProfile(["comercial", "admin"]);
     const db = await createClient();
     const connection = await gmailEmailProvider.getConnectionStatus({ db, actor: actorFromProfile(profile) });
-    return NextResponse.json({ provider: "GMAIL", connection }, { headers: { "Cache-Control": "no-store" } });
+    const connected = connection?.status === "CONNECTED";
+    const serverConfigured = Boolean(
+      process.env.GOOGLE_CLIENT_ID &&
+        process.env.GOOGLE_CLIENT_SECRET &&
+        process.env.GOOGLE_GMAIL_REDIRECT_URI
+    );
+
+    return NextResponse.json(
+      {
+        connected,
+        serverConfigured,
+        providerEmail: connected ? connection?.providerEmail ?? null : null,
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "No se pudo consultar Gmail" }, { status: 503 });
   }
