@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Bell, HelpCircle, Building2, HardHat, Gavel, FolderOpen, LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Workspace, WORKSPACE_HOME, WORKSPACE_LABEL, workspaceForPath } from "./workspace";
@@ -42,8 +42,7 @@ const WORKSPACE_ITEMS: WorkspaceItem[] = [
 // pieza de layout aparte.
 function WorkspaceSwitcher({ showOperativo, showLicitaciones }: { showOperativo: boolean; showLicitaciones: boolean }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const active = workspaceForPath(pathname, searchParams.get("workspace"));
+  const active = workspaceForPath(pathname);
 
   const items = WORKSPACE_ITEMS.filter((item) => {
     if (item.key === "operativo") return showOperativo;
