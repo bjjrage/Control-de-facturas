@@ -14,6 +14,22 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const MAX_MESSAGE_CHARS = 2000;
+const MAX_HISTORY_TURNS = 20;
+
+type ConversationHistoryTurn = { role: "user" | "assistant"; content: string };
+
+function parseConversationHistory(value: unknown): ConversationHistoryTurn[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .slice(-MAX_HISTORY_TURNS)
+    .flatMap((turn): ConversationHistoryTurn[] => {
+      if (!turn || typeof turn !== "object") return [];
+      const candidate = turn as { role?: unknown; content?: unknown };
+      if ((candidate.role !== "user" && candidate.role !== "assistant") || typeof candidate.content !== "string") return [];
+      const content = candidate.content.trim().slice(0, MAX_MESSAGE_CHARS);
+      return content ? [{ role: candidate.role, content }] : [];
+    });
+}
 
 /**
  * Keeps upstream failures observable without allowing credentials or session
@@ -53,6 +69,7 @@ export async function POST(request: Request) {
     message?: unknown;
     workspaceProjectId?: unknown;
     draftId?: unknown;
+    conversationHistory?: unknown;
     idempotencyKey?: unknown;
   };
   const message = typeof body.message === "string" ? body.message.trim() : "";
@@ -63,6 +80,7 @@ export async function POST(request: Request) {
       ? body.workspaceProjectId
       : null;
   const draftId = typeof body.draftId === "string" && body.draftId.length > 0 ? body.draftId : null;
+  const conversationHistory = parseConversationHistory(body.conversationHistory);
   const idempotencyKey =
     typeof body.idempotencyKey === "string" && body.idempotencyKey.length > 0 ? body.idempotencyKey : randomUUID();
 
@@ -121,6 +139,7 @@ export async function POST(request: Request) {
         taskId: task.id,
         runId: run.id,
         userIntent: message,
+        conversationHistory,
       });
       if (result.stoppedReason === "approval_required" && result.approvalId) {
         await finishRun({ db, runId: run.id, status: "COMPLETED" });

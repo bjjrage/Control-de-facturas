@@ -33,7 +33,7 @@ async function handler(
 registerTool<PrepareEmailToolInput, PrepareEmailOutput>({
   name: "prepare_email",
   description:
-    "Prepara un borrador interno de email sin enviarlo. Resuelve destinatarios exclusivamente desde contactos reales del ERP (providers, clients y subcontractors), redacta un correo profesional y conciso, busca adjuntos autorizados y devuelve el preview. Si hay ambigüedad devuelve una pregunta y NO crea un borrador final. Para editar un borrador existente usar draft_id y revision_instruction. Nunca envía ni salta la aprobación.",
+    "Prepara un borrador interno de email sin enviarlo. Si el usuario proporciona una dirección de email explícita, usala directamente en to. Si proporciona solamente un nombre o empresa, intentá resolverlo desde los contactos del ERP. Nunca inventes una dirección y, si hay múltiples contactos posibles, preguntá cuál. Redacta un correo profesional y conciso, busca adjuntos autorizados cuando correspondan y devuelve el preview. Para editar un borrador existente usar draft_id y revision_instruction. Nunca envía ni salta la aprobación.",
   inputSchema: PrepareEmailInputSchema,
   riskLevel: 1,
   requiredRoles: ["comercial", "admin"],

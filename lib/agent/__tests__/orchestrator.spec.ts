@@ -105,14 +105,23 @@ describe("orchestrator", () => {
       db: mockDbNoOp(),
       actor: { empresaId: "emp1", userId: "u1", role: "admin", actorType: "user", source: "web" },
       userIntent: "Hola Rodrigo",
+      conversationHistory: [
+        { role: "user", content: "Necesito redactar un mail." },
+        { role: "assistant", content: "Claro. ¿A quién va?" },
+      ],
     });
 
     expect(result.answer).toContain("Hola");
     const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
       model: string;
       tools: Array<{ function: { name: string; parameters: { properties?: Record<string, unknown> } } }>;
+      messages: Array<{ role: string; content?: string }>;
     };
     expect(requestBody.model).toBe("deepseek-flash");
+    expect(requestBody.messages).toContainEqual({ role: "user", content: "Necesito redactar un mail." });
+    expect(requestBody.messages).toContainEqual({ role: "assistant", content: "Claro. ¿A quién va?" });
+    expect(requestBody.messages[0]?.content).toContain("Sos Rodrigo");
+    expect(requestBody.messages[0]?.content).not.toContain("JSON valido");
     const structuredTool = requestBody.tools.find((tool) => tool.function.name === "structured_tool");
     expect(structuredTool?.function.parameters.properties).toHaveProperty("recipient");
   });

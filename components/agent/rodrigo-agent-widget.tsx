@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Loader2,
+  MailPlus,
   Mic,
   MicOff,
   Send,
@@ -20,6 +21,17 @@ import { isSttSupported, startDictation, type SttHandle } from "@/lib/voice/stt-
 import { useRodrigoAgent } from "./rodrigo-agent-provider";
 import { EmailPreviewCard } from "./email-preview-card";
 import styles from "./rodrigo-agent-widget.module.css";
+
+type GmailConnectionState = {
+  status: "loading" | "connected" | "disconnected";
+  email: string | null;
+};
+
+function truncateEmailAddress(email: string) {
+  const at = email.indexOf("@");
+  if (at < 1) return email;
+  return `${email.slice(0, Math.min(at, 7))}@…`;
+}
 
 // Three.js solo en cliente y solo cuando el widget existe (lazy, sin SSR).
 const Rodrigo3DMascot = dynamic(
@@ -115,6 +127,12 @@ export function RodrigoAgentWidget() {
     0.45, 0.6, 0.78, 0.92, 1, 1, 0.95, 0.88, 0.95, 1, 1, 0.92, 0.78, 0.6,
   ]);
   const [draft, setDraft] = useState("");
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [emailTo, setEmailTo] = useState("");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [composerError, setComposerError] = useState<string | null>(null);
+  const [gmail, setGmail] = useState<GmailConnectionState>({ status: "loading", email: null });
   const [approvalBusyId, setApprovalBusyId] = useState<string | null>(null);
   const [approvalError, setApprovalError] = useState<string | null>(null);
 
@@ -174,6 +192,31 @@ export function RodrigoAgentWidget() {
 
   useEffect(() => {
     isOpenRef.current = isOpen;
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    void fetch("/api/integrations/gmail/status", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return response.json() as Promise<{ connection?: { status?: unknown; providerEmail?: unknown } | null }>;
+      })
+      .then((payload) => {
+        if (!active) return;
+        const connection = payload?.connection;
+        const connected = connection?.status === "CONNECTED";
+        setGmail({
+          status: connected ? "connected" : "disconnected",
+          email: connected && typeof connection?.providerEmail === "string" ? connection.providerEmail : null,
+        });
+      })
+      .catch(() => {
+        if (active) setGmail({ status: "disconnected", email: null });
+      });
+    return () => {
+      active = false;
+    };
   }, [isOpen]);
 
   const stopMicrophone = useCallback(() => {
@@ -323,6 +366,28 @@ export function RodrigoAgentWidget() {
     void sendMessage(text);
   }, [draft, sending, sendMessage, state]);
 
+  const prepareEmailFromComposer = useCallback(() => {
+    const recipient = emailTo.trim();
+    const body = emailBody.trim();
+    if (!recipient) {
+      setComposerError("Indicá a quién va dirigido el correo.");
+      return;
+    }
+    if (!body) {
+      setComposerError("Escribí qué querés comunicar.");
+      return;
+    }
+    setComposerError(null);
+    const subject = emailSubject.trim();
+    const request = [
+      `Prepará un correo para ${recipient}.`,
+      subject ? `Asunto: ${subject}.` : "",
+      `Mensaje: ${body}`,
+    ].filter(Boolean).join(" ");
+    setComposerOpen(false);
+    void sendMessage(request);
+  }, [emailBody, emailSubject, emailTo, sendMessage]);
+
   const decideApproval = useCallback(
     async (approvalId: string, decision: "APPROVED" | "REJECTED") => {
       setApprovalBusyId(approvalId);
@@ -432,21 +497,93 @@ export function RodrigoAgentWidget() {
               </div>
               <div className="min-w-0">
                 <p className="text-[13px] font-semibold">Rodrigo</p>
-                <p className="text-[11px] text-[var(--muted)]">Asistente Frictionless</p>
+                <p className="text-[11px] text-[var(--muted)]">
+                  {gmail.status === "connected"
+                    ? `Gmail conectado · ${gmail.email ? truncateEmailAddress(gmail.email) : "cuenta conectada"}`
+                    : gmail.status === "disconnected"
+                      ? "Gmail no conectado"
+                      : "Verificando Gmail…"}
+                </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={minimize}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--muted)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
-              aria-label="Minimizar panel de Rodrigo"
-              title="Minimizar"
-            >
-              <ChevronDown aria-hidden="true" size={17} />
-            </button>
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setComposerError(null);
+                  setComposerOpen((current) => !current);
+                }}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--primary-hover)] transition-colors hover:bg-[var(--primary-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                aria-label="Redactar correo"
+                title="Redactar correo"
+              >
+                <MailPlus aria-hidden="true" size={17} />
+              </button>
+              <button
+                type="button"
+                onClick={minimize}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--muted)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                aria-label="Minimizar panel de Rodrigo"
+                title="Minimizar"
+              >
+                <ChevronDown aria-hidden="true" size={17} />
+              </button>
+            </div>
           </div>
 
           <div ref={transcriptRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
+            {composerOpen ? (
+              <section className="space-y-3 rounded-xl border border-[var(--primary)] bg-[var(--panel-2)] p-3" aria-label="Redactar correo">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-[13px] font-semibold">Redactar correo</p>
+                    <p className="text-[11px] text-[var(--muted)]">Prepará el borrador y revisalo antes de enviarlo.</p>
+                  </div>
+                  {gmail.status === "disconnected" ? (
+                    <Link href="/configuracion" className="text-[11px] font-medium text-[var(--primary-hover)] underline underline-offset-2">
+                      Configurar Gmail
+                    </Link>
+                  ) : null}
+                </div>
+                <label className="block text-[11px] font-medium">
+                  Para
+                  <input
+                    value={emailTo}
+                    onChange={(event) => setEmailTo(event.target.value)}
+                    placeholder="nombre o correo@dominio.com"
+                    className="mt-1 h-9 w-full rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 text-[12px] outline-none placeholder:text-[var(--muted)] focus:border-[var(--primary)]"
+                  />
+                </label>
+                <label className="block text-[11px] font-medium">
+                  Asunto <span className="font-normal text-[var(--muted)]">(opcional)</span>
+                  <input
+                    value={emailSubject}
+                    onChange={(event) => setEmailSubject(event.target.value)}
+                    placeholder="Asunto del correo"
+                    className="mt-1 h-9 w-full rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 text-[12px] outline-none placeholder:text-[var(--muted)] focus:border-[var(--primary)]"
+                  />
+                </label>
+                <label className="block text-[11px] font-medium">
+                  Mensaje
+                  <textarea
+                    value={emailBody}
+                    onChange={(event) => setEmailBody(event.target.value)}
+                    placeholder="¿Qué querés comunicar?"
+                    rows={4}
+                    className="mt-1 w-full resize-y rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-[12px] leading-5 outline-none placeholder:text-[var(--muted)] focus:border-[var(--primary)]"
+                  />
+                </label>
+                {composerError ? <p className="text-[11px] text-[var(--error)]">{composerError}</p> : null}
+                <div className="flex justify-end gap-2">
+                  <button type="button" onClick={() => setComposerOpen(false)} className="rounded-lg px-3 py-2 text-[12px] font-medium text-[var(--muted)] hover:bg-[var(--hover)]">
+                    Cancelar
+                  </button>
+                  <button type="button" onClick={prepareEmailFromComposer} disabled={sending} className="rounded-lg bg-[var(--primary)] px-3 py-2 text-[12px] font-medium text-white hover:opacity-90 disabled:opacity-50">
+                    Preparar vista previa
+                  </button>
+                </div>
+              </section>
+            ) : null}
             <div className="flex items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--panel-2)] p-3">
               <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${styles.stateIcon}`}>
                 <StateGlyph state={state} />

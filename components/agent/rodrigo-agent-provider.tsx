@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { isRodrigoState, type RodrigoState } from "@/lib/agent/rodrigo-state";
+import { normalizeRodrigoResponse } from "@/lib/agent/rodrigo-response";
 import type { EmailPreview } from "@/lib/email/types";
 
 const STATUS_POLL_MS = 15_000;
@@ -212,17 +213,22 @@ export function RodrigoAgentProvider({ children }: { children: ReactNode }) {
         const response = await fetch("/api/agent/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: trimmed, draftId: emailPreview?.draftId ?? null }),
+          body: JSON.stringify({
+            message: trimmed,
+            draftId: emailPreview?.draftId ?? null,
+            conversationHistory: messages.slice(-20).map(({ role, text }) => ({ role, content: text })),
+          }),
         });
         const payload = (await response.json().catch(() => ({}))) as {
           answer?: unknown;
           state?: unknown;
           emailPreview?: unknown;
         };
-        const answer =
+        const rawAnswer =
           typeof payload.answer === "string" && payload.answer.length > 0
             ? payload.answer
             : "No pude procesar el mensaje. Probá de nuevo.";
+        const answer = normalizeRodrigoResponse(rawAnswer);
         const assistantMessage: RodrigoMessage = {
           id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           role: "assistant",
@@ -257,7 +263,7 @@ export function RodrigoAgentProvider({ children }: { children: ReactNode }) {
         void refreshStatus();
       }
     },
-    [emailPreview?.draftId, refreshStatus, setVisualState]
+    [emailPreview?.draftId, messages, refreshStatus, setVisualState]
   );
 
   const state = status.state === "disabled" ? "disabled" : interactionState ?? status.state;
