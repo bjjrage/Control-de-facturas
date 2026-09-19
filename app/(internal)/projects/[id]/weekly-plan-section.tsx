@@ -1221,7 +1221,7 @@ export function WeeklyPlanSection({ project }: Props) {
               onClick={handleCalcular}
               disabled={isCalculating}
               data-testid="calcular-plan"
-              className="mt-1 h-10 w-full gap-2 text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="mt-1 h-9 w-auto self-start gap-2 px-4 text-xs font-semibold"
             >
               {isCalculating ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />
@@ -1230,7 +1230,7 @@ export function WeeklyPlanSection({ project }: Props) {
               )}
               {isCalculating ? "Calculando…" : "CALCULAR PLAN"}
             </Button>
-            <p className="text-[11px] text-[var(--muted)] text-center">
+            <p className="text-[11px] text-[var(--muted)]">
               Calcula materiales, stock, OC en tránsito, faltante, caja y factibilidad SIN guardar.
             </p>
           </div>
