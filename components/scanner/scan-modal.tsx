@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useRef } from "react";
 import QRCode from "qrcode";
@@ -172,11 +172,22 @@ export function ScanModal({
     }
   }
 
-  // Suscribirse a Realtime y polling de respaldo
+  const statusRef = useRef(status);
+  statusRef.current = status;
+
+  const receivedDocRef = useRef(receivedDoc);
+  receivedDocRef.current = receivedDoc;
+
+  const handleSessionCompletedRef = useRef(handleSessionCompleted);
+  handleSessionCompletedRef.current = handleSessionCompleted;
+
+  // Suscribirse a Realtime y polling de respaldo (estable, sin recrear el canal en cada cambio de status)
   useEffect(() => {
-    if (!isOpen || !sessionId || status === "completed") return;
+    if (!isOpen || !sessionId) return;
+    if (statusRef.current === "completed") return;
 
     const supabase = supabaseRef.current;
+    let isSubscribed = true;
 
     // 1. Canal Realtime
     const channel = supabase
@@ -190,6 +201,7 @@ export function ScanModal({
           filter: `id=eq.${sessionId}`,
         },
         async (payload) => {
+          if (!isSubscribed) return;
           const nextRow = payload.new as {
             status: ScanSessionStatus;
             storage_path?: string;
@@ -202,12 +214,15 @@ export function ScanModal({
             setStatus(nextRow.status);
           }
 
-          if (nextRow.status === "completed") {
-            // Consultar signedUrl
-            const pollRes = await fetch(`/api/scanner/status/${sessionId}`);
-            const statusData = await pollRes.json();
-            if (statusData.signed_url) {
-              handleSessionCompleted(statusData);
+          if (nextRow.status === "completed" && !receivedDocRef.current) {
+            try {
+              const pollRes = await fetch(`/api/scanner/status/${sessionId}`);
+              const statusData = await pollRes.json();
+              if (isSubscribed && statusData.signed_url) {
+                await handleSessionCompletedRef.current(statusData);
+              }
+            } catch (err) {
+              console.warn("Error fetching completed session status:", err);
             }
           }
         }
@@ -216,17 +231,18 @@ export function ScanModal({
 
     // 2. Polling de respaldo cada 3 segundos
     const pollInterval = setInterval(async () => {
+      if (!isSubscribed || statusRef.current === "completed") return;
       try {
         const res = await fetch(`/api/scanner/status/${sessionId}`);
-        if (!res.ok) return;
+        if (!res.ok || !isSubscribed) return;
         const data = await res.json();
 
-        if (data.status && data.status !== status) {
+        if (data.status && data.status !== statusRef.current) {
           setStatus(data.status);
         }
 
-        if (data.status === "completed" && !receivedDoc && data.signed_url) {
-          handleSessionCompleted(data);
+        if (data.status === "completed" && !receivedDocRef.current && data.signed_url) {
+          await handleSessionCompletedRef.current(data);
         }
       } catch {
         // Silently ignore polling network jitter
@@ -234,10 +250,11 @@ export function ScanModal({
     }, 3000);
 
     return () => {
+      isSubscribed = false;
       supabase.removeChannel(channel);
       clearInterval(pollInterval);
     };
-  }, [isOpen, sessionId, status, receivedDoc]);
+  }, [isOpen, sessionId]);
 
   function handleUseDocument() {
     if (receivedDoc && onDocumentReceived) {

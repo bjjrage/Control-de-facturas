@@ -1,4 +1,5 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentProfile } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isSessionExpired } from '@/lib/scanner/tokens';
 
@@ -7,18 +8,30 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // 1. Autorización obligatoria: sólo usuarios autenticados del ERP
+    const profile = await getCurrentProfile().catch(() => null);
+    if (!profile || !profile.empresa_id) {
+      return NextResponse.json(
+        { error: 'No autorizado. Se requiere sesión activa en el ERP.' },
+        { status: 401 }
+      );
+    }
+
     const { id } = await params;
     if (!id) {
       return NextResponse.json({ error: 'ID de sesión requerido' }, { status: 400 });
     }
 
+    // 2. Aislamiento estricto por tenant: la consulta DEBE estar restringida a profile.empresa_id
     const admin = createAdminClient();
     const { data: session, error } = await admin
       .from('scan_sessions')
-      .select('*')
+      .select('id, empresa_id, status, context_type, context_id, target_field, file_name, file_size_bytes, page_count, storage_path, storage_bucket, expires_at, completed_at')
       .eq('id', id)
+      .eq('empresa_id', profile.empresa_id) // Tenant isolation fail-closed
       .maybeSingle();
 
+    // Si no existe o pertenece a otra empresa -> 404 fail-closed
     if (error || !session) {
       return NextResponse.json({ error: 'Sesión no encontrada' }, { status: 404 });
     }
@@ -28,6 +41,7 @@ export async function GET(
       currentStatus = 'expired';
     }
 
+    // 3. Generar URL firmada temporal (300s) ÚNICAMENTE si la sesión está completada
     let signedUrl: string | null = null;
     if (currentStatus === 'completed' && session.storage_path) {
       const { data: signedData } = await admin.storage

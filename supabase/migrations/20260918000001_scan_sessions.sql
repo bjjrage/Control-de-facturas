@@ -1,4 +1,4 @@
-﻿-- 20260918000001_scan_sessions.sql
+-- 20260918000001_scan_sessions.sql
 -- Companion app móvil de escaneo documental vinculada al ERP Control de Facturas.
 
 create table if not exists public.scan_sessions (
