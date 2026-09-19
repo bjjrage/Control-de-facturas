@@ -73,7 +73,7 @@ export function LicitacionesSection({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="segmented-control flex-wrap">
         {([
           ["activas", "Activas"],
           ["SIN_REVISAR", "Sin revisar"],
@@ -86,10 +86,10 @@ export function LicitacionesSection({
           <button
             key={k}
             onClick={() => setFiltro(k)}
-            className={`text-[12px] px-2.5 py-1 rounded-md border transition-colors ${
+            className={`segmented-item px-2.5 py-1 text-[12px] ${
               filtro === k
-                ? "bg-[var(--nav-active)] text-white border-transparent"
-                : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
+                ? "segmented-item-active font-semibold"
+                : ""
             }`}
           >
             {label}
