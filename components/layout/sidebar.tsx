@@ -424,7 +424,7 @@ export function Sidebar({
             label === "Finanzas" && "nav-domain-finanzas",
             collapsed ? "justify-center px-0" : "justify-between px-2.5",
             isOpen
-              ? "bg-[linear-gradient(180deg,rgba(83,129,239,.34),rgba(48,82,162,.25))] text-[#eef4ff] shadow-[0_0_0_1px_rgba(104,151,255,.10)]"
+              ? "text-[var(--foreground)]"
               : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
           )}
         >
@@ -479,7 +479,7 @@ export function Sidebar({
             group.label === "Certificar" && "nav-domain-certificar",
             collapsed ? "justify-center px-0" : "justify-between px-2.5",
             isOpen
-              ? "bg-[linear-gradient(180deg,rgba(83,129,239,.34),rgba(48,82,162,.25))] text-[#eef4ff] shadow-[0_0_0_1px_rgba(104,151,255,.10)]"
+              ? "text-[var(--foreground)]"
               : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
           )}
         >
