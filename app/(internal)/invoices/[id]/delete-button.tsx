@@ -47,15 +47,16 @@ export function DeleteInvoiceButton({
 
   if (compact) {
     return (
-      <button
+      <Button
         type="button"
+        variant="danger"
+        size="icon"
         disabled={pending}
         onClick={handleClick}
         title="Eliminar factura"
-        className="text-[var(--muted)] hover:text-[var(--error)] disabled:opacity-50"
       >
         <Trash2 size={14} />
-      </button>
+      </Button>
     );
   }
 

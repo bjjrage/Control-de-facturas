@@ -126,8 +126,6 @@ export function AppShellClient({ children }: { children: ReactNode }) {
 
   // Ref so event handlers always see the latest sections without stale closures.
   const sectionsRef = useRef<Map<SectionKey, ReactNode>>(new Map());
-  // True when WE triggered a history change (vs. Next.js navigating).
-  const isOurNavRef = useRef(false);
 
   function addSection(path: SectionKey, node: ReactNode) {
     sectionsRef.current.set(path, node);
@@ -139,7 +137,6 @@ export function AppShellClient({ children }: { children: ReactNode }) {
     const handler = async (e: Event) => {
       const path = (e as CustomEvent<string>).detail as SectionKey;
       if (!isSectionPath(path)) return;
-      isOurNavRef.current = true;
       window.history.pushState({}, "", path);
 
       // Stale-while-revalidate: si ya tenemos la sección, se muestra al
@@ -154,7 +151,10 @@ export function AppShellClient({ children }: { children: ReactNode }) {
         const node = await LOADERS[path]();
         sectionsRef.current.set(path, node);
         setSections(new Map(sectionsRef.current));
-        setMode("client");
+        if (window.location.pathname === path) {
+          setActivePath(path);
+          setMode("client");
+        }
       } catch {
         // Si ya había algo en pantalla lo dejamos; si no, que Next.js
         // renderice la página normalmente.
@@ -172,7 +172,6 @@ export function AppShellClient({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handler = async () => {
       const path = window.location.pathname;
-      isOurNavRef.current = true;
       if (isSectionPath(path)) {
         // Mismo stale-while-revalidate que en niupack:navigate.
         const cached = sectionsRef.current.has(path);
@@ -182,12 +181,16 @@ export function AppShellClient({ children }: { children: ReactNode }) {
           const node = await LOADERS[path]();
           sectionsRef.current.set(path, node);
           setSections(new Map(sectionsRef.current));
-          setMode("client");
+          if (window.location.pathname === path) {
+            setActivePath(path);
+            setMode("client");
+          }
         } catch {
           if (!cached) setMode("server");
         }
       } else {
-        // Not a shell path — let Next.js handle it properly.
+        // Not a shell path — reveal the server-rendered workspace immediately.
+        setActivePath(null);
         setMode("server");
       }
     };
@@ -198,7 +201,8 @@ export function AppShellClient({ children }: { children: ReactNode }) {
   // Detect real Next.js navigations: <Link> clicks (e.g. "← Volver a
   // Órdenes"), router.push, or redirect() from a server action (e.g. after
   // deleting something and returning to the list). usePathname() updates
-  // only for these, never for our own pushState.
+  // for real Next.js navigations. The URL remains the source of truth even
+  // if the browser/Next runtime also observes history.pushState.
   //
   // If the destination is a shell path, load its live client section instead
   // of falling back to the plain server-rendered page — that copy is a
@@ -208,24 +212,39 @@ export function AppShellClient({ children }: { children: ReactNode }) {
   // than reuse a cached copy, since a real navigation here usually means
   // something just changed server-side.
   useEffect(() => {
-    if (isOurNavRef.current) {
-      isOurNavRef.current = false;
-      return;
-    }
+    // La URL es siempre la fuente de verdad. Si salimos del shell rápido
+    // (p. ej. Administración -> Operativo/Licitaciones), mostramos de inmediato
+    // el contenido server de la nueva ruta. Nunca dejamos un panel keep-alive
+    // viejo tapando el workspace nuevo.
     if (!isSectionPath(pathname)) {
+      setActivePath(null);
       setMode("server");
       return;
     }
+
     const path = pathname;
     setMode("loading");
     setActivePath(path);
+
     LOADERS[path]()
       .then((node) => {
+        // Cacheamos aunque el usuario haya navegado mientras cargaba.
         sectionsRef.current.set(path, node);
         setSections(new Map(sectionsRef.current));
-        setMode("client");
+
+        // Pero solo activamos esta sección si la URL TODAVÍA corresponde.
+        // Esto evita que una respuesta tardía de Administración tape Obras.
+        if (window.location.pathname === path) {
+          setActivePath(path);
+          setMode("client");
+        }
       })
-      .catch(() => setMode("server"));
+      .catch(() => {
+        if (window.location.pathname === path) {
+          setActivePath(null);
+          setMode("server");
+        }
+      });
   }, [pathname]);
 
   // Pre-warm ALL sections in background on first mount — first-click on any
@@ -273,14 +292,14 @@ export function AppShellClient({ children }: { children: ReactNode }) {
   return (
     <>
       {/* Server-rendered content — shown on initial load and real Next.js navigations */}
-      <div hidden={mode !== "server"}>{children}</div>
+      <div className="erp-workspace" hidden={mode !== "server"}>{children}</div>
 
       {/* Loading skeleton — shown while fetching a new section */}
-      {mode === "loading" ? <SectionSkeleton /> : null}
+      {mode === "loading" ? <div className="erp-workspace"><SectionSkeleton /></div> : null}
 
       {/* Keep-alive client sections — stay mounted once loaded */}
       {Array.from(sections.entries()).map(([path, node]) => (
-        <div key={path} hidden={!showSections || path !== activePath}>
+        <div className="erp-workspace" key={path} hidden={!showSections || path !== activePath}>
           {node}
         </div>
       ))}

@@ -3,6 +3,7 @@
 // estado propio que pueda desincronizarse de la ruta real.
 export type Workspace = "administracion" | "operativo" | "licitaciones";
 
+// Operativo root is a project-selection gate. Shared admin routes never impersonate this workspace.
 const OPERATIVO_PREFIX = "/projects";
 const LICITACIONES_PREFIX = "/licitaciones";
 

@@ -161,7 +161,7 @@ function CuentaCard({ cuenta, proyectos }: { cuenta: CuentaFinanciera; proyectos
   const negativo = cuenta.saldo < 0;
 
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 flex flex-col gap-3">
+    <div className="kpi-hover rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="font-medium text-[14px]">{cuenta.nombre}</div>
