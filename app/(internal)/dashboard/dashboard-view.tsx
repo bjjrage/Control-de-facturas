@@ -22,11 +22,6 @@ export function DashboardView({ data }: { data: DashboardViewData }) {
 
   return (
     <div className="max-w-none space-y-6">
-      <div>
-        <h1 className="text-[17px] font-semibold">Resumen ejecutivo</h1>
-        <p className="text-[13px] text-[var(--muted)] mt-0.5">Hola, {firstName}</p>
-      </div>
-
       {!hasAnyContent ? (
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 text-[13px] text-[var(--muted)]">
           Todavía no hay datos suficientes para mostrar el resumen ejecutivo.
