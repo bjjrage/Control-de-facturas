@@ -32,7 +32,13 @@ import {
   getWeeklyPlanDetailsAction,
   previewWeeklyPlanAction,
   saveWeeklyPlanAction,
+  type MrpPreviewResult,
 } from "../weekly-plan-actions";
+import {
+  listProductionRecipes,
+  type RecipeWithComponents,
+} from "../production-recipe-actions";
+import type { ProductionRecipe, ProductionRecipeComponent } from "@/lib/types";
 import {
   translateTargetToQuantity,
   sumRequestedByItem,
@@ -46,6 +52,14 @@ import {
   aggregateMaterialsByProduct,
   type BlockGroup,
 } from "@/lib/procurement/weekly-plan-blocks";
+import {
+  resolveProductionTarget,
+  recipeEffectiveQty as libRecipeEffectiveQty,
+  recipeToPreviewInputs,
+} from "@/lib/procurement/production-recipe";
+import { ImportRecipeDialog } from "./import-recipe-dialog";
+import { RecipeBlockPanel } from "./recipe-block-panel";
+import { MrpResultPanel } from "./mrp-result-panel";
 
 interface Props {
   project: Project;
@@ -103,6 +117,8 @@ export function WeeklyPlanSection({ project }: Props) {
   // Plan persistido (si existe) — solo referencia secundaria.
   const [planId, setPlanId] = useState<string | undefined>(undefined);
   const [savedStatus, setSavedStatus] = useState<WeeklyPlanStatus | null>(null);
+  // V3: el plan retiene reservas ACTIVE (para gating de re-commit).
+  const [hasActiveReservations, setHasActiveReservations] = useState(false);
   const [compatStatus, setCompatStatus] = useState<WeeklyPlanStatus>("DRAFT");
   const [notes, setNotes] = useState<string>("");
 
@@ -135,6 +151,34 @@ export function WeeklyPlanSection({ project }: Props) {
     includedCount: number;
   } | null>(null);
   const [blockDetailOpen, setBlockDetailOpen] = useState(false);
+
+  // ---- Modo receta / MRP (V3): objetivo físico de producción --------------
+  const [recipes, setRecipes] = useState<RecipeWithComponents[]>([]);
+  const [showRecipeDialog, setShowRecipeDialog] = useState(false);
+  const [selectedRecipeId, setSelectedRecipeId] = useState<string>("");
+  const [recipeQtyMode, setRecipeQtyMode] = useState<"QTY" | "PCT" | "TO">("QTY");
+  const [recipeQty, setRecipeQty] = useState<string>("");
+  const [recipePct, setRecipePct] = useState<string>("10");
+  const [recipeReach, setRecipeReach] = useState<string>("");
+  // Origen del cálculo actual (para encabezado honesto + commit MRP).
+  const [appliedRecipe, setAppliedRecipe] = useState<{
+    recipeId: string;
+    code: string;
+    name: string;
+    unit: string;
+    targetQty: number;
+    front: string;
+  } | null>(null);
+  const [previewRecipe, setPreviewRecipe] = useState<{
+    recipeId: string;
+    code: string;
+    name: string;
+    unit: string;
+    targetQty: number;
+    front: string;
+  } | null>(null);
+  const [previewMrp, setPreviewMrp] = useState<MrpPreviewResult | null>(null);
+  const [saveWarning, setSaveWarning] = useState<string | null>(null);
 
   // Resultado del preview SIN guardar — "¿qué necesito? / ¿es factible?".
   const [preview, setPreview] = useState<WeeklyPlanCalculationSummary | null>(null);
@@ -179,6 +223,7 @@ export function WeeklyPlanSection({ project }: Props) {
       const { plan, calculation: calc, budgetItems: bItems, executedQuantities: exec } = res.data;
       setBudgetItems(bItems);
       setExecutedQuantities(exec ?? {});
+      setHasActiveReservations(res.data.hasActiveReservations === true);
       if (plan) {
         setPlanId(plan.id);
         setStartDate(plan.start_date);
@@ -203,6 +248,14 @@ export function WeeklyPlanSection({ project }: Props) {
       setFrontTargets(editableList);
     }
     setLoading(false);
+    // Recetas del proyecto (no bloqueante: el plan manual funciona sin ellas).
+    try {
+      const rRes = await listProductionRecipes(project.id);
+      if (loadSeq.current !== seq) return;
+      if (!rRes.error && rRes.data) setRecipes(rRes.data);
+    } catch {
+      // Silencioso: la UI de recetas simplemente no aparece.
+    }
   };
 
   useEffect(() => {
@@ -232,6 +285,14 @@ export function WeeklyPlanSection({ project }: Props) {
   }, [frontTargets, startDate, endDate, weatherOverlay]);
 
   const previewStale = preview !== null && previewKey !== null && previewKey !== currentKey;
+
+  // P1-1: un plan MRP (nace de receta, tiene preview MRP o retiene reservas
+  // de un commit previo) NO puede comprometerse con cobertura desactualizada.
+  const isMrpContext =
+    appliedRecipe !== null || previewMrp !== null ||
+    (savedStatus === "COMMITTED" && hasActiveReservations);
+  const mrpCommitBlocked =
+    isMrpContext && (!previewMrp || previewStale || !!previewMrp.centralError);
 
   // ---- edición local (sin persistir) ----
 
@@ -350,6 +411,87 @@ export function WeeklyPlanSection({ project }: Props) {
     applyBlock(block, blockPp, blockFront, next);
   };
 
+  // ---- Receta → objetivo físico (V3, dentro del bloque) --------------------
+
+  /** Recetas que cubren al menos una hija del bloque. */
+  const recipesForBlock = (block: BlockGroup): RecipeWithComponents[] => {
+    const childIds = new Set(block.children.map((c) => c.id));
+    return recipes.filter((r) => r.components.some((c) => childIds.has(c.budget_item_id)));
+  };
+
+  const selectedRecipe: RecipeWithComponents | undefined = recipes.find(
+    (r) => r.recipe.id === selectedRecipeId
+  );
+
+  /** Cantidad física objetivo efectiva: delega a lib (única implementación). */
+  function recipeEffectiveQty(
+    recipe: RecipeWithComponents,
+    includedIds: Set<string>
+  ): { qty: number | null; progress: number; hint: string } {
+    return libRecipeEffectiveQty({
+      contractTotalQuantity: recipe.recipe.contract_total_quantity,
+      includedComponents: recipe.components
+        .filter((c) => includedIds.has(c.budget_item_id))
+        .map((c) => ({
+          budget_item_id: c.budget_item_id,
+          quantity_per_production_unit: Number(c.quantity_per_production_unit),
+          unit: c.unit,
+        })),
+      executedByItem: Object.fromEntries(
+        Object.entries(executedQuantities).filter(([id]) => includedIds.has(id))
+      ),
+      mode: recipeQtyMode,
+      qtyRaw: recipeQty,
+      pctRaw: recipePct,
+      reachRaw: recipeReach,
+    });
+  }
+
+  /** Aplica la receta: targets físicos QUANTITY (reemplaza filas implicadas). */
+  const applyRecipe = (block: BlockGroup, recipe: RecipeWithComponents) => {
+    const childIds = new Set(block.children.map((c) => c.id));
+    const excluded = new Set(excludedOf(block.key));
+    const included = new Set(
+      recipe.components.map((c) => c.budget_item_id).filter((id) => childIds.has(id) && !excluded.has(id))
+    );
+    const eff = recipeEffectiveQty(recipe, included);
+    if (eff.qty === null) {
+      setErrorMsg(eff.hint || "Indicá un objetivo de producción válido.");
+      return;
+    }
+    const targets = resolveProductionTarget(
+      recipe.components
+        .filter((c) => included.has(c.budget_item_id))
+        .map((c) => ({
+          budget_item_id: c.budget_item_id,
+          quantity_per_production_unit: Number(c.quantity_per_production_unit),
+          unit: c.unit,
+        })),
+      eff.qty
+    );
+    const front = blockFront.trim() || "Sector A";
+    const kept = frontTargets.filter((t) => !childIds.has(t.budget_item_id));
+    const fresh: EditableFrontTarget[] = recipeToPreviewInputs(targets, front).map((t) => ({
+      id: newFrontId(t.budgetItemId),
+      budget_item_id: t.budgetItemId,
+      front_label: t.frontLabel ?? "",
+      input_mode: t.inputMode,
+      input_value: t.inputValue,
+    }));
+    setFrontTargets([...kept, ...fresh]);
+    setAppliedRecipe({
+      recipeId: recipe.recipe.id,
+      code: recipe.recipe.code,
+      name: recipe.recipe.name,
+      unit: recipe.recipe.production_unit,
+      targetQty: eff.qty,
+      front,
+    });
+    setSuccessMsg(
+      `Receta ${recipe.recipe.code}: +${eff.qty} ${recipe.recipe.production_unit} → ${fresh.length} partidas.`
+    );
+  };
+
   // Edición fina por fila del bloque: actualiza la fila y registra override
   // manual (sobrevive a re-aplicaciones de pp/frente). Si iguala al default
   // del bloque, se re-vincula (override eliminado).
@@ -398,6 +540,9 @@ export function WeeklyPlanSection({ project }: Props) {
     }
     const seq = ++calcSeq.current;
     setIsCalculating(true);
+    // V3: si el cálculo nace de una receta, pedir cobertura MRP (obra ?
+    // central ? inbound a tiempo ? faltante). Si no, LEGACY intacto.
+    const useMrp = appliedRecipe !== null;
     (async () => {
       try {
         const res = await withActionTimeout(
@@ -414,6 +559,7 @@ export function WeeklyPlanSection({ project }: Props) {
                 inputMode: t.input_mode,
                 inputValue: Number(t.input_value),
               })),
+            ...(useMrp ? { coverage: { mode: "MRP" as const, neededByDate: endDate } } : {}),
           }),
           90000,
           "El cálculo del plan"
@@ -431,6 +577,9 @@ export function WeeklyPlanSection({ project }: Props) {
           setPreview(res.data.calculation);
           setPreviewKey(currentKey);
           setExpandedResultKey(null);
+          setPreviewMrp(res.data.mrp ?? null);
+          setPreviewRecipe(appliedRecipe);
+          setBlockDetailOpen(false);
           // Foto del bloque para el encabezado agregado (honesto a ese cálculo).
           if (planMode === "BLOCK" && selectedBlock) {
             const excl = new Set(excludedOf(selectedBlock.key));
@@ -486,6 +635,20 @@ export function WeeklyPlanSection({ project }: Props) {
     // calcular), NO enlazar su snapshot climático: es de otro período/metas.
     // Se guarda con snapshot null (trazabilidad preservada) en vez de corrupta.
     const snapshotToLink = previewStale ? null : preview?.weather_snapshot_id || null;
+    // V3 MRP: comprometer reserva central solo con preview vigente; si está
+    // stale se guarda el plan SIN reservas y se avisa explícitamente.
+    const mrpCommit = previewMrp
+      ? {
+          lines: previewStale
+            ? []
+            : previewMrp.lines
+                .filter((l) => l.cubierto_central > 0)
+                .map((l) => ({ producto_id: l.producto_id, quantity: l.cubierto_central })),
+          neededByDate: previewMrp.neededBy,
+        }
+      : savedStatus === "COMMITTED" && statusToSave !== "COMMITTED"
+        ? { centralLocationId: "", lines: [], neededByDate: endDate }
+        : undefined;
     setIsSaving(true);
     (async () => {
       try {
@@ -512,6 +675,7 @@ export function WeeklyPlanSection({ project }: Props) {
             notes,
             weatherSnapshotBatchId: snapshotToLink,
             items: itemsToSave,
+            ...(mrpCommit ? { mrpCommit } : {}),
           }),
           60000,
           "El guardado del plan"
@@ -523,6 +687,11 @@ export function WeeklyPlanSection({ project }: Props) {
           setPlanId(res.data.id);
           setSavedStatus(res.data.status);
           setCompatStatus(res.data.status);
+          if (mrpCommit && previewStale && statusToSave === "COMMITTED") {
+            setSaveWarning(
+              "Plan guardado SIN reservas (el preview estaba desactualizado). Recalculá y volvé a comprometer para reservar stock central."
+            );
+          }
           setSuccessMsg(
             statusToSave === "COMMITTED"
               ? "Plan comprometido de forma atómica."
@@ -633,6 +802,13 @@ export function WeeklyPlanSection({ project }: Props) {
         <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/15 border border-red-500/30 text-red-700 dark:text-red-300 text-xs">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>{errorMsg}</span>
+        </div>
+      )}
+
+      {saveWarning && (
+        <div className="flex items-center gap-2 p-3 glass-soft text-amber-700 dark:text-amber-300 text-xs">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>{saveWarning}</span>
         </div>
       )}
 
@@ -1056,6 +1232,25 @@ export function WeeklyPlanSection({ project }: Props) {
                       el modo Por partida.
                     </p>
 
+                    <RecipeBlockPanel
+                      block={block}
+                      recipes={recipes}
+                      selectedRecipeId={selectedRecipeId}
+                      onSelectRecipe={setSelectedRecipeId}
+                      qtyMode={recipeQtyMode}
+                      onQtyMode={setRecipeQtyMode}
+                      qty={recipeQty}
+                      pct={recipePct}
+                      reach={recipeReach}
+                      onQty={setRecipeQty}
+                      onPct={setRecipePct}
+                      onReach={setRecipeReach}
+                      excludedIds={excludedOf(block.key)}
+                      executedQuantities={executedQuantities}
+                      onApply={applyRecipe}
+                      onImport={() => setShowRecipeDialog(true)}
+                    />
+
                     <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
                       Partidas incluidas
                     </div>
@@ -1348,7 +1543,12 @@ export function WeeklyPlanSection({ project }: Props) {
             </div>
           )}
 
-          {/* Caja primero */}
+          {previewMrp && previewRecipe && (
+            <MrpResultPanel preview={preview} previewRecipe={previewRecipe} previewMrp={previewMrp} />
+          )}
+
+          {/* Caja primero (modo LEGACY; en MRP la caja la muestra el bloque de arriba) */}
+          {!previewMrp && (
           <div className="glass glass-accent-amber p-5">
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-bold uppercase tracking-wide text-amber-800 dark:text-amber-200">
@@ -1383,6 +1583,7 @@ export function WeeklyPlanSection({ project }: Props) {
               <strong>Gs. {preview.total_additional_cash_required.toLocaleString("es-PY")}</strong>
             </div>
           </div>
+          )}
 
           {/* Factibilidad */}
           <div className="glass-soft p-4 space-y-2">
@@ -1610,6 +1811,11 @@ export function WeeklyPlanSection({ project }: Props) {
             <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
               5. Guardar / Comprometer — el preview no guardó nada todavía
             </div>
+            {mrpCommitBlocked && (
+              <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                El cálculo de abastecimiento está desactualizado. Recalculá antes de comprometer el plan.
+              </p>
+            )}
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
@@ -1624,8 +1830,9 @@ export function WeeklyPlanSection({ project }: Props) {
               <Button
                 type="button"
                 onClick={() => handleSaveWithStatus("COMMITTED")}
-                disabled={isSaving}
+                disabled={isSaving || mrpCommitBlocked}
                 data-testid="comprometer-plan"
+                title={mrpCommitBlocked ? "El cálculo de abastecimiento está desactualizado. Recalculá antes de comprometer el plan." : undefined}
                 className="h-9 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
               >
                 {isSaving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
@@ -1647,7 +1854,12 @@ export function WeeklyPlanSection({ project }: Props) {
               <button
                 type="button"
                 onClick={() => handleSaveWithStatus(compatStatus)}
-                disabled={isSaving}
+                disabled={isSaving || (compatStatus === "COMMITTED" && mrpCommitBlocked)}
+                title={
+                  compatStatus === "COMMITTED" && mrpCommitBlocked
+                    ? "El cálculo de abastecimiento está desactualizado. Recalculá antes de comprometer el plan."
+                    : undefined
+                }
                 className="h-7 px-2 rounded-md border border-[var(--border)] text-[11px] hover:bg-[var(--panel-2)]"
               >
                 Guardar con estado seleccionado
@@ -1670,6 +1882,23 @@ export function WeeklyPlanSection({ project }: Props) {
         </div>
       )}
 
+      {showRecipeDialog && (
+        <ImportRecipeDialog
+          projectId={project.id}
+          budgetItems={budgetItems
+            .filter((b) => !isGroupingItem(b))
+            .map((b) => ({ id: b.id, code: b.code, description: b.description, unit: b.unit }))}
+          onImported={async () => {
+            setShowRecipeDialog(false);
+            const rRes = await listProductionRecipes(project.id);
+            if (!rRes.error && rRes.data) {
+              setRecipes(rRes.data);
+              setSuccessMsg("Receta importada y lista para planificar.");
+            }
+          }}
+          onClose={() => setShowRecipeDialog(false)}
+        />
+      )}
       {/* Sin preview: insinuar el siguiente paso */}
       {!preview && metasCount > 0 && (
         <div className="rounded-lg border border-dashed border-[var(--border)] p-3 text-[11px] text-[var(--muted)]">

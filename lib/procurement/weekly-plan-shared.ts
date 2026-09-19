@@ -42,6 +42,25 @@ export interface WeeklyPlanBaseData {
   recentEntries: ExecutionHistoryEntry[];
   materialsByItem: Record<string, BudgetItemMaterialInput[]>;
   stockAndInbound: Record<string, StockDisponibilidadInput>;
+  /**
+   * Detalle de inbound por línea (ADITIVO V3, no altera el mapa legacy):
+   * neto físico con fecha esperada para la regla "llega a tiempo".
+   * null si la columna aún no existe en la DB (fail-safe: todo no confirmado).
+   */
+  inboundDetails: InboundDetail[] | null;
+}
+
+export interface InboundDetail {
+  order_item_id: string;
+  producto_id: string;
+  net_quantity: number;
+  expected_delivery_date: string | null;
+}
+
+export interface CentralAvailability {
+  location: { id: string; name: string } | null;
+  /** Físico central − reservas ACTIVE (nunca negativo). Vacío si no hay central. */
+  availableByProduct: Record<string, number>;
 }
 
 export interface ResolvedWeeklyWeather {
@@ -331,9 +350,127 @@ export async function loadWeeklyPlanBaseData(
       recentEntries,
       materialsByItem,
       stockAndInbound,
+      inboundDetails: await loadInboundDetails(supabase, rawOrders ?? [], receivedByOrderItem),
     },
     error: null,
   };
+}
+
+/**
+ * Detalle timed de inbound (V3, aditivo). Query separada para no alterar la
+ * query certificada del loader: si expected_delivery_date no existe todavía,
+ * retorna null y todo inbound se trata como fecha no confirmada.
+ */
+async function loadInboundDetails(
+  supabase: SupabaseLike,
+  rawOrders: Array<{ id: string }>,
+  receivedByOrderItem: Record<string, number>
+): Promise<InboundDetail[] | null> {
+  try {
+    const orderIds = (rawOrders ?? []).map((o) => o.id).filter(Boolean);
+    if (orderIds.length === 0) return [];
+    const { data, error } = await supabase
+      .from("authorized_order_items")
+      .select("id, producto_id, quantity, expected_delivery_date")
+      .in("order_id", orderIds);
+    if (error || !data) return null;
+    const out: InboundDetail[] = [];
+    for (const it of data as Array<{
+      id: string;
+      producto_id: string | null;
+      quantity: unknown;
+      expected_delivery_date: string | null;
+    }>) {
+      if (!it.producto_id) continue; // canónico solamente, igual que el loader
+      const net = Math.max(0, (Number(it.quantity) || 0) - (receivedByOrderItem[it.id] || 0));
+      if (net <= 0) continue;
+      out.push({
+        order_item_id: it.id,
+        producto_id: it.producto_id,
+        net_quantity: Number(net.toFixed(4)),
+        expected_delivery_date: it.expected_delivery_date || null,
+      });
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Disponibilidad central canónica (V3): ubicación CENTRAL primaria de la
+ * empresa, físico (inventory_balances) menos reservas ACTIVE. Solo lectura.
+ * Sin central → available vacío (el MRP muestra ceros, no falla).
+ */
+export async function loadCentralAvailability(
+  supabase: SupabaseLike,
+  empresaId: string
+): Promise<{ data: CentralAvailability | null; error: string | null }> {
+  try {
+    const { data: loc, error: locErr } = await supabase
+      .from("inventory_locations")
+      .select("id, name")
+      .eq("empresa_id", empresaId)
+      .eq("location_type", "CENTRAL")
+      .eq("active", true)
+      .order("is_primary", { ascending: false })
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (locErr) {
+      return { data: null, error: `Error al consultar depósito central: ${locErr.message}` };
+    }
+    if (!loc) {
+      return { data: { location: null, availableByProduct: {} }, error: null };
+    }
+
+    const { data: balances, error: balErr } = await supabase
+      .from("inventory_balances")
+      .select("producto_id, quantity")
+      .eq("empresa_id", empresaId)
+      .eq("location_id", (loc as { id: string }).id);
+
+    if (balErr) {
+      return { data: null, error: `Error al consultar saldos central: ${balErr.message}` };
+    }
+
+    const { data: reserved, error: resErr } = await supabase
+      .from("inventory_reservations")
+      .select("producto_id, quantity")
+      .eq("empresa_id", empresaId)
+      .eq("location_id", (loc as { id: string }).id)
+      .eq("status", "ACTIVE");
+
+    if (resErr) {
+      return { data: null, error: `Error al consultar reservas: ${resErr.message}` };
+    }
+
+    const fisico: Record<string, number> = {};
+    for (const b of (balances ?? []) as Array<{ producto_id: string; quantity: unknown }>) {
+      fisico[b.producto_id] = (fisico[b.producto_id] || 0) + (Number(b.quantity) || 0);
+    }
+    const reservado: Record<string, number> = {};
+    for (const r of (reserved ?? []) as Array<{ producto_id: string; quantity: unknown }>) {
+      reservado[r.producto_id] = (reservado[r.producto_id] || 0) + (Number(r.quantity) || 0);
+    }
+    const availableByProduct: Record<string, number> = {};
+    for (const [pid, qty] of Object.entries(fisico)) {
+      availableByProduct[pid] = Math.max(0, Number((qty - (reservado[pid] || 0)).toFixed(4)));
+    }
+    return {
+      data: {
+        location: { id: (loc as { id: string }).id, name: (loc as { name: string }).name },
+        availableByProduct,
+      },
+      error: null,
+    };
+  } catch (err: unknown) {
+    return {
+      data: null,
+      error: err instanceof Error ? err.message : "Error al consultar disponibilidad central.",
+    };
+  }
 }
 
 /**
