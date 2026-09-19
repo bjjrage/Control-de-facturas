@@ -44,7 +44,11 @@ function WorkspaceSwitcher({ showOperativo, showLicitaciones }: { showOperativo:
             className={cn(
               "flex items-center gap-1.5 h-7 px-3 rounded-full text-[12px] font-medium transition-all duration-150",
               isActive
-                ? "bg-[linear-gradient(180deg,rgba(92,140,255,.72),rgba(57,95,190,.58))] text-white shadow-[0_0_0_1px_rgba(118,160,255,.45),0_8px_22px_rgba(31,73,166,.28)]"
+                ? item.key === "administracion"
+                  ? "workspace-admin-active"
+                  : item.key === "operativo"
+                    ? "workspace-operativo-active"
+                    : "workspace-licitaciones-active"
                 : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
             )}
           >
@@ -103,10 +107,10 @@ export function Topbar({
       </div>
       {projectInfo ? (
         <div
-          className="hidden min-w-0 max-w-[420px] items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 h-9 md:flex"
+          className="project-context-accent hidden min-w-0 max-w-[420px] items-center gap-2 rounded-xl border px-3 h-9 md:flex"
           title={projectInfo.name}
         >
-          <FolderOpen size={14} className="shrink-0 text-[#7fa4ff]" />
+          <FolderOpen size={14} className="shrink-0 text-[var(--accent-operativo)]" />
           <span className="truncate text-[12px] font-medium text-[#eaf1ff]">{projectInfo.name}</span>
           <span className="shrink-0 font-mono text-[10px] text-[var(--muted)]">{projectInfo.code}</span>
         </div>
