@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   FileText,
@@ -35,6 +35,10 @@ import {
   Radar,
   Bot,
   FlaskConical,
+  ShoppingCart,
+  BadgeDollarSign,
+  PlayCircle,
+  ShieldCheck,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { logout } from "@/app/(internal)/actions";
@@ -157,7 +161,8 @@ export function Sidebar({
   plan?: EmpresaPlan;
 }) {
   const pathname = usePathname();
-  const workspace = workspaceForPath(pathname);
+  const searchParams = useSearchParams();
+  const workspace = workspaceForPath(pathname, searchParams.get("workspace"));
   const [collapsed, setCollapsed] = useState(false);
   const [openSection, setOpenSection] = useState<{
     label: string;
@@ -443,7 +448,9 @@ export function Sidebar({
     const effectivePath = navPath ?? pathname;
     const active = effectivePath === item.href || effectivePath.startsWith(item.href + "/");
     const Icon = item.icon;
-    const isShellPath = (SHELL_PATHS as readonly string[]).includes(item.href);
+    const keepOperativo = workspace === "operativo" && !inProjectMode && item.href !== "/dashboard";
+    const targetHref = keepOperativo ? `${item.href}?workspace=operativo` : item.href;
+    const isShellPath = (SHELL_PATHS as readonly string[]).includes(item.href) && !keepOperativo;
 
     function handleClick(e: React.MouseEvent) {
       setOpenSection(null);
@@ -456,7 +463,7 @@ export function Sidebar({
     return (
       <Link
         key={item.href}
-        href={item.href}
+        href={targetHref}
         title={collapsed ? item.label : undefined}
         onClick={handleClick}
         className={cn(
@@ -487,11 +494,11 @@ export function Sidebar({
         href={item.href}
         title={collapsed ? item.label : undefined}
         className={cn(
-          "flex items-center gap-2.5 h-9 rounded-xl border text-[13px] transition-colors",
+          "flex items-center gap-2.5 h-9 rounded-xl text-[13px] transition-colors",
           collapsed ? "justify-center px-0" : "px-2.5",
           active
-            ? "border-[rgba(192,132,252,.24)] bg-[rgba(192,132,252,.11)] text-[#f1e5ff] font-medium shadow-[inset_3px_0_0_rgba(192,132,252,.78)]"
-            : "border-transparent text-[var(--muted)] hover:border-white/[0.06] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
+            ? "bg-white/[0.055] text-[var(--foreground)] font-medium shadow-[inset_3px_0_0_rgba(192,132,252,.78)]"
+            : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
         )}
       >
         <Icon size={16} className={cn("shrink-0", active && "text-[var(--accent-purple)]")} />
@@ -500,9 +507,25 @@ export function Sidebar({
     );
   }
 
+  function sectionIcon(label: string) {
+    if (label === "Comprar") return ShoppingCart;
+    if (label === "Vender") return BadgeDollarSign;
+    if (label === "Finanzas") return Landmark;
+    return LayoutDashboard;
+  }
+
+  function projectGroupIcon(label: string) {
+    if (label === "Preparar") return ClipboardCheck;
+    if (label === "Comprar") return ShoppingCart;
+    if (label === "Ejecutar") return PlayCircle;
+    if (label === "Certificar") return ShieldCheck;
+    return LayoutDashboard;
+  }
+
   function renderSection(label: string, items: NavItem[]) {
     if (items.length === 0) return null;
     const isOpen = openSection?.label === label;
+    const SectionIcon = sectionIcon(label);
     return (
       <div className={cn("relative py-0.5", isOpen && "z-[60]")}>
         <button
@@ -526,7 +549,12 @@ export function Sidebar({
               : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
           )}
         >
-          {!collapsed ? <span>{label}</span> : <span className="text-[10px] font-bold">{label.slice(0, 1)}</span>}
+          {!collapsed ? (
+            <span className="flex items-center gap-2">
+              <SectionIcon size={15} className="shrink-0" />
+              <span>{label}</span>
+            </span>
+          ) : <SectionIcon size={15} />}
           {!collapsed ? (
             <ChevronRight
               size={13}
@@ -558,6 +586,7 @@ export function Sidebar({
     if (tabs.length === 0) return null;
     const isOpen = openProjectSection === group.label;
     const isActiveGroup = tabs.some((tab) => tab.key === currentTab);
+    const GroupIcon = projectGroupIcon(group.label);
 
     return (
       <div key={group.label} className={cn("relative py-0.5", isOpen && "z-[60]")}>
@@ -580,7 +609,12 @@ export function Sidebar({
               : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
           )}
         >
-          {!collapsed ? <span>{group.label}</span> : <span className="text-[10px] font-bold">{group.label.slice(0, 1)}</span>}
+          {!collapsed ? (
+            <span className="flex items-center gap-2">
+              <GroupIcon size={15} className="shrink-0" />
+              <span>{group.label}</span>
+            </span>
+          ) : <GroupIcon size={15} />}
           {!collapsed ? (
             <ChevronRight
               size={13}
