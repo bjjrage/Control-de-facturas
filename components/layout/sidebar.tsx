@@ -106,11 +106,11 @@ const GLOBAL_ITEMS: NavItem[] = [
 ];
 
 const OPERATIVO_ITEMS: NavItem[] = [
-  { href: "/projects", label: "Proyectos", roles: ["administracion", "admin"], icon: FolderOpen, minPlan: "pro" },
+  { href: "/projects", label: "Dashboard", roles: ["administracion", "admin"], icon: FolderOpen, minPlan: "pro" },
 ];
 
 const LICITACIONES_ITEMS: NavItem[] = [
-  { href: "/licitaciones", label: "Panel", roles: ["comercial", "administracion", "admin"], icon: Gavel, minPlan: "pro" },
+  { href: "/licitaciones", label: "Dashboard", roles: ["comercial", "administracion", "admin"], icon: Gavel, minPlan: "pro" },
   { href: "/licitaciones/competidores", label: "Competidores", roles: ["comercial", "administracion", "admin"], icon: Radar, minPlan: "pro" },
   { href: "/licitaciones/documentos", label: "Documentos", roles: ["comercial", "administracion", "admin"], icon: FileText, minPlan: "pro" },
   { href: "/licitaciones/auction-bot", label: "Auction Bot", roles: ["comercial", "administracion", "admin"], icon: Bot, minPlan: "pro" },
