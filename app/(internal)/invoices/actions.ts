@@ -62,6 +62,9 @@ export async function createInvoice(formData: FormData) {
   const exchangeRate = num(formData, "exchange_rate");
   const total = num(formData, "total");
   const file = formData.get("file") as File | null;
+  const scannerStoragePath = str(formData, "scanner_storage_path");
+  const scannerFileName = str(formData, "scanner_file_name");
+  const scannerFileSize = num(formData, "scanner_file_size");
 
   if (!providerId || !invoiceNumber || !invoiceDate || !currency) {
     return { error: "Completá proveedor, número, fecha y moneda." };
@@ -72,7 +75,24 @@ export async function createInvoice(formData: FormData) {
   const empresaId = profile.empresa_id;
   let attachmentId: string | null = null;
 
-  if (file && file.size > 0) {
+  if (scannerStoragePath) {
+    // Si proviene de Control Scanner, el PDF ya fue subido y validado en el bucket 'invoice-files'
+    const { data: attachment, error: attachmentError } = await admin
+      .from("attachments")
+      .insert({
+        empresa_id: empresaId,
+        bucket: "invoice-files",
+        path: scannerStoragePath,
+        file_name: scannerFileName || "factura-escaneada.pdf",
+        mime_type: "application/pdf",
+        size_bytes: scannerFileSize || 0,
+        uploaded_by: profile.id,
+      })
+      .select("id")
+      .single();
+    if (attachmentError || !attachment) return { error: "No se pudo registrar el adjunto del escáner." };
+    attachmentId = attachment.id;
+  } else if (file && file.size > 0) {
     if (file.size > MAX_FILE_BYTES) return { error: "El archivo no puede superar los 20MB." };
     const path = `${providerId}/${Date.now()}-${sanitizeFileName(file.name)}`;
     const { error: uploadError } = await admin.storage
