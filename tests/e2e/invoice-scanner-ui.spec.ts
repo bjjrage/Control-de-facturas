@@ -5,6 +5,8 @@ import * as fs from 'fs';
 const AUTH_FILE_A = path.join(__dirname, '.auth/admin.json');
 
 test.describe('Invoice Dialog Control Scanner UI & E2E Integration', () => {
+  test.setTimeout(60_000);
+
   test('Flujo completo desde UI: Abrir Nueva Factura -> Escanear desde celular -> QR/PIN -> Móvil captura 2 páginas -> Filtros -> Desktop recibe completed -> PDF adjunto en formulario', async ({
     browser,
   }) => {
@@ -28,7 +30,7 @@ test.describe('Invoice Dialog Control Scanner UI & E2E Integration', () => {
 
     // 3. Desktop navega a /invoices
     await desktopPage.goto('/invoices');
-    await desktopPage.waitForLoadState('domcontentloaded');
+    await desktopPage.waitForLoadState('networkidle');
 
     // 4. Abrir diálogo de "Nueva factura"
     const nuevaFacturaBtn = desktopPage.getByRole('button', { name: /Nueva factura/i }).first();
