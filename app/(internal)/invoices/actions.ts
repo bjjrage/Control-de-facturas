@@ -62,6 +62,7 @@ export async function createInvoice(formData: FormData) {
   const exchangeRate = num(formData, "exchange_rate");
   const total = num(formData, "total");
   const file = formData.get("file") as File | null;
+  const scannerSessionId = str(formData, "scanner_session_id");
 
   if (!providerId || !invoiceNumber || !invoiceDate || !currency) {
     return { error: "Completá proveedor, número, fecha y moneda." };
@@ -72,7 +73,58 @@ export async function createInvoice(formData: FormData) {
   const empresaId = profile.empresa_id;
   let attachmentId: string | null = null;
 
-  if (file && file.size > 0) {
+  if (scannerSessionId) {
+    // 1. Consultar scan_sessions SERVER-SIDE con admin client restringido al tenant actual
+    const { data: session, error: sessionError } = await admin
+      .from("scan_sessions")
+      .select("id, empresa_id, status, storage_bucket, storage_path, file_name, file_size_bytes, page_count, context_type")
+      .eq("id", scannerSessionId)
+      .eq("empresa_id", empresaId)
+      .eq("status", "completed")
+      .maybeSingle();
+
+    if (
+      sessionError ||
+      !session ||
+      session.context_type !== "invoice" ||
+      session.storage_bucket !== "invoice-files" ||
+      !session.storage_path
+    ) {
+      return { error: "Sesión de Control Scanner inválida o no disponible." };
+    }
+
+    // 2. Anti-replay: verificar que este documento escaneado no haya sido vinculado a otra factura
+    const { data: existingAttachment } = await admin
+      .from("attachments")
+      .select("id")
+      .eq("bucket", session.storage_bucket)
+      .eq("path", session.storage_path)
+      .maybeSingle();
+
+    if (existingAttachment) {
+      return { error: "El documento escaneado ya fue utilizado en otra factura." };
+    }
+
+    // 3. Tomar storage_path, file_name y file_size_bytes EXCLUSIVAMENTE de la fila validada de scan_sessions
+    const { data: attachment, error: attachmentError } = await admin
+      .from("attachments")
+      .insert({
+        empresa_id: empresaId,
+        bucket: session.storage_bucket,
+        path: session.storage_path,
+        file_name: session.file_name || "factura-escaneada.pdf",
+        mime_type: "application/pdf",
+        size_bytes: session.file_size_bytes || 0,
+        uploaded_by: profile.id,
+      })
+      .select("id")
+      .single();
+
+    if (attachmentError || !attachment) {
+      return { error: "No se pudo registrar el adjunto del escáner." };
+    }
+    attachmentId = attachment.id;
+  } else if (file && file.size > 0) {
     if (file.size > MAX_FILE_BYTES) return { error: "El archivo no puede superar los 20MB." };
     const path = `${providerId}/${Date.now()}-${sanitizeFileName(file.name)}`;
     const { error: uploadError } = await admin.storage
@@ -120,6 +172,14 @@ export async function createInvoice(formData: FormData) {
 
   if (error || !invoice) {
     return { error: error?.code === "23505" ? "Ya existe una factura con ese número para este proveedor." : (error?.message ?? "No se pudo crear la factura.") };
+  }
+
+  if (scannerSessionId) {
+    await admin
+      .from("scan_sessions")
+      .update({ context_id: invoice.id })
+      .eq("id", scannerSessionId)
+      .eq("empresa_id", empresaId);
   }
 
   await logAudit(supabase, { action: "invoice.created", invoiceId: invoice.id });
