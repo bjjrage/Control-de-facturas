@@ -35,7 +35,7 @@ export function MetricCard({ card, compact = false }: { card: MetricCardData; co
       href={card.href}
       className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-[var(--panel)] ${
         compact
-          ? "kpi-hover min-h-[118px] p-3.5 sm:min-h-[124px] sm:p-4"
+          ? "kpi-hover h-[100px] max-h-[110px] p-3.5"
           : "min-h-[145px] p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--muted)]/50 hover:shadow-lg sm:min-h-[155px] sm:p-5"
       } ${TONE_RING[card.tone]}`}
     >
@@ -60,13 +60,13 @@ export function MetricCard({ card, compact = false }: { card: MetricCardData; co
             </div>
           ) : null}
         </div>
-        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${compact ? "sm:h-8 sm:w-8" : "transition-transform duration-200 group-hover:scale-105 sm:h-9 sm:w-9"} ${TONE_CLASSES[card.tone]}`}>
-          <Icon size={18} />
+        <div className={`flex shrink-0 items-center justify-center rounded-xl ${compact ? "h-7 w-7" : "h-8 w-8 transition-transform duration-200 group-hover:scale-105 sm:h-9 sm:w-9"} ${TONE_CLASSES[card.tone]}`}>
+          <Icon size={compact ? 15 : 18} />
         </div>
       </div>
 
       <div className="my-1.5 min-w-0">
-        <div className={`truncate font-bold leading-tight tracking-tight text-[var(--foreground)] ${compact ? "text-[18px] sm:text-[20px]" : "text-[20px] sm:text-[23px]"}`}>
+        <div className={`truncate font-bold leading-tight tracking-tight text-[var(--foreground)] ${compact ? "text-[24px]" : "text-[20px] sm:text-[23px]"}`}>
           {card.value}
         </div>
         {card.multiCurrencyExtra ? (

@@ -82,7 +82,7 @@ export default async function ProjectsPage() {
   ];
 
   return (
-    <div className="max-w-none space-y-6">
+    <div className="max-w-none space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="section-accent-operativo text-[12px] font-bold uppercase tracking-widest">Operativo · Obras</h1>
@@ -91,7 +91,7 @@ export default async function ProjectsPage() {
         <NewProjectDialog trigger={<Button>Nueva obra</Button>} />
       </div>
 
-      <div className="grid max-w-5xl gap-3 sm:grid-cols-2">
+      <div className="grid max-w-5xl grid-cols-1 gap-2.5 sm:grid-cols-2 min-[1100px]:grid-cols-3">
         {cards.map((card) => <MetricCard key={card.key} card={card} compact />)}
       </div>
 
