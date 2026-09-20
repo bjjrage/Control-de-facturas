@@ -1,9 +1,18 @@
 #!/usr/bin/env bash
 
-if [ "${VERCEL_GIT_COMMIT_REF:-}" = "main" ]; then
+ref="${VERCEL_GIT_COMMIT_REF:-}"
+
+if [ "$ref" = "main" ]; then
   echo "main detected: proceed with production build"
   exit 1
 fi
 
-echo "non-main branch detected: skip deployment"
+case "$ref" in
+  preview/*)
+    echo "preview branch detected: proceed with preview build"
+    exit 1
+    ;;
+esac
+
+echo "branch '$ref' is not main or preview/*: skip deployment"
 exit 0
