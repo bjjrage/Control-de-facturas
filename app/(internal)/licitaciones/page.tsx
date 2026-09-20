@@ -1,32 +1,19 @@
-import { requireProfile } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
-import type { Licitacion, LicitacionPerfil } from "@/lib/types";
-
+import { MetricGrid } from "@/components/dashboard/metric-card";
+import { getLicitacionesPageData } from "./dashboard-data";
 import { LicitacionesSection } from "./licitaciones-section";
 
 export default async function LicitacionesPage() {
-  await requireProfile(["comercial", "administracion", "admin"]);
-  const supabase = await createClient();
-
-  const [{ data: licitaciones }, { data: perfil }] = await Promise.all([
-    supabase
-      .from("licitaciones")
-      .select(
-        "id, dncp_nro, titulo, comitente_nombre, categoria, monto_referencial, moneda, " +
-          "fecha_entrega_ofertas, fecha_apertura, estado, estado_detalle, invitada, decision, synced_at"
-      )
-      .order("fecha_entrega_ofertas", { ascending: true, nullsFirst: false })
-      .returns<Partial<Licitacion>[]>(),
-    supabase
-      .from("licitacion_perfil")
-      .select("*")
-      .maybeSingle<LicitacionPerfil>(),
-  ]);
+  const data = await getLicitacionesPageData();
 
   return (
-    <LicitacionesSection
-      licitaciones={(licitaciones ?? []) as Partial<Licitacion>[]}
-      perfil={perfil ?? null}
-    />
+    <div className="max-w-none space-y-6">
+      {data.cards.length > 0 ? (
+        <section className="space-y-4">
+          <MetricGrid cards={data.cards} />
+        </section>
+      ) : null}
+
+      <LicitacionesSection licitaciones={data.licitaciones} perfil={data.perfil} />
+    </div>
   );
 }

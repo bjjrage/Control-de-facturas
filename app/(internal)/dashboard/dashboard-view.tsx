@@ -1,62 +1,23 @@
-import { PortfolioTable } from "./portfolio-table";
+import { AttentionPanel } from "@/components/dashboard/attention-panel";
+import { MetricGrid } from "@/components/dashboard/metric-card";
 import { MetricChips } from "./metric-chips";
-import { PanoramaObras } from "./panorama-obras";
-import { DashboardViewData } from "./data";
+import type { DashboardViewData } from "./data";
 
-function SectionHeader({ title }: { title: string }) {
-  const tone =
-    title === "Administración"
-      ? "section-accent-admin"
-      : title === "Licitaciones"
-        ? "section-accent-licitaciones"
-        : "section-accent-operativo";
-  return <h2 className={`text-[11px] font-semibold uppercase tracking-widest mb-2 ${tone}`}>{title}</h2>;
-}
-
-// Composición del resumen ejecutivo — pura presentación a partir de datos ya
-// serializados. La usan tanto page.tsx (carga inicial, server component)
-// como dashboard-section.tsx (navegación instantánea del shell, client
-// component) para que ambas rutas de render se vean siempre idénticas.
-//
-// 3 secciones, una por workspace (Administración/Obras/Licitaciones), cada
-// una con sus propios KPIs indispensables — no un resumen único aplanado
-// que pierde los montos y cantidades que importan de cada área.
 export function DashboardView({ data }: { data: DashboardViewData }) {
-  const { firstName, canUseOperativo, adminKpis, licitacionesKpis, portfolioRows, portfolioTotalCount, panorama } = data;
-
-  const hasAnyContent = adminKpis.length > 0 || (canUseOperativo && panorama) || licitacionesKpis.length > 0;
-
+  const { adminCards, adminKpis, attentionAlerts } = data;
   return (
-    <div className="max-w-none space-y-6">
-      {!hasAnyContent ? (
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 text-[13px] text-[var(--muted)]">
-          Todavía no hay datos suficientes para mostrar el resumen ejecutivo.
-        </div>
-      ) : null}
-
-      {adminKpis.length > 0 ? (
+    <div className="max-w-none space-y-5">
+      <div className="flex items-baseline justify-between gap-3">
         <div>
-          <SectionHeader title="Administración" />
-          <MetricChips chips={adminKpis} />
+          <h1 className="section-accent-admin text-[12px] font-bold uppercase tracking-widest">Administración</h1>
+          <p className="mt-1 text-[13px] text-[var(--muted)]">Salud financiera y administrativa de la empresa</p>
         </div>
-      ) : null}
+        <span className="text-[11px] text-[var(--muted)]">8 KPIs ejecutivos · Datos reales ERP</span>
+      </div>
 
-      {licitacionesKpis.length > 0 ? (
-        <div>
-          <SectionHeader title="Licitaciones" />
-          <MetricChips chips={licitacionesKpis} />
-        </div>
-      ) : null}
+      {adminCards.length > 0 ? <MetricGrid cards={adminCards} /> : <MetricChips chips={adminKpis} />}
 
-      {canUseOperativo && panorama ? (
-        <div>
-          <SectionHeader title="Obras" />
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)] gap-4 items-stretch">
-            <PortfolioTable rows={portfolioRows} totalCount={portfolioTotalCount} />
-            <PanoramaObras data={panorama} />
-          </div>
-        </div>
-      ) : null}
+      {attentionAlerts.length > 0 ? <AttentionPanel alerts={attentionAlerts} /> : null}
     </div>
   );
 }

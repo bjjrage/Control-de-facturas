@@ -1,149 +1,125 @@
-import { requirePlan } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
-import { Project } from "@/lib/types";
+import { MetricCard } from "@/components/dashboard/metric-card";
 import { formatMoney } from "@/lib/format";
-import { NewProjectDialog } from "./new-project-dialog";
-import { ProjectsChart } from "./projects-chart";
-import { ProjectsList } from "./projects-list";
 import { Button } from "@/components/ui/button";
-
+import { NewProjectDialog } from "./new-project-dialog";
+import { PortfolioPreview } from "./portfolio-preview";
+import { ProjectsChart } from "./projects-chart";
+import { getProjectsPortfolioData } from "./portfolio-data";
+import type { MetricCardData } from "@/lib/dashboard/types";
 
 export default async function ProjectsPage() {
-  const profile = await requirePlan("pro", ["administracion", "admin"]);
-  const supabase = await createClient();
-  const empresaId = profile.empresa_id;
+  const data = await getProjectsPortfolioData();
+  const { panorama } = data;
+  const obrasEnAtencionRiesgo = panorama.estadoBreakdown.atencion + panorama.estadoBreakdown.riesgo;
 
-  const { data: projects } = await supabase
-    .from("projects")
-    .select("*")
-    .eq("empresa_id", empresaId)
-    .order("created_at", { ascending: false })
-    .returns<Project[]>();
-
-  const list = projects ?? [];
-  const projectIds = list.map((p) => p.id);
-  const isCaterpillar = profile.plan === "caterpillar";
-
-  const [{ data: budgetItems }, { data: orders }, { data: execEntries }, { count: certCount }] = await Promise.all([
-    projectIds.length > 0
-      ? supabase.from("budget_items").select("project_id, quantity, subtotal").in("project_id", projectIds)
-      : Promise.resolve({ data: [] }),
-    projectIds.length > 0
-      ? supabase
-          .from("authorized_orders")
-          .select("project_id, total_price, currency")
-          .in("project_id", projectIds)
-          .eq("currency", "PYG")
-      : Promise.resolve({ data: [] }),
-    projectIds.length > 0
-      ? supabase.from("execution_entries").select("project_id, budget_item_id, quantity_executed").in("project_id", projectIds)
-      : Promise.resolve({ data: [] }),
-    isCaterpillar && projectIds.length > 0
-      ? supabase.from("subcontractor_certificates").select("id", { count: "exact", head: true }).in("project_id", projectIds).eq("status", "PENDIENTE")
-      : Promise.resolve({ data: null, count: 0 }),
-  ]);
-
-  const subtotalByProject = new Map<string, number>();
-  const budgetQtyByProject = new Map<string, number>();
-  for (const b of budgetItems ?? []) {
-    const pid = b.project_id as string;
-    subtotalByProject.set(pid, (subtotalByProject.get(pid) ?? 0) + (b.subtotal as number));
-    if (b.quantity != null) {
-      budgetQtyByProject.set(pid, (budgetQtyByProject.get(pid) ?? 0) + (b.quantity as number));
-    }
-  }
-
-  const comprasByProject = new Map<string, number>();
-  for (const o of orders ?? []) {
-    const pid = o.project_id as string | null;
-    if (!pid) continue;
-    comprasByProject.set(pid, (comprasByProject.get(pid) ?? 0) + (o.total_price as number));
-  }
-
-  const execQtyByProject = new Map<string, number>();
-  for (const e of execEntries ?? []) {
-    const pid = e.project_id as string;
-    execQtyByProject.set(pid, (execQtyByProject.get(pid) ?? 0) + (e.quantity_executed as number));
-  }
-
-  const rows = list.map((p) => {
-    const presupuesto = Math.max(p.budget_total, subtotalByProject.get(p.id) ?? 0);
-    const compras = comprasByProject.get(p.id) ?? 0;
-    const budgetQty = budgetQtyByProject.get(p.id) ?? 0;
-    const execQty = execQtyByProject.get(p.id) ?? 0;
-    const avancePct = budgetQty > 0 ? Math.min(100, Math.round((execQty / budgetQty) * 100)) : 0;
-    const comprasPct = presupuesto > 0 ? Math.round((compras / presupuesto) * 100) : 0;
-    const enAlerta = comprasPct > 100;
-    return { project: p, presupuesto, compras, comprasPct, avancePct, enAlerta };
-  });
-
-  const certificadosPendientes = certCount ?? 0;
-
-  const proyectosActivos = list.filter((p) => p.status === "ACTIVO").length;
-  const presupuestoTotal = rows.reduce((s, r) => s + r.presupuesto, 0);
-  const comprasTotal = rows.reduce((s, r) => s + r.compras, 0);
-  const proyectosEnAlerta = rows.filter((r) => r.enAlerta).length;
-  const avanceProyectos = rows.filter((r) => r.project.status === "ACTIVO");
-  const avancePromedio =
-    avanceProyectos.length > 0
-      ? Math.round(avanceProyectos.reduce((s, r) => s + r.avancePct, 0) / avanceProyectos.length)
-      : 0;
-
-  const chartData = rows
-    .filter((r) => r.presupuesto > 0 || r.compras > 0)
-    .map((r) => ({ name: r.project.code, presupuesto: r.presupuesto, compras: r.compras }));
+  const cards: MetricCardData[] = [
+    {
+      key: "obras-activas",
+      title: "Obras activas",
+      value: String(panorama.obrasActivas),
+      secondaryText: `${panorama.estadoBreakdown.atencion} en atención · ${panorama.estadoBreakdown.riesgo} en riesgo`,
+      trendText: "Cartera en ejecución",
+      trendTone: obrasEnAtencionRiesgo > 0 ? "down" : "up",
+      href: "/projects#portfolio",
+      iconKey: "hardhat",
+      tone: obrasEnAtencionRiesgo > 0 ? "warn" : "ok",
+    },
+    {
+      key: "cartera-activa",
+      title: "Cartera activa",
+      value: formatMoney(panorama.carteraActivaPyg, "PYG"),
+      secondaryText: "Presupuesto de obras activas",
+      trendText: `${panorama.obrasActivas} obras activas`,
+      trendTone: "neutral",
+      href: "/projects#portfolio",
+      iconKey: "scale",
+      tone: "ok",
+    },
+    {
+      key: "avance-fisico-ponderado",
+      title: "Avance físico ponderado",
+      value: `${panorama.avanceFisicoPonderado}%`,
+      secondaryText: "Ponderado por presupuesto",
+      trendText: "Ejecución en campo",
+      trendTone: "neutral",
+      href: "/projects#portfolio",
+      iconKey: "trending-up",
+      tone: "ok",
+    },
+    {
+      key: "desvios-plazo",
+      title: "Desvíos de plazo",
+      value: String(panorama.desviosPlazo),
+      secondaryText: "Obras activas atrasadas",
+      trendText: panorama.desviosPlazo > 0 ? "Revisar cronograma" : "En plazo",
+      trendTone: panorama.desviosPlazo > 0 ? "down" : "up",
+      href: "/projects#portfolio",
+      iconKey: "calendar-clock",
+      tone: panorama.desviosPlazo > 0 ? "warn" : "ok",
+    },
+    {
+      key: "desvios-costo",
+      title: "Desvíos de costo",
+      value: String(panorama.desviosCosto),
+      secondaryText: "Compras por encima del presupuesto",
+      trendText: panorama.desviosCosto > 0 ? "Revisar compras" : "Sin desvíos",
+      trendTone: panorama.desviosCosto > 0 ? "down" : "up",
+      href: "/projects#portfolio",
+      iconKey: "dollar-sign",
+      tone: panorama.desviosCosto > 0 ? "error" : "ok",
+    },
+    {
+      key: "compras-realizadas",
+      title: "Compras realizadas",
+      value: formatMoney(panorama.comprasRealizadasPyg, "PYG"),
+      secondaryText: `${panorama.ordenesCompra} OC autorizadas`,
+      trendText: "InversiÃ³n ejecutada",
+      trendTone: "neutral",
+      href: "/projects#portfolio",
+      iconKey: "shopping-cart",
+      tone: "ok",
+    },
+    {
+      key: "stock-critico",
+      title: "Stock crÃ­tico",
+      value: String(panorama.productosStockMinimo),
+      secondaryText: "Productos bajo mÃ­nimo",
+      trendText: panorama.productosStockMinimo > 0 ? "Requiere reposiciÃ³n" : "Stock controlado",
+      trendTone: panorama.productosStockMinimo > 0 ? "down" : "up",
+      href: "/stock",
+      iconKey: "boxes",
+      tone: panorama.productosStockMinimo > 0 ? "warn" : "ok",
+    },
+    {
+      key: "certificados-pendientes",
+      title: "Certificados pendientes",
+      value: String(panorama.certificadosPendientes),
+      secondaryText: "Pendientes de certificaciÃ³n",
+      trendText: panorama.certificadosPendientes > 0 ? "Requiere gestiÃ³n" : "Al dÃ­a",
+      trendTone: panorama.certificadosPendientes > 0 ? "down" : "up",
+      href: "/projects#portfolio",
+      iconKey: "file-check",
+      tone: panorama.certificadosPendientes > 0 ? "warn" : "ok",
+    },
+  ];
 
   return (
-    <div className="max-w-6xl space-y-5">
-      <div className="flex items-center justify-between">
+    <div className="max-w-none space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-[17px] font-semibold">Proyectos</h1>
-          <p className="text-[13px] text-[var(--muted)] mt-0.5">
-            {list.length} proyecto{list.length !== 1 ? "s" : ""}
-          </p>
+          <h1 className="section-accent-operativo text-[12px] font-bold uppercase tracking-widest">Operativo · Obras</h1>
+          <p className="mt-1 text-[13px] text-[var(--muted)]">Seguimiento ejecutivo de la cartera de obras</p>
         </div>
-        <NewProjectDialog trigger={<Button>Nuevo proyecto</Button>} />
+        <NewProjectDialog trigger={<Button>Nueva obra</Button>} />
       </div>
 
-      <div className={`grid gap-3 ${isCaterpillar ? "grid-cols-5" : "grid-cols-4"}`}>
-        <div className="kpi-hover rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
-          <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Proyectos activos</div>
-          <div className="text-[22px] font-bold mt-1">{proyectosActivos}</div>
-          {proyectosEnAlerta > 0 ? (
-            <div className="text-[11px] text-[var(--error)] mt-0.5">{proyectosEnAlerta} en alerta</div>
-          ) : null}
-        </div>
-        <div className="kpi-hover rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
-          <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Presupuesto total</div>
-          <div className="text-[16px] font-bold mt-1">{formatMoney(presupuestoTotal, "PYG")}</div>
-          <div className="text-[11px] text-[var(--muted)] mt-0.5">todos los proyectos</div>
-        </div>
-        <div className="kpi-hover rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
-          <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Compras realizadas</div>
-          <div className="text-[16px] font-bold mt-1">{formatMoney(comprasTotal, "PYG")}</div>
-          <div className="text-[11px] text-[var(--muted)] mt-0.5">
-            {presupuestoTotal > 0 ? Math.round((comprasTotal / presupuestoTotal) * 100) : 0}% del total
-          </div>
-        </div>
-        <div className="kpi-hover rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
-          <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Avance promedio</div>
-          <div className="text-[22px] font-bold mt-1 text-[var(--ok)]">{avancePromedio}%</div>
-          <div className="text-[11px] text-[var(--muted)] mt-0.5">ejecución en campo</div>
-        </div>
-        {isCaterpillar ? (
-          <div className="kpi-hover rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
-            <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Certificados pendientes</div>
-            <div className={`text-[22px] font-bold mt-1 ${certificadosPendientes > 0 ? "text-[var(--warn)]" : ""}`}>
-              {certificadosPendientes}
-            </div>
-            <div className="text-[11px] text-[var(--muted)] mt-0.5">de aprobación</div>
-          </div>
-        ) : null}
+      <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-4">
+        {cards.map((card) => <MetricCard key={card.key} card={card} compact />)}
       </div>
 
-      <ProjectsList rows={rows} />
+      <ProjectsChart data={data.chartData} />
 
-      {chartData.length > 0 ? <ProjectsChart data={chartData} /> : null}
+      <PortfolioPreview rows={data.rows} />
     </div>
   );
 }
