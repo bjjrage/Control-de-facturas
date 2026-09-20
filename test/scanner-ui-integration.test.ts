@@ -44,6 +44,9 @@ const mockAttachmentsInserted: any[] = [];
 const mockInvoicesInserted: any[] = [];
 const mockStorageUploadCalls: any[] = [];
 
+let mockInvoiceInsertError: { code?: string; message?: string } | null = null;
+let simulateToctouSelectRace: boolean = false;
+
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: () => ({
     storage: {
@@ -61,6 +64,7 @@ vi.mock('@/lib/supabase/admin', () => ({
     from: (table: string) => {
       const filters: { [key: string]: any } = {};
       let updatePayload: any = null;
+      let isDelete = false;
 
       const builder: any = {
         select: () => builder,
@@ -72,8 +76,30 @@ vi.mock('@/lib/supabase/admin', () => ({
           updatePayload = payload;
           return builder;
         },
+        delete: () => {
+          isDelete = true;
+          return builder;
+        },
         insert: (data: any) => {
           if (table === 'attachments') {
+            // Simular constraint UNIQUE sobre (bucket, path) respaldado por índice Postgres
+            const duplicate = mockAttachmentsInserted.find(
+              (a) => a.bucket === data.bucket && a.path === data.path
+            );
+            if (duplicate) {
+              return {
+                select: () => ({
+                  single: async () => ({
+                    data: null,
+                    error: {
+                      code: '23505',
+                      message: 'duplicate key value violates unique constraint "idx_attachments_bucket_path_unique"',
+                    },
+                  }),
+                }),
+              };
+            }
+
             const inserted = { id: 'att-' + Math.random().toString(36).slice(2, 8), ...data };
             mockAttachmentsInserted.push(inserted);
             return {
@@ -99,6 +125,10 @@ vi.mock('@/lib/supabase/admin', () => ({
             return { data: match || null, error: null };
           }
           if (table === 'attachments') {
+            if (simulateToctouSelectRace) {
+              // Simular que dos llamadas concurrentes leen antes de que la otra haya insertado
+              return { data: null, error: null };
+            }
             const match = mockAttachmentsInserted.find((a) => {
               for (const [k, v] of Object.entries(filters)) {
                 if ((a as any)[k] !== v) return false;
@@ -133,6 +163,17 @@ vi.mock('@/lib/supabase/admin', () => ({
               Object.assign(match, updatePayload);
             }
           }
+          if (isDelete && table === 'attachments') {
+            const idx = mockAttachmentsInserted.findIndex((a) => {
+              for (const [k, v] of Object.entries(filters)) {
+                if ((a as any)[k] !== v) return false;
+              }
+              return true;
+            });
+            if (idx !== -1) {
+              mockAttachmentsInserted.splice(idx, 1);
+            }
+          }
           return Promise.resolve({ data: null, error: null }).then(resolve, reject);
         },
       };
@@ -146,6 +187,14 @@ vi.mock('@/lib/supabase/server', () => ({
     from: (table: string) => ({
       insert: (data: any) => {
         if (table === 'invoices') {
+          if (mockInvoiceInsertError) {
+            return {
+              select: () => ({
+                single: async () => ({ data: null, error: mockInvoiceInsertError }),
+              }),
+            };
+          }
+
           const inserted = { id: 'inv-' + Math.random().toString(36).slice(2, 8), ...data };
           mockInvoicesInserted.push(inserted);
           return {
@@ -170,6 +219,8 @@ describe('Control Scanner - Invoice UI Integration & Zero-Duplicate Upload', () 
     mockAttachmentsInserted.length = 0;
     mockInvoicesInserted.length = 0;
     mockStorageUploadCalls.length = 0;
+    mockInvoiceInsertError = null;
+    simulateToctouSelectRace = false;
     vi.clearAllMocks();
   });
 
@@ -356,6 +407,114 @@ describe('Control Scanner - Invoice UI Integration & Zero-Duplicate Upload', () 
     // No se creó ningún segundo attachment ni segunda factura
     expect(mockAttachmentsInserted.length).toBe(1);
     expect(mockInvoicesInserted.length).toBe(1);
+  });
+
+  it('previene carreras concurrentes TOCTOU mediante error 23505 respaldado por el unique index', async () => {
+    mockScanSessions.push({
+      id: 'session-concurrent-race',
+      empresa_id: 'empresa-tenant-111',
+      status: 'completed',
+      context_type: 'invoice',
+      storage_bucket: 'invoice-files',
+      storage_path: 'empresa-tenant-111/scans/session-concurrent-race/factura.pdf',
+      file_name: 'factura.pdf',
+      file_size_bytes: 250000,
+    });
+
+    const buildForm = (invNum: string) => {
+      const fd = new FormData();
+      fd.set('provider_id', 'provider-abc-123');
+      fd.set('invoice_number', invNum);
+      fd.set('invoice_date', '2026-09-20');
+      fd.set('currency', 'PYG');
+      fd.set('total', '150000');
+      fd.set('scanner_session_id', 'session-concurrent-race');
+      return fd;
+    };
+
+    // Simulamos la carrera TOCTOU: ambas requests pasan el SELECT preliminar antes de insertar
+    simulateToctouSelectRace = true;
+
+    const [res1, res2] = await Promise.all([
+      createInvoice(buildForm('001-001-0008881')),
+      createInvoice(buildForm('001-001-0008882')),
+    ]);
+
+    // Exactamente una debe tener éxito y la otra debe ser rechazada por 23505
+    const successes = [res1, res2].filter((r) => r.error === null);
+    const rejections = [res1, res2].filter((r) => r.error === 'El documento escaneado ya fue utilizado en otra factura.');
+
+    expect(successes.length).toBe(1);
+    expect(rejections.length).toBe(1);
+    expect(mockAttachmentsInserted.length).toBe(1);
+    expect(mockInvoicesInserted.length).toBe(1);
+  });
+
+  it('elimina el attachment huérfano si la inserción de factura falla, permitiendo reusar la sesión', async () => {
+    mockScanSessions.push({
+      id: 'session-rollback-test',
+      empresa_id: 'empresa-tenant-111',
+      status: 'completed',
+      context_type: 'invoice',
+      storage_bucket: 'invoice-files',
+      storage_path: 'empresa-tenant-111/scans/session-rollback-test/factura.pdf',
+      file_name: 'factura.pdf',
+      file_size_bytes: 180000,
+    });
+
+    const formDataFail = new FormData();
+    formDataFail.set('provider_id', 'provider-abc-123');
+    formDataFail.set('invoice_number', '001-001-0009991');
+    formDataFail.set('invoice_date', '2026-09-20');
+    formDataFail.set('currency', 'PYG');
+    formDataFail.set('total', '150000');
+    formDataFail.set('scanner_session_id', 'session-rollback-test');
+
+    // Forzamos fallo en el insert de factura (ej. error 23505 de número de factura duplicado)
+    mockInvoiceInsertError = { code: '23505', message: 'duplicate key invoice_number' };
+
+    const failResult = await createInvoice(formDataFail);
+    expect(failResult.error).toBe('Ya existe una factura con ese número para este proveedor.');
+
+    // Atomicidad: El attachment recién insertado debe haber sido limpiado (0 huérfanos)
+    expect(mockAttachmentsInserted.length).toBe(0);
+    expect(mockInvoicesInserted.length).toBe(0);
+
+    // Reintento: Corregido el número de factura, la misma sesión de escaneo debe poder utilizarse con éxito
+    mockInvoiceInsertError = null;
+
+    const formDataSuccess = new FormData();
+    formDataSuccess.set('provider_id', 'provider-abc-123');
+    formDataSuccess.set('invoice_number', '001-001-0009992');
+    formDataSuccess.set('invoice_date', '2026-09-20');
+    formDataSuccess.set('currency', 'PYG');
+    formDataSuccess.set('total', '150000');
+    formDataSuccess.set('scanner_session_id', 'session-rollback-test');
+
+    const successResult = await createInvoice(formDataSuccess);
+    expect(successResult.error).toBeNull();
+    expect(mockAttachmentsInserted.length).toBe(1);
+    expect(mockInvoicesInserted.length).toBe(1);
+    expect(mockAttachmentsInserted[0].path).toBe('empresa-tenant-111/scans/session-rollback-test/factura.pdf');
+  });
+
+  it('verifica que la migración idx_attachments_bucket_path_unique existe y define el índice UNIQUE', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const migrationPath = path.resolve(
+      process.cwd(),
+      'supabase/migrations/20260920060000_attachments_unique_storage_object.sql'
+    );
+
+    expect(fs.existsSync(migrationPath)).toBe(true);
+    const content = fs.readFileSync(migrationPath, 'utf8');
+
+    // Debe contener el chequeo de duplicados históricos antes de crear el índice
+    expect(content).toContain('v_duplicate_count');
+    expect(content).toContain('having count(*) > 1');
+
+    // Debe contener el unique index sobre (bucket, path)
+    expect(content).toMatch(/create unique index if not exists idx_attachments_bucket_path_unique\s+on public\.attachments\s*\(bucket,\s*path\)/i);
   });
 
   it('mantiene la ruta tradicional de subida manual si no hay scanner_storage_path', async () => {

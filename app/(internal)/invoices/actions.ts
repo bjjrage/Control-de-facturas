@@ -72,6 +72,7 @@ export async function createInvoice(formData: FormData) {
   const admin = createAdminClient();
   const empresaId = profile.empresa_id;
   let attachmentId: string | null = null;
+  let newlyCreatedScannerAttachmentId: string | null = null;
 
   if (scannerSessionId) {
     // 1. Consultar scan_sessions SERVER-SIDE con admin client restringido al tenant actual
@@ -93,7 +94,7 @@ export async function createInvoice(formData: FormData) {
       return { error: "Sesión de Control Scanner inválida o no disponible." };
     }
 
-    // 2. Anti-replay: verificar que este documento escaneado no haya sido vinculado a otra factura
+    // 2. Anti-replay: verificación preliminar amigable
     const { data: existingAttachment } = await admin
       .from("attachments")
       .select("id")
@@ -106,6 +107,7 @@ export async function createInvoice(formData: FormData) {
     }
 
     // 3. Tomar storage_path, file_name y file_size_bytes EXCLUSIVAMENTE de la fila validada de scan_sessions
+    // El unique index idx_attachments_bucket_path_unique garantiza atomicidad contra carreras TOCTOU concurrentes (error 23505)
     const { data: attachment, error: attachmentError } = await admin
       .from("attachments")
       .insert({
@@ -120,10 +122,18 @@ export async function createInvoice(formData: FormData) {
       .select("id")
       .single();
 
-    if (attachmentError || !attachment) {
+    if (attachmentError) {
+      if (attachmentError.code === "23505") {
+        return { error: "El documento escaneado ya fue utilizado en otra factura." };
+      }
+      return { error: "No se pudo registrar el adjunto del escáner." };
+    }
+
+    if (!attachment) {
       return { error: "No se pudo registrar el adjunto del escáner." };
     }
     attachmentId = attachment.id;
+    newlyCreatedScannerAttachmentId = attachment.id;
   } else if (file && file.size > 0) {
     if (file.size > MAX_FILE_BYTES) return { error: "El archivo no puede superar los 20MB." };
     const path = `${providerId}/${Date.now()}-${sanitizeFileName(file.name)}`;
@@ -171,6 +181,17 @@ export async function createInvoice(formData: FormData) {
     .single();
 
   if (error || !invoice) {
+    // Si la creación de la factura falla y habíamos creado un attachment de escáner en esta ejecución,
+    // limpiamos el registro huérfano en attachments para preservar atomicidad y permitir reintento.
+    // NUNCA borramos el objeto de Storage.
+    if (newlyCreatedScannerAttachmentId) {
+      await admin
+        .from("attachments")
+        .delete()
+        .eq("id", newlyCreatedScannerAttachmentId)
+        .eq("empresa_id", empresaId);
+    }
+
     return { error: error?.code === "23505" ? "Ya existe una factura con ese número para este proveedor." : (error?.message ?? "No se pudo crear la factura.") };
   }
 
