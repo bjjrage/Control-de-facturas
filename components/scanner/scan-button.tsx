@@ -9,6 +9,7 @@ interface ScanButtonProps {
   contextType?: string;
   contextId?: string | null;
   targetField?: string | null;
+  metadata?: Record<string, unknown>;
   onDocumentReceived?: (doc: ReceivedDocument) => void;
   className?: string;
   variant?: "primary" | "secondary" | "ghost";
@@ -19,6 +20,7 @@ export function ScanButton({
   contextType = "general",
   contextId = null,
   targetField = null,
+  metadata,
   onDocumentReceived,
   className,
   variant = "secondary",
@@ -48,6 +50,7 @@ export function ScanButton({
         contextType={contextType}
         contextId={contextId}
         targetField={targetField}
+        metadata={metadata}
         onDocumentReceived={onDocumentReceived}
       />
     </>
