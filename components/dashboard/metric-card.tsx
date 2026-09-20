@@ -33,10 +33,10 @@ export function MetricCard({ card, compact = false }: { card: MetricCardData; co
   return (
     <Link
       href={card.href}
-      className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-[var(--panel)] ${
+      className={`group kpi-hover relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-[var(--panel)] ${
         compact
-          ? "kpi-hover h-[100px] max-h-[110px] p-3.5"
-          : "min-h-[145px] p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--muted)]/50 hover:shadow-lg sm:min-h-[155px] sm:p-5"
+          ? "h-[100px] max-h-[110px] p-3.5"
+          : "min-h-[145px] p-4 sm:min-h-[155px] sm:p-5"
       } ${TONE_RING[card.tone]}`}
     >
       <div className="flex items-start justify-between gap-2">
@@ -60,7 +60,7 @@ export function MetricCard({ card, compact = false }: { card: MetricCardData; co
             </div>
           ) : null}
         </div>
-        <div className={`flex shrink-0 items-center justify-center rounded-xl ${compact ? "h-7 w-7" : "h-8 w-8 transition-transform duration-200 group-hover:scale-105 sm:h-9 sm:w-9"} ${TONE_CLASSES[card.tone]}`}>
+        <div className={`flex shrink-0 items-center justify-center rounded-xl ${compact ? "h-7 w-7" : "h-8 w-8 sm:h-9 sm:w-9"} ${TONE_CLASSES[card.tone]}`}>
           <Icon size={compact ? 15 : 18} />
         </div>
       </div>
@@ -93,7 +93,7 @@ export function MetricCard({ card, compact = false }: { card: MetricCardData; co
         </div>
 
         {hasSparkline ? (
-          <div className={`${compact ? "h-7 w-16 opacity-70 transition-opacity group-hover:opacity-90" : "h-8 w-20 opacity-70 transition-opacity group-hover:opacity-100"} shrink-0`}>
+          <div className={`${compact ? "h-7 w-16" : "h-8 w-20"} shrink-0 opacity-70 transition-opacity group-hover:opacity-90`}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={card.sparkline}>
                 <defs>
