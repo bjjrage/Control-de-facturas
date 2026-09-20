@@ -13,6 +13,7 @@ export default async function ProjectsPage() {
   const data = await getProjectsPortfolioData();
   const { panorama } = data;
   const obrasEnAtencionRiesgo = panorama.estadoBreakdown.atencion + panorama.estadoBreakdown.riesgo;
+  const certificadosPendientes = data.attentionAlerts.find((alert) => alert.id === "certificados-pendientes")?.count ?? 0;
 
   const cards: MetricCardData[] = [
     {
@@ -93,13 +94,13 @@ export default async function ProjectsPage() {
         <NewProjectDialog trigger={<Button>Nueva obra</Button>} />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {cards.map((card) => <MetricCard key={card.key} card={card} />)}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+        {cards.map((card) => <MetricCard key={card.key} card={card} compact />)}
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)]">
         <PortfolioTable rows={data.rows} />
-        <PanoramaObras data={panorama} />
+        <PanoramaObras data={panorama} certificadosPendientes={certificadosPendientes} />
       </div>
 
       {data.attentionAlerts.length > 0 ? <AttentionPanel alerts={data.attentionAlerts} title="Requiere atención · Obras" /> : null}

@@ -1,7 +1,7 @@
 "use client";
 
 import { Pie, PieChart, Cell } from "recharts";
-import { AlertTriangle, Boxes, Clock, ShoppingCart } from "lucide-react";
+import { Boxes, FileCheck2, ShoppingCart } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import type { PortfolioPanorama } from "@/lib/dashboard/portfolio";
 
@@ -11,8 +11,8 @@ const ESTADO_COLORS = {
   riesgo: "#f2685c",
 } as const;
 
-export function PanoramaObras({ data }: { data: PortfolioPanorama }) {
-  const { obrasActivas, carteraActivaPyg, comprasRealizadasPyg, productosStockMinimo, desviosCosto, desviosPlazo, avanceFisicoPonderado, estadoBreakdown } = data;
+export function PanoramaObras({ data, certificadosPendientes = 0 }: { data: PortfolioPanorama; certificadosPendientes?: number }) {
+  const { obrasActivas, comprasRealizadasPyg, productosStockMinimo, estadoBreakdown } = data;
   const donutData = [
     { key: "normal", value: estadoBreakdown.normal, color: ESTADO_COLORS.normal },
     { key: "atencion", value: estadoBreakdown.atencion, color: ESTADO_COLORS.atencion },
@@ -36,29 +36,27 @@ export function PanoramaObras({ data }: { data: PortfolioPanorama }) {
           </div>
         </div>
         <div className="min-w-0 flex-1 space-y-1.5">
-          <div className="truncate text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">Cartera activa</div>
-          <div className="truncate text-[17px] font-semibold leading-none">{formatMoney(carteraActivaPyg, "PYG")}</div>
-          <div className="text-[11px] text-[var(--muted)]">Avance físico ponderado: {avanceFisicoPonderado}%</div>
+          <div className="truncate text-[10px] font-semibold uppercase tracking-widest text-[var(--muted)]">Panorama operativo</div>
+          <div className="text-[15px] font-semibold leading-tight">Estado de cartera</div>
+          <div className="text-[11px] text-[var(--muted)]">Distribución de salud de las obras activas</div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <div className="kpi-hover flex items-center gap-2 rounded-lg bg-[var(--panel-2)] p-2.5">
-          <AlertTriangle size={14} className="shrink-0 text-[var(--error)]" />
-          <div><div className="text-[14px] font-semibold leading-none">{desviosCosto}</div><div className="mt-0.5 text-[10px] text-[var(--muted)]">Desvíos de costo</div></div>
-        </div>
-        <div className="kpi-hover flex items-center gap-2 rounded-lg bg-[var(--panel-2)] p-2.5">
-          <Clock size={14} className="shrink-0 text-[var(--warn)]" />
-          <div><div className="text-[14px] font-semibold leading-none">{desviosPlazo}</div><div className="mt-0.5 text-[10px] text-[var(--muted)]">Desvíos de plazo</div></div>
-        </div>
-        <div className="kpi-hover flex items-center gap-2 rounded-lg bg-[var(--panel-2)] p-2.5">
+      <div className="grid gap-2">
+        <div className="flex items-center gap-2 rounded-lg bg-[var(--panel-2)] p-2.5">
           <ShoppingCart size={14} className="shrink-0 text-[var(--primary)]" />
           <div><div className="truncate text-[14px] font-semibold leading-none">{formatMoney(comprasRealizadasPyg, "PYG")}</div><div className="mt-0.5 text-[10px] text-[var(--muted)]">Compras realizadas</div></div>
         </div>
-        <div className="kpi-hover flex items-center gap-2 rounded-lg bg-[var(--panel-2)] p-2.5">
+        <div className="flex items-center gap-2 rounded-lg bg-[var(--panel-2)] p-2.5">
           <Boxes size={14} className="shrink-0 text-[var(--warn)]" />
           <div><div className="text-[14px] font-semibold leading-none">{productosStockMinimo}</div><div className="mt-0.5 text-[10px] text-[var(--muted)]">Bajo stock mínimo</div></div>
         </div>
+        {certificadosPendientes > 0 ? (
+          <div className="flex items-center gap-2 rounded-lg bg-[var(--panel-2)] p-2.5">
+            <FileCheck2 size={14} className="shrink-0 text-[var(--warn)]" />
+            <div><div className="text-[14px] font-semibold leading-none">{certificadosPendientes}</div><div className="mt-0.5 text-[10px] text-[var(--muted)]">Certificados pendientes</div></div>
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-4 border-t border-[var(--border)] pt-3">

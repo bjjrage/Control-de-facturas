@@ -26,14 +26,18 @@ const TREND_TONE_CLASSES: Record<"up" | "down" | "neutral", string> = {
   neutral: "text-[var(--muted)] bg-[var(--hover)]",
 };
 
-export function MetricCard({ card }: { card: MetricCardData }) {
+export function MetricCard({ card, compact = false }: { card: MetricCardData; compact?: boolean }) {
   const Icon = DASHBOARD_ICONS[card.iconKey] ?? DASHBOARD_ICONS.receipt;
   const hasSparkline = card.sparkline && card.sparkline.length > 1;
 
   return (
     <Link
       href={card.href}
-      className={`group relative flex min-h-[145px] flex-col justify-between overflow-hidden rounded-2xl border bg-[var(--panel)] p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--muted)]/50 hover:shadow-lg sm:min-h-[155px] sm:p-5 ${TONE_RING[card.tone]}`}
+      className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-[var(--panel)] ${
+        compact
+          ? "kpi-hover min-h-[118px] p-3.5 sm:min-h-[124px] sm:p-4"
+          : "min-h-[145px] p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--muted)]/50 hover:shadow-lg sm:min-h-[155px] sm:p-5"
+      } ${TONE_RING[card.tone]}`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5">
@@ -56,13 +60,13 @@ export function MetricCard({ card }: { card: MetricCardData }) {
             </div>
           ) : null}
         </div>
-        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-105 sm:h-9 sm:w-9 ${TONE_CLASSES[card.tone]}`}>
+        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${compact ? "sm:h-8 sm:w-8" : "transition-transform duration-200 group-hover:scale-105 sm:h-9 sm:w-9"} ${TONE_CLASSES[card.tone]}`}>
           <Icon size={18} />
         </div>
       </div>
 
       <div className="my-1.5 min-w-0">
-        <div className="truncate text-[20px] font-bold leading-tight tracking-tight text-[var(--foreground)] sm:text-[23px]">
+        <div className={`truncate font-bold leading-tight tracking-tight text-[var(--foreground)] ${compact ? "text-[18px] sm:text-[20px]" : "text-[20px] sm:text-[23px]"}`}>
           {card.value}
         </div>
         {card.multiCurrencyExtra ? (
@@ -89,7 +93,7 @@ export function MetricCard({ card }: { card: MetricCardData }) {
         </div>
 
         {hasSparkline ? (
-          <div className="h-8 w-20 shrink-0 opacity-70 transition-opacity group-hover:opacity-100">
+          <div className={`${compact ? "h-7 w-16 opacity-70 transition-opacity group-hover:opacity-90" : "h-8 w-20 opacity-70 transition-opacity group-hover:opacity-100"} shrink-0`}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={card.sparkline}>
                 <defs>

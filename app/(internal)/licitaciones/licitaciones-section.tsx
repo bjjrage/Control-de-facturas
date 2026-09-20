@@ -54,47 +54,35 @@ export function LicitacionesSection({
     return licitaciones.filter((l) => l.decision === filtro);
   }, [licitaciones, filtro]);
 
-  const invitadas = licitaciones.filter((l) => l.invitada).length;
-
   return (
-    <div className="max-w-6xl space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3 mt-1">
-        <div>
-          <h1 className="text-[17px] font-semibold">Licitaciones</h1>
-          <p className="text-[13px] text-[var(--muted)] mt-0.5">
-            {licitaciones.length} seguida{licitaciones.length !== 1 ? "s" : ""}
-            {invitadas > 0 ? ` · ${invitadas} con invitación` : ""}
-          </p>
+    <div className="max-w-none space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2.5">
+        <div className="segmented-control flex-wrap" role="group" aria-label="Filtrar licitaciones por estado">
+          {([
+            ["activas", "Activas"],
+            ["SIN_REVISAR", "Sin revisar"],
+            ["EN_PREPARACION", "En preparación"],
+            ["PRESENTADA", "Presentadas"],
+            ["GANADA", "Ganadas"],
+            ["PERDIDA", "Perdidas"],
+            ["todas", "Todas"],
+          ] as [typeof filtro, string][]).map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              aria-pressed={filtro === k}
+              onClick={() => setFiltro(k)}
+              className={`segmented-item px-2.5 py-1 text-[12px] ${filtro === k ? "segmented-item-active font-semibold" : ""}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-        <div className="flex flex-wrap gap-2">
-          <ImportarCostosDialog />
-          <PerfilDialog perfil={perfil} />
+        <div className="flex flex-wrap items-center gap-2">
           <ImportarDialog />
+          <PerfilDialog perfil={perfil} />
+          <ImportarCostosDialog />
         </div>
-      </div>
-
-      <div className="segmented-control flex-wrap">
-        {([
-          ["activas", "Activas"],
-          ["SIN_REVISAR", "Sin revisar"],
-          ["EN_PREPARACION", "En preparación"],
-          ["PRESENTADA", "Presentadas"],
-          ["GANADA", "Ganadas"],
-          ["PERDIDA", "Perdidas"],
-          ["todas", "Todas"],
-        ] as [typeof filtro, string][]).map(([k, label]) => (
-          <button
-            key={k}
-            onClick={() => setFiltro(k)}
-            className={`segmented-item px-2.5 py-1 text-[12px] ${
-              filtro === k
-                ? "segmented-item-active font-semibold"
-                : ""
-            }`}
-          >
-            {label}
-          </button>
-        ))}
       </div>
 
       {filtradas.length === 0 ? (
@@ -213,7 +201,7 @@ function ImportarDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>+ Importar de la DNCP</Button>
+        <Button>Importar DNCP</Button>
       </DialogTrigger>
       <DialogContent title="Importar licitación de la DNCP">
         <div className="space-y-3">
@@ -385,7 +373,7 @@ function ImportarCostosDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="secondary">+ Calibrar Costos (Excel)</Button>
+        <Button variant="secondary">Calibrar costos</Button>
       </DialogTrigger>
       <DialogContent title="Calibrar Cost Engine con Obras Anteriores">
         <div className="space-y-3">

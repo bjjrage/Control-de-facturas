@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Input, Label, Select } from "@/components/ui/input";
+import { ColumnFilter, passesColumnFilter, uniqueValues } from "@/components/ui/column-filter";
 import { formatMoney } from "@/lib/format";
 import { ProjectRowActions } from "./project-row-actions";
 import type { ProjectListRow } from "./portfolio-data";
@@ -38,24 +38,45 @@ function ScheduleCell({ row }: { row: ProjectListRow }) {
   return <span className={row.atrasoDias > 15 ? "text-[var(--error)]" : "text-[var(--warn)]"}>+{row.atrasoDias} días</span>;
 }
 
+function avanceFilterValue(row: ProjectListRow) {
+  if (row.avancePct < 25) return "0–24%";
+  if (row.avancePct < 50) return "25–49%";
+  if (row.avancePct < 75) return "50–74%";
+  return "75–100%";
+}
+
+function costoFilterValue(row: ProjectListRow) {
+  if (row.comprasPct === null) return "Sin compras";
+  return row.comprasPct > 100 ? "Sobre presupuesto" : "Dentro de presupuesto";
+}
+
+function plazoFilterValue(row: ProjectListRow) {
+  if (row.atrasoDias === null) return "En plazo";
+  return row.atrasoDias > 15 ? "Más de 15 días" : "1–15 días";
+}
+
 export function PortfolioTable({ rows }: { rows: ProjectListRow[] }) {
-  const [q, setQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [obraFilter, setObraFilter] = useState<Set<string> | null>(null);
+  const [avanceFilter, setAvanceFilter] = useState<Set<string> | null>(null);
+  const [costoFilter, setCostoFilter] = useState<Set<string> | null>(null);
+  const [plazoFilter, setPlazoFilter] = useState<Set<string> | null>(null);
+  const [estadoFilter, setEstadoFilter] = useState<Set<string> | null>(null);
+
+  const obraValues = useMemo(() => uniqueValues(rows, (row) => row.project.name), [rows]);
+  const avanceValues = useMemo(() => uniqueValues(rows, avanceFilterValue), [rows]);
+  const costoValues = useMemo(() => uniqueValues(rows, costoFilterValue), [rows]);
+  const plazoValues = useMemo(() => uniqueValues(rows, plazoFilterValue), [rows]);
+  const estadoValues = useMemo(() => uniqueValues(rows, (row) => row.estado), [rows]);
 
   const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    return rows.filter((row) => {
-      if (statusFilter && row.project.status !== statusFilter) return false;
-      if (!term) return true;
-      return (
-        row.project.name.toLowerCase().includes(term) ||
-        row.project.code.toLowerCase().includes(term) ||
-        (row.project.client ?? "").toLowerCase().includes(term)
-      );
-    });
-  }, [q, rows, statusFilter]);
-
-  const hasFilters = Boolean(q || statusFilter);
+    return rows.filter((row) => (
+      passesColumnFilter(row.project.name, obraFilter) &&
+      passesColumnFilter(avanceFilterValue(row), avanceFilter) &&
+      passesColumnFilter(costoFilterValue(row), costoFilter) &&
+      passesColumnFilter(plazoFilterValue(row), plazoFilter) &&
+      passesColumnFilter(row.estado, estadoFilter)
+    ));
+  }, [avanceFilter, costoFilter, estadoFilter, obraFilter, plazoFilter, rows]);
 
   return (
     <section id="portfolio" className="space-y-3">
@@ -67,26 +88,6 @@ export function PortfolioTable({ rows }: { rows: ProjectListRow[] }) {
         <span className="text-[11px] text-[var(--muted)]">{filtered.length} de {rows.length}</span>
       </div>
 
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
-        <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <Label htmlFor="proj-q">Buscar</Label>
-            <Input id="proj-q" type="search" placeholder="Nombre, código, cliente…" value={q} onChange={(event) => setQ(event.target.value)} className="w-60" />
-          </div>
-          <div>
-            <Label htmlFor="proj-status">Estado</Label>
-            <Select id="proj-status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="w-40">
-              <option value="">Todos</option>
-              <option value="ACTIVO">Activo</option>
-              <option value="PAUSADO">Pausado</option>
-              <option value="COMPLETADO">Completado</option>
-              <option value="CANCELADO">Cancelado</option>
-            </Select>
-          </div>
-          {hasFilters ? <button onClick={() => { setQ(""); setStatusFilter(""); }} className="pb-1.5 text-[12px] text-[var(--muted)] hover:text-[var(--foreground)]">Limpiar</button> : null}
-        </div>
-      </div>
-
       <div className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--panel)]">
         {rows.length === 0 ? (
           <div className="py-10 text-center text-[13px] text-[var(--muted)]">Todavía no hay obras. Creá la primera con «Nueva obra».</div>
@@ -96,11 +97,11 @@ export function PortfolioTable({ rows }: { rows: ProjectListRow[] }) {
           <table className="min-w-[780px]">
             <thead>
               <tr>
-                <th>Obra</th>
-                <th>Avance</th>
-                <th className="num">Costo</th>
-                <th>Plazo</th>
-                <th>Estado</th>
+                <th>Obra <ColumnFilter values={obraValues} selected={obraFilter} onChange={setObraFilter} /></th>
+                <th>Avance <ColumnFilter values={avanceValues} selected={avanceFilter} onChange={setAvanceFilter} /></th>
+                <th className="num">Costo <ColumnFilter values={costoValues} selected={costoFilter} onChange={setCostoFilter} /></th>
+                <th>Plazo <ColumnFilter values={plazoValues} selected={plazoFilter} onChange={setPlazoFilter} /></th>
+                <th>Estado <ColumnFilter values={estadoValues} selected={estadoFilter} onChange={setEstadoFilter} /></th>
                 <th aria-label="Acciones" />
               </tr>
             </thead>
