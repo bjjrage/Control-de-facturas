@@ -1,5 +1,4 @@
-import type { CurrencyCode, InvoiceStatus, SalesDocStatus } from "@/lib/types";
-import type { DashboardIconKey } from "@/app/(internal)/dashboard/icon-map";
+import type { DashboardIconKey } from "@/components/dashboard/icon-map";
 
 export type DomainTone = "ok" | "warn" | "error" | "neutral";
 

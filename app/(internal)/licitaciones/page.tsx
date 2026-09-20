@@ -1,32 +1,26 @@
-import { requireProfile } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
-import type { Licitacion, LicitacionPerfil } from "@/lib/types";
-
+import { MetricGrid } from "@/components/dashboard/metric-card";
+import { getLicitacionesPageData } from "./dashboard-data";
 import { LicitacionesSection } from "./licitaciones-section";
 
 export default async function LicitacionesPage() {
-  await requireProfile(["comercial", "administracion", "admin"]);
-  const supabase = await createClient();
-
-  const [{ data: licitaciones }, { data: perfil }] = await Promise.all([
-    supabase
-      .from("licitaciones")
-      .select(
-        "id, dncp_nro, titulo, comitente_nombre, categoria, monto_referencial, moneda, " +
-          "fecha_entrega_ofertas, fecha_apertura, estado, estado_detalle, invitada, decision, synced_at"
-      )
-      .order("fecha_entrega_ofertas", { ascending: true, nullsFirst: false })
-      .returns<Partial<Licitacion>[]>(),
-    supabase
-      .from("licitacion_perfil")
-      .select("*")
-      .maybeSingle<LicitacionPerfil>(),
-  ]);
+  const data = await getLicitacionesPageData();
 
   return (
-    <LicitacionesSection
-      licitaciones={(licitaciones ?? []) as Partial<Licitacion>[]}
-      perfil={perfil ?? null}
-    />
+    <div className="max-w-none space-y-6">
+      {data.cards.length > 0 ? (
+        <section className="space-y-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <div>
+              <h1 className="section-accent-licitaciones text-[12px] font-bold uppercase tracking-widest">Licitaciones</h1>
+              <p className="mt-1 text-[13px] text-[var(--muted)]">Salud y gestión del pipeline de oportunidades</p>
+            </div>
+            <span className="text-[11px] text-[var(--muted)]">8 KPIs ejecutivos · Document Readiness Engine</span>
+          </div>
+          <MetricGrid cards={data.cards} />
+        </section>
+      ) : null}
+
+      <LicitacionesSection licitaciones={data.licitaciones} perfil={data.perfil} />
+    </div>
   );
 }

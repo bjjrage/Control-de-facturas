@@ -1,0 +1,53 @@
+import {
+  AlertOctagon,
+  AlertTriangle,
+  Boxes,
+  Building2,
+  CalendarClock,
+  CalendarRange,
+  Clock,
+  DollarSign,
+  FileCheck,
+  FileQuestion,
+  FileX2,
+  Gavel,
+  HardHat,
+  Landmark,
+  Radar,
+  Receipt,
+  Scale,
+  ShieldAlert,
+  ShoppingCart,
+  Trophy,
+  TrendingUp,
+  Wallet2,
+} from "lucide-react";
+
+// Los loaders de cada workspace transportan únicamente claves serializables.
+// Los componentes resuelven los iconos en la capa de presentación compartida.
+export const DASHBOARD_ICONS = {
+  "file-x": FileX2,
+  wallet: Wallet2,
+  hardhat: HardHat,
+  gavel: Gavel,
+  "calendar-clock": CalendarClock,
+  "alert-octagon": AlertOctagon,
+  radar: Radar,
+  trophy: Trophy,
+  boxes: Boxes,
+  receipt: Receipt,
+  "trending-up": TrendingUp,
+  landmark: Landmark,
+  "shopping-cart": ShoppingCart,
+  "shield-alert": ShieldAlert,
+  "file-check": FileCheck,
+  clock: Clock,
+  "alert-triangle": AlertTriangle,
+  "dollar-sign": DollarSign,
+  scale: Scale,
+  "calendar-range": CalendarRange,
+  "file-question": FileQuestion,
+  "building-2": Building2,
+} as const;
+
+export type DashboardIconKey = keyof typeof DASHBOARD_ICONS;
