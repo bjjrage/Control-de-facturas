@@ -99,6 +99,7 @@ type NavItem = {
   superAdmin?: boolean;
   module?: Module;
   minPlan?: EmpresaPlan;
+  exact?: boolean;
 };
 
 const GLOBAL_ITEMS: NavItem[] = [
@@ -110,7 +111,7 @@ const OPERATIVO_ITEMS: NavItem[] = [
 ];
 
 const LICITACIONES_ITEMS: NavItem[] = [
-  { href: "/licitaciones", label: "Dashboard", roles: ["comercial", "administracion", "admin"], icon: Gavel, minPlan: "pro" },
+  { href: "/licitaciones", label: "Dashboard", roles: ["comercial", "administracion", "admin"], icon: Gavel, minPlan: "pro", exact: true },
   { href: "/licitaciones/competidores", label: "Competidores", roles: ["comercial", "administracion", "admin"], icon: Radar, minPlan: "pro" },
   { href: "/licitaciones/documentos", label: "Documentos", roles: ["comercial", "administracion", "admin"], icon: FileText, minPlan: "pro" },
   { href: "/licitaciones/auction-bot", label: "Auction Bot", roles: ["comercial", "administracion", "admin"], icon: Bot, minPlan: "pro" },
@@ -525,7 +526,9 @@ export function Sidebar({
 
   function renderLink(item: NavItem) {
     const effectivePath = navPath ?? pathname;
-    const active = effectivePath === item.href || effectivePath.startsWith(item.href + "/");
+    const active = item.exact
+      ? effectivePath === item.href
+      : effectivePath === item.href || effectivePath.startsWith(item.href + "/");
     const Icon = item.icon;
     const isShellPath = (SHELL_PATHS as readonly string[]).includes(item.href);
 
@@ -552,33 +555,6 @@ export function Sidebar({
         )}
       >
         <Icon size={16} className="shrink-0" />
-        {!collapsed ? <span className="truncate">{item.label}</span> : null}
-      </Link>
-    );
-  }
-
-  function renderLicitacionesLink(item: NavItem) {
-    const effectivePath = navPath ?? pathname;
-    const active =
-      item.href === "/licitaciones"
-        ? effectivePath === item.href
-        : effectivePath === item.href || effectivePath.startsWith(item.href + "/");
-    const Icon = item.icon;
-
-    return (
-      <Link
-        key={item.href}
-        href={item.href}
-        title={collapsed ? item.label : undefined}
-        className={cn(
-          "flex items-center gap-2.5 h-9 rounded-xl text-[13px] transition-colors",
-          collapsed ? "justify-center px-0" : "px-2.5",
-          active
-            ? "bg-white/[0.055] text-[var(--foreground)] font-medium shadow-[inset_3px_0_0_rgba(192,132,252,.78)]"
-            : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
-        )}
-      >
-        <Icon size={16} className={cn("shrink-0", active && "text-[var(--accent-purple)]")} />
         {!collapsed ? <span className="truncate">{item.label}</span> : null}
       </Link>
     );
@@ -885,7 +861,7 @@ export function Sidebar({
       <nav className="flex-1 py-3 px-1.5 space-y-0.5 overflow-y-auto">
         {inProjectMode ? (
           <>
-            {globalItems.map(renderLink)}
+            {operativoItems.map(renderLink)}
             {PROJECT_TAB_GROUPS.map(renderProjectSection)}
           </>
         ) : isLoadingProjectMode ? (
@@ -902,12 +878,7 @@ export function Sidebar({
           </div>
         ) : workspace === "licitaciones" ? (
           <>
-            {!collapsed ? (
-              <div className="px-2.5 pb-2 pt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--accent-purple)]">
-                Licitaciones
-              </div>
-            ) : null}
-            {licitacionesItems.map(renderLicitacionesLink)}
+            {licitacionesItems.map(renderLink)}
           </>
         ) : workspace === "operativo" ? (
           <>
