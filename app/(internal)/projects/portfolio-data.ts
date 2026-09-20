@@ -80,19 +80,22 @@ export async function getProjectsPortfolioData(profile?: CurrentProfile): Promis
   const lowStockCount = (products as ProductStockRow[] | null ?? []).filter(
     (product) => product.stock_actual <= 0 || (product.stock_minimo > 0 && product.stock_actual <= product.stock_minimo),
   ).length;
+  const authorizedOrders = (orders ?? []) as { project_id: string | null; total_price: number }[];
   const portfolioRows = buildPortfolioRows(
     projects,
     (budgetItems ?? []) as { project_id: string; quantity: number | null; subtotal: number }[],
-    (orders ?? []) as { project_id: string | null; total_price: number }[],
+    authorizedOrders,
     (executionEntries ?? []) as { project_id: string; quantity_executed: number }[],
     new Date().toISOString().slice(0, 10),
   );
   const sortedRows = sortPortfolioRows(portfolioRows);
+  const activeProjectIds = new Set(projects.filter((project) => project.status === "ACTIVO").map((project) => project.id));
+  const ordenesCompra = authorizedOrders.filter((order) => order.project_id && activeProjectIds.has(order.project_id)).length;
 
   return {
     projects,
     rows: asProjectListRows(projects, sortedRows),
-    panorama: buildPortfolioPanorama(portfolioRows, lowStockCount),
+    panorama: buildPortfolioPanorama(portfolioRows, lowStockCount, ordenesCompra, certificatesPending ?? 0),
     attentionAlerts: buildOperationalAttentionAlerts(portfolioRows, lowStockCount, certificatesPending ?? 0),
     chartData: portfolioRows
       .filter((row) => row.presupuesto > 0 || row.compras > 0)

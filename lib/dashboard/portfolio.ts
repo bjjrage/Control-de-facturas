@@ -20,7 +20,9 @@ export type PortfolioPanorama = {
   obrasActivas: number;
   carteraActivaPyg: number;
   comprasRealizadasPyg: number;
+  ordenesCompra: number;
   productosStockMinimo: number;
+  certificadosPendientes: number;
   desviosCosto: number;
   desviosPlazo: number;
   avanceFisicoPonderado: number;
@@ -106,7 +108,12 @@ export function buildPortfolioRows(
   });
 }
 
-export function buildPortfolioPanorama(rows: PortfolioRow[], productosStockMinimo: number): PortfolioPanorama {
+export function buildPortfolioPanorama(
+  rows: PortfolioRow[],
+  productosStockMinimo: number,
+  ordenesCompra = 0,
+  certificadosPendientes = 0,
+): PortfolioPanorama {
   const activeRows = rows.filter((row) => row.status === "ACTIVO");
   const carteraActivaPyg = activeRows.reduce((sum, row) => sum + row.presupuesto, 0);
   const comprasRealizadasPyg = activeRows.reduce((sum, row) => sum + row.compras, 0);
@@ -121,7 +128,9 @@ export function buildPortfolioPanorama(rows: PortfolioRow[], productosStockMinim
     obrasActivas: activeRows.length,
     carteraActivaPyg,
     comprasRealizadasPyg,
+    ordenesCompra,
     productosStockMinimo,
+    certificadosPendientes,
     desviosCosto: activeRows.filter((row) => row.comprasPct !== null && row.comprasPct > 100).length,
     desviosPlazo: activeRows.filter((row) => row.atrasoDias !== null).length,
     avanceFisicoPonderado,

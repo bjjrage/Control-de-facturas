@@ -5,6 +5,7 @@ import { cn } from "@/lib/cn";
 
 export const Dialog = RadixDialog.Root;
 export const DialogTrigger = RadixDialog.Trigger;
+export const DialogClose = RadixDialog.Close;
 
 export function DialogContent({
   className,

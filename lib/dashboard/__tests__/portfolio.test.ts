@@ -77,11 +77,13 @@ describe("portfolio dashboard calculations", () => {
       "2026-09-20",
     );
 
-    expect(buildPortfolioPanorama(rows, 3)).toMatchObject({
+    expect(buildPortfolioPanorama(rows, 3, 4, 2)).toMatchObject({
       obrasActivas: 1,
       carteraActivaPyg: 100,
       avanceFisicoPonderado: 50,
       productosStockMinimo: 3,
+      ordenesCompra: 4,
+      certificadosPendientes: 2,
       desviosCosto: 0,
       desviosPlazo: 0,
     });

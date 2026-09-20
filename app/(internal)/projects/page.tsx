@@ -1,11 +1,9 @@
-import { AttentionPanel } from "@/components/dashboard/attention-panel";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { formatMoney } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { NewProjectDialog } from "./new-project-dialog";
 import { PanoramaObras } from "./panorama-obras";
-import { PortfolioTable } from "./portfolio-table";
-import { ProjectsChart } from "./projects-chart";
+import { PortfolioPreview } from "./portfolio-preview";
 import { getProjectsPortfolioData } from "./portfolio-data";
 import type { MetricCardData } from "@/lib/dashboard/types";
 
@@ -13,7 +11,6 @@ export default async function ProjectsPage() {
   const data = await getProjectsPortfolioData();
   const { panorama } = data;
   const obrasEnAtencionRiesgo = panorama.estadoBreakdown.atencion + panorama.estadoBreakdown.riesgo;
-  const certificadosPendientes = data.attentionAlerts.find((alert) => alert.id === "certificados-pendientes")?.count ?? 0;
 
   const cards: MetricCardData[] = [
     {
@@ -94,18 +91,14 @@ export default async function ProjectsPage() {
         <NewProjectDialog trigger={<Button>Nueva obra</Button>} />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+      <div className="grid max-w-5xl gap-3 sm:grid-cols-2">
         {cards.map((card) => <MetricCard key={card.key} card={card} compact />)}
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(280px,3fr)]">
-        <PortfolioTable rows={data.rows} />
-        <PanoramaObras data={panorama} certificadosPendientes={certificadosPendientes} />
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,13fr)_minmax(320px,7fr)]">
+        <PortfolioPreview rows={data.rows} />
+        <PanoramaObras data={panorama} />
       </div>
-
-      {data.attentionAlerts.length > 0 ? <AttentionPanel alerts={data.attentionAlerts} title="Requiere atención · Obras" /> : null}
-
-      {data.chartData.length > 0 ? <ProjectsChart data={data.chartData} /> : null}
     </div>
   );
 }

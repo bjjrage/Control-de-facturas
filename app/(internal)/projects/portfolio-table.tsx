@@ -55,7 +55,7 @@ function plazoFilterValue(row: ProjectListRow) {
   return row.atrasoDias > 15 ? "Más de 15 días" : "1–15 días";
 }
 
-export function PortfolioTable({ rows }: { rows: ProjectListRow[] }) {
+export function PortfolioTable({ rows, showHeader = true }: { rows: ProjectListRow[]; showHeader?: boolean }) {
   const [obraFilter, setObraFilter] = useState<Set<string> | null>(null);
   const [avanceFilter, setAvanceFilter] = useState<Set<string> | null>(null);
   const [costoFilter, setCostoFilter] = useState<Set<string> | null>(null);
@@ -80,13 +80,15 @@ export function PortfolioTable({ rows }: { rows: ProjectListRow[] }) {
 
   return (
     <section id="portfolio" className="space-y-3">
-      <div className="flex items-baseline justify-between gap-3">
-        <div>
-          <h2 className="section-accent-operativo text-[12px] font-bold uppercase tracking-widest">Portfolio de obras</h2>
-          <p className="mt-1 text-[12px] text-[var(--muted)]">Seleccioná una obra para entrar a su operación contextual</p>
+      {showHeader ? (
+        <div className="flex items-baseline justify-between gap-3">
+          <div>
+            <h2 className="section-accent-operativo text-[12px] font-bold uppercase tracking-widest">Portfolio de obras</h2>
+            <p className="mt-1 text-[12px] text-[var(--muted)]">Seleccioná una obra para entrar a su operación contextual</p>
+          </div>
+          <span className="text-[11px] text-[var(--muted)]">{filtered.length} de {rows.length}</span>
         </div>
-        <span className="text-[11px] text-[var(--muted)]">{filtered.length} de {rows.length}</span>
-      </div>
+      ) : null}
 
       <div className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--panel)]">
         {rows.length === 0 ? (
