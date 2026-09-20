@@ -47,17 +47,6 @@ export default async function ProjectsPage() {
       tone: "ok",
     },
     {
-      key: "obras-atencion-riesgo",
-      title: "Obras en atención / riesgo",
-      value: String(obrasEnAtencionRiesgo),
-      secondaryText: `Atención: ${panorama.estadoBreakdown.atencion} · Riesgo: ${panorama.estadoBreakdown.riesgo}`,
-      trendText: obrasEnAtencionRiesgo > 0 ? "Requiere seguimiento" : "Sin señales críticas",
-      trendTone: obrasEnAtencionRiesgo > 0 ? "down" : "up",
-      href: "/projects#portfolio",
-      iconKey: "alert-triangle",
-      tone: panorama.estadoBreakdown.riesgo > 0 ? "error" : obrasEnAtencionRiesgo > 0 ? "warn" : "ok",
-    },
-    {
       key: "desvios-plazo",
       title: "Desvíos de plazo",
       value: String(panorama.desviosPlazo),
