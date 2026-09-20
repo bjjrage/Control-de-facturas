@@ -2,8 +2,8 @@ import { MetricCard } from "@/components/dashboard/metric-card";
 import { formatMoney } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { NewProjectDialog } from "./new-project-dialog";
-import { PanoramaObras } from "./panorama-obras";
 import { PortfolioPreview } from "./portfolio-preview";
+import { ProjectsChart } from "./projects-chart";
 import { getProjectsPortfolioData } from "./portfolio-data";
 import type { MetricCardData } from "@/lib/dashboard/types";
 
@@ -79,6 +79,39 @@ export default async function ProjectsPage() {
       iconKey: "dollar-sign",
       tone: panorama.desviosCosto > 0 ? "error" : "ok",
     },
+    {
+      key: "compras-realizadas",
+      title: "Compras realizadas",
+      value: formatMoney(panorama.comprasRealizadasPyg, "PYG"),
+      secondaryText: `${panorama.ordenesCompra} OC autorizadas`,
+      trendText: "InversiÃ³n ejecutada",
+      trendTone: "neutral",
+      href: "/projects#portfolio",
+      iconKey: "shopping-cart",
+      tone: "ok",
+    },
+    {
+      key: "stock-critico",
+      title: "Stock crÃ­tico",
+      value: String(panorama.productosStockMinimo),
+      secondaryText: "Productos bajo mÃ­nimo",
+      trendText: panorama.productosStockMinimo > 0 ? "Requiere reposiciÃ³n" : "Stock controlado",
+      trendTone: panorama.productosStockMinimo > 0 ? "down" : "up",
+      href: "/stock",
+      iconKey: "boxes",
+      tone: panorama.productosStockMinimo > 0 ? "warn" : "ok",
+    },
+    {
+      key: "certificados-pendientes",
+      title: "Certificados pendientes",
+      value: String(panorama.certificadosPendientes),
+      secondaryText: "Pendientes de certificaciÃ³n",
+      trendText: panorama.certificadosPendientes > 0 ? "Requiere gestiÃ³n" : "Al dÃ­a",
+      trendTone: panorama.certificadosPendientes > 0 ? "down" : "up",
+      href: "/projects#portfolio",
+      iconKey: "file-check",
+      tone: panorama.certificadosPendientes > 0 ? "warn" : "ok",
+    },
   ];
 
   return (
@@ -86,19 +119,18 @@ export default async function ProjectsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="section-accent-operativo text-[12px] font-bold uppercase tracking-widest">Operativo · Obras</h1>
-          <p className="mt-1 text-[13px] text-[var(--muted)]">Salud de la cartera y selector de obra</p>
+          <p className="mt-1 text-[13px] text-[var(--muted)]">Seguimiento ejecutivo de la cartera de obras</p>
         </div>
         <NewProjectDialog trigger={<Button>Nueva obra</Button>} />
       </div>
 
-      <div className="grid max-w-5xl grid-cols-1 gap-2.5 sm:grid-cols-2 min-[1100px]:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 min-[1100px]:grid-cols-3">
         {cards.map((card) => <MetricCard key={card.key} card={card} compact />)}
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,13fr)_minmax(320px,7fr)]">
-        <PortfolioPreview rows={data.rows} />
-        <PanoramaObras data={panorama} />
-      </div>
+      <ProjectsChart data={data.chartData} />
+
+      <PortfolioPreview rows={data.rows} />
     </div>
   );
 }

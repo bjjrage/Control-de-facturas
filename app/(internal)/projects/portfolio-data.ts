@@ -26,7 +26,7 @@ export type ProjectsPortfolioData = {
   rows: ProjectListRow[];
   panorama: PortfolioPanorama;
   attentionAlerts: ReturnType<typeof buildOperationalAttentionAlerts>;
-  chartData: { name: string; presupuesto: number; compras: number }[];
+  chartData: { name: string; presupuesto: number; compras: number; avancePct: number }[];
   isCaterpillar: boolean;
 };
 
@@ -99,7 +99,7 @@ export async function getProjectsPortfolioData(profile?: CurrentProfile): Promis
     attentionAlerts: buildOperationalAttentionAlerts(portfolioRows, lowStockCount, certificatesPending ?? 0),
     chartData: portfolioRows
       .filter((row) => row.presupuesto > 0 || row.compras > 0)
-      .map((row) => ({ name: row.code, presupuesto: row.presupuesto, compras: row.compras })),
+      .map((row) => ({ name: row.code, presupuesto: row.presupuesto, compras: row.compras, avancePct: row.avancePct })),
     isCaterpillar,
   };
 }

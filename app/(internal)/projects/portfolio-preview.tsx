@@ -36,8 +36,8 @@ export function PortfolioPreview({ rows }: { rows: ProjectListRow[] }) {
     <section className="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4 shadow-sm sm:p-5">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <h2 className="section-accent-operativo text-[12px] font-bold uppercase tracking-widest">Obras activas</h2>
-          <p className="mt-1 text-[12px] text-[var(--muted)]">Resumen ejecutivo de las cinco prioridades actuales</p>
+          <h2 className="section-accent-operativo text-[12px] font-bold uppercase tracking-widest">Obras en curso</h2>
+          <p className="mt-1 text-[12px] text-[var(--muted)]">Resumen de las obras activas prioritarias</p>
         </div>
         <PortfolioOverlay rows={rows} />
       </div>
