@@ -283,4 +283,73 @@ test.describe('Mobile Document Scanner Companion E2E Flow', () => {
     await desktopContext.close();
     await mobileContext.close();
   });
+
+  test.describe('Responsive iPhone Viewport Tests: READY screen buttons fully visible inside viewport', () => {
+    const viewports = [
+      { name: 'iPhone 12/13/14 (390x844)', width: 390, height: 844 },
+      { name: 'iPhone 14/15/16 Pro (393x852)', width: 393, height: 852 },
+      { name: 'iPhone Pro Max (430x932)', width: 430, height: 932 },
+      { name: 'iPhone SE / Small screen (375x667)', width: 375, height: 667 },
+    ];
+
+    for (const vp of viewports) {
+      test(`Viewport ${vp.name}: 'Abrir Cámara' está 100% visible, dentro del viewport y clickeable`, async ({
+        browser,
+      }) => {
+        const storageStateA = fs.existsSync(AUTH_FILE_A) ? AUTH_FILE_A : undefined;
+        const desktopContext = await browser.newContext({ storageState: storageStateA });
+        const desktopPage = await desktopContext.newPage();
+
+        const createRes = await desktopPage.request.post('/api/scanner/session', {
+          data: { contextType: 'invoice' },
+        });
+        expect(createRes.ok()).toBeTruthy();
+        const sessionData = await createRes.json();
+
+        const mobileContext = await browser.newContext({
+          viewport: { width: vp.width, height: vp.height },
+          isMobile: true,
+          hasTouch: true,
+          storageState: { cookies: [], origins: [] },
+          userAgent:
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+        });
+        const mobilePage = await mobileContext.newPage();
+
+        await mobilePage.goto(sessionData.joinUrl);
+        await expect(mobilePage.getByText(/Conectado al ERP/i)).toBeVisible({ timeout: 10000 });
+
+        const openCameraButton = mobilePage.getByRole('button', { name: /Abrir Cámara/i });
+        await expect(openCameraButton).toBeVisible();
+
+        // Obtener bounding box del botón
+        const box = await openCameraButton.boundingBox();
+        expect(box).not.toBeNull();
+        if (box) {
+          // El botón debe comenzar después de la parte superior y terminar estrictamente antes del fondo del viewport
+          expect(box.y).toBeGreaterThan(0);
+          expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
+          // Debe tener un ancho razonable dentro de la pantalla
+          expect(box.width).toBeGreaterThan(200);
+          expect(box.x).toBeGreaterThanOrEqual(0);
+          expect(box.x + box.width).toBeLessThanOrEqual(vp.width);
+        }
+
+        // El botón debe ser clickeable sin error de intercepción o fuera de vista
+        await expect(openCameraButton).toBeEnabled();
+
+        // Botón desconectar también debe estar dentro del viewport
+        const disconnectButton = mobilePage.getByRole('button', { name: /Desconectar/i });
+        await expect(disconnectButton).toBeVisible();
+        const disconnectBox = await disconnectButton.boundingBox();
+        expect(disconnectBox).not.toBeNull();
+        if (disconnectBox) {
+          expect(disconnectBox.y + disconnectBox.height).toBeLessThanOrEqual(vp.height);
+        }
+
+        await desktopContext.close();
+        await mobileContext.close();
+      });
+    }
+  });
 });

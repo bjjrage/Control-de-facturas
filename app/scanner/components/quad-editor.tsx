@@ -280,9 +280,15 @@ export function QuadEditor({ imageDataUrl, initialQuad, onConfirmCrop, onCancel 
   }
 
   return (
-    <div className="relative flex flex-col h-full w-full bg-slate-950 select-none touch-none">
+    <div
+      className="relative flex flex-col h-full w-full bg-slate-950 select-none overflow-hidden"
+      style={{ height: "100dvh", minHeight: "100dvh" }}
+    >
       {/* Barra superior */}
-      <div className="p-3 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between z-10">
+      <div
+        className="p-3 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between z-10 shrink-0"
+        style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}
+      >
         <button
           type="button"
           onClick={onCancel}
@@ -350,7 +356,10 @@ export function QuadEditor({ imageDataUrl, initialQuad, onConfirmCrop, onCancel 
       </div>
 
       {/* Barra de acción inferior */}
-      <div className="p-4 pb-8 bg-slate-900/90 border-t border-slate-800 flex items-center justify-between gap-3 z-10">
+      <div
+        className="p-4 bg-slate-900/90 border-t border-slate-800 flex items-center justify-between gap-3 z-10 shrink-0"
+        style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+      >
         <p className="text-[11px] text-slate-400">
           {isQuadValid ? "Arrastrá las 4 esquinas sobre los límites del papel." : "Ajustá las esquinas para corregir la figura."}
         </p>

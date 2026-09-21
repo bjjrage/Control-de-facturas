@@ -483,7 +483,13 @@ function ScannerContent() {
   // Vista 0: Conectando / Verificando sesión (Bootstrap inicial)
   if (flowState === "booting") {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-6 max-w-md mx-auto w-full text-center">
+      <div
+        className="flex h-full min-h-0 flex-col items-center justify-center p-6 max-w-md mx-auto w-full text-center"
+        style={{
+          paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 0px))',
+          paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
+        }}
+      >
         <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 shadow-xl shadow-emerald-500/10 animate-pulse mb-4">
           <Smartphone className="w-8 h-8" />
         </div>
@@ -496,52 +502,60 @@ function ScannerContent() {
   // Vista 1: Entrada / Formulario PIN manual
   if (flowState === "manual" || (flowState as string) === "join") {
     return (
-      <div className="flex-1 flex flex-col justify-between p-6 max-w-md mx-auto w-full">
-        <div className="pt-8 space-y-3 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 shadow-xl shadow-emerald-500/10">
-            <Smartphone className="w-7 h-7" />
-          </div>
-          <h1 className="text-xl font-bold text-slate-100">Control Scanner</h1>
-          <p className="text-xs text-slate-400">
-            Companion móvil de escaneo documental vinculado al ERP Control de Facturas.
-          </p>
-        </div>
-
-        {errorNotice && (
-          <div className="p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-            <span>{errorNotice}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleClaimWithPin} className="space-y-4 bg-slate-900/60 border border-slate-800 p-5 rounded-2xl">
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              Código de sesión (6 dígitos)
-            </label>
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              value={pinInput}
-              onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
-              placeholder="Ej: 482910"
-              className="w-full py-3 px-4 text-center tracking-widest text-lg font-mono rounded-xl bg-slate-950 border border-slate-700 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
-            />
+      <div className="flex h-full min-h-0 flex-col w-full max-w-md mx-auto">
+        <main
+          className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col justify-center"
+          style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 0px))' }}
+        >
+          <div className="space-y-3 text-center mb-6">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 shadow-xl shadow-emerald-500/10">
+              <Smartphone className="w-7 h-7" />
+            </div>
+            <h1 className="text-xl font-bold text-slate-100">Control Scanner</h1>
+            <p className="text-xs text-slate-400">
+              Companion móvil de escaneo documental vinculado al ERP Control de Facturas.
+            </p>
           </div>
 
-          <button
-            type="submit"
-            disabled={isJoining || pinInput.length !== 6}
-            className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-medium text-xs shadow-lg shadow-emerald-900/30 transition active:scale-98"
-          >
-            {isJoining ? "Conectando…" : "Vincular con ERP"}
-          </button>
-        </form>
+          {errorNotice && (
+            <div className="mb-4 p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+              <span>{errorNotice}</span>
+            </div>
+          )}
 
-        <p className="text-center text-[11px] text-slate-500 pb-4">
+          <form onSubmit={handleClaimWithPin} className="space-y-4 bg-slate-900/60 border border-slate-800 p-5 rounded-2xl">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                Código de sesión (6 dígitos)
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
+                placeholder="Ej: 482910"
+                className="w-full py-3 px-4 text-center tracking-widest text-lg font-mono rounded-xl bg-slate-950 border border-slate-700 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isJoining || pinInput.length !== 6}
+              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-medium text-xs shadow-lg shadow-emerald-900/30 transition active:scale-98"
+            >
+              {isJoining ? "Conectando…" : "Vincular con ERP"}
+            </button>
+          </form>
+        </main>
+
+        <footer
+          className="shrink-0 p-4 text-center text-[11px] text-slate-500"
+          style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+        >
           O escaneá directamente el código QR mostrado en la pantalla de tu computadora.
-        </p>
+        </footer>
       </div>
     );
   }
@@ -549,9 +563,12 @@ function ScannerContent() {
   // Vista 2: Conectado y listo para capturar
   if (flowState === "ready") {
     return (
-      <div className="flex-1 flex flex-col justify-between p-6 max-w-md mx-auto w-full text-center">
-        <div className="pt-12 space-y-4">
-          <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center mx-auto text-emerald-400 shadow-xl shadow-emerald-500/20">
+      <div className="flex h-full min-h-0 flex-col w-full max-w-md mx-auto">
+        <main
+          className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col items-center justify-center text-center"
+          style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 0px))' }}
+        >
+          <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center mx-auto text-emerald-400 shadow-xl shadow-emerald-500/20 mb-3">
             <CheckCircle2 className="w-9 h-9" />
           </div>
           <div>
@@ -561,13 +578,16 @@ function ScannerContent() {
             <h2 className="mt-3 text-lg font-bold text-slate-100 capitalize">
               {sessionInfo?.context_type ? `Contexto: ${sessionInfo.context_type}` : "Sesión Activa"}
             </h2>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-slate-400 max-w-xs mx-auto">
               Ubicá el documento físico en una superficie plana y con buena iluminación.
             </p>
           </div>
-        </div>
+        </main>
 
-        <div className="pb-8 space-y-3">
+        <div
+          className="shrink-0 p-6 pt-2 space-y-3"
+          style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
+        >
           <button
             type="button"
             onClick={() => setFlowState("capturing")}
@@ -667,20 +687,26 @@ function ScannerContent() {
   // Vista 7: Éxito
   if (flowState === "success") {
     return (
-      <div className="flex-1 flex flex-col justify-between p-6 max-w-md mx-auto w-full text-center">
-        <div className="pt-16 space-y-4">
-          <div className="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-500/50 flex items-center justify-center mx-auto text-emerald-400 shadow-2xl shadow-emerald-500/20">
+      <div className="flex h-full min-h-0 flex-col w-full max-w-md mx-auto">
+        <main
+          className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col items-center justify-center text-center"
+          style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 0px))' }}
+        >
+          <div className="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-500/50 flex items-center justify-center mx-auto text-emerald-400 shadow-2xl shadow-emerald-500/20 mb-3">
             <CheckCircle2 className="w-12 h-12" />
           </div>
           <div>
             <h2 className="text-xl font-bold text-white">¡Documento Enviado!</h2>
-            <p className="mt-2 text-xs text-slate-300 leading-relaxed">
+            <p className="mt-2 text-xs text-slate-300 leading-relaxed max-w-xs mx-auto">
               El PDF escaneado ya fue recibido en tu sesión de ERP Control de Facturas en la computadora.
             </p>
           </div>
-        </div>
+        </main>
 
-        <div className="pb-8 space-y-3">
+        <div
+          className="shrink-0 p-6 pt-2 space-y-3"
+          style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
+        >
           <button
             type="button"
             onClick={() => {

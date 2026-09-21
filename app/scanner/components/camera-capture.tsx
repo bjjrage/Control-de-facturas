@@ -461,6 +461,7 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
   return (
     <div
       className="relative flex flex-col h-full w-full bg-black overflow-hidden select-none"
+      style={{ height: "100dvh", minHeight: "100dvh" }}
     >
       {/* Flash overlay para feedback de captura */}
       {showFlash && (
@@ -552,7 +553,10 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
       </div>
 
       {/* Barra superior de controles */}
-      <div className="absolute top-0 inset-x-0 p-4 pt-6 flex justify-between items-center bg-gradient-to-b from-black/85 via-black/40 to-transparent z-20">
+      <div
+        className="absolute top-0 inset-x-0 p-4 flex justify-between items-center bg-gradient-to-b from-black/85 via-black/40 to-transparent z-20"
+        style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top, 0px))' }}
+      >
         <button
           type="button"
           onClick={onCancel}
@@ -618,7 +622,10 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
       </div>
 
       {/* Barra inferior con Shutter y accesos rápidos */}
-      <div className="p-6 pb-10 bg-gradient-to-t from-black via-black/90 to-transparent flex items-center justify-around z-20">
+      <div
+        className="p-6 bg-gradient-to-t from-black via-black/90 to-transparent flex items-center justify-around z-20 shrink-0"
+        style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
+      >
         {/* Selector de galería / subida alternativa */}
         <button
           type="button"
