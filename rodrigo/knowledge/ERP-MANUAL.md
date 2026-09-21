@@ -1,4 +1,4 @@
-# ERP Manual V3 para Rodrigo
+# ERP Manual V5 para Rodrigo
 
 ## Alcance
 
@@ -56,7 +56,7 @@ Rodrigo puede leer saldos, cuentas a pagar/cobrar y órdenes existentes mediante
 
 ## Capacidades todavía no ejecutables
 
-Personal, cuadrillas y subcontratistas; APU estructurado separado del presupuesto/receta; compras automáticas desde faltantes MRP; presentación a DNCP; Auction Lab/Auction Bot; carga binaria desde Scanner; adjuntos empresariales; cobros, pagos y tesorería. La lista canónica está en `CAPABILITIES-GAPS.md`.
+APU estructurado de mano de obra/equipos/rendimientos; edición completa de facturas de proveedor; asignación/edición arbitraria de OT; carga o asociación binaria desde chat; reporting materializado. La lista canónica, incluyendo lo no disponible en ERP, lo que no está en scope y lo no permitido, está en `CAPABILITIES-GAPS.md`.
 
 ## V4 — dominios operativos expuestos
 
@@ -64,7 +64,16 @@ Rodrigo puede leer partes y subcontratos por obra, el APU/BOM material real, est
 
 Las escrituras V4 de personal/subcontratos y componentes materiales de APU requieren aprobación humana. Las tools de inventario, certificados, clima, ventas, compras y documentos de V3 mantienen la misma compuerta. Preparar un email o un borrador de compra no envía, emite ni mueve dinero.
 
-La cobertura no implica capacidades inexistentes: el modelo actual no contiene un APU estructurado de mano de obra/equipos, no presenta ofertas DNCP desde chat, no opera posturas del Auction Bot, no carga binarios desde conversación y no ejecuta cobros/pagos.
+La cobertura no implica capacidades inexistentes: el modelo actual no contiene un APU estructurado de mano de obra/equipos, no presenta ofertas DNCP desde chat, no opera Auction Lab/Bot, no carga binarios desde conversación y no ejecuta cobros/pagos.
+
+## V5 — cierre de gaps y runtime
+
+- `get_supplier_invoice_overview` lee la factura de proveedor completa y sus relaciones; `manage_supplier_invoice` sólo usa vínculo/desvínculo de OC o eliminación real, siempre con approval. `create_invoice` ya cubría el registro y no crea pagos.
+- `get_work_order_overview` lee la OT, cliente, ítems, documento aceptado y timeline. `manage_work_order` actualiza estado o aprueba la OT interna usando las acciones existentes. La creación automática nace exclusivamente de la aceptación real de una cotización.
+- `get_sifen_overview` y `manage_sifen_document` usan la integración Goekua existente para leer, emitir o consultar con aprobación. No se creó una integración ni una migración.
+- El runtime de DeepSeek conserva historial, carga conocimiento selectivo y puede componer tools sin un workflow fijo. Emite observabilidad segura de secciones, tools, aprobación y respuesta redacted; nunca payloads ni secretos.
+- Con `DEEPSEEK_API_KEY` ausente, `/api/agent/chat` falla cerrado con 503. No hay router determinista de producción ni override por variable.
+- DNCP formal y Auction Lab/Bot son `NOT IN RODRIGO SCOPE`; tesorería es `NOT ALLOWED`; APU faltante y upload de adjuntos conversacional son `NOT AVAILABLE IN ERP` según la clasificación canónica.
 
 ## Fuente
 

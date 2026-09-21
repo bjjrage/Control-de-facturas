@@ -76,6 +76,26 @@ export interface OrchestratorResult {
   stoppedReason: "answered" | "max_iterations" | "approval_required" | "error";
   approvalId?: string | null;
   emailPreview?: EmailPreview | null;
+  observability?: RodrigoObservability;
+}
+
+export interface RodrigoObservability {
+  userIntentPreview: string;
+  knowledgeSections: string[];
+  toolsRequested: string[];
+  toolsExecuted: string[];
+  approvalRequired: boolean;
+  finalAnswerPreview: string;
+}
+
+function safeObservabilityText(value: string): string {
+  return value
+    .replace(/\b[^\s@]+@[^\s@]+\.[^\s@]+\b/gu, "[EMAIL]")
+    .replace(/\b[0-9a-f]{8}-[0-9a-f-]{27,}\b/giu, "[ID]")
+    .replace(/\b\d{4,}\b/gu, "[NUMBER]")
+    .replace(/\bBearer\s+[^\s]+/giu, "Bearer [REDACTED]")
+    .replace(/\b(api[_ -]?key|authorization|cookie|token|secret)\s*[:=]\s*[^\s,;}]+/giu, "$1: [REDACTED]")
+    .slice(0, 240);
 }
 
 const ORCHESTRATOR_SYSTEM_PROMPT = `Sos Rodrigo, el asistente de Control de Facturas.
@@ -98,10 +118,10 @@ Reglas duras:
 14. Para una consulta transversal, combiná tools de dominio existentes (proyecto, planificación, inventario, compras, licitaciones, documentos, finanzas) y no inventes un informe ni datos que no estén en sus resultados.
 15. Tesorería es lectura únicamente: podés consultar saldos, cuentas a pagar/cobrar y órdenes existentes, pero rechazá pagar, cobrar, transferir fondos, conciliar, liquidar o registrar cualquier movimiento monetario. Una transferencia de materiales entre depósitos sí es inventario físico y usa el tool correspondiente con aprobación.
 16. No expongas ni solicites UUIDs al usuario cuando el ERP pueda resolver la referencia humana.
-17. Para obras, compras, inventario, licitaciones, Auction Lab, scanner, ventas y documentos, combiná lecturas de dominio según la pregunta; no existe un informe transversal ni un workflow hardcodeado que reemplace tu razonamiento.
+17. Para obras, compras, inventario, licitaciones internas, scanner, ventas, órdenes de trabajo, facturas de proveedor, SIFEN y documentos, combiná lecturas de dominio según la pregunta; no existe un informe transversal ni un workflow hardcodeado que reemplace tu razonamiento.
 18. Prepará y calculá con lecturas/previews primero. Si el siguiente paso crea, edita, confirma, emite, asocia o mueve estado físico, llamá el tool de mutación y detenete ante la aprobación del Gateway.
 19. Un APU solo puede afirmar componentes que devuelva el modelo real: budget_items y budget_item_materials. No inventes mano de obra, equipos ni rendimientos estructurados.
-20. Scanner y Auction Lab son lectura redacted desde el chat; nunca devuelvas tokens, hashes, PINes, random_close_at ni filesystem arbitrario.`;
+20. Scanner sólo puede leerse de forma redacted desde el chat; Auction Lab/Bot y la presentación formal a DNCP están fuera de tu scope. Nunca devuelvas tokens, hashes, PINes, random_close_at ni filesystem arbitrario.`;
 
 function buildToolsSchemaForLLM(allowlist?: string[] | null): Array<Record<string, unknown>> {
   const tools = toolRegistry.listForAllowlist(allowlist);
@@ -184,6 +204,22 @@ export class AgentOrchestrator {
     messages.push({ role: "user", content: input.userIntent });
 
     const tools = buildToolsSchemaForLLM(this.toolAllowlist);
+    const toolsRequested: string[] = [];
+    const toolsExecuted: string[] = [];
+    let approvalRequired = false;
+    const trace = (answer: string): RodrigoObservability => ({
+      userIntentPreview: safeObservabilityText(input.userIntent),
+      knowledgeSections: knowledgeMatches.map(({ document }) => document.id),
+      toolsRequested: [...toolsRequested],
+      toolsExecuted: [...toolsExecuted],
+      approvalRequired,
+      finalAnswerPreview: safeObservabilityText(answer),
+    });
+    const emitTrace = (answer: string) => {
+      const observation = trace(answer);
+      console.info("[rodrigo] certification trace", observation);
+      return observation;
+    };
 
     let iterations = 0;
     let lastUsage: DeepSeekUsage | null = null;
@@ -209,6 +245,7 @@ export class AgentOrchestrator {
       if (!toolCalls || toolCalls.length === 0) {
         const answer = typeof msg?.content === "string" && msg.content.trim() ? msg.content.trim() : "No tengo respuesta.";
         turns.push({ role: "assistant", content: answer });
+        const observability = emitTrace(answer);
         return {
           answer,
           turns,
@@ -216,6 +253,7 @@ export class AgentOrchestrator {
           iterations,
           stoppedReason: "answered",
           emailPreview,
+          observability,
         };
       }
 
@@ -230,6 +268,7 @@ export class AgentOrchestrator {
       // Ejecutar tool_calls secuencialmente via gateway
       for (const tc of toolCalls) {
         const toolName = tc.function?.name;
+        toolsRequested.push(toolName);
         let toolInput: unknown = {};
         try {
           toolInput = tc.function?.arguments ? JSON.parse(tc.function.arguments) : {};
@@ -262,6 +301,7 @@ export class AgentOrchestrator {
             taskId: input.taskId ?? null,
             runId: input.runId ?? null,
           });
+          if (result.ok) toolsExecuted.push(toolName);
         } catch (e) {
           const errMsg = e instanceof GatewayError ? e.message : e instanceof Error ? e.message : String(e);
           turns.push({ role: "tool", content: errMsg, toolName, toolInput, toolOutput: { error: errMsg } });
@@ -274,6 +314,7 @@ export class AgentOrchestrator {
         }
 
         if (!result.ok && (result as { requiresApproval?: boolean }).requiresApproval) {
+          approvalRequired = true;
           const pending = result as { approvalId: string; tool: string; riskLevel: number; message: string };
           if (toolName === "send_email" && toolInput && typeof toolInput === "object") {
             const pendingInput = toolInput as { draft_snapshot?: EmailPreview; idempotency_key?: string };
@@ -301,8 +342,10 @@ export class AgentOrchestrator {
             content: JSON.stringify({ approval_required: true, approval_id: pending.approvalId }),
           });
           // Cortar loop: hay approval pendiente, no seguir
+          const answer = `Necesito tu aprobacion para continuar con ${pending.tool}.`;
+          const observability = emitTrace(answer);
           return {
-            answer: `Necesito tu aprobacion para continuar con ${pending.tool}.`,
+            answer,
             turns,
             usage: lastUsage,
             iterations,
@@ -312,6 +355,7 @@ export class AgentOrchestrator {
               toolName === "send_email" && toolInput && typeof toolInput === "object"
                 ? ((toolInput as { draft_snapshot?: EmailPreview }).draft_snapshot ?? emailPreview)
                 : emailPreview,
+            observability,
           };
         }
 
@@ -333,13 +377,16 @@ export class AgentOrchestrator {
       messages.push({ role: "user", content: "Continua con la siguiente accion o responde al usuario." } as unknown as Record<string, unknown>);
     }
 
+    const answer = "Alcance el limite de pasos sin una respuesta final. Revisa los resultados parciales.";
+    const observability = emitTrace(answer);
     return {
-      answer: "Alcance el limite de pasos sin una respuesta final. Revisa los resultados parciales.",
+      answer,
       turns,
       usage: lastUsage,
       iterations,
       stoppedReason: "max_iterations",
       emailPreview,
+      observability,
     };
   }
 

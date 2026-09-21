@@ -1,60 +1,45 @@
-# Capacidades que el manual describe pero Rodrigo todavía no puede ejecutar
+# Capacidades de Rodrigo: cierre V5
 
-Esta lista es deliberadamente explícita. La presencia de una pantalla, tabla o acción no alcanza: debe existir un tool registrado, con scoping y política de riesgo.
+Esta clasificación sólo afirma superficies que fueron trazadas a acciones, servicios, tablas o migraciones presentes en esta rama. El manual no contiene datos vivos y una pantalla existente no convierte por sí sola una capacidad en ejecutable por Rodrigo.
 
-## Cerrado en V3
+## IMPLEMENTED
 
-- Clientes, proveedores y obras: alta/edición/activación o estado según las acciones existentes.
-- Partidas, programación, avance y recetas/BOM de producción.
-- Preview, guardado y commit del plan semanal; el commit MRP reserva mediante la RPC atómica existente.
-- Certificados: crear, editar líneas de borrador y transiciones Elaborado/Verificado/Aprobado.
-- Documentos comerciales: crear/editar/emitir; facturas de proveedor; no cobros.
-- Inventario físico: recepciones, ubicaciones, portal de depósito y rendiciones, además del movimiento canónico.
-- Clima: configuración, evaluación y decisiones de jornada existentes.
-- Licitaciones: decisión, seguimiento, paquete/evaluación, extracción de texto y conversión de GANADA a proyecto.
-- Metadatos de documentos empresariales con sincronización de su proyección existente.
-- Lectura de presupuesto, modelos BIM e importaciones de cómputo.
+- Resolución tenant-scoped de proyectos, clientes, proveedores, productos, facturas, OC, RFQ, licitaciones, documentos, depósitos, planillas, subcontratistas, partidas, certificados, documentos de venta y órdenes de trabajo.
+- Lecturas de obras, presupuesto/BIM/cómputo, ejecución, avance, planificación semanal, certificados, clima, personal registrado, subcontratos, inventario, compras, ventas, finanzas, documentos y licitaciones internas.
+- APU/BOM material real desde `budget_items`, `budget_item_materials` y `productos`, incluyendo costo/desperdicio calculable; no afirma componentes ausentes.
+- MRP por composición: lectura de necesidad/stock/reservas/inbound/proveedores, preview y commit del plan semanal mediante los servicios/RPC existentes. No hay workflow de compra hardcodeado.
+- Inventario físico: lecturas globales/por ubicación/obra, reservas, movimientos, consumos, recepciones, portal y rendiciones. Las operaciones físicas requieren aprobación.
+- Facturas de proveedor: `get_supplier_invoice_overview` lee proveedor, detalle, adjunto, vínculo de OC, excepciones y referencias de OP existentes; `create_invoice` registra una factura; `manage_supplier_invoice` puede vincular/desvincular OC o eliminar con aprobación. Ninguno paga.
+- Órdenes de trabajo: `get_work_order_overview` lee OT, documento aceptado, cliente, ítems, workflow y eventos; `manage_work_order` cambia estados o aprueba el workflow interno con aprobación. La creación real proviene de la aceptación de una cotización.
+- SIFEN ya existente vía Goekua: `get_sifen_overview` lee CDC/XML/KuDE y configuración; `manage_sifen_document` usa emitir/consultar existentes y requiere aprobación para cualquier llamada externa o persistencia.
+- Scanner: lectura redacted de sesiones completadas y referencia segura a archivos ya existentes; nunca devuelve credenciales ni rutas arbitrarias.
+- Documentos empresariales: lectura/extracción y metadatos canónicos con las acciones reales; no se inventan binarios.
+- Email: preparación de borrador/preview y envío con snapshot congelado, aprobación explícita e idempotencia.
+- Skills/routines: cero activas; el conocimiento es estático y el estado sale de tools vivos.
 
-## Auditoría V4
+## PARTIAL
 
-### IMPLEMENTED
+- APU: no existe en el modelo una estructura separada para mano de obra, equipos o rendimientos; Rodrigo sólo puede afirmar el componente material/BOM que devuelve el ERP.
+- Facturas de proveedor: no existe una acción conversacional real para editar todos los campos ni para asociar/reemplazar arbitrariamente un binario; esas solicitudes se deben reconocer como no disponibles.
+- Órdenes de trabajo: no se encontró acción conversacional real para asignar responsables, editar campos arbitrarios o crear una OT manual; sí existen creación por aceptación y cambios de estado/aprobación internos.
+- Scanner/adjuntos: el ERP tiene Scanner y attachments, pero el endpoint de chat no recibe binarios ni tiene una acción real para subir, reemplazar o asociar un adjunto desde conversación.
+- Reporting: Rodrigo puede componer consultas con lecturas vivas; no existe un reporte transversal materializado ni un workflow de informes hardcodeado.
 
-- Lectura de partes de personal, subcontratistas, contratos, certificados de subcontratistas y staff declarado en certificados: `get_labor_subcontractor_overview`.
-- Escrituras de partes/contratos y aprobar/rechazar certificados de subcontratistas: `manage_labor_subcontractor`, riesgo 2.
-- Lectura del APU/BOM material real basado en `budget_item_materials`, con costo promedio y desperdicio calculable: `get_apu_overview`.
-- Actualización del componente material APU/BOM mediante `saveBudgetItemMaterialAction`: `manage_apu_material`, riesgo 2.
-- Lectura segura de sesiones completadas del scanner: `get_scanner_session_overview`.
-- Lectura redacted del Auction Lab real: `get_auction_overview`.
-- Lectura compuesta de avance, planificación semanal, certificados y clima: `get_project_operational_overview`.
-- Lectura de stock global/depósitos/obras, reservas MRP, movimientos y consumos: `get_inventory_overview`.
-- Lectura de ventas, facturas/documentos comerciales, cotizaciones/proformas y órdenes de trabajo relacionadas: `get_billing_overview`.
-- Resolución humana ampliada para subcontratistas, partidas, certificados, documentos de venta, órdenes de trabajo y salas de subasta.
+## NOT AVAILABLE IN ERP
 
-### PARTIAL
+- APU estructurado de mano de obra, equipos y rendimientos: la auditoría no encontró tablas/servicios reales para esos componentes.
+- Entidad independiente de empleados/personal maestro con asignación operativa completa: sólo existen partes de personal y superficies de subcontratistas auditadas.
+- Flujo de upload/association de adjuntos dentro del chat: no existe en el runtime actual.
 
-- APU: el ERP modela materiales/BOM y costos promedio; no se encontró una tabla/servicio estructurado para mano de obra, equipos o rendimientos de esos componentes.
-- MRP → compras: Rodrigo puede leer plan, faltantes, stock, reservas, inbound y proveedores, y preparar RFQ/OC draft existentes. La emisión de OC/RFQ sigue siendo una mutación aprobable; no existe un workflow automático único.
-- DNCP: lectura de convocatoria, lotes, ítems, oferentes, documentos de llamado y vault empresarial; la presentación formal no está implementada.
-- Auction Lab/Bot: lectura segura y operaciones reales de iniciar, pausar/reanudar, postura asistida, ceder propuesta y finalizar están expuestas con aprobación; configurar una policy nueva, crear sala y operar un modo automático siguen fuera del tool conversacional.
-- Scanner/adjuntos: puede consultar una sesión y referenciar archivos ya completados; no carga binarios ni crea/asocia adjuntos desde conversación.
-- Billing/sales: lectura ampliada y mutaciones de documentos existentes; no se expone registrar cobros y la integración SIFEN/presentación formal no se inventa.
-- Reporting transversal: se habilita por composición de lecturas reales; no existe un reporte materializado hardcodeado.
+## NOT IN RODRIGO SCOPE
 
-### NOT ALLOWED
+- Presentación formal de ofertas a DNCP, envío de propuestas a una API DNCP o cualquier actuación externa en DNCP. Rodrigo sólo puede leer y analizar licitaciones internas existentes.
+- Auction Lab y Auction Bot: creación de salas, configuración de policies, pausado/reanudado, posturas, cesión, cierre y ejecución automática no están allowlisteados para Rodrigo. El código/UI existente no cambia esta frontera.
 
-- Pagos, cobros, transferencias bancarias, conciliaciones, liquidaciones, settlements, desembolsos y cualquier movimiento monetario.
-- Tokens, hashes, PINes, secretos de scanner/Auction Lab o filesystem arbitrario.
+## NOT ALLOWED
 
-Todas las mutaciones V4 nuevas quedan en riesgo 2 y pasan por Gateway/approval. Las tools de preparación reversible preexistentes (`prepare_email`, RFQ/OC draft y snapshot de planilla) no emiten ni confirman estado operativo; su semántica queda documentada como preparación, no como ejecución.
+- Pagar, cobrar, transferir fondos, conciliar, liquidar, desembolsar o registrar cualquier movimiento de tesorería.
+- Exponer o solicitar secretos, tokens, hashes, PINes, `random_close_at`, credenciales de Scanner/Auction Lab o filesystem/URLs arbitrarios.
+- Ejecutar una mutación CREATE/EDIT/UPDATE/DELETE/CONFIRM/ISSUE/APPLY, movimiento físico o llamada externa sin aprobación humana del Gateway. El payload aprobado se congela y la ejecución debe ser idempotente.
 
-## Sigue fuera del alcance
-
-- APU estructurado de mano de obra, equipos y rendimientos: el modelo real solo expone el componente material/BOM.
-- Generar automáticamente una compra u OC final desde faltantes MRP: el plan puede reservar y los tools pueden preparar drafts, pero no emiten sin aprobación.
-- Presentación formal de ofertas a DNCP, creación de sala Auction Lab, configuración de policy nueva y operación automática del Auction Bot.
-- Carga, reemplazo o asociación conversacional de binarios desde Scanner/adjuntos empresariales; solo se leen sesiones/metadata ya existentes.
-- Integración SIFEN/presentación formal desde la conversación.
-- Cobros, pagos, transferencias bancarias, conciliaciones, liquidaciones y cualquier movimiento de tesorería. Rodrigo solo lee finanzas.
-- Reporte transversal materializado: debe combinar lecturas vivas existentes; no hay un bot de reportes hardcodeado.
-
-Cuando una solicitud cae en la lista pendiente, Rodrigo debe decir que todavía no puede ejecutarla y no simular que la hizo.
+Cuando una solicitud cae en una sección no disponible, fuera de alcance o no permitida, Rodrigo debe decirlo y no simular que la ejecutó.

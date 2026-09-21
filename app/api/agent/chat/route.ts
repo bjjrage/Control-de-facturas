@@ -5,9 +5,7 @@ import { requireProfile } from "@/lib/auth";
 import { actorFromProfile, withWorkspace } from "@/lib/agent/context";
 import { createRun, createTask, finishRun, updateTaskStatus } from "@/lib/agent/runtime";
 import { deriveRodrigoState, getRodrigoStatePresentation } from "@/lib/agent/rodrigo-state";
-import { formatToolAnswer, RODRIGO_HELP_MESSAGE, routeChatIntent } from "@/lib/agent/rodrigo-chat";
 import { AgentOrchestrator, DeepSeekConfigError } from "@/lib/agent/orchestrator";
-import { gatewayExecuteSafe } from "@/lib/agent/gateway";
 import "@/lib/tools"; // auto-registro de todos los tools
 
 export const dynamic = "force-dynamic";
@@ -79,7 +77,6 @@ export async function POST(request: Request) {
     typeof body.workspaceProjectId === "string" && body.workspaceProjectId.length > 0
       ? body.workspaceProjectId
       : null;
-  const draftId = typeof body.draftId === "string" && body.draftId.length > 0 ? body.draftId : null;
   const conversationHistory = parseConversationHistory(body.conversationHistory);
   const idempotencyKey =
     typeof body.idempotencyKey === "string" && body.idempotencyKey.length > 0 ? body.idempotencyKey : randomUUID();
@@ -117,7 +114,7 @@ export async function POST(request: Request) {
 
     // Preview y Production deben fallar cerrado: una credencial ausente nunca
     // puede convertir a Rodrigo silenciosamente en un router de keywords.
-    if (!deepseekConfigured && process.env.NODE_ENV !== "development") {
+    if (!deepseekConfigured) {
       await failTask("Rodrigo no está configurado en este entorno.");
       return noStoreJson(
         {
@@ -166,74 +163,12 @@ export async function POST(request: Request) {
       return noStoreJson({ answer: result.answer, taskId: task.id, state, approval: null, emailPreview: result.emailPreview ?? null });
     }
 
-    // Camino 2: router determinista (certificación sin LLM). Mismo Gateway.
-    if (process.env.RODRIGO_ALLOW_DETERMINISTIC_FALLBACK !== "true") {
-      await failTask("Rodrigo no está configurado en este entorno.");
-      return noStoreJson(
-        {
-          error: "Rodrigo no está configurado en este entorno.",
-          diagnostics: { deepseekConfigured: false },
-        },
-        503
-      );
-    }
+    await failTask("Rodrigo no está configurado en este entorno.");
+    return noStoreJson(
+      { error: "Rodrigo no está configurado en este entorno.", diagnostics: { deepseekConfigured: false } },
+      503
+    );
 
-    // Router determinista unicamente para tests/desarrollo local explicito.
-    const route = routeChatIntent(message, workspaceProjectId, draftId);
-    if (route.kind === "help") {
-      await finishRun({ db, runId: run.id, status: "COMPLETED" });
-      await updateTaskStatus({ db, taskId: task.id, empresaId: profile.empresa_id, status: "COMPLETED", actorType: "system" });
-      return noStoreJson({ answer: RODRIGO_HELP_MESSAGE, taskId: task.id, state: "idle", approval: null });
-    }
-    if (route.kind === "clarify") {
-      await finishRun({ db, runId: run.id, status: "COMPLETED" });
-      await updateTaskStatus({ db, taskId: task.id, empresaId: profile.empresa_id, status: "COMPLETED", actorType: "system" });
-      return noStoreJson({ answer: route.message, taskId: task.id, state: "idle", approval: null });
-    }
-
-    const agentContext = withWorkspace(actor, workspaceProjectId ? { projectId: workspaceProjectId } : null);
-    const gatewayResult = await gatewayExecuteSafe({
-      db,
-      actor: agentContext,
-      toolName: route.tool,
-      rawInput: route.input,
-      taskId: task.id,
-      runId: run.id,
-    });
-    if (!gatewayResult.ok) {
-      await finishRun({ db, runId: run.id, status: "COMPLETED" });
-      await updateTaskStatus({
-        db,
-        taskId: task.id,
-        empresaId: profile.empresa_id,
-        status: "WAITING_APPROVAL",
-        actorType: "system",
-      });
-      const presentation = getRodrigoStatePresentation("approval");
-      return noStoreJson({
-        answer: "Esta acción necesita tu aprobación en el panel antes de ejecutarse.",
-        taskId: task.id,
-        state: "approval",
-        label: presentation.label,
-        approval: { id: gatewayResult.approvalId, tool: gatewayResult.tool },
-        emailPreview: null,
-      });
-    }
-    const answer = formatToolAnswer(route.tool, gatewayResult.output);
-    await finishRun({ db, runId: run.id, status: "COMPLETED" });
-    await updateTaskStatus({ db, taskId: task.id, empresaId: profile.empresa_id, status: "COMPLETED", actorType: "system" });
-    const state = deriveRodrigoState([{ status: "COMPLETED", completedAt: new Date().toISOString() }]);
-    const preparedEmail =
-      route.tool === "prepare_email" && gatewayResult.output && typeof gatewayResult.output === "object"
-        ? (gatewayResult.output as { draftId?: unknown })
-        : null;
-    return noStoreJson({
-      answer,
-      taskId: task.id,
-      state,
-      approval: null,
-      emailPreview: preparedEmail && typeof preparedEmail.draftId === "string" ? gatewayResult.output : null,
-    });
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     console.error("[rodrigo] chat failed", {
