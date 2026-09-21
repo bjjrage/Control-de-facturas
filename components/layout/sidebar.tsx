@@ -524,11 +524,15 @@ export function Sidebar({
     setOpenProjectSection(null);
   }, [pathname, collapsed]);
 
-  function renderLink(item: NavItem) {
+  function isNavItemActive(item: NavItem) {
     const effectivePath = navPath ?? pathname;
-    const active = item.exact
+    return item.exact
       ? effectivePath === item.href
       : effectivePath === item.href || effectivePath.startsWith(item.href + "/");
+  }
+
+  function renderLink(item: NavItem, level: "primary" | "secondary" = "primary") {
+    const active = isNavItemActive(item);
     const Icon = item.icon;
     const isShellPath = (SHELL_PATHS as readonly string[]).includes(item.href);
 
@@ -546,12 +550,13 @@ export function Sidebar({
         href={item.href}
         title={collapsed ? item.label : undefined}
         onClick={handleClick}
+        data-nav-level={level}
+        data-active={active ? "true" : "false"}
         className={cn(
           "flex items-center gap-2.5 h-9 rounded-xl text-[13px] transition-colors",
+          level === "primary" ? "nav-primary" : "nav-secondary",
           collapsed ? "justify-center px-0" : "px-2.5",
-          active
-            ? "bg-[linear-gradient(180deg,rgba(83,129,239,.54),rgba(48,82,162,.42))] text-white font-medium"
-            : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
+          !active && "text-[var(--muted)]"
         )}
       >
         <Icon size={16} className="shrink-0" />
@@ -603,6 +608,7 @@ export function Sidebar({
   function renderSection(label: string, items: NavItem[]) {
     if (items.length === 0) return null;
     const isOpen = openSection?.label === label;
+    const isActiveSection = items.some(isNavItemActive);
     const SectionIcon = sectionIcon(label);
     return (
       <div className={cn("relative py-0.5", isOpen && "z-[60]")}>
@@ -610,6 +616,7 @@ export function Sidebar({
           type="button"
           data-nav-trigger
           data-open={isOpen ? "true" : "false"}
+          data-active={isActiveSection ? "true" : "false"}
           title={collapsed ? label : undefined}
           onClick={() => {
             setOpenSection((current) =>
@@ -617,14 +624,12 @@ export function Sidebar({
             );
           }}
           className={cn(
-            "w-full flex items-center h-9 rounded-xl text-[12px] font-medium transition-colors",
+            "nav-primary w-full flex items-center h-9 rounded-xl text-[12px] font-medium transition-colors",
             label === "Comprar" && "nav-domain-compras",
             label === "Vender" && "nav-domain-ventas",
             label === "Finanzas" && "nav-domain-finanzas",
             collapsed ? "justify-center px-0" : "justify-between px-2.5",
-            isOpen
-              ? "text-[var(--foreground)]"
-              : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]"
+            (isOpen || isActiveSection) ? "text-[var(--foreground)]" : "text-[var(--muted)]"
           )}
         >
           {!collapsed ? (
@@ -651,7 +656,7 @@ export function Sidebar({
             )}
           >
             <div className="space-y-0.5">
-              {items.map(renderLink)}
+              {items.map((item) => renderLink(item, "secondary"))}
             </div>
           </div>
         ) : null}
@@ -676,7 +681,7 @@ export function Sidebar({
           title={collapsed ? group.label : undefined}
           onClick={() => setOpenProjectSection((current) => current === group.label ? null : group.label)}
           className={cn(
-            "w-full flex items-center h-9 rounded-xl text-[12px] font-medium transition-colors",
+            "nav-primary w-full flex items-center h-9 rounded-xl text-[12px] font-medium transition-colors",
             group.label === "Preparar" && "nav-domain-preparar",
             group.label === "Comprar" && "nav-domain-compras",
             group.label === "Ejecutar" && "nav-domain-ejecutar",
@@ -718,6 +723,8 @@ export function Sidebar({
                   <button
                     key={t.key}
                     type="button"
+                    data-nav-level="secondary"
+                    data-active={active ? "true" : "false"}
                     onClick={() => {
                       setOpenProjectSection(null);
                       const url = `/projects/${activeProjectId}?tab=${t.key}`;
@@ -726,9 +733,8 @@ export function Sidebar({
                     }}
                     className={cn(
                       "w-full flex items-center gap-2.5 h-9 rounded-xl text-[13px] transition-colors text-left",
-                      active
-                        ? "bg-[linear-gradient(180deg,rgba(83,129,239,.54),rgba(48,82,162,.42))] text-white font-medium"
-                        : "text-[var(--muted)] hover:bg-white/[0.055] hover:text-[var(--foreground)]",
+                      "nav-secondary",
+                      active ? "text-[var(--foreground)]" : "text-[var(--muted)]",
                       collapsed ? "px-2.5" : "px-2.5"
                     )}
                   >
@@ -861,7 +867,7 @@ export function Sidebar({
       <nav className="flex-1 py-3 px-1.5 space-y-0.5 overflow-y-auto">
         {inProjectMode ? (
           <>
-            {operativoItems.map(renderLink)}
+            {operativoItems.map((item) => renderLink(item, "primary"))}
             {PROJECT_TAB_GROUPS.map(renderProjectSection)}
           </>
         ) : isLoadingProjectMode ? (
@@ -878,11 +884,11 @@ export function Sidebar({
           </div>
         ) : workspace === "licitaciones" ? (
           <>
-            {licitacionesItems.map(renderLink)}
+            {licitacionesItems.map((item) => renderLink(item, "primary"))}
           </>
         ) : workspace === "operativo" ? (
           <>
-            {operativoItems.map(renderLink)}
+            {operativoItems.map((item) => renderLink(item, "primary"))}
             {!collapsed ? (
               <div className="mx-1 my-2 rounded-xl border border-white/[0.06] bg-white/[0.025] px-2.5 py-2 text-[10px] leading-relaxed text-[var(--muted)]">
                 Elegí una obra para habilitar las herramientas operativas.
@@ -894,7 +900,7 @@ export function Sidebar({
           </>
         ) : (
           <>
-            {globalItems.map(renderLink)}
+            {globalItems.map((item) => renderLink(item, "primary"))}
             {renderSection("Comprar", comprasItems)}
             {renderSection("Vender", ventasItems)}
             {renderSection("Finanzas", finanzasItems)}
