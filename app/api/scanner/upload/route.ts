@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { completeScanSession, getScanSessionByCredential } from '@/lib/scanner/session-service';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sanitizeFileName } from '@/lib/storage';
+import { clearMobileCredentialCookie, getMobileCredentialFromRequest } from '@/lib/scanner/cookies';
 
 const MAX_SCAN_BYTES = 20 * 1024 * 1024; // 20MB
 
@@ -22,15 +23,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Resolver mobileClaimToken desde el formData o desde la cookie HttpOnly
+    const cookieCred = getMobileCredentialFromRequest(req);
+    const resolvedMobileClaimToken = mobileClaimToken || cookieCred?.mobileClaimToken || null;
+
     // El token QR inicial es exclusivamente para CLAIM; operaciones posteriores requieren mobileClaimToken
-    if (formData.has('token') && !formData.has('mobileClaimToken')) {
+    if (formData.has('token') && !formData.has('mobileClaimToken') && !cookieCred?.mobileClaimToken) {
       return NextResponse.json(
         { error: 'El token QR inicial no es válido para operaciones posteriores. Se requiere mobileClaimToken.' },
         { status: 401 }
       );
     }
 
-    const credential = (mobileClaimToken || token || '').trim();
+    const credential = (resolvedMobileClaimToken || token || '').trim();
     if (!credential) {
       return NextResponse.json(
         { error: 'Se requiere credencial móvil autorizada (mobileClaimToken)' },
@@ -150,7 +155,7 @@ export async function POST(req: NextRequest) {
       .from(storageBucket)
       .createSignedUrl(storagePath, 300);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       sessionId: updatedSession.id,
       storagePath,
@@ -159,6 +164,8 @@ export async function POST(req: NextRequest) {
       pageCount,
       signedUrl: signedData?.signedUrl ?? null,
     });
+    clearMobileCredentialCookie(response);
+    return response;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error interno al subir escaneo';
     return NextResponse.json({ error: message }, { status: 500 });

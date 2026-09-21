@@ -63,41 +63,35 @@ export function orderQuadCorners(pts: Point2D[]): QuadPoints {
     throw new Error('Se requieren exactamente 4 puntos');
   }
 
-  // 1. Top-Left minimiza (x + y), Bottom-Right maximiza (x + y)
-  // 2. Top-Right minimiza (y - x), Bottom-Left maximiza (y - x)
-  let tl = pts[0];
-  let br = pts[0];
-  let tr = pts[0];
-  let bl = pts[0];
+  // 1. Calcular centroide geométrico
+  const cx = (pts[0].x + pts[1].x + pts[2].x + pts[3].x) / 4;
+  const cy = (pts[0].y + pts[1].y + pts[2].y + pts[3].y) / 4;
 
+  // 2. Ordenar en sentido horario alrededor del centroide
+  const sorted = pts.slice().sort((a, b) => {
+    const angleA = Math.atan2(a.y - cy, a.x - cx);
+    const angleB = Math.atan2(b.y - cy, b.x - cx);
+    return angleA - angleB;
+  });
+
+  // 3. Buscar el vértice que minimiza (x + y) como Top-Left canónico
+  let tlIndex = 0;
   let minSum = Infinity;
-  let maxSum = -Infinity;
-  let minDiff = Infinity;
-  let maxDiff = -Infinity;
-
-  for (const pt of pts) {
-    const sum = pt.x + pt.y;
-    const diff = pt.y - pt.x;
-
+  for (let i = 0; i < 4; i++) {
+    const sum = sorted[i].x + sorted[i].y;
     if (sum < minSum) {
       minSum = sum;
-      tl = pt;
-    }
-    if (sum > maxSum) {
-      maxSum = sum;
-      br = pt;
-    }
-    if (diff < minDiff) {
-      minDiff = diff;
-      tr = pt;
-    }
-    if (diff > maxDiff) {
-      maxDiff = diff;
-      bl = pt;
+      tlIndex = i;
     }
   }
 
-  return { topLeft: tl, topRight: tr, bottomRight: br, bottomLeft: bl };
+  // 4. En orden horario garantizado: TL, TR, BR, BL
+  return {
+    topLeft: sorted[tlIndex],
+    topRight: sorted[(tlIndex + 1) % 4],
+    bottomRight: sorted[(tlIndex + 2) % 4],
+    bottomLeft: sorted[(tlIndex + 3) % 4],
+  };
 }
 
 /**
