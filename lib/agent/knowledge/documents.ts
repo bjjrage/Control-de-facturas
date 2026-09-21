@@ -31,7 +31,7 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
     summary: "Las obras contienen presupuesto, ejecución, cronograma, BIM, stock, compras, personal, subcontratos y certificación.",
     keywords: ["obra", "obras", "proyecto", "presupuesto", "computo", "cómputo", "ejecucion", "ejecución", "avance", "bim", "certificado", "subcontratista", "personal", "cronograma"],
     content:
-      "La superficie de proyecto expone presupuesto, cronograma, BIM, proveedores, cotizaciones, órdenes de compra, facturas, pagos, ejecución, stock/materiales, personal, subcontratistas, certificados, avance físico e informes. El tool get_project_context lee por UUID el proyecto, resumen del presupuesto y resumen de ejecución. No existe en el registry un buscador general de obras por nombre.",
+      "La superficie de proyecto expone presupuesto, cronograma, BIM, proveedores, cotizaciones, órdenes de compra, facturas, pagos, ejecución, stock/materiales, personal, subcontratistas, certificados, avance físico e informes. resolve_erp_entity encuentra una obra por nombre/código/cliente y luego get_project_context lee el proyecto, resumen del presupuesto y resumen de ejecución. get_project_inventory_overview y get_weekly_plan_overview agregan lectura real de stock imputado, consumo y planificación semanal.",
     sourceMap: [
       "app/(internal)/projects/[id]/project-tabs-client.tsx",
       "app/(internal)/projects/actions.ts",
@@ -43,13 +43,29 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
     docPath: "rodrigo/knowledge/modules/projects.md",
   },
   {
+    id: "entity-resolution",
+    title: "Resolución de entidades por referencia humana",
+    module: "entity-resolution",
+    summary: "Las referencias humanas se buscan en datos vivos y se mantienen tenant-scoped antes de usar una herramienta de dominio.",
+    keywords: ["resolver", "resolucion", "resolución", "nombre", "ruc", "uuid", "identificador", "ambigüedad", "ambiguidad", "proveedor", "obra", "deposito", "depósito", "factura", "orden", "planilla"],
+    content:
+      "resolve_erp_entity busca proyectos, clientes, proveedores, productos, facturas, órdenes de compra, RFQ, licitaciones, documentos, depósitos y planillas por nombre, RUC o referencia. El tenant viene del actor autenticado. Una coincidencia exacta única puede alimentar el siguiente tool; varios candidatos requieren una aclaración. Rodrigo nunca inventa un UUID ni resuelve una ambigüedad silenciosamente.",
+    sourceMap: [
+      "lib/agent/erp-entity-resolver.ts",
+      "lib/tools/erp/resolve-erp-entity.ts",
+      "lib/agent/context.ts",
+      "lib/agent/gateway.ts",
+    ],
+    docPath: "rodrigo/knowledge/ENTITY-RESOLUTION.md",
+  },
+  {
     id: "inventory",
     title: "Inventario, stock y depósitos",
     module: "inventory",
     summary: "El ERP separa catálogo de productos, stock global, stock por depósito y stock imputado a obra.",
     keywords: ["stock", "inventario", "material", "materiales", "producto", "productos", "deposito", "depósito", "pañol", "panol", "recepcion", "recepción", "transferencia", "consumo", "warehouse"],
     content:
-      "El catálogo productos se relaciona con stock global y desgloses por depósito y por proyecto. También existen recepciones de órdenes, evidencias, transferencias, inventario de obra, pañol y un portal de depósito. get_stock_availability lee un producto por UUID y opcionalmente la lente de una obra. get_material_need compara descripciones contra budget_items y stock del catálogo; no inventa cantidades cuando faltan.",
+      "El catálogo productos se relaciona con stock global y desgloses por depósito y por proyecto. resolve_erp_entity encuentra materiales, obras y depósitos por nombre. get_project_inventory_overview lee stock/consumo de una obra y get_stock_availability lee el detalle de un producto. post_inventory_movement usa el servicio canónico para una recepción, transferencia física, consumo, devolución o ajuste con aprobación; nunca mueve dinero.",
     sourceMap: [
       "lib/inventory/service.ts",
       "lib/tools/stock/get-stock-availability.ts",
@@ -90,7 +106,7 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
     summary: "El plan semanal contiene ítems y cruza ejecución, stock, entradas y reservas de inventario.",
     keywords: ["plan semanal", "semanal", "planificacion", "planificación", "reserva", "reservas", "abastecimiento", "inbound", "materiales de la semana", "produccion", "producción"],
     content:
-      "El flujo de plan semanal carga datos base de la obra, calcula/previewa objetivos y puede persistir project_weekly_plans, project_weekly_plan_items e inventory_reservations. Es una capacidad real de la UI y del dominio. En esta versión Rodrigo solo puede explicar el modelo y leer materiales mediante los tools existentes; no tiene un tool dedicado para consultar o guardar el plan semanal.",
+      "El flujo de plan semanal carga datos base de la obra, calcula/previewa objetivos y puede persistir project_weekly_plans, project_weekly_plan_items e inventory_reservations. get_weekly_plan_overview lee los planes y sus ítems actuales. Rodrigo todavía no puede crear/editar planes, reservas ni generar automáticamente las compras de la semana.",
     sourceMap: [
       "app/(internal)/projects/weekly-plan-actions.ts",
       "app/(internal)/projects/[id]/weekly-plan-section.tsx",
@@ -106,7 +122,7 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
     summary: "Licitaciones y el laboratorio de subastas tienen datos y flujos propios separados de las compras internas.",
     keywords: ["licitacion", "licitación", "licitaciones", "tender", "dncp", "lote", "oferente", "oferta", "competidor", "competidores", "subasta", "auction", "radar"],
     content:
-      "El módulo de licitaciones trabaja con convocatoria, lotes, ítems, oferentes, ofertas, documentos, seguimiento y observaciones de costos. Incluye radar de competidores, documentos de empresa y Auction Lab/sandbox con políticas y eventos. Es una superficie real de UI/dominio, pero el registry actual de Rodrigo no contiene una herramienta para consultar una licitación, analizar ofertas o operar una subasta.",
+      "El módulo de licitaciones trabaja con convocatoria, lotes, ítems, oferentes, ofertas, documentos, seguimiento y observaciones de costos. get_tender_overview permite leer una licitación resuelta, sus lotes, ítems, oferentes y documentos de empresa. Rodrigo todavía no presenta ofertas, decide licitaciones ni opera Auction Lab/Auction Bot.",
     sourceMap: [
       "app/(internal)/licitaciones/actions.ts",
       "app/(internal)/licitaciones/dashboard-data.ts",
@@ -124,10 +140,10 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
     id: "finance-and-treasury",
     title: "Ventas, facturas, cobros, tesorería y caja",
     module: "finance",
-    summary: "El ERP tiene superficies financieras reales, pero Rodrigo no recibe tools para mover dinero ni para afirmar saldos vivos.",
+    summary: "El ERP tiene superficies financieras reales; Rodrigo puede leer saldos y documentos abiertos, pero nunca mover dinero.",
     keywords: ["finanzas", "financiero", "factura", "facturas", "venta", "ventas", "cobro", "cobros", "pago", "pagos", "tesoreria", "tesorería", "caja", "banco", "transferencia", "conciliar", "liquidar", "dinero"],
     content:
-      "La aplicación contiene ventas, facturas, cobros, flujo de caja, cuentas_financieras y payment_orders/payment_order_invoices. Esas pantallas y acciones son datos vivos y no deben ser resumidos desde este manual. Rodrigo puede explicar conceptos y límites, pero en esta versión no tiene herramientas financieras de lectura ni herramientas de pago. Nunca debe pagar, cobrar, transferir, mover fondos, conciliar, liquidar ni registrar un movimiento efectivo; si se lo piden, debe rechazar la ejecución y derivar a la UI/proceso autorizado.",
+      "La aplicación contiene ventas, facturas, cobros, flujo de caja, cuentas_financieras y payment_orders/payment_order_invoices. get_finance_overview lee saldos de cuentas, cuentas a pagar, órdenes de pago existentes y cuentas a cobrar. Nunca debe pagar, cobrar, transferir fondos, conciliar, liquidar ni registrar un movimiento monetario efectivo; si se lo piden, debe rechazar la ejecución y derivar a la UI/proceso autorizado.",
     sourceMap: [
       "app/(internal)/ventas/actions.ts",
       "app/(internal)/invoices/actions.ts",
@@ -136,6 +152,7 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
       "app/(internal)/tesoreria/actions.ts",
       "app/(internal)/pagos/actions.ts",
       "lib/agent/registry.ts",
+      "lib/tools/erp/get-finance-overview.ts",
     ],
     docPath: "rodrigo/knowledge/modules/finance-and-treasury.md",
   },

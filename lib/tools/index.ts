@@ -25,6 +25,13 @@ import "@/lib/tools/knowledge/get-erp-knowledge";
 // EMAIL V1 — drafts, frozen approvals and Gmail provider.
 import "@/lib/tools/email/prepare-email";
 import "@/lib/tools/email/send-email";
+// ERP KNOWLEDGE / CONTEXT V2 — resolución humana, lecturas transversales y stock.
+import "@/lib/tools/erp/resolve-erp-entity";
+import "@/lib/tools/erp/get-project-inventory-overview";
+import "@/lib/tools/erp/get-weekly-plan-overview";
+import "@/lib/tools/erp/get-finance-overview";
+import "@/lib/tools/erp/get-tender-overview";
+import "@/lib/tools/erp/post-inventory-movement";
 
 // Re-export para uso directo en tests sin pasar por registry si se desea
 export * from "@/lib/tools/projects/get-project-context";
@@ -47,3 +54,9 @@ export * from "@/lib/tools/documents/extract-document-data";
 export * from "@/lib/tools/knowledge/get-erp-knowledge";
 export * from "@/lib/tools/email/prepare-email";
 export * from "@/lib/tools/email/send-email";
+export * from "@/lib/tools/erp/resolve-erp-entity";
+export * from "@/lib/tools/erp/get-project-inventory-overview";
+export * from "@/lib/tools/erp/get-weekly-plan-overview";
+export * from "@/lib/tools/erp/get-finance-overview";
+export * from "@/lib/tools/erp/get-tender-overview";
+export * from "@/lib/tools/erp/post-inventory-movement";
