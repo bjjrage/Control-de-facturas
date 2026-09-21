@@ -1,8 +1,8 @@
-# ERP Manual V1 para Rodrigo
+# ERP Manual V3 para Rodrigo
 
 ## Alcance
 
-Este manual describe únicamente superficies, relaciones y controles presentes en el checkout de esta rama. No contiene saldos, nombres de clientes, existencias, credenciales ni otros datos vivos. Una afirmación de este documento no convierte una capacidad de la aplicación en una capacidad ejecutable por Rodrigo.
+Este manual describe únicamente superficies, relaciones y controles presentes en el checkout de esta rama. No contiene saldos, nombres de clientes, existencias, credenciales ni otros datos vivos. Una afirmación del manual no convierte una capacidad de la aplicación en una capacidad ejecutable por Rodrigo.
 
 Rodrigo debe separar tres cosas:
 
@@ -26,49 +26,38 @@ El runtime entrega contexto estático de forma selectiva según el mensaje. Un s
 - Licitaciones: convocatorias, lotes, ítems, oferentes, ofertas, documentos, competidores y Auction Lab.
 - Operaciones auxiliares: planillas, scanner, documentos, email y portales de depósito.
 
-## Límites duros
+## Operaciones V3 ejecutables
 
-Rodrigo no debe pagar, cobrar, transferir, mover dinero, conciliar, liquidar ni registrar un movimiento monetario efectivo. Puede leer saldos, cuentas a pagar/cobrar y órdenes existentes mediante `get_finance_overview`, pero debe derivar toda mutación monetaria al proceso autorizado.
+- `manage_master_data`: clientes, proveedores y obras; alta, edición, activación o estado donde la acción existente lo permite.
+- `get_project_modeling_overview`, `manage_budget_item` y `manage_production_recipe`: lectura de presupuesto/BIM/cómputo, partidas, avance y recetas/BOM reales.
+- `preview_weekly_plan` calcula sin guardar; `save_weekly_plan` persiste o compromete. Con `mrp_commit` y `COMMITTED`, la acción existente recalcula cobertura y reserva mediante la RPC atómica. No genera una OC automáticamente.
+- `manage_certificate`: crea, edita líneas de borrador y transiciona Elaborado/Verificado/Aprobado.
+- `manage_sales_document`: crea, edita y emite documentos comerciales. `create_invoice` registra facturas de proveedor, incluso una sesión de scanner ya completada; no crea pagos.
+- `manage_inventory_operation`: recepciones de OC, ubicaciones, portal de depósito y rendiciones; son operaciones físicas.
+- `manage_climate_workday`: configuración, evaluación y decisiones de jornada existentes.
+- `manage_tender`: decisión, seguimiento, paquete/evaluación, extracción de texto y conversión de una licitación GANADA a proyecto.
+- `manage_company_document`: metadatos canónicos y sincronización de la proyección existente; no adjuntos binarios.
 
-Preparar un correo no es enviarlo. `prepare_email` genera un borrador/preview. `send_email` exige aprobación humana, snapshot íntegro e idempotencia.
+Cada mutación tiene riesgo 2 y espera aprobación humana. Las referencias deben resolverse con `resolve_erp_entity` antes de pasar UUIDs a un tool.
 
-## Flujos operativos trazables
+## Compras y reportes
 
-### Consultar una obra
+La relación base de compras es RFQ → ítems → proveedores invitados → respuestas/cotizaciones → comparación → borrador de orden. Rodrigo puede leer y preparar superficies ya registradas; una solicitud enviada o una OC emitida sigue teniendo aprobación.
 
-Con UUID de proyecto, `get_project_context` devuelve datos básicos, resumen de presupuesto y resumen de ejecución. La UI de proyecto además contiene las pestañas documentadas en `modules/projects.md`.
+Las consultas transversales deben combinar lecturas vivas de dominio. No hay un informe mágico ni datos vivos dentro del manual.
 
-### Consultar materiales
+## Email y documentos
 
-`resolve_erp_entity` permite encontrar una obra, producto/material, depósito o ubicación por nombre, y luego `get_project_inventory_overview` lee stock imputado y consumo de la obra. `get_stock_availability` sigue disponible para el desglose detallado de un producto. `get_material_need` compara presupuesto con el catálogo y stock actual. No se debe presentar una cantidad como actual si no salió de un tool.
+Para un correo común se resuelve destinatario/objetivo, se prepara el borrador y se muestra el preview. `send_email` exige aprobación con snapshot íntegro e idempotencia. No se debe pedir obra, RFQ u OC si el usuario no los necesita.
 
-### Compras
+## Límite duro de tesorería
 
-La relación base es RFQ → ítems → proveedores invitados → respuestas/cotizaciones → comparación → borrador de orden. Leer es distinto de crear un borrador, enviar una solicitud o emitir una orden; esas últimas acciones tienen riesgos y aprobaciones definidos en el registry.
+Rodrigo puede leer saldos, cuentas a pagar/cobrar y órdenes existentes mediante `get_finance_overview`, pero nunca debe pagar, cobrar, transferir fondos, conciliar, liquidar ni registrar un movimiento monetario efectivo. Si se lo piden, debe rechazar la ejecución y derivar a la UI/proceso autorizado.
 
-### Planificación y reportes
+## Capacidades todavía no ejecutables
 
-`get_weekly_plan_overview` lee los planes semanales reales y sus ítems. Las consultas transversales deben combinar tools de dominio; no hay un informe mágico ni datos vivos dentro del manual.
-
-### Email y documentos
-
-Para un correo común se resuelve destinatario/objetivo, se prepara el borrador y se muestra el preview. No se debe pedir obra, RFQ u OC si el usuario no los necesita. Los documentos y planillas se consultan con sus identificadores y alcances explícitos.
+Personal, cuadrillas y subcontratistas; APU estructurado separado del presupuesto/receta; compras automáticas desde faltantes MRP; presentación a DNCP; Auction Lab/Auction Bot; carga binaria desde Scanner; adjuntos empresariales; cobros, pagos y tesorería. La lista canónica está en `CAPABILITIES-GAPS.md`.
 
 ## Fuente
 
-La representación runtime está en `lib/agent/knowledge/documents.ts` y el loader en `lib/agent/knowledge/loader.ts`. Este documento es la explicación humana y se mantiene alineado con esas entradas. La lista de capacidades aún no ejecutables está en `CAPABILITIES-GAPS.md`.
-
-## Source map
-
-- `app/(internal)/layout.tsx`
-- `components/layout/sidebar.tsx`
-- `components/layout/topbar.tsx`
-- `lib/agent/orchestrator.ts`
-- `lib/agent/context.ts`
-- `lib/agent/registry.ts`
-- `lib/agent/gateway.ts`
-- `lib/tools/index.ts`
-- `lib/agent/knowledge/documents.ts`
-- `lib/agent/knowledge/loader.ts`
-- `lib/agent/erp-entity-resolver.ts`
-- `lib/tools/erp/resolve-erp-entity.ts`
+La representación runtime está en `lib/agent/knowledge/documents.ts` y el loader en `lib/agent/knowledge/loader.ts`. Este documento es la explicación humana y se mantiene alineado con esas entradas.

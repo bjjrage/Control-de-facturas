@@ -20,3 +20,5 @@ Rodrigo nunca puede ejecutar pago, cobro, transferencia de fondos, movimiento ba
 - `app/(internal)/pagos/actions.ts`
 - `lib/agent/registry.ts`
 - `lib/tools/erp/get-finance-overview.ts`
+- `lib/tools/erp/manage-sales-document.ts`
+- `lib/tools/erp/create-invoice.ts`

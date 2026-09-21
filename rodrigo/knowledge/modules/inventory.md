@@ -17,3 +17,4 @@ Rodrigo puede resolver producto, obra y depósito por nombre con `resolve_erp_en
 - `lib/agent/erp-entity-resolver.ts`
 - `lib/tools/erp/get-project-inventory-overview.ts`
 - `lib/tools/erp/post-inventory-movement.ts`
+- `lib/tools/erp/manage-inventory-operation.ts`
