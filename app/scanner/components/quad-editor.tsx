@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { Check, RotateCcw, AlertTriangle, Sparkles } from "lucide-react";
@@ -12,13 +12,14 @@ import {
 
 interface QuadEditorProps {
   imageDataUrl: string;
+  initialQuad?: QuadPoints;
   onConfirmCrop: (croppedDataUrl: string, width: number, height: number, quad: QuadPoints) => void;
   onCancel: () => void;
 }
 
 type CornerKey = "topLeft" | "topRight" | "bottomRight" | "bottomLeft";
 
-export function QuadEditor({ imageDataUrl, onConfirmCrop, onCancel }: QuadEditorProps) {
+export function QuadEditor({ imageDataUrl, initialQuad, onConfirmCrop, onCancel }: QuadEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageObjRef = useRef<HTMLImageElement | null>(null);
@@ -33,7 +34,7 @@ export function QuadEditor({ imageDataUrl, onConfirmCrop, onCancel }: QuadEditor
   const [detectionNotice, setDetectionNotice] = useState<string | null>(null);
   const [isQuadValid, setIsQuadValid] = useState<boolean>(true);
 
-  // Cargar imagen y ejecutar detección REAL tipo CamScanner
+  // Cargar imagen y utilizar initialQuad o ejecutar detección REAL tipo CamScanner
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -43,7 +44,15 @@ export function QuadEditor({ imageDataUrl, onConfirmCrop, onCancel }: QuadEditor
       const h = img.naturalHeight;
       setImgDims({ w, h });
 
-      // Extraer ImageData para el pipeline de visión por computadora
+      // Si se recibió un cuadrilátero válido desde la detección en vivo, usarlo directamente
+      if (initialQuad && isValidConvexQuad(initialQuad, w, h)) {
+        setQuad(initialQuad);
+        setIsQuadValid(true);
+        setDetectionNotice("Documento detectado automáticamente en vivo. Ajustá las esquinas si es necesario.");
+        return;
+      }
+
+      // Extraer ImageData para el pipeline de visión por computadora si no vino initialQuad
       const offCanvas = document.createElement("canvas");
       offCanvas.width = w;
       offCanvas.height = h;
@@ -62,12 +71,12 @@ export function QuadEditor({ imageDataUrl, onConfirmCrop, onCancel }: QuadEditor
           setDetectionNotice(`Documento detectado automáticamente (${Math.round(result.confidence * 100)}% de coincidencia)`);
         }
       } else {
-        const initialQuad = detectDefaultCorners(w, h);
-        setQuad(initialQuad);
+        const defaultQuad = detectDefaultCorners(w, h);
+        setQuad(defaultQuad);
       }
     };
     img.src = imageDataUrl;
-  }, [imageDataUrl]);
+  }, [imageDataUrl, initialQuad]);
 
   // Validar cuadrilátero cada vez que cambia quad
   useEffect(() => {

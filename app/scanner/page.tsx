@@ -54,6 +54,7 @@ function ScannerContent() {
     dataUrl: string;
     width: number;
     height: number;
+    detectedQuad?: QuadPoints;
   } | null>(null);
 
   const [currentCroppedCapture, setCurrentCroppedCapture] = useState<{
@@ -158,7 +159,15 @@ function ScannerContent() {
         setToken(data.token);
       }
       setSessionInfo(data.session);
-      setFlowState("ready");
+
+      // Revisar si había páginas guardadas offline
+      const offline = await getOfflinePages(data.session.id);
+      if (offline && offline.length > 0) {
+        setPages(offline);
+        setFlowState("pages");
+      } else {
+        setFlowState("ready");
+      }
     } catch {
       setErrorNotice("Error de conexión al verificar código");
     } finally {
@@ -167,8 +176,13 @@ function ScannerContent() {
   }
 
   // 1. Captura realizada
-  function handleCapture(dataUrl: string, width: number, height: number) {
-    setCurrentRawCapture({ dataUrl, width, height });
+  function handleCapture(
+    dataUrl: string,
+    width: number,
+    height: number,
+    detectedQuad?: QuadPoints
+  ) {
+    setCurrentRawCapture({ dataUrl, width, height, detectedQuad });
     setFlowState("cropping");
   }
 
@@ -235,6 +249,7 @@ function ScannerContent() {
       dataUrl: page.originalDataUrl,
       width: page.width,
       height: page.height,
+      detectedQuad: page.quad,
     });
     setFlowState("cropping");
   }
@@ -415,8 +430,16 @@ function ScannerContent() {
     return (
       <QuadEditor
         imageDataUrl={currentRawCapture.dataUrl}
+        initialQuad={currentRawCapture.detectedQuad}
         onConfirmCrop={handleConfirmCrop}
-        onCancel={() => setFlowState("capturing")}
+        onCancel={() => {
+          if (editingPageIndex !== null) {
+            setEditingPageIndex(null);
+            setFlowState("pages");
+          } else {
+            setFlowState("capturing");
+          }
+        }}
       />
     );
   }
