@@ -107,11 +107,11 @@ const GLOBAL_ITEMS: NavItem[] = [
 ];
 
 const OPERATIVO_ITEMS: NavItem[] = [
-  { href: "/projects", label: "Dashboard", roles: ["administracion", "admin"], icon: FolderOpen, minPlan: "pro" },
+  { href: "/projects", label: "Dashboard", roles: ["administracion", "admin"], icon: LayoutDashboard, minPlan: "pro" },
 ];
 
 const LICITACIONES_ITEMS: NavItem[] = [
-  { href: "/licitaciones", label: "Dashboard", roles: ["comercial", "administracion", "admin"], icon: Gavel, minPlan: "pro", exact: true },
+  { href: "/licitaciones", label: "Dashboard", roles: ["comercial", "administracion", "admin"], icon: LayoutDashboard, minPlan: "pro", exact: true },
   { href: "/licitaciones/competidores", label: "Competidores", roles: ["comercial", "administracion", "admin"], icon: Radar, minPlan: "pro" },
   { href: "/licitaciones/documentos", label: "Documentos", roles: ["comercial", "administracion", "admin"], icon: FileText, minPlan: "pro" },
   { href: "/licitaciones/auction-bot", label: "Auction Bot", roles: ["comercial", "administracion", "admin"], icon: Bot, minPlan: "pro" },
@@ -884,7 +884,7 @@ export function Sidebar({
           </div>
         ) : workspace === "licitaciones" ? (
           <>
-            {licitacionesItems.map((item) => renderLink(item, "primary"))}
+            {licitacionesItems.map((item, index) => renderLink(item, index === 0 ? "primary" : "secondary"))}
           </>
         ) : workspace === "operativo" ? (
           <>
