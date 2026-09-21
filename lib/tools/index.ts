@@ -35,6 +35,20 @@ import "@/lib/tools/erp/get-weekly-plan-overview";
 import "@/lib/tools/erp/get-finance-overview";
 import "@/lib/tools/erp/get-tender-overview";
 import "@/lib/tools/erp/post-inventory-movement";
+// ERP KNOWLEDGE V3 — acciones operativas reales con aprobación humana.
+import "@/lib/tools/erp/manage-master-data";
+import "@/lib/tools/erp/preview-weekly-plan";
+import "@/lib/tools/erp/save-weekly-plan";
+import "@/lib/tools/erp/manage-sales-document";
+import "@/lib/tools/erp/create-invoice";
+import "@/lib/tools/erp/manage-company-document";
+import "@/lib/tools/erp/manage-inventory-operation";
+import "@/lib/tools/erp/manage-climate-workday";
+import "@/lib/tools/erp/manage-tender";
+import "@/lib/tools/erp/manage-certificate";
+import "@/lib/tools/erp/get-project-modeling-overview";
+import "@/lib/tools/erp/manage-budget-item";
+import "@/lib/tools/erp/manage-production-recipe";
 
 // Re-export para uso directo en tests sin pasar por registry si se desea
 export * from "@/lib/tools/projects/get-project-context";
@@ -65,3 +79,16 @@ export * from "@/lib/tools/erp/get-weekly-plan-overview";
 export * from "@/lib/tools/erp/get-finance-overview";
 export * from "@/lib/tools/erp/get-tender-overview";
 export * from "@/lib/tools/erp/post-inventory-movement";
+export * from "@/lib/tools/erp/manage-master-data";
+export * from "@/lib/tools/erp/preview-weekly-plan";
+export * from "@/lib/tools/erp/save-weekly-plan";
+export * from "@/lib/tools/erp/manage-sales-document";
+export * from "@/lib/tools/erp/create-invoice";
+export * from "@/lib/tools/erp/manage-company-document";
+export * from "@/lib/tools/erp/manage-inventory-operation";
+export * from "@/lib/tools/erp/manage-climate-workday";
+export * from "@/lib/tools/erp/manage-tender";
+export * from "@/lib/tools/erp/manage-certificate";
+export * from "@/lib/tools/erp/get-project-modeling-overview";
+export * from "@/lib/tools/erp/manage-budget-item";
+export * from "@/lib/tools/erp/manage-production-recipe";

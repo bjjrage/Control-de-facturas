@@ -31,7 +31,7 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
     summary: "Las obras contienen presupuesto, ejecución, cronograma, BIM, stock, compras, personal, subcontratos y certificación.",
     keywords: ["obra", "obras", "proyecto", "presupuesto", "computo", "cómputo", "ejecucion", "ejecución", "avance", "bim", "certificado", "subcontratista", "personal", "cronograma"],
     content:
-      "La superficie de proyecto expone presupuesto, cronograma, BIM, proveedores, cotizaciones, órdenes de compra, facturas, pagos, ejecución, stock/materiales, personal, subcontratistas, certificados, avance físico e informes. resolve_erp_entity encuentra una obra por nombre/código/cliente y luego get_project_context lee el proyecto, resumen del presupuesto y resumen de ejecución. get_project_inventory_overview y get_weekly_plan_overview agregan lectura real de stock imputado, consumo y planificación semanal.",
+      "La superficie de proyecto expone presupuesto, cronograma, BIM, proveedores, cotizaciones, órdenes de compra, facturas, pagos, ejecución, stock/materiales, personal, subcontratistas, certificados, avance físico e informes. resolve_erp_entity encuentra una obra por nombre/código/cliente y luego get_project_context lee el proyecto, resumen del presupuesto y resumen de ejecución. get_project_inventory_overview, get_project_modeling_overview y get_weekly_plan_overview agregan lecturas reales. manage_master_data, manage_budget_item, manage_production_recipe y manage_certificate exponen solo acciones que ya existen en el ERP y esperan aprobación.",
     sourceMap: [
       "app/(internal)/projects/[id]/project-tabs-client.tsx",
       "app/(internal)/projects/actions.ts",
@@ -39,6 +39,10 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
       "app/(internal)/projects/[id]/bim-actions.ts",
       "app/(internal)/projects/[id]/computo-actions.ts",
       "lib/tools/projects/get-project-context.ts",
+      "lib/tools/erp/get-project-modeling-overview.ts",
+      "lib/tools/erp/manage-budget-item.ts",
+      "lib/tools/erp/manage-production-recipe.ts",
+      "lib/tools/erp/manage-certificate.ts",
     ],
     docPath: "rodrigo/knowledge/modules/projects.md",
   },
@@ -65,7 +69,7 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
     summary: "El ERP separa catálogo de productos, stock global, stock por depósito y stock imputado a obra.",
     keywords: ["stock", "inventario", "material", "materiales", "producto", "productos", "deposito", "depósito", "pañol", "panol", "recepcion", "recepción", "transferencia", "consumo", "warehouse"],
     content:
-      "El catálogo productos se relaciona con stock global y desgloses por depósito y por proyecto. resolve_erp_entity encuentra materiales, obras y depósitos por nombre. get_project_inventory_overview lee stock/consumo de una obra y get_stock_availability lee el detalle de un producto. post_inventory_movement usa el servicio canónico para una recepción, transferencia física, consumo, devolución o ajuste con aprobación; nunca mueve dinero.",
+      "El catálogo productos se relaciona con stock global y desgloses por depósito y por proyecto. resolve_erp_entity encuentra materiales, obras y depósitos por nombre. get_project_inventory_overview lee stock/consumo de una obra y get_stock_availability lee el detalle de un producto. post_inventory_movement usa el servicio canónico para una recepción, transferencia física, consumo, devolución o ajuste con aprobación. manage_inventory_operation agrega recepciones de OC, ubicaciones, portal de depósito y rendiciones; todo es inventario físico y nunca dinero.",
     sourceMap: [
       "lib/inventory/service.ts",
       "lib/tools/stock/get-stock-availability.ts",
@@ -73,6 +77,7 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
       "app/(internal)/stock/stock-actions.ts",
       "app/(internal)/inventory/actions.ts",
       "app/warehouse/[token]/page.tsx",
+      "lib/tools/erp/manage-inventory-operation.ts",
       "supabase/migrations/20260914_inventory_hardening.sql",
     ],
     docPath: "rodrigo/knowledge/modules/inventory.md",
@@ -106,12 +111,14 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
     summary: "El plan semanal contiene ítems y cruza ejecución, stock, entradas y reservas de inventario.",
     keywords: ["plan semanal", "semanal", "planificacion", "planificación", "reserva", "reservas", "abastecimiento", "inbound", "materiales de la semana", "produccion", "producción"],
     content:
-      "El flujo de plan semanal carga datos base de la obra, calcula/previewa objetivos y puede persistir project_weekly_plans, project_weekly_plan_items e inventory_reservations. get_weekly_plan_overview lee los planes y sus ítems actuales. Rodrigo todavía no puede crear/editar planes, reservas ni generar automáticamente las compras de la semana.",
+      "El flujo de plan semanal carga datos base de la obra, calcula/previewa objetivos y puede persistir project_weekly_plans, project_weekly_plan_items e inventory_reservations. get_weekly_plan_overview lee los planes actuales; preview_weekly_plan ejecuta el mismo motor sin guardar y save_weekly_plan persiste el plan. Con mrp_commit y status COMMITTED la acción existente recalcula cobertura y reserva en la RPC atómica. Esto no genera automáticamente una compra ni emite una OC.",
     sourceMap: [
       "app/(internal)/projects/weekly-plan-actions.ts",
       "app/(internal)/projects/[id]/weekly-plan-section.tsx",
       "lib/procurement/weekly-plan-shared.ts",
       "supabase/migrations/20260917_agent_foundation_life_recipes_mrp_hardening.sql",
+      "lib/tools/erp/preview-weekly-plan.ts",
+      "lib/tools/erp/save-weekly-plan.ts",
     ],
     docPath: "rodrigo/knowledge/modules/weekly-planning.md",
   },
@@ -122,7 +129,7 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
     summary: "Licitaciones y el laboratorio de subastas tienen datos y flujos propios separados de las compras internas.",
     keywords: ["licitacion", "licitación", "licitaciones", "tender", "dncp", "lote", "oferente", "oferta", "competidor", "competidores", "subasta", "auction", "radar"],
     content:
-      "El módulo de licitaciones trabaja con convocatoria, lotes, ítems, oferentes, ofertas, documentos, seguimiento y observaciones de costos. get_tender_overview permite leer una licitación resuelta, sus lotes, ítems, oferentes y documentos de empresa. Rodrigo todavía no presenta ofertas, decide licitaciones ni opera Auction Lab/Auction Bot.",
+      "El módulo de licitaciones trabaja con convocatoria, lotes, ítems, oferentes, ofertas, documentos, seguimiento y observaciones de costos. get_tender_overview permite leer una licitación resuelta, sus lotes, ítems, oferentes y documentos de empresa. manage_tender puede guardar una decisión, preparar el paquete, persistir una evaluación comercial, extraer requisitos/ofertas de texto y convertir una licitación GANADA en proyecto, siempre con aprobación. No envía ofertas a DNCP ni opera Auction Lab/Auction Bot.",
     sourceMap: [
       "app/(internal)/licitaciones/actions.ts",
       "app/(internal)/licitaciones/dashboard-data.ts",
@@ -133,8 +140,33 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
       "lib/auction-sandbox/server.ts",
       "supabase/migrations/0062_competitor_intelligence.sql",
       "supabase/migrations/0068_planning_currency_fallback_auction_sandbox.sql",
+      "lib/tools/erp/manage-tender.ts",
     ],
     docPath: "rodrigo/knowledge/modules/tenders.md",
+  },
+  {
+    id: "operations-v3",
+    title: "Capacidades operativas V3 y límites",
+    module: "operations",
+    summary: "Las operaciones V3 llaman acciones reales del ERP con tenant, validación y aprobación; dinero y adjuntos binarios siguen limitados.",
+    keywords: ["crear", "editar", "guardar", "emitir", "certificado", "clima", "receta", "apu", "partida", "licitación", "documento empresarial", "recepción", "portal", "plan semanal", "mrp", "factura", "maestro"],
+    content:
+      "V3 registra tools operativos para maestros (clientes, proveedores y obras), partidas y avance, recetas/BOM, preview y guardado de plan semanal con MRP/reservas, certificados, documentos comerciales, facturas de proveedor, documentos empresariales, recepciones/portal/rendiciones de inventario, clima y licitaciones. Las acciones de riesgo 2 siempre requieren aprobación. Los resultados vienen de las acciones o servicios existentes, no de un workflow inventado. No hay tool para cobros, pagos, transferencias bancarias, conciliación, liquidación, Auction Lab/Bot, envío DNCP, personal/subcontratistas ni carga binaria de scanner.",
+    sourceMap: [
+      "lib/tools/erp/manage-master-data.ts",
+      "lib/tools/erp/manage-budget-item.ts",
+      "lib/tools/erp/manage-production-recipe.ts",
+      "lib/tools/erp/preview-weekly-plan.ts",
+      "lib/tools/erp/save-weekly-plan.ts",
+      "lib/tools/erp/manage-sales-document.ts",
+      "lib/tools/erp/create-invoice.ts",
+      "lib/tools/erp/manage-company-document.ts",
+      "lib/tools/erp/manage-inventory-operation.ts",
+      "lib/tools/erp/manage-climate-workday.ts",
+      "lib/tools/erp/manage-tender.ts",
+      "lib/tools/erp/manage-certificate.ts",
+    ],
+    docPath: "rodrigo/knowledge/modules/operations-v3.md",
   },
   {
     id: "finance-and-treasury",
@@ -143,7 +175,7 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
     summary: "El ERP tiene superficies financieras reales; Rodrigo puede leer saldos y documentos abiertos, pero nunca mover dinero.",
     keywords: ["finanzas", "financiero", "factura", "facturas", "venta", "ventas", "cobro", "cobros", "pago", "pagos", "tesoreria", "tesorería", "caja", "banco", "transferencia", "conciliar", "liquidar", "dinero"],
     content:
-      "La aplicación contiene ventas, facturas, cobros, flujo de caja, cuentas_financieras y payment_orders/payment_order_invoices. get_finance_overview lee saldos de cuentas, cuentas a pagar, órdenes de pago existentes y cuentas a cobrar. Nunca debe pagar, cobrar, transferir fondos, conciliar, liquidar ni registrar un movimiento monetario efectivo; si se lo piden, debe rechazar la ejecución y derivar a la UI/proceso autorizado.",
+      "La aplicación contiene ventas, facturas, cobros, flujo de caja, cuentas_financieras y payment_orders/payment_order_invoices. get_finance_overview lee saldos de cuentas, cuentas a pagar, órdenes de pago existentes y cuentas a cobrar. manage_sales_document puede crear/editar/emitir documentos comerciales y create_invoice registra facturas de proveedor; ninguno registra cobros ni órdenes de pago. Nunca debe pagar, cobrar, transferir fondos, conciliar, liquidar ni registrar un movimiento monetario efectivo; si se lo piden, debe rechazar la ejecución y derivar a la UI/proceso autorizado.",
     sourceMap: [
       "app/(internal)/ventas/actions.ts",
       "app/(internal)/invoices/actions.ts",
@@ -153,6 +185,8 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
       "app/(internal)/pagos/actions.ts",
       "lib/agent/registry.ts",
       "lib/tools/erp/get-finance-overview.ts",
+      "lib/tools/erp/manage-sales-document.ts",
+      "lib/tools/erp/create-invoice.ts",
     ],
     docPath: "rodrigo/knowledge/modules/finance-and-treasury.md",
   },
@@ -163,7 +197,7 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
     summary: "Rodrigo puede preparar correo, consultar contenido de documentos y leer planillas cuando tiene identificadores válidos.",
     keywords: ["email", "mail", "correo", "destinatario", "gmail", "documento", "documentos", "archivo", "planilla", "spreadsheet", "rango", "adjunto"],
     content:
-      "prepare_email crea un borrador y preview; no envía. send_email es una acción de riesgo y exige approval con snapshot íntegro e idempotencia. Los tools de documentos leen o extraen por document_id; los de planillas leen snapshot/rango y sus cambios pasan por confirmación. Un correo común no requiere proyecto, obra, RFQ u OC salvo que el usuario pida contenido o adjuntos de ese contexto.",
+      "prepare_email crea un borrador y preview; no envía. send_email es una acción de riesgo y exige approval con snapshot íntegro e idempotencia. Los tools de documentos leen o extraen por document_id; manage_company_document modifica metadatos de empresa y sincroniza la proyección de licitaciones, pero no inventa adjuntos binarios. Los de planillas leen snapshot/rango y sus cambios pasan por confirmación. Un correo común no requiere proyecto, obra, RFQ u OC salvo que el usuario pida contenido o adjuntos de ese contexto.",
     sourceMap: [
       "lib/tools/email/prepare-email.ts",
       "lib/tools/email/send-email.ts",
@@ -174,6 +208,7 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
       "lib/tools/spreadsheet/read-spreadsheet-range.ts",
       "lib/tools/spreadsheet/update-spreadsheet-rows.ts",
       "lib/tools/spreadsheet/confirm-spreadsheet.ts",
+      "lib/tools/erp/manage-company-document.ts",
     ],
     docPath: "rodrigo/knowledge/modules/email-and-documents.md",
   },

@@ -1,35 +1,38 @@
-# Module map V1
+# Module map V3
 
-## Workspaces and modules
+## Superficies verificadas y exposición de Rodrigo
 
-| Area visible | Superficies reales | Exposición actual a Rodrigo |
+| Área | Código real inspeccionado | Exposición actual |
 | --- | --- | --- |
-| Administración | dashboard, empresas, usuarios, configuración, clientes, proveedores | Parcial: entidades se resuelven por nombre/RUC; no hay tool general de dashboard ni CRUD general de clientes/proveedores. |
-| Obras / Operativo | proyectos, presupuesto, cronograma, BIM, ejecución, stock, personal, subcontratos, certificados, informes | Parcial: contexto de proyecto, stock/consumo de obra, necesidad de material y planificación semanal se leen; no todos los submódulos tienen tool. |
-| Comprar | RFQ, respuestas, comparación, proveedores, borradores y órdenes | Parcial: tools de lectura, preparación y acciones con aprobación. |
-| Vender | ventas, proformas, facturas de venta, notas de crédito, cobros | Lectura agregada de cuentas a cobrar; no hay tool de cobro, emisión ni nota de crédito. |
-| Finanzas | flujo de caja, tesorería, cuentas financieras, pagos | `get_finance_overview` permite lectura de saldos y documentos abiertos; dinero/mutaciones siguen fuera del registry. |
-| Licitaciones | licitaciones, competidores, documentos, Auction Lab, Auction Bot | `get_tender_overview` lee convocatoria, lotes, oferentes y documentos; no opera subastas ni presenta ofertas. |
-| Auxiliares | planillas, documentos, email, scanner, portal de depósito | Resolución por nombre de planilla/depósito, tools de documentos/planillas/email y movimiento canónico de inventario; scanner/portal de carga no quedan expuestos como acción automática. |
+| Administración | clientes/actions, providers/actions, projects/actions | `manage_master_data` cubre clientes, proveedores y obras donde las acciones existentes lo permiten. |
+| Obras | projects/actions, weekly-plan-actions, production-recipe-actions, certificado-actions, BIM/computo actions | Lectura de presupuesto/BIM/cómputo; partidas, avance, recetas/BOM, planificación/MRP y certificados con aprobación. Personal/subcontratos siguen sin tool. |
+| Comprar | RFQ/order/invoice actions, inventory/actions | Se mantienen tools de RFQ/OC existentes; V3 suma factura de proveedor, recepciones, ubicaciones y rendiciones. Pagos no. |
+| Vender | ventas/actions | `manage_sales_document` crea, edita y emite documentos; cobros siguen fuera. |
+| Finanzas | finance tools y tesorería existente | `get_finance_overview` es lectura. No hay mutación monetaria allowlisteada. |
+| Licitaciones | licitaciones/actions, dashboard-data, documentos/actions | `get_tender_overview` lee; `manage_tender` decide, prepara/evalúa, extrae texto y convierte una GANADA. DNCP/Auction Lab/Bot no se operan. |
+| Auxiliares | inventory/actions, scanner, documents/actions | Portal/rendiciones y metadatos empresariales vía tools. Scanner binario y adjuntos no se cargan desde chat. |
 
-## Tools registradas en esta base
+## Tools registradas tras V3
 
-### Lectura
+Además de las 26 herramientas base/V2, V3 registra 13 nuevas:
 
-`resolve_erp_entity`, `get_project_context`, `get_project_inventory_overview`, `get_stock_availability`, `get_material_need`, `get_weekly_plan_overview`, `get_finance_overview`, `get_tender_overview`, `search_suppliers`, `get_rfq`, `get_rfq_responses`, `compare_quotations`, `get_spreadsheet_snapshot`, `read_spreadsheet_range`, `get_document_content`, `extract_document_data`, `get_erp_knowledge`.
+`manage_master_data`, `preview_weekly_plan`, `save_weekly_plan`, `manage_budget_item`, `manage_production_recipe`, `manage_sales_document`, `create_invoice`, `manage_company_document`, `manage_inventory_operation`, `manage_climate_workday`, `manage_tender`, `manage_certificate`, `get_project_modeling_overview`.
 
-### Preparación o cambios controlados
+Las lecturas son riesgo 0. Las acciones mutables son riesgo 2 y requieren aprobación del Gateway. Todas las referencias técnicas deben venir de `resolve_erp_entity` y cada handler conserva el tenant del actor.
 
-`prepare_email`, `create_rfq_draft`, `prepare_purchase_order`, `update_spreadsheet_rows` son preparación/cambio no final con el riesgo declarado en el registry. `send_rfq`, `send_email`, `confirm_spreadsheet` e `issue_purchase_order` pasan por aprobación según riesgo/rol.
+## Separaciones intencionales
 
-`post_inventory_movement` es una acción física de inventario con aprobación. No es una operación de tesorería.
+- Knowledge es estático; estado, saldos y existencias salen de tools vivos.
+- MRP puede reservar dentro del commit semanal existente; no emite compras automáticamente.
+- La factura/documento comercial no es cobro.
+- Inventario físico no es tesorería.
+- La UI o un módulo real no implica capability de Rodrigo si no existe tool registrado.
 
 ## Source map
 
-- `components/layout/sidebar.tsx`
-- `components/layout/topbar.tsx`
 - `lib/tools/index.ts`
 - `lib/agent/registry.ts`
 - `lib/agent/gateway.ts`
-- `app/(internal)/projects/[id]/project-tabs-client.tsx`
-- `app/(internal)/licitaciones/actions.ts`
+- `lib/agent/knowledge/documents.ts`
+- `rodrigo/knowledge/modules/operations-v3.md`
+- `rodrigo/knowledge/CAPABILITIES-GAPS.md`
