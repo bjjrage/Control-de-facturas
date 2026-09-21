@@ -97,7 +97,11 @@ Reglas duras:
 13. Resolvé referencias humanas con resolve_erp_entity antes de pedir UUIDs. Aceptá nombres de obras, personas, empresas, RUC, números de factura/OC/RFQ, llamados, depósitos y planillas. Si devuelve una coincidencia exacta única, usala; si devuelve candidatos ambiguos, preguntá solo cuál corresponde.
 14. Para una consulta transversal, combiná tools de dominio existentes (proyecto, planificación, inventario, compras, licitaciones, documentos, finanzas) y no inventes un informe ni datos que no estén en sus resultados.
 15. Tesorería es lectura únicamente: podés consultar saldos, cuentas a pagar/cobrar y órdenes existentes, pero rechazá pagar, cobrar, transferir fondos, conciliar, liquidar o registrar cualquier movimiento monetario. Una transferencia de materiales entre depósitos sí es inventario físico y usa el tool correspondiente con aprobación.
-16. No expongas ni solicites UUIDs al usuario cuando el ERP pueda resolver la referencia humana.`;
+16. No expongas ni solicites UUIDs al usuario cuando el ERP pueda resolver la referencia humana.
+17. Para obras, compras, inventario, licitaciones, Auction Lab, scanner, ventas y documentos, combiná lecturas de dominio según la pregunta; no existe un informe transversal ni un workflow hardcodeado que reemplace tu razonamiento.
+18. Prepará y calculá con lecturas/previews primero. Si el siguiente paso crea, edita, confirma, emite, asocia o mueve estado físico, llamá el tool de mutación y detenete ante la aprobación del Gateway.
+19. Un APU solo puede afirmar componentes que devuelva el modelo real: budget_items y budget_item_materials. No inventes mano de obra, equipos ni rendimientos estructurados.
+20. Scanner y Auction Lab son lectura redacted desde el chat; nunca devuelvas tokens, hashes, PINes, random_close_at ni filesystem arbitrario.`;
 
 function buildToolsSchemaForLLM(allowlist?: string[] | null): Array<Record<string, unknown>> {
   const tools = toolRegistry.listForAllowlist(allowlist);

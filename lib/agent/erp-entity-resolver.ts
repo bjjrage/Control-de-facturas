@@ -18,6 +18,12 @@ export const ERP_ENTITY_TYPES = [
   "document",
   "warehouse",
   "spreadsheet",
+  "subcontractor",
+  "budget_item",
+  "certificate",
+  "sales_document",
+  "work_order",
+  "auction_room",
 ] as const;
 
 export type ErpEntityType = (typeof ERP_ENTITY_TYPES)[number];
@@ -178,6 +184,93 @@ async function resolveRows(
         .filter((row) => normalize(JSON.stringify(row.contexto)).includes(q) || normalize(row.modulo).includes(q))
         .slice(0, 12)
         .map((row) => candidate(entityType, row, String(row.modulo), String(row.estado), query, { contexto: row.contexto, estado: row.estado, updated_at: row.updated_at, confirmed_at: row.confirmed_at }));
+    }
+    case "subcontractor": {
+      const rows = await readRows(
+        db,
+        "subcontractors",
+        "id, name, ruc, contact_name, contact_phone, specialty",
+        empresaId,
+        ilike(["name", "ruc", "contact_name", "specialty"], query)
+      );
+      return rows.map((row) => candidate(entityType, row, String(row.name), row.ruc ? `RUC ${row.ruc}` : row.specialty ? String(row.specialty) : null, query, {
+        contact_name: row.contact_name,
+        contact_phone: row.contact_phone,
+        specialty: row.specialty,
+      }));
+    }
+    case "budget_item": {
+      const projects = await readRows(db, "projects", "id", empresaId);
+      const projectIds = projects.map((row) => String(row.id));
+      if (projectIds.length === 0) return [];
+      const { data, error } = await db
+        .from("budget_items")
+        .select("id, project_id, code, description, unit, quantity, unit_price, subtotal")
+        .in("project_id", projectIds)
+        .or(ilike(["code", "description"], query))
+        .limit(12);
+      if (error) throw new Error(`No se pudo buscar partidas: ${error.message}`);
+      return ((data ?? []) as Row[]).map((row) => candidate(entityType, row, String(row.description), row.code ? String(row.code) : null, query, {
+        project_id: row.project_id,
+        unit: row.unit,
+        quantity: row.quantity,
+        unit_price: row.unit_price,
+        subtotal: row.subtotal,
+      }));
+    }
+    case "certificate": {
+      const projects = await readRows(db, "projects", "id", empresaId);
+      const projectIds = projects.map((row) => String(row.id));
+      if (projectIds.length === 0) return [];
+      const { data, error } = await db
+        .from("project_certificates")
+        .select("id, project_id, numero, period_start, period_end, status, monto_acumulado")
+        .in("project_id", projectIds)
+        .limit(12);
+      if (error) throw new Error(`No se pudo buscar certificados: ${error.message}`);
+      return ((data ?? []) as Row[]).map((row) => candidate(entityType, row, `Certificado ${row.numero}`, `${row.period_start ?? ""} ${row.period_end ?? ""}`.trim() || null, query, {
+        project_id: row.project_id,
+        status: row.status,
+        monto_acumulado: row.monto_acumulado,
+      }));
+    }
+    case "sales_document": {
+      const rows = await readRows(db, "sales_documents", "id, client_id, code, doc_type, issue_date, total, currency, status", empresaId, ilike(["code", "doc_type", "status"], query));
+      return rows.map((row) => candidate(entityType, row, String(row.code), `${row.doc_type ?? ""} ${row.issue_date ?? ""}`.trim() || null, query, {
+        client_id: row.client_id,
+        doc_type: row.doc_type,
+        total: row.total,
+        currency: row.currency,
+        status: row.status,
+      }));
+    }
+    case "work_order": {
+      const documents = await readRows(db, "sales_documents", "id", empresaId);
+      const documentIds = documents.map((row) => String(row.id));
+      if (documentIds.length === 0) return [];
+      const { data, error } = await db
+        .from("work_orders")
+        .select("id, sales_document_id, status, workflow_status, created_at")
+        .in("sales_document_id", documentIds)
+        .or(ilike(["status", "workflow_status"], query))
+        .limit(12);
+      if (error) throw new Error(`No se pudo buscar órdenes de trabajo: ${error.message}`);
+      return ((data ?? []) as Row[]).map((row) => candidate(entityType, row, `OT ${row.id}`, `${row.status ?? ""} ${row.workflow_status ?? ""}`.trim() || null, query, {
+        sales_document_id: row.sales_document_id,
+        status: row.status,
+        workflow_status: row.workflow_status,
+        created_at: row.created_at,
+      }));
+    }
+    case "auction_room": {
+      const rows = await readRows(db, "auction_sandbox_rooms", "id, title, group_id, scope, status, opening_price_pyg, started_at, closed_at", empresaId, ilike(["title", "group_id", "scope", "status"], query));
+      return rows.map((row) => candidate(entityType, row, String(row.title), row.group_id ? String(row.group_id) : null, query, {
+        scope: row.scope,
+        status: row.status,
+        opening_price_pyg: row.opening_price_pyg,
+        started_at: row.started_at,
+        closed_at: row.closed_at,
+      }));
     }
   }
 }
