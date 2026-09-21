@@ -71,6 +71,64 @@ function ilike(fields: string[], query: string): string {
   return fields.map((field) => `${field}.ilike.%${term}%`).join(",");
 }
 
+export type TemporalReference = {
+  mode: "latest" | "today" | "yesterday";
+  residualQuery: string;
+};
+
+/** Detecta referencias temporales humanas sin convertir el resolver en un parser de intenciones. */
+export function parseTemporalReference(query: string): TemporalReference | null {
+  const normalized = normalize(query);
+  let mode: TemporalReference["mode"] | null = null;
+  if (/\b(ultima|ultimo|ultimas|ultimos|mas reciente)\b/.test(normalized)) mode = "latest";
+  else if (/\bhoy\b/.test(normalized)) mode = "today";
+  else if (/\bayer\b/.test(normalized)) mode = "yesterday";
+  if (!mode) return null;
+
+  const residualQuery = normalized
+    .replace(/\b(ultima|ultimo|ultimas|ultimos|mas reciente|hoy|ayer)\b/g, " ")
+    .replace(/\b(factura|facturas|comprobante|comprobantes|oc|ordenes? de compra|ordenes?|compra)\b/g, " ")
+    .replace(/^\s*(la|el|una|un|de|del)\s+/g, "")
+    .replace(/^\s*(la|el|una|un|de|del)\s+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return { mode, residualQuery };
+}
+
+function temporalBounds(mode: "today" | "yesterday"): { start: string; end: string } {
+  const now = new Date();
+  const startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  if (mode === "yesterday") startDate.setUTCDate(startDate.getUTCDate() - 1);
+  const endDate = new Date(startDate);
+  endDate.setUTCDate(endDate.getUTCDate() + 1);
+  return { start: startDate.toISOString(), end: endDate.toISOString() };
+}
+
+async function readTemporalRows(
+  db: SupabaseClient,
+  table: string,
+  columns: string,
+  empresaId: string,
+  temporal: TemporalReference,
+  dateField: string,
+  filter?: string,
+  inField?: string,
+  inValues?: string[]
+): Promise<Row[]> {
+  let query = db.from(table).select(columns).eq("empresa_id", empresaId);
+  if (filter) query = query.or(filter);
+  if (inField && inValues?.length) query = query.in(inField, inValues);
+  if (temporal.mode === "latest") {
+    query = query.order(dateField, { ascending: false });
+  } else {
+    const bounds = temporalBounds(temporal.mode);
+    query = query.gte(dateField, bounds.start).lt(dateField, bounds.end);
+  }
+  const { data, error } = await query.limit(temporal.mode === "latest" ? 1 : 12);
+  if (error) throw new Error(`No se pudo buscar ${table}: ${error.message}`);
+  return (data ?? []) as unknown as Row[];
+}
+
 function rank(label: string, secondary: string | null, query: string): number {
   const q = normalize(query);
   const l = normalize(label);
@@ -140,6 +198,26 @@ async function resolveRows(
       return rows.map((row) => candidate(entityType, row, String(row.nombre), row.sku ? `SKU ${row.sku}` : row.unidad ? String(row.unidad) : null, query, { unidad: row.unidad, stock_actual: row.stock_actual, stock_minimo: row.stock_minimo, activo: row.activo }));
     }
     case "invoice": {
+      const temporal = parseTemporalReference(query);
+      if (temporal) {
+        const invoiceColumns = "id, invoice_number, invoice_date, provider_id, total, currency, status, timbrado";
+        const searchFilter = temporal.residualQuery ? ilike(["invoice_number", "timbrado"], temporal.residualQuery) : undefined;
+        let rows = await readTemporalRows(db, "invoices", invoiceColumns, empresaId, temporal, "invoice_date", searchFilter);
+        if (rows.length === 0 && temporal.residualQuery) {
+          const providers = await readRows(db, "providers", "id, name, tax_id", empresaId, ilike(["name", "tax_id"], temporal.residualQuery), 8);
+          const ids = providers.map((row) => String(row.id));
+          if (ids.length > 0) rows = await readTemporalRows(db, "invoices", invoiceColumns, empresaId, temporal, "invoice_date", undefined, "provider_id", ids);
+        }
+        const rankingQuery = temporal.residualQuery || query;
+        return rows.map((row) => candidate(entityType, row, String(row.invoice_number), row.timbrado ? `Timbrado ${row.timbrado}` : String(row.invoice_date ?? ""), rankingQuery, {
+          provider_id: row.provider_id,
+          total: row.total,
+          currency: row.currency,
+          status: row.status,
+          invoice_date: row.invoice_date,
+          temporal_reference: temporal.mode,
+        }));
+      }
       let rows = await readRows(db, "invoices", "id, invoice_number, invoice_date, provider_id, total, currency, status, timbrado", empresaId, ilike(["invoice_number", "timbrado"], query));
       if (rows.length === 0) {
         const providers = await readRows(db, "providers", "id, name, tax_id", empresaId, ilike(["name", "tax_id"], query), 8);
@@ -153,6 +231,28 @@ async function resolveRows(
       return rows.map((row) => candidate(entityType, row, String(row.invoice_number), row.timbrado ? `Timbrado ${row.timbrado}` : String(row.invoice_date ?? ""), query, { provider_id: row.provider_id, total: row.total, currency: row.currency, status: row.status, invoice_date: row.invoice_date }));
     }
     case "purchase_order": {
+      const temporal = parseTemporalReference(query);
+      if (temporal) {
+        const rows = await readTemporalRows(
+          db,
+          "authorized_orders",
+          "id, code, provider_id, provider_name, client_name, product, quantity, unit, total_price, currency, status, authorized_at, project_id",
+          empresaId,
+          temporal,
+          "authorized_at",
+          temporal.residualQuery ? ilike(["code", "provider_name", "client_name", "product"], temporal.residualQuery) : undefined
+        );
+        const rankingQuery = temporal.residualQuery || query;
+        return rows.map((row) => candidate(entityType, row, String(row.code), row.provider_name ? String(row.provider_name) : row.product ? String(row.product) : null, rankingQuery, {
+          provider_id: row.provider_id,
+          project_id: row.project_id,
+          total_price: row.total_price,
+          currency: row.currency,
+          status: row.status,
+          authorized_at: row.authorized_at,
+          temporal_reference: temporal.mode,
+        }));
+      }
       const rows = await readRows(db, "authorized_orders", "id, code, provider_id, provider_name, client_name, product, quantity, unit, total_price, currency, status, authorized_at, project_id", empresaId, ilike(["code", "provider_name", "client_name", "product"], query));
       return rows.map((row) => candidate(entityType, row, String(row.code), row.provider_name ? String(row.provider_name) : row.product ? String(row.product) : null, query, { provider_id: row.provider_id, project_id: row.project_id, total_price: row.total_price, currency: row.currency, status: row.status, authorized_at: row.authorized_at }));
     }

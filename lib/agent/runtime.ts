@@ -256,7 +256,9 @@ export async function createStep(params: {
       .eq("tool_name", params.toolName)
       .eq("idempotency_key", params.idempotencyKey)
       .maybeSingle();
-    if (existing) return existing as AgentStepRow;
+    // Un ERROR no consume la key: el retry debe poder registrar SUCCESS.
+    // Un WAITING_APPROVAL tampoco bloquea el step SUCCESS posterior.
+    if (existing && (existing as AgentStepRow).status === "SUCCESS") return existing as AgentStepRow;
   }
 
   const { data, error } = await params.db

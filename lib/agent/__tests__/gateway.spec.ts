@@ -7,7 +7,9 @@ import type { AgentToolContext } from "../context";
 // Helper para crear un db mock minimal (solo lo que usa gateway)
 function createGatewayDbMock(opts?: {
   existingStepHit?: unknown | null;
+  existingStepStatus?: string;
   approvalInsert?: unknown;
+  approvalLookup?: unknown;
   stepInsert?: unknown;
   auditRpc?: unknown;
 }) {
@@ -16,7 +18,9 @@ function createGatewayDbMock(opts?: {
       return {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn().mockResolvedValue({ data: opts?.existingStepHit ? { output_json: opts.existingStepHit } : null, error: null }),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({ data: opts?.existingStepHit ? { status: opts.existingStepStatus ?? "SUCCESS", output_json: opts.existingStepHit } : null, error: null }),
         insert: vi.fn().mockReturnThis(),
         single: vi.fn().mockResolvedValue({ data: opts?.stepInsert ?? { id: "step-1" }, error: null }),
       } as unknown as ReturnType<typeof vi.fn>;
@@ -25,12 +29,17 @@ function createGatewayDbMock(opts?: {
       return {
         insert: vi.fn().mockReturnThis(),
         select: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({ data: opts?.approvalInsert ?? { id: "ap-1" }, error: null }),
+        eq: vi.fn().mockReturnThis(),
+        single: vi.fn()
+          .mockResolvedValueOnce({ data: opts?.approvalInsert ?? { id: "ap-1" }, error: null })
+          .mockResolvedValue({ data: opts?.approvalLookup ?? opts?.approvalInsert ?? { id: "ap-1" }, error: null }),
       } as unknown as ReturnType<typeof vi.fn>;
     }
     return {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
       maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
       insert: vi.fn().mockReturnThis(),
       single: vi.fn().mockResolvedValue({ data: null, error: null }),
@@ -182,6 +191,50 @@ describe("gateway", () => {
     });
     expect(safe.ok).toBe(true);
     if (safe.ok) expect(safe.output).toEqual(cached);
+  });
+
+  it("replay de WAITING_APPROVAL conserva la misma approval y nunca es success", async () => {
+    const handler = vi.fn().mockResolvedValue({ fresh: true });
+    toolRegistry.register({
+      name: "pending_tool",
+      description: "x",
+      inputSchema: z.object({ k: z.string() }),
+      riskLevel: 2,
+      handler,
+    });
+    const db = createGatewayDbMock({
+      existingStepHit: { approval_id: "ap-pending", status: "REQUESTED", risk_level: 2 },
+      existingStepStatus: "WAITING_APPROVAL",
+      approvalInsert: { id: "ap-pending", status: "REQUESTED", empresa_id: actorBase.empresaId },
+      approvalLookup: { id: "ap-pending", status: "REQUESTED", empresa_id: actorBase.empresaId },
+    });
+    const result = await gatewayExecuteSafe({
+      db,
+      actor: actorBase,
+      toolName: "pending_tool",
+      rawInput: { k: "v" },
+      idempotencyKey: "pending-key",
+      taskId: "t1",
+      runId: "r1",
+    });
+    expect(result).toMatchObject({ ok: false, requiresApproval: true, approvalId: "ap-pending" });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("un step ERROR nunca se replaya como success", async () => {
+    const handler = vi.fn().mockResolvedValue({ fresh: true });
+    toolRegistry.register({ name: "retryable", description: "x", inputSchema: z.object({}), riskLevel: 0, handler });
+    const result = await gatewayExecuteSafe({
+      db: createGatewayDbMock({ existingStepHit: { error: "previous" }, existingStepStatus: "ERROR" }),
+      actor: actorBase,
+      toolName: "retryable",
+      rawInput: {},
+      idempotencyKey: "error-key",
+      taskId: "t1",
+      runId: "r1",
+    });
+    expect(result).toMatchObject({ ok: true, output: { fresh: true } });
+    expect(handler).toHaveBeenCalledTimes(1);
   });
 
   it("tenant isolation: handler siempre recibe actor.empresaId y debe filtrar por el", async () => {
