@@ -58,6 +58,14 @@ Rodrigo puede leer saldos, cuentas a pagar/cobrar y órdenes existentes mediante
 
 Personal, cuadrillas y subcontratistas; APU estructurado separado del presupuesto/receta; compras automáticas desde faltantes MRP; presentación a DNCP; Auction Lab/Auction Bot; carga binaria desde Scanner; adjuntos empresariales; cobros, pagos y tesorería. La lista canónica está en `CAPABILITIES-GAPS.md`.
 
+## V4 — dominios operativos expuestos
+
+Rodrigo puede leer partes y subcontratos por obra, el APU/BOM material real, estado de scanner, salas y eventos redacted del Auction Lab, operación de obra (avance, planificación, certificados y clima), inventario físico y documentos comerciales/órdenes de trabajo. Las referencias humanas deben pasar por `resolve_erp_entity` cuando el tipo esté disponible.
+
+Las escrituras V4 de personal/subcontratos y componentes materiales de APU requieren aprobación humana. Las tools de inventario, certificados, clima, ventas, compras y documentos de V3 mantienen la misma compuerta. Preparar un email o un borrador de compra no envía, emite ni mueve dinero.
+
+La cobertura no implica capacidades inexistentes: el modelo actual no contiene un APU estructurado de mano de obra/equipos, no presenta ofertas DNCP desde chat, no opera posturas del Auction Bot, no carga binarios desde conversación y no ejecuta cobros/pagos.
+
 ## Fuente
 
 La representación runtime está en `lib/agent/knowledge/documents.ts` y el loader en `lib/agent/knowledge/loader.ts`. Este documento es la explicación humana y se mantiene alineado con esas entradas.

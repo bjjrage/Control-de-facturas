@@ -49,6 +49,15 @@ import "@/lib/tools/erp/manage-certificate";
 import "@/lib/tools/erp/get-project-modeling-overview";
 import "@/lib/tools/erp/manage-budget-item";
 import "@/lib/tools/erp/manage-production-recipe";
+// ERP KNOWLEDGE V4 — dominios auditados y lecturas reales adicionales.
+import "@/lib/tools/erp/get-labor-subcontractor-overview";
+import "@/lib/tools/erp/manage-labor-subcontractor";
+import "@/lib/tools/erp/get-apu-overview";
+import "@/lib/tools/erp/manage-apu-material";
+import "@/lib/tools/erp/get-scanner-session-overview";
+import "@/lib/tools/erp/get-project-operational-overview";
+import "@/lib/tools/erp/get-inventory-overview";
+import "@/lib/tools/erp/get-billing-overview";
 
 // Re-export para uso directo en tests sin pasar por registry si se desea
 export * from "@/lib/tools/projects/get-project-context";
@@ -92,3 +101,11 @@ export * from "@/lib/tools/erp/manage-certificate";
 export * from "@/lib/tools/erp/get-project-modeling-overview";
 export * from "@/lib/tools/erp/manage-budget-item";
 export * from "@/lib/tools/erp/manage-production-recipe";
+export * from "@/lib/tools/erp/get-labor-subcontractor-overview";
+export * from "@/lib/tools/erp/manage-labor-subcontractor";
+export * from "@/lib/tools/erp/get-apu-overview";
+export * from "@/lib/tools/erp/manage-apu-material";
+export * from "@/lib/tools/erp/get-scanner-session-overview";
+export * from "@/lib/tools/erp/get-project-operational-overview";
+export * from "@/lib/tools/erp/get-inventory-overview";
+export * from "@/lib/tools/erp/get-billing-overview";

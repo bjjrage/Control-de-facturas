@@ -43,3 +43,13 @@ Una conversación crea `agent_tasks`, `agent_runs` y `agent_steps`. Las acciones
 - `app/(internal)/licitaciones/actions.ts`
 - `lib/agent/runtime.ts`
 - `lib/agent/approvals.ts`
+
+## Relaciones V4 auditadas
+
+- `daily_labor_entries.project_id -> projects.id`; `subcontractor_contracts.project_id -> projects.id` y `subcontractor_contracts.subcontractor_id -> subcontractors.id`; `subcontractor_certificates.project_id/contract_id` completa la trazabilidad de subcontratos.
+- `project_certificate_staff.certificate_id -> project_certificates.id -> projects.id` representa la cuadrilla declarada en un certificado; no se encontró un maestro general de personal/cuadrillas.
+- `budget_item_materials.project_id/budget_item_id/producto_id` conecta una partida de `budget_items` con materiales de `productos`; el costo material se lee de `productos.costo_promedio` y el desperdicio de `budget_item_materials`.
+- `scan_sessions` guarda metadata y referencia de storage; tokens/PIN/hash viven en la misma fila pero se excluyen del tool de lectura.
+- `auction_sandbox_rooms` se relaciona con `auction_sandbox_participants`, `auction_sandbox_bids`, `auction_sandbox_events` y `auction_sandbox_policy_versions`; `auction_sandbox_room_private` permanece fuera de vistas.
+- `inventory_locations`, `inventory_balances`, `inventory_movements` e `inventory_reservations` son la fuente del inventario V4; `inventory_consumption_by_budget` y `inventory_stock_by_project` son vistas de lectura.
+- `sales_documents` se relaciona con `sales_document_items`, `work_orders` y `clients`; `invoices`/`payment_orders` siguen siendo lecturas financieras y no exponen herramientas de cobro/pago.
