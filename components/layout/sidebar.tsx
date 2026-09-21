@@ -535,6 +535,13 @@ export function Sidebar({
     const active = isNavItemActive(item);
     const Icon = item.icon;
     const isShellPath = (SHELL_PATHS as readonly string[]).includes(item.href);
+    const workspaceActiveClass = active && level === "primary"
+      ? workspace === "administracion"
+        ? "workspace-admin-active"
+        : workspace === "operativo"
+          ? "workspace-operativo-active"
+          : "workspace-licitaciones-active"
+      : null;
 
     function handleClick(e: React.MouseEvent) {
       setOpenSection(null);
@@ -557,6 +564,7 @@ export function Sidebar({
             ? "nav-primary-base nav-primary"
             : "flex items-center gap-2.5 h-9 rounded-xl text-[13px] transition-colors nav-secondary",
           collapsed ? "justify-center px-0" : "px-2.5",
+          workspaceActiveClass,
           !active && "text-[var(--muted)]"
         )}
       >
