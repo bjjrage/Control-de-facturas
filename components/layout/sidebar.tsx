@@ -553,8 +553,9 @@ export function Sidebar({
         data-nav-level={level}
         data-active={active ? "true" : "false"}
         className={cn(
-          "flex items-center gap-2.5 h-9 rounded-xl text-[13px] transition-colors",
-          level === "primary" ? "nav-primary" : "nav-secondary",
+          level === "primary"
+            ? "nav-primary-base nav-primary"
+            : "flex items-center gap-2.5 h-9 rounded-xl text-[13px] transition-colors nav-secondary",
           collapsed ? "justify-center px-0" : "px-2.5",
           !active && "text-[var(--muted)]"
         )}
@@ -624,7 +625,7 @@ export function Sidebar({
             );
           }}
           className={cn(
-            "nav-primary w-full flex items-center h-9 rounded-xl text-[12px] font-medium transition-colors",
+            "nav-primary-base nav-primary w-full",
             label === "Comprar" && "nav-domain-compras",
             label === "Vender" && "nav-domain-ventas",
             label === "Finanzas" && "nav-domain-finanzas",
@@ -681,7 +682,7 @@ export function Sidebar({
           title={collapsed ? group.label : undefined}
           onClick={() => setOpenProjectSection((current) => current === group.label ? null : group.label)}
           className={cn(
-            "nav-primary w-full flex items-center h-9 rounded-xl text-[12px] font-medium transition-colors",
+            "nav-primary-base nav-primary w-full",
             group.label === "Preparar" && "nav-domain-preparar",
             group.label === "Comprar" && "nav-domain-compras",
             group.label === "Ejecutar" && "nav-domain-ejecutar",
@@ -884,7 +885,7 @@ export function Sidebar({
           </div>
         ) : workspace === "licitaciones" ? (
           <>
-            {licitacionesItems.map((item, index) => renderLink(item, index === 0 ? "primary" : "secondary"))}
+            {licitacionesItems.map((item) => renderLink(item, "primary"))}
           </>
         ) : workspace === "operativo" ? (
           <>

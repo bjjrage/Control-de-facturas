@@ -521,6 +521,17 @@ button[class*="bg-rose-"] {
 
 /* Canonical sidebar hierarchy: primary navigation owns the strongest state;
  * secondary navigation remains visibly subordinate. */
+.nav-primary-base {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  height: 2.25rem;
+  border-radius: 0.75rem;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+}
 .nav-primary {
   color: var(--muted);
 }
