@@ -14,7 +14,7 @@ Rodrigo debe separar tres cosas:
 
 La empresa y el rol vienen del perfil autenticado. El Gateway vuelve a validar tenant, permisos, esquema y riesgo. El modelo no puede inventar un UUID, monto, fecha, contacto o nombre. Si el usuario pide un valor actual, Rodrigo debe consultar un tool de lectura válido o reconocer que todavía no puede hacerlo.
 
-El runtime entrega contexto estático de forma selectiva según el mensaje. Un saludo social no carga el manual. Un mensaje sobre stock, compras, planificación, licitaciones, finanzas, email o documentos carga solo los documentos relevantes. `get_erp_knowledge` permite pedir contexto conceptual adicional y nunca consulta datos vivos.
+El runtime entrega contexto estático de forma selectiva según el mensaje. Un saludo social no carga el manual. Un mensaje sobre stock, compras, planificación, licitaciones, finanzas, email o documentos carga solo los documentos relevantes. `get_erp_knowledge` permite pedir contexto conceptual adicional y nunca consulta datos vivos. `resolve_erp_entity` resuelve referencias humanas contra datos vivos y tenant-scoped; no crea IDs ni decide una ambigüedad por su cuenta.
 
 ## Módulos verificados
 
@@ -28,7 +28,7 @@ El runtime entrega contexto estático de forma selectiva según el mensaje. Un s
 
 ## Límites duros
 
-Rodrigo no debe pagar, cobrar, transferir, mover dinero, conciliar, liquidar ni registrar un movimiento monetario efectivo. Puede explicar que esas pantallas existen y derivar al proceso autorizado, pero no tiene tools financieros para ejecutar esas acciones.
+Rodrigo no debe pagar, cobrar, transferir, mover dinero, conciliar, liquidar ni registrar un movimiento monetario efectivo. Puede leer saldos, cuentas a pagar/cobrar y órdenes existentes mediante `get_finance_overview`, pero debe derivar toda mutación monetaria al proceso autorizado.
 
 Preparar un correo no es enviarlo. `prepare_email` genera un borrador/preview. `send_email` exige aprobación humana, snapshot íntegro e idempotencia.
 
@@ -40,11 +40,15 @@ Con UUID de proyecto, `get_project_context` devuelve datos básicos, resumen de 
 
 ### Consultar materiales
 
-`get_stock_availability` requiere UUID de producto y puede recibir UUID de proyecto. `get_material_need` requiere UUID de proyecto y descripciones de materiales; compara presupuesto con el catálogo y stock actual. No se debe presentar una cantidad como actual si no salió de un tool.
+`resolve_erp_entity` permite encontrar una obra, producto/material, depósito o ubicación por nombre, y luego `get_project_inventory_overview` lee stock imputado y consumo de la obra. `get_stock_availability` sigue disponible para el desglose detallado de un producto. `get_material_need` compara presupuesto con el catálogo y stock actual. No se debe presentar una cantidad como actual si no salió de un tool.
 
 ### Compras
 
 La relación base es RFQ → ítems → proveedores invitados → respuestas/cotizaciones → comparación → borrador de orden. Leer es distinto de crear un borrador, enviar una solicitud o emitir una orden; esas últimas acciones tienen riesgos y aprobaciones definidos en el registry.
+
+### Planificación y reportes
+
+`get_weekly_plan_overview` lee los planes semanales reales y sus ítems. Las consultas transversales deben combinar tools de dominio; no hay un informe mágico ni datos vivos dentro del manual.
 
 ### Email y documentos
 
@@ -52,7 +56,7 @@ Para un correo común se resuelve destinatario/objetivo, se prepara el borrador 
 
 ## Fuente
 
-La representación runtime está en `lib/agent/knowledge/documents.ts` y el loader en `lib/agent/knowledge/loader.ts`. Este documento es la explicación humana y se mantiene alineado con esas entradas.
+La representación runtime está en `lib/agent/knowledge/documents.ts` y el loader en `lib/agent/knowledge/loader.ts`. Este documento es la explicación humana y se mantiene alineado con esas entradas. La lista de capacidades aún no ejecutables está en `CAPABILITIES-GAPS.md`.
 
 ## Source map
 
@@ -66,3 +70,5 @@ La representación runtime está en `lib/agent/knowledge/documents.ts` y el load
 - `lib/tools/index.ts`
 - `lib/agent/knowledge/documents.ts`
 - `lib/agent/knowledge/loader.ts`
+- `lib/agent/erp-entity-resolver.ts`
+- `lib/tools/erp/resolve-erp-entity.ts`
