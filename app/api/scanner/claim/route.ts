@@ -11,9 +11,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const { token, pin, deviceInfo } = body;
 
-    // Verificar si el dispositivo ya cuenta con una credencial previa (en cookie o body)
+    // Verificar si el dispositivo ya cuenta con una credencial previa (HttpOnly cookie > body fallback)
     const existingCred = getMobileCredentialFromRequest(req);
-    const mobileClaimToken = body.mobileClaimToken || existingCred?.mobileClaimToken;
+    const mobileClaimToken =
+      existingCred?.mobileClaimToken ||
+      body.mobileClaimToken ||
+      null;
 
     if (!token && !pin) {
       return NextResponse.json(

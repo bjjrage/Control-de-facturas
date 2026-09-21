@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   CheckCircle2,
@@ -20,7 +20,8 @@ import { buildPdfFromJpegPages, dataUrlToUint8Array } from "@/lib/scanner/pdf-bu
 import { clearOfflinePages, getOfflinePages, saveOfflinePages } from "@/lib/scanner/offline-store";
 
 type ScannerFlowState =
-  | "join"
+  | "booting"
+  | "manual"
   | "ready"
   | "capturing"
   | "cropping"
@@ -28,11 +29,57 @@ type ScannerFlowState =
   | "pages"
   | "success";
 
+function cleanQrTokenFromUrl() {
+  if (typeof window === "undefined") return;
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("t") || url.searchParams.has("token")) {
+      url.searchParams.delete("t");
+      url.searchParams.delete("token");
+      const cleanUrl = url.pathname + (url.search ? url.search : "") + (url.hash || "");
+      window.history.replaceState(window.history.state, "", cleanUrl);
+    }
+  } catch (err) {
+    console.warn("Error al limpiar token de URL:", err);
+  }
+}
+
+function getValidStoredMobileToken(expectedSessionId?: string | null): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const storedToken = sessionStorage.getItem("scanner_mobile_token");
+    const storedSessionId = sessionStorage.getItem("scanner_session_id");
+    if (!storedToken) return null;
+    if (expectedSessionId && storedSessionId && storedSessionId !== expectedSessionId) {
+      return null;
+    }
+    return storedToken;
+  } catch {
+    return null;
+  }
+}
+
+function clearLocalMobileSession() {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem("scanner_mobile_token");
+    sessionStorage.removeItem("scanner_session_id");
+  } catch {}
+}
+
+function saveLocalMobileSession(sessionId: string, mobileClaimToken: string) {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem("scanner_mobile_token", mobileClaimToken);
+    sessionStorage.setItem("scanner_session_id", sessionId);
+  } catch {}
+}
+
 function ScannerContent() {
   const searchParams = useSearchParams();
   const tokenParam = searchParams.get("t") || searchParams.get("token");
 
-  const [flowState, setFlowState] = useState<ScannerFlowState>("join");
+  const [flowState, setFlowState] = useState<ScannerFlowState>("booting");
   const [token, setToken] = useState<string | null>(tokenParam);
   const [mobileClaimToken, setMobileClaimToken] = useState<string | null>(null);
   const [pinInput, setPinInput] = useState("");
@@ -45,6 +92,10 @@ function ScannerContent() {
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const [isSending, setIsSending] = useState(false);
+
+  // Guards contra carreras y stale responses
+  const bootGenerationRef = useRef(0);
+  const consumedTokensRef = useRef<Set<string>>(new Set());
 
   // Páginas acumuladas
   const [pages, setPages] = useState<ScannedPage[]>([]);
@@ -66,71 +117,163 @@ function ScannerContent() {
 
   const [editingPageIndex, setEditingPageIndex] = useState<number | null>(null);
 
-  // 1. Al montar: verificar si ya existe una sesión móvil activa (cookie HttpOnly o sessionStorage)
-  useEffect(() => {
-    let isMounted = true;
+  // Helper para aplicar sesión activa
+  async function applyActiveSession(
+    activeSession: { id: string; context_type: string; status: string },
+    activeMobileToken: string | null
+  ) {
+    setSessionInfo(activeSession);
+    if (activeMobileToken) {
+      setMobileClaimToken(activeMobileToken);
+      saveLocalMobileSession(activeSession.id, activeMobileToken);
+    }
+    cleanQrTokenFromUrl();
 
-    async function checkExistingSession() {
-      try {
-        const storedMobileToken =
-          typeof window !== "undefined"
-            ? sessionStorage.getItem("scanner_mobile_token")
-            : null;
+    // Restaurar páginas offline si existían para esta sesión
+    const offline = await getOfflinePages(activeSession.id);
+    if (offline && offline.length > 0) {
+      setPages(offline);
+      setFlowState("pages");
+    } else {
+      setFlowState("ready");
+    }
+  }
 
-        const headers: Record<string, string> = {};
-        if (storedMobileToken) {
-          headers["x-mobile-claim-token"] = storedMobileToken;
-        }
+  // BOOTSTRAP MÓVIL ÚNICO
+  async function bootstrapScanner(source: "mount" | "pageshow" | "visibility" = "mount") {
+    const currentGen = ++bootGenerationRef.current;
 
-        const res = await fetch("/api/scanner/mobile-session", {
-          method: "GET",
-          headers,
-        });
+    // Si el usuario ya está en captura, recorte o filtro, no interrumpir la interacción
+    if (flowState === "capturing" || flowState === "cropping" || flowState === "filtering") {
+      return;
+    }
 
-        if (!isMounted) return;
+    const isResumeOnly = source === "pageshow" || source === "visibility";
 
-        if (res.ok) {
-          const data = await res.json();
-          if (data.active && data.session) {
-            setSessionInfo(data.session);
-            if (data.mobileClaimToken) {
-              setMobileClaimToken(data.mobileClaimToken);
-              if (typeof window !== "undefined") {
-                sessionStorage.setItem("scanner_mobile_token", data.mobileClaimToken);
-                sessionStorage.setItem("scanner_session_id", data.session.id);
-              }
-            }
-            if (tokenParam) {
-              setToken(tokenParam);
-            }
-
-            // Restaurar páginas offline si existían para esta sesión
-            const offline = await getOfflinePages(data.session.id);
-            if (offline && offline.length > 0) {
-              setPages(offline);
-              setFlowState("pages");
-            } else {
-              setFlowState("ready");
-            }
-            return;
-          }
-        }
-      } catch (err) {
-        console.warn("Error al verificar sesión móvil existente:", err);
+    try {
+      // 1. RESUME existing mobile session
+      const storedMobileToken = getValidStoredMobileToken();
+      const headers: Record<string, string> = {};
+      if (storedMobileToken) {
+        headers["x-mobile-claim-token"] = storedMobileToken;
       }
 
-      // Si no había sesión activa en cookie, y vino un token en la URL, intentar el claim inicial
-      if (tokenParam && isMounted) {
-        handleClaimWithToken(tokenParam);
+      const res = await fetch("/api/scanner/mobile-session", {
+        method: "GET",
+        headers,
+        credentials: "same-origin",
+      });
+
+      if (currentGen !== bootGenerationRef.current) return;
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.active && data.session) {
+          await applyActiveSession(data.session, data.mobileClaimToken || storedMobileToken);
+          return;
+        }
+      }
+
+      // En eventos de reanudación (pageshow / visibility), NUNCA hacer claim del raw QR token
+      if (isResumeOnly) {
+        return;
+      }
+
+      // 3. Si no existe mobile session activa:
+      // Obtener el token de la URL si no ha sido consumido previamente por este cliente
+      const rawToken =
+        tokenParam ||
+        (typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("t") ||
+            new URLSearchParams(window.location.search).get("token")
+          : null);
+
+      if (rawToken && !consumedTokensRef.current.has(rawToken)) {
+        consumedTokensRef.current.add(rawToken);
+        setFlowState("booting");
+
+        // Limpiar credencial local stale antes de intentar vincular una sesión nueva
+        clearLocalMobileSession();
+
+        const claimRes = await fetch("/api/scanner/claim", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            token: rawToken,
+            deviceInfo: {
+              userAgent: navigator.userAgent,
+              claimedAt: new Date().toISOString(),
+            },
+          }),
+        });
+
+        if (currentGen !== bootGenerationRef.current) return;
+
+        const claimData = await claimRes.json();
+
+        // 4. Claim success: persist fallback, restore session, remove raw QR token from URL, READY
+        if (claimRes.ok && claimData.session) {
+          await applyActiveSession(claimData.session, claimData.mobileClaimToken);
+          return;
+        }
+
+        // Manejo especial de 409 (Conflict):
+        // En caso de carrera (ej. request A ganó y request B recibió 409), consultar resume una vez
+        if (claimRes.status === 409) {
+          const reconcileRes = await fetch("/api/scanner/mobile-session", {
+            method: "GET",
+            credentials: "same-origin",
+          });
+
+          if (currentGen !== bootGenerationRef.current) return;
+
+          if (reconcileRes.ok) {
+            const retryData = await reconcileRes.json();
+            if (retryData.active && retryData.session) {
+              await applyActiveSession(retryData.session, retryData.mobileClaimToken);
+              return;
+            }
+          }
+        }
+
+        // Si el claim falló y no se pudo conciliar:
+        setErrorNotice(claimData.error || "Sesión de escaneo no encontrada o ya reclamada");
+        setFlowState("manual");
+        return;
+      }
+
+      // 5. Sin mobile session y sin token: mostrar formulario manual PIN
+      setFlowState("manual");
+    } catch (err) {
+      if (currentGen !== bootGenerationRef.current) return;
+      console.warn("Error en bootstrapScanner:", err);
+      setFlowState("manual");
+    }
+  }
+
+  // Lifecycle listeners: Mount, Safari bfcache (pageshow) y visibilitychange
+  useEffect(() => {
+    bootstrapScanner("mount");
+
+    function handlePageShow() {
+      bootstrapScanner("pageshow");
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        bootstrapScanner("visibility");
       }
     }
 
-    checkExistingSession();
+    window.addEventListener("pageshow", handlePageShow);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      isMounted = false;
+      window.removeEventListener("pageshow", handlePageShow);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [tokenParam]);
+  }, []);
 
   // Guardar copia de respaldo offline en IndexedDB cada vez que cambian las páginas
   useEffect(() => {
@@ -138,59 +281,6 @@ function ScannerContent() {
       saveOfflinePages(sessionInfo.id, pages);
     }
   }, [sessionInfo?.id, pages]);
-
-  async function handleClaimWithToken(activeToken: string) {
-    setIsJoining(true);
-    setErrorNotice(null);
-    try {
-      const storedMobileToken =
-        typeof window !== "undefined"
-          ? sessionStorage.getItem("scanner_mobile_token")
-          : null;
-
-      const res = await fetch("/api/scanner/claim", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token: activeToken,
-          mobileClaimToken: storedMobileToken || undefined,
-          deviceInfo: {
-            userAgent: navigator.userAgent,
-            claimedAt: new Date().toISOString(),
-          },
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        setErrorNotice(data.error || "No se pudo conectar a la sesión");
-        return;
-      }
-
-      setToken(data.token || activeToken);
-      if (data.mobileClaimToken) {
-        setMobileClaimToken(data.mobileClaimToken);
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem("scanner_mobile_token", data.mobileClaimToken);
-          sessionStorage.setItem("scanner_session_id", data.session.id);
-        }
-      }
-      setSessionInfo(data.session);
-
-      // Revisar si había páginas guardadas offline
-      const offline = await getOfflinePages(data.session.id);
-      if (offline && offline.length > 0) {
-        setPages(offline);
-        setFlowState("pages");
-      } else {
-        setFlowState("ready");
-      }
-    } catch {
-      setErrorNotice("Error de conexión al intentar conectar con el ERP");
-    } finally {
-      setIsJoining(false);
-    }
-  }
 
   async function handleClaimWithPin(e: React.FormEvent) {
     e.preventDefault();
@@ -202,14 +292,12 @@ function ScannerContent() {
     setIsJoining(true);
     setErrorNotice(null);
     try {
-      const storedMobileToken =
-        typeof window !== "undefined"
-          ? sessionStorage.getItem("scanner_mobile_token")
-          : null;
+      const storedMobileToken = getValidStoredMobileToken();
 
       const res = await fetch("/api/scanner/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({
           pin: pinInput.trim(),
           mobileClaimToken: storedMobileToken || undefined,
@@ -226,27 +314,7 @@ function ScannerContent() {
         return;
       }
 
-      // Conexión por PIN exitosa: guardar mobileClaimToken emitido por el servidor
-      if (data.mobileClaimToken) {
-        setMobileClaimToken(data.mobileClaimToken);
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem("scanner_mobile_token", data.mobileClaimToken);
-          sessionStorage.setItem("scanner_session_id", data.session.id);
-        }
-      }
-      if (data.token) {
-        setToken(data.token);
-      }
-      setSessionInfo(data.session);
-
-      // Revisar si había páginas guardadas offline
-      const offline = await getOfflinePages(data.session.id);
-      if (offline && offline.length > 0) {
-        setPages(offline);
-        setFlowState("pages");
-      } else {
-        setFlowState("ready");
-      }
+      await applyActiveSession(data.session, data.mobileClaimToken);
     } catch {
       setErrorNotice("Error de conexión al verificar código");
     } finally {
@@ -370,6 +438,7 @@ function ScannerContent() {
       // 4. Subir al endpoint protegido
       const res = await fetch("/api/scanner/upload", {
         method: "POST",
+        credentials: "same-origin",
         body: formData,
       });
 
@@ -396,22 +465,36 @@ function ScannerContent() {
 
   async function handleDisconnect() {
     try {
-      await fetch("/api/scanner/mobile-session", { method: "DELETE" });
+      await fetch("/api/scanner/mobile-session", {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
     } catch {}
-    if (typeof window !== "undefined") {
-      sessionStorage.removeItem("scanner_mobile_token");
-      sessionStorage.removeItem("scanner_session_id");
-    }
+    clearLocalMobileSession();
+    cleanQrTokenFromUrl();
     setSessionInfo(null);
     setMobileClaimToken(null);
     setPages([]);
-    setFlowState("join");
+    setFlowState("manual");
   }
 
   // VISTAS SEGÚN EL ESTADO DEL FLUJO:
 
-  // Vista 1: Entrada / Unirse a la sesión
-  if (flowState === "join") {
+  // Vista 0: Conectando / Verificando sesión (Bootstrap inicial)
+  if (flowState === "booting") {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 max-w-md mx-auto w-full text-center">
+        <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 shadow-xl shadow-emerald-500/10 animate-pulse mb-4">
+          <Smartphone className="w-8 h-8" />
+        </div>
+        <h2 className="text-base font-semibold text-slate-100">Conectando con Control Scanner…</h2>
+        <p className="mt-1.5 text-xs text-slate-400">Verificando sesión segura con el ERP</p>
+      </div>
+    );
+  }
+
+  // Vista 1: Entrada / Formulario PIN manual
+  if (flowState === "manual" || (flowState as string) === "join") {
     return (
       <div className="flex-1 flex flex-col justify-between p-6 max-w-md mx-auto w-full">
         <div className="pt-8 space-y-3 text-center">

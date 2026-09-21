@@ -370,4 +370,111 @@ describe('Scanner Mobile Session Management & Resumption', () => {
       expect(setCookie).toContain('Max-Age=0');
     });
   });
+
+  describe('5. Manejo de Carrera, Precedencia de Cookie y Resiliencia Anti-Stale', () => {
+    it('carrera: request A gana y setea cookie, request B recibe 409 pero concilia vía resume a READY', async () => {
+      const created = await createScanSession('empresa-1', 'user-1');
+
+      // Request A (gana)
+      const reqA = new NextRequest('http://localhost:3000/api/scanner/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: created.token }),
+      });
+      const resA = await postClaimRoute(reqA);
+      expect(resA.status).toBe(200);
+      const dataA = await resA.json();
+      expect(dataA.success).toBe(true);
+
+      // Request B (30ms después, con el mismo raw QR token)
+      const reqB = new NextRequest('http://localhost:3000/api/scanner/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: created.token }),
+      });
+      const resB = await postClaimRoute(reqB);
+      expect(resB.status).toBe(409);
+
+      // Conciliación: el cliente detecta 409 y llama GET /api/scanner/mobile-session con la cookie obtenida de A
+      const cookieHeader = `${SCANNER_MOBILE_COOKIE}=${dataA.session.id}:${dataA.mobileClaimToken}`;
+      const resumeReq = new NextRequest('http://localhost:3000/api/scanner/mobile-session', {
+        headers: { cookie: cookieHeader },
+      });
+      const resumeRes = await getMobileSessionRoute(resumeReq);
+      expect(resumeRes.status).toBe(200);
+      const resumeData = await resumeRes.json();
+      expect(resumeData.active).toBe(true);
+      expect(resumeData.session.id).toBe(created.session.id);
+      expect(resumeData.session.status).toBe('connected');
+    });
+
+    it('stale storage: token viejo de sesión A no impide reclamar sesión B con nuevo QR', async () => {
+      const sessA = await createScanSession('empresa-1', 'user-1');
+      const claimA = await claimScanSession(sessA.token);
+
+      const sessB = await createScanSession('empresa-1', 'user-1');
+
+      // Al reclamar sessB, si sessionStorage tuviera el token de sessA, la limpieza o el nuevo claim
+      // de sessB debe tener éxito sin error de "wrong device"
+      const reqB = new NextRequest('http://localhost:3000/api/scanner/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: sessB.token,
+          // Intencionalmente no se envía token stale porque el frontend lo limpia
+        }),
+      });
+
+      const resB = await postClaimRoute(reqB);
+      expect(resB.status).toBe(200);
+      const dataB = await resB.json();
+      expect(dataB.success).toBe(true);
+      expect(dataB.session.id).toBe(sessB.session.id);
+      expect(dataB.mobileClaimToken).not.toBe(claimA.mobileClaimToken);
+    });
+
+    it('precedencia: la cookie HttpOnly tiene precedencia sobre mobileClaimToken del body', async () => {
+      const sess = await createScanSession('empresa-1', 'user-1');
+      const claim = await claimScanSession(sess.token);
+
+      // Petición con cookie válida de la sesión, pero body con un token inválido o stale
+      const cookieHeader = `${SCANNER_MOBILE_COOKIE}=${sess.session.id}:${claim.mobileClaimToken}`;
+      const req = new NextRequest('http://localhost:3000/api/scanner/claim', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          cookie: cookieHeader,
+        },
+        body: JSON.stringify({
+          token: sess.token,
+          mobileClaimToken: 'stale-bogus-token-from-storage',
+        }),
+      });
+
+      const res = await postClaimRoute(req);
+      // Gracias a la precedencia (cookie > body), reanuda correctamente usando la cookie
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.success).toBe(true);
+      expect(data.mobileClaimToken).toBe(claim.mobileClaimToken);
+    });
+
+    it('sesión NUEVA por PIN vincula exitosamente de forma independiente', async () => {
+      const sess = await createScanSession('empresa-1', 'user-1');
+      const pin = sess.session.pin_code!;
+
+      const req = new NextRequest('http://localhost:3000/api/scanner/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin }),
+      });
+
+      const res = await postClaimRoute(req);
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.success).toBe(true);
+      expect(data.session.status).toBe('connected');
+      expect(data.mobileClaimToken).toBeDefined();
+    });
+  });
 });
