@@ -2,6 +2,12 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
+  // El benchmark de visión es una ruta pública y aislada; no necesita crear
+  // un cliente Supabase para cargar OpenCV.js en el navegador.
+  if (request.nextUrl.pathname.startsWith("/scanner/benchmark")) {
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

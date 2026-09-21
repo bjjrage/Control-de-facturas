@@ -13,8 +13,11 @@ import {
   ScanLine,
   CheckCircle2,
 } from "lucide-react";
-import { Point2D, QuadPoints } from "@/lib/scanner/types";
-import { detectDocumentQuad } from "@/lib/scanner/document-detector";
+import type { QuadPoints } from "@/lib/scanner/types";
+import { detectWithFallback } from "@/lib/scanner/detection-pipeline";
+import type { DetectionPipelineResult } from "@/lib/scanner/detection-pipeline";
+import { getOpenCvState, loadOpenCv, subscribeOpenCv } from "@/lib/scanner/opencv-loader";
+import type { OpenCvRuntime } from "@/lib/scanner/opencv-types";
 import {
   calculateObjectCoverFit,
   mapVideoQuadToViewport,
@@ -22,15 +25,15 @@ import {
 } from "@/lib/scanner/coordinate-mapping";
 import {
   DocumentStabilityTracker,
-  StabilityState,
 } from "@/lib/scanner/stability-tracker";
+import type { StabilityQuality, StabilityState } from "@/lib/scanner/stability-tracker";
 import {
   checkCameraEnvironment,
   getCameraConstraintsForAttempt,
   parseCameraError,
   isVideoElementReady,
 } from "@/lib/scanner/camera-helpers";
-import { debugStore } from "@/lib/scanner/debug-store";
+import { debugStore, getScannerDetectorPreference, type ScannerDetectorPreference } from "@/lib/scanner/debug-store";
 
 interface CameraCaptureProps {
   onCapture: (
@@ -41,6 +44,10 @@ interface CameraCaptureProps {
   ) => void;
   pageCount: number;
   onCancel: () => void;
+}
+
+function invalidateCameraSession(ref: { current: number }) {
+  ref.current += 1;
 }
 
 export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureProps) {
@@ -61,6 +68,14 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
   const isAnalyzingRef = useRef(false);
   const captureLockedRef = useRef(false);
   const lastFullVideoQuadRef = useRef<QuadPoints | null>(null);
+  const lastTrackedQuadRef = useRef<QuadPoints | null>(null);
+  const lastQualityQuadRef = useRef<QuadPoints | null>(null);
+  const lastDetectionRef = useRef<DetectionPipelineResult | null>(null);
+  const lastQualityDetectionRef = useRef<DetectionPipelineResult | null>(null);
+  const lastDetectionAtRef = useRef(0);
+  const lastQualityAtRef = useRef(0);
+  const openCvRef = useRef<OpenCvRuntime | null>(null);
+  const detectorPreferenceRef = useRef<ScannerDetectorPreference>("auto");
   const loopTimerRef = useRef<NodeJS.Timeout | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const isMountedRef = useRef(true);
@@ -74,6 +89,7 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const [openCvState, setOpenCvState] = useState(getOpenCvState().state);
 
   // Modos de escaneo y feedback
   const [autoCaptureEnabled, setAutoCaptureEnabled] = useState(true);
@@ -87,6 +103,10 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
     consecutiveFrames: 0,
     stableDurationMs: 0,
     averageDrift: 0,
+    meanEdgeCoverage: 0,
+    minEdgeCoverage: 0,
+    qualityPassAcceptable: false,
+    recentLargeJump: false,
     lastQuad: null,
     smoothedQuad: null,
   });
@@ -102,6 +122,14 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
     setIsCameraTimeout(false);
     captureLockedRef.current = false;
     stabilityTrackerRef.current.reset();
+    lastFullVideoQuadRef.current = null;
+    lastTrackedQuadRef.current = null;
+    lastQualityQuadRef.current = null;
+    lastDetectionRef.current = null;
+    lastQualityDetectionRef.current = null;
+    lastDetectionAtRef.current = 0;
+    lastQualityAtRef.current = 0;
+    debugStore.resetDetectionTelemetry();
 
     debugStore.updateCameraTelemetry({
       startCameraCalled: true,
@@ -182,7 +210,10 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
     }
 
     clearTimeout(timeoutTimer);
-    if (timedOut) return;
+    if (timedOut) {
+      activeStream?.getTracks().forEach((track) => track.stop());
+      return;
+    }
 
     // Si el componente se desmontó durante el await, liberar tracks de inmediato
     if (!isMountedRef.current || sessionId !== cameraSessionRef.current) {
@@ -241,6 +272,48 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
     }
   }, []);
 
+  // OpenCV se carga únicamente cuando se monta la cámara. El loop puede
+  // empezar con V1 y cambiar a V2 cuando el runtime queda listo.
+  useEffect(() => {
+    detectorPreferenceRef.current = getScannerDetectorPreference();
+    const unsubscribe = subscribeOpenCv((nextState) => {
+      setOpenCvState(nextState);
+      debugStore.updateDetectionTelemetry({ opencvState: nextState });
+    });
+
+    void loadOpenCv()
+      .then((runtime) => {
+        if (!isMountedRef.current) return;
+        openCvRef.current = runtime;
+        setOpenCvState("ready");
+        debugStore.updateDetectionTelemetry({ opencvState: "ready" });
+      })
+      .catch(() => {
+        if (!isMountedRef.current) return;
+        openCvRef.current = null;
+        setOpenCvState("failed");
+        debugStore.updateDetectionTelemetry({ opencvState: "failed" });
+      });
+
+    return unsubscribe;
+  }, []);
+
+  // Cuando un retry cambia hasCamera de false a true, el <video> aparece en
+  // un render posterior. Reasignar el stream aquí evita dejar la cámara viva
+  // sin video conectado.
+  useEffect(() => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!hasCamera || !video || !stream || video.srcObject === stream) return;
+    video.srcObject = stream;
+    void video.play().catch((playError) => {
+      debugStore.updateCameraTelemetry({
+        errorName: "VideoPlayError",
+        errorMessage: playError instanceof Error ? playError.message : String(playError),
+      });
+    });
+  }, [hasCamera]);
+
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.muted = true;
@@ -250,12 +323,16 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
 
   useEffect(() => {
     isMountedRef.current = true;
+    const videoElement = videoRef.current;
     debugStore.updateCameraTelemetry({ mounted: true });
     debugStore.logTransition("CameraCapture MOUNTED");
-    startCamera();
+    const startTimer = window.setTimeout(() => {
+      void startCamera();
+    }, 0);
     return () => {
+      window.clearTimeout(startTimer);
       isMountedRef.current = false;
-      cameraSessionRef.current++;
+      invalidateCameraSession(cameraSessionRef);
       debugStore.updateCameraTelemetry({ mounted: false });
       if (loopTimerRef.current) clearInterval(loopTimerRef.current);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
@@ -263,15 +340,15 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
         streamRef.current.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
       }
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
+      if (videoElement) {
+        videoElement.srcObject = null;
       }
     };
   }, [startCamera]);
 
   // Listener para confirmar video listo con dimensiones reales y registrar eventos
   function handleVideoEvent(eventName: "loadedmetadata" | "canplay" | "playing" | "other") {
-    if (videoRef.current) {
+    if (videoRef.current && streamRef.current && videoRef.current.srcObject === streamRef.current) {
       const v = videoRef.current;
       const currentTelem = debugStore.getCameraTelemetry();
       debugStore.updateCameraTelemetry({
@@ -306,7 +383,7 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
   // -------------------------------------------------------------
   // 2. CAPTURA A RESOLUCIÓN COMPLETA (Manual y Automática)
   // -------------------------------------------------------------
-  const executeCapture = useCallback(() => {
+  const executeCapture = useCallback(async () => {
     if (captureLockedRef.current || !videoRef.current) return;
     const video = videoRef.current;
     if (!isVideoElementReady(video)) return;
@@ -315,36 +392,80 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
     captureLockedRef.current = true;
     stabilityTrackerRef.current.lockCapture();
 
-    // Haptic feedback en dispositivos compatibles
-    if (typeof navigator !== "undefined" && navigator.vibrate) {
-      navigator.vibrate(40);
-    }
+    let captureSucceeded = false;
+    try {
+      // Haptic feedback en dispositivos compatibles
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(40);
+      }
 
-    // Flash visual blanco de 80ms
-    setShowFlash(true);
-    setTimeout(() => setShowFlash(false), 80);
+      // Flash visual blanco de 80ms
+      setShowFlash(true);
+      setTimeout(() => setShowFlash(false), 80);
 
-    // Capturar el frame REAL del sensor del video (sin downscale)
-    const realW = video.videoWidth;
-    const realH = video.videoHeight;
-    const captureCanvas = document.createElement("canvas");
-    captureCanvas.width = realW;
-    captureCanvas.height = realH;
-    const ctx = captureCanvas.getContext("2d");
+      // Capturar el frame REAL del sensor del video (sin downscale)
+      const realW = video.videoWidth;
+      const realH = video.videoHeight;
+      const captureCanvas = document.createElement("canvas");
+      captureCanvas.width = realW;
+      captureCanvas.height = realH;
+      const ctx = captureCanvas.getContext("2d");
+      if (!ctx) throw new Error("No se pudo crear el canvas de captura");
 
-    if (ctx) {
       ctx.drawImage(video, 0, 0, realW, realH);
+      const imageData = ctx.getImageData(0, 0, realW, realH);
       const dataUrl = captureCanvas.toDataURL("image/jpeg", 0.92);
 
-      // Pasar el mejor cuadrilátero detectado en coordenadas reales como initialQuad
-      const detectedQuadToPass =
-        stabilityState.smoothedQuad ??
-        stabilityState.lastQuad ??
-        lastFullVideoQuadRef.current ??
-        undefined;
-      onCapture(dataUrl, realW, realH, detectedQuadToPass);
+      // El seed solo se acepta si pertenece a un frame reciente. El frame
+      // real siempre vuelve a pasar por el refinamiento final.
+      const now = Date.now();
+      const hasFreshDetection = now - lastDetectionAtRef.current <= 900;
+      const hasFreshQuality = now - lastQualityAtRef.current <= 1200;
+      const seedQuad = hasFreshDetection
+        ? (hasFreshQuality ? lastQualityQuadRef.current : null) ??
+          lastTrackedQuadRef.current ??
+          lastFullVideoQuadRef.current ??
+          undefined
+        : undefined;
+      let finalResult: DetectionPipelineResult | null = null;
+      try {
+        finalResult = detectWithFallback({
+          imageData,
+          mode: "final",
+          cv: detectorPreferenceRef.current === "v1" ? null : openCvRef.current,
+          seedQuad,
+        });
+      } catch (finalError) {
+        console.warn("Final scanner refinement error:", finalError);
+      }
+
+      const finalQuad = finalResult && !finalResult.isFallback ? finalResult.quad : seedQuad;
+      if (finalResult) {
+        debugStore.updateDetectionTelemetry({
+          detector: finalResult.diagnostics.detector ?? "v1",
+          mode: "final",
+          processingMs: finalResult.diagnostics.processingMs ?? 0,
+          candidateCount: finalResult.diagnostics.candidateCount ?? 0,
+          confidence: finalResult.confidence,
+          areaRatio: finalResult.diagnostics.areaRatio ?? 0,
+          meanEdgeCoverage: finalResult.diagnostics.meanEdgeCoverage ?? 0,
+          minEdgeCoverage: finalResult.diagnostics.minEdgeCoverage ?? 0,
+          rawQuad: finalResult.diagnostics.rawQuad ?? null,
+          refinedQuad: finalResult.diagnostics.refinedQuad ?? finalQuad ?? null,
+          qualityPassAcceptable: finalResult.diagnostics.qualityPassAcceptable ?? false,
+        });
+      }
+      onCapture(dataUrl, realW, realH, finalQuad);
+      captureSucceeded = true;
+    } catch (captureError) {
+      console.warn("Scanner capture failed:", captureError);
+    } finally {
+      if (!captureSucceeded && isMountedRef.current) {
+        captureLockedRef.current = false;
+        stabilityTrackerRef.current.unlockCapture();
+      }
     }
-  }, [onCapture, stabilityState]);
+  }, [onCapture]);
 
   // -------------------------------------------------------------
   // 3. PIPELINE DE DETECCIÓN CONTINUA (Low-Res Analysis ~5-8 Hz)
@@ -355,7 +476,9 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
     // Canvas de análisis reutilizable fuera de pantalla
     const analysisCanvas = document.createElement("canvas");
     const analysisCtx = analysisCanvas.getContext("2d", { willReadFrequently: true });
-    const targetMaxDim = 360; // 360px permite detección de documentos <15ms
+    const targetMaxDim = 640;
+    const qualityCanvas = document.createElement("canvas");
+    const qualityCtx = qualityCanvas.getContext("2d", { willReadFrequently: true });
 
     // Bucle periódico a 160ms (~6 Hz) para equilibrar fluidez y bajo consumo de batería
     loopTimerRef.current = setInterval(() => {
@@ -386,8 +509,15 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
         analysisCtx.drawImage(video, 0, 0, downW, downH);
         const imgData = analysisCtx.getImageData(0, 0, downW, downH);
 
-        // Ejecutar algoritmo de visión por computadora
-        const result = detectDocumentQuad(imgData);
+        // V2 fast mode usa OpenCV cuando ya está listo; V1 queda disponible
+        // desde el primer frame y ante cualquier error del runtime.
+        const result = detectWithFallback({
+          imageData: imgData,
+          mode: "fast",
+          cv: detectorPreferenceRef.current === "v1" ? null : openCvRef.current,
+          seedQuad: lastTrackedQuadRef.current,
+        });
+        lastDetectionRef.current = result;
 
         let fullVideoQuad: QuadPoints | null = null;
         if (!result.isFallback && result.confidence >= 0.35) {
@@ -400,15 +530,95 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
           lastFullVideoQuadRef.current = null;
         }
 
+        const fastQuality: StabilityQuality = {
+          meanEdgeCoverage: result.diagnostics.meanEdgeCoverage ?? (result.diagnostics.detector === "v1" ? result.confidence * 0.8 : 0),
+          minEdgeCoverage: result.diagnostics.minEdgeCoverage ?? (result.diagnostics.detector === "v1" ? result.confidence * 0.65 : 0),
+          qualityPassAcceptable: result.diagnostics.qualityPassAcceptable ?? false,
+        };
+
         // Actualizar rastreador de estabilidad temporal
-        const nextStability = stabilityTrackerRef.current.update(
+        const nowMs = Date.now();
+        lastDetectionAtRef.current = nowMs;
+        let nextStability = stabilityTrackerRef.current.update(
           fullVideoQuad,
           result.isFallback,
           result.confidence,
           vw,
           vh,
-          Date.now()
+          Date.now(),
+          fastQuality
         );
+
+        // Cuando el quad fast ya lleva varios frames coherentes, hacer una
+        // pasada quality a 960-1280px sin convertir cada tick en full-res.
+        if (
+          openCvRef.current &&
+          qualityCtx &&
+          fullVideoQuad &&
+          nextStability.consecutiveFrames >= 3 &&
+          nowMs - lastQualityAtRef.current >= 900
+        ) {
+          const qualityScale = Math.min(1120 / vw, 1120 / vh, 1);
+          const qualityW = Math.round(vw * qualityScale);
+          const qualityH = Math.round(vh * qualityScale);
+          if (qualityCanvas.width !== qualityW || qualityCanvas.height !== qualityH) {
+            qualityCanvas.width = qualityW;
+            qualityCanvas.height = qualityH;
+          }
+          qualityCtx.drawImage(video, 0, 0, qualityW, qualityH);
+          const qualityResult = detectWithFallback({
+            imageData: qualityCtx.getImageData(0, 0, qualityW, qualityH),
+            mode: "quality",
+            cv: detectorPreferenceRef.current === "v1" ? null : openCvRef.current,
+            seedQuad: scaleQuad(fullVideoQuad, qualityW / vw, qualityH / vh),
+          });
+          lastQualityAtRef.current = nowMs;
+          lastQualityDetectionRef.current = qualityResult;
+          if (!qualityResult.isFallback && qualityResult.confidence >= 0.45) {
+            lastQualityQuadRef.current = scaleQuad(qualityResult.quad, vw / qualityW, vh / qualityH);
+          } else {
+            lastQualityQuadRef.current = null;
+          }
+
+          const qualityQuad = lastQualityQuadRef.current ?? fullVideoQuad;
+          const qualityMetrics: StabilityQuality = {
+            meanEdgeCoverage: qualityResult.diagnostics.meanEdgeCoverage ?? 0,
+            minEdgeCoverage: qualityResult.diagnostics.minEdgeCoverage ?? 0,
+            qualityPassAcceptable:
+              !qualityResult.isFallback &&
+              Boolean(qualityResult.diagnostics.qualityPassAcceptable) &&
+              qualityResult.confidence >= 0.5,
+          };
+          nextStability = stabilityTrackerRef.current.update(
+            qualityQuad,
+            qualityResult.isFallback,
+            qualityResult.confidence,
+            vw,
+            vh,
+            Date.now(),
+            qualityMetrics
+          );
+        }
+
+        lastTrackedQuadRef.current = nextStability.smoothedQuad ?? nextStability.lastQuad;
+        debugStore.updateDetectionTelemetry({
+          detector: result.diagnostics.detector ?? "v1",
+          opencvState: getOpenCvState().state,
+          mode: lastQualityDetectionRef.current ? "quality" : "fast",
+          processingMs: result.diagnostics.processingMs ?? 0,
+          candidateCount: result.diagnostics.candidateCount ?? 0,
+          confidence: result.confidence,
+          areaRatio: result.diagnostics.areaRatio ?? 0,
+          meanEdgeCoverage: nextStability.meanEdgeCoverage,
+          minEdgeCoverage: nextStability.minEdgeCoverage,
+          rawQuad: result.diagnostics.rawQuad
+            ? scaleQuad(result.diagnostics.rawQuad, vw / downW, vh / downH)
+            : null,
+          refinedQuad: result.diagnostics.refinedQuad
+            ? scaleQuad(result.diagnostics.refinedQuad, vw / downW, vh / downH)
+            : null,
+          qualityPassAcceptable: nextStability.qualityPassAcceptable,
+        });
 
         setStabilityState(nextStability);
 
@@ -606,6 +816,8 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
             <p className="text-xs text-slate-300 leading-relaxed">
               {isCameraTimeout
                 ? "La inicialización de la cámara tardó más de 8 segundos sin responder."
+                : isPermissionDenied
+                ? "El acceso a la cámara fue denegado. Habilitalo en la configuración del navegador."
                 : cameraError}
             </p>
 
@@ -657,12 +869,12 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
             {stabilityState.status === "stable" ? (
               <div className="flex items-center gap-1.5 py-1 px-3 rounded-full bg-emerald-950/90 border border-emerald-500/60 text-emerald-300 text-xs font-semibold backdrop-blur-md shadow-lg shadow-emerald-950/50 animate-pulse">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{autoCaptureEnabled ? "¡Listo! Capturando…" : "Listo para capturar"}</span>
+                <span>{autoCaptureEnabled ? "¡Listo! Capturando…" : "Listo para capturar"} · {openCvState === "ready" ? "V2" : "V1"}</span>
               </div>
             ) : stabilityState.status === "detected" ? (
               <div className="flex items-center gap-1.5 py-1 px-3 rounded-full bg-amber-950/90 border border-amber-500/50 text-amber-300 text-xs font-medium backdrop-blur-md">
                 <ScanLine className="w-3.5 h-3.5 text-amber-400 animate-spin" />
-                <span>Mantené quieto el teléfono…</span>
+                <span>Mantené quieto el teléfono… · {openCvState === "ready" ? "V2" : "V1"}</span>
               </div>
             ) : (
               <div className="flex items-center gap-1.5 py-1 px-3 rounded-full bg-slate-900/80 border border-slate-800 text-slate-400 text-xs font-medium backdrop-blur-md">
