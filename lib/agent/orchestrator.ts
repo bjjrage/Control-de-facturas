@@ -14,6 +14,7 @@ import { toolRegistry } from "./registry";
 import { gatewayExecuteSafe, GatewayError } from "./gateway";
 import type { EmailPreview } from "@/lib/email/types";
 import { markEmailDraftWaitingApproval } from "@/lib/email/domain-service";
+import { formatKnowledgeContext, selectRelevantKnowledge } from "@/lib/agent/knowledge";
 
 export const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 export const DEEPSEEK_MODEL = "deepseek-flash"; // DeepSeek V4.1 Flash para chat y tool-calling
@@ -116,6 +117,8 @@ function buildToolsSchemaForLLM(allowlist?: string[] | null): Array<Record<strin
   });
 }
 
+const RODRIGO_KNOWLEDGE_POLICY = `Politica permanente de conocimiento: el manual es estatico y no reemplaza datos vivos ni permisos. Si una capacidad no tiene un tool disponible, deci que Rodrigo todavia no puede ejecutarla. Limite duro de tesoreria: nunca pagar, cobrar, transferir, mover fondos, conciliar, liquidar ni registrar movimientos monetarios efectivos.`;
+
 export class AgentOrchestrator {
   private readonly apiKey: string;
   private readonly baseUrl: string;
@@ -154,9 +157,18 @@ export class AgentOrchestrator {
     // Historial para DeepSeek (OpenAI-compatible)
     const messages: Array<Record<string, unknown>> = [
       { role: "system", content: ORCHESTRATOR_SYSTEM_PROMPT },
+      { role: "system", content: RODRIGO_KNOWLEDGE_POLICY },
     ];
     if (input.contextHint) {
       messages.push({ role: "system", content: `Contexto: ${input.contextHint}` });
+    }
+    const knowledgeMatches = selectRelevantKnowledge(
+      [input.userIntent, input.contextHint ?? ""].filter(Boolean).join("\n"),
+      { maxDocuments: 4, maxChars: 12_000 }
+    );
+    const knowledgeContext = formatKnowledgeContext(knowledgeMatches);
+    if (knowledgeContext) {
+      messages.push({ role: "system", content: knowledgeContext });
     }
     for (const turn of input.conversationHistory?.slice(-20) ?? []) {
       messages.push({ role: turn.role, content: turn.content });
