@@ -30,7 +30,7 @@ type ScannerFlowState =
 
 function ScannerContent() {
   const searchParams = useSearchParams();
-  const tokenParam = searchParams.get("t");
+  const tokenParam = searchParams.get("t") || searchParams.get("token");
 
   const [flowState, setFlowState] = useState<ScannerFlowState>("join");
   const [token, setToken] = useState<string | null>(tokenParam);
@@ -66,11 +66,70 @@ function ScannerContent() {
 
   const [editingPageIndex, setEditingPageIndex] = useState<number | null>(null);
 
-  // Reclamar sesión automáticamente si vino token en URL
+  // 1. Al montar: verificar si ya existe una sesión móvil activa (cookie HttpOnly o sessionStorage)
   useEffect(() => {
-    if (tokenParam && !sessionInfo) {
-      handleClaimWithToken(tokenParam);
+    let isMounted = true;
+
+    async function checkExistingSession() {
+      try {
+        const storedMobileToken =
+          typeof window !== "undefined"
+            ? sessionStorage.getItem("scanner_mobile_token")
+            : null;
+
+        const headers: Record<string, string> = {};
+        if (storedMobileToken) {
+          headers["x-mobile-claim-token"] = storedMobileToken;
+        }
+
+        const res = await fetch("/api/scanner/mobile-session", {
+          method: "GET",
+          headers,
+        });
+
+        if (!isMounted) return;
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.active && data.session) {
+            setSessionInfo(data.session);
+            if (data.mobileClaimToken) {
+              setMobileClaimToken(data.mobileClaimToken);
+              if (typeof window !== "undefined") {
+                sessionStorage.setItem("scanner_mobile_token", data.mobileClaimToken);
+                sessionStorage.setItem("scanner_session_id", data.session.id);
+              }
+            }
+            if (tokenParam) {
+              setToken(tokenParam);
+            }
+
+            // Restaurar páginas offline si existían para esta sesión
+            const offline = await getOfflinePages(data.session.id);
+            if (offline && offline.length > 0) {
+              setPages(offline);
+              setFlowState("pages");
+            } else {
+              setFlowState("ready");
+            }
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Error al verificar sesión móvil existente:", err);
+      }
+
+      // Si no había sesión activa en cookie, y vino un token en la URL, intentar el claim inicial
+      if (tokenParam && isMounted) {
+        handleClaimWithToken(tokenParam);
+      }
     }
+
+    checkExistingSession();
+
+    return () => {
+      isMounted = false;
+    };
   }, [tokenParam]);
 
   // Guardar copia de respaldo offline en IndexedDB cada vez que cambian las páginas
@@ -84,11 +143,17 @@ function ScannerContent() {
     setIsJoining(true);
     setErrorNotice(null);
     try {
+      const storedMobileToken =
+        typeof window !== "undefined"
+          ? sessionStorage.getItem("scanner_mobile_token")
+          : null;
+
       const res = await fetch("/api/scanner/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           token: activeToken,
+          mobileClaimToken: storedMobileToken || undefined,
           deviceInfo: {
             userAgent: navigator.userAgent,
             claimedAt: new Date().toISOString(),
@@ -105,6 +170,10 @@ function ScannerContent() {
       setToken(data.token || activeToken);
       if (data.mobileClaimToken) {
         setMobileClaimToken(data.mobileClaimToken);
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("scanner_mobile_token", data.mobileClaimToken);
+          sessionStorage.setItem("scanner_session_id", data.session.id);
+        }
       }
       setSessionInfo(data.session);
 
@@ -133,11 +202,17 @@ function ScannerContent() {
     setIsJoining(true);
     setErrorNotice(null);
     try {
+      const storedMobileToken =
+        typeof window !== "undefined"
+          ? sessionStorage.getItem("scanner_mobile_token")
+          : null;
+
       const res = await fetch("/api/scanner/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pin: pinInput.trim(),
+          mobileClaimToken: storedMobileToken || undefined,
           deviceInfo: {
             userAgent: navigator.userAgent,
             claimedAt: new Date().toISOString(),
@@ -154,6 +229,10 @@ function ScannerContent() {
       // Conexión por PIN exitosa: guardar mobileClaimToken emitido por el servidor
       if (data.mobileClaimToken) {
         setMobileClaimToken(data.mobileClaimToken);
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("scanner_mobile_token", data.mobileClaimToken);
+          sessionStorage.setItem("scanner_session_id", data.session.id);
+        }
       }
       if (data.token) {
         setToken(data.token);
@@ -299,8 +378,12 @@ function ScannerContent() {
         throw new Error(data.error || "No se pudo enviar el documento");
       }
 
-      // Limpiar IndexedDB
+      // Limpiar IndexedDB y credenciales locales
       await clearOfflinePages(sessionInfo.id);
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("scanner_mobile_token");
+        sessionStorage.removeItem("scanner_session_id");
+      }
 
       setFlowState("success");
     } catch (err: unknown) {
@@ -309,6 +392,20 @@ function ScannerContent() {
     } finally {
       setIsSending(false);
     }
+  }
+
+  async function handleDisconnect() {
+    try {
+      await fetch("/api/scanner/mobile-session", { method: "DELETE" });
+    } catch {}
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("scanner_mobile_token");
+      sessionStorage.removeItem("scanner_session_id");
+    }
+    setSessionInfo(null);
+    setMobileClaimToken(null);
+    setPages([]);
+    setFlowState("join");
   }
 
   // VISTAS SEGÚN EL ESTADO DEL FLUJO:
@@ -398,7 +495,7 @@ function ScannerContent() {
 
           <button
             type="button"
-            onClick={() => setFlowState("join")}
+            onClick={handleDisconnect}
             className="w-full py-2.5 text-xs text-slate-400 hover:text-white"
           >
             Desconectar

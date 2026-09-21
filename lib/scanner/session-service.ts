@@ -342,7 +342,7 @@ export async function verifyAndGetSessionByPin(
  * Invalida el token QR original para que NO pueda usarse en operaciones posteriores.
  */
 export async function claimScanSession(
-  credentialOrPin: { token?: string; pin?: string } | string,
+  credentialOrPin: { token?: string; pin?: string; mobileClaimToken?: string } | string,
   deviceInfo: Record<string, unknown> = {},
   userId?: string | null
 ): Promise<ClaimSessionResult> {
@@ -351,14 +351,59 @@ export async function claimScanSession(
 
   const creds = typeof credentialOrPin === 'string' ? { token: credentialOrPin } : (credentialOrPin || {});
   const clientKey = String(deviceInfo.ip || deviceInfo.userAgent || 'default-client');
+  const incomingMobileToken = creds.mobileClaimToken || (deviceInfo.mobileClaimToken as string) || null;
 
   if (creds.token) {
     const s = await getScanSessionByToken(creds.token);
     if (!s) {
+      // Si la sesión no está en 'waiting', verificar si fue previamente reclamada con este mismo QR token
+      const credHash = hashScanToken(creds.token.trim());
+      const { data: claimedRow } = await admin
+        .from('scan_sessions')
+        .select('*')
+        .eq('token_hash', 'CLAIMED:' + credHash)
+        .maybeSingle();
+
+      if (claimedRow) {
+        const candidate = claimedRow as ScanSession;
+        // Si el mismo dispositivo presenta el mobileClaimToken válido para esta sesión:
+        if (incomingMobileToken && hashScanToken(incomingMobileToken) === candidate.mobile_claim_token_hash) {
+          if (!isSessionExpired(candidate.expires_at) && candidate.status !== 'completed' && candidate.status !== 'canceled') {
+            return {
+              session: candidate,
+              mobileClaimToken: incomingMobileToken,
+            };
+          }
+        }
+        throw new Error('Sesión de escaneo ya reclamada por otro dispositivo');
+      }
+
       throw new Error('Sesión de escaneo no encontrada o ya reclamada');
     }
     targetSession = s;
   } else if (creds.pin) {
+    // Si viene PIN y también incomingMobileToken, verificar si ya está conectado a esta sesión
+    if (incomingMobileToken) {
+      const cleanPin = (creds.pin || '').trim();
+      const { data: connectedWithPin } = await admin
+        .from('scan_sessions')
+        .select('*')
+        .eq('pin_code', cleanPin)
+        .eq('status', 'connected')
+        .gt('expires_at', new Date().toISOString())
+        .maybeSingle();
+
+      if (connectedWithPin) {
+        const candidate = connectedWithPin as ScanSession;
+        if (hashScanToken(incomingMobileToken) === candidate.mobile_claim_token_hash) {
+          return {
+            session: candidate,
+            mobileClaimToken: incomingMobileToken,
+          };
+        }
+      }
+    }
+
     targetSession = await verifyAndGetSessionByPin(creds.pin, clientKey);
   } else {
     throw new Error('Se requiere token o código PIN para vincular');
