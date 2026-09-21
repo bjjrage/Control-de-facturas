@@ -58,6 +58,12 @@ import "@/lib/tools/erp/get-scanner-session-overview";
 import "@/lib/tools/erp/get-project-operational-overview";
 import "@/lib/tools/erp/get-inventory-overview";
 import "@/lib/tools/erp/get-billing-overview";
+import "@/lib/tools/erp/get-supplier-invoice-overview";
+import "@/lib/tools/erp/manage-supplier-invoice";
+import "@/lib/tools/erp/get-work-order-overview";
+import "@/lib/tools/erp/manage-work-order";
+import "@/lib/tools/erp/get-sifen-overview";
+import "@/lib/tools/erp/manage-sifen-document";
 
 // Re-export para uso directo en tests sin pasar por registry si se desea
 export * from "@/lib/tools/projects/get-project-context";
@@ -109,3 +115,9 @@ export * from "@/lib/tools/erp/get-scanner-session-overview";
 export * from "@/lib/tools/erp/get-project-operational-overview";
 export * from "@/lib/tools/erp/get-inventory-overview";
 export * from "@/lib/tools/erp/get-billing-overview";
+export * from "@/lib/tools/erp/get-supplier-invoice-overview";
+export * from "@/lib/tools/erp/manage-supplier-invoice";
+export * from "@/lib/tools/erp/get-work-order-overview";
+export * from "@/lib/tools/erp/manage-work-order";
+export * from "@/lib/tools/erp/get-sifen-overview";
+export * from "@/lib/tools/erp/manage-sifen-document";

@@ -151,7 +151,7 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
     summary: "Las operaciones V3 llaman acciones reales del ERP con tenant, validación y aprobación; dinero y adjuntos binarios siguen limitados.",
     keywords: ["crear", "editar", "guardar", "emitir", "certificado", "clima", "receta", "apu", "partida", "licitación", "documento empresarial", "recepción", "portal", "plan semanal", "mrp", "factura", "maestro"],
     content:
-      "V3 registra tools operativos para maestros (clientes, proveedores y obras), partidas y avance, recetas/BOM, preview y guardado de plan semanal con MRP/reservas, certificados, documentos comerciales, facturas de proveedor, documentos empresariales, recepciones/portal/rendiciones de inventario, clima y licitaciones. Las acciones de riesgo 2 siempre requieren aprobación. Los resultados vienen de las acciones o servicios existentes, no de un workflow inventado. No hay tool para cobros, pagos, transferencias bancarias, conciliación, liquidación, Auction Lab/Bot, envío DNCP, personal/subcontratistas ni carga binaria de scanner.",
+      "V3 registra tools operativos para maestros (clientes, proveedores y obras), partidas y avance, recetas/BOM, preview y guardado de plan semanal con MRP/reservas, certificados, documentos comerciales, facturas de proveedor, documentos empresariales, recepciones/portal/rendiciones de inventario, clima y licitaciones. Las acciones de riesgo 2 siempre requieren aprobación. Los resultados vienen de las acciones o servicios existentes, no de un workflow inventado. No hay tool para cobros, pagos, transferencias bancarias, conciliación, liquidación, Auction Lab/Bot, envío DNCP o carga binaria de scanner. Las lecturas/escrituras auditadas de personal registrado y subcontratistas se agregaron en V4.",
     sourceMap: [
       "lib/tools/erp/manage-master-data.ts",
       "lib/tools/erp/manage-budget-item.ts",
@@ -172,10 +172,10 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
     id: "operations-v4",
     title: "Capacidades operativas V4 auditadas",
     module: "operations",
-    summary: "V4 expone lecturas reales de personal, APU material, scanner, Auction Lab, obra, inventario y ventas; las escrituras nuevas requieren aprobación.",
+    summary: "V4 expone lecturas reales de personal, APU material, scanner, obra, inventario y ventas; Auction Lab/Bot no está en el alcance conversacional.",
     keywords: ["personal", "cuadrilla", "subcontratista", "apu", "bom", "rendimiento", "scanner", "auction", "subasta", "avance", "clima", "reservas", "inventario", "facturación", "orden de trabajo", "reporting"],
     content:
-      "V4 agrega get_labor_subcontractor_overview, get_apu_overview, get_scanner_session_overview, get_auction_overview, get_project_operational_overview, get_inventory_overview y get_billing_overview. manage_labor_subcontractor, manage_apu_material y manage_auction_lab son mutaciones de riesgo 2. El APU disponible es material/BOM desde budget_item_materials; no se inventan mano de obra, equipos ni rendimientos faltantes. Scanner y Auction Lab devuelven vistas redacted sin tokens, PINes, hashes, random_close_at ni filesystem. El reporting transversal se compone con lecturas de dominio y tesorería continúa siendo solo lectura.",
+      "V4 agrega get_labor_subcontractor_overview, get_apu_overview, get_scanner_session_overview, get_project_operational_overview, get_inventory_overview y get_billing_overview. El APU disponible es material/BOM desde budget_item_materials; no se inventan mano de obra, equipos ni rendimientos faltantes. Scanner devuelve una vista redacted sin tokens, PINes, hashes ni filesystem. Auction Lab/Bot queda fuera del alcance de Rodrigo. El reporting transversal se compone con lecturas de dominio y tesorería continúa siendo solo lectura.",
     sourceMap: [
       "lib/tools/erp/get-labor-subcontractor-overview.ts",
       "lib/tools/erp/manage-labor-subcontractor.ts",
@@ -183,13 +183,34 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
       "lib/tools/erp/manage-apu-material.ts",
       "lib/tools/erp/get-scanner-session-overview.ts",
       "lib/tools/erp/get-auction-overview.ts",
-      "lib/tools/erp/manage-auction-lab.ts",
       "lib/tools/erp/get-project-operational-overview.ts",
       "lib/tools/erp/get-inventory-overview.ts",
       "lib/tools/erp/get-billing-overview.ts",
       "rodrigo/knowledge/operations-v4.md",
     ],
     docPath: "rodrigo/knowledge/operations-v4.md",
+  },
+  {
+    id: "operations-v5",
+    title: "Cierre V5: gaps y certificación runtime",
+    module: "operations",
+    summary: "V5 agrega facturas de proveedor, órdenes de trabajo y SIFEN reales, conserva approval/idempotencia y fija las fronteras DNCP, Auction y tesorería.",
+    keywords: ["factura proveedor", "proveedor", "orden de trabajo", "OT", "sifen", "goekua", "runtime", "deepseek", "approval", "idempotencia", "dncp", "auction", "tesorería", "adjunto"],
+    content:
+      "V5 expone get_supplier_invoice_overview/manage_supplier_invoice, get_work_order_overview/manage_work_order y get_sifen_overview/manage_sifen_document sobre acciones reales. La composición sigue siendo emergente: DeepSeek decide qué lecturas encadenar, el Gateway aplica tenant/permisos/riesgo y toda mutación o llamada externa requiere aprobación. DNCP formal y Auction Lab/Bot no están en el scope de Rodrigo; APU no tiene componentes estructurados de mano de obra/equipos/rendimientos; chat no tiene upload de adjuntos. Sin DEEPSEEK_API_KEY el endpoint falla 503 y no usa fallback determinista.",
+    sourceMap: [
+      "lib/tools/erp/get-supplier-invoice-overview.ts",
+      "lib/tools/erp/manage-supplier-invoice.ts",
+      "lib/tools/erp/get-work-order-overview.ts",
+      "lib/tools/erp/manage-work-order.ts",
+      "lib/tools/erp/get-sifen-overview.ts",
+      "lib/tools/erp/manage-sifen-document.ts",
+      "lib/agent/orchestrator.ts",
+      "lib/agent/gateway.ts",
+      "rodrigo/knowledge/operations-v5.md",
+      "rodrigo/knowledge/CAPABILITIES-GAPS.md",
+    ],
+    docPath: "rodrigo/knowledge/operations-v5.md",
   },
   {
     id: "finance-and-treasury",
