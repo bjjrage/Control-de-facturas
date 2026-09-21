@@ -92,6 +92,7 @@ export type PrepareEmailInput = {
   attachment_queries?: string[];
   project_id?: string;
   draft_id?: string;
+  idempotency_key?: string;
   revision_instruction?: string;
   force_resend?: boolean;
 };
@@ -629,7 +630,7 @@ export async function prepareEmailDraft(
   ];
 
   let draftId = existing?.row.id ?? null;
-  let idempotencyKey = existing?.row.idempotency_key ?? randomUUID();
+  let idempotencyKey = existing?.row.idempotency_key ?? input.idempotency_key ?? randomUUID();
   if (existing) {
     const { error } = await db
       .from("email_drafts")
