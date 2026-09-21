@@ -30,6 +30,7 @@ import {
   parseCameraError,
   isVideoElementReady,
 } from "@/lib/scanner/camera-helpers";
+import { debugStore } from "@/lib/scanner/debug-store";
 
 interface CameraCaptureProps {
   onCapture: (
@@ -69,6 +70,7 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
   const [hasCamera, setHasCamera] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isPermissionDenied, setIsPermissionDenied] = useState(false);
+  const [isCameraTimeout, setIsCameraTimeout] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
   const [isVideoReady, setIsVideoReady] = useState(false);
@@ -90,15 +92,23 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
   });
 
   // -------------------------------------------------------------
-  // 1. GESTIÓN DE ACCESO A CÁMARA CON FALLBACKS PROGRESIVOS
+  // 1. GESTIÓN DE ACCESO A CÁMARA CON FALLBACKS PROGRESIVOS & INSTRUMENTACIÓN
   // -------------------------------------------------------------
   const startCamera = useCallback(async () => {
     const sessionId = ++cameraSessionRef.current;
     setIsVideoReady(false);
     setCameraError(null);
     setIsPermissionDenied(false);
+    setIsCameraTimeout(false);
     captureLockedRef.current = false;
     stabilityTrackerRef.current.reset();
+
+    debugStore.updateCameraTelemetry({
+      startCameraCalled: true,
+      isSecureContext: typeof window !== "undefined" ? window.isSecureContext : false,
+      mediaDevicesPresent: typeof navigator !== "undefined" && Boolean(navigator?.mediaDevices),
+      getUserMediaPresent: typeof navigator !== "undefined" && Boolean(navigator?.mediaDevices?.getUserMedia),
+    });
 
     // Detener tracks anteriores si existían y resetear source
     if (streamRef.current) {
@@ -115,15 +125,42 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
       if (isMountedRef.current && sessionId === cameraSessionRef.current) {
         setHasCamera(false);
         setCameraError(envCheck.reason || "Cámara no soportada.");
+        debugStore.updateCameraTelemetry({
+          getUserMediaResult: "error: envCheck failed",
+          errorName: "EnvironmentUnsupported",
+          errorMessage: envCheck.reason || "Cámara no soportada.",
+        });
       }
       return;
     }
 
+    debugStore.updateCameraTelemetry({
+      getUserMediaRequestStarted: true,
+      getUserMediaResult: "pending",
+      timeoutTriggered: false,
+    });
+
     let activeStream: MediaStream | null = null;
     let lastErr: unknown = null;
+    let timedOut = false;
+
+    // Timeout de 8 segundos según requerimiento estricto
+    const timeoutTimer = setTimeout(() => {
+      if (!activeStream && isMountedRef.current && sessionId === cameraSessionRef.current) {
+        timedOut = true;
+        debugStore.updateCameraTelemetry({
+          timeoutTriggered: true,
+          getUserMediaResult: "timeout (>8s)",
+        });
+        setIsCameraTimeout(true);
+        setHasCamera(false);
+        setCameraError("Camera initialization timeout (>8s)");
+      }
+    }, 8000);
 
     // Intentar progresivamente: intento 0 (ideal 1080p rear), intento 1 (facing rear simple), intento 2 (genérico)
     for (let attempt = 0; attempt < 3; attempt++) {
+      if (timedOut) break;
       try {
         const constraints = getCameraConstraintsForAttempt(attempt);
         activeStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -131,12 +168,21 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
       } catch (err: unknown) {
         lastErr = err;
         const errInfo = parseCameraError(err);
+        const errName = (err as Error)?.name || "Error";
+        const errMsg = (err as Error)?.message || String(err);
+        debugStore.updateCameraTelemetry({
+          errorName: errName,
+          errorMessage: errMsg,
+        });
         // Si el usuario bloqueó explícitamente el permiso, no reintentar
         if (errInfo.isPermissionDenied) {
           break;
         }
       }
     }
+
+    clearTimeout(timeoutTimer);
+    if (timedOut) return;
 
     // Si el componente se desmontó durante el await, liberar tracks de inmediato
     if (!isMountedRef.current || sessionId !== cameraSessionRef.current) {
@@ -149,6 +195,13 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
     if (!activeStream) {
       setHasCamera(false);
       const parsed = parseCameraError(lastErr);
+      const errName = (lastErr as Error)?.name || "CameraError";
+      const errMsg = (lastErr as Error)?.message || parsed.message;
+      debugStore.updateCameraTelemetry({
+        getUserMediaResult: `error: ${errName}`,
+        errorName: errName,
+        errorMessage: errMsg,
+      });
       setCameraError(parsed.message);
       setIsPermissionDenied(parsed.isPermissionDenied);
       return;
@@ -157,12 +210,24 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
     streamRef.current = activeStream;
     setHasCamera(true);
 
+    const videoTracks = activeStream.getVideoTracks();
+    debugStore.updateCameraTelemetry({
+      getUserMediaResult: "success",
+      streamTracksCount: videoTracks.length,
+      videoTrackState: videoTracks[0]?.readyState || null,
+      videoTrackLabel: videoTracks[0]?.label || null,
+    });
+
     if (videoRef.current) {
       videoRef.current.srcObject = activeStream;
       try {
         await videoRef.current.play();
       } catch (playErr) {
         console.warn("Video play error:", playErr);
+        debugStore.updateCameraTelemetry({
+          errorName: "VideoPlayError",
+          errorMessage: (playErr as Error)?.message || String(playErr),
+        });
       }
     }
 
@@ -185,10 +250,13 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
 
   useEffect(() => {
     isMountedRef.current = true;
+    debugStore.updateCameraTelemetry({ mounted: true });
+    debugStore.logTransition("CameraCapture MOUNTED");
     startCamera();
     return () => {
       isMountedRef.current = false;
       cameraSessionRef.current++;
+      debugStore.updateCameraTelemetry({ mounted: false });
       if (loopTimerRef.current) clearInterval(loopTimerRef.current);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       if (streamRef.current) {
@@ -201,10 +269,22 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
     };
   }, [startCamera]);
 
-  // Listener para confirmar video listo con dimensiones reales
-  function handleVideoPlaying() {
-    if (isVideoElementReady(videoRef.current)) {
-      setIsVideoReady(true);
+  // Listener para confirmar video listo con dimensiones reales y registrar eventos
+  function handleVideoEvent(eventName: "loadedmetadata" | "canplay" | "playing" | "other") {
+    if (videoRef.current) {
+      const v = videoRef.current;
+      const currentTelem = debugStore.getCameraTelemetry();
+      debugStore.updateCameraTelemetry({
+        videoWidth: v.videoWidth,
+        videoHeight: v.videoHeight,
+        videoReadyState: v.readyState,
+        loadedmetadataFired: eventName === "loadedmetadata" || currentTelem.loadedmetadataFired,
+        canplayFired: eventName === "canplay" || currentTelem.canplayFired,
+        playingFired: eventName === "playing" || currentTelem.playingFired,
+      });
+      if (isVideoElementReady(v)) {
+        setIsVideoReady(true);
+      }
     }
   }
 
@@ -480,12 +560,12 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
               playsInline
               muted
               autoPlay
-              onLoadedMetadata={handleVideoPlaying}
-              onLoadedData={handleVideoPlaying}
-              onCanPlay={handleVideoPlaying}
-              onPlaying={handleVideoPlaying}
-              onTimeUpdate={handleVideoPlaying}
-              onResize={handleVideoPlaying}
+              onLoadedMetadata={() => handleVideoEvent("loadedmetadata")}
+              onLoadedData={() => handleVideoEvent("other")}
+              onCanPlay={() => handleVideoEvent("canplay")}
+              onPlaying={() => handleVideoEvent("playing")}
+              onTimeUpdate={() => handleVideoEvent("other")}
+              onResize={() => handleVideoEvent("other")}
               className={`w-full h-full object-cover transition-opacity duration-300 ${
                 isVideoReady ? "opacity-100" : "opacity-0"
               }`}
@@ -514,14 +594,20 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
           </div>
         )}
 
-        {/* Fallback ante cámara bloqueada o error */}
+        {/* Fallback ante cámara bloqueada, error o timeout de 8 segundos */}
         {!hasCamera && (
           <div className="p-6 text-center max-w-sm space-y-4 z-20">
             <div className="w-16 h-16 rounded-full bg-slate-900 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400 shadow-xl shadow-amber-500/10">
               <Camera className="w-8 h-8" />
             </div>
-            <h3 className="text-base font-semibold text-slate-100">Acceso a Cámara</h3>
-            <p className="text-xs text-slate-300 leading-relaxed">{cameraError}</p>
+            <h3 className="text-base font-semibold text-slate-100">
+              {isCameraTimeout ? "Camera initialization timeout" : "Acceso a Cámara"}
+            </h3>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              {isCameraTimeout
+                ? "La inicialización de la cámara tardó más de 8 segundos sin responder."
+                : cameraError}
+            </p>
 
             <div className="pt-2 space-y-2">
               <button
@@ -537,7 +623,7 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
                 onClick={() => fileInputRef.current?.click()}
                 className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/30 active:scale-95 transition"
               >
-                <Upload className="w-4 h-4" /> Tomar o subir foto
+                <Upload className="w-4 h-4" /> Usar foto
               </button>
             </div>
           </div>

@@ -18,6 +18,8 @@ import { PageList } from "./components/page-list";
 import { Point2D, QuadPoints, ScanFilter, ScannedPage } from "@/lib/scanner/types";
 import { buildPdfFromJpegPages, dataUrlToUint8Array } from "@/lib/scanner/pdf-builder";
 import { clearOfflinePages, getOfflinePages, saveOfflinePages } from "@/lib/scanner/offline-store";
+import { ScannerDebugOverlay } from "./components/scanner-debug-overlay";
+import { debugStore, isScannerDebugActive } from "@/lib/scanner/debug-store";
 
 type ScannerFlowState =
   | "booting"
@@ -79,7 +81,7 @@ function ScannerContent() {
   const searchParams = useSearchParams();
   const tokenParam = searchParams.get("t") || searchParams.get("token");
 
-  const [flowState, setFlowState] = useState<ScannerFlowState>("booting");
+  const [flowState, setFlowStateInternal] = useState<ScannerFlowState>("booting");
   const [token, setToken] = useState<string | null>(tokenParam);
   const [mobileClaimToken, setMobileClaimToken] = useState<string | null>(null);
   const [pinInput, setPinInput] = useState("");
@@ -93,9 +95,38 @@ function ScannerContent() {
   const [isJoining, setIsJoining] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
+  // Modo debug y telemetría
+  const [isDebug, setIsDebug] = useState(false);
+  const readyButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    setIsDebug(isScannerDebugActive());
+  }, []);
+
+  // Logger de transiciones de estado
+  function setFlowState(next: ScannerFlowState) {
+    setFlowStateInternal((prev) => {
+      if (prev !== next) {
+        debugStore.logTransition(`${prev} -> ${next}`);
+      }
+      return next;
+    });
+  }
+
+  function handleRegularOpenCamera() {
+    debugStore.logTransition("CLICK open-camera received");
+    setFlowState("capturing");
+  }
+
+  function handleDebugOpenCamera() {
+    debugStore.logTransition("CLICK debug-open-camera received");
+    setFlowState("capturing");
+  }
+
   // Guards contra carreras y stale responses
   const bootGenerationRef = useRef(0);
   const consumedTokensRef = useRef<Set<string>>(new Set());
+  const isClaimingRef = useRef(false);
 
   // Páginas acumuladas
   const [pages, setPages] = useState<ScannedPage[]>([]);
@@ -141,14 +172,18 @@ function ScannerContent() {
 
   // BOOTSTRAP MÓVIL ÚNICO
   async function bootstrapScanner(source: "mount" | "pageshow" | "visibility" = "mount") {
+    // Si ya hay un claim en proceso, no interrumpir
+    const isResumeOnly = source === "pageshow" || source === "visibility";
+    if (isClaimingRef.current && isResumeOnly) {
+      return;
+    }
+
     const currentGen = ++bootGenerationRef.current;
 
     // Si el usuario ya está en captura, recorte o filtro, no interrumpir la interacción
     if (flowState === "capturing" || flowState === "cropping" || flowState === "filtering") {
       return;
     }
-
-    const isResumeOnly = source === "pageshow" || source === "visibility";
 
     try {
       // 1. RESUME existing mobile session
@@ -190,57 +225,62 @@ function ScannerContent() {
 
       if (rawToken && !consumedTokensRef.current.has(rawToken)) {
         consumedTokensRef.current.add(rawToken);
+        isClaimingRef.current = true;
         setFlowState("booting");
 
         // Limpiar credencial local stale antes de intentar vincular una sesión nueva
         clearLocalMobileSession();
 
-        const claimRes = await fetch("/api/scanner/claim", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({
-            token: rawToken,
-            deviceInfo: {
-              userAgent: navigator.userAgent,
-              claimedAt: new Date().toISOString(),
-            },
-          }),
-        });
-
-        if (currentGen !== bootGenerationRef.current) return;
-
-        const claimData = await claimRes.json();
-
-        // 4. Claim success: persist fallback, restore session, remove raw QR token from URL, READY
-        if (claimRes.ok && claimData.session) {
-          await applyActiveSession(claimData.session, claimData.mobileClaimToken);
-          return;
-        }
-
-        // Manejo especial de 409 (Conflict):
-        // En caso de carrera (ej. request A ganó y request B recibió 409), consultar resume una vez
-        if (claimRes.status === 409) {
-          const reconcileRes = await fetch("/api/scanner/mobile-session", {
-            method: "GET",
+        try {
+          const claimRes = await fetch("/api/scanner/claim", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             credentials: "same-origin",
+            body: JSON.stringify({
+              token: rawToken,
+              deviceInfo: {
+                userAgent: navigator.userAgent,
+                claimedAt: new Date().toISOString(),
+              },
+            }),
           });
 
           if (currentGen !== bootGenerationRef.current) return;
 
-          if (reconcileRes.ok) {
-            const retryData = await reconcileRes.json();
-            if (retryData.active && retryData.session) {
-              await applyActiveSession(retryData.session, retryData.mobileClaimToken);
-              return;
+          const claimData = await claimRes.json();
+
+          // 4. Claim success: persist fallback, restore session, remove raw QR token from URL, READY
+          if (claimRes.ok && claimData.session) {
+            await applyActiveSession(claimData.session, claimData.mobileClaimToken);
+            return;
+          }
+
+          // Manejo especial de 409 (Conflict):
+          // En caso de carrera (ej. request A ganó y request B recibió 409), consultar resume una vez
+          if (claimRes.status === 409) {
+            const reconcileRes = await fetch("/api/scanner/mobile-session", {
+              method: "GET",
+              credentials: "same-origin",
+            });
+
+            if (currentGen !== bootGenerationRef.current) return;
+
+            if (reconcileRes.ok) {
+              const retryData = await reconcileRes.json();
+              if (retryData.active && retryData.session) {
+                await applyActiveSession(retryData.session, retryData.mobileClaimToken);
+                return;
+              }
             }
           }
-        }
 
-        // Si el claim falló y no se pudo conciliar:
-        setErrorNotice(claimData.error || "Sesión de escaneo no encontrada o ya reclamada");
-        setFlowState("manual");
-        return;
+          // Si el claim falló y no se pudo conciliar:
+          setErrorNotice(claimData.error || "Sesión de escaneo no encontrada o ya reclamada");
+          setFlowState("manual");
+          return;
+        } finally {
+          isClaimingRef.current = false;
+        }
       }
 
       // 5. Sin mobile session y sin token: mostrar formulario manual PIN
@@ -256,8 +296,12 @@ function ScannerContent() {
   useEffect(() => {
     bootstrapScanner("mount");
 
-    function handlePageShow() {
-      bootstrapScanner("pageshow");
+    function handlePageShow(e: PageTransitionEvent) {
+      // En Safari / WebKit, pageshow se dispara con persisted=false en carga inicial.
+      // Solo debemos reanudar sesión si e.persisted es true (restaurado de bfcache).
+      if (e.persisted) {
+        bootstrapScanner("pageshow");
+      }
     }
 
     function handleVisibilityChange() {
@@ -479,250 +523,293 @@ function ScannerContent() {
   }
 
   // VISTAS SEGÚN EL ESTADO DEL FLUJO:
-
-  // Vista 0: Conectando / Verificando sesión (Bootstrap inicial)
-  if (flowState === "booting") {
-    return (
-      <div
-        className="flex h-full min-h-0 flex-col items-center justify-center p-6 max-w-md mx-auto w-full text-center"
-        style={{
-          paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 0px))',
-          paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
-        }}
-      >
-        <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 shadow-xl shadow-emerald-500/10 animate-pulse mb-4">
-          <Smartphone className="w-8 h-8" />
-        </div>
-        <h2 className="text-base font-semibold text-slate-100">Conectando con Control Scanner…</h2>
-        <p className="mt-1.5 text-xs text-slate-400">Verificando sesión segura con el ERP</p>
-      </div>
-    );
-  }
-
-  // Vista 1: Entrada / Formulario PIN manual
-  if (flowState === "manual" || (flowState as string) === "join") {
-    return (
-      <div className="flex h-full min-h-0 flex-col w-full max-w-md mx-auto">
-        <main
-          className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col justify-center"
-          style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 0px))' }}
-        >
-          <div className="space-y-3 text-center mb-6">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 shadow-xl shadow-emerald-500/10">
-              <Smartphone className="w-7 h-7" />
-            </div>
-            <h1 className="text-xl font-bold text-slate-100">Control Scanner</h1>
-            <p className="text-xs text-slate-400">
-              Companion móvil de escaneo documental vinculado al ERP Control de Facturas.
-            </p>
-          </div>
-
-          {errorNotice && (
-            <div className="mb-4 p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-              <span>{errorNotice}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleClaimWithPin} className="space-y-4 bg-slate-900/60 border border-slate-800 p-5 rounded-2xl">
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                Código de sesión (6 dígitos)
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={pinInput}
-                onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
-                placeholder="Ej: 482910"
-                className="w-full py-3 px-4 text-center tracking-widest text-lg font-mono rounded-xl bg-slate-950 border border-slate-700 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isJoining || pinInput.length !== 6}
-              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-medium text-xs shadow-lg shadow-emerald-900/30 transition active:scale-98"
-            >
-              {isJoining ? "Conectando…" : "Vincular con ERP"}
-            </button>
-          </form>
-        </main>
-
-        <footer
-          className="shrink-0 p-4 text-center text-[11px] text-slate-500"
-          style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
-        >
-          O escaneá directamente el código QR mostrado en la pantalla de tu computadora.
-        </footer>
-      </div>
-    );
-  }
-
-  // Vista 2: Conectado y listo para capturar
-  if (flowState === "ready") {
-    return (
-      <div className="flex h-full min-h-0 flex-col w-full max-w-md mx-auto">
-        <main
-          className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col items-center justify-center text-center"
-          style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 0px))' }}
-        >
-          <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center mx-auto text-emerald-400 shadow-xl shadow-emerald-500/20 mb-3">
-            <CheckCircle2 className="w-9 h-9" />
-          </div>
-          <div>
-            <span className="text-[11px] uppercase tracking-wider font-semibold text-emerald-400 bg-emerald-950/60 py-1 px-3 rounded-full border border-emerald-800/60">
-              Conectado al ERP
-            </span>
-            <h2 className="mt-3 text-lg font-bold text-slate-100 capitalize">
-              {sessionInfo?.context_type ? `Contexto: ${sessionInfo.context_type}` : "Sesión Activa"}
-            </h2>
-            <p className="mt-1 text-xs text-slate-400 max-w-xs mx-auto">
-              Ubicá el documento físico en una superficie plana y con buena iluminación.
-            </p>
-          </div>
-        </main>
-
+  function renderView() {
+    // Vista 0: Conectando / Verificando sesión (Bootstrap inicial)
+    if (flowState === "booting") {
+      return (
         <div
-          className="shrink-0 p-6 pt-2 space-y-3"
-          style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
+          className="flex h-full min-h-0 flex-col items-center justify-center p-6 max-w-md mx-auto w-full text-center"
+          style={{
+            paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 0px))',
+            paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
+          }}
         >
-          <button
-            type="button"
-            onClick={() => setFlowState("capturing")}
-            className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white font-semibold text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-emerald-900/40 transition"
-          >
-            <CameraIcon className="w-5 h-5" /> Abrir Cámara
-          </button>
-
-          <button
-            type="button"
-            onClick={handleDisconnect}
-            className="w-full py-2.5 text-xs text-slate-400 hover:text-white"
-          >
-            Desconectar
-          </button>
+          <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 shadow-xl shadow-emerald-500/10 animate-pulse mb-4">
+            <Smartphone className="w-8 h-8" />
+          </div>
+          <h2 className="text-base font-semibold text-slate-100">Conectando con Control Scanner…</h2>
+          <p className="mt-1.5 text-xs text-slate-400">Verificando sesión segura con el ERP</p>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  // Vista 3: Cámara en vivo
-  if (flowState === "capturing") {
-    return (
-      <CameraCapture
-        onCapture={handleCapture}
-        pageCount={pages.length}
-        onCancel={() => {
-          if (pages.length > 0) {
-            setFlowState("pages");
-          } else {
-            setFlowState("ready");
-          }
-        }}
-      />
-    );
-  }
+    // Vista 1: Entrada / Formulario PIN manual
+    if (flowState === "manual" || (flowState as string) === "join") {
+      return (
+        <div className="flex h-full min-h-0 flex-col w-full max-w-md mx-auto">
+          <main
+            className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col justify-center"
+            style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 0px))' }}
+          >
+            <div className="space-y-3 text-center mb-6">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 shadow-xl shadow-emerald-500/10">
+                <Smartphone className="w-7 h-7" />
+              </div>
+              <h1 className="text-xl font-bold text-slate-100">Control Scanner</h1>
+              <p className="text-xs text-slate-400">
+                Companion móvil de escaneo documental vinculado al ERP Control de Facturas.
+              </p>
+            </div>
 
-  // Vista 4: Editor de esquinas y corrección de perspectiva
-  if (flowState === "cropping" && currentRawCapture) {
-    return (
-      <QuadEditor
-        imageDataUrl={currentRawCapture.dataUrl}
-        initialQuad={currentRawCapture.detectedQuad}
-        onConfirmCrop={handleConfirmCrop}
-        onCancel={() => {
-          if (editingPageIndex !== null) {
-            setEditingPageIndex(null);
-            setFlowState("pages");
-          } else {
-            setFlowState("capturing");
-          }
-        }}
-      />
-    );
-  }
+            {errorNotice && (
+              <div className="mb-4 p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <span>{errorNotice}</span>
+              </div>
+            )}
 
-  // Vista 5: Selector de filtros (Original / Documento / B&N)
-  if (flowState === "filtering" && currentCroppedCapture) {
-    return (
-      <FilterSelector
-        croppedDataUrl={currentCroppedCapture.dataUrl}
-        onConfirmFilter={handleConfirmFilter}
-        onBack={() => setFlowState("cropping")}
-      />
-    );
-  }
+            <form onSubmit={handleClaimWithPin} className="space-y-4 bg-slate-900/60 border border-slate-800 p-5 rounded-2xl">
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  Código de sesión (6 dígitos)
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
+                  placeholder="Ej: 482910"
+                  className="w-full py-3 px-4 text-center tracking-widest text-lg font-mono rounded-xl bg-slate-950 border border-slate-700 text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
 
-  // Vista 6: Gestión multipágina
-  if (flowState === "pages") {
-    return (
-      <div className="flex flex-col h-full w-full">
-        {errorNotice && (
-          <div className="p-3 bg-red-950/80 border-b border-red-500/40 text-red-200 text-xs flex items-center justify-between">
-            <span>{errorNotice}</span>
+              <button
+                type="submit"
+                disabled={isJoining || pinInput.length !== 6}
+                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-medium text-xs shadow-lg shadow-emerald-900/30 transition active:scale-98"
+              >
+                {isJoining ? "Conectando…" : "Vincular con ERP"}
+              </button>
+            </form>
+          </main>
+
+          <footer
+            className="shrink-0 p-4 text-center text-[11px] text-slate-500"
+            style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+          >
+            O escaneá directamente el código QR mostrado en la pantalla de tu computadora.
+          </footer>
+        </div>
+      );
+    }
+
+    // Vista 2: Conectado y listo para capturar
+    if (flowState === "ready") {
+      return (
+        <div className="flex h-full min-h-0 flex-col w-full max-w-md mx-auto relative">
+          <main
+            className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col items-center justify-center text-center"
+            style={{
+              paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 0px))',
+              paddingBottom: isDebug
+                ? 'calc(14rem + env(safe-area-inset-bottom, 0px))'
+                : 'calc(10rem + env(safe-area-inset-bottom, 0px))',
+            }}
+          >
+            <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center mx-auto text-emerald-400 shadow-xl shadow-emerald-500/20 mb-3">
+              <CheckCircle2 className="w-9 h-9" />
+            </div>
+            <div>
+              <span className="text-[11px] uppercase tracking-wider font-semibold text-emerald-400 bg-emerald-950/60 py-1 px-3 rounded-full border border-emerald-800/60">
+                Conectado al ERP
+              </span>
+              <h2 className="mt-3 text-lg font-bold text-slate-100 capitalize">
+                {sessionInfo?.context_type ? `Contexto: ${sessionInfo.context_type}` : "Sesión Activa"}
+              </h2>
+              <p className="mt-1 text-xs text-slate-400 max-w-xs mx-auto">
+                Ubicá el documento físico en una superficie plana y con buena iluminación.
+              </p>
+            </div>
+          </main>
+
+          {/* CTA Principal de Cámara - Fixed/Sticky robusto */}
+          <div
+            className="fixed inset-x-0 bottom-0 p-6 pt-2 space-y-3 z-30 max-w-md mx-auto bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent pointer-events-auto"
+            style={{
+              paddingBottom: isDebug
+                ? 'calc(4.5rem + 16px + env(safe-area-inset-bottom, 0px))'
+                : 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
+            }}
+          >
+            <button
+              ref={readyButtonRef}
+              id="btn-open-camera"
+              type="button"
+              onClick={handleRegularOpenCamera}
+              className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white font-semibold text-sm flex items-center justify-center gap-2.5 shadow-xl shadow-emerald-900/40 transition"
+            >
+              <CameraIcon className="w-5 h-5" /> Abrir Cámara
+            </button>
+
             <button
               type="button"
-              onClick={() => setErrorNotice(null)}
-              className="text-red-400 font-bold ml-2"
+              onClick={handleDisconnect}
+              className="w-full py-2.5 text-xs text-slate-400 hover:text-white"
             >
-              ✕
+              Desconectar
             </button>
           </div>
-        )}
-        <PageList
-          pages={pages}
-          onAddPage={() => setFlowState("capturing")}
-          onDeletePage={handleDeletePage}
-          onMovePage={handleMovePage}
-          onEditPage={handleEditPage}
-          onFinalize={handleFinalizeAndSend}
-          isSending={isSending}
-        />
-      </div>
-    );
-  }
-
-  // Vista 7: Éxito
-  if (flowState === "success") {
-    return (
-      <div className="flex h-full min-h-0 flex-col w-full max-w-md mx-auto">
-        <main
-          className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col items-center justify-center text-center"
-          style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 0px))' }}
-        >
-          <div className="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-500/50 flex items-center justify-center mx-auto text-emerald-400 shadow-2xl shadow-emerald-500/20 mb-3">
-            <CheckCircle2 className="w-12 h-12" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-white">¡Documento Enviado!</h2>
-            <p className="mt-2 text-xs text-slate-300 leading-relaxed max-w-xs mx-auto">
-              El PDF escaneado ya fue recibido en tu sesión de ERP Control de Facturas en la computadora.
-            </p>
-          </div>
-        </main>
-
-        <div
-          className="shrink-0 p-6 pt-2 space-y-3"
-          style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              setPages([]);
-              setFlowState("ready");
-            }}
-            className="w-full py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition"
-          >
-            Escanear otro documento
-          </button>
         </div>
-      </div>
-    );
+      );
+    }
+
+    // Vista 3: Cámara en vivo
+    if (flowState === "capturing") {
+      return (
+        <CameraCapture
+          onCapture={handleCapture}
+          pageCount={pages.length}
+          onCancel={() => {
+            if (pages.length > 0) {
+              setFlowState("pages");
+            } else {
+              setFlowState("ready");
+            }
+          }}
+        />
+      );
+    }
+
+    // Vista 4: Editor de esquinas y corrección de perspectiva
+    if (flowState === "cropping" && currentRawCapture) {
+      return (
+        <QuadEditor
+          imageDataUrl={currentRawCapture.dataUrl}
+          initialQuad={currentRawCapture.detectedQuad}
+          onConfirmCrop={handleConfirmCrop}
+          onCancel={() => {
+            if (editingPageIndex !== null) {
+              setEditingPageIndex(null);
+              setFlowState("pages");
+            } else {
+              setFlowState("capturing");
+            }
+          }}
+        />
+      );
+    }
+
+    // Vista 5: Selector de filtros (Original / Documento / B&N)
+    if (flowState === "filtering" && currentCroppedCapture) {
+      return (
+        <FilterSelector
+          croppedDataUrl={currentCroppedCapture.dataUrl}
+          onConfirmFilter={handleConfirmFilter}
+          onBack={() => setFlowState("cropping")}
+        />
+      );
+    }
+
+    // Vista 6: Gestión multipágina
+    if (flowState === "pages") {
+      return (
+        <div className="flex flex-col h-full w-full">
+          {errorNotice && (
+            <div className="p-3 bg-red-950/80 border-b border-red-500/40 text-red-200 text-xs flex items-center justify-between">
+              <span>{errorNotice}</span>
+              <button
+                type="button"
+                onClick={() => setErrorNotice(null)}
+                className="text-red-400 font-bold ml-2"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+          <PageList
+            pages={pages}
+            onAddPage={() => setFlowState("capturing")}
+            onDeletePage={handleDeletePage}
+            onMovePage={handleMovePage}
+            onEditPage={handleEditPage}
+            onFinalize={handleFinalizeAndSend}
+            isSending={isSending}
+          />
+        </div>
+      );
+    }
+
+    // Vista 7: Éxito
+    if (flowState === "success") {
+      return (
+        <div className="flex h-full min-h-0 flex-col w-full max-w-md mx-auto">
+          <main
+            className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col items-center justify-center text-center"
+            style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 0px))' }}
+          >
+            <div className="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-500/50 flex items-center justify-center mx-auto text-emerald-400 shadow-2xl shadow-emerald-500/20 mb-3">
+              <CheckCircle2 className="w-12 h-12" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white">¡Documento Enviado!</h2>
+              <p className="mt-2 text-xs text-slate-300 leading-relaxed max-w-xs mx-auto">
+                El PDF escaneado ya fue recibido en tu sesión de ERP Control de Facturas en la computadora.
+              </p>
+            </div>
+          </main>
+
+          <div
+            className="shrink-0 p-6 pt-2 space-y-3"
+            style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setPages([]);
+                setFlowState("ready");
+              }}
+              className="w-full py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition"
+            >
+              Escanear otro documento
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
   }
 
-  return null;
+  return (
+    <>
+      {isDebug && (
+        <>
+          <ScannerDebugOverlay
+            flowState={flowState}
+            sessionInfo={sessionInfo}
+            readyButtonRef={readyButtonRef}
+          />
+          <button
+            id="btn-debug-open-camera"
+            type="button"
+            onClick={handleDebugOpenCamera}
+            style={{
+              position: "fixed",
+              left: "16px",
+              right: "16px",
+              bottom: "calc(16px + env(safe-area-inset-bottom, 0px))",
+              zIndex: 99999,
+            }}
+            className="py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-black font-bold text-xs uppercase tracking-wider shadow-2xl border-2 border-amber-300"
+          >
+            [ DEBUG: ABRIR CÁMARA ]
+          </button>
+        </>
+      )}
+      {renderView()}
+    </>
+  );
 }
 
 export default function ScannerPage() {
