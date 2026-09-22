@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requirePlan } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   Project,
   BudgetItem,
@@ -312,7 +313,14 @@ export default async function ProjectDetailPage({
   ] = await Promise.all([
     getProjectInventorySnapshot(supabase, empresaId, id),
     getBudgetInventoryConsumption(supabase, empresaId, { projectId: id }),
-    supabase.from("inventory_locations").select("id, name").eq("project_id", id),
+    supabase
+      .from("inventory_locations")
+      .select("id, name")
+      .eq("empresa_id", empresaId)
+      .eq("project_id", id)
+      .eq("location_type", "PROJECT")
+      .eq("active", true)
+      .order("is_primary", { ascending: false }),
   ]);
   const stockObra = inventorySnapshot.data as import("./inventario-obra-section").StockObraRow[];
   const consumoCanonico = budgetConsumption.data as import("./inventario-obra-section").ConsumoCanonicoRow[];
@@ -472,6 +480,134 @@ export default async function ProjectDetailPage({
 
   // Cotizaciones y proveedores: derivados de las OCs del proyecto
   const orderIds = ocs.map((o) => o.id);
+  let eligibleReceiptOrders: import("./recepciones-obra-section").ReceiptEligibleOrder[] = [];
+  let pendingReceiptRows: import("./recepciones-obra-section").PendingReceiptRow[] = [];
+  let receiptCatalogProducts: import("./recepciones-obra-section").ReceiptCatalogProduct[] = [];
+  if (orderIds.length > 0) {
+    const [{ data: orderItemRows }, { data: receiptRows }] = await Promise.all([
+      supabase
+        .from("authorized_order_items")
+        .select("id, order_id, product, quantity, unit")
+        .eq("empresa_id", empresaId)
+        .in("order_id", orderIds)
+        .order("sort_order"),
+      supabase
+        .from("oc_recepciones")
+        .select("id, order_id, status, fecha, recibido_por, remision_number, notas")
+        .eq("empresa_id", empresaId)
+        .in("order_id", orderIds)
+        .in("status", ["DRAFT", "CONFIRMED"])
+        .order("created_at", { ascending: false }),
+    ]);
+    const orderItemById = new Map<string, { order_id: string; product: string; unit: string; quantity: number }>();
+    const orderItemsByOrder = new Map<string, { id: string; product: string; unit: string; quantity: number }[]>();
+    for (const item of orderItemRows ?? []) {
+      const normalized = {
+        id: item.id as string,
+        order_id: item.order_id as string,
+        product: item.product as string,
+        unit: item.unit as string,
+        quantity: Number(item.quantity),
+      };
+      orderItemById.set(normalized.id, normalized);
+      const list = orderItemsByOrder.get(normalized.order_id) ?? [];
+      list.push(normalized);
+      orderItemsByOrder.set(normalized.order_id, list);
+    }
+    const receiptIds = (receiptRows ?? []).map((receipt) => receipt.id as string);
+    const { data: receiptItemRows } = receiptIds.length
+      ? await supabase
+          .from("oc_recepcion_items")
+          .select("id, recepcion_id, order_item_id, cantidad_recibida, producto_id")
+          .eq("empresa_id", empresaId)
+          .in("recepcion_id", receiptIds)
+      : { data: [] };
+    const receivedByItem = new Map<string, number>();
+    for (const item of receiptItemRows ?? []) {
+      const itemId = item.order_item_id as string;
+      receivedByItem.set(itemId, (receivedByItem.get(itemId) ?? 0) + Number(item.cantidad_recibida));
+    }
+
+    eligibleReceiptOrders = ocs.flatMap((order) => {
+      const items = orderItemsByOrder.get(order.id)?.length
+        ? orderItemsByOrder.get(order.id)!
+        : [{ id: "", product: order.product, unit: order.unit, quantity: order.quantity }];
+      const pendingLineCount = items.filter((item) => item.quantity - (receivedByItem.get(item.id) ?? 0) > 0).length;
+      return pendingLineCount > 0
+        ? [{ id: order.id, code: order.code, providerName: order.provider_name, pendingLineCount }]
+        : [];
+    });
+
+    const draftRows = (receiptRows ?? []).filter((receipt) => receipt.status === "DRAFT");
+    const draftIds = new Set(draftRows.map((receipt) => receipt.id as string));
+    const draftItems = (receiptItemRows ?? []).filter((item) => draftIds.has(item.recepcion_id as string));
+    const receiptEvidence = draftRows.length
+      ? await supabase
+          .from("inventory_receipt_evidence")
+          .select("id, receipt_id, storage_bucket, storage_path, file_name")
+          .eq("empresa_id", empresaId)
+          .in("receipt_id", draftRows.map((receipt) => receipt.id as string))
+      : { data: [] };
+    const evidenceRows = receiptEvidence.data ?? [];
+    const evidencePaths = evidenceRows.map((file) => file.storage_path as string);
+    const admin = createAdminClient();
+    const { data: signedEvidence } = evidencePaths.length
+      ? await admin.storage.from("warehouse-evidence").createSignedUrls(evidencePaths, 3600)
+      : { data: [] };
+    const signedUrlByPath = new Map((signedEvidence ?? []).filter((file) => file.signedUrl).map((file) => [file.path ?? "", file.signedUrl!]));
+    const evidenceByReceipt = new Map<string, { id: string; file_name: string; url: string }[]>();
+    for (const file of evidenceRows) {
+      const url = signedUrlByPath.get(file.storage_path as string);
+      if (!url) continue;
+      const receiptId = file.receipt_id as string;
+      const list = evidenceByReceipt.get(receiptId) ?? [];
+      list.push({ id: file.id as string, file_name: file.file_name as string, url });
+      evidenceByReceipt.set(receiptId, list);
+    }
+    const orderById = new Map(ocs.map((order) => [order.id, order]));
+    const draftItemsByReceipt = new Map<string, typeof draftItems>();
+    for (const item of draftItems) {
+      const receiptId = item.recepcion_id as string;
+      const list = draftItemsByReceipt.get(receiptId) ?? [];
+      list.push(item);
+      draftItemsByReceipt.set(receiptId, list);
+    }
+    pendingReceiptRows = draftRows.flatMap((receipt) => {
+      const order = orderById.get(receipt.order_id as string);
+      if (!order) return [];
+      const lines = draftItemsByReceipt.get(receipt.id as string) ?? [];
+      return [{
+        id: receipt.id as string,
+        order_id: order.id,
+        order_code: order.code,
+        provider_name: order.provider_name,
+        date: receipt.fecha as string,
+        received_by: receipt.recibido_por as string,
+        remision_number: receipt.remision_number as string | null,
+        notes: receipt.notas as string | null,
+        items: lines.map((line) => {
+          const orderItem = orderItemById.get(line.order_item_id as string);
+          return {
+            id: line.id as string,
+            product: orderItem?.product ?? "Ítem de la orden",
+            unit: orderItem?.unit ?? "",
+            quantity: Number(line.cantidad_recibida),
+            product_id: line.producto_id as string | null,
+          };
+        }),
+        evidence: evidenceByReceipt.get(receipt.id as string) ?? [],
+      }];
+    });
+    if (pendingReceiptRows.length > 0) {
+      const { data: productRows } = await supabase
+        .from("productos")
+        .select("id, nombre, unidad")
+        .eq("empresa_id", empresaId)
+        .eq("activo", true)
+        .order("nombre");
+      receiptCatalogProducts = (productRows ?? []) as import("./recepciones-obra-section").ReceiptCatalogProduct[];
+    }
+  }
   let projectRfqs: Rfq[] = [];
   let projectProviders: Provider[] = [];
   if (orderIds.length > 0) {
@@ -671,6 +807,9 @@ export default async function ProjectDetailPage({
       consumoCanonico={consumoCanonico}
       budgetItemLabelById={Object.fromEntries(budgetItemLabelById)}
       recepciones={recepciones}
+      eligibleReceiptOrders={eligibleReceiptOrders}
+      pendingReceiptRows={pendingReceiptRows}
+      receiptCatalogProducts={receiptCatalogProducts}
       panolSubmissions={panolSubmissions}
       isAdmin={profile.role === "admin"}
       duplicateSources={duplicateSources}

@@ -11,6 +11,17 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next({ request });
   }
 
+  // External portals use an unguessable one-time bearer token; their page/API
+  // handlers validate that token directly and must not require ERP login.
+  if (
+    path.startsWith("/warehouse/") ||
+    path.startsWith("/recepcion/") ||
+    path.startsWith("/api/warehouse-portal/") ||
+    path.startsWith("/api/recepcion-portal/")
+  ) {
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

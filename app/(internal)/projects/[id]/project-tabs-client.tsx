@@ -58,7 +58,13 @@ import { RfqDialog } from "@/app/(internal)/rfqs/rfq-dialog";
 import { ConsumoMaterialesSection, type ConsumoRow } from "./consumo-materiales-section";
 import { ProyectoStockSection, type StockProyectoRow } from "./proyecto-stock-section";
 import { InventarioObraSection, type StockObraRow, type ConsumoCanonicoRow } from "./inventario-obra-section";
-import { RecepcionesObraSection, type RecepcionRow } from "./recepciones-obra-section";
+import {
+  RecepcionesObraSection,
+  type PendingReceiptRow,
+  type ReceiptCatalogProduct,
+  type ReceiptEligibleOrder,
+  type RecepcionRow,
+} from "./recepciones-obra-section";
 import { PanolObraSection, type PanolSubmissionRow } from "./panol-obra-section";
 import { OrderDialog } from "@/app/(internal)/orders/order-dialog";
 import { AddProjectProviderDialog } from "./add-project-provider-dialog";
@@ -111,6 +117,9 @@ type Props = {
   consumoCanonico: ConsumoCanonicoRow[];
   budgetItemLabelById: Record<string, string>;
   recepciones: RecepcionRow[];
+  eligibleReceiptOrders: ReceiptEligibleOrder[];
+  pendingReceiptRows: PendingReceiptRow[];
+  receiptCatalogProducts: ReceiptCatalogProduct[];
   panolSubmissions: PanolSubmissionRow[];
   isAdmin: boolean;
   duplicateSources: { id: string; code: string; name: string; itemCount: number }[];
@@ -161,6 +170,9 @@ export function ProjectTabsClient({
   consumoCanonico,
   budgetItemLabelById: budgetItemLabelByIdRecord,
   recepciones,
+  eligibleReceiptOrders,
+  pendingReceiptRows,
+  receiptCatalogProducts,
   panolSubmissions,
   isAdmin,
   duplicateSources,
@@ -433,9 +445,16 @@ export function ProjectTabsClient({
         <InventarioObraSection stock={stockObra} consumo={consumoCanonico} budgetItemLabelById={budgetItemLabelById} />
       ) : null}
 
-      {tab === "recepciones" ? <RecepcionesObraSection rows={recepciones} /> : null}
+      {tab === "recepciones" ? (
+        <RecepcionesObraSection
+          rows={recepciones}
+          eligibleOrders={eligibleReceiptOrders}
+          pendingReceipts={pendingReceiptRows}
+          products={receiptCatalogProducts}
+        />
+      ) : null}
 
-      {tab === "panol" ? <PanolObraSection submissions={panolSubmissions} /> : null}
+      {tab === "panol" ? <PanolObraSection projectId={project.id} submissions={panolSubmissions} /> : null}
 
       {tab === "informes" ? (
         <ProjectReports project={project} budgetItems={items} execEntries={entries} orders={ocs} />
