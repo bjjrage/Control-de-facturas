@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, RotateCcw, AlertTriangle, Sparkles } from "lucide-react";
+import { Check, RotateCcw, AlertTriangle, Sparkles, WandSparkles } from "lucide-react";
 import { Point2D, QuadPoints } from "@/lib/scanner/types";
 import {
   detectDefaultCorners,
   detectDocumentQuad,
+  autoAdjustQuadToEdges,
   isValidConvexQuad,
   warpPerspective,
 } from "@/lib/scanner/image-processing";
@@ -22,11 +23,14 @@ type CornerKey = "topLeft" | "topRight" | "bottomRight" | "bottomLeft";
 export function QuadEditor({ imageDataUrl, initialQuad, onConfirmCrop, onCancel }: QuadEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const magnifierCanvasRef = useRef<HTMLCanvasElement>(null);
   const imageObjRef = useRef<HTMLImageElement | null>(null);
+  const dragStateRef = useRef<{ corner: CornerKey; point: Point2D } | null>(null);
 
   const [quad, setQuad] = useState<QuadPoints | null>(null);
   const [activeCorner, setActiveCorner] = useState<CornerKey | null>(null);
   const [dragPos, setDragPos] = useState<Point2D | null>(null);
+  const [dragViewportPos, setDragViewportPos] = useState<Point2D | null>(null);
   const [imgDims, setImgDims] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const [displayScale, setDisplayScale] = useState<number>(1);
   const [processing, setProcessing] = useState(false);
@@ -34,25 +38,19 @@ export function QuadEditor({ imageDataUrl, initialQuad, onConfirmCrop, onCancel 
   const [detectionNotice, setDetectionNotice] = useState<string | null>(null);
   const [isQuadValid, setIsQuadValid] = useState<boolean>(true);
 
-  // Cargar imagen y utilizar initialQuad o ejecutar detección REAL tipo CamScanner
+  // Cargar imagen, identificar el documento y luego autoajustar sus cuatro
+  // bordes sobre el frame completo antes de mostrar la edición manual.
   useEffect(() => {
+    let cancelled = false;
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
+      if (cancelled) return;
       imageObjRef.current = img;
       const w = img.naturalWidth;
       const h = img.naturalHeight;
       setImgDims({ w, h });
 
-      // Si se recibió un cuadrilátero válido desde la detección en vivo, usarlo directamente
-      if (initialQuad && isValidConvexQuad(initialQuad, w, h)) {
-        setQuad(initialQuad);
-        setIsQuadValid(true);
-        setDetectionNotice("Documento detectado automáticamente en vivo. Ajustá las esquinas si es necesario.");
-        return;
-      }
-
-      // Extraer ImageData para el pipeline de visión por computadora si no vino initialQuad
       const offCanvas = document.createElement("canvas");
       offCanvas.width = w;
       offCanvas.height = h;
@@ -60,28 +58,44 @@ export function QuadEditor({ imageDataUrl, initialQuad, onConfirmCrop, onCancel 
       if (ctx) {
         ctx.drawImage(img, 0, 0);
         const imgData = ctx.getImageData(0, 0, w, h);
-        const result = detectDocumentQuad(imgData);
+        const liveQuad = initialQuad && isValidConvexQuad(initialQuad, w, h) ? initialQuad : null;
+        const detected = liveQuad ?? detectDocumentQuad(imgData).quad;
+        setQuad(detected);
+        setIsQuadValid(isValidConvexQuad(detected, w, h));
+        setDetectionNotice("Documento identificado. Ajustando automáticamente los bordes…");
 
-        setQuad(result.quad);
-        setIsQuadValid(isValidConvexQuad(result.quad, w, h));
-
-        if (result.isFallback) {
-          setDetectionNotice("No pudimos detectar completamente el documento. Ajustá las esquinas.");
-        } else {
-          setDetectionNotice(`Documento detectado automáticamente (${Math.round(result.confidence * 100)}% de coincidencia)`);
-        }
+        window.setTimeout(() => {
+          if (cancelled) return;
+          const adjusted = autoAdjustQuadToEdges(imgData, detected);
+          const nextQuad = adjusted ?? detected;
+          setQuad(nextQuad);
+          setIsQuadValid(isValidConvexQuad(nextQuad, w, h));
+          setDetectionNotice(
+            adjusted
+              ? "Bordes autoajustados. Revisá las esquinas y confirmá."
+              : "No se pudo autoajustar todo el borde. Revisá las esquinas y confirmá."
+          );
+        }, 0);
       } else {
         const defaultQuad = detectDefaultCorners(w, h);
         setQuad(defaultQuad);
+        setDetectionNotice("Ajustá las esquinas sobre el documento.");
       }
     };
     img.src = imageDataUrl;
+    return () => {
+      cancelled = true;
+      img.onload = null;
+    };
   }, [imageDataUrl, initialQuad]);
 
   // Validar cuadrilátero cada vez que cambia quad
   useEffect(() => {
     if (!quad || imgDims.w === 0) return;
     const valid = isValidConvexQuad(quad, imgDims.w, imgDims.h);
+    // The state is kept for the canvas paint path and must follow the dragged
+    // quad immediately; this effect is the single synchronization point.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsQuadValid(valid);
   }, [quad, imgDims]);
 
@@ -168,6 +182,63 @@ export function QuadEditor({ imageDataUrl, initialQuad, onConfirmCrop, onCancel 
     });
   }, [quad, imgDims, activeCorner, isQuadValid]);
 
+  useEffect(() => {
+    const magnifier = magnifierCanvasRef.current;
+    const image = imageObjRef.current;
+    if (!magnifier || !image || !dragPos || !displayScale) return;
+
+    const ctx = magnifier.getContext("2d");
+    if (!ctx) return;
+    const sourceX = dragPos.x / displayScale;
+    const sourceY = dragPos.y / displayScale;
+    const sourceSize = Math.max(72, Math.min(160, 112 / displayScale));
+    ctx.clearRect(0, 0, magnifier.width, magnifier.height);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(
+      image,
+      sourceX - sourceSize / 2,
+      sourceY - sourceSize / 2,
+      sourceSize,
+      sourceSize,
+      0,
+      0,
+      magnifier.width,
+      magnifier.height
+    );
+  }, [dragPos, displayScale, activeCorner, imgDims]);
+
+  function createCurrentImageData(): ImageData | null {
+    const image = imageObjRef.current;
+    if (!image || imgDims.w === 0 || imgDims.h === 0) return null;
+    const offCanvas = document.createElement("canvas");
+    offCanvas.width = imgDims.w;
+    offCanvas.height = imgDims.h;
+    const ctx = offCanvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.drawImage(image, 0, 0);
+    return ctx.getImageData(0, 0, imgDims.w, imgDims.h);
+  }
+
+  function handleAutoAdjust() {
+    if (!quad || processing) return;
+    const imageData = createCurrentImageData();
+    if (!imageData) return;
+
+    setProcessing(true);
+    setDetectionNotice("Ajustando automáticamente los cuatro bordes…");
+    window.setTimeout(() => {
+      const adjusted = autoAdjustQuadToEdges(imageData, quad);
+      if (adjusted) {
+        setQuad(adjusted);
+        setIsQuadValid(isValidConvexQuad(adjusted, imgDims.w, imgDims.h));
+        setDetectionNotice("Bordes autoajustados. Revisá las esquinas y confirmá.");
+      } else {
+        setDetectionNotice("No se encontró un borde más claro. Revisá las esquinas y confirmá.");
+      }
+      setProcessing(false);
+    }, 0);
+  }
+
   // Manejo de eventos pointer/touch para mover las esquinas
   function getCanvasCoords(clientX: number, clientY: number): Point2D | null {
     const canvas = canvasRef.current;
@@ -206,6 +277,11 @@ export function QuadEditor({ imageDataUrl, initialQuad, onConfirmCrop, onCancel 
     if (foundKey) {
       setActiveCorner(foundKey);
       setDragPos(coords);
+      setDragViewportPos({ x: e.clientX, y: e.clientY });
+      dragStateRef.current = {
+        corner: foundKey,
+        point: entries.find(([key]) => key === foundKey)?.[1] ?? coords,
+      };
       e.currentTarget.setPointerCapture(e.pointerId);
     }
   }
@@ -216,16 +292,28 @@ export function QuadEditor({ imageDataUrl, initialQuad, onConfirmCrop, onCancel 
     if (!coords) return;
 
     setDragPos(coords);
+    setDragViewportPos({ x: e.clientX, y: e.clientY });
 
     // Mapear y CLAMP estricto dentro de los límites de la imagen
     const origX = Math.max(0, Math.min(imgDims.w, Math.round(coords.x / displayScale)));
     const origY = Math.max(0, Math.min(imgDims.h, Math.round(coords.y / displayScale)));
+    const dragState = dragStateRef.current;
+    const previous = dragState?.point ?? {
+      x: quad[activeCorner].x,
+      y: quad[activeCorner].y,
+    };
+    const smoothing = 0.42;
+    const smoothedPoint = {
+      x: Math.round(previous.x + (origX - previous.x) * smoothing),
+      y: Math.round(previous.y + (origY - previous.y) * smoothing),
+    };
+    if (dragState) dragState.point = smoothedPoint;
 
     setQuad((prev) => {
       if (!prev) return null;
       return {
         ...prev,
-        [activeCorner]: { x: origX, y: origY },
+        [activeCorner]: smoothedPoint,
       };
     });
   }
@@ -234,6 +322,8 @@ export function QuadEditor({ imageDataUrl, initialQuad, onConfirmCrop, onCancel 
     if (activeCorner) {
       setActiveCorner(null);
       setDragPos(null);
+      setDragViewportPos(null);
+      dragStateRef.current = null;
       try {
         e.currentTarget.releasePointerCapture(e.pointerId);
       } catch {
@@ -297,13 +387,23 @@ export function QuadEditor({ imageDataUrl, initialQuad, onConfirmCrop, onCancel 
           Volver a capturar
         </button>
         <span className="text-xs font-semibold text-slate-200">Ajustar bordes del papel</span>
-        <button
-          type="button"
-          onClick={() => setQuad(detectDefaultCorners(imgDims.w, imgDims.h))}
-          className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 px-2 py-1"
-        >
-          <RotateCcw className="w-3.5 h-3.5" /> Restablecer
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleAutoAdjust}
+            disabled={!quad || processing}
+            className="text-xs text-emerald-400 hover:text-emerald-300 disabled:opacity-40 flex items-center gap-1 px-2 py-1"
+          >
+            <WandSparkles className="w-3.5 h-3.5" /> Autoajustar
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuad(detectDefaultCorners(imgDims.w, imgDims.h))}
+            className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 px-2 py-1"
+          >
+            <RotateCcw className="w-3.5 h-3.5" /> Restablecer
+          </button>
+        </div>
       </div>
 
       {/* Notificación de detección */}
@@ -339,12 +439,13 @@ export function QuadEditor({ imageDataUrl, initialQuad, onConfirmCrop, onCancel 
         {/* Lupa / Magnifier flotante cuando el usuario está arrastrando una esquina */}
         {activeCorner && dragPos && (
           <div
-            className="absolute pointer-events-none w-28 h-28 rounded-full border-2 border-emerald-400 bg-black/90 shadow-2xl overflow-hidden z-30"
+            className="fixed pointer-events-none w-28 h-28 rounded-full border-2 border-emerald-400 bg-black/90 shadow-2xl overflow-hidden z-30"
             style={{
-              left: Math.max(16, Math.min(window.innerWidth - 128, dragPos.x - 56)),
-              top: Math.max(16, dragPos.y - 120),
+              left: Math.max(16, Math.min(window.innerWidth - 128, (dragViewportPos?.x ?? 0) - 56)),
+              top: Math.max(16, (dragViewportPos?.y ?? 0) - 128),
             }}
           >
+            <canvas ref={magnifierCanvasRef} width={112} height={112} className="w-full h-full" />
             <div className="relative w-full h-full flex items-center justify-center">
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                 <div className="w-5 h-0.5 bg-emerald-400" />

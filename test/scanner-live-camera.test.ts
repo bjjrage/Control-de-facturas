@@ -301,17 +301,27 @@ describe('Camera Helpers & Reliability', () => {
 
   it('provee fallback progresivo de constraints de video', () => {
     const c0 = getCameraConstraintsForAttempt(0);
-    const c0Video = c0.video as { facingMode: { ideal: string }; width: { ideal: number } };
+    const c0Video = c0.video as {
+      facingMode: { ideal: string };
+      width: { ideal: number };
+      focusMode: { ideal: string };
+    };
     expect(c0Video.facingMode.ideal).toBe('environment');
+    expect(c0Video.focusMode.ideal).toBe('continuous');
     expect(c0Video.width.ideal).toBe(1920);
 
     const c1 = getCameraConstraintsForAttempt(1);
-    const c1Video = c1.video as { facingMode: { ideal: string }; width?: unknown };
+    const c1Video = c1.video as {
+      facingMode: { ideal: string };
+      width?: unknown;
+      focusMode: { ideal: string };
+    };
     expect(c1Video.facingMode.ideal).toBe('environment');
+    expect(c1Video.focusMode.ideal).toBe('continuous');
     expect(c1Video.width).toBeUndefined();
 
     const c2 = getCameraConstraintsForAttempt(2) as MediaStreamConstraints;
-    expect(c2.video).toBe(true);
+    expect(c2.video).toEqual({ focusMode: { ideal: 'continuous' } });
   });
 
   it('determina correctamente si un elemento video está listo para análisis', () => {

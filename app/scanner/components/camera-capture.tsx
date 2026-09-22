@@ -32,6 +32,7 @@ import {
   getCameraConstraintsForAttempt,
   parseCameraError,
   isVideoElementReady,
+  requestContinuousAutofocus,
 } from "@/lib/scanner/camera-helpers";
 import { debugStore, getScannerDetectorPreference, type ScannerDetectorPreference } from "@/lib/scanner/debug-store";
 
@@ -60,8 +61,8 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
   // Módulos internos y refs de control de ejecución
   const stabilityTrackerRef = useRef<DocumentStabilityTracker>(
     new DocumentStabilityTracker({
-      requiredDurationMs: 750,
-      minStableFrames: 4,
+      requiredDurationMs: 1400,
+      minStableFrames: 8,
       minConfidence: 0.40,
     })
   );
@@ -261,6 +262,10 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
         });
       }
     }
+
+    // Muchos móviles, especialmente Safari/iOS, ignoran focusMode dentro de
+    // getUserMedia pero sí lo aceptan cuando el track ya está activo.
+    await requestContinuousAutofocus(videoTracks[0] ?? null);
 
     // Comprobar soporte de linterna
     try {
