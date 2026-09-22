@@ -127,20 +127,20 @@ function ResultActions({
   const measurementBlock = result.importPlan.blocks.filter((block) => block.target === "MEASUREMENT").length;
   return (
     <section className="space-y-3 rounded-xl border border-sky-300/20 bg-sky-300/[0.04] p-3">
-      <h3 className="text-[11px] font-bold uppercase tracking-widest text-sky-100">AplicaciÃ³n al ERP canÃ³nico</h3>
+      <h3 className="text-[11px] font-bold uppercase tracking-widest text-sky-100">Aplicación al ERP canónico</h3>
       <div className="grid gap-2 text-[12px] sm:grid-cols-3">
-        <p>Presupuesto: <strong>{result.budgetItems.length} partidas</strong> â€” aplicable a <code>budget_items</code>.</p>
-        <p>Certificado: <strong>{certificateBlock ? "detectado" : "no detectado"}</strong> â€” sÃ³lo se crea si coincide con el presupuesto.</p>
-        <p>MediciÃ³n: <strong>{measurementBlock ? "detectada" : "no detectada"}</strong> â€” no se convierte en ejecuciÃ³n sin correspondencia segura.</p>
+        <p>Presupuesto: <strong>{result.budgetItems.length} partidas</strong> — aplicable a <code>budget_items</code>.</p>
+        <p>Certificado: <strong>{certificateBlock ? "detectado" : "no detectado"}</strong> — sólo se crea si coincide con el presupuesto.</p>
+        <p>Medición: <strong>{measurementBlock ? "detectada" : "no detectada"}</strong> — no se convierte en ejecución sin correspondencia segura.</p>
       </div>
       <p className="text-[11px] text-[var(--muted)]">Los acumulados e importes del certificado se recalculan desde <code>project_certificate_items</code>; no se importan como autoridad desde Excel.</p>
       {nameMissing || codeMissing ? (
         <div className="rounded-lg border border-amber-300/25 bg-amber-300/[0.04] p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-100">Completar dato crÃ­tico</p>
-          <p className="mt-1 text-[11px] text-[var(--muted)]">El archivo no aportÃ³ un identificador suficiente. CompletÃ¡ sÃ³lo lo faltante.</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-100">Completar dato crítico</p>
+          <p className="mt-1 text-[11px] text-[var(--muted)]">El archivo no aportó un identificador suficiente. Completá sólo lo faltante.</p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             {nameMissing ? <div><Label htmlFor="workbook_name_override">Nombre de obra</Label><Input id="workbook_name_override" value={nameOverride} onChange={(event) => onNameOverride(event.target.value)} /></div> : null}
-            {codeMissing ? <div><Label htmlFor="workbook_code_override">CÃ³digo de obra</Label><Input id="workbook_code_override" value={codeOverride} onChange={(event) => onCodeOverride(event.target.value)} /></div> : null}
+            {codeMissing ? <div><Label htmlFor="workbook_code_override">Código de obra</Label><Input id="workbook_code_override" value={codeOverride} onChange={(event) => onCodeOverride(event.target.value)} /></div> : null}
           </div>
         </div>
       ) : null}
@@ -148,7 +148,7 @@ function ResultActions({
       <div className="flex justify-between gap-2 pt-1">
         <Button type="button" variant="secondary" onClick={onBack} disabled={creating}>Volver</Button>
         <Button type="button" onClick={onCreate} disabled={creating || (nameMissing && !nameOverride.trim()) || (codeMissing && !codeOverride.trim())}>
-          {creating ? "Creando obraâ€¦" : "Crear obra con estos datos"}
+          {creating ? "Creando obra…" : "Crear obra con estos datos"}
         </Button>
       </div>
     </section>

@@ -255,9 +255,9 @@ export async function callWorkbookInterpreter(workbook: WorkbookRepresentation, 
       request_id: response.headers.get("x-request-id"),
       latency_ms: Math.round(performance.now() - startedAt),
     });
-    if (response.status === 408) throw new WorkbookInterpreterTimeoutError("El anÃ¡lisis tardÃ³ demasiado. ReintentÃ¡.");
-    if (response.status === 429) throw new WorkbookInterpreterRateLimitError("LÃ­mite temporal del servicio. ReintentÃ¡ en unos segundos.");
-    if (response.status === 401 || response.status === 403) throw new WorkbookInterpreterConfigurationError("La configuraciÃ³n del servicio de interpretaciÃ³n no es vÃ¡lida.");
+    if (response.status === 408) throw new WorkbookInterpreterTimeoutError("El análisis tardó demasiado. Reintentá.");
+    if (response.status === 429) throw new WorkbookInterpreterRateLimitError("Límite temporal del servicio. Reintentá en unos segundos.");
+    if (response.status === 401 || response.status === 403) throw new WorkbookInterpreterConfigurationError("La configuración del servicio de interpretación no es válida.");
     if (openAiError.code === "context_length_exceeded") throw new WorkbookInterpreterInputTooLargeError("El archivo es demasiado grande para el análisis semántico.");
     if (openAiError.code === "model_not_found" || openAiError.param === "model") throw new ModelUnavailableError("El modelo de interpretación no está configurado o no está disponible.");
     if (openAiError.param === "response_format" || /schema/i.test(message)) throw new InvalidModelResponseError("La configuración de respuesta estructurada es inválida.");
@@ -367,7 +367,7 @@ export async function interpretWorkbook(workbook: WorkbookRepresentation): Promi
   const unresolvedFromCoverage = extracted.coverage.filter((item) => item.unmappedRows.length).map((item) => ({ sheet: item.sheet, range: item.sourceRange, reason: `UNMAPPED_REGION: filas ${item.unmappedRows.join(", ")} quedaron fuera del rango declarado.` }));
   const result = {
     ...validated,
-    importPlan: { ...validated.importPlan, unresolvedRegions: [...validated.importPlan.unresolvedRegions, ...unresolvedFromCoverage], warnings: [...new Set([...validated.importPlan.warnings, ...coverageWarnings])] },
+    importPlan: { ...checked.plan, unresolvedRegions: [...checked.plan.unresolvedRegions, ...unresolvedFromCoverage], warnings: [...new Set([...checked.plan.warnings, ...coverageWarnings])] },
     budgetItems: extracted.items,
     coverage: extracted.coverage,
     unknownSections: [...validated.unknownSections, ...unresolvedFromCoverage],

@@ -3,7 +3,6 @@ import { extractBudgetItems, rawNumber, validateImportPlan, type ImportPlanCheck
 import type {
   DetectedField,
   ImportBlock,
-  ImportBlockCoverage,
   ImportPlan,
   WorkbookBudgetItem,
   WorkbookInterpretationResult,
@@ -225,6 +224,23 @@ function sameItem(left: WorkbookBudgetItem, right: CanonicalCertificateItem): bo
     && normalized(left.unit) === normalized(right.unit);
 }
 
+function reconcileBudgetToCertificate(
+  budgetLines: WorkbookBudgetItem[],
+  certificateItems: CanonicalCertificateItem[]
+): { matched: number; pairs: Array<{ budget: WorkbookBudgetItem; certificate: CanonicalCertificateItem }> } {
+  const usedBudgetIndexes = new Set<number>();
+  const pairs: Array<{ budget: WorkbookBudgetItem; certificate: CanonicalCertificateItem }> = [];
+  for (const certificate of certificateItems) {
+    const budgetIndex = budgetLines.findIndex(
+      (budget, index) => !usedBudgetIndexes.has(index) && sameItem(budget, certificate)
+    );
+    if (budgetIndex === -1) continue;
+    usedBudgetIndexes.add(budgetIndex);
+    pairs.push({ budget: budgetLines[budgetIndex], certificate });
+  }
+  return { matched: pairs.length, pairs };
+}
+
 export function buildCanonicalImportCandidate(
   workbook: WorkbookRepresentation,
   result: WorkbookInterpretationResult,
@@ -241,27 +257,36 @@ export function buildCanonicalImportCandidate(
   const certificateItems = extractCertificateItems(workbook, planCheck.plan);
   const budgetSheets = targetSheets(workbook, planCheck.plan, "BUDGET");
   const certificateSheets = targetSheets(workbook, planCheck.plan, "CERTIFICATE");
-  const matched = budgetLines.filter((budgetItem) => certificateItems.some((certificateItem) => sameItem(budgetItem, certificateItem)));
-  const fullJoin = budgetLines.length > 0 && matched.length === budgetLines.length && matched.length === certificateItems.length;
-  const canonicalBudgetItems = fullJoin
-    ? budgetLines.map((budgetItem) => {
-        const certificateItem = certificateItems.find((candidate) => sameItem(budgetItem, candidate));
-        return certificateItem ? { ...budgetItem, quantity: certificateItem.quantityContractual, unitPrice: certificateItem.unitPrice } : budgetItem;
-      })
+  const reconciliation = reconcileBudgetToCertificate(budgetLines, certificateItems);
+  const matched = reconciliation.matched;
+  // The certificate is the contractual line-of-record. If every certificate
+  // line joins a budget line, deterministic reconciliation can discard an
+  // extra subtotal/header row from the model proposal without trusting a
+  // filename or a fixed range. This is deliberately one-to-one.
+  const certificateJoinComplete = certificateItems.length > 0 && matched === certificateItems.length;
+  const exactJoin = certificateJoinComplete && matched === budgetLines.length;
+  const canonicalBudgetItems = certificateJoinComplete
+    ? reconciliation.pairs.map(({ budget: budgetItem, certificate: certificateItem }) => ({
+        ...budgetItem,
+        quantity: certificateItem.quantityContractual,
+        unitPrice: certificateItem.unitPrice,
+      }))
     : budgetLines;
   const certificateMetadata = extractPeriodAndNumber(workbook, certificateSheets);
   const certificateReason = !certificateItems.length
     ? "No se extrajeron líneas de certificado con mapping verificable."
-    : !fullJoin
-      ? `El certificado tiene ${certificateItems.length} líneas y sólo ${matched.length} coinciden de forma exacta con el presupuesto; no se aplica.`
+    : !certificateJoinComplete
+      ? `El certificado tiene ${certificateItems.length} líneas y sólo ${matched} coinciden de forma exacta con el presupuesto; no se aplica.`
       : !certificateMetadata.periodStart || !certificateMetadata.periodEnd || certificateMetadata.number === null
         ? "Las líneas coinciden, pero faltan número o período verificable para crear el certificado canónico."
-        : "Las líneas coinciden por código, descripción y unidad; los acumulados e importes se recalcularán en el modelo canónico.";
-  const certificateStatus = !certificateItems.length ? "NOT_DETECTED" : fullJoin && certificateMetadata.periodStart && certificateMetadata.periodEnd && certificateMetadata.number !== null ? "SAFE_TO_APPLY" : "DETECTED_NOT_APPLIED";
+        : exactJoin
+          ? "Las líneas coinciden por código, descripción y unidad; los acumulados e importes se recalcularán en el modelo canónico."
+          : `Las ${matched} líneas del certificado coinciden con partidas canónicas; se descartaron ${budgetLines.length - matched} filas presupuestarias que no forman parte del certificado.`;
+  const certificateStatus = !certificateItems.length ? "NOT_DETECTED" : certificateJoinComplete && certificateMetadata.periodStart && certificateMetadata.periodEnd && certificateMetadata.number !== null ? "SAFE_TO_APPLY" : "DETECTED_NOT_APPLIED";
   const certificate: CanonicalCertificateAudit = {
     status: certificateStatus,
     itemCount: certificateItems.length,
-    matchedBudgetItems: matched.length,
+    matchedBudgetItems: matched,
     number: certificateMetadata.number,
     periodStart: certificateMetadata.periodStart,
     periodEnd: certificateMetadata.periodEnd,
@@ -272,7 +297,7 @@ export function buildCanonicalImportCandidate(
   const budgetTotal = canonicalBudgetItems.reduce((sum, item) => sum + (item.quantity ?? 0) * (item.unitPrice ?? 0), 0);
   return {
     budgetItems: canonicalBudgetItems,
-    budgetQuantitySource: fullJoin ? "CERTIFICATE_CONTRACT_QUANTITY" : "BUDGET",
+    budgetQuantitySource: certificateJoinComplete ? "CERTIFICATE_CONTRACT_QUANTITY" : "BUDGET",
     budgetTotal,
     certificate,
     measurement,

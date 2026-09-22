@@ -5,22 +5,188 @@ import {
   type ImportBlock,
   type ImportBlockCoverage,
   type ImportPlan,
+  type WorkbookBlock,
   type WorkbookBudgetItem,
   type WorkbookRepresentation,
 } from "./types";
 
 export type ImportPlanCheck = { plan: ImportPlan; warnings: string[]; coverage: ImportBlockCoverage[] };
+type WorkbookCandidateBlock = WorkbookBlock & { sheetName: string; sheetIndex: number };
+type WorkbookCell = WorkbookRepresentation["sheets"][number]["cells"][number];
 
-function rowHasData(workbook: WorkbookRepresentation, sheetName: string, row: number, startColumn: number, endColumn: number) {
+function normalizedLabel(value: unknown): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9%]+/g, " ")
+    .trim();
+}
+
+function rowCells(workbook: WorkbookRepresentation, sheetName: string, row: number, startColumn?: number, endColumn?: number) {
   const sheet = workbook.sheets.find((item) => item.sheetName === sheetName);
-  return Boolean(sheet?.cells.some((cell) => cell.row === row && cell.column >= startColumn && cell.column <= endColumn && (cell.raw !== null || cell.formatted || cell.formula)));
+  return (sheet?.cells ?? []).filter(
+    (cell) => cell.row === row && (startColumn == null || cell.column >= startColumn) && (endColumn == null || cell.column <= endColumn)
+  );
+}
+
+function cellsByRow(workbook: WorkbookRepresentation, sheetName: string): Map<number, WorkbookCell[]> {
+  const grouped = new Map<number, WorkbookCell[]>();
+  const sheet = workbook.sheets.find((item) => item.sheetName === sheetName);
+  for (const cell of sheet?.cells ?? []) {
+    const row = grouped.get(cell.row);
+    if (row) row.push(cell);
+    else grouped.set(cell.row, [cell]);
+  }
+  return grouped;
+}
+
+function rowLooksLikeSummary(cells: WorkbookCell[], block: ImportBlock, row: number): boolean {
+  const range = XLSX.utils.decode_range(block.sourceRange);
+  const text = cells
+    .filter((cell) => cell.row === row && cell.column >= range.s.c + 1 && cell.column <= range.e.c + 1)
+    .map((cell) => normalizedLabel(cell.raw ?? cell.formatted))
+    .filter(Boolean)
+    .join(" ");
+  return /(^|\s)(total|subtotal|total general|sub total|item)(\s|$)/.test(text);
+}
+
+function withDeterministicRowRepairs(workbook: WorkbookRepresentation, block: ImportBlock): ImportBlock {
+  if (block.target !== "BUDGET" && block.target !== "CERTIFICATE") return block;
+  const grouped = cellsByRow(workbook, block.sheet);
+  const inferredSummaryRows = [] as number[];
+  for (let row = block.dataRowStart; row <= block.dataRowEnd; row++) {
+    if (rowLooksLikeSummary(grouped.get(row) ?? [], block, row)) inferredSummaryRows.push(row);
+  }
+  if (!inferredSummaryRows.length) return block;
+  const existing = new Set([...block.subtotalRows, ...block.footerRows, ...block.excludedRows.map((item) => item.row)]);
+  const subtotalRows = [...block.subtotalRows];
+  for (const row of inferredSummaryRows) {
+    if (!existing.has(row)) subtotalRows.push(row);
+  }
+  return { ...block, subtotalRows: [...new Set(subtotalRows)].sort((a, b) => a - b) };
+}
+
+function headerRole(label: string, target: ImportBlock["target"]): ImportBlock["columnMappings"][number]["role"] | null {
+  const text = normalizedLabel(label);
+  if (/^cod|codigo|item n|n item/.test(text)) return "code";
+  if (/descripcion|descrip|rubro|partida|concepto/.test(text)) return "description";
+  if (/^und$|unidad|u m|unidad de medida/.test(text)) return "unit";
+  if (target === "CERTIFICATE" && /contractual|contrato/.test(text)) return "quantity";
+  if (/cantidad|qty|cant\.?|metrado/.test(text)) return "quantity";
+  if (/anterior|previous/.test(text)) return "previousQuantity";
+  if (/presente|actual|current/.test(text)) return "currentQuantity";
+  if (/acumulado|cumulative/.test(text)) return "cumulativeQuantity";
+  if (/p\.?\s*u\.?|precio unitario|unit price|precio/.test(text)) return "unitPrice";
+  if (/%|porcentaje|percentage/.test(text)) return "percentage";
+  return null;
+}
+
+function locateHeaderRow(workbook: WorkbookRepresentation, candidate: WorkbookCandidateBlock, target: ImportBlock["target"]): { row: number; mappings: ImportBlock["columnMappings"] } | null {
+  let best: { row: number; mappings: ImportBlock["columnMappings"]; score: number } | null = null;
+  for (let row = candidate.rowStart; row <= Math.min(candidate.rowEnd, candidate.rowStart + 15); row++) {
+    const mappings: ImportBlock["columnMappings"] = [];
+    for (const cell of rowCells(workbook, candidate.sheetName, row, candidate.columnStart, candidate.columnEnd)) {
+      const role = headerRole(String(cell.raw ?? cell.formatted ?? ""), target);
+      if (role && !mappings.some((mapping) => mapping.role === role)) {
+        mappings.push({ column: XLSX.utils.encode_col(cell.column - 1), role, confidence: 0.78, notes: "Inferido por reconciliación determinística." });
+      }
+    }
+    const required = target === "CERTIFICATE"
+      ? ["code", "description", "quantity", "previousQuantity", "currentQuantity", "cumulativeQuantity", "unitPrice"]
+      : ["description"];
+    const score = required.filter((role) => mappings.some((mapping) => mapping.role === role)).length;
+    if (!best || score > best.score) best = { row, mappings, score };
+  }
+  const minimum = target === "CERTIFICATE" ? 5 : 1;
+  return best && best.score >= minimum ? { row: best.row, mappings: best.mappings } : null;
+}
+
+function inferredBlock(workbook: WorkbookRepresentation, candidate: WorkbookCandidateBlock, target: "BUDGET" | "CERTIFICATE"): ImportBlock | null {
+  const header = locateHeaderRow(workbook, candidate, target);
+  if (!header) return null;
+  const block: ImportBlock = {
+    id: `reconciled-${target.toLowerCase()}-${candidate.sheetIndex}-${candidate.id}`,
+    sheet: candidate.sheetName,
+    sourceRange: candidate.range,
+    target,
+    confidence: 0.78,
+    needsReview: false,
+    headerRowStart: header.row,
+    headerRowEnd: header.row,
+    dataRowStart: header.row + 1,
+    dataRowEnd: candidate.rowEnd,
+    columnMappings: header.mappings,
+    repeatedHeaderRows: [],
+    subtotalRows: [],
+    footerRows: [],
+    excludedRows: [],
+    notes: "Bloque recuperado por reconciliación determinística de encabezados y filas.",
+  };
+  return withDeterministicRowRepairs(workbook, block);
+}
+
+function candidateScore(workbook: WorkbookRepresentation, candidate: WorkbookCandidateBlock, target: "BUDGET" | "CERTIFICATE"): number {
+  const text = normalizedLabel([
+    candidate.sheetName,
+    candidate.title,
+    ...candidate.candidateHeaders,
+    ...candidate.sampleRows.flat(),
+  ].join(" "));
+  if (target === "CERTIFICATE") {
+    return (/(certificado|contractual|presente|acumulado)/.test(text) ? 4 : 0)
+      + (/codigo|cod/.test(text) ? 1 : 0)
+      + (/descripcion|rubro|partida/.test(text) ? 1 : 0);
+  }
+  return (/(presupuesto|rubro|partida|precio unitario|p u)/.test(text) ? 2 : 0)
+    + (/descripcion|rubro|partida/.test(text) ? 2 : 0)
+    + (/cantidad|unidad/.test(text) ? 1 : 0)
+    + (/precio/.test(text) ? 1 : 0);
+}
+
+/**
+ * Repairs omissions that are safe to infer from workbook structure alone.
+ * The model proposes semantics; this function only recovers a missing
+ * certificate/budget block and excludes explicit summary rows. It never
+ * invents business values or uses a filename/range special case.
+ */
+export function reconcileImportPlan(workbook: WorkbookRepresentation, raw: ImportPlan): { plan: ImportPlan; warnings: string[] } {
+  const warnings: string[] = [];
+  const repairedBlocks = raw.blocks.map((block) => withDeterministicRowRepairs(workbook, block));
+  for (const block of repairedBlocks) {
+    const original = raw.blocks.find((candidate) => candidate.id === block.id);
+    if (original && block.subtotalRows.length > original.subtotalRows.length) {
+      warnings.push(`Se excluyeron filas de total/subtotal del bloque ${block.id} mediante validación local.`);
+    }
+  }
+
+  for (const target of ["BUDGET", "CERTIFICATE"] as const) {
+    if (repairedBlocks.some((block) => block.target === target)) continue;
+    const candidates: WorkbookCandidateBlock[] = workbook.sheets.flatMap((sheet) =>
+      sheet.blocks.map((block) => ({ ...block, sheetName: sheet.sheetName, sheetIndex: sheet.sheetIndex }))
+    );
+    const best = candidates
+      .map((candidate) => ({ candidate, score: candidateScore(workbook, candidate, target) }))
+      .sort((left, right) => right.score - left.score)[0];
+    if (!best || best.score < (target === "CERTIFICATE" ? 5 : 4)) continue;
+    const inferred = inferredBlock(workbook, best.candidate, target);
+    if (!inferred) continue;
+    repairedBlocks.push(inferred);
+    warnings.push(`Se recuperó un bloque ${target} que no había sido expuesto por el modelo, usando encabezados y rangos locales verificables.`);
+  }
+
+  return {
+    plan: { ...raw, blocks: repairedBlocks },
+    warnings: [...new Set(warnings)],
+  };
 }
 
 function rowsWithData(workbook: WorkbookRepresentation, block: ImportBlock) {
   const range = XLSX.utils.decode_range(block.sourceRange);
+  const grouped = cellsByRow(workbook, block.sheet);
   const rows: number[] = [];
   for (let row = block.dataRowStart; row <= block.dataRowEnd; row++) {
-    if (rowHasData(workbook, block.sheet, row, range.s.c + 1, range.e.c + 1)) rows.push(row);
+    if ((grouped.get(row) ?? []).some((cell) => cell.column >= range.s.c + 1 && cell.column <= range.e.c + 1 && (cell.raw !== null || cell.formatted || cell.formula))) rows.push(row);
   }
   return rows;
 }
@@ -81,8 +247,9 @@ function coverageForBlock(workbook: WorkbookRepresentation, block: ImportBlock):
 export function validateImportPlan(raw: unknown, workbook: WorkbookRepresentation): ImportPlanCheck {
   const parsed = ImportPlanSchema.safeParse(raw);
   if (!parsed.success) throw new Error("El ImportPlan no cumple el contrato esperado.");
-  const warnings = [...parsed.data.warnings];
-  const normalizedBlocks = parsed.data.blocks.map((block) => {
+  const repaired = reconcileImportPlan(workbook, parsed.data);
+  const warnings = [...parsed.data.warnings, ...repaired.warnings];
+  const normalizedBlocks = repaired.plan.blocks.map((block) => {
     const sheet = workbook.sheets.find((item) => item.sheetName === block.sheet);
     if (!sheet || !isRangeWithinSheet(block.sourceRange, sheet)) return block;
     const source = XLSX.utils.decode_range(block.sourceRange);
@@ -90,7 +257,7 @@ export function validateImportPlan(raw: unknown, workbook: WorkbookRepresentatio
     if (!dataIsOutside) return block;
     const dataRowStart = Math.max(source.s.r + 1, Math.min(block.dataRowStart, source.e.r + 1));
     const dataRowEnd = Math.max(dataRowStart, Math.min(block.dataRowEnd, source.e.r + 1));
-    warnings.push(`El bloque ${block.id} declarÃ³ datos fuera de sourceRange; se conservÃ³ como NEEDS_REVIEW y se limitÃ³ a la regiÃ³n verificable.`);
+    warnings.push(`El bloque ${block.id} declaró datos fuera de sourceRange; se conservó como NEEDS_REVIEW y se limitó a la región verificable.`);
     return { ...block, dataRowStart, dataRowEnd, needsReview: true, notes: `${block.notes} Rango de datos corregido localmente; requiere revisión.` };
   });
   const normalizedPlan = { ...parsed.data, blocks: normalizedBlocks };

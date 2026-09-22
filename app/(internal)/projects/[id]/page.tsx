@@ -27,28 +27,15 @@ import {
   ClimateEvidence,
 } from "@/lib/types";
 import { getProjectInventorySnapshot, getBudgetInventoryConsumption } from "@/lib/inventory/service";
+import {
+  canAccessProjectFeature,
+  getProjectFeature,
+  isProjectFeatureKey,
+  PROJECT_FEATURE_KEYS,
+} from "@/lib/projects/project-features";
 import { ProjectTabsClient } from "./project-tabs-client";
 
-const ALL_TABS = [
-  "presupuesto",
-  "cronograma",
-  "ejecucion",
-  "compras",
-  "cotizaciones",
-  "proveedores",
-  "facturas",
-  "pagos",
-  "stock",
-  "inventario",
-  "recepciones",
-  "panol",
-  "informes",
-  "personal",
-  "subcontratistas",
-  "certificados",
-  "avance-fisico",
-  "bim",
-];
+const ALL_TABS = PROJECT_FEATURE_KEYS;
 
 export default async function ProjectDetailPage({
   params,
@@ -61,8 +48,18 @@ export default async function ProjectDetailPage({
   const { id } = await params;
   const { tab: rawTab } = await searchParams;
   const isCaterpillar = profile.plan === "caterpillar";
+  const featurePlan = isCaterpillar ? "caterpillar" : "pro";
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-  const initialTab = ALL_TABS.includes(rawTab ?? "") ? rawTab! : "presupuesto";
+  const initialTab =
+    isProjectFeatureKey(rawTab) &&
+    ALL_TABS.includes(rawTab) &&
+    canAccessProjectFeature(getProjectFeature(rawTab), {
+      role: profile.role,
+      plan: featurePlan,
+      isSuperAdmin: profile.is_super_admin,
+    })
+      ? rawTab
+      : "presupuesto";
   const supabase = await createClient();
   const empresaId = profile.empresa_id;
 

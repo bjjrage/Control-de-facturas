@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { buildCanonicalImportCandidate } from "../canonical-import";
 import { interpretWorkbook } from "../interpreter";
 import { parseWorkbook } from "../parser";
 
@@ -10,6 +11,7 @@ describe("golden workbook semantic importer", () => {
   it.skipIf(!fs.existsSync(goldenPath) || !process.env.OPENAI_API_KEY)("runs the real 15-sheet workbook through parser, ImportPlan, validation and preview result", async () => {
     const workbook = parseWorkbook(fs.readFileSync(goldenPath), goldenPath);
     const result = await interpretWorkbook(workbook);
+    const candidate = buildCanonicalImportCandidate(workbook, result);
     const report = workbook.sheets.map((sheet) => {
       const coverage = result.coverage.filter((item) => item.sheet === sheet.sheetName);
       return {
@@ -27,7 +29,15 @@ describe("golden workbook semantic importer", () => {
     });
     console.log(JSON.stringify({ file: path.basename(goldenPath), sheets: workbook.sheets.length, total_cells: workbook.totalCells, budget_items: result.budgetItems.length, report }, null, 2));
     expect(workbook.sheets).toHaveLength(15);
+    expect(workbook.totalCells).toBe(7456);
     expect(result.importPlan.blocks.length).toBeGreaterThan(0);
     expect(result.coverage.length).toBe(result.importPlan.blocks.length);
+    expect(result.budgetItems).toHaveLength(53);
+    expect(candidate.budgetItems).toHaveLength(53);
+    expect(candidate.budgetTotal).toBe(3482791500);
+    expect(candidate.certificate.status).toBe("SAFE_TO_APPLY");
+    expect(candidate.certificate.itemCount).toBe(53);
+    expect(candidate.certificate.matchedBudgetItems).toBe(53);
+    expect(candidate.measurement.status).toBe("DETECTED_NOT_APPLIED");
   }, 180_000);
 });

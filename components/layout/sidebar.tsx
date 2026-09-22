@@ -31,7 +31,6 @@ import {
   FileX,
   Landmark,
   ChevronDown,
-  Gavel,
   Radar,
   Bot,
   FlaskConical,
@@ -39,10 +38,21 @@ import {
   BadgeDollarSign,
   PlayCircle,
   ShieldCheck,
+  CalendarDays,
+  Layers,
+  PackageCheck,
+  Archive,
+  Tags,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { logout } from "@/app/(internal)/actions";
 import { EmpresaPlan } from "@/lib/auth";
+import {
+  canAccessProjectFeature,
+  getProjectFeature,
+  getProjectFeatureGroups,
+  type ProjectFeatureKey,
+} from "@/lib/projects/project-features";
 import { cn } from "@/lib/cn";
 import { uploadLogo } from "./branding-actions";
 import { LOGO_STORAGE_PATH } from "./branding-constants";
@@ -54,32 +64,35 @@ import { workspaceForPath } from "./workspace";
 // como items de sidebar cuando estás "adentro" del proyecto (modo carpeta).
 // Agrupadas por fase del ciclo de una obra: preparás → comprás → ejecutás →
 // certificás y controlás. El orden sigue el flujo real de trabajo.
-type ProjectTab = { key: string; label: string; icon: typeof LayoutDashboard; caterpillarOnly?: boolean };
-const PROJECT_TAB_GROUPS: { label: string; tabs: ProjectTab[] }[] = [
-  { label: "Preparar", tabs: [
-    { key: "presupuesto", label: "Presupuesto", icon: ClipboardCheck },
-    { key: "cronograma", label: "Cronograma", icon: GanttChartSquare },
-    { key: "bim", label: "BIM", icon: Boxes, caterpillarOnly: true },
-  ]},
-  { label: "Comprar", tabs: [
-    { key: "proveedores", label: "Proveedores", icon: Truck },
-    { key: "cotizaciones", label: "Cotizaciones", icon: MessagesSquare },
-    { key: "compras", label: "OC", icon: Package },
-    { key: "facturas", label: "Facturas", icon: Receipt },
-    { key: "pagos", label: "Pagos", icon: Wallet },
-  ]},
-  { label: "Ejecutar", tabs: [
-    { key: "ejecucion", label: "Ejecución", icon: Hammer },
-    { key: "stock", label: "Stock / Materiales", icon: Boxes },
-    { key: "personal", label: "Personal", icon: Users, caterpillarOnly: true },
-    { key: "subcontratistas", label: "Subcontratistas", icon: Truck, caterpillarOnly: true },
-  ]},
-  { label: "Certificar", tabs: [
-    { key: "certificados", label: "Certificados", icon: FileCheck2, caterpillarOnly: true },
-    { key: "avance-fisico", label: "Avance físico", icon: GanttChartSquare, caterpillarOnly: true },
-    { key: "informes", label: "Informes", icon: FileText },
-  ]},
-];
+const PROJECT_TAB_ICONS: Record<ProjectFeatureKey, typeof LayoutDashboard> = {
+  presupuesto: ClipboardCheck,
+  cronograma: GanttChartSquare,
+  "plan-semanal": CalendarDays,
+  bim: Boxes,
+  proveedores: Truck,
+  cotizaciones: MessagesSquare,
+  compras: Package,
+  facturas: Receipt,
+  pagos: Wallet,
+  ejecucion: Hammer,
+  inventario: Layers,
+  recepciones: PackageCheck,
+  panol: Archive,
+  personal: Users,
+  subcontratistas: Truck,
+  certificados: FileCheck2,
+  "avance-fisico": GanttChartSquare,
+  informes: FileText,
+};
+
+const PROJECT_TAB_GROUPS = getProjectFeatureGroups().map((group) => ({
+  label: group.label,
+  tabs: group.features.map((feature) => ({
+    key: feature.key,
+    label: feature.label,
+    icon: PROJECT_TAB_ICONS[feature.key],
+  })),
+}));
 
 // UUID v4-ish: alcanza para distinguir /projects/{id} de /projects (lista) y
 // /projects/nuevo si algún día existiera esa ruta.
@@ -124,7 +137,8 @@ const COMPRAS_ITEMS: NavItem[] = [
   { href: "/orders", label: "OC", roles: ["comercial", "administracion", "admin"], icon: Package, module: "compras" },
   { href: "/invoices", label: "Facturas", roles: ["administracion", "admin"], icon: Receipt, module: "compras" },
   { href: "/pagos", label: "Pagos", roles: ["administracion", "admin"], icon: Wallet, module: "compras" },
-  { href: "/stock", label: "Stock", roles: ["administracion", "admin"], icon: Boxes, module: "compras", minPlan: "pro" },
+  { href: "/inventario", label: "Inventario global", roles: ["administracion", "admin"], icon: Boxes, module: "compras", minPlan: "pro" },
+  { href: "/stock", label: "Catálogo de materiales", roles: ["administracion", "admin"], icon: Tags, module: "compras", minPlan: "pro" },
 ];
 
 const FINANZAS_ITEMS: NavItem[] = [
@@ -297,8 +311,6 @@ export function Sidebar({
   const inProjectMode = activeProjectId !== null && projectInfo !== null && projectInfo.id === activeProjectId;
   // Skeleton solo mientras hay un fetch activo para este proyecto
   const isLoadingProjectMode = fetchingId === activeProjectId && activeProjectId !== null;
-  const isCaterpillarPlan = plan === "caterpillar";
-
   // Tab activo en modo proyecto — se sincroniza sin Next.js navigation para
   // que los clicks del sidebar no disparen re-renders del servidor.
   const [currentTab, setCurrentTab] = useState("presupuesto");
@@ -674,7 +686,15 @@ export function Sidebar({
   }
 
   function renderProjectSection(group: (typeof PROJECT_TAB_GROUPS)[number]) {
-    const tabs = group.tabs.filter((t) => !t.caterpillarOnly || isCaterpillarPlan);
+    const tabs = group.tabs.filter((t) =>
+      plan === "basico"
+        ? false
+        : canAccessProjectFeature(getProjectFeature(t.key), {
+            role,
+            plan,
+            isSuperAdmin,
+          })
+    );
     if (tabs.length === 0) return null;
     const isOpen = openProjectSection === group.label;
     const isActiveGroup = tabs.some((tab) => tab.key === currentTab);
