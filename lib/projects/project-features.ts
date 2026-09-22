@@ -14,6 +14,7 @@ export type ProjectFeatureKey =
   | "facturas"
   | "pagos"
   | "ejecucion"
+  | "stock"
   | "inventario"
   | "recepciones"
   | "panol"
@@ -36,9 +37,9 @@ const PROJECT_ROLES = ["administracion", "admin"] as const satisfies readonly Us
 /**
  * Canonical contract for project-scoped user surfaces.
  *
- * The page's valid tabs and the project's sidebar are derived from this list.
- * Renderers remain explicit in ProjectTabsClient so a missing renderer is
- * visible in review and caught by the structural contract test.
+ * All project routes stay in this registry. The sidebar groups below omit
+ * compatibility-only inventory surfaces, while renderers remain explicit in
+ * ProjectTabsClient so direct links continue to work.
  */
 export const PROJECT_FEATURES = [
   { key: "presupuesto", label: "Presupuesto", group: "Preparar", minPlan: "pro", roles: PROJECT_ROLES },
@@ -51,6 +52,7 @@ export const PROJECT_FEATURES = [
   { key: "facturas", label: "Facturas", group: "Comprar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "pagos", label: "Pagos", group: "Comprar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "ejecucion", label: "Ejecución", group: "Ejecutar", minPlan: "pro", roles: PROJECT_ROLES },
+  { key: "stock", label: "Stock / Materiales", group: "Ejecutar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "inventario", label: "Inventario", group: "Ejecutar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "recepciones", label: "Recepciones", group: "Ejecutar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "panol", label: "Pañol", group: "Ejecutar", minPlan: "pro", roles: PROJECT_ROLES },
@@ -62,6 +64,12 @@ export const PROJECT_FEATURES = [
 ] as const satisfies readonly ProjectFeatureDefinition[];
 
 export const PROJECT_FEATURE_KEYS = PROJECT_FEATURES.map((feature) => feature.key) as ProjectFeatureKey[];
+
+const PROJECT_NAV_HIDDEN_FEATURE_KEYS = new Set<ProjectFeatureKey>([
+  "inventario",
+  "recepciones",
+  "panol",
+]);
 
 const PLAN_RANK: Record<ProjectFeaturePlan, number> = { pro: 1, caterpillar: 2 };
 
@@ -78,7 +86,9 @@ export function getProjectFeature(key: ProjectFeatureKey): ProjectFeatureDefinit
 export function getProjectFeatureGroups() {
   return (["Preparar", "Comprar", "Ejecutar", "Certificar"] as const).map((label) => ({
     label,
-    features: PROJECT_FEATURES.filter((feature) => feature.group === label),
+    features: PROJECT_FEATURES.filter(
+      (feature) => feature.group === label && !PROJECT_NAV_HIDDEN_FEATURE_KEYS.has(feature.key)
+    ),
   }));
 }
 
