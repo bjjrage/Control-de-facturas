@@ -70,6 +70,26 @@ function ResultPreview({ result }: { result: WorkbookInterpretationResult }) {
         </div>
       </section>
 
+      <section>
+        <h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">Plan de importación y cobertura</h3>
+        <div className="mt-2 space-y-2">
+          {result.importPlan.blocks.length ? result.importPlan.blocks.map((block) => {
+            const coverage = result.coverage.find((item) => item.blockId === block.id);
+            const requiresReview = block.needsReview || Boolean(coverage?.pendingRows.length || coverage?.unmappedRows.length);
+            return (
+              <div key={block.id} className="rounded-xl border border-[var(--border)] bg-white/[0.025] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div><p className="text-[13px] font-semibold">{block.target}</p><p className="mt-0.5 text-[11px] text-[var(--muted)]">{block.sheet} · {block.sourceRange} · datos {block.dataRowStart}–{block.dataRowEnd}</p></div>
+                  <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${requiresReview ? "bg-amber-400/10 text-amber-200" : "bg-emerald-400/10 text-emerald-200"}`}>{requiresReview ? "REQUIERE REVISIÓN" : "LISTO PARA PREVIEW"}</span>
+                </div>
+                {coverage ? <p className="mt-2 text-[11px] text-[var(--muted)]">Filas fuente: {coverage.sourceRows} · procesadas: {coverage.processedRows} · excluidas: {coverage.excludedRows.length} · pendientes: {coverage.pendingRows.length} · sin mapear: {coverage.unmappedRows.length}</p> : null}
+                {block.columnMappings.length ? <p className="mt-1 text-[11px] text-[var(--muted)]">{block.columnMappings.map((mapping) => `${mapping.column} → ${mapping.role}`).join(" · ")}</p> : null}
+              </div>
+            );
+          }) : <p className="rounded-xl border border-dashed border-[var(--border)] p-3 text-[12px] text-[var(--muted)]">No se generaron bloques interpretables.</p>}
+        </div>
+      </section>
+
       {result.unknownSections.length ? <section><h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">Secciones sin clasificar</h3><div className="mt-2 space-y-1">{result.unknownSections.map((section, index) => <p key={`${section.sheet}-${section.range}-${index}`} className="rounded-lg border border-amber-300/15 bg-amber-300/[0.04] px-3 py-2 text-[11px] text-amber-100"><strong>UNCERTAIN</strong> · {section.sheet} · {section.range}: {section.reason}</p>)}</div></section> : null}
       {result.warnings.length ? <section><h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">Advertencias</h3><ul className="mt-2 space-y-1 text-[11px] text-amber-100">{result.warnings.map((warning) => <li key={warning} className="flex gap-1.5"><TriangleAlert size={13} className="mt-0.5 shrink-0" />{warning}</li>)}</ul></section> : null}
       <p className="rounded-lg border border-[var(--border)] bg-white/[0.02] px-3 py-2 text-[11px] text-[var(--muted)]">Este resultado es sólo un preview. No se creó ninguna obra ni se guardaron datos.</p>

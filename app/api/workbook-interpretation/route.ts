@@ -2,7 +2,10 @@ import { requirePlan } from "@/lib/auth";
 import {
   InvalidModelResponseError,
   ModelUnavailableError,
+  WorkbookInterpreterConfigurationError,
   WorkbookInterpreterInputTooLargeError,
+  WorkbookInterpreterRateLimitError,
+  WorkbookInterpreterTimeoutError,
   interpretWorkbook,
 } from "@/lib/workbook-interpretation/interpreter";
 import { WorkbookInputError, parseWorkbook } from "@/lib/workbook-interpretation/parser";
@@ -26,6 +29,9 @@ export async function POST(request: Request) {
   } catch (cause) {
     if (cause instanceof WorkbookInputError) return error(cause.message, 400);
     if (cause instanceof WorkbookInterpreterInputTooLargeError) return error(cause.message, 413);
+    if (cause instanceof WorkbookInterpreterTimeoutError) return error(cause.message, 504);
+    if (cause instanceof WorkbookInterpreterRateLimitError) return error(cause.message, 429);
+    if (cause instanceof WorkbookInterpreterConfigurationError) return error(cause.message, 503);
     if (cause instanceof ModelUnavailableError) return error(cause.message, 503);
     if (cause instanceof InvalidModelResponseError) return error(cause.message, 502);
     console.error("[workbook-interpretation] unexpected error", cause);

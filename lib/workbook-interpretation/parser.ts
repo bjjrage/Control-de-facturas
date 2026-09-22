@@ -1,7 +1,6 @@
 import * as XLSX from "xlsx";
 import {
   WORKBOOK_FILE_MAX_BYTES,
-  WORKBOOK_MAX_SERIALIZED_CELLS,
   WORKBOOK_MAX_SHEETS,
   type WorkbookBlock,
   type WorkbookCell,
@@ -12,6 +11,7 @@ import {
 export class WorkbookInputError extends Error {}
 
 const NON_EMPTY = (value: unknown) => value !== null && value !== undefined && String(value).trim() !== "";
+const CELL_PRESENT = (cell: WorkbookCell) => NON_EMPTY(cell.raw) || Boolean(cell.formula);
 
 function cellValue(cell: XLSX.CellObject): string | number | boolean | null {
   if (cell.v === null || cell.v === undefined) return null;
@@ -26,28 +26,39 @@ function asSampleValue(cell: WorkbookCell | undefined): string | number | null {
 }
 
 function contiguousBlocks(cells: WorkbookCell[]): WorkbookBlock[] {
-  const byRow = new Map<number, WorkbookCell[]>();
-  for (const cell of cells) {
-    if (!NON_EMPTY(cell.raw)) continue;
-    const row = byRow.get(cell.row) ?? [];
-    row.push(cell);
-    byRow.set(cell.row, row);
+  const present = cells.filter(CELL_PRESENT);
+  const byCoordinate = new Map(present.map((cell) => [`${cell.row}:${cell.column}`, cell]));
+  const unvisited = new Set(byCoordinate.keys());
+  const components: WorkbookCell[][] = [];
+  while (unvisited.size) {
+    const seed = unvisited.values().next().value as string;
+    const queue = [seed];
+    const component: WorkbookCell[] = [];
+    unvisited.delete(seed);
+    while (queue.length) {
+      const key = queue.pop()!;
+      const cell = byCoordinate.get(key)!;
+      component.push(cell);
+      for (let row = cell.row - 1; row <= cell.row + 1; row++) {
+        for (let column = cell.column - 1; column <= cell.column + 1; column++) {
+          const neighborKey = `${row}:${column}`;
+          if (unvisited.has(neighborKey)) {
+            unvisited.delete(neighborKey);
+            queue.push(neighborKey);
+          }
+        }
+      }
+    }
+    components.push(component);
   }
-  const rows = [...byRow.keys()].sort((a, b) => a - b);
-  if (rows.length === 0) return [];
 
-  const groups: number[][] = [];
-  for (const row of rows) {
-    const previous = groups.at(-1);
-    if (!previous || row > previous.at(-1)! + 1) groups.push([row]);
-    else previous.push(row);
-  }
-
-  return groups.map((group) => {
-    const groupCells = group.flatMap((row) => byRow.get(row) ?? []);
+  return components.map((groupCells) => {
+    const rows = [...new Set(groupCells.map((cell) => cell.row))].sort((a, b) => a - b);
+    const byRow = new Map<number, WorkbookCell[]>();
+    for (const cell of groupCells) byRow.set(cell.row, [...(byRow.get(cell.row) ?? []), cell]);
     const minColumn = Math.min(...groupCells.map((cell) => cell.column));
     const maxColumn = Math.max(...groupCells.map((cell) => cell.column));
-    const rowCells = group.map((row) => byRow.get(row) ?? []);
+    const rowCells = rows.map((row) => (byRow.get(row) ?? []).sort((a, b) => a.column - b.column));
     const titleRow = rowCells.find((row) => row.length === 1 && typeof row[0].raw === "string");
     const headerRow = rowCells.find((row) => row.length >= 2 && row.filter((cell) => typeof cell.raw === "string").length >= 2) ?? rowCells[0];
     const candidateHeaders = headerRow
@@ -61,11 +72,15 @@ function contiguousBlocks(cells: WorkbookCell[]): WorkbookBlock[] {
       .map((row) => Array.from({ length: maxColumn - minColumn + 1 }, (_, index) => asSampleValue(row.find((cell) => cell.column === minColumn + index))));
 
     return {
-      range: `${XLSX.utils.encode_col(minColumn - 1)}${group[0]}:${XLSX.utils.encode_col(maxColumn - 1)}${group.at(-1)}`,
-      rowCount: group.length,
+      id: `${rows[0]}-${rows.at(-1)}-${minColumn}-${maxColumn}`,
+      range: `${XLSX.utils.encode_col(minColumn - 1)}${rows[0]}:${XLSX.utils.encode_col(maxColumn - 1)}${rows.at(-1)}`,
+      rowStart: rows[0], rowEnd: rows.at(-1)!, columnStart: minColumn, columnEnd: maxColumn,
+      rowCount: rows.length,
       title: titleRow?.[0]?.formatted ?? null,
+      headerRows: headerRow?.length ? [headerRow[0].row] : [],
       candidateHeaders,
       sampleRows,
+      totalRowsWithData: rows.length,
     };
   });
 }
@@ -105,7 +120,6 @@ export function parseWorkbook(input: ArrayBuffer | Uint8Array, fileName: string)
   if (workbook.SheetNames.length === 0) throw new WorkbookInputError("La planilla no contiene hojas.");
   if (workbook.SheetNames.length > WORKBOOK_MAX_SHEETS) throw new WorkbookInputError(`La planilla tiene más de ${WORKBOOK_MAX_SHEETS} hojas.`);
 
-  let remainingCells = WORKBOOK_MAX_SERIALIZED_CELLS;
   let totalCells = 0;
   const warnings: string[] = [];
   const sheets = workbook.SheetNames.map((sheetName, sheetIndex) => {
@@ -144,9 +158,7 @@ export function parseWorkbook(input: ArrayBuffer | Uint8Array, fileName: string)
       }
     }
     totalCells += allCells.length;
-    const serialized = allCells.slice(0, Math.max(0, remainingCells));
-    remainingCells -= serialized.length;
-    if (serialized.length < allCells.length) warnings.push(`La hoja “${sheetName}” fue resumida para respetar el límite de contexto; se leyeron ${allCells.length} celdas y se serializaron ${serialized.length}.`);
+    const serialized = allCells;
     return {
       sheetName,
       sheetIndex,
