@@ -33,6 +33,32 @@ function withDiagnostics(
   };
 }
 
+function v1Diagnostics(mode: DetectionPipelineInput['mode'], processingMs: number, fallbackReason: string): DetectionDiagnostics {
+  return {
+    detector: 'v1',
+    mode,
+    processingMs,
+    candidateCount: 0,
+    qualityPassAcceptable: false,
+    rawQuad: null,
+    refinedQuad: null,
+    fallbackReason,
+  };
+}
+
+function shouldUseV1ForLowQualityV2(
+  v2: DetectionPipelineResult,
+  v1: DetectedQuadResult,
+  mode: DetectionPipelineInput['mode']
+): boolean {
+  if (v1.isFallback || v2.isFallback) return !v1.isFallback;
+  if (mode === 'fast') return v2.confidence < 0.5 && v1.confidence > v2.confidence;
+
+  const v2Quality = v2.diagnostics.qualityPassAcceptable === true;
+  if (!v2Quality) return v1.confidence >= v2.confidence - 0.04;
+  return v1.confidence > v2.confidence + 0.12;
+}
+
 /**
  * Runs V2 when its runtime is ready and keeps V1 as a hard safety net for
  * loader failures, OpenCV exceptions, and frames without a valid candidate.
@@ -47,6 +73,24 @@ export function detectWithFallback(input: DetectionPipelineInput): DetectionPipe
         seedQuad: input.seedQuad,
       });
       if (!v2.isFallback) {
+        // V2 remains the live detector, but quality/final get a V1 second
+        // opinion when the OpenCV candidate has weak edge continuity. This
+        // avoids sending a valid-looking yet visibly inaccurate quad to the
+        // editor when the classic detector found a stronger outline.
+        if (input.mode !== 'fast' && v2.diagnostics.qualityPassAcceptable !== true) {
+          const v1StartedAt = now();
+          const v1 = detectDocumentQuad(input.imageData);
+          if (shouldUseV1ForLowQualityV2(v2, v1, input.mode)) {
+            return withDiagnostics(
+              v1,
+              {
+                ...v1Diagnostics(input.mode, now() - v1StartedAt, 'v2-low-quality'),
+                refinedQuad: v1.isFallback ? null : v1.quad,
+              },
+              'v2-low-quality'
+            );
+          }
+        }
         return withDiagnostics(v2, v2.diagnostics);
       }
     } catch (error) {

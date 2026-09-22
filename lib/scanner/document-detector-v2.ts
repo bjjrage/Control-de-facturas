@@ -208,7 +208,7 @@ export function scoreQuadCandidate(quad: QuadPoints, input: QuadScoreInput): Qua
     0.08 * angle +
     0.04 * centerProximity +
     0.04 * contrast +
-    0.05 * temporalConsistency -
+    0.12 * temporalConsistency -
     0.08 * penalty;
 
   return {
@@ -314,10 +314,21 @@ export function refineQuadByLines(
   if (refined.some((point) => point.x < -width * 0.02 || point.x > width * 1.02 || point.y < -height * 0.02 || point.y > height * 1.02)) {
     return null;
   }
-  return orderQuadCorners(refined);
+  return orderQuadCorners(
+    refined.map((point) => ({
+      x: Math.max(0, Math.min(width - 1, point.x)),
+      y: Math.max(0, Math.min(height - 1, point.y)),
+    }))
+  );
 }
 
-function imageMedian(imageData: ImageDataSource): number {
+interface LuminanceStats {
+  low: number;
+  median: number;
+  high: number;
+}
+
+function imageLuminanceStats(imageData: ImageDataSource): LuminanceStats {
   const values: number[] = [];
   const stride = Math.max(1, Math.floor((imageData.width * imageData.height) / 4096));
   for (let pixel = 0, sample = 0; pixel < imageData.width * imageData.height; pixel += stride, sample++) {
@@ -325,7 +336,22 @@ function imageMedian(imageData: ImageDataSource): number {
     values.push(0.299 * imageData.data[index] + 0.587 * imageData.data[index + 1] + 0.114 * imageData.data[index + 2]);
   }
   values.sort((a, b) => a - b);
-  return values[Math.floor(values.length / 2)] ?? 128;
+  const at = (ratio: number) => values[Math.min(values.length - 1, Math.floor(values.length * ratio))] ?? 128;
+  return { low: at(0.1), median: at(0.5), high: at(0.9) };
+}
+
+export function chooseCannyThresholds(
+  imageData: ImageDataSource,
+  options: Pick<DocumentDetectorV2Options, 'cannyLow' | 'cannyHigh'> = {}
+): { low: number; high: number } {
+  const stats = imageLuminanceStats(imageData);
+  const contrastRange = Math.max(12, stats.high - stats.low);
+  const high = Math.round(options.cannyHigh ?? Math.max(40, Math.min(112, 24 + contrastRange * 0.38)));
+  const low = Math.round(options.cannyLow ?? Math.max(12, Math.min(high - 10, high * 0.42)));
+  return {
+    low: Math.max(8, Math.min(high - 8, low)),
+    high: Math.max(16, Math.min(180, high)),
+  };
 }
 
 function readApproxPoints(approx: OpenCvMat): Point2D[] {
@@ -403,10 +429,9 @@ export function detectDocumentV2(
     : 1;
   const workingWidth = Math.max(1, Math.round(sourceWidth * workingScale));
   const workingHeight = Math.max(1, Math.round(sourceHeight * workingScale));
-  const median = imageMedian(imageData);
-  const sigma = options.cannySigma ?? 0.33;
-  const lowThreshold = Math.max(8, Math.round(options.cannyLow ?? (1 - sigma) * median));
-  const highThreshold = Math.min(255, Math.max(lowThreshold + 12, Math.round(options.cannyHigh ?? (1 + sigma) * median)));
+  const cannyThresholds = chooseCannyThresholds(imageData, options);
+  const lowThreshold = cannyThresholds.low;
+  const highThreshold = cannyThresholds.high;
   const kernelSize = options.morphologyKernelSize ?? Math.max(3, Math.min(7, 2 * Math.floor(Math.min(workingWidth, workingHeight) / 320) + 3));
 
   let source: OpenCvMat | null = null;
@@ -525,7 +550,16 @@ export function detectDocumentV2(
           edgeSearchRadius: options.edgeSearchRadius ?? (mode === 'fast' ? 2 : 3),
         })
       : null;
-    const winningQuad = refinedScore && refinedScore.total >= best.score.total - 0.025 ? refinedWorking! : best.quad;
+    const diagonal = Math.hypot(workingWidth, workingHeight);
+    const refinementStayedNearCandidate = refinedWorking
+      ? quadArray(refinedWorking).every((point, index) => distance(point, quadArray(best.quad)[index]) <= Math.max(16, diagonal * 0.08))
+      : false;
+    const refinedIsSafe =
+      refinedScore &&
+      refinementStayedNearCandidate &&
+      refinedScore.total >= best.score.total - 0.005 &&
+      refinedScore.minEdgeCoverage >= best.score.minEdgeCoverage - 0.02;
+    const winningQuad = refinedIsSafe ? refinedWorking! : best.quad;
     const winningScore = refinedScore && winningQuad === refinedWorking ? refinedScore : best.score;
     const rawQuad = mapQuadToSource(best.quad, 1 / workingScale, 1 / workingScale);
     const refinedQuad = mapQuadToSource(winningQuad, 1 / workingScale, 1 / workingScale);

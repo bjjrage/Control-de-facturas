@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { fitLineFromPoints, intersectLines, refineQuadByLines, scoreQuadCandidate } from '../document-detector-v2';
+import {
+  chooseCannyThresholds,
+  fitLineFromPoints,
+  intersectLines,
+  refineQuadByLines,
+  scoreQuadCandidate,
+} from '../document-detector-v2';
 
 const quad = {
   topLeft: { x: 20, y: 20 },
@@ -26,6 +32,21 @@ function edgeMap(width: number, height: number) {
 }
 
 describe('document detector V2 geometry', () => {
+  it('mantiene Canny en un rango útil con una hoja muy luminosa', () => {
+    const data = new Uint8ClampedArray(64 * 64 * 4);
+    for (let index = 0; index < data.length; index += 4) {
+      data[index] = 245;
+      data[index + 1] = 245;
+      data[index + 2] = 245;
+      data[index + 3] = 255;
+    }
+
+    const thresholds = chooseCannyThresholds({ width: 64, height: 64, data });
+    expect(thresholds.low).toBeGreaterThan(0);
+    expect(thresholds.low).toBeLessThan(thresholds.high);
+    expect(thresholds.high).toBeLessThan(180);
+  });
+
   it('scores all four sides and penalizes a missing side', () => {
     const edges = edgeMap(200, 200);
     const score = scoreQuadCandidate(quad, { width: 200, height: 200, edgePixels: edges });
