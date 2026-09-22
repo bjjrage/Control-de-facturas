@@ -191,6 +191,23 @@ describe('DocumentStabilityTracker', () => {
     expect(s.stabilityProgress).toBe(0);
   });
 
+  it('no auto-captura un quad estable si la cobertura de borde o quality pass falla', () => {
+    const quality = {
+      meanEdgeCoverage: 0.62,
+      minEdgeCoverage: 0.18,
+      qualityPassAcceptable: false,
+    };
+    tracker.update(sampleQuad, false, 0.85, 1280, 720, 1000, quality);
+    tracker.update(sampleQuad, false, 0.85, 1280, 720, 1300, quality);
+    tracker.update(sampleQuad, false, 0.85, 1280, 720, 1600, quality);
+    const state = tracker.update(sampleQuad, false, 0.85, 1280, 720, 1800, quality);
+
+    expect(state.isStable).toBe(true);
+    expect(state.isReadyForAutoCapture).toBe(false);
+    expect(state.minEdgeCoverage).toBe(0.18);
+    expect(state.qualityPassAcceptable).toBe(false);
+  });
+
   it('bloquea capturas posteriores con lockCapture (anti-doble captura)', () => {
     tracker.update(sampleQuad, false, 0.9, 1280, 720, 1000);
     tracker.update(sampleQuad, false, 0.9, 1280, 720, 1300);
@@ -241,8 +258,8 @@ describe('DocumentStabilityTracker', () => {
 
 describe('Camera Helpers & Reliability', () => {
   it('detecta correctamente ambiente no seguro (insecure context)', () => {
-    const fakeWin = { isSecureContext: false, location: { hostname: 'mi-sitio-remoto.com' } } as any;
-    const fakeNav = { mediaDevices: { getUserMedia: () => {} } } as any;
+    const fakeWin = { isSecureContext: false, location: { hostname: 'mi-sitio-remoto.com' } } as unknown as typeof window;
+    const fakeNav = { mediaDevices: { getUserMedia: () => {} } } as unknown as typeof navigator;
 
     const res = checkCameraEnvironment(fakeNav, fakeWin);
     expect(res.isSupported).toBe(false);
@@ -250,16 +267,16 @@ describe('Camera Helpers & Reliability', () => {
   });
 
   it('permite localhost como excepción de contexto seguro', () => {
-    const fakeWin = { isSecureContext: false, location: { hostname: 'localhost' } } as any;
-    const fakeNav = { mediaDevices: { getUserMedia: () => {} } } as any;
+    const fakeWin = { isSecureContext: false, location: { hostname: 'localhost' } } as unknown as typeof window;
+    const fakeNav = { mediaDevices: { getUserMedia: () => {} } } as unknown as typeof navigator;
 
     const res = checkCameraEnvironment(fakeNav, fakeWin);
     expect(res.isSupported).toBe(true);
   });
 
   it('detecta falta de mediaDevices / getUserMedia', () => {
-    const fakeWin = { isSecureContext: true, location: { hostname: 'app.com' } } as any;
-    const fakeNav = {} as any;
+    const fakeWin = { isSecureContext: true, location: { hostname: 'app.com' } } as unknown as typeof window;
+    const fakeNav = {} as unknown as typeof navigator;
 
     const res = checkCameraEnvironment(fakeNav, fakeWin);
     expect(res.isSupported).toBe(false);
@@ -283,23 +300,35 @@ describe('Camera Helpers & Reliability', () => {
   });
 
   it('provee fallback progresivo de constraints de video', () => {
-    const c0 = getCameraConstraintsForAttempt(0) as any;
-    expect(c0.video.facingMode.ideal).toBe('environment');
-    expect(c0.video.width.ideal).toBe(1920);
+    const c0 = getCameraConstraintsForAttempt(0);
+    const c0Video = c0.video as {
+      facingMode: { ideal: string };
+      width: { ideal: number };
+      focusMode: { ideal: string };
+    };
+    expect(c0Video.facingMode.ideal).toBe('environment');
+    expect(c0Video.focusMode.ideal).toBe('continuous');
+    expect(c0Video.width.ideal).toBe(1920);
 
-    const c1 = getCameraConstraintsForAttempt(1) as any;
-    expect(c1.video.facingMode.ideal).toBe('environment');
-    expect(c1.video.width).toBeUndefined();
+    const c1 = getCameraConstraintsForAttempt(1);
+    const c1Video = c1.video as {
+      facingMode: { ideal: string };
+      width?: unknown;
+      focusMode: { ideal: string };
+    };
+    expect(c1Video.facingMode.ideal).toBe('environment');
+    expect(c1Video.focusMode.ideal).toBe('continuous');
+    expect(c1Video.width).toBeUndefined();
 
-    const c2 = getCameraConstraintsForAttempt(2) as any;
-    expect(c2.video).toBe(true);
+    const c2 = getCameraConstraintsForAttempt(2) as MediaStreamConstraints;
+    expect(c2.video).toEqual({ focusMode: { ideal: 'continuous' } });
   });
 
   it('determina correctamente si un elemento video está listo para análisis', () => {
     expect(isVideoElementReady(null)).toBe(false);
-    expect(isVideoElementReady({ videoWidth: 0, videoHeight: 0, readyState: 0 } as any)).toBe(false);
-    expect(isVideoElementReady({ videoWidth: 1920, videoHeight: 1080, readyState: 1 } as any)).toBe(false);
-    expect(isVideoElementReady({ videoWidth: 1920, videoHeight: 1080, readyState: 2 } as any)).toBe(true);
-    expect(isVideoElementReady({ videoWidth: 1920, videoHeight: 1080, readyState: 4 } as any)).toBe(true);
+    expect(isVideoElementReady({ videoWidth: 0, videoHeight: 0, readyState: 0 } as unknown as HTMLVideoElement)).toBe(false);
+    expect(isVideoElementReady({ videoWidth: 1920, videoHeight: 1080, readyState: 1 } as unknown as HTMLVideoElement)).toBe(false);
+    expect(isVideoElementReady({ videoWidth: 1920, videoHeight: 1080, readyState: 2 } as unknown as HTMLVideoElement)).toBe(true);
+    expect(isVideoElementReady({ videoWidth: 1920, videoHeight: 1080, readyState: 4 } as unknown as HTMLVideoElement)).toBe(true);
   });
 });

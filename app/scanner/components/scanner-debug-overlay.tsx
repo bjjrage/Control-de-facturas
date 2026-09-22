@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, RefObject } from "react";
-import { debugStore, CameraDebugTelemetry } from "@/lib/scanner/debug-store";
+import { debugStore } from "@/lib/scanner/debug-store";
 
 interface ScannerDebugOverlayProps {
   flowState: string;
@@ -82,6 +82,7 @@ export function ScannerDebugOverlay({
     isInside: boolean;
   } | null = null;
 
+  /* eslint-disable react-hooks/refs */
   if (readyButtonRef?.current) {
     const el = readyButtonRef.current;
     const rect = el.getBoundingClientRect();
@@ -99,9 +100,11 @@ export function ScannerDebugOverlay({
       isInside: rect.bottom <= vpBottom,
     };
   }
+  /* eslint-enable react-hooks/refs */
 
   const transitions = debugStore.getTransitions();
   const cam = debugStore.getCameraTelemetry();
+  const detection = debugStore.getDetectionTelemetry();
 
   return (
     <div
@@ -113,7 +116,7 @@ export function ScannerDebugOverlay({
       <div className="flex items-center justify-between px-3 py-1 bg-amber-500/20 border-b border-amber-500/30">
         <span className="font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
           <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          DEBUG OVERLAY (?debug=1) · flow: <span className="text-white underline">{flowState}</span>
+          DEBUG OVERLAY (?debug=1 / ?cvdebug=1) · flow: <span className="text-white underline">{flowState}</span>
         </span>
         <button
           type="button"
@@ -206,6 +209,25 @@ export function ScannerDebugOverlay({
                   : `Botón inactivo en flowState='${flowState}'`}
               </div>
             )}
+          </div>
+
+          <div className="bg-slate-900/80 p-2 rounded border border-emerald-800/60">
+            <div className="font-bold text-emerald-200 border-b border-slate-800 pb-0.5 mb-1">
+              DOCUMENT DETECTION V2:
+            </div>
+            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+              <div><span className="text-slate-400">detector:</span> {detection.detector}</div>
+              <div><span className="text-slate-400">OpenCV:</span> {detection.opencvState}</div>
+              <div><span className="text-slate-400">mode:</span> {detection.mode}</div>
+              <div><span className="text-slate-400">processing:</span> {detection.processingMs.toFixed(1)} ms</div>
+              <div><span className="text-slate-400">candidates:</span> {detection.candidateCount}</div>
+              <div><span className="text-slate-400">confidence:</span> {detection.confidence.toFixed(2)}</div>
+              <div><span className="text-slate-400">areaRatio:</span> {detection.areaRatio.toFixed(3)}</div>
+              <div><span className="text-slate-400">edge mean/min:</span> {detection.meanEdgeCoverage.toFixed(2)} / {detection.minEdgeCoverage.toFixed(2)}</div>
+              <div className="col-span-2"><span className="text-slate-400">quality pass:</span> {String(detection.qualityPassAcceptable)}</div>
+              <div className="col-span-2 break-all"><span className="text-slate-400">raw quad:</span> {JSON.stringify(detection.rawQuad)}</div>
+              <div className="col-span-2 break-all"><span className="text-slate-400">refined quad:</span> {JSON.stringify(detection.refinedQuad)}</div>
+            </div>
           </div>
 
           {/* SECCIÓN 3: TRANSITIONS LOG */}

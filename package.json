@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "scanner:benchmark": "vitest run scripts/scanner-benchmark.test.ts --reporter verbose",
+    "scanner:benchmark:browser": "playwright test tests/scanner-detection-benchmark.spec.ts --config=playwright.scanner-benchmark.config.ts",
     "test:watch": "vitest",
     "worker": "tsx worker/index.ts",
     "e2e": "playwright test",

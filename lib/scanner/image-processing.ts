@@ -1,4 +1,5 @@
 import { Point2D, QuadPoints, ScanFilter } from './types';
+import type { ImageDataSource } from './document-detector';
 
 /**
  * Calcula la distancia euclidiana entre dos puntos 2D.
@@ -238,6 +239,162 @@ export function detectDefaultCorners(width: number, height: number): QuadPoints 
     bottomRight: { x: width - mx, y: height - my },
     bottomLeft: { x: mx, y: height - my },
   };
+}
+
+interface EdgeLine {
+  a: number;
+  b: number;
+  c: number;
+}
+
+function grayscaleAt(image: ImageDataSource, x: number, y: number): number {
+  const px = Math.max(0, Math.min(image.width - 1, Math.round(x)));
+  const py = Math.max(0, Math.min(image.height - 1, Math.round(y)));
+  const index = (py * image.width + px) * 4;
+  return 0.299 * image.data[index] + 0.587 * image.data[index + 1] + 0.114 * image.data[index + 2];
+}
+
+function gradientMagnitudeAt(image: ImageDataSource, point: Point2D): number {
+  const gx = grayscaleAt(image, point.x + 1, point.y) - grayscaleAt(image, point.x - 1, point.y);
+  const gy = grayscaleAt(image, point.x, point.y + 1) - grayscaleAt(image, point.x, point.y - 1);
+  return Math.hypot(gx, gy);
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = values.slice().sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)] ?? 0;
+}
+
+function fitEdgeLine(points: Point2D[]): EdgeLine | null {
+  if (points.length < 8) return null;
+  const center = points.reduce(
+    (sum, point) => ({ x: sum.x + point.x / points.length, y: sum.y + point.y / points.length }),
+    { x: 0, y: 0 }
+  );
+  let xx = 0;
+  let xy = 0;
+  let yy = 0;
+  for (const point of points) {
+    const dx = point.x - center.x;
+    const dy = point.y - center.y;
+    xx += dx * dx;
+    xy += dx * dy;
+    yy += dy * dy;
+  }
+  if (xx + yy < 1) return null;
+  const angle = 0.5 * Math.atan2(2 * xy, xx - yy);
+  const direction = { x: Math.cos(angle), y: Math.sin(angle) };
+  const normal = { x: -direction.y, y: direction.x };
+  return { a: normal.x, b: normal.y, c: -(normal.x * center.x + normal.y * center.y) };
+}
+
+function intersectEdgeLines(first: EdgeLine, second: EdgeLine): Point2D | null {
+  const determinant = first.a * second.b - second.a * first.b;
+  if (Math.abs(determinant) < 1e-7) return null;
+  return {
+    x: (first.b * second.c - second.b * first.c) / determinant,
+    y: (first.c * second.a - second.c * first.a) / determinant,
+  };
+}
+
+function edgeSupport(image: ImageDataSource, quad: QuadPoints): number {
+  const points = [quad.topLeft, quad.topRight, quad.bottomRight, quad.bottomLeft];
+  const scores: number[] = [];
+  for (let side = 0; side < 4; side++) {
+    const start = points[side];
+    const end = points[(side + 1) % 4];
+    const length = Math.max(1, Math.hypot(end.x - start.x, end.y - start.y));
+    const samples = Math.max(16, Math.ceil(length / 18));
+    for (let index = 1; index < samples; index++) {
+      const t = index / samples;
+      scores.push(
+        gradientMagnitudeAt(image, {
+          x: start.x + (end.x - start.x) * t,
+          y: start.y + (end.y - start.y) * t,
+        })
+      );
+    }
+  }
+  return median(scores);
+}
+
+/**
+ * Snaps an already detected document quad to the strongest nearby image edges.
+ * It runs on the captured full-resolution frame and is intentionally independent
+ * from OpenCV so the editor can offer the same correction on Safari and fallback
+ * V1 sessions.
+ */
+export function autoAdjustQuadToEdges(
+  image: ImageDataSource,
+  initialQuad: QuadPoints,
+  options: { searchRadiusPx?: number } = {}
+): QuadPoints | null {
+  const points = [initialQuad.topLeft, initialQuad.topRight, initialQuad.bottomRight, initialQuad.bottomLeft];
+  const minDimension = Math.min(image.width, image.height);
+  const radius = Math.max(6, Math.min(options.searchRadiusPx ?? Math.round(minDimension * 0.045), 72));
+  const lines: Array<EdgeLine | null> = [];
+
+  for (let side = 0; side < 4; side++) {
+    const start = points[side];
+    const end = points[(side + 1) % 4];
+    const length = Math.max(1, Math.hypot(end.x - start.x, end.y - start.y));
+    const samples = Math.max(18, Math.min(120, Math.ceil(length / 14)));
+    const tangent = { x: (end.x - start.x) / length, y: (end.y - start.y) / length };
+    const normal = { x: -tangent.y, y: tangent.x };
+    const candidates: Array<{ point: Point2D; offset: number; strength: number }> = [];
+
+    for (let index = 1; index < samples; index++) {
+      const t = index / samples;
+      const center = {
+        x: start.x + (end.x - start.x) * t,
+        y: start.y + (end.y - start.y) * t,
+      };
+      let best = { point: center, offset: 0, strength: 0 };
+      for (let offset = -radius; offset <= radius; offset += Math.max(1, Math.round(radius / 28))) {
+        const point = { x: center.x + normal.x * offset, y: center.y + normal.y * offset };
+        const strength = gradientMagnitudeAt(image, point);
+        if (strength > best.strength) best = { point, offset, strength };
+      }
+      candidates.push(best);
+    }
+
+    const medianStrength = median(candidates.map((candidate) => candidate.strength));
+    if (medianStrength < 10) return null;
+    const medianOffset = median(candidates.map((candidate) => candidate.offset));
+    const accepted = candidates
+      .filter(
+        (candidate) =>
+          candidate.strength >= Math.max(10, medianStrength * 0.55) &&
+          Math.abs(candidate.offset - medianOffset) <= Math.max(5, radius * 0.4)
+      )
+      .map((candidate) => candidate.point);
+    lines.push(fitEdgeLine(accepted));
+  }
+
+  if (lines.some((line) => !line)) return null;
+  const adjusted: Point2D[] = [];
+  for (let index = 0; index < 4; index++) {
+    const point = intersectEdgeLines(lines[(index + 3) % 4]!, lines[index]!);
+    if (!point) return null;
+    adjusted.push(point);
+  }
+
+  const adjustedQuad: QuadPoints = {
+    topLeft: adjusted[0],
+    topRight: adjusted[1],
+    bottomRight: adjusted[2],
+    bottomLeft: adjusted[3],
+  };
+  if (!isValidConvexQuad(adjustedQuad, image.width, image.height)) return null;
+
+  const maxCornerMove = Math.max(24, radius * 2.4);
+  if (points.some((point, index) => pointDistance(point, adjusted[index]) > maxCornerMove)) return null;
+
+  const originalSupport = edgeSupport(image, initialQuad);
+  const adjustedSupport = edgeSupport(image, adjustedQuad);
+  if (adjustedSupport + 2 < originalSupport) return null;
+  return adjustedQuad;
 }
 
 /**

@@ -2,6 +2,15 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+
+  // Scanner pages and APIs are public by design; their handlers validate the
+  // ERP profile or mobile session credential themselves. Avoid an auth lookup
+  // here so opening a QR does not wait on an unrelated ERP session check.
+  if (path.startsWith("/scanner") || path.startsWith("/api/scanner/")) {
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -27,7 +36,6 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const path = request.nextUrl.pathname;
   // Documentos estáticos servidos desde public/ — accesibles sin login.
   const STATIC_DOCS = ["/manual-obra", "/flujo-obra"];
   const isPublic =
@@ -41,10 +49,8 @@ export async function proxy(request: NextRequest) {
     path.startsWith("/cotizacion") ||
     path.startsWith("/certificados") ||
     path.startsWith("/avance") ||
-    path.startsWith("/scanner") ||
     path.startsWith("/_next") ||
     path.startsWith("/api/cotizar") ||
-    path.startsWith("/api/scanner") ||
     path === "/favicon.ico";
 
   if (!user && !isPublic) {

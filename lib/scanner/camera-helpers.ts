@@ -4,9 +4,13 @@ export interface CameraEnvironmentCheck {
   isSecureContext: boolean;
 }
 
+type ScannerVideoConstraints = MediaTrackConstraints & {
+  focusMode?: { ideal?: 'continuous' | 'single-shot' };
+};
+
 export function checkCameraEnvironment(
-  nav: typeof navigator = typeof navigator !== 'undefined' ? navigator : ({} as any),
-  win: typeof window = typeof window !== 'undefined' ? window : ({} as any)
+  nav: typeof navigator = typeof navigator !== 'undefined' ? navigator : ({} as unknown as typeof navigator),
+  win: typeof window = typeof window !== 'undefined' ? window : ({} as unknown as typeof window)
 ): CameraEnvironmentCheck {
   const isSecure = win?.isSecureContext ?? true;
   const isLocalhost =
@@ -36,6 +40,12 @@ export function checkCameraEnvironment(
 }
 
 export function getCameraConstraintsForAttempt(attempt: number): MediaStreamConstraints {
+  const continuousFocus: Pick<ScannerVideoConstraints, 'focusMode'> = {
+    // Chromium/Android accepts this during getUserMedia. Safari may ignore it
+    // and is handled again through applyConstraints after the track starts.
+    focusMode: { ideal: 'continuous' },
+  };
+
   switch (attempt) {
     case 0:
       return {
@@ -43,21 +53,43 @@ export function getCameraConstraintsForAttempt(attempt: number): MediaStreamCons
           facingMode: { ideal: 'environment' },
           width: { ideal: 1920 },
           height: { ideal: 1080 },
-        },
+          ...continuousFocus,
+        } as ScannerVideoConstraints,
         audio: false,
       };
     case 1:
       return {
         video: {
           facingMode: { ideal: 'environment' },
-        },
+          ...continuousFocus,
+        } as ScannerVideoConstraints,
         audio: false,
       };
     default:
       return {
-        video: true,
+        video: { ...continuousFocus } as ScannerVideoConstraints,
         audio: false,
       };
+  }
+}
+
+export async function requestContinuousAutofocus(track: MediaStreamTrack | null): Promise<boolean> {
+  if (!track?.applyConstraints) return false;
+
+  try {
+    const capabilities = track.getCapabilities?.() as MediaTrackCapabilities & {
+      focusMode?: string[];
+    };
+    if (!capabilities.focusMode?.includes('continuous')) return false;
+
+    await track.applyConstraints({
+      advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet],
+    });
+    return true;
+  } catch {
+    // Focus is optional: devices without continuous focus keep their native
+    // camera behavior and the scanner remains usable.
+    return false;
   }
 }
 

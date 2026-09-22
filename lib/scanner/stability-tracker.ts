@@ -29,8 +29,19 @@ export interface StabilityState {
   consecutiveFrames: number;
   stableDurationMs: number;
   averageDrift: number;
+  meanEdgeCoverage: number;
+  minEdgeCoverage: number;
+  qualityPassAcceptable: boolean;
+  recentLargeJump: boolean;
   lastQuad: QuadPoints | null;
   smoothedQuad: QuadPoints | null;
+}
+
+export interface StabilityQuality {
+  meanEdgeCoverage?: number;
+  minEdgeCoverage?: number;
+  qualityPassAcceptable?: boolean;
+  recentLargeJump?: boolean;
 }
 
 interface FrameRecord {
@@ -93,8 +104,13 @@ export class DocumentStabilityTracker {
     confidence: number,
     videoWidth: number,
     videoHeight: number,
-    timestamp: number = Date.now()
+    timestamp: number = Date.now(),
+    quality: StabilityQuality = {}
   ): StabilityState {
+    const meanEdgeCoverage = quality.meanEdgeCoverage ?? 1;
+    const minEdgeCoverage = quality.minEdgeCoverage ?? 1;
+    const qualityPassAcceptable = quality.qualityPassAcceptable ?? true;
+    const recentLargeJump = quality.recentLargeJump ?? false;
     const defaultResult: StabilityState = {
       status: 'searching',
       isStable: false,
@@ -104,6 +120,10 @@ export class DocumentStabilityTracker {
       consecutiveFrames: 0,
       stableDurationMs: 0,
       averageDrift: 0,
+      meanEdgeCoverage,
+      minEdgeCoverage,
+      qualityPassAcceptable,
+      recentLargeJump,
       lastQuad: null,
       smoothedQuad: null,
     };
@@ -214,6 +234,9 @@ export class DocumentStabilityTracker {
 
     const stableDurationMs = this.stableSinceMs !== null ? timestamp - this.stableSinceMs : 0;
     const progress = Math.min(1.0, stableDurationMs / this.options.requiredDurationMs);
+    const computedRecentLargeJump =
+      recentLargeJump ||
+      (this.history.length > 1 && maxCornerDisplacement / Math.max(1, diagonal) > this.options.maxDriftRatio * 0.8);
     const isStable =
       this.consecutiveStableFrames >= this.options.minStableFrames &&
       stableDurationMs >= this.options.requiredDurationMs;
@@ -223,12 +246,22 @@ export class DocumentStabilityTracker {
     return {
       status,
       isStable,
-      isReadyForAutoCapture: isStable && !this.captureLocked,
+      isReadyForAutoCapture:
+        isStable &&
+        !this.captureLocked &&
+        qualityPassAcceptable &&
+        meanEdgeCoverage >= 0.45 &&
+        minEdgeCoverage >= 0.28 &&
+        !computedRecentLargeJump,
       stabilityProgress: Number(progress.toFixed(2)),
       confidence,
       consecutiveFrames: this.consecutiveStableFrames,
       stableDurationMs,
       averageDrift: Math.round(avgDisplacement),
+      meanEdgeCoverage,
+      minEdgeCoverage,
+      qualityPassAcceptable,
+      recentLargeJump: computedRecentLargeJump,
       lastQuad: quad,
       smoothedQuad,
     };

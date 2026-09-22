@@ -8,11 +8,71 @@ test.use({
   browserName: "webkit",
   isMobile: true,
   hasTouch: true,
+  storageState: { cookies: [], origins: [] },
   userAgent:
     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
 });
 
 test.describe("iPhone Safari WebKit Diagnostic Suite", () => {
+
+  test("QR claim survives visibilitychange during the initial mobile-session lookup", async ({ page }) => {
+    test.setTimeout(60_000);
+
+    let mobileSessionRequests = 0;
+    let releaseInitialLookup!: () => void;
+    let markInitialLookupStarted!: () => void;
+    const initialLookupStarted = new Promise<void>((resolve) => {
+      markInitialLookupStarted = resolve;
+    });
+    const initialLookupGate = new Promise<void>((resolve) => {
+      releaseInitialLookup = resolve;
+    });
+
+    await page.route("**/api/scanner/mobile-session", async (route) => {
+      mobileSessionRequests += 1;
+      if (mobileSessionRequests === 1) {
+        markInitialLookupStarted();
+        await initialLookupGate;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ active: false }),
+      });
+    });
+
+    await page.route("**/api/scanner/claim", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: true,
+          session: {
+            id: "session-test-qr-race",
+            context_type: "invoice",
+            status: "connected",
+          },
+          mobileClaimToken: "mock-mobile-token",
+        }),
+      })
+    );
+
+    await page.goto("/scanner?t=mock-qr-token");
+    await initialLookupStarted;
+
+    await page.evaluate(() => {
+      Object.defineProperty(document, "visibilityState", {
+        configurable: true,
+        value: "visible",
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await page.waitForTimeout(50);
+    releaseInitialLookup();
+
+    await expect(page.getByText(/Conectado al ERP/i)).toBeVisible({ timeout: 10000 });
+    expect(mobileSessionRequests).toBe(1);
+  });
 
   const viewports = [
     { name: "iPhone SE (375x667)", width: 375, height: 667 },
