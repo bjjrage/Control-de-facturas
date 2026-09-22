@@ -13,6 +13,9 @@
     "e2e": "playwright test",
     "e2e:debug": "playwright test --debug",
     "e2e:ui": "playwright test --ui",
+    "e2e:seed:plan": "tsx scripts/e2e/seed-canonical-demo.ts --plan",
+    "e2e:seed": "tsx scripts/e2e/seed-canonical-demo.ts --apply",
+    "e2e:reset": "tsx scripts/e2e/seed-canonical-demo.ts --reset",
     "voice:proxy": "tsx server/voice-ws-proxy.ts",
     "dev:voice": "concurrently \"npm run dev\" \"npm run voice:proxy\""
   },
