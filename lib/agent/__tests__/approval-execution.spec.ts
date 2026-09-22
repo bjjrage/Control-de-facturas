@@ -253,6 +253,40 @@ describe("BATCH 3: Approval Execution, Concurrency & Security Gateways", () => {
     expect(finalRow.status).toBe("EXECUTED");
   });
 
+  it("2b. Las cuatro preparaciones persistentes solo ejecutan despues de approval y una vez", async () => {
+    const names = ["create_rfq_draft", "prepare_purchase_order", "prepare_email", "update_spreadsheet_rows"];
+    toolRegistry.clearForTests();
+    const handlers = new Map<string, ReturnType<typeof vi.fn>>();
+    for (const name of names) {
+      const handler = vi.fn().mockResolvedValue({ tool: name, persisted: true });
+      handlers.set(name, handler);
+      toolRegistry.register({
+        name,
+        description: "persisting hardening test",
+        inputSchema: z.object({ value: z.string() }),
+        riskLevel: 2,
+        requiredRoles: null,
+        handler,
+      });
+    }
+
+    for (const name of names) {
+      const db = createMockDb();
+      const payload = { value: `${name}-payload` };
+      let approvalId = "";
+      await expect(
+        gatewayExecute({ db, actor: actorAdmin, toolName: name, rawInput: payload, taskId: `task-${name}`, runId: `run-${name}` })
+      ).rejects.toMatchObject({ name: "ApprovalRequiredError" });
+      approvalId = Array.from(mockApprovalStore.keys())[0] ?? "";
+      expect(handlers.get(name)).not.toHaveBeenCalled();
+
+      await decideApproval({ db, approvalId, empresaId: actorAdmin.empresaId, decidedBy: actorAdmin.userId ?? "test-user", decision: "APPROVED" });
+      await executeApprovedTool({ db, actor: actorAdmin, approvalId, payloadToExecute: payload });
+      expect(handlers.get(name)).toHaveBeenCalledTimes(1);
+      expect(mockApprovalStore.get(approvalId).status).toBe("EXECUTED");
+    }
+  });
+
   it("3. Anti-Replay & Concurrencia: Doble click o requests concurrentes ejecutan EXACTAMENTE UNA VEZ", async () => {
     const db = createMockDb();
     const tool = toolRegistry.get("test_send_action")!;

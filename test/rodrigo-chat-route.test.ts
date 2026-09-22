@@ -104,8 +104,7 @@ const PROFILE = { id: "user-1", empresa_id: "emp-T" };
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv("DEEPSEEK_API_KEY", "");
-  vi.stubEnv("NODE_ENV", "development");
-  vi.stubEnv("RODRIGO_ALLOW_DETERMINISTIC_FALLBACK", "true");
+  vi.stubEnv("NODE_ENV", "test");
   mockRequireProfile.mockResolvedValue(PROFILE);
 });
 
@@ -114,52 +113,22 @@ afterEach(() => {
 });
 
 describe("POST /api/agent/chat", () => {
-  it("texto llega al Gateway con el tenant del perfil y responde el tool", async () => {
+  it("falla cerrado sin DeepSeek y no llama un router determinista", async () => {
     const db = fakeChatDb();
     mockCreateClient.mockResolvedValue(db);
-    mockGatewayExecuteSafe.mockResolvedValue({
-      ok: true,
-      tool: "get_stock_availability",
-      output: { stock_actual: 5, reservado: 0, disponible: 5 },
-    });
-
-    const res = await postMessage(`¿stock del producto 00000000-0000-4000-a000-000000000001?`);
-    const body = (await res.json()) as { answer: string; taskId: string; state: string };
-    expect(res.status).toBe(200);
-    expect(body.answer).toContain("5");
-    // El gateway recibió el tenant del perfil, no del texto.
-    expect(mockGatewayExecuteSafe).toHaveBeenCalledTimes(1);
-    const call = mockGatewayExecuteSafe.mock.calls[0]?.[0] as { actor: { empresaId: string }; toolName: string };
-    expect(call.actor.empresaId).toBe("emp-T");
-    expect(call.toolName).toBe("get_stock_availability");
-    // La task durable quedó COMPLETED.
-    expect(db.tasks).toHaveLength(1);
-    expect(db.tasks[0]?.empresa_id).toBe("emp-T");
-    expect(db.tasks[0]?.status).toBe("COMPLETED");
+    const res = await postMessage("¿stock del producto cemento?");
+    expect(res.status).toBe(503);
+    expect(mockGatewayExecuteSafe).not.toHaveBeenCalled();
+    expect(db.tasks[0]?.status).toBe("FAILED");
   });
 
-  it("tool con approval deja la task en WAITING_APPROVAL sin ejecutar", async () => {
+  it("sin DeepSeek no permite override por variable de fallback", async () => {
     const db = fakeChatDb();
     mockCreateClient.mockResolvedValue(db);
-    // El router manda el texto a get_stock_availability; el gateway frena
-    // con approval: la task debe quedar en espera durable, sin ejecutar.
-    mockGatewayExecuteSafe.mockResolvedValue({
-      ok: false,
-      requiresApproval: true,
-      tool: "get_stock_availability",
-      approvalId: "ap-9",
-      riskLevel: 2,
-      message: "approval",
-    });
-
-    const res = await postMessage(`stock del producto 00000000-0000-4000-a000-000000000001`);
-    const body = (await res.json()) as {
-      state: string;
-      approval: { id: string } | null;
-    };
-    expect(body.state).toBe("approval");
-    expect(body.approval?.id).toBe("ap-9");
-    expect(db.tasks[0]?.status).toBe("WAITING_APPROVAL");
+    vi.stubEnv("RODRIGO_ALLOW_DETERMINISTIC_FALLBACK", "true");
+    const res = await postMessage("ayuda");
+    expect(res.status).toBe(503);
+    expect(mockGatewayExecuteSafe).not.toHaveBeenCalled();
   });
 
   it("con DEEPSEEK_API_KEY el texto llega al Orchestrator real", async () => {
