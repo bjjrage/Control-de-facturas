@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { FileSpreadsheet, LoaderCircle, Sparkles, TriangleAlert, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input, Label } from "@/components/ui/input";
+import { createProjectFromWorkbook } from "./actions";
 import type { DetectedField, WorkbookInterpretationResult } from "@/lib/workbook-interpretation/types";
 
 type FileMetadata = { name: string; size: number; sheets: string[] };
@@ -97,17 +100,78 @@ function ResultPreview({ result }: { result: WorkbookInterpretationResult }) {
   );
 }
 
+function ResultActions({
+  result,
+  nameOverride,
+  codeOverride,
+  onNameOverride,
+  onCodeOverride,
+  onCreate,
+  creating,
+  error,
+  onBack,
+}: {
+  result: WorkbookInterpretationResult;
+  nameOverride: string;
+  codeOverride: string;
+  onNameOverride: (value: string) => void;
+  onCodeOverride: (value: string) => void;
+  onCreate: () => void;
+  creating: boolean;
+  error: string | null;
+  onBack: () => void;
+}) {
+  const nameMissing = result.project.name.status === "NOT_FOUND" || result.project.name.value === null;
+  const codeMissing = result.project.code.status === "NOT_FOUND" || result.project.code.value === null;
+  const certificateBlock = result.importPlan.blocks.filter((block) => block.target === "CERTIFICATE").length;
+  const measurementBlock = result.importPlan.blocks.filter((block) => block.target === "MEASUREMENT").length;
+  return (
+    <section className="space-y-3 rounded-xl border border-sky-300/20 bg-sky-300/[0.04] p-3">
+      <h3 className="text-[11px] font-bold uppercase tracking-widest text-sky-100">AplicaciÃ³n al ERP canÃ³nico</h3>
+      <div className="grid gap-2 text-[12px] sm:grid-cols-3">
+        <p>Presupuesto: <strong>{result.budgetItems.length} partidas</strong> â€” aplicable a <code>budget_items</code>.</p>
+        <p>Certificado: <strong>{certificateBlock ? "detectado" : "no detectado"}</strong> â€” sÃ³lo se crea si coincide con el presupuesto.</p>
+        <p>MediciÃ³n: <strong>{measurementBlock ? "detectada" : "no detectada"}</strong> â€” no se convierte en ejecuciÃ³n sin correspondencia segura.</p>
+      </div>
+      <p className="text-[11px] text-[var(--muted)]">Los acumulados e importes del certificado se recalculan desde <code>project_certificate_items</code>; no se importan como autoridad desde Excel.</p>
+      {nameMissing || codeMissing ? (
+        <div className="rounded-lg border border-amber-300/25 bg-amber-300/[0.04] p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-100">Completar dato crÃ­tico</p>
+          <p className="mt-1 text-[11px] text-[var(--muted)]">El archivo no aportÃ³ un identificador suficiente. CompletÃ¡ sÃ³lo lo faltante.</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {nameMissing ? <div><Label htmlFor="workbook_name_override">Nombre de obra</Label><Input id="workbook_name_override" value={nameOverride} onChange={(event) => onNameOverride(event.target.value)} /></div> : null}
+            {codeMissing ? <div><Label htmlFor="workbook_code_override">CÃ³digo de obra</Label><Input id="workbook_code_override" value={codeOverride} onChange={(event) => onCodeOverride(event.target.value)} /></div> : null}
+          </div>
+        </div>
+      ) : null}
+      {error ? <p className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2 text-[12px] text-[var(--error)]">{error}</p> : null}
+      <div className="flex justify-between gap-2 pt-1">
+        <Button type="button" variant="secondary" onClick={onBack} disabled={creating}>Volver</Button>
+        <Button type="button" onClick={onCreate} disabled={creating || (nameMissing && !nameOverride.trim()) || (codeMissing && !codeOverride.trim())}>
+          {creating ? "Creando obraâ€¦" : "Crear obra con estos datos"}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
 export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [metadata, setMetadata] = useState<FileMetadata | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<WorkbookInterpretationResult | null>(null);
+  const [nameOverride, setNameOverride] = useState("");
+  const [codeOverride, setCodeOverride] = useState("");
+  const [creating, setCreating] = useState(false);
+  const router = useRouter();
 
   async function inspectFile(selected: File | null) {
     setFile(selected);
     setMetadata(null);
     setResult(null);
+    setNameOverride("");
+    setCodeOverride("");
     setError(null);
     if (!selected) return;
     if (!/\.(xlsx|xls|csv)$/i.test(selected.name)) {
@@ -138,7 +202,10 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
       const response = await fetch("/api/workbook-interpretation", { method: "POST", body: formData });
       const payload = await response.json().catch(() => null);
       if (!response.ok || !payload?.result) throw new Error(payload?.error ?? "No se pudo analizar la planilla.");
-      setResult(payload.result as WorkbookInterpretationResult);
+      const interpreted = payload.result as WorkbookInterpretationResult;
+      setResult(interpreted);
+      if (interpreted.project.name.value !== null) setNameOverride(String(interpreted.project.name.value));
+      if (interpreted.project.code.value !== null) setCodeOverride(String(interpreted.project.code.value));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo analizar la planilla.");
     } finally {
@@ -146,7 +213,45 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
     }
   }
 
-  if (result) return <ResultPreview result={result} />;
+  async function createImportedProject() {
+    if (!file || !result) return;
+    setCreating(true);
+    setError(null);
+    const formData = new FormData();
+    formData.set("file", file);
+    formData.set("result_json", JSON.stringify(result));
+    formData.set("name_override", nameOverride);
+    formData.set("code_override", codeOverride);
+    try {
+      const created = await createProjectFromWorkbook(formData);
+      if (created.error || !created.projectId) {
+        setError(created.error ?? "No se pudo crear la obra.");
+        return;
+      }
+      router.push(`/projects/${created.projectId}`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo crear la obra.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  if (result) return (
+    <div className="space-y-4">
+      <ResultPreview result={result} />
+      <ResultActions
+        result={result}
+        nameOverride={nameOverride}
+        codeOverride={codeOverride}
+        onNameOverride={setNameOverride}
+        onCodeOverride={setCodeOverride}
+        onCreate={() => void createImportedProject()}
+        creating={creating}
+        error={error}
+        onBack={() => { setResult(null); setError(null); }}
+      />
+    </div>
+  );
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-dashed border-sky-300/25 bg-sky-300/[0.035] p-4 text-center">

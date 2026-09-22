@@ -125,10 +125,19 @@ export function validateImportPlan(raw: unknown, workbook: WorkbookRepresentatio
   return { plan: normalizedPlan, warnings: [...new Set(warnings)], coverage };
 }
 
-function rawNumber(value: unknown): number | null {
+export function rawNumber(value: unknown): number | null {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
   if (typeof value !== "string" || !value.trim()) return null;
-  const normalized = value.replace(/\s/g, "").replace(/\.(?=\d{3}(?:\.|,|$))/g, "").replace(",", ".").replace(/[^\d.-]/g, "");
+  let normalized = value.replace(/\s/g, "").replace(/[^\d,.-]/g, "");
+  const lastComma = normalized.lastIndexOf(",");
+  const lastDot = normalized.lastIndexOf(".");
+  if (lastComma >= 0 && lastDot >= 0) {
+    normalized = lastComma > lastDot ? normalized.replace(/\./g, "").replace(",", ".") : normalized.replace(/,/g, "");
+  } else if (lastComma >= 0) {
+    normalized = normalized.length - lastComma - 1 === 3 ? normalized.replace(/,/g, "") : normalized.replace(",", ".");
+  } else {
+    normalized = normalized.replace(/\.(?=\d{3}(?:\.|$))/g, "");
+  }
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -159,6 +168,13 @@ export function extractBudgetItems(workbook: WorkbookRepresentation, plan: Impor
       if (excluded.has(row)) { excludedRows++; continue; }
       const descriptionMapping = mapping.get("description");
       const description = descriptionMapping ? String(valueAt(row, descriptionMapping.column) ?? "").trim() : "";
+      const codeValue = mapping.get("code") ? String(valueAt(row, mapping.get("code")!.column) ?? "").trim().toLowerCase() : "";
+      const summaryLabel = description.toLowerCase();
+      if (["item", "total", "subtotal", "total general"].includes(codeValue) || ["item", "total", "subtotal", "total general"].includes(summaryLabel)) {
+        excludedRows++;
+        if (blockCoverage && !blockCoverage.excludedRows.some((item) => item.row === row)) blockCoverage.excludedRows.push({ row, reason: "fila de total/subtotal" });
+        continue;
+      }
       if (!description) { pendingRows++; blockPending.push({ row, reason: "no se pudo identificar descripción" }); continue; }
       const numeric = (role: string) => {
         const roleMapping = mapping.get(role as "quantity" | "unitPrice");
