@@ -64,7 +64,7 @@ El golden live queda configurado para exigir `budgetItems.length === 53`, `certi
 - Checkout principal: no se modificó; conserva `data/construction-v1-backfill-checkpoint.json`, `forensic-operative-audit/` y `mock-data/niu-pack/`.
 - `main`: no mergeado.
 - Producción: no desplegada.
-- Commit(s): se registran después de esta certificación en la rama aislada.
+- Commit(s): `f7a48a0` (`fix: recover ERP project surfaces and workbook import`).
 - Preview URL: se intenta con `npx vercel --yes`; nunca usar `--prod`.
 
 ## Certification gate
