@@ -330,13 +330,16 @@ export function BimSection({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-4">
+      <section aria-labelledby="bim-model-title" data-testid="bim-model-surface" className="space-y-3">
+        <div>
+          <h2 id="bim-model-title" className="text-[14px] font-semibold">MODELO BIM / IFC</h2>
+          <p className="mt-0.5 text-[12px] text-[var(--muted)]">Modelo IFC de la obra</p>
+        </div>
       <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-[12px] text-[var(--muted)]">
         El BIM aporta cantidades; el presupuesto aporta precios. Subí un IFC: los elementos técnicamente
         equivalentes se agrupan y se consultan en lote contra el catálogo de costos. Vos confirmás cada grupo —
         ningún precio se calcula sin tu confirmación.
       </div>
-
-      <ComputoSection projectId={projectId} />
 
       {error ? (
         <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
@@ -345,7 +348,14 @@ export function BimSection({ projectId }: { projectId: string }) {
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
+        <label
+          htmlFor="bim-ifc-upload"
+          className="inline-flex cursor-pointer items-center rounded-md border border-[var(--accent)] bg-[var(--accent)]/10 px-3 py-1.5 text-[13px] font-medium text-[var(--foreground)] hover:bg-[var(--accent)]/20"
+        >
+          Subir modelo IFC
+        </label>
         <input
+          id="bim-ifc-upload"
           type="file"
           accept=".ifc"
           disabled={!!uploadStatus}
@@ -354,7 +364,7 @@ export function BimSection({ projectId }: { projectId: string }) {
             if (file) handleUpload(file);
             e.target.value = "";
           }}
-          className="text-[13px] file:mr-3 file:rounded-md file:border file:border-[var(--border)] file:bg-[var(--panel-2)] file:px-3 file:py-1.5 file:text-[13px] file:cursor-pointer"
+          className="sr-only"
         />
         {uploadStatus ? <span className="text-[12px] text-[var(--muted)]">{uploadStatus}</span> : null}
       </div>
@@ -795,6 +805,15 @@ export function BimSection({ projectId }: { projectId: string }) {
           </p>
         </div>
       ) : null}
+      </section>
+
+      <section aria-labelledby="bim-computo-title" data-testid="bim-computo-fallback" className="space-y-3 border-t border-[var(--border)] pt-5">
+        <div>
+          <h2 id="bim-computo-title" className="text-[14px] font-semibold">CÓMPUTO SIN MODELO BIM</h2>
+          <p className="mt-0.5 text-[12px] text-[var(--muted)]">Importá un Excel o PDF si la obra todavía no tiene un modelo IFC.</p>
+        </div>
+        <ComputoSection projectId={projectId} />
+      </section>
     </div>
   );
 }

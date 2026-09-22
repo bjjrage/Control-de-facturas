@@ -30,7 +30,6 @@ import {
 } from "../certificado-anexos-actions";
 import { getHistoricalWeatherAction } from "../historical-weather-actions";
 import type { DailyObservedWeather } from "@/lib/procurement/weather-client";
-import { WeeklyPlanSection } from "./weekly-plan-section";
 
 const WEATHER_CYCLE: (WeatherCode | null)[] = [null, "B", "LL", "HH", "O"];
 const WEATHER_LABEL: Record<WeatherCode, string> = {
@@ -114,7 +113,6 @@ export function AvanceFisicoPanel({
 }) {
   return (
     <div className="space-y-6">
-      <WeeklyPlanSection project={project} />
       <CurvaAvance
         project={project}
         certificates={certificates}

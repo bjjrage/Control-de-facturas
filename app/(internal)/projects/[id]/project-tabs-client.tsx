@@ -47,7 +47,6 @@ import { CertificadosTable } from "./certificados-table";
 import { AvanceFisicoPanel } from "./avance-fisico-panel";
 import { PresupuestoTable } from "./presupuesto-table";
 import { BimSection } from "./bim-section";
-import { ComputoSection } from "./computo-section";
 import { EjecucionTable } from "./ejecucion-table";
 import { PersonalTable } from "./personal-table";
 import { ProyectoComprasTable } from "./proyecto-compras-table";
@@ -66,6 +65,7 @@ import { AddProjectProviderDialog } from "./add-project-provider-dialog";
 import { ExecutionLinkDialog } from "./execution-link-dialog";
 import { ProyectoProveedoresTable } from "./proyecto-proveedores-table";
 import { ClimateWorkdaysPanel } from "./climate-workdays-panel";
+import { WeeklyPlanSection } from "./weekly-plan-section";
 
 type Props = {
   project: Project;
@@ -326,10 +326,7 @@ export function ProjectTabsClient({
       ) : null}
 
       {tab === "bim" ? (
-        <div className="space-y-6">
-          <BimSection projectId={project.id} />
-          <ComputoSection projectId={project.id} />
-        </div>
+        <BimSection projectId={project.id} />
       ) : null}
 
       {tab === "cronograma" ? (
@@ -343,6 +340,8 @@ export function ProjectTabsClient({
           />
         </div>
       ) : null}
+
+      {tab === "plan-semanal" ? <WeeklyPlanSection project={project} /> : null}
 
       {tab === "ejecucion" ? (
         <div className="space-y-3">
