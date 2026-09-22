@@ -15,19 +15,27 @@ export function NewProjectDialog({ trigger }: { trigger: React.ReactNode }) {
   const [pending, setPending] = useState(false);
   const router = useRouter();
 
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setMode("choice");
+      setError(null);
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent title={mode === "workbook" ? "Importar planilla de obra" : mode === "manual" ? "Crear obra manualmente" : "Nueva obra"} className="max-w-3xl">
         {mode === "choice" ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            <button type="button" onClick={() => setMode("manual")} className="rounded-xl border border-[var(--border)] bg-white/[0.025] p-4 text-left transition hover:border-sky-300/40 hover:bg-sky-300/[0.04]">
-              <p className="text-[13px] font-semibold">Crear manualmente</p>
-              <p className="mt-1 text-[12px] text-[var(--muted)]">Ingresá los datos de la obra paso a paso.</p>
-            </button>
             <button type="button" onClick={() => setMode("workbook")} className="rounded-xl border border-sky-300/25 bg-sky-300/[0.035] p-4 text-left transition hover:border-sky-300/55 hover:bg-sky-300/[0.08]">
               <p className="text-[13px] font-semibold text-sky-100">Importar planilla de obra</p>
               <p className="mt-1 text-[12px] text-[var(--muted)]">Subí tu workbook y mirá qué puede entender el ERP.</p>
+            </button>
+            <button type="button" onClick={() => setMode("manual")} className="rounded-xl border border-[var(--border)] bg-white/[0.025] p-4 text-left transition hover:border-sky-300/40 hover:bg-sky-300/[0.04]">
+              <p className="text-[13px] font-semibold">Crear manualmente</p>
+              <p className="mt-1 text-[12px] text-[var(--muted)]">Ingresá los datos de la obra paso a paso.</p>
             </button>
           </div>
         ) : mode === "workbook" ? <WorkbookImportPreview onBack={() => setMode("choice")} /> : <form
