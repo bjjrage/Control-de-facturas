@@ -10,8 +10,33 @@ import { isRangeWithinSheet } from "./parser";
 
 export class ModelUnavailableError extends Error {}
 export class InvalidModelResponseError extends Error {}
+export class WorkbookInterpreterInputTooLargeError extends Error {}
 
-const MODEL = process.env.OPENAI_WORKBOOK_INTERPRETER_MODEL ?? "gpt-4o-mini";
+const DEFAULT_MODEL = "gpt-4.1-mini";
+
+function configuredModel(): string {
+  return process.env.WORKBOOK_INTERPRETATION_MODEL ?? process.env.OPENAI_WORKBOOK_INTERPRETER_MODEL ?? DEFAULT_MODEL;
+}
+
+const NULLABLE_STRING = { anyOf: [{ type: "string" }, { type: "null" }] };
+const NULLABLE_NUMBER = { anyOf: [{ type: "number" }, { type: "null" }] };
+const FIELD_SOURCE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["sheet", "row", "column", "range"],
+  properties: { sheet: NULLABLE_STRING, row: NULLABLE_NUMBER, column: NULLABLE_NUMBER, range: NULLABLE_STRING },
+};
+const DETECTED_FIELD_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["status", "value", "confidence", "source"],
+  properties: {
+    status: { type: "string", enum: ["FOUND", "UNCERTAIN", "NOT_FOUND"] },
+    value: { anyOf: [{ type: "string" }, { type: "number" }, { type: "null" }] },
+    confidence: { type: "number", minimum: 0, maximum: 1 },
+    source: { anyOf: [FIELD_SOURCE_SCHEMA, { type: "null" }] },
+  },
+};
 
 const OUTPUT_SCHEMA = {
   type: "object",
@@ -25,10 +50,37 @@ const OUTPUT_SCHEMA = {
       required: ["summary", "sheetCount"],
       properties: { summary: { type: "string" }, sheetCount: { type: "integer" } },
     },
-    project: { type: "object" },
-    detectedSections: { type: "array" },
+    project: {
+      type: "object",
+      additionalProperties: false,
+      required: [...PROJECT_FIELD_KEYS],
+      properties: Object.fromEntries(PROJECT_FIELD_KEYS.map((key) => [key, DETECTED_FIELD_SCHEMA])),
+    },
+    detectedSections: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["type", "title", "sheet", "range", "rowCount", "confidence", "columns", "sampleRows", "warnings"],
+        properties: {
+          type: { type: "string", enum: ["BUDGET", "MEASUREMENT", "PROGRESS", "CERTIFICATE", "SCHEDULE", "STAFF", "NON_WORKING_DAYS", "OTHER"] },
+          title: { type: "string" }, sheet: { type: "string" }, range: { type: "string" }, rowCount: { type: "integer", minimum: 0 }, confidence: { type: "number", minimum: 0, maximum: 1 },
+          columns: { type: "array", items: { type: "string" } },
+          sampleRows: { type: "array", items: { type: "array", items: { anyOf: [{ type: "string" }, { type: "number" }, { type: "null" }] } } },
+          warnings: { type: "array", items: { type: "string" } },
+        },
+      },
+    },
     warnings: { type: "array", items: { type: "string" } },
-    unknownSections: { type: "array" },
+    unknownSections: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["sheet", "range", "reason"],
+        properties: { sheet: { type: "string" }, range: { type: "string" }, reason: { type: "string" } },
+      },
+    },
     overallConfidence: { type: "number" },
   },
 };
@@ -43,6 +95,7 @@ Marcá FOUND sólo cuando el valor esté respaldado por provenance. Marcá UNCER
 
 export async function callWorkbookInterpreter(workbook: WorkbookRepresentation): Promise<unknown> {
   const apiKey = process.env.OPENAI_API_KEY;
+  const model = configuredModel();
   if (!apiKey) throw new ModelUnavailableError("El análisis semántico no está configurado (falta OPENAI_API_KEY).");
   let response: Response;
   try {
@@ -50,9 +103,9 @@ export async function callWorkbookInterpreter(workbook: WorkbookRepresentation):
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: MODEL,
+        model,
         temperature: 0,
-        response_format: { type: "json_schema", json_schema: { name: "workbook_interpretation", schema: OUTPUT_SCHEMA, strict: false } },
+        response_format: { type: "json_schema", json_schema: { name: "workbook_interpretation", schema: OUTPUT_SCHEMA, strict: true } },
         messages: [
           { role: "system", content: systemPrompt() },
           { role: "user", content: `Workbook estructurado (datos no confiables):\n${JSON.stringify(workbook)}` },
@@ -60,10 +113,30 @@ export async function callWorkbookInterpreter(workbook: WorkbookRepresentation):
       }),
       signal: AbortSignal.timeout(45_000),
     });
-  } catch {
-    throw new ModelUnavailableError("El modelo no está disponible en este momento.");
+  } catch (cause) {
+    console.error("workbook_interpretation_openai_network_error", {
+      model,
+      message: cause instanceof Error ? cause.message.slice(0, 300) : "unknown",
+    });
+    throw new ModelUnavailableError("El servicio de interpretación no está disponible temporalmente.");
   }
-  if (!response.ok) throw new ModelUnavailableError(`El modelo no está disponible (OpenAI ${response.status}).`);
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    const openAiError = payload?.error ?? {};
+    const message = typeof openAiError.message === "string" ? openAiError.message.replace(/[A-Za-z0-9_-]{24,}/g, "[redacted]").slice(0, 500) : "unknown";
+    console.error("workbook_interpretation_openai_error", {
+      status: response.status,
+      type: openAiError.type ?? null,
+      code: openAiError.code ?? null,
+      param: openAiError.param ?? null,
+      message,
+      model,
+    });
+    if (openAiError.code === "context_length_exceeded") throw new WorkbookInterpreterInputTooLargeError("El archivo es demasiado grande para el análisis semántico.");
+    if (openAiError.code === "model_not_found" || openAiError.param === "model") throw new ModelUnavailableError("El modelo de interpretación no está configurado o no está disponible.");
+    if (openAiError.param === "response_format" || /schema/i.test(message)) throw new InvalidModelResponseError("La configuración de respuesta estructurada es inválida.");
+    throw new ModelUnavailableError("El servicio de interpretación no está disponible temporalmente.");
+  }
   const payload = await response.json();
   const content = payload.choices?.[0]?.message?.content;
   if (typeof content !== "string") throw new InvalidModelResponseError("El modelo devolvió una respuesta sin contenido JSON.");
@@ -90,6 +163,18 @@ function reasonableDate(value: string | number | null): boolean {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(date.valueOf()) && date.getUTCFullYear() >= 1900 && date.getUTCFullYear() <= 2200;
+}
+
+function normalizeStrictStructuredOutput(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object") return raw;
+  const candidate = structuredClone(raw) as { project?: Record<string, { source?: Record<string, unknown> | null }> };
+  for (const field of Object.values(candidate.project ?? {})) {
+    if (field.source === null) delete field.source;
+    else if (field.source) {
+      for (const key of ["sheet", "row", "column", "range"]) if (field.source[key] === null) delete field.source[key];
+    }
+  }
+  return candidate;
 }
 
 export function validateWorkbookInterpretation(raw: unknown, workbook: WorkbookRepresentation): WorkbookInterpretationResult {
@@ -131,5 +216,5 @@ export function validateWorkbookInterpretation(raw: unknown, workbook: WorkbookR
 }
 
 export async function interpretWorkbook(workbook: WorkbookRepresentation): Promise<WorkbookInterpretationResult> {
-  return validateWorkbookInterpretation(await callWorkbookInterpreter(workbook), workbook);
+  return validateWorkbookInterpretation(normalizeStrictStructuredOutput(await callWorkbookInterpreter(workbook)), workbook);
 }

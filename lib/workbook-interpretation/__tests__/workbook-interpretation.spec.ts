@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import * as XLSX from "xlsx";
-import { describe, expect, it } from "vitest";
-import { InvalidModelResponseError, validateWorkbookInterpretation } from "../interpreter";
+import { describe, expect, it, vi } from "vitest";
+import { callWorkbookInterpreter, InvalidModelResponseError, validateWorkbookInterpretation, WorkbookInterpreterInputTooLargeError } from "../interpreter";
 import { parseParaguayanNumber, parseWorkbook } from "../parser";
 import { notFoundField, type WorkbookInterpretationResult, type WorkbookRepresentation } from "../types";
 
@@ -104,5 +104,49 @@ describe("workbook interpretation structural parser", () => {
     const golden = path.resolve("tests/fixtures/golden-workbook.xlsx");
     const workbook = parseWorkbook(fs.readFileSync(golden), golden);
     expect(workbook.sheets.length).toBeGreaterThan(0);
+  });
+});
+
+describe("workbook interpretation OpenAI integration", () => {
+  const workbook = parseWorkbook(workbookBytes([{ name: "Base", data: [["Nombre"], ["Obra"]] }]), "request.xlsx");
+
+  it("uses the current default model and a strict structured-output schema", async () => {
+    const originalModel = process.env.WORKBOOK_INTERPRETATION_MODEL;
+    const legacyModel = process.env.OPENAI_WORKBOOK_INTERPRETER_MODEL;
+    const apiKey = process.env.OPENAI_API_KEY;
+    delete process.env.WORKBOOK_INTERPRETATION_MODEL;
+    delete process.env.OPENAI_WORKBOOK_INTERPRETER_MODEL;
+    process.env.OPENAI_API_KEY = "test-key";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: "{}" } }] })));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await callWorkbookInterpreter(workbook);
+
+    const request = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(request.model).toBe("gpt-4.1-mini");
+    expect(request.response_format.json_schema.strict).toBe(true);
+
+    vi.unstubAllGlobals();
+    if (originalModel === undefined) delete process.env.WORKBOOK_INTERPRETATION_MODEL;
+    else process.env.WORKBOOK_INTERPRETATION_MODEL = originalModel;
+    if (legacyModel === undefined) delete process.env.OPENAI_WORKBOOK_INTERPRETER_MODEL;
+    else process.env.OPENAI_WORKBOOK_INTERPRETER_MODEL = legacyModel;
+    if (apiKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = apiKey;
+  });
+
+  it("reports an OpenAI context-limit 400 as an oversized semantic input", async () => {
+    const apiKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "test-key";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { type: "invalid_request_error", code: "context_length_exceeded", param: "messages", message: "context exceeded" } }), { status: 400 })));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await expect(callWorkbookInterpreter(workbook)).rejects.toBeInstanceOf(WorkbookInterpreterInputTooLargeError);
+    expect(errorSpy).toHaveBeenCalledWith("workbook_interpretation_openai_error", expect.objectContaining({ status: 400, code: "context_length_exceeded", param: "messages" }));
+
+    errorSpy.mockRestore();
+    vi.unstubAllGlobals();
+    if (apiKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = apiKey;
   });
 });
