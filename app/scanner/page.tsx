@@ -98,6 +98,7 @@ function ScannerContent() {
   // Modo debug y telemetría
   const [isDebug, setIsDebug] = useState(false);
   const readyButtonRef = useRef<HTMLButtonElement | null>(null);
+  const flowStateRef = useRef<ScannerFlowState>("booting");
 
   useEffect(() => {
     setIsDebug(isScannerDebugActive());
@@ -105,6 +106,7 @@ function ScannerContent() {
 
   // Logger de transiciones de estado
   function setFlowState(next: ScannerFlowState) {
+    flowStateRef.current = next;
     setFlowStateInternal((prev) => {
       if (prev !== next) {
         debugStore.logTransition(`${prev} -> ${next}`);
@@ -126,7 +128,7 @@ function ScannerContent() {
   // Guards contra carreras y stale responses
   const bootGenerationRef = useRef(0);
   const consumedTokensRef = useRef<Set<string>>(new Set());
-  const isClaimingRef = useRef(false);
+  const bootstrapInFlightRef = useRef(false);
 
   // Páginas acumuladas
   const [pages, setPages] = useState<ScannedPage[]>([]);
@@ -172,18 +174,21 @@ function ScannerContent() {
 
   // BOOTSTRAP MÓVIL ÚNICO
   async function bootstrapScanner(source: "mount" | "pageshow" | "visibility" = "mount") {
-    // Si ya hay un claim en proceso, no interrumpir
     const isResumeOnly = source === "pageshow" || source === "visibility";
-    if (isClaimingRef.current && isResumeOnly) {
-      return;
-    }
-
-    const currentGen = ++bootGenerationRef.current;
+    // A lifecycle event must never supersede the initial QR token claim.
+    if (bootstrapInFlightRef.current) return;
 
     // Si el usuario ya está en captura, recorte o filtro, no interrumpir la interacción
-    if (flowState === "capturing" || flowState === "cropping" || flowState === "filtering") {
+    if (
+      flowStateRef.current === "capturing" ||
+      flowStateRef.current === "cropping" ||
+      flowStateRef.current === "filtering"
+    ) {
       return;
     }
+
+    bootstrapInFlightRef.current = true;
+    const currentGen = ++bootGenerationRef.current;
 
     try {
       // 1. RESUME existing mobile session
@@ -225,62 +230,57 @@ function ScannerContent() {
 
       if (rawToken && !consumedTokensRef.current.has(rawToken)) {
         consumedTokensRef.current.add(rawToken);
-        isClaimingRef.current = true;
         setFlowState("booting");
 
         // Limpiar credencial local stale antes de intentar vincular una sesión nueva
         clearLocalMobileSession();
 
-        try {
-          const claimRes = await fetch("/api/scanner/claim", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+        const claimRes = await fetch("/api/scanner/claim", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            token: rawToken,
+            deviceInfo: {
+              userAgent: navigator.userAgent,
+              claimedAt: new Date().toISOString(),
+            },
+          }),
+        });
+
+        if (currentGen !== bootGenerationRef.current) return;
+
+        const claimData = await claimRes.json();
+
+        // 4. Claim success: persist fallback, restore session, remove raw QR token from URL, READY
+        if (claimRes.ok && claimData.session) {
+          await applyActiveSession(claimData.session, claimData.mobileClaimToken);
+          return;
+        }
+
+        // Manejo especial de 409 (Conflict):
+        // En caso de carrera (ej. request A ganó y request B recibió 409), consultar resume una vez
+        if (claimRes.status === 409) {
+          const reconcileRes = await fetch("/api/scanner/mobile-session", {
+            method: "GET",
             credentials: "same-origin",
-            body: JSON.stringify({
-              token: rawToken,
-              deviceInfo: {
-                userAgent: navigator.userAgent,
-                claimedAt: new Date().toISOString(),
-              },
-            }),
           });
 
           if (currentGen !== bootGenerationRef.current) return;
 
-          const claimData = await claimRes.json();
-
-          // 4. Claim success: persist fallback, restore session, remove raw QR token from URL, READY
-          if (claimRes.ok && claimData.session) {
-            await applyActiveSession(claimData.session, claimData.mobileClaimToken);
-            return;
-          }
-
-          // Manejo especial de 409 (Conflict):
-          // En caso de carrera (ej. request A ganó y request B recibió 409), consultar resume una vez
-          if (claimRes.status === 409) {
-            const reconcileRes = await fetch("/api/scanner/mobile-session", {
-              method: "GET",
-              credentials: "same-origin",
-            });
-
-            if (currentGen !== bootGenerationRef.current) return;
-
-            if (reconcileRes.ok) {
-              const retryData = await reconcileRes.json();
-              if (retryData.active && retryData.session) {
-                await applyActiveSession(retryData.session, retryData.mobileClaimToken);
-                return;
-              }
+          if (reconcileRes.ok) {
+            const retryData = await reconcileRes.json();
+            if (retryData.active && retryData.session) {
+              await applyActiveSession(retryData.session, retryData.mobileClaimToken);
+              return;
             }
           }
-
-          // Si el claim falló y no se pudo conciliar:
-          setErrorNotice(claimData.error || "Sesión de escaneo no encontrada o ya reclamada");
-          setFlowState("manual");
-          return;
-        } finally {
-          isClaimingRef.current = false;
         }
+
+        // Si el claim falló y no se pudo conciliar:
+        setErrorNotice(claimData.error || "Sesión de escaneo no encontrada o ya reclamada");
+        setFlowState("manual");
+        return;
       }
 
       // 5. Sin mobile session y sin token: mostrar formulario manual PIN
@@ -289,6 +289,8 @@ function ScannerContent() {
       if (currentGen !== bootGenerationRef.current) return;
       console.warn("Error en bootstrapScanner:", err);
       setFlowState("manual");
+    } finally {
+      bootstrapInFlightRef.current = false;
     }
   }
 
