@@ -25,6 +25,25 @@ export interface DetectedQuadResult {
   quad: QuadPoints;
   confidence: number;
   isFallback: boolean;
+  diagnostics?: DetectionDiagnostics;
+}
+
+export type ScannerDetectorName = 'v1' | 'v2';
+export type ScannerDetectionMode = 'fast' | 'quality' | 'final';
+
+export interface DetectionDiagnostics {
+  detector?: ScannerDetectorName;
+  mode?: ScannerDetectionMode;
+  processingMs?: number;
+  candidateCount?: number;
+  areaRatio?: number;
+  meanEdgeCoverage?: number;
+  minEdgeCoverage?: number;
+  edgeCoverage?: [number, number, number, number];
+  qualityPassAcceptable?: boolean;
+  rawQuad?: QuadPoints | null;
+  refinedQuad?: QuadPoints | null;
+  fallbackReason?: string;
 }
 
 export interface ScanSession {

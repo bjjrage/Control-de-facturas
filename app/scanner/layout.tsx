@@ -1,4 +1,4 @@
-﻿import type { Metadata, Viewport } from 'next';
+import type { Metadata, Viewport } from 'next';
 
 export const metadata: Metadata = {
   title: 'Control Scanner · niupack',
@@ -26,7 +26,10 @@ export default function ScannerLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 antialiased flex flex-col select-none touch-none">
+    <div
+      className="min-h-[100dvh] h-[100dvh] bg-slate-950 text-slate-100 antialiased flex flex-col select-none overflow-hidden"
+      style={{ minHeight: '100dvh', height: '100dvh' }}
+    >
       {children}
     </div>
   );

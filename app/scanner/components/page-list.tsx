@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { ChevronLeft, ChevronRight, Plus, Send, Trash2, Edit3 } from "lucide-react";
 import { ScannedPage } from "@/lib/scanner/types";
@@ -23,9 +23,15 @@ export function PageList({
   isSending,
 }: PageListProps) {
   return (
-    <div className="flex flex-col h-full w-full bg-slate-950 select-none">
+    <div
+      className="flex flex-col h-full w-full bg-slate-950 select-none overflow-hidden"
+      style={{ height: "100dvh", minHeight: "100dvh" }}
+    >
       {/* Encabezado */}
-      <div className="p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between z-10">
+      <div
+        className="p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between z-10 shrink-0"
+        style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top, 0px))' }}
+      >
         <div>
           <h2 className="text-sm font-semibold text-slate-100">Documento Escaneado</h2>
           <p className="text-[11px] text-slate-400">
@@ -44,7 +50,7 @@ export function PageList({
       </div>
 
       {/* Lista / Grid de Páginas */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
         {pages.map((page, index) => (
           <div
             key={page.id}
@@ -125,7 +131,10 @@ export function PageList({
       </div>
 
       {/* Barra de Envío */}
-      <div className="p-4 pb-8 bg-slate-900/95 border-t border-slate-800 z-10">
+      <div
+        className="p-4 bg-slate-900/95 border-t border-slate-800 z-10 shrink-0"
+        style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+      >
         <button
           type="button"
           onClick={onFinalize}

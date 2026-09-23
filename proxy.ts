@@ -4,9 +4,14 @@ import { NextResponse, type NextRequest } from "next/server";
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
-  // Token portals validate their bearer token in the page/action layer; they
-  // must not require an unrelated ERP login session first.
-  if (path.startsWith("/auction-lab/join/") || path.startsWith("/auction-lab/watch/")) {
+  // Public token portals and Scanner handlers validate their own credentials.
+  // They must not require an unrelated ERP login session first.
+  if (
+    path.startsWith("/auction-lab/join/") ||
+    path.startsWith("/auction-lab/watch/") ||
+    path.startsWith("/scanner") ||
+    path.startsWith("/api/scanner/")
+  ) {
     return NextResponse.next({ request });
   }
 
@@ -35,7 +40,7 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Documentos estáticos servidos desde public/ — accesibles sin login.
+  // Static documents served from public/ are accessible without login.
   const STATIC_DOCS = ["/manual-obra", "/flujo-obra"];
   const isPublic =
     path.endsWith(".html") ||
@@ -48,10 +53,8 @@ export async function proxy(request: NextRequest) {
     path.startsWith("/cotizacion") ||
     path.startsWith("/certificados") ||
     path.startsWith("/avance") ||
-    path.startsWith("/scanner") ||
     path.startsWith("/_next") ||
     path.startsWith("/api/cotizar") ||
-    path.startsWith("/api/scanner") ||
     path === "/favicon.ico";
 
   if (!user && !isPublic) {
