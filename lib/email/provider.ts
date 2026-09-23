@@ -85,6 +85,18 @@ function safeProviderError(value: unknown): string {
   return `${error}${description ? `: ${description}` : ""}`.slice(0, 500);
 }
 
+export function parseGmailSendResponse(
+  response: { ok: boolean; status: number },
+  value: unknown
+): string {
+  const payload = value && typeof value === "object" ? value as GmailSendResponse & Record<string, unknown> : {};
+  if (response.ok && typeof payload.id === "string" && payload.id.length > 0) return payload.id;
+  if (response.ok || response.status >= 500) {
+    throw new EmailDeliveryUnknownError("Gmail no devolviÃ³ un resultado de entrega verificable");
+  }
+  throw new Error(`Gmail no pudo enviar el correo: ${safeProviderError(payload)}`);
+}
+
 function requireSenderEmail(value: string | null): string {
   if (!value) throw new Error("La conexión Gmail no tiene una cuenta remitente identificada; reconectá Gmail");
   return value;
@@ -270,6 +282,10 @@ export class GmailEmailProvider implements EmailProvider {
       throw new EmailDeliveryUnknownError(error instanceof Error ? error.message : undefined);
     }
     const payload = (await response.json().catch(() => ({}))) as GmailSendResponse & Record<string, unknown>;
+    if (response.ok) {
+      const providerMessageId = parseGmailSendResponse(response, payload);
+      return { provider: "GMAIL", providerMessageId };
+    }
     if (!response.ok || typeof payload.id !== "string" || !payload.id) {
       if (response.status >= 500) {
         throw new EmailDeliveryUnknownError(`Gmail respondió ${response.status}; el resultado de entrega es incierto`);

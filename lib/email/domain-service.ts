@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentToolContext } from "@/lib/agent/context";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hashPayload } from "@/lib/agent/approvals";
+import { sanitizeAgentError } from "@/lib/agent/sanitize";
 import {
   EmailDeliveryUnknownError,
   gmailEmailProvider,
@@ -1079,17 +1080,17 @@ async function sendEmailDraftAtomic(params: {
 
   const provider = params.provider ?? gmailEmailProvider;
   let providerAccepted = false;
-  await recordEmailEvent(params.db, params.actor, {
-    eventType: "email.send.started",
-    draftId: row.id,
-    connectionId: row.provider_connection_id,
-    idempotencyKey: params.idempotencyKey,
-    subject: row.subject,
-    recipientEmails: current.to,
-    metadata: { provider: provider.name, attemptId: claim.attempt_id },
-  });
   let recipientLabel = "";
   try {
+    await recordEmailEvent(params.db, params.actor, {
+      eventType: "email.send.started",
+      draftId: row.id,
+      connectionId: row.provider_connection_id,
+      idempotencyKey: params.idempotencyKey,
+      subject: row.subject,
+      recipientEmails: current.to,
+      metadata: { provider: provider.name, attemptId: claim.attempt_id },
+    });
     recipientLabel = await getRecipientLabel(params.db, params.actor.empresaId, current.to);
     if (!row.provider_connection_id) throw new Error("No hay una conexión Gmail activa para enviar este correo");
     const sent = await provider.sendMessage({
@@ -1187,9 +1188,9 @@ export async function recordEmailEvent(
     actor_id: actor.userId,
     actor_type: params.actorType ?? actor.actorType,
     recipient_domains: domains,
-    subject: params.subject ?? null,
+    subject: params.subject ? sanitizeAgentError(params.subject, 300) : null,
     metadata: params.metadata ?? {},
-    error_message: params.errorMessage?.slice(0, 1000) ?? null,
+    error_message: params.errorMessage ? sanitizeAgentError(params.errorMessage, 1000) : null,
   });
 }
 

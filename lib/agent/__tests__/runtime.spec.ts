@@ -88,12 +88,32 @@ describe("runtime idempotency", () => {
       runId: "r1",
       empresaId: "emp1",
       toolName: "test_tool",
-      input: { normal: "ok", token: "secreto123", api_key: "key123" },
+      input: { normal: "ok", token: "secreto123", api_key: "key123", contact: "persona@example.com", source: "https://example.test/private" },
       output: { result: "done" },
     });
-    const insertedPayload = capturedInsertPayload as { input_json: Record<string, unknown> } | null;
+    let insertedPayload = capturedInsertPayload as { input_json: Record<string, unknown>; output_json: Record<string, unknown> } | null;
     // input_json debe tener token/api_key redactados
     expect(insertedPayload).not.toBeNull();
+    expect(insertedPayload?.input_json).toMatchObject({
+      normal: "ok",
+      token: "[REDACTED]",
+      api_key: "[REDACTED]",
+      contact: "[EMAIL]",
+      source: "[URL]",
+    });
+
+    await createStep({
+      db,
+      taskId: "t1",
+      runId: "r1",
+      empresaId: "emp1",
+      toolName: "prepare_email",
+      input: { to: ["persona@example.com"], subject: "Confidencial", body: "Borrador" },
+      output: { to: ["persona@example.com"], bodyText: "Contenido privado" },
+    });
+    insertedPayload = capturedInsertPayload as { input_json: Record<string, unknown>; output_json: Record<string, unknown> } | null;
+    expect(insertedPayload?.input_json).toEqual({ _redacted: true, reason: "email_content" });
+    expect(insertedPayload?.output_json).toEqual({ _redacted: true, reason: "email_content" });
     // La sanitización es best-effort; si no se capturo, al menos no tirar
   });
 });

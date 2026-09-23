@@ -57,7 +57,7 @@ function requireField<T>(value: T | undefined | null, label: string): T {
   return value;
 }
 
-async function handler(_ctx: AgentToolContext, input: ManageInventoryOperationInput, _deps: { db: SupabaseClient }) {
+async function handler(_ctx: AgentToolContext, input: ManageInventoryOperationInput, _deps: { db: SupabaseClient }): Promise<Record<string, unknown>> {
   const actions = await import("@/app/(internal)/inventory/actions");
   let result: unknown;
   switch (input.operation) {
@@ -88,7 +88,12 @@ async function handler(_ctx: AgentToolContext, input: ManageInventoryOperationIn
     case "create_portal_link": {
       const raw = await actions.createWarehousePortalLink(requireField(input.location_id, "location_id"), input.expires_at);
       const safe = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
-      result = { error: safe.error ?? null, url: safe.url ?? null };
+      const linkCreated = typeof safe.url === "string" && safe.url.length > 0;
+      result = {
+        error: safe.error ?? null,
+        portal_link_created: linkCreated,
+        message: linkCreated ? "Enlace creado; por seguridad, el token no se expone en el chat. Consultalo desde Inventario." : null,
+      };
       break;
     }
     case "process_submission":
@@ -109,7 +114,15 @@ async function handler(_ctx: AgentToolContext, input: ManageInventoryOperationIn
       });
       break;
   }
-  return { operation: input.operation, ...actionResult(result), message: "Operación física de inventario ejecutada; no se movió dinero." };
+  const output: Record<string, unknown> = { operation: input.operation, ...actionResult(result) };
+  if (input.operation === "create_portal_link") {
+    output.message = output.portal_link_created === true
+      ? "Enlace creado; por seguridad, el token no se expone en el chat. Consultalo desde Inventario."
+      : "No se pudo crear el enlace del portal de depósito.";
+  } else {
+    output.message = "Operación física de inventario ejecutada; no se movió dinero.";
+  }
+  return output;
 }
 
 registerTool<ManageInventoryOperationInput, Record<string, unknown>>({
@@ -117,7 +130,7 @@ registerTool<ManageInventoryOperationInput, Record<string, unknown>>({
   description: "Opera recepciones de OC, ubicaciones, portal de depósito y rendiciones usando el servicio canónico existente. Es inventario físico, no tesorería; requiere aprobación y referencias resueltas.",
   inputSchema: ManageInventoryOperationInputSchema,
   riskLevel: 2,
-  requiredRoles: null,
+  requiredRoles: ["administracion", "admin"],
   handler,
 });
 

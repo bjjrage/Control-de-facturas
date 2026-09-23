@@ -87,7 +87,7 @@ registerTool({
   description: "Lee facturas de proveedor con proveedor, detalle, adjunto, vínculo a OC, excepciones y referencias de órdenes de pago ya existentes. Nunca paga ni crea una orden de pago.",
   inputSchema: GetSupplierInvoiceOverviewInputSchema,
   riskLevel: 0,
-  requiredRoles: null,
+  requiredRoles: ["administracion", "admin"],
   handler,
 });
 

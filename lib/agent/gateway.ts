@@ -16,6 +16,7 @@ import {
   assertPayloadMatchesApproval,
 } from "./approvals";
 import { createStep } from "./runtime";
+import { sanitizeAgentError } from "./sanitize";
 
 // ---------------------------------------------------------------------------
 // Errors (fail-closed, tipados para que el orchestrator pueda ramificar)
@@ -154,7 +155,7 @@ export async function gatewayExecute(params: GatewayExecuteParams): Promise<Gate
   }
 
   // 5. Idempotency check (tool-level) — buscar step previo con misma key+tool+empresa
-  if (idempotencyKey && toolName) {
+  if (idempotencyKey && toolName && toolName !== "prepare_email" && toolName !== "send_email") {
     const { data: hit } = await db
       .from("agent_steps")
       .select("status, output_json")
@@ -232,7 +233,7 @@ export async function gatewayExecute(params: GatewayExecuteParams): Promise<Gate
     output = await tool.handler(toolCtx, parsedInput as never, { db });
   } catch (e) {
     // 7b. Persistir step ERROR para observabilidad, luego re-throw como GatewayError
-    const errMsg = e instanceof Error ? e.message : String(e);
+    const errMsg = sanitizeAgentError(e, 2_000);
     if (taskId && runId) {
       try {
         await createStep({
@@ -256,7 +257,7 @@ export async function gatewayExecute(params: GatewayExecuteParams): Promise<Gate
     try {
       await db.rpc("log_audit_event", {
         p_action: `agent.tool.error:${toolName}`,
-        p_detail: { empresa_id: actor.empresaId, tool: toolName, error: errMsg.slice(0, 500) } as never,
+        p_detail: { empresa_id: actor.empresaId, tool: toolName, error: sanitizeAgentError(errMsg) } as never,
         p_actor_type: "agent",
         p_actor_label: actor.email ?? actor.userId ?? "agent",
       } as never);
@@ -424,7 +425,7 @@ export async function executeApprovedTool(
   try {
     output = await tool.handler(toolCtx, payloadToExecute as never, { db });
   } catch (err) {
-    const errMsg = err instanceof Error ? err.message : String(err);
+    const errMsg = sanitizeAgentError(err, 2_000);
     // Marcar approval como FAILED si falló la ejecución
     try {
       await markApprovalFailed({

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { buildGoogleAuthorizationUrl, createOAuthState } from "@/lib/email/google-oauth";
+import { buildGoogleAuthorizationUrl, createOAuthState, encryptOAuthVerifier } from "@/lib/email/google-oauth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ async function connect() {
     user_id: profile.id,
     provider: "GMAIL",
     state_hash: oauth.stateHash,
-    code_verifier: oauth.codeVerifier,
+    code_verifier: encryptOAuthVerifier(oauth.codeVerifier),
     expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
   });
   if (error) return NextResponse.json({ error: "No se pudo iniciar la conexión Gmail" }, { status: 500 });

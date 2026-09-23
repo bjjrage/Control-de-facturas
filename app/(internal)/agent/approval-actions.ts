@@ -9,6 +9,7 @@ import { decideApproval, getApproval } from "@/lib/agent/approvals";
 import { executeApprovedTool } from "@/lib/agent/gateway";
 import { emitAgentEvent, processAgentEvent } from "@/lib/agent/events";
 import { createRun, createTask, finishRun, updateTaskStatus } from "@/lib/agent/runtime";
+import { sanitizeAgentError } from "@/lib/agent/sanitize";
 import { getEmailDraftSendContext, getEmailDraftPreview, getRecipientLabel, markEmailDraftWaitingApproval, recordEmailEvent } from "@/lib/email/domain-service";
 import type { EmailPreview } from "@/lib/email/types";
 import "@/lib/tools"; // auto-registro de todos los tools
@@ -177,7 +178,7 @@ export async function sendPreparedEmailAction(params: {
     await updateTaskStatus({ db: supabase, taskId: task.id, empresaId: profile.empresa_id, status: "COMPLETED", actorType: "user" });
     return { error: null, result: pending.output };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = sanitizeAgentError(error);
     await finishRun({ db: supabase, runId: run.id, status: "FAILED", errorMessage: message }).catch(() => null);
     await updateTaskStatus({ db: supabase, taskId: task.id, empresaId: profile.empresa_id, status: "FAILED", errorMessage: message, actorType: "system" }).catch(() => null);
     return { error: message, result: null };

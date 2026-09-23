@@ -22,7 +22,7 @@ describe("Rodrigo ERP V4 capability registry", () => {
   it("mantiene la frontera monetaria fuera de las nuevas capacidades", () => {
     const names = ["get_labor_subcontractor_overview", "get_apu_overview", "get_scanner_session_overview", "get_auction_overview", "get_project_operational_overview", "get_inventory_overview", "get_billing_overview", "manage_labor_subcontractor", "manage_apu_material"];
     expect(names.join(" ")).not.toMatch(/payment|cobro|pago|transferencia|concili|settlement|disbursement/i);
-    expect(getTool("manage_auction_lab")).toBeUndefined();
+    expect(getTool("manage_auction_lab")?.riskLevel).toBe(2);
     expect(getTool("get_finance_overview")?.riskLevel).toBe(0);
   });
 

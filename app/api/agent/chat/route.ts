@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { actorFromProfile, withWorkspace } from "@/lib/agent/context";
 import { createRun, createTask, finishRun, updateTaskStatus } from "@/lib/agent/runtime";
+import { sanitizeAgentError } from "@/lib/agent/sanitize";
 import { deriveRodrigoState, getRodrigoStatePresentation } from "@/lib/agent/rodrigo-state";
 import { AgentOrchestrator, DeepSeekConfigError } from "@/lib/agent/orchestrator";
 import "@/lib/tools"; // auto-registro de todos los tools
@@ -27,17 +28,6 @@ function parseConversationHistory(value: unknown): ConversationHistoryTurn[] {
       const content = candidate.content.trim().slice(0, MAX_MESSAGE_CHARS);
       return content ? [{ role: candidate.role, content }] : [];
     });
-}
-
-/**
- * Keeps upstream failures observable without allowing credentials or session
- * material to leak into runtime logs.
- */
-function sanitizeErrorMessage(message: string) {
-  return message
-    .replace(/\b(Bearer)\s+[A-Za-z0-9._~+/=-]+/gi, "$1 [REDACTED]")
-    .replace(/\b(api[_ -]?key|authorization|cookie|set-cookie|token)\s*[:=]\s*[^\s,;}]+/gi, "$1: [REDACTED]")
-    .replace(/\bsk-[A-Za-z0-9_-]+\b/gi, "[REDACTED]");
 }
 
 function noStoreJson(body: Record<string, unknown>, status = 200) {
@@ -171,15 +161,16 @@ export async function POST(request: Request) {
 
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
+    const safeDetail = sanitizeAgentError(detail);
     console.error("[rodrigo] chat failed", {
       name: error instanceof Error ? error.name : "unknown",
-      message: sanitizeErrorMessage(detail),
+      message: safeDetail,
     });
     if (error instanceof DeepSeekConfigError) {
       await failTask("orchestrator no configurado");
       return noStoreJson({ error: "Agente no configurado en este entorno" }, 503);
     }
-    await failTask(detail.slice(0, 500));
+    await failTask(safeDetail);
     return noStoreJson({ error: "No pude procesar el mensaje" }, 500);
   }
 }

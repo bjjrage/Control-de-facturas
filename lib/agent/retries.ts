@@ -4,6 +4,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentTaskRetryRow } from "./life-types";
 import { updateTaskStatus } from "./runtime";
+import { sanitizeAgentError } from "./sanitize";
 
 export function computeBackoffMs(params: {
   attemptNumber: number;
@@ -27,6 +28,7 @@ export async function scheduleRetry(params: {
   errorMessage: string;
   maxAttempts?: number;
 }): Promise<AgentTaskRetryRow> {
+  const safeErrorMessage = sanitizeAgentError(params.errorMessage, 2000);
   const { data: existing } = await params.db
     .from("agent_task_retries")
     .select("*")
@@ -51,7 +53,7 @@ export async function scheduleRetry(params: {
       taskId: params.taskId,
       empresaId: params.empresaId,
       status: "FAILED",
-      errorMessage: params.errorMessage.slice(0, 2000),
+      errorMessage: safeErrorMessage,
       actorType: "worker",
     });
   }
@@ -66,7 +68,7 @@ export async function scheduleRetry(params: {
         attempt_number: attemptNumber,
         max_attempts: maxAttempts,
         last_error_code: params.errorCode,
-        last_error_message: params.errorMessage.slice(0, 2000),
+        last_error_message: safeErrorMessage,
         last_error_at: new Date().toISOString(),
         next_retry_at: null,
         status: "EXHAUSTED",
@@ -91,7 +93,7 @@ export async function scheduleRetry(params: {
         taskId: params.taskId,
         empresaId: params.empresaId,
         status: "FAILED",
-        errorMessage: params.errorMessage.slice(0, 2000),
+        errorMessage: safeErrorMessage,
         actorType: "worker",
       });
     }
@@ -108,7 +110,7 @@ export async function scheduleRetry(params: {
       attempt_number: attemptNumber,
       max_attempts: maxAttempts,
       last_error_code: params.errorCode,
-      last_error_message: params.errorMessage.slice(0, 2000),
+      last_error_message: safeErrorMessage,
       last_error_at: new Date().toISOString(),
       next_retry_at: nextRetryAt,
       status: "SCHEDULED",

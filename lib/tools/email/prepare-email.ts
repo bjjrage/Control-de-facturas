@@ -36,7 +36,7 @@ registerTool<PrepareEmailToolInput, PrepareEmailOutput>({
   description:
     "Prepara un borrador interno de email sin enviarlo. Si el usuario proporciona una dirección de email explícita, usala directamente en to. Si proporciona solamente un nombre o empresa, intentá resolverlo desde los contactos del ERP. Nunca inventes una dirección y, si hay múltiples contactos posibles, preguntá cuál. Redacta un correo profesional y conciso, busca adjuntos autorizados cuando correspondan y devuelve el preview. Para editar un borrador existente usar draft_id y revision_instruction. Nunca envía ni salta la aprobación.",
   inputSchema: PrepareEmailInputSchema,
-  riskLevel: 2,
+  riskLevel: 1,
   requiredRoles: ["comercial", "admin"],
   handler,
 });

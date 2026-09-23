@@ -45,7 +45,7 @@ registerTool({
   description: "Inicia, pausa/reanuda el bot, autoriza una postura asistida, cede una propuesta o finaliza una sala Auction Lab real. Cada operación requiere aprobación humana; no regenera links ni expone tokens.",
   inputSchema: ManageAuctionLabInputSchema,
   riskLevel: 2,
-  requiredRoles: null,
+  requiredRoles: ["administracion", "admin"],
   handler,
 });
 

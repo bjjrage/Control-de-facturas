@@ -106,7 +106,7 @@ registerTool<GetFinanceOverviewInput, GetFinanceOverviewOutput>({
     "Lee tesorería, saldos de cuentas, cuentas a pagar, órdenes de pago existentes y cuentas a cobrar. Es estrictamente lectura: Rodrigo nunca puede crear pagos, cobros, transferencias, conciliaciones ni movimientos de dinero.",
   inputSchema: GetFinanceOverviewInputSchema,
   riskLevel: 0,
-  requiredRoles: null,
+  requiredRoles: ["administracion", "admin"],
   handler,
 });
 

@@ -3,6 +3,7 @@
 // Server-only. Usa Supabase (service_role / server client scoping por empresa_id).
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { validateTaskTransition } from "./task-states";
+import { sanitizeAgentError } from "./sanitize";
 
 export type TaskStatus =
   | "PENDING"
@@ -150,7 +151,7 @@ export async function updateTaskStatus(params: {
     actorRole: params.actorRole ?? null,
   });
   const patch: Record<string, unknown> = { status: params.status };
-  if (params.errorMessage !== undefined) patch.error_message = params.errorMessage;
+  if (params.errorMessage !== undefined) patch.error_message = params.errorMessage ? sanitizeAgentError(params.errorMessage) : params.errorMessage;
   if (params.completedAt !== undefined) patch.completed_at = params.completedAt;
   if (params.status === "COMPLETED" || params.status === "FAILED" || params.status === "CANCELLED") {
     if (!patch.completed_at) patch.completed_at = new Date().toISOString();
@@ -200,7 +201,7 @@ export async function finishRun(params: {
     status: params.status,
     finished_at: new Date().toISOString(),
   };
-  if (params.errorMessage !== undefined) patch.error_message = params.errorMessage;
+  if (params.errorMessage !== undefined) patch.error_message = params.errorMessage ? sanitizeAgentError(params.errorMessage) : params.errorMessage;
   if (params.usageJson !== undefined) patch.usage_json = params.usageJson as never;
   const { data, error } = await params.db.from("agent_runs").update(patch).eq("id", params.runId).select("*").single();
   if (error || !data) throw new Error(`finishRun fallo: ${error?.message ?? "sin data"}`);
@@ -213,25 +214,40 @@ export async function finishRun(params: {
 
 const MAX_JSON_BYTES = 64 * 1024; // 64KB — si el output es gigante, truncamos (no persistir blobs)
 
-function sanitizeForPersist(value: unknown): unknown {
+function sanitizeForPersist(value: unknown, toolName?: string | null): unknown {
   if (value === null || value === undefined) return value;
-  // No persistir campos secretos si alguien los metio por error
-  const str = typeof value === "string" ? value : JSON.stringify(value);
-  if (str && str.length > MAX_JSON_BYTES) {
-    return { _truncated: true, _original_bytes: str.length, _preview: str.slice(0, MAX_JSON_BYTES) };
+  if (toolName === "prepare_email" || toolName === "send_email") {
+    return { _redacted: true, reason: "email_content" };
   }
-  // Strip obvious secret keys
-  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-    const obj = value as Record<string, unknown>;
-    const redactedKeys = new Set(["api_key", "apikey", "token", "secret", "password", "authorization"]);
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(obj)) {
-      if (redactedKeys.has(k.toLowerCase())) out[k] = "[REDACTED]";
-      else out[k] = v;
+
+  const redactedKeys = new Set([
+    "apikey", "authorization", "token", "secret", "password", "accesstoken", "refreshtoken",
+    "to", "cc", "bcc", "email", "recipientemails", "subject", "body", "bodytext", "bodyhtml",
+    "objective", "revisioninstruction", "draftsnapshot", "attachments", "filename", "storagebucket",
+    "storagepath", "contentsha256", "url", "signedurl", "downloadurl",
+  ]);
+  const redact = (item: unknown, key?: string): unknown => {
+    const normalizedKey = key?.toLowerCase().replace(/[^a-z0-9]/gu, "");
+    if (normalizedKey && redactedKeys.has(normalizedKey)) return "[REDACTED]";
+    if (Array.isArray(item)) return item.map((child) => redact(child));
+    if (item && typeof item === "object") {
+      return Object.fromEntries(Object.entries(item).map(([childKey, child]) => [childKey, redact(child, childKey)]));
     }
-    return out;
+    if (typeof item === "string") return sanitizeAgentError(item, MAX_JSON_BYTES);
+    return item;
+  };
+
+  const sanitized = redact(value);
+  let serialized: string;
+  try {
+    serialized = JSON.stringify(sanitized) ?? String(sanitized);
+  } catch {
+    return { _redacted: true, reason: "unserializable_value" };
   }
-  return value;
+  if (serialized.length > MAX_JSON_BYTES) {
+    return { _truncated: true, _original_bytes: serialized.length };
+  }
+  return sanitized;
 }
 
 export async function createStep(params: {
@@ -268,10 +284,10 @@ export async function createStep(params: {
       run_id: params.runId,
       empresa_id: params.empresaId,
       tool_name: params.toolName ?? null,
-      input_json: sanitizeForPersist(params.input) as never,
-      output_json: sanitizeForPersist(params.output) as never,
+      input_json: sanitizeForPersist(params.input, params.toolName) as never,
+      output_json: sanitizeForPersist(params.output, params.toolName) as never,
       status: params.status ?? "SUCCESS",
-      error_message: params.errorMessage ?? null,
+      error_message: params.errorMessage ? sanitizeAgentError(params.errorMessage) : null,
       idempotency_key: params.idempotencyKey ?? null,
       duration_ms: params.durationMs ?? null,
     })

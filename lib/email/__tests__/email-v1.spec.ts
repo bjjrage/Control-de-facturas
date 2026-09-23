@@ -6,6 +6,8 @@ import "@/lib/tools/email/prepare-email";
 import "@/lib/tools/email/send-email";
 import { SendEmailInputSchema } from "@/lib/tools/email/send-email";
 import { sha256Bytes } from "../content-hash";
+import { decryptOAuthVerifier, encryptOAuthVerifier } from "../google-oauth";
+import { EmailDeliveryUnknownError, parseGmailSendResponse } from "../provider";
 
 const attachment = {
   id: "00000000-0000-4000-a000-000000000010",
@@ -20,6 +22,32 @@ const attachment = {
 };
 
 describe("Rodrigo email V1 pure contracts", () => {
+  it("encrypts OAuth PKCE verifiers at rest and rejects tampering", () => {
+    const previousSecret = process.env.GOOGLE_CLIENT_SECRET;
+    process.env.GOOGLE_CLIENT_SECRET = "unit-test-oauth-secret";
+    try {
+      const verifier = "pkce-verifier-that-must-not-be-stored-in-plaintext";
+      const stored = encryptOAuthVerifier(verifier);
+      expect(stored).not.toContain(verifier);
+      expect(decryptOAuthVerifier(stored)).toBe(verifier);
+      const tamperedParts = stored.split(":");
+      const tag = Buffer.from(tamperedParts[3] ?? "", "base64url");
+      tag[0] = (tag[0] ?? 0) ^ 0xff;
+      tamperedParts[3] = tag.toString("base64url");
+      expect(() => decryptOAuthVerifier(tamperedParts.join(":"))).toThrow();
+    } finally {
+      if (previousSecret === undefined) delete process.env.GOOGLE_CLIENT_SECRET;
+      else process.env.GOOGLE_CLIENT_SECRET = previousSecret;
+    }
+  });
+
+  it("does not treat Gmail 2xx without a message id as a safe rejection", () => {
+    expect(parseGmailSendResponse({ ok: true, status: 200 }, { id: "gmail-message-1" })).toBe("gmail-message-1");
+    expect(() => parseGmailSendResponse({ ok: true, status: 200 }, {})).toThrow(EmailDeliveryUnknownError);
+    expect(() => parseGmailSendResponse({ ok: false, status: 503 }, {})).toThrow(EmailDeliveryUnknownError);
+    expect(() => parseGmailSendResponse({ ok: false, status: 400 }, { error: "invalid_request" })).toThrow(/invalid_request/u);
+  });
+
   it("maps supported objectives to controlled templates", () => {
     expect(inferEmailTemplate("seguimiento de cotizacion")).toBe("seguimiento_cotizacion");
     expect(inferEmailTemplate("solicitar lista de precios")).toBe("solicitud_precio");
@@ -70,7 +98,7 @@ describe("Rodrigo email V1 pure contracts", () => {
   });
 
   it("registers prepare as Risk 1 and send as Risk 2 with no free-form body input", () => {
-    expect(getTool("prepare_email")?.riskLevel).toBe(2);
+    expect(getTool("prepare_email")?.riskLevel).toBe(1);
     expect(getTool("send_email")?.riskLevel).toBe(2);
     const parsed = SendEmailInputSchema.safeParse({ draft_id: attachment.documentId, to: ["x@example.com"] });
     expect(parsed.success).toBe(false);

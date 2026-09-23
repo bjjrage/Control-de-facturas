@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { actorFromProfile } from "@/lib/agent/context";
 import { recordEmailEvent } from "@/lib/email/domain-service";
-import { exchangeGoogleCode, fetchGoogleIdentity, hashOAuthState } from "@/lib/email/google-oauth";
+import { decryptOAuthVerifier, exchangeGoogleCode, fetchGoogleIdentity, hashOAuthState } from "@/lib/email/google-oauth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
       .maybeSingle();
     if (consumed.error || !consumed.data) return resultRedirect(request, "gmail_state_replayed");
 
-    const tokens = await exchangeGoogleCode({ code, codeVerifier: stateRow.code_verifier as string });
+    const tokens = await exchangeGoogleCode({ code, codeVerifier: decryptOAuthVerifier(stateRow.code_verifier as string) });
     const providerEmail = await fetchGoogleIdentity(tokens.accessToken);
     if (!providerEmail) {
       return resultRedirect(request, "gmail_identity_unavailable");

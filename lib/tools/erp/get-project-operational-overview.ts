@@ -17,9 +17,24 @@ async function handler(ctx: AgentToolContext, input: GetProjectOperationalOvervi
     db.from("budget_items").select("id, code, description, unit, quantity, unit_price, subtotal, parent_id, sort_order").eq("project_id", input.project_id).order("sort_order"),
     db.from("execution_entries").select("id, budget_item_id, entry_date, quantity_executed, notes, created_at").eq("project_id", input.project_id).order("entry_date", { ascending: false }),
     db.from("project_certificates").select("id, numero, period_start, period_end, status, monto_anterior, monto_presente, monto_acumulado, notes, created_at, closed_at").eq("project_id", input.project_id).order("numero", { ascending: false }),
-    db.from("climate_events").select("*").eq("project_id", input.project_id).order("event_date", { ascending: false }).limit(90),
-    db.from("project_workday_status").select("*").eq("project_id", input.project_id).order("work_date", { ascending: false }).limit(90),
-    db.from("climate_evidence").select("*").eq("project_id", input.project_id).order("created_at", { ascending: false }).limit(180),
+    db.from("climate_events")
+      .select("id, event_date, source, external_station_name, external_observed_at, external_precipitation_mm, local_precipitation_mm, contract_threshold_mm, external_threshold_exceeded, local_threshold_exceeded, threshold_exceeded, local_source, provider_fallback_reason, status, created_at, updated_at")
+      .eq("empresa_id", ctx.empresaId)
+      .eq("project_id", input.project_id)
+      .order("event_date", { ascending: false })
+      .limit(90),
+    db.from("project_workday_status")
+      .select("id, work_date, classification, climate_event_id, parent_workday_status_id, reason_code, notes, source, decision_status, proposed_automatically, confirmed_by, confirmed_at, created_at, updated_at")
+      .eq("empresa_id", ctx.empresaId)
+      .eq("project_id", input.project_id)
+      .order("work_date", { ascending: false })
+      .limit(90),
+    db.from("climate_evidence")
+      .select("id, climate_event_id, workday_status_id, evidence_type, file_name, mime_type, size_bytes, captured_at, uploaded_by, created_at")
+      .eq("empresa_id", ctx.empresaId)
+      .eq("project_id", input.project_id)
+      .order("created_at", { ascending: false })
+      .limit(180),
     getWeeklyPlanOverviewTool.handler(ctx, { project_id: input.project_id, limit: 4 }, deps),
   ]);
   for (const result of [budget, execution, certificates, climateEvents, workdays, evidence]) {
