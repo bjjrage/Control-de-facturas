@@ -2,6 +2,14 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+
+  // Token portals validate their bearer token in the page/action layer; they
+  // must not require an unrelated ERP login session first.
+  if (path.startsWith("/auction-lab/join/") || path.startsWith("/auction-lab/watch/")) {
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -27,7 +35,6 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const path = request.nextUrl.pathname;
   // Documentos estáticos servidos desde public/ — accesibles sin login.
   const STATIC_DOCS = ["/manual-obra", "/flujo-obra"];
   const isPublic =
