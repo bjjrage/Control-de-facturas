@@ -122,6 +122,64 @@ describe("orchestrator", () => {
     expect(result.iterations).toBe(2);
   });
 
+  it("pasa la idempotency key del writer de planillas al gateway con scope de planilla", async () => {
+    toolRegistry.register({
+      name: "update_spreadsheet_rows",
+      description: "update rows",
+      inputSchema: z.object({ planilla_id: z.string(), idempotency_key: z.string().uuid() }),
+      riskLevel: 1,
+      handler: async () => ({ updated: true }),
+    });
+
+    const planillaId = "00000000-0000-4000-a000-000000000010";
+    const idempotencyKey = "00000000-0000-4000-a000-000000000011";
+    const first = {
+      choices: [{
+        message: {
+          tool_calls: [{
+            id: "call_update",
+            function: {
+              name: "update_spreadsheet_rows",
+              arguments: JSON.stringify({ planilla_id: planillaId, idempotency_key: idempotencyKey }),
+            },
+          }],
+        },
+      }],
+    };
+    const second = { choices: [{ message: { content: "guardado" } }] };
+    let callIndex = 0;
+    globalThis.fetch = vi.fn().mockImplementation(async () => {
+      const response = callIndex++ === 0 ? first : second;
+      return { ok: true, status: 200, text: async () => JSON.stringify(response), json: async () => response } as unknown as Response;
+    });
+
+    const filters: Array<[string, unknown]> = [];
+    const builder: Record<string, unknown> = {};
+    builder.select = vi.fn(() => builder);
+    builder.eq = vi.fn((column: string, value: unknown) => {
+      filters.push([column, value]);
+      return builder;
+    });
+    builder.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    builder.insert = vi.fn(() => builder);
+    builder.single = vi.fn().mockResolvedValue({ data: { id: "step-1" }, error: null });
+    const db = {
+      from: vi.fn(() => builder),
+      rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+    } as unknown as import("@supabase/supabase-js").SupabaseClient;
+
+    const orch = new AgentOrchestrator({ apiKey: "test-key", maxIterations: 3 });
+    await orch.run({
+      db,
+      actor: { empresaId: "emp1", userId: "u1", role: "admin", actorType: "user", source: "web" },
+      taskId: "task-1",
+      runId: "run-1",
+      userIntent: "guarda cambios",
+    });
+
+    expect(filters).toContainEqual(["idempotency_key", `${planillaId}:${idempotencyKey}`]);
+  });
+
   it("respeta allowlist — rechaza tool no permitido sin ejecutar handler", async () => {
     const handler = vi.fn().mockResolvedValue({ ok: true });
     toolRegistry.register({ name: "allowed_one", description: "x", inputSchema: z.object({}), riskLevel: 0, handler });

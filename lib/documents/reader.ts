@@ -235,6 +235,17 @@ export function hashExtractedContent(result: DocumentExtractionResult): string {
     structured: result.structured ?? null,
     mimeType: result.mimeType,
   };
-  const canonical = JSON.stringify(payload, Object.keys(payload).sort());
+  const canonicalize = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(canonicalize);
+    if (value !== null && typeof value === "object") {
+      return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([key, nested]) => [key, canonicalize(nested)])
+      );
+    }
+    return value;
+  };
+  const canonical = JSON.stringify(canonicalize(payload));
   return createHash("sha256").update(canonical).digest("hex");
 }

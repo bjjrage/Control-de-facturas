@@ -34,18 +34,9 @@ function parseA1Range(range: string): { startRow: number; startCol: number; endR
   };
 }
 
-function sanitizeRowsForPayload(rows: Array<Record<string, unknown>>, maxRows: number, maxCols: number): Array<Record<string, unknown>> {
-  return rows.slice(0, maxRows).map((row) => {
-    const keys = Object.keys(row).sort((a, b) => a.localeCompare(b)).slice(0, maxCols);
-    const out: Record<string, unknown> = {};
-    for (const k of keys) out[k] = row[k];
-    return out;
-  });
-}
-
 export const ReadSpreadsheetRangeInputSchema = z.object({
   planilla_id: z.string().uuid({ message: "planilla_id debe ser UUID valido" }),
-  range: z.string().optional().nullable().describe("Rango A1-style ej: 'A18:H24'. Si no se pasa, usa selection del workspace context."),
+  range: z.string().max(32).optional().nullable().describe("Rango A1-style ej: 'A18:H24'. Si no se pasa, usa selection del workspace context."),
   max_rows: z.number().int().positive().max(MAX_ROWS).optional(),
   max_cols: z.number().int().positive().max(MAX_COLS).optional(),
 });
@@ -162,45 +153,68 @@ async function handler(
     index: startCol + i,
   }));
 
-  // Extraer filas del rango
-  const selectedRows = snapshotRows.slice(startRow, endRow + 1);
-  const rows = sanitizeRowsForPayload(selectedRows, MAX_ROWS, endCol - startCol + 1);
-
-  // Mapear filas a solo las columnas en rango
+  // Select adapter columns directly. Snapshot metadata must not displace them.
   const colKeys = columnsInRange.map((c) => c.key);
-  const filteredRows = rows.map((row) => {
+  const selectedRows = snapshotRows.slice(startRow, endRow + 1);
+  const selectedPayloadRows = selectedRows.map((row) => {
     const out: Record<string, unknown> = {};
     for (const k of colKeys) if (k in row) out[k] = row[k];
     return out;
   });
 
-  const totalCells = (endRow - startRow + 1) * (endCol - startCol + 1);
-  const payloadChars = JSON.stringify(filteredRows).length;
-  const warnings: string[] = [];
+  const totalCells = selectedPayloadRows.length * (endCol - startCol + 1);
+  const baseWarnings: string[] = [];
 
-  if (totalCells > MAX_CELLS) warnings.push(`Rango supera ${MAX_CELLS} celdas máximas`);
-  if (payloadChars > MAX_PAYLOAD_CHARS) warnings.push(`Payload serializado supera ${MAX_PAYLOAD_CHARS} caracteres`);
+  if (totalCells > MAX_CELLS) baseWarnings.push(`Rango supera ${MAX_CELLS} celdas máximas`);
+  const filteredRows: Array<Record<string, unknown>> = [];
+  let payloadTruncated = false;
 
-  const truncated = totalCells > MAX_CELLS || payloadChars > MAX_PAYLOAD_CHARS;
-
-  return {
+  const makeOutput = (rows: Array<Record<string, unknown>>, isPayloadTruncated: boolean): ReadSpreadsheetRangeOutput => ({
     planilla_id: input.planilla_id,
     modulo: planilla.modulo,
     estado: planilla.estado,
     range: {
       requested: requestedRange,
-      actual_start_row: startRow + 1, // 1-based para usuario
+      actual_start_row: startRow + 1,
       actual_start_col: startCol + 1,
-      actual_end_row: endRow + 1,
+      actual_end_row: startRow + rows.length,
       actual_end_col: endCol + 1,
-      rows_returned: endRow - startRow + 1,
+      rows_returned: rows.length,
       cols_returned: endCol - startCol + 1,
     },
     columns: columnsInRange,
-    rows: filteredRows,
-    truncated,
-    warnings,
-  };
+    rows,
+    truncated: totalCells > MAX_CELLS || isPayloadTruncated,
+    warnings: isPayloadTruncated
+      ? [
+          ...baseWarnings,
+          rows.length === 0
+            ? `La primera fila supera el límite de ${MAX_PAYLOAD_CHARS} caracteres; no se devolvieron filas.`
+            : `Se omitieron filas para respetar el límite de ${MAX_PAYLOAD_CHARS} caracteres del payload.`,
+        ]
+      : baseWarnings,
+  });
+
+  for (const row of selectedPayloadRows) {
+    const candidateRows = [...filteredRows, row];
+    // Medir el objeto completo (columnas, rango y avisos incluidos), no solo rows.
+    if (JSON.stringify(makeOutput(candidateRows, true)).length > MAX_PAYLOAD_CHARS) {
+      payloadTruncated = true;
+      break;
+    }
+    filteredRows.push(row);
+  }
+
+  let output = makeOutput(filteredRows, payloadTruncated);
+  while (JSON.stringify(output).length > MAX_PAYLOAD_CHARS && filteredRows.length > 0) {
+    filteredRows.pop();
+    payloadTruncated = true;
+    output = makeOutput(filteredRows, payloadTruncated);
+  }
+  if (JSON.stringify(output).length > MAX_PAYLOAD_CHARS) {
+    throw new Error(`Las columnas y metadatos del rango superan el límite de ${MAX_PAYLOAD_CHARS} caracteres.`);
+  }
+  return output;
 }
 
 // Auto-registro (side-effect al importar). Risk 0 = READ.
@@ -210,7 +224,7 @@ registerTool<ReadSpreadsheetRangeInput, ReadSpreadsheetRangeOutput>({
     "Lee un rango específico de celdas de una planilla (spreadsheet embebida). Input: planilla_id + range (A1:H24) o usa selection del workspace context. Retorna solo celdas solicitadas con límites de filas/cols/payload. Flujo normal: workspace context → selection → read range → LLM. No retorna workbook completo.",
   inputSchema: ReadSpreadsheetRangeInputSchema,
   riskLevel: 0,
-  requiredRoles: null,
+  requiredRoles: ["administracion", "admin"],
   handler,
 });
 

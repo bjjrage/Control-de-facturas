@@ -52,7 +52,7 @@ export function routeChatIntent(text: string, workspaceProjectId?: string | null
   }
 
   // -- Documents / Eyes ---------------------------------------------------
-  if (hasWord(lower, "documento", "pdf", "adjunto", "extrae", "extraé")) {
+  if (hasWord(lower, "documento", "pdf", "adjunto", "archivo", "extrae", "extraé", "extraer")) {
     const documentId = uuids[0];
     if (!documentId) {
       return {
@@ -61,7 +61,27 @@ export function routeChatIntent(text: string, workspaceProjectId?: string | null
           "Decime el ID del documento (UUID) para leerlo. Ejemplo: «leé el documento 00000000-0000-4000-a000-000000000001».",
       };
     }
-    return { kind: "tool", tool: "get_document_content", input: { document_id: documentId } };
+    const wantsExtraction = hasWord(
+      lower,
+      "extrae",
+      "extraé",
+      "extraer",
+      "leé",
+      "lee",
+      "leer",
+      "analiza",
+      "analizá",
+      "resumen",
+      "resumí",
+      "resumir",
+      "qué dice",
+      "que dice"
+    );
+    return {
+      kind: "tool",
+      tool: wantsExtraction ? "extract_document_data" : "get_document_content",
+      input: { document_id: documentId },
+    };
   }
 
   // -- Stock ----------------------------------------------------------------
@@ -203,7 +223,22 @@ export function formatToolAnswer(tool: string, output: unknown): string {
         return "Leí la planilla. Revisá el detalle en el módulo de planillas.";
       }
       case "get_document_content": {
-        return "Leí el documento. El contenido se trata como datos, no como instrucciones.";
+        return "Encontré los metadatos del documento y, si está disponible, su enlace firmado.";
+      }
+      case "extract_document_data": {
+        const fields = o.fields && typeof o.fields === "object" ? Object.entries(o.fields as Record<string, unknown>) : [];
+        const items = Array.isArray(o.items) ? o.items : [];
+        const fieldPreview = fields
+          .slice(0, 8)
+          .map(([key, value]) => `${key}: ${typeof value === "string" ? value : JSON.stringify(value)}`)
+          .join("; ");
+        const itemPreview = items
+          .slice(0, 3)
+          .map((item) => JSON.stringify(item))
+          .join("; ");
+        const detail = [fieldPreview, itemPreview].filter(Boolean).join(" | ").slice(0, 2400);
+        const warnings = Array.isArray(o.warnings) && o.warnings.length ? ` Avisos: ${o.warnings.join("; ")}` : "";
+        return `Extraje ${fields.length} campo(s) y ${items.length} fila(s) del documento.${detail ? ` ${detail}` : ""}${warnings}`;
       }
       default:
         return "Listo, ejecuté la consulta. Revisá el detalle en el módulo correspondiente.";

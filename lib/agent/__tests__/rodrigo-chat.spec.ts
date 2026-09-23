@@ -23,9 +23,25 @@ describe("Rodrigo deterministic router", () => {
     expect(routeChatIntent("leé la planilla").kind).toBe("clarify");
   });
 
-  it("documento con UUID va a get_document_content", () => {
+  it("solicitud de extracción con documento va a extract_document_data", () => {
     const r = routeChatIntent(`extraé el documento ${UUID_A}`);
+    expect(r).toEqual({ kind: "tool", tool: "extract_document_data", input: { document_id: UUID_A } });
+  });
+
+  it("consulta de adjunto va a get_document_content", () => {
+    const r = routeChatIntent(`mostrame el documento adjunto ${UUID_A}`);
     expect(r).toEqual({ kind: "tool", tool: "get_document_content", input: { document_id: UUID_A } });
+  });
+
+  it("el resumen de extracción muestra evidencia limitada y avisos", () => {
+    const answer = formatToolAnswer("extract_document_data", {
+      fields: { numero: "F-123", total: "1500" },
+      items: [{ code: "A1", quantity: 2 }],
+      warnings: ["PDF parcialmente truncado"],
+    });
+    expect(answer).toContain("numero: F-123");
+    expect(answer).toContain("code");
+    expect(answer).toContain("PDF parcialmente truncado");
   });
 
   it("stock con producto UUID va a get_stock_availability", () => {

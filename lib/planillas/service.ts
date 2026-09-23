@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getPlanillaAdapter, isPlanillaModulo } from "./registry";
-import type { PlanillaChanges, PlanillaRowMeta } from "./types";
+import { PlanillaConcurrencyError, type PlanillaChanges, type PlanillaRowMeta } from "./types";
 
 export type PlanillaSessionRow = {
   id: string;
@@ -107,29 +107,42 @@ async function obtenerPlanillaWithClient(
 
 /** PATCH: solo actualiza el borrador (snapshot). Nunca toca las tablas del
  * módulo — ver REGLA #10. Rechaza si la planilla ya no está en draft. */
-export async function actualizarSnapshot(id: string, rows: PlanillaRowMeta[]): Promise<{ updated_at: string }>;
+export async function actualizarSnapshot(
+  id: string,
+  rows: PlanillaRowMeta[],
+  expectedUpdatedAt?: string
+): Promise<{ updated_at: string }>;
 export async function actualizarSnapshot(
   supabase: SupabaseClient,
   empresaId: string,
   id: string,
-  rows: PlanillaRowMeta[]
+  rows: PlanillaRowMeta[],
+  expectedUpdatedAt?: string
 ): Promise<{ updated_at: string }>;
 export async function actualizarSnapshot(
   idOrSupabase: string | SupabaseClient,
   rowsOrEmpresaId: PlanillaRowMeta[] | string,
   idMaybe?: string,
-  rowsMaybe?: PlanillaRowMeta[]
+  rowsMaybe?: PlanillaRowMeta[],
+  expectedUpdatedAt?: string
 ): Promise<{ updated_at: string }> {
   if (typeof idOrSupabase === "string") {
     const profile = await requireProfile(["administracion", "admin"]);
     const supabase = await createClient();
-    return actualizarSnapshotWithClient(supabase, profile.empresa_id, idOrSupabase, rowsOrEmpresaId as PlanillaRowMeta[]);
+    return actualizarSnapshotWithClient(
+      supabase,
+      profile.empresa_id,
+      idOrSupabase,
+      rowsOrEmpresaId as PlanillaRowMeta[],
+      idMaybe
+    );
   }
   return actualizarSnapshotWithClient(
     idOrSupabase,
     rowsOrEmpresaId as string,
     idMaybe as string,
-    rowsMaybe as PlanillaRowMeta[]
+    rowsMaybe as PlanillaRowMeta[],
+    expectedUpdatedAt
   );
 }
 
@@ -137,17 +150,22 @@ async function actualizarSnapshotWithClient(
   supabase: SupabaseClient,
   empresaId: string,
   id: string,
-  rows: PlanillaRowMeta[]
+  rows: PlanillaRowMeta[],
+  expectedUpdatedAt?: string
 ): Promise<{ updated_at: string }> {
-  const { data: current } = await supabase
+  const { data: current, error: currentError } = await supabase
     .from("planillas")
-    .select("estado")
+    .select("estado, updated_at")
     .eq("id", id)
     .eq("empresa_id", empresaId)
     .maybeSingle();
+  if (currentError) throw new Error(currentError.message);
   if (!current) throw new PlanillaNotFoundError();
   if (current.estado !== "draft") {
     throw new Error(`No se puede editar una planilla en estado "${current.estado}".`);
+  }
+  if (expectedUpdatedAt && current.updated_at !== expectedUpdatedAt) {
+    throw new PlanillaConcurrencyError("La planilla cambió desde la última lectura; vuelve a leerla antes de guardar.");
   }
 
   const { data, error } = await supabase
@@ -155,8 +173,13 @@ async function actualizarSnapshotWithClient(
     .update({ snapshot: { rows } })
     .eq("id", id)
     .eq("empresa_id", empresaId)
+    .eq("estado", "draft")
+    .eq("updated_at", expectedUpdatedAt ?? current.updated_at)
     .select("updated_at")
     .single();
+  if (expectedUpdatedAt && !data && (!error || error.code === "PGRST116")) {
+    throw new PlanillaConcurrencyError("La planilla cambió durante el guardado; vuelve a leerla antes de reintentar.");
+  }
   if (error || !data) throw new Error(error?.message ?? "No se pudo guardar el borrador.");
   return data as { updated_at: string };
 }

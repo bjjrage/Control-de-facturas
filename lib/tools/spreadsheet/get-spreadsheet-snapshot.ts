@@ -80,7 +80,7 @@ registerTool<GetSpreadsheetSnapshotInput, GetSpreadsheetSnapshotOutput>({
     "Obtiene el snapshot completo de una planilla (spreadsheet embebida): filas con metadatos (_rowId, _version), columnas definidas, y estado de la planilla. Usar cuando el usuario pregunta 'qué hay en esta planilla' o 'muéreme el presupuesto de esta obra'.",
   inputSchema: GetSpreadsheetSnapshotInputSchema,
   riskLevel: 0,
-  requiredRoles: null, // cualquier rol interno puede leer su planilla
+  requiredRoles: ["administracion", "admin"],
   handler,
 });
 
