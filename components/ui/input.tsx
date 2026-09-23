@@ -7,7 +7,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
       <input
         ref={ref}
         className={cn(
-          "h-8 w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px] outline-none focus:border-[var(--primary)] disabled:bg-[var(--hover)] disabled:text-[var(--muted)]",
+          "h-9 w-full rounded-lg border border-white/[0.09] bg-white/[0.035] px-3 text-[12px] outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-all focus:border-[var(--primary)]/70 focus:bg-white/[0.05] focus:ring-2 focus:ring-[var(--primary)]/10 disabled:bg-[var(--hover)] disabled:text-[var(--muted)]",
           className
         )}
         {...props}
@@ -24,7 +24,7 @@ export const Textarea = forwardRef<
     <textarea
       ref={ref}
       className={cn(
-        "w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-2.5 py-2 text-[13px] outline-none focus:border-[var(--primary)] min-h-16",
+        "w-full rounded-lg border border-white/[0.09] bg-white/[0.035] px-3 py-2.5 text-[12px] outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-all focus:border-[var(--primary)]/70 focus:bg-white/[0.05] focus:ring-2 focus:ring-[var(--primary)]/10 min-h-20",
         className
       )}
       {...props}
@@ -35,7 +35,7 @@ export const Textarea = forwardRef<
 export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
   return (
     <label
-      className={cn("text-[12px] font-medium text-[var(--muted)] mb-1 block", className)}
+      className={cn("text-[11px] font-medium text-[#8fa2bf] mb-1.5 block", className)}
       {...props}
     />
   );
@@ -49,7 +49,7 @@ export const Select = forwardRef<
     <select
       ref={ref}
       className={cn(
-        "h-8 w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-2 text-[13px] outline-none focus:border-[var(--primary)]",
+        "h-9 w-full rounded-lg border border-white/[0.09] bg-white/[0.035] px-3 text-[12px] outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-all focus:border-[var(--primary)]/70 focus:bg-white/[0.05] focus:ring-2 focus:ring-[var(--primary)]/10",
         className
       )}
       {...props}

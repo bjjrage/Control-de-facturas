@@ -22,7 +22,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
 
   return (
     <RodrigoAgentProvider>
-      <div className="flex min-h-screen bg-[var(--background)]">
+      <div className="flex min-h-screen bg-transparent">
       <Sidebar
         role={profile.role}
         fullName={profile.full_name}
@@ -38,7 +38,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
           showOperativo={showOperativo}
           showLicitaciones={showLicitaciones}
         />
-        <main className="flex-1 min-w-0 p-5">
+        <main className="erp-main flex-1 min-w-0 p-5">
           <AppShellClient>{children}</AppShellClient>
         </main>
       </div>

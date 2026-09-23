@@ -71,21 +71,21 @@ export function PanoramaObras({ data }: { data: PanoramaObrasData }) {
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-lg bg-[var(--panel-2)] p-2.5 flex items-center gap-2 transition-shadow duration-200 hover:shadow-[0_0_0_1px_rgba(242,104,92,0.35),0_0_16px_2px_rgba(242,104,92,0.25)]">
+        <div className="kpi-hover rounded-lg border border-transparent bg-[var(--panel-2)] p-2.5 flex items-center gap-2">
           <AlertTriangle size={14} className="text-[var(--error)] shrink-0" />
           <div className="min-w-0">
             <div className="text-[14px] font-semibold leading-none">{desviosCosto}</div>
             <div className="text-[10px] text-[var(--muted)] mt-0.5 truncate">Desvíos de costo</div>
           </div>
         </div>
-        <div className="rounded-lg bg-[var(--panel-2)] p-2.5 flex items-center gap-2 transition-shadow duration-200 hover:shadow-[0_0_0_1px_rgba(245,165,36,0.35),0_0_16px_2px_rgba(245,165,36,0.25)]">
+        <div className="kpi-hover rounded-lg border border-transparent bg-[var(--panel-2)] p-2.5 flex items-center gap-2">
           <Clock size={14} className="text-[var(--warn)] shrink-0" />
           <div className="min-w-0">
             <div className="text-[14px] font-semibold leading-none">{desviosPlazo}</div>
             <div className="text-[10px] text-[var(--muted)] mt-0.5 truncate">Desvíos de plazo</div>
           </div>
         </div>
-        <div className="rounded-lg bg-[var(--panel-2)] p-2.5 flex items-center gap-2 transition-shadow duration-200 hover:shadow-[0_0_0_1px_rgba(37,99,235,0.35),0_0_16px_2px_rgba(37,99,235,0.25)]">
+        <div className="kpi-hover rounded-lg border border-transparent bg-[var(--panel-2)] p-2.5 flex items-center gap-2">
           <ShoppingCart size={14} className="text-[var(--primary)] shrink-0" />
           <div className="min-w-0">
             <div className="text-[14px] font-semibold leading-none truncate">{formatMoney(comprasRealizadasPyg)}</div>
@@ -94,11 +94,7 @@ export function PanoramaObras({ data }: { data: PanoramaObrasData }) {
         </div>
         {productosStockMinimo !== null ? (
           <div
-            className={`rounded-lg bg-[var(--panel-2)] p-2.5 flex items-center gap-2 transition-shadow duration-200 ${
-              productosStockMinimo > 0
-                ? "hover:shadow-[0_0_0_1px_rgba(242,104,92,0.35),0_0_16px_2px_rgba(242,104,92,0.25)]"
-                : "hover:shadow-[0_0_0_1px_rgba(45,212,191,0.35),0_0_16px_2px_rgba(45,212,191,0.25)]"
-            }`}
+            className="kpi-hover rounded-lg border border-transparent bg-[var(--panel-2)] p-2.5 flex items-center gap-2"
           >
             <Boxes size={14} className={productosStockMinimo > 0 ? "text-[var(--error)] shrink-0" : "text-[var(--ok)] shrink-0"} />
             <div className="min-w-0">

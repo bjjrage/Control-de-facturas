@@ -281,10 +281,10 @@ export function Sidebar({
         title={collapsed ? item.label : undefined}
         onClick={handleClick}
         className={cn(
-          "flex items-center gap-2.5 h-9 rounded-lg text-[13px] transition-colors",
+          "erp-nav-item flex items-center gap-2.5 h-9 rounded-xl text-[13px] transition-colors",
           collapsed ? "justify-center px-0" : "px-3",
           active
-            ? "bg-[var(--nav-active)] text-white font-medium"
+            ? "erp-nav-item-active bg-[var(--nav-active)] text-white font-medium"
             : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
         )}
       >
@@ -313,7 +313,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "shrink-0 border-r border-[var(--border)] bg-[var(--panel)] flex flex-col h-screen sticky top-0 transition-[width] duration-150",
+        "erp-sidebar shrink-0 border-r border-[var(--border)] bg-[var(--panel)] flex flex-col h-screen sticky top-0 transition-[width] duration-150",
         collapsed ? "w-[68px]" : "w-[220px]"
       )}
     >
@@ -447,10 +447,10 @@ export function Sidebar({
                           window.dispatchEvent(new CustomEvent("niupack:tab", { detail: t.key }));
                         }}
                         className={cn(
-                          "w-full flex items-center gap-2.5 h-9 rounded-lg text-[13px] transition-colors",
+                          "erp-nav-item w-full flex items-center gap-2.5 h-9 rounded-xl text-[13px] transition-colors",
                           collapsed ? "justify-center px-0" : "px-3",
                           active
-                            ? "bg-[var(--nav-active)] text-white font-medium"
+                            ? "erp-nav-item-active bg-[var(--nav-active)] text-white font-medium"
                             : "text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]"
                         )}
                       >

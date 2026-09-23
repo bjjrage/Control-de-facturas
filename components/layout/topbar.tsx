@@ -118,7 +118,7 @@ export function Topbar({
   showLicitaciones: boolean;
 }) {
   return (
-    <header className="h-14 shrink-0 border-b border-[var(--border)] bg-[var(--panel)] px-4 flex items-center gap-3 sticky top-0 z-10">
+    <header className="erp-topbar h-14 shrink-0 border-b border-[var(--border)] bg-[var(--panel)] px-4 flex items-center gap-3 sticky top-0 z-10">
       <div className="flex-1 max-w-md">
         <div className="flex items-center gap-2 h-9 rounded-full bg-[var(--panel-2)] border border-[var(--border)] px-3.5">
           <Search size={15} className="text-[var(--muted)] shrink-0" />
