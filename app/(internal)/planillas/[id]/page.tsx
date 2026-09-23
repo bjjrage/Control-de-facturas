@@ -27,6 +27,7 @@ export default async function PlanillaSessionPage({
     <PlanillaSessionClient
       planillaId={planilla.id}
       estado={planilla.estado}
+      updatedAt={planilla.updated_at}
       columns={adapter.columns}
       initialRows={planilla.snapshot.rows}
       volverUrl={volver && volver.startsWith("/") ? volver : "/projects"}

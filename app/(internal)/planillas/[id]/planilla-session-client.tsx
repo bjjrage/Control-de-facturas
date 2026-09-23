@@ -5,22 +5,27 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PlanillaGrid, type PlanillaGridRow } from "@/components/planillas/PlanillaGrid";
+import { PlanillaSaveQueue } from "@/lib/planillas/save-queue";
 import type { PlanillaColumn } from "@/lib/planillas/types";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 type ConfirmStatus = "idle" | "confirming" | "conflict" | "error";
 
 const AUTOSAVE_DEBOUNCE_MS = 900;
+const PLANILLA_SAVE_CONFLICT_MESSAGE =
+  "La planilla cambió en otra sesión. Tus cambios siguen pendientes; reabre la planilla para comparar antes de confirmar.";
 
 export function PlanillaSessionClient({
   planillaId,
   estado,
+  updatedAt,
   columns,
   initialRows,
   volverUrl,
 }: {
   planillaId: string;
   estado: "draft" | "confirmed" | "cancelled";
+  updatedAt: string;
   columns: PlanillaColumn[];
   initialRows: PlanillaGridRow[];
   volverUrl: string;
@@ -30,8 +35,10 @@ export function PlanillaSessionClient({
   const [confirmStatus, setConfirmStatus] = useState<ConfirmStatus>("idle");
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingRowsRef = useRef<PlanillaGridRow[] | null>(null);
-  const inFlightRef = useRef(false);
+  const saveQueueRef = useRef(new PlanillaSaveQueue<PlanillaGridRow[]>());
+  const updatedAtRef = useRef(updatedAt);
+  const saveConflictRef = useRef(false);
+  const confirmingRef = useRef(false);
 
   const isReadOnly = estado !== "draft";
 
@@ -41,37 +48,52 @@ export function PlanillaSessionClient({
   // importa).
   const scheduleFlushRef = useRef<() => void>(() => {});
 
-  const flushSave = useCallback(async () => {
-    if (inFlightRef.current) return; // el próximo debounce reintentará con el snapshot más nuevo
-    const rows = pendingRowsRef.current;
-    if (rows === null) return;
-    pendingRowsRef.current = null;
-    inFlightRef.current = true;
+  const saveRows = useCallback(async (rows: PlanillaGridRow[]) => {
     setSaveStatus("saving");
     try {
       const res = await fetch(`/api/planillas/${planillaId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows }),
+        body: JSON.stringify({ rows, expectedUpdatedAt: updatedAtRef.current }),
       });
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 409) {
+        saveConflictRef.current = true;
+        setConfirmError(PLANILLA_SAVE_CONFLICT_MESSAGE);
+        throw new Error("planilla snapshot conflict");
+      }
       if (!res.ok) throw new Error("save failed");
+      if (typeof body.updated_at !== "string") throw new Error("save response is missing updated_at");
+      updatedAtRef.current = body.updated_at;
       setSaveStatus("saved");
     } catch {
       setSaveStatus("error");
-      // No se pierde el cambio: vuelve a la cola para el próximo intento.
-      pendingRowsRef.current = rows;
-    } finally {
-      inFlightRef.current = false;
-      if (pendingRowsRef.current !== null) {
-        // Llegaron cambios (o falló) mientras guardábamos — programar otro flush.
-        scheduleFlushRef.current();
-      }
+      throw new Error("planilla snapshot save failed");
     }
   }, [planillaId]);
 
+  const flushSave = useCallback(async () => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    if (saveConflictRef.current) return false;
+
+    const saved = await saveQueueRef.current.flush(saveRows);
+    if (!saved && saveQueueRef.current.hasPending && !saveConflictRef.current) {
+      // Los errores transitorios conservan el último snapshot y reintentan;
+      // un conflicto de versión requiere reabrir la sesión y nunca se pisa.
+      scheduleFlushRef.current();
+    }
+    return saved && saveQueueRef.current.isIdle;
+  }, [saveRows]);
+
   const scheduleFlush = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(flushSave, AUTOSAVE_DEBOUNCE_MS);
+    debounceRef.current = setTimeout(() => {
+      debounceRef.current = null;
+      void flushSave();
+    }, AUTOSAVE_DEBOUNCE_MS);
   }, [flushSave]);
 
   useEffect(() => {
@@ -91,8 +113,8 @@ export function PlanillaSessionClient({
   // de este fix.
   const handleGridChange = useCallback(
     (rows: PlanillaGridRow[]) => {
-      if (isReadOnly) return;
-      pendingRowsRef.current = rows;
+      if (isReadOnly || confirmingRef.current) return;
+      saveQueueRef.current.enqueue(rows);
       scheduleFlush();
     },
     [isReadOnly, scheduleFlush]
@@ -103,8 +125,12 @@ export function PlanillaSessionClient({
   // último tramo de edición si el debounce todavía no disparó).
   useEffect(() => {
     function onBeforeUnload() {
-      if (pendingRowsRef.current !== null && navigator.sendBeacon) {
-        const blob = new Blob([JSON.stringify({ rows: pendingRowsRef.current })], { type: "application/json" });
+      const rows = saveQueueRef.current.latestUnsentSnapshot;
+      if (rows !== null && navigator.sendBeacon) {
+        const blob = new Blob(
+          [JSON.stringify({ rows, expectedUpdatedAt: updatedAtRef.current })],
+          { type: "application/json" }
+        );
         navigator.sendBeacon(`/api/planillas/${planillaId}`, blob);
       }
     }
@@ -113,21 +139,35 @@ export function PlanillaSessionClient({
   }, [planillaId]);
 
   async function handleConfirmar() {
+    if (confirmingRef.current) return;
+    confirmingRef.current = true;
     setConfirmStatus("confirming");
     setConfirmError(null);
-    // Asegura que el último tramo editado ya esté guardado antes de confirmar.
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (pendingRowsRef.current !== null) await flushSave();
+    // Espera el PATCH que ya estuviera en vuelo y drena cualquier edición más
+    // reciente. Si falla o hay conflicto de versión, nunca confirma el snapshot viejo.
+    const saved = await flushSave();
+    if (!saved) {
+      confirmingRef.current = false;
+      setConfirmStatus("error");
+      setConfirmError(
+        saveConflictRef.current
+          ? PLANILLA_SAVE_CONFLICT_MESSAGE
+          : "No se pudieron guardar los cambios pendientes; no se confirmó la planilla."
+      );
+      return;
+    }
 
     try {
       const res = await fetch(`/api/planillas/${planillaId}/confirmar`, { method: "POST" });
       const body = await res.json().catch(() => ({}));
       if (res.status === 409) {
+        confirmingRef.current = false;
         setConfirmStatus("conflict");
         setConfirmError(body.error ?? "Los datos de origen cambiaron desde que se abrió la planilla.");
         return;
       }
       if (!res.ok) {
+        confirmingRef.current = false;
         setConfirmStatus("error");
         setConfirmError(body.error ?? "No se pudo confirmar la planilla.");
         return;
@@ -135,6 +175,7 @@ export function PlanillaSessionClient({
       router.push(volverUrl);
       router.refresh();
     } catch {
+      confirmingRef.current = false;
       setConfirmStatus("error");
       setConfirmError("Se cortó la conexión al confirmar.");
     }
@@ -165,7 +206,12 @@ export function PlanillaSessionClient({
         )}
       </div>
       <div className="flex-1 min-h-0 p-3">
-        <PlanillaGrid columns={columns} initialRows={initialRows} onChange={handleGridChange} readOnly={isReadOnly} />
+        <PlanillaGrid
+          columns={columns}
+          initialRows={initialRows}
+          onChange={handleGridChange}
+          readOnly={isReadOnly || confirmStatus === "confirming"}
+        />
       </div>
     </div>
   );

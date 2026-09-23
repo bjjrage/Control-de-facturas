@@ -6,9 +6,20 @@ import type { HotTableRef } from "@handsontable/react-wrapper";
 import Handsontable from "handsontable";
 import { registerAllModules } from "handsontable/registry";
 import { HyperFormula } from "hyperformula";
-import { Plus, Trash2, Undo2, Redo2, Bold, AlignLeft, AlignCenter, AlignRight, Ban, Paintbrush, Search } from "lucide-react";
+import { Plus, Trash2, Undo2, Redo2, Bold, AlignLeft, AlignCenter, AlignRight, Ban, Paintbrush, Search, Filter, X } from "lucide-react";
 import type { PlanillaColumn, PlanillaRowMeta, PlanillaRowStyle } from "@/lib/planillas/types";
-import { colIndexToLetter, isNewRowId, newRowId, resolveFormulaTemplate } from "@/lib/planillas/grid-utils";
+import {
+  colIndexToLetter,
+  formatPlanillaFilterValue,
+  isNewRowId,
+  mapFilterBarHeaderWidths,
+  matchesPlanillaColumnFilters,
+  newRowId,
+  omitBlankNewPlanillaRows,
+  resolveFormulaTemplate,
+  seedRowsWithBlankFloor,
+  MIN_PLANILLA_BLANK_ROWS,
+} from "@/lib/planillas/grid-utils";
 
 registerAllModules();
 
@@ -151,6 +162,14 @@ export const PlanillaGrid = memo(function PlanillaGrid({
 }: PlanillaGridProps) {
   const hotRef = useRef<HotTableRef>(null);
   const deletedRef = useRef<PlanillaGridRow[]>([]);
+  // Refs para alinear la barra de filtros con las columnas reales de
+  // Handsontable — ver syncFilterBarWidths más abajo.
+  const filterButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const filterSpacerRef = useRef<HTMLSpanElement>(null);
+  // true recién después de que Handsontable termina su propia construcción
+  // interna (afterInit) — ver el comentario grande en handleAfterCreateRow
+  // sobre por qué hace falta esta bandera.
+  const readyRef = useRef(false);
   const [formulaBarValue, setFormulaBarValue] = useState("");
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
   // _rowId de la fila actualmente seleccionada — ver el comentario grande
@@ -172,6 +191,21 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   const searchTermRef = useRef("");
   const [searchInputValue, setSearchInputValue] = useState("");
 
+  // Filtro por columna propio (checkboxes por valor), aplicado a las filas
+  // renderizadas. El Set almacena los valores permitidos; valores nuevos que
+  // aparezcan luego de aplicar el filtro permanecen ocultos hasta seleccionarlos.
+  const filterValuesRef = useRef<Map<string, Set<string>>>(new Map());
+  const [openFilterCol, setOpenFilterCol] = useState<string | null>(null);
+  const [filterDraft, setFilterDraft] = useState<Set<string> | null>(null);
+  // Se recalcula solo al abrir un dropdown (no en cada render) — mismo
+  // criterio que el resto de este componente respecto a no disparar trabajo
+  // extra en cada tecla.
+  const [filterOptions, setFilterOptions] = useState<string[]>([]);
+  // Fuerza a applyStylesToDom a recalcularse tras cambiar un filtro sin
+  // pasar por props/settings de Handsontable (por lo mismo que el comentario
+  // de arriba: no queremos que esto dispare updateSettings()).
+  const [filterVersion, setFilterVersion] = useState(0);
+
   const htColumns = useMemo(() => columns.map(columnToHtConfig), [columns]);
   const colHeaders = useMemo(() => columns.map((c) => c.label), [columns]);
   // useId() en vez de Math.random(): estable entre renders y puro (requisito
@@ -188,6 +222,15 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     return row;
   }
 
+  // Fila vacía con identidad propia — usada para sembrar la fila vacía
+  // final (ver seedInitialRows y ensureTrailingSpareRow más abajo) sin
+  // depender de que Handsontable la cree sola.
+  function makeSpareRow(rowIndex0: number): PlanillaGridRow {
+    const row: PlanillaGridRow = { _rowId: newRowId(), _version: null };
+    for (const col of columns) row[col.key] = null;
+    return applyFormulaDefaults(row, rowIndex0);
+  }
+
   // Estado con inicializador perezoso, NO un valor recalculado en cada
   // render: si `data` recibiera un array con una referencia nueva en cada
   // render, Handsontable lo trata como una carga de datos nueva, dispara
@@ -196,7 +239,25 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   // reproducido y confirmado en components/planillas antes de este fix.
   // `initialRows` es el snapshot con el que arranca la sesión y no cambia
   // en su vida útil, así que una sola computación al montar es correcta.
-  const [seedInitialRows] = useState(() => initialRows.map((r, i) => applyFormulaDefaults({ ...r }, i)));
+  // Piso de filas en blanco al montar — que la hoja recién generada se vea
+  // y se sienta como una hoja de Excel real (varias filas vacías listas
+  // para escribir), no como una lista de 1 renglón que crece de a uno por
+  // cada click en "+ Fila". Sin esto, un proyecto sin ítems (0 filas del
+  // adaptador) mostraba una sola fila vacía al abrir la planilla.
+  const [seedInitialRows] = useState(() => {
+    const rows = initialRows.map((r, i) => applyFormulaDefaults({ ...r }, i));
+    // Siempre termina con al menos MIN_BLANK_ROWS filas vacías (ver
+    // ensureTrailingSpareRow para el comportamiento en régimen, que sigue
+    // agregando de a una) para que la grilla se sienta como Excel de
+    // verdad. Se siembra ACÁ, antes de montar, en vez de dejar que
+    // Handsontable las cree solas al iniciar: confirmado en vivo que crear
+    // una fila durante la construcción interna de Handsontable (antes de
+    // que el editor esté listo) revienta con "Cannot read properties of
+    // undefined (reading 'getActiveEditor')" en cuanto handleAfterCreateRow
+    // llama a hot.setDataAtRowProp() en ese momento (proyecto sin ítems, 0
+    // filas iniciales, es el caso que más lo dispara).
+    return seedRowsWithBlankFloor(rows, makeSpareRow, MIN_PLANILLA_BLANK_ROWS);
+  });
 
   // Espejo del formato por fila — indexado por _rowId (identidad estable de
   // la fila, REGLA #8 de este motor), NUNCA por posición. Confirmado leyendo
@@ -206,7 +267,7 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   // entre re-renders (una fila puede aparecer/desaparecer de la vista, y su
   // posición física puede no coincidir con la visual). Este diseño ya
   // resuelve ese problema; lo que se sacó fue el PLUGIN nativo de filtros de
-  // Handsontable en sí (filters/dropdownMenu) — probado en vivo, tira
+  // Handsontable (filters/dropdownMenu) — probado en vivo, tira
   // "Cannot read properties of null (reading 'getEntries')" y rompe toda la
   // página al aplicar un filtro. El buscador propio (texto libre,
   // searchTermRef más abajo) sigue andando y ya ejercita este mismo diseño
@@ -260,7 +321,7 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     // pero getDataAtCell espera índice VISUAL — hace falta convertir antes de
     // usarlo, si no con un filtro activo se lee la celda equivocada.
     const sourceRows = hot.getSourceData() as PlanillaGridRow[];
-    const current = sourceRows.map((row, physicalRowIndex) => {
+    const resolvedRows = sourceRows.map((row, physicalRowIndex) => {
       const resolved: PlanillaGridRow = { ...row };
       const visualRowIndex = hot.toVisualRow(physicalRowIndex);
       columns.forEach((col, colIndex) => {
@@ -283,15 +344,59 @@ export const PlanillaGrid = memo(function PlanillaGrid({
       else delete resolved._style;
       return resolved;
     });
+    // Las filas nuevas completamente vacías son espacio de edición, no
+    // partidas de presupuesto. No deben llegar al RPC de confirmación, que
+    // exige código y descripción. Las filas parciales sí se conservan para
+    // que la validación de dominio pueda rechazarlas.
+    const current = omitBlankNewPlanillaRows(resolvedRows, columns);
     onChangeRef.current([...current, ...deletedRef.current]);
   }, [columns]);
+
+  // Mantiene siempre UNA fila vacía al final, como una hoja de Excel real —
+  // así el usuario nunca tiene que acordarse de clickear "Fila" para poder
+  // seguir cargando renglones.
+  //
+  // Esto NO usa la opción nativa `minSpareRows` de Handsontable — se probó
+  // en vivo y causó un loop de crecimiento sin control (pasó de 4 a más de
+  // 280 filas y colgó la pestaña, confirmado por los warnings en consola
+  // "Not possible to set cell data" de HyperFormula al superar el tamaño de
+  // la hoja). La causa: toda fila, incluso una vacía, ya trae precargada la
+  // fórmula del Subtotal (applyFormulaDefaults/resolveFormulaTemplate) — así
+  // que para Handsontable esa fila NUNCA cuenta como "vacía"
+  // (countEmptyRows), y como este componente llama a hot.updateSettings()
+  // en cada re-render propio (ver el comentario grande sobre memo() más
+  // arriba), cada render volvía a evaluar minSpareRows, veía "cero filas
+  // vacías" y agregaba otra — para siempre. Acá el criterio de "vacía" lo
+  // decidimos nosotros (ignora la columna con fórmula propia) y el disparo
+  // es explícito, una sola vez por edición real — sin loop posible.
+  const ensureTrailingSpareRow = useCallback(() => {
+    const hot = hotRef.current?.hotInstance;
+    if (!hot || readOnly || hot.countRows() >= MAX_ROWS) return;
+    const lastRow = hot.countRows() - 1;
+    // La grilla se quedó sin filas (se borraron todas) — hace falta una
+    // fila vacía para poder seguir escribiendo, no solo cuando la ÚLTIMA
+    // tiene datos.
+    if (lastRow < 0) {
+      hot.alter("insert_row_below", null as unknown as number, 1);
+      return;
+    }
+    const rowData = hot.getSourceDataAtRow(lastRow) as PlanillaGridRow | undefined;
+    if (!rowData) return;
+    const isBlank = columns.every((col) => {
+      if (col.formulaTemplate) return true;
+      const v = rowData[col.key];
+      return v === null || v === undefined || v === "";
+    });
+    if (!isBlank) hot.alter("insert_row_below", lastRow, 1);
+  }, [columns, readOnly]);
 
   const handleAfterChange = useCallback(
     (_changes: unknown, source: string) => {
       if (source === "loadData") return;
       emitChange();
+      ensureTrailingSpareRow();
     },
-    [emitChange]
+    [emitChange, ensureTrailingSpareRow]
   );
 
   const handleAfterCreateRow = useCallback(
@@ -301,8 +406,35 @@ export const PlanillaGrid = memo(function PlanillaGrid({
       // rowStylesRef ya no necesita sincronizarse a mano acá — es un Map por
       // _rowId, no un array por posición. Una fila nueva no tiene entrada
       // hasta que se le aplique formato explícitamente.
+      //
+      // readyRef (ver afterInit en <HotTable>): Handsontable puede disparar
+      // afterCreateRow para filas propias DURANTE su propia construcción
+      // interna, antes de que el editor esté listo — confirmado en vivo
+      // contra una planilla recién generada sin ítems (crashea con "Cannot
+      // read properties of undefined (reading 'getActiveEditor')" apenas
+      // este handler llama a hot.setDataAtRowProp en ese momento, sin
+      // importar startRows). En esa ventana puntual (antes de afterInit)
+      // esta función NUNCA llama a una API de Handsontable: muta el objeto
+      // de la fila directo, que es seguro porque el resto de los plugins
+      // (fórmulas incluido) todavía no arrancaron su propio escaneo inicial
+      // — van a leer estos valores como si vinieran de la carga inicial,
+      // mismo mecanismo que seedInitialRows/makeSpareRow más arriba.
+      // Después de afterInit (alta de fila real por el usuario, vía el
+      // botón "Fila" o ensureTrailingSpareRow) sigue usando
+      // setDataAtRowProp como siempre, que ya está probado en vivo.
       for (let i = 0; i < amount; i++) {
         const rowIndex = index + i;
+        if (!readyRef.current) {
+          const row = hot.getSourceDataAtRow(rowIndex) as PlanillaGridRow | undefined;
+          if (row) {
+            row._rowId = newRowId();
+            row._version = null;
+            for (const col of formulaColumns) {
+              if (col.formulaTemplate) row[col.key] = resolveFormulaTemplate(col.formulaTemplate, rowIndex + 1);
+            }
+          }
+          continue;
+        }
         hot.setDataAtRowProp(rowIndex, "_rowId", newRowId(), "PlanillaGrid.afterCreateRow");
         hot.setDataAtRowProp(rowIndex, "_version", null, "PlanillaGrid.afterCreateRow");
         for (const col of formulaColumns) {
@@ -316,7 +448,12 @@ export const PlanillaGrid = memo(function PlanillaGrid({
           }
         }
       }
-      emitChange();
+      // emitChange también llama a APIs de Handsontable (getSourceData,
+      // toVisualRow, getDataAtCell) — mismo motivo, no se llama todavía si
+      // la construcción sigue en curso. El padre ya tiene el snapshot
+      // inicial correcto (seedInitialRows), así que no hace falta notificar
+      // nada antes de que la grilla esté lista para interactuar.
+      if (readyRef.current) emitChange();
     },
     [emitChange, formulaColumns]
   );
@@ -341,7 +478,45 @@ export const PlanillaGrid = memo(function PlanillaGrid({
 
   const handleAfterRemoveRow = useCallback(() => {
     emitChange();
-  }, [emitChange]);
+    ensureTrailingSpareRow();
+  }, [emitChange, ensureTrailingSpareRow]);
+
+  // La barra de filtros ("Filtrar por: Código Descripción...") es una fila
+  // de botones propia, fuera de Handsontable — NO usa sus anchos de columna
+  // reales (col.width es solo el ancho INICIAL que Handsontable recibe;
+  // manualColumnResize puede cambiarlo después, y el ancho de la columna de
+  // números de fila lo calcula Handsontable solo, sin API pública para
+  // leerlo). Confirmado en vivo contra producción: los botones quedaban
+  // angostos-según-su-texto y corridos respecto a las columnas de la grilla
+  // de abajo. Se mide el <th> real ya renderizado y se copia su ancho en px
+  // a cada botón — así quedan pixel-perfect sin importar resize manual.
+  const syncFilterBarWidths = useCallback(() => {
+    const hot = hotRef.current?.hotInstance;
+    if (!hot) return;
+    const headerRow = hot.rootElement.querySelector<HTMLTableRowElement>(".ht_master table thead tr");
+    const ths = headerRow ? Array.from(headerRow.querySelectorAll<HTMLElement>("th")) : [];
+    const widths = mapFilterBarHeaderWidths(
+      ths.map((th) => th.getBoundingClientRect().width),
+      columns.map((column) => column.key)
+    );
+    if (!widths) return;
+    if (filterSpacerRef.current) {
+      filterSpacerRef.current.style.width = `${widths.rowHeaderWidth}px`;
+    }
+    widths.columns.forEach(({ key, width }) => {
+      const btn = filterButtonRefs.current.get(key);
+      if (btn) btn.style.width = `${width}px`;
+    });
+  }, [columns]);
+
+  const handleAfterInit = useCallback(() => {
+    readyRef.current = true;
+    syncFilterBarWidths();
+  }, [syncFilterBarWidths]);
+
+  const handleAfterColumnResize = useCallback(() => {
+    syncFilterBarWidths();
+  }, [syncFilterBarWidths]);
 
   const handleAfterSelectionEnd = useCallback((row: number, column: number) => {
     const hot = hotRef.current?.hotInstance;
@@ -434,6 +609,57 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     applyStylesToDom();
   }
 
+  function handleOpenFilter(colKey: string) {
+    const hot = hotRef.current?.hotInstance;
+    if (!hot) return;
+    const source = hot.getSourceData() as PlanillaGridRow[];
+    const uniques = Array.from(new Set(source.map((r) => formatPlanillaFilterValue(r[colKey])))).sort((a, b) =>
+      a.localeCompare(b, "es")
+    );
+    setFilterOptions(uniques);
+    const allowed = filterValuesRef.current.get(colKey);
+    setFilterDraft(new Set(allowed ? uniques.filter((value) => allowed.has(value)) : uniques));
+    setOpenFilterCol((prev) => (prev === colKey ? null : colKey));
+  }
+
+  function toggleFilterDraftValue(value: string) {
+    setFilterDraft((prev) => {
+      if (!prev) return prev;
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+  }
+
+  function handleApplyFilter() {
+    if (!openFilterCol || !filterDraft) return;
+    if (filterDraft.size === filterOptions.length) filterValuesRef.current.delete(openFilterCol);
+    else filterValuesRef.current.set(openFilterCol, new Set(filterDraft));
+    setOpenFilterCol(null);
+    setFilterDraft(null);
+    setFilterVersion((v) => v + 1);
+    applyStylesToDom();
+  }
+
+  function handleClearOneFilter(colKey: string) {
+    filterValuesRef.current.delete(colKey);
+    setOpenFilterCol(null);
+    setFilterDraft(null);
+    setFilterVersion((v) => v + 1);
+    applyStylesToDom();
+  }
+
+  function handleClearAllFilters() {
+    filterValuesRef.current.clear();
+    setOpenFilterCol(null);
+    setFilterDraft(null);
+    setFilterVersion((v) => v + 1);
+    applyStylesToDom();
+  }
+
+  const activeFilterCount = filterValuesRef.current.size;
+
   // Formato por FILA (no por celda individual) — coincide con el caso de uso
   // real (marcar toda la fila de un título de sección en negrita) y evita un
   // modelo mucho más pesado. Se persiste en budget_items.style (ver
@@ -496,6 +722,9 @@ export const PlanillaGrid = memo(function PlanillaGrid({
         Object.entries(rowData).some(
           ([key, v]) => !key.startsWith("_") && v !== null && v !== undefined && String(v).toLowerCase().includes(term)
         );
+      // Una fila pasa si pertenece a los valores permitidos en todas las
+      // columnas filtradas; los valores nuevos quedan fuera hasta seleccionarlos.
+      const failsColumnFilter = rowData !== undefined && !matchesPlanillaColumnFilters(rowData, filterValuesRef.current);
       const classes = [
         style?.bold ? "plr-bold" : "",
         style?.align ? `plr-align-${style.align}` : "",
@@ -512,7 +741,8 @@ export const PlanillaGrid = memo(function PlanillaGrid({
       // igual qué fila oculte cada uno, el formato la sigue de todos modos.
       const firstTd = hot.getCell(visualRow, 0);
       const tr = firstTd?.parentElement as HTMLTableRowElement | null | undefined;
-      if (tr) tr.style.display = term.length > 0 && !isMatch ? "none" : "";
+      const hiddenBySearch = term.length > 0 && !isMatch;
+      if (tr) tr.style.display = hiddenBySearch || failsColumnFilter ? "none" : "";
       const colCount = hot.countCols();
       for (let col = 0; col < colCount; col++) {
         const td = hot.getCell(visualRow, col);
@@ -708,6 +938,107 @@ export const PlanillaGrid = memo(function PlanillaGrid({
           className="flex-1 bg-transparent text-[12px] outline-none font-mono disabled:opacity-60"
         />
       </div>
+      {!readOnly ? (
+        <div
+          className="flex items-center gap-0 h-8 px-0 border border-[var(--border)] border-b-0 bg-[var(--panel-2)] shrink-0 flex-nowrap overflow-x-auto relative"
+          // data-fv: sin uso real, solo referencia filterVersion para forzar
+          // el re-render de este bloque (activeFilterCount/hasFilter leen
+          // directo de filterValuesRef, un ref no reactivo por diseño).
+          data-fv={filterVersion}
+        >
+          <span className="sr-only">Filtrar por:</span>
+          {/* Espaciador — mismo ancho que la columna de números de fila de
+              Handsontable (ver syncFilterBarWidths), para que el primer
+              botón arranque alineado con la primera columna real. */}
+          <span ref={filterSpacerRef} className="shrink-0" aria-hidden />
+          {columns.map((col) => {
+            const hasFilter = filterValuesRef.current.has(col.key);
+            return (
+              <div key={col.key} className="relative shrink-0">
+                <button
+                  ref={(el) => {
+                    if (el) filterButtonRefs.current.set(col.key, el);
+                    else filterButtonRefs.current.delete(col.key);
+                  }}
+                  type="button"
+                  onClick={() => handleOpenFilter(col.key)}
+                  title={`Filtrar ${col.label}`}
+                  className={`flex items-center gap-1 px-2 h-6 rounded text-[11px] overflow-hidden whitespace-nowrap justify-center ${
+                    hasFilter
+                      ? "bg-[var(--primary)] text-[#1a0e00]"
+                      : "text-[var(--foreground)] hover:bg-[var(--hover)]"
+                  }`}
+                >
+                  <Filter size={11} className="shrink-0" /> <span className="truncate">{col.label}</span>
+                </button>
+                {openFilterCol === col.key && filterDraft ? (
+                  <div className="absolute z-20 top-7 left-0 w-56 max-h-72 flex flex-col rounded-md border border-[var(--border)] bg-[var(--panel)] shadow-lg">
+                    <div className="flex items-center justify-between px-2 py-1.5 border-b border-[var(--border)]">
+                      <span className="text-[11px] font-medium">{col.label}</span>
+                      <button type="button" onClick={() => setOpenFilterCol(null)} className="text-[var(--muted)] hover:text-[var(--foreground)]">
+                        <X size={13} />
+                      </button>
+                    </div>
+                    <div className="px-2 py-1 border-b border-[var(--border)]">
+                      <button
+                        type="button"
+                        className="text-[11px] text-[var(--primary)] hover:underline"
+                        onClick={() =>
+                          setFilterDraft((prev) =>
+                            prev && prev.size === filterOptions.length ? new Set() : new Set(filterOptions)
+                          )
+                        }
+                      >
+                        {filterDraft.size === filterOptions.length ? "Deseleccionar todo" : "Seleccionar todo"}
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto py-1">
+                      {filterOptions.map((opt) => (
+                        <label
+                          key={opt}
+                          className="flex items-center gap-2 px-2 py-1 text-[11px] hover:bg-[var(--hover)] cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={filterDraft.has(opt)}
+                            onChange={() => toggleFilterDraftValue(opt)}
+                          />
+                          <span className="truncate">{opt}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between gap-1 px-2 py-1.5 border-t border-[var(--border)]">
+                      <button
+                        type="button"
+                        onClick={() => handleClearOneFilter(col.key)}
+                        className="text-[11px] text-[var(--muted)] hover:text-[var(--foreground)]"
+                      >
+                        Quitar filtro
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleApplyFilter}
+                        className="px-2 h-6 rounded text-[11px] bg-[var(--primary)] text-[#1a0e00]"
+                      >
+                        Aceptar
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+          {activeFilterCount > 0 ? (
+            <button
+              type="button"
+              onClick={handleClearAllFilters}
+              className="ml-1 flex items-center gap-1 px-2 h-6 rounded text-[11px] text-[var(--muted)] hover:bg-[var(--hover)]"
+            >
+              <X size={11} /> Quitar filtros ({activeFilterCount})
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       <div className="flex-1 min-h-0 border border-[var(--border)] rounded-b-lg overflow-hidden">
         <HotTable
           ref={hotRef}
@@ -723,6 +1054,12 @@ export const PlanillaGrid = memo(function PlanillaGrid({
           contextMenu={CONTEXT_MENU_ITEMS as unknown as string[]}
           fillHandle={FILL_HANDLE_SETTINGS}
           maxRows={MAX_ROWS}
+          // Handsontable rellena hasta 5 filas vacías al montar por defecto
+          // (startRows), sin relación con nuestra propia lógica de fila
+          // vacía final (ensureTrailingSpareRow) — en 0 acá porque esa fila
+          // ya viene sembrada en los datos iniciales (seedInitialRows) y no
+          // hace falta que Handsontable cree ninguna por su cuenta al montar.
+          startRows={0}
           manualColumnResize
           manualRowResize
           readOnly={readOnly}
@@ -733,6 +1070,8 @@ export const PlanillaGrid = memo(function PlanillaGrid({
           afterRemoveRow={handleAfterRemoveRow}
           afterSelectionEnd={handleAfterSelectionEnd}
           afterRender={applyStylesToDom}
+          afterInit={handleAfterInit}
+          afterColumnResize={handleAfterColumnResize}
         />
       </div>
       {/* Clases fijas para la paleta de formato — no hay hex arbitrario, así

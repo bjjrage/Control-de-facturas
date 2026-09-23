@@ -1,5 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { colIndexToLetter, isNewRowId, newRowId, resolveFormulaTemplate, NEW_ROW_PREFIX } from "./grid-utils";
+import {
+  colIndexToLetter,
+  formatPlanillaFilterValue,
+  isBlankNewPlanillaRow,
+  isNewRowId,
+  mapFilterBarHeaderWidths,
+  matchesPlanillaColumnFilters,
+  newRowId,
+  omitBlankNewPlanillaRows,
+  resolveFormulaTemplate,
+  seedRowsWithBlankFloor,
+  NEW_ROW_PREFIX,
+  MIN_PLANILLA_BLANK_ROWS,
+} from "./grid-utils";
 
 describe("identidad de fila — nunca por posición (REGLA #8)", () => {
   it("una fila nueva se marca con el prefijo new: y NO con un uuid pelado", () => {
@@ -47,5 +60,60 @@ describe("resolveFormulaTemplate — cantidad × precio_unitario", () => {
     const afterInsertAtIndex1 = [1, 2, 3, 4].map((r) => resolveFormulaTemplate(template, r));
     expect(beforeInsert).toEqual(["=D1*E1", "=D2*E2", "=D3*E3"]);
     expect(afterInsertAtIndex1).toEqual(["=D1*E1", "=D2*E2", "=D3*E3", "=D4*E4"]);
+  });
+});
+
+describe("PlanillaGrid functional hardening", () => {
+  it("siembra el piso de filas vacías cuando abre una planilla sin datos y conserva una reserva", () => {
+    let nextIndex = 0;
+    const emptyRows = seedRowsWithBlankFloor([], (index) => {
+      nextIndex = index + 1;
+      return { index };
+    });
+    expect(emptyRows).toHaveLength(MIN_PLANILLA_BLANK_ROWS);
+    expect(emptyRows.map((row) => row.index)).toEqual(Array.from({ length: 20 }, (_, index) => index));
+    expect(nextIndex).toBe(20);
+
+    const existingRows = seedRowsWithBlankFloor([{ id: "existing" }], () => ({ id: "blank" }));
+    expect(existingRows).toHaveLength(MIN_PLANILLA_BLANK_ROWS);
+    expect(existingRows[0]).toEqual({ id: "existing" });
+  });
+
+  it("omite solo las filas nuevas completamente vacías del snapshot del presupuesto", () => {
+    const columns = [
+      { key: "code" },
+      { key: "description" },
+      { key: "quantity" },
+      { key: "subtotal", formulaTemplate: "=C{row}*D{row}" },
+    ];
+    const blank = { _rowId: "new:blank", code: " ", description: null, quantity: null, subtotal: 0 };
+    const partial = { _rowId: "new:partial", code: "A-1", description: "", quantity: null, subtotal: 0 };
+    const zero = { _rowId: "new:zero", code: "A-2", description: "Trabajo", quantity: 0, subtotal: 0 };
+    const existing = { _rowId: "persisted-id", code: "", description: "", quantity: null, subtotal: null };
+
+    expect(isBlankNewPlanillaRow(blank, columns)).toBe(true);
+    expect(isBlankNewPlanillaRow(partial, columns)).toBe(false);
+    expect(omitBlankNewPlanillaRows([blank, partial, zero, existing], columns)).toEqual([partial, zero, existing]);
+  });
+
+  it("un filtro de columna mantiene fuera los valores nuevos no seleccionados", () => {
+    const allowed = new Map([["code", new Set(["A"])] ]);
+    expect(matchesPlanillaColumnFilters({ code: "A" }, allowed)).toBe(true);
+    expect(matchesPlanillaColumnFilters({ code: "C" }, allowed)).toBe(false);
+    expect(formatPlanillaFilterValue(null)).toBe("(vacío)");
+    expect(matchesPlanillaColumnFilters({ code: null }, new Map([["code", new Set(["(vacío)"])]]))).toBe(true);
+    expect(matchesPlanillaColumnFilters({ code: "A" }, new Map([["code", new Set()]]))).toBe(false);
+  });
+
+  it("mapea anchos medidos de los encabezados a columna de filas y filtros", () => {
+    expect(mapFilterBarHeaderWidths([48, 132, 280, 96], ["code", "description", "quantity"])).toEqual({
+      rowHeaderWidth: 48,
+      columns: [
+        { key: "code", width: 132 },
+        { key: "description", width: 280 },
+        { key: "quantity", width: 96 },
+      ],
+    });
+    expect(mapFilterBarHeaderWidths([], ["code"])).toBeNull();
   });
 });

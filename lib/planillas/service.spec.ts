@@ -21,6 +21,22 @@ function makeDb(currentUpdatedAt: string, updateResult: { data: unknown; error: 
 }
 
 describe("actualizarSnapshot concurrency guard", () => {
+  it("rejects an old client snapshot before writing", async () => {
+    const { db, builder } = makeDb("2026-09-22T12:00:02.000Z");
+
+    await expect(
+      actualizarSnapshot(
+        db,
+        "00000000-0000-4000-a000-000000000010",
+        "00000000-0000-4000-a000-000000000099",
+        [],
+        "2026-09-22T12:00:01.000Z"
+      )
+    ).rejects.toBeInstanceOf(PlanillaConcurrencyError);
+
+    expect(builder.update).not.toHaveBeenCalled();
+  });
+
   it("rejects a stale snapshot before issuing an update", async () => {
     const { db, builder } = makeDb("2026-09-22T12:00:02.000Z");
 
