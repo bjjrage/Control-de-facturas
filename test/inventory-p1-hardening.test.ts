@@ -17,7 +17,7 @@ const propagationFix = readFileSync(
 const auditFix = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260914010000_inventory_final_audit_hardening.sql"),
   "utf8"
-);
+).replace(/\r\n/g, "\n");
 const gateFix = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260914020000_inventory_partial_upload_gate.sql"),
   "utf8"
@@ -25,7 +25,7 @@ const gateFix = readFileSync(
 const uploadResolution = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260914030000_inventory_partial_upload_resolution.sql"),
   "utf8"
-);
+).replace(/\r\n/g, "\n");
 const portalRoute = readFileSync(
   resolve(process.cwd(), "app/api/warehouse-portal/[token]/route.ts"),
   "utf8"
