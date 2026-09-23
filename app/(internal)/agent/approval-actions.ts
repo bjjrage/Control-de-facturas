@@ -11,6 +11,7 @@ import { emitAgentEvent, processAgentEvent } from "@/lib/agent/events";
 import { createRun, createTask, finishRun, updateTaskStatus } from "@/lib/agent/runtime";
 import { sanitizeAgentError } from "@/lib/agent/sanitize";
 import { getEmailDraftSendContext, getEmailDraftPreview, getRecipientLabel, markEmailDraftWaitingApproval, recordEmailEvent } from "@/lib/email/domain-service";
+import { recoverStaleEmailSendAttempts } from "@/lib/email/recovery";
 import type { EmailPreview } from "@/lib/email/types";
 import "@/lib/tools"; // auto-registro de todos los tools
 
@@ -78,6 +79,7 @@ export async function sendPreparedEmailAction(params: {
   const profile = await requireProfile(["comercial", "admin"]);
   const supabase = await createClient();
   const actor = actorFromProfile(profile);
+  await recoverStaleEmailSendAttempts();
   let context = await getEmailDraftSendContext(supabase, actor, params.draftId, params.previewHash);
   if (context.row.status === "DELIVERY_UNKNOWN") {
     if (!params.forceResend) {

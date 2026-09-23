@@ -3,9 +3,9 @@
 // Server-side only: valida autenticación y tenant, retorna sessionId y config.
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { actorFromProfile, withWorkspace } from "@/lib/agent/context";
+import { sanitizeAgentError } from "@/lib/agent/sanitize";
 import { isVoiceAvailable } from "@/lib/voice/providers";
 import { createVoiceSession } from "@/lib/voice/service";
 
@@ -30,14 +30,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Parsear body
     const body = await request.json().catch(() => ({}));
-    const {
-      workspace,           // AgentWorkspaceContext del frontend
-      sttConfig,           // Config opcional STT
-      ttsConfig,           // Config opcional TTS
-      maxTurnDurationMs,
-      idleTimeoutMs,
-      maxTtsChars,
-    } = body;
+    const { workspace } = body as { workspace?: unknown }; // AgentWorkspaceContext del frontend
 
     // 4. Construir actor context con workspace
     const actor = actorFromProfile(profile, { source: "web" });
@@ -74,9 +67,9 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[Voice API] Error creating session:", error);
+    console.error("[Voice API] Error creating session:", sanitizeAgentError(error));
     return NextResponse.json(
-      { error: "Internal error", message: error instanceof Error ? error.message : "Unknown error" },
+      { error: "Internal error", message: "No se pudo crear la sesión de voz" },
       { status: 500 }
     );
   }

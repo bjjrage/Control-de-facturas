@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentToolContext } from "@/lib/agent/context";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recoverStaleEmailSendAttempts } from "./recovery";
 import { hashPayload } from "@/lib/agent/approvals";
 import { sanitizeAgentError } from "@/lib/agent/sanitize";
 import {
@@ -938,7 +939,7 @@ export async function sendEmailDraft(params: {
       recipientLabel: await getRecipientLabel(params.db, params.actor.empresaId, current.to),
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = sanitizeAgentError(error, 1_000);
     const requiresReapproval = error instanceof EmailApprovalMismatchError;
     const deliveryUnknown = providerAccepted || error instanceof EmailDeliveryUnknownError;
     await admin.rpc(deliveryUnknown ? "mark_email_send_attempt_unknown" : "fail_email_send_attempt", {
@@ -997,6 +998,7 @@ async function sendEmailDraftAtomic(params: {
   draftSnapshot: EmailDraftSnapshot;
   provider?: EmailProvider;
 }): Promise<EmailSendResult> {
+  await recoverStaleEmailSendAttempts();
   const { row, attachments } = await getDraftWithAttachments(params.db, params.actor, params.draftId);
   const current = draftSnapshot(row, attachments);
   if (
@@ -1135,7 +1137,7 @@ async function sendEmailDraftAtomic(params: {
       sendAttemptId: claim.attempt_id,
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = sanitizeAgentError(error, 1_000);
     const deliveryUnknown = providerAccepted || error instanceof EmailDeliveryUnknownError;
     await admin.rpc(deliveryUnknown ? "mark_email_send_attempt_unknown" : "fail_email_send_attempt", {
       p_send_attempt_id: claim.attempt_id,
