@@ -23,6 +23,9 @@ import "@/lib/tools/documents/extract-document-data";
 // Auction Lab: lecturas redacted y mutaciones aprobables del módulo real.
 import "@/lib/tools/erp/get-auction-overview";
 import "@/lib/tools/erp/manage-auction-lab";
+// EMAIL V1 — drafts, frozen approvals and Gmail provider.
+import "@/lib/tools/email/prepare-email";
+import "@/lib/tools/email/send-email";
 
 // Re-export para uso directo en tests sin pasar por registry si se desea
 export * from "@/lib/tools/projects/get-project-context";
@@ -44,3 +47,5 @@ export * from "@/lib/tools/documents/get-document-content";
 export * from "@/lib/tools/documents/extract-document-data";
 export * from "@/lib/tools/erp/get-auction-overview";
 export * from "@/lib/tools/erp/manage-auction-lab";
+export * from "@/lib/tools/email/prepare-email";
+export * from "@/lib/tools/email/send-email";

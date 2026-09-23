@@ -18,6 +18,7 @@ import { decideApprovalAction } from "@/app/(internal)/agent/approval-actions";
 import { getRodrigoStatePresentation, type RodrigoState } from "@/lib/agent/rodrigo-state";
 import { isSttSupported, startDictation, type SttHandle } from "@/lib/voice/stt-client";
 import { useRodrigoAgent } from "./rodrigo-agent-provider";
+import { EmailPreviewCard } from "./email-preview-card";
 import styles from "./rodrigo-agent-widget.module.css";
 
 // Three.js solo en cliente y solo cuando el widget existe (lazy, sin SSR).
@@ -94,6 +95,8 @@ export function RodrigoAgentWidget() {
     setVisualState,
     registerMicrophoneStop,
     messages,
+    emailPreview,
+    setEmailPreview,
     sending,
     sendMessage,
   } = useRodrigoAgent();
@@ -155,7 +158,6 @@ export function RodrigoAgentWidget() {
     // Cronómetro de grabación (solo display, 500ms).
     if (voice !== "listening") return;
     const startedAt = Date.now();
-    setVoiceElapsedMs(0);
     const id = window.setInterval(() => setVoiceElapsedMs(Date.now() - startedAt), 500);
     return () => window.clearInterval(id);
   }, [voice]);
@@ -204,6 +206,7 @@ export function RodrigoAgentWidget() {
     const handle = startDictation({
       onInterim: (text) => setDraft(text),
       onStarted: () => {
+        setVoiceElapsedMs(0);
         setVoice("listening");
         setVad("waiting");
         setVisualState("listening");
@@ -347,11 +350,48 @@ export function RodrigoAgentWidget() {
               </div>
             ))}
 
+            {emailPreview && !status.pendingApprovals.some((approval) => approval.emailPreview?.draftId === emailPreview.draftId) ? (
+              <EmailPreviewCard
+                preview={emailPreview}
+                onCompleted={() => {
+                  setEmailPreview(null);
+                  setVisualState("success", { resetAfterMs: 8_000 });
+                  void refreshStatus();
+                }}
+                onCancelled={() => {
+                  setEmailPreview(null);
+                  void refreshStatus();
+                }}
+                onEdit={() => {
+                  setDraft("hacelo más corto");
+                  inputRef.current?.focus();
+                }}
+              />
+            ) : null}
+
             {status.pendingApprovals.length > 0 ? (
               <div className="rounded-xl border border-[var(--warn)] bg-transparent p-3">
                 <p className="text-[12px] font-semibold">Aprobaciones pendientes ({status.pendingApprovals.length})</p>
                 <ul className="mt-2 space-y-2">
                   {status.pendingApprovals.map((a) => (
+                    a.toolName === "send_email" && a.emailPreview ? (
+                      <li key={a.id}>
+                        <EmailPreviewCard
+                          preview={a.emailPreview}
+                          approvalId={a.id}
+                          onCompleted={() => {
+                            setEmailPreview(null);
+                            setVisualState("success", { resetAfterMs: 8_000 });
+                            void refreshStatus();
+                          }}
+                          onCancelled={() => void refreshStatus()}
+                          onEdit={() => {
+                            setDraft("hacelo más corto");
+                            inputRef.current?.focus();
+                          }}
+                        />
+                      </li>
+                    ) : (
                     <li key={a.id} className="flex items-center justify-between gap-2 text-[12px]">
                       <span className="min-w-0 truncate" title={a.id}>
                         {a.toolName}
@@ -375,6 +415,7 @@ export function RodrigoAgentWidget() {
                         </button>
                       </span>
                     </li>
+                    )
                   ))}
                 </ul>
                 {approvalError ? <p className="mt-2 text-[11px] text-[var(--error)]">{approvalError}</p> : null}

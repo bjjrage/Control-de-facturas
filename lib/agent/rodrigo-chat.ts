@@ -24,15 +24,67 @@ function hasWord(text: string, ...words: string[]): boolean {
   return words.some((w) => text.includes(w));
 }
 
+function emailIntent(text: string, draftId?: string | null, workspaceProjectId?: string | null): ChatRoute | null {
+  const normalized = text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/gu, "")
+    .toLocaleLowerCase("es");
+  const isEmail = /(\bmail\b|correo|gmail|escribile|escribí|mandale|mandá|envi[aá]|email)/u.test(normalized);
+  const isRevision = /(mas corto|m[aá]s corto|portugues|portugu[eé]s|cambi[aá].*asunto|sac[aá].*(parrafo|p[aá]rrafo)|agreg[aá])/u.test(normalized);
+  if (!isEmail && !(draftId && isRevision)) return null;
+  if (draftId && isRevision && !isEmail) {
+    return {
+      kind: "tool",
+      tool: "prepare_email",
+      input: { draft_id: draftId, objective: text, revision_instruction: text },
+    };
+  }
+
+  const explicitEmail = text.match(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/u)?.[0];
+  const self = /a\s+(m[ií]|mi)\s+mismo/u.test(normalized);
+  const contactMatch = text.match(/\b(?:a|para)\s+(.+?)(?=\s+(?:asunto|subject|decile|decile que|diciendo|que)\b|[,.]|$)/iu);
+  const contactQuery = self ? "a mí mismo" : contactMatch?.[1]?.trim();
+  const subjectMatch = text.match(/\b(?:asunto|subject)\s*[:\-]?\s*(.+?)(?=\s+(?:decile|diciendo|que)\b|[,.]\s*(?:decile|diciendo)|$)/iu);
+  const subject = subjectMatch?.[1]?.trim().replace(/[.,]$/u, "") || undefined;
+  const objectiveMatch = text.match(/\b(?:decile\s+que|decile|diciendo|decirle|que)\s+(.+)$/iu);
+  const objective = objectiveMatch?.[1]?.trim() || text.replace(/^.*?\b(?:mail|correo|email)\b\s*/iu, "").trim();
+  const tone = /portugu[eé]s|brasil/iu.test(text)
+    ? "portugués"
+    : /m[aá]s corto|breve/iu.test(text)
+      ? "más corto"
+      : /m[aá]s formal/iu.test(text)
+        ? "más formal"
+        : undefined;
+  const attachmentMatches = [...text.matchAll(/(?:adjunt[aá]|anex[aá]).*?(?:la|el)?\s+([^,.]+)(?:,|\.|$)/giu)]
+    .map((match) => match[1]?.trim())
+    .filter((value): value is string => !!value);
+  return {
+    kind: "tool",
+    tool: "prepare_email",
+    input: {
+      ...(explicitEmail ? { to: [explicitEmail] } : { contact_query: contactQuery }),
+      ...(subject ? { subject } : {}),
+      objective: objective || "Coordinar este tema.",
+      ...(workspaceProjectId ? { project_id: workspaceProjectId } : {}),
+      ...(tone ? { tone, language: tone === "portugués" ? "portugués" : undefined } : {}),
+      ...(attachmentMatches.length ? { attachment_queries: attachmentMatches } : {}),
+    },
+  };
+}
+
 /**
  * Enruta un mensaje en texto libre a un tool registrado. Puro y testeable.
  * `workspaceProjectId` (opcional) aporta el proyecto actual cuando el
  * frontend lo conoce, para no exigir UUIDs en cada mensaje.
  */
-export function routeChatIntent(text: string, workspaceProjectId?: string | null): ChatRoute {
+export function routeChatIntent(text: string, workspaceProjectId?: string | null, draftId?: string | null): ChatRoute {
   const lower = text.toLowerCase();
   const uuids = extractUuids(text);
   const projectId = workspaceProjectId ?? uuids[0];
+
+  // Email must be checked before document/attachment routing.
+  const email = emailIntent(text, draftId, workspaceProjectId);
+  if (email) return email;
 
   // -- Spreadsheet / Eyes -------------------------------------------------
   if (hasWord(lower, "planilla", "spreadsheet", "celda", "rango", "fila")) {
@@ -221,6 +273,12 @@ export function formatToolAnswer(tool: string, output: unknown): string {
       case "get_spreadsheet_snapshot":
       case "read_spreadsheet_range": {
         return "Leí la planilla. Revisá el detalle en el módulo de planillas.";
+      }
+      case "prepare_email": {
+        const email = o as { draftId?: string | null; clarification?: string };
+        if (email.clarification) return email.clarification;
+        if (email.draftId) return "Preparé el borrador de correo. Revisá el preview y aprobá antes de enviarlo.";
+        return "Necesito un dato más para preparar el correo.";
       }
       case "get_document_content": {
         return "Encontré los metadatos del documento y, si está disponible, su enlace firmado.";

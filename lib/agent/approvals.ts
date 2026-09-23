@@ -103,7 +103,7 @@ export async function decideApproval(params: {
   if (!["APPROVED", "REJECTED", "CANCELLED", "EXPIRED"].includes(params.decision)) {
     throw new Error(`decision invalida: ${params.decision}`);
   }
-  // Cargar y validar tenant + estado
+  // Cargar para dar un error útil y validar tenant.
   const current = await getApproval(params.db, params.approvalId);
   if (!current) throw new Error(`Approval no encontrado: ${params.approvalId}`);
   if (current.empresa_id !== params.empresaId) throw new Error("Approval no pertenece a tu empresa");
@@ -118,9 +118,11 @@ export async function decideApproval(params: {
     })
     .eq("id", params.approvalId)
     .eq("empresa_id", params.empresaId)
+    .eq("status", "REQUESTED")
     .select("*")
-    .single();
-  if (error || !data) throw new Error(`decideApproval fallo: ${error?.message ?? "sin data"}`);
+    .maybeSingle();
+  if (error) throw new Error(`decideApproval fallo: ${error.message}`);
+  if (!data) throw new Error("Approval ya fue decidido por otra solicitud concurrente");
   return data as AgentApprovalRow;
 }
 
