@@ -12,7 +12,7 @@ type LogAuditParams = {
 };
 
 export async function logAudit(supabase: SupabaseClient, params: LogAuditParams) {
-  await supabase.rpc("log_audit_event", {
+  return supabase.rpc("log_audit_event", {
     p_action: params.action,
     p_rfq_id: params.rfqId ?? null,
     p_rfq_provider_id: params.rfqProviderId ?? null,

@@ -1,10 +1,17 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlan } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/lib/types";
+import { createHash } from "node:crypto";
+import { buildCanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
+import { validateWorkbookInterpretation } from "@/lib/workbook-interpretation/interpreter";
+import { parseWorkbook } from "@/lib/workbook-interpretation/parser";
+import { certificateTotals } from "@/lib/certificates/math";
+import { verifyWorkbookPreviewToken } from "@/lib/workbook-interpretation/preview-token";
 
 export async function createProject(formData: FormData): Promise<{ error: string | null }> {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
@@ -62,6 +69,237 @@ export async function createProject(formData: FormData): Promise<{ error: string
 
   revalidatePath("/projects");
   return { error: null };
+}
+
+type WorkbookCreateResult = {
+  error: string | null;
+  projectId?: string;
+  applied?: { project: boolean; budgetItems: number; certificateItems: number };
+  pending?: { section: string; reason: string }[];
+};
+
+function importedText(field: { status: string; value: string | number | null }): string | null {
+  if (field.status !== "FOUND" || field.value === null) return null;
+  const value = String(field.value).trim();
+  return value || null;
+}
+
+function importedNumber(field: { status: string; value: string | number | null }): number | null {
+  if (field.status !== "FOUND" || field.value === null) return null;
+  const value = typeof field.value === "number" ? field.value : Number(String(field.value).replace(/[^0-9.,-]/g, "").replace(/\.(?=\d{3}(?:\.|,|$))/g, "").replace(",", "."));
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+function importedDate(value: string | null): string | null {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const match = value.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);
+  if (!match) return null;
+  const year = match[3].length === 2 ? `20${match[3]}` : match[3];
+  return `${year}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+}
+
+/**
+ * Confirma un preview semántico contra el XLSX original y materializa sólo
+ * entidades canónicas. La medición no se convierte en execution_entries:
+ * esas filas representan hechos fechados y el workbook sólo aporta
+ * cantidades acumuladas/bloques sin identidad compatible en el golden.
+ */
+export async function createProjectFromWorkbook(formData: FormData): Promise<WorkbookCreateResult> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const uploaded = formData.get("file");
+  const rawResult = formData.get("result_json");
+  const previewToken = formData.get("preview_token");
+  if (!(uploaded instanceof File) || typeof rawResult !== "string" || typeof previewToken !== "string") return { error: "El preview de la planilla ya no es válido." };
+
+  let result;
+  let fileBytes: Uint8Array;
+  try {
+    fileBytes = new Uint8Array(await uploaded.arrayBuffer());
+    const parsedResult = JSON.parse(rawResult);
+    if (!verifyWorkbookPreviewToken({ fileBytes, result: parsedResult, userId: profile.id, empresaId: profile.empresa_id, token: previewToken })) {
+      return { error: "El preview de la planilla venció o cambió. Volvé a analizar el archivo antes de importarlo." };
+    }
+    const workbook = parseWorkbook(fileBytes, uploaded.name);
+    const validated = validateWorkbookInterpretation(parsedResult, workbook);
+    const candidate = buildCanonicalImportCandidate(workbook, validated);
+    result = { workbook, validated, candidate };
+  } catch (cause) {
+    return { error: cause instanceof Error ? cause.message : "No se pudo validar nuevamente la planilla." };
+  }
+
+  const name = ((formData.get("name_override") as string | null) || importedText(result.validated.project.name) || "").trim();
+  const code = ((formData.get("code_override") as string | null) || importedText(result.validated.project.code) || "").trim();
+  if (!name) return { error: "Falta un nombre de obra utilizable para crear el proyecto." };
+  if (!code) return { error: "Falta un código de obra utilizable para crear el proyecto." };
+
+  const budgetItems = result.candidate.budgetItems.filter((item) => item.code && item.description.trim());
+  if (result.candidate.budgetBlockingRows.length) {
+    const first = result.candidate.budgetBlockingRows[0];
+    return { error: `El presupuesto tiene una posible partida incompleta en ${first.sheet}, fila ${first.row}: ${first.reason}. No se creó la obra.` };
+  }
+  if (budgetItems.length !== result.candidate.budgetItems.length) return { error: "El presupuesto contiene filas sin código o descripción; no se creó la obra." };
+  if (new Set(budgetItems.map((item) => item.code)).size !== budgetItems.length) return { error: "El presupuesto contiene códigos duplicados; no se creó la obra." };
+
+  const admin = createAdminClient();
+  const fingerprint = createHash("sha256").update(fileBytes).digest("hex");
+  const { data: priorImport, error: priorImportError } = await admin
+    .from("audit_logs")
+    .select("detail")
+    .eq("empresa_id", profile.empresa_id)
+    .eq("action", "project.workbook_imported")
+    .contains("detail", { source_fingerprint: fingerprint })
+    .limit(1);
+  if (priorImportError) return { error: "No se pudo verificar si esta planilla ya fue importada; no se creó la obra." };
+  if (priorImport && priorImport.length > 0) return { error: "Esta planilla ya fue importada para esta empresa; no se creó una segunda obra." };
+  const { data: existing, error: existingError } = await admin
+    .from("projects")
+    .select("id")
+    .eq("empresa_id", profile.empresa_id)
+    .eq("code", code)
+    .maybeSingle();
+  if (existingError) return { error: "No se pudo verificar el código de obra; no se creó la obra." };
+  if (existing) return { error: `Ya existe una obra con el código "${code}". La importación no creó otra.` };
+
+  const projectFields = result.validated.project;
+  const contractAmount = result.candidate.budgetTotal || importedNumber(projectFields.totalAmount) || 0;
+  const { data: project, error: projectError } = await admin
+    .from("projects")
+    .insert({
+      empresa_id: profile.empresa_id,
+      name,
+      code,
+      client: importedText(projectFields.client),
+      location: importedText(projectFields.location),
+      start_date: importedDate(importedText(projectFields.startDate)),
+      end_date: importedDate(importedText(projectFields.endDate)),
+      budget_total: contractAmount,
+      comitente: importedText(projectFields.client),
+      contract_number: importedText(projectFields.contractNumber),
+      contract_amount: contractAmount,
+      created_by: profile.id,
+    })
+    .select("id")
+    .single();
+  if (projectError || !project) return { error: projectError?.message ?? "No se pudo crear la obra." };
+
+  const rollback = async (): Promise<string | null> => {
+    try {
+      const { error } = await admin.from("projects").delete().eq("id", project.id).eq("empresa_id", profile.empresa_id);
+      return error ? `La limpieza de la obra parcialmente importada falló: ${error.message}` : null;
+    } catch (cause) {
+      return `La limpieza de la obra parcialmente importada falló: ${cause instanceof Error ? cause.message : "error desconocido"}`;
+    }
+  };
+  const failAfterRollback = async (message: string): Promise<WorkbookCreateResult> => {
+    const cleanupError = await rollback();
+    return { error: cleanupError ? `${message} ${cleanupError}` : message };
+  };
+  const codeToId = new Map<string, string>();
+  let sortOrder = 0;
+  let budgetError: string | null = null;
+  let certificateItems = 0;
+  const pending: { section: string; reason: string }[] = [];
+  try {
+  const depthOf = (codeValue: string) => (codeValue.match(/\./g) ?? []).length;
+  const maxDepth = Math.max(0, ...budgetItems.map((item) => depthOf(item.code as string)));
+  for (let depth = 0; depth <= maxDepth && !budgetError; depth++) {
+    const level = budgetItems.filter((item) => depthOf(item.code as string) === depth);
+    if (!level.length) continue;
+    const rows = level.map((item) => {
+      const codeValue = item.code as string;
+      const parentCode = codeValue.includes(".") ? codeValue.slice(0, codeValue.lastIndexOf(".")) : null;
+      return {
+        project_id: project.id,
+        parent_id: parentCode ? codeToId.get(parentCode) ?? null : null,
+        code: codeValue,
+        description: item.description.trim(),
+        unit: item.unit,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+        sort_order: sortOrder++,
+      };
+    });
+    const { data: inserted, error } = await admin.from("budget_items").insert(rows).select("id, code");
+    if (error || !inserted) budgetError = error?.message ?? "No se pudo importar el presupuesto.";
+    else for (const row of inserted) codeToId.set(String(row.code), String(row.id));
+  }
+  if (budgetError) {
+    return await failAfterRollback(`No se creó la obra porque falló el presupuesto: ${budgetError}`);
+  }
+
+  if (result.candidate.measurement.status === "DETECTED_NOT_APPLIED") pending.push({ section: "MEDICIÓN", reason: result.candidate.measurement.reason });
+  if (result.candidate.certificate.status === "SAFE_TO_APPLY") {
+    const certificate = result.candidate.certificate;
+    const { data: header, error: headerError } = await admin
+      .from("project_certificates")
+      .insert({
+        project_id: project.id,
+        numero: certificate.number,
+        period_start: certificate.periodStart,
+        period_end: certificate.periodEnd,
+        status: "BORRADOR",
+        notes: `Importado desde ${uploaded.name}. Revisar y elaborar antes de avanzar el circuito.`,
+        created_by: profile.id,
+      })
+      .select("id")
+      .single();
+    if (headerError || !header) {
+      return await failAfterRollback(`No se creó la obra porque falló el certificado: ${headerError?.message ?? "error desconocido"}`);
+    }
+    const lines = certificate.items.map((item, index) => ({
+      certificate_id: header.id,
+      budget_item_id: codeToId.get(item.code) ?? null,
+      codigo: item.code,
+      descripcion: item.description,
+      unidad: item.unit,
+      qty_contractual: item.quantityContractual,
+      precio_unitario: item.unitPrice,
+      qty_anterior: item.quantityPrevious,
+      qty_presente: item.quantityCurrent,
+      sort_order: index,
+    }));
+    if (lines.some((line) => !line.budget_item_id)) {
+      return await failAfterRollback("El certificado no pudo vincularse a todas las partidas canónicas; no se creó la obra.");
+    }
+    const { error: linesError } = await admin.from("project_certificate_items").insert(lines);
+    if (linesError) {
+      return await failAfterRollback(`No se creó la obra porque fallaron las líneas del certificado: ${linesError.message}`);
+    }
+    const { montoAnterior, montoPresente } = certificateTotals(lines);
+    const { error: totalsError } = await admin.from("project_certificates").update({ monto_anterior: montoAnterior, monto_presente: montoPresente }).eq("id", header.id).eq("project_id", project.id);
+    if (totalsError) {
+      return await failAfterRollback(`No se creó la obra porque no se pudieron calcular los totales del certificado: ${totalsError.message}`);
+    }
+    certificateItems = lines.length;
+  } else if (result.candidate.certificate.status === "DETECTED_NOT_APPLIED") {
+    pending.push({ section: "CERTIFICADO", reason: result.candidate.certificate.reason });
+  }
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : "error desconocido";
+    return await failAfterRollback(`La importación no se completó: ${message}.`);
+  }
+
+  try {
+    const { error: auditError } = await logAudit(await createClient(), {
+      action: "project.workbook_imported",
+      detail: {
+        project_id: project.id,
+        source_file: uploaded.name,
+        source_fingerprint: fingerprint,
+        budget_items: budgetItems.length,
+        certificate_items: certificateItems,
+        measurement_status: result.candidate.measurement.status,
+        pending_sections: pending,
+      },
+    });
+    if (auditError) return await failAfterRollback("No se guardó el registro de importación; la obra no se completará.");
+  } catch {
+    return await failAfterRollback("No se pudo confirmar el registro de importación; la obra no se completará.");
+  }
+  revalidatePath("/projects");
+  revalidatePath(`/projects/${project.id}`);
+  return { error: null, projectId: String(project.id), applied: { project: true, budgetItems: budgetItems.length, certificateItems }, pending };
 }
 
 export async function updateProjectStatus(projectId: string, status: ProjectStatus): Promise<{ error: string | null }> {
