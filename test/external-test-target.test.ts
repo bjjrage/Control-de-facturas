@@ -8,11 +8,14 @@ describe("external test target safety guard", () => {
       command: "npm run dev -- --hostname 127.0.0.1 --port 3005",
       url: "http://127.0.0.1:3005",
       reuseExistingServer: false,
+      env: expect.objectContaining({ NODE_ENV: "development" }),
     });
-    expect(
-      createGuardedLocalWebServer("http://127.0.0.1:3000", "test", { reuseExistingServer: true })
-        .reuseExistingServer,
-    ).toBe(true);
+    expect(createGuardedLocalWebServer("http://127.0.0.1:3000", "test", { serverMode: "production" }))
+      .toMatchObject({
+        command: "npm run start -- --hostname 127.0.0.1 --port 3000",
+        reuseExistingServer: false,
+        env: expect.objectContaining({ NODE_ENV: "production" }),
+      });
     expect(() => createGuardedLocalWebServer("https://app.example.test", "test")).toThrow(/loopback/);
     expect(() => createGuardedLocalWebServer("http://10.0.0.12:3005", "test")).toThrow(/loopback/);
     expect(() => createGuardedLocalWebServer("http://[::1]:3005", "test")).toThrow(/loopback/);

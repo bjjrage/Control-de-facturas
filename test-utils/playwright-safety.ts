@@ -1,22 +1,26 @@
 import { loadEnvConfig } from "@next/env";
 import { assertNonProductionTestTarget } from "./external-test-target";
 
-/** Load the exact environment Next.js dev uses before guarding E2E targets. */
-export function loadPlaywrightTestEnvironment() {
+export type PlaywrightServerMode = "development" | "production";
+
+/** Load the environment file precedence used by the selected local Next.js server mode. */
+export function loadPlaywrightTestEnvironment(
+  serverMode: PlaywrightServerMode = "development",
+) {
   if (process.env.NODE_ENV?.toLowerCase() === "production") {
     throw new Error("Playwright cannot run with NODE_ENV=production.");
   }
   if (!Reflect.set(process.env, "NODE_ENV", "development")) {
     throw new Error("Could not set NODE_ENV=development for the local E2E server.");
   }
-  loadEnvConfig(process.cwd(), true);
+  loadEnvConfig(process.cwd(), serverMode === "development");
 }
 
 /** E2E suites must own the local app process so its validated DB config is the one under test. */
 export function createGuardedLocalWebServer(
   baseUrl: string,
   label: string,
-  options: { reuseExistingServer?: boolean } = {},
+  options: { serverMode?: PlaywrightServerMode } = {},
 ) {
   let parsed: URL;
   try {
@@ -34,10 +38,20 @@ export function createGuardedLocalWebServer(
 
   assertNonProductionTestTarget({ url: baseUrl, label });
   const port = parsed.port || "3000";
+  const serverMode = options.serverMode ?? "development";
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+  );
+  env.NODE_ENV = serverMode;
+
   return {
-    command: `npm run dev -- --hostname 127.0.0.1 --port ${port}`,
+    command:
+      serverMode === "production"
+        ? `npm run start -- --hostname 127.0.0.1 --port ${port}`
+        : `npm run dev -- --hostname 127.0.0.1 --port ${port}`,
     url: parsed.origin,
-    reuseExistingServer: options.reuseExistingServer ?? false,
+    env,
+    reuseExistingServer: false,
     timeout: 120_000,
   };
 }

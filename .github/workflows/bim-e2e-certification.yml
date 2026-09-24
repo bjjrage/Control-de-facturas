@@ -98,8 +98,8 @@ jobs:
       - name: Seed demo env (user + empresa + proyecto, sin BIM)
         run: npx tsx scripts/bim-e2e-seed.ts
         env:
-          BIM_SUPABASE_URL: ${{ env.BIM_SUPABASE_URL }}
-          BIM_SERVICE_ROLE_KEY: ${{ env.BIM_SUPABASE_SERVICE_ROLE_KEY }}
+          BIM_TEST_SUPABASE_URL: ${{ env.BIM_SUPABASE_URL }}
+          BIM_TEST_SERVICE_ROLE_KEY: ${{ env.BIM_SUPABASE_SERVICE_ROLE_KEY }}
           BIM_TEST_EMAIL: bim-e2e@test.local
           BIM_TEST_PASSWORD: ${{ secrets.BIM_E2E_PASSWORD != '' && secrets.BIM_E2E_PASSWORD || 'bim-e2e-local-01' }}
 
@@ -128,20 +128,6 @@ jobs:
       - name: Production Next.js Build
         run: npm run build
 
-      - name: Start local app + wait ready
-        run: |
-          (npm run start -- -p 3000 > /tmp/next-start.log 2>&1 & echo $! > /tmp/next.pid)
-          for i in $(seq 1 60); do
-            if curl -sf -o /dev/null http://127.0.0.1:3000/login; then
-              echo "App lista en http://127.0.0.1:3000"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "La app no respondió a tiempo. Últimas líneas del log:"
-          tail -50 /tmp/next-start.log
-          exit 1
-
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
@@ -153,7 +139,7 @@ jobs:
           BIM_TEST_PASSWORD: ${{ secrets.BIM_E2E_PASSWORD != '' && secrets.BIM_E2E_PASSWORD || 'bim-e2e-local-01' }}
           BIM_CATALOG_XLSX: /tmp/aurora-catalog.xlsx
           BIM_EVIDENCE_DIR: bim-evidence
-          BIM_REUSE_EXISTING_SERVER: "true"
+          BIM_SERVER_MODE: production
 
       - name: Upload BIM evidence (screenshots + metrics)
         if: always()
@@ -174,6 +160,5 @@ jobs:
       - name: Stop app + Supabase stack
         if: always()
         run: |
-          kill "$(cat /tmp/next.pid)" 2>/dev/null || true
           rm -f .env.local
           supabase stop || true
