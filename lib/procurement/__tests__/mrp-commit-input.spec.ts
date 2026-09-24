@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PreviewWeeklyPlanInputSchema } from "@/lib/tools/erp/preview-weekly-plan";
 import { SaveWeeklyPlanInputSchema } from "@/lib/tools/erp/save-weekly-plan";
 
 const baseInput = {
@@ -35,5 +36,36 @@ describe("save_weekly_plan MRP commit input", () => {
 
     expect(committed.success).toBe(true);
     expect(draft.success).toBe(true);
+  });
+
+  it("rejects MRP coverage dates outside the plan period for preview and commit", () => {
+    const futureCommit = SaveWeeklyPlanInputSchema.safeParse({
+      ...baseInput,
+      status: "COMMITTED",
+      mrp_commit: {
+        needed_by_date: "2026-10-01",
+        lines: [],
+      },
+    });
+    const futurePreview = PreviewWeeklyPlanInputSchema.safeParse({
+      project_id: baseInput.project_id,
+      start_date: baseInput.start_date,
+      end_date: baseInput.end_date,
+      weather_overlay: false,
+      items: [],
+      mrp: { mode: "MRP", needed_by_date: "2026-10-01" },
+    });
+    const defaultDeadlinePreview = PreviewWeeklyPlanInputSchema.safeParse({
+      project_id: baseInput.project_id,
+      start_date: baseInput.start_date,
+      end_date: baseInput.end_date,
+      weather_overlay: false,
+      items: [],
+      mrp: { mode: "MRP" },
+    });
+
+    expect(futureCommit.success).toBe(false);
+    expect(futurePreview.success).toBe(false);
+    expect(defaultDeadlinePreview.success).toBe(true);
   });
 });

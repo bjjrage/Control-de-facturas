@@ -3,8 +3,12 @@ import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
 
-const migration = readFileSync(
+const balanceGuardMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260924090000_mrp_reservation_balance_guard.sql"),
+  "utf8"
+);
+const migration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260924090510_mrp_reservation_lock_order_fix.sql"),
   "utf8"
 );
 
@@ -36,6 +40,7 @@ describe("MRP active reservations protect canonical physical balances", () => {
       CREATE FUNCTION public.assert_mrp_actor(uuid, uuid) RETURNS uuid
         LANGUAGE sql IMMUTABLE AS $$ SELECT $1 $$;
     `);
+    await db.exec(balanceGuardMigration);
     await db.exec(migration);
     await db.exec(`
       INSERT INTO public.projects VALUES ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000010');
@@ -89,10 +94,16 @@ describe("MRP active reservations protect canonical physical balances", () => {
     ).rejects.toThrow(/stock central insuficiente/i);
   });
 
-  it("locks physical rows before reading availability for a new reservation", () => {
-    const lockRows = migration.indexOf("ORDER BY cost_currency::text\n      FOR UPDATE");
+  it("uses a stable row-then-advisory lock order before replacing reservations", () => {
+    const reserveFunction = migration.slice(0, migration.indexOf("CREATE OR REPLACE FUNCTION public.commit_production_plan_atomic"));
+    const lockRows = reserveFunction.indexOf("ORDER BY b.cost_currency::text\n      FOR UPDATE");
+    const resourceAdvisoryLock = reserveFunction.indexOf("PERFORM pg_advisory_xact_lock", lockRows);
+    const replaceRows = reserveFunction.indexOf("UPDATE public.inventory_reservations", resourceAdvisoryLock);
     const readPhysical = migration.indexOf("SELECT COALESCE(SUM(quantity), 0) INTO v_fisico");
     expect(lockRows).toBeGreaterThan(-1);
+    expect(resourceAdvisoryLock).toBeGreaterThan(lockRows);
+    expect(replaceRows).toBeGreaterThan(resourceAdvisoryLock);
     expect(readPhysical).toBeGreaterThan(lockRows);
+    expect(migration).toContain("PERFORM pg_advisory_xact_lock(hashtext(");
   });
 });

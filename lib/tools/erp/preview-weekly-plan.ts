@@ -18,6 +18,15 @@ export const PreviewWeeklyPlanInputSchema = z.object({
   weather_overlay: z.boolean().default(false),
   items: z.array(item).default([]),
   mrp: z.object({ mode: z.literal("MRP"), needed_by_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }).optional(),
+}).superRefine((input, ctx) => {
+  const neededBy = input.mrp?.needed_by_date ?? input.end_date;
+  if (input.mrp && (neededBy < input.start_date || neededBy > input.end_date)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["mrp", "needed_by_date"],
+      message: "MRP needed_by_date must fall within the plan period.",
+    });
+  }
 });
 export type PreviewWeeklyPlanInput = z.infer<typeof PreviewWeeklyPlanInputSchema>;
 

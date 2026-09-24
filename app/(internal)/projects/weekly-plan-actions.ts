@@ -40,6 +40,11 @@ function isDateOnly(value: unknown): value is string {
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
+function isDateWithinRange(value: unknown, startDate: string, endDate: string): value is string {
+  return isDateOnly(value) && isDateOnly(startDate) && isDateOnly(endDate)
+    && value >= startDate && value <= endDate;
+}
+
 export interface SaveWeeklyPlanParams {
   planId?: string;
   projectId: string;
@@ -329,7 +334,7 @@ export async function previewWeeklyPlanAction(
     const empresaId = profile.empresa_id;
     const supabase = await createClient();
     const { projectId, startDate, endDate, weatherOverlay, items } = params;
-    // V3: modo MRP opt-in (LEGACY por defecto = V1 intacto).
+    // MRP calcula la cobertura con fecha acotada al período del plan.
     const mrpMode = params.coverage?.mode === "MRP";
     const neededBy = params.coverage?.neededByDate || endDate;
 
@@ -343,6 +348,12 @@ export async function previewWeeklyPlanAction(
       return {
         data: null,
         error: `Rango inválido: fin (${endDate}) anterior a inicio (${startDate}).`,
+      };
+    }
+    if (mrpMode && !isDateWithinRange(neededBy, startDate, endDate)) {
+      return {
+        data: null,
+        error: "La fecha necesaria del MRP debe estar dentro del período del plan.",
       };
     }
 
@@ -605,7 +616,7 @@ export async function saveWeeklyPlanAction(
     if (
       status === "COMMITTED" &&
       (!params.mrpCommit ||
-        !isDateOnly(params.mrpCommit.neededByDate) ||
+        !isDateWithinRange(params.mrpCommit.neededByDate, startDate, endDate) ||
         !Array.isArray(params.mrpCommit.lines) ||
         params.mrpCommit.lines.some(
           (line) =>
@@ -617,7 +628,7 @@ export async function saveWeeklyPlanAction(
     ) {
       return {
         data: null,
-        error: "Recalculá una cobertura MRP válida antes de comprometer el plan.",
+        error: "Recalculá una cobertura MRP válida para el período antes de comprometer el plan.",
       };
     }
 

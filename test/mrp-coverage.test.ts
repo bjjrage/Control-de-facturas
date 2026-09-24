@@ -256,7 +256,7 @@ describe("P1. Guardado con reservas: sin commit parcial ni zombies", () => {
     const saveStart = actions.indexOf("export async function saveWeeklyPlanAction");
     const saveSource = actions.slice(saveStart);
     expect(saveSource).toContain('status === "COMMITTED" &&');
-    expect(saveSource).toContain("isDateOnly(params.mrpCommit.neededByDate)");
+    expect(saveSource).toContain("isDateWithinRange(params.mrpCommit.neededByDate, startDate, endDate)");
     expect(saveSource).toContain("Recalculá una cobertura MRP válida");
     expect(saveSource).toContain('if (status !== "COMMITTED" && planId)');
     expect(saveSource).not.toContain('if (params.mrpCommit && status !== "COMMITTED" && planId)');
@@ -266,6 +266,15 @@ describe("P1. Guardado con reservas: sin commit parcial ni zombies", () => {
     const agentTool = readSource("lib/tools/erp/save-weekly-plan.ts");
     expect(agentTool).toContain('.superRefine((input, ctx) =>');
     expect(agentTool).toContain('input.status === "COMMITTED" && !input.mrp_commit');
+
+    const section = readSource("app/(internal)/projects/[id]/weekly-plan-section.tsx");
+    expect(section).toContain("const mrpCommitBlocked = !previewMrp || previewStale");
+    expect(section).toContain('coverage: { mode: "MRP" as const, neededByDate: endDate }');
+    expect(section).not.toContain("const useMrp = appliedRecipe !== null");
+    expect(src()).toContain("isDateWithinRange(neededBy, startDate, endDate)");
+
+    const previewTool = readSource("lib/tools/erp/preview-weekly-plan.ts");
+    expect(previewTool).toContain("neededBy < input.start_date || neededBy > input.end_date");
   });
 
   it("reserva fallida no deja commit parcial: rollback real de la RPC única", () => {
@@ -322,7 +331,7 @@ describe("P1-1. Sin cobertura MRP vigente no se puede comprometer", () => {
     expect(ui()).toContain("mrpCommitBlocked");
     expect(ui()).toContain("disabled={isSaving || mrpCommitBlocked}");
     expect(ui()).toContain(
-      "El cálculo de abastecimiento está desactualizado. Recalculá antes de comprometer el plan."
+      "Calculá o recalculá la cobertura MRP vigente para este período antes de comprometer el plan."
     );
   });
 

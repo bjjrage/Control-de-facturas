@@ -117,8 +117,6 @@ export function WeeklyPlanSection({ project }: Props) {
   // Plan persistido (si existe) — solo referencia secundaria.
   const [planId, setPlanId] = useState<string | undefined>(undefined);
   const [savedStatus, setSavedStatus] = useState<WeeklyPlanStatus | null>(null);
-  // V3: el plan retiene reservas ACTIVE (para gating de re-commit).
-  const [hasActiveReservations, setHasActiveReservations] = useState(false);
   const [compatStatus, setCompatStatus] = useState<WeeklyPlanStatus>("DRAFT");
   const [notes, setNotes] = useState<string>("");
 
@@ -223,7 +221,6 @@ export function WeeklyPlanSection({ project }: Props) {
       const { plan, calculation: calc, budgetItems: bItems, executedQuantities: exec } = res.data;
       setBudgetItems(bItems);
       setExecutedQuantities(exec ?? {});
-      setHasActiveReservations(res.data.hasActiveReservations === true);
       if (plan) {
         setPlanId(plan.id);
         setStartDate(plan.start_date);
@@ -288,13 +285,8 @@ export function WeeklyPlanSection({ project }: Props) {
 
   const previewStale = preview !== null && previewKey !== null && previewKey !== currentKey;
 
-  // P1-1: un plan MRP (nace de receta, tiene preview MRP o retiene reservas
-  // de un commit previo) NO puede comprometerse con cobertura desactualizada.
-  const isMrpContext =
-    appliedRecipe !== null || previewMrp !== null ||
-    (savedStatus === "COMMITTED" && hasActiveReservations);
-  const mrpCommitBlocked =
-    isMrpContext && (!previewMrp || previewStale || !!previewMrp.centralError);
+  // Todo COMMITTED requiere una referencia MRP vigente; no hay bypass legacy.
+  const mrpCommitBlocked = !previewMrp || previewStale || !!previewMrp.centralError;
 
   // ---- edición local (sin persistir) ----
 
@@ -542,9 +534,8 @@ export function WeeklyPlanSection({ project }: Props) {
     }
     const seq = ++calcSeq.current;
     setIsCalculating(true);
-    // V3: si el cálculo nace de una receta, pedir cobertura MRP (obra ?
-    // central ? inbound a tiempo ? faltante). Si no, LEGACY intacto.
-    const useMrp = appliedRecipe !== null;
+    // Todo preview que pueda culminar en COMMITTED calcula cobertura MRP:
+    // obra → central → inbound a tiempo → faltante.
     (async () => {
       try {
         const res = await withActionTimeout(
@@ -561,7 +552,7 @@ export function WeeklyPlanSection({ project }: Props) {
                 inputMode: t.input_mode,
                 inputValue: Number(t.input_value),
               })),
-            ...(useMrp ? { coverage: { mode: "MRP" as const, neededByDate: endDate } } : {}),
+            coverage: { mode: "MRP" as const, neededByDate: endDate },
           }),
           90000,
           "El cálculo del plan"
@@ -1815,7 +1806,7 @@ export function WeeklyPlanSection({ project }: Props) {
             </div>
             {mrpCommitBlocked && (
               <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                El cálculo de abastecimiento está desactualizado. Recalculá antes de comprometer el plan.
+                Calculá o recalculá la cobertura MRP vigente para este período antes de comprometer el plan.
               </p>
             )}
             <div className="flex flex-wrap gap-2">
@@ -1837,7 +1828,7 @@ export function WeeklyPlanSection({ project }: Props) {
                 onClick={() => handleSaveWithStatus("COMMITTED")}
                 disabled={isSaving || mrpCommitBlocked}
                 data-testid="comprometer-plan"
-                title={mrpCommitBlocked ? "El cálculo de abastecimiento está desactualizado. Recalculá antes de comprometer el plan." : undefined}
+                title={mrpCommitBlocked ? "Calculá o recalculá la cobertura MRP vigente antes de comprometer el plan." : undefined}
               >
                 {isSaving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                 Comprometer plan
@@ -1861,7 +1852,7 @@ export function WeeklyPlanSection({ project }: Props) {
                 disabled={isSaving || (compatStatus === "COMMITTED" && mrpCommitBlocked)}
                 title={
                   compatStatus === "COMMITTED" && mrpCommitBlocked
-                    ? "El cálculo de abastecimiento está desactualizado. Recalculá antes de comprometer el plan."
+                    ? "Calculá o recalculá la cobertura MRP vigente antes de comprometer el plan."
                     : undefined
                 }
                 className="h-7 px-2 rounded-md border border-[var(--border)] text-[11px] hover:bg-[var(--panel-2)]"

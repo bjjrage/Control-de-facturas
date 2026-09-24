@@ -32,6 +32,17 @@ export const SaveWeeklyPlanInputSchema = z.object({
       message: "A committed plan requires a current MRP preview reference.",
     });
   }
+  if (
+    input.status === "COMMITTED" &&
+    input.mrp_commit &&
+    (input.mrp_commit.needed_by_date < input.start_date || input.mrp_commit.needed_by_date > input.end_date)
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["mrp_commit", "needed_by_date"],
+      message: "MRP needed_by_date must fall within the plan period.",
+    });
+  }
 });
 export type SaveWeeklyPlanInput = z.infer<typeof SaveWeeklyPlanInputSchema>;
 
