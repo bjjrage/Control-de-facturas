@@ -53,7 +53,7 @@ export const PROJECT_FEATURES = [
   { key: "ejecucion", label: "Ejecución", group: "Ejecutar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "inventario", label: "Inventario", group: "Ejecutar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "recepciones", label: "Recepciones", group: "Ejecutar", minPlan: "pro", roles: PROJECT_ROLES },
-  { key: "panol", label: "Pañol", group: "Ejecutar", minPlan: "pro", roles: PROJECT_ROLES },
+  { key: "panol", label: "Depósito de obra", group: "Ejecutar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "personal", label: "Personal", group: "Ejecutar", minPlan: "caterpillar", roles: PROJECT_ROLES },
   { key: "subcontratistas", label: "Subcontratistas", group: "Ejecutar", minPlan: "caterpillar", roles: PROJECT_ROLES },
   { key: "certificados", label: "Certificados", group: "Certificar", minPlan: "caterpillar", roles: PROJECT_ROLES },

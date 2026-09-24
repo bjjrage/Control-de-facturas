@@ -52,7 +52,7 @@ export async function createProject(formData: FormData): Promise<{ error: string
   // Crear depósito/pañol asociado al proyecto si se solicitó
   const crearPanol = formData.get("crear_panol") === "1";
   if (crearPanol) {
-    const nombreDeposito = `Pañol ${code} - ${name}`.slice(0, 100);
+    const nombreDeposito = `Depósito ${code} - ${name}`.slice(0, 100);
     await supabase.from("depositos").insert({
       empresa_id: empresaId,
       nombre: nombreDeposito,

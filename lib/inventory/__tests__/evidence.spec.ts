@@ -2,7 +2,7 @@ import * as XLSX from "xlsx";
 import { describe, expect, it } from "vitest";
 import { parseInventorySpreadsheet, photoEvidenceProposal } from "../evidence";
 
-describe("evidencia de pañol", () => {
+describe("evidencia de rendiciones de materiales", () => {
   it("convierte Excel en propuestas sin resolver ni impactar stock", () => {
     const workbook = XLSX.utils.book_new();
     const sheet = XLSX.utils.json_to_sheet([

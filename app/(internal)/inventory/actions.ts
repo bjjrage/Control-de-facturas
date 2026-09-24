@@ -164,6 +164,17 @@ export async function createInventoryLocation(args: {
 export async function createWarehousePortalLink(locationId: string, expiresAt?: string | null) {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
+  if (typeof locationId !== "string" || !/^[0-9a-f-]{36}$/i.test(locationId)) {
+    return { error: "La ubicación de depósito no es válida.", token: null, url: null };
+  }
+  let normalizedExpiry: string | null = null;
+  if (expiresAt != null && expiresAt !== "") {
+    const parsedExpiry = new Date(expiresAt);
+    if (!Number.isFinite(parsedExpiry.getTime()) || parsedExpiry.getTime() <= Date.now()) {
+      return { error: "La fecha de expiración debe ser futura.", token: null, url: null };
+    }
+    normalizedExpiry = parsedExpiry.toISOString();
+  }
   const { data: location } = await supabase
     .from("inventory_locations")
     .select("id, location_type, project_id")
@@ -180,11 +191,48 @@ export async function createWarehousePortalLink(locationId: string, expiresAt?: 
     location_id: locationId,
     token_hash: generated.tokenHash,
     token_hint: generated.tokenHint,
-    expires_at: expiresAt ?? null,
+    expires_at: normalizedExpiry,
     created_by: profile.id,
   });
   if (error) return { error: error.message, token: null, url: null };
+  revalidatePath(`/projects/${location.project_id}`);
   return { error: null, token: generated.token, url: warehousePortalUrl(generated.token) };
+}
+
+export async function revokeWarehousePortalLink(linkId: string) {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const supabase = await createClient();
+  if (typeof linkId !== "string" || !/^[0-9a-f-]{36}$/i.test(linkId)) {
+    return { error: "El enlace de depósito no es válido." };
+  }
+  const { data: link } = await supabase
+    .from("warehouse_portal_links")
+    .select("id, location_id, active")
+    .eq("id", linkId)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (!link) return { error: "El enlace no existe o no pertenece a esta empresa." };
+  if (!link.active) return { error: null };
+
+  const { data: location } = await supabase
+    .from("inventory_locations")
+    .select("project_id, location_type")
+    .eq("id", link.location_id)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (!location || location.location_type !== "PROJECT" || !location.project_id) {
+    return { error: "No se pudo verificar el depósito de obra del enlace." };
+  }
+
+  const { error } = await supabase
+    .from("warehouse_portal_links")
+    .update({ active: false })
+    .eq("id", linkId)
+    .eq("empresa_id", profile.empresa_id)
+    .eq("active", true);
+  if (error) return { error: error.message };
+  revalidatePath(`/projects/${location.project_id}`);
+  return { error: null };
 }
 
 export async function postCanonicalInventoryMovement(input: Omit<InventoryMovementInput, "empresaId" | "createdBy">) {
@@ -231,6 +279,24 @@ export async function updateWarehouseSubmissionLine(args: {
 }) {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
+  if (
+    !args ||
+    typeof args.lineId !== "string" ||
+    !/^[0-9a-f-]{36}$/i.test(args.lineId) ||
+    !["PROPOSED", "CONFIRMED", "REJECTED"].includes(args.state)
+  ) {
+    return { error: "Los datos de revisión de la línea no son válidos." };
+  }
+  const productoId = clean(args.productoId);
+  const budgetItemId = clean(args.budgetItemId);
+  const unit = clean(args.unit);
+  const quantity = args.quantity == null ? null : Number(args.quantity);
+  if (quantity != null && (!Number.isFinite(quantity) || quantity <= 0)) {
+    return { error: "La cantidad debe ser mayor a cero." };
+  }
+  if (args.state === "CONFIRMED" && (!productoId || !budgetItemId || !unit || quantity == null)) {
+    return { error: "Para confirmar la línea completá producto, cantidad, unidad y partida." };
+  }
   const { data: line } = await supabase
     .from("warehouse_submission_lines")
     .select("id, submission_id, inventory_movement_id")
@@ -243,20 +309,42 @@ export async function updateWarehouseSubmissionLine(args: {
   }
   const { data: submission } = await supabase
     .from("warehouse_submissions")
-    .select("status")
+    .select("status, project_id")
     .eq("id", line.submission_id)
     .eq("empresa_id", profile.empresa_id)
     .maybeSingle();
-  if (submission?.status === "CONFIRMED") {
-    return { error: "Las líneas de una rendición confirmada son inmutables." };
+  if (!submission || ["CONFIRMED", "VOIDED", "PROCESSING"].includes(submission.status)) {
+    return { error: "La rendición está cerrada o en procesamiento y no admite cambios." };
+  }
+  if (productoId) {
+    const { data: product } = await supabase
+      .from("productos")
+      .select("id, unidad, activo")
+      .eq("id", productoId)
+      .eq("empresa_id", profile.empresa_id)
+      .maybeSingle();
+    if (!product || !product.activo) return { error: "El producto no existe, está inactivo o no pertenece a esta empresa." };
+    if (unit && product.unidad.trim() !== unit.trim()) {
+      return { error: "La unidad debe coincidir con la unidad del producto." };
+    }
+  }
+  if (budgetItemId) {
+    const { data: budgetItem } = await supabase
+      .from("budget_items")
+      .select("id")
+      .eq("id", budgetItemId)
+      .eq("project_id", submission.project_id)
+      .eq("empresa_id", profile.empresa_id)
+      .maybeSingle();
+    if (!budgetItem) return { error: "La partida no pertenece a la obra de esta rendición." };
   }
   const { error } = await supabase
     .from("warehouse_submission_lines")
     .update({
-      producto_id: args.productoId ?? null,
-      quantity: args.quantity ?? null,
-      unit: clean(args.unit),
-      budget_item_id: args.budgetItemId ?? null,
+      producto_id: productoId,
+      quantity,
+      unit,
+      budget_item_id: budgetItemId,
       state: args.state,
       notes: clean(args.notes),
       updated_at: new Date().toISOString(),

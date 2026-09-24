@@ -24,7 +24,7 @@ export default async function WarehousePortalPage({ params }: { params: Promise<
     <main className="min-h-screen bg-[var(--background)] px-4 py-8">
       <div className="mx-auto max-w-lg space-y-4">
         <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
-          <p className="text-[11px] text-[var(--muted)]">Rendición de pañol</p>
+          <p className="text-[11px] text-[var(--muted)]">Rendición de materiales</p>
           <h1 className="mt-1 text-lg font-semibold">{location.name}</h1>
           <p className="mt-2 text-[13px] text-[var(--muted)]">
             Subí las fotos semanales del cuaderno o una planilla. La empresa revisará la evidencia antes de afectar el stock.

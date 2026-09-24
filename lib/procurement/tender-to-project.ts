@@ -166,7 +166,7 @@ export async function executeTenderToProjectTransaction(
   params: TenderToProjectParams
 ): Promise<{ error: string | null; projectId?: string; projectCode?: string; alreadyExisted?: boolean }> {
   const payload = buildProjectFromAdjudicatedTender(params);
-  const nombreDeposito = `Pañol ${payload.project.code} - ${payload.project.name}`.slice(0, 100);
+  const nombreDeposito = `Depósito ${payload.project.code} - ${payload.project.name}`.slice(0, 100);
 
   // 1. Intentar ejecución atómica mediante RPC transaccional en PostgreSQL
   try {

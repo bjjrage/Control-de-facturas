@@ -59,7 +59,11 @@ import { ConsumoMaterialesSection, type ConsumoRow } from "./consumo-materiales-
 import { ProyectoStockSection, type StockProyectoRow } from "./proyecto-stock-section";
 import { InventarioObraSection, type StockObraRow, type ConsumoCanonicoRow } from "./inventario-obra-section";
 import { RecepcionesObraSection, type RecepcionRow } from "./recepciones-obra-section";
-import { PanolObraSection, type PanolSubmissionRow } from "./panol-obra-section";
+import {
+  PanolObraSection,
+  type PanolSubmissionRow,
+  type WarehousePortalLinkRow,
+} from "./panol-obra-section";
 import { OrderDialog } from "@/app/(internal)/orders/order-dialog";
 import { AddProjectProviderDialog } from "./add-project-provider-dialog";
 import { ExecutionLinkDialog } from "./execution-link-dialog";
@@ -112,6 +116,9 @@ type Props = {
   budgetItemLabelById: Record<string, string>;
   recepciones: RecepcionRow[];
   panolSubmissions: PanolSubmissionRow[];
+  warehouseLocations: { id: string; name: string }[];
+  warehousePortalLinks: WarehousePortalLinkRow[];
+  warehouseProducts: { id: string; nombre: string; unidad: string }[];
   isAdmin: boolean;
   duplicateSources: { id: string; code: string; name: string; itemCount: number }[];
   itemsSubtotal: number;
@@ -162,6 +169,9 @@ export function ProjectTabsClient({
   budgetItemLabelById: budgetItemLabelByIdRecord,
   recepciones,
   panolSubmissions,
+  warehouseLocations,
+  warehousePortalLinks,
+  warehouseProducts,
   isAdmin,
   duplicateSources,
   itemsSubtotal,
@@ -435,7 +445,21 @@ export function ProjectTabsClient({
 
       {tab === "recepciones" ? <RecepcionesObraSection rows={recepciones} /> : null}
 
-      {tab === "panol" ? <PanolObraSection submissions={panolSubmissions} /> : null}
+      {tab === "panol" ? (
+        <PanolObraSection
+          projectId={project.id}
+          locations={warehouseLocations}
+          portalLinks={warehousePortalLinks}
+          submissions={panolSubmissions}
+          products={warehouseProducts}
+          budgetItems={items.map((item) => ({
+            id: item.id,
+            code: item.code,
+            description: item.description,
+            unit: item.unit ?? "",
+          }))}
+        />
+      ) : null}
 
       {tab === "informes" ? (
         <ProjectReports project={project} budgetItems={items} execEntries={entries} orders={ocs} />

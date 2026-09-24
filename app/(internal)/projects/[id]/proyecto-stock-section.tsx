@@ -31,7 +31,7 @@ export function ProyectoStockSection({
   const panolBanner = panoles.length > 0 ? (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] px-4 py-3 flex items-center justify-between gap-4">
       <div className="text-[13px]">
-        <span className="text-[11px] text-[var(--muted)] block mb-0.5">Depósito / Pañol vinculado</span>
+        <span className="text-[11px] text-[var(--muted)] block mb-0.5">Depósito vinculado</span>
         <span className="font-medium">{panoles.map((p) => p.nombre).join(", ")}</span>
       </div>
       <Link href="/stock" className="text-action text-[12px] shrink-0">
@@ -40,7 +40,7 @@ export function ProyectoStockSection({
     </div>
   ) : (
     <div className="rounded-lg border border-dashed border-[var(--border)] px-4 py-3 flex items-center justify-between gap-4 text-[13px] text-[var(--muted)]">
-      <span>Esta obra no tiene un depósito/pañol asignado.</span>
+      <span>Esta obra no tiene un depósito asignado.</span>
       <Link href="/stock" className="text-action text-[12px] shrink-0">
         Gestionar depósitos →
       </Link>

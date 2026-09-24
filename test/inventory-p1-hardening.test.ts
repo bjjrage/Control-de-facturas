@@ -52,7 +52,8 @@ describe("P1 hardening del inventario canónico", () => {
     expect(migration).toContain("BEFORE INSERT OR UPDATE OR DELETE ON public.warehouse_submission_lines");
     expect(migration).toContain("BEFORE INSERT OR UPDATE OR DELETE ON public.warehouse_submission_evidence");
     expect(actions).toContain("line.inventory_movement_id");
-    expect(actions).toContain("submission?.status === \"CONFIRMED\"");
+    expect(actions).toContain('["CONFIRMED", "VOIDED", "PROCESSING"].includes(submission.status)');
+    expect(actions).toContain('if (args.state === "CONFIRMED" &&');
   });
 
   it("mantiene el metadato nominal al propagar capas de costo", () => {

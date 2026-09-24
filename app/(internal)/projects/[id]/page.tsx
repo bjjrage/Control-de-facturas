@@ -309,15 +309,52 @@ export default async function ProjectDetailPage({
     inventorySnapshot,
     budgetConsumption,
     { data: obraLocations },
+    { data: warehouseProductRows },
   ] = await Promise.all([
     getProjectInventorySnapshot(supabase, empresaId, id),
     getBudgetInventoryConsumption(supabase, empresaId, { projectId: id }),
-    supabase.from("inventory_locations").select("id, name").eq("project_id", id),
+    supabase
+      .from("inventory_locations")
+      .select("id, name, location_type, active")
+      .eq("project_id", id)
+      .eq("empresa_id", empresaId),
+    supabase
+      .from("productos")
+      .select("id, nombre, unidad")
+      .eq("empresa_id", empresaId)
+      .eq("activo", true)
+      .order("nombre")
+      .limit(1000)
+      .returns<{ id: string; nombre: string; unidad: string }[]>(),
   ]);
   const stockObra = inventorySnapshot.data as import("./inventario-obra-section").StockObraRow[];
   const consumoCanonico = budgetConsumption.data as import("./inventario-obra-section").ConsumoCanonicoRow[];
   const locationNameById = new Map((obraLocations ?? []).map((l) => [l.id as string, l.name as string]));
   const obraLocationIds = (obraLocations ?? []).map((l) => l.id as string);
+  const warehouseLocations = (obraLocations ?? [])
+    .filter((location) => location.location_type === "PROJECT" && location.active === true)
+    .map((location) => ({ id: location.id as string, name: location.name as string }));
+  const warehouseProducts = warehouseProductRows ?? [];
+
+  const { data: portalLinkRows } = obraLocationIds.length > 0
+    ? await supabase
+        .from("warehouse_portal_links")
+        .select("id, location_id, token_hint, active, expires_at, created_at, last_used_at")
+        .eq("empresa_id", empresaId)
+        .in("location_id", obraLocationIds)
+        .order("created_at", { ascending: false })
+    : { data: [] };
+  const warehousePortalLinks: import("./panol-obra-section").WarehousePortalLinkRow[] =
+    (portalLinkRows ?? []).map((link) => ({
+      id: link.id as string,
+      location_id: link.location_id as string,
+      location_name: locationNameById.get(link.location_id as string) ?? "—",
+      token_hint: link.token_hint as string,
+      active: link.active as boolean,
+      expires_at: link.expires_at as string | null,
+      created_at: link.created_at as string,
+      last_used_at: link.last_used_at as string | null,
+    }));
 
   let recepciones: import("./recepciones-obra-section").RecepcionRow[] = [];
   if (obraLocationIds.length > 0) {
@@ -407,8 +444,9 @@ export default async function ProjectDetailPage({
   {
     const { data: submissionRows } = await supabase
       .from("warehouse_submissions")
-      .select("id, location_id, period_start, period_end, status")
+      .select("id, location_id, period_start, period_end, status, upload_incomplete, processing_error")
       .eq("project_id", id)
+      .eq("empresa_id", empresaId)
       .order("period_end", { ascending: false });
     const submissionIds = (submissionRows ?? []).map((s) => s.id as string);
     const [{ data: lineRows }, { data: evidenceRows }] =
@@ -416,21 +454,30 @@ export default async function ProjectDetailPage({
         ? await Promise.all([
             supabase
               .from("warehouse_submission_lines")
-              .select("id, submission_id, raw_description, quantity, unit, state, uncertainty_reason, productos(nombre)")
+              .select("id, submission_id, raw_description, producto_id, quantity, unit, budget_item_id, state, uncertainty_reason, notes, inventory_movement_id, productos(nombre)")
+              .eq("empresa_id", empresaId)
               .in("submission_id", submissionIds)
               .returns<
                 {
                   id: string;
                   submission_id: string;
                   raw_description: string;
+                  producto_id: string | null;
                   quantity: number | null;
                   unit: string | null;
+                  budget_item_id: string | null;
                   state: "PROPOSED" | "CONFIRMED" | "REJECTED";
                   uncertainty_reason: string | null;
+                  notes: string | null;
+                  inventory_movement_id: string | null;
                   productos: { nombre: string } | { nombre: string }[] | null;
                 }[]
               >(),
-            supabase.from("warehouse_submission_evidence").select("submission_id").in("submission_id", submissionIds),
+            supabase
+              .from("warehouse_submission_evidence")
+              .select("id, submission_id, storage_bucket, storage_path, file_name, mime_type, extraction_status, extraction_error")
+              .eq("empresa_id", empresaId)
+              .in("submission_id", submissionIds),
           ])
         : [{ data: [] }, { data: [] }];
     const linesBySubmission = new Map<string, import("./panol-obra-section").PanolLineRow[]>();
@@ -440,18 +487,48 @@ export default async function ProjectDetailPage({
       list.push({
         id: l.id,
         raw_description: l.raw_description,
+        producto_id: l.producto_id,
         producto: productoRaw?.nombre ?? null,
         quantity: l.quantity,
         unit: l.unit,
+        budget_item_id: l.budget_item_id,
         state: l.state,
         uncertainty_reason: l.uncertainty_reason,
+        notes: l.notes,
+        inventory_movement_id: l.inventory_movement_id,
       });
       linesBySubmission.set(l.submission_id, list);
     }
-    const evidenceCountBySubmission = new Map<string, number>();
+    const evidenceBySubmission = new Map<string, import("./panol-obra-section").PanolEvidenceRow[]>();
+    const signedUrlByObject = new Map<string, string>();
+    const evidenceByBucket = new Map<string, { path: string; bucket: string }[]>();
+    for (const e of evidenceRows ?? []) {
+      const bucket = e.storage_bucket as string;
+      const path = e.storage_path as string;
+      if (bucket !== "warehouse-evidence" || !path) continue;
+      const list = evidenceByBucket.get(bucket) ?? [];
+      list.push({ bucket, path });
+      evidenceByBucket.set(bucket, list);
+    }
+    await Promise.all([...evidenceByBucket.entries()].map(async ([bucket, objects]) => {
+      const uniquePaths = [...new Set(objects.map((object) => object.path))];
+      const { data: signedUrls } = await supabase.storage.from(bucket).createSignedUrls(uniquePaths, 300);
+      for (const signed of signedUrls ?? []) {
+        if (signed.path && signed.signedUrl) signedUrlByObject.set(`${bucket}:${signed.path}`, signed.signedUrl);
+      }
+    }));
     for (const e of evidenceRows ?? []) {
       const key = e.submission_id as string;
-      evidenceCountBySubmission.set(key, (evidenceCountBySubmission.get(key) ?? 0) + 1);
+      const evidence = evidenceBySubmission.get(key) ?? [];
+      evidence.push({
+        id: e.id as string,
+        file_name: e.file_name as string,
+        mime_type: e.mime_type as string | null,
+        extraction_status: e.extraction_status as string,
+        extraction_error: e.extraction_error as string | null,
+        signed_url: signedUrlByObject.get(`${e.storage_bucket as string}:${e.storage_path as string}`) ?? null,
+      });
+      evidenceBySubmission.set(key, evidence);
     }
     panolSubmissions = (submissionRows ?? []).map((s) => ({
       id: s.id as string,
@@ -459,7 +536,9 @@ export default async function ProjectDetailPage({
       period_start: s.period_start as string,
       period_end: s.period_end as string,
       status: s.status as import("./panol-obra-section").SubmissionStatus,
-      evidenceCount: evidenceCountBySubmission.get(s.id as string) ?? 0,
+      upload_incomplete: s.upload_incomplete as boolean,
+      processing_error: s.processing_error as string | null,
+      evidence: evidenceBySubmission.get(s.id as string) ?? [],
       lines: linesBySubmission.get(s.id as string) ?? [],
     }));
   }
@@ -672,6 +751,9 @@ export default async function ProjectDetailPage({
       budgetItemLabelById={Object.fromEntries(budgetItemLabelById)}
       recepciones={recepciones}
       panolSubmissions={panolSubmissions}
+      warehouseLocations={warehouseLocations}
+      warehousePortalLinks={warehousePortalLinks}
+      warehouseProducts={warehouseProducts}
       isAdmin={profile.role === "admin"}
       duplicateSources={duplicateSources}
       itemsSubtotal={itemsSubtotal}
