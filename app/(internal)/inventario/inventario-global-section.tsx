@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatNumber } from "@/lib/format";
+import type {
+  ManualMovementBalanceOption,
+  ManualMovementLocationOption,
+  ManualMovementProductOption,
+} from "@/lib/inventory/manual";
 import type { CurrencyCode } from "@/lib/types";
+import { NuevoMovimientoDialog } from "./nuevo-movimiento-dialog";
 
 export type GlobalRow = { producto_id: string; producto: string; unidad: string; quantity: number };
 export type LocationRow = {
@@ -31,10 +37,18 @@ export function InventarioGlobalSection({
   globalRows,
   locationRows,
   projectNameById,
+  movementLocations,
+  movementProducts,
+  movementBalances,
+  movementOptionsError,
 }: {
   globalRows: GlobalRow[];
   locationRows: LocationRow[];
   projectNameById: Map<string, string>;
+  movementLocations: ManualMovementLocationOption[];
+  movementProducts: ManualMovementProductOption[];
+  movementBalances: ManualMovementBalanceOption[];
+  movementOptionsError: string | null;
 }) {
   const ubicacionesActivas = new Set(locationRows.map((r) => r.location_id)).size;
   const valorTotalPyg = locationRows
@@ -44,11 +58,19 @@ export function InventarioGlobalSection({
 
   return (
     <div className="max-w-6xl space-y-5">
-      <div>
-        <h1 className="text-[17px] font-semibold">Inventario global</h1>
-        <p className="text-[13px] text-[var(--muted)] mt-0.5">
-          Stock real por producto y ubicación — dominio canónico de inventario.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-[17px] font-semibold">Inventario global</h1>
+          <p className="text-[13px] text-[var(--muted)] mt-0.5">
+            Stock real por producto y ubicación — dominio canónico de inventario.
+          </p>
+        </div>
+        <NuevoMovimientoDialog
+          locations={movementLocations}
+          products={movementProducts}
+          balances={movementBalances}
+          optionsError={movementOptionsError}
+        />
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -120,7 +142,7 @@ export function InventarioGlobalSection({
               </thead>
               <tbody>
                 {locationRows.map((r) => (
-                  <tr key={`${r.location_id}-${r.producto_id}`}>
+                  <tr key={`${r.location_id}-${r.producto_id}-${r.cost_currency ?? r.cost_status}`}>
                     <td>
                       <div className="font-medium">
                         {r.project_id ? (

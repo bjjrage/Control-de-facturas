@@ -18,6 +18,14 @@ const receiptUi = readFileSync(
   resolve(process.cwd(), "app/(internal)/orders/[id]/recepcion-section.tsx"),
   "utf8",
 );
+const manualMovementMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260924212056_inventory_manual_movement_contract.sql"),
+  "utf8",
+);
+const inventoryActions = readFileSync(
+  resolve(process.cwd(), "app/(internal)/inventory/actions.ts"),
+  "utf8",
+);
 
 describe("0080 inventory migration contract", () => {
   it("fails closed when legacy cost evidence is unavailable", () => {
@@ -163,5 +171,27 @@ describe("canonical purchase receipt migration contract", () => {
     expect(receiptActions).toContain("createInventoryReceipt(supabase");
     expect(receiptActions).toContain("confirmInventoryReceipt(supabase");
     expect(createReceipt).toContain("ARRAY['comercial','administracion','admin']::public.user_role[]");
+  });
+});
+
+describe("canonical manual inventory movement contract", () => {
+  it("requires a reason for all adjustment inserts and enforces stable actor-bound manual idempotency", () => {
+    expect(manualMovementMigration).toContain("NEW.movement_type = 'ADJUSTMENT'");
+    expect(manualMovementMigration).toContain("NEW.metadata->>'reason'");
+    expect(manualMovementMigration).toContain("NEW.source_id IS DISTINCT FROM NEW.idempotency_key::uuid");
+    expect(manualMovementMigration).toContain("NEW.created_by IS DISTINCT FROM v_actor");
+    expect(manualMovementMigration).toContain("NEW.source_type <> 'MANUAL'");
+    expect(manualMovementMigration).toContain("BEFORE INSERT ON public.inventory_movements");
+    expect(manualMovementMigration).toContain("BEFORE UPDATE OF cost_currency, exchange_rate_to_company ON public.inventory_movements");
+    expect(manualMovementMigration).toContain("NEW.cost_currency <> 'PYG'");
+    expect(manualMovementMigration).toContain("FROM PUBLIC, anon, authenticated");
+  });
+
+  it("keeps manual movement writes role-gated and resolves tenant, unit and negative adjustment cost server-side", () => {
+    expect(inventoryActions).toContain('requirePlan("pro", ["administracion", "admin"])');
+    expect(inventoryActions).toContain('.eq("empresa_id", profile.empresa_id)');
+    expect(inventoryActions).toContain("buildManualInventoryMovement(input");
+    expect(inventoryActions).toContain("negativeAdjustmentUnitCost");
+    expect(inventoryActions).toContain('revalidatePath("/inventario")');
   });
 });

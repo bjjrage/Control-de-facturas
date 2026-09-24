@@ -16,6 +16,15 @@ import { generateWarehousePortalToken, sha256Bytes, warehousePortalUrl } from "@
 import { parseInventorySpreadsheet, photoEvidenceProposal } from "@/lib/inventory/evidence";
 import { sanitizeFileName } from "@/lib/storage";
 import type { InventoryLocationType, InventoryMovementInput, WarehouseSubmissionLineState } from "@/lib/inventory/types";
+import {
+  buildManualInventoryMovement,
+  isManualInventoryMovementType,
+  resolveManualMovementProject,
+  validateManualInventoryMovementRequest,
+  type ManualInventoryMovementRequest,
+} from "@/lib/inventory/manual";
+
+type ManualMovementActionResult = { error: string | null; id: string | null; retryable: boolean };
 
 function clean(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -235,17 +244,127 @@ export async function revokeWarehousePortalLink(linkId: string) {
   return { error: null };
 }
 
-export async function postCanonicalInventoryMovement(input: Omit<InventoryMovementInput, "empresaId" | "createdBy">) {
+export async function postCanonicalInventoryMovement(input: ManualInventoryMovementRequest): Promise<ManualMovementActionResult> {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
-  const result = await postInventoryMovement(supabase, {
-    ...input,
-    empresaId: profile.empresa_id,
-    createdBy: profile.id,
-  });
-  if (result.error) return { error: result.error, id: null };
+  const fail = (error: string, retryable = false): ManualMovementActionResult => ({ error, id: null, retryable });
+
+  try {
+    validateManualInventoryMovementRequest(input);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "Los datos del movimiento no son válidos.");
+  }
+  if (!isManualInventoryMovementType(input.movementType)) {
+    return fail("El tipo de movimiento manual no es válido.");
+  }
+
+  const reason = input.reason?.trim() ?? "";
+  const { data: existing, error: existingError } = await supabase
+    .from("inventory_movements")
+    .select("id, producto_id, quantity, movement_type, from_location_id, to_location_id, source_type, source_id, source_line_id, cost_currency, unit_cost, exchange_rate_to_company, metadata")
+    .eq("empresa_id", profile.empresa_id)
+    .eq("idempotency_key", input.idempotencyKey)
+    .maybeSingle();
+  if (existingError) return fail(existingError.message);
+  if (existing) {
+    const storedReason = (existing.metadata as { reason?: unknown } | null)?.reason;
+    const sameRequest =
+      existing.source_type === "MANUAL"
+      && existing.source_id === input.idempotencyKey
+      && existing.source_line_id == null
+      && existing.producto_id === input.productoId
+      && Number(existing.quantity) === input.quantity
+      && existing.movement_type === input.movementType
+      && existing.from_location_id === (input.fromLocationId ?? null)
+      && existing.to_location_id === (input.toLocationId ?? null)
+      && (typeof storedReason === "string" ? storedReason : "") === reason
+      && (input.movementType !== "ADJUSTMENT" || existing.cost_currency === input.costCurrency)
+      && (input.movementType !== "ADJUSTMENT" || input.quantity < 0 || Number(existing.unit_cost) === input.unitCost)
+      && (input.movementType !== "ADJUSTMENT" || input.quantity < 0
+        || Number(existing.exchange_rate_to_company ?? 0) === Number(
+          input.costCurrency === "PYG" ? 1 : input.exchangeRateToCompany ?? 0,
+        ));
+    return sameRequest
+      ? { error: null, id: existing.id as string, retryable: false }
+      : fail("La clave de idempotencia ya corresponde a otro movimiento.");
+  }
+
+  const { data: product } = await supabase
+    .from("productos")
+    .select("id, unidad")
+    .eq("id", input.productoId)
+    .eq("empresa_id", profile.empresa_id)
+    .eq("activo", true)
+    .maybeSingle();
+  if (!product || typeof product.unidad !== "string" || !product.unidad.trim()) {
+    return fail("El producto no está activo, no pertenece a esta empresa o no tiene unidad válida.");
+  }
+
+  const locationIds = [...new Set([input.fromLocationId, input.toLocationId].filter((id): id is string => !!id))];
+  const { data: locations, error: locationError } = await supabase
+    .from("inventory_locations")
+    .select("id, project_id, location_type")
+    .eq("empresa_id", profile.empresa_id)
+    .eq("active", true)
+    .in("id", locationIds);
+  if (locationError) return fail(locationError.message);
+  const locationById = new Map((locations ?? []).map((location) => [location.id as string, location]));
+  if (locationIds.some((id) => !locationById.has(id))) {
+    return fail("Una ubicación no está activa o no pertenece a esta empresa.");
+  }
+  const fromLocation = input.fromLocationId ? locationById.get(input.fromLocationId) : null;
+  const toLocation = input.toLocationId ? locationById.get(input.toLocationId) : null;
+  const projectId = resolveManualMovementProject(
+    input.movementType,
+    (fromLocation?.project_id as string | null | undefined) ?? null,
+    (toLocation?.project_id as string | null | undefined) ?? null,
+  );
+
+  let negativeAdjustmentUnitCost: number | null = null;
+  if (input.movementType === "ADJUSTMENT" && input.quantity < 0) {
+    const { data: balance, error: balanceError } = await supabase
+      .from("inventory_balances")
+      .select("quantity, total_cost")
+      .eq("empresa_id", profile.empresa_id)
+      .eq("producto_id", input.productoId)
+      .eq("location_id", input.fromLocationId!)
+      .eq("cost_currency", input.costCurrency!)
+      .eq("cost_status", "COMPUTABLE")
+      .maybeSingle();
+    if (balanceError) return fail(balanceError.message);
+    const balanceQuantity = Number(balance?.quantity);
+    const totalCost = Number(balance?.total_cost);
+    if (!balance || !Number.isFinite(balanceQuantity) || balanceQuantity < Math.abs(input.quantity)) {
+      return fail("Stock computable insuficiente en esa ubicación y moneda.");
+    }
+    if (balance.total_cost == null || !Number.isFinite(totalCost) || totalCost < 0 || balanceQuantity <= 0) {
+      return fail("El costo del saldo seleccionado requiere revisión antes de ajustar.");
+    }
+    negativeAdjustmentUnitCost = Number((totalCost / balanceQuantity).toFixed(6));
+  }
+
+  let movement: InventoryMovementInput;
+  try {
+    movement = buildManualInventoryMovement(input, {
+      empresaId: profile.empresa_id,
+      createdBy: profile.id,
+      unit: product.unidad,
+      projectId,
+      negativeAdjustmentUnitCost,
+    });
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "Los datos del movimiento no son válidos.");
+  }
+
+  const result = await postInventoryMovement(supabase, movement);
+  if (result.error) {
+    const retryable = /fetch failed|network|timeout|timed out|connection|abort|econn/i.test(result.error);
+    return fail(result.error, retryable);
+  }
+  revalidatePath("/inventario");
   revalidatePath("/stock");
-  return { error: null, id: result.data };
+  if (projectId) revalidatePath(`/projects/${projectId}`);
+  return { error: null, id: result.data, retryable: false };
 }
 
 export async function confirmCanonicalReceipt(args: {
