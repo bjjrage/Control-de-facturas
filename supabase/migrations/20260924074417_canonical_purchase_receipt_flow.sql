@@ -40,6 +40,26 @@ WHERE r.status = 'DRAFT'
   )
   AND NOT EXISTS (
     SELECT 1
+    FROM public.oc_recepcion_items ri
+    JOIN public.authorized_order_items oi
+      ON oi.id = ri.order_item_id
+     AND oi.order_id = r.order_id
+     AND oi.empresa_id = r.empresa_id
+    LEFT JOIN public.productos p
+      ON p.id = ri.producto_id
+     AND p.empresa_id = r.empresa_id
+    WHERE ri.recepcion_id = r.id
+      AND ri.empresa_id = r.empresa_id
+      AND (
+        (oi.producto_id IS NOT NULL AND oi.producto_id IS DISTINCT FROM ri.producto_id)
+        OR (ri.producto_id IS NOT NULL AND (
+          p.id IS NULL
+          OR trim(p.unidad) IS DISTINCT FROM trim(oi.unit)
+        ))
+      )
+  )
+  AND NOT EXISTS (
+    SELECT 1
     FROM (
       SELECT ri2.order_item_id, sum(ri2.cantidad_recibida) AS received_quantity
       FROM public.oc_recepcion_items ri2

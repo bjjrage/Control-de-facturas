@@ -177,12 +177,17 @@ export async function eliminarRecepcion(
     return { error: "El borrador ya tiene movimientos vinculados y requiere revisión antes de eliminarse." };
   }
 
-  const { error } = await supabase
+  const { data: deletedReceipt, error } = await supabase
     .from("oc_recepciones")
     .delete()
     .eq("id", recepcion_id)
-    .eq("empresa_id", profile.empresa_id);
+    .eq("empresa_id", profile.empresa_id)
+    .select("id")
+    .maybeSingle();
   if (error) return { error: error.message };
+  if (!deletedReceipt) {
+    return { error: "No se descartó el borrador; quizá ya cambió de estado o no tenés permiso." };
+  }
 
   await logAudit(supabase, {
     action: "oc_recepcion_deleted",

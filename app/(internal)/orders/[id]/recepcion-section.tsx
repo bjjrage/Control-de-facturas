@@ -91,6 +91,10 @@ function RegistrarDialog({
       );
       if (res.error) {
         setError(res.error);
+        if (!res.receiptId) {
+          setAttemptLocked(false);
+          idempotencyKey.current = null;
+        }
         router.refresh();
         return;
       }
@@ -192,6 +196,7 @@ function RegistrarDialog({
                           {productos
                             .filter((p) => p.activo || p.id === it.producto_id)
                             .filter((p) => !it.producto_id || p.id === it.producto_id)
+                            .filter((p) => !it.unit.trim() || p.unidad.trim() === it.unit.trim())
                             .map((p) => (
                             <option key={p.id} value={p.id}>{p.nombre}</option>
                           ))}

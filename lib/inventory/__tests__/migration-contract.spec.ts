@@ -14,6 +14,10 @@ const receiptActions = readFileSync(
   resolve(process.cwd(), "app/(internal)/orders/oc-recepcion-actions.ts"),
   "utf8",
 );
+const receiptUi = readFileSync(
+  resolve(process.cwd(), "app/(internal)/orders/[id]/recepcion-section.tsx"),
+  "utf8",
+);
 
 describe("0080 inventory migration contract", () => {
   it("fails closed when legacy cost evidence is unavailable", () => {
@@ -66,6 +70,8 @@ describe("canonical purchase receipt migration contract", () => {
     expect(legacyBackfill).toContain("AND r.idempotency_key IS NULL");
     expect(legacyBackfill).toContain("AND il.active");
     expect(legacyBackfill).toContain("FROM public.oc_recepcion_items ri");
+    expect(legacyBackfill).toContain("oi.producto_id IS DISTINCT FROM ri.producto_id");
+    expect(legacyBackfill).toContain("trim(p.unidad) IS DISTINCT FROM trim(oi.unit)");
     expect(legacyBackfill).toContain("FULL JOIN");
     expect(legacyBackfill).toContain("sm.referencia_id = r.id");
     expect(legacyBackfill).toContain("accumulated.received_quantity > oi.quantity");
@@ -142,6 +148,14 @@ describe("canonical purchase receipt migration contract", () => {
     expect(receiptActions).toContain('requireProfile(["comercial", "administracion", "admin"])');
     expect(receiptActions).toContain("receipt.created_by !== profile.id");
     expect(receiptMigration).toContain("OLD.status IS DISTINCT FROM 'DRAFT'");
+    expect(receiptActions).toContain('.select("id")');
+    expect(receiptActions).toContain("if (!deletedReceipt)");
+  });
+
+  it("does not trap users after a rejected create and filters receipt products by OC unit", () => {
+    expect(receiptUi).toContain("if (!res.receiptId)");
+    expect(receiptUi).toContain("idempotencyKey.current = null");
+    expect(receiptUi).toContain("p.unidad.trim() === it.unit.trim()");
   });
 
   it("keeps receipt writes behind the authenticated role-checked canonical RPCs", () => {
