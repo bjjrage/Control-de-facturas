@@ -9,8 +9,8 @@ import { assertNonProductionTestTarget } from "./test-utils/external-test-target
  * Configuración EXCLUSIVA para la certificación BIM E2E contra infraestructura
  * efímera local (GitHub Actions: Supabase local + Next.js local).
  *
- * Utiliza un servidor local administrado por Playwright y valida los destinos
- * de base de datos antes de iniciar las pruebas. Esta config:
+ * Utiliza un servidor local administrado por Playwright, reconstruido bajo el
+ * entorno validado, y verifica su identidad antes de iniciar las pruebas. Esta config:
  *   - solo corre tests/e2e/bim-certification.spec.ts
  *   - baseURL loopback (default http://127.0.0.1:3000, override BIM_BASE_URL)
  *   - sin storageState compartido (el login ocurre dentro del test)

@@ -4,17 +4,20 @@ import { createGuardedLocalWebServer } from "../test-utils/playwright-safety";
 
 describe("external test target safety guard", () => {
   it("starts E2E only against a runner-managed loopback Next server", () => {
-    expect(createGuardedLocalWebServer("http://127.0.0.1:3005", "test")).toMatchObject({
+    const devServer = createGuardedLocalWebServer("http://127.0.0.1:3005", "test");
+    expect(devServer).toMatchObject({
       command: "npm run dev -- --hostname 127.0.0.1 --port 3005",
-      url: "http://127.0.0.1:3005",
       reuseExistingServer: false,
       env: expect.objectContaining({ NODE_ENV: "development" }),
     });
+    expect(devServer.wait.stdout.test("- Local:         http://127.0.0.1:3005")).toBe(true);
+    expect(devServer.wait.stdout.test("- Local:         http://127.0.0.1:3006")).toBe(false);
     expect(createGuardedLocalWebServer("http://127.0.0.1:3000", "test", { serverMode: "production" }))
       .toMatchObject({
-        command: "npm run start -- --hostname 127.0.0.1 --port 3000",
+        command: "npm run build && npm run start -- --hostname 127.0.0.1 --port 3000",
         reuseExistingServer: false,
         env: expect.objectContaining({ NODE_ENV: "production" }),
+        timeout: 600_000,
       });
     expect(() => createGuardedLocalWebServer("https://app.example.test", "test")).toThrow(/loopback/);
     expect(() => createGuardedLocalWebServer("http://10.0.0.12:3005", "test")).toThrow(/loopback/);

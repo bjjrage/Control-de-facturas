@@ -125,9 +125,6 @@ jobs:
           fi
           echo "Env efímero escrito (valores no mostrados)."
 
-      - name: Production Next.js Build
-        run: npm run build
-
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 

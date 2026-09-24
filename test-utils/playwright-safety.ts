@@ -47,11 +47,11 @@ export function createGuardedLocalWebServer(
   return {
     command:
       serverMode === "production"
-        ? `npm run start -- --hostname 127.0.0.1 --port ${port}`
+        ? `npm run build && npm run start -- --hostname 127.0.0.1 --port ${port}`
         : `npm run dev -- --hostname 127.0.0.1 --port ${port}`,
-    url: parsed.origin,
     env,
     reuseExistingServer: false,
-    timeout: 120_000,
+    wait: { stdout: new RegExp(`- Local:\\s+http://127\\.0\\.0\\.1:${port}(?:\\s|$)`) },
+    timeout: serverMode === "production" ? 600_000 : 120_000,
   };
 }
