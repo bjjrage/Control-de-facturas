@@ -6,6 +6,7 @@ describe("external test target safety guard", () => {
   it("starts E2E only against a runner-managed loopback Next server", () => {
     const devServer = createGuardedLocalWebServer("http://127.0.0.1:3005", "test");
     expect(devServer).toMatchObject({
+      baseURL: "http://127.0.0.1:3005",
       command: "npm run dev -- --hostname 127.0.0.1 --port 3005",
       reuseExistingServer: false,
       env: expect.objectContaining({ NODE_ENV: "development" }),
@@ -14,14 +15,23 @@ describe("external test target safety guard", () => {
     expect(devServer.wait.stdout.test("- Local:         http://127.0.0.1:3006")).toBe(false);
     expect(createGuardedLocalWebServer("http://127.0.0.1:3000", "test", { serverMode: "production" }))
       .toMatchObject({
+        baseURL: "http://127.0.0.1:3000",
         command: "npm run build && npm run start -- --hostname 127.0.0.1 --port 3000",
         reuseExistingServer: false,
         env: expect.objectContaining({ NODE_ENV: "production" }),
         timeout: 600_000,
       });
+    expect(createGuardedLocalWebServer("http://127.0.0.1", "test")).toMatchObject({
+      baseURL: "http://127.0.0.1:3000",
+      command: "npm run dev -- --hostname 127.0.0.1 --port 3000",
+    });
+    expect(createGuardedLocalWebServer("http://localhost:3005", "test").baseURL).toBe(
+      "http://127.0.0.1:3005",
+    );
     expect(() => createGuardedLocalWebServer("https://app.example.test", "test")).toThrow(/loopback/);
     expect(() => createGuardedLocalWebServer("http://10.0.0.12:3005", "test")).toThrow(/loopback/);
     expect(() => createGuardedLocalWebServer("http://[::1]:3005", "test")).toThrow(/loopback/);
+    expect(() => createGuardedLocalWebServer("http://127.0.0.1:3005/prefix", "test")).toThrow(/origin/);
   });
 
   it("allows a loopback target without external opt-in", () => {

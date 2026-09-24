@@ -9,7 +9,8 @@ import { assertNonProductionTestTarget } from "./test-utils/external-test-target
 loadPlaywrightTestEnvironment();
 
 const BASE_URL = process.env.BASE_URL ?? "http://127.0.0.1:3005";
-const webServer = createGuardedLocalWebServer(BASE_URL, "Playwright application target");
+const guardedServer = createGuardedLocalWebServer(BASE_URL, "Playwright application target");
+const { baseURL, ...webServer } = guardedServer;
 for (const [name, value] of Object.entries(process.env)) {
   if (
     value &&
@@ -44,7 +45,7 @@ export default defineConfig({
 
   webServer,
   use: {
-    baseURL: BASE_URL,
+    baseURL,
     screenshot: "only-on-failure",
     video: "retain-on-failure",
     trace: "on-first-retry",

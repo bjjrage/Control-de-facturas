@@ -17,7 +17,6 @@ import { test, expect, type Page } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-const BASE_URL = process.env.BIM_BASE_URL ?? "http://127.0.0.1:3000";
 const TEST_EMAIL = process.env.BIM_TEST_EMAIL ?? "";
 const TEST_PASSWORD = process.env.BIM_TEST_PASSWORD ?? "";
 const CATALOG_XLSX =
@@ -55,7 +54,10 @@ function shot(page: Page, name: string) {
 test.describe("BIM E2E Certification — Edificio Aurora", () => {
   test("proyecto -> excel -> ifc -> viewer -> deepseek -> review -> presupuesto -> reload", async ({
     page,
+    baseURL,
   }) => {
+    if (!baseURL) throw new Error("Playwright baseURL is required for BIM certification.");
+    const BASE_URL = baseURL;
     test.slow();
     await mkdir(EVIDENCE_DIR, { recursive: true });
     const metrics: Record<string, unknown> = {

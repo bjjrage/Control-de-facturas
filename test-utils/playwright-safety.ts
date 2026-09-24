@@ -36,8 +36,13 @@ export function createGuardedLocalWebServer(
     throw new Error(`${label}: E2E application target must be HTTP loopback; remote targets are disabled.`);
   }
 
+  if (parsed.pathname !== "/" || parsed.search || parsed.hash) {
+    throw new Error(label + ": application target must be an origin without a path, query, or fragment.");
+  }
+
   assertNonProductionTestTarget({ url: baseUrl, label });
   const port = parsed.port || "3000";
+  const canonicalBaseURL = "http://127.0.0.1:" + port;
   const serverMode = options.serverMode ?? "development";
   const env = Object.fromEntries(
     Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
@@ -45,6 +50,8 @@ export function createGuardedLocalWebServer(
   env.NODE_ENV = serverMode;
 
   return {
+    // Keep Playwright navigation on the exact host/port served by this child process.
+    baseURL: canonicalBaseURL,
     command:
       serverMode === "production"
         ? `npm run build && npm run start -- --hostname 127.0.0.1 --port ${port}`

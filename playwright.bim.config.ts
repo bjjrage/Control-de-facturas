@@ -22,9 +22,10 @@ const serverMode = process.env.BIM_SERVER_MODE === "production" ? "production" :
 loadPlaywrightTestEnvironment(serverMode);
 
 const BASE_URL = process.env.BIM_BASE_URL ?? "http://127.0.0.1:3000";
-const webServer = createGuardedLocalWebServer(BASE_URL, "BIM Playwright application target", {
+const guardedServer = createGuardedLocalWebServer(BASE_URL, "BIM Playwright application target", {
   serverMode,
 });
+const { baseURL, ...webServer } = guardedServer;
 for (const [name, value] of Object.entries(process.env)) {
   if (
     value &&
@@ -57,7 +58,7 @@ export default defineConfig({
     ["html", { open: "never", outputFolder: "playwright-report/bim" }],
   ],
   use: {
-    baseURL: BASE_URL,
+    baseURL,
     viewport: { width: 1440, height: 900 },
     screenshot: "off",
     video: "retain-on-failure",
