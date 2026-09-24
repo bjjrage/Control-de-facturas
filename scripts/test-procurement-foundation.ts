@@ -12,6 +12,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync } from "node:fs";
 import { fetchRecord } from "../lib/dncp/client";
+import { assertNonProductionTestTarget } from "../test-utils/external-test-target";
 
 // Leer variables de entorno desde .env.local
 const env = Object.fromEntries(
@@ -31,6 +32,7 @@ if (!supabaseUrl || !supabaseServiceKey) {
   console.error("Faltan variables de Supabase en .env.local");
   process.exit(1);
 }
+assertNonProductionTestTarget({ url: supabaseUrl, label: "Procurement foundation integration test" });
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: { persistSession: false },

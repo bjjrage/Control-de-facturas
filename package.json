@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:external": "vitest run --config vitest.external.config.mts",
     "test:watch": "vitest",
     "worker": "tsx worker/index.ts",
     "e2e": "playwright test",

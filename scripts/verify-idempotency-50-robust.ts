@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { collectDatabaseMetrics } from "./db-metrics";
+import { assertNonProductionTestTarget } from "../test-utils/external-test-target";
 
 const BASE_URL = "https://www.contrataciones.gov.py/datos/api/v3/doc";
 
@@ -38,6 +39,7 @@ async function main() {
       })
   );
 
+  assertNonProductionTestTarget({ url: env.NEXT_PUBLIC_SUPABASE_URL, label: "Idempotency verification database" });
   const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
   console.log("================================================================================");

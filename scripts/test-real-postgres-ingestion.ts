@@ -18,6 +18,7 @@
 import { createClient } from "@supabase/supabase-js";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { assertNonProductionTestTarget } from "../test-utils/external-test-target";
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -49,6 +50,7 @@ if (!supabaseUrl || !supabaseServiceKey) {
   console.error("ERROR: Faltan variables NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en .env.local");
   process.exit(1);
 }
+assertNonProductionTestTarget({ url: supabaseUrl, label: "PostgreSQL ingestion integration test" });
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: { persistSession: false },

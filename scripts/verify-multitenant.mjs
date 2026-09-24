@@ -4,6 +4,7 @@
 //   node scripts/verify-multitenant.mjs
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync } from "node:fs";
+import { assertNonProductionTestTarget } from "../test-utils/external-test-target.cjs";
 
 const env = Object.fromEntries(
   readFileSync(new URL("../.env.local", import.meta.url), "utf8")
@@ -15,6 +16,7 @@ const env = Object.fromEntries(
     })
 );
 
+assertNonProductionTestTarget({ url: env.NEXT_PUBLIC_SUPABASE_URL, label: "Multi-tenant verification database" });
 const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });

@@ -28,6 +28,7 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { randomBytes, createHash } from "crypto";
+import { assertNonProductionTestTarget } from "../test-utils/external-test-target.cjs";
 
 const URL = process.env.SMOKE_SUPABASE_URL;
 const ANON = process.env.SMOKE_ANON_KEY;
@@ -47,6 +48,7 @@ if (!URL || !ANON || !SERVICE || !EMPRESA || !CLIENT) {
   console.error("Faltan envs SMOKE_SUPABASE_URL/ANON_KEY/SERVICE_KEY/EMPRESA_ID/CLIENT_ID. Abortado sin tocar nada.");
   process.exit(2);
 }
+assertNonProductionTestTarget({ url: URL, label: "Quotation acceptance concurrency test" });
 
 const admin = createClient(URL, SERVICE, { auth: { persistSession: false } });
 const pub = createClient(URL, ANON, { auth: { persistSession: false } });

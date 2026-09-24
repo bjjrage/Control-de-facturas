@@ -40,7 +40,7 @@ describe("Historical Backfill Mechanics & Safety", () => {
     expect(enumerator.windows[enumerator.windows.length - 1].hasta).toBe("2026-12-31");
   });
 
-  it("2. Production Safety Guard BLOCKS writes to production when --allow-production is missing", () => {
+  it("2. Production Safety Guard always blocks production", () => {
     const prodUrl = `https://${PROD_PROJECT_REF}.supabase.co`;
     expect(() => {
       verifyProductionSafety(prodUrl, []);
@@ -51,17 +51,17 @@ describe("Historical Backfill Mechanics & Safety", () => {
     }).toThrow("PRODUCTION_SAFETY_GUARD_BLOCKED");
   });
 
-  it("3. Production Safety Guard ALLOWS writes to production ONLY when explicit --allow-production flag is provided", () => {
+  it("3. Production Safety Guard still blocks production with the legacy override flag", () => {
     const prodUrl = `https://${PROD_PROJECT_REF}.supabase.co`;
     expect(() => {
       verifyProductionSafety(prodUrl, ["--allow-production"]);
-    }).not.toThrow();
+    }).toThrow("PRODUCTION_SAFETY_GUARD_BLOCKED");
   });
 
-  it("4. Production Safety Guard transparently allows authorized LAB database without flag", () => {
+  it("4. Production Safety Guard allows the authorized LAB only with explicit external-test opt-in", () => {
     const labUrl = `https://${LAB_PROJECT_REF}.supabase.co`;
     expect(() => {
-      verifyProductionSafety(labUrl, []);
+      verifyProductionSafety(labUrl, [], { ALLOW_EXTERNAL_TEST_DB: "true" });
     }).not.toThrow();
   });
 
@@ -85,9 +85,9 @@ describe("Historical Backfill Mechanics & Safety", () => {
     cp.total_succeeded = 42;
     cp.last_ocid = "ocds-03ad3f-test-123";
 
-    saveCheckpoint(cp);
+    saveCheckpoint(cp, testCheckpointFile);
 
-    const reloaded = loadCheckpoint();
+    const reloaded = loadCheckpoint(testCheckpointFile);
     expect(reloaded.current_window_idx).toBe(3);
     expect(reloaded.current_page).toBe(15);
     expect(reloaded.current_record_index).toBe(27);

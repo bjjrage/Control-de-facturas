@@ -1,7 +1,14 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
+import { assertNonProductionTestTarget } from "../test-utils/external-test-target";
 
 const runRealRls = process.env.RUN_CLIMATE_RLS_TESTS === "1";
+if (runRealRls) {
+  assertNonProductionTestTarget({
+    url: process.env.SUPABASE_TEST_URL,
+    label: "Climate RLS test",
+  });
+}
 const describeRls = runRealRls ? describe : describe.skip;
 
 function requiredEnv(name: string) {

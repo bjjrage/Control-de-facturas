@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import * as fs from "fs";
+import { assertNonProductionTestTarget } from "../test-utils/external-test-target";
 
 // La Management API tarda ~1-2s por roundtrip: techo por test solo de este archivo.
 vi.setConfig({ testTimeout: 120_000 });
@@ -9,20 +9,17 @@ vi.setConfig({ testTimeout: 120_000 });
 // P1-4 A/B/C, P1-1 re-commit x3, TEST 7 (rollback), TEST 8 (concurrencia),
 // P1-3 (RLS vía pg), actor cross-tenant/rol.
 
-const TOKEN_PATH =
-  "C:/Users/User/.gemini/antigravity/brain/43b8d4c1-28c5-47d0-b8c6-28c11747b59e/scratch/supabase_token.txt";
-const PROJECT_REF = "ezucivipgmbvamhugkbj";
-
-function token() {
-  return fs.readFileSync(TOKEN_PATH, "utf8").trim();
-}
+const PROJECT_REF = process.env.TEST_SUPABASE_PROJECT_REF ?? "";
+const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN ?? "";
+assertNonProductionTestTarget({ projectRef: PROJECT_REF, label: "MRP live test" });
+if (!ACCESS_TOKEN) throw new Error("MRP live test requires SUPABASE_ACCESS_TOKEN.");
 
 async function querySql(query: string) {
   const resp = await fetch(
     `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
     {
       method: "POST",
-      headers: { Authorization: "Bearer " + token(), "Content-Type": "application/json" },
+      headers: { Authorization: "Bearer " + ACCESS_TOKEN, "Content-Type": "application/json" },
       body: JSON.stringify({ query }),
     }
   );

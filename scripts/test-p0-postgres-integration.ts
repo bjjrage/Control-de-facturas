@@ -10,6 +10,7 @@
  */
 
 import { Client } from 'pg';
+import { assertNonProductionTestTarget } from '../test-utils/external-test-target';
 
 interface TestSummary {
   name: string;
@@ -40,11 +41,12 @@ function record(name: string, expected: string, actual: string, passed: boolean,
 }
 
 async function run() {
-  const dbUrl = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
+  const dbUrl = process.env.TEST_DATABASE_URL;
   if (!dbUrl) {
-    console.error('❌ ERROR FATAL: No se definió TEST_DATABASE_URL ni DATABASE_URL');
+    console.error('❌ ERROR FATAL: No se definió TEST_DATABASE_URL');
     process.exit(1);
   }
+  assertNonProductionTestTarget({ url: dbUrl, label: 'P0 PostgreSQL integration test' });
 
   // Conexión como superuser / postgres para setup de fixtures e introspección de permisos
   const client = new Client({ connectionString: dbUrl });

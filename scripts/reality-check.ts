@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { assertNonProductionTestTarget } from "../test-utils/external-test-target";
 
 async function main() {
   const env = Object.fromEntries(
@@ -13,6 +14,7 @@ async function main() {
       })
   );
 
+  assertNonProductionTestTarget({ url: env.NEXT_PUBLIC_SUPABASE_URL, label: "Procurement reality-check database" });
   const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
   console.log("================================================================================");

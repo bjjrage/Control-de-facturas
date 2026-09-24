@@ -1,11 +1,14 @@
 import { describe, it, expect } from "vitest";
-import * as fs from "fs";
+import { assertNonProductionTestTarget } from "../test-utils/external-test-target";
 
 describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", () => {
-  const token = fs.readFileSync("C:/Users/User/.gemini/antigravity/brain/43b8d4c1-28c5-47d0-b8c6-28c11747b59e/scratch/supabase_token.txt", "utf8").trim();
+  const projectRef = process.env.TEST_SUPABASE_PROJECT_REF ?? "";
+  const token = process.env.SUPABASE_ACCESS_TOKEN ?? "";
+  assertNonProductionTestTarget({ projectRef, label: "Weekly Plan atomic DB test" });
+  if (!token) throw new Error("Weekly Plan atomic DB test requires SUPABASE_ACCESS_TOKEN.");
 
   async function querySql(query: string) {
-    const resp = await fetch("https://api.supabase.com/v1/projects/ezucivipgmbvamhugkbj/database/query", {
+    const resp = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
       method: "POST",
       headers: {
         "Authorization": "Bearer " + token,

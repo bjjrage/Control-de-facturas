@@ -1,11 +1,31 @@
 import { defineConfig, devices } from "@playwright/test";
 import * as dotenv from "dotenv";
 import * as path from "path";
+import { assertNonProductionTestTarget } from "./test-utils/external-test-target";
 
 // Cargar .env.local para E2E_PASSWORD y demás variables
 dotenv.config({ path: path.resolve(__dirname, ".env.local") });
 
 const BASE_URL = process.env.BASE_URL ?? "http://127.0.0.1:3005";
+assertNonProductionTestTarget({ url: BASE_URL, label: "Playwright application target" });
+for (const [name, value] of Object.entries(process.env)) {
+  if (
+    value &&
+    [
+      "DATABASE_URL",
+      "DIRECT_URL",
+      "NEXT_PUBLIC_SUPABASE_URL",
+      "SUPABASE_DB_URL",
+      "SUPABASE_URL",
+      "E2E_SUPABASE_URL",
+      "TEST_DATABASE_URL",
+      "TEST_SUPABASE_URL",
+      "SUPABASE_TEST_URL",
+    ].includes(name)
+  ) {
+    assertNonProductionTestTarget({ url: value, label: `Playwright ${name}` });
+  }
+}
 
 export default defineConfig({
   testDir: "./tests/e2e",

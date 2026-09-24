@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { collectDatabaseMetrics } from "./db-metrics";
+import { assertNonProductionTestTarget } from "../test-utils/external-test-target";
 
 const TARGET_PROJECT_REF = "klvvlybltcmowoptogpe";
 const BASE_URL = "https://www.contrataciones.gov.py/datos/api/v3/doc";
@@ -30,8 +31,13 @@ if (!supabaseUrl.includes(TARGET_PROJECT_REF)) {
   console.error(`FATAL SAFETY CHECK FAILED: URL ${supabaseUrl} does NOT contain ${TARGET_PROJECT_REF}!`);
   process.exit(1);
 }
+assertNonProductionTestTarget({
+  url: supabaseUrl,
+  projectRef: TARGET_PROJECT_REF,
+  label: "Controlled DNCP test-run database",
+});
 
-console.log(`[SAFETY CHECK PASSED] Connected strictly to Lab: ${supabaseUrl}`);
+console.log("[SAFETY CHECK PASSED] Connected strictly to the isolated lab project.");
 
 const supabase = createClient(supabaseUrl, serviceKey, {
   auth: { persistSession: false },

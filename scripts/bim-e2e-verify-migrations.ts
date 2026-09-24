@@ -5,10 +5,11 @@
  * Comprueba existencia de tablas/columnas/bucket (prueba funcional de que la
  * migración corrió) y, a modo informativo, el historial de migraciones.
  *
- * Env: TEST_DATABASE_URL (o DATABASE_URL). Nunca loguea la connection string.
+ * Env: TEST_DATABASE_URL. Nunca loguea la connection string.
  */
 
 import { Client } from "pg";
+import { assertNonProductionTestTarget } from "../test-utils/external-test-target";
 
 async function tableExists(client: Client, table: string): Promise<boolean> {
   const { rows } = await client.query(
@@ -27,11 +28,12 @@ async function columnExists(client: Client, table: string, column: string): Prom
 }
 
 async function run(): Promise<void> {
-  const dbUrl = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+  const dbUrl = process.env.TEST_DATABASE_URL;
   if (!dbUrl) {
-    console.error("❌ [bim-e2e-verify] Falta TEST_DATABASE_URL (o DATABASE_URL).");
+    console.error("❌ [bim-e2e-verify] Falta TEST_DATABASE_URL.");
     process.exit(1);
   }
+  assertNonProductionTestTarget({ url: dbUrl, label: "BIM migration verification" });
   const client = new Client({ connectionString: dbUrl });
   await client.connect();
   try {
