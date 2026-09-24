@@ -22,6 +22,17 @@ function projectRefFromUrl(url) {
   return match?.[1]?.toLowerCase() ?? null;
 }
 
+function urlContainsProductionProjectRef(normalizedUrl, label) {
+  if (!normalizedUrl) return false;
+  let decodedUrl = normalizedUrl;
+  try {
+    decodedUrl = decodeURIComponent(normalizedUrl);
+  } catch {
+    throw new Error(`${label}: target URL has malformed percent encoding; refusing to connect.`);
+  }
+  return decodedUrl.toLowerCase().includes(PRODUCTION_SUPABASE_PROJECT_REF);
+}
+
 function isProductionHost(hostname) {
   if (!hostname) return false;
   return hostname
@@ -88,7 +99,7 @@ exports.assertNonProductionTestTarget = function assertNonProductionTestTarget({
   const effectiveRef = normalizedRef ?? inferredRef;
   const targetHasProductionRef =
     effectiveRef === PRODUCTION_SUPABASE_PROJECT_REF ||
-    normalizedUrl?.toLowerCase().includes(PRODUCTION_SUPABASE_PROJECT_REF) === true;
+    urlContainsProductionProjectRef(normalizedUrl, label);
 
   if (targetHasProductionRef || isProductionTarget(parsedUrl)) {
     throw new Error(`${label}: production targets are always blocked.`);

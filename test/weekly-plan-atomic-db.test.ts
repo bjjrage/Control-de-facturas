@@ -1,9 +1,14 @@
 import { describe, it, expect } from "vitest";
+import { randomUUID } from "node:crypto";
 import { assertNonProductionTestTarget } from "../test-utils/external-test-target";
 
 describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", () => {
   const projectRef = process.env.TEST_SUPABASE_PROJECT_REF ?? "";
   const token = process.env.SUPABASE_ACCESS_TOKEN ?? "";
+  const runSuffix = randomUUID().replaceAll("-", "");
+  const atomicProjectCode = `PRJ-ATM-${runSuffix}`;
+  const percentageProjectCode = `PRJ-PCT-${runSuffix}`;
+  const weatherProjectCode = `PRJ-WTR-${runSuffix}`;
   assertNonProductionTestTarget({ projectRef, label: "Weekly Plan atomic DB test" });
   if (!token) throw new Error("Weekly Plan atomic DB test requires SUPABASE_ACCESS_TOKEN.");
 
@@ -55,7 +60,7 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
 
   it("4. ATOMICITY & ROLLBACK PROOF: inserting invalid budget_item aborts transaction and preserves existing items intact", async () => {
     // 0. Ensure clean state
-    await querySql(`DELETE FROM public.projects WHERE code = 'PRJ-ATM-01';`);
+    await querySql(`DELETE FROM public.projects WHERE code = '${atomicProjectCode}';`);
 
     // 1. Create a dummy project and plan with 3 items
     const setupSql = `
@@ -72,7 +77,7 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
         SELECT id, empresa_id INTO v_user_id, v_empresa_id FROM public.profiles LIMIT 1;
 
         INSERT INTO public.projects (empresa_id, name, code, start_date, budget_total)
-        VALUES (v_empresa_id, 'TEST-ATOMIC-PROJ', 'PRJ-ATM-01', '2026-09-01', 10000000)
+        VALUES (v_empresa_id, 'TEST-ATOMIC-PROJ', '${atomicProjectCode}', '2026-09-01', 10000000)
         RETURNING id INTO v_proj_id;
 
         INSERT INTO public.budget_items (project_id, code, description, quantity, unit_price)
@@ -101,7 +106,7 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
       FROM public.project_weekly_plan_items pi
       JOIN public.project_weekly_plans p ON p.id = pi.plan_id
       JOIN public.projects pr ON pr.id = p.project_id
-      WHERE pr.code = 'PRJ-ATM-01';
+      WHERE pr.code = '${atomicProjectCode}';
     `);
     expect(countBefore[0].cnt).toBe(3);
 
@@ -115,8 +120,8 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
         PERFORM set_config('request.jwt.claim.sub', v_user_id::text, true);
 
         PERFORM public.save_weekly_plan_atomic(
-          (SELECT p.id FROM public.project_weekly_plans p JOIN public.projects pr ON pr.id = p.project_id WHERE pr.code = 'PRJ-ATM-01' LIMIT 1),
-          (SELECT id FROM public.projects WHERE code = 'PRJ-ATM-01'),
+          (SELECT p.id FROM public.project_weekly_plans p JOIN public.projects pr ON pr.id = p.project_id WHERE pr.code = '${atomicProjectCode}' LIMIT 1),
+          (SELECT id FROM public.projects WHERE code = '${atomicProjectCode}'),
           '2026-09-14'::DATE,
           '2026-09-20'::DATE,
           'DRAFT',
@@ -142,19 +147,19 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
       FROM public.project_weekly_plan_items pi
       JOIN public.project_weekly_plans p ON p.id = pi.plan_id
       JOIN public.projects pr ON pr.id = p.project_id
-      WHERE pr.code = 'PRJ-ATM-01';
+      WHERE pr.code = '${atomicProjectCode}';
     `);
     expect(countAfter[0].cnt).toBe(3);
 
     // Cleanup test dummy project
     await querySql(`
-      DELETE FROM public.projects WHERE code = 'PRJ-ATM-01';
+      DELETE FROM public.projects WHERE code = '${atomicProjectCode}';
     `);
   }, 30000);
 
   it("5. DB Percentage Conversion & Read-After-Write: 500 m2 item with 10% saves target_quantity = 50 and matches engine", async () => {
     // 0. Ensure clean state
-    await querySql(`DELETE FROM public.projects WHERE code = 'PRJ-PCT-01';`);
+    await querySql(`DELETE FROM public.projects WHERE code = '${percentageProjectCode}';`);
 
     const setupSql = `
       DO $$
@@ -169,7 +174,7 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
         PERFORM set_config('request.jwt.claim.sub', v_user_id::text, true);
 
         INSERT INTO public.projects (empresa_id, name, code, start_date, budget_total)
-        VALUES (v_empresa_id, 'TEST-PERCENTAGE-PROJ', 'PRJ-PCT-01', '2026-09-01', 50000000)
+        VALUES (v_empresa_id, 'TEST-PERCENTAGE-PROJ', '${percentageProjectCode}', '2026-09-01', 50000000)
         RETURNING id INTO v_proj_id;
 
         -- Contractual quantity = 500 m2, executed = 0, remaining = 500 m2
@@ -211,7 +216,7 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
       JOIN public.project_weekly_plans p ON p.id = pi.plan_id
       JOIN public.projects pr ON pr.id = p.project_id
       JOIN public.budget_items b ON b.id = pi.budget_item_id
-      WHERE pr.code = 'PRJ-PCT-01';
+      WHERE pr.code = '${percentageProjectCode}';
     `);
 
     expect(rows.length).toBe(1);
@@ -223,11 +228,11 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
     expect(Number(row.target_quantity)).toBe(50);
 
     // Cleanup
-    await querySql(`DELETE FROM public.projects WHERE code = 'PRJ-PCT-01';`);
+    await querySql(`DELETE FROM public.projects WHERE code = '${percentageProjectCode}';`);
   }, 30000);
 
   it("6. HISTORICAL WEATHER IMMUTABILITY PROOF: Batch A (10mm) and Batch B (30mm) remain distinct and unmodified", async () => {
-    await querySql(`DELETE FROM public.projects WHERE code = 'PRJ-WTR-IMM';`);
+    await querySql(`DELETE FROM public.projects WHERE code = '${weatherProjectCode}';`);
 
     const setupSql = `
       DO $$
@@ -245,7 +250,7 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
         PERFORM set_config('request.jwt.claim.sub', v_user_id::text, true);
 
         INSERT INTO public.projects (empresa_id, name, code, start_date, budget_total)
-        VALUES (v_empresa_id, 'TEST-WEATHER-IMMUTABILITY', 'PRJ-WTR-IMM', '2026-09-01', 10000000)
+        VALUES (v_empresa_id, 'TEST-WEATHER-IMMUTABILITY', '${weatherProjectCode}', '2026-09-01', 10000000)
         RETURNING id INTO v_proj_id;
 
         INSERT INTO public.budget_items (project_id, code, description, quantity, unit_price)
@@ -316,7 +321,7 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
       FROM public.project_weather_forecast_batches b
       JOIN public.project_weather_forecast_snapshots s ON s.batch_id = b.id
       JOIN public.projects p ON p.id = b.project_id
-      WHERE p.code = 'PRJ-WTR-IMM'
+      WHERE p.code = '${weatherProjectCode}'
       ORDER BY s.precipitation_sum_mm ASC;
     `);
 
@@ -334,7 +339,7 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
       FROM public.project_weekly_plans pl
       JOIN public.projects p ON p.id = pl.project_id
       JOIN public.project_weather_forecast_snapshots s ON s.batch_id = pl.weather_snapshot_batch_id
-      WHERE p.code = 'PRJ-WTR-IMM'
+      WHERE p.code = '${weatherProjectCode}'
       ORDER BY pl.notes ASC;
     `);
 
@@ -349,7 +354,7 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
     expect(planA.weather_snapshot_batch_id).not.toBe(planB.weather_snapshot_batch_id);
 
     // Cleanup
-    await querySql(`DELETE FROM public.projects WHERE code = 'PRJ-WTR-IMM';`);
+    await querySql(`DELETE FROM public.projects WHERE code = '${weatherProjectCode}';`);
   }, 30000);
 
   it("7. TABLE PRIVILEGES & TRUNCATE DENIAL: database strictly enforces append-only grants", async () => {

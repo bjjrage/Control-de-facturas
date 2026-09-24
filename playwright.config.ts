@@ -7,6 +7,16 @@ import { assertNonProductionTestTarget } from "./test-utils/external-test-target
 dotenv.config({ path: path.resolve(__dirname, ".env.local") });
 
 const BASE_URL = process.env.BASE_URL ?? "http://127.0.0.1:3005";
+const baseUrl = new URL(BASE_URL);
+const appHostname = baseUrl.hostname.toLowerCase();
+if (
+  !["localhost", "127.0.0.1", "::1", "[::1]"].includes(appHostname) &&
+  !appHostname.endsWith(".localhost")
+) {
+  throw new Error(
+    "Playwright application target must be loopback; remote E2E targets are disabled to prevent production writes.",
+  );
+}
 assertNonProductionTestTarget({ url: BASE_URL, label: "Playwright application target" });
 for (const [name, value] of Object.entries(process.env)) {
   if (

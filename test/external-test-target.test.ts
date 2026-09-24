@@ -48,6 +48,13 @@ describe("external test target safety guard", () => {
         env: { ALLOW_EXTERNAL_TEST_DB: "true" },
       }),
     ).toThrow(/production targets are always blocked/);
+
+    expect(() =>
+      assertNonProductionTestTarget({
+        url: "postgres://postgres%2E%65zucivipgmbvamhugkbj:secret@db.example.test:5432/postgres",
+        env: { ALLOW_EXTERNAL_TEST_DB: "true" },
+      }),
+    ).toThrow(/production targets are always blocked/);
   });
 
   it("blocks production-marked hosts and runtime environments", () => {
