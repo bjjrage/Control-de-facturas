@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { assertNonProductionTestTarget } from "../test-utils/external-test-target";
+import { createGuardedLocalWebServer } from "../test-utils/playwright-safety";
 
 describe("external test target safety guard", () => {
+  it("starts E2E only against a runner-managed loopback Next server", () => {
+    expect(createGuardedLocalWebServer("http://127.0.0.1:3005", "test")).toMatchObject({
+      command: "npm run dev -- --hostname 127.0.0.1 --port 3005",
+      url: "http://127.0.0.1:3005",
+      reuseExistingServer: false,
+    });
+    expect(() => createGuardedLocalWebServer("https://app.example.test", "test")).toThrow(/loopback/);
+    expect(() => createGuardedLocalWebServer("http://10.0.0.12:3005", "test")).toThrow(/loopback/);
+  });
+
   it("allows a loopback target without external opt-in", () => {
     expect(() =>
       assertNonProductionTestTarget({

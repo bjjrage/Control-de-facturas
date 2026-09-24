@@ -1,23 +1,15 @@
 import { defineConfig, devices } from "@playwright/test";
-import * as dotenv from "dotenv";
-import * as path from "path";
+import {
+  createGuardedLocalWebServer,
+  loadPlaywrightTestEnvironment,
+} from "./test-utils/playwright-safety";
 import { assertNonProductionTestTarget } from "./test-utils/external-test-target";
 
-// Cargar .env.local para E2E_PASSWORD y demás variables
-dotenv.config({ path: path.resolve(__dirname, ".env.local") });
+// Cargar el entorno de desarrollo con la misma precedencia que Next.js.
+loadPlaywrightTestEnvironment();
 
 const BASE_URL = process.env.BASE_URL ?? "http://127.0.0.1:3005";
-const baseUrl = new URL(BASE_URL);
-const appHostname = baseUrl.hostname.toLowerCase();
-if (
-  !["localhost", "127.0.0.1", "::1", "[::1]"].includes(appHostname) &&
-  !appHostname.endsWith(".localhost")
-) {
-  throw new Error(
-    "Playwright application target must be loopback; remote E2E targets are disabled to prevent production writes.",
-  );
-}
-assertNonProductionTestTarget({ url: BASE_URL, label: "Playwright application target" });
+const webServer = createGuardedLocalWebServer(BASE_URL, "Playwright application target");
 for (const [name, value] of Object.entries(process.env)) {
   if (
     value &&
@@ -46,10 +38,11 @@ export default defineConfig({
 
   // En CI fallar rápido, localmente reintentar 1 vez para flakiness de red
   retries: process.env.CI ? 0 : 1,
-  workers: 1, // Tests secuenciales — comparten estado de producción
+  workers: 1, // Tests secuenciales: comparten estado del entorno local de prueba
 
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
 
+  webServer,
   use: {
     baseURL: BASE_URL,
     screenshot: "only-on-failure",

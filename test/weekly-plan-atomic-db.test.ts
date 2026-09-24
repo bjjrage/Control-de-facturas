@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterAll, describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
 import { assertNonProductionTestTarget } from "../test-utils/external-test-target";
 
@@ -27,6 +27,13 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
     }
     return JSON.parse(text);
   }
+
+  afterAll(async () => {
+    await querySql(`
+      DELETE FROM public.projects
+      WHERE code IN ('${atomicProjectCode}', '${percentageProjectCode}', '${weatherProjectCode}');
+    `);
+  });
 
   it("1. Multi-front index handles Sector A, Sector B and NULL front labels", async () => {
     const checkIndex = await querySql(`
@@ -59,9 +66,6 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
   });
 
   it("4. ATOMICITY & ROLLBACK PROOF: inserting invalid budget_item aborts transaction and preserves existing items intact", async () => {
-    // 0. Ensure clean state
-    await querySql(`DELETE FROM public.projects WHERE code = '${atomicProjectCode}';`);
-
     // 1. Create a dummy project and plan with 3 items
     const setupSql = `
       DO $$
@@ -151,16 +155,9 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
     `);
     expect(countAfter[0].cnt).toBe(3);
 
-    // Cleanup test dummy project
-    await querySql(`
-      DELETE FROM public.projects WHERE code = '${atomicProjectCode}';
-    `);
   }, 30000);
 
   it("5. DB Percentage Conversion & Read-After-Write: 500 m2 item with 10% saves target_quantity = 50 and matches engine", async () => {
-    // 0. Ensure clean state
-    await querySql(`DELETE FROM public.projects WHERE code = '${percentageProjectCode}';`);
-
     const setupSql = `
       DO $$
       DECLARE
@@ -227,13 +224,9 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
     // CRITICAL P0 ASSERTION: target_quantity MUST BE 50, NOT 10!
     expect(Number(row.target_quantity)).toBe(50);
 
-    // Cleanup
-    await querySql(`DELETE FROM public.projects WHERE code = '${percentageProjectCode}';`);
   }, 30000);
 
   it("6. HISTORICAL WEATHER IMMUTABILITY PROOF: Batch A (10mm) and Batch B (30mm) remain distinct and unmodified", async () => {
-    await querySql(`DELETE FROM public.projects WHERE code = '${weatherProjectCode}';`);
-
     const setupSql = `
       DO $$
       DECLARE
@@ -353,8 +346,6 @@ describe("Database Level Hardening: Atomic RPC, Rollback & Canonical Schema", ()
     expect(Number(planB.rainfall)).toBe(30);
     expect(planA.weather_snapshot_batch_id).not.toBe(planB.weather_snapshot_batch_id);
 
-    // Cleanup
-    await querySql(`DELETE FROM public.projects WHERE code = '${weatherProjectCode}';`);
   }, 30000);
 
   it("7. TABLE PRIVILEGES & TRUNCATE DENIAL: database strictly enforces append-only grants", async () => {
