@@ -4,7 +4,6 @@ import { hashWarehousePortalToken } from "@/lib/inventory/portal";
 
 export default async function WarehousePortalPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  if (!/^[A-Za-z0-9_-]{43}$/.test(token)) notFound();
   const admin = createAdminClient();
   const { data: link } = await admin
     .from("warehouse_portal_links")

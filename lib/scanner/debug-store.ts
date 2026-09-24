@@ -1,5 +1,3 @@
-import type { DetectionDiagnostics } from './types';
-
 /**
  * Debug Store y Telemetría en tiempo real para Control Scanner.
  * Registra transiciones de estado, eventos de hardware/cámara y mediciones del botón READY.
@@ -50,40 +48,9 @@ const initialCameraTelemetry: CameraDebugTelemetry = {
   timeoutTriggered: false,
 };
 
-export interface ScannerDetectionTelemetry {
-  detector: 'v1' | 'v2' | 'unknown';
-  opencvState: 'idle' | 'loading' | 'ready' | 'failed';
-  processingMs: number;
-  candidateCount: number;
-  confidence: number;
-  areaRatio: number;
-  meanEdgeCoverage: number;
-  minEdgeCoverage: number;
-  mode: 'fast' | 'quality' | 'final' | 'idle';
-  rawQuad: DetectionDiagnostics['rawQuad'];
-  refinedQuad: DetectionDiagnostics['refinedQuad'];
-  qualityPassAcceptable: boolean;
-}
-
-const initialDetectionTelemetry: ScannerDetectionTelemetry = {
-  detector: 'unknown',
-  opencvState: 'idle',
-  processingMs: 0,
-  candidateCount: 0,
-  confidence: 0,
-  areaRatio: 0,
-  meanEdgeCoverage: 0,
-  minEdgeCoverage: 0,
-  mode: 'idle',
-  rawQuad: null,
-  refinedQuad: null,
-  qualityPassAcceptable: false,
-};
-
 class ScannerDebugStore {
   private transitions: string[] = [];
   private cameraTelemetry: CameraDebugTelemetry = { ...initialCameraTelemetry };
-  private detectionTelemetry: ScannerDetectionTelemetry = { ...initialDetectionTelemetry };
   private listeners: Set<() => void> = new Set();
 
   public getTransitions(): string[] {
@@ -92,10 +59,6 @@ class ScannerDebugStore {
 
   public getCameraTelemetry(): CameraDebugTelemetry {
     return { ...this.cameraTelemetry };
-  }
-
-  public getDetectionTelemetry(): ScannerDetectionTelemetry {
-    return { ...this.detectionTelemetry };
   }
 
   public logTransition(entry: string) {
@@ -113,21 +76,8 @@ class ScannerDebugStore {
     this.notify();
   }
 
-  public updateDetectionTelemetry(partial: Partial<ScannerDetectionTelemetry>) {
-    this.detectionTelemetry = {
-      ...this.detectionTelemetry,
-      ...partial,
-    };
-    this.notify();
-  }
-
   public resetCameraTelemetry() {
     this.cameraTelemetry = { ...initialCameraTelemetry };
-    this.notify();
-  }
-
-  public resetDetectionTelemetry() {
-    this.detectionTelemetry = { ...initialDetectionTelemetry };
     this.notify();
   }
 
@@ -152,18 +102,13 @@ class ScannerDebugStore {
 export const debugStore = new ScannerDebugStore();
 
 /**
- * Detecta si el modo debug está activo vía ?debug=1, ?cvdebug=1 o sessionStorage
+ * Detecta si el modo debug está activo vía ?debug=1 o sessionStorage
  */
 export function isScannerDebugActive(): boolean {
   if (typeof window === "undefined") return false;
   try {
     const params = new URLSearchParams(window.location.search);
-    if (
-      params.get("debug") === "1" ||
-      params.get("debug") === "true" ||
-      params.get("cvdebug") === "1" ||
-      params.get("cvdebug") === "true"
-    ) {
+    if (params.get("debug") === "1" || params.get("debug") === "true") {
       sessionStorage.setItem("scanner_debug", "1");
       return true;
     }
@@ -175,12 +120,4 @@ export function isScannerDebugActive(): boolean {
   } catch {
     return false;
   }
-}
-
-export type ScannerDetectorPreference = 'auto' | 'v1' | 'v2';
-
-export function getScannerDetectorPreference(): ScannerDetectorPreference {
-  if (typeof window === 'undefined') return 'auto';
-  const value = new URLSearchParams(window.location.search).get('detector');
-  return value === 'v1' || value === 'v2' ? value : 'auto';
 }

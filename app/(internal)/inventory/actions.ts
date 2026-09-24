@@ -12,7 +12,6 @@ import {
   saveWarehouseSubmissionLinesAtomic,
 } from "@/lib/inventory/service";
 import { generateWarehousePortalToken, sha256Bytes, warehousePortalUrl } from "@/lib/inventory/portal";
-import { generateReceiptPortalToken, receiptPortalUrl } from "@/lib/inventory/receipt-portal";
 import { parseInventorySpreadsheet, photoEvidenceProposal } from "@/lib/inventory/evidence";
 import { sanitizeFileName } from "@/lib/storage";
 import type { InventoryLocationType, InventoryMovementInput, WarehouseSubmissionLineState } from "@/lib/inventory/types";
@@ -200,80 +199,6 @@ export async function createInventoryLocation(args: {
   return { error: null, id: data.id as string };
 }
 
-async function ensureProjectInventoryLocationFor(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  projectId: string,
-  empresaId: string,
-  createdBy: string
-) {
-  const { data: project } = await supabase
-    .from("projects")
-    .select("id, name")
-    .eq("id", projectId)
-    .eq("empresa_id", empresaId)
-    .maybeSingle();
-  if (!project) return { error: "Proyecto inválido para esta empresa.", id: null };
-
-  const { data: locations } = await supabase
-    .from("inventory_locations")
-    .select("id, active")
-    .eq("empresa_id", empresaId)
-    .eq("project_id", project.id)
-    .eq("location_type", "PROJECT")
-    .order("active", { ascending: false })
-    .order("is_primary", { ascending: false })
-    .order("created_at", { ascending: true })
-    .limit(1);
-  const existing = locations?.[0];
-  if (existing?.active) return { error: null, id: existing.id as string };
-  if (existing) {
-    const { error } = await supabase
-      .from("inventory_locations")
-      .update({ active: true, is_primary: true })
-      .eq("id", existing.id)
-      .eq("empresa_id", empresaId);
-    if (error) return { error: error.message, id: null };
-    return { error: null, id: existing.id as string };
-  }
-
-  const { data, error } = await supabase
-    .from("inventory_locations")
-    .insert({
-      empresa_id: empresaId,
-      name: `Pañol de obra - ${project.name} (${project.id.slice(0, 8)})`,
-      location_type: "PROJECT",
-      project_id: project.id,
-      is_primary: true,
-      created_by: createdBy,
-    })
-    .select("id")
-    .single();
-  if (error || !data) {
-    const { data: concurrent } = await supabase
-      .from("inventory_locations")
-      .select("id")
-      .eq("empresa_id", empresaId)
-      .eq("project_id", project.id)
-      .eq("location_type", "PROJECT")
-      .eq("active", true)
-      .order("is_primary", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    return concurrent
-      ? { error: null, id: concurrent.id as string }
-      : { error: error?.message ?? "No se pudo preparar la ubicación de obra.", id: null };
-  }
-  revalidatePath(`/projects/${project.id}`);
-  revalidatePath("/inventory");
-  return { error: null, id: data.id as string };
-}
-
-export async function ensureProjectInventoryLocation(projectId: string) {
-  const profile = await requirePlan("pro", ["administracion", "admin"]);
-  const supabase = await createClient();
-  return ensureProjectInventoryLocationFor(supabase, projectId, profile.empresa_id, profile.id);
-}
-
 export async function createWarehousePortalLink(locationId: string, expiresAt?: string | null) {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
@@ -298,92 +223,6 @@ export async function createWarehousePortalLink(locationId: string, expiresAt?: 
   });
   if (error) return { error: error.message, token: null, url: null };
   return { error: null, token: generated.token, url: warehousePortalUrl(generated.token) };
-}
-
-export async function createReceiptPortalLink(orderId: string) {
-  const profile = await requirePlan("pro", ["administracion", "admin"]);
-  const supabase = await createClient();
-  const admin = createAdminClient();
-  const { data: order } = await supabase
-    .from("authorized_orders")
-    .select("id, project_id")
-    .eq("id", orderId)
-    .eq("empresa_id", profile.empresa_id)
-    .maybeSingle();
-  if (!order?.project_id) return { error: "La OC no pertenece a una obra de esta empresa.", url: null };
-
-  const location = await ensureProjectInventoryLocationFor(
-    supabase,
-    order.project_id,
-    profile.empresa_id,
-    profile.id
-  );
-  if (location.error || !location.id) return { error: location.error ?? "No hay ubicación activa para la obra.", url: null };
-
-  const generated = generateReceiptPortalToken();
-  const { error } = await admin.rpc("create_receipt_portal_link", {
-    p_empresa_id: profile.empresa_id,
-    p_order_id: order.id,
-    p_location_id: location.id,
-    p_token_hash: generated.tokenHash,
-    p_token_hint: generated.tokenHint,
-    p_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    p_created_by: profile.id,
-  });
-  if (error) return { error: error.message, url: null };
-  revalidatePath(`/projects/${order.project_id}`);
-  return { error: null, url: receiptPortalUrl(generated.token) };
-}
-
-export async function updateReceiptProductMapping(args: {
-  receiptId: string;
-  itemId: string;
-  productId: string;
-}) {
-  const profile = await requirePlan("pro", ["administracion", "admin"]);
-  const supabase = await createClient();
-  const { data: receipt } = await supabase
-    .from("oc_recepciones")
-    .select("id, order_id, status")
-    .eq("id", args.receiptId)
-    .eq("empresa_id", profile.empresa_id)
-    .maybeSingle();
-  if (!receipt || receipt.status !== "DRAFT") return { error: "La recepción ya no está pendiente de revisión." };
-
-  const [{ data: item }, { data: product }] = await Promise.all([
-    supabase
-      .from("oc_recepcion_items")
-      .select("id, order_item_id")
-      .eq("id", args.itemId)
-      .eq("recepcion_id", receipt.id)
-      .eq("empresa_id", profile.empresa_id)
-      .maybeSingle(),
-    supabase
-      .from("productos")
-      .select("id")
-      .eq("id", args.productId)
-      .eq("empresa_id", profile.empresa_id)
-      .eq("activo", true)
-      .maybeSingle(),
-  ]);
-  if (!item || !product) return { error: "La línea o el producto seleccionado no es válido." };
-
-  const { error } = await supabase
-    .from("oc_recepcion_items")
-    .update({ producto_id: product.id })
-    .eq("id", item.id)
-    .eq("recepcion_id", receipt.id)
-    .eq("empresa_id", profile.empresa_id);
-  if (error) return { error: error.message };
-  const { data: order } = await supabase
-    .from("authorized_orders")
-    .select("project_id")
-    .eq("id", receipt.order_id)
-    .eq("empresa_id", profile.empresa_id)
-    .maybeSingle();
-  if (order?.project_id) revalidatePath(`/projects/${order.project_id}`);
-  revalidatePath("/orders");
-  return { error: null };
 }
 
 export async function postCanonicalInventoryMovement(input: Omit<InventoryMovementInput, "empresaId" | "createdBy">) {

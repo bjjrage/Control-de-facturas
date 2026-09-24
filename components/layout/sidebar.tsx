@@ -75,7 +75,6 @@ const PROJECT_TAB_ICONS: Record<ProjectFeatureKey, typeof LayoutDashboard> = {
   facturas: Receipt,
   pagos: Wallet,
   ejecucion: Hammer,
-  stock: Boxes,
   inventario: Layers,
   recepciones: PackageCheck,
   panol: Archive,
@@ -138,7 +137,8 @@ const COMPRAS_ITEMS: NavItem[] = [
   { href: "/orders", label: "OC", roles: ["comercial", "administracion", "admin"], icon: Package, module: "compras" },
   { href: "/invoices", label: "Facturas", roles: ["administracion", "admin"], icon: Receipt, module: "compras" },
   { href: "/pagos", label: "Pagos", roles: ["administracion", "admin"], icon: Wallet, module: "compras" },
-  { href: "/stock", label: "Stock", roles: ["administracion", "admin"], icon: Tags, module: "compras", minPlan: "pro" },
+  { href: "/inventario", label: "Inventario global", roles: ["administracion", "admin"], icon: Boxes, module: "compras", minPlan: "pro" },
+  { href: "/stock", label: "Catálogo de materiales", roles: ["administracion", "admin"], icon: Tags, module: "compras", minPlan: "pro" },
 ];
 
 const FINANZAS_ITEMS: NavItem[] = [

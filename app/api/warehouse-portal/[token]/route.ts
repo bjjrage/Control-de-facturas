@@ -16,7 +16,6 @@ function isIsoDate(value: string) {
 type RouteContext = { params: Promise<{ token: string }> };
 
 async function resolveLink(token: string) {
-  if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
   const admin = createAdminClient();
   const { data: link } = await admin
     .from("warehouse_portal_links")
