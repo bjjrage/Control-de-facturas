@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useCallback, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { postCanonicalInventoryMovement } from "@/app/(internal)/inventory/actions";
 import {
   isManualInventoryMovementType,
+  parsePersistedManualInventoryAttempt,
   type ManualInventoryMovementRequest,
   type ManualInventoryMovementType,
   type ManualMovementBalanceOption,
@@ -26,6 +27,8 @@ const CURRENCIES: { code: CurrencyCode; label: string }[] = [
 
 const fieldClass = "w-full h-9 rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px] disabled:opacity-60";
 const labelClass = "mb-1 block text-[12px] text-[var(--muted)]";
+const ATTEMPT_STORAGE_CHANGED = "inventory-manual-attempt-storage-changed";
+const STORAGE_UNAVAILABLE = "__inventory_attempt_storage_unavailable__";
 
 function locationLabel(location: ManualMovementLocationOption) {
   const typeLabel = location.locationType === "CENTRAL"
@@ -33,15 +36,18 @@ function locationLabel(location: ManualMovementLocationOption) {
     : location.locationType === "PROJECT"
       ? location.projectName ?? "Obra"
       : "Auxiliar";
-  return `${typeLabel} · ${location.name}`;
+  const displayName = location.name.replace(/paño[l]?/gi, "Depósito").replace(/pano[l]?/gi, "Depósito");
+  return `${typeLabel} · ${displayName}`;
 }
 
 export function NuevoMovimientoDialog({
+  attemptStorageKey,
   locations,
   products,
   balances,
   optionsError,
 }: {
+  attemptStorageKey: string;
   locations: ManualMovementLocationOption[];
   products: ManualMovementProductOption[];
   balances: ManualMovementBalanceOption[];
@@ -62,9 +68,44 @@ export function NuevoMovimientoDialog({
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState(false);
   const [attemptLocked, setAttemptLocked] = useState(false);
+  const [recoveryDismissed, setRecoveryDismissed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [completedId, setCompletedId] = useState<string | null>(null);
   const attempt = useRef<{ request: ManualInventoryMovementRequest } | null>(null);
+  const subscribeToAttemptStorage = useCallback((onStoreChange: () => void) => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === attemptStorageKey || event.key === null) onStoreChange();
+    };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener(ATTEMPT_STORAGE_CHANGED, onStoreChange);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(ATTEMPT_STORAGE_CHANGED, onStoreChange);
+    };
+  }, [attemptStorageKey]);
+  const getAttemptStorageSnapshot = useCallback(() => {
+    try {
+      return localStorage.getItem(attemptStorageKey);
+    } catch {
+      return STORAGE_UNAVAILABLE;
+    }
+  }, [attemptStorageKey]);
+  const storedAttempt = useSyncExternalStore(subscribeToAttemptStorage, getAttemptStorageSnapshot, () => null);
+  const persistedRequest = useMemo(() => {
+    if (!storedAttempt || storedAttempt === STORAGE_UNAVAILABLE) return null;
+    try {
+      return parsePersistedManualInventoryAttempt(JSON.parse(storedAttempt));
+    } catch {
+      return null;
+    }
+  }, [storedAttempt]);
+  const recoveredAttempt = persistedRequest !== null;
+  const storageRecoveryError = storedAttempt === STORAGE_UNAVAILABLE
+    ? "No se pudo leer el almacenamiento local. No inicies otro movimiento; habilitá el almacenamiento y solicitá revisión antes de continuar."
+    : storedAttempt && !persistedRequest
+      ? "Hay un intento de movimiento guardado pero no se puede validar. No inicies otro movimiento; solicitá revisión antes de continuar."
+      : null;
+  const forceRecoveryOpen = (recoveredAttempt || storageRecoveryError !== null) && !recoveryDismissed;
 
   const selectedProduct = products.find((product) => product.id === productId) ?? null;
   const amount = Number(quantity);
@@ -115,10 +156,18 @@ export function NuevoMovimientoDialog({
     setError(null);
     setCompletedId(null);
     attempt.current = null;
+    try {
+      localStorage.removeItem(attemptStorageKey);
+      window.dispatchEvent(new Event(ATTEMPT_STORAGE_CHANGED));
+    } catch {
+      // A stale record is safe: the same key resolves to the already-posted movement.
+    }
   }
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
+    if (nextOpen) setRecoveryDismissed(false);
+    else if (recoveredAttempt || storageRecoveryError) setRecoveryDismissed(true);
     if (!nextOpen && completedId) reset();
   }
 
@@ -158,23 +207,48 @@ export function NuevoMovimientoDialog({
     };
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function persistAttempt(request: ManualInventoryMovementRequest): boolean {
+    const serialized = JSON.stringify({ version: 1, request });
+    try {
+      localStorage.setItem(attemptStorageKey, serialized);
+      return true;
+    } catch {
+      try {
+        return localStorage.getItem(attemptStorageKey) === serialized;
+      } catch {
+        return false;
+      }
+    }
+  }
+
+  function clearPersistedAttempt() {
+    try {
+      localStorage.removeItem(attemptStorageKey);
+      window.dispatchEvent(new Event(ATTEMPT_STORAGE_CHANGED));
+    } catch {
+      // Retrying a stale key remains idempotent and will return the committed movement.
+    }
+  }
+
+  async function submitRequest(request: ManualInventoryMovementRequest) {
     if (pending || completedId) return;
     setError(null);
-    let request = attempt.current?.request;
+    if (!persistAttempt(request)) {
+      attempt.current = null;
+      setAttemptLocked(false);
+      setError("No se pudo guardar la clave de idempotencia en este navegador; el movimiento no se envió. Habilitá el almacenamiento local y volvé a intentar.");
+      return;
+    }
+    attempt.current = { request };
+    setAttemptLocked(true);
+    setPending(true);
     try {
-      if (!request) {
-        request = makeRequest();
-        attempt.current = { request };
-      }
-      setAttemptLocked(true);
-      setPending(true);
       const result = await postCanonicalInventoryMovement(request);
       if (result.error) {
         if (!result.retryable) {
           attempt.current = null;
           setAttemptLocked(false);
+          clearPersistedAttempt();
         }
         setError(result.error);
         return;
@@ -185,6 +259,7 @@ export function NuevoMovimientoDialog({
       }
       attempt.current = null;
       setAttemptLocked(false);
+      clearPersistedAttempt();
       setCompletedId(result.id);
       router.refresh();
     } catch (submitError) {
@@ -196,11 +271,22 @@ export function NuevoMovimientoDialog({
     }
   }
 
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pending || completedId || recoveredAttempt || storageRecoveryError) return;
+    try {
+      const request = attempt.current?.request ?? makeRequest();
+      await submitRequest(request);
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Los datos del movimiento no son válidos.");
+    }
+  }
+
   const canOpen = !optionsError && locations.length > 0 && products.length > 0;
 
   return (
     <>
-      <Dialog open={open} onOpenChange={handleOpenChange}>
+      <Dialog open={open || forceRecoveryOpen} onOpenChange={handleOpenChange}>
         <DialogTrigger asChild>
           <Button className="h-9 px-3 text-[12px]" disabled={!canOpen}>Nuevo movimiento</Button>
         </DialogTrigger>
@@ -213,6 +299,32 @@ export function NuevoMovimientoDialog({
               </div>
               <div className="flex justify-end">
                 <Button type="button" onClick={() => handleOpenChange(false)}>Cerrar</Button>
+              </div>
+            </div>
+          ) : storageRecoveryError ? (
+            <div className="space-y-4">
+              <div role="alert" className="rounded-md border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-3 text-[13px] text-[var(--error)]">
+                {storageRecoveryError}
+              </div>
+              <div className="flex justify-end">
+                <Button type="button" variant="secondary" onClick={() => handleOpenChange(false)}>Cerrar</Button>
+              </div>
+            </div>
+          ) : recoveredAttempt && persistedRequest ? (
+            <div className="space-y-4">
+              <div className="rounded-md border border-[var(--warn)]/30 bg-[var(--warn-bg)] px-3 py-3 text-[13px]">
+                <p className="font-medium">Movimiento pendiente de confirmación</p>
+                <p className="mt-1 text-[12px] text-[var(--muted)]">
+                  {persistedRequest.movementType} · {Math.abs(persistedRequest.quantity)} · producto {persistedRequest.productoId}
+                </p>
+                <p className="mt-2 text-[12px]">Reintentar consulta la misma clave y los mismos datos; no crea una segunda operación.</p>
+              </div>
+              {error ? <p role="alert" className="text-[12px] text-[var(--error)]">{error}</p> : null}
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="secondary" onClick={() => handleOpenChange(false)} disabled={pending}>Cerrar</Button>
+                <Button type="button" onClick={() => void submitRequest(persistedRequest)} disabled={pending}>
+                  {pending ? "Consultando…" : "Consultar / reintentar"}
+                </Button>
               </div>
             </div>
           ) : (
@@ -306,7 +418,11 @@ export function NuevoMovimientoDialog({
                         className={fieldClass}
                         value={effectiveCostCurrency}
                         disabled={locked}
-                        onChange={(event) => setCostCurrency(event.target.value as CurrencyCode)}
+                        onChange={(event) => {
+                          setCostCurrency(event.target.value as CurrencyCode);
+                          setUnitCost("");
+                          setExchangeRate("");
+                        }}
                       >
                         {isAdjustmentIncrease
                           ? CURRENCIES.map((currency) => (

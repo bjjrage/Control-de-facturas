@@ -22,6 +22,10 @@ const manualMovementMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260924212056_inventory_manual_movement_contract.sql"),
   "utf8",
 );
+const manualMovementUi = readFileSync(
+  resolve(process.cwd(), "app/(internal)/inventario/nuevo-movimiento-dialog.tsx"),
+  "utf8",
+);
 const inventoryActions = readFileSync(
   resolve(process.cwd(), "app/(internal)/inventory/actions.ts"),
   "utf8",
@@ -193,5 +197,21 @@ describe("canonical manual inventory movement contract", () => {
     expect(inventoryActions).toContain("buildManualInventoryMovement(input");
     expect(inventoryActions).toContain("negativeAdjustmentUnitCost");
     expect(inventoryActions).toContain('revalidatePath("/inventario")');
+  });
+
+  it("keeps the low-level poster private and gates all authenticated ledger writes", () => {
+    expect(manualMovementMigration).toContain("FROM PUBLIC, anon, authenticated");
+    expect(manualMovementMigration).toContain("GRANT EXECUTE ON FUNCTION public.inventory_post_manual_movement");
+    expect(manualMovementMigration).toContain("public.current_empresa_id() IS DISTINCT FROM p_empresa_id");
+    expect(manualMovementMigration).toContain("public.is_internal_role(ARRAY['administracion','admin']::public.user_role[])");
+    expect(manualMovementMigration).toContain("v_plan NOT IN ('pro', 'caterpillar')");
+    expect(manualMovementMigration).toContain("REVOKE ALL ON FUNCTION public.inventory_post_movement(");
+    expect(manualMovementMigration).toContain("CREATE TRIGGER trg_enforce_inventory_company_pro_plan");
+    expect(manualMovementUi).toContain("localStorage.setItem(attemptStorageKey");
+    expect(manualMovementUi).toContain("parsePersistedManualInventoryAttempt(JSON.parse(storedAttempt))");
+    expect(manualMovementUi.indexOf("localStorage.setItem(attemptStorageKey")).toBeLessThan(
+      manualMovementUi.indexOf("postCanonicalInventoryMovement(request)"),
+    );
+    expect(inventoryActions).toContain("if (existingError) return fail(existingError.message, true)");
   });
 });

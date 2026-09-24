@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildManualInventoryMovement,
+  parsePersistedManualInventoryAttempt,
   resolveManualMovementProject,
   validateManualInventoryMovementRequest,
   type ManualInventoryMovementRequest,
@@ -27,6 +28,12 @@ function request(overrides: Partial<ManualInventoryMovementRequest> = {}): Manua
 }
 
 describe("movimientos humanos de inventario", () => {
+  it("restaura solo una solicitud persistida con versión y payload válidos", () => {
+    expect(parsePersistedManualInventoryAttempt({ version: 1, request: request() })).toEqual(request());
+    expect(parsePersistedManualInventoryAttempt({ version: 2, request: request() })).toBeNull();
+    expect(parsePersistedManualInventoryAttempt({ version: 1, request: { ...request(), quantity: 0 } })).toBeNull();
+  });
+
   it("crea transferencias manuales con clave/origen estable y sin costo nuevo", () => {
     const movement = buildManualInventoryMovement(request(), {
       empresaId: companyId,

@@ -9,7 +9,7 @@ import {
   createInventoryReceipt as createInventoryReceiptAtomic,
   confirmInventoryReceipt,
   confirmWarehouseSubmission,
-  postInventoryMovement,
+  postManualInventoryMovement,
   saveWarehouseSubmissionLinesAtomic,
 } from "@/lib/inventory/service";
 import { generateWarehousePortalToken, sha256Bytes, warehousePortalUrl } from "@/lib/inventory/portal";
@@ -265,7 +265,8 @@ export async function postCanonicalInventoryMovement(input: ManualInventoryMovem
     .eq("empresa_id", profile.empresa_id)
     .eq("idempotency_key", input.idempotencyKey)
     .maybeSingle();
-  if (existingError) return fail(existingError.message);
+  // A failed lookup cannot prove that an earlier request with this key did not commit.
+  if (existingError) return fail(existingError.message, true);
   if (existing) {
     const storedReason = (existing.metadata as { reason?: unknown } | null)?.reason;
     const sameRequest =
@@ -356,7 +357,7 @@ export async function postCanonicalInventoryMovement(input: ManualInventoryMovem
     return fail(error instanceof Error ? error.message : "Los datos del movimiento no son válidos.");
   }
 
-  const result = await postInventoryMovement(supabase, movement);
+  const result = await postManualInventoryMovement(supabase, movement);
   if (result.error) {
     const retryable = /fetch failed|network|timeout|timed out|connection|abort|econn/i.test(result.error);
     return fail(result.error, retryable);

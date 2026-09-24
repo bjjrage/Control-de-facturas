@@ -71,7 +71,7 @@ describe("ERP entity resolution and safe physical actions", () => {
     } as unknown as import("@supabase/supabase-js").SupabaseClient;
 
     const output = await postInventoryMovementTool.handler(
-      { empresaId: "empresa-1", userId: "user-1", role: "admin", actorType: "user", source: "test", taskId: "task-1" },
+      { empresaId: "empresa-1", userId: "user-1", role: "admin", actorType: "user", source: "test", taskId: "task-1", approvalId: "00000000-0000-4000-a000-000000000004" },
       {
         producto_id: "00000000-0000-0000-0000-000000000001",
         quantity: 50,
@@ -84,10 +84,11 @@ describe("ERP entity resolution and safe physical actions", () => {
     );
 
     expect(output.movement_id).toBe("movement-1");
-    expect(db.rpc).toHaveBeenCalledWith("inventory_post_movement", expect.objectContaining({
+    expect(db.rpc).toHaveBeenCalledWith("inventory_post_manual_movement", expect.objectContaining({
       p_movement_type: "TRANSFER",
       p_quantity: 50,
       p_empresa_id: "empresa-1",
+      p_idempotency_key: "00000000-0000-4000-a000-000000000004",
     }));
     expect(getTool("post_inventory_movement")?.riskLevel).toBe(2);
     expect(getTool("get_finance_overview")?.riskLevel).toBe(0);

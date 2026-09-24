@@ -17,6 +17,19 @@ export interface ManualInventoryMovementRequest {
   reason?: string | null;
 }
 
+export function parsePersistedManualInventoryAttempt(value: unknown): ManualInventoryMovementRequest | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as { version?: unknown; request?: unknown };
+  if (record.version !== 1 || !record.request || typeof record.request !== "object") return null;
+  try {
+    const request = record.request as ManualInventoryMovementRequest;
+    validateManualInventoryMovementRequest(request);
+    return request;
+  } catch {
+    return null;
+  }
+}
+
 export interface ManualMovementLocationOption {
   id: string;
   name: string;

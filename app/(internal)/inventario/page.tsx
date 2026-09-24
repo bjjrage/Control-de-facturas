@@ -57,6 +57,7 @@ export default async function InventarioGlobalPage() {
 
   return (
     <InventarioGlobalSection
+      movementAttemptStorageKey={`inventory:manual-movement:pending:${profile.empresa_id}:${profile.id}`}
       globalRows={snapshot.global as import("./inventario-global-section").GlobalRow[]}
       locationRows={positiveLocations as import("./inventario-global-section").LocationRow[]}
       projectNameById={projectNameById}

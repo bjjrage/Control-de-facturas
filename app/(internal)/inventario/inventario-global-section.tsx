@@ -34,6 +34,7 @@ const LOCATION_TYPE_LABEL: Record<LocationRow["location_type"], string> = {
 // (inventory_balances / 0080_inventory_panol.sql). El "disponible" acá viene
 // de la suma real de saldos por ubicación, nunca de un contador aparte.
 export function InventarioGlobalSection({
+  movementAttemptStorageKey,
   globalRows,
   locationRows,
   projectNameById,
@@ -42,6 +43,7 @@ export function InventarioGlobalSection({
   movementBalances,
   movementOptionsError,
 }: {
+  movementAttemptStorageKey: string;
   globalRows: GlobalRow[];
   locationRows: LocationRow[];
   projectNameById: Map<string, string>;
@@ -66,6 +68,7 @@ export function InventarioGlobalSection({
           </p>
         </div>
         <NuevoMovimientoDialog
+          attemptStorageKey={movementAttemptStorageKey}
           locations={movementLocations}
           products={movementProducts}
           balances={movementBalances}

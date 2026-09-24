@@ -26,8 +26,15 @@ export interface CreateInventoryReceiptResult {
   created: boolean;
 }
 
-function rpcPayload(input: InventoryMovementInput) {
-  return {
+/** Public authenticated write surface for the three human-managed movement types. */
+export async function postManualInventoryMovement(
+  supabase: SupabaseClient,
+  input: InventoryMovementInput
+): Promise<ServiceResult<string>> {
+  if (!["TRANSFER", "RETURN", "ADJUSTMENT"].includes(input.movementType)) {
+    return { data: null, error: "Este flujo solo admite transferencias, devoluciones y ajustes." };
+  }
+  const { data, error } = await supabase.rpc("inventory_post_manual_movement", {
     p_empresa_id: input.empresaId,
     p_producto_id: input.productoId,
     p_quantity: input.quantity,
@@ -36,24 +43,13 @@ function rpcPayload(input: InventoryMovementInput) {
     p_from_location_id: input.fromLocationId ?? null,
     p_to_location_id: input.toLocationId ?? null,
     p_project_id: input.projectId ?? null,
-    p_budget_item_id: input.budgetItemId ?? null,
-    p_source_type: input.sourceType,
-    p_source_id: input.sourceId ?? null,
-    p_source_line_id: input.sourceLineId ?? null,
     p_idempotency_key: input.idempotencyKey,
     p_cost_currency: input.costCurrency ?? null,
     p_unit_cost: input.unitCost ?? null,
     p_exchange_rate_to_company: input.exchangeRateToCompany ?? null,
     p_created_by: input.createdBy ?? null,
     p_metadata: input.metadata ?? {},
-  };
-}
-
-export async function postInventoryMovement(
-  supabase: SupabaseClient,
-  input: InventoryMovementInput
-): Promise<ServiceResult<string>> {
-  const { data, error } = await supabase.rpc("inventory_post_movement", rpcPayload(input));
+  });
   return { data: (data as string | null) ?? null, error: error?.message ?? null };
 }
 
