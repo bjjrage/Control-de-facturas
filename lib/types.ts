@@ -184,6 +184,7 @@ export interface AuthorizedOrderItem {
   id: string;
   order_id: string;
   empresa_id: string;
+  producto_id: string | null;
   product: string;
   quantity: number;
   unit: string;

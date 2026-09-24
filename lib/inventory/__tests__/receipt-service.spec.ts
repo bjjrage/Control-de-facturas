@@ -4,7 +4,7 @@ import { createInventoryReceipt } from "../service";
 
 describe("canonical receipt creation service", () => {
   it("sends the complete tenant-scoped receipt payload through one atomic RPC", async () => {
-    const rpc = vi.fn().mockResolvedValue({ data: "receipt-id", error: null });
+    const rpc = vi.fn().mockResolvedValue({ data: { receipt_id: "receipt-id", created: true }, error: null });
     const supabase = { rpc } as unknown as SupabaseClient;
     const result = await createInventoryReceipt(supabase, {
       empresaId: "company-id",
@@ -16,7 +16,7 @@ describe("canonical receipt creation service", () => {
       items: [{ orderItemId: "order-line-id", productoId: null, quantity: 2, notes: "servicio" }],
     });
 
-    expect(result).toEqual({ data: "receipt-id", error: null });
+    expect(result).toEqual({ data: { receiptId: "receipt-id", created: true }, error: null });
     expect(rpc).toHaveBeenCalledOnce();
     expect(rpc).toHaveBeenCalledWith("inventory_create_receipt", {
       p_empresa_id: "company-id",

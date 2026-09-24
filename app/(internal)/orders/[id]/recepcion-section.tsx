@@ -10,7 +10,7 @@ import type { AuthorizedOrderItem, OcRecepcion } from "@/lib/types";
 import { confirmedReceiptTotals } from "@/lib/inventory/receipt-read-model";
 import { registrarRecepcion, confirmarRecepcion, eliminarRecepcion } from "../oc-recepcion-actions";
 
-type ProductoLite = { id: string; nombre: string; unidad: string };
+type ProductoLite = { id: string; nombre: string; unidad: string; activo: boolean };
 
 // ─── RegistrarDialog ────────────────────────────────────────────────────────
 
@@ -42,8 +42,7 @@ function RegistrarDialog({
     const supabase = createClient();
     supabase
       .from("productos")
-      .select("id, nombre, unidad")
-      .eq("activo", true)
+      .select("id, nombre, unidad, activo")
       .order("nombre")
       .then(({ data }) => setProductos((data as ProductoLite[]) ?? []));
   }, [open]);
@@ -68,7 +67,7 @@ function RegistrarDialog({
       .map((it) => ({
         order_item_id: it.id,
         cantidad_recibida: parseFloat(cantidades[it.id] || "0") || 0,
-        producto_id: productoPorItem[it.id] || null,
+        producto_id: productoPorItem[it.id] ?? it.producto_id ?? null,
       }))
       .filter((i) => i.cantidad_recibida > 0);
 
@@ -179,15 +178,21 @@ function RegistrarDialog({
                       </td>
                       <td>
                         <select
-                          value={productoPorItem[it.id] ?? ""}
+                          value={productoPorItem[it.id] ?? it.producto_id ?? ""}
                           disabled={pending || attemptLocked}
                           onChange={(e) =>
                             setProductoPorItem((prev) => ({ ...prev, [it.id]: e.target.value }))
                           }
                           className="w-full h-7 rounded border border-[var(--border)] bg-[var(--panel)] px-1.5 text-[12px]"
                         >
-                          <option value="">— no cargar a stock —</option>
-                          {productos.map((p) => (
+                          <option value="" disabled={Boolean(it.producto_id)}>— no cargar a stock —</option>
+                          {it.producto_id && !productos.some((p) => p.id === it.producto_id) ? (
+                            <option value={it.producto_id}>{it.product} (asociado a la OC)</option>
+                          ) : null}
+                          {productos
+                            .filter((p) => p.activo || p.id === it.producto_id)
+                            .filter((p) => !it.producto_id || p.id === it.producto_id)
+                            .map((p) => (
                             <option key={p.id} value={p.id}>{p.nombre}</option>
                           ))}
                         </select>
@@ -243,12 +248,14 @@ function RecepcionCard({
   canDelete,
   canConfirm,
   orderId,
+  onDiscard,
 }: {
   recepcion: OcRecepcion;
   orderItems: AuthorizedOrderItem[];
   canDelete: boolean;
   canConfirm: boolean;
   orderId: string;
+  onDiscard: () => void;
 }) {
   const [deleting, setDeleting] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -257,7 +264,7 @@ function RecepcionCard({
   const items = recepcion.oc_recepcion_items ?? [];
 
   async function handleDelete() {
-    if (!confirm("¿Eliminar esta recepción? La acción no se puede deshacer.")) return;
+    if (!confirm("¿Descartar este borrador? No afecta inventario y no se puede recuperar.")) return;
     setDeleting(true);
     const result = await eliminarRecepcion(recepcion.id, orderId);
     setDeleting(false);
@@ -265,6 +272,7 @@ function RecepcionCard({
       setError(result.error);
       return;
     }
+    onDiscard();
     router.refresh();
   }
 
@@ -322,7 +330,7 @@ function RecepcionCard({
             disabled={deleting}
             className="text-[11px] text-[var(--muted)] hover:text-[var(--error)] transition-colors shrink-0 disabled:opacity-50"
           >
-            {deleting ? "Eliminando…" : "Eliminar"}
+            {deleting ? "Descartando…" : "Descartar borrador"}
           </button>
         ) : null}
       </div>
@@ -370,12 +378,16 @@ export function RecepcionSection({
   recepciones,
   canDelete = false,
   canConfirm = false,
+  currentUserId,
+  canDiscardOwnDraft = false,
 }: {
   orderId: string;
   orderItems: AuthorizedOrderItem[];
   recepciones: OcRecepcion[];
   canDelete?: boolean;
   canConfirm?: boolean;
+  currentUserId: string;
+  canDiscardOwnDraft?: boolean;
 }) {
   const [key, setKey] = useState(0);
 
@@ -445,9 +457,10 @@ export function RecepcionSection({
               key={rec.id}
               recepcion={rec}
               orderItems={orderItems}
-              canDelete={canDelete}
+              canDelete={canDelete || (canDiscardOwnDraft && rec.created_by === currentUserId)}
               canConfirm={canConfirm}
               orderId={orderId}
+              onDiscard={() => setKey((k) => k + 1)}
             />
           ))}
         </div>

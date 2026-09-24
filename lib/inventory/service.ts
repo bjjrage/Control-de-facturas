@@ -21,6 +21,11 @@ export interface CreateInventoryReceiptInput {
   }>;
 }
 
+export interface CreateInventoryReceiptResult {
+  receiptId: string;
+  created: boolean;
+}
+
 function rpcPayload(input: InventoryMovementInput) {
   return {
     p_empresa_id: input.empresaId,
@@ -55,7 +60,7 @@ export async function postInventoryMovement(
 export async function createInventoryReceipt(
   supabase: SupabaseClient,
   args: CreateInventoryReceiptInput
-): Promise<ServiceResult<string>> {
+): Promise<ServiceResult<CreateInventoryReceiptResult>> {
   const { data, error } = await supabase.rpc("inventory_create_receipt", {
     p_empresa_id: args.empresaId,
     p_order_id: args.orderId,
@@ -73,7 +78,13 @@ export async function createInventoryReceipt(
       notas: item.notes ?? null,
     })),
   });
-  return { data: (data as string | null) ?? null, error: error?.message ?? null };
+  const result = data as { receipt_id?: string; created?: boolean } | null;
+  return {
+    data: result?.receipt_id
+      ? { receiptId: result.receipt_id, created: result.created === true }
+      : null,
+    error: error?.message ?? null,
+  };
 }
 
 export async function confirmInventoryReceipt(

@@ -10,6 +10,10 @@ const receiptMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260924074417_canonical_purchase_receipt_flow.sql"),
   "utf8",
 );
+const receiptActions = readFileSync(
+  resolve(process.cwd(), "app/(internal)/orders/oc-recepcion-actions.ts"),
+  "utf8",
+);
 
 describe("0080 inventory migration contract", () => {
   it("fails closed when legacy cost evidence is unavailable", () => {
@@ -61,8 +65,10 @@ describe("canonical purchase receipt migration contract", () => {
   it("promotes only legacy receipts whose old stock movements reconcile exactly", () => {
     expect(legacyBackfill).toContain("AND r.idempotency_key IS NULL");
     expect(legacyBackfill).toContain("AND il.active");
+    expect(legacyBackfill).toContain("FROM public.oc_recepcion_items ri");
     expect(legacyBackfill).toContain("FULL JOIN");
     expect(legacyBackfill).toContain("sm.referencia_id = r.id");
+    expect(legacyBackfill).toContain("accumulated.received_quantity > oi.quantity");
     expect(legacyBackfill).toContain("expected.expected_quantity IS DISTINCT FROM actual.actual_quantity");
     expect(legacyBackfill).not.toContain("INSERT INTO public.inventory_movements");
   });
@@ -83,6 +89,10 @@ describe("canonical purchase receipt migration contract", () => {
     expect(createReceipt).toContain("INSERT INTO public.oc_recepciones");
     expect(createReceipt).toContain("INSERT INTO public.oc_recepcion_items");
     expect(createReceipt).not.toContain("inventory_post_movement");
+    expect(createReceipt).toContain("RETURNS jsonb");
+    expect(createReceipt).toContain("'created', false");
+    expect(createReceipt).toContain("'created', true");
+    expect(createReceipt).toContain("oi.producto_id IS DISTINCT FROM nullif(entry.item->>'producto_id', '')::uuid");
   });
 
   it("rejects OC movements unless their confirmed source line matches exactly", () => {
@@ -112,5 +122,32 @@ describe("canonical purchase receipt migration contract", () => {
     expect(stateChange).toBeGreaterThanOrEqual(0);
     expect(movementPost).toBeGreaterThan(stateChange);
     expect(confirmReceipt).toContain("IF v_item.producto_id IS NULL THEN\n      CONTINUE;");
+    expect(confirmReceipt).toContain("oi.producto_id IS DISTINCT FROM ri.producto_id");
+    expect(confirmReceipt).toContain("ARRAY['comercial','administracion','admin']::public.user_role[]");
+  });
+
+  it("serializes receipt confirmation against OC quantity edits and preserves received quantities", () => {
+    const itemLock = confirmReceipt.indexOf("FOR UPDATE OF oi;");
+    const overReceiptLoop = confirmReceipt.indexOf("FOR v_item IN");
+    expect(itemLock).toBeGreaterThanOrEqual(0);
+    expect(overReceiptLoop).toBeGreaterThan(itemLock);
+    expect(receiptMigration).toContain("CREATE TRIGGER trg_prevent_order_quantity_below_confirmed_receipts");
+    expect(receiptMigration).toContain("NEW.quantity < v_received_quantity");
+    expect(receiptMigration).toContain("r.status = 'CONFIRMED'");
+  });
+
+  it("allows a commercial user to discard only their own canonical draft", () => {
+    expect(receiptMigration).toContain("created_by = auth.uid()");
+    expect(receiptMigration).toContain("idempotency_key IS NOT NULL");
+    expect(receiptActions).toContain('requireProfile(["comercial", "administracion", "admin"])');
+    expect(receiptActions).toContain("receipt.created_by !== profile.id");
+    expect(receiptMigration).toContain("OLD.status IS DISTINCT FROM 'DRAFT'");
+  });
+
+  it("keeps receipt writes behind the authenticated role-checked canonical RPCs", () => {
+    expect(receiptActions).not.toContain("createAdminClient");
+    expect(receiptActions).toContain("createInventoryReceipt(supabase");
+    expect(receiptActions).toContain("confirmInventoryReceipt(supabase");
+    expect(createReceipt).toContain("ARRAY['comercial','administracion','admin']::public.user_role[]");
   });
 });

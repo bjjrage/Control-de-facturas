@@ -1,9 +1,9 @@
 -- Canonical purchase receipts: atomic draft creation, confirmed-only inbound,
 -- and an immutable bridge from OC receipts to the canonical inventory ledger.
 
--- Preserve only pre-cutover legacy receipts whose product quantities can be
--- reconciled exactly to their old stock movements. Never synthesize canonical
--- inventory movements from legacy data. Unverifiable rows remain DRAFT.
+-- Preserve only pre-cutover legacy receipts whose lines and any old stock
+-- movements can be reconciled exactly. Never synthesize canonical inventory
+-- movements from legacy data. Unverifiable rows remain DRAFT.
 UPDATE public.oc_recepciones r
 SET status = 'CONFIRMED',
     confirmed_by = coalesce(r.confirmed_by, r.created_by),
@@ -26,7 +26,36 @@ WHERE r.status = 'DRAFT'
     FROM public.oc_recepcion_items ri
     WHERE ri.recepcion_id = r.id
       AND ri.empresa_id = r.empresa_id
-      AND ri.producto_id IS NOT NULL
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM public.oc_recepcion_items ri
+    LEFT JOIN public.authorized_order_items oi
+      ON oi.id = ri.order_item_id
+     AND oi.order_id = r.order_id
+     AND oi.empresa_id = r.empresa_id
+    WHERE ri.recepcion_id = r.id
+      AND ri.empresa_id = r.empresa_id
+      AND oi.id IS NULL
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM (
+      SELECT ri2.order_item_id, sum(ri2.cantidad_recibida) AS received_quantity
+      FROM public.oc_recepcion_items ri2
+      JOIN public.oc_recepciones r2
+        ON r2.id = ri2.recepcion_id
+       AND r2.empresa_id = ri2.empresa_id
+      WHERE r2.order_id = r.order_id
+        AND r2.empresa_id = r.empresa_id
+        AND r2.status <> 'VOIDED'
+      GROUP BY ri2.order_item_id
+    ) accumulated
+    JOIN public.authorized_order_items oi
+      ON oi.id = accumulated.order_item_id
+     AND oi.order_id = r.order_id
+     AND oi.empresa_id = r.empresa_id
+    WHERE accumulated.received_quantity > oi.quantity
   )
   AND NOT EXISTS (
     SELECT 1
@@ -60,7 +89,14 @@ CREATE POLICY "delete oc_recepciones"
   USING (
     empresa_id = public.current_empresa_id()
     AND status = 'DRAFT'
-    AND public.is_internal_role(ARRAY['administracion','admin']::public.user_role[])
+    AND idempotency_key IS NOT NULL
+    AND (
+      public.is_internal_role(ARRAY['administracion','admin']::public.user_role[])
+      OR (
+        public.is_internal_role(ARRAY['comercial']::public.user_role[])
+        AND created_by = auth.uid()
+      )
+    )
   );
 
 CREATE OR REPLACE FUNCTION public.prevent_non_draft_oc_receipt_delete()
@@ -92,6 +128,46 @@ CREATE TRIGGER trg_prevent_non_draft_oc_receipt_delete
   FOR EACH ROW
   EXECUTE FUNCTION public.prevent_non_draft_oc_receipt_delete();
 
+CREATE OR REPLACE FUNCTION public.prevent_order_quantity_below_confirmed_receipts()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_received_quantity numeric;
+BEGIN
+  IF NEW.quantity IS NOT DISTINCT FROM OLD.quantity THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT coalesce(sum(ri.cantidad_recibida), 0)
+  INTO v_received_quantity
+  FROM public.oc_recepcion_items ri
+  JOIN public.oc_recepciones r
+    ON r.id = ri.recepcion_id
+   AND r.empresa_id = ri.empresa_id
+  WHERE ri.order_item_id = OLD.id
+    AND ri.empresa_id = OLD.empresa_id
+    AND r.order_id = OLD.order_id
+    AND r.empresa_id = OLD.empresa_id
+    AND r.status = 'CONFIRMED';
+
+  IF NEW.quantity IS NULL OR NEW.quantity < v_received_quantity THEN
+    RAISE EXCEPTION 'La cantidad de OC no puede quedar debajo de lo ya recibido';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.prevent_order_quantity_below_confirmed_receipts() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS trg_prevent_order_quantity_below_confirmed_receipts ON public.authorized_order_items;
+CREATE TRIGGER trg_prevent_order_quantity_below_confirmed_receipts
+  BEFORE UPDATE OF quantity ON public.authorized_order_items
+  FOR EACH ROW
+  EXECUTE FUNCTION public.prevent_order_quantity_below_confirmed_receipts();
+
 CREATE OR REPLACE FUNCTION public.inventory_create_receipt(
   p_empresa_id           uuid,
   p_order_id             uuid,
@@ -104,7 +180,7 @@ CREATE OR REPLACE FUNCTION public.inventory_create_receipt(
   p_notes                text,
   p_items                jsonb
 )
-RETURNS uuid
+RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
@@ -121,7 +197,7 @@ BEGIN
   IF auth.role() IS DISTINCT FROM 'service_role' THEN
     IF public.current_empresa_id() IS NULL
        OR public.current_empresa_id() IS DISTINCT FROM p_empresa_id
-       OR NOT public.is_internal_role(ARRAY['administracion','admin']::public.user_role[])
+       OR NOT public.is_internal_role(ARRAY['comercial','administracion','admin']::public.user_role[])
        OR p_created_by IS DISTINCT FROM auth.uid() THEN
       RAISE EXCEPTION 'Acceso denegado para crear recepciÃ³n';
     END IF;
@@ -199,8 +275,13 @@ BEGIN
     LEFT JOIN public.productos p
       ON p.id = nullif(entry.item->>'producto_id', '')::uuid
      AND p.empresa_id = p_empresa_id
-    WHERE nullif(entry.item->>'producto_id', '') IS NOT NULL
+    WHERE (
+      oi.producto_id IS NOT NULL
+      AND oi.producto_id IS DISTINCT FROM nullif(entry.item->>'producto_id', '')::uuid
+    ) OR (
+      nullif(entry.item->>'producto_id', '') IS NOT NULL
       AND (p.id IS NULL OR trim(p.unidad) IS DISTINCT FROM trim(oi.unit))
+    )
   ) THEN
     RAISE EXCEPTION 'El material no pertenece a la empresa o su unidad no coincide con la OC';
   END IF;
@@ -275,7 +356,7 @@ BEGIN
        OR v_stored_items IS DISTINCT FROM v_requested_items THEN
       RAISE EXCEPTION 'La clave de idempotencia ya fue usada con otro contenido';
     END IF;
-    RETURN v_existing.id;
+    RETURN jsonb_build_object('receipt_id', v_existing.id, 'created', false);
   END IF;
 
   INSERT INTO public.oc_recepciones (
@@ -298,7 +379,7 @@ BEGIN
          nullif(trim(entry.item->>'notas'), '')
   FROM jsonb_array_elements(p_items) AS entry(item);
 
-  RETURN v_receipt_id;
+  RETURN jsonb_build_object('receipt_id', v_receipt_id, 'created', true);
 END;
 $$;
 
@@ -449,7 +530,7 @@ BEGIN
   IF auth.role() IS DISTINCT FROM 'service_role' THEN
     IF public.current_empresa_id() IS NULL
        OR public.current_empresa_id() IS DISTINCT FROM p_empresa_id
-       OR NOT public.is_internal_role(ARRAY['administracion','admin']::public.user_role[])
+       OR NOT public.is_internal_role(ARRAY['comercial','administracion','admin']::public.user_role[])
        OR p_confirmed_by IS DISTINCT FROM auth.uid() THEN
       RAISE EXCEPTION 'Acceso denegado para confirmar recepciÃ³n';
     END IF;
@@ -497,6 +578,20 @@ BEGIN
   FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'La OC de la recepciÃ³n no pertenece a la empresa'; END IF;
 
+  -- Serialize quantity edits against confirmation. All receipt confirmations
+  -- lock their order header first, then these line rows in a stable order.
+  PERFORM oi.id
+  FROM public.authorized_order_items oi
+  JOIN public.oc_recepcion_items ri
+    ON ri.order_item_id = oi.id
+   AND ri.empresa_id = oi.empresa_id
+  WHERE ri.recepcion_id = p_receipt_id
+    AND ri.empresa_id = p_empresa_id
+    AND oi.order_id = v_receipt.order_id
+    AND oi.empresa_id = p_empresa_id
+  ORDER BY oi.id
+  FOR UPDATE OF oi;
+
   IF NOT EXISTS (
     SELECT 1 FROM public.oc_recepcion_items ri
     WHERE ri.recepcion_id = p_receipt_id AND ri.empresa_id = p_empresa_id
@@ -539,6 +634,7 @@ BEGIN
       AND ri.empresa_id = p_empresa_id
       AND (
         ri.cantidad_recibida <= 0
+        OR (oi.producto_id IS NOT NULL AND oi.producto_id IS DISTINCT FROM ri.producto_id)
         OR (ri.producto_id IS NOT NULL AND (
           p.id IS NULL
           OR trim(p.unidad) IS DISTINCT FROM trim(oi.unit)
