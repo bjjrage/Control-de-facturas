@@ -1,8 +1,10 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { confirmInventoryReceipt, createInventoryReceipt } from "@/lib/inventory/service";
 import { revalidatePath } from "next/cache";
 
 export interface RecepcionItemInput {
@@ -17,95 +19,100 @@ export async function registrarRecepcion(
   fecha: string,
   recibido_por: string,
   items: RecepcionItemInput[],
-  notas?: string
-): Promise<{ error?: string }> {
+  notas?: string,
+  idempotency_key?: string
+): Promise<{ error?: string; receiptId?: string }> {
   const supabase = await createClient();
   const profile = await requireProfile(["comercial", "administracion", "admin"]);
-
-  // Verify order belongs to this empresa; traer project_id para imputar el stock al proyecto
-  const { data: order } = await supabase
-    .from("authorized_orders")
-    .select("id, code, project_id")
-    .eq("id", order_id)
-    .single<{ id: string; code: string | null; project_id: string | null }>();
-
-  if (!order) return { error: "Orden no encontrada" };
+  if (!profile.empresa_id) return { error: "La cuenta no tiene una empresa activa." };
+  if (!idempotency_key?.trim()) return { error: "Falta la clave idempotente de recepción." };
 
   const validItems = items.filter((i) => i.cantidad_recibida > 0);
   if (validItems.length === 0) return { error: "Debés ingresar al menos una cantidad recibida" };
-
-  // Precio unitario de cada línea de la OC — se usa como costo de la entrada
-  const { data: orderItems } = await supabase
-    .from("authorized_order_items")
-    .select("id, unit_price")
-    .eq("order_id", order_id)
-    .returns<{ id: string; unit_price: number }[]>();
-  const precioPorItem = new Map((orderItems ?? []).map((oi) => [oi.id, oi.unit_price]));
-
-  const { data: recepcion, error: recErr } = await supabase
-    .from("oc_recepciones")
-    .insert({
-      empresa_id: profile.empresa_id,
-      order_id,
-      fecha,
-      recibido_por: recibido_por.trim(),
-      notas: notas?.trim() || null,
-      created_by: profile.id,
-    })
-    .select("id")
-    .single();
-
-  if (recErr || !recepcion) return { error: recErr?.message ?? "Error al registrar recepción" };
-
-  const { error: itemsErr } = await supabase.from("oc_recepcion_items").insert(
-    validItems.map((i) => ({
-      empresa_id: profile.empresa_id,
-      recepcion_id: recepcion.id,
-      order_item_id: i.order_item_id,
-      producto_id: i.producto_id || null,
-      cantidad_recibida: i.cantidad_recibida,
-      notas: i.notas?.trim() || null,
-    }))
-  );
-
-  if (itemsErr) {
-    await supabase.from("oc_recepciones").delete().eq("id", recepcion.id);
-    return { error: itemsErr.message };
+  if (new Set(validItems.map((item) => item.order_item_id)).size !== validItems.length) {
+    return { error: "No se puede repetir un ítem de la OC en la recepción." };
   }
 
-  // Generar la ENTRADA de stock para cada línea asociada a un producto
-  const conProducto = validItems.filter((i) => i.producto_id);
-  for (const i of conProducto) {
-    const { error: stockErr } = await supabase.rpc("registrar_stock_movimiento", {
-      p_empresa_id: profile.empresa_id,
-      p_producto_id: i.producto_id,
-      p_tipo: "ENTRADA",
-      p_cantidad: i.cantidad_recibida,
-      p_costo_unitario: precioPorItem.get(i.order_item_id) ?? null,
-      p_referencia_tipo: "oc_recepcion",
-      p_referencia_id: recepcion.id,
-      p_notas: `Recepción OC ${order.code ?? ""}`.trim(),
-      p_created_by: profile.id,
-      p_project_id: order.project_id ?? null,  // bug fix: propagar el proyecto de la OC al movimiento de stock
-    });
-    if (stockErr) {
-      // Revertir todo: la recepción no se registra si el stock no puede aplicarse
-      await supabase.from("oc_recepciones").delete().eq("id", recepcion.id);
-      return { error: `Error al aplicar el stock: ${stockErr.message}` };
-    }
+  const admin = createAdminClient();
+  const created = await createInventoryReceipt(admin, {
+    empresaId: profile.empresa_id,
+    orderId: order_id,
+    fecha,
+    recibidoPor: recibido_por.trim(),
+    idempotencyKey: idempotency_key.trim(),
+    createdBy: profile.id,
+    notes: notas?.trim() || null,
+    items: validItems.map((item) => ({
+      orderItemId: item.order_item_id,
+      productoId: item.producto_id || null,
+      quantity: item.cantidad_recibida,
+      notes: item.notas?.trim() || null,
+    })),
+  });
+  if (created.error || !created.data) {
+    return { error: created.error ?? "No se pudo crear la recepción." };
+  }
+
+  const confirmed = await confirmInventoryReceipt(admin, {
+    empresaId: profile.empresa_id,
+    receiptId: created.data,
+    idempotencyKey: idempotency_key.trim(),
+    confirmedBy: profile.id,
+  });
+  if (confirmed.error) {
+    revalidatePath("/orders/" + order_id);
+    return {
+      error: "La recepción quedó en borrador y no afectó inventario. Podés reintentar la confirmación. " + confirmed.error,
+      receiptId: created.data,
+    };
   }
 
   await logAudit(supabase, {
     action: "oc_recepcion_created",
     authorizedOrderId: order_id,
     detail: {
-      recepcion_id: recepcion.id,
+      recepcion_id: created.data,
       items_count: validItems.length,
-      stock_entries: conProducto.length,
+      stock_entries: confirmed.data?.length ?? 0,
     },
   });
 
-  revalidatePath(`/orders/${order_id}`);
+  revalidatePath("/orders/" + order_id);
+  revalidatePath("/stock");
+  return { receiptId: created.data };
+}
+
+export async function confirmarRecepcion(recepcion_id: string, order_id: string): Promise<{ error?: string }> {
+  const profile = await requireProfile(["comercial", "administracion", "admin"]);
+  if (!profile.empresa_id) return { error: "La cuenta no tiene una empresa activa." };
+  const supabase = await createClient();
+  const admin = createAdminClient();
+  const { data: receipt } = await admin
+    .from("oc_recepciones")
+    .select("id, status, idempotency_key")
+    .eq("id", recepcion_id)
+    .eq("order_id", order_id)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (!receipt) return { error: "Recepción no encontrada." };
+  if (receipt.status === "CONFIRMED") return {};
+  if (receipt.status !== "DRAFT" || !receipt.idempotency_key) {
+    return { error: "Este borrador histórico no tiene clave canónica y requiere reconciliación manual." };
+  }
+
+  const result = await confirmInventoryReceipt(admin, {
+    empresaId: profile.empresa_id,
+    receiptId: recepcion_id,
+    idempotencyKey: receipt.idempotency_key,
+    confirmedBy: profile.id,
+  });
+  if (result.error) return { error: result.error };
+  await logAudit(supabase, {
+    action: "oc_recepcion_confirmed",
+    authorizedOrderId: order_id,
+    detail: { recepcion_id, movements: result.data?.length ?? 0 },
+  });
+  revalidatePath("/orders/" + order_id);
   revalidatePath("/stock");
   return {};
 }
@@ -117,42 +124,42 @@ export async function eliminarRecepcion(
   const supabase = await createClient();
   const profile = await requireProfile(["administracion", "admin"]);
 
-  // Revertir las entradas de stock generadas por esta recepción
-  const { data: movimientos } = await supabase
-    .from("stock_movimientos")
-    .select("id, producto_id, cantidad")
-    .eq("referencia_tipo", "oc_recepcion")
-    .eq("referencia_id", recepcion_id)
-    .eq("tipo", "ENTRADA")
-    .returns<{ id: string; producto_id: string; cantidad: number }[]>();
-
-  for (const m of movimientos ?? []) {
-    const { error: revErr } = await supabase.rpc("registrar_stock_movimiento", {
-      p_empresa_id: profile.empresa_id,
-      p_producto_id: m.producto_id,
-      p_tipo: "SALIDA",
-      p_cantidad: m.cantidad,
-      p_referencia_tipo: "oc_recepcion_reversa",
-      p_referencia_id: recepcion_id,
-      p_notas: "Reversa: recepción eliminada",
-      p_created_by: profile.id,
-    });
-    if (revErr) {
-      return {
-        error:
-          "No se puede eliminar: parte del stock recibido ya fue consumido. " +
-          "Ajustá el stock manualmente antes de eliminar la recepción.",
-      };
-    }
+  const { data: receipt } = await supabase
+    .from("oc_recepciones")
+    .select("status, idempotency_key")
+    .eq("id", recepcion_id)
+    .eq("order_id", order_id)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (!receipt) return { error: "Recepción no encontrada." };
+  if (receipt.status !== "DRAFT") {
+    return { error: "Solo se pueden eliminar borradores; una recepción confirmada es inmutable." };
+  }
+  if (!receipt.idempotency_key) {
+    return { error: "Este borrador histórico requiere reconciliación y no se puede eliminar automáticamente." };
+  }
+  const { data: linkedItems } = await supabase
+    .from("oc_recepcion_items")
+    .select("id")
+    .eq("recepcion_id", recepcion_id)
+    .eq("empresa_id", profile.empresa_id)
+    .not("inventory_movement_id", "is", null)
+    .limit(1);
+  if (linkedItems?.length) {
+    return { error: "El borrador ya tiene movimientos vinculados y requiere revisión antes de eliminarse." };
   }
 
-  const { error } = await supabase.from("oc_recepciones").delete().eq("id", recepcion_id);
+  const { error } = await supabase
+    .from("oc_recepciones")
+    .delete()
+    .eq("id", recepcion_id)
+    .eq("empresa_id", profile.empresa_id);
   if (error) return { error: error.message };
 
   await logAudit(supabase, {
     action: "oc_recepcion_deleted",
     authorizedOrderId: order_id,
-    detail: { recepcion_id, stock_reversals: (movimientos ?? []).length },
+    detail: { recepcion_id },
   });
 
   revalidatePath(`/orders/${order_id}`);

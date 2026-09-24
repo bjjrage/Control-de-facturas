@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { formatDate, formatNumber } from "@/lib/format";
 import { createClient } from "@/lib/supabase/browser";
 import type { AuthorizedOrderItem, OcRecepcion } from "@/lib/types";
-import { registrarRecepcion, eliminarRecepcion } from "../oc-recepcion-actions";
+import { confirmedReceiptTotals } from "@/lib/inventory/receipt-read-model";
+import { registrarRecepcion, confirmarRecepcion, eliminarRecepcion } from "../oc-recepcion-actions";
 
 type ProductoLite = { id: string; nombre: string; unidad: string };
 
@@ -30,8 +31,11 @@ function RegistrarDialog({
   const [productoPorItem, setProductoPorItem] = useState<Record<string, string>>({});
   const [productos, setProductos] = useState<ProductoLite[]>([]);
   const [pending, setPending] = useState(false);
+  const [attemptLocked, setAttemptLocked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const idempotencyKey = useRef<string | null>(null);
+  const submitting = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -50,11 +54,14 @@ function RegistrarDialog({
     setNotas("");
     setCantidades({});
     setProductoPorItem({});
+    setAttemptLocked(false);
     setError(null);
+    idempotencyKey.current = null;
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting.current) return;
     setError(null);
 
     const items = orderItems
@@ -70,23 +77,40 @@ function RegistrarDialog({
       return;
     }
 
+    idempotencyKey.current ??= crypto.randomUUID();
+    setAttemptLocked(true);
+    submitting.current = true;
     setPending(true);
-    const res = await registrarRecepcion(orderId, fecha, recibidoPor, items, notas || undefined);
-    setPending(false);
+    try {
+      const res = await registrarRecepcion(
+        orderId,
+        fecha,
+        recibidoPor,
+        items,
+        notas || undefined,
+        idempotencyKey.current,
+      );
+      if (res.error) {
+        setError(res.error);
+        router.refresh();
+        return;
+      }
 
-    if (res.error) {
-      setError(res.error);
-      return;
+      setOpen(false);
+      reset();
+      onDone();
+      router.refresh();
+    } catch {
+      setError("No se pudo confirmar la recepción. Reintentá sin cambiar los datos para conservar la idempotencia.");
+      router.refresh();
+    } finally {
+      submitting.current = false;
+      setPending(false);
     }
-
-    setOpen(false);
-    reset();
-    onDone();
-    router.refresh();
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v && !idempotencyKey.current) reset(); }}>
       <DialogTrigger asChild>
         <Button className="h-8 px-3 text-[12px]">Registrar recepción</Button>
       </DialogTrigger>
@@ -99,6 +123,7 @@ function RegistrarDialog({
                 type="date"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
+                disabled={pending || attemptLocked}
                 required
                 className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
               />
@@ -109,6 +134,7 @@ function RegistrarDialog({
                 type="text"
                 value={recibidoPor}
                 onChange={(e) => setRecibidoPor(e.target.value)}
+                disabled={pending || attemptLocked}
                 required
                 placeholder="Nombre del receptor"
                 className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
@@ -143,6 +169,7 @@ function RegistrarDialog({
                           min="0"
                           step="any"
                           value={cantidades[it.id] ?? ""}
+                          disabled={pending || attemptLocked}
                           onChange={(e) =>
                             setCantidades((prev) => ({ ...prev, [it.id]: e.target.value }))
                           }
@@ -153,6 +180,7 @@ function RegistrarDialog({
                       <td>
                         <select
                           value={productoPorItem[it.id] ?? ""}
+                          disabled={pending || attemptLocked}
                           onChange={(e) =>
                             setProductoPorItem((prev) => ({ ...prev, [it.id]: e.target.value }))
                           }
@@ -181,6 +209,7 @@ function RegistrarDialog({
               type="text"
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
+              disabled={pending || attemptLocked}
               placeholder="Opcional — estado de la mercadería, remito, etc."
               className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
             />
@@ -193,7 +222,7 @@ function RegistrarDialog({
           ) : null}
 
           <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+            <Button type="button" variant="secondary" onClick={() => setOpen(false)} disabled={pending}>
               Cancelar
             </Button>
             <Button type="submit" disabled={pending || !recibidoPor.trim()}>
@@ -212,22 +241,49 @@ function RecepcionCard({
   recepcion,
   orderItems,
   canDelete,
+  canConfirm,
   orderId,
 }: {
   recepcion: OcRecepcion;
   orderItems: AuthorizedOrderItem[];
   canDelete: boolean;
+  canConfirm: boolean;
   orderId: string;
 }) {
   const [deleting, setDeleting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const items = recepcion.oc_recepcion_items ?? [];
 
   async function handleDelete() {
     if (!confirm("¿Eliminar esta recepción? La acción no se puede deshacer.")) return;
     setDeleting(true);
-    await eliminarRecepcion(recepcion.id, orderId);
+    const result = await eliminarRecepcion(recepcion.id, orderId);
+    setDeleting(false);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
     router.refresh();
+  }
+
+  async function handleConfirm() {
+    setConfirming(true);
+    setError(null);
+    try {
+      const result = await confirmarRecepcion(recepcion.id, orderId);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("No se pudo confirmar la recepción. Reintentá la operación.");
+      router.refresh();
+    } finally {
+      setConfirming(false);
+    }
   }
 
   return (
@@ -235,6 +291,15 @@ function RecepcionCard({
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-[13px] font-medium">{formatDate(recepcion.fecha)}</div>
+          <div className="text-[11px] text-[var(--muted)] mt-0.5">
+            {recepcion.status === "CONFIRMED"
+              ? "Confirmada"
+              : recepcion.status === "VOIDED"
+                ? "Anulada"
+                : recepcion.idempotency_key
+                  ? "Borrador · no afecta inventario"
+                  : "Histórica · pendiente de reconciliación"}
+          </div>
           <div className="text-[12px] text-[var(--muted)] mt-0.5">
             Recibido por: <span className="text-[var(--foreground)]">{recepcion.recibido_por}</span>
           </div>
@@ -242,7 +307,16 @@ function RecepcionCard({
             <div className="text-[12px] text-[var(--muted)] mt-0.5">{recepcion.notas}</div>
           ) : null}
         </div>
-        {canDelete ? (
+        {canConfirm && recepcion.status === "DRAFT" && recepcion.idempotency_key ? (
+          <button
+            onClick={handleConfirm}
+            disabled={confirming}
+            className="text-[11px] text-action hover:underline disabled:opacity-50"
+          >
+            {confirming ? "Confirmando…" : "Confirmar recepción"}
+          </button>
+        ) : null}
+        {canDelete && recepcion.status === "DRAFT" && recepcion.idempotency_key ? (
           <button
             onClick={handleDelete}
             disabled={deleting}
@@ -252,6 +326,12 @@ function RecepcionCard({
           </button>
         ) : null}
       </div>
+
+      {error ? (
+        <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2 text-[12px] text-[var(--error)]">
+          {error}
+        </div>
+      ) : null}
 
       {items.length > 0 ? (
         <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] overflow-hidden">
@@ -289,23 +369,20 @@ export function RecepcionSection({
   orderItems,
   recepciones,
   canDelete = false,
+  canConfirm = false,
 }: {
   orderId: string;
   orderItems: AuthorizedOrderItem[];
   recepciones: OcRecepcion[];
   canDelete?: boolean;
+  canConfirm?: boolean;
 }) {
   const [key, setKey] = useState(0);
 
   if (orderItems.length === 0) return null;
 
   // Totales recibidos por ítem (suma de todas las recepciones)
-  const totalesRecibidos: Record<string, number> = {};
-  for (const rec of recepciones) {
-    for (const ri of rec.oc_recepcion_items ?? []) {
-      totalesRecibidos[ri.order_item_id] = (totalesRecibidos[ri.order_item_id] ?? 0) + ri.cantidad_recibida;
-    }
-  }
+  const totalesRecibidos = confirmedReceiptTotals(recepciones);
 
   return (
     <div className="space-y-3">
@@ -369,6 +446,7 @@ export function RecepcionSection({
               recepcion={rec}
               orderItems={orderItems}
               canDelete={canDelete}
+              canConfirm={canConfirm}
               orderId={orderId}
             />
           ))}

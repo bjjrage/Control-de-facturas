@@ -3,6 +3,24 @@ import type { InventoryMovementInput } from "./types";
 
 type ServiceResult<T> = { data: T | null; error: string | null };
 
+export interface CreateInventoryReceiptInput {
+  empresaId: string;
+  orderId: string;
+  fecha: string;
+  recibidoPor: string;
+  deliveryLocationId?: string | null;
+  remisionNumber?: string | null;
+  idempotencyKey: string;
+  createdBy: string;
+  notes?: string | null;
+  items: Array<{
+    orderItemId: string;
+    productoId?: string | null;
+    quantity: number;
+    notes?: string | null;
+  }>;
+}
+
 function rpcPayload(input: InventoryMovementInput) {
   return {
     p_empresa_id: input.empresaId,
@@ -31,6 +49,30 @@ export async function postInventoryMovement(
   input: InventoryMovementInput
 ): Promise<ServiceResult<string>> {
   const { data, error } = await supabase.rpc("inventory_post_movement", rpcPayload(input));
+  return { data: (data as string | null) ?? null, error: error?.message ?? null };
+}
+
+export async function createInventoryReceipt(
+  supabase: SupabaseClient,
+  args: CreateInventoryReceiptInput
+): Promise<ServiceResult<string>> {
+  const { data, error } = await supabase.rpc("inventory_create_receipt", {
+    p_empresa_id: args.empresaId,
+    p_order_id: args.orderId,
+    p_fecha: args.fecha,
+    p_recibido_por: args.recibidoPor,
+    p_delivery_location_id: args.deliveryLocationId ?? null,
+    p_remision_number: args.remisionNumber ?? null,
+    p_idempotency_key: args.idempotencyKey,
+    p_created_by: args.createdBy,
+    p_notes: args.notes ?? null,
+    p_items: args.items.map((item) => ({
+      order_item_id: item.orderItemId,
+      producto_id: item.productoId ?? null,
+      cantidad_recibida: item.quantity,
+      notas: item.notes ?? null,
+    })),
+  });
   return { data: (data as string | null) ?? null, error: error?.message ?? null };
 }
 

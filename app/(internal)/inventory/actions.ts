@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlan } from "@/lib/auth";
 import {
+  createInventoryReceipt as createInventoryReceiptAtomic,
   confirmInventoryReceipt,
   confirmWarehouseSubmission,
   postInventoryMovement,
@@ -31,7 +32,7 @@ export async function createCanonicalReceipt(args: {
   orderId: string;
   fecha: string;
   recibidoPor: string;
-  deliveryLocationId: string;
+  deliveryLocationId?: string | null;
   remisionNumber?: string | null;
   idempotencyKey: string;
   items: CanonicalReceiptItemInput[];
@@ -39,71 +40,32 @@ export async function createCanonicalReceipt(args: {
 }) {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
-  if (!args.items.length || !args.recibidoPor.trim() || !args.idempotencyKey.trim()) {
+  if (
+    !args.items.length
+    || !args.recibidoPor.trim()
+    || !args.idempotencyKey.trim()
+    || new Set(args.items.map((item) => item.orderItemId)).size !== args.items.length
+    || args.items.some((item) => !item.orderItemId || !Number.isFinite(item.quantity) || item.quantity <= 0)
+  ) {
     return { error: "La recepción necesita responsable, idempotencia y al menos una línea.", id: null };
   }
-  const { data: order } = await supabase
-    .from("authorized_orders")
-    .select("id")
-    .eq("id", args.orderId)
-    .eq("empresa_id", profile.empresa_id)
-    .maybeSingle();
-  if (!order) return { error: "OC no encontrada.", id: null };
-  const { data: orderItems } = await supabase
-    .from("authorized_order_items")
-    .select("id, unit")
-    .eq("order_id", args.orderId)
-    .eq("empresa_id", profile.empresa_id);
-  const validOrderItems = new Map((orderItems ?? []).map((item) => [item.id, item.unit as string]));
-  const requestedOrderItemIds = args.items.map((item) => item.orderItemId);
-  if (
-    new Set(requestedOrderItemIds).size !== requestedOrderItemIds.length
-    || args.items.some((item) => !validOrderItems.has(item.orderItemId) || !Number.isFinite(item.quantity) || item.quantity <= 0)
-  ) {
-    return { error: "Una línea de recepción es inválida para la OC.", id: null };
-  }
-  const { data: receipt, error } = await supabase
-    .from("oc_recepciones")
-    .insert({
-      empresa_id: profile.empresa_id,
-      order_id: args.orderId,
-      fecha: args.fecha,
-      recibido_por: args.recibidoPor.trim(),
-      notas: clean(args.notes),
-      delivery_location_id: args.deliveryLocationId,
-      remision_number: clean(args.remisionNumber),
-      idempotency_key: args.idempotencyKey.trim(),
-      status: "DRAFT",
-      created_by: profile.id,
-    })
-    .select("id")
-    .single();
-  if (error || !receipt) {
-    const { data: existing } = await supabase
-      .from("oc_recepciones")
-      .select("id, order_id")
-      .eq("empresa_id", profile.empresa_id)
-      .eq("idempotency_key", args.idempotencyKey.trim())
-      .maybeSingle();
-    if (existing?.order_id === args.orderId) return { error: null, id: existing.id as string };
-    return { error: error?.message ?? "No se pudo crear la recepción.", id: null };
-  }
-  const { error: itemError } = await supabase.from("oc_recepcion_items").insert(
-    args.items.map((item) => ({
-      empresa_id: profile.empresa_id,
-      recepcion_id: receipt.id,
-      order_item_id: item.orderItemId,
-      producto_id: item.productoId ?? null,
-      cantidad_recibida: item.quantity,
-      notas: clean(item.notes),
-    }))
-  );
-  if (itemError) {
-    await supabase.from("oc_recepciones").delete().eq("id", receipt.id).eq("empresa_id", profile.empresa_id);
-    return { error: itemError.message, id: null };
+  const result = await createInventoryReceiptAtomic(supabase, {
+    empresaId: profile.empresa_id,
+    orderId: args.orderId,
+    fecha: args.fecha,
+    recibidoPor: args.recibidoPor.trim(),
+    deliveryLocationId: args.deliveryLocationId,
+    remisionNumber: clean(args.remisionNumber),
+    idempotencyKey: args.idempotencyKey.trim(),
+    createdBy: profile.id,
+    notes: clean(args.notes),
+    items: args.items,
+  });
+  if (result.error || !result.data) {
+    return { error: result.error ?? "No se pudo crear la recepción.", id: null };
   }
   revalidatePath(`/orders/${args.orderId}`);
-  return { error: null, id: receipt.id as string };
+  return { error: null, id: result.data };
 }
 
 export async function uploadReceiptEvidence(receiptId: string, files: File[]) {
