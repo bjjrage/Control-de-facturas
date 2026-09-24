@@ -13,14 +13,15 @@ function readSource(rel: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// 1. AvanceFisicoPanel NO renderiza ProgressForecastSection
+// 1. AvanceFisicoPanel conserva el forecast legacy y añade Weekly Plan
 // ---------------------------------------------------------------------------
-describe("UI consolidation: single weekly planning experience", () => {
-  it("AvanceFisicoPanel no importa ni renderiza ProgressForecastSection", () => {
+describe("UI surface keeps both forecast and weekly planning", () => {
+  it("AvanceFisicoPanel renderiza ProgressForecastSection junto con WeeklyPlanSection", () => {
     const src = readSource("app/(internal)/projects/[id]/avance-fisico-panel.tsx");
     expect(src).toContain("WeeklyPlanSection");
-    expect(src).not.toContain("ProgressForecastSection");
-    expect(src).not.toContain("Proyección Semanal Inteligente de Obra + Materiales + Impacto en Caja");
+    expect(src).toContain("ProgressForecastSection");
+    expect(src).toContain("<ProgressForecastSection project={project} />");
+    expect(src).toContain("<WeeklyPlanSection project={project} />");
   });
 
   it("progress-forecast-engine se conserva como dependencia del motor (no borrado a ciegas)", () => {

@@ -1,11 +1,12 @@
 import { requireProfile, CurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { Project, InvoiceStatus, SalesDocStatus } from "@/lib/types";
+import { Project, InvoiceStatus, SalesDocStatus, Rfq } from "@/lib/types";
 import { docSaldo } from "@/lib/sales";
 import { formatMoney } from "@/lib/format";
 import { classifyPayable, classifyReceivable } from "@/lib/dashboard-kpis";
 import { PortfolioRow, PortfolioEstado } from "./portfolio-table";
 import { DashboardIconKey } from "./icon-map";
+import { isRfqOpen, rfqClosedReason } from "@/lib/rfq-status";
 
 const PLAN_RANK = { basico: 0, pro: 1, caterpillar: 2 } as const;
 
@@ -53,6 +54,9 @@ const ESTADO_PRIORITY: Record<PortfolioEstado, number> = { Riesgo: 0, Atención:
 export type DashboardViewData = {
   firstName: string;
   canUseOperativo: boolean;
+  legacyStats: MetricChip[];
+  recentRfqs: { id: string; code: string; product: string; createdAt: string; isOpen: boolean; closedReason: string | null }[];
+  showRecentRfqs: boolean;
   adminKpis: MetricChip[];
   licitacionesKpis: MetricChip[];
   portfolioRows: PortfolioRow[];
@@ -82,6 +86,9 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
   const canUseLicitaciones = PLAN_RANK[p.plan] >= PLAN_RANK.pro && (p.role === "comercial" || isAdminOrAdministracion);
   // Mismo gate que el item "Stock" del sidebar (minPlan: "pro").
   const canUseStock = showInvoiceKpis && PLAN_RANK[p.plan] >= PLAN_RANK.pro;
+  const showLegacyRfqStats = (p.role === "comercial" || p.role === "admin") && p.modulo_compras;
+  const showLegacyStockStats = isAdminOrAdministracion && p.modulo_compras;
+  const en30dias = addDays(30);
 
   const noopRows = Promise.resolve({ data: [] as unknown[] });
   const noopCount = Promise.resolve({ data: null, count: null } as { data: null; count: number | null });
@@ -95,6 +102,18 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
     { count: licitacionesEnCurso },
     { count: licitacionesGanadas },
     { data: stockProductos },
+    { data: legacyBiddingRfqs },
+    { count: legacyAwaitingSelection },
+    { count: legacyPendingInvoices },
+    { count: legacyReviewInvoices },
+    { count: legacyAptoInvoices },
+    { data: recentRfqsRaw },
+    { count: legacyPorCobrar },
+    { count: legacyVencidas },
+    { count: legacyNcSinFe },
+    { data: legacyStockProducts },
+    { count: legacyDocsPorVencer },
+    { count: legacyLicitacionesCierran },
   ] = await Promise.all([
     // CxP: nosotros debemos. Se trae todo lo no pagado con due_date — la
     // clasificación próxima/vencida la hace classifyPayable, no la query.
@@ -149,6 +168,56 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
     canUseStock
       ? supabase.from("productos").select("stock_actual, stock_minimo").eq("empresa_id", empresaId).eq("activo", true)
       : noopRows,
+    showLegacyRfqStats
+      ? supabase.from("rfqs").select("status, expires_at").in("status", ["BORRADOR", "COTIZANDO", "OFERTAS_RECIBIDAS"])
+      : noopRows,
+    showLegacyRfqStats
+      ? supabase.from("rfqs").select("id", { count: "exact", head: true }).eq("status", "OFERTAS_RECIBIDAS")
+      : noopCount,
+    showInvoiceKpis
+      ? supabase.from("invoices").select("id", { count: "exact", head: true }).eq("status", "PENDIENTE")
+      : noopCount,
+    showInvoiceKpis
+      ? supabase.from("invoices").select("id", { count: "exact", head: true }).eq("status", "REQUIERE_REVISION")
+      : noopCount,
+    showInvoiceKpis
+      ? supabase.from("invoices").select("id", { count: "exact", head: true }).eq("status", "APTO_PARA_PAGO")
+      : noopCount,
+    p.modulo_compras
+      ? supabase.from("rfqs").select("*").order("created_at", { ascending: false }).limit(8).returns<Rfq[]>()
+      : noopRows,
+    showSalesKpis
+      ? supabase.from("sales_documents").select("id", { count: "exact", head: true }).in("status", ["EMITIDA", "COBRADA_PARCIAL"])
+      : noopCount,
+    showSalesKpis
+      ? supabase
+          .from("sales_documents")
+          .select("id", { count: "exact", head: true })
+          .in("status", ["EMITIDA", "COBRADA_PARCIAL"])
+          .lt("due_date", today)
+      : noopCount,
+    showSalesKpis
+      ? supabase
+          .from("sales_documents")
+          .select("id", { count: "exact", head: true })
+          .eq("doc_type", "NOTA_CREDITO")
+          .neq("status", "ANULADA")
+          .is("cdc", null)
+      : noopCount,
+    showLegacyStockStats
+      ? supabase.from("productos").select("stock_actual, stock_minimo").eq("empresa_id", empresaId).gt("stock_minimo", 0)
+      : noopRows,
+    isAdminOrAdministracion
+      ? supabase.from("empresa_documentos").select("id", { count: "exact", head: true }).lte("fecha_vencimiento", en30dias)
+      : noopCount,
+    canUseLicitaciones
+      ? supabase
+          .from("licitaciones")
+          .select("id", { count: "exact", head: true })
+          .in("decision", ["SIN_REVISAR", "EN_PREPARACION"])
+          .gte("fecha_entrega_ofertas", today)
+          .lte("fecha_entrega_ofertas", en7dias)
+      : noopCount,
   ]);
 
   type PayableRow = { total: number; currency: string; due_date: string | null; status: InvoiceStatus };
@@ -174,6 +243,45 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
   const productosStockBajo = ((stockProductos ?? []) as { stock_actual: number; stock_minimo: number }[]).filter(
     (r) => r.stock_actual <= 0 || (r.stock_minimo > 0 && r.stock_actual <= r.stock_minimo)
   );
+
+  const legacyStats: MetricChip[] = [];
+  if (showLegacyRfqStats) {
+    const openCount = ((legacyBiddingRfqs ?? []) as Pick<Rfq, "status" | "expires_at">[]).filter(isRfqOpen).length;
+    legacyStats.push({ key: "legacy-rfqs-open", value: String(openCount), label: "Solicitudes abiertas", href: "/rfqs?open=1", iconKey: "file-text", tone: openCount > 0 ? "warn" : "ok" });
+    legacyStats.push({ key: "legacy-rfqs-offers", value: String(legacyAwaitingSelection ?? 0), label: "Con ofertas para elegir", href: "/rfqs", iconKey: "tag", tone: (legacyAwaitingSelection ?? 0) > 0 ? "warn" : "ok" });
+  }
+  if (showInvoiceKpis) {
+    legacyStats.push({ key: "legacy-invoices-pending", value: String(legacyPendingInvoices ?? 0), label: "Facturas pendientes", href: "/invoices?month=all&status=PENDIENTE", iconKey: "file-text", tone: "warn" });
+    legacyStats.push({ key: "legacy-invoices-review", value: String(legacyReviewInvoices ?? 0), label: "Requieren revisión", href: "/invoices?month=all&status=REQUIERE_REVISION", iconKey: "alert-circle", tone: (legacyReviewInvoices ?? 0) > 0 ? "error" : "ok" });
+    legacyStats.push({ key: "legacy-invoices-ready", value: String(legacyAptoInvoices ?? 0), label: "Aptas para pago", href: "/invoices?month=all&status=APTO_PARA_PAGO", iconKey: "check-circle", tone: "ok" });
+  }
+  if (showSalesKpis) {
+    legacyStats.push({ key: "legacy-sales-receivable", value: String(legacyPorCobrar ?? 0), label: "Ventas por cobrar", href: "/cobros", iconKey: "wallet", tone: (legacyPorCobrar ?? 0) > 0 ? "warn" : "ok" });
+    legacyStats.push({ key: "legacy-sales-overdue", value: String(legacyVencidas ?? 0), label: "Ventas vencidas", href: "/cobros", iconKey: "calendar-clock", tone: (legacyVencidas ?? 0) > 0 ? "error" : "ok" });
+    if (legacyNcSinFe !== null && (legacyNcSinFe ?? 0) > 0) {
+      legacyStats.push({ key: "legacy-credit-notes-fe", value: String(legacyNcSinFe), label: "NC sin FE emitida", href: "/notas-credito", iconKey: "file-x", tone: "warn" });
+    }
+  }
+  const legacyLowStockCount = ((legacyStockProducts ?? []) as { stock_actual: number | null; stock_minimo: number }[])
+    .filter((product) => (product.stock_actual ?? 0) < product.stock_minimo).length;
+  if (showLegacyStockStats && legacyLowStockCount > 0) {
+    legacyStats.push({ key: "legacy-stock-low", value: String(legacyLowStockCount), label: "Productos bajo mínimo", href: "/stock?filtro=bajo_minimo", iconKey: "package-x", tone: "warn" });
+  }
+  if (isAdminOrAdministracion && (legacyDocsPorVencer ?? 0) > 0) {
+    legacyStats.push({ key: "legacy-docs-expiring", value: String(legacyDocsPorVencer), label: "Documentos por vencer", href: "/licitaciones/documentos", iconKey: "calendar-clock", tone: "warn" });
+  }
+  if ((legacyLicitacionesCierran ?? 0) > 0) {
+    legacyStats.push({ key: "legacy-tenders-closing", value: String(legacyLicitacionesCierran), label: "Licitaciones cierran esta semana", href: "/licitaciones", iconKey: "gavel", tone: "warn" });
+  }
+
+  const recentRfqRows = ((recentRfqsRaw ?? []) as Rfq[]).map((rfq) => ({
+    id: rfq.id,
+    code: rfq.code,
+    product: rfq.product,
+    createdAt: rfq.created_at,
+    isOpen: isRfqOpen(rfq),
+    closedReason: rfqClosedReason(rfq),
+  }));
 
   // Portafolio: mismo cálculo de avance/compras que /projects, restringido a
   // obras activas y con menos columnas — pensado para lectura rápida, no
@@ -366,6 +474,9 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
   return {
     firstName: p.full_name.split(" ")[0],
     canUseOperativo,
+    legacyStats,
+    recentRfqs: recentRfqRows,
+    showRecentRfqs: p.modulo_compras,
     adminKpis,
     licitacionesKpis,
     portfolioRows: portfolioRowsTop,

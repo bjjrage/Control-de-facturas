@@ -41,11 +41,13 @@ export function AdminConfigSection({
   plan,
   isSuperAdmin = false,
   collapsed = false,
+  sectionLabel = "Configuración",
 }: {
   role: UserRole;
   plan: EmpresaPlan;
   isSuperAdmin?: boolean;
   collapsed?: boolean;
+  sectionLabel?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -139,7 +141,7 @@ export function AdminConfigSection({
             </div>
           )
         : null}
-      {adminItems.length > 0 ? renderSection("Configuración", adminItems.map(renderLink)) : null}
+      {adminItems.length > 0 ? renderSection(sectionLabel, adminItems.map(renderLink)) : null}
       {superAdminItems.length > 0 ? renderSection("Super admin", superAdminItems.map(renderLink)) : null}
     </>
   );

@@ -29,6 +29,8 @@ import {
   FileCheck2,
   FileX,
   Landmark,
+  HardHat,
+  Gavel,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { EmpresaPlan } from "@/lib/auth";
@@ -55,10 +57,13 @@ const PROJECT_TAB_GROUPS: { label: string; tabs: ProjectTab[] }[] = [
     { key: "compras", label: "Órdenes de Compra", icon: Package },
     { key: "facturas", label: "Facturas", icon: Receipt },
     { key: "pagos", label: "Pagos", icon: Wallet },
+    { key: "recepciones", label: "Recepciones", icon: Package },
   ]},
   { label: "Ejecutar", tabs: [
     { key: "ejecucion", label: "Ejecución", icon: Hammer },
     { key: "stock", label: "Stock / Materiales", icon: Boxes },
+    { key: "inventario", label: "Inventario", icon: Boxes },
+    { key: "panol", label: "Pañol", icon: ClipboardList },
     { key: "personal", label: "Personal", icon: Users, caterpillarOnly: true },
     { key: "subcontratistas", label: "Subcontratistas", icon: Truck, caterpillarOnly: true },
   ]},
@@ -93,6 +98,20 @@ const GLOBAL_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", roles: ["comercial", "administracion", "admin"], icon: LayoutDashboard },
 ];
 
+const PROYECTOS_ITEM: NavItem = {
+  href: "/projects",
+  label: "Proyectos",
+  roles: ["administracion", "admin"],
+  icon: HardHat,
+};
+
+const LICITACIONES_ITEM: NavItem = {
+  href: "/licitaciones",
+  label: "Licitaciones",
+  roles: ["comercial", "administracion", "admin"],
+  icon: Gavel,
+};
+
 const COMPRAS_ITEMS: NavItem[] = [
   { href: "/providers", label: "Proveedores", roles: ["admin"], icon: Truck, module: "compras" },
   { href: "/rfqs", label: "Cotizaciones", roles: ["comercial", "admin"], icon: FileText, module: "compras" },
@@ -100,6 +119,7 @@ const COMPRAS_ITEMS: NavItem[] = [
   { href: "/invoices", label: "Facturas", roles: ["administracion", "admin"], icon: Receipt, module: "compras" },
   { href: "/pagos", label: "Pagos", roles: ["administracion", "admin"], icon: Wallet, module: "compras" },
   { href: "/stock", label: "Stock", roles: ["administracion", "admin"], icon: Boxes, module: "compras", minPlan: "pro" },
+  { href: "/inventario", label: "Inventario", roles: ["administracion", "admin"], icon: Boxes, minPlan: "pro" },
 ];
 
 const FINANZAS_ITEMS: NavItem[] = [
@@ -231,15 +251,12 @@ export function Sidebar({
   }
 
   const globalItems = filterItems(GLOBAL_ITEMS);
+  const proyectosItems = PLAN_RANK[plan] >= PLAN_RANK.pro ? filterItems([PROYECTOS_ITEM, LICITACIONES_ITEM]) : [];
   const comprasItems = filterItems(COMPRAS_ITEMS);
   const ventasItems = filterItems(VENTAS_ITEMS);
   const finanzasItems = filterItems(FINANZAS_ITEMS);
-  // Proyectos/Licitaciones dejaron de listarse acá porque son, cada uno, la
-  // entrada a su propio workspace (elegido con el switcher de la topbar) —
-  // el resto (Comprar/Vender/Finanzas) son funciones globales del ERP, no
-  // exclusivas de un workspace, así que siguen visibles siempre: esconderlas
-  // fuera de Administración dejaba el nav vacío al entrar a Operativo o
-  // Licitaciones.
+  // Proyectos/Licitaciones vuelven como accesos directos; al entrar a una
+  // obra, el modo carpeta sigue mostrando sus sub-secciones en este sidebar.
 
   async function handleLogoFile(file: File | null) {
     if (!file) return;
@@ -478,6 +495,7 @@ export function Sidebar({
         ) : (
           <>
             {globalItems.map(renderLink)}
+            {proyectosItems.map(renderLink)}
             {renderSection("Comprar", comprasItems)}
             {renderSection("Vender", ventasItems)}
             {renderSection("Finanzas", finanzasItems)}

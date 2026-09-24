@@ -1,4 +1,4 @@
-import { FileX2, Wallet2, HardHat, Gavel, CalendarClock, AlertOctagon, Radar, Trophy, Boxes } from "lucide-react";
+import { FileX2, Wallet2, HardHat, Gavel, CalendarClock, AlertOctagon, Radar, Trophy, Boxes, FileText, Tag, AlertCircle, CheckCircle2, PackageX } from "lucide-react";
 
 // Los datos del dashboard viajan como texto plano (server component o server
 // action, según la ruta de navegación) — el ícono se resuelve acá, del lado
@@ -13,6 +13,11 @@ export const DASHBOARD_ICONS = {
   radar: Radar,
   trophy: Trophy,
   boxes: Boxes,
+  "file-text": FileText,
+  tag: Tag,
+  "alert-circle": AlertCircle,
+  "check-circle": CheckCircle2,
+  "package-x": PackageX,
 } as const;
 
 export type DashboardIconKey = keyof typeof DASHBOARD_ICONS;

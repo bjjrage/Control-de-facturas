@@ -1,6 +1,6 @@
 import { requireProfile } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/sidebar";
-import { AdminRailPanel } from "@/components/layout/admin-rail-panel";
+import { PlanNav } from "@/components/layout/plan-nav";
 import { Topbar } from "@/components/layout/topbar";
 import { AppShellClient } from "@/components/layout/app-shell-client";
 import { RodrigoAgentProvider } from "@/components/agent/rodrigo-agent-provider";
@@ -11,14 +11,9 @@ import { RodrigoAgentWidget } from "@/components/agent/rodrigo-agent-widget";
 // timeout (10s on Vercel's Hobby plan).
 export const maxDuration = 60;
 
-const PLAN_RANK = { basico: 0, pro: 1, caterpillar: 2 } as const;
-
 export default async function InternalLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireProfile();
   const initial = profile.full_name.trim().charAt(0).toUpperCase() || "?";
-  const isProOrAbove = PLAN_RANK[profile.plan] >= PLAN_RANK.pro;
-  const showOperativo = isProOrAbove && (profile.role === "administracion" || profile.role === "admin");
-  const showLicitaciones = isProOrAbove && ["comercial", "administracion", "admin"].includes(profile.role);
 
   return (
     <RodrigoAgentProvider>
@@ -35,14 +30,12 @@ export default async function InternalLayout({ children }: { children: React.Rea
           initial={initial}
           fullName={profile.full_name}
           role={profile.role}
-          showOperativo={showOperativo}
-          showLicitaciones={showLicitaciones}
         />
         <main className="erp-main flex-1 min-w-0 p-5">
           <AppShellClient>{children}</AppShellClient>
         </main>
       </div>
-      <AdminRailPanel role={profile.role} plan={profile.plan} isSuperAdmin={profile.is_super_admin} />
+      <PlanNav role={profile.role} plan={profile.plan} isSuperAdmin={profile.is_super_admin} />
       </div>
       <RodrigoAgentWidget />
     </RodrigoAgentProvider>
