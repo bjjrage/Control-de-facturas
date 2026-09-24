@@ -34,6 +34,12 @@ import {
   type MrpCoverageLine,
 } from "@/lib/procurement/mrp-coverage";
 
+function isDateOnly(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
 export interface SaveWeeklyPlanParams {
   planId?: string;
   projectId: string;
@@ -50,10 +56,9 @@ export interface SaveWeeklyPlanParams {
     unit: string;
   }[];
   /**
-   * Compromiso MRP (V3, opcional). Solo actúa si se provee:
-   * - COMMITTED → reserva atómica (replace) del central indicado.
-   * - DRAFT/CLOSED → libera las ACTIVE del plan (sin fingir consumo).
-   * Sin mrpCommit el guardado es idéntico a V1.
+   * Referencia MRP no autoritativa para COMMITTED: el servidor recalcula y
+   * solo compromete si la cobertura coincide. Al actualizar DRAFT/CLOSED,
+   * el lifecycle libera reservas ACTIVE en la misma transacción.
    */
   mrpCommit?: {
     /** Referencia del preview (NO autoritativa: el servidor recalcula). */
@@ -597,6 +602,25 @@ export async function saveWeeklyPlanAction(
     // actuales, comparar con la referencia del cliente y persistir
     // plan+reservas en UNA transacción (commit_production_plan_atomic).
     // Las cantidades del browser NUNCA son autoritativas.
+    if (
+      status === "COMMITTED" &&
+      (!params.mrpCommit ||
+        !isDateOnly(params.mrpCommit.neededByDate) ||
+        !Array.isArray(params.mrpCommit.lines) ||
+        params.mrpCommit.lines.some(
+          (line) =>
+            !line ||
+            typeof line.producto_id !== "string" ||
+            !Number.isFinite(line.quantity) ||
+            line.quantity <= 0
+        ))
+    ) {
+      return {
+        data: null,
+        error: "Recalculá una cobertura MRP válida antes de comprometer el plan.",
+      };
+    }
+
     if (params.mrpCommit && status === "COMMITTED") {
       return await commitProductionPlanWithMrp(supabase, empresaId, profile.id, {
         planId: planId || null,
@@ -607,6 +631,7 @@ export async function saveWeeklyPlanAction(
         notes: notes || null,
         weatherSnapshotBatchId: weatherSnapshotBatchId || null,
         itemsPayload,
+        neededByDate: params.mrpCommit.neededByDate,
         centralReference: (params.mrpCommit.lines ?? []).map((l) => ({
           producto_id: l.producto_id,
           quantity: Number(l.quantity) || 0,
@@ -616,7 +641,7 @@ export async function saveWeeklyPlanAction(
 
     // V3 DRAFT/CLOSED con lifecycle: UNA sola transacción (save+release).
     // Sin recompute (nada que reservar); el release vive dentro de la RPC.
-    if (params.mrpCommit && status !== "COMMITTED" && planId) {
+    if (status !== "COMMITTED" && planId) {
       return await commitProductionPlanWithMrp(supabase, empresaId, profile.id, {
         planId: planId || null,
         projectId,
@@ -626,6 +651,7 @@ export async function saveWeeklyPlanAction(
         notes: notes || null,
         weatherSnapshotBatchId: weatherSnapshotBatchId || null,
         itemsPayload,
+        neededByDate: endDate,
         centralReference: [],
         skipCoverage: true,
       });
@@ -704,9 +730,11 @@ async function commitProductionPlanWithMrp(
     centralReference: { producto_id: string; quantity: number }[];
     /** DRAFT/CLOSED: omitir recompute+compare (solo save+release). */
     skipCoverage?: boolean;
+    neededByDate?: string;
   }
 ): Promise<{ data: ProjectWeeklyPlan | null; error: string | null }> {
-  const { planId, projectId, startDate, endDate, status, notes } = args;
+  const { projectId, startDate, endDate, status } = args;
+  const neededByDate = args.neededByDate || endDate;
   let serverLines: { producto_id: string; quantity: number }[] = [];
   let centralLocationId: string | null = null;
 
@@ -751,7 +779,7 @@ async function commitProductionPlanWithMrp(
   });
 
   // 4. Central + inbound con fecha, y asignación (pura, testeada).
-  const mrp = await buildMrpPreview(supabase, empresaId, calculation, materialsByItem, baseRes.data, endDate);
+  const mrp = await buildMrpPreview(supabase, empresaId, calculation, materialsByItem, baseRes.data, neededByDate);
   centralLocationId = mrp.centralLocation?.id ?? null;
   serverLines = mrp.lines
     .filter((l) => l.cubierto_central > 0)
@@ -782,7 +810,7 @@ async function commitProductionPlanWithMrp(
     p_weather_snapshot_batch_id: args.weatherSnapshotBatchId,
     p_location_id: centralLocationId,
     p_reserve_items: serverLines,
-    p_needed_by: endDate,
+    p_needed_by: neededByDate,
     p_idempotency_key: args.planId,
   });
   if (rpcErr) {

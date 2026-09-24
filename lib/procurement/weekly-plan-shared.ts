@@ -30,6 +30,18 @@ export interface PreviewWeeklyPlanParams {
   items: PreviewWeeklyPlanItemInput[];
 }
 
+export function aggregateProjectStockByProduct(
+  rows: { producto_id: string; quantity: unknown }[]
+): Record<string, number> {
+  const totals: Record<string, number> = {};
+  for (const row of rows) {
+    const quantity = Number(row.quantity);
+    totals[row.producto_id] =
+      (totals[row.producto_id] || 0) + (Number.isFinite(quantity) ? quantity : 0);
+  }
+  return totals;
+}
+
 export interface WeeklyPlanBaseData {
   project: {
     id: string;
@@ -267,8 +279,8 @@ export async function loadWeeklyPlanBaseData(
 
   // 5. Stock en obra
   const { data: rawStock, error: sErr } = await supabase
-    .from("stock_por_proyecto")
-    .select("producto_id, qty_disponible, costo_promedio")
+    .from("inventory_stock_by_project")
+    .select("empresa_id, project_id, producto_id, quantity")
     .eq("project_id", projectId)
     .eq("empresa_id", empresaId);
 
@@ -314,11 +326,11 @@ export async function loadWeeklyPlanBaseData(
   }
 
   const stockAndInbound: Record<string, StockDisponibilidadInput> = {};
-  for (const st of rawStock ?? []) {
-    const pId = st.producto_id;
+  const projectStockByProduct = aggregateProjectStockByProduct(rawStock ?? []);
+  for (const [pId, quantity] of Object.entries(projectStockByProduct)) {
     stockAndInbound[pId] = {
       producto_id: pId,
-      stock_disponible: Math.max(0, Number(st.qty_disponible) || 0),
+      stock_disponible: Math.max(0, quantity),
       oc_inbound: 0,
     };
   }

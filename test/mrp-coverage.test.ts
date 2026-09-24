@@ -141,6 +141,25 @@ describe("TEST G. Stock ajeno no entra en cobertura", () => {
     expect(res.lines[0].comprar).toBe(900);
   });
 
+  it("el loader usa stock canónico por empresa/obra/producto y falla cerrado", () => {
+    const shared = readSource("lib/procurement/weekly-plan-shared.ts");
+    const stockStart = shared.indexOf("// 5. Stock en obra");
+    const inboundStart = shared.indexOf('.from("authorized_orders")', stockStart);
+    const stockQuery = shared.slice(stockStart, inboundStart);
+
+    expect(stockQuery).toContain('.from("inventory_stock_by_project")');
+    expect(stockQuery).toContain('select("empresa_id, project_id, producto_id, quantity")');
+    expect(stockQuery).toContain('.eq("project_id", projectId)');
+    expect(stockQuery).toContain('.eq("empresa_id", empresaId)');
+    expect(stockQuery).not.toContain("stock_por_proyecto");
+    expect(stockQuery).toContain("if (sErr)");
+    expect(stockQuery).toContain("data: null");
+    expect(shared).toContain("Number.isFinite(quantity) ? quantity : 0");
+    expect(shared).toContain("aggregateProjectStockByProduct(rawStock ?? [])");
+    expect(shared).toContain("stock_disponible: Math.max(0, quantity)");
+    expect(shared).not.toContain("Number(st.qty_disponible)");
+  });
+
   it("el loader central solo lee la ubicación CENTRAL primaria (fuente)", () => {
     const shared = readSource("lib/procurement/weekly-plan-shared.ts");
     expect(shared).toContain('eq("location_type", "CENTRAL")');
@@ -231,6 +250,23 @@ describe("Multi-tenant: recetas y reservas aisladas por empresa", () => {
 // ---------------------------------------------------------------------------
 describe("P1. Guardado con reservas: sin commit parcial ni zombies", () => {
   const src = () => readSource("app/(internal)/projects/weekly-plan-actions.ts");
+
+  it("falla cerrado si COMMITTED no trae referencia MRP y libera reservas al bajar estado", () => {
+    const actions = src();
+    const saveStart = actions.indexOf("export async function saveWeeklyPlanAction");
+    const saveSource = actions.slice(saveStart);
+    expect(saveSource).toContain('status === "COMMITTED" &&');
+    expect(saveSource).toContain("isDateOnly(params.mrpCommit.neededByDate)");
+    expect(saveSource).toContain("Recalculá una cobertura MRP válida");
+    expect(saveSource).toContain('if (status !== "COMMITTED" && planId)');
+    expect(saveSource).not.toContain('if (params.mrpCommit && status !== "COMMITTED" && planId)');
+    expect(saveSource).toContain("neededByDate: params.mrpCommit.neededByDate");
+    expect(saveSource).toContain("p_needed_by: neededByDate");
+
+    const agentTool = readSource("lib/tools/erp/save-weekly-plan.ts");
+    expect(agentTool).toContain('.superRefine((input, ctx) =>');
+    expect(agentTool).toContain('input.status === "COMMITTED" && !input.mrp_commit');
+  });
 
   it("reserva fallida no deja commit parcial: rollback real de la RPC única", () => {
     // Una sola transacción plan+reservas: si falla, nada persiste (sin compensación).

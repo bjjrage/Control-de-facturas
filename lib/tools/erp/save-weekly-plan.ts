@@ -24,6 +24,14 @@ export const SaveWeeklyPlanInputSchema = z.object({
     lines: z.array(z.object({ producto_id: z.string().uuid(), quantity: z.number().positive().finite() })),
     needed_by_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   }).optional(),
+}).superRefine((input, ctx) => {
+  if (input.status === "COMMITTED" && !input.mrp_commit) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["mrp_commit"],
+      message: "A committed plan requires a current MRP preview reference.",
+    });
+  }
 });
 export type SaveWeeklyPlanInput = z.infer<typeof SaveWeeklyPlanInputSchema>;
 
@@ -54,7 +62,7 @@ async function handler(_ctx: AgentToolContext, input: SaveWeeklyPlanInput, _deps
 
 registerTool<SaveWeeklyPlanInput, Record<string, unknown>>({
   name: "save_weekly_plan",
-  description: "Guarda o compromete un plan semanal real mediante la acción y RPC atómica existentes. Con mrp_commit y status COMMITTED recalcula cobertura y reserva materiales; requiere aprobación.",
+  description: "Guarda o compromete un plan semanal real mediante la acción y RPC atómica existentes. COMMITTED requiere una referencia MRP vigente, recalcula cobertura y reserva materiales atómicamente; requiere aprobación.",
   inputSchema: SaveWeeklyPlanInputSchema,
   riskLevel: 2,
   requiredRoles: null,

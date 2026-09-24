@@ -13,25 +13,27 @@ function str(fd: FormData, k: string) {
   const v = fd.get(k);
   return typeof v === "string" && v.trim() !== "" ? v.trim() : null;
 }
-function num(fd: FormData, k: string) {
-  const v = fd.get(k);
-  if (typeof v !== "string" || v.trim() === "") return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
 type OrderItemInput = {
   product: string;
   quantity: number;
   unit: string;
   unit_price: number;
   total_price: number;
+  producto_id?: string | null;
+  expected_delivery_date?: string | null;
 };
+
+function isDateOnly(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
 
 /** OC manual: compra directa, sin pasar por RFQ. */
 export async function createManualOrder(formData: FormData) {
   const profile = await requireProfile(["comercial", "administracion", "admin"]);
   const supabase = await createClient();
+  if (!profile.empresa_id) return { error: "La cuenta no tiene una empresa activa." };
 
   const providerId = str(formData, "provider_id");
   const currency = (str(formData, "currency") ?? "PYG") as CurrencyCode;
@@ -44,7 +46,9 @@ export async function createManualOrder(formData: FormData) {
   const itemsRaw = str(formData, "items");
   if (itemsRaw) {
     try {
-      items = JSON.parse(itemsRaw) as OrderItemInput[];
+      const parsed: unknown = JSON.parse(itemsRaw);
+      if (!Array.isArray(parsed)) return { error: "Los ítems de la orden no son válidos." };
+      items = parsed as OrderItemInput[];
     } catch {
       return { error: "Error al leer los ítems de la orden." };
     }
@@ -52,11 +56,51 @@ export async function createManualOrder(formData: FormData) {
 
   if (!items.length) return { error: "Agregá al menos un ítem." };
   for (const item of items) {
-    if (!item.product?.trim()) return { error: "Completá la descripción de todos los ítems." };
-    if (!item.quantity || item.quantity <= 0) return { error: "Todas las cantidades deben ser mayores a cero." };
-    if (!item.unit?.trim()) return { error: "Completá la unidad de todos los ítems." };
-    if (item.unit_price < 0) return { error: "El precio unitario no puede ser negativo." };
-    if (!item.total_price || item.total_price <= 0) return { error: "El total de cada ítem debe ser mayor a cero." };
+    if (!item || typeof item.product !== "string" || !item.product.trim()) {
+      return { error: "Completá la descripción de todos los ítems." };
+    }
+    if (!Number.isFinite(item.quantity) || item.quantity <= 0) {
+      return { error: "Todas las cantidades deben ser mayores a cero." };
+    }
+    if (typeof item.unit !== "string" || !item.unit.trim()) {
+      return { error: "Completá la unidad de todos los ítems." };
+    }
+    if (!Number.isFinite(item.unit_price) || item.unit_price < 0) {
+      return { error: "El precio unitario no puede ser negativo." };
+    }
+    if (!Number.isFinite(item.total_price) || item.total_price <= 0) {
+      return { error: "El total de cada ítem debe ser mayor a cero." };
+    }
+    if (item.producto_id != null && (typeof item.producto_id !== "string" || !item.producto_id.trim())) {
+      return { error: "El producto de inventario seleccionado no es válido." };
+    }
+    if (item.expected_delivery_date != null && (
+      typeof item.expected_delivery_date !== "string"
+      || (item.expected_delivery_date !== "" && !isDateOnly(item.expected_delivery_date))
+    )) {
+      return { error: "La fecha esperada de entrega no es válida." };
+    }
+  }
+
+  const productIds = [...new Set(items.flatMap((item) => item.producto_id ? [item.producto_id.trim()] : []))];
+  if (productIds.length > 0) {
+    const { data: selectedProducts, error: productsError } = await supabase
+      .from("productos")
+      .select("id, unidad, activo")
+      .eq("empresa_id", profile.empresa_id)
+      .in("id", productIds);
+    if (productsError || !selectedProducts || selectedProducts.length !== productIds.length) {
+      return { error: "Uno o más productos no pertenecen a la empresa." };
+    }
+    const productsById = new Map(selectedProducts.map((product) => [product.id, product]));
+    for (const item of items) {
+      if (!item.producto_id) continue;
+      const selectedProduct = productsById.get(item.producto_id.trim());
+      if (!selectedProduct?.activo) return { error: "El producto seleccionado está inactivo." };
+      if (selectedProduct.unidad.trim() !== item.unit.trim()) {
+        return { error: `La unidad de ${item.product.trim()} debe coincidir con la unidad del producto de inventario.` };
+      }
+    }
   }
 
   const grandTotal = items.reduce((s, r) => s + r.total_price, 0);
@@ -108,6 +152,8 @@ export async function createManualOrder(formData: FormData) {
     unit_price: item.unit_price,
     total_price: item.total_price,
     sort_order: idx,
+    producto_id: item.producto_id?.trim() || null,
+    expected_delivery_date: item.expected_delivery_date || null,
   }));
   const { error: itemsError } = await supabase.from("authorized_order_items").insert(itemRows);
   if (itemsError) {
