@@ -30,6 +30,26 @@ const inventoryActions = readFileSync(
   resolve(process.cwd(), "app/(internal)/inventory/actions.ts"),
   "utf8",
 );
+const batch4HardeningMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260924225450_batch4_lock_inventory_legacy_paths_and_confirm_state.sql"),
+  "utf8",
+);
+const stockActions = readFileSync(
+  resolve(process.cwd(), "app/(internal)/stock/stock-actions.ts"),
+  "utf8",
+);
+const stockDetailPage = readFileSync(
+  resolve(process.cwd(), "app/(internal)/stock/[id]/page.tsx"),
+  "utf8",
+);
+const approvalActions = readFileSync(
+  resolve(process.cwd(), "app/(internal)/agent/approval-actions.ts"),
+  "utf8",
+);
+const globalInventorySection = readFileSync(
+  resolve(process.cwd(), "app/(internal)/inventario/inventario-global-section.tsx"),
+  "utf8",
+);
 
 describe("0080 inventory migration contract", () => {
   it("fails closed when legacy cost evidence is unavailable", () => {
@@ -175,6 +195,54 @@ describe("canonical purchase receipt migration contract", () => {
     expect(receiptActions).toContain("createInventoryReceipt(supabase");
     expect(receiptActions).toContain("confirmInventoryReceipt(supabase");
     expect(createReceipt).toContain("ARRAY['comercial','administracion','admin']::public.user_role[]");
+  });
+});
+
+describe("Batch 4 canonical inventory hardening", () => {
+  it("keeps warehouse confirmation behind the canonical authenticated actor and exact consumption links", () => {
+    expect(batch4HardeningMigration).toContain("REVOKE UPDATE ON public.warehouse_submissions FROM PUBLIC, anon, authenticated");
+    expect(batch4HardeningMigration).toContain("p_confirmed_by IS DISTINCT FROM auth.uid()");
+    expect(batch4HardeningMigration).toContain("m.source_type IS DISTINCT FROM 'WAREHOUSE_SUBMISSION'");
+    expect(batch4HardeningMigration).toContain("m.source_line_id IS DISTINCT FROM l.id");
+    expect(batch4HardeningMigration).toContain("m.project_id IS DISTINCT FROM NEW.project_id");
+    expect(batch4HardeningMigration).toContain("m.budget_item_id IS DISTINCT FROM l.budget_item_id");
+    expect(batch4HardeningMigration).toContain("l.state = 'REJECTED' AND l.inventory_movement_id IS NOT NULL");
+    expect(batch4HardeningMigration).toContain("trg_prevent_confirmed_warehouse_submission_line_mutation");
+    expect(batch4HardeningMigration).toContain("WHERE id = v_submission_id\n  FOR UPDATE;");
+    expect(batch4HardeningMigration).toContain("Una rendición confirmada es inmutable");
+  });
+
+  it("preserves rejected partial lines but refuses proposal or empty confirmations", () => {
+    expect(batch4HardeningMigration).toContain("AND l.state = 'CONFIRMED'");
+    expect(batch4HardeningMigration).toContain("l.state = 'PROPOSED'");
+    expect(batch4HardeningMigration).toContain("l.state = 'REJECTED' AND l.inventory_movement_id IS NOT NULL");
+    expect(batch4HardeningMigration).toContain("v_submission.status = 'CONFIRMED'");
+  });
+
+  it("removes legacy stock writes and prevents direct mutation of balance and cost projections", () => {
+    expect(batch4HardeningMigration).toContain("REVOKE INSERT, UPDATE ON public.productos FROM PUBLIC, anon, authenticated");
+    expect(batch4HardeningMigration).toContain("REVOKE INSERT, UPDATE, DELETE ON public.stock_movimientos");
+    expect(batch4HardeningMigration).toContain("REVOKE ALL ON FUNCTION public.registrar_stock_movimiento(");
+    expect(batch4HardeningMigration).not.toMatch(/GRANT (?:INSERT|UPDATE) \([^)]*\b(?:stock_actual|costo_promedio)\b/);
+    expect(stockActions).not.toContain('.rpc("registrar_stock_movimiento"');
+    expect(stockActions).not.toContain("stock_actual: 0");
+    expect(stockDetailPage).not.toContain("MovimientoDialog");
+    expect(stockDetailPage).toContain('href="/inventario"');
+  });
+
+  it("allows only tool-authorized roles to decide approvals and supports administration inventory approvals", () => {
+    const executeAction = approvalActions.slice(
+      approvalActions.indexOf("export async function executeApprovalAction("),
+    );
+    expect(approvalActions).toContain('requireProfile(["comercial", "administracion", "admin"])');
+    expect(approvalActions).toContain("approvalTool.requiredRoles.includes(profile.role)");
+    expect(executeAction).toContain('requireProfile(["comercial", "administracion", "admin"])');
+  });
+
+  it("renders the canonical deposit terminology in the global inventory list", () => {
+    expect(globalInventorySection).toContain("displayLocationName");
+    expect(globalInventorySection).toContain('"Depósito"');
+    expect(globalInventorySection).not.toContain("{row.location_name}");
   });
 });
 

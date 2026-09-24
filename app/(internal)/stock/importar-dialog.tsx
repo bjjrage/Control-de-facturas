@@ -216,6 +216,9 @@ export function ImportarDialog() {
                 automáticamente — podés ajustar el mapeo antes de importar. No hace falta ningún
                 formato especial: sirve cualquier planilla que ya tengas.
               </p>
+              <p className="text-[11px] text-[var(--muted)]">
+                Las filas con stock inicial positivo se omiten: registrá el saldo después desde Inventario &gt; Ajuste para mantenerlo en el libro canónico.
+              </p>
               <input
                 ref={fileRef}
                 type="file"

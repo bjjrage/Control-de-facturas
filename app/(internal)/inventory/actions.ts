@@ -490,7 +490,7 @@ export async function processWarehouseSubmission(submissionId: string) {
   if (submission.status === "CONFIRMED" || submission.status === "VOIDED") {
     return { error: "La rendición ya no admite procesamiento.", proposals: 0 };
   }
-  await supabase
+  await admin
     .from("warehouse_submissions")
     .update({
       status: "PROCESSING",
@@ -592,7 +592,7 @@ export async function processWarehouseSubmission(submissionId: string) {
       .eq("id", item.id)
       .eq("empresa_id", profile.empresa_id);
   }
-  await supabase
+  await admin
     .from("warehouse_submissions")
     .update({
       status: "NEEDS_REVIEW",

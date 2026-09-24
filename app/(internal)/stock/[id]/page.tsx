@@ -4,7 +4,6 @@ import { requirePlan } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney, formatNumber } from "@/lib/format";
 import type { Producto, StockMovimiento, Deposito, StockPorDeposito } from "@/lib/types";
-import { MovimientoDialog } from "./movimiento-dialog";
 import { Button } from "@/components/ui/button";
 
 const TIPO_LABEL: Record<string, string> = { ENTRADA: "Entrada", SALIDA: "Salida", AJUSTE: "Ajuste", TRANSFERENCIA: "Transfer." };
@@ -126,13 +125,9 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
               <Button variant="secondary" className="h-8 px-3 text-[12px]">Editar</Button>
             </Link>
           ) : null}
-          <MovimientoDialog
-            productoId={producto.id}
-            unidad={producto.unidad}
-            stockActual={producto.stock_actual}
-            costoPromedio={producto.costo_promedio}
-            depositos={deps}
-          />
+          <Link href="/inventario">
+            <Button variant="secondary" className="h-8 px-3 text-[12px]">Inventario canónico</Button>
+          </Link>
         </div>
       </div>
 

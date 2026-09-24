@@ -30,6 +30,13 @@ const LOCATION_TYPE_LABEL: Record<LocationRow["location_type"], string> = {
   AUXILIARY: "Auxiliar",
 };
 
+function displayLocationName(name: string) {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/panol(es)?/gi, (match) => match.toLowerCase().endsWith("es") ? "Depósitos" : "Depósito");
+}
+
 // Resumen de inventario global — dominio canónico certificado
 // (inventory_balances / 0080_inventory_panol.sql). El "disponible" acá viene
 // de la suma real de saldos por ubicación, nunca de un contador aparte.
@@ -150,10 +157,10 @@ export function InventarioGlobalSection({
                       <div className="font-medium">
                         {r.project_id ? (
                           <Link href={`/projects/${r.project_id}?tab=inventario`} className="text-action">
-                            {r.location_name}
+                            {displayLocationName(r.location_name)}
                           </Link>
                         ) : (
-                          r.location_name
+                          displayLocationName(r.location_name)
                         )}
                       </div>
                       <div className="text-[11px] text-[var(--muted)]">

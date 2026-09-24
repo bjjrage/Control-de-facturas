@@ -27,6 +27,14 @@ export async function crearProducto(data: {
   contenido_por_unidad?: number;
   unidad_base?: string;
 }): Promise<{ id?: string; error?: string }> {
+  const openingStock = data.stock_inicial ?? 0;
+  if (!Number.isFinite(openingStock) || openingStock < 0) {
+    return { error: "El stock inicial debe ser un número válido igual o mayor que cero." };
+  }
+  if (openingStock > 0) {
+    return { error: "El stock inicial debe registrarse después desde Inventario > Ajuste, para que quede en el libro canónico." };
+  }
+
   const { supabase, profile } = await getClient();
 
   const { data: producto, error } = await supabase
@@ -39,7 +47,6 @@ export async function crearProducto(data: {
       descripcion: data.descripcion?.trim() || null,
       categoria_id: data.categoria_id || null,
       stock_minimo: data.stock_minimo ?? 0,
-      stock_actual: 0,
       contenido_por_unidad: data.contenido_por_unidad ?? null,
       unidad_base: data.unidad_base?.trim() || null,
       created_by: profile.id,
@@ -50,19 +57,6 @@ export async function crearProducto(data: {
   if (error) return { error: error.message };
 
   // Si hay stock inicial, registrarlo como ENTRADA (con costo si se indicó)
-  if (data.stock_inicial && data.stock_inicial > 0) {
-    const { error: movErr } = await supabase.rpc("registrar_stock_movimiento", {
-      p_empresa_id: profile.empresa_id,
-      p_producto_id: producto.id,
-      p_tipo: "ENTRADA",
-      p_cantidad: data.stock_inicial,
-      p_costo_unitario: data.costo_inicial && data.costo_inicial > 0 ? data.costo_inicial : null,
-      p_notas: "Stock inicial",
-      p_created_by: profile.id,
-    });
-    if (movErr) return { error: movErr.message };
-  }
-
   await logAudit(supabase, { action: "producto_created", detail: { producto_id: producto.id } });
   revalidatePath("/stock");
   return { id: producto.id };
@@ -125,10 +119,10 @@ export async function reactivarProducto(id: string): Promise<{ error?: string }>
 // ──────────────────────────────────────────────
 
 export async function registrarMovimiento(
-  producto_id: string,
-  tipo: "ENTRADA" | "SALIDA" | "AJUSTE" | "TRANSFERENCIA",
-  cantidad: number,
-  opts?: {
+  _producto_id: string,
+  _tipo: "ENTRADA" | "SALIDA" | "AJUSTE" | "TRANSFERENCIA",
+  _cantidad: number,
+  _opts?: {
     referencia_tipo?: string;
     referencia_id?: string;
     notas?: string;
@@ -139,29 +133,11 @@ export async function registrarMovimiento(
     deposito_destino_id?: string | null;
   }
 ): Promise<{ stock_nuevo?: number; error?: string }> {
-  const { supabase, profile } = await getClient();
-
-  const { data, error } = await supabase.rpc("registrar_stock_movimiento", {
-    p_empresa_id: profile.empresa_id,
-    p_producto_id: producto_id,
-    p_tipo: tipo,
-    p_cantidad: cantidad,
-    p_costo_unitario: opts?.costo_unitario && opts.costo_unitario > 0 ? opts.costo_unitario : null,
-    p_referencia_tipo: opts?.referencia_tipo ?? null,
-    p_referencia_id: opts?.referencia_id ?? null,
-    p_notas: opts?.notas ?? null,
-    p_created_by: profile.id,
-    p_project_id: opts?.project_id || null,
-    p_budget_item_id: opts?.budget_item_id || null,
-    p_deposito_id: opts?.deposito_id || null,
-    p_deposito_destino_id: opts?.deposito_destino_id || null,
-  });
-
-  if (error) return { error: error.message };
-
-  revalidatePath(`/stock/${producto_id}`);
-  revalidatePath("/stock");
-  return { stock_nuevo: data as number };
+  void _producto_id;
+  void _tipo;
+  void _cantidad;
+  void _opts;
+  return { error: "El movimiento directo de stock está deshabilitado. Usá Inventario > Nuevo movimiento para registrar en el libro canónico." };
 }
 
 // ──────────────────────────────────────────────
@@ -341,6 +317,7 @@ export async function importarProductos(filas: FilaImport[]): Promise<ResultadoI
   // Crear categorías nuevas que vengan en el archivo pero no existan todavía
   const newCatNames = new Map<string, string>(); // lc → original case
   for (const f of filas) {
+    if ((f.stock_inicial ?? 0) > 0) continue;
     if (f.categoria_nombre) {
       const lc = f.categoria_nombre.toLowerCase().trim();
       if (!catMap.has(lc) && !newCatNames.has(lc)) {
@@ -378,12 +355,20 @@ export async function importarProductos(filas: FilaImport[]): Promise<ResultadoI
       errores.push({ fila: i + 2, nombre, mensaje: "Unidad requerida" });
       continue;
     }
+    if (!Number.isFinite(f.stock_inicial ?? 0) || (f.stock_inicial ?? 0) < 0) {
+      errores.push({ fila: i + 2, nombre, mensaje: "Stock inicial inválido" });
+      continue;
+    }
+    if ((f.stock_inicial ?? 0) > 0) {
+      errores.push({ fila: i + 2, nombre, mensaje: "No se importó: registrá el saldo desde Inventario > Ajuste después de crear el producto." });
+      continue;
+    }
 
     const categoria_id = f.categoria_nombre
       ? (catMap.get(f.categoria_nombre.toLowerCase().trim()) ?? null)
       : null;
 
-    const { data: producto, error: pErr } = await supabase
+    const { error: pErr } = await supabase
       .from("productos")
       .insert({
         empresa_id: profile.empresa_id,
@@ -393,7 +378,6 @@ export async function importarProductos(filas: FilaImport[]): Promise<ResultadoI
         descripcion: f.descripcion?.trim() || null,
         categoria_id,
         stock_minimo: f.stock_minimo ?? 0,
-        stock_actual: 0,
         contenido_por_unidad: f.contenido_por_unidad ?? null,
         unidad_base: f.unidad_base?.trim() || null,
         created_by: profile.id,
@@ -404,23 +388,6 @@ export async function importarProductos(filas: FilaImport[]): Promise<ResultadoI
     if (pErr) {
       errores.push({ fila: i + 2, nombre, mensaje: pErr.message });
       continue;
-    }
-
-    if (f.stock_inicial && f.stock_inicial > 0) {
-      const { error: movErr } = await supabase.rpc("registrar_stock_movimiento", {
-        p_empresa_id: profile.empresa_id,
-        p_producto_id: producto.id,
-        p_tipo: "ENTRADA",
-        p_cantidad: f.stock_inicial,
-        p_costo_unitario: f.costo_inicial && f.costo_inicial > 0 ? f.costo_inicial : null,
-        p_notas: "Stock inicial (importación)",
-        p_created_by: profile.id,
-      });
-      if (movErr) {
-        errores.push({ fila: i + 2, nombre, mensaje: `Producto creado, error en stock inicial: ${movErr.message}` });
-        creados++;
-        continue;
-      }
     }
 
     creados++;
