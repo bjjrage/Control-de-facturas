@@ -9,8 +9,13 @@ describe("external test target safety guard", () => {
       url: "http://127.0.0.1:3005",
       reuseExistingServer: false,
     });
+    expect(
+      createGuardedLocalWebServer("http://127.0.0.1:3000", "test", { reuseExistingServer: true })
+        .reuseExistingServer,
+    ).toBe(true);
     expect(() => createGuardedLocalWebServer("https://app.example.test", "test")).toThrow(/loopback/);
     expect(() => createGuardedLocalWebServer("http://10.0.0.12:3005", "test")).toThrow(/loopback/);
+    expect(() => createGuardedLocalWebServer("http://[::1]:3005", "test")).toThrow(/loopback/);
   });
 
   it("allows a loopback target without external opt-in", () => {

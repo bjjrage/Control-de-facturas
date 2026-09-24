@@ -21,7 +21,9 @@ import { assertNonProductionTestTarget } from "./test-utils/external-test-target
 loadPlaywrightTestEnvironment();
 
 const BASE_URL = process.env.BIM_BASE_URL ?? "http://127.0.0.1:3000";
-const webServer = createGuardedLocalWebServer(BASE_URL, "BIM Playwright application target");
+const webServer = createGuardedLocalWebServer(BASE_URL, "BIM Playwright application target", {
+  reuseExistingServer: process.env.BIM_REUSE_EXISTING_SERVER === "true",
+});
 for (const [name, value] of Object.entries(process.env)) {
   if (
     value &&

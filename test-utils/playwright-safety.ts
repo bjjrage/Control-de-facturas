@@ -13,7 +13,11 @@ export function loadPlaywrightTestEnvironment() {
 }
 
 /** E2E suites must own the local app process so its validated DB config is the one under test. */
-export function createGuardedLocalWebServer(baseUrl: string, label: string) {
+export function createGuardedLocalWebServer(
+  baseUrl: string,
+  label: string,
+  options: { reuseExistingServer?: boolean } = {},
+) {
   let parsed: URL;
   try {
     parsed = new URL(baseUrl);
@@ -23,8 +27,7 @@ export function createGuardedLocalWebServer(baseUrl: string, label: string) {
 
   const hostname = parsed.hostname.toLowerCase();
   const loopback =
-    ["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname) ||
-    hostname.endsWith(".localhost");
+    ["localhost", "127.0.0.1"].includes(hostname) || hostname.endsWith(".localhost");
   if (parsed.protocol !== "http:" || !loopback) {
     throw new Error(`${label}: E2E application target must be HTTP loopback; remote targets are disabled.`);
   }
@@ -34,7 +37,7 @@ export function createGuardedLocalWebServer(baseUrl: string, label: string) {
   return {
     command: `npm run dev -- --hostname 127.0.0.1 --port ${port}`,
     url: parsed.origin,
-    reuseExistingServer: false,
+    reuseExistingServer: options.reuseExistingServer ?? false,
     timeout: 120_000,
   };
 }

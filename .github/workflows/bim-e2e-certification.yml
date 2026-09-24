@@ -153,6 +153,7 @@ jobs:
           BIM_TEST_PASSWORD: ${{ secrets.BIM_E2E_PASSWORD != '' && secrets.BIM_E2E_PASSWORD || 'bim-e2e-local-01' }}
           BIM_CATALOG_XLSX: /tmp/aurora-catalog.xlsx
           BIM_EVIDENCE_DIR: bim-evidence
+          BIM_REUSE_EXISTING_SERVER: "true"
 
       - name: Upload BIM evidence (screenshots + metrics)
         if: always()
