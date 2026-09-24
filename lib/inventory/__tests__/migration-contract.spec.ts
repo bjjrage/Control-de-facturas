@@ -209,6 +209,10 @@ describe("Batch 4 canonical inventory hardening", () => {
     expect(batch4HardeningMigration).toContain("l.state = 'REJECTED' AND l.inventory_movement_id IS NOT NULL");
     expect(batch4HardeningMigration).toContain("trg_prevent_confirmed_warehouse_submission_line_mutation");
     expect(batch4HardeningMigration).toContain("WHERE id = v_submission_id\n  FOR UPDATE;");
+    expect(batch4HardeningMigration).toContain("app.warehouse_submission_confirmation");
+    expect(batch4HardeningMigration).toContain("NEW.source_id::text");
+    expect(batch4HardeningMigration).toContain("NEW.source_line_id IS NULL");
+    expect(batch4HardeningMigration).toContain("NEW.from_location_id IS DISTINCT FROM v_submission.location_id");
     expect(batch4HardeningMigration).toContain("Una rendición confirmada es inmutable");
   });
 

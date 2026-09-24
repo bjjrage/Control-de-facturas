@@ -66,6 +66,72 @@ CREATE TRIGGER trg_prevent_confirmed_warehouse_submission_line_mutation
   FOR EACH ROW
   EXECUTE FUNCTION public.prevent_confirmed_warehouse_submission_mutation();
 
+-- Only the locked submission confirmer may emit movements carrying this
+-- source. Prevents a direct inventory_post_movement call from creating an
+-- extra/unlinked consumption that masquerades as part of a submission.
+CREATE OR REPLACE FUNCTION public.enforce_warehouse_submission_movement_source()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_submission record;
+  v_line record;
+BEGIN
+  IF NEW.source_type IS DISTINCT FROM 'WAREHOUSE_SUBMISSION' THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.movement_type IS DISTINCT FROM 'CONSUMPTION'
+     OR NEW.source_id IS NULL OR NEW.source_line_id IS NULL
+     OR current_setting('app.warehouse_submission_confirmation', true)
+        IS DISTINCT FROM NEW.source_id::text THEN
+    RAISE EXCEPTION 'Los consumos de rendición solo pueden generarse desde su confirmación canónica';
+  END IF;
+
+  SELECT id, empresa_id, location_id, project_id, status, upload_incomplete
+    INTO v_submission
+  FROM public.warehouse_submissions
+  WHERE id = NEW.source_id AND empresa_id = NEW.empresa_id
+  FOR UPDATE;
+  IF NOT FOUND OR v_submission.status NOT IN ('READY', 'NEEDS_REVIEW')
+     OR v_submission.upload_incomplete THEN
+    RAISE EXCEPTION 'La rendición no pertenece a la empresa o no está lista para consumir';
+  END IF;
+
+  SELECT id, empresa_id, submission_id, producto_id, quantity, unit,
+         budget_item_id, state
+    INTO v_line
+  FROM public.warehouse_submission_lines
+  WHERE id = NEW.source_line_id
+    AND submission_id = NEW.source_id
+    AND empresa_id = NEW.empresa_id
+  FOR UPDATE;
+  IF NOT FOUND OR v_line.state IS DISTINCT FROM 'CONFIRMED'
+     OR NEW.producto_id IS DISTINCT FROM v_line.producto_id
+     OR NEW.quantity IS DISTINCT FROM v_line.quantity
+     OR NEW.unit IS DISTINCT FROM v_line.unit
+     OR NEW.budget_item_id IS DISTINCT FROM v_line.budget_item_id
+     OR NEW.from_location_id IS DISTINCT FROM v_submission.location_id
+     OR NEW.to_location_id IS NOT NULL
+     OR NEW.project_id IS DISTINCT FROM v_submission.project_id THEN
+    RAISE EXCEPTION 'El consumo no coincide con la línea confirmada de la rendición';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.enforce_warehouse_submission_movement_source()
+  FROM PUBLIC, anon, authenticated, service_role;
+DROP TRIGGER IF EXISTS trg_enforce_warehouse_submission_movement_source
+  ON public.inventory_movements;
+CREATE TRIGGER trg_enforce_warehouse_submission_movement_source
+  BEFORE INSERT OR UPDATE ON public.inventory_movements
+  FOR EACH ROW
+  EXECUTE FUNCTION public.enforce_warehouse_submission_movement_source();
+
 CREATE OR REPLACE FUNCTION public.enforce_warehouse_submission_canonical_confirmation()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -249,6 +315,7 @@ BEGIN
     RAISE EXCEPTION 'La rendición todavía tiene líneas propuestas sin revisar';
   END IF;
 
+  PERFORM set_config('app.warehouse_submission_confirmation', p_submission_id::text, true);
   FOR v_line IN
     SELECT * FROM public.warehouse_submission_lines
     WHERE submission_id = p_submission_id
@@ -286,6 +353,7 @@ BEGIN
     WHERE id = v_line.id AND empresa_id = p_empresa_id;
     v_ids := array_append(v_ids, v_movement);
   END LOOP;
+  PERFORM set_config('app.warehouse_submission_confirmation', '', true);
 
   UPDATE public.warehouse_submissions
   SET status = 'CONFIRMED', confirmed_by = p_confirmed_by,
