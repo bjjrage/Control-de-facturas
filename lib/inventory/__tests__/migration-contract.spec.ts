@@ -201,6 +201,7 @@ describe("canonical purchase receipt migration contract", () => {
 describe("Batch 4 canonical inventory hardening", () => {
   it("keeps warehouse confirmation behind the canonical authenticated actor and exact consumption links", () => {
     expect(batch4HardeningMigration).toContain("REVOKE UPDATE ON public.warehouse_submissions FROM PUBLIC, anon, authenticated");
+    expect(batch4HardeningMigration).toContain("processed_at, confirmed_at, created_at, updated_at\n) ON public.warehouse_submissions FROM PUBLIC, anon, authenticated");
     expect(batch4HardeningMigration).toContain("p_confirmed_by IS DISTINCT FROM auth.uid()");
     expect(batch4HardeningMigration).toContain("m.source_type IS DISTINCT FROM 'WAREHOUSE_SUBMISSION'");
     expect(batch4HardeningMigration).toContain("m.source_line_id IS DISTINCT FROM l.id");

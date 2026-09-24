@@ -3,6 +3,14 @@ BEGIN;
 -- `status` and confirmation metadata may only be changed by the canonical
 -- submission confirmer or trusted server-side portal/processing code.
 REVOKE UPDATE ON public.warehouse_submissions FROM PUBLIC, anon, authenticated;
+-- A prior migration granted column-level UPDATE as well; table-level REVOKE
+-- does not clear those independent ACL entries.
+REVOKE UPDATE (
+  id, empresa_id, location_id, project_id, portal_link_id, period_start,
+  period_end, remision_number, notes, status, processing_error,
+  submitted_by, reviewed_by, confirmed_by, processing_started_at,
+  processed_at, confirmed_at, created_at, updated_at
+) ON public.warehouse_submissions FROM PUBLIC, anon, authenticated;
 
 -- Legacy projections and movement rows are not an alternate write path.
 -- Canonical SECURITY DEFINER ledger functions remain able to maintain them.
