@@ -207,6 +207,11 @@ describe("canonical manual inventory movement contract", () => {
     expect(manualMovementMigration).toContain("v_plan NOT IN ('pro', 'caterpillar')");
     expect(manualMovementMigration).toContain("REVOKE ALL ON FUNCTION public.inventory_post_movement(");
     expect(manualMovementMigration).toContain("CREATE TRIGGER trg_enforce_inventory_company_pro_plan");
+    expect(manualMovementMigration).toContain("v_expected_project := CASE");
+    expect(manualMovementMigration).toContain("v_posted.budget_item_id IS NOT NULL");
+    expect(manualMovementMigration).toContain("v_posted.metadata IS DISTINCT FROM coalesce(p_metadata, '{}'::jsonb)");
+    expect(manualMovementMigration).toContain("v_posted.exchange_rate_to_company IS DISTINCT FROM v_effective_exchange_rate");
+    expect(manualMovementMigration).toContain("p.empresa_id = p_empresa_id AND p.activo");
     expect(manualMovementUi).toContain("localStorage.setItem(attemptStorageKey");
     expect(manualMovementUi).toContain("parsePersistedManualInventoryAttempt(JSON.parse(storedAttempt))");
     expect(manualMovementUi.indexOf("localStorage.setItem(attemptStorageKey")).toBeLessThan(

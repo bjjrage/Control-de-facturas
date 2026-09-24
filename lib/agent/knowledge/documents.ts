@@ -69,7 +69,7 @@ export const ERP_KNOWLEDGE_DOCUMENTS: ErpKnowledgeDocument[] = [
     summary: "El ERP separa catálogo de productos, stock global, stock por depósito y stock imputado a obra.",
     keywords: ["stock", "inventario", "material", "materiales", "producto", "productos", "deposito", "depósito", "pañol", "panol", "recepcion", "recepción", "transferencia", "consumo", "warehouse"],
     content:
-      "El catálogo productos se relaciona con stock global y desgloses por depósito y por proyecto. resolve_erp_entity encuentra materiales, obras y depósitos por nombre. get_project_inventory_overview lee stock/consumo de una obra y get_stock_availability lee el detalle de un producto. post_inventory_movement usa el servicio canónico para una recepción, transferencia física, consumo, devolución o ajuste con aprobación. manage_inventory_operation agrega recepciones de OC, ubicaciones, portal de depósito y rendiciones; todo es inventario físico y nunca dinero.",
+      "El catálogo productos se relaciona con stock global y desgloses por depósito y por proyecto. resolve_erp_entity encuentra materiales, obras y depósitos por nombre. get_project_inventory_overview lee stock/consumo de una obra y get_stock_availability lee el detalle de un producto. post_inventory_movement registra transferencias, devoluciones y ajustes con aprobación humana. manage_inventory_operation gestiona recepciones de OC, ubicaciones, portal de depósito y rendiciones/consumos canónicos; todo es inventario físico y nunca dinero.",
     sourceMap: [
       "lib/inventory/service.ts",
       "lib/tools/stock/get-stock-availability.ts",

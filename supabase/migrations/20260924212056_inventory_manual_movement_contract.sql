@@ -149,6 +149,12 @@ AS $$
 DECLARE
   v_plan text;
   v_actor uuid := auth.uid();
+  v_from_project uuid;
+  v_to_project uuid;
+  v_expected_project uuid;
+  v_effective_exchange_rate numeric;
+  v_movement_id uuid;
+  v_posted record;
 BEGIN
   IF auth.role() IS DISTINCT FROM 'service_role' THEN
     IF public.current_empresa_id() IS DISTINCT FROM p_empresa_id
@@ -174,7 +180,44 @@ BEGIN
     RAISE EXCEPTION 'El movimiento manual requiere una clave UUID estable';
   END IF;
 
-  RETURN public.inventory_post_movement(
+  IF NOT EXISTS (
+    SELECT 1 FROM public.productos p
+    WHERE p.id = p_producto_id AND p.empresa_id = p_empresa_id AND p.activo
+  ) THEN
+    RAISE EXCEPTION 'El material no está activo o no pertenece a la empresa';
+  END IF;
+
+  IF p_from_location_id IS NOT NULL THEN
+    SELECT l.project_id INTO v_from_project
+    FROM public.inventory_locations l
+    WHERE l.id = p_from_location_id AND l.empresa_id = p_empresa_id AND l.active;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'La ubicación origen no pertenece a la empresa o está inactiva';
+    END IF;
+  END IF;
+  IF p_to_location_id IS NOT NULL THEN
+    SELECT l.project_id INTO v_to_project
+    FROM public.inventory_locations l
+    WHERE l.id = p_to_location_id AND l.empresa_id = p_empresa_id AND l.active;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'La ubicación destino no pertenece a la empresa o está inactiva';
+    END IF;
+  END IF;
+
+  v_expected_project := CASE
+    WHEN upper(trim(p_movement_type)) = 'RETURN' AND v_to_project IS NOT NULL THEN v_to_project
+    ELSE coalesce(v_from_project, v_to_project)
+  END;
+  IF p_project_id IS DISTINCT FROM v_expected_project THEN
+    RAISE EXCEPTION 'El proyecto del movimiento debe derivarse de sus ubicaciones';
+  END IF;
+  v_effective_exchange_rate := CASE
+    WHEN upper(trim(p_movement_type)) = 'ADJUSTMENT'
+      AND p_quantity > 0 AND p_cost_currency = 'PYG'::public.currency_code THEN 1
+    ELSE p_exchange_rate_to_company
+  END;
+
+  v_movement_id := public.inventory_post_movement(
     p_empresa_id => p_empresa_id,
     p_producto_id => p_producto_id,
     p_quantity => p_quantity,
@@ -182,7 +225,7 @@ BEGIN
     p_movement_type => p_movement_type,
     p_from_location_id => p_from_location_id,
     p_to_location_id => p_to_location_id,
-    p_project_id => p_project_id,
+    p_project_id => v_expected_project,
     p_source_type => 'MANUAL',
     p_source_id => p_idempotency_key::uuid,
     p_source_line_id => NULL,
@@ -193,6 +236,46 @@ BEGIN
     p_created_by => p_created_by,
     p_metadata => coalesce(p_metadata, '{}'::jsonb)
   );
+
+  SELECT m.id, m.producto_id, m.quantity, m.unit, m.movement_type,
+         m.from_location_id, m.to_location_id, m.project_id,
+         m.budget_item_id, m.source_type, m.source_id, m.source_line_id, m.idempotency_key,
+         m.cost_currency, m.unit_cost, m.exchange_rate_to_company,
+         m.created_by, m.metadata
+  INTO v_posted
+  FROM public.inventory_movements m
+  WHERE m.id = v_movement_id AND m.empresa_id = p_empresa_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'No se encontró el movimiento resultante';
+  END IF;
+
+  IF v_posted.producto_id IS DISTINCT FROM p_producto_id
+     OR v_posted.quantity IS DISTINCT FROM p_quantity
+     OR v_posted.unit IS DISTINCT FROM trim(p_unit)
+     OR v_posted.movement_type IS DISTINCT FROM upper(trim(p_movement_type))
+     OR v_posted.from_location_id IS DISTINCT FROM p_from_location_id
+     OR v_posted.to_location_id IS DISTINCT FROM p_to_location_id
+     OR v_posted.project_id IS DISTINCT FROM v_expected_project
+     OR v_posted.budget_item_id IS NOT NULL
+     OR v_posted.source_type IS DISTINCT FROM 'MANUAL'
+     OR v_posted.source_id IS DISTINCT FROM p_idempotency_key::uuid
+     OR v_posted.source_line_id IS NOT NULL
+     OR v_posted.idempotency_key IS DISTINCT FROM p_idempotency_key
+     OR v_posted.created_by IS DISTINCT FROM p_created_by
+     OR v_posted.metadata IS DISTINCT FROM coalesce(p_metadata, '{}'::jsonb)
+     OR (upper(trim(p_movement_type)) = 'ADJUSTMENT'
+         AND v_posted.cost_currency IS DISTINCT FROM p_cost_currency)
+     OR (upper(trim(p_movement_type)) = 'ADJUSTMENT'
+         AND p_quantity > 0
+         AND v_posted.unit_cost IS DISTINCT FROM p_unit_cost)
+     OR (upper(trim(p_movement_type)) = 'ADJUSTMENT'
+         AND p_quantity > 0
+         AND v_posted.exchange_rate_to_company IS DISTINCT FROM v_effective_exchange_rate)
+  THEN
+    RAISE EXCEPTION 'La clave de idempotencia ya corresponde a un movimiento con datos distintos';
+  END IF;
+
+  RETURN v_movement_id;
 END;
 $$;
 

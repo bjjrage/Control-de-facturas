@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { getTool } from "@/lib/agent/registry";
 import { resolveErpEntityTool } from "@/lib/tools/erp/resolve-erp-entity";
-import { postInventoryMovementTool } from "@/lib/tools/erp/post-inventory-movement";
+import { createRodrigoMovementIdempotencyKey, postInventoryMovementTool } from "@/lib/tools/erp/post-inventory-movement";
 import { getScannerSessionOverviewTool } from "@/lib/tools/erp/get-scanner-session-overview";
 import { parseTemporalReference } from "@/lib/agent/erp-entity-resolver";
 import "@/lib/tools/erp/get-finance-overview";
@@ -70,16 +70,18 @@ describe("ERP entity resolution and safe physical actions", () => {
       rpc: vi.fn(async () => ({ data: "movement-1", error: null })),
     } as unknown as import("@supabase/supabase-js").SupabaseClient;
 
+    const movementInput = {
+      producto_id: "00000000-0000-0000-0000-000000000001",
+      quantity: 50,
+      unit: "bolsa",
+      movement_type: "TRANSFER" as const,
+      from_location_id: "00000000-0000-0000-0000-000000000002",
+      to_location_id: "00000000-0000-0000-0000-000000000003",
+    };
+    const expectedIdempotencyKey = createRodrigoMovementIdempotencyKey("empresa-1", "task-1", movementInput);
     const output = await postInventoryMovementTool.handler(
       { empresaId: "empresa-1", userId: "user-1", role: "admin", actorType: "user", source: "test", taskId: "task-1", approvalId: "00000000-0000-4000-a000-000000000004" },
-      {
-        producto_id: "00000000-0000-0000-0000-000000000001",
-        quantity: 50,
-        unit: "bolsa",
-        movement_type: "TRANSFER",
-        from_location_id: "00000000-0000-0000-0000-000000000002",
-        to_location_id: "00000000-0000-0000-0000-000000000003",
-      },
+      movementInput,
       { db }
     );
 
@@ -88,10 +90,32 @@ describe("ERP entity resolution and safe physical actions", () => {
       p_movement_type: "TRANSFER",
       p_quantity: 50,
       p_empresa_id: "empresa-1",
-      p_idempotency_key: "00000000-0000-4000-a000-000000000004",
+      p_idempotency_key: expectedIdempotencyKey,
     }));
     expect(getTool("post_inventory_movement")?.riskLevel).toBe(2);
+    expect(getTool("post_inventory_movement")?.requiredRoles).toEqual(["administracion", "admin"]);
     expect(getTool("get_finance_overview")?.riskLevel).toBe(0);
+  });
+
+  it("mantiene la clave de idempotencia de Rodrigo para el mismo task y payload", () => {
+    const input = {
+      producto_id: "00000000-0000-0000-0000-000000000001",
+      quantity: 50,
+      unit: "bolsa",
+      movement_type: "TRANSFER" as const,
+      from_location_id: "00000000-0000-0000-0000-000000000002",
+      to_location_id: "00000000-0000-0000-0000-000000000003",
+    };
+    const key = createRodrigoMovementIdempotencyKey("empresa-1", "task-1", input);
+
+    expect(createRodrigoMovementIdempotencyKey("empresa-1", "task-1", input)).toBe(key);
+    expect(createRodrigoMovementIdempotencyKey("empresa-1", "task-1", { ...input, quantity: 51 })).not.toBe(key);
+    expect(createRodrigoMovementIdempotencyKey("empresa-1", "task-2", input)).not.toBe(key);
+    expect(key).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(postInventoryMovementTool.inputSchema.safeParse({
+      ...input,
+      budget_item_id: "00000000-0000-0000-0000-000000000004",
+    }).success).toBe(false);
   });
 
   it("devuelve una whitelist del scanner y nunca metadata/storage arbitrarios", async () => {
