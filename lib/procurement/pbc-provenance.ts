@@ -46,6 +46,20 @@ export function createPbcSourceMetadata(text: string, analyzedAt = new Date().to
   };
 }
 
+export function isBidAnalysisSnapshotCurrent(
+  assessment: TenderPbcAssessment,
+  snapshotCreatedAt: string | null | undefined
+): boolean {
+  if (assessment.status !== "ANALYZED"
+    || !assessment.sourceSha256
+    || !assessment.analyzedAt
+    || !snapshotCreatedAt) return false;
+
+  const analyzedAt = Date.parse(assessment.analyzedAt);
+  const snapshotAt = Date.parse(snapshotCreatedAt);
+  return Number.isFinite(analyzedAt) && Number.isFinite(snapshotAt) && snapshotAt >= analyzedAt;
+}
+
 /**
  * Accept only non-empty requirements carrying excerpts emitted by the PBC
  * parser. New records also bind the extracted result to the stored source text;

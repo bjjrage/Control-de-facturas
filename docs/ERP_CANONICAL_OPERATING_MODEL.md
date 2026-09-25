@@ -54,6 +54,8 @@ El modo clima vincula el overlay a un snapshot/batch y expone días solicitados,
 
 El ledger de tesorería impide UPDATE/DELETE ordinarios; la reversa bloquea el cobro, crea movimientos opuestos y marca motivo/actor/relación en la misma transacción. La creación de cuenta y saldo inicial también es atómica. Los RPCs aplican tenant, permisos, `search_path` y grants explícitos.
 
+La UI conserva una modalidad explícita «No asentar en tesorería» para ejecutar una OP: en ese caso la misma RPC marca la OP como ejecutada y las facturas como pagadas, pero no crea un movimiento de cuenta (`cuenta_id = NULL`). Es atómica, aunque no representa un asiento en el ledger; debe reservarse para pagos deliberadamente fuera de las cuentas administradas. Si la política contable exige que todo pago figure en Tesorería, esa modalidad debe retirarse en una decisión funcional posterior.
+
 Los KPIs de stock comparan mínimo contra saldo canónico agregado por ubicación, nunca contra `productos.stock_actual`. El flujo de caja proyecta cobros de ventas, certificados sin documento de venta activo, pagos de compras y gastos recurrentes. El enlace certificado → documento de venta evita contar dos veces el mismo ingreso. Los importes se agregan y muestran por moneda; no se suman monedas distintas como si fueran equivalentes.
 
 ## Licitaciones y límites del sandbox

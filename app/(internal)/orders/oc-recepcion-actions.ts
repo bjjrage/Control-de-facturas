@@ -124,6 +124,16 @@ export async function confirmarRecepcion(recepcion_id: string, order_id: string)
   if (receipt.status !== "DRAFT" || !receipt.idempotency_key) {
     return { error: "Este borrador histórico no tiene clave canónica y requiere reconciliación manual." };
   }
+  if (receipt.idempotency_key.startsWith("receipt-portal:")) {
+    const { data: lines, error: linesError } = await supabase
+      .from("oc_recepcion_items")
+      .select("producto_id")
+      .eq("recepcion_id", receipt.id)
+      .eq("empresa_id", profile.empresa_id);
+    if (linesError || !lines?.length || lines.some((line) => !line.producto_id)) {
+      return { error: "Vinculá todos los productos de inventario antes de confirmar esta recepción externa." };
+    }
+  }
 
   const result = await confirmInventoryReceipt(supabase, {
     empresaId: profile.empresa_id,

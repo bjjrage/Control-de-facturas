@@ -5,7 +5,7 @@ import { BackButton } from "@/components/ui/back-button";
 import { requireProfile } from "@/lib/auth";
 import { matchProducto, type ProductoLite } from "@/lib/dncp/match-productos";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
-import { assessTenderPbc } from "@/lib/procurement/pbc-provenance";
+import { assessTenderPbc, isBidAnalysisSnapshotCurrent } from "@/lib/procurement/pbc-provenance";
 import { createClient } from "@/lib/supabase/server";
 import type {
   CurrencyCode,
@@ -62,14 +62,18 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
     && Date.parse(latestSnapshot.created_at) < Date.parse(pbcAssessment.analyzedAt);
   const canShowSnapshotDecision = pbcAssessment.status === "ANALYZED"
     && latestSnapshot !== null
-    && !snapshotPredatesPbc;
+    && isBidAnalysisSnapshotCurrent(pbcAssessment, latestSnapshot.created_at);
+  const legacyPbcWithoutProvenance = pbcAssessment.status === "ANALYZED"
+    && pbcAssessment.sourceSha256 === null;
   const bidStatusLabel = pbcAssessment.status !== "ANALYZED"
     ? latestSnapshot ? "PRE-EVALUACIÓN · PBC NO ANALIZADO" : "PBC NO ANALIZADO"
+    : legacyPbcWithoutProvenance
+      ? latestSnapshot ? "HISTÓRICO · PBC SIN TRAZABILIDAD" : "PBC LEGACY SIN TRAZABILIDAD"
     : snapshotPredatesPbc
       ? "RE-EVALUAR CON EL PBC ACTUAL"
-      : latestSnapshot
+      : canShowSnapshotDecision && latestSnapshot
         ? `${latestSnapshot.decision} (SCORE: ${latestSnapshot.overall_score}/100)`
-        : "SIN EVALUACIÓN";
+        : latestSnapshot ? "REVISAR TRAZABILIDAD" : "SIN EVALUACIÓN";
 
   // Gate 7: Item Matching Engine con lematización, stopwords y calibres paraguayos
   const { matchTenderItem } = await import("@/lib/procurement/item-matching");
@@ -213,6 +217,12 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
                 <li key={i}>{b}</li>
               ))}
             </ul>
+          </div>
+        ) : null}
+
+        {latestSnapshot && legacyPbcWithoutProvenance ? (
+          <div role="status" className="rounded border border-amber-500/25 bg-amber-500/5 p-2.5 text-[12px] text-amber-800">
+            Este snapshot es histórico: no se puede verificar la huella ni la fecha del PBC usado. No uses su dictamen como recomendación vigente; vuelve a cargar el PBC completo y ejecuta una nueva evaluación.
           </div>
         ) : null}
 

@@ -5,7 +5,7 @@ import {
   generateGenericRequirementSuggestions,
 } from "./compliance-engine";
 import { extractRequirementsFromPbcText } from "./pbc-extractor";
-import { assessTenderPbc, createPbcSourceMetadata } from "./pbc-provenance";
+import { assessTenderPbc, createPbcSourceMetadata, isBidAnalysisSnapshotCurrent } from "./pbc-provenance";
 import { assembleTenderPackage } from "./tender-operations";
 
 const sourceText = "El oferente deberá presentar el Certificado de Cumplimiento Tributario (CCT) vigente al momento de apertura. Este requisito obligatorio para participar en la convocatoria.";
@@ -25,10 +25,21 @@ describe("PBC provenance and documentary readiness", () => {
     if (assessment.status !== "ANALYZED") throw new Error("Expected analyzed PBC");
     expect(assessment.requirements.length).toBeGreaterThan(0);
     expect(assessment.sourceSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(isBidAnalysisSnapshotCurrent(assessment, "2026-09-25T12:00:01.000Z")).toBe(true);
 
     const report = evaluateTenderCompliance("tender-1", assessment.requirements, [], undefined, "EXTRACTED_FROM_PBC");
     expect(report.evaluations[0].sourceEvidence?.provenance).toBe("PBC_TEXT_PARSER");
     expect(report.evaluations[0].sourceEvidence?.snippet).toContain("Certificado de Cumplimiento Tributario");
+  });
+
+  it("does not present legacy bid snapshots without verifiable PBC provenance as current", () => {
+    const extraction = extractRequirementsFromPbcText(sourceText);
+    const legacyAssessment = assessTenderPbc({ pbc_requisitos_extraidos: extraction });
+
+    expect(legacyAssessment.status).toBe("ANALYZED");
+    expect(legacyAssessment.sourceSha256).toBeNull();
+    expect(isBidAnalysisSnapshotCurrent(legacyAssessment, "2026-09-25T12:00:01.000Z")).toBe(false);
+    expect(isBidAnalysisSnapshotCurrent(legacyAssessment, null)).toBe(false);
   });
 
   it("fails closed when the supplied PBC text no longer matches the extraction fingerprint", () => {

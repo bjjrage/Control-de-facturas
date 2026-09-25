@@ -281,6 +281,9 @@ function RecepcionCard({
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const items = recepcion.oc_recepcion_items ?? [];
+  const hasUnmappedPortalItems = recepcion.idempotency_key?.startsWith("receipt-portal:")
+    ? items.some((item) => !item.producto_id)
+    : false;
 
   async function handleDelete() {
     if (!confirm("¿Descartar este borrador? No afecta inventario y no se puede recuperar.")) return;
@@ -350,13 +353,20 @@ function RecepcionCard({
           ) : null}
         </div>
         {canConfirm && recepcion.status === "DRAFT" && recepcion.idempotency_key ? (
-          <button
-            onClick={handleConfirm}
-            disabled={confirming}
-            className="text-[11px] text-action hover:underline disabled:opacity-50"
-          >
-            {confirming ? "Confirmando…" : "Confirmar recepción"}
-          </button>
+          <div className="text-right">
+            <button
+              onClick={handleConfirm}
+              disabled={confirming || hasUnmappedPortalItems}
+              className="text-[11px] text-action hover:underline disabled:opacity-50"
+            >
+              {confirming ? "Confirmando…" : "Confirmar recepción"}
+            </button>
+            {hasUnmappedPortalItems ? (
+              <p className="mt-1 max-w-56 text-[10px] text-[var(--warn)]">
+                Vinculá cada línea a inventario antes de confirmar; así no se pierde la entrada de stock.
+              </p>
+            ) : null}
+          </div>
         ) : null}
         {canDelete && recepcion.status === "DRAFT" && recepcion.idempotency_key ? (
           <button
