@@ -38,6 +38,10 @@ const warehouseEvidenceGateMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260925002351_batch4_guard_incomplete_warehouse_evidence.sql"),
   "utf8",
 );
+const manualWarehouseLineMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260925011009_inventory_add_manual_warehouse_submission_line.sql"),
+  "utf8",
+);
 const stockActions = readFileSync(
   resolve(process.cwd(), "app/(internal)/stock/stock-actions.ts"),
   "utf8",
@@ -236,6 +240,22 @@ describe("Batch 4 canonical inventory hardening", () => {
     expect(warehouseEvidenceGateMigration).toContain("BEFORE UPDATE OF status ON public.warehouse_submissions");
     expect(warehouseEvidenceGateMigration).toContain("e.extraction_status IN ('NOT_PROCESSED', 'PROCESSING', 'FAILED')");
     expect(warehouseEvidenceGateMigration).toContain("e.extraction_error IS NOT NULL");
+  });
+
+  it("adds photo-only manual lines through a tenant-scoped, locked RPC and leaves them proposed", () => {
+    expect(manualWarehouseLineMigration).toContain("public.current_empresa_id() IS DISTINCT FROM p_empresa_id");
+    expect(manualWarehouseLineMigration).toContain("public.is_internal_role(ARRAY['administracion','admin']::public.user_role[])");
+    expect(manualWarehouseLineMigration).toContain("FOR UPDATE;");
+    expect(manualWarehouseLineMigration).toContain("v_submission.status NOT IN ('READY', 'NEEDS_REVIEW')");
+    expect(manualWarehouseLineMigration).toContain("'PROPOSED'");
+    expect(manualWarehouseLineMigration).toContain("source_evidence_id");
+    expect(manualWarehouseLineMigration).toMatch(/REVOKE ALL ON FUNCTION public\.inventory_add_manual_warehouse_submission_line\(uuid, uuid\)\s+FROM PUBLIC, anon/);
+    expect(manualWarehouseLineMigration).toMatch(/GRANT EXECUTE ON FUNCTION public\.inventory_add_manual_warehouse_submission_line\(uuid, uuid\)\s+TO authenticated/);
+    expect(inventoryActions).toContain('rpc("inventory_add_manual_warehouse_submission_line"');
+    expect(manualWarehouseLineMigration).toMatch(/REVOKE UPDATE, DELETE ON public\.warehouse_submission_evidence\s+FROM PUBLIC, anon, authenticated/);
+    expect(manualWarehouseLineMigration).toContain("GRANT UPDATE ON public.warehouse_submission_evidence TO service_role");
+    expect(manualWarehouseLineMigration).toContain("trg_00_validate_warehouse_submission_evidence_tenant");
+    expect(inventoryActions).not.toMatch(/supabase\s*\.from\("warehouse_submission_evidence"\)\s*\.update/);
   });
 
   it("removes legacy stock writes and prevents direct mutation of balance and cost projections", () => {

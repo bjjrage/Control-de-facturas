@@ -483,6 +483,25 @@ export async function updateWarehouseSubmissionLine(args: {
   return { error: null };
 }
 
+export async function addManualWarehouseSubmissionLine(submissionId: string) {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  if (typeof submissionId !== "string" || !/^[0-9a-f-]{36}$/i.test(submissionId)) {
+    return { error: "La rendición indicada no es válida." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("inventory_add_manual_warehouse_submission_line", {
+    p_empresa_id: profile.empresa_id,
+    p_submission_id: submissionId,
+  });
+  if (error) return { error: error.message };
+
+  const result = data as { project_id?: string | null; line_id?: string } | null;
+  if (!result?.line_id) return { error: "No se pudo agregar una línea manual a la rendición." };
+  if (result.project_id) revalidatePath(`/projects/${result.project_id}`);
+  return { error: null };
+}
+
 export async function processWarehouseSubmission(submissionId: string) {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
@@ -528,7 +547,7 @@ export async function processWarehouseSubmission(submissionId: string) {
     item.extraction_status === "NOT_PROCESSED" || item.extraction_status === "FAILED",
   );
   for (const item of evidenceToProcess) {
-    const { data: claimed } = await supabase
+    const { data: claimed } = await admin
       .from("warehouse_submission_evidence")
       .update({ extraction_status: "PROCESSING" })
       .eq("id", item.id)
@@ -544,7 +563,7 @@ export async function processWarehouseSubmission(submissionId: string) {
       /\.(xlsx|xls|csv)$/i.test(item.file_name);
     if (!isSpreadsheet) {
       const proposal = photoEvidenceProposal(item.file_name);
-      await supabase
+      await admin
         .from("warehouse_submission_evidence")
         .update({ extraction_status: "PROPOSED", extraction_result: proposal, extraction_error: null, confidence: null })
         .eq("id", item.id)
@@ -556,7 +575,7 @@ export async function processWarehouseSubmission(submissionId: string) {
     if (downloaded.error || !downloaded.data) {
       const message = `${item.file_name}: no se pudo leer la planilla`;
       errors.push(message);
-      await supabase
+      await admin
         .from("warehouse_submission_evidence")
         .update({ extraction_status: "FAILED", extraction_error: downloaded.error?.message ?? message })
         .eq("id", item.id)
@@ -569,7 +588,7 @@ export async function processWarehouseSubmission(submissionId: string) {
     } catch (parseError) {
       const message = `${item.file_name}: no se pudo interpretar la planilla`;
       errors.push(message);
-      await supabase
+      await admin
         .from("warehouse_submission_evidence")
         .update({ extraction_status: "FAILED", extraction_error: parseError instanceof Error ? parseError.message : message })
         .eq("id", item.id)
@@ -579,7 +598,7 @@ export async function processWarehouseSubmission(submissionId: string) {
     if (parsed.failed) {
       const message = `${item.file_name}: ${parsed.errors.join("; ") || "no se pudo interpretar la planilla"}`;
       errors.push(message);
-      await supabase
+      await admin
         .from("warehouse_submission_evidence")
         .update({ extraction_status: "FAILED", extraction_error: message })
         .eq("id", item.id)
@@ -606,7 +625,7 @@ export async function processWarehouseSubmission(submissionId: string) {
       if (saveError || !saveResult) {
         const errMsg = `${item.file_name}: ${saveError ?? "error al guardar líneas de rendición"}`;
         errors.push(errMsg);
-        await supabase
+        await admin
           .from("warehouse_submission_evidence")
           .update({ extraction_status: "FAILED", extraction_error: errMsg })
           .eq("id", item.id)
@@ -616,7 +635,7 @@ export async function processWarehouseSubmission(submissionId: string) {
       proposalCount += saveResult.inserted_count;
     }
 
-    await supabase
+    await admin
       .from("warehouse_submission_evidence")
       .update({
         extraction_status: "PROPOSED",

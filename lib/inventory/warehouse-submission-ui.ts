@@ -21,3 +21,13 @@ export function canConfirmWarehouseSubmission(input: {
     && hasAcceptedLine
     && !hasProposedLine;
 }
+
+export function canAddManualWarehouseSubmissionLine(input: {
+  status: WarehouseSubmissionStatus;
+  evidenceCount: number;
+  locked: boolean;
+}): boolean {
+  return !input.locked
+    && input.evidenceCount > 0
+    && (input.status === "READY" || input.status === "NEEDS_REVIEW");
+}

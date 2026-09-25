@@ -6,8 +6,9 @@ import { CheckCircle2, Copy, ExternalLink, FileText, Loader2, Plus, RefreshCw, X
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/format";
-import { canConfirmWarehouseSubmission } from "@/lib/inventory/warehouse-submission-ui";
+import { canAddManualWarehouseSubmissionLine, canConfirmWarehouseSubmission } from "@/lib/inventory/warehouse-submission-ui";
 import {
+  addManualWarehouseSubmissionLine,
   confirmCanonicalWarehouseSubmission,
   createInventoryLocation,
   createWarehousePortalLink,
@@ -325,6 +326,20 @@ export function PanolObraSection({
     router.refresh();
   }
 
+  async function addManualLine(submissionId: string) {
+    setPendingId(submissionId);
+    setActionMessage(null);
+    const result = await addManualWarehouseSubmissionLine(submissionId);
+    setPendingId(null);
+    if (result.error) {
+      setActionMessage(result.error);
+      router.refresh();
+      return;
+    }
+    setActionMessage("Línea manual agregada como propuesta. Completá los datos y revisala antes de confirmar.");
+    router.refresh();
+  }
+
   async function confirmSubmission(submissionId: string) {
     setPendingId(submissionId);
     setActionMessage(null);
@@ -332,6 +347,7 @@ export function PanolObraSection({
     setPendingId(null);
     if (result.error) {
       setActionMessage(result.error);
+      router.refresh();
       return;
     }
     setActionMessage(`Rendición confirmada: ${result.ids?.length ?? 0} movimiento(s) canónico(s).`);
@@ -422,6 +438,11 @@ export function PanolObraSection({
             lineStates: submission.lines.map((line) => line.state),
           });
           const locked = submission.status === "CONFIRMED" || submission.status === "VOIDED";
+          const canAddManualLine = canAddManualWarehouseSubmissionLine({
+            status: submission.status,
+            evidenceCount: submission.evidence.length,
+            locked,
+          });
           return (
             <article key={submission.id} className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)]">
               <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] p-3">
@@ -432,6 +453,10 @@ export function PanolObraSection({
                   <span className="text-[var(--muted)]">{submission.lines.length} líneas · {submission.evidence.length} evidencias</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  {canAddManualLine ? <Button type="button" variant="secondary" onClick={() => void addManualLine(submission.id)} disabled={pendingId === submission.id} className="h-8 px-2 text-[11px]">
+                    {pendingId === submission.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Plus className="mr-1 h-3 w-3" />}
+                    Agregar línea manual
+                  </Button> : null}
                   {!locked ? <Button type="button" variant="secondary" onClick={() => void processSubmission(submission.id)} disabled={pendingId === submission.id || submission.status === "PROCESSING" || submission.evidence.length === 0} className="h-8 px-2 text-[11px]">
                     {pendingId === submission.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1 h-3 w-3" />}
                     Proponer líneas desde planillas
