@@ -1,4 +1,4 @@
-import { requireModule } from "@/lib/auth";
+import { requirePlan } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 function csvField(value: string | number | null | undefined): string {
@@ -7,27 +7,26 @@ function csvField(value: string | number | null | undefined): string {
 }
 
 export async function GET() {
-  await requireModule("compras", ["administracion", "admin"]);
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
 
   const [{ data: productos }, { data: categorias }] = await Promise.all([
     supabase
       .from("productos")
-      .select("nombre, sku, unidad, categoria_id, precio_venta, costo_promedio, stock_actual, stock_minimo, activo")
+      .select("nombre, sku, unidad, categoria_id, descripcion, stock_minimo, activo")
+      .eq("empresa_id", profile.empresa_id)
       .order("nombre"),
-    supabase.from("categorias_producto").select("id, nombre"),
+    supabase.from("categorias_producto").select("id, nombre").eq("empresa_id", profile.empresa_id),
   ]);
 
   const catById = new Map((categorias ?? []).map((c: { id: string; nombre: string }) => [c.id, c.nombre]));
 
   const header = [
-    "Nombre",
-    "SKU",
+    "Material",
+    "Código",
     "Unidad",
     "Categoría",
-    "Precio venta",
-    "Costo promedio",
-    "Stock actual",
+    "Descripción",
     "Stock mínimo",
     "Activo",
   ];
@@ -37,9 +36,7 @@ export async function GET() {
     sku: string | null;
     unidad: string;
     categoria_id: string | null;
-    precio_venta: number | null;
-    costo_promedio: number | null;
-    stock_actual: number | null;
+    descripcion: string | null;
     stock_minimo: number | null;
     activo: boolean;
   }) => [
@@ -47,9 +44,7 @@ export async function GET() {
     p.sku ?? "",
     p.unidad,
     p.categoria_id ? (catById.get(p.categoria_id) ?? "") : "",
-    p.precio_venta ?? "",
-    p.costo_promedio ?? "",
-    p.stock_actual ?? 0,
+    p.descripcion ?? "",
     p.stock_minimo ?? 0,
     p.activo ? "Sí" : "No",
   ]);

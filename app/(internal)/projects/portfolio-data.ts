@@ -5,6 +5,7 @@ import {
   buildOperationalAttentionAlerts,
   buildPortfolioPanorama,
   buildPortfolioRows,
+  countMaterialsBelowMinimum,
   sortPortfolioRows,
   type PortfolioPanorama,
   type PortfolioRow,
@@ -30,7 +31,8 @@ export type ProjectsPortfolioData = {
   isCaterpillar: boolean;
 };
 
-type ProductStockRow = { stock_actual: number; stock_minimo: number };
+type ProductMinimumRow = { id: string; stock_minimo: number };
+type CanonicalStockRow = { producto_id: string; quantity: number };
 
 function asProjectListRows(projects: Project[], rows: PortfolioRow[]): ProjectListRow[] {
   const projectsById = new Map(projects.map((project) => [project.id, project]));
@@ -61,7 +63,7 @@ export async function getProjectsPortfolioData(profile?: CurrentProfile): Promis
   const isCaterpillar = p.plan === "caterpillar";
   const emptyRows = Promise.resolve({ data: [] as unknown[] });
 
-  const [{ data: budgetItems }, { data: orders }, { data: executionEntries }, { data: products }, { count: certificatesPending }] = await Promise.all([
+  const [{ data: budgetItems }, { data: orders }, { data: executionEntries }, { data: products }, stockResult, { count: certificatesPending }] = await Promise.all([
     projectIds.length > 0
       ? supabase.from("budget_items").select("project_id, quantity, subtotal").in("project_id", projectIds)
       : emptyRows,
@@ -71,15 +73,18 @@ export async function getProjectsPortfolioData(profile?: CurrentProfile): Promis
     projectIds.length > 0
       ? supabase.from("execution_entries").select("project_id, quantity_executed").in("project_id", projectIds)
       : emptyRows,
-    supabase.from("productos").select("id, stock_actual, stock_minimo").eq("empresa_id", p.empresa_id).eq("activo", true),
+    supabase.from("productos").select("id, stock_minimo").eq("empresa_id", p.empresa_id).eq("activo", true),
+    supabase.from("inventory_stock_global_quantity").select("producto_id, quantity").eq("empresa_id", p.empresa_id),
     isCaterpillar && projectIds.length > 0
       ? supabase.from("subcontractor_certificates").select("id", { count: "exact", head: true }).in("project_id", projectIds).eq("status", "PENDIENTE")
       : Promise.resolve({ data: null, count: 0 }),
   ]);
 
-  const lowStockCount = (products as ProductStockRow[] | null ?? []).filter(
-    (product) => product.stock_actual <= 0 || (product.stock_minimo > 0 && product.stock_actual <= product.stock_minimo),
-  ).length;
+  const stockSourceUnavailable = !!stockResult.error;
+  const lowStockCount = stockSourceUnavailable ? 0 : countMaterialsBelowMinimum(
+    (products as ProductMinimumRow[] | null) ?? [],
+    (stockResult.data ?? []) as CanonicalStockRow[],
+  );
   const authorizedOrders = (orders ?? []) as { project_id: string | null; total_price: number }[];
   const portfolioRows = buildPortfolioRows(
     projects,
@@ -95,8 +100,8 @@ export async function getProjectsPortfolioData(profile?: CurrentProfile): Promis
   return {
     projects,
     rows: asProjectListRows(projects, sortedRows),
-    panorama: buildPortfolioPanorama(portfolioRows, lowStockCount, ordenesCompra, certificatesPending ?? 0),
-    attentionAlerts: buildOperationalAttentionAlerts(portfolioRows, lowStockCount, certificatesPending ?? 0),
+    panorama: buildPortfolioPanorama(portfolioRows, lowStockCount, ordenesCompra, certificatesPending ?? 0, stockSourceUnavailable),
+    attentionAlerts: buildOperationalAttentionAlerts(portfolioRows, lowStockCount, certificatesPending ?? 0, stockSourceUnavailable),
     chartData: portfolioRows
       .filter((row) => row.presupuesto > 0 || row.compras > 0)
       .map((row) => ({ name: row.code, presupuesto: row.presupuesto, compras: row.compras, avancePct: row.avancePct })),

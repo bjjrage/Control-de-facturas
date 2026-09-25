@@ -10,6 +10,7 @@ import {
   createInventoryReceipt as createInventoryReceiptAtomic,
   confirmInventoryReceipt,
   confirmWarehouseSubmission,
+  ensureProjectInventoryLocation,
   postManualInventoryMovement,
   saveWarehouseSubmissionLinesAtomic,
 } from "@/lib/inventory/service";
@@ -199,10 +200,25 @@ export async function createInventoryLocation(args: {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
   const name = clean(args.name);
-  if (!name) return { error: "El nombre de la ubicación es obligatorio.", id: null };
+  if (!["CENTRAL", "PROJECT", "AUXILIARY"].includes(args.locationType)) {
+    return { error: "El tipo de ubicación no es válido.", id: null };
+  }
   if (args.locationType === "PROJECT" && !args.projectId) {
     return { error: "Una ubicación de obra necesita proyecto.", id: null };
   }
+  if (args.locationType === "PROJECT") {
+    const result = await ensureProjectInventoryLocation(supabase, {
+      empresaId: profile.empresa_id,
+      projectId: args.projectId!,
+      createdBy: profile.id,
+    });
+    if (result.error || !result.data) return { error: result.error ?? "No se pudo crear la ubicación de obra.", id: null };
+    revalidatePath("/inventario");
+    revalidatePath("/inventory");
+    revalidatePath(`/projects/${args.projectId}`);
+    return { error: null, id: result.data.id };
+  }
+  if (!name || name.length > 240) return { error: "El nombre de la ubicación es obligatorio y no puede superar 240 caracteres.", id: null };
   if (args.projectId) {
     const { data: project } = await supabase
       .from("projects")
@@ -211,6 +227,16 @@ export async function createInventoryLocation(args: {
       .eq("empresa_id", profile.empresa_id)
       .maybeSingle();
     if (!project) return { error: "Proyecto inválido para esta empresa.", id: null };
+  }
+  if (args.parentLocationId) {
+    const { data: parent } = await supabase
+      .from("inventory_locations")
+      .select("id")
+      .eq("id", args.parentLocationId)
+      .eq("empresa_id", profile.empresa_id)
+      .eq("active", true)
+      .maybeSingle();
+    if (!parent) return { error: "La ubicación superior no está activa o no pertenece a esta empresa.", id: null };
   }
   const { data, error } = await supabase
     .from("inventory_locations")
@@ -226,9 +252,73 @@ export async function createInventoryLocation(args: {
     .select("id")
     .single();
   if (error || !data) return { error: error?.message ?? "No se pudo crear la ubicación.", id: null };
+  revalidatePath("/inventario");
   revalidatePath("/inventory");
   revalidatePath("/stock");
   return { error: null, id: data.id as string };
+}
+
+export async function updateInventoryLocationName(locationId: string, rawName: string) {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const name = clean(rawName);
+  if (!/^[0-9a-f-]{36}$/i.test(locationId) || !name || name.length > 240) {
+    return { error: "Revisá el nombre de la ubicación." };
+  }
+  const supabase = await createClient();
+  const { data: location } = await supabase
+    .from("inventory_locations")
+    .select("id, project_id")
+    .eq("id", locationId)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (!location) return { error: "La ubicación no existe o no pertenece a esta empresa." };
+  const { error } = await supabase
+    .from("inventory_locations")
+    .update({ name, updated_at: new Date().toISOString() })
+    .eq("id", locationId)
+    .eq("empresa_id", profile.empresa_id);
+  if (error) return { error: error.message };
+  revalidatePath("/inventario");
+  revalidatePath("/inventory");
+  if (location.project_id) revalidatePath(`/projects/${location.project_id}`);
+  return { error: null };
+}
+
+export async function setInventoryLocationActive(locationId: string, active: boolean) {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  if (!/^[0-9a-f-]{36}$/i.test(locationId) || typeof active !== "boolean") {
+    return { error: "La ubicación o el estado no son válidos." };
+  }
+  const supabase = await createClient();
+  const { data: location } = await supabase
+    .from("inventory_locations")
+    .select("id, project_id, active")
+    .eq("id", locationId)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (!location) return { error: "La ubicación no existe o no pertenece a esta empresa." };
+  if (location.active === active) return { error: null };
+
+  if (!active) {
+    const [{ data: positiveBalance, error: balanceError }, { data: activePortal, error: portalError }] = await Promise.all([
+      supabase.from("inventory_balances").select("id").eq("empresa_id", profile.empresa_id).eq("location_id", locationId).gt("quantity", 0).limit(1).maybeSingle(),
+      supabase.from("warehouse_portal_links").select("id").eq("empresa_id", profile.empresa_id).eq("location_id", locationId).eq("active", true).limit(1).maybeSingle(),
+    ]);
+    if (balanceError || portalError) return { error: "No se pudo verificar saldo o accesos activos; la ubicación sigue activa." };
+    if (positiveBalance) return { error: "Trasladá o regularizá el stock antes de desactivar esta ubicación." };
+    if (activePortal) return { error: "Revocá primero el QR del Depositero antes de desactivar esta ubicación." };
+  }
+
+  const { error } = await supabase
+    .from("inventory_locations")
+    .update({ active, ...(!active ? { is_primary: false } : {}), updated_at: new Date().toISOString() })
+    .eq("id", locationId)
+    .eq("empresa_id", profile.empresa_id);
+  if (error) return { error: error.message };
+  revalidatePath("/inventario");
+  revalidatePath("/inventory");
+  if (location.project_id) revalidatePath(`/projects/${location.project_id}`);
+  return { error: null };
 }
 
 export async function createWarehousePortalLink(locationId: string, expiresAt?: string | null) {
@@ -340,6 +430,8 @@ export async function postCanonicalInventoryMovement(input: ManualInventoryMovem
       && existing.from_location_id === (input.fromLocationId ?? null)
       && existing.to_location_id === (input.toLocationId ?? null)
       && (typeof storedReason === "string" ? storedReason : "") === reason
+      && ((existing.metadata as { effective_date?: unknown } | null)?.effective_date ?? null) === (input.initialStockDate ?? null)
+      && ((existing.metadata as { reason_type?: unknown } | null)?.reason_type ?? null) === (input.initialStockDate ? "INITIAL_STOCK" : null)
       && (input.movementType !== "ADJUSTMENT" || existing.cost_currency === input.costCurrency)
       && (input.movementType !== "ADJUSTMENT" || input.quantity < 0 || Number(existing.unit_cost) === input.unitCost)
       && (input.movementType !== "ADJUSTMENT" || input.quantity < 0

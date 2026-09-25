@@ -11,8 +11,9 @@ import { buildCanonicalImportCandidate } from "@/lib/workbook-interpretation/can
 import { validateWorkbookInterpretation } from "@/lib/workbook-interpretation/interpreter";
 import { parseWorkbook } from "@/lib/workbook-interpretation/parser";
 import { certificateTotals } from "@/lib/certificates/math";
+import { ensureProjectInventoryLocation } from "@/lib/inventory/service";
 
-export async function createProject(formData: FormData): Promise<{ error: string | null }> {
+export async function createProject(formData: FormData): Promise<{ error: string | null; projectId?: string }> {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
   const empresaId = profile.empresa_id;
@@ -20,7 +21,7 @@ export async function createProject(formData: FormData): Promise<{ error: string
   const name = formData.get("name") as string | null;
   const code = formData.get("code") as string | null;
   const client = (formData.get("client") as string | null) || null;
-  const location = (formData.get("location") as string | null) || null;
+  const projectAddress = (formData.get("location") as string | null) || null;
   const startDate = (formData.get("start_date") as string | null) || null;
   const endDate = (formData.get("end_date") as string | null) || null;
   const budgetTotal = Number(formData.get("budget_total") ?? 0);
@@ -35,7 +36,7 @@ export async function createProject(formData: FormData): Promise<{ error: string
       name,
       code,
       client,
-      location,
+      location: projectAddress,
       start_date: startDate,
       end_date: endDate,
       budget_total: Number.isFinite(budgetTotal) ? budgetTotal : 0,
@@ -49,25 +50,30 @@ export async function createProject(formData: FormData): Promise<{ error: string
     return { error: dup ? `Ya existe un proyecto con el código "${code}".` : (error?.message ?? "No se pudo crear el proyecto.") };
   }
 
-  // Crear depósito/pañol asociado al proyecto si se solicitó
-  const crearPanol = formData.get("crear_panol") === "1";
-  if (crearPanol) {
-    const nombreDeposito = `Depósito ${code} - ${name}`.slice(0, 100);
-    await supabase.from("depositos").insert({
-      empresa_id: empresaId,
-      nombre: nombreDeposito,
-      es_principal: false,
-      project_id: project.id,
+  const projectLocationResult = await ensureProjectInventoryLocation(supabase, {
+    empresaId,
+    projectId: String(project.id),
+    createdBy: profile.id,
+  });
+  if (projectLocationResult.error || !projectLocationResult.data) {
+    await logAudit(supabase, {
+      action: "project.created",
+      detail: { project_id: project.id, code, inventory_location_error: projectLocationResult.error },
     });
+    revalidatePath("/projects");
+    return {
+      error: `La obra se creó, pero no se pudo preparar su ubicación canónica de stock. Abrí Ubicaciones y reintentá: ${projectLocationResult.error ?? "error desconocido"}`,
+      projectId: String(project.id),
+    };
   }
 
   await logAudit(supabase, {
     action: "project.created",
-    detail: { project_id: project.id, code, panol: crearPanol },
+    detail: { project_id: project.id, code, inventory_location_id: projectLocationResult.data.id },
   });
 
   revalidatePath("/projects");
-  return { error: null };
+  return { error: null, projectId: String(project.id) };
 }
 
 type WorkbookCreateResult = {
@@ -259,6 +265,32 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
     certificateItems = lines.length;
   } else if (result.candidate.certificate.status === "DETECTED_NOT_APPLIED") {
     pending.push({ section: "CERTIFICADO", reason: result.candidate.certificate.reason });
+  }
+
+  const projectLocation = await ensureProjectInventoryLocation(admin, {
+    empresaId: profile.empresa_id,
+    projectId: String(project.id),
+    createdBy: profile.id,
+  });
+  if (projectLocation.error || !projectLocation.data) {
+    await logAudit(await createClient(), {
+      action: "project.workbook_imported",
+      detail: {
+        project_id: project.id,
+        source_file: uploaded.name,
+        source_fingerprint: fingerprint,
+        budget_items: budgetItems.length,
+        certificate_items: certificateItems,
+        inventory_location_error: projectLocation.error,
+      },
+    });
+    revalidatePath("/projects");
+    return {
+      error: `La obra y sus datos se importaron, pero falta su ubicación canónica. Abrí Ubicaciones y reintentá: ${projectLocation.error ?? "error desconocido"}`,
+      projectId: String(project.id),
+      applied: { project: true, budgetItems: budgetItems.length, certificateItems },
+      pending,
+    };
   }
 
   await logAudit(await createClient(), {

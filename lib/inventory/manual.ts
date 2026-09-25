@@ -14,6 +14,7 @@ export interface ManualInventoryMovementRequest {
   costCurrency?: CurrencyCode | null;
   unitCost?: number | null;
   exchangeRateToCompany?: number | null;
+  initialStockDate?: string | null;
   reason?: string | null;
 }
 
@@ -108,6 +109,17 @@ export function validateManualInventoryMovementRequest(input: ManualInventoryMov
   if (input.reason != null && typeof input.reason !== "string") {
     throw new Error("El motivo del movimiento no es válido.");
   }
+  if (input.initialStockDate != null) {
+    const parsed = new Date(`${input.initialStockDate}T00:00:00.000Z`);
+    if (
+      input.movementType !== "ADJUSTMENT"
+      || !/^\d{4}-\d{2}-\d{2}$/.test(input.initialStockDate)
+      || !Number.isFinite(parsed.getTime())
+      || parsed.toISOString().slice(0, 10) !== input.initialStockDate
+    ) {
+      throw new Error("La fecha de carga inicial no es válida.");
+    }
+  }
   const reason = input.reason?.trim() ?? "";
   if (input.movementType === "ADJUSTMENT" && !reason) {
     throw new Error("Los ajustes requieren un motivo.");
@@ -189,7 +201,13 @@ export function buildManualInventoryMovement(
     unitCost: isAdjustment ? unitCost : null,
     exchangeRateToCompany: isAdjustmentIncrease ? request.exchangeRateToCompany ?? null : null,
     createdBy: context.createdBy,
-    metadata: request.reason?.trim() ? { reason: request.reason.trim() } : {},
+    metadata: {
+      ...(request.reason?.trim() ? { reason: request.reason.trim() } : {}),
+      ...(request.initialStockDate ? {
+        reason_type: "INITIAL_STOCK",
+        effective_date: request.initialStockDate,
+      } : {}),
+    },
   };
   validateInventoryMovementShape(movement);
   return movement;

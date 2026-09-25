@@ -114,7 +114,7 @@ export function generateAttentionAlerts(data: AlertSourcesInput, maxAlerts = 7):
   if (bajoStock > 0) {
     candidates.push({
       id: "alert-bajo-stock",
-      label: `${bajoStock} producto${bajoStock !== 1 ? "s" : ""} con stock global crítico`,
+      label: `${bajoStock} material${bajoStock !== 1 ? "es" : ""} con stock global crítico`,
       count: bajoStock,
       href: "/stock",
       tone: "warn",

@@ -75,7 +75,7 @@ export function CategoriasDialog({
     const n = conteoPorCat.get(c.id) ?? 0;
     const msg =
       n > 0
-        ? `Eliminar "${c.nombre}"? Sus ${n} ${n === 1 ? "producto queda" : "productos quedan"} sin categoría.`
+        ? `Eliminar "${c.nombre}"? Sus ${n} ${n === 1 ? "material queda" : "materiales quedan"} sin categoría.`
         : `Eliminar "${c.nombre}"?`;
     if (!confirm(msg)) return;
     run(() => eliminarCategoria(c.id));
@@ -88,7 +88,7 @@ export function CategoriasDialog({
           <Button variant="secondary">Gestionar categorías</Button>
         )}
       </DialogTrigger>
-      <DialogContent title="Categorías de stock">
+      <DialogContent title="Categorías de materiales">
         <div className="space-y-3">
           {error ? (
             <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">

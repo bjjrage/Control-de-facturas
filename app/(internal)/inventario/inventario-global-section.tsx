@@ -9,6 +9,8 @@ import type {
 import { displayLocationName } from "@/lib/inventory/display-location-name";
 import type { CurrencyCode } from "@/lib/types";
 import { NuevoMovimientoDialog } from "./nuevo-movimiento-dialog";
+import { CargaInicialStockDialog } from "./carga-inicial-stock-dialog";
+import { UbicacionesDialog, type InventoryLocationAdminRow, type InventoryProjectOption } from "./ubicaciones-dialog";
 
 export type GlobalRow = { producto_id: string; producto: string; unidad: string; quantity: number };
 export type LocationRow = {
@@ -36,24 +38,30 @@ const LOCATION_TYPE_LABEL: Record<LocationRow["location_type"], string> = {
 // de la suma real de saldos por ubicación, nunca de un contador aparte.
 export function InventarioGlobalSection({
   movementAttemptStorageKey,
+  initialStockAttemptStorageKey,
   globalRows,
   locationRows,
   projectNameById,
+  adminLocations,
+  projects,
   movementLocations,
   movementProducts,
   movementBalances,
   movementOptionsError,
 }: {
   movementAttemptStorageKey: string;
+  initialStockAttemptStorageKey: string;
   globalRows: GlobalRow[];
   locationRows: LocationRow[];
   projectNameById: Map<string, string>;
+  adminLocations: InventoryLocationAdminRow[];
+  projects: InventoryProjectOption[];
   movementLocations: ManualMovementLocationOption[];
   movementProducts: ManualMovementProductOption[];
   movementBalances: ManualMovementBalanceOption[];
   movementOptionsError: string | null;
 }) {
-  const ubicacionesActivas = new Set(locationRows.map((r) => r.location_id)).size;
+  const ubicacionesActivas = adminLocations.filter((location) => location.active).length;
   const valorTotalPyg = locationRows
     .filter((r) => r.cost_status === "COMPUTABLE" && r.cost_currency === "PYG")
     .reduce((s, r) => s + (r.total_cost ?? 0), 0);
@@ -63,23 +71,33 @@ export function InventarioGlobalSection({
     <div className="max-w-6xl space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-[17px] font-semibold">Inventario</h1>
+          <h1 className="text-[17px] font-semibold">Stock e Inventario</h1>
           <p className="text-[13px] text-[var(--muted)] mt-0.5">
-            Stock real por producto y ubicación — dominio canónico de inventario.
+            Existencia física real por material y ubicación.
           </p>
         </div>
-        <NuevoMovimientoDialog
-          attemptStorageKey={movementAttemptStorageKey}
-          locations={movementLocations}
-          products={movementProducts}
-          balances={movementBalances}
-          optionsError={movementOptionsError}
-        />
+        <div className="flex flex-wrap justify-end gap-2">
+          <Link href="/stock" className="inline-flex h-9 items-center rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 text-[12px] hover:bg-[var(--hover)]">Materiales</Link>
+          <UbicacionesDialog locations={adminLocations} projects={projects} />
+          <CargaInicialStockDialog
+            attemptStorageKey={initialStockAttemptStorageKey}
+            products={movementProducts}
+            locations={movementLocations}
+            optionsError={movementOptionsError}
+          />
+          <NuevoMovimientoDialog
+            attemptStorageKey={movementAttemptStorageKey}
+            locations={movementLocations}
+            products={movementProducts}
+            balances={movementBalances}
+            optionsError={movementOptionsError}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3.5">
-          <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Productos con stock</div>
+          <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Materiales con stock</div>
           <div className="text-[22px] font-bold mt-1">{globalRows.length}</div>
         </div>
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3.5">
@@ -96,7 +114,7 @@ export function InventarioGlobalSection({
       </div>
 
       <div>
-        <h2 className="text-[13px] font-semibold mb-2">Disponibilidad global por producto</h2>
+        <h2 className="text-[13px] font-semibold mb-2">Stock global por material</h2>
         {globalRows.length === 0 ? (
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 text-[13px] text-[var(--muted)]">
             Todavía no hay saldo registrado en el inventario canónico.
@@ -106,7 +124,7 @@ export function InventarioGlobalSection({
             <table>
               <thead>
                 <tr>
-                  <th>Producto</th>
+                  <th>Material</th>
                   <th>Unidad</th>
                   <th className="num">Disponible</th>
                 </tr>
@@ -139,7 +157,7 @@ export function InventarioGlobalSection({
               <thead>
                 <tr>
                   <th>Ubicación</th>
-                  <th>Producto</th>
+                  <th>Material</th>
                   <th className="num">Cantidad</th>
                   <th className="num">Costo</th>
                 </tr>

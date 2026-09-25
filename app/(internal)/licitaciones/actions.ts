@@ -8,6 +8,8 @@ import { DncpNotFoundError, fetchRecord, normalizarNro } from "@/lib/dncp/client
 import { parseCompiledRelease } from "@/lib/dncp/parse";
 import { assessTenderPbc, createPbcSourceMetadata } from "@/lib/procurement/pbc-provenance";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { ensureProjectInventoryLocation } from "@/lib/inventory/service";
 import type { LicitacionDecision } from "@/lib/types";
 import type { TenderComplianceReport } from "@/lib/procurement/compliance-engine";
 
@@ -511,10 +513,25 @@ export async function convertirLicitacionAProyecto(
   if (result.error) {
     return { error: result.error };
   }
+  if (!result.projectId) return { error: "La licitación se convirtió, pero no se recibió el identificador de la obra." };
+
+  const canonicalLocation = await ensureProjectInventoryLocation(createAdminClient(), {
+    empresaId,
+    projectId: result.projectId,
+    createdBy: profile.id,
+  });
+  if (canonicalLocation.error || !canonicalLocation.data) {
+    revalidatePath("/projects");
+    return {
+      error: `La obra se creó desde la licitación, pero falta su ubicación canónica de stock. Abrí Ubicaciones y reintentá: ${canonicalLocation.error ?? "error desconocido"}`,
+      projectId: result.projectId,
+      projectCode: result.projectCode,
+    };
+  }
 
   await logAudit(supabase, {
     action: "tender.converted_to_project",
-    detail: { licitacion_id: licitacionId, project_id: result.projectId, project_code: result.projectCode }
+    detail: { licitacion_id: licitacionId, project_id: result.projectId, project_code: result.projectCode, inventory_location_id: canonicalLocation.data.id }
   });
 
   revalidatePath("/licitaciones");

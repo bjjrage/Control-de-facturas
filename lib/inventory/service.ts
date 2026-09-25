@@ -3,6 +3,110 @@ import type { InventoryMovementInput } from "./types";
 
 type ServiceResult<T> = { data: T | null; error: string | null };
 
+export function projectInventoryLocationName(projectName: string): string {
+  return `Depósito de obra · ${projectName.trim()}`.slice(0, 240);
+}
+
+/** Reuses a tenant-owned project location, or creates one primary location exactly once. */
+export async function ensureProjectInventoryLocation(
+  supabase: SupabaseClient,
+  args: { empresaId: string; projectId: string; createdBy: string },
+): Promise<ServiceResult<{ id: string; created: boolean }>> {
+  const readExisting = () => supabase
+    .from("inventory_locations")
+    .select("id, active")
+    .eq("empresa_id", args.empresaId)
+    .eq("project_id", args.projectId)
+    .eq("location_type", "PROJECT")
+    .order("is_primary", { ascending: false })
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
+    .select("id, name, code")
+    .eq("id", args.projectId)
+    .eq("empresa_id", args.empresaId)
+    .maybeSingle();
+  if (projectError || !project) {
+    return { data: null, error: projectError?.message ?? "La obra no pertenece a esta empresa." };
+  }
+
+  const existingResult = await readExisting();
+  if (existingResult.error) return { data: null, error: existingResult.error.message };
+  if (existingResult.data) {
+    const existing = existingResult.data as { id: string; active: boolean };
+    if (!existing.active) {
+      const { error } = await supabase
+        .from("inventory_locations")
+        .update({ active: true })
+        .eq("id", existing.id)
+        .eq("empresa_id", args.empresaId)
+        .eq("project_id", args.projectId);
+      if (error) return { data: null, error: error.message };
+    }
+    return { data: { id: existing.id, created: false }, error: null };
+  }
+
+  const { data, error } = await supabase
+    .from("inventory_locations")
+    .insert({
+      empresa_id: args.empresaId,
+      name: projectInventoryLocationName(String(project.name)),
+      location_type: "PROJECT",
+      project_id: args.projectId,
+      is_primary: true,
+      created_by: args.createdBy,
+    })
+    .select("id")
+    .single();
+  if (!error && data) return { data: { id: String(data.id), created: true }, error: null };
+
+  // A concurrent project-creation retry can win the unique primary/name race.
+  if (error?.code === "23505") {
+    const retry = await readExisting();
+    if (!retry.error && retry.data) {
+      const existing = retry.data as { id: string; active: boolean };
+      if (!existing.active) {
+        const { error: activateError } = await supabase
+          .from("inventory_locations")
+          .update({ active: true })
+          .eq("id", existing.id)
+          .eq("empresa_id", args.empresaId)
+          .eq("project_id", args.projectId);
+        if (activateError) return { data: null, error: activateError.message };
+      }
+      return { data: { id: String(retry.data.id), created: false }, error: null };
+    }
+    if (retry.error) return { data: null, error: retry.error.message };
+
+    // Two different projects may share a visible name inside one tenant; the
+    // schema's tenant/name uniqueness requires a disambiguator only then.
+    const code = String(project.code ?? "").trim();
+    if (code) {
+      const suffix = ` · ${code}`;
+      const fallback = await supabase
+        .from("inventory_locations")
+        .insert({
+          empresa_id: args.empresaId,
+          name: `${projectInventoryLocationName(String(project.name)).slice(0, 240 - suffix.length)}${suffix}`,
+          location_type: "PROJECT",
+          project_id: args.projectId,
+          is_primary: true,
+          created_by: args.createdBy,
+        })
+        .select("id")
+        .single();
+      if (!fallback.error && fallback.data) {
+        return { data: { id: String(fallback.data.id), created: true }, error: null };
+      }
+      return { data: null, error: fallback.error?.message ?? "No se pudo crear la ubicación de obra." };
+    }
+  }
+  return { data: null, error: error?.message ?? "No se pudo crear la ubicación de obra." };
+}
+
 export interface CreateInventoryReceiptInput {
   empresaId: string;
   orderId: string;

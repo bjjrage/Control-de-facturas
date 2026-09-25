@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -12,12 +13,13 @@ export function NewProjectDialog({ trigger }: { trigger: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"choice" | "manual" | "workbook">("choice");
   const [error, setError] = useState<string | null>(null);
+  const [partialProjectId, setPartialProjectId] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const router = useRouter();
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
-    if (!nextOpen) {
+    if (!nextOpen && !partialProjectId) {
       setMode("choice");
       setError(null);
     }
@@ -46,9 +48,11 @@ export function NewProjectDialog({ trigger }: { trigger: React.ReactNode }) {
             setPending(false);
             if (result.error) {
               setError(result.error);
+              if (result.projectId) setPartialProjectId(result.projectId);
               return;
             }
             setError(null);
+            setPartialProjectId(null);
             setOpen(false);
             router.refresh();
           }}
@@ -56,6 +60,11 @@ export function NewProjectDialog({ trigger }: { trigger: React.ReactNode }) {
           {error ? (
             <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
               {error}
+              {partialProjectId ? (
+                <Link href={`/projects/${partialProjectId}?tab=presupuesto`} className="ml-2 font-semibold underline">
+                  Abrir la obra para reparar la ubicación
+                </Link>
+              ) : null}
             </div>
           ) : null}
 
@@ -90,16 +99,15 @@ export function NewProjectDialog({ trigger }: { trigger: React.ReactNode }) {
             </div>
           </div>
 
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input type="checkbox" name="crear_panol" value="1" defaultChecked className="h-4 w-4 rounded border-[var(--border)]" />
-            <span className="text-[13px]">Crear depósito para esta obra</span>
-          </label>
+          <p className="text-[11px] text-[var(--muted)]">
+            Se preparará una ubicación canónica de stock para esta obra.
+          </p>
 
           <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="secondary" onClick={() => setMode("choice")}>Volver</Button>
+            <Button type="button" variant="secondary" onClick={() => setMode("choice")} disabled={Boolean(partialProjectId)}>Volver</Button>
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Creando…" : "Crear proyecto"}
+            <Button type="submit" disabled={pending || Boolean(partialProjectId)}>
+              {pending ? "Creando…" : partialProjectId ? "Obra creada" : "Crear proyecto"}
             </Button>
           </div>
         </form>}

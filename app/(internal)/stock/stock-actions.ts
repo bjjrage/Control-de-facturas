@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 
 async function getClient() {
   const supabase = await createClient();
-  const profile = await requirePlan("pro");
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
   return { supabase, profile };
 }
 
@@ -66,7 +66,7 @@ export async function actualizarProducto(
   id: string,
   data: { nombre?: string; unidad?: string; sku?: string; descripcion?: string; categoria_id?: string | null; stock_minimo?: number; contenido_por_unidad?: number | null; unidad_base?: string | null }
 ): Promise<{ error?: string }> {
-  const { supabase } = await getClient();
+  const { supabase, profile } = await getClient();
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (data.nombre !== undefined) patch.nombre = data.nombre.trim();
@@ -78,7 +78,7 @@ export async function actualizarProducto(
   if (data.contenido_por_unidad !== undefined) patch.contenido_por_unidad = data.contenido_por_unidad ?? null;
   if (data.unidad_base !== undefined) patch.unidad_base = data.unidad_base?.trim() || null;
 
-  const { error } = await supabase.from("productos").update(patch).eq("id", id);
+  const { error } = await supabase.from("productos").update(patch).eq("id", id).eq("empresa_id", profile.empresa_id);
   if (error) return { error: error.message };
 
   revalidatePath(`/stock/${id}`);
@@ -87,12 +87,13 @@ export async function actualizarProducto(
 }
 
 export async function desactivarProducto(id: string): Promise<{ error?: string }> {
-  const { supabase } = await getClient();
+  const { supabase, profile } = await getClient();
 
   const { error } = await supabase
     .from("productos")
     .update({ activo: false, updated_at: new Date().toISOString() })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("empresa_id", profile.empresa_id);
 
   if (error) return { error: error.message };
   revalidatePath("/stock");
@@ -101,12 +102,13 @@ export async function desactivarProducto(id: string): Promise<{ error?: string }
 }
 
 export async function reactivarProducto(id: string): Promise<{ error?: string }> {
-  const { supabase } = await getClient();
+  const { supabase, profile } = await getClient();
 
   const { error } = await supabase
     .from("productos")
     .update({ activo: true, updated_at: new Date().toISOString() })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("empresa_id", profile.empresa_id);
 
   if (error) return { error: error.message };
   revalidatePath("/stock");
@@ -294,8 +296,6 @@ export type FilaImport = {
   unidad_base?: string;
   descripcion?: string;
   stock_minimo?: number;
-  stock_inicial?: number;
-  costo_inicial?: number;
 };
 
 export type ResultadoImport = {
@@ -317,7 +317,6 @@ export async function importarProductos(filas: FilaImport[]): Promise<ResultadoI
   // Crear categorías nuevas que vengan en el archivo pero no existan todavía
   const newCatNames = new Map<string, string>(); // lc → original case
   for (const f of filas) {
-    if ((f.stock_inicial ?? 0) > 0) continue;
     if (f.categoria_nombre) {
       const lc = f.categoria_nombre.toLowerCase().trim();
       if (!catMap.has(lc) && !newCatNames.has(lc)) {
@@ -355,15 +354,6 @@ export async function importarProductos(filas: FilaImport[]): Promise<ResultadoI
       errores.push({ fila: i + 2, nombre, mensaje: "Unidad requerida" });
       continue;
     }
-    if (!Number.isFinite(f.stock_inicial ?? 0) || (f.stock_inicial ?? 0) < 0) {
-      errores.push({ fila: i + 2, nombre, mensaje: "Stock inicial inválido" });
-      continue;
-    }
-    if ((f.stock_inicial ?? 0) > 0) {
-      errores.push({ fila: i + 2, nombre, mensaje: "No se importó: registrá el saldo desde Inventario > Ajuste después de crear el producto." });
-      continue;
-    }
-
     const categoria_id = f.categoria_nombre
       ? (catMap.get(f.categoria_nombre.toLowerCase().trim()) ?? null)
       : null;

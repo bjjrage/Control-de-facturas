@@ -62,9 +62,9 @@ export default function NuevoProductoPage() {
     <div className="max-w-lg space-y-5">
       <div>
         <Link href="/stock" className="text-action text-[12px] text-[var(--muted)]">
-          ← Volver a Stock
+          ← Volver a Materiales
         </Link>
-        <h1 className="text-[17px] font-semibold mt-1">Nuevo producto</h1>
+        <h1 className="text-[17px] font-semibold mt-1">Nuevo material</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 space-y-4">
@@ -77,7 +77,7 @@ export default function NuevoProductoPage() {
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
             required
-            placeholder="Ej: Cemento Portland 50kg"
+            placeholder="Ej: Cemento Portland 50 kg"
             className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
           />
         </div>
@@ -116,7 +116,7 @@ export default function NuevoProductoPage() {
             </select>
           </div>
           <div>
-            <label className="block text-[12px] text-[var(--muted)] mb-1">SKU / Código</label>
+            <label className="block text-[12px] text-[var(--muted)] mb-1">Código (opcional)</label>
             <input
               type="text"
               value={sku}
@@ -192,7 +192,7 @@ export default function NuevoProductoPage() {
           </div>
         </div>
         <p className="text-[11px] text-[var(--muted)]">
-          Creá el producto sin saldo. Después registrá la existencia desde Inventario &gt; Ajuste para que quede en el libro canónico.
+          Creá el material sin saldo. Después registrá la existencia desde Stock e Inventario &gt; Carga inicial de stock para que quede en el libro canónico.
         </p>
 
         {error ? (
@@ -206,7 +206,7 @@ export default function NuevoProductoPage() {
             <Button type="button" variant="secondary">Cancelar</Button>
           </Link>
           <Button type="submit" disabled={pending || !nombre.trim() || !unidad.trim() || (!!contenido && !unidadBase) || (!contenido && !!unidadBase)}>
-            {pending ? "Guardando…" : "Crear producto"}
+            {pending ? "Guardando…" : "Crear material"}
           </Button>
         </div>
       </form>

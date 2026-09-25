@@ -2,347 +2,74 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePlan } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, formatMoney, formatNumber } from "@/lib/format";
-import type { Producto, StockMovimiento, Deposito, StockPorDeposito } from "@/lib/types";
+import { formatNumber } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 
-const TIPO_LABEL: Record<string, string> = { ENTRADA: "Entrada", SALIDA: "Salida", AJUSTE: "Ajuste", TRANSFERENCIA: "Transfer." };
-const TIPO_COLOR: Record<string, string> = {
-  ENTRADA: "text-[var(--ok)]",
-  SALIDA: "text-[var(--error)]",
-  AJUSTE: "text-[var(--accent-teal)]",
-  TRANSFERENCIA: "text-[var(--muted)]",
-};
-const TIPO_SIGN: Record<string, string> = { ENTRADA: "+", SALIDA: "−", AJUSTE: "=", TRANSFERENCIA: "⇄" };
-
-export default async function ProductoDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function MaterialDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const profile = await requirePlan("pro");
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
-
-  const { data: producto } = await supabase
+  const { data: material } = await supabase
     .from("productos")
-    .select("*")
+    .select("id, nombre, descripcion, unidad, sku, categoria_id, stock_minimo, activo")
     .eq("id", id)
-    .single<Producto>();
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (!material) notFound();
 
-  if (!producto) notFound();
-
-  const { data: categoria } = producto.categoria_id
+  const { data: categoria } = material.categoria_id
     ? await supabase
         .from("categorias_producto")
         .select("nombre")
-        .eq("id", producto.categoria_id)
-        .single<{ nombre: string }>()
+        .eq("id", material.categoria_id)
+        .eq("empresa_id", profile.empresa_id)
+        .maybeSingle()
     : { data: null };
-
-  const [{ data: movimientos }, { data: depositos }, { data: stockPorDeposito }] = await Promise.all([
-    supabase
-      .from("stock_movimientos")
-      .select("*")
-      .eq("producto_id", id)
-      .order("created_at", { ascending: false })
-      .returns<StockMovimiento[]>(),
-    supabase
-      .from("depositos")
-      .select("*")
-      .eq("activo", true)
-      .order("es_principal", { ascending: false })
-      .order("nombre")
-      .returns<Deposito[]>(),
-    supabase
-      .from("stock_por_deposito")
-      .select("*")
-      .eq("producto_id", id)
-      .returns<StockPorDeposito[]>(),
-  ]);
-
-  const mov = movimientos ?? [];
-  const deps = depositos ?? [];
-  const spd = stockPorDeposito ?? [];
-
-  // Nombres de obra / rubro para las salidas imputadas
-  const projectIds = [...new Set(mov.map((m) => m.project_id).filter(Boolean))] as string[];
-  const budgetItemIds = [...new Set(mov.map((m) => m.budget_item_id).filter(Boolean))] as string[];
-  const depositoIds = [
-    ...new Set([
-      ...mov.map((m) => m.deposito_id),
-      ...mov.map((m) => m.deposito_destino_id),
-    ].filter(Boolean))
-  ] as string[];
-
-  const [{ data: projRows }, { data: biRows }] = await Promise.all([
-    projectIds.length
-      ? supabase.from("projects").select("id, name, code").in("id", projectIds)
-      : Promise.resolve({ data: [] as { id: string; name: string; code: string }[] }),
-    budgetItemIds.length
-      ? supabase.from("budget_items").select("id, code, description").in("id", budgetItemIds)
-      : Promise.resolve({ data: [] as { id: string; code: string; description: string }[] }),
-  ]);
-  const projById = new Map((projRows ?? []).map((p) => [p.id, p]));
-  const biById = new Map((biRows ?? []).map((b) => [b.id, b]));
-  const depById = new Map([...deps, ...(depositoIds.length ? [] : [])].map((d) => [d.id, d]));
-
-  const bajo = producto.stock_minimo > 0 && producto.stock_actual <= producto.stock_minimo;
-  const isAdmin = profile.role === "admin";
-  const totalBase = producto.contenido_por_unidad
-    ? producto.stock_actual * producto.contenido_por_unidad
-    : null;
-  const valorStock = producto.stock_actual * producto.costo_promedio;
 
   return (
     <div className="max-w-3xl space-y-5">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <Link href="/stock" className="text-action text-[12px] text-[var(--muted)]">
-            ← Volver al catálogo
-          </Link>
+          <Link href="/stock" className="text-action text-[12px] text-[var(--muted)]">← Volver a Materiales</Link>
           <div className="flex items-center gap-2 mt-1">
-            <h1 className="text-[17px] font-semibold">{producto.nombre}</h1>
-            {!producto.activo ? (
-              <span className="text-[11px] text-[var(--muted)] border border-[var(--border)] rounded px-1.5 py-0.5">
-                Inactivo
-              </span>
-            ) : null}
+            <h1 className="text-[17px] font-semibold">{material.nombre}</h1>
+            {!material.activo ? <span className="text-[11px] text-[var(--muted)] border border-[var(--border)] rounded px-1.5 py-0.5">Inactivo</span> : null}
           </div>
-          <div className="flex items-center gap-2 mt-0.5">
-            {producto.sku ? (
-              <span className="text-[12px] text-[var(--muted)] font-mono">{producto.sku}</span>
-            ) : null}
-            {categoria?.nombre ? (
-              <span className="text-[11px] text-[var(--muted)] border border-[var(--border)] rounded px-1.5 py-0.5">
-                {categoria.nombre}
-              </span>
-            ) : null}
+          <div className="flex items-center gap-2 mt-1">
+            {material.sku ? <span className="text-[12px] text-[var(--muted)] font-mono">Código: {material.sku}</span> : null}
+            {categoria?.nombre ? <span className="text-[11px] text-[var(--muted)] border border-[var(--border)] rounded px-1.5 py-0.5">{categoria.nombre}</span> : null}
           </div>
-          {producto.descripcion ? (
-            <p className="text-[12px] text-[var(--muted)] mt-0.5">{producto.descripcion}</p>
-          ) : null}
+          {material.descripcion ? <p className="text-[12px] text-[var(--muted)] mt-1">{material.descripcion}</p> : null}
         </div>
         <div className="flex items-center gap-2">
-          {isAdmin ? (
-            <Link href={`/stock/${producto.id}/editar`}>
-              <Button variant="secondary" className="h-8 px-3 text-[12px]">Editar</Button>
-            </Link>
+          {profile.role === "admin" ? (
+            <Link href={`/stock/${material.id}/editar`}><Button variant="secondary" className="h-8 px-3 text-[12px]">Editar</Button></Link>
           ) : null}
-          <Link href="/inventario">
-            <Button variant="secondary" className="h-8 px-3 text-[12px]">Inventario canónico</Button>
-          </Link>
+          <Link href="/inventario"><Button variant="secondary" className="h-8 px-3 text-[12px]">Stock e Inventario</Button></Link>
         </div>
       </div>
 
-      <div className="rounded-lg border border-[var(--warn)]/30 bg-[var(--warn-bg)] px-3 py-2 text-[12px] text-[var(--warn)]">
-        Ficha del catálogo legacy: cantidades y valores de referencia, no saldos autoritativos. Consultá las existencias físicas en{" "}
-        <Link href="/inventario" className="underline font-semibold">Inventario canónico</Link>.
-      </div>
+      <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 space-y-3">
+        <h2 className="text-[13px] font-semibold">Datos del material</h2>
+        <dl className="grid gap-3 sm:grid-cols-3 text-[12px]">
+          <div><dt className="text-[var(--muted)]">Unidad</dt><dd className="mt-1">{material.unidad}</dd></div>
+          <div><dt className="text-[var(--muted)]">Stock mínimo de referencia</dt><dd className="mt-1">{Number(material.stock_minimo) > 0 ? `${formatNumber(Number(material.stock_minimo), 2)} ${material.unidad}` : "No definido"}</dd></div>
+          <div><dt className="text-[var(--muted)]">Estado</dt><dd className="mt-1">{material.activo ? "Activo" : "Inactivo"}</dd></div>
+        </dl>
+        <p className="text-[12px] text-[var(--muted)]">
+          Esta ficha es el maestro de materiales; no representa existencias. El stock físico y sus movimientos se consultan en <Link href="/inventario" className="underline text-[var(--foreground)]">Stock e Inventario</Link>.
+        </p>
+      </section>
 
-      {/* KPIs */}
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-          <div className="text-[11px] text-[var(--muted)] mb-1">Stock de referencia (legacy)</div>
-          <div className={`text-[22px] font-semibold tabular-nums ${bajo ? "text-[var(--warn)]" : ""}`}>
-            {formatNumber(producto.stock_actual, 2)}
-          </div>
-          <div className="text-[11px] text-[var(--muted)]">{producto.unidad}</div>
-        </div>
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-          <div className="text-[11px] text-[var(--muted)] mb-1">Costo promedio</div>
-          <div className="text-[22px] font-semibold tabular-nums">
-            {producto.costo_promedio > 0 ? formatMoney(producto.costo_promedio) : "—"}
-          </div>
-          <div className="text-[11px] text-[var(--muted)]">por {producto.unidad}</div>
-        </div>
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-          <div className="text-[11px] text-[var(--muted)] mb-1">Valor de referencia</div>
-          <div className="text-[22px] font-semibold tabular-nums">
-            {valorStock > 0 ? formatMoney(valorStock) : "—"}
-          </div>
-          <div className="text-[11px] text-[var(--muted)]">
-            {formatNumber(producto.stock_actual, 2)} × costo prom.
-          </div>
-        </div>
-        {totalBase !== null ? (
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-            <div className="text-[11px] text-[var(--muted)] mb-1">Total en {producto.unidad_base}</div>
-            <div className={`text-[22px] font-semibold tabular-nums ${bajo ? "text-[var(--warn)]" : ""}`}>
-              {formatNumber(totalBase, 2)}
-            </div>
-            <div className="text-[11px] text-[var(--muted)]">{producto.unidad_base}</div>
-          </div>
-        ) : (
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-            <div className="text-[11px] text-[var(--muted)] mb-1">Stock mínimo</div>
-            <div className="text-[22px] font-semibold tabular-nums">
-              {producto.stock_minimo > 0 ? formatNumber(producto.stock_minimo, 2) : "—"}
-            </div>
-            <div className="text-[11px] text-[var(--muted)]">{producto.unidad}</div>
-          </div>
-        )}
-      </div>
-
-      {bajo ? (
-        <div className="rounded border border-[var(--warn)]/30 bg-[var(--warn-bg)] px-3 py-2 text-[12px] text-[var(--warn)]">
-          Stock bajo el mínimo — quedan {formatNumber(producto.stock_actual, 2)} {producto.unidad}, mínimo es {formatNumber(producto.stock_minimo, 2)}.
-        </div>
-      ) : null}
-
-      {/* Stock por depósito */}
-      {spd.length > 0 && deps.length > 1 ? (
-        <div>
-          <h2 className="text-[14px] font-semibold mb-2">Referencia legacy por depósito</h2>
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
-            <table>
-              <thead>
-                <tr>
-                  <th>Depósito</th>
-                  <th className="num">Cantidad de referencia</th>
-                  <th className="num">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {spd
-                  .sort((a, b) => {
-                    const da = depById.get(a.deposito_id);
-                    const db = depById.get(b.deposito_id);
-                    if (da?.es_principal && !db?.es_principal) return -1;
-                    if (!da?.es_principal && db?.es_principal) return 1;
-                    return (da?.nombre ?? "").localeCompare(db?.nombre ?? "", "es");
-                  })
-                  .map((s) => {
-                    const dep = depById.get(s.deposito_id);
-                    const valor = s.stock_actual * producto.costo_promedio;
-                    return (
-                      <tr key={s.id}>
-                        <td>
-                          {dep?.nombre ?? "—"}
-                          {dep?.es_principal ? (
-                            <span className="ml-1.5 text-[10px] text-[var(--muted)] border border-[var(--border)] rounded px-1">principal</span>
-                          ) : null}
-                        </td>
-                        <td className="num tabular-nums font-medium">
-                          {formatNumber(s.stock_actual, 2)} {producto.unidad}
-                        </td>
-                        <td className="num tabular-nums text-[var(--muted)]">
-                          {valor > 0 ? formatMoney(valor) : "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Historial de movimientos */}
-      <div>
-        <h2 className="text-[14px] font-semibold mb-2">Historial de movimientos</h2>
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
-          <table>
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th className="num">Cantidad</th>
-                <th className="num">Saldo histórico (legacy)</th>
-                <th className="num">Costo unit.</th>
-                <th className="num">Valor</th>
-                <th>Referencia</th>
-                <th>Notas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mov.map((m) => (
-                <tr key={m.id}>
-                  <td className="text-[var(--muted)] whitespace-nowrap">{formatDate(m.created_at)}</td>
-                  <td>
-                    <span className={`font-medium text-[12px] ${TIPO_COLOR[m.tipo]}`}>
-                      {TIPO_LABEL[m.tipo]}
-                    </span>
-                  </td>
-                  <td className={`num font-semibold ${TIPO_COLOR[m.tipo]}`}>
-                    {TIPO_SIGN[m.tipo]}{formatNumber(m.cantidad, 2)}
-                  </td>
-                  <td className="num tabular-nums">{formatNumber(m.stock_resultante, 2)}</td>
-                  <td className="num tabular-nums text-[var(--muted)]">
-                    {m.costo_unitario != null && m.costo_unitario > 0 ? formatMoney(m.costo_unitario) : "—"}
-                  </td>
-                  <td className="num tabular-nums text-[var(--muted)]">
-                    {m.costo_total != null && m.costo_total !== 0 ? formatMoney(m.costo_total) : "—"}
-                  </td>
-                  <td className="text-[11px] text-[var(--muted)]">
-                    {m.tipo === "TRANSFERENCIA" ? (
-                      <>
-                        {depById.get(m.deposito_id ?? "")?.nombre ?? "—"}
-                        <span className="mx-1">→</span>
-                        {depById.get(m.deposito_destino_id ?? "")?.nombre ?? "—"}
-                      </>
-                    ) : m.project_id && projById.has(m.project_id) ? (
-                      <>
-                        {projById.get(m.project_id)!.name}
-                        {m.budget_item_id && biById.has(m.budget_item_id) ? (
-                          <span className="block text-[10px]">
-                            {biById.get(m.budget_item_id)!.code} · {biById.get(m.budget_item_id)!.description}
-                          </span>
-                        ) : null}
-                        {m.deposito_id && depById.has(m.deposito_id) && deps.length > 1 ? (
-                          <span className="block text-[10px]">{depById.get(m.deposito_id)!.nombre}</span>
-                        ) : null}
-                      </>
-                    ) : m.deposito_id && depById.has(m.deposito_id) && deps.length > 1 ? (
-                      depById.get(m.deposito_id)!.nombre
-                    ) : m.referencia_tipo ? (
-                      m.referencia_tipo
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="text-[12px] text-[var(--muted)]">{m.notas ?? "—"}</td>
-                </tr>
-              ))}
-              {mov.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="text-center text-[var(--muted)] py-8">
-                    Sin movimientos todavía.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {isAdmin ? (
+      {profile.role === "admin" ? (
         <div className="flex justify-end">
-          {producto.activo ? (
-            <form
-              action={async () => {
-                "use server";
-                const { desactivarProducto } = await import("../stock-actions");
-                await desactivarProducto(id);
-              }}
-            >
-              <button
-                type="submit"
-                className="text-[12px] text-[var(--muted)] hover:text-[var(--error)] transition-colors"
-              >
-                Desactivar producto
-              </button>
+          {material.activo ? (
+            <form action={async () => { "use server"; const { desactivarProducto } = await import("../stock-actions"); await desactivarProducto(id); }}>
+              <button type="submit" className="text-[12px] text-[var(--muted)] hover:text-[var(--error)]">Desactivar material</button>
             </form>
           ) : (
-            <form
-              action={async () => {
-                "use server";
-                const { reactivarProducto } = await import("../stock-actions");
-                await reactivarProducto(id);
-              }}
-            >
-              <button
-                type="submit"
-                className="text-[12px] text-[var(--muted)] hover:text-[var(--ok)] transition-colors"
-              >
-                Reactivar producto
-              </button>
+            <form action={async () => { "use server"; const { reactivarProducto } = await import("../stock-actions"); await reactivarProducto(id); }}>
+              <button type="submit" className="text-[12px] text-[var(--muted)] hover:text-[var(--ok)]">Reactivar material</button>
             </form>
           )}
         </div>

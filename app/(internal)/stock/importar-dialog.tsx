@@ -11,11 +11,9 @@ import { importarProductos, type FilaImport } from "./stock-actions";
 const CAMPOS = [
   { key: "nombre",               label: "Nombre",               required: true  },
   { key: "unidad",               label: "Unidad",               required: true  },
-  { key: "sku",                  label: "SKU / Código",          required: false },
+  { key: "sku",                  label: "Código",                required: false },
   { key: "categoria_nombre",     label: "Categoría",            required: false },
   { key: "descripcion",          label: "Descripción",          required: false },
-  { key: "stock_inicial",        label: "Stock inicial",        required: false },
-  { key: "costo_inicial",        label: "Costo inicial",        required: false },
   { key: "stock_minimo",         label: "Stock mínimo",         required: false },
   { key: "contenido_por_unidad", label: "Contenido por unidad", required: false },
   { key: "unidad_base",          label: "Unidad base",          required: false },
@@ -85,8 +83,6 @@ function autoDetect(headers: string[]): Mapping {
     sku:                  find("sku", "código", "codigo", "code", "ref", "cod"),
     categoria_nombre:     find("categor"),
     descripcion:          find("descrip", "detalle", "obs", "nota"),
-    stock_inicial:        find("stock inicial", "stock_inicial", "inicial", "initial", "existencia"),
-    costo_inicial:        find("costo", "precio", "price", "cost"),
     stock_minimo:         find("mínimo", "minimo", "min stock", "min_stock", "alerta"),
     contenido_por_unidad: find("contenido", "content", "peso"),
     unidad_base:          find("unidad base", "unidad_base", "base unit"),
@@ -112,12 +108,6 @@ function buildFilas(rows: string[][], mapping: Mapping): FilaImport[] {
       descripcion:          get(row, "descripcion").trim() || undefined,
       stock_minimo:         get(row, "stock_minimo")
                               ? parseFloat(get(row, "stock_minimo"))
-                              : undefined,
-      stock_inicial:        get(row, "stock_inicial")
-                              ? parseFloat(get(row, "stock_inicial"))
-                              : undefined,
-      costo_inicial:        get(row, "costo_inicial")
-                              ? parseFloat(get(row, "costo_inicial"))
                               : undefined,
     }));
 }
@@ -203,21 +193,18 @@ export function ImportarDialog() {
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
       <DialogTrigger asChild>
-        <Button variant="secondary">Importar</Button>
+        <Button variant="secondary">Importar Excel</Button>
       </DialogTrigger>
-      <DialogContent title="Importar productos" className="max-w-2xl">
+      <DialogContent title="Importar materiales" className="max-w-2xl">
         <div className="space-y-4">
 
           {/* ── STEP: upload ── */}
           {step === "upload" && (
             <>
               <p className="text-[12px] text-[var(--muted)]">
-                Subí un archivo CSV o Excel con tus productos. El sistema detecta las columnas
+                Subí un archivo CSV o Excel con tus materiales. El sistema detecta las columnas
                 automáticamente — podés ajustar el mapeo antes de importar. No hace falta ningún
                 formato especial: sirve cualquier planilla que ya tengas.
-              </p>
-              <p className="text-[11px] text-[var(--muted)]">
-                Las filas con stock inicial positivo se omiten: registrá el saldo después desde Inventario &gt; Ajuste para mantenerlo en el libro canónico.
               </p>
               <input
                 ref={fileRef}
@@ -338,7 +325,7 @@ export function ImportarDialog() {
                 <Button onClick={importar} disabled={pending || !canImport}>
                   {pending
                     ? "Importando…"
-                    : `Importar ${totalFilas} producto${totalFilas !== 1 ? "s" : ""}`}
+                    : `Importar ${totalFilas} material${totalFilas !== 1 ? "es" : ""}`}
                 </Button>
               </div>
             </>
@@ -355,7 +342,7 @@ export function ImportarDialog() {
                 }`}
               >
                 {resultado.creados}{" "}
-                {resultado.creados === 1 ? "producto creado" : "productos creados"} correctamente.
+                {resultado.creados === 1 ? "material creado" : "materiales creados"} correctamente.
               </div>
               {resultado.errores.length > 0 && (
                 <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2 text-[12px] text-[var(--error)] space-y-1">

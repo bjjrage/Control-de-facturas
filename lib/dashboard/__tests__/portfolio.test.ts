@@ -4,6 +4,7 @@ import {
   buildOperationalAttentionAlerts,
   buildPortfolioPanorama,
   buildPortfolioRows,
+  countMaterialsBelowMinimum,
 } from "../portfolio";
 
 function project(overrides: Partial<Project> = {}): Project {
@@ -37,6 +38,17 @@ function project(overrides: Partial<Project> = {}): Project {
 }
 
 describe("portfolio dashboard calculations", () => {
+  it("counts low-stock materials from the summed canonical balances, never from legacy product counters", () => {
+    expect(countMaterialsBelowMinimum(
+      [{ id: "cement", stock_minimo: 10 }, { id: "sand", stock_minimo: 5 }, { id: "brick", stock_minimo: 0 }],
+      [
+        { producto_id: "cement", quantity: 4 },
+        { producto_id: "cement", quantity: 5 },
+        { producto_id: "sand", quantity: 8 },
+      ],
+    )).toBe(2);
+  });
+
   it("reutiliza presupuesto, compras, avance y desvíos por obra", () => {
     const rows = buildPortfolioRows(
       [project()],
@@ -105,5 +117,14 @@ describe("portfolio dashboard calculations", () => {
       "productos-stock-critico",
       "certificados-pendientes",
     ]);
+  });
+
+  it("does not present failed canonical stock reads as zero or healthy", () => {
+    expect(buildPortfolioPanorama([], 0, 0, 0, true).stockSourceUnavailable).toBe(true);
+    expect(buildOperationalAttentionAlerts([], 0, 0, true)).toContainEqual(expect.objectContaining({
+      id: "stock-canonico-no-disponible",
+      href: "/inventario",
+      tone: "error",
+    }));
   });
 });

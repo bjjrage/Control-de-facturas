@@ -94,7 +94,7 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
         <Link href={`/stock/${producto.id}`} className="text-action text-[12px] text-[var(--muted)]">
           ← Volver a {producto.nombre}
         </Link>
-        <h1 className="text-[17px] font-semibold mt-1">Editar producto</h1>
+        <h1 className="text-[17px] font-semibold mt-1">Editar material</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 space-y-4">
@@ -139,7 +139,7 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
             </select>
           </div>
           <div>
-            <label className="block text-[12px] text-[var(--muted)] mb-1">SKU / Código</label>
+            <label className="block text-[12px] text-[var(--muted)] mb-1">Código (opcional)</label>
             <input
               type="text"
               value={sku}
@@ -206,7 +206,7 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
             placeholder="0"
             className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
           />
-          <p className="text-[11px] text-[var(--muted)] mt-1">Alerta cuando el stock baje de este valor</p>
+          <p className="text-[11px] text-[var(--muted)] mt-1">Umbral de alerta para el stock canónico.</p>
         </div>
 
         {error ? (

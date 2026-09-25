@@ -57,7 +57,6 @@ import { ProyectoPagosTable } from "./proyecto-pagos-table";
 import { ProyectoRfqsTable } from "./proyecto-rfqs-table";
 import { RfqDialog } from "@/app/(internal)/rfqs/rfq-dialog";
 import { ConsumoMaterialesSection, type ConsumoRow } from "./consumo-materiales-section";
-import { ProyectoStockSection, type StockProyectoRow } from "./proyecto-stock-section";
 import { InventarioObraSection, type StockObraRow, type ConsumoCanonicoRow } from "./inventario-obra-section";
 import { RecepcionesObraSection, type RecepcionRow } from "./recepciones-obra-section";
 import {
@@ -110,8 +109,6 @@ type Props = {
   projectSchedulePlans: ProjectSchedulePlan[];
   schedulePlanMonths: Record<string, ProjectSchedulePlanMonth[]>;
   consumo: ConsumoRow[];
-  stockProyecto: StockProyectoRow[];
-  panoles: { id: string; nombre: string }[];
   stockObra: StockObraRow[];
   consumoCanonico: ConsumoCanonicoRow[];
   budgetItemLabelById: Record<string, string>;
@@ -163,8 +160,6 @@ export function ProjectTabsClient({
   projectSchedulePlans,
   schedulePlanMonths,
   consumo,
-  stockProyecto,
-  panoles,
   stockObra,
   consumoCanonico,
   budgetItemLabelById: budgetItemLabelByIdRecord,
@@ -435,10 +430,6 @@ export function ProjectTabsClient({
 
       {tab === "pagos" ? (
         <ProyectoPagosTable rows={projectPaymentOrders} providerNameById={providerNameById} />
-      ) : null}
-
-      {tab === "stock" ? (
-        <ProyectoStockSection rows={stockProyecto} panoles={panoles} />
       ) : null}
 
       {tab === "inventario" ? (

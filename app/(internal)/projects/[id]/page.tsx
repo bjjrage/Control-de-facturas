@@ -274,25 +274,12 @@ export default async function ProjectDetailPage({
     }
   }
 
-  // Consumo de materiales desde stock (SALIDA imputada a esta obra)
-  const [{ data: consumoRows }, { data: stockProyectoRows }, { data: panolesRows }] = await Promise.all([
-    supabase
+  // Compatibility summary of legacy consumption records; physical stock is read only from the canonical inventory views below.
+  const { data: consumoRows } = await supabase
       .from("stock_consumo_obra")
       .select("budget_item_id, producto_id, producto, unidad, cantidad, costo_total")
       .eq("project_id", id)
-      .eq("empresa_id", empresaId),
-    supabase
-      .from("stock_por_proyecto")
-      .select("producto_id, producto, unidad, costo_promedio, qty_comprada, qty_consumida, qty_disponible, costo_comprado, costo_consumido")
-      .eq("project_id", id)
-      .eq("empresa_id", empresaId),
-    supabase
-      .from("depositos")
-      .select("id, nombre")
-      .eq("project_id", id)
-      .eq("empresa_id", empresaId)
-      .eq("activo", true),
-  ]);
+      .eq("empresa_id", empresaId);
   const consumo = (consumoRows ?? []) as {
     budget_item_id: string | null;
     producto_id: string;
@@ -745,8 +732,6 @@ export default async function ProjectDetailPage({
       projectSchedulePlans={projectSchedulePlans}
       schedulePlanMonths={schedulePlanMonths}
       consumo={consumo}
-      stockProyecto={(stockProyectoRows ?? []) as import("./proyecto-stock-section").StockProyectoRow[]}
-      panoles={(panolesRows ?? []) as { id: string; nombre: string }[]}
       stockObra={stockObra}
       consumoCanonico={consumoCanonico}
       budgetItemLabelById={Object.fromEntries(budgetItemLabelById)}

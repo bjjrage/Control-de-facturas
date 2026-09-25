@@ -22,6 +22,7 @@ export type PortfolioPanorama = {
   comprasRealizadasPyg: number;
   ordenesCompra: number;
   productosStockMinimo: number;
+  stockSourceUnavailable: boolean;
   certificadosPendientes: number;
   desviosCosto: number;
   desviosPlazo: number;
@@ -46,6 +47,20 @@ type ExecutionEntrySource = {
 };
 
 const ESTADO_PRIORITY: Record<PortfolioEstado, number> = { Riesgo: 0, Atención: 1, Normal: 2 };
+
+export function countMaterialsBelowMinimum(
+  materials: { id: string; stock_minimo: number }[],
+  canonicalBalances: { producto_id: string; quantity: number }[],
+): number {
+  const quantityByMaterial = new Map<string, number>();
+  for (const row of canonicalBalances) {
+    quantityByMaterial.set(row.producto_id, (quantityByMaterial.get(row.producto_id) ?? 0) + Number(row.quantity));
+  }
+  return materials.filter((material) => {
+    const quantity = quantityByMaterial.get(material.id) ?? 0;
+    return quantity <= 0 || (material.stock_minimo > 0 && quantity <= material.stock_minimo);
+  }).length;
+}
 
 function projectRowState(atrasoDias: number | null, comprasPct: number | null): PortfolioEstado {
   if ((atrasoDias !== null && atrasoDias > 15) || (comprasPct !== null && comprasPct > 115)) return "Riesgo";
@@ -113,6 +128,7 @@ export function buildPortfolioPanorama(
   productosStockMinimo: number,
   ordenesCompra = 0,
   certificadosPendientes = 0,
+  stockSourceUnavailable = false,
 ): PortfolioPanorama {
   const activeRows = rows.filter((row) => row.status === "ACTIVO");
   const carteraActivaPyg = activeRows.reduce((sum, row) => sum + row.presupuesto, 0);
@@ -130,6 +146,7 @@ export function buildPortfolioPanorama(
     comprasRealizadasPyg,
     ordenesCompra,
     productosStockMinimo,
+    stockSourceUnavailable,
     certificadosPendientes,
     desviosCosto: activeRows.filter((row) => row.comprasPct !== null && row.comprasPct > 100).length,
     desviosPlazo: activeRows.filter((row) => row.atrasoDias !== null).length,
@@ -150,6 +167,7 @@ export function buildOperationalAttentionAlerts(
   rows: PortfolioRow[],
   productosStockMinimo: number,
   certificadosPendientes: number,
+  stockSourceUnavailable = false,
 ): AttentionAlert[] {
   const alerts: AttentionAlert[] = [];
 
@@ -175,12 +193,21 @@ export function buildOperationalAttentionAlerts(
     });
   }
 
-  if (productosStockMinimo > 0) {
+  if (stockSourceUnavailable) {
+    alerts.push({
+      id: "stock-canonico-no-disponible",
+      label: "No se pudo verificar el stock canónico global",
+      count: 1,
+      href: "/inventario",
+      tone: "error",
+      category: "stock",
+    });
+  } else if (productosStockMinimo > 0) {
     alerts.push({
       id: "productos-stock-critico",
-      label: `${productosStockMinimo} productos bajo stock mínimo`,
+      label: `${productosStockMinimo} materiales bajo stock mínimo`,
       count: productosStockMinimo,
-      href: "/stock",
+      href: "/inventario",
       tone: "warn",
       category: "stock",
     });

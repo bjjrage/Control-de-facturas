@@ -100,6 +100,44 @@ describe("movimientos humanos de inventario", () => {
     });
   });
 
+  it("records opening stock as an idempotent canonical adjustment with its effective date", () => {
+    const movement = buildManualInventoryMovement(request({
+      movementType: "ADJUSTMENT",
+      quantity: 18,
+      fromLocationId: null,
+      toLocationId: centralId,
+      costCurrency: "PYG",
+      unitCost: 12500,
+      initialStockDate: "2026-09-01",
+      reason: "Carga inicial · inventario de apertura",
+    }), {
+      empresaId: companyId,
+      createdBy: userId,
+      unit: "bolsa",
+      projectId: null,
+    });
+
+    expect(movement).toMatchObject({
+      movementType: "ADJUSTMENT",
+      sourceType: "MANUAL",
+      sourceId: idempotencyKey,
+      idempotencyKey,
+      toLocationId: centralId,
+      metadata: {
+        reason_type: "INITIAL_STOCK",
+        effective_date: "2026-09-01",
+      },
+    });
+    expect(() => validateManualInventoryMovementRequest({
+      ...request({ movementType: "ADJUSTMENT", quantity: 2, fromLocationId: null, toLocationId: centralId, costCurrency: "PYG", unitCost: 1, reason: "Carga" }),
+      initialStockDate: "2026-02-30",
+    })).toThrow("fecha de carga inicial");
+    expect(() => validateManualInventoryMovementRequest({
+      ...request(),
+      initialStockDate: "2026-09-01",
+    })).toThrow("fecha de carga inicial");
+  });
+
   it("rejects malformed quantities, duplicate endpoints and missing adjustment reasons", () => {
     expect(() => validateManualInventoryMovementRequest(request({ quantity: 0.00001 }))).toThrow("4 decimales");
     expect(() => validateManualInventoryMovementRequest(request({ toLocationId: centralId }))).toThrow("distintas");
