@@ -31,9 +31,9 @@ export function ExecutionLinkDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="secondary">QR para el capataz</Button>
+        <Button variant="secondary">QR para Residente</Button>
       </DialogTrigger>
-      <DialogContent title="QR de avance para la obra">
+      <DialogContent title="QR para Residente">
         <div className="space-y-3">
           <div className="flex justify-center rounded-lg border border-[var(--border)] bg-white p-4">
             {qrDataUrl ? (
@@ -72,10 +72,8 @@ export function ExecutionLinkDialog({
           </div>
 
           <p className="text-[11px] text-[var(--muted)]">
-            Mandale el QR al capataz o residente (o imprimílo y pegalo en el obrador). Lo escanea una vez,
-            entra directo a cargar el parte de avance con fotos — sin login — y puede{" "}
-            <span className="text-[var(--foreground)]">agregarlo a la pantalla de inicio</span> para tenerlo
-            a mano. Es el mismo QR siempre.
+            El Residente puede registrar partes diarios de obra desde su celular. El formulario permite elegir
+            una partida, indicar cantidad, fecha, notas y fotos, sin iniciar sesión.
           </p>
         </div>
       </DialogContent>

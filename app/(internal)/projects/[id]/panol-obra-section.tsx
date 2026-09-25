@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import QRCode from "qrcode";
 import { CheckCircle2, Copy, ExternalLink, FileText, Loader2, Plus, RefreshCw, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -261,30 +262,60 @@ export function PanolObraSection({
   const router = useRouter();
   const [selectedLocationId, setSelectedLocationId] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
-  const [createdLink, setCreatedLink] = useState<{ url: string; token: string } | null>(null);
+  const [createdLink, setCreatedLink] = useState<{ url: string; locationId: string; locationName: string } | null>(null);
+  const [qrData, setQrData] = useState<{ url: string; dataUrl: string } | null>(null);
+  const [copied, setCopied] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const locationId = selectedLocationId || locations[0]?.id || "";
 
-  async function createLink() {
-    if (!locationId) {
+  useEffect(() => {
+    let cancelled = false;
+    if (!createdLink) return;
+    QRCode.toDataURL(createdLink.url, { width: 640, margin: 2, errorCorrectionLevel: "M" })
+      .then((dataUrl) => { if (!cancelled) setQrData({ url: createdLink.url, dataUrl }); })
+      .catch(() => { if (!cancelled) setQrData(null); });
+    return () => { cancelled = true; };
+  }, [createdLink]);
+  const qrDataUrl = createdLink && qrData?.url === createdLink.url ? qrData.dataUrl : null;
+
+  async function createLink(targetLocationId = locationId, expiresAtOverride: string | null = expiresAt, previousLinkId?: string) {
+    if (!targetLocationId) {
       setActionMessage("Primero creá una ubicación canónica de depósito para esta obra.");
       return;
     }
-    setPendingId("create-link");
-    setActionMessage(null);
-    const result = await createWarehousePortalLink(
-      locationId,
-      expiresAt ? new Date(expiresAt).toISOString() : null
-    );
-    setPendingId(null);
-    if (result.error || !result.url || !result.token) {
-      setActionMessage(result.error ?? "No se pudo crear el enlace.");
+    const parsedExpiry = expiresAtOverride ? new Date(expiresAtOverride) : null;
+    if (parsedExpiry && (!Number.isFinite(parsedExpiry.getTime()) || parsedExpiry.getTime() <= Date.now())) {
+      setActionMessage("La fecha de vencimiento debe ser futura para crear o regenerar el QR.");
       return;
     }
-    setCreatedLink({ url: result.url, token: result.token });
-    setActionMessage("Enlace creado. Copialo ahora: el token completo no se vuelve a mostrar.");
-    router.refresh();
+    setPendingId(previousLinkId ? `regenerate-${previousLinkId}` : "create-link");
+    setActionMessage(null);
+    try {
+      const result = await createWarehousePortalLink(
+        targetLocationId,
+        parsedExpiry?.toISOString() ?? null
+      );
+      if (result.error || !result.url || !result.token) {
+        setActionMessage(result.error ?? "No se pudo crear el enlace.");
+        return;
+      }
+      const targetLocation = locations.find((location) => location.id === targetLocationId);
+      setCreatedLink({ url: result.url, locationId: targetLocationId, locationName: targetLocation?.name ?? "Depósito de obra" });
+      if (previousLinkId) {
+        const revoked = await revokeWarehousePortalLink(previousLinkId);
+        setActionMessage(revoked.error
+          ? `El QR nuevo está listo, pero el enlace anterior sigue activo porque no se pudo revocar: ${revoked.error}`
+          : "QR regenerado. El enlace anterior quedó revocado.");
+      } else {
+        setActionMessage("QR creado. Descargalo o copialo ahora: el token completo no se vuelve a mostrar.");
+      }
+      router.refresh();
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : "No se pudo crear o regenerar el QR.");
+    } finally {
+      setPendingId(null);
+    }
   }
 
   async function createLocation() {
@@ -361,12 +392,12 @@ export function PanolObraSection({
           <div>
             <h3 className="text-sm font-semibold">Depósito de obra · acceso externo</h3>
             <p className="mt-1 max-w-3xl text-[12px] text-[var(--muted)]">
-              Generá un enlace para que el encargado envíe rendiciones y evidencia. El token se muestra una sola vez; revocá el enlace para cortar nuevos accesos.
+              El Depositero puede enviar rendiciones y evidencia desde su celular. El QR da acceso al portal de esta ubicación; podés revocarlo o generar uno nuevo.
             </p>
           </div>
-          <Button type="button" onClick={createLink} disabled={pendingId === "create-link" || locations.length === 0} className="h-9 px-3 text-xs">
+          <Button type="button" onClick={() => void createLink()} disabled={pendingId !== null || locations.length === 0} className="h-9 px-3 text-xs">
             {pendingId === "create-link" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Plus className="mr-1.5 h-3.5 w-3.5" />}
-            Crear enlace
+            QR para Depositero
           </Button>
         </div>
         {locations.length > 1 ? (
@@ -390,16 +421,32 @@ export function PanolObraSection({
           <input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} className="mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 text-xs text-[var(--foreground)]" />
         </label>
         {createdLink ? (
-          <div className="mt-4 break-all rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs">
-            <p className="font-medium text-emerald-700 dark:text-emerald-300">Enlace nuevo · copialo ahora</p>
-            <a href={createdLink.url} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-[var(--accent-teal)] underline">
+          <div className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs">
+            <p className="font-medium text-emerald-700 dark:text-emerald-300">QR nuevo · {createdLink.locationName}</p>
+            <div className="mt-3 flex justify-center rounded-lg border border-[var(--border)] bg-white p-3">
+              {qrDataUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={qrDataUrl} alt="QR para Depositero" className="h-52 w-52" />
+              ) : <div className="h-52 w-52 animate-pulse rounded bg-[var(--hover)]" />}
+            </div>
+            <a href={createdLink.url} target="_blank" rel="noreferrer" className="mt-3 inline-flex break-all items-center gap-1 text-[var(--accent-teal)] underline">
               {createdLink.url}<ExternalLink className="h-3 w-3 shrink-0" />
             </a>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Button type="button" onClick={() => void navigator.clipboard.writeText(createdLink.url)} className="h-8 px-2 text-[11px]">
-                <Copy className="mr-1 h-3 w-3" />Copiar enlace
+              {qrDataUrl ? (
+                <a href={qrDataUrl} download={`deposito-${createdLink.locationId.slice(0, 8)}.png`} className="inline-flex h-8 items-center rounded-md border border-[var(--border)] bg-[var(--panel)] px-2 text-[11px] font-medium hover:bg-[var(--hover)]">
+                  Descargar QR
+                </a>
+              ) : null}
+              <Button type="button" onClick={() => {
+                void navigator.clipboard.writeText(createdLink.url).then(() => {
+                  setCopied(true);
+                  window.setTimeout(() => setCopied(false), 2000);
+                }).catch(() => setActionMessage("El navegador no permitió copiar el enlace; podés seleccionarlo y copiarlo manualmente."));
+              }} className="h-8 px-2 text-[11px]">
+                <Copy className="mr-1 h-3 w-3" />{copied ? "Link copiado" : "Copiar link"}
               </Button>
-              <span className="text-[10px] text-[var(--muted)]">Token: {createdLink.token.slice(-6)} (solo pista)</span>
+              <span className="text-[10px] text-[var(--muted)]">Token mostrado una sola vez</span>
             </div>
           </div>
         ) : null}
@@ -409,8 +456,18 @@ export function PanolObraSection({
             {portalLinks.map((link) => {
               return (
                 <div key={link.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-[var(--border)] px-3 py-2 text-[11px]">
-                  <span>{link.location_name} ·••••{link.token_hint} · {expiryLabel(link.expires_at)} · {link.last_used_at ? `último uso ${formatDate(link.last_used_at)}` : "sin uso registrado"}</span>
-                  {link.active ? <Button type="button" variant="secondary" onClick={() => void revokeLink(link.id)} disabled={pendingId === link.id} className="h-7 px-2 text-[10px]">Revocar</Button> : <Badge tone="neutral">Revocado</Badge>}
+                  <span>{link.location_name} · {link.active ? "Activo" : "Inactivo"} ·••••{link.token_hint} · {expiryLabel(link.expires_at)} · {link.last_used_at ? `último uso ${formatDate(link.last_used_at)}` : "sin uso registrado"}</span>
+                  <div className="flex items-center gap-1.5">
+                    {link.active ? (
+                      <>
+                        <Button type="button" variant="secondary" onClick={() => void createLink(link.location_id, link.expires_at && new Date(link.expires_at).getTime() > Date.now() ? link.expires_at : null, link.id)} disabled={pendingId !== null} className="h-7 px-2 text-[10px]">
+                          {pendingId === `regenerate-${link.id}` ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1 h-3 w-3" />}
+                          Regenerar QR
+                        </Button>
+                        <Button type="button" variant="secondary" onClick={() => void revokeLink(link.id)} disabled={pendingId !== null} className="h-7 px-2 text-[10px]">Revocar</Button>
+                      </>
+                    ) : <Badge tone="neutral">Revocado</Badge>}
+                  </div>
                 </div>
               );
             })}

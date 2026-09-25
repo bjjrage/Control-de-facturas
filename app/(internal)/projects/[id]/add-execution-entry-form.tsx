@@ -42,7 +42,7 @@ export function AddExecutionEntryForm({
   if (!open) {
     return (
       <Button variant="secondary" onClick={() => setOpen(true)} disabled={eligible.length === 0}>
-        + Registrar avance
+        + Registrar parte diario
       </Button>
     );
   }

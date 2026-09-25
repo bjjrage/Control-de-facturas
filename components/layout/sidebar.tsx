@@ -596,7 +596,7 @@ export function Sidebar({
   function projectGroupIcon(label: string) {
     if (label === "Preparar") return ClipboardCheck;
     if (label === "Comprar") return ShoppingCart;
-    if (label === "Ejecutar") return PlayCircle;
+    if (label === "Avance de obra") return PlayCircle;
     if (label === "Certificar") return ShieldCheck;
     return LayoutDashboard;
   }
@@ -713,7 +713,7 @@ export function Sidebar({
             "nav-primary-base nav-primary w-full",
             group.label === "Preparar" && "nav-domain-preparar",
             group.label === "Comprar" && "nav-domain-compras",
-            group.label === "Ejecutar" && "nav-domain-ejecutar",
+            group.label === "Avance de obra" && "nav-domain-ejecutar",
             group.label === "Certificar" && "nav-domain-certificar",
             collapsed ? "justify-center px-0" : "justify-between px-2.5",
             isOpen || isActiveGroup

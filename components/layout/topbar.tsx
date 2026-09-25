@@ -17,7 +17,7 @@ const PROJECT_TAB_CONTEXT: Record<string, { group: string; label: string }> = Ob
   PROJECT_FEATURES.map(({ key, group, label }) => [key, { group, label }])
 );
 // Keep old bookmarks understandable without advertising this renderer as a canonical tab.
-PROJECT_TAB_CONTEXT.stock = { group: "Ejecutar", label: "Catálogo de materiales (legado)" };
+PROJECT_TAB_CONTEXT.stock = { group: "Avance de obra", label: "Catálogo de materiales (legado)" };
 
 const WORKSPACE_ITEMS: WorkspaceItem[] = [
   { key: "administracion", icon: Building2 },

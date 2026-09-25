@@ -1,6 +1,6 @@
 import type { UserRole } from "@/lib/types";
 
-export type ProjectFeatureGroup = "Preparar" | "Comprar" | "Ejecutar" | "Certificar";
+export type ProjectFeatureGroup = "Preparar" | "Comprar" | "Avance de obra" | "Certificar";
 export type ProjectFeaturePlan = "pro" | "caterpillar";
 
 export type ProjectFeatureKey =
@@ -50,12 +50,12 @@ export const PROJECT_FEATURES = [
   { key: "compras", label: "OC", group: "Comprar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "facturas", label: "Facturas", group: "Comprar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "pagos", label: "Pagos", group: "Comprar", minPlan: "pro", roles: PROJECT_ROLES },
-  { key: "ejecucion", label: "Ejecución", group: "Ejecutar", minPlan: "pro", roles: PROJECT_ROLES },
-  { key: "inventario", label: "Inventario", group: "Ejecutar", minPlan: "pro", roles: PROJECT_ROLES },
-  { key: "recepciones", label: "Recepciones", group: "Ejecutar", minPlan: "pro", roles: PROJECT_ROLES },
-  { key: "panol", label: "Depósito de obra", group: "Ejecutar", minPlan: "pro", roles: PROJECT_ROLES },
-  { key: "personal", label: "Personal", group: "Ejecutar", minPlan: "caterpillar", roles: PROJECT_ROLES },
-  { key: "subcontratistas", label: "Subcontratistas", group: "Ejecutar", minPlan: "caterpillar", roles: PROJECT_ROLES },
+  { key: "ejecucion", label: "Partes de avance", group: "Avance de obra", minPlan: "pro", roles: PROJECT_ROLES },
+  { key: "inventario", label: "Inventario", group: "Avance de obra", minPlan: "pro", roles: PROJECT_ROLES },
+  { key: "recepciones", label: "Recepciones", group: "Avance de obra", minPlan: "pro", roles: PROJECT_ROLES },
+  { key: "panol", label: "Depósito de obra", group: "Avance de obra", minPlan: "pro", roles: PROJECT_ROLES },
+  { key: "personal", label: "Personal", group: "Avance de obra", minPlan: "caterpillar", roles: PROJECT_ROLES },
+  { key: "subcontratistas", label: "Subcontratistas", group: "Avance de obra", minPlan: "caterpillar", roles: PROJECT_ROLES },
   { key: "certificados", label: "Certificados", group: "Certificar", minPlan: "caterpillar", roles: PROJECT_ROLES },
   { key: "avance-fisico", label: "Avance físico", group: "Certificar", minPlan: "caterpillar", roles: PROJECT_ROLES },
   { key: "informes", label: "Informes", group: "Certificar", minPlan: "pro", roles: PROJECT_ROLES },
@@ -76,7 +76,7 @@ export function getProjectFeature(key: ProjectFeatureKey): ProjectFeatureDefinit
 }
 
 export function getProjectFeatureGroups() {
-  return (["Preparar", "Comprar", "Ejecutar", "Certificar"] as const).map((label) => ({
+  return (["Preparar", "Comprar", "Avance de obra", "Certificar"] as const).map((label) => ({
     label,
     features: PROJECT_FEATURES.filter((feature) => feature.group === label),
   }));

@@ -144,7 +144,7 @@ export function AvanceForm({ token, budgetItems }: { token: string; budgetItems:
         disabled={pending}
         className="btn-primary w-full h-9 rounded-md text-[13px] disabled:opacity-50"
       >
-        {pending ? "Registrando…" : "Registrar avance"}
+        {pending ? "Registrando…" : "Registrar parte diario"}
       </button>
     </form>
   );
