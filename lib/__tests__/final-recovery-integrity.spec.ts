@@ -31,6 +31,10 @@ const certificateAction = readFileSync(
   resolve(process.cwd(), "app/(internal)/projects/certificado-actions.ts"),
   "utf8",
 );
+const workbookAction = readFileSync(
+  resolve(process.cwd(), "app/(internal)/projects/actions.ts"),
+  "utf8",
+);
 
 describe("final adversarial integrity guards", () => {
   let db: PGlite;
@@ -67,6 +71,8 @@ describe("final adversarial integrity guards", () => {
         project_id uuid,
         numero integer NOT NULL DEFAULT 1,
         notes text,
+        period_start date,
+        monto_presente numeric,
         updated_at timestamptz,
         elaborado_por uuid,
         elaborado_at timestamptz,
@@ -200,8 +206,8 @@ describe("final adversarial integrity guards", () => {
     await db.exec(`
       INSERT INTO public.projects VALUES
         ('00000000-0000-0000-0000-000000000061', '00000000-0000-0000-0000-000000000098');
-      INSERT INTO public.project_certificates (id, status, project_id, numero) VALUES
-        ('00000000-0000-0000-0000-000000000062', 'BORRADOR', '00000000-0000-0000-0000-000000000061', 1);
+      INSERT INTO public.project_certificates (id, status, project_id, numero, notes) VALUES
+        ('00000000-0000-0000-0000-000000000062', 'BORRADOR', '00000000-0000-0000-0000-000000000061', 1, 'preserve-me');
       UPDATE public.project_certificates
       SET status = 'ELABORADO', elaborado_por = '00000000-0000-0000-0000-000000000099',
           elaborado_at = now(), closed_at = now(),
@@ -272,11 +278,11 @@ describe("final adversarial integrity guards", () => {
         '00000000-0000-0000-0000-000000000062', 'APROBADO'
       )
     `);
-    const aprobadoResult = await db.query<{ status: string; aprobado_por: string | null; aprobado_at: string | null }>(`
-      SELECT status, aprobado_por, aprobado_at
+    const aprobadoResult = await db.query<{ status: string; aprobado_por: string | null; aprobado_at: string | null; notes: string }>(`
+      SELECT status, aprobado_por, aprobado_at, notes
       FROM public.project_certificates WHERE id = '00000000-0000-0000-0000-000000000062'
     `);
-    expect(aprobadoResult.rows[0]).toMatchObject({ status: "VERIFICADO", aprobado_por: null, aprobado_at: null });
+    expect(aprobadoResult.rows[0]).toMatchObject({ status: "VERIFICADO", aprobado_por: null, aprobado_at: null, notes: "preserve-me" });
 
     await db.exec(`
       UPDATE public.project_certificates
@@ -346,8 +352,18 @@ describe("final adversarial integrity guards", () => {
       WHERE id = '00000000-0000-0000-0000-000000000082';
       UPDATE public.project_certificates SET status = 'VERIFICADO'
       WHERE id = '00000000-0000-0000-0000-000000000082';
-      UPDATE public.project_certificates SET status = 'APROBADO'
-      WHERE id = '00000000-0000-0000-0000-000000000082';
+    `);
+
+    await expect(db.query(`
+      UPDATE public.project_certificates
+      SET status = 'APROBADO', aprobado_por = '00000000-0000-0000-0000-000000000099',
+          aprobado_at = now(), monto_presente = 999, period_start = '2026-01-01'
+      WHERE id = '00000000-0000-0000-0000-000000000082'
+    `)).rejects.toThrow(/transiciÃ³n de certificado no puede modificar otros datos/i);
+    await db.query(`
+      UPDATE public.project_certificates
+      SET status = 'APROBADO', aprobado_por = '00000000-0000-0000-0000-000000000099', aprobado_at = now()
+      WHERE id = '00000000-0000-0000-0000-000000000082'
     `);
 
     await expect(db.query(`
@@ -359,9 +375,13 @@ describe("final adversarial integrity guards", () => {
       WHERE id = '00000000-0000-0000-0000-000000000082'
     `)).rejects.toThrow(/identidad.*inmutables/i);
     await expect(db.query(`
-      UPDATE public.project_certificates SET status = 'FACTURADO', factura_numero = 'F-2', notes = 'alterado'
+      UPDATE public.project_certificates SET status = 'FACTURADO', factura_numero = 'F-2', facturado_at = now(), notes = 'alterado'
       WHERE id = '00000000-0000-0000-0000-000000000082'
     `)).rejects.toThrow(/puede modificar otros datos del certificado/i);
+    await expect(db.query(`
+      UPDATE public.project_certificates SET status = 'FACTURADO', factura_numero = 'F-2'
+      WHERE id = '00000000-0000-0000-0000-000000000082'
+    `)).rejects.toThrow(/requiere nÃºmero y fecha/i);
 
     await db.query(`
       UPDATE public.project_certificates
@@ -404,6 +424,10 @@ describe("final adversarial integrity guards", () => {
     `)).rejects.toThrow(/identidad.*inmutables/i);
     await expect(db.query(`
       UPDATE public.project_certificates SET numero = 2
+      WHERE id = '00000000-0000-0000-0000-000000000093'
+    `)).rejects.toThrow(/identidad.*inmutables/i);
+    await expect(db.query(`
+      UPDATE public.project_certificates SET id = '00000000-0000-0000-0000-000000000094'
       WHERE id = '00000000-0000-0000-0000-000000000093'
     `)).rejects.toThrow(/identidad.*inmutables/i);
   });
@@ -460,5 +484,14 @@ describe("final adversarial integrity guards", () => {
     expect(receiptAction).toContain('select("producto_id")');
     expect(receiptUi).toContain("hasUnmappedPortalItems");
     expect(receiptUi).toContain("disabled={confirming || hasUnmappedPortalItems}");
+
+    const workbookCertificateFlow = workbookAction.slice(
+      workbookAction.indexOf('if (result.candidate.certificate.status === "SAFE_TO_APPLY")'),
+      workbookAction.indexOf('} else if (result.candidate.certificate.status === "DETECTED_NOT_APPLIED")'),
+    );
+    expect(workbookCertificateFlow).toContain("const certificateWriter = await createClient();");
+    expect(workbookCertificateFlow).toContain('certificateWriter.from("project_certificates")');
+    expect(workbookCertificateFlow).toContain('certificateWriter.from("project_certificate_items")');
+    expect(workbookCertificateFlow).not.toContain('admin.from("project_certificates")');
   });
 });

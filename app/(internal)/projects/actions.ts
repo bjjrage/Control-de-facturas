@@ -208,8 +208,11 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
   const pending: { section: string; reason: string }[] = [];
   if (result.candidate.measurement.status === "DETECTED_NOT_APPLIED") pending.push({ section: "MEDICIÓN", reason: result.candidate.measurement.reason });
   if (result.candidate.certificate.status === "SAFE_TO_APPLY") {
+    // Keep certificate writes under the authenticated tenant context so the
+    // database creation guard can validate auth.uid(), role and company.
+    const certificateWriter = await createClient();
     const certificate = result.candidate.certificate;
-    const { data: header, error: headerError } = await admin
+    const { data: header, error: headerError } = await certificateWriter
       .from("project_certificates")
       .insert({
         project_id: project.id,
@@ -242,13 +245,13 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
       await rollback();
       return { error: "El certificado no pudo vincularse a todas las partidas canónicas; no se creó la obra." };
     }
-    const { error: linesError } = await admin.from("project_certificate_items").insert(lines);
+    const { error: linesError } = await certificateWriter.from("project_certificate_items").insert(lines);
     if (linesError) {
       await rollback();
       return { error: `No se creó la obra porque fallaron las líneas del certificado: ${linesError.message}` };
     }
     const { montoAnterior, montoPresente } = certificateTotals(lines);
-    const { error: totalsError } = await admin.from("project_certificates").update({ monto_anterior: montoAnterior, monto_presente: montoPresente }).eq("id", header.id).eq("project_id", project.id);
+    const { error: totalsError } = await certificateWriter.from("project_certificates").update({ monto_anterior: montoAnterior, monto_presente: montoPresente }).eq("id", header.id).eq("project_id", project.id);
     if (totalsError) {
       await rollback();
       return { error: `No se creó la obra porque no se pudieron calcular los totales del certificado: ${totalsError.message}` };

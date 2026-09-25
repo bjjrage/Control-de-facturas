@@ -14,6 +14,31 @@ BEGIN
     RAISE EXCEPTION 'La identidad, el proyecto y el número del certificado son inmutables';
   END IF;
 
+  -- Forward transitions may only update the signature/calculation fields
+  -- owned by that step; this blocks changing amounts or period while
+  -- approving a certificate in the same direct UPDATE.
+  IF OLD.status = 'BORRADOR' AND NEW.status = 'ELABORADO' THEN
+    IF (pg_catalog.to_jsonb(NEW) - ARRAY['status', 'elaborado_por', 'elaborado_at', 'closed_at',
+        'devolucion_anticipo_pct_snap', 'retencion_pct_snap', 'devolucion_anticipo', 'retencion', 'updated_at'])
+       IS DISTINCT FROM
+       (pg_catalog.to_jsonb(OLD) - ARRAY['status', 'elaborado_por', 'elaborado_at', 'closed_at',
+        'devolucion_anticipo_pct_snap', 'retencion_pct_snap', 'devolucion_anticipo', 'retencion', 'updated_at']) THEN
+      RAISE EXCEPTION 'La transiciÃ³n de certificado no puede modificar otros datos';
+    END IF;
+  ELSIF OLD.status = 'ELABORADO' AND NEW.status = 'VERIFICADO' THEN
+    IF (pg_catalog.to_jsonb(NEW) - ARRAY['status', 'verificado_por', 'verificado_at', 'updated_at'])
+       IS DISTINCT FROM
+       (pg_catalog.to_jsonb(OLD) - ARRAY['status', 'verificado_por', 'verificado_at', 'updated_at']) THEN
+      RAISE EXCEPTION 'La transiciÃ³n de certificado no puede modificar otros datos';
+    END IF;
+  ELSIF OLD.status = 'VERIFICADO' AND NEW.status = 'APROBADO' THEN
+    IF (pg_catalog.to_jsonb(NEW) - ARRAY['status', 'aprobado_por', 'aprobado_at', 'updated_at'])
+       IS DISTINCT FROM
+       (pg_catalog.to_jsonb(OLD) - ARRAY['status', 'aprobado_por', 'aprobado_at', 'updated_at']) THEN
+      RAISE EXCEPTION 'La transiciÃ³n de certificado no puede modificar otros datos';
+    END IF;
+  END IF;
+
   IF OLD.status NOT IN ('APROBADO', 'FACTURADO') THEN
     RETURN NEW;
   END IF;
@@ -29,6 +54,10 @@ BEGIN
   -- APROBADO -> FACTURADO is the forward workflow step. Only invoice metadata
   -- may accompany it; the existing status guard validates the transition.
   IF OLD.status = 'APROBADO' AND NEW.status = 'FACTURADO' THEN
+    IF NEW.factura_numero IS NULL OR pg_catalog.btrim(NEW.factura_numero) = ''
+       OR NEW.facturado_at IS NULL THEN
+      RAISE EXCEPTION 'Un certificado facturado requiere nÃºmero y fecha de factura';
+    END IF;
     IF (pg_catalog.to_jsonb(NEW) - ARRAY['status', 'factura_numero', 'facturado_at', 'updated_at'])
        IS DISTINCT FROM
        (pg_catalog.to_jsonb(OLD) - ARRAY['status', 'factura_numero', 'facturado_at', 'updated_at']) THEN
