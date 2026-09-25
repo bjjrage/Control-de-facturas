@@ -11,6 +11,10 @@ const transitionMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260925050829_certificate_status_transition_guard.sql"),
   "utf8",
 );
+const createMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260925052356_serialize_certificate_create_with_revert.sql"),
+  "utf8",
+);
 const receiptAction = readFileSync(
   resolve(process.cwd(), "app/(internal)/orders/oc-recepcion-actions.ts"),
   "utf8",
@@ -35,14 +39,22 @@ describe("final adversarial integrity guards", () => {
       CREATE ROLE service_role NOLOGIN;
       CREATE SCHEMA auth;
       CREATE TYPE public.user_role AS ENUM ('admin', 'administracion');
+      CREATE TABLE public.test_context (
+        singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
+        user_id uuid NOT NULL,
+        empresa_id uuid NOT NULL,
+        is_admin boolean NOT NULL
+      );
+      INSERT INTO public.test_context VALUES
+        (true, '00000000-0000-0000-0000-000000000099', '00000000-0000-0000-0000-000000000098', true);
       CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
-        SELECT '00000000-0000-0000-0000-000000000099'::uuid;
+        SELECT user_id FROM public.test_context WHERE singleton;
       $$;
       CREATE FUNCTION public.current_empresa_id() RETURNS uuid LANGUAGE sql STABLE AS $$
-        SELECT '00000000-0000-0000-0000-000000000098'::uuid;
+        SELECT empresa_id FROM public.test_context WHERE singleton;
       $$;
       CREATE FUNCTION public.is_internal_role(public.user_role[]) RETURNS boolean LANGUAGE sql STABLE AS $$
-        SELECT true;
+        SELECT is_admin FROM public.test_context WHERE singleton;
       $$;
       CREATE TABLE public.projects (id uuid PRIMARY KEY, empresa_id uuid NOT NULL);
       CREATE TABLE public.project_certificates (
@@ -81,6 +93,7 @@ describe("final adversarial integrity guards", () => {
     `);
     await db.exec(migration);
     await db.exec(transitionMigration);
+    await db.exec(createMigration);
   });
 
   afterEach(async () => {
@@ -89,7 +102,10 @@ describe("final adversarial integrity guards", () => {
 
   it("prevents deleting a closed certificate or its immutable lines", async () => {
     await db.exec(`
-      INSERT INTO public.project_certificates (id, status) VALUES ('00000000-0000-0000-0000-000000000001', 'BORRADOR');
+      INSERT INTO public.projects VALUES
+        ('00000000-0000-0000-0000-000000000010', '00000000-0000-0000-0000-000000000098');
+      INSERT INTO public.project_certificates (id, status, project_id, numero) VALUES
+        ('00000000-0000-0000-0000-000000000001', 'BORRADOR', '00000000-0000-0000-0000-000000000010', 1);
       INSERT INTO public.project_certificate_items VALUES
         ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001');
       UPDATE public.project_certificates SET status = 'ELABORADO'
@@ -116,7 +132,10 @@ describe("final adversarial integrity guards", () => {
 
   it("still permits deleting a draft certificate and cascading its lines", async () => {
     await db.exec(`
-      INSERT INTO public.project_certificates (id, status) VALUES ('00000000-0000-0000-0000-000000000011', 'BORRADOR');
+      INSERT INTO public.projects VALUES
+        ('00000000-0000-0000-0000-000000000020', '00000000-0000-0000-0000-000000000098');
+      INSERT INTO public.project_certificates (id, status, project_id, numero) VALUES
+        ('00000000-0000-0000-0000-000000000011', 'BORRADOR', '00000000-0000-0000-0000-000000000020', 1);
       INSERT INTO public.project_certificate_items VALUES
         ('00000000-0000-0000-0000-000000000012', '00000000-0000-0000-0000-000000000011');
     `);
@@ -132,7 +151,9 @@ describe("final adversarial integrity guards", () => {
       INSERT INTO public.projects VALUES
         ('00000000-0000-0000-0000-000000000041', '00000000-0000-0000-0000-000000000098');
       INSERT INTO public.project_certificates (id, status, project_id, numero) VALUES
-        ('00000000-0000-0000-0000-000000000042', 'ELABORADO', '00000000-0000-0000-0000-000000000041', 1);
+        ('00000000-0000-0000-0000-000000000042', 'BORRADOR', '00000000-0000-0000-0000-000000000041', 1);
+      UPDATE public.project_certificates SET status = 'ELABORADO'
+      WHERE id = '00000000-0000-0000-0000-000000000042';
     `);
 
     const { rows } = await db.query<{ status: string }>(`
@@ -147,8 +168,10 @@ describe("final adversarial integrity guards", () => {
     await db.exec(`
       INSERT INTO public.projects VALUES
         ('00000000-0000-0000-0000-000000000051', '00000000-0000-0000-0000-000000000052');
+      ALTER TABLE public.project_certificates DISABLE TRIGGER trg_guard_project_certificate_create;
       INSERT INTO public.project_certificates (id, status, project_id, numero) VALUES
         ('00000000-0000-0000-0000-000000000053', 'ELABORADO', '00000000-0000-0000-0000-000000000051', 1);
+      ALTER TABLE public.project_certificates ENABLE TRIGGER trg_guard_project_certificate_create;
     `);
 
     await expect(db.query(`
@@ -156,6 +179,145 @@ describe("final adversarial integrity guards", () => {
         '00000000-0000-0000-0000-000000000053', 'ELABORADO'
       )
     `)).rejects.toThrow(/no encontrado para la empresa/i);
+  });
+
+  it("checks role and expected state, then clears only the signature being reverted", async () => {
+    await db.exec(`
+      INSERT INTO public.projects VALUES
+        ('00000000-0000-0000-0000-000000000061', '00000000-0000-0000-0000-000000000098');
+      INSERT INTO public.project_certificates (id, status, project_id, numero) VALUES
+        ('00000000-0000-0000-0000-000000000062', 'BORRADOR', '00000000-0000-0000-0000-000000000061', 1);
+      UPDATE public.project_certificates
+      SET status = 'ELABORADO', elaborado_por = '00000000-0000-0000-0000-000000000099',
+          elaborado_at = now(), closed_at = now(),
+          devolucion_anticipo_pct_snap = 30, retencion_pct_snap = 5
+      WHERE id = '00000000-0000-0000-0000-000000000062';
+    `);
+
+    await db.exec(`UPDATE public.test_context SET is_admin = false WHERE singleton`);
+    await expect(db.query(`
+      SELECT public.revert_project_certificate_status_atomically(
+        '00000000-0000-0000-0000-000000000062', 'ELABORADO'
+      )
+    `)).rejects.toThrow(/solo administración/i);
+    await db.exec(`UPDATE public.test_context SET is_admin = true WHERE singleton`);
+
+    await expect(db.query(`
+      SELECT public.revert_project_certificate_status_atomically(
+        '00000000-0000-0000-0000-000000000062', 'VERIFICADO'
+      )
+    `)).rejects.toThrow(/cambió de estado/i);
+    await db.query(`
+      SELECT public.revert_project_certificate_status_atomically(
+        '00000000-0000-0000-0000-000000000062', 'ELABORADO'
+      )
+    `);
+    const elaboradoResult = await db.query<{ status: string; elaborado_at: string | null; closed_at: string | null; devolucion_anticipo_pct_snap: number | null; retencion_pct_snap: number | null }>(`
+      SELECT status, elaborado_at, closed_at, devolucion_anticipo_pct_snap, retencion_pct_snap
+      FROM public.project_certificates WHERE id = '00000000-0000-0000-0000-000000000062'
+    `);
+    expect(elaboradoResult.rows[0]).toMatchObject({
+      status: "BORRADOR",
+      elaborado_at: null,
+      closed_at: null,
+      devolucion_anticipo_pct_snap: null,
+      retencion_pct_snap: null,
+    });
+
+    await db.exec(`
+      UPDATE public.project_certificates
+      SET status = 'ELABORADO', elaborado_por = '00000000-0000-0000-0000-000000000099', elaborado_at = now(), closed_at = now()
+      WHERE id = '00000000-0000-0000-0000-000000000062';
+      UPDATE public.project_certificates
+      SET status = 'VERIFICADO', verificado_por = '00000000-0000-0000-0000-000000000099', verificado_at = now()
+      WHERE id = '00000000-0000-0000-0000-000000000062';
+    `);
+    await db.query(`
+      SELECT public.revert_project_certificate_status_atomically(
+        '00000000-0000-0000-0000-000000000062', 'VERIFICADO'
+      )
+    `);
+    const verificadoResult = await db.query<{ status: string; verificado_por: string | null; verificado_at: string | null }>(`
+      SELECT status, verificado_por, verificado_at
+      FROM public.project_certificates WHERE id = '00000000-0000-0000-0000-000000000062'
+    `);
+    expect(verificadoResult.rows[0]).toMatchObject({ status: "ELABORADO", verificado_por: null, verificado_at: null });
+
+    await db.exec(`
+      UPDATE public.project_certificates
+      SET status = 'VERIFICADO', verificado_por = '00000000-0000-0000-0000-000000000099', verificado_at = now()
+      WHERE id = '00000000-0000-0000-0000-000000000062';
+      UPDATE public.project_certificates
+      SET status = 'APROBADO', aprobado_por = '00000000-0000-0000-0000-000000000099', aprobado_at = now()
+      WHERE id = '00000000-0000-0000-0000-000000000062';
+    `);
+    await db.query(`
+      SELECT public.revert_project_certificate_status_atomically(
+        '00000000-0000-0000-0000-000000000062', 'APROBADO'
+      )
+    `);
+    const aprobadoResult = await db.query<{ status: string; aprobado_por: string | null; aprobado_at: string | null }>(`
+      SELECT status, aprobado_por, aprobado_at
+      FROM public.project_certificates WHERE id = '00000000-0000-0000-0000-000000000062'
+    `);
+    expect(aprobadoResult.rows[0]).toMatchObject({ status: "VERIFICADO", aprobado_por: null, aprobado_at: null });
+
+    await db.exec(`
+      UPDATE public.project_certificates
+      SET status = 'APROBADO', aprobado_por = '00000000-0000-0000-0000-000000000099', aprobado_at = now()
+      WHERE id = '00000000-0000-0000-0000-000000000062';
+      UPDATE public.project_certificates
+      SET status = 'FACTURADO', facturado_at = now(), factura_numero = 'F-1'
+      WHERE id = '00000000-0000-0000-0000-000000000062';
+    `);
+    await db.query(`
+      SELECT public.revert_project_certificate_status_atomically(
+        '00000000-0000-0000-0000-000000000062', 'FACTURADO'
+      )
+    `);
+    const facturadoResult = await db.query<{ status: string; facturado_at: string | null; factura_numero: string | null }>(`
+      SELECT status, facturado_at, factura_numero
+      FROM public.project_certificates WHERE id = '00000000-0000-0000-0000-000000000062'
+    `);
+    expect(facturadoResult.rows[0]).toMatchObject({ status: "APROBADO", facturado_at: null, factura_numero: null });
+  });
+
+  it("serializes new certificates with rollback and enforces the latest approved predecessor", async () => {
+    await db.exec(`
+      INSERT INTO public.projects VALUES
+        ('00000000-0000-0000-0000-000000000071', '00000000-0000-0000-0000-000000000098');
+      INSERT INTO public.project_certificates (id, status, project_id, numero) VALUES
+        ('00000000-0000-0000-0000-000000000072', 'BORRADOR', '00000000-0000-0000-0000-000000000071', 1);
+    `);
+
+    await expect(db.query(`
+      INSERT INTO public.project_certificates (id, status, project_id, numero) VALUES
+        ('00000000-0000-0000-0000-000000000073', 'BORRADOR', '00000000-0000-0000-0000-000000000071', 2)
+    `)).rejects.toThrow(/certificado anterior debe estar aprobado/i);
+
+    await db.exec(`
+      UPDATE public.project_certificates SET status = 'ELABORADO'
+      WHERE id = '00000000-0000-0000-0000-000000000072';
+      UPDATE public.project_certificates SET status = 'VERIFICADO'
+      WHERE id = '00000000-0000-0000-0000-000000000072';
+      UPDATE public.project_certificates SET status = 'APROBADO'
+      WHERE id = '00000000-0000-0000-0000-000000000072';
+    `);
+
+    await expect(db.query(`
+      INSERT INTO public.project_certificates (id, status, project_id, numero) VALUES
+        ('00000000-0000-0000-0000-000000000074', 'BORRADOR', '00000000-0000-0000-0000-000000000071', 3)
+    `)).rejects.toThrow(/número del certificado cambió/i);
+    await db.query(`
+      INSERT INTO public.project_certificates (id, status, project_id, numero) VALUES
+        ('00000000-0000-0000-0000-000000000075', 'BORRADOR', '00000000-0000-0000-0000-000000000071', 2)
+    `);
+
+    await expect(db.query(`
+      SELECT public.revert_project_certificate_status_atomically(
+        '00000000-0000-0000-0000-000000000072', 'APROBADO'
+      )
+    `)).rejects.toThrow(/certificado posterior que depende/i);
   });
 
   it("requires every external portal receipt line to map before confirmation", async () => {
@@ -200,6 +362,9 @@ describe("final adversarial integrity guards", () => {
     expect(migration).toContain("BEFORE UPDATE OF status ON public.oc_recepciones");
     expect(transitionMigration).toContain("BEFORE UPDATE OF status ON public.project_certificates");
     expect(transitionMigration).toContain("revert_project_certificate_status_atomically");
+    expect(createMigration).toContain("BEFORE INSERT ON public.project_certificates");
+    expect(createMigration).toContain("FOR UPDATE");
+    expect(createMigration).toContain("revert_project_certificate_status_atomically");
     expect(certificateAction).toContain('"revert_project_certificate_status_atomically"');
     expect(receiptAction).toContain('receipt.idempotency_key.startsWith("receipt-portal:")');
     expect(receiptAction).toContain('select("producto_id")');
