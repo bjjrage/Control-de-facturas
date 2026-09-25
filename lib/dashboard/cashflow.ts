@@ -54,6 +54,11 @@ function addDays(isoOrDate: string | Date, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+function localDate(isoDate: string): Date {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
 /**
  * Cruza las fuentes financieras existentes (cobros pendientes, certificados de obra,
  * facturas de compra y gastos recurrentes) dentro de la ventana de 30 días,
@@ -137,14 +142,17 @@ export function build30DayCashflowItems(params: {
   }
 
   // 4. Gastos recurrentes proyectados para los próximos 30 días
-  const finDate = new Date(ventanaFinIso);
+  const finDate = localDate(ventanaFinIso);
+  finDate.setDate(finDate.getDate() + 1);
+  const desde = localDate(todayIso);
   for (const g of gastos.filter((x) => x.activo)) {
     const ocurrencias = ocurrenciasGastoRecurrente(
       g.monto_estimado,
       g.periodicidad,
       g.dia_del_mes,
       g.proximo_vencimiento,
-      finDate
+      finDate,
+      desde
     );
     for (const oc of ocurrencias) {
       if (oc.fecha > ventanaFinIso) continue;

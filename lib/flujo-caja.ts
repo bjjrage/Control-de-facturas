@@ -173,7 +173,8 @@ export function ocurrenciasGastoRecurrente(
   periodicidad: string,
   diaDelMes: number | null,
   proximoVencimiento: string | null,
-  hasta: Date
+  hasta: Date,
+  desde: Date = new Date()
 ): { fecha: string; monto: number }[] {
   const pasoMeses: Record<string, number> = {
     MENSUAL: 1,
@@ -183,7 +184,7 @@ export function ocurrenciasGastoRecurrente(
     ANUAL: 12,
   };
   const paso = pasoMeses[periodicidad] ?? 1;
-  const hoy = new Date();
+  const hoy = new Date(desde);
   hoy.setHours(0, 0, 0, 0);
 
   let cursor: Date;

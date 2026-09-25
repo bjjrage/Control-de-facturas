@@ -11,7 +11,8 @@ describe("dashboard workspace separation", () => {
     expect(source).not.toContain('from("licitaciones")');
     expect(source).not.toContain('from("licitacion_documentos")');
     expect(source).not.toContain('from("empresa_documentos")');
-    expect(source).not.toContain('from("project_certificates")');
+    // Project certificates are a cashflow input, not the operational portfolio.
+    expect(source).toContain('from("project_certificates")');
     expect(source).not.toContain('from("projects")');
     expect(source).not.toContain('from("budget_items")');
     expect(source).not.toContain('from("execution_entries")');
