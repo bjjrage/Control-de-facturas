@@ -6,6 +6,7 @@ import { CheckCircle2, Copy, ExternalLink, FileText, Loader2, Plus, RefreshCw, X
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/format";
+import { canConfirmWarehouseSubmission } from "@/lib/inventory/warehouse-submission-ui";
 import {
   confirmCanonicalWarehouseSubmission,
   createInventoryLocation,
@@ -402,9 +403,11 @@ export function PanolObraSection({
         {submissions.length === 0 ? (
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 text-[13px] text-[var(--muted)]">Esta obra todavía no tiene rendiciones de materiales.</div>
         ) : submissions.map((submission) => {
-          const canConfirm = ["READY", "NEEDS_REVIEW"].includes(submission.status)
-            && !submission.upload_incomplete
-            && submission.lines.every((line) => line.state !== "PROPOSED");
+          const canConfirm = canConfirmWarehouseSubmission({
+            status: submission.status,
+            uploadIncomplete: submission.upload_incomplete,
+            lineStates: submission.lines.map((line) => line.state),
+          });
           const locked = submission.status === "CONFIRMED" || submission.status === "VOIDED";
           return (
             <article key={submission.id} className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)]">
@@ -445,7 +448,7 @@ export function PanolObraSection({
               <div className="space-y-2 p-3">
                 {submission.lines.map((line) => <SubmissionLineEditor key={`${submission.id}:${line.id}`} line={line} products={products} budgetItems={budgetItems} disabled={locked || submission.status === "PROCESSING"} />)}
                 {submission.lines.length === 0 ? <p className="text-[11px] text-[var(--muted)]">No hay líneas propuestas. Procesá la planilla o revisá la evidencia antes de confirmar.</p> : null}
-                {!canConfirm && !locked ? <p className="flex items-center gap-1 text-[10px] text-[var(--muted)]"><XCircle className="h-3 w-3" />Confirmación disponible cuando la rendición esté lista, los archivos estén completos y no queden líneas pendientes.</p> : null}
+                {!canConfirm && !locked ? <p className="flex items-center gap-1 text-[10px] text-[var(--muted)]"><XCircle className="h-3 w-3" />Confirmación disponible cuando la rendición esté lista, los archivos completos y haya al menos una línea aceptada sin propuestas pendientes.</p> : null}
               </div>
             </article>
           );

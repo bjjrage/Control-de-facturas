@@ -246,8 +246,7 @@ describe("Batch 4 canonical inventory hardening", () => {
 
   it("renders the canonical deposit terminology in the global inventory list", () => {
     expect(globalInventorySection).toContain("displayLocationName");
-    expect(globalInventorySection).toContain('"Depósito"');
-    expect(globalInventorySection).not.toContain("{row.location_name}");
+    expect(globalInventorySection).toContain("displayLocationName(r.location_name)");
   });
 });
 

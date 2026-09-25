@@ -27,6 +27,7 @@ import {
   ClimateEvidence,
 } from "@/lib/types";
 import { getProjectInventorySnapshot, getBudgetInventoryConsumption } from "@/lib/inventory/service";
+import { displayLocationName } from "@/lib/inventory/display-location-name";
 import {
   canAccessProjectFeature,
   getProjectFeature,
@@ -329,11 +330,11 @@ export default async function ProjectDetailPage({
   ]);
   const stockObra = inventorySnapshot.data as import("./inventario-obra-section").StockObraRow[];
   const consumoCanonico = budgetConsumption.data as import("./inventario-obra-section").ConsumoCanonicoRow[];
-  const locationNameById = new Map((obraLocations ?? []).map((l) => [l.id as string, l.name as string]));
+  const locationNameById = new Map((obraLocations ?? []).map((l) => [l.id as string, displayLocationName(l.name as string)]));
   const obraLocationIds = (obraLocations ?? []).map((l) => l.id as string);
   const warehouseLocations = (obraLocations ?? [])
     .filter((location) => location.location_type === "PROJECT" && location.active === true)
-    .map((location) => ({ id: location.id as string, name: location.name as string }));
+    .map((location) => ({ id: location.id as string, name: displayLocationName(location.name as string) }));
   const warehouseProducts = warehouseProductRows ?? [];
 
   const { data: portalLinkRows } = obraLocationIds.length > 0

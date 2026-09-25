@@ -6,6 +6,7 @@ import type {
   ManualMovementLocationOption,
   ManualMovementProductOption,
 } from "@/lib/inventory/manual";
+import { displayLocationName } from "@/lib/inventory/display-location-name";
 import type { CurrencyCode } from "@/lib/types";
 import { NuevoMovimientoDialog } from "./nuevo-movimiento-dialog";
 
@@ -29,13 +30,6 @@ const LOCATION_TYPE_LABEL: Record<LocationRow["location_type"], string> = {
   PROJECT: "Obra",
   AUXILIARY: "Auxiliar",
 };
-
-function displayLocationName(name: string) {
-  return name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/panol(es)?/gi, (match) => match.toLowerCase().endsWith("es") ? "Depósitos" : "Depósito");
-}
 
 // Resumen de inventario global — dominio canónico certificado
 // (inventory_balances / 0080_inventory_panol.sql). El "disponible" acá viene

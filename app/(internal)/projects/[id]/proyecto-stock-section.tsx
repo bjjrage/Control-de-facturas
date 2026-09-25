@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { formatMoney, formatNumber } from "@/lib/format";
+import { displayLocationName } from "@/lib/inventory/display-location-name";
 
 export type StockProyectoRow = {
   producto_id: string;
@@ -32,7 +33,7 @@ export function ProyectoStockSection({
     <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] px-4 py-3 flex items-center justify-between gap-4">
       <div className="text-[13px]">
         <span className="text-[11px] text-[var(--muted)] block mb-0.5">Depósito vinculado</span>
-        <span className="font-medium">{panoles.map((p) => p.nombre).join(", ")}</span>
+        <span className="font-medium">{panoles.map((p) => displayLocationName(p.nombre)).join(", ")}</span>
       </div>
       <Link href="/stock" className="text-action text-[12px] shrink-0">
         Ver stock global →
