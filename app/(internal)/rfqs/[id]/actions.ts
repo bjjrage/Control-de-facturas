@@ -58,110 +58,48 @@ export async function selectAndAuthorizeOffer(params: {
 }) {
   const profile = await requireProfile(["comercial", "admin"]);
   const supabase = await createClient();
+  const { data: authorizedOrderId, error } = await supabase.rpc("select_and_authorize_offer_atomically", {
+    p_empresa_id: profile.empresa_id,
+    p_actor_id: profile.id,
+    p_rfq_id: params.rfqId,
+    p_rfq_provider_id: params.rfqProviderId,
+    p_quote_version_id: params.quoteVersionId,
+    p_selection_reason: params.selectionReason,
+    p_selection_reason_detail: params.selectionReasonDetail,
+  });
+  if (error) return { error: error.message };
+  if (!authorizedOrderId) return { error: "No se recibió confirmación de la orden autorizada." };
 
-  const { data: rfq, error: rfqError } = await supabase
-    .from("rfqs")
-    .select("*")
-    .eq("id", params.rfqId)
-    .single();
-  if (rfqError || !rfq) return { error: "Solicitud no encontrada." };
-  if (!["COTIZANDO", "OFERTAS_RECIBIDAS"].includes(rfq.status)) {
-    return { error: "Esta solicitud ya tiene una oferta autorizada o fue cerrada." };
+  const [{ data: rfq }, { data: authorizedOrder }] = await Promise.all([
+    supabase
+      .from("rfqs")
+      .select("project_id, status, selected_rfq_provider_id")
+      .eq("id", params.rfqId)
+      .eq("empresa_id", profile.empresa_id)
+      .maybeSingle(),
+    supabase
+      .from("authorized_orders")
+      .select("id, rfq_id, quote_version_id")
+      .eq("id", authorizedOrderId)
+      .eq("rfq_id", params.rfqId)
+      .eq("empresa_id", profile.empresa_id)
+      .maybeSingle(),
+  ]);
+  if (!rfq || rfq.status !== "AUTORIZADO" || rfq.selected_rfq_provider_id !== params.rfqProviderId
+      || !authorizedOrder || authorizedOrder.quote_version_id !== params.quoteVersionId) {
+    return { error: "La autorización se guardó, pero no se pudo confirmar su lectura. Reintentá para verificar el resultado." };
   }
-
-  const { data: rfqProvider } = await supabase
-    .from("rfq_providers")
-    .select("*, providers(name)")
-    .eq("id", params.rfqProviderId)
-    .single();
-  if (!rfqProvider) return { error: "Proveedor no encontrado en esta solicitud." };
-
-  const { data: quoteVersion } = await supabase
-    .from("quote_versions")
-    .select("*")
-    .eq("id", params.quoteVersionId)
-    .single();
-  if (!quoteVersion) return { error: "CotizaciÃ³n no encontrada." };
-
-  const { data: allResponded } = await supabase
-    .from("rfq_providers")
-    .select("id, quotes(quote_versions(currency, total_price, version_number))")
-    .eq("rfq_id", params.rfqId);
-
-  // Supabase devuelve las relaciones anidadas como objeto o array segÃºn cÃ³mo
-  // infiera la cardinalidad, asÃ­ que normalizamos todo a array antes de iterar.
-  const toArray = <T,>(v: T | T[] | null | undefined): T[] =>
-    Array.isArray(v) ? v : v ? [v] : [];
-
-  type QuoteVersionRow = { currency: string; total_price: number; version_number: number };
-
-  let isCheapest = true;
-  for (const rp of allResponded ?? []) {
-    const quotes = toArray(
-      (rp as unknown as { quotes: { quote_versions: QuoteVersionRow | QuoteVersionRow[] } | { quote_versions: QuoteVersionRow | QuoteVersionRow[] }[] | null }).quotes,
-    );
-    for (const q of quotes) {
-      const versions = toArray(q.quote_versions);
-      if (versions.length === 0) continue;
-      const latest = versions.reduce((a, b) => (b.version_number > a.version_number ? b : a));
-      if (
-        rp.id !== params.rfqProviderId &&
-        latest.currency === quoteVersion.currency &&
-        latest.total_price < quoteVersion.total_price
-      ) {
-        isCheapest = false;
-      }
-    }
-  }
-
-  if (!isCheapest && !params.selectionReason) {
-    return { error: "Esta no es la oferta mÃ¡s econÃ³mica: indicÃ¡ el motivo de selecciÃ³n." };
-  }
-
-  const { data: order, error: orderError } = await supabase
-    .from("authorized_orders")
-    .insert({
-      rfq_id: rfq.id,
-      provider_id: rfqProvider.provider_id,
-      quote_version_id: quoteVersion.id,
-      // code omitido → el trigger set_order_code() genera 'OC-YYYY-NNNN' automáticamente
-      created_from: "rfq",
-      provider_name: (rfqProvider as unknown as { providers: { name: string } }).providers.name,
-      product: rfq.product,
-      quantity: rfq.quantity,
-      unit: rfq.unit,
-      unit_price: quoteVersion.unit_price,
-      total_price: quoteVersion.total_price,
-      currency: quoteVersion.currency,
-      vat_included: quoteVersion.vat_included,
-      authorized_by: profile.id,
-      is_cheapest: isCheapest,
-      selection_reason: isCheapest ? null : params.selectionReason,
-      selection_reason_detail: params.selectionReasonDetail,
-      project_id: rfq.project_id ?? null,
-    })
-    .select("id")
-    .single();
-
-  if (orderError || !order) return { error: orderError?.message ?? "No se pudo autorizar la orden." };
-
-  await supabase
-    .from("rfqs")
-    .update({ status: "AUTORIZADO", selected_rfq_provider_id: params.rfqProviderId })
-    .eq("id", rfq.id);
-
   await logAudit(supabase, {
     action: "rfq.offer_authorized",
-    rfqId: rfq.id,
+    rfqId: params.rfqId,
     rfqProviderId: params.rfqProviderId,
-    authorizedOrderId: order.id,
-    detail: { is_cheapest: isCheapest },
+    authorizedOrderId,
+    detail: { atomic_rpc: true },
   });
-
-  revalidatePath(`/rfqs/${rfq.id}`);
+  revalidatePath(`/rfqs/${params.rfqId}`);
   revalidatePath("/orders");
-  if (rfq.project_id) revalidatePath(`/projects/${rfq.project_id}`);
-  return { error: null };
+  if (rfq?.project_id) revalidatePath(`/projects/${rfq.project_id}`);
+  return { error: null, authorizedOrderId };
 }
 
 export async function cancelRfq(rfqId: string) {

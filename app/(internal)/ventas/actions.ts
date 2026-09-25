@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { requireModule } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 import { lineTotal, docSaldo } from "@/lib/sales";
 import { SalesDocType, SalesDocument, SalesDocumentItem, ReceiptMethod } from "@/lib/types";
 import { revalidatePath } from "next/cache";
@@ -219,44 +220,18 @@ export async function addReceipt(docId: string, formData: FormData) {
     p_created_by: profile.id,
   });
 
-  if (atomicErr) {
-    if (atomicErr.message?.includes("function") && atomicErr.message?.includes("does not exist")) {
-      // Fallback si la migración aún no corrió en la base remota
-      const { data: receipt, error } = await supabase
-        .from("sales_receipts")
-        .insert({
-          sales_document_id: docId,
-          amount,
-          receipt_date: receiptDate,
-          method,
-          reference,
-          notes,
-          cuenta_id: cuentaId,
-          created_by: profile.id,
-        })
-        .select("id")
-        .single();
-      if (error) return { error: error.message };
+  if (atomicErr) return { error: atomicErr.message };
+  if (!atomicReceiptId) return { error: "No se pudo confirmar la creación del cobro." };
 
-      if (cuentaId && receipt) {
-        const { error: movErr } = await supabase.rpc("registrar_movimiento_tesoreria", {
-          p_empresa_id: profile.empresa_id,
-          p_cuenta_id: cuentaId,
-          p_monto: amount,
-          p_tipo: "COBRO",
-          p_fecha: receiptDate,
-          p_motivo: `Cobro documento`,
-          p_sales_receipt_id: receipt.id,
-          p_created_by: profile.id,
-          p_permitir_negativo: true,
-        });
-        if (movErr) {
-          return { error: `Cobro registrado, pero no se pudo asentar en tesorería: ${movErr.message}` };
-        }
-      }
-    } else {
-      return { error: atomicErr.message };
-    }
+  const { data: persistedReceipt, error: readError } = await supabase
+    .from("sales_receipts")
+    .select("id")
+    .eq("id", atomicReceiptId)
+    .eq("empresa_id", profile.empresa_id)
+    .eq("sales_document_id", docId)
+    .maybeSingle();
+  if (readError || !persistedReceipt) {
+    return { error: "El cobro se registró, pero no se pudo verificar su lectura posterior." };
   }
 
   revalidatePath("/ventas");
@@ -266,32 +241,32 @@ export async function addReceipt(docId: string, formData: FormData) {
   return { error: null };
 }
 
-export async function deleteReceipt(receiptId: string, docId: string) {
+export async function reverseReceipt(receiptId: string, docId: string) {
   const profile = await requireModule("ventas", ["administracion", "admin"]);
   const supabase = await createClient();
+  const { data: reversedReceiptId, error } = await supabase.rpc("revertir_cobro_atomico", {
+    p_empresa_id: profile.empresa_id,
+    p_sales_receipt_id: receiptId,
+    p_reversal_reason: "Reversión manual solicitada desde el detalle de ventas",
+    p_created_by: profile.id,
+  });
+  if (error) return { error: error.message };
 
-  // Si el cobro asentó un movimiento en tesorería, lo revertimos con un
-  // contra-movimiento (el libro es append-only).
-  const { data: mov } = await supabase
-    .from("movimientos_tesoreria")
-    .select("id, cuenta_id, monto")
-    .eq("sales_receipt_id", receiptId)
-    .maybeSingle<{ id: string; cuenta_id: string; monto: number }>();
-
-  if (mov) {
-    await supabase.rpc("registrar_movimiento_tesoreria", {
-      p_empresa_id: profile.empresa_id,
-      p_cuenta_id: mov.cuenta_id,
-      p_monto: -mov.monto,
-      p_tipo: "AJUSTE",
-      p_motivo: "Reversa: cobro eliminado",
-      p_created_by: profile.id,
-      p_permitir_negativo: true,
-    });
+  const { data: persistedReceipt, error: readError } = await supabase
+    .from("sales_receipts")
+    .select("id, reversed_at")
+    .eq("id", reversedReceiptId ?? receiptId)
+    .eq("empresa_id", profile.empresa_id)
+    .eq("sales_document_id", docId)
+    .maybeSingle();
+  if (readError || !persistedReceipt?.reversed_at) {
+    return { error: "La reversa se ejecutó, pero no se pudo verificar su lectura posterior." };
   }
 
-  const { error } = await supabase.from("sales_receipts").delete().eq("id", receiptId);
-  if (error) return { error: error.message };
+  await logAudit(supabase, {
+    action: "sales_receipt.reversed",
+    detail: { receipt_id: receiptId, document_id: docId },
+  });
   revalidatePath("/ventas");
   revalidatePath(`/ventas/${docId}`);
   revalidatePath("/cobros");

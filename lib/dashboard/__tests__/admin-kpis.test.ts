@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeAdminKpis, RawSalesDocForKpi, RawReceiptForKpi, RawInvoiceForKpi, RawCuentaFinancieraForKpi, RawOrderForKpi } from "../admin-kpis";
+import { computeAdminKpis, computeAdminSecondaryKpis, RawSalesDocForKpi, RawReceiptForKpi, RawInvoiceForKpi, RawCuentaFinancieraForKpi, RawOrderForKpi } from "../admin-kpis";
 
 const todayIso = "2026-09-19";
 
@@ -311,5 +311,38 @@ describe("computeAdminKpis", () => {
     const liquidezKpi = kpis.find((k) => k.key === "liquidez-disponible");
     expect(liquidezKpi?.value).toContain("500.000.000");
     expect(liquidezKpi?.multiCurrencyExtra).toBe("+ USD 15.000");
+  });
+
+  it("recupera los cuatro KPIs inferiores con vencimientos y monedas correctos", () => {
+    const invoices: RawInvoiceForKpi[] = [
+      { id: "upcoming", invoice_number: "F-1", total: 100000, currency: "PYG", due_date: "2026-09-25", status: "APTO_PARA_PAGO" },
+      { id: "overdue", invoice_number: "F-2", total: 20000, currency: "PYG", due_date: "2026-09-18", status: "PENDIENTE" },
+      { id: "far", invoice_number: "F-3", total: 90000, currency: "PYG", due_date: "2026-11-01", status: "PENDIENTE" },
+    ];
+    const salesDocs: RawSalesDocForKpi[] = [
+      { id: "sale-overdue", doc_type: "FACTURA", status: "COBRADA_PARCIAL", total: 1000, cobrado_amount: 300, currency: "PYG", issue_date: "2026-08-01", due_date: "2026-09-10" },
+      { id: "sale-current", doc_type: "FACTURA", status: "EMITIDA", total: 500, cobrado_amount: 0, currency: "PYG", issue_date: "2026-09-01", due_date: "2026-09-25" },
+    ];
+    const cards = computeAdminSecondaryKpis({
+      todayIso,
+      invoices,
+      salesDocs,
+      cashflowItems: [
+        { tipo: "cobro_factura", descripcion: "Factura", fecha: "2026-09-25", monto: 300, moneda: "PYG", project_id: null, ref_id: "sale-current" },
+        { tipo: "cobro_certificado", descripcion: "Certificado", fecha: "2026-10-01", monto: 50, moneda: "USD", project_id: "p1", ref_id: "cert1" },
+        { tipo: "pago_factura", descripcion: "Pago", fecha: "2026-09-25", monto: -10, moneda: "PYG", project_id: null, ref_id: "i1" },
+      ],
+      showSalesKpis: true,
+      showInvoiceKpis: true,
+    });
+
+    expect(cards.map((card) => card.key)).toEqual([
+      "pagos-proximos", "cobros-esperados", "cxp-vencidas", "cxc-vencidas",
+    ]);
+    expect(cards[0].value).toContain("100.000");
+    expect(cards[1].value).toContain("300");
+    expect(cards[1].multiCurrencyExtra).toBe("+ USD 50");
+    expect(cards[2].value).toContain("20.000");
+    expect(cards[3].value).toContain("700");
   });
 });

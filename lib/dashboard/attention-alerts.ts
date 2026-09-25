@@ -8,6 +8,7 @@ export interface AlertSourcesInput {
   invoiceJobs: { status: string }[];
   salesDocs: { status: string; total: number; cobrado_amount: number; due_date: string | null; doc_type: string; acceptance_status?: string | null }[];
   productos: { stock_actual: number; stock_minimo: number; activo: boolean }[];
+  stockSourceUnavailable?: boolean;
   orders: { total_price: number; facturado_amount: number; status?: string }[];
   workOrders: { status: string }[];
   cuentas: { saldo: number; activo: boolean }[];
@@ -94,14 +95,26 @@ export function generateAttentionAlerts(data: AlertSourcesInput, maxAlerts = 7):
     });
   }
 
-  // 6. Productos bajo stock mínimo
+  // 6. El error de lectura canónica debe ser visible y no parecer stock cero.
+  if (data.stockSourceUnavailable) {
+    candidates.push({
+      id: "alert-stock-source-unavailable",
+      label: "No se pudo verificar el stock canónico global",
+      count: 1,
+      href: "/inventario",
+      tone: "error",
+      category: "stock",
+    });
+  }
+
+  // 7. Productos bajo stock mínimo global (cantidad canónica agregada por ubicación).
   const bajoStock = productos.filter(
     (p) => p.activo && (p.stock_actual <= 0 || (p.stock_minimo > 0 && p.stock_actual <= p.stock_minimo))
   ).length;
   if (bajoStock > 0) {
     candidates.push({
       id: "alert-bajo-stock",
-      label: `${bajoStock} producto${bajoStock !== 1 ? "s" : ""} en stock crítico`,
+      label: `${bajoStock} producto${bajoStock !== 1 ? "s" : ""} con stock global crítico`,
       count: bajoStock,
       href: "/stock",
       tone: "warn",
@@ -109,7 +122,7 @@ export function generateAttentionAlerts(data: AlertSourcesInput, maxAlerts = 7):
     });
   }
 
-  // 7. Órdenes de compra abiertas con saldo pendiente por facturar
+  // 8. Órdenes de compra abiertas con saldo pendiente por facturar
   const ocsAbiertas = orders.filter((o) => {
     const rem = orderRemaining(o.total_price, o.facturado_amount);
     return rem > 0 && o.status !== "CANCELADA" && o.status !== "RECHAZADA";
@@ -125,7 +138,7 @@ export function generateAttentionAlerts(data: AlertSourcesInput, maxAlerts = 7):
     });
   }
 
-  // 8. Cotizaciones pendientes de aceptación
+  // 9. Cotizaciones pendientes de aceptación
   const cotizacionesPendientes = salesDocs.filter(
     (d) => d.doc_type === "PROFORMA" && d.acceptance_status === "PENDING_ACCEPTANCE"
   ).length;
@@ -140,7 +153,7 @@ export function generateAttentionAlerts(data: AlertSourcesInput, maxAlerts = 7):
     });
   }
 
-  // 9. Órdenes de trabajo pendientes o en curso
+  // 10. Órdenes de trabajo pendientes o en curso
   const otsPendientes = workOrders.filter(
     (w) => w.status === "PENDIENTE" || w.status === "EN_CURSO"
   ).length;

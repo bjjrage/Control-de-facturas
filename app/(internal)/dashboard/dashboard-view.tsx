@@ -4,7 +4,7 @@ import { MetricChips } from "./metric-chips";
 import type { DashboardViewData } from "./data";
 
 export function DashboardView({ data }: { data: DashboardViewData }) {
-  const { adminCards, adminKpis, attentionAlerts } = data;
+  const { adminCards, secondaryAdminCards, adminKpis, attentionAlerts } = data;
   return (
     <div className="max-w-none space-y-5">
       <div className="flex items-baseline justify-between gap-3">
@@ -17,7 +17,20 @@ export function DashboardView({ data }: { data: DashboardViewData }) {
 
       {adminCards.length > 0 ? <MetricGrid cards={adminCards} /> : <MetricChips chips={adminKpis} />}
 
-      {attentionAlerts.length > 0 ? <AttentionPanel alerts={attentionAlerts} /> : null}
+      {secondaryAdminCards.length > 0 ? (
+        <section aria-label="Indicadores financieros de seguimiento" className="space-y-3">
+          <h2 className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">Seguimiento financiero</h2>
+          <MetricGrid cards={secondaryAdminCards} />
+        </section>
+      ) : null}
+
+      {attentionAlerts.length > 0 ? (
+        <AttentionPanel alerts={attentionAlerts} />
+      ) : (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--panel)] px-4 py-3 text-[12px] text-[var(--muted)]">
+          Sin alertas críticas
+        </div>
+      )}
     </div>
   );
 }

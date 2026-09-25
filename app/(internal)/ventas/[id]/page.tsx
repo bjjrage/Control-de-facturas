@@ -19,7 +19,7 @@ import {
 import { ReceiptDialog } from "./receipt-dialog";
 import { SifenButton } from "./sifen-button";
 import { QuotationPanel } from "./quotation-panel";
-import { emitSalesDocument, voidSalesDocument, deleteSalesDocument, deleteReceipt, convertSalesDocument } from "../actions";
+import { emitSalesDocument, voidSalesDocument, deleteSalesDocument, reverseReceipt, convertSalesDocument } from "../actions";
 
 export default async function VentaDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const profile = await requireModule("ventas", ["administracion", "admin"]);
@@ -33,7 +33,7 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
     supabase.from("clients").select("*").eq("id", doc.client_id).single<Client>(),
     supabase.from("sales_document_items").select("*").eq("sales_document_id", id).order("created_at").returns<SalesDocumentItem[]>(),
     supabase.from("sales_receipts").select("*").eq("sales_document_id", id).order("receipt_date", { ascending: false }).returns<SalesReceipt[]>(),
-    supabase.from("cuentas_financieras").select("id, nombre, moneda").eq("activo", true).order("nombre").returns<{ id: string; nombre: string; moneda: SalesDocument["currency"] }[]>(),
+    supabase.from("cuentas_financieras").select("id, nombre, moneda").eq("activo", true).eq("moneda", doc.currency).order("nombre").returns<{ id: string; nombre: string; moneda: SalesDocument["currency"] }[]>(),
     doc.doc_type === "PROFORMA"
       ? supabase.from("sales_quotation_tokens").select("*").eq("sales_document_id", id).order("created_at", { ascending: false }).returns<SalesQuotationToken[]>()
       : Promise.resolve({ data: [] as SalesQuotationToken[] } as { data: SalesQuotationToken[] }),
@@ -248,6 +248,7 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
                   <th>Medio</th>
                   <th>Referencia</th>
                   <th className="num">Monto</th>
+                  <th>Estado</th>
                   {profile.role === "admin" ? <th></th> : null}
                 </tr>
               </thead>
@@ -258,16 +259,25 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
                     <td>{RECEIPT_METHOD_LABELS[r.method]}</td>
                     <td>{r.reference ?? "-"}</td>
                     <td className="num">{formatMoney(r.amount, doc.currency)}</td>
+                    <td>
+                      {r.reversed_at ? (
+                        <span className="rounded bg-[var(--hover)] px-2 py-1 text-[10px] font-semibold text-[var(--muted)]" title={r.reversal_reason ?? undefined}>Revertido</span>
+                      ) : (
+                        <span className="text-[11px] text-[var(--ok)]">Activo</span>
+                      )}
+                    </td>
                     {profile.role === "admin" ? (
                       <td>
+                        {!r.reversed_at ? (
                         <form
                           action={async () => {
                             "use server";
-                            await deleteReceipt(r.id, doc.id);
+                            await reverseReceipt(r.id, doc.id);
                           }}
                         >
-                          <button className="text-[12px] text-[var(--muted)] hover:text-[var(--error)]">Eliminar</button>
+                          <button className="text-[12px] text-[var(--muted)] hover:text-[var(--error)]" title="Registra una reversa; conserva el cobro y su auditoría">Revertir</button>
                         </form>
+                        ) : null}
                       </td>
                     ) : null}
                   </tr>

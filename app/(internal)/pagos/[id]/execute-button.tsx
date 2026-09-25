@@ -10,11 +10,20 @@ import { markPaymentOrderExecuted } from "../actions";
 
 type Cuenta = { id: string; nombre: string; moneda: string };
 
-export function ExecuteButton({ opId, cuentas = [] }: { opId: string; cuentas?: Cuenta[] }) {
+export function ExecuteButton({
+  opId,
+  cuentas = [],
+  invoiceCurrencies = [],
+}: {
+  opId: string;
+  cuentas?: Cuenta[];
+  invoiceCurrencies?: string[];
+}) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cuentaId, setCuentaId] = useState("");
+  const hasMixedCurrencies = invoiceCurrencies.length > 1;
 
   async function confirmar() {
     setLoading(true);
@@ -31,10 +40,15 @@ export function ExecuteButton({ opId, cuentas = [] }: { opId: string; cuentas?: 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Registrar pago</Button>
+        <Button disabled={hasMixedCurrencies}>Registrar pago</Button>
       </DialogTrigger>
       <DialogContent title="Registrar pago de la OP">
         <div className="space-y-3">
+          {hasMixedCurrencies ? (
+            <p className="text-[13px] text-[var(--error)]">
+              Esta OP reúne facturas en monedas distintas. Separá las facturas por moneda antes de registrar el pago.
+            </p>
+          ) : null}
           <p className="text-[13px] text-[var(--muted)]">
             Todas las facturas de esta OP pasan a <span className="font-medium text-[var(--foreground)]">PAGADO</span>.
           </p>

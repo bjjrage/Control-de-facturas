@@ -1565,6 +1565,10 @@ export interface SalesReceipt {
   notes: string | null;
   created_by: string;
   created_at: string;
+  reversed_at: string | null;
+  reversed_by: string | null;
+  reversal_reason: string | null;
+  reversal_movement_id: string | null;
 }
 
 // ============================================================================

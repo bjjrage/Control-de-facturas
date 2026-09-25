@@ -29,41 +29,25 @@ export async function crearCuenta(data: {
   const nombre = data.nombre.trim();
   if (!nombre) return { error: "El nombre no puede estar vacío" };
 
-  const { data: cuenta, error } = await supabase
-    .from("cuentas_financieras")
-    .insert({
-      empresa_id: profile.empresa_id,
-      nombre,
-      tipo: data.tipo,
-      banco: data.banco?.trim() || null,
-      numero_cuenta: data.numero_cuenta?.trim() || null,
-      moneda: data.moneda,
-      created_by: profile.id,
-    })
-    .select("id")
-    .single();
+  const { data: cuentaId, error } = await supabase.rpc("crear_cuenta_financiera_atomica", {
+    p_empresa_id: profile.empresa_id,
+    p_nombre: nombre,
+    p_tipo: data.tipo,
+    p_banco: data.banco?.trim() || null,
+    p_numero_cuenta: data.numero_cuenta?.trim() || null,
+    p_moneda: data.moneda,
+    p_saldo_inicial: data.saldo_inicial ?? 0,
+    p_created_by: profile.id,
+  });
 
-  if (error) {
-    if (error.code === "23505") return { error: "Ya existe una cuenta con ese nombre" };
-    return { error: error.message };
+  if (error || !cuentaId) {
+    if (error?.code === "23505") return { error: "Ya existe una cuenta con ese nombre" };
+    return { error: error?.message ?? "No se pudo crear la cuenta financiera." };
   }
 
-  if (data.saldo_inicial && data.saldo_inicial !== 0) {
-    const { error: movErr } = await supabase.rpc("registrar_movimiento_tesoreria", {
-      p_empresa_id: profile.empresa_id,
-      p_cuenta_id: cuenta.id,
-      p_monto: data.saldo_inicial,
-      p_tipo: "SALDO_INICIAL",
-      p_motivo: "Saldo inicial de la cuenta",
-      p_created_by: profile.id,
-      p_permitir_negativo: true,
-    });
-    if (movErr) return { error: `Cuenta creada, error al cargar el saldo inicial: ${movErr.message}` };
-  }
-
-  await logAudit(supabase, { action: "cuenta_financiera_created", detail: { cuenta_id: cuenta.id } });
+  await logAudit(supabase, { action: "cuenta_financiera_created", detail: { cuenta_id: cuentaId } });
   revalidatePath("/tesoreria");
-  return { id: cuenta.id };
+  return { id: cuentaId };
 }
 
 export async function actualizarCuenta(
