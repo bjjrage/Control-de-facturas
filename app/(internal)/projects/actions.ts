@@ -12,6 +12,7 @@ import { validateWorkbookInterpretation } from "@/lib/workbook-interpretation/in
 import { parseWorkbook } from "@/lib/workbook-interpretation/parser";
 import { certificateTotals } from "@/lib/certificates/math";
 import { ensureProjectInventoryLocation } from "@/lib/inventory/service";
+import { validateScheduleDates } from "@/lib/projects/schedule";
 
 export async function createProject(formData: FormData): Promise<{ error: string | null; projectId?: string }> {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
@@ -770,9 +771,11 @@ export async function updateBudgetItemSchedule(
   itemId: string,
   startDate: string | null,
   endDate: string | null,
-  dependsOn: string | null
+  dependsOn?: string | null
 ): Promise<{ error: string | null }> {
   await requirePlan("pro", ["administracion", "admin"]);
+  const scheduleError = validateScheduleDates(startDate, endDate);
+  if (scheduleError) return { error: scheduleError };
   const supabase = await createClient();
 
   // budget_items no tiene empresa_id propio: RLS ya filtra por
@@ -785,9 +788,14 @@ export async function updateBudgetItemSchedule(
     .single();
   if (fetchError || !item) return { error: "Ítem no encontrado." };
 
+  const update: { start_date: string | null; end_date: string | null; depends_on?: string | null } = {
+    start_date: startDate,
+    end_date: endDate,
+  };
+  if (dependsOn !== undefined) update.depends_on = dependsOn;
   const { error } = await supabase
     .from("budget_items")
-    .update({ start_date: startDate, end_date: endDate, depends_on: dependsOn })
+    .update(update)
     .eq("id", itemId);
 
   if (error) return { error: "No se pudo actualizar el cronograma." };

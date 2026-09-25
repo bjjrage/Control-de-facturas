@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { BudgetItem, ExecutionEntry } from "@/lib/types";
 import { updateBudgetItemSchedule } from "../actions";
+import { ProgramarPartidasDialog } from "./programar-partidas-dialog";
 
 type ViewMode = "day" | "week" | "month";
 
@@ -215,7 +216,7 @@ function GanttChart({
           en = addDays(en, delta);
           if (en <= s) return;
         }
-        await updateBudgetItemSchedule(id, toIso(s), toIso(en), null);
+        await updateBudgetItemSchedule(id, toIso(s), toIso(en));
       };
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
@@ -533,13 +534,18 @@ export function ProjectGantt({
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--panel)] py-12 text-center space-y-2">
-        <p className="text-[13px] text-[var(--muted)]">
-          Cargá fecha de inicio y fin en los ítems del presupuesto para ver el cronograma.
-        </p>
-        <Link href={`/projects/${projectId}?tab=presupuesto`} className="text-action text-[12px]">
-          Ir a Presupuesto
-        </Link>
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--panel)] px-4 py-10 text-center">
+        <div className="mx-auto max-w-xl space-y-3">
+          <p className="text-[13px] text-[var(--muted)]">
+            Las partidas todavía no tienen fechas. Programalas acá para generar el Gantt, sin tener que volver al presupuesto.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <ProgramarPartidasDialog budgetItems={budgetItems} />
+            <Link href={`/projects/${projectId}?tab=presupuesto`} className="text-action px-3 text-[12px]">
+              Ir a Presupuesto
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
@@ -549,6 +555,7 @@ export function ProjectGantt({
       <div className="flex items-center justify-between gap-3 flex-wrap">
         {segmented}
         <div className="flex items-center gap-3">
+          <ProgramarPartidasDialog budgetItems={budgetItems} />
           <span className="pg-legend">
             <i className="pg-legend-bar" />
             relleno = % ejecutado real

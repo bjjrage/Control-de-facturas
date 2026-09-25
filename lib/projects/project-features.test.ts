@@ -21,6 +21,8 @@ const physicalProgressSource = fs.readFileSync(
   path.join(repoRoot, "app", "(internal)", "projects", "[id]", "avance-fisico-panel.tsx"),
   "utf8"
 );
+const ganttSource = fs.readFileSync(path.join(repoRoot, "app", "(internal)", "projects", "[id]", "project-gantt.tsx"), "utf8");
+const projectActionsSource = fs.readFileSync(path.join(repoRoot, "app", "(internal)", "projects", "actions.ts"), "utf8");
 const topbarSource = fs.readFileSync(path.join(repoRoot, "components", "layout", "topbar.tsx"), "utf8");
 const sidebarSource = fs.readFileSync(path.join(repoRoot, "components", "layout", "sidebar.tsx"), "utf8");
 const layoutSource = fs.readFileSync(path.join(repoRoot, "app", "(internal)", "layout.tsx"), "utf8");
@@ -127,5 +129,18 @@ describe("project surface contract", () => {
   it("keeps weekly planning as one navigable surface instead of embedding a duplicate", () => {
     expect(rendererSource).toContain('tab === "plan-semanal"');
     expect(physicalProgressSource).not.toContain("WeeklyPlanSection");
+  });
+
+  it("makes the existing Gantt schedulable without changing its progress or climate sources", () => {
+    expect(getProjectFeature("cronograma").label).toBe("Cronograma / Gantt");
+    expect(ganttSource).toContain("ProgramarPartidasDialog budgetItems={budgetItems}");
+    expect(ganttSource).toContain("if (rows.length === 0)");
+    expect(ganttSource).toContain("budgetItems.filter((i) => i.start_date && i.end_date)");
+    expect(ganttSource).toContain("e.quantity_executed");
+    expect(ganttSource).toContain("updateBudgetItemSchedule(id, toIso(s), toIso(en))");
+    expect(projectActionsSource).toContain('.from("budget_items")');
+    expect(projectActionsSource).toContain(".update(update)");
+    expect(projectActionsSource).toContain("if (dependsOn !== undefined) update.depends_on = dependsOn");
+    expect(rendererSource).toContain("<ClimateWorkdaysPanel");
   });
 });

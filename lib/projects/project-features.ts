@@ -43,7 +43,7 @@ const PROJECT_ROLES = ["administracion", "admin"] as const satisfies readonly Us
  */
 export const PROJECT_FEATURES = [
   { key: "presupuesto", label: "Presupuesto", group: "Preparar", minPlan: "pro", roles: PROJECT_ROLES },
-  { key: "cronograma", label: "Cronograma", group: "Preparar", minPlan: "pro", roles: PROJECT_ROLES },
+  { key: "cronograma", label: "Cronograma / Gantt", group: "Preparar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "plan-semanal", label: "Plan semanal", group: "Preparar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "bim", label: "BIM / IFC", group: "Preparar", minPlan: "caterpillar", roles: PROJECT_ROLES },
   { key: "proveedores", label: "Proveedores", group: "Comprar", minPlan: "pro", roles: PROJECT_ROLES },
