@@ -6,8 +6,10 @@ import { requireProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { DncpNotFoundError, fetchRecord, normalizarNro } from "@/lib/dncp/client";
 import { parseCompiledRelease } from "@/lib/dncp/parse";
+import { assessTenderPbc, createPbcSourceMetadata } from "@/lib/procurement/pbc-provenance";
 import { createClient } from "@/lib/supabase/server";
 import type { LicitacionDecision } from "@/lib/types";
+import type { TenderComplianceReport } from "@/lib/procurement/compliance-engine";
 
 async function ctx() {
   const supabase = await createClient();
@@ -650,11 +652,11 @@ export async function persistirEvaluacionComercial(
 
   // 3. Evaluar cumplimiento normativo y documental basado en la bóveda
   const { evaluateTenderCompliance, generateGenericRequirementSuggestions } = await import("@/lib/procurement/compliance-engine");
-  const extractedPbc = lic.raw_json?.pbc_requisitos_extraidos;
-  const isPbcAvailable = Array.isArray(extractedPbc?.requirements) && extractedPbc.requirements.length > 0;
+  const pbcAssessment = assessTenderPbc(lic.raw_json);
+  const isPbcAvailable = pbcAssessment.status === "ANALYZED";
 
   const tenderRequirements = isPbcAvailable
-    ? extractedPbc.requirements
+    ? pbcAssessment.requirements
     : generateGenericRequirementSuggestions({
         id: lic.id,
         categoria: lic.categoria,
@@ -1013,14 +1015,14 @@ export async function generarPliegoOfertaCompleto(
   const { fetchCompanyVaultItems } = await import("@/lib/procurement/bid-vault");
   const vaultItems = await fetchCompanyVaultItems(supabase, empresaId);
 
-  // Obtener matriz de cumplimiento de pliego extraída si existe
+  // A documentary-ready package requires parser evidence tied to the supplied PBC text.
   const { evaluateTenderCompliance } = await import("@/lib/procurement/compliance-engine");
-  let complianceReport: any = null;
-  const extractedPbc = lic.raw_json?.pbc_requisitos_extraidos;
-  if (extractedPbc?.requirements && Array.isArray(extractedPbc.requirements) && extractedPbc.requirements.length > 0) {
+  let complianceReport: TenderComplianceReport | null = null;
+  const pbcAssessment = assessTenderPbc(lic.raw_json);
+  if (pbcAssessment.status === "ANALYZED") {
     complianceReport = evaluateTenderCompliance(
       lic.id,
-      extractedPbc.requirements,
+      pbcAssessment.requirements,
       vaultItems,
       undefined,
       'EXTRACTED_FROM_PBC'
@@ -1123,8 +1125,9 @@ export async function extraerRequisitosDePliego(
   }
 
   const { extractRequirementsFromPbcText } = await import("@/lib/procurement/pbc-extractor");
+  const sourceText = textoPbc.trim();
   const extraction = extractRequirementsFromPbcText(
-    textoPbc,
+    sourceText,
     lic.monto_referencial ? Number(lic.monto_referencial) : null
   );
 
@@ -1144,25 +1147,36 @@ export async function extraerRequisitosDePliego(
     'EXTRACTED_FROM_PBC'
   );
 
+  const source = createPbcSourceMetadata(sourceText);
+  const persistedExtraction = { ...extraction, source };
   const updatedRawJson = {
     ...(typeof lic.raw_json === 'object' && lic.raw_json ? lic.raw_json : {}),
-    pbc_requisitos_extraidos: extraction,
+    pbc_texto_crudo: sourceText,
+    pbc_requisitos_extraidos: persistedExtraction,
     ultimo_reporte_compliance: complianceReport
   };
 
-  await supabase
+  const { data: persistedPbc, error: persistPbcError } = await supabase
     .from("licitaciones")
     .update({
       raw_json: updatedRawJson,
       updated_at: new Date().toISOString()
     })
-    .eq("id", lic.id);
+    .eq("id", lic.id)
+    .eq("empresa_id", empresaId)
+    .select("id")
+    .maybeSingle();
+
+  if (persistPbcError || !persistedPbc) {
+    return { error: "No se pudo guardar la extracción y procedencia del PBC." };
+  }
 
   await logAudit(supabase, {
     action: "tender.pbc_extracted",
     detail: {
       licitacion_id: lic.id,
       requisitos_count: extraction.requirements.length,
+      source_sha256: source.textSha256,
       secciones: extraction.detectedSections,
       elegible: complianceReport.isEligibleToBid,
       score: complianceReport.scoreCumplimientoPct

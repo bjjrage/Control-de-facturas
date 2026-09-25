@@ -954,6 +954,7 @@ export interface Licitacion {
   synced_at: string;
   created_at: string;
   updated_at: string;
+  raw_json?: unknown;
 }
 
 export interface LicitacionLote {

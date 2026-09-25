@@ -5,6 +5,7 @@ import { BackButton } from "@/components/ui/back-button";
 import { requireProfile } from "@/lib/auth";
 import { matchProducto, type ProductoLite } from "@/lib/dncp/match-productos";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
+import { assessTenderPbc } from "@/lib/procurement/pbc-provenance";
 import { createClient } from "@/lib/supabase/server";
 import type {
   CurrencyCode,
@@ -54,6 +55,21 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
   ]);
 
   const latestSnapshot = snapshots && snapshots.length > 0 ? snapshots[0] : null;
+  const pbcAssessment = assessTenderPbc(lic.raw_json);
+  const snapshotPredatesPbc = pbcAssessment.status === "ANALYZED"
+    && pbcAssessment.analyzedAt !== null
+    && latestSnapshot !== null
+    && Date.parse(latestSnapshot.created_at) < Date.parse(pbcAssessment.analyzedAt);
+  const canShowSnapshotDecision = pbcAssessment.status === "ANALYZED"
+    && latestSnapshot !== null
+    && !snapshotPredatesPbc;
+  const bidStatusLabel = pbcAssessment.status !== "ANALYZED"
+    ? latestSnapshot ? "PRE-EVALUACIÓN · PBC NO ANALIZADO" : "PBC NO ANALIZADO"
+    : snapshotPredatesPbc
+      ? "RE-EVALUAR CON EL PBC ACTUAL"
+      : latestSnapshot
+        ? `${latestSnapshot.decision} (SCORE: ${latestSnapshot.overall_score}/100)`
+        : "SIN EVALUACIÓN";
 
   // Gate 7: Item Matching Engine con lematización, stopwords y calibres paraguayos
   const { matchTenderItem } = await import("@/lib/procurement/item-matching");
@@ -132,13 +148,35 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
         <p className="text-[12px] text-[var(--muted)]">Lugar de apertura: {lic.lugar_apertura}</p>
       ) : null}
 
+      <section
+        aria-label="Procedencia de requisitos documentales"
+        data-testid="tender-pbc-source"
+        className={`rounded-lg border p-3 space-y-1.5 ${pbcAssessment.status === "ANALYZED" ? "border-[var(--border)] bg-[var(--panel)]" : "border-amber-500/30 bg-amber-500/5"}`}
+      >
+        {pbcAssessment.status === "ANALYZED" ? (
+          <>
+            <h2 className="text-[12px] font-bold tracking-wide">PBC ANALIZADO · {pbcAssessment.requirements.length} REQUISITOS EXTRAÍDOS</h2>
+            <p className="text-[12px] text-[var(--muted)]">
+              Procedencia del extractor conservada por requisito (fragmento y sección). La extracción no autentica el documento: revisá cada requisito contra el PBC oficial.
+              {pbcAssessment.sourceSha256 ? ` Huella del texto: ${pbcAssessment.sourceSha256.slice(0, 12)}…` : " Esta extracción histórica no tiene huella del texto fuente."}
+            </p>
+          </>
+        ) : (
+          <>
+            <h2 className="text-[12px] font-bold tracking-wide">PBC NO ANALIZADO</h2>
+            <p className="text-[12px] font-semibold">REQUISITOS GENÉRICOS · sugerencias solo para PRE-EVALUACIÓN; no son documentos requeridos por este pliego.</p>
+            <p className="text-[12px]">NO USAR COMO VALIDACIÓN DOCUMENTAL. La elegibilidad definitiva y READY_TO_SIGN requieren requisitos extraídos de texto PBC con procedencia.</p>
+          </>
+        )}
+      </section>
+
       {/* Panel Bid Engine: Análisis Comercial */}
       <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h2 className="text-[14px] font-semibold">Evaluación Comercial (Bid Engine)</h2>
             <span className={`text-[11px] font-semibold px-2 py-0.5 rounded ${
-              latestSnapshot
+              canShowSnapshotDecision
                 ? latestSnapshot.decision === "COMPETIR"
                   ? "bg-[var(--ok-bg)] text-[var(--ok)]"
                   : latestSnapshot.decision === "REVISAR"
@@ -146,7 +184,7 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
                   : "bg-[var(--error-bg)]/55 text-[#fff1ef] ring-1 ring-[var(--error)]/20"
                 : "bg-[var(--panel-2)] text-[var(--muted)]"
             }`}>
-              {latestSnapshot ? `${latestSnapshot.decision} (SCORE: ${latestSnapshot.overall_score}/100)` : "SIN EVALUACIÓN"}
+              {bidStatusLabel}
             </span>
             {latestSnapshot ? (
               <span className="text-[10px] mono text-[var(--muted)]" title={`Hash SHA-256 completo: ${latestSnapshot.snapshot_hash}`}>
@@ -164,7 +202,11 @@ export default async function LicitacionDetallePage({ params }: { params: Promis
         {latestSnapshot && Array.isArray(latestSnapshot.blockers) && latestSnapshot.blockers.length > 0 ? (
           <div className="rounded border border-red-500/20 bg-red-500/5 p-2.5 space-y-1">
             <div className="text-[11px] font-semibold text-red-600 uppercase tracking-wide">
-              Bloqueadores detectados en pliego / cómputo:
+              {snapshotPredatesPbc
+                ? "Bloqueadores del snapshot anterior al PBC actual:"
+                : pbcAssessment.status === "ANALYZED"
+                  ? "Bloqueadores del último análisis PBC / cómputo:"
+                  : "Bloqueadores del último snapshot de preevaluación:"}
             </div>
             <ul className="list-disc list-inside text-[12px] text-red-700/90 space-y-0.5">
               {latestSnapshot.blockers.map((b: string, i: number) => (

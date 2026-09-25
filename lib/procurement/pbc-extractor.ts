@@ -21,6 +21,14 @@ export interface PbcExtractionResult {
   extractionConfidencePct: number;
   warnings: string[];
   rawMatchesCount: number;
+  source?: PbcSourceMetadata;
+}
+
+export interface PbcSourceMetadata {
+  kind: "USER_SUPPLIED_PBC_TEXT";
+  textSha256: string;
+  textLength: number;
+  analyzedAt: string;
 }
 
 /**

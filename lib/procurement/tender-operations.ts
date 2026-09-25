@@ -188,9 +188,9 @@ export function assembleTenderPackage(params: {
   const attachedDocs: BidPackage['attachedEvidenceDocs'] = [];
 
   if (!params.complianceReport) {
-    errors.push('Falta matriz formal de requisitos extraída del Pliego de Bases y Condiciones (PBC). No se puede emitir dictamen READY_TO_SIGN sin pliego analizado.');
+    errors.push('PBC NO ANALIZADO: falta una matriz con procedencia del texto del Pliego de Bases y Condiciones. No se puede emitir dictamen READY_TO_SIGN.');
   } else if (params.complianceReport.evidenceOrigin !== 'EXTRACTED_FROM_PBC') {
-    errors.push('La matriz de requisitos no procede de un PBC oficial extraído (origen no verificado). Requiere análisis de pliego real para ser READY_TO_SIGN.');
+    errors.push('REQUISITOS GENÉRICOS: no usar como validación documental. Requiere análisis de texto PBC para ser READY_TO_SIGN.');
   } else if (!params.complianceReport.evaluations || params.complianceReport.evaluations.length === 0) {
     errors.push('La matriz de requisitos del pliego está vacía. No se puede certificar cumplimiento sin requisitos verificables.');
   } else {
