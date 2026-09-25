@@ -121,8 +121,6 @@ const GLOBAL_ITEMS: NavItem[] = [
 
 const OPERATIVO_ITEMS: NavItem[] = [
   { href: "/projects", label: "Dashboard", roles: ["administracion", "admin"], icon: LayoutDashboard, minPlan: "pro" },
-  { href: "/stock", label: "Materiales", roles: ["administracion", "admin"], icon: Tags, minPlan: "pro" },
-  { href: "/inventario", label: "Stock e Inventario", roles: ["administracion", "admin"], icon: Boxes, minPlan: "pro" },
 ];
 
 const LICITACIONES_ITEMS: NavItem[] = [

@@ -34,6 +34,24 @@ const inventorySource = fs.readFileSync(
   "utf8"
 );
 
+function sourceBlock(source: string, startMarker: string, endMarker: string) {
+  const start = source.indexOf(startMarker);
+  const end = source.indexOf(endMarker, start);
+  if (start === -1 || end === -1) throw new Error(`Could not locate source block: ${startMarker}`);
+  return source.slice(start, end);
+}
+
+const operativoItemsSource = sourceBlock(
+  sidebarSource,
+  "const OPERATIVO_ITEMS: NavItem[] = [",
+  "const LICITACIONES_ITEMS: NavItem[] = ["
+);
+const comprasItemsSource = sourceBlock(
+  sidebarSource,
+  "const COMPRAS_ITEMS: NavItem[] = [",
+  "const FINANZAS_ITEMS: NavItem[] = ["
+);
+
 describe("project surface contract", () => {
   it("has unique keys and valid groups", () => {
     const keys = PROJECT_FEATURES.map((feature) => feature.key);
@@ -69,10 +87,35 @@ describe("project surface contract", () => {
     }
   });
 
-  it("keeps administration and operations entry points and superadmin access coherent", () => {
-    expect(sidebarSource).toContain('const OPERATIVO_ITEMS: NavItem[]');
-    expect(sidebarSource).toContain('href: "/stock", label: "Materiales"');
-    expect(sidebarSource).toContain('href: "/inventario", label: "Stock e Inventario"');
+  it("keeps the Operativo root limited to Dashboard and its project-selection guidance", () => {
+    const items = [...operativoItemsSource.matchAll(/href: "([^"]+)", label: "([^"]+)"/g)].map((match) => ({
+      href: match[1],
+      label: match[2],
+    }));
+
+    expect(items).toEqual([{ href: "/projects", label: "Dashboard" }]);
+    expect(operativoItemsSource).not.toContain('href: "/stock"');
+    expect(operativoItemsSource).not.toContain('href: "/inventario"');
+    expect(sidebarSource).toContain('workspace === "operativo" ? (');
+    expect(sidebarSource).toContain("Elegí una obra para habilitar las herramientas operativas.");
+  });
+
+  it("keeps global Materials and Inventory under Administración → Comprar", () => {
+    expect(comprasItemsSource).toContain('href: "/stock", label: "Materiales"');
+    expect(comprasItemsSource).toContain('href: "/inventario", label: "Stock e Inventario"');
+    expect(sidebarSource).toContain('renderSection("Comprar", comprasItems)');
+  });
+
+  it("keeps project inventory tools inside the selected project", () => {
+    expect(getProjectFeature("inventario").label).toBe("Inventario");
+    expect(getProjectFeature("recepciones").label).toBe("Recepciones");
+    expect(getProjectFeature("panol").label).toBe("Depósito de obra");
+    expect(sidebarSource).toContain("{PROJECT_TAB_GROUPS.map(renderProjectSection)}");
+    expect(sidebarSource).toContain('const url = `/projects/${activeProjectId}?tab=${t.key}`;');
+    expect(sidebarSource).toContain('new CustomEvent("niupack:tab", { detail: t.key })');
+  });
+
+  it("keeps administration entry points and superadmin access coherent", () => {
     expect(sidebarSource).toContain('const COMPRAS_ITEMS: NavItem[]');
     expect(sidebarSource).toContain('plan === "caterpillar" || isSuperAdmin');
     expect(sidebarSource).toContain('(plan !== "basico" || isSuperAdmin)');
