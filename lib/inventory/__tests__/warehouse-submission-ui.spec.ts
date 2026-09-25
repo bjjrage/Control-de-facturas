@@ -15,7 +15,12 @@ describe("displayLocationName", () => {
 });
 
 describe("canConfirmWarehouseSubmission", () => {
-  const base = { status: "READY" as const, uploadIncomplete: false };
+  const base = {
+    status: "READY" as const,
+    uploadIncomplete: false,
+    processingError: null,
+    hasUnresolvedEvidence: false,
+  };
 
   it("requires at least one accepted line", () => {
     expect(canConfirmWarehouseSubmission({ ...base, lineStates: [] })).toBe(false);
@@ -29,6 +34,8 @@ describe("canConfirmWarehouseSubmission", () => {
   it("blocks proposals, incomplete uploads and non-confirmable statuses", () => {
     expect(canConfirmWarehouseSubmission({ ...base, lineStates: ["CONFIRMED", "PROPOSED"] })).toBe(false);
     expect(canConfirmWarehouseSubmission({ ...base, uploadIncomplete: true, lineStates: ["CONFIRMED"] })).toBe(false);
+    expect(canConfirmWarehouseSubmission({ ...base, processingError: "No se pudo leer el archivo", lineStates: ["CONFIRMED"] })).toBe(false);
+    expect(canConfirmWarehouseSubmission({ ...base, hasUnresolvedEvidence: true, lineStates: ["CONFIRMED"] })).toBe(false);
     expect(canConfirmWarehouseSubmission({ ...base, status: "PROCESSING", lineStates: ["CONFIRMED"] })).toBe(false);
   });
 });

@@ -390,6 +390,7 @@ export async function confirmCanonicalReceipt(args: {
 
 export async function updateWarehouseSubmissionLine(args: {
   lineId: string;
+  rawDescription?: string;
   productoId?: string | null;
   quantity?: number | null;
   unit?: string | null;
@@ -408,14 +409,19 @@ export async function updateWarehouseSubmissionLine(args: {
     return { error: "Los datos de revisión de la línea no son válidos." };
   }
   const productoId = clean(args.productoId);
+  const rawDescription = clean(args.rawDescription);
   const budgetItemId = clean(args.budgetItemId);
   const unit = clean(args.unit);
   const quantity = args.quantity == null ? null : Number(args.quantity);
   if (quantity != null && (!Number.isFinite(quantity) || quantity <= 0)) {
     return { error: "La cantidad debe ser mayor a cero." };
   }
-  if (args.state === "CONFIRMED" && (!productoId || !budgetItemId || !unit || quantity == null)) {
-    return { error: "Para confirmar la línea completá producto, cantidad, unidad y partida." };
+  if (!rawDescription) return { error: "La descripción de la línea es obligatoria." };
+  if (args.state === "CONFIRMED" && (
+    !productoId || !budgetItemId || !unit || quantity == null
+    || /^fila \d+: descripción pendiente$/i.test(rawDescription)
+  )) {
+    return { error: "Para confirmar la línea completá descripción, producto, cantidad, unidad y partida." };
   }
   const { data: line } = await supabase
     .from("warehouse_submission_lines")
@@ -461,6 +467,7 @@ export async function updateWarehouseSubmissionLine(args: {
   const { error } = await supabase
     .from("warehouse_submission_lines")
     .update({
+      raw_description: rawDescription,
       producto_id: productoId,
       quantity,
       unit,
@@ -502,10 +509,9 @@ export async function processWarehouseSubmission(submissionId: string) {
 
   const { data: evidence } = await supabase
     .from("warehouse_submission_evidence")
-    .select("id, storage_bucket, storage_path, file_name, mime_type, extraction_status")
+    .select("id, storage_bucket, storage_path, file_name, mime_type, extraction_status, extraction_error")
     .eq("submission_id", submissionId)
     .eq("empresa_id", profile.empresa_id)
-    .eq("extraction_status", "NOT_PROCESSED")
     .order("created_at");
 
   let proposalCount = 0;
@@ -514,12 +520,20 @@ export async function processWarehouseSubmission(submissionId: string) {
     errors.push(submission.processing_error);
   }
   for (const item of evidence ?? []) {
+    if (item.extraction_status === "PROPOSED" && item.extraction_error) {
+      errors.push(`${item.file_name}: ${item.extraction_error}`);
+    }
+  }
+  const evidenceToProcess = (evidence ?? []).filter((item) =>
+    item.extraction_status === "NOT_PROCESSED" || item.extraction_status === "FAILED",
+  );
+  for (const item of evidenceToProcess) {
     const { data: claimed } = await supabase
       .from("warehouse_submission_evidence")
       .update({ extraction_status: "PROCESSING" })
       .eq("id", item.id)
       .eq("empresa_id", profile.empresa_id)
-      .eq("extraction_status", "NOT_PROCESSED")
+      .in("extraction_status", ["NOT_PROCESSED", "FAILED"])
       .select("id")
       .maybeSingle();
     if (!claimed) continue;
@@ -532,7 +546,7 @@ export async function processWarehouseSubmission(submissionId: string) {
       const proposal = photoEvidenceProposal(item.file_name);
       await supabase
         .from("warehouse_submission_evidence")
-        .update({ extraction_status: "PROPOSED", extraction_result: proposal, confidence: null })
+        .update({ extraction_status: "PROPOSED", extraction_result: proposal, extraction_error: null, confidence: null })
         .eq("id", item.id)
         .eq("empresa_id", profile.empresa_id);
       continue;
@@ -549,8 +563,29 @@ export async function processWarehouseSubmission(submissionId: string) {
         .eq("empresa_id", profile.empresa_id);
       continue;
     }
-    const parsed = parseInventorySpreadsheet(new Uint8Array(await downloaded.data.arrayBuffer()));
-    if (parsed.errors.length) errors.push(...parsed.errors.map((error) => `${item.file_name}: ${error}`));
+    let parsed: ReturnType<typeof parseInventorySpreadsheet>;
+    try {
+      parsed = parseInventorySpreadsheet(new Uint8Array(await downloaded.data.arrayBuffer()));
+    } catch (parseError) {
+      const message = `${item.file_name}: no se pudo interpretar la planilla`;
+      errors.push(message);
+      await supabase
+        .from("warehouse_submission_evidence")
+        .update({ extraction_status: "FAILED", extraction_error: parseError instanceof Error ? parseError.message : message })
+        .eq("id", item.id)
+        .eq("empresa_id", profile.empresa_id);
+      continue;
+    }
+    if (parsed.failed) {
+      const message = `${item.file_name}: ${parsed.errors.join("; ") || "no se pudo interpretar la planilla"}`;
+      errors.push(message);
+      await supabase
+        .from("warehouse_submission_evidence")
+        .update({ extraction_status: "FAILED", extraction_error: message })
+        .eq("id", item.id)
+        .eq("empresa_id", profile.empresa_id);
+      continue;
+    }
 
     const rows = parsed.rows.map((row) => ({
       rawDescription: row.rawDescription,
@@ -586,7 +621,7 @@ export async function processWarehouseSubmission(submissionId: string) {
       .update({
         extraction_status: "PROPOSED",
         extraction_result: { rows: parsed.rows.length, errors: parsed.errors },
-        extraction_error: parsed.errors.length ? parsed.errors.join("; ") : null,
+        extraction_error: null,
         confidence: parsed.errors.length ? 0.5 : 1,
       })
       .eq("id", item.id)

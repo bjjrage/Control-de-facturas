@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { hashWarehousePortalToken, sha256Bytes } from "@/lib/inventory/portal";
+import { enforceWarehousePortalFileLimit, hashWarehousePortalToken, sha256Bytes } from "@/lib/inventory/portal";
 import { sanitizeFileName } from "@/lib/storage";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -52,10 +52,14 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "El período no es válido." }, { status: 400 });
   }
 
-  const files = formData
+  const submittedFiles = formData
     .getAll("files")
-    .filter((value): value is File => value instanceof File && value.size > 0)
-    .slice(0, MAX_FILES);
+    .filter((value): value is File => value instanceof File && value.size > 0);
+  const fileLimit = enforceWarehousePortalFileLimit(submittedFiles, MAX_FILES);
+  if (!fileLimit.allowed) {
+    return NextResponse.json({ error: `El mÃ¡ximo es ${MAX_FILES} archivos por envÃ­o. No se cargÃ³ ninguno; reducí la cantidad y volvé a intentar.` }, { status: 413 });
+  }
+  const files = fileLimit.files;
   if (!files.length) return NextResponse.json({ error: "Subí al menos una foto o planilla." }, { status: 400 });
   for (const file of files) {
     if (file.size > MAX_FILE_BYTES) {

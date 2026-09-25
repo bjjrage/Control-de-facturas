@@ -525,7 +525,7 @@ export default async function ProjectDetailPage({
         id: e.id as string,
         file_name: e.file_name as string,
         mime_type: e.mime_type as string | null,
-        extraction_status: e.extraction_status as string,
+        extraction_status: e.extraction_status as import("@/lib/types").WarehouseSubmissionEvidence["extraction_status"],
         extraction_error: e.extraction_error as string | null,
         signed_url: signedUrlByObject.get(`${e.storage_bucket as string}:${e.storage_path as string}`) ?? null,
       });

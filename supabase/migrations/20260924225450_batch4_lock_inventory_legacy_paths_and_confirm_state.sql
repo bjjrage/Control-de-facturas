@@ -202,7 +202,10 @@ BEGIN
             OR m.producto_id IS DISTINCT FROM l.producto_id
             OR m.quantity IS DISTINCT FROM l.quantity
             OR m.unit IS DISTINCT FROM l.unit
+            OR nullif(btrim(l.raw_description), '') IS NULL
+            OR l.raw_description ~* '^fila [0-9]+: descripción pendiente$'
             OR m.project_id IS DISTINCT FROM NEW.project_id
+            OR m.from_location_id IS DISTINCT FROM NEW.location_id
             OR m.budget_item_id IS DISTINCT FROM l.budget_item_id
           ))
         )
@@ -260,6 +263,19 @@ BEGIN
   FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Rendición no encontrada'; END IF;
   IF v_submission.status = 'VOIDED' THEN RAISE EXCEPTION 'La rendición está anulada'; END IF;
+  IF nullif(btrim(v_submission.processing_error), '') IS NOT NULL
+     OR EXISTS (
+       SELECT 1
+       FROM public.warehouse_submission_evidence e
+       WHERE e.submission_id = p_submission_id
+         AND e.empresa_id = p_empresa_id
+         AND (
+           e.extraction_status IN ('NOT_PROCESSED', 'PROCESSING', 'FAILED')
+           OR e.extraction_error IS NOT NULL
+         )
+     ) THEN
+    RAISE EXCEPTION 'Hay evidencia sin procesar o con errores; resolvé su revisión antes de confirmar';
+  END IF;
   IF v_submission.status = 'CONFIRMED' THEN
     IF NOT EXISTS (
       SELECT 1
@@ -293,7 +309,10 @@ BEGIN
             OR m.producto_id IS DISTINCT FROM l.producto_id
             OR m.quantity IS DISTINCT FROM l.quantity
             OR m.unit IS DISTINCT FROM l.unit
+            OR nullif(btrim(l.raw_description), '') IS NULL
+            OR l.raw_description ~* '^fila [0-9]+: descripción pendiente$'
             OR m.project_id IS DISTINCT FROM v_submission.project_id
+            OR m.from_location_id IS DISTINCT FROM v_submission.location_id
             OR m.budget_item_id IS DISTINCT FROM l.budget_item_id
           ))
         )
@@ -332,7 +351,9 @@ BEGIN
     ORDER BY line_number
   LOOP
     IF v_line.producto_id IS NULL OR v_line.quantity IS NULL OR v_line.unit IS NULL
-       OR v_line.budget_item_id IS NULL THEN
+       OR v_line.budget_item_id IS NULL
+       OR nullif(btrim(v_line.raw_description), '') IS NULL
+       OR v_line.raw_description ~* '^fila [0-9]+: descripción pendiente$' THEN
       RAISE EXCEPTION 'La línea % no está completa para confirmar', v_line.line_number;
     END IF;
     IF v_line.inventory_movement_id IS NOT NULL THEN

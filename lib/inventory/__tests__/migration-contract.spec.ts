@@ -34,6 +34,10 @@ const batch4HardeningMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260924225450_batch4_lock_inventory_legacy_paths_and_confirm_state.sql"),
   "utf8",
 );
+const warehouseEvidenceGateMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260925002351_batch4_guard_incomplete_warehouse_evidence.sql"),
+  "utf8",
+);
 const stockActions = readFileSync(
   resolve(process.cwd(), "app/(internal)/stock/stock-actions.ts"),
   "utf8",
@@ -206,6 +210,10 @@ describe("Batch 4 canonical inventory hardening", () => {
     expect(batch4HardeningMigration).toContain("m.source_type IS DISTINCT FROM 'WAREHOUSE_SUBMISSION'");
     expect(batch4HardeningMigration).toContain("m.source_line_id IS DISTINCT FROM l.id");
     expect(batch4HardeningMigration).toContain("m.project_id IS DISTINCT FROM NEW.project_id");
+    expect(batch4HardeningMigration).toContain("m.from_location_id IS DISTINCT FROM NEW.location_id");
+    expect(batch4HardeningMigration).toContain("m.from_location_id IS DISTINCT FROM v_submission.location_id");
+    expect(batch4HardeningMigration).toContain("nullif(btrim(v_submission.processing_error), '') IS NOT NULL");
+    expect(batch4HardeningMigration).toContain("v_line.raw_description ~* '^fila [0-9]+: descripción pendiente$'");
     expect(batch4HardeningMigration).toContain("m.budget_item_id IS DISTINCT FROM l.budget_item_id");
     expect(batch4HardeningMigration).toContain("l.state = 'REJECTED' AND l.inventory_movement_id IS NOT NULL");
     expect(batch4HardeningMigration).toContain("trg_prevent_confirmed_warehouse_submission_line_mutation");
@@ -222,6 +230,12 @@ describe("Batch 4 canonical inventory hardening", () => {
     expect(batch4HardeningMigration).toContain("l.state = 'PROPOSED'");
     expect(batch4HardeningMigration).toContain("l.state = 'REJECTED' AND l.inventory_movement_id IS NOT NULL");
     expect(batch4HardeningMigration).toContain("v_submission.status = 'CONFIRMED'");
+  });
+
+  it("blocks canonical confirmation while warehouse evidence is missing, processing, failed or unresolved", () => {
+    expect(warehouseEvidenceGateMigration).toContain("BEFORE UPDATE OF status ON public.warehouse_submissions");
+    expect(warehouseEvidenceGateMigration).toContain("e.extraction_status IN ('NOT_PROCESSED', 'PROCESSING', 'FAILED')");
+    expect(warehouseEvidenceGateMigration).toContain("e.extraction_error IS NOT NULL");
   });
 
   it("removes legacy stock writes and prevents direct mutation of balance and cost projections", () => {

@@ -38,7 +38,7 @@ export type PanolEvidenceRow = {
   id: string;
   file_name: string;
   mime_type: string | null;
-  extraction_status: string;
+  extraction_status: "NOT_PROCESSED" | "PROCESSING" | "PROPOSED" | "FAILED" | "REVIEWED";
   extraction_error: string | null;
   signed_url: string | null;
 };
@@ -112,6 +112,7 @@ function SubmissionLineEditor({
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState({
+    rawDescription: line.raw_description,
     productoId: line.producto_id ?? "",
     quantity: line.quantity == null ? "" : String(line.quantity),
     unit: line.unit ?? "",
@@ -128,6 +129,7 @@ function SubmissionLineEditor({
     setError(null);
     const result = await updateWarehouseSubmissionLine({
       lineId: line.id,
+      rawDescription: draft.rawDescription,
       productoId: draft.productoId || null,
       quantity: draft.quantity === "" ? null : Number(draft.quantity),
       unit: draft.unit || null,
@@ -145,11 +147,17 @@ function SubmissionLineEditor({
 
   return (
     <div className="grid gap-2 rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-3 xl:grid-cols-[minmax(150px,1fr)_minmax(180px,1.1fr)_100px_90px_minmax(180px,1fr)_170px_auto]">
-      <div className="min-w-0">
-        <p className="text-[12px] font-medium">{line.raw_description}</p>
+      <label className="min-w-0 text-[10px] text-[var(--muted)]">
+        Descripción del archivo
+        <input
+          value={draft.rawDescription}
+          disabled={locked}
+          onChange={(event) => setDraft((current) => ({ ...current, rawDescription: event.target.value }))}
+          className="mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--panel)] px-2 text-[12px] text-[var(--foreground)]"
+        />
         {line.uncertainty_reason ? <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">{line.uncertainty_reason}</p> : null}
         {line.inventory_movement_id ? <p className="mt-1 text-[10px] text-[var(--muted)]">Movimiento canónico registrado</p> : null}
-      </div>
+      </label>
       <label className="text-[10px] text-[var(--muted)]">
         Producto
         <select
@@ -406,6 +414,11 @@ export function PanolObraSection({
           const canConfirm = canConfirmWarehouseSubmission({
             status: submission.status,
             uploadIncomplete: submission.upload_incomplete,
+            processingError: submission.processing_error,
+            hasUnresolvedEvidence: submission.evidence.some((evidence) =>
+              ["NOT_PROCESSED", "PROCESSING", "FAILED"].includes(evidence.extraction_status)
+              || evidence.extraction_error !== null,
+            ),
             lineStates: submission.lines.map((line) => line.state),
           });
           const locked = submission.status === "CONFIRMED" || submission.status === "VOIDED";
@@ -448,7 +461,7 @@ export function PanolObraSection({
               <div className="space-y-2 p-3">
                 {submission.lines.map((line) => <SubmissionLineEditor key={`${submission.id}:${line.id}`} line={line} products={products} budgetItems={budgetItems} disabled={locked || submission.status === "PROCESSING"} />)}
                 {submission.lines.length === 0 ? <p className="text-[11px] text-[var(--muted)]">No hay líneas propuestas. Procesá la planilla o revisá la evidencia antes de confirmar.</p> : null}
-                {!canConfirm && !locked ? <p className="flex items-center gap-1 text-[10px] text-[var(--muted)]"><XCircle className="h-3 w-3" />Confirmación disponible cuando la rendición esté lista, los archivos completos y haya al menos una línea aceptada sin propuestas pendientes.</p> : null}
+                {!canConfirm && !locked ? <p className="flex items-center gap-1 text-[10px] text-[var(--muted)]"><XCircle className="h-3 w-3" />Confirmación disponible cuando la rendición esté lista, no haya errores ni archivos sin procesar y todas las líneas estén revisadas con al menos una aceptada.</p> : null}
               </div>
             </article>
           );

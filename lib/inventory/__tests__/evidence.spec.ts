@@ -22,14 +22,29 @@ describe("evidencia de rendiciones de materiales", () => {
     expect(result.rows[0].budgetItemId).toBeUndefined();
   });
 
-  it("marca filas inválidas para revisión", () => {
+  it("conserva cada fila no vacía como propuesta corregible cuando faltan campos", () => {
     const workbook = XLSX.utils.book_new();
-    const sheet = XLSX.utils.json_to_sheet([{ producto: "Hierro", cantidad: 0 }]);
+    const sheet = XLSX.utils.json_to_sheet([
+      { producto: "Hierro", cantidad: 0 },
+      { producto: "", cantidad: 4, unidad: "barra" },
+      { producto: "", cantidad: "", unidad: "" },
+    ]);
     XLSX.utils.book_append_sheet(workbook, sheet, "Consumo");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([{ producto: "Tornillo", cantidad: 5 }]), "Adicionales");
     const result = parseInventorySpreadsheet(XLSX.write(workbook, { type: "array", bookType: "xlsx" }));
 
-    expect(result.rows).toHaveLength(0);
-    expect(result.errors[0]).toMatch(/cantidad inválida/);
+    expect(result.failed).toBe(false);
+    expect(result.rows).toHaveLength(3);
+    expect(result.rows[0]).toMatchObject({ rawDescription: "Hierro", quantity: null, state: "PROPOSED" });
+    expect(result.rows[0].uncertaintyReason).toMatch(/cantidad inválida/);
+    expect(result.rows[1]).toMatchObject({ rawDescription: "Fila 3: descripción pendiente", quantity: 4, state: "PROPOSED" });
+    expect(result.rows[1].uncertaintyReason).toMatch(/falta descripción/);
+    expect(result.rows[2]).toMatchObject({ rawDescription: "Tornillo", quantity: 5, state: "PROPOSED" });
+    expect(result.rows[2].uncertaintyReason).toContain("Hoja Adicionales, fila 2");
+    expect(result.errors).toEqual([
+      "Hoja Consumo, fila 2: cantidad inválida",
+      "Hoja Consumo, fila 3: falta descripción",
+    ]);
   });
 
   it("para fotos conserva el contrato de propuesta humana", () => {
