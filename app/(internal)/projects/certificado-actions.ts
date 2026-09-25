@@ -455,45 +455,11 @@ export async function revertCertificate(certificateId: string): Promise<{ error:
   const target = backTo[cert.status];
   if (!target) return { error: "El certificado está en borrador, no se puede retroceder." };
 
-  if (["APROBADO", "FACTURADO"].includes(cert.status)) {
-    const { data: later } = await supabase
-      .from("project_certificates")
-      .select("numero")
-      .eq("project_id", cert.project_id)
-      .gt("numero", cert.numero)
-      .limit(1);
-    if (later && later.length > 0) {
-      return { error: `No se puede: existe el certificado N° ${later[0].numero} que depende de este.` };
-    }
-  }
-
-  // Al volver a un estado, se limpia la firma del paso que se abandona.
-  const clear: Record<string, null> = {};
-  if (cert.status === "ELABORADO") {
-    clear.elaborado_por = null;
-    clear.elaborado_at = null;
-    clear.closed_at = null;
-    clear.devolucion_anticipo_pct_snap = null;
-    clear.retencion_pct_snap = null;
-  }
-  if (cert.status === "VERIFICADO") {
-    clear.verificado_por = null;
-    clear.verificado_at = null;
-  }
-  if (cert.status === "APROBADO") {
-    clear.aprobado_por = null;
-    clear.aprobado_at = null;
-  }
-  if (cert.status === "FACTURADO") {
-    clear.facturado_at = null;
-    clear.factura_numero = null;
-  }
-
-  const { error } = await supabase
-    .from("project_certificates")
-    .update({ status: target, ...clear })
-    .eq("id", certificateId);
-  if (error) return { error: "No se pudo retroceder el certificado." };
+  const { data: revertedTo, error } = await supabase.rpc(
+    "revert_project_certificate_status_atomically",
+    { p_certificate_id: certificateId, p_expected_status: cert.status }
+  );
+  if (error || revertedTo !== target) return { error: "No se pudo retroceder el certificado." };
 
   await logAudit(supabase, {
     action: "project_certificate.reverted",
