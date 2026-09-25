@@ -354,6 +354,28 @@ export async function addClimateEvidence(input: {
     return { error: "La ruta de evidencia no pertenece al proyecto." };
   }
 
+  if (input.climateEventId) {
+    const { data: event } = await supabase
+      .from("climate_events")
+      .select("id")
+      .eq("id", input.climateEventId)
+      .eq("project_id", input.projectId)
+      .maybeSingle();
+    if (!event) return { error: "El evento climático no pertenece a este proyecto." };
+  }
+  if (input.workdayStatusId) {
+    const { data: workday } = await supabase
+      .from("project_workday_status")
+      .select("id, climate_event_id")
+      .eq("id", input.workdayStatusId)
+      .eq("project_id", input.projectId)
+      .maybeSingle();
+    if (!workday) return { error: "La jornada no pertenece a este proyecto." };
+    if (input.climateEventId && workday.climate_event_id !== input.climateEventId) {
+      return { error: "El evento y la jornada no corresponden entre sí." };
+    }
+  }
+
   const { data, error } = await supabase
     .from("climate_evidence")
     .insert({

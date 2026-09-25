@@ -109,6 +109,15 @@ export async function addSubcontractorContract(
   const signedDate = (formData.get("signed_date") as string | null) || null;
 
   if (!(contractedAmount > 0)) return { error: "El monto contratado debe ser mayor a cero." };
+  if (budgetItemId) {
+    const { data: budgetItem } = await supabase
+      .from("budget_items")
+      .select("id")
+      .eq("id", budgetItemId)
+      .eq("project_id", projectId)
+      .maybeSingle();
+    if (!budgetItem) return { error: "La partida no pertenece a este proyecto." };
+  }
 
   const { error } = await supabase.from("subcontractor_contracts").insert({
     project_id: projectId,
@@ -137,7 +146,7 @@ export async function approveCertificate(
   approvedAmount: number,
   notes: string | null
 ): Promise<{ error: string | null }> {
-  await requirePlan("caterpillar", ["administracion", "admin"]);
+  const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
   const supabase = await createClient();
 
   if (!(approvedPct > 0 && approvedPct <= 100)) return { error: "El % aprobado debe estar entre 1 y 100." };
@@ -172,19 +181,35 @@ export async function approveCertificate(
     };
   }
 
-  const { error } = await supabase
-    .from("subcontractor_certificates")
-    .update({ status: "APROBADO", approved_pct: approvedPct, approved_amount: approvedAmount, notes })
-    .eq("id", certificateId);
+  const { data: approvedId, error } = await supabase.rpc("approve_subcontractor_certificate_atomically", {
+    p_empresa_id: profile.empresa_id,
+    p_certificate_id: certificateId,
+    p_approved_pct: approvedPct,
+    p_approved_amount: approvedAmount,
+    p_notes: notes,
+    p_actor_id: profile.id,
+  });
+  if (error) return { error: error.message };
+  if (!approvedId) return { error: "No se pudo confirmar la aprobación." };
 
-  if (error) return { error: "No se pudo aprobar el certificado." };
+  const { data: persisted } = await supabase
+    .from("subcontractor_certificates")
+    .select("status, approved_pct, approved_amount")
+    .eq("id", certificateId)
+    .eq("project_id", cert.project_id)
+    .maybeSingle();
+  if (persisted?.status !== "APROBADO"
+      || Number(persisted.approved_pct) !== approvedPct
+      || Number(persisted.approved_amount) !== approvedAmount) {
+    return { error: "La aprobación se ejecutó, pero no se pudo verificar su lectura posterior." };
+  }
 
   revalidatePath(`/projects/${cert.project_id}`);
   return { error: null };
 }
 
 export async function rejectCertificate(certificateId: string, notes: string | null): Promise<{ error: string | null }> {
-  await requirePlan("caterpillar", ["administracion", "admin"]);
+  const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
   const supabase = await createClient();
 
   const { data: cert } = await supabase
@@ -194,12 +219,24 @@ export async function rejectCertificate(certificateId: string, notes: string | n
     .single();
   if (!cert) return { error: "Certificado no encontrado." };
 
-  const { error } = await supabase
-    .from("subcontractor_certificates")
-    .update({ status: "RECHAZADO", notes })
-    .eq("id", certificateId);
+  const { data: rejectedId, error } = await supabase.rpc("reject_subcontractor_certificate_atomically", {
+    p_empresa_id: profile.empresa_id,
+    p_certificate_id: certificateId,
+    p_notes: notes,
+    p_actor_id: profile.id,
+  });
+  if (error) return { error: error.message };
+  if (!rejectedId) return { error: "No se pudo confirmar el rechazo." };
 
-  if (error) return { error: "No se pudo rechazar el certificado." };
+  const { data: persisted } = await supabase
+    .from("subcontractor_certificates")
+    .select("status")
+    .eq("id", certificateId)
+    .eq("project_id", cert.project_id)
+    .maybeSingle();
+  if (persisted?.status !== "RECHAZADO") {
+    return { error: "El rechazo se ejecutó, pero no se pudo verificar su lectura posterior." };
+  }
 
   revalidatePath(`/projects/${cert.project_id}`);
   return { error: null };

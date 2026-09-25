@@ -718,11 +718,11 @@ export async function resyncCertificateFromExecution(certificateId: string): Pro
   if (!cert) return { error: "Certificado no encontrado." };
   if (cert.status !== "BORRADOR") return { error: "El certificado ya está elaborado y no se puede editar." };
 
-  const { data: items } = await supabase
+  const { data: items, error: itemsError } = await supabase
     .from("project_certificate_items")
     .select("id, budget_item_id")
     .eq("certificate_id", certificateId);
-  if (!items || items.length === 0) return { error: null };
+  if (itemsError || !items) return { error: "No se pudieron leer las líneas del certificado." };
 
   const { anterior, presente } = await buildQuantityMaps(
     supabase,
@@ -731,18 +731,21 @@ export async function resyncCertificateFromExecution(certificateId: string): Pro
     cert.period_end
   );
 
-  for (const it of items) {
-    if (!it.budget_item_id) continue;
-    await supabase
-      .from("project_certificate_items")
-      .update({
-        qty_anterior: anterior.get(it.budget_item_id) ?? 0,
-        qty_presente: presente.get(it.budget_item_id) ?? 0,
-      })
-      .eq("id", it.id);
-  }
+  const updates = items.flatMap((item) => item.budget_item_id
+    ? [{
+        item_id: item.id,
+        qty_anterior: anterior.get(item.budget_item_id) ?? 0,
+        qty_presente: presente.get(item.budget_item_id) ?? 0,
+      }]
+    : []);
+  const { error: resyncError } = await supabase.rpc("resync_project_certificate_quantities_atomically", {
+    p_empresa_id: profile.empresa_id,
+    p_certificate_id: certificateId,
+    p_actor_id: profile.id,
+    p_updates: updates,
+  });
+  if (resyncError) return { error: resyncError.message };
 
-  await recomputeCertificateTotals(supabase, certificateId);
   revalidatePath(`/projects/${cert.project_id}`);
   return { error: null };
 }

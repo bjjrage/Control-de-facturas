@@ -332,13 +332,14 @@ export function BimSection({ projectId }: { projectId: string }) {
     <div className="space-y-4">
       <section aria-labelledby="bim-model-title" data-testid="bim-model-surface" className="space-y-3">
         <div>
-          <h2 id="bim-model-title" className="text-[14px] font-semibold">MODELO BIM / IFC</h2>
-          <p className="mt-0.5 text-[12px] text-[var(--muted)]">Modelo IFC de la obra</p>
+          <h2 id="bim-model-title" className="text-[14px] font-semibold">OPCIÓN A · MODELO BIM / IFC</h2>
+          <p className="mt-0.5 text-[12px] text-[var(--muted)]">Fuente del cómputo: modelo IFC de la obra</p>
         </div>
       <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-[12px] text-[var(--muted)]">
-        El BIM aporta cantidades; el presupuesto aporta precios. Subí un IFC: los elementos técnicamente
-        equivalentes se agrupan y se consultan en lote contra el catálogo de costos. Vos confirmás cada grupo —
-        ningún precio se calcula sin tu confirmación.
+        <span className="font-medium text-[var(--foreground)]">FUENTE DEL CÓMPUTO.</span> Elegí Modelo IFC (opción A)
+        o Cómputo Excel/PDF (opción B). Ambos flujos convergen en cantidades, matching, revisión humana y presupuesto;
+        ninguno genera ejecución ni certificados automáticamente. En IFC, el modelo aporta cantidades y el presupuesto
+        los precios; confirmás cada grupo antes de incorporarlo.
       </div>
 
       {error ? (
@@ -809,8 +810,8 @@ export function BimSection({ projectId }: { projectId: string }) {
 
       <section aria-labelledby="bim-computo-title" data-testid="bim-computo-fallback" className="space-y-3 border-t border-[var(--border)] pt-5">
         <div>
-          <h2 id="bim-computo-title" className="text-[14px] font-semibold">CÓMPUTO SIN MODELO BIM</h2>
-          <p className="mt-0.5 text-[12px] text-[var(--muted)]">Importá un Excel o PDF si la obra todavía no tiene un modelo IFC.</p>
+          <h2 id="bim-computo-title" className="text-[14px] font-semibold">OPCIÓN B · CÓMPUTO EXCEL/PDF</h2>
+          <p className="mt-0.5 text-[12px] text-[var(--muted)]">Importá cantidades desde Excel o PDF y continuá por el mismo matching, revisión humana y presupuesto.</p>
         </div>
         <ComputoSection projectId={projectId} />
       </section>
