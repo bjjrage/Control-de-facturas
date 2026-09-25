@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { displayLocationName } from "@/lib/inventory/display-location-name";
 import { hashWarehousePortalToken } from "@/lib/inventory/portal";
 
 export default async function WarehousePortalPage({ params }: { params: Promise<{ token: string }> }) {
@@ -25,7 +26,7 @@ export default async function WarehousePortalPage({ params }: { params: Promise<
       <div className="mx-auto max-w-lg space-y-4">
         <section className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
           <p className="text-[11px] text-[var(--muted)]">Rendición de materiales</p>
-          <h1 className="mt-1 text-lg font-semibold">{location.name}</h1>
+          <h1 className="mt-1 text-lg font-semibold">{displayLocationName(location.name)}</h1>
           <p className="mt-2 text-[13px] text-[var(--muted)]">
             Subí las fotos semanales del cuaderno o una planilla. La empresa revisará la evidencia antes de afectar el stock.
           </p>

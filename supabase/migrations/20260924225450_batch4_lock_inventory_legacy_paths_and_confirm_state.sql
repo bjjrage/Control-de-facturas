@@ -203,7 +203,7 @@ BEGIN
             OR m.quantity IS DISTINCT FROM l.quantity
             OR m.unit IS DISTINCT FROM l.unit
             OR nullif(btrim(l.raw_description), '') IS NULL
-            OR l.raw_description ~* '^fila [0-9]+: descripción pendiente$'
+            OR btrim(l.raw_description) ~* '^fila [0-9]+: descripción pendiente$'
             OR m.project_id IS DISTINCT FROM NEW.project_id
             OR m.from_location_id IS DISTINCT FROM NEW.location_id
             OR m.budget_item_id IS DISTINCT FROM l.budget_item_id
@@ -310,7 +310,7 @@ BEGIN
             OR m.quantity IS DISTINCT FROM l.quantity
             OR m.unit IS DISTINCT FROM l.unit
             OR nullif(btrim(l.raw_description), '') IS NULL
-            OR l.raw_description ~* '^fila [0-9]+: descripción pendiente$'
+            OR btrim(l.raw_description) ~* '^fila [0-9]+: descripción pendiente$'
             OR m.project_id IS DISTINCT FROM v_submission.project_id
             OR m.from_location_id IS DISTINCT FROM v_submission.location_id
             OR m.budget_item_id IS DISTINCT FROM l.budget_item_id
@@ -353,7 +353,7 @@ BEGIN
     IF v_line.producto_id IS NULL OR v_line.quantity IS NULL OR v_line.unit IS NULL
        OR v_line.budget_item_id IS NULL
        OR nullif(btrim(v_line.raw_description), '') IS NULL
-       OR v_line.raw_description ~* '^fila [0-9]+: descripción pendiente$' THEN
+       OR btrim(v_line.raw_description) ~* '^fila [0-9]+: descripción pendiente$' THEN
       RAISE EXCEPTION 'La línea % no está completa para confirmar', v_line.line_number;
     END IF;
     IF v_line.inventory_movement_id IS NOT NULL THEN

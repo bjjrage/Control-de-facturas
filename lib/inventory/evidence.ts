@@ -14,11 +14,6 @@ function normalizeHeader(value: unknown) {
     .toLowerCase();
 }
 
-function pick(row: Record<string, unknown>, candidates: string[]) {
-  const entry = Object.entries(row).find(([key]) => candidates.includes(normalizeHeader(key)));
-  return entry?.[1] ?? null;
-}
-
 function numberValue(value: unknown) {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
   if (typeof value !== "string") return null;
@@ -41,16 +36,48 @@ export function parseInventorySpreadsheet(input: Uint8Array | ArrayBuffer): {
   const proposals: WarehouseSubmissionLineInput[] = [];
   const errors: string[] = [];
   for (const sheetName of workbook.SheetNames) {
-    const sheetRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[sheetName], { defval: null });
+    const sheetRows = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[sheetName], {
+      header: 1,
+      defval: null,
+      blankrows: true,
+    });
+    const descriptionHeaderIndex = (row: unknown[]) =>
+      row.findIndex((value) => DESCRIPTION_HEADERS.includes(normalizeHeader(value)));
+    const quantityHeaderIndex = (row: unknown[]) =>
+      row.findIndex((value) => QUANTITY_HEADERS.includes(normalizeHeader(value)));
+    const headerRowIndex = sheetRows.findIndex((row) =>
+      descriptionHeaderIndex(row) >= 0 && quantityHeaderIndex(row) >= 0,
+    );
+    const headerRow = headerRowIndex >= 0 ? sheetRows[headerRowIndex] : [];
     sheetRows.forEach((row, index) => {
-      const sourceRowNumber = index + 2;
+      const sourceRowNumber = index + 1;
       const sourceRow = `Hoja ${sheetName}, fila ${sourceRowNumber}`;
-      const rawDescription = String(pick(row, DESCRIPTION_HEADERS) ?? "").trim();
-      const quantity = numberValue(pick(row, QUANTITY_HEADERS));
-      const unit = String(pick(row, UNIT_HEADERS) ?? "").trim() || null;
-      const budgetItemCode = String(pick(row, BUDGET_HEADERS) ?? "").trim() || null;
-      const hasRowContent = Object.values(row).some((value) => value != null && String(value).trim() !== "");
+      const hasRowContent = row.some((value) => value != null && String(value).trim() !== "");
       if (!hasRowContent) return;
+      if (index === headerRowIndex) return;
+
+      if (headerRowIndex < 0 || index < headerRowIndex) {
+        const rowText = row.map((value) => String(value ?? "").trim()).filter(Boolean).join(" | ");
+        const warning = `${sourceRow}: no se reconocieron encabezados; fila conservada para revisión manual`;
+        errors.push(warning);
+        proposals.push({
+          lineNumber: proposals.length + 1,
+          rawDescription: `Fila ${sourceRowNumber}: ${rowText}`,
+          quantity: null,
+          unit: null,
+          state: "PROPOSED",
+          confidence: 0,
+          uncertaintyReason: `${warning}. Completar los datos desde el archivo original.`,
+        });
+        return;
+      }
+
+      const rawDescription = String(row[descriptionHeaderIndex(headerRow)] ?? "").trim();
+      const quantity = numberValue(row[quantityHeaderIndex(headerRow)]);
+      const unitIndex = headerRow.findIndex((value) => UNIT_HEADERS.includes(normalizeHeader(value)));
+      const budgetIndex = headerRow.findIndex((value) => BUDGET_HEADERS.includes(normalizeHeader(value)));
+      const unit = String(unitIndex >= 0 ? row[unitIndex] ?? "" : "").trim() || null;
+      const budgetItemCode = String(budgetIndex >= 0 ? row[budgetIndex] ?? "" : "").trim() || null;
 
       const rowErrors: string[] = [];
       if (!rawDescription) rowErrors.push(`${sourceRow}: falta descripción`);

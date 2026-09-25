@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { displayLocationName } from "@/lib/inventory/display-location-name";
 import { enforceWarehousePortalFileLimit, hashWarehousePortalToken, sha256Bytes } from "@/lib/inventory/portal";
 import { sanitizeFileName } from "@/lib/storage";
 
@@ -37,7 +38,7 @@ export async function GET(_request: Request, context: RouteContext) {
   const { token } = await context.params;
   const resolved = await resolveLink(token);
   if (!resolved) return NextResponse.json({ error: "Enlace inválido o vencido." }, { status: 404 });
-  return NextResponse.json({ location: resolved.location.name, projectId: resolved.location.project_id });
+  return NextResponse.json({ location: displayLocationName(resolved.location.name), projectId: resolved.location.project_id });
 }
 
 export async function POST(request: Request, context: RouteContext) {

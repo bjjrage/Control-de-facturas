@@ -213,7 +213,7 @@ describe("Batch 4 canonical inventory hardening", () => {
     expect(batch4HardeningMigration).toContain("m.from_location_id IS DISTINCT FROM NEW.location_id");
     expect(batch4HardeningMigration).toContain("m.from_location_id IS DISTINCT FROM v_submission.location_id");
     expect(batch4HardeningMigration).toContain("nullif(btrim(v_submission.processing_error), '') IS NOT NULL");
-    expect(batch4HardeningMigration).toContain("v_line.raw_description ~* '^fila [0-9]+: descripción pendiente$'");
+    expect(batch4HardeningMigration).toContain("btrim(v_line.raw_description) ~* '^fila [0-9]+: descripción pendiente$'");
     expect(batch4HardeningMigration).toContain("m.budget_item_id IS DISTINCT FROM l.budget_item_id");
     expect(batch4HardeningMigration).toContain("l.state = 'REJECTED' AND l.inventory_movement_id IS NOT NULL");
     expect(batch4HardeningMigration).toContain("trg_prevent_confirmed_warehouse_submission_line_mutation");
