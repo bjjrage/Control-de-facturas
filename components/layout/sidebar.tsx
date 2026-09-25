@@ -46,7 +46,7 @@ import {
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { logout } from "@/app/(internal)/actions";
-import { EmpresaPlan } from "@/lib/auth";
+import { planMeetsMinimum, type EmpresaPlan } from "@/lib/plans";
 import {
   canAccessProjectFeature,
   getProjectFeature,
@@ -161,8 +161,6 @@ const VENTAS_ITEMS: NavItem[] = [
 const logoBucketUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/branding/${LOGO_STORAGE_PATH}`
   : null;
-
-const PLAN_RANK: Record<EmpresaPlan, number> = { basico: 0, pro: 1, caterpillar: 2 };
 
 function SidebarUserMenu({
   collapsed,
@@ -349,7 +347,7 @@ export function Sidebar({
       if (item.superAdmin) return isSuperAdmin;
       if (!item.roles.includes(role)) return false;
       if (item.module && !modules[item.module] && !isSuperAdmin) return false;
-      if (item.minPlan && PLAN_RANK[plan] < PLAN_RANK[item.minPlan] && !isSuperAdmin) return false;
+      if (item.minPlan && !planMeetsMinimum(plan, item.minPlan, isSuperAdmin)) return false;
       return true;
     });
   }
@@ -688,12 +686,11 @@ export function Sidebar({
   }
 
   function renderProjectSection(group: (typeof PROJECT_TAB_GROUPS)[number]) {
+    const featurePlan = plan === "caterpillar" || isSuperAdmin ? "caterpillar" : "pro";
     const tabs = group.tabs.filter((t) =>
-      plan === "basico"
-        ? false
-        : canAccessProjectFeature(getProjectFeature(t.key), {
+      (plan !== "basico" || isSuperAdmin) && canAccessProjectFeature(getProjectFeature(t.key), {
             role,
-            plan,
+            plan: featurePlan,
             isSuperAdmin,
           })
     );

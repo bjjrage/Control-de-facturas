@@ -1,4 +1,5 @@
 import type { UserRole } from "@/lib/types";
+import { planMeetsMinimum } from "@/lib/plans";
 
 export type ProjectFeatureGroup = "Preparar" | "Comprar" | "Avance de obra" | "Certificar";
 export type ProjectFeaturePlan = "pro" | "caterpillar";
@@ -63,8 +64,6 @@ export const PROJECT_FEATURES = [
 
 export const PROJECT_FEATURE_KEYS = PROJECT_FEATURES.map((feature) => feature.key) as ProjectFeatureKey[];
 
-const PLAN_RANK: Record<ProjectFeaturePlan, number> = { pro: 1, caterpillar: 2 };
-
 export function isProjectFeatureKey(value: string | null | undefined): value is ProjectFeatureKey {
   return value != null && PROJECT_FEATURE_KEYS.includes(value as ProjectFeatureKey);
 }
@@ -87,5 +86,5 @@ export function canAccessProjectFeature(
   access: { role: UserRole; plan: ProjectFeaturePlan; isSuperAdmin?: boolean }
 ): boolean {
   if (access.isSuperAdmin) return true;
-  return feature.roles.some((role) => role === access.role) && PLAN_RANK[access.plan] >= PLAN_RANK[feature.minPlan];
+  return feature.roles.some((role) => role === access.role) && planMeetsMinimum(access.plan, feature.minPlan);
 }

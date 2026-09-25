@@ -23,6 +23,9 @@ const physicalProgressSource = fs.readFileSync(
 );
 const topbarSource = fs.readFileSync(path.join(repoRoot, "components", "layout", "topbar.tsx"), "utf8");
 const sidebarSource = fs.readFileSync(path.join(repoRoot, "components", "layout", "sidebar.tsx"), "utf8");
+const layoutSource = fs.readFileSync(path.join(repoRoot, "app", "(internal)", "layout.tsx"), "utf8");
+const projectPageSource = fs.readFileSync(path.join(repoRoot, "app", "(internal)", "projects", "[id]", "page.tsx"), "utf8");
+const adminDashboardSource = fs.readFileSync(path.join(repoRoot, "app", "(internal)", "dashboard", "data.ts"), "utf8");
 const stockCatalogSource = fs.readFileSync(path.join(repoRoot, "app", "(internal)", "stock", "stock-section.tsx"), "utf8");
 const inventorySource = fs.readFileSync(
   path.join(repoRoot, "app", "(internal)", "inventario", "inventario-global-section.tsx"),
@@ -49,6 +52,32 @@ describe("project surface contract", () => {
     expect(canAccessProjectFeature(bim, { role: "administracion", plan: "pro" })).toBe(false);
     expect(canAccessProjectFeature(bim, { role: "administracion", plan: "caterpillar" })).toBe(true);
     expect(canAccessProjectFeature(weeklyPlan, { role: "administracion", plan: "pro" })).toBe(true);
+  });
+
+  it("guarantees every Pro project surface is available in Caterpillar", () => {
+    const proKeys = PROJECT_FEATURES.filter((feature) => feature.minPlan === "pro").map((feature) => feature.key);
+    const caterpillarKeys = PROJECT_FEATURES
+      .filter((feature) => canAccessProjectFeature(feature, { role: "administracion", plan: "caterpillar" }))
+      .map((feature) => feature.key);
+
+    expect(caterpillarKeys).toEqual(expect.arrayContaining(proKeys));
+    for (const key of proKeys) {
+      expect(canAccessProjectFeature(getProjectFeature(key), { role: "administracion", plan: "pro" })).toBe(true);
+      expect(canAccessProjectFeature(getProjectFeature(key), { role: "administracion", plan: "caterpillar" })).toBe(true);
+    }
+  });
+
+  it("keeps administration and operations entry points and superadmin access coherent", () => {
+    expect(sidebarSource).toContain('const OPERATIVO_ITEMS: NavItem[]');
+    expect(sidebarSource).toContain('href: "/stock", label: "Materiales"');
+    expect(sidebarSource).toContain('href: "/inventario", label: "Stock e Inventario"');
+    expect(sidebarSource).toContain('const COMPRAS_ITEMS: NavItem[]');
+    expect(sidebarSource).toContain('plan === "caterpillar" || isSuperAdmin');
+    expect(sidebarSource).toContain('(plan !== "basico" || isSuperAdmin)');
+    expect(layoutSource).toContain('planMeetsMinimum(profile.plan, "pro", profile.is_super_admin)');
+    expect(projectPageSource).toContain('profile.plan === "caterpillar" || profile.is_super_admin');
+    expect(adminDashboardSource).toContain("p.modulo_compras || p.is_super_admin");
+    expect(adminDashboardSource).toContain("p.modulo_ventas || p.is_super_admin");
   });
 
   it("exposes the recovered project surfaces and keeps legacy stock out of active nav", () => {
@@ -78,12 +107,13 @@ describe("project surface contract", () => {
   });
 
   it("distinguishes canonical inventory from legacy material-catalog balances", () => {
-    expect(inventorySource).toContain(">Inventario</h1>");
-    expect(inventorySource).toContain("dominio canónico de inventario");
-    expect(stockCatalogSource).toContain(">Catálogo de materiales</h1>");
-    expect(stockCatalogSource).toContain("no saldos autoritativos");
+    expect(inventorySource).toContain(">Stock e Inventario</h1>");
+    expect(inventorySource).toContain("dominio canónico certificado");
+    expect(stockCatalogSource).toContain(">Materiales</h1>");
+    expect(stockCatalogSource).toContain("no implica que haya stock");
     expect(stockCatalogSource).toContain('href="/inventario"');
-    expect(stockCatalogSource).toContain("Stock de referencia");
+    expect(stockCatalogSource).not.toContain("stock_actual");
+    expect(stockCatalogSource).not.toContain("stock_por_proyecto");
   });
 
   it("renders one BIM composition with an accessible IFC CTA and one compute fallback", () => {

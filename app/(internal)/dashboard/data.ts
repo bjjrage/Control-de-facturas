@@ -12,14 +12,13 @@ import {
   type RawSalesDocForKpi,
 } from "@/lib/dashboard/admin-kpis";
 import { generateAttentionAlerts } from "@/lib/dashboard/attention-alerts";
+import { planMeetsMinimum } from "@/lib/plans";
 import type { AlertSourcesInput } from "@/lib/dashboard/attention-alerts";
 import {
   build30DayCashflowItems,
   type RawCertificateForCashflow,
   type RawGastoRecurrenteForCashflow,
 } from "@/lib/dashboard/cashflow";
-
-const PLAN_RANK = { basico: 0, pro: 1, caterpillar: 2 } as const;
 
 type ReceiptQueryRow = {
   id: string;
@@ -70,9 +69,9 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
   const empresaId = p.empresa_id;
   const today = todayIso();
   const isAdminRole = p.role === "administracion" || p.role === "admin";
-  const showInvoiceKpis = isAdminRole && p.modulo_compras;
-  const showSalesKpis = isAdminRole && p.modulo_ventas;
-  const canUseStock = showInvoiceKpis && PLAN_RANK[p.plan] >= PLAN_RANK.pro;
+  const showInvoiceKpis = isAdminRole && (p.modulo_compras || p.is_super_admin);
+  const showSalesKpis = isAdminRole && (p.modulo_ventas || p.is_super_admin);
+  const canUseStock = showInvoiceKpis && planMeetsMinimum(p.plan, "pro", p.is_super_admin);
   const noopRows = Promise.resolve({ data: [] as unknown[], error: null });
 
   const [

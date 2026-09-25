@@ -48,7 +48,7 @@ export default async function ProjectDetailPage({
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const { id } = await params;
   const { tab: rawTab } = await searchParams;
-  const isCaterpillar = profile.plan === "caterpillar";
+  const isCaterpillar = profile.plan === "caterpillar" || profile.is_super_admin;
   const featurePlan = isCaterpillar ? "caterpillar" : "pro";
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
   const initialTab =

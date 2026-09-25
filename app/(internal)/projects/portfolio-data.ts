@@ -60,7 +60,7 @@ export async function getProjectsPortfolioData(profile?: CurrentProfile): Promis
 
   const projects = projectData ?? [];
   const projectIds = projects.map((project) => project.id);
-  const isCaterpillar = p.plan === "caterpillar";
+  const isCaterpillar = p.plan === "caterpillar" || p.is_super_admin;
   const emptyRows = Promise.resolve({ data: [] as unknown[] });
 
   const [{ data: budgetItems }, { data: orders }, { data: executionEntries }, { data: products }, stockResult, { count: certificatesPending }] = await Promise.all([
