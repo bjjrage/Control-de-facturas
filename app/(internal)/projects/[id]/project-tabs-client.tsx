@@ -43,6 +43,7 @@ import { ProjectReports } from "./reports";
 import { AddLaborEntryForm } from "./add-labor-entry-form";
 import { AddSubcontractorContractDialog } from "./add-subcontractor-contract-dialog";
 import { AddCertificadoDialog } from "./add-certificado-dialog";
+import { ImportCertificadoDialog } from "./import-certificado-dialog";
 import { CertificadosTable } from "./certificados-table";
 import { AvanceFisicoPanel } from "./avance-fisico-panel";
 import { PresupuestoTable } from "./presupuesto-table";
@@ -180,6 +181,7 @@ export function ProjectTabsClient({
   comprasPct,
 }: Props) {
   const [tab, setTab] = useState(initialTab);
+  const [certificateToOpen, setCertificateToOpen] = useState<string | null>(null);
 
   // Escucha el custom event que despacha el sidebar al hacer click en un tab
   useEffect(() => {
@@ -512,19 +514,23 @@ export function ProjectTabsClient({
               Certificados de ejecución para cobrar al comitente. El acumulado anterior sale de los
               certificados cerrados; el presente, del avance del período.
             </p>
-            <AddCertificadoDialog
-              projectId={project.id}
-              nextNumero={(projectCertificates[0]?.numero ?? 0) + 1}
-              suggestedStart={
-                projectCertificates[0]?.period_end
-                  ? new Date(new Date(projectCertificates[0].period_end).getTime() + 86400000)
-                      .toISOString()
-                      .slice(0, 10)
-                  : project.orden_inicio_date ?? project.start_date
-              }
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              <ImportCertificadoDialog projectId={project.id} onImported={setCertificateToOpen} />
+              <AddCertificadoDialog
+                projectId={project.id}
+                nextNumero={(projectCertificates[0]?.numero ?? 0) + 1}
+                suggestedStart={
+                  projectCertificates[0]?.period_end
+                    ? new Date(new Date(projectCertificates[0].period_end).getTime() + 86400000)
+                        .toISOString()
+                        .slice(0, 10)
+                    : project.orden_inicio_date ?? project.start_date
+                }
+              />
+            </div>
           </div>
           <CertificadosTable
+            key={certificateToOpen ?? "certificados"}
             project={project}
             certificates={projectCertificates}
             itemsByCert={certificateItemsByCert}
@@ -532,6 +538,7 @@ export function ProjectTabsClient({
             projectUnits={projectUnits}
             unitProgressByCert={unitProgressByCert}
             isAdmin={isAdmin}
+            focusCertificateId={certificateToOpen}
           />
         </div>
       ) : null}

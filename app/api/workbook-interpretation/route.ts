@@ -1,4 +1,7 @@
 import { requirePlan } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { certificateWorkbookFingerprint, extractCertificateWorkbookData, matchCertificateRows, type CertificateBudgetItem } from "@/lib/certificates/workbook-import";
+import { reconcileImportPlan } from "@/lib/workbook-interpretation/import-plan";
 import {
   InvalidModelResponseError,
   ModelUnavailableError,
@@ -18,11 +21,14 @@ function error(message: string, status: number) {
 }
 
 export async function POST(request: Request) {
-  await requirePlan("pro", ["administracion", "admin"]);
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
   try {
     const formData = await request.formData();
     const uploaded = formData.get("file");
     if (!(uploaded instanceof File)) return error("Seleccioná una planilla para analizar.", 400);
+    if (formData.get("target") === "project-certificate") {
+      return await previewProjectCertificateImport(formData, uploaded, profile);
+    }
     const workbook = parseWorkbook(new Uint8Array(await uploaded.arrayBuffer()), uploaded.name);
     const result = await interpretWorkbook(workbook);
     return Response.json({ result });
@@ -37,4 +43,97 @@ export async function POST(request: Request) {
     console.error("[workbook-interpretation] unexpected error", cause);
     return error("No se pudo analizar la planilla. Probá nuevamente.", 500);
   }
+}
+
+async function previewProjectCertificateImport(
+  formData: FormData,
+  uploaded: File,
+  profile: Awaited<ReturnType<typeof requirePlan>>,
+) {
+  const projectId = String(formData.get("project_id") ?? "");
+  if (!projectId) return error("Seleccioná la obra existente para importar el certificado.", 400);
+  if (!/\.xlsx$/i.test(uploaded.name)) return error("Por ahora el importador acepta únicamente archivos .xlsx.", 400);
+  if (uploaded.size > 10 * 1024 * 1024) return error("El archivo supera el límite de 10 MB.", 413);
+
+  const supabase = await createClient();
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (projectError || !project) return error("Obra no encontrada para la empresa activa.", 404);
+
+  const [budgetResult, certificatesResult] = await Promise.all([
+    supabase.from("budget_items")
+      .select("id, project_id, code, description, unit, quantity, unit_price, sort_order")
+      .eq("project_id", projectId)
+      .order("sort_order"),
+    supabase.from("project_certificates")
+      .select("id, numero, status")
+      .eq("project_id", projectId)
+      .order("numero", { ascending: false }),
+  ]);
+  if (budgetResult.error || certificatesResult.error) return error("No se pudieron cargar el presupuesto y la secuencia de esta obra.", 500);
+  if (!budgetResult.data?.length) return error("La obra no tiene partidas de presupuesto para vincular el certificado.", 400);
+
+  const bytes = new Uint8Array(await uploaded.arrayBuffer());
+  const workbook = parseWorkbook(bytes, uploaded.name);
+  const inferred = reconcileImportPlan(workbook, {
+    workbookType: "CONSTRUCTION_PROJECT",
+    overallConfidence: 1,
+    blocks: [],
+    unresolvedRegions: [],
+    warnings: [],
+  }, ["CERTIFICATE"]);
+  const plan = { ...inferred.plan, warnings: [...inferred.plan.warnings, ...inferred.warnings] };
+  const certificate = extractCertificateWorkbookData(workbook, plan);
+  const projectBudgetItems = (budgetResult.data ?? []) as CertificateBudgetItem[];
+  const rows = matchCertificateRows(certificate.rows, projectBudgetItems, projectId);
+
+  const priorCertificates = (certificatesResult.data ?? []).filter((item) =>
+    ["ELABORADO", "VERIFICADO", "APROBADO", "FACTURADO"].includes(item.status)
+  );
+  const previousQuantityByBudgetItem: Record<string, number> = {};
+  if (priorCertificates.length) {
+    const { data: priorItems, error: priorItemsError } = await supabase
+      .from("project_certificate_items")
+      .select("budget_item_id, qty_presente")
+      .in("certificate_id", priorCertificates.map((item) => item.id));
+    if (priorItemsError) return error("No se pudo verificar el acumulado anterior de esta obra.", 500);
+    for (const item of priorItems ?? []) {
+      if (!item.budget_item_id) continue;
+      previousQuantityByBudgetItem[item.budget_item_id] = (previousQuantityByBudgetItem[item.budget_item_id] ?? 0) + Number(item.qty_presente ?? 0);
+    }
+  }
+
+  const latest = certificatesResult.data?.[0] ?? null;
+  const nextNumber = (latest?.numero ?? 0) + 1;
+  const fingerprint = certificateWorkbookFingerprint(bytes);
+  const { data: existingImport, error: existingError } = await supabase
+    .from("project_certificates")
+    .select("id, numero")
+    .eq("project_id", projectId)
+    .eq("import_fingerprint", fingerprint)
+    .maybeSingle();
+  if (existingError) return error("No se pudo verificar si este archivo ya fue importado.", 500);
+
+  return Response.json({
+    plan,
+    certificate: {
+      number: certificate.number,
+      periodStart: certificate.periodStart,
+      periodEnd: certificate.periodEnd,
+      sheet: certificate.sheet,
+      planNeedsReview: certificate.planNeedsReview,
+      warnings: certificate.warnings,
+    },
+    rows,
+    budgetItems: projectBudgetItems,
+    previousQuantityByBudgetItem,
+    nextNumber,
+    predecessorStatus: latest?.status ?? null,
+    sequenceValid: certificate.number === nextNumber && (!latest || ["APROBADO", "FACTURADO"].includes(latest.status)),
+    existingImport: existingImport ? { id: existingImport.id, number: existingImport.numero } : null,
+  });
 }

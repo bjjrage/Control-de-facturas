@@ -7,6 +7,8 @@ import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ProjectCertificateStatus } from "@/lib/types";
 import type { ProjectUnit } from "@/lib/types";
+import { buildCertificateImportLines, certificateWorkbookFingerprint, extractCertificateWorkbookData, type CertificateBudgetItem, type CertificateImportLine, type CertificateWorkbookData } from "@/lib/certificates/workbook-import";
+import { parseWorkbook } from "@/lib/workbook-interpretation/parser";
 
 const FROZEN_STATES: ProjectCertificateStatus[] = ["ELABORADO", "VERIFICADO", "APROBADO", "FACTURADO"];
 const round0 = (n: number) => Math.round(n);
@@ -211,6 +213,124 @@ export async function createCertificate(
 
   revalidatePath(`/projects/${projectId}`);
   return { error: null, id: cert.id as string };
+}
+
+/** Imports a reviewed XLSX into an existing project's canonical certificate tables. */
+export async function importCertificateWorkbook(
+  projectId: string,
+  formData: FormData,
+): Promise<{ error: string | null; id: string | null; alreadyImported: boolean }> {
+  const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
+  const supabase = await createClient();
+  if (!(await loadOwnedProject(supabase, projectId, profile.empresa_id))) {
+    return { error: "Obra no encontrada para la empresa activa.", id: null, alreadyImported: false };
+  }
+
+  const uploaded = formData.get("file");
+  if (!(uploaded instanceof File) || !/\.xlsx$/i.test(uploaded.name)) {
+    return { error: "Seleccioná un archivo .xlsx válido.", id: null, alreadyImported: false };
+  }
+  if (uploaded.size > 10 * 1024 * 1024) return { error: "El archivo supera el límite de 10 MB.", id: null, alreadyImported: false };
+
+  let workbookData: CertificateWorkbookData;
+  let bytes: Uint8Array;
+  try {
+    bytes = new Uint8Array(await uploaded.arrayBuffer());
+    const workbook = parseWorkbook(bytes, uploaded.name);
+    const rawPlan = JSON.parse(String(formData.get("plan_json") ?? "null")) as unknown;
+    workbookData = extractCertificateWorkbookData(workbook, rawPlan);
+  } catch (cause) {
+    return { error: cause instanceof Error ? cause.message : "No se pudo verificar el certificado XLSX.", id: null, alreadyImported: false };
+  }
+
+  const fingerprint = certificateWorkbookFingerprint(bytes);
+  const { data: existingImport, error: existingImportError } = await supabase
+    .from("project_certificates")
+    .select("id")
+    .eq("project_id", projectId)
+    .eq("import_fingerprint", fingerprint)
+    .maybeSingle();
+  if (existingImportError) return { error: "No se pudo verificar si este archivo ya fue importado.", id: null, alreadyImported: false };
+  if (existingImport) {
+    revalidatePath(`/projects/${projectId}`);
+    return { error: null, id: existingImport.id, alreadyImported: true };
+  }
+
+  let mappings: Array<{ sourceRow: number; budgetItemId: string }>;
+  try {
+    const parsed = JSON.parse(String(formData.get("mappings_json") ?? "[]")) as unknown;
+    if (!Array.isArray(parsed) || parsed.some((entry) => !entry || !Number.isInteger(entry.sourceRow) || typeof entry.budgetItemId !== "string")) {
+      throw new Error("El mapeo de partidas no es válido.");
+    }
+    mappings = parsed as Array<{ sourceRow: number; budgetItemId: string }>;
+  } catch (cause) {
+    return { error: cause instanceof Error ? cause.message : "El mapeo de partidas no es válido.", id: null, alreadyImported: false };
+  }
+
+  const { data: budgetRows, error: budgetError } = await supabase
+    .from("budget_items")
+    .select("id, project_id, code, description, unit, quantity, unit_price, sort_order")
+    .eq("project_id", projectId)
+    .order("sort_order");
+  if (budgetError || !budgetRows) return { error: "No se pudo verificar el presupuesto de esta obra.", id: null, alreadyImported: false };
+
+  let lines: CertificateImportLine[];
+  try {
+    lines = buildCertificateImportLines(workbookData.rows, mappings, budgetRows as CertificateBudgetItem[], projectId);
+  } catch (cause) {
+    return { error: cause instanceof Error ? cause.message : "Revisá el vínculo de las partidas.", id: null, alreadyImported: false };
+  }
+
+  const byId = new Map((budgetRows as CertificateBudgetItem[]).map((item) => [item.id, item]));
+  const hasDiscrepancies = workbookData.planNeedsReview || lines.some((line) => {
+    const budget = byId.get(line.budgetItemId)!;
+    const contractualDiffers = budget.quantity !== null && Number(budget.quantity) !== line.quantityContractual;
+    const priceDiffers = budget.unit_price !== null && Number(budget.unit_price) !== line.unitPrice;
+    const sourceAmountDiffers = line.amountCurrent !== null && Math.round(line.quantityCurrent * line.unitPrice) !== line.amountCurrent;
+    const cumulativeDiffers = line.quantityCumulative !== line.quantityPrevious + line.quantityCurrent;
+    return contractualDiffers || priceDiffers || sourceAmountDiffers || cumulativeDiffers;
+  });
+  if (hasDiscrepancies && formData.get("confirm_discrepancies") !== "on") {
+    return { error: "El preview contiene diferencias visibles. Revisalas y confirmá expresamente cómo recalcular los importes antes de importar.", id: null, alreadyImported: false };
+  }
+
+  const rpcItems = lines.map((line) => ({
+    budget_item_id: line.budgetItemId,
+    codigo: line.code,
+    descripcion: line.description,
+    unidad: line.unit,
+    qty_contractual: line.quantityContractual,
+    precio_unitario: line.unitPrice,
+    qty_anterior: line.quantityPrevious,
+    qty_presente: line.quantityCurrent,
+    sort_order: line.sortOrder,
+  }));
+  const { data, error: importError } = await supabase.rpc("import_project_certificate_atomically", {
+    p_project_id: projectId,
+    p_expected_number: workbookData.number,
+    p_period_start: workbookData.periodStart,
+    p_period_end: workbookData.periodEnd,
+    p_import_fingerprint: fingerprint,
+    p_items: rpcItems,
+  });
+  if (importError) return { error: importError.message, id: null, alreadyImported: false };
+  const imported = (Array.isArray(data) ? data[0] : data) as { certificate_id?: string; numero?: number; already_imported?: boolean } | null;
+  if (!imported?.certificate_id) return { error: "La importación no devolvió un certificado creado.", id: null, alreadyImported: false };
+
+  if (!imported.already_imported) {
+    await logAudit(supabase, {
+      action: "project_certificate.workbook_imported",
+      detail: {
+        project_id: projectId,
+        certificate_id: imported.certificate_id,
+        numero: imported.numero,
+        file_fingerprint: fingerprint,
+        item_count: lines.length,
+      },
+    });
+  }
+  revalidatePath(`/projects/${projectId}`);
+  return { error: null, id: imported.certificate_id, alreadyImported: Boolean(imported.already_imported) };
 }
 
 /**

@@ -73,6 +73,7 @@ export function CertificadosTable({
   projectUnits,
   unitProgressByCert,
   isAdmin,
+  focusCertificateId,
 }: {
   project: Project;
   certificates: ProjectCertificate[];
@@ -81,8 +82,14 @@ export function CertificadosTable({
   projectUnits: ProjectUnit[];
   unitProgressByCert: Record<string, ProjectCertificateUnitProgress[]>;
   isAdmin: boolean;
+  focusCertificateId?: string | null;
 }) {
-  const [expanded, setExpanded] = useState<string | null>(certificates[0]?.id ?? null);
+  const [expanded, setExpanded] = useState<string | null>(focusCertificateId ?? certificates[0]?.id ?? null);
+
+  useEffect(() => {
+    if (!focusCertificateId || !certificates.some((certificate) => certificate.id === focusCertificateId)) return;
+    requestAnimationFrame(() => document.getElementById(`certificate-row-${focusCertificateId}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  }, [focusCertificateId, certificates]);
 
   if (certificates.length === 0) {
     return (
@@ -143,7 +150,7 @@ export function CertificadosTable({
               const deducciones =
                 c.devolucion_anticipo + c.retencion + c.penalidad_avance + c.penalidad_presentacion - c.ajustes;
               return (
-                <tr key={c.id} className="cursor-pointer" onClick={() => setExpanded(isOpen ? null : c.id)}>
+                <tr id={`certificate-row-${c.id}`} key={c.id} className="cursor-pointer" onClick={() => setExpanded(isOpen ? null : c.id)}>
                   <td>{isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</td>
                   <td className="font-medium">{c.numero}</td>
                   <td>

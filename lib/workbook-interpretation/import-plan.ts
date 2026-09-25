@@ -72,11 +72,11 @@ function headerRole(label: string, target: ImportBlock["target"]): ImportBlock["
   if (/^cod|codigo|item n|n item/.test(text)) return "code";
   if (/descripcion|descrip|rubro|partida|concepto/.test(text)) return "description";
   if (/^und$|unidad|u m|unidad de medida/.test(text)) return "unit";
+  if (/anterior|previous/.test(text)) return "previousQuantity";
+  if (/(^|\s)(presente|actual|current)(\s|$)/.test(text)) return "currentQuantity";
+  if (/acumulad[oa]|cumulative/.test(text)) return "cumulativeQuantity";
   if (target === "CERTIFICATE" && /contractual|contrato/.test(text)) return "quantity";
   if (/cantidad|qty|cant\.?|metrado/.test(text)) return "quantity";
-  if (/anterior|previous/.test(text)) return "previousQuantity";
-  if (/presente|actual|current/.test(text)) return "currentQuantity";
-  if (/acumulado|cumulative/.test(text)) return "cumulativeQuantity";
   if (/p\.?\s*u\.?|precio unitario|unit price|precio/.test(text)) return "unitPrice";
   if (/%|porcentaje|percentage/.test(text)) return "percentage";
   return null;
@@ -150,7 +150,11 @@ function candidateScore(workbook: WorkbookRepresentation, candidate: WorkbookCan
  * certificate/budget block and excludes explicit summary rows. It never
  * invents business values or uses a filename/range special case.
  */
-export function reconcileImportPlan(workbook: WorkbookRepresentation, raw: ImportPlan): { plan: ImportPlan; warnings: string[] } {
+export function reconcileImportPlan(
+  workbook: WorkbookRepresentation,
+  raw: ImportPlan,
+  targets: Array<"BUDGET" | "CERTIFICATE"> = ["BUDGET", "CERTIFICATE"],
+): { plan: ImportPlan; warnings: string[] } {
   const warnings: string[] = [];
   const repairedBlocks = raw.blocks.map((block) => withDeterministicRowRepairs(workbook, block));
   for (const block of repairedBlocks) {
@@ -160,7 +164,7 @@ export function reconcileImportPlan(workbook: WorkbookRepresentation, raw: Impor
     }
   }
 
-  for (const target of ["BUDGET", "CERTIFICATE"] as const) {
+  for (const target of targets) {
     if (repairedBlocks.some((block) => block.target === target)) continue;
     const candidates: WorkbookCandidateBlock[] = workbook.sheets.flatMap((sheet) =>
       sheet.blocks.map((block) => ({ ...block, sheetName: sheet.sheetName, sheetIndex: sheet.sheetIndex }))
