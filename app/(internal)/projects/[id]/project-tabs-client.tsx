@@ -436,9 +436,7 @@ export function ProjectTabsClient({
         <InventarioObraSection stock={stockObra} consumo={consumoCanonico} budgetItemLabelById={budgetItemLabelById} />
       ) : null}
 
-      {tab === "recepciones" ? <RecepcionesObraSection rows={recepciones} /> : null}
-
-      {tab === "panol" ? (
+      {tab === "panol" || tab === "recepciones" ? (
         <PanolObraSection
           projectId={project.id}
           locations={warehouseLocations}
@@ -451,6 +449,7 @@ export function ProjectTabsClient({
             description: item.description,
             unit: item.unit ?? "",
           }))}
+          recepciones={recepciones}
         />
       ) : null}
 

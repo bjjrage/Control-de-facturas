@@ -108,7 +108,6 @@ describe("project surface contract", () => {
 
   it("keeps project inventory tools inside the selected project", () => {
     expect(getProjectFeature("inventario").label).toBe("Inventario");
-    expect(getProjectFeature("recepciones").label).toBe("Recepciones");
     expect(getProjectFeature("panol").label).toBe("Depósito de obra");
     expect(sidebarSource).toContain("{PROJECT_TAB_GROUPS.map(renderProjectSection)}");
     expect(sidebarSource).toContain('const url = `/projects/${activeProjectId}?tab=${t.key}`;');
@@ -129,19 +128,18 @@ describe("project surface contract", () => {
     expect(PROJECT_FEATURES.map((feature) => feature.key)).toEqual(expect.arrayContaining([
       "plan-semanal",
       "inventario",
-      "recepciones",
       "panol",
       "certificados",
       "avance-fisico",
       "bim",
     ]));
     expect((PROJECT_FEATURES as readonly { key: string }[]).some((feature) => feature.key === "stock")).toBe(false);
+    expect((PROJECT_FEATURES as readonly { key: string }[]).some((feature) => feature.key === "recepciones")).toBe(false);
   });
 
-  it("keeps all 18 canonical project surfaces visible through the shared registry", () => {
-    expect(PROJECT_FEATURES).toHaveLength(18);
+  it("keeps all 17 canonical project surfaces visible through the shared registry", () => {
+    expect(PROJECT_FEATURES).toHaveLength(17);
     expect(getProjectFeature("inventario").label).toBe("Inventario");
-    expect(getProjectFeature("recepciones").label).toBe("Recepciones");
     expect(getProjectFeature("panol").label).toBe("Depósito de obra");
     expect(getProjectFeature("ejecucion").label).toBe("Partes de avance");
     expect(getProjectFeatureGroups().map((group) => group.label)).toContain("Avance de obra");

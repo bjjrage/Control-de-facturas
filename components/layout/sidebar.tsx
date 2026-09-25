@@ -76,7 +76,6 @@ const PROJECT_TAB_ICONS: Record<ProjectFeatureKey, typeof LayoutDashboard> = {
   pagos: Wallet,
   ejecucion: Hammer,
   inventario: Layers,
-  recepciones: PackageCheck,
   panol: Archive,
   personal: Users,
   subcontratistas: Truck,

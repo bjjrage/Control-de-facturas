@@ -2,16 +2,16 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const migration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260925022102_batch6_project_scope_guards.sql"),
-  "utf8",
-);
-const bimSection = readFileSync(resolve(process.cwd(), "app/(internal)/projects/[id]/bim-section.tsx"), "utf8");
-const certificateActions = readFileSync(resolve(process.cwd(), "app/(internal)/projects/certificado-actions.ts"), "utf8");
-const caterpillarActions = readFileSync(resolve(process.cwd(), "app/(internal)/projects/caterpillar-actions.ts"), "utf8");
-const climateActions = readFileSync(resolve(process.cwd(), "app/(internal)/projects/climate-actions.ts"), "utf8");
-const caterpillarMigration = readFileSync(resolve(process.cwd(), "supabase/migrations/0030_construccion_caterpillar.sql"), "utf8");
-const certificateAnnexesMigration = readFileSync(resolve(process.cwd(), "supabase/migrations/0041_project_certificate_annexes.sql"), "utf8");
+const readUtf8 = (relPath: string) =>
+  readFileSync(resolve(process.cwd(), relPath), "utf8").replace(/\r\n/g, "\n");
+
+const migration = readUtf8("supabase/migrations/20260925022102_batch6_project_scope_guards.sql");
+const bimSection = readUtf8("app/(internal)/projects/[id]/bim-section.tsx");
+const certificateActions = readUtf8("app/(internal)/projects/certificado-actions.ts");
+const caterpillarActions = readUtf8("app/(internal)/projects/caterpillar-actions.ts");
+const climateActions = readUtf8("app/(internal)/projects/climate-actions.ts");
+const caterpillarMigration = readUtf8("supabase/migrations/0030_construccion_caterpillar.sql");
+const certificateAnnexesMigration = readUtf8("supabase/migrations/0041_project_certificate_annexes.sql");
 
 describe("Batch 6 project-operation contracts", () => {
   it("presents IFC and Excel/PDF as parallel compute sources with one human review path", () => {

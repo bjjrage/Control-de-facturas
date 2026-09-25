@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tesorería + Flujo de Caja — Bloque de conocimiento</title>
+<style>
+:root{--bg:#0b0d10;--panel:#11151a;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.14);--text:#f5f7fa;--muted:#96a1ad;--accent:#8ee3c6;--blue:#77b8ff;--warn:#f4c66d;--danger:#ff8b8b;--ok:#79deb3}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(circle at 10% -10%,rgba(142,227,198,.07),transparent 25%),radial-gradient(circle at 90% 0%,rgba(119,184,255,.07),transparent 30%),var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{position:sticky;top:0;z-index:10;background:rgba(11,13,16,.86);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}.top{max-width:1400px;margin:auto;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;gap:15px}.brand{display:flex;gap:11px;align-items:center}.logo{width:34px;height:34px;border:1px solid var(--line2);border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.03)}.logo:before{content:"";width:13px;height:13px;border:2px solid var(--accent);border-radius:4px;transform:rotate(45deg)}h1{font-size:14px;margin:0}.sub{font-size:11px;color:var(--muted);margin-top:2px}.actions{display:flex;gap:7px}.btn{border:1px solid var(--line);background:rgba(255,255,255,.025);color:#cbd2d9;border-radius:10px;padding:8px 10px;font-size:10px;cursor:pointer}.btn.primary{border-color:rgba(142,227,198,.22);background:rgba(142,227,198,.07);color:#e8fff7}
+.container{max-width:1400px;margin:auto;padding:26px 22px 52px}.card{border:1px solid var(--line);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.012))}
+.hero{display:grid;grid-template-columns:1.3fr .7fr;gap:16px}.hero-main,.hero-side{padding:22px}.kicker{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:800}.hero h2{font-size:31px;line-height:1.07;letter-spacing:-.035em;margin:8px 0 10px}.hero p{font-size:12.5px;line-height:1.55;color:var(--muted);margin:0;max-width:760px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.stat{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(255,255,255,.02)}.stat b{font-size:15px;display:block}.stat span{font-size:9.5px;color:var(--muted)}
+.idx{position:sticky;top:67px;z-index:9;margin-top:16px;padding:11px;display:flex;gap:7px;flex-wrap:wrap;background:rgba(11,13,16,.86);backdrop-filter:blur(18px)}.idx a{border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--muted);border-radius:999px;padding:7px 9px;font-size:9.5px;cursor:pointer;text-decoration:none}.idx a:hover{color:#fff;border-color:var(--line2)}.idx a.fut{border-style:dashed}
+.section{margin-top:24px;scroll-margin-top:140px}.title{display:flex;justify-content:space-between;align-items:end;margin-bottom:10px;gap:10px}.title h3{margin:0;font-size:14px}.title h3 .n{color:var(--blue);font-weight:750;margin-right:8px}.title p{margin:0;color:var(--muted);font-size:10.5px;text-align:right}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.grid1{display:grid;grid-template-columns:minmax(0,1fr);gap:11px}
+.item{border:1px solid var(--line);border-radius:17px;background:rgba(255,255,255,.016);overflow:hidden}.item .head{padding:14px 15px;display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:start}.num{width:31px;height:31px;border:1px solid var(--line);border-radius:10px;display:grid;place-items:center;color:var(--blue);background:rgba(119,184,255,.05);font-size:10px;font-weight:750}.item h4{margin:0 0 4px;font-size:12.5px}.summary{margin:0;color:var(--muted);font-size:10.8px;line-height:1.45}.item .body{border-top:1px solid rgba(255,255,255,.04);padding:12px 15px 15px;font-size:11px;color:var(--muted);line-height:1.55}.item .body b,.item .body strong{color:#e2e7ec}.item .body code{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:var(--accent);background:rgba(142,227,198,.06);padding:1px 5px;border-radius:6px}.item .body ul{margin:6px 0 0;padding-left:16px}.item .body li{margin:3px 0}
+.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.badge{font-size:8.5px;padding:4px 6px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}.badge.ok{color:var(--ok);border-color:rgba(121,222,179,.22);background:rgba(121,222,179,.05)}.badge.warn{color:#ffd28a;border-color:rgba(244,198,109,.22);background:rgba(244,198,109,.06)}.badge.info{color:#dcecff;border-color:rgba(119,184,255,.2);background:rgba(119,184,255,.06)}.badge.fut{color:#ffb1b1;border-color:rgba(255,139,139,.2);background:rgba(255,139,139,.05)}.badge.legacy{color:#c9b8ff;border-color:rgba(160,140,255,.2);background:rgba(160,140,255,.05)}
+.state{min-width:88px;text-align:center;padding:6px 7px;border:1px solid var(--line);border-radius:999px;font-size:8.5px;color:var(--muted)}.state.done{color:var(--ok);border-color:rgba(121,222,179,.22);background:rgba(121,222,179,.05)}.state.future{color:var(--danger);border-color:rgba(255,139,139,.22);background:rgba(255,139,139,.05)}.state.partial{color:#ffd28a;border-color:rgba(244,198,109,.22);background:rgba(244,198,109,.05)}
+.flow{padding:16px;overflow:auto}.flowline{display:flex;align-items:stretch;min-width:920px}.node{flex:1;min-width:120px;text-align:center;padding:11px;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.02);font-size:9px;color:var(--muted)}.node strong{display:block;color:#fff;font-size:10.5px;margin-bottom:3px}.node.hot{border-color:rgba(244,198,109,.25);background:rgba(244,198,109,.05)}.node.hot strong{color:#ffd28a}.arrow{padding:0 7px;color:#4b5560;align-self:center}
+.vflow{display:flex;flex-direction:column;gap:0}.vnode{border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.02);padding:10px 12px;font-size:10.5px;color:var(--muted)}.vnode strong{display:block;color:#fff;font-size:11px;margin-bottom:2px}.vnode code{font-family:ui-monospace,Consolas,monospace;font-size:10px;color:var(--accent)}.varrow{text-align:center;color:#4b5560;padding:3px 0;font-size:11px}.vnode.hot{border-color:rgba(244,198,109,.25);background:rgba(244,198,109,.05)}.vnode.hot strong{color:#ffd28a}
+table.tbl{width:100%;border-collapse:collapse;font-size:10.8px;margin-top:8px}table.tbl th{text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:7px 9px;border-bottom:1px solid var(--line2)}table.tbl td{padding:7px 9px;border-bottom:1px solid rgba(255,255,255,.05);color:#dbe1e7;vertical-align:top}table.tbl tr:last-child td{border-bottom:0}table.tbl code{font-family:ui-monospace,Consolas,monospace;font-size:10px;color:var(--accent)}
+.kv{display:grid;grid-template-columns:1fr auto;gap:8px;padding:7px 0;border-top:1px solid rgba(255,255,255,.04);font-size:11px}.kv:first-of-type{border-top:0;padding-top:0}.kv span:first-child{color:var(--muted)}.kv b{font-weight:600;color:#e2e7ec;text-align:right}
+.mono{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:var(--accent)}
+.note{margin-top:12px;padding:14px 16px;border:1px solid rgba(142,227,198,.14);border-radius:16px;background:rgba(142,227,198,.03)}.note strong{font-size:11px}.note p{margin:6px 0 0;color:var(--muted);font-size:10.8px;line-height:1.5}
+.warnbox{margin-top:12px;padding:14px 16px;border:1px solid rgba(244,198,109,.2);border-radius:16px;background:linear-gradient(180deg,rgba(244,198,109,.07),rgba(244,198,109,.025))}.warnbox strong{font-size:11px;color:#ffd28a}.warnbox p{margin:6px 0 0;color:var(--muted);font-size:10.8px;line-height:1.5}
+.futbox{margin-top:12px;padding:14px 16px;border:1px dashed rgba(255,139,139,.25);border-radius:16px;background:rgba(255,139,139,.03)}.futbox strong{font-size:11px;color:#ffb1b1}.futbox p{margin:6px 0 0;color:var(--muted);font-size:10.8px;line-height:1.5}
+@media(max-width:950px){.hero,.grid{grid-template-columns:1fr}.flowline{min-width:640px}}@media(max-width:620px){.container{padding:18px 13px 40px}.top{padding:13px}.actions{display:none}.hero h2{font-size:25px}.stats{grid-template-columns:1fr}.idx{top:60px}}
+</style>
+</head>
+<body>
+<header><div class="top"><div class="brand"><div class="logo"></div><div><h1>Control de Facturas · Bloque de conocimiento</h1><div class="sub">Módulo Tesorería + Flujo de Caja · main <span class="mono">e87d9f4</span> · NO es manual de usuario final</div></div></div><div class="actions"><span class="btn primary">IMPLEMENTADO PARCIAL · main</span></div></div></header>
+<div class="container">
+
+<section class="hero">
+  <div class="card hero-main">
+    <div class="kicker">Resumen ejecutivo</div>
+    <h2>Que el dinero viva en algún lado, y que la próxima semana de caja se pueda ver antes de que llegue.</h2>
+    <p><strong style="color:#e2e7ec">Tesorería</strong> es un libro mayor de cuentas financieras (bancos/cajas/tarjetas) con saldo materializado por trigger — nunca se edita un movimiento, se revierte con contra-movimiento. <strong style="color:#e2e7ec">Flujo de Caja</strong> no tiene tabla propia: es una proyección calculada en memoria a partir de tesorería + facturas + certificados de obra + gastos recurrentes, agrupada por semana o por mes, con detección del primer período en que el saldo se vuelve negativo.</p>
+    <div class="badges"><span class="badge ok">CUENTAS + LIBRO MAYOR: IMPLEMENTADO</span><span class="badge ok">RPCs ATÓMICAS: IMPLEMENTADO (0069)</span><span class="badge ok">ENGANCHE COBROS/PAGOS: IMPLEMENTADO</span><span class="badge ok">PROYECCIÓN DE CAJA: IMPLEMENTADO</span><span class="badge ok">GASTOS RECURRENTES: IMPLEMENTADO</span><span class="badge fut">IMPORTADOR DE EXTRACTOS: PENDIENTE</span><span class="badge fut">CONCILIACIÓN BANCARIA: PENDIENTE</span></div>
+  </div>
+  <div class="card hero-side">
+    <div style="padding-bottom:12px"><strong>Estado del módulo</strong></div>
+    <div class="stats">
+      <div class="stat"><b>4</b><span>migraciones (0055–0057, hardening en 0069)</span></div>
+      <div class="stat"><b>0</b><span>API bancaria — descartada</span></div>
+      <div class="stat"><b>append-only</b><span>patrón del libro mayor</span></div>
+      <div class="stat"><b>12 / 6</b><span>semanas o meses de proyección</span></div>
+      <div class="stat"><b>e2e</b><span>finanzas-flows.spec.ts</span></div>
+      <div class="stat"><b>1</b><span>bug P0 corregido post-launch</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="card idx">
+  <a href="#s01">01 Resumen</a><a href="#s02">02 Arquitectura</a><a href="#s03">03 Cuentas financieras</a><a href="#s04">04 Libro mayor</a><a href="#s05">05 Trigger de saldo</a><a href="#s06">06 RPCs base</a><a href="#s07">07 Hardening atómico</a><a href="#s08">08 Transferencias</a><a href="#s09">09 Enganche cobros/pagos</a><a href="#s10">10 Flujo de Caja</a><a href="#s11">11 Fuentes de la proyección</a><a href="#s12">12 Gastos recurrentes</a><a href="#s13">13 Granularidad y alertas</a><a href="#s14">14 Data model</a><a href="#s15">15 Migraciones</a><a href="#s16">16 Seguridad</a><a href="#s17">17 Testing</a><a href="#s18">18 Decisiones</a><a href="#s19">19 Estado</a><a href="#s20" class="fut">20 Pendientes</a><a href="#s21">21 Handoff</a>
+</div>
+
+<section class="section" id="s01"><div class="title"><div><h3><span class="n">01</span>Resumen ejecutivo</h3><p>Qué hace cada pieza y qué problema resuelve.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">A</div><div><h4>Tesorería — el libro mayor</h4><p class="summary">Cuentas financieras (bancos, cajas, tarjetas) con saldo real en múltiples monedas. Cada movimiento queda en un libro append-only. Transferencias entre cuentas con tipo de cambio. Imputación opcional a obra.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">B</div><div><h4>Enganche con Cobros y Pagos</h4><p class="summary">Registrar un cobro o ejecutar una orden de pago puede elegir una cuenta financiera — si se elige, el movimiento se genera solo, atómicamente. Si no se elige ninguna, el comportamiento previo al módulo no cambia.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">C</div><div><h4>Flujo de Caja — la proyección</h4><p class="summary">Sin tabla propia: <code>lib/flujo-caja.ts</code> calcula saldo + entradas − salidas en el tiempo, agrupado por semana (12) o mes (6), detectando el primer período donde el saldo acumulado cruza a negativo.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">D</div><div><h4>Gastos recurrentes</h4><p class="summary">Alquiler, sueldos, seguros, préstamos. Se cargan una vez con periodicidad y día del mes; alimentan la proyección pero <strong>no</strong> generan movimientos automáticos — el egreso real se carga a mano cuando efectivamente se paga.</p></div></div></div>
+</div>
+<div class="note"><strong>Idea central</strong><p>El saldo de una cuenta nunca se edita directamente: es la suma de su libro de movimientos, mantenida por un trigger. Para corregir un error no se toca el movimiento viejo — se inserta un contra-movimiento. Todo tiene origen rastreable, incluidas las reversas.</p></div>
+</section>
+
+<section class="section" id="s02"><div class="title"><div><h3><span class="n">02</span>Arquitectura</h3><p>Capas y dirección de dependencias.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><div class="vflow">
+<div class="vnode"><strong>Origen del movimiento</strong>Alta manual en <code>/tesoreria</code> (ingreso/egreso/ajuste/saldo inicial) · Transferencia entre cuentas · Cobro de un documento de venta · Ejecución de una orden de pago.</div><div class="varrow">↓</div>
+<div class="vnode hot"><strong>RPC security definer</strong><code>registrar_movimiento_tesoreria</code> / <code>registrar_transferencia</code> (base, migración 0055) o <code>registrar_cobro_atomico</code> / <code>ejecutar_orden_pago_atomica</code> (hardened, migración 0069) — todas toman lock de la cuenta antes de validar saldo e insertar.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>Libro mayor — <code>movimientos_tesoreria</code></strong>Insert append-only. <code>monto</code> positivo entra, negativo sale. Vínculo opcional a <code>payment_order_id</code> / <code>sales_receipt_id</code> / <code>transferencia_id</code> / <code>project_id</code>.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>Trigger <code>trg_mov_tesoreria_saldo</code></strong>AFTER INSERT: <code>cuentas_financieras.saldo += NEW.monto</code>. Es la única ruta que toca el saldo materializado.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>Lectura — <code>/tesoreria</code> y <code>/flujo-caja</code></strong>El saldo se lee directo de la columna materializada. La proyección de caja lee movimientos + facturas + certificados + gastos recurrentes y calcula en memoria, sin persistir nada.</div>
+</div></div>
+<div class="note"><strong>Por qué RPC y no INSERT directo desde la app</strong><p>La tabla <code>movimientos_tesoreria</code> no tiene policy RLS de <code>insert</code> — la única forma de escribir en el libro es a través de una función <code>security definer</code> que toma el lock de la cuenta, valida el saldo disponible y hace el insert dentro de la misma transacción. Esto es lo que hace imposible una condición de carrera entre dos pagos simultáneos desde la misma cuenta.</p></div>
+</section>
+
+<section class="section" id="s03"><div class="title"><div><h3><span class="n">03</span>Cuentas financieras</h3><p>Bancos, cajas y tarjetas — el master data.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">T</div><div><h4>Tipos</h4><p class="summary"><code>BANCO</code> · <code>CAJA</code> · <code>TARJETA</code> · <code>OTRO</code>. Cada cuenta tiene su propia <code>moneda</code> (<code>currency_code</code>: PYG/USD/EUR/BRL/ARS) — no hay conversión implícita entre cuentas de distinta moneda.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">S</div><div><h4><code>saldo</code> — materializado, no editable</h4><p class="summary">Columna mantenida exclusivamente por el trigger de movimientos. La policy RLS de <code>update</code> sobre <code>cuentas_financieras</code> existe para editar nombre/banco/tipo — <strong>no</strong> hay UI que permita tocar <code>saldo</code> a mano.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">C</div><div><h4><code>saldo_conciliado</code></h4><p class="summary">Columna reservada para cuando exista conciliación bancaria (Parte A6, pendiente — ver sección 20). Hoy queda <code>null</code> en toda cuenta; no la llena ningún flujo actual.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">A</div><div><h4>Alta con saldo inicial</h4><p class="summary"><code>crearCuenta()</code> inserta la cuenta y, si se indicó saldo inicial ≠ 0, dispara un movimiento tipo <code>SALDO_INICIAL</code> con <code>p_permitir_negativo: true</code> — el punto de partida de una cuenta puede legítimamente arrancar en rojo (ej. una tarjeta de crédito con deuda).</p></div></div></div>
+</div>
+</section>
+
+<section class="section" id="s04"><div class="title"><div><h3><span class="n">04</span>Libro mayor — <code style="color:#fff">movimientos_tesoreria</code></h3><p>Append-only. Nunca UPDATE de un movimiento existente.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">8</div><div><h4>8 tipos de movimiento</h4><p class="summary"><code>COBRO</code> · <code>PAGO</code> · <code>TRANSFERENCIA_IN</code> · <code>TRANSFERENCIA_OUT</code> · <code>INGRESO</code> · <code>EGRESO</code> · <code>AJUSTE</code> · <code>SALDO_INICIAL</code>. Check constraint en DB, no solo en TypeScript.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">M</div><div><h4>Motivo obligatorio en los manuales</h4><p class="summary">Constraint <code>movimientos_tesoreria_motivo_manual</code>: si el tipo es <code>INGRESO</code>/<code>EGRESO</code>/<code>AJUSTE</code>/<code>SALDO_INICIAL</code>, <code>motivo</code> no puede ser null ni vacío. Los movimientos que vienen de un documento (<code>COBRO</code>, <code>PAGO</code>, transferencias) no lo exigen porque el vínculo FK ya explica el origen.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">R</div><div><h4>Reversa = contra-movimiento</h4><p class="summary">Si se elimina un cobro que ya generó un movimiento <code>COBRO</code>, no se borra ni edita esa fila: se inserta un <code>AJUSTE</code> con el monto invertido y motivo <code>"Reversa: cobro eliminado"</code>. El saldo vuelve a su valor anterior y el historial completo queda visible.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">P</div><div><h4>Imputación a obra</h4><p class="summary"><code>project_id</code> opcional en cada movimiento. Es lo que habilita el filtro "por obra" en <code>/flujo-caja</code> — sin este campo no existiría el flujo de caja por proyecto.</p></div></div></div>
+</div>
+<div class="warnbox"><strong>Invariante que no debe romperse</strong><p><code>cuentas_financieras.saldo = SUM(movimientos_tesoreria.monto)</code> agrupado por cuenta. La función <code>verificar_saldos_tesoreria(empresa_id)</code> (migración 0055) devuelve las cuentas donde esto no se cumple. Existe la función pero <strong>no hay cron que la corra</strong> — ver sección 20.</p></div>
+</section>
+
+<section class="section" id="s05"><div class="title"><div><h3><span class="n">05</span>Trigger de saldo</h3><p>La única ruta que actualiza <code style="color:#fff">cuentas_financieras.saldo</code>.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><div class="kv"><span>Función</span><b class="mono">fn_mov_tesoreria_saldo()</b></div><div class="kv"><span>Disparo</span><b>AFTER INSERT ON movimientos_tesoreria, FOR EACH ROW</b></div><div class="kv"><span>Efecto</span><b class="mono">UPDATE cuentas_financieras SET saldo = saldo + NEW.monto WHERE id = NEW.cuenta_id</b></div><div class="kv"><span>Por qué trigger y no cálculo en la RPC</span><b>Cualquier insert al libro —incluso uno hecho fuera de las RPC conocidas por un futuro código— mantiene el saldo consistente sin depender de que ese código recuerde actualizarlo.</b></div></div>
+</section>
+
+<section class="section" id="s06"><div class="title"><div><h3><span class="n">06</span>RPCs base (migración 0055)</h3><p>Las dos funciones originales — siguen vigentes para todo lo que no es cobro/pago.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">1</div><div><h4><code>registrar_movimiento_tesoreria</code></h4><p class="summary"><code>security definer</code>. Toma lock <code>FOR UPDATE</code> de la cuenta, valida que el saldo no quede negativo (salvo <code>p_permitir_negativo</code>), inserta el movimiento y devuelve el saldo resultante. La usan: alta con saldo inicial, movimientos manuales, y — como fallback — el enganche de cobros/pagos.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">2</div><div><h4><code>registrar_transferencia</code></h4><p class="summary">Crea la fila en <code>transferencias</code> + dos movimientos (<code>TRANSFERENCIA_OUT</code> en origen, <code>TRANSFERENCIA_IN</code> en destino) ligados por <code>transferencia_id</code>. Bloquea ambas cuentas <strong>en orden estable</strong> (<code>least</code>/<code>greatest</code> del UUID) para que dos transferencias cruzadas entre las mismas dos cuentas nunca hagan deadlock.</p></div></div></div>
+</div>
+<div class="note"><strong>Tipo de cambio implícito</strong><p>Si <code>monto_destino</code> difiere de <code>monto_origen</code> (monedas distintas), <code>tipo_cambio</code> se calcula y guarda como <code>monto_destino / monto_origen</code>, redondeado a 6 decimales. No hay tabla de cotizaciones — el tipo de cambio de cada transferencia es el que el usuario tipeó ese día.</p></div>
+</section>
+
+<section class="section" id="s07"><div class="title"><div><h3><span class="n">07</span>Hardening atómico — migración 0069</h3><p>Reemplazo de las escrituras de cobro/pago por RPCs atómicas con verificación de tenant explícita.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="warnbox"><strong>Qué problema resolvió</strong><p>El enganche original (Parte A3) hacía el insert del documento y la llamada a <code>registrar_movimiento_tesoreria</code> como <strong>dos pasos separados</strong> desde la server action. Una auditoría P0/P1 posterior introdujo <code>registrar_cobro_atomico</code> y <code>ejecutar_orden_pago_atomica</code>: todo el trabajo (validar documento, insertar recibo o marcar OP ejecutada, actualizar estado de facturas, registrar el movimiento de tesorería) ocurre dentro de una sola función <code>security definer</code> con <code>SET search_path = public, pg_temp</code> y verificación explícita <code>auth.uid()</code> + <code>current_empresa_id() = p_empresa_id</code> antes de tocar cualquier fila.</p></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">C</div><div><h4><code>registrar_cobro_atomico</code></h4><p class="summary">Bloquea el <code>sales_document</code>, valida estado (rechaza <code>BORRADOR</code>/<code>ANULADA</code>) y monto &gt; 0, valida que la cuenta (si se indicó) pertenezca a la misma empresa, inserta el <code>sales_receipt</code> y — si hay cuenta — registra el <code>COBRO</code> en tesorería. Todo o nada.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">P</div><div><h4><code>ejecutar_orden_pago_atomica</code></h4><p class="summary">Bloquea la OP, valida que <strong>todas</strong> las facturas vinculadas pertenezcan estrictamente a <code>p_empresa_id</code> (aborta si hay una sola discordancia — fail-closed), marca OP + facturas, y registra un <code>PAGO</code> por cada moneda presente en las facturas de la OP.</p></div></div></div>
+</div>
+<div class="note"><strong>Fallback defensivo en <code>addReceipt</code></strong><p>La server action intenta primero <code>registrar_cobro_atomico</code>. Si el error es literalmente "function ... does not exist" (la migración 0069 no corrió todavía en ese entorno), cae al patrón original de dos pasos. Es una red de seguridad para despliegues escalonados, no el camino esperado en producción.</p></div>
+<div class="badges"><span class="badge legacy">GRANTS revocados de PUBLIC/anon, otorgados a authenticated + service_role</span></div>
+</section>
+
+<section class="section" id="s08"><div class="title"><div><h3><span class="n">08</span>Transferencias entre cuentas</h3><p>UI y reglas.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="body"><ul>
+<li>Selector de cuenta origen y destino — no pueden coincidir (validado en cliente y en la RPC).</li>
+<li>Si ambas cuentas comparten moneda, un solo campo de monto. Si difieren, aparece un segundo campo "se acredita" para el monto en la moneda destino.</li>
+<li>El tipo de cambio implícito se muestra como texto de ayuda antes de confirmar (<code>monto_destino / monto_origen</code>).</li>
+<li>La RPC rechaza la transferencia si el saldo de origen es insuficiente — no hay <code>permitir_negativo</code> para transferencias.</li>
+</ul></div></div>
+</div>
+</section>
+
+<section class="section" id="s09"><div class="title"><div><h3><span class="n">09</span>Enganche con Cobros y Pagos</h3><p>Opcional y retrocompatible — el punto de entrada real de la mayoría de los movimientos.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><div class="flowline">
+<div class="node"><strong>Registrar cobro</strong><code>/ventas/[id]</code> o <code>/cobros</code>. El formulario de recibo tiene un selector de cuenta financiera opcional.</div>
+<div class="arrow">→</div>
+<div class="node hot"><strong>¿Se eligió cuenta?</strong>Sí → <code>registrar_cobro_atomico</code> con <code>p_cuenta_id</code>. No → se inserta el recibo sin tocar tesorería, exactamente como antes de que existiera este módulo.</div>
+<div class="arrow">→</div>
+<div class="node"><strong>Ejecutar orden de pago</strong><code>/pagos/[id]</code>. Selector de cuenta análogo antes de confirmar "Registrar pago".</div>
+<div class="arrow">→</div>
+<div class="node"><strong>Eliminar un cobro</strong><code>deleteReceipt()</code> busca el movimiento vinculado por <code>sales_receipt_id</code>; si existe, inserta la reversa <strong>antes</strong> de borrar el recibo.</div>
+</div></div>
+<div class="note"><strong>Por qué "opcional" fue la decisión correcta</strong><p>Ni todas las empresas que usan el ERP quieren llevar tesorería el primer día. Hacer el selector de cuenta opcional significa que activar Tesorería no rompe ni cambia el comportamiento de Cobros/Pagos para nadie que todavía no cargó sus cuentas — el módulo se adopta cuando el usuario decide, no de golpe.</p></div>
+</section>
+
+<section class="section" id="s10"><div class="title"><div><h3><span class="n">10</span>Flujo de Caja — el modelo</h3><p><code style="color:#fff">lib/flujo-caja.ts</code> — cálculo puro, sin tabla propia.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">E</div><div><h4>La ecuación</h4><p class="summary">saldo inicial (suma de <code>cuentas_financieras.saldo</code> en la moneda elegida) + entradas del período − salidas del período = saldo acumulado. Se repite período a período arrastrando el acumulado.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">B</div><div><h4><code>construirProyeccion()</code></h4><p class="summary">Recibe el saldo inicial, la lista de <code>FlujoItem[]</code>, la moneda, la granularidad (<code>"semana" | "mes"</code>) y un <code>project_id</code> opcional para filtrar. Devuelve períodos con entradas/salidas/neto/saldo acumulado, más los ítems sin fecha conocida aparte.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">V</div><div><h4>Ítems vencidos van al primer período</h4><p class="summary">Si un ítem tiene fecha anterior a hoy (ej. una factura que ya venció y no se cobró), no desaparece: se reclasifica a la fecha de hoy para que caiga en el primer bucket de la ventana, en vez de perderse fuera de rango.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">N</div><div><h4>Primer período negativo</h4><p class="summary"><code>primerPeriodoNegativo</code> — la clave del primer bucket donde el saldo acumulado cruza a negativo. Es lo que dispara la alerta roja en la UI. <code>null</code> si nunca se vuelve negativo dentro de la ventana.</p></div></div></div>
+</div>
+</section>
+
+<section class="section" id="s11"><div class="title"><div><h3><span class="n">11</span>Fuentes de datos de la proyección</h3><p>De dónde sale cada <code style="color:#fff">FlujoItem</code>.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><table class="tbl"><tr><th>Tipo</th><th>Origen</th><th>Fecha usada</th></tr>
+<tr><td><code>cobro_factura</code></td><td><code>sales_documents</code> EMITIDA/COBRADA_PARCIAL, tipo FACTURA/NOTA_VENTA. Monto = <code>total − cobrado_amount</code>.</td><td><code>due_date</code> ?? <code>issue_date</code></td></tr>
+<tr><td><code>cobro_certificado</code></td><td><code>project_certificates</code> APROBADO/FACTURADO. Monto = <code>monto_liquido</code> (ya neto de anticipo y retención). <strong>Se excluye si el certificado ya tiene un <code>sales_document</code> activo vinculado</strong> — evita el doble conteo corregido en el fix de auditoría del 12/09.</td><td><code>aprobado_at</code>/<code>facturado_at</code> ?? <code>period_end</code>, + 30 días estimados</td></tr>
+<tr><td><code>pago_factura</code></td><td><code>invoices</code> en estado PENDIENTE/MATCH/APROBADO_EXCEPCION/APTO_PARA_PAGO. Monto = <code>total</code> (negativo).</td><td><code>due_date</code> ?? <code>invoice_date</code></td></tr>
+<tr><td><code>gasto_recurrente</code></td><td><code>gastos_recurrentes</code> activos. Se expanden todas las ocurrencias dentro de la ventana según periodicidad.</td><td>calculada — ver sección 12</td></tr>
+</table></div>
+<div class="warnbox"><strong>Por qué se excluyen los certificados ya facturados</strong><p>Antes del 12/09 un certificado <code>FACTURADO</code> generaba una entrada <code>cobro_certificado</code> Y su factura de venta generaba otra <code>cobro_factura</code> — la misma plata contaba dos veces en la proyección, inflando artificialmente las entradas. La corrección hace un join a <code>sales_documents!certificate_id</code> y salta el certificado si ya existe un documento de venta con estado distinto de <code>ANULADA</code>.</p></div>
+</section>
+
+<section class="section" id="s12"><div class="title"><div><h3><span class="n">12</span>Gastos recurrentes</h3><p>Alquiler, sueldos, seguros, préstamos — la plata que sale todos los meses.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">P</div><div><h4>5 periodicidades</h4><p class="summary"><code>MENSUAL</code> · <code>BIMESTRAL</code> · <code>TRIMESTRAL</code> · <code>SEMESTRAL</code> · <code>ANUAL</code>. <code>ocurrenciasGastoRecurrente()</code> genera todas las fechas dentro de la ventana según el paso en meses correspondiente, arrancando desde <code>proximo_vencimiento</code> o desde <code>dia_del_mes</code> del mes en curso.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">N</div><div><h4>No generan movimiento automático</h4><p class="summary">Un gasto recurrente es una <strong>proyección</strong>, no una obligación contable. El egreso real se carga a mano en <code>/tesoreria</code> el día que efectivamente se paga — el sistema no asume que se pagó solo porque llegó la fecha.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">C</div><div><h4>Categorías</h4><p class="summary"><code>ALQUILER</code> · <code>SUELDOS</code> · <code>SEGUROS</code> · <code>PRESTAMO</code> · <code>SERVICIOS</code> · <code>IMPUESTOS</code> · <code>HONORARIOS</code> · <code>OTRO</code>. Solo para clasificar en la UI, sin lógica que dependa del valor.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">I</div><div><h4>Imputación opcional a obra</h4><p class="summary"><code>project_id</code> igual que en movimientos de tesorería — un gasto recurrente puede ser específico de una obra (ej. alquiler de un obrador) y aparecer solo en el flujo de caja filtrado por ese proyecto.</p></div></div></div>
+</div>
+</section>
+
+<section class="section" id="s13"><div class="title"><div><h3><span class="n">13</span>Granularidad y alertas</h3><p>Cómo se arma la ventana de tiempo.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="body"><ul>
+<li><strong>Semana</strong>: 12 buckets desde el lunes de la semana actual. Clave <code>YYYY-Www</code> (ISO week).</li>
+<li><strong>Mes</strong>: 6 buckets calendario desde el mes actual. Clave <code>YYYY-MM</code>.</li>
+<li>Filtro de moneda: la proyección se corre <strong>una moneda a la vez</strong> — no se mezclan PYG y USD en el mismo cálculo. La UI ofrece un selector.</li>
+<li>Filtro de obra: si se elige un proyecto, solo entran ítems con ese <code>project_id</code> (movimientos de tesorería y gastos recurrentes con imputación; certificados de esa obra).</li>
+</ul></div></div>
+</div>
+</section>
+
+<section class="section" id="s14"><div class="title"><div><h3><span class="n">14</span>Data model</h3><p>Tablas de Tesorería — Flujo de Caja no tiene tablas propias.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><table class="tbl"><tr><th>Tabla</th><th>Rol</th></tr>
+<tr><td><code>cuentas_financieras</code></td><td>Master de bancos/cajas/tarjetas. <code>saldo</code> materializado por trigger. Unique <code>(empresa_id, nombre)</code>.</td></tr>
+<tr><td><code>movimientos_tesoreria</code></td><td>Libro mayor append-only. FK opcionales a <code>payment_order_id</code> / <code>sales_receipt_id</code> / <code>transferencia_id</code> / <code>project_id</code>. Check de motivo obligatorio en tipos manuales.</td></tr>
+<tr><td><code>transferencias</code></td><td>Cabecera de cada transferencia — monto origen/destino, tipo de cambio calculado. Cada transferencia genera 2 filas en <code>movimientos_tesoreria</code>.</td></tr>
+<tr><td><code>gastos_recurrentes</code></td><td>Definición de gastos periódicos. No tiene relación directa con <code>movimientos_tesoreria</code> — la conexión es solo conceptual hasta que el usuario carga el egreso real.</td></tr>
+<tr><td><code>invoices.due_date</code></td><td>Columna agregada sobre la tabla existente de facturas de compra — sin esto, la proyección no podía ubicar en el tiempo los pagos pendientes.</td></tr>
+<tr><td><code>payment_orders.cuenta_id</code> / <code>sales_receipts.cuenta_id</code></td><td>Columnas nullable agregadas sobre tablas existentes. <code>null</code> = el enganche con tesorería no se usó para ese documento.</td></tr>
+</table></div>
+<div class="note"><strong>Flujo de Caja es 100% cálculo</strong><p>No existe una tabla <code>flujo_caja_proyecciones</code> ni nada que se persista. Cada carga de <code>/flujo-caja</code> vuelve a leer tesorería + facturas + certificados + gastos recurrentes y recalcula todo en el servidor. Es intencional: la proyección siempre refleja el estado actual, nunca un snapshot desactualizado.</p></div>
+</section>
+
+<section class="section" id="s15"><div class="title"><div><h3><span class="n">15</span>Migraciones</h3><p>Todas aplicadas en producción.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">55</div><div><h4>0055 — tesoreria</h4><p class="summary"><code>cuentas_financieras</code>, <code>movimientos_tesoreria</code>, <code>transferencias</code>, trigger de saldo, <code>registrar_movimiento_tesoreria</code>, <code>registrar_transferencia</code>, <code>verificar_saldos_tesoreria</code>. RLS por empresa en las 3 tablas.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">56</div><div><h4>0056 — flujo_caja_enganche</h4><p class="summary"><code>invoices.due_date</code>, <code>payment_orders.cuenta_id</code>, <code>sales_receipts.cuenta_id</code>. Las tres columnas nullable — puramente aditivo, cero riesgo de romper flujos existentes.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">57</div><div><h4>0057 — gastos_recurrentes</h4><p class="summary">Tabla + RLS. Sin RPC propia — el CRUD es directo desde la server action porque no hay invariante de saldo que proteger.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">69</div><div><h4>0069 — security_definer_tenant_hardening</h4><p class="summary">No es una migración exclusiva de este módulo (también endurece <code>convertir_licitacion_a_proyecto_atomico</code>), pero reemplaza el camino de escritura de cobros y pagos por las RPCs atómicas de la sección 07. Ver esa sección para el detalle.</p></div></div></div>
+</div>
+</section>
+
+<section class="section" id="s16"><div class="title"><div><h3><span class="n">16</span>Seguridad</h3><p>RLS, RPC y aislamiento de tenant.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="body"><ul>
+<li><strong>RLS por empresa</strong> en las 4 tablas propias del módulo — <code>using (empresa_id = current_empresa_id())</code>. Ninguna tiene policy de <code>insert</code> pública para el libro mayor.</li>
+<li><strong>Escritura del libro solo por RPC</strong> <code>security definer</code>: <code>movimientos_tesoreria</code> no acepta INSERT directo desde el cliente bajo ningún rol.</li>
+<li><strong><code>SET search_path = public, pg_temp</code></strong> en las RPC de la migración 0069 — mitiga ataques de secuestro de <code>search_path</code> sobre funciones <code>security definer</code>.</li>
+</ul></div></div>
+<div class="item"><div class="body"><ul>
+<li><strong>Verificación de tenant explícita, no solo RLS</strong>: las RPC atómicas comprueban <code>auth.uid()</code> y <code>current_empresa_id() = p_empresa_id</code> como primera línea, y fallan cerrado (<code>RAISE EXCEPTION</code>) ante cualquier discordancia — incluida una sola factura de una OP que no pertenezca al tenant.</li>
+<li><strong>Bloqueo de fila (<code>FOR UPDATE</code>)</strong> antes de leer el saldo en toda RPC de escritura — la defensa real contra condiciones de carrera, no un chequeo optimista.</li>
+<li><strong>GRANTs revocados de <code>PUBLIC</code>/<code>anon</code></strong> en las 3 RPC de 0069, otorgados explícitamente a <code>authenticated</code> y <code>service_role</code>.</li>
+</ul></div></div>
+</div>
+</section>
+
+<section class="section" id="s17"><div class="title"><div><h3><span class="n">17</span>Testing</h3><p>Cobertura real — sin exagerar lo que hay.</p></div><div class="state partial">PARCIAL</div></div>
+<div class="card flow"><div class="kv"><span>e2e</span><b class="mono">tests/e2e/finanzas-flows.spec.ts</b></div><div class="kv"><span>Cubre</span><b>Carga de /tesoreria y /flujo-caja, diálogo de alta de cuenta, diálogo de gasto recurrente, selector de granularidad, presencia de "Finanzas" en el sidebar, apertura del diálogo de cobro con selector de cuenta</b></div><div class="kv"><span>Verificación manual registrada</span><b>Alta con saldo inicial → egreso → recálculo de saldo → rechazo de sobregiro → transferencia entre cuentas → reversa de cobro eliminado, contra el ambiente real vía Playwright ad-hoc</b></div></div>
+<div class="warnbox"><strong>No hay suite unitaria (vitest) para <code>lib/flujo-caja.ts</code></strong><p>La lógica de <code>construirProyeccion()</code> y <code>ocurrenciasGastoRecurrente()</code> es pura y fácilmente testeable, pero no tiene tests unitarios dedicados — solo la cobertura e2e de que la pantalla carga y responde a los controles. Si se toca esa lógica, agregar tests unitarios antes de refactorizar sería lo prudente, no darlo por hecho porque "ya está probado".</p></div>
+</section>
+
+<section class="section" id="s18"><div class="title"><div><h3><span class="n">18</span>Decisiones de producto</h3><p>Definitivas, no reabrir sin motivo.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid"><div class="item"><div class="body"><ul>
+<li><strong>El libro es append-only, sin excepción</strong>: ninguna UI ni server action debe hacer <code>UPDATE</code> sobre una fila existente de <code>movimientos_tesoreria</code> (salvo marcar <code>conciliado</code>, que no toca el monto). Corregir siempre es insertar la reversa.</li>
+<li><strong>El selector de cuenta es y debe seguir siendo opcional</strong> en cobros y pagos. No convertirlo en obligatorio sin decisión explícita — rompería el uso de Cobros/Pagos para empresas que no adoptaron Tesorería.</li>
+<li><strong>API bancaria descartada como estrategia</strong>: solo Itaú la ofrece en Paraguay y exige IP pública fija, incompatible con el hosting serverless actual. La vía elegida es importador de extractos (pendiente, sección 20), que funciona igual con cualquier banco.</li>
+</ul></div></div><div class="item"><div class="body"><ul>
+<li><strong>Flujo de Caja no persiste nada</strong>: no crear una tabla de "snapshots de proyección" sin una razón de negocio concreta (ej. auditoría histórica). Hoy el valor está en que siempre es fresco.</li>
+<li><strong>Gastos recurrentes no generan movimiento automático</strong>: mezclar "lo que se espera pagar" con "lo que se pagó" rompería la trazabilidad del libro mayor. La proyección tolera esa separación porque para eso existe.</li>
+<li><strong>Una moneda por corrida de proyección</strong>: no promediar tipos de cambio para mezclar PYG/USD en un solo número — el usuario elige la moneda y ve esa realidad sin conversión implícita.</li>
+</ul></div></div></div>
+</section>
+
+<section class="section" id="s19"><div class="title"><div><h3><span class="n">19</span>Estado del módulo</h3><p>Foto al commit <span class="mono">e87d9f4</span> de <code>main</code>.</p></div></div>
+<div class="card flow"><table class="tbl"><tr><th>Pieza</th><th>Estado</th></tr>
+<tr><td>Cuentas financieras (alta, edición, activar/desactivar)</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Libro mayor append-only + trigger de saldo</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Movimientos manuales (ingreso/egreso/ajuste) con motivo obligatorio</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Transferencias entre cuentas con tipo de cambio</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Imputación de movimientos a obra</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Enganche opcional con Cobros (recibo → COBRO)</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Enganche opcional con Pagos (OP ejecutada → PAGO)</td><td>IMPLEMENTADO</td></tr>
+<tr><td>RPCs atómicas con verificación explícita de tenant (0069)</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Reversa de cobro eliminado vía contra-movimiento</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Proyección de flujo de caja (semana/mes) con alerta de saldo negativo</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Flujo de caja filtrable por obra</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Gastos recurrentes (5 periodicidades)</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Exclusión de doble conteo certificado↔factura (fix 12/09)</td><td>IMPLEMENTADO</td></tr>
+<tr><td>due_date en facturas de compra</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Job de verificación de saldos (<code>verificar_saldos_tesoreria</code>)</td><td>PENDIENTE — la función existe, no hay cron</td></tr>
+<tr><td>Importador de extractos bancarios</td><td>PENDIENTE</td></tr>
+<tr><td>Conciliación bancaria (<code>saldo_conciliado</code>)</td><td>PENDIENTE</td></tr>
+<tr><td>Pagos masivos (archivo TXT por banco)</td><td>PENDIENTE</td></tr>
+<tr><td>Tests unitarios de <code>lib/flujo-caja.ts</code></td><td>PENDIENTE</td></tr>
+</table></div>
+</section>
+
+<section class="section" id="s20"><div class="title"><div><h3><span class="n">20</span>Pendientes conocidos</h3><p>Lo que falta, en orden de impacto.</p></div><div class="state future">PENDIENTE</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">1</div><div><h4>Importador de extractos + conciliación</h4><p class="summary">El tesorero sube el extracto del banco (CSV/Excel/OFX según banco), el sistema cruza líneas contra <code>movimientos_tesoreria</code> por fecha+monto, marca <code>conciliado</code> en los que matchean y deja el resto para revisión manual. Funciona con cualquier banco desde el día uno.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">2</div><div><h4>Cron de <code>verificar_saldos_tesoreria</code></h4><p class="summary">La función SQL ya devuelve las cuentas con saldo materializado desviado del libro. Falta solo un job (Vercel Cron o Supabase Scheduled Function) que la corra diario por empresa y alerte si hay diferencia — hoy nadie la invoca.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">3</div><div><h4>Pagos masivos</h4><p class="summary">Generar el archivo de formato fijo que piden los bancos paraguayos para pagar sueldos/proveedores en lote, a partir de las órdenes de pago. No depende de ninguna API — es generación local de un archivo de texto.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">4</div><div><h4>API bancaria (evaluar solo si cambia el contexto)</h4><p class="summary">Descartada por ahora: solo Itaú Open Banking existe en Paraguay hoy, y exige IP pública fija — incompatible con el hosting serverless actual sin un proxy dedicado. Revisar si en el futuro se resuelve el problema de la IP o aparecen más bancos con API.</p></div></div></div>
+</div>
+</section>
+
+<section class="section" id="s21"><div class="title"><div><h3><span class="n">21</span>Handoff para futuro agente</h3><p>Instrucciones de ingesta al manual maestro.</p></div></div>
+<div class="note"><strong>INSTRUCCIONES PARA EL AGENTE QUE INTEGRE EL MANUAL FINAL</strong><p>Este HTML es un módulo independiente ("bloque de conocimiento"). Al integrarlo al capítulo "Tesorería / Flujo de Caja" del manual maestro: (1) no presentar Flujo de Caja como si tuviera tabla propia — es cálculo puro sobre datos de otros módulos, recalculado en cada carga; (2) preservar la distinción entre las RPC base de la migración 0055 (<code>registrar_movimiento_tesoreria</code>, <code>registrar_transferencia</code>) y las RPC atómicas de la 0069 (<code>registrar_cobro_atomico</code>, <code>ejecutar_orden_pago_atomica</code>) — ambas siguen vigentes, no son una la reemplazo total de la otra; (3) el patrón append-only del libro mayor es un invariante de diseño, no una limitación — cualquier feature nuevo sobre tesorería debe seguir insertando, nunca actualizando montos; (4) no presentar el importador de extractos, la conciliación, el cron de verificación de saldos ni los pagos masivos como existentes — figuran en la sección 20 como PENDIENTE; (5) la API bancaria fue evaluada y descartada por una razón técnica concreta (IP fija de Itaú) — si un agente futuro la reconsidera, debe partir de esa restricción, no ignorarla; (6) antes de asumir el estado de este módulo, verificar el git log de <code>app/(internal)/tesoreria/</code> y <code>app/(internal)/flujo-caja/</code> contra este documento — el codebase puede haber cambiado desde que se escribió.</p></div>
+</section>
+
+</div>
+<script>
+document.querySelectorAll('.idx a').forEach(a=>{
+  a.addEventListener('click',()=>{
+    document.querySelectorAll('.idx a').forEach(x=>x.style.borderColor='');
+    a.style.borderColor='rgba(142,227,198,.35)';
+  });
+});
+</script>
+</body></html>

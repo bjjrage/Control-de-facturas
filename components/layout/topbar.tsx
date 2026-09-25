@@ -18,6 +18,7 @@ const PROJECT_TAB_CONTEXT: Record<string, { group: string; label: string }> = Ob
 );
 // Keep old bookmarks understandable without advertising this renderer as a canonical tab.
 PROJECT_TAB_CONTEXT.stock = { group: "Avance de obra", label: "Catálogo de materiales (legado)" };
+PROJECT_TAB_CONTEXT.recepciones = { group: "Avance de obra", label: "Depósito de obra" };
 
 const WORKSPACE_ITEMS: WorkspaceItem[] = [
   { key: "administracion", icon: Building2 },

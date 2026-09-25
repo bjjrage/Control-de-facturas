@@ -18,6 +18,7 @@ import {
   updateWarehouseSubmissionLine,
 } from "@/app/(internal)/inventory/actions";
 import type { WarehouseSubmissionLineState } from "@/lib/inventory/types";
+import { RecepcionesObraSection, type RecepcionRow } from "./recepciones-obra-section";
 
 export type SubmissionStatus = "UPLOADED" | "PROCESSING" | "NEEDS_REVIEW" | "READY" | "CONFIRMED" | "VOIDED";
 export type LineState = WarehouseSubmissionLineState;
@@ -251,6 +252,7 @@ export function PanolObraSection({
   submissions,
   products,
   budgetItems,
+  recepciones = [],
 }: {
   projectId: string;
   locations: ProjectLocation[];
@@ -258,6 +260,7 @@ export function PanolObraSection({
   submissions: PanolSubmissionRow[];
   products: InventoryProduct[];
   budgetItems: BudgetChoice[];
+  recepciones?: RecepcionRow[];
 }) {
   const router = useRouter();
   const [selectedLocationId, setSelectedLocationId] = useState("");
@@ -474,6 +477,14 @@ export function PanolObraSection({
           </div>
         ) : null}
         {actionMessage ? <p className="mt-3 text-[11px] text-[var(--muted)]">{actionMessage}</p> : null}
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold">Recepciones de mercadería confirmadas</h3>
+          <p className="mt-1 text-[12px] text-[var(--muted)]">Ingresos de órdenes de compra confirmados en los depósitos de esta obra.</p>
+        </div>
+        <RecepcionesObraSection rows={recepciones} />
       </section>
 
       <section className="space-y-3">

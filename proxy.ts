@@ -5,7 +5,12 @@ export async function proxy(request: NextRequest) {
   // The one-time bearer token is the credential for supplier receipt links.
   // Validate it in the portal page/API without requiring an ERP session.
   const path = request.nextUrl.pathname;
-  if (path.startsWith("/recepcion/") || path.startsWith("/api/recepcion-portal/")) {
+  if (
+    path.startsWith("/recepcion/") ||
+    path.startsWith("/api/recepcion-portal/") ||
+    path.startsWith("/warehouse/") ||
+    path.startsWith("/api/warehouse-portal/")
+  ) {
     const response = NextResponse.next({ request });
     response.headers.set("Referrer-Policy", "no-referrer");
     response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");

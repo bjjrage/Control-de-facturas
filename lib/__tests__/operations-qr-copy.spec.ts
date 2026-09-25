@@ -32,7 +32,7 @@ describe("field operations QR product contract", () => {
   it("shows one-time warehouse QR material while preserving scoped revoke and rotate actions", () => {
     const section = read("app/(internal)/projects/[id]/panol-obra-section.tsx");
     const actions = read("app/(internal)/inventory/actions.ts");
-    const portal = read("app/warehouse/[token]/page.tsx");
+    const portal = read("app/warehouse/[token]/page.tsx") + read("lib/inventory/warehouse-portal-data.ts");
     expect(section).toContain("QR para Depositero");
     expect(section).toContain("QRCode.toDataURL(createdLink.url");
     expect(section).toContain("Descargar QR");

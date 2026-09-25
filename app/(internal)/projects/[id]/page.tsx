@@ -51,15 +51,16 @@ export default async function ProjectDetailPage({
   const isCaterpillar = profile.plan === "caterpillar" || profile.is_super_admin;
   const featurePlan = isCaterpillar ? "caterpillar" : "pro";
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const normalizedTab = rawTab === "recepciones" ? "panol" : rawTab;
   const initialTab =
-    isProjectFeatureKey(rawTab) &&
-    ALL_TABS.includes(rawTab) &&
-    canAccessProjectFeature(getProjectFeature(rawTab), {
+    isProjectFeatureKey(normalizedTab) &&
+    ALL_TABS.includes(normalizedTab) &&
+    canAccessProjectFeature(getProjectFeature(normalizedTab), {
       role: profile.role,
       plan: featurePlan,
       isSuperAdmin: profile.is_super_admin,
     })
-      ? rawTab
+      ? normalizedTab
       : "presupuesto";
   const supabase = await createClient();
   const empresaId = profile.empresa_id;

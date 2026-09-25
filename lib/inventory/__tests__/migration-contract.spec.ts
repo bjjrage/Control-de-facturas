@@ -2,62 +2,23 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const migration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260913230000_inventory_panol.sql"),
-  "utf8",
-);
-const receiptMigration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260924074417_canonical_purchase_receipt_flow.sql"),
-  "utf8",
-);
-const receiptActions = readFileSync(
-  resolve(process.cwd(), "app/(internal)/orders/oc-recepcion-actions.ts"),
-  "utf8",
-);
-const receiptUi = readFileSync(
-  resolve(process.cwd(), "app/(internal)/orders/[id]/recepcion-section.tsx"),
-  "utf8",
-);
-const manualMovementMigration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260924212056_inventory_manual_movement_contract.sql"),
-  "utf8",
-);
-const manualMovementUi = readFileSync(
-  resolve(process.cwd(), "app/(internal)/inventario/nuevo-movimiento-dialog.tsx"),
-  "utf8",
-);
-const inventoryActions = readFileSync(
-  resolve(process.cwd(), "app/(internal)/inventory/actions.ts"),
-  "utf8",
-);
-const batch4HardeningMigration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260924225450_batch4_lock_inventory_legacy_paths_and_confirm_state.sql"),
-  "utf8",
-);
-const warehouseEvidenceGateMigration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260925002351_batch4_guard_incomplete_warehouse_evidence.sql"),
-  "utf8",
-);
-const manualWarehouseLineMigration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260925011009_inventory_add_manual_warehouse_submission_line.sql"),
-  "utf8",
-);
-const stockActions = readFileSync(
-  resolve(process.cwd(), "app/(internal)/stock/stock-actions.ts"),
-  "utf8",
-);
-const stockDetailPage = readFileSync(
-  resolve(process.cwd(), "app/(internal)/stock/[id]/page.tsx"),
-  "utf8",
-);
-const approvalActions = readFileSync(
-  resolve(process.cwd(), "app/(internal)/agent/approval-actions.ts"),
-  "utf8",
-);
-const globalInventorySection = readFileSync(
-  resolve(process.cwd(), "app/(internal)/inventario/inventario-global-section.tsx"),
-  "utf8",
-);
+const readUtf8 = (relPath: string) =>
+  readFileSync(resolve(process.cwd(), relPath), "utf8").replace(/\r\n/g, "\n");
+
+const migration = readUtf8("supabase/migrations/20260913230000_inventory_panol.sql");
+const receiptMigration = readUtf8("supabase/migrations/20260924074417_canonical_purchase_receipt_flow.sql");
+const receiptActions = readUtf8("app/(internal)/orders/oc-recepcion-actions.ts");
+const receiptUi = readUtf8("app/(internal)/orders/[id]/recepcion-section.tsx");
+const manualMovementMigration = readUtf8("supabase/migrations/20260924212056_inventory_manual_movement_contract.sql");
+const manualMovementUi = readUtf8("app/(internal)/inventario/nuevo-movimiento-dialog.tsx");
+const inventoryActions = readUtf8("app/(internal)/inventory/actions.ts");
+const batch4HardeningMigration = readUtf8("supabase/migrations/20260924225450_batch4_lock_inventory_legacy_paths_and_confirm_state.sql");
+const warehouseEvidenceGateMigration = readUtf8("supabase/migrations/20260925002351_batch4_guard_incomplete_warehouse_evidence.sql");
+const manualWarehouseLineMigration = readUtf8("supabase/migrations/20260925011009_inventory_add_manual_warehouse_submission_line.sql");
+const stockActions = readUtf8("app/(internal)/stock/stock-actions.ts");
+const stockDetailPage = readUtf8("app/(internal)/stock/[id]/page.tsx");
+const approvalActions = readUtf8("app/(internal)/agent/approval-actions.ts");
+const globalInventorySection = readUtf8("app/(internal)/inventario/inventario-global-section.tsx");
 
 describe("0080 inventory migration contract", () => {
   it("fails closed when legacy cost evidence is unavailable", () => {

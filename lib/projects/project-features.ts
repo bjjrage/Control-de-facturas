@@ -16,7 +16,6 @@ export type ProjectFeatureKey =
   | "pagos"
   | "ejecucion"
   | "inventario"
-  | "recepciones"
   | "panol"
   | "personal"
   | "subcontratistas"
@@ -53,7 +52,6 @@ export const PROJECT_FEATURES = [
   { key: "pagos", label: "Pagos", group: "Comprar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "ejecucion", label: "Partes de avance", group: "Avance de obra", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "inventario", label: "Inventario", group: "Avance de obra", minPlan: "pro", roles: PROJECT_ROLES },
-  { key: "recepciones", label: "Recepciones", group: "Avance de obra", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "panol", label: "Depósito de obra", group: "Avance de obra", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "personal", label: "Personal", group: "Avance de obra", minPlan: "caterpillar", roles: PROJECT_ROLES },
   { key: "subcontratistas", label: "Subcontratistas", group: "Avance de obra", minPlan: "caterpillar", roles: PROJECT_ROLES },
