@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { AuthorizedOrder, AuthorizedOrderItem, Invoice, Provider } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
@@ -12,7 +13,7 @@ import { InvoiceDialog } from "@/app/(internal)/invoices/invoice-dialog";
 import { LinkInvoiceDialog } from "./link-invoice-dialog";
 import { OrderPipeline } from "../order-pipeline";
 import { DeleteOrderButton } from "../delete-order-button";
-import { RecepcionSection } from "./recepcion-section";
+import { RecepcionSection, type ReceiptEvidenceView } from "./recepcion-section";
 import type { OcRecepcion } from "@/lib/types";
 
 const ORIGIN_LABEL = { rfq: "Desde solicitud", manual: "Carga manual", invoice: "Desde factura" } as const;
@@ -29,7 +30,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     .single<AuthorizedOrder>();
   if (!order) notFound();
 
-  const [{ data: provider }, { data: matches }, { data: candidateInvoices }, { data: orderItems }, { data: recepciones }] =
+  const [{ data: provider }, { data: matches }, { data: candidateInvoices }, { data: orderItems }, { data: recepciones }, { data: products }] =
     await Promise.all([
       supabase.from("providers").select("*").eq("id", order.provider_id).single<Provider>(),
       supabase
@@ -47,15 +48,55 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         .from("authorized_order_items")
         .select("*")
         .eq("order_id", id)
+        .eq("empresa_id", profile.empresa_id)
         .order("sort_order")
         .returns<AuthorizedOrderItem[]>(),
       supabase
         .from("oc_recepciones")
         .select("*, oc_recepcion_items(*)")
         .eq("order_id", id)
+        .eq("empresa_id", profile.empresa_id)
         .order("created_at", { ascending: false })
         .returns<OcRecepcion[]>(),
+      supabase
+        .from("productos")
+        .select("id, nombre, unidad, activo")
+        .eq("empresa_id", profile.empresa_id)
+        .order("nombre")
+        .limit(1000)
+        .returns<{ id: string; nombre: string; unidad: string; activo: boolean }[]>(),
     ]);
+
+  const evidenceByReceipt: Record<string, ReceiptEvidenceView[]> = {};
+  const receiptIds = (recepciones ?? []).map((receipt) => receipt.id);
+  if (receiptIds.length > 0) {
+    const { data: evidenceRows } = await supabase
+      .from("inventory_receipt_evidence")
+      .select("id, receipt_id, storage_bucket, storage_path, file_name, size_bytes")
+      .eq("empresa_id", profile.empresa_id)
+      .in("receipt_id", receiptIds)
+      .order("created_at");
+    const admin = createAdminClient();
+    const evidenceViews = await Promise.all((evidenceRows ?? []).map(async (row) => {
+      if (row.storage_bucket !== "warehouse-evidence") return null;
+      const { data: signed } = await admin.storage
+        .from("warehouse-evidence")
+        .createSignedUrl(row.storage_path, 600);
+      return {
+        receiptId: row.receipt_id as string,
+        evidence: {
+          id: row.id as string,
+          fileName: row.file_name as string,
+          sizeBytes: row.size_bytes == null ? null : Number(row.size_bytes),
+          url: signed?.signedUrl ?? null,
+        } satisfies ReceiptEvidenceView,
+      };
+    }));
+    for (const view of evidenceViews) {
+      if (!view) continue;
+      (evidenceByReceipt[view.receiptId] ??= []).push(view.evidence);
+    }
+  }
 
   const saldo = orderRemaining(order.total_price, order.facturado_amount);
   const over = isOverbilled(order.total_price, order.facturado_amount);
@@ -297,8 +338,12 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         recepciones={recepciones ?? []}
         canDelete={profile.role === "administracion" || profile.role === "admin"}
         canConfirm={["comercial", "administracion", "admin"].includes(profile.role)}
+        canCreatePortal={profile.role === "administracion" || profile.role === "admin"}
+        canMap={profile.role === "administracion" || profile.role === "admin"}
         currentUserId={profile.id}
         canDiscardOwnDraft={profile.role === "comercial"}
+        products={products ?? []}
+        evidenceByReceipt={evidenceByReceipt}
       />
     </div>
   );

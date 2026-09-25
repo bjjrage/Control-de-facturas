@@ -8,9 +8,16 @@ import { formatDate, formatNumber } from "@/lib/format";
 import { createClient } from "@/lib/supabase/browser";
 import type { AuthorizedOrderItem, OcRecepcion } from "@/lib/types";
 import { confirmedReceiptTotals } from "@/lib/inventory/receipt-read-model";
-import { registrarRecepcion, confirmarRecepcion, eliminarRecepcion } from "../oc-recepcion-actions";
+import {
+  registrarRecepcion,
+  confirmarRecepcion,
+  eliminarRecepcion,
+  updateReceiptProductMapping,
+} from "../oc-recepcion-actions";
+import { ReceiptPortalLink } from "../receipt-portal-link";
 
 type ProductoLite = { id: string; nombre: string; unidad: string; activo: boolean };
+export type ReceiptEvidenceView = { id: string; fileName: string; sizeBytes: number | null; url: string | null };
 
 // ─── RegistrarDialog ────────────────────────────────────────────────────────
 
@@ -252,18 +259,25 @@ function RecepcionCard({
   orderItems,
   canDelete,
   canConfirm,
+  canMap,
   orderId,
   onDiscard,
+  products,
+  evidence,
 }: {
   recepcion: OcRecepcion;
   orderItems: AuthorizedOrderItem[];
   canDelete: boolean;
   canConfirm: boolean;
+  canMap: boolean;
   orderId: string;
   onDiscard: () => void;
+  products: ProductoLite[];
+  evidence: ReceiptEvidenceView[];
 }) {
   const [deleting, setDeleting] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [mappingItemId, setMappingItemId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const items = recepcion.oc_recepcion_items ?? [];
@@ -296,6 +310,21 @@ function RecepcionCard({
       router.refresh();
     } finally {
       setConfirming(false);
+    }
+  }
+
+  async function handleProductMapping(itemId: string, productId: string) {
+    if (!productId || mappingItemId) return;
+    setMappingItemId(itemId);
+    setError(null);
+    try {
+      const result = await updateReceiptProductMapping({ receiptId: recepcion.id, itemId, productId });
+      if (result.error) setError(result.error);
+      else router.refresh();
+    } catch {
+      setError("No se pudo vincular el producto. Intentá nuevamente.");
+    } finally {
+      setMappingItemId(null);
     }
   }
 
@@ -353,16 +382,43 @@ function RecepcionCard({
               <tr>
                 <th>Ítem</th>
                 <th className="num">Recibido</th>
+                <th>Material de inventario</th>
               </tr>
             </thead>
             <tbody>
               {items.map((ri) => {
                 const oi = orderItems.find((o) => o.id === ri.order_item_id);
+                const mappedProduct = products.find((product) => product.id === ri.producto_id);
                 return (
                   <tr key={ri.id}>
                     <td className="text-[13px]">{oi?.product ?? ri.order_item_id}</td>
                     <td className="num">
                       {formatNumber(ri.cantidad_recibida, 2)} {oi?.unit ?? ""}
+                    </td>
+                    <td className="text-[12px]">
+                      {canMap && recepcion.status === "DRAFT" ? (
+                        <select
+                          aria-label="Material de inventario"
+                          value={ri.producto_id ?? ""}
+                          disabled={mappingItemId === ri.id || mappingItemId !== null}
+                          onChange={(event) => void handleProductMapping(ri.id, event.target.value)}
+                          className="max-w-56 rounded border border-[var(--border)] bg-[var(--panel)] px-2 py-1 text-[12px]"
+                        >
+                          {!ri.producto_id ? <option value="">Sin vincular a inventario</option> : null}
+                          {products
+                            .filter((product) => product.activo && product.unidad.trim() === (oi?.unit ?? "").trim())
+                            .map((product) => (
+                              <option key={product.id} value={product.id}>{product.nombre}</option>
+                            ))}
+                        </select>
+                      ) : mappedProduct ? (
+                        mappedProduct.nombre
+                      ) : (
+                        <span className="text-[var(--warn)]">Sin vincular</span>
+                      )}
+                      {!ri.producto_id && recepcion.status === "DRAFT" ? (
+                        <span className="mt-1 block text-[10px] text-[var(--muted)]">Sin vínculo no se genera movimiento de inventario.</span>
+                      ) : null}
                     </td>
                   </tr>
                 );
@@ -370,6 +426,22 @@ function RecepcionCard({
             </tbody>
           </table>
         </div>
+      ) : null}
+
+      {evidence.length > 0 ? (
+        <section className="space-y-1.5">
+          <h3 className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">Evidencia recibida</h3>
+          <ul className="space-y-1">
+            {evidence.map((file) => (
+              <li key={file.id} className="text-[12px]">
+                {file.url ? (
+                  <a className="text-action underline" href={file.url} target="_blank" rel="noreferrer">{file.fileName}</a>
+                ) : <span>{file.fileName}</span>}
+                {file.sizeBytes != null ? <span className="ml-2 text-[var(--muted)]">{formatNumber(file.sizeBytes / 1024, 0)} KB</span> : null}
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
     </div>
   );
@@ -385,6 +457,10 @@ export function RecepcionSection({
   canConfirm = false,
   currentUserId,
   canDiscardOwnDraft = false,
+  canCreatePortal = false,
+  canMap = false,
+  products = [],
+  evidenceByReceipt = {},
 }: {
   orderId: string;
   orderItems: AuthorizedOrderItem[];
@@ -393,6 +469,10 @@ export function RecepcionSection({
   canConfirm?: boolean;
   currentUserId: string;
   canDiscardOwnDraft?: boolean;
+  canCreatePortal?: boolean;
+  canMap?: boolean;
+  products?: ProductoLite[];
+  evidenceByReceipt?: Record<string, ReceiptEvidenceView[]>;
 }) {
   const [key, setKey] = useState(0);
 
@@ -403,14 +483,17 @@ export function RecepcionSection({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-[14px] font-semibold">Recepción de mercadería</h2>
-        <RegistrarDialog
-          key={key}
-          orderId={orderId}
-          orderItems={orderItems}
-          onDone={() => setKey((k) => k + 1)}
-        />
+        <div className="flex flex-wrap gap-2">
+          {canCreatePortal ? <ReceiptPortalLink orderId={orderId} /> : null}
+          <RegistrarDialog
+            key={key}
+            orderId={orderId}
+            orderItems={orderItems}
+            onDone={() => setKey((k) => k + 1)}
+          />
+        </div>
       </div>
 
       {/* Resumen de cantidades recibidas vs ordenadas */}
@@ -464,8 +547,11 @@ export function RecepcionSection({
               orderItems={orderItems}
               canDelete={canDelete || (canDiscardOwnDraft && rec.created_by === currentUserId)}
               canConfirm={canConfirm}
+              canMap={canMap}
               orderId={orderId}
               onDiscard={() => setKey((k) => k + 1)}
+              products={products}
+              evidence={evidenceByReceipt[rec.id] ?? []}
             />
           ))}
         </div>

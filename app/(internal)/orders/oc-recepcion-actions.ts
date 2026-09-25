@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile } from "@/lib/auth";
+import { requirePlan, requireProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { confirmInventoryReceipt, createInventoryReceipt } from "@/lib/inventory/service";
 import { revalidatePath } from "next/cache";
@@ -99,6 +99,7 @@ export async function registrarRecepcion(
 
   revalidatePath("/orders/" + order_id);
   revalidatePath("/stock");
+  revalidatePath("/inventario");
   return { receiptId: created.data.receiptId };
 }
 
@@ -117,6 +118,7 @@ export async function confirmarRecepcion(recepcion_id: string, order_id: string)
   if (receipt.status === "CONFIRMED") {
     revalidatePath("/orders/" + order_id);
     revalidatePath("/stock");
+    revalidatePath("/inventario");
     return {};
   }
   if (receipt.status !== "DRAFT" || !receipt.idempotency_key) {
@@ -137,6 +139,53 @@ export async function confirmarRecepcion(recepcion_id: string, order_id: string)
   });
   revalidatePath("/orders/" + order_id);
   revalidatePath("/stock");
+  revalidatePath("/inventario");
+  return {};
+}
+
+export async function updateReceiptProductMapping(args: {
+  receiptId: string;
+  itemId: string;
+  productId: string;
+}): Promise<{ error?: string }> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  if (
+    !profile.empresa_id ||
+    !/^[0-9a-f-]{36}$/i.test(args.receiptId) ||
+    !/^[0-9a-f-]{36}$/i.test(args.itemId) ||
+    !/^[0-9a-f-]{36}$/i.test(args.productId)
+  ) return { error: "La línea, el producto o la recepción no son válidos." };
+
+  const supabase = await createClient();
+  const { data: receipt } = await supabase
+    .from("oc_recepciones")
+    .select("id, order_id, status")
+    .eq("id", args.receiptId)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (!receipt || receipt.status !== "DRAFT") {
+    return { error: "La recepción ya no está pendiente de revisión." };
+  }
+
+  const { error } = await supabase.rpc("inventory_set_receipt_item_product", {
+    p_empresa_id: profile.empresa_id,
+    p_receipt_id: receipt.id,
+    p_item_id: args.itemId,
+    p_product_id: args.productId,
+    p_updated_by: profile.id,
+  });
+  if (error) {
+    return { error: "No se pudo vincular el producto. La recepción puede haber cambiado de estado." };
+  }
+
+  await logAudit(supabase, {
+    action: "oc_recepcion_product_mapped",
+    authorizedOrderId: receipt.order_id,
+    detail: { recepcion_id: receipt.id, item_id: args.itemId, producto_id: args.productId },
+  });
+
+  revalidatePath(`/orders/${receipt.order_id}`);
+  revalidatePath("/inventario");
   return {};
 }
 

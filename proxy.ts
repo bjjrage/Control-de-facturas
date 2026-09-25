@@ -2,6 +2,17 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
+  // The one-time bearer token is the credential for supplier receipt links.
+  // Validate it in the portal page/API without requiring an ERP session.
+  const path = request.nextUrl.pathname;
+  if (path.startsWith("/recepcion/") || path.startsWith("/api/recepcion-portal/")) {
+    const response = NextResponse.next({ request });
+    response.headers.set("Referrer-Policy", "no-referrer");
+    response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+    response.headers.set("Cache-Control", "no-store");
+    return response;
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -27,7 +38,6 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const path = request.nextUrl.pathname;
   // Documentos estáticos servidos desde public/ — accesibles sin login.
   const STATIC_DOCS = ["/manual-obra", "/flujo-obra"];
   const isPublic =

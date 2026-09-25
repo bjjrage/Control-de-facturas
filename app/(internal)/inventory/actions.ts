@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlan } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 import {
   createInventoryReceipt as createInventoryReceiptAtomic,
   confirmInventoryReceipt,
@@ -13,6 +14,7 @@ import {
   saveWarehouseSubmissionLinesAtomic,
 } from "@/lib/inventory/service";
 import { generateWarehousePortalToken, sha256Bytes, warehousePortalUrl } from "@/lib/inventory/portal";
+import { generateReceiptPortalToken, receiptPortalUrl } from "@/lib/inventory/receipt-portal";
 import { parseInventorySpreadsheet, photoEvidenceProposal } from "@/lib/inventory/evidence";
 import { sanitizeFileName } from "@/lib/storage";
 import type { InventoryLocationType, InventoryMovementInput, WarehouseSubmissionLineState } from "@/lib/inventory/types";
@@ -126,6 +128,65 @@ export async function uploadReceiptEvidence(receiptId: string, files: File[]) {
   }
   revalidatePath("/orders");
   return { error: null, uploaded };
+}
+
+export async function createReceiptPortalLink(orderId: string) {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  if (!profile.empresa_id || !/^[0-9a-f-]{36}$/i.test(orderId)) {
+    return { error: "La orden no es válida para esta empresa.", url: null };
+  }
+  const supabase = await createClient();
+  const { data: order } = await supabase
+    .from("authorized_orders")
+    .select("id, project_id")
+    .eq("id", orderId)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (!order?.project_id) return { error: "La OC debe pertenecer a un proyecto de esta empresa.", url: null };
+
+  const { data: orderItems, error: itemsError } = await supabase
+    .from("authorized_order_items")
+    .select("id")
+    .eq("order_id", order.id)
+    .eq("empresa_id", profile.empresa_id)
+    .limit(1);
+  if (itemsError || !orderItems?.length) {
+    return { error: "La OC necesita líneas canónicas antes de habilitar recepción externa.", url: null };
+  }
+
+  const { data: location } = await supabase
+    .from("inventory_locations")
+    .select("id")
+    .eq("empresa_id", profile.empresa_id)
+    .eq("project_id", order.project_id)
+    .eq("location_type", "PROJECT")
+    .eq("active", true)
+    .order("is_primary", { ascending: false })
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (!location) return { error: "La obra necesita una ubicación canónica activa para recibir materiales.", url: null };
+
+  const generated = generateReceiptPortalToken();
+  const admin = createAdminClient();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { error } = await admin.rpc("create_receipt_portal_link", {
+    p_empresa_id: profile.empresa_id,
+    p_order_id: order.id,
+    p_location_id: location.id,
+    p_token_hash: generated.tokenHash,
+    p_token_hint: generated.tokenHint,
+    p_expires_at: expiresAt,
+    p_created_by: profile.id,
+  });
+  if (error) return { error: "No se pudo crear el enlace. Verificá cantidades pendientes e intentá nuevamente.", url: null };
+  await logAudit(supabase, {
+    action: "receipt_portal_link_created",
+    authorizedOrderId: order.id,
+    detail: { expires_at: expiresAt, location_id: location.id, token_hint: generated.tokenHint },
+  });
+  revalidatePath(`/orders/${order.id}`);
+  return { error: null, url: receiptPortalUrl(generated.token) };
 }
 
 export async function createInventoryLocation(args: {
