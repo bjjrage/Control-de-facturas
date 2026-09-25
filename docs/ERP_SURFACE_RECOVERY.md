@@ -86,3 +86,5 @@ Superficies activas orientadas a usuario encontradas: 18 project-scoped + las gl
 ## Evidencia y próximos resultados
 
 Los resultados ejecutables y el SHA de certificación final se registran en [ERP_SURFACE_CERTIFICATION.md](ERP_SURFACE_CERTIFICATION.md). Este documento no implica merge a `main` ni deployment de producción.
+
+Los contratos de autoridad entre ledger, balances, MRP, tesorería, caja, licitaciones y recepción externa están descritos en [ERP_CANONICAL_OPERATING_MODEL.md](ERP_CANONICAL_OPERATING_MODEL.md). Esa documentación registra el comportamiento del código y sus límites; no equivale a certificación remota.
