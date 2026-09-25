@@ -15,6 +15,10 @@ const createMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260925052356_serialize_certificate_create_with_revert.sql"),
   "utf8",
 );
+const headerImmutabilityMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260925053952_certificate_header_immutability_guard.sql"),
+  "utf8",
+);
 const receiptAction = readFileSync(
   resolve(process.cwd(), "app/(internal)/orders/oc-recepcion-actions.ts"),
   "utf8",
@@ -62,6 +66,8 @@ describe("final adversarial integrity guards", () => {
         status text NOT NULL,
         project_id uuid,
         numero integer NOT NULL DEFAULT 1,
+        notes text,
+        updated_at timestamptz,
         elaborado_por uuid,
         elaborado_at timestamptz,
         closed_at timestamptz,
@@ -94,6 +100,7 @@ describe("final adversarial integrity guards", () => {
     await db.exec(migration);
     await db.exec(transitionMigration);
     await db.exec(createMigration);
+    await db.exec(headerImmutabilityMigration);
   });
 
   afterEach(async () => {
@@ -118,6 +125,14 @@ describe("final adversarial integrity guards", () => {
 
     await expect(db.query(`
       DELETE FROM public.project_certificate_items
+      WHERE id = '00000000-0000-0000-0000-000000000002'
+    `)).rejects.toThrow(/certificado en borrador/i);
+    await expect(db.query(`
+      INSERT INTO public.project_certificate_items VALUES
+        ('00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001')
+    `)).rejects.toThrow(/certificado en borrador/i);
+    await expect(db.query(`
+      UPDATE public.project_certificate_items SET id = '00000000-0000-0000-0000-000000000004'
       WHERE id = '00000000-0000-0000-0000-000000000002'
     `)).rejects.toThrow(/certificado en borrador/i);
     await expect(db.query(`
@@ -212,12 +227,13 @@ describe("final adversarial integrity guards", () => {
         '00000000-0000-0000-0000-000000000062', 'ELABORADO'
       )
     `);
-    const elaboradoResult = await db.query<{ status: string; elaborado_at: string | null; closed_at: string | null; devolucion_anticipo_pct_snap: number | null; retencion_pct_snap: number | null }>(`
-      SELECT status, elaborado_at, closed_at, devolucion_anticipo_pct_snap, retencion_pct_snap
+    const elaboradoResult = await db.query<{ status: string; elaborado_por: string | null; elaborado_at: string | null; closed_at: string | null; devolucion_anticipo_pct_snap: number | null; retencion_pct_snap: number | null }>(`
+      SELECT status, elaborado_por, elaborado_at, closed_at, devolucion_anticipo_pct_snap, retencion_pct_snap
       FROM public.project_certificates WHERE id = '00000000-0000-0000-0000-000000000062'
     `);
     expect(elaboradoResult.rows[0]).toMatchObject({
       status: "BORRADOR",
+      elaborado_por: null,
       elaborado_at: null,
       closed_at: null,
       devolucion_anticipo_pct_snap: null,
@@ -320,6 +336,78 @@ describe("final adversarial integrity guards", () => {
     `)).rejects.toThrow(/certificado posterior que depende/i);
   });
 
+  it("freezes approved and invoiced headers and keeps invoice/reversal changes narrow", async () => {
+    await db.exec(`
+      INSERT INTO public.projects VALUES
+        ('00000000-0000-0000-0000-000000000081', '00000000-0000-0000-0000-000000000098');
+      INSERT INTO public.project_certificates (id, status, project_id, numero, notes) VALUES
+        ('00000000-0000-0000-0000-000000000082', 'BORRADOR', '00000000-0000-0000-0000-000000000081', 1, 'base');
+      UPDATE public.project_certificates SET status = 'ELABORADO'
+      WHERE id = '00000000-0000-0000-0000-000000000082';
+      UPDATE public.project_certificates SET status = 'VERIFICADO'
+      WHERE id = '00000000-0000-0000-0000-000000000082';
+      UPDATE public.project_certificates SET status = 'APROBADO'
+      WHERE id = '00000000-0000-0000-0000-000000000082';
+    `);
+
+    await expect(db.query(`
+      UPDATE public.project_certificates SET notes = 'alterado'
+      WHERE id = '00000000-0000-0000-0000-000000000082'
+    `)).rejects.toThrow(/cabecera .* inmutable/i);
+    await expect(db.query(`
+      UPDATE public.project_certificates SET project_id = '00000000-0000-0000-0000-000000000099'
+      WHERE id = '00000000-0000-0000-0000-000000000082'
+    `)).rejects.toThrow(/identidad.*inmutables/i);
+    await expect(db.query(`
+      UPDATE public.project_certificates SET status = 'FACTURADO', factura_numero = 'F-2', notes = 'alterado'
+      WHERE id = '00000000-0000-0000-0000-000000000082'
+    `)).rejects.toThrow(/puede modificar otros datos del certificado/i);
+
+    await db.query(`
+      UPDATE public.project_certificates
+      SET status = 'FACTURADO', factura_numero = 'F-2', facturado_at = now()
+      WHERE id = '00000000-0000-0000-0000-000000000082'
+    `);
+    await expect(db.query(`
+      UPDATE public.project_certificates SET factura_numero = 'F-ALTERADA'
+      WHERE id = '00000000-0000-0000-0000-000000000082'
+    `)).rejects.toThrow(/cabecera .* inmutable/i);
+    await db.query(`
+      SELECT public.revert_project_certificate_status_atomically(
+        '00000000-0000-0000-0000-000000000082', 'FACTURADO'
+      )
+    `);
+    const result = await db.query<{ status: string; factura_numero: string | null; facturado_at: string | null; notes: string }>(`
+      SELECT status, factura_numero, facturado_at, notes
+      FROM public.project_certificates WHERE id = '00000000-0000-0000-0000-000000000082'
+    `);
+    expect(result.rows[0]).toMatchObject({
+      status: "APROBADO",
+      factura_numero: null,
+      facturado_at: null,
+      notes: "base",
+    });
+  });
+
+  it("keeps certificate project and sequence identity immutable after insertion", async () => {
+    await db.exec(`
+      INSERT INTO public.projects VALUES
+        ('00000000-0000-0000-0000-000000000091', '00000000-0000-0000-0000-000000000098'),
+        ('00000000-0000-0000-0000-000000000092', '00000000-0000-0000-0000-000000000098');
+      INSERT INTO public.project_certificates (id, status, project_id, numero) VALUES
+        ('00000000-0000-0000-0000-000000000093', 'BORRADOR', '00000000-0000-0000-0000-000000000091', 1);
+    `);
+
+    await expect(db.query(`
+      UPDATE public.project_certificates SET project_id = '00000000-0000-0000-0000-000000000092'
+      WHERE id = '00000000-0000-0000-0000-000000000093'
+    `)).rejects.toThrow(/identidad.*inmutables/i);
+    await expect(db.query(`
+      UPDATE public.project_certificates SET numero = 2
+      WHERE id = '00000000-0000-0000-0000-000000000093'
+    `)).rejects.toThrow(/identidad.*inmutables/i);
+  });
+
   it("requires every external portal receipt line to map before confirmation", async () => {
     await db.exec(`
       INSERT INTO public.oc_recepciones VALUES
@@ -365,6 +453,8 @@ describe("final adversarial integrity guards", () => {
     expect(createMigration).toContain("BEFORE INSERT ON public.project_certificates");
     expect(createMigration).toContain("FOR UPDATE");
     expect(createMigration).toContain("revert_project_certificate_status_atomically");
+    expect(headerImmutabilityMigration).toContain("BEFORE UPDATE ON public.project_certificates");
+    expect(headerImmutabilityMigration).toContain("La cabecera de un certificado aprobado o facturado es inmutable");
     expect(certificateAction).toContain('"revert_project_certificate_status_atomically"');
     expect(receiptAction).toContain('receipt.idempotency_key.startsWith("receipt-portal:")');
     expect(receiptAction).toContain('select("producto_id")');
