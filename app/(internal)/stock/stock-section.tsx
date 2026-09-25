@@ -197,7 +197,7 @@ export function StockSection({
     <div className="max-w-6xl space-y-4">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-[17px] font-semibold">Stock</h1>
+          <h1 className="text-[17px] font-semibold">Catálogo de materiales</h1>
           <p className="text-[12px] text-[var(--muted)] mt-0.5">
             {activos.length} {activos.length === 1 ? "producto activo" : "productos activos"} ·{" "}
             {categorias.length} {categorias.length === 1 ? "categoría" : "categorías"}
@@ -219,21 +219,27 @@ export function StockSection({
         </div>
       </div>
 
+      <div className="rounded-lg border border-[var(--warn)]/30 bg-[var(--warn-bg)] px-3 py-2 text-[12px] text-[var(--warn)]">
+        Este es el catálogo legacy de productos. Sus cantidades y valores son datos de referencia, no saldos autoritativos.
+        Para consultar y registrar existencias físicas, usá{" "}
+        <Link href="/inventario" className="underline font-semibold">Inventario canónico</Link>.
+      </div>
+
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Kpi
-          label="Valor del inventario"
+          label="Valor de referencia (catálogo)"
           text={valorInventario > 0 ? formatMoney(valorInventario) : "—"}
           hint={`${activos.length} productos activos`}
         />
         <Kpi
-          label="Bajo mínimo"
+          label="Bajo mínimo (dato legacy)"
           value={kpiBajo}
           tone={kpiBajo > 0 ? "warn" : undefined}
           onClick={kpiBajo > 0 ? () => { setSituacion("bajo"); setEstado("activos"); } : undefined}
         />
         <Kpi
-          label="Sin stock"
+          label="Sin stock (dato legacy)"
           value={kpiSin}
           tone={kpiSin > 0 ? "error" : undefined}
           onClick={kpiSin > 0 ? () => { setSituacion("sin"); setEstado("activos"); } : undefined}
@@ -474,9 +480,9 @@ function Tabla({
         <tr>
           <Th label="Producto" col="nombre" {...sp} />
           <Th label="Categoría" col="categoria" {...sp} />
-          <Th label="Stock actual" col="stock" num {...sp} />
-          <Th label="Costo prom." col="costo" num {...sp} />
-          <Th label="Valor" col="valor" num {...sp} />
+          <Th label="Stock de referencia" col="stock" num {...sp} />
+          <Th label="Costo prom. (referencia)" col="costo" num {...sp} />
+          <Th label="Valor de referencia" col="valor" num {...sp} />
           <Th label="Estado" col="situacion" {...sp} />
           <th></th>
         </tr>

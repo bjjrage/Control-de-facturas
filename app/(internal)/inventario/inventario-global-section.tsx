@@ -63,7 +63,7 @@ export function InventarioGlobalSection({
     <div className="max-w-6xl space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-[17px] font-semibold">Inventario global</h1>
+          <h1 className="text-[17px] font-semibold">Inventario</h1>
           <p className="text-[13px] text-[var(--muted)] mt-0.5">
             Stock real por producto y ubicación — dominio canónico de inventario.
           </p>

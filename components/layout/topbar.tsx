@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, HelpCircle, Building2, HardHat, Gavel, FolderOpen, LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { PROJECT_FEATURES } from "@/lib/projects/project-features";
 import { Workspace, WORKSPACE_HOME, WORKSPACE_LABEL, workspaceForPath } from "./workspace";
 import { getProjectNavInfo } from "@/app/(internal)/projects/actions";
 
@@ -12,23 +13,11 @@ type WorkspaceItem = { key: Workspace; icon: LucideIcon };
 
 const PROJECT_ID_RE = /^\/projects\/([0-9a-f-]{20,})/i;
 
-const PROJECT_TAB_CONTEXT: Record<string, { group: string; label: string }> = {
-  presupuesto: { group: "Preparar", label: "Presupuesto" },
-  cronograma: { group: "Preparar", label: "Cronograma" },
-  bim: { group: "Preparar", label: "BIM" },
-  proveedores: { group: "Comprar", label: "Proveedores" },
-  cotizaciones: { group: "Comprar", label: "Cotizaciones" },
-  compras: { group: "Comprar", label: "OC" },
-  facturas: { group: "Comprar", label: "Facturas" },
-  pagos: { group: "Comprar", label: "Pagos" },
-  ejecucion: { group: "Ejecutar", label: "Ejecución" },
-  stock: { group: "Ejecutar", label: "Stock / Materiales" },
-  personal: { group: "Ejecutar", label: "Personal" },
-  subcontratistas: { group: "Ejecutar", label: "Subcontratistas" },
-  certificados: { group: "Certificar", label: "Certificados" },
-  "avance-fisico": { group: "Certificar", label: "Avance físico" },
-  informes: { group: "Certificar", label: "Informes" },
-};
+const PROJECT_TAB_CONTEXT: Record<string, { group: string; label: string }> = Object.fromEntries(
+  PROJECT_FEATURES.map(({ key, group, label }) => [key, { group, label }])
+);
+// Keep old bookmarks understandable without advertising this renderer as a canonical tab.
+PROJECT_TAB_CONTEXT.stock = { group: "Ejecutar", label: "Catálogo de materiales (legado)" };
 
 const WORKSPACE_ITEMS: WorkspaceItem[] = [
   { key: "administracion", icon: Building2 },

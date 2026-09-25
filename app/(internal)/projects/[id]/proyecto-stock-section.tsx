@@ -19,6 +19,7 @@ export type StockProyectoRow = {
 
 type SortKey = "producto" | "qty_comprada" | "qty_consumida" | "qty_disponible" | "costo_comprado" | "costo_consumido";
 
+/** @deprecated Historical project stock projection; use InventarioObraSection for canonical balances. */
 export function ProyectoStockSection({
   rows,
   panoles,

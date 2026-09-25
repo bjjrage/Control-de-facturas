@@ -95,7 +95,7 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
       <div className="flex items-start justify-between">
         <div>
           <Link href="/stock" className="text-action text-[12px] text-[var(--muted)]">
-            ← Volver a Stock
+            ← Volver al catálogo
           </Link>
           <div className="flex items-center gap-2 mt-1">
             <h1 className="text-[17px] font-semibold">{producto.nombre}</h1>
@@ -131,10 +131,15 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
         </div>
       </div>
 
+      <div className="rounded-lg border border-[var(--warn)]/30 bg-[var(--warn-bg)] px-3 py-2 text-[12px] text-[var(--warn)]">
+        Ficha del catálogo legacy: cantidades y valores de referencia, no saldos autoritativos. Consultá las existencias físicas en{" "}
+        <Link href="/inventario" className="underline font-semibold">Inventario canónico</Link>.
+      </div>
+
       {/* KPIs */}
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-          <div className="text-[11px] text-[var(--muted)] mb-1">Stock actual</div>
+          <div className="text-[11px] text-[var(--muted)] mb-1">Stock de referencia (legacy)</div>
           <div className={`text-[22px] font-semibold tabular-nums ${bajo ? "text-[var(--warn)]" : ""}`}>
             {formatNumber(producto.stock_actual, 2)}
           </div>
@@ -148,7 +153,7 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
           <div className="text-[11px] text-[var(--muted)]">por {producto.unidad}</div>
         </div>
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-          <div className="text-[11px] text-[var(--muted)] mb-1">Valor en stock</div>
+          <div className="text-[11px] text-[var(--muted)] mb-1">Valor de referencia</div>
           <div className="text-[22px] font-semibold tabular-nums">
             {valorStock > 0 ? formatMoney(valorStock) : "—"}
           </div>
@@ -184,13 +189,13 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
       {/* Stock por depósito */}
       {spd.length > 0 && deps.length > 1 ? (
         <div>
-          <h2 className="text-[14px] font-semibold mb-2">Stock por depósito</h2>
+          <h2 className="text-[14px] font-semibold mb-2">Referencia legacy por depósito</h2>
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
             <table>
               <thead>
                 <tr>
                   <th>Depósito</th>
-                  <th className="num">Stock</th>
+                  <th className="num">Cantidad de referencia</th>
                   <th className="num">Valor</th>
                 </tr>
               </thead>
@@ -239,7 +244,7 @@ export default async function ProductoDetailPage({ params }: { params: Promise<{
                 <th>Fecha</th>
                 <th>Tipo</th>
                 <th className="num">Cantidad</th>
-                <th className="num">Stock resultante</th>
+                <th className="num">Saldo histórico (legacy)</th>
                 <th className="num">Costo unit.</th>
                 <th className="num">Valor</th>
                 <th>Referencia</th>

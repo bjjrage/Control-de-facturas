@@ -21,6 +21,13 @@ const physicalProgressSource = fs.readFileSync(
   path.join(repoRoot, "app", "(internal)", "projects", "[id]", "avance-fisico-panel.tsx"),
   "utf8"
 );
+const topbarSource = fs.readFileSync(path.join(repoRoot, "components", "layout", "topbar.tsx"), "utf8");
+const sidebarSource = fs.readFileSync(path.join(repoRoot, "components", "layout", "sidebar.tsx"), "utf8");
+const stockCatalogSource = fs.readFileSync(path.join(repoRoot, "app", "(internal)", "stock", "stock-section.tsx"), "utf8");
+const inventorySource = fs.readFileSync(
+  path.join(repoRoot, "app", "(internal)", "inventario", "inventario-global-section.tsx"),
+  "utf8"
+);
 
 describe("project surface contract", () => {
   it("has unique keys and valid groups", () => {
@@ -57,12 +64,32 @@ describe("project surface contract", () => {
     expect((PROJECT_FEATURES as readonly { key: string }[]).some((feature) => feature.key === "stock")).toBe(false);
   });
 
+  it("keeps all 18 canonical project surfaces visible through the shared registry", () => {
+    expect(PROJECT_FEATURES).toHaveLength(18);
+    expect(getProjectFeature("inventario").label).toBe("Inventario");
+    expect(getProjectFeature("recepciones").label).toBe("Recepciones");
+    expect(getProjectFeature("panol").label).toBe("Depósito de obra");
+    expect(topbarSource).toContain("PROJECT_FEATURES.map(({ key, group, label })");
+    expect(topbarSource).toContain('PROJECT_TAB_CONTEXT.stock = { group: "Ejecutar", label: "Catálogo de materiales (legado)" }');
+    expect(sidebarSource).toContain("getProjectFeatureGroups");
+    expect(sidebarSource).not.toContain("PROJECT_NAV_HIDDEN_FEATURE_KEYS");
+  });
+
+  it("distinguishes canonical inventory from legacy material-catalog balances", () => {
+    expect(inventorySource).toContain(">Inventario</h1>");
+    expect(inventorySource).toContain("dominio canónico de inventario");
+    expect(stockCatalogSource).toContain(">Catálogo de materiales</h1>");
+    expect(stockCatalogSource).toContain("no saldos autoritativos");
+    expect(stockCatalogSource).toContain('href="/inventario"');
+    expect(stockCatalogSource).toContain("Stock de referencia");
+  });
+
   it("renders one BIM composition with an accessible IFC CTA and one compute fallback", () => {
     expect(bimSource.match(/<ComputoSection\b/g)).toHaveLength(1);
     expect(bimSource).toContain("MODELO BIM / IFC");
     expect(bimSource).toContain("Subir modelo IFC");
     expect(bimSource).toContain('accept=".ifc"');
-    expect(bimSource).toContain("CÓMPUTO SIN MODELO BIM");
+    expect(bimSource).toContain("OPCIÓN B · CÓMPUTO EXCEL/PDF");
   });
 
   it("keeps weekly planning as one navigable surface instead of embedding a duplicate", () => {
