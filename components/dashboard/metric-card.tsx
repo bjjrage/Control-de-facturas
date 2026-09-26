@@ -26,17 +26,26 @@ const TREND_TONE_CLASSES: Record<"up" | "down" | "neutral", string> = {
   neutral: "text-[var(--muted)] bg-[var(--hover)]",
 };
 
-export function MetricCard({ card, compact = false }: { card: MetricCardData; compact?: boolean }) {
+// Señalador superior (misma familia que las cards de obra: inset 2px top).
+// Solo visual, se cicla por índice para no tocar datos/KPIs.
+const ACCENT_CLASSES = [
+  "kpi-accent-budget",
+  "kpi-accent-purchases",
+  "kpi-accent-progress",
+  "kpi-accent-labor",
+] as const;
+
+export function MetricCard({ card, compact = false, accentClass }: { card: MetricCardData; compact?: boolean; accentClass?: string }) {
   const Icon = DASHBOARD_ICONS[card.iconKey] ?? DASHBOARD_ICONS.receipt;
   const hasSparkline = card.sparkline && card.sparkline.length > 1;
 
   return (
     <Link
       href={card.href}
-      className={`group kpi-hover relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-[var(--panel)] ${
+      className={`group kpi-hover relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-[var(--panel)] ${accentClass ?? ""} ${
         compact
           ? "h-[100px] max-h-[110px] p-3.5"
-          : "min-h-[145px] p-4 sm:min-h-[155px] sm:p-5"
+          : "min-h-[130px] p-3.5 sm:min-h-[140px] sm:p-4"
       } ${TONE_RING[card.tone]}`}
     >
       <div className="flex items-start justify-between gap-2">
@@ -124,7 +133,9 @@ export function MetricGrid({ cards }: { cards: MetricCardData[] }) {
 
   return (
     <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-      {cards.map((card) => <MetricCard key={card.key} card={card} />)}
+      {cards.map((card, index) => (
+        <MetricCard key={card.key} card={card} accentClass={ACCENT_CLASSES[index % ACCENT_CLASSES.length]} />
+      ))}
     </div>
   );
 }

@@ -19,7 +19,7 @@ export function DashboardView({ data }: { data: DashboardViewData }) {
 
       {secondaryAdminCards.length > 0 ? (
         <section aria-label="Indicadores financieros de seguimiento" className="space-y-3">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">Seguimiento financiero</h2>
+          <h2 className="text-[11px] font-bold uppercase tracking-widest text-[var(--foreground)]">Seguimiento financiero</h2>
           <MetricGrid cards={secondaryAdminCards} />
         </section>
       ) : null}
