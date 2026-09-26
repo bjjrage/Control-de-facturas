@@ -9,6 +9,7 @@ import { reconcileImportPlan } from "@/lib/workbook-interpretation/import-plan";
 
 const createGuard = readFileSync(resolve(process.cwd(), "supabase/migrations/20260925052356_serialize_certificate_create_with_revert.sql"), "utf8");
 const importMigration = readFileSync(resolve(process.cwd(), "supabase/migrations/20260925110000_project_certificate_workbook_import.sql"), "utf8");
+const forwardMigration = readFileSync(resolve(process.cwd(), "supabase/migrations/20260926010000_autonomous_certificate_workbook_import.sql"), "utf8");
 const tenantA = "00000000-0000-4000-8000-000000000001";
 const tenantB = "00000000-0000-4000-8000-000000000002";
 const projectA = "00000000-0000-4000-8000-000000000101";
@@ -43,9 +44,11 @@ describe("project certificate workbook import", () => {
     expect(extracted.number).toBe(1);
   });
 
-  it("leaves an unknown line for explicit human mapping and rejects a mapping to another project", () => {
+  it("allows unmapped lines with budgetItemId null and rejects a mapping to another project", () => {
     const unknown = workbookRow({ code: "99", description: "Rubro desconocido" });
     expect(matchCertificateRows([unknown], [budgetItem(budgetA, projectA)], projectA)[0]).toMatchObject({ budgetItemId: null, match: "NEEDS_REVIEW" });
+    const lines = buildCertificateImportLines([unknown], [{ sourceRow: 4, budgetItemId: null }], [], projectA);
+    expect(lines[0].budgetItemId).toBeNull();
     expect(() => buildCertificateImportLines([unknown], [{ sourceRow: 4, budgetItemId: budgetOther }], [budgetItem(budgetOther, otherProject)], projectA)).toThrow(/partida distinta de esta obra/);
   });
 
@@ -85,6 +88,7 @@ describe("project certificate workbook import", () => {
       `);
       await db.exec(createGuard);
       await db.exec(importMigration);
+      await db.exec(forwardMigration);
     });
 
     it("writes one BORRADOR and its items, and makes a duplicate import idempotent", async () => {
@@ -98,9 +102,71 @@ describe("project certificate workbook import", () => {
       expect((count.rows[0] as { n: number }).n).toBe(1);
     });
 
-    it("fails closed when the previous certificate is not approved", async () => {
-      await db.query("INSERT INTO public.project_certificates (project_id,numero,period_start,period_end,status) VALUES ($1,1,'2026-08-01','2026-08-31','BORRADOR')", [projectA]);
-      await expect(importFile(db, projectA, "b", budgetA, 2, 0)).rejects.toThrow(/certificado anterior debe estar aprobado/);
+    it("1. Proyecto SIN budget_items -> importar certificado -> PASS", async () => {
+      const emptyProject = "00000000-0000-4000-8000-000000000199";
+      await db.query(`INSERT INTO public.projects VALUES ('${emptyProject}', '${tenantA}')`);
+      const created = await importFile(db, emptyProject, "1", null, 1, 0);
+      expect(created).toMatchObject({ numero: 1, already_imported: false });
+      const items = await db.query("SELECT budget_item_id, descripcion, qty_presente FROM public.project_certificate_items WHERE certificate_id=$1", [created.certificate_id]);
+      expect(items.rows[0]).toMatchObject({ budget_item_id: null, descripcion: "Excavación manual", qty_presente: "2" });
+    });
+
+    it("2. Proyecto con budget_items sin match -> certificado entra con budget_item_id NULL", async () => {
+      const created = await importFile(db, projectA, "2", null, 2, 0);
+      expect(created).toMatchObject({ numero: 2, already_imported: false });
+      const items = await db.query("SELECT budget_item_id, descripcion FROM public.project_certificate_items WHERE certificate_id=$1", [created.certificate_id]);
+      expect(items.rows[0]).toMatchObject({ budget_item_id: null, descripcion: "Excavación manual" });
+    });
+
+    it("3. Proyecto con match seguro -> puede conservar vínculo", async () => {
+      const created = await importFile(db, projectA, "3", budgetA, 3, 0);
+      expect(created).toMatchObject({ numero: 3, already_imported: false });
+      const items = await db.query("SELECT budget_item_id FROM public.project_certificate_items WHERE certificate_id=$1", [created.certificate_id]);
+      expect(items.rows[0]).toMatchObject({ budget_item_id: budgetA });
+    });
+
+    it("4, 5, 6, 7, 8, 9: Secuencia no correlativa (N°6 -> N°8 -> N°7), qty_anterior > 0 preservado, sin certificados 1-5 ficticios y sin alterar cantidades", async () => {
+      const cleanProject = "00000000-0000-4000-8000-000000000188";
+      await db.query(`INSERT INTO public.projects VALUES ('${cleanProject}', '${tenantA}')`);
+
+      // 4. DB sin certificados -> importar directamente Certificado N°6 con qty_anterior > 0
+      const cert6 = await importFile(db, cleanProject, "6", null, 6, 15);
+      expect(cert6).toMatchObject({ numero: 6, already_imported: false });
+
+      // 7. qty_anterior > 0 sin certificados anteriores registrados -> PASS y valor preservado
+      // 9. No modificar cantidades del documento para reconciliarlas con la DB
+      const cert6Items = await db.query(
+        "SELECT c.numero, c.status, c.monto_anterior, c.monto_presente, i.qty_contractual, i.qty_anterior, i.qty_presente, i.precio_unitario, i.monto_anterior AS item_monto_ant, i.monto_presente AS item_monto_pres FROM public.project_certificates c JOIN public.project_certificate_items i ON i.certificate_id=c.id WHERE c.id=$1",
+        [cert6.certificate_id]
+      );
+      expect(cert6Items.rows[0]).toMatchObject({
+        numero: 6,
+        status: "BORRADOR",
+        qty_contractual: "10",
+        qty_anterior: "15",
+        qty_presente: "2",
+        precio_unitario: "1250",
+        item_monto_ant: "18750",
+        item_monto_pres: "2500",
+        monto_anterior: "18750.00",
+        monto_presente: "2500.00",
+      });
+
+      // 8. No crear certificados 1-5 ficticios
+      const certsAfter6 = await db.query("SELECT numero FROM public.project_certificates WHERE project_id=$1 ORDER BY numero", [cleanProject]);
+      expect(certsAfter6.rows.map((r) => (r as { numero: number }).numero)).toEqual([6]);
+
+      // 5. Después importar Certificado N°8 -> PASS
+      const cert8 = await importFile(db, cleanProject, "8", null, 8, 25);
+      expect(cert8).toMatchObject({ numero: 8, already_imported: false });
+
+      // 6. Después importar Certificado N°7 -> PASS
+      const cert7 = await importFile(db, cleanProject, "7", null, 7, 20);
+      expect(cert7).toMatchObject({ numero: 7, already_imported: false });
+
+      // Verificar que solo existen certificados 6, 7 y 8, y que las cantidades no fueron modificadas
+      const allCerts = await db.query("SELECT numero FROM public.project_certificates WHERE project_id=$1 ORDER BY numero", [cleanProject]);
+      expect(allCerts.rows.map((r) => (r as { numero: number }).numero)).toEqual([6, 7, 8]);
     });
 
     it("blocks cross-tenant projects and a budget item belonging to another project", async () => {
@@ -109,20 +175,10 @@ describe("project certificate workbook import", () => {
       const count = await db.query("SELECT count(*)::int AS n FROM public.project_certificates WHERE project_id=$1", [projectA]);
       expect((count.rows[0] as { n: number }).n).toBe(0);
     });
-
-    it("rejects an invalid previous quantity from the workbook and keeps the import atomic", async () => {
-      await db.query("INSERT INTO public.project_certificates (project_id,numero,period_start,period_end,status) VALUES ($1,1,'2026-08-01','2026-08-31','BORRADOR')", [projectA]);
-      await db.query("UPDATE public.project_certificates SET status='APROBADO' WHERE project_id=$1", [projectA]);
-      const prior = await db.query("SELECT id FROM public.project_certificates WHERE project_id=$1", [projectA]);
-      await db.query("INSERT INTO public.project_certificate_items (certificate_id,budget_item_id,descripcion,qty_contractual,precio_unitario,qty_anterior,qty_presente) VALUES ($1,$2,'Excavación manual',10,1250,0,5)", [(prior.rows[0] as { id: string }).id,budgetA]);
-      await expect(importFile(db, projectA, "e", budgetA, 2, 4)).rejects.toThrow(/cantidad anterior.*no coincide/);
-      const count = await db.query("SELECT count(*)::int AS n FROM public.project_certificates WHERE project_id=$1", [projectA]);
-      expect((count.rows[0] as { n: number }).n).toBe(1);
-    });
   });
 });
 
-async function importFile(db: PGlite, projectId: string, fingerprintChar: string, budgetId: string, number: number, previous: number) {
+async function importFile(db: PGlite, projectId: string, fingerprintChar: string, budgetId: string | null, number: number, previous: number) {
   const result = await db.query(
     "SELECT * FROM public.import_project_certificate_atomically($1,$2,'2026-09-01','2026-09-30',$3,$4::jsonb)",
     [projectId, number, fingerprintChar.repeat(64), JSON.stringify([{ budget_item_id: budgetId, codigo: "01", descripcion: "Excavación manual", unidad: "m3", qty_contractual: 10, precio_unitario: 1250, qty_anterior: previous, qty_presente: 2, sort_order: 0 }])],

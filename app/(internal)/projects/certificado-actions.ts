@@ -256,13 +256,16 @@ export async function importCertificateWorkbook(
     return { error: null, id: existingImport.id, alreadyImported: true };
   }
 
-  let mappings: Array<{ sourceRow: number; budgetItemId: string }>;
+  let mappings: Array<{ sourceRow: number; budgetItemId: string | null }>;
   try {
     const parsed = JSON.parse(String(formData.get("mappings_json") ?? "[]")) as unknown;
-    if (!Array.isArray(parsed) || parsed.some((entry) => !entry || !Number.isInteger(entry.sourceRow) || typeof entry.budgetItemId !== "string")) {
+    if (!Array.isArray(parsed) || parsed.some((entry) => !entry || !Number.isInteger(entry.sourceRow) || (entry.budgetItemId !== null && typeof entry.budgetItemId !== "string"))) {
       throw new Error("El mapeo de partidas no es válido.");
     }
-    mappings = parsed as Array<{ sourceRow: number; budgetItemId: string }>;
+    mappings = (parsed as Array<{ sourceRow: number; budgetItemId: string | null }>).map((entry) => ({
+      sourceRow: entry.sourceRow,
+      budgetItemId: entry.budgetItemId ? String(entry.budgetItemId).trim() : null,
+    }));
   } catch (cause) {
     return { error: cause instanceof Error ? cause.message : "El mapeo de partidas no es válido.", id: null, alreadyImported: false };
   }
@@ -276,14 +279,20 @@ export async function importCertificateWorkbook(
 
   let lines: CertificateImportLine[];
   try {
-    lines = buildCertificateImportLines(workbookData.rows, mappings, budgetRows as CertificateBudgetItem[], projectId);
+    lines = buildCertificateImportLines(workbookData.rows, mappings, (budgetRows ?? []) as CertificateBudgetItem[], projectId);
   } catch (cause) {
     return { error: cause instanceof Error ? cause.message : "Revisá el vínculo de las partidas.", id: null, alreadyImported: false };
   }
 
-  const byId = new Map((budgetRows as CertificateBudgetItem[]).map((item) => [item.id, item]));
+  const byId = new Map(((budgetRows ?? []) as CertificateBudgetItem[]).map((item) => [item.id, item]));
   const hasDiscrepancies = workbookData.planNeedsReview || lines.some((line) => {
-    const budget = byId.get(line.budgetItemId)!;
+    if (!line.budgetItemId) {
+      const sourceAmountDiffers = line.amountCurrent !== null && Math.round(line.quantityCurrent * line.unitPrice) !== line.amountCurrent;
+      const cumulativeDiffers = line.quantityCumulative !== line.quantityPrevious + line.quantityCurrent;
+      return sourceAmountDiffers || cumulativeDiffers;
+    }
+    const budget = byId.get(line.budgetItemId);
+    if (!budget) return false;
     const contractualDiffers = budget.quantity !== null && Number(budget.quantity) !== line.quantityContractual;
     const priceDiffers = budget.unit_price !== null && Number(budget.unit_price) !== line.unitPrice;
     const sourceAmountDiffers = line.amountCurrent !== null && Math.round(line.quantityCurrent * line.unitPrice) !== line.amountCurrent;

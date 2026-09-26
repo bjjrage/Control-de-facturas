@@ -107,13 +107,13 @@ export function ImportCertificadoDialog({
     const id = mappings[row.sourceRow];
     return id && Number(preview.previousQuantityByBudgetItem[id] ?? 0) !== row.quantityPrevious;
   }) ?? [];
-  const needsAcknowledgement = Boolean(preview?.certificate.planNeedsReview || mismatches.length);
+  const needsAcknowledgement = Boolean(
+    preview?.certificate.planNeedsReview || mismatches.length || previousMismatches.length || (preview?.certificate.warnings.length ?? 0) > 0
+  );
   const canImport = Boolean(
     file && preview && !analyzing && !pending && (
       preview.existingImport
-      || (linkedCount === preview.rows.length && duplicateIds.size === 0
-        && preview.sequenceValid && previousMismatches.length === 0
-        && (!needsAcknowledgement || confirmDiscrepancies))
+      || (duplicateIds.size === 0 && (!needsAcknowledgement || confirmDiscrepancies))
     ),
   );
 
@@ -124,7 +124,10 @@ export function ImportCertificadoDialog({
     const formData = new FormData();
     formData.set("file", file);
     formData.set("plan_json", JSON.stringify(preview.plan));
-    formData.set("mappings_json", JSON.stringify(preview.rows.map((row) => ({ sourceRow: row.sourceRow, budgetItemId: mappings[row.sourceRow] }))));
+    formData.set("mappings_json", JSON.stringify(preview.rows.map((row) => ({
+      sourceRow: row.sourceRow,
+      budgetItemId: mappings[row.sourceRow] ? mappings[row.sourceRow].trim() : null,
+    }))));
     if (confirmDiscrepancies) formData.set("confirm_discrepancies", "on");
     try {
       const result = await importCertificateWorkbook(projectId, formData);
@@ -177,7 +180,7 @@ export function ImportCertificadoDialog({
                 <p>Certificado: <strong>#{preview.certificate.number}</strong>{preview.existingImport ? ` · ya importado #${preview.existingImport.number}` : ""}</p>
                 <p>Período: <strong>{preview.certificate.periodStart} — {preview.certificate.periodEnd}</strong></p>
                 <p>Hoja: <strong>{preview.certificate.sheet}</strong></p>
-                <p>Secuencia: <strong className={preview.sequenceValid ? "text-emerald-300" : "text-amber-300"}>{preview.sequenceValid ? `válida · próximo #${preview.nextNumber}` : `bloqueada · se espera #${preview.nextNumber}`}</strong></p>
+                <p>Secuencia: <strong className="text-emerald-300">#{preview.certificate.number} (autónomo)</strong></p>
               </div>
 
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-[var(--muted)]">
@@ -216,7 +219,7 @@ export function ImportCertificadoDialog({
                           <td className="num">{number(row.quantityCurrent)}</td>
                           <td className="num">{money(row.unitPrice)}</td>
                           <td className="num">{money(Math.round(row.quantityCurrent * row.unitPrice))}{row.amountCurrent !== null && row.amountCurrent !== Math.round(row.quantityCurrent * row.unitPrice) ? <div className="text-[10px] text-amber-300">XLSX: {money(row.amountCurrent)}</div> : null}</td>
-                          <td className="num">{duplicateIds.has(selectedId) ? <span className="text-amber-300">Duplicada</span> : previousMismatch ? <span className="text-amber-300">Anterior difiere</span> : selectedId ? <span className="text-emerald-300">Vinculada</span> : <span className="text-amber-300">Revisar</span>}</td>
+                          <td className="num">{duplicateIds.has(selectedId) ? <span className="text-amber-300">Duplicada</span> : previousMismatch ? <span className="text-amber-300">Anterior difiere</span> : selectedId ? <span className="text-emerald-300">Vinculada</span> : <span className="text-[var(--muted)]">Autónoma</span>}</td>
                         </tr>
                       );
                     })}
@@ -224,14 +227,13 @@ export function ImportCertificadoDialog({
                 </table>
               </div>
 
-              {previousMismatches.length ? <p className="rounded-lg border border-amber-300/25 bg-amber-300/[0.05] p-2 text-[11px] text-amber-100">La cantidad anterior del XLSX no coincide con el acumulado canónico de la obra en {previousMismatches.length} partida(s). La importación queda bloqueada hasta resolver la diferencia.</p> : null}
-              {!preview.sequenceValid ? <p className="rounded-lg border border-amber-300/25 bg-amber-300/[0.05] p-2 text-[11px] text-amber-100">El certificado del archivo no sigue la secuencia o el certificado anterior todavía no está aprobado/facturado. No se guardará.</p> : null}
+              {previousMismatches.length ? <p className="rounded-lg border border-amber-300/25 bg-amber-300/[0.05] p-2 text-[11px] text-amber-100">La cantidad anterior del XLSX difiere del acumulado previo registrado en el ERP en {previousMismatches.length} partida(s). Se preservarán fielmente las cantidades del documento.</p> : null}
               {duplicateIds.size ? <p className="rounded-lg border border-amber-300/25 bg-amber-300/[0.05] p-2 text-[11px] text-amber-100">Una partida del presupuesto está vinculada más de una vez. Cada partida se puede usar una sola vez por certificado.</p> : null}
 
               {needsAcknowledgement ? (
                 <label className="flex items-start gap-2 rounded-lg border border-amber-300/20 bg-amber-300/[0.04] p-2 text-[11px] text-amber-100">
                   <input type="checkbox" checked={confirmDiscrepancies} onChange={(event) => setConfirmDiscrepancies(event.target.checked)} className="mt-0.5" />
-                  <span><AlertTriangle size={13} className="mr-1 inline" />Revisé las diferencias. Acepto los valores contractuales/precios del XLSX y que los montos canónicos se recalculen desde cantidades y precio unitario.</span>
+                  <span><AlertTriangle size={13} className="mr-1 inline" />Revisé el preview. Acepto los valores del documento (cantidades, precios y acumulados) y que los montos canónicos se recalculen desde cantidades y precio unitario.</span>
                 </label>
               ) : null}
 

@@ -39,7 +39,7 @@ export type CertificateBudgetItem = {
 };
 
 export type CertificateImportLine = CertificateWorkbookRow & {
-  budgetItemId: string;
+  budgetItemId: string | null;
   sortOrder: number;
 };
 
@@ -243,25 +243,40 @@ export function matchCertificateRows(rows: CertificateWorkbookRow[], budgetItems
 
 export function buildCertificateImportLines(
   rows: CertificateWorkbookRow[],
-  mappings: Array<{ sourceRow: number; budgetItemId: string }>,
+  mappings: Array<{ sourceRow: number; budgetItemId: string | null }>,
   budgetItems: CertificateBudgetItem[],
   projectId: string,
 ): CertificateImportLine[] {
-  if (mappings.length !== rows.length) throw new Error("Vinculá todas las partidas detectadas antes de importar.");
   const rowNumbers = new Set(rows.map((row) => row.sourceRow));
   const seenRows = new Set<number>();
   const seenBudgetIds = new Set<string>();
   const budgetById = new Map(budgetItems.filter((item) => item.project_id === projectId).map((item) => [item.id, item]));
-  const bySourceRow = new Map(rows.map((row) => [row.sourceRow, row]));
 
-  return mappings.map((mapping) => {
-    const row = bySourceRow.get(mapping.sourceRow);
-    const budgetItem = budgetById.get(mapping.budgetItemId);
-    if (!row || !rowNumbers.has(mapping.sourceRow) || seenRows.has(mapping.sourceRow)) throw new Error("El mapeo del archivo contiene filas repetidas o desconocidas.");
-    if (!budgetItem || seenBudgetIds.has(mapping.budgetItemId)) throw new Error("Cada partida debe corresponder a una partida distinta de esta obra.");
+  const mappingByRow = new Map<number, string | null>();
+  for (const mapping of mappings) {
+    if (!rowNumbers.has(mapping.sourceRow) || seenRows.has(mapping.sourceRow)) {
+      throw new Error("El mapeo del archivo contiene filas repetidas o desconocidas.");
+    }
     seenRows.add(mapping.sourceRow);
-    seenBudgetIds.add(mapping.budgetItemId);
-    return { ...row, budgetItemId: budgetItem.id, sortOrder: budgetItem.sort_order };
+    mappingByRow.set(mapping.sourceRow, mapping.budgetItemId ? mapping.budgetItemId.trim() : null);
+  }
+
+  return rows.map((row, index) => {
+    const rawBudgetId = mappingByRow.get(row.sourceRow) ?? null;
+    let budgetItemId: string | null = null;
+    let sortOrder = index;
+
+    if (rawBudgetId) {
+      const budgetItem = budgetById.get(rawBudgetId);
+      if (!budgetItem || seenBudgetIds.has(rawBudgetId)) {
+        throw new Error("Cada partida debe corresponder a una partida distinta de esta obra.");
+      }
+      seenBudgetIds.add(rawBudgetId);
+      budgetItemId = budgetItem.id;
+      sortOrder = budgetItem.sort_order;
+    }
+
+    return { ...row, budgetItemId, sortOrder };
   }).sort((left, right) => left.sourceRow - right.sourceRow);
 }
 

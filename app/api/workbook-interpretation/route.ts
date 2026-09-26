@@ -75,7 +75,6 @@ async function previewProjectCertificateImport(
       .order("numero", { ascending: false }),
   ]);
   if (budgetResult.error || certificatesResult.error) return error("No se pudieron cargar el presupuesto y la secuencia de esta obra.", 500);
-  if (!budgetResult.data?.length) return error("La obra no tiene partidas de presupuesto para vincular el certificado.", 400);
 
   const bytes = new Uint8Array(await uploaded.arrayBuffer());
   const workbook = parseWorkbook(bytes, uploaded.name);
@@ -118,6 +117,16 @@ async function previewProjectCertificateImport(
     .maybeSingle();
   if (existingError) return error("No se pudo verificar si este archivo ya fue importado.", 500);
 
+  const warnings = [...certificate.warnings];
+  if (latest && certificate.number !== nextNumber) {
+    warnings.push(`El certificado N°${certificate.number} se importa sin que los certificados anteriores estén registrados en el ERP (último registrado: #${latest.numero}).`);
+  } else if (!latest && certificate.number > 1) {
+    warnings.push(`El certificado N°${certificate.number} fue importado sin que los certificados 1–${certificate.number - 1} estén registrados en el ERP.`);
+  }
+  if (!projectBudgetItems.length) {
+    warnings.push("La obra no tiene partidas de presupuesto cargadas; el certificado se importará con sus partidas contractuales autónomas.");
+  }
+
   return Response.json({
     plan,
     certificate: {
@@ -126,14 +135,14 @@ async function previewProjectCertificateImport(
       periodEnd: certificate.periodEnd,
       sheet: certificate.sheet,
       planNeedsReview: certificate.planNeedsReview,
-      warnings: certificate.warnings,
+      warnings,
     },
     rows,
     budgetItems: projectBudgetItems,
     previousQuantityByBudgetItem,
     nextNumber,
     predecessorStatus: latest?.status ?? null,
-    sequenceValid: certificate.number === nextNumber && (!latest || ["APROBADO", "FACTURADO"].includes(latest.status)),
+    sequenceValid: true,
     existingImport: existingImport ? { id: existingImport.id, number: existingImport.numero } : null,
   });
 }
