@@ -123,7 +123,7 @@ export function MetricGrid({ cards }: { cards: MetricCardData[] }) {
   if (cards.length === 0) return null;
 
   return (
-    <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
       {cards.map((card) => <MetricCard key={card.key} card={card} />)}
     </div>
   );
