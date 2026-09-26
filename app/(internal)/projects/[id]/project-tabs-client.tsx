@@ -454,7 +454,15 @@ export function ProjectTabsClient({
       ) : null}
 
       {tab === "informes" ? (
-        <ProjectReports project={project} budgetItems={items} execEntries={entries} orders={ocs} />
+        <ProjectReports
+          project={project}
+          budgetItems={items}
+          execEntries={entries}
+          orders={ocs}
+          certificates={projectCertificates}
+          schedulePlans={projectSchedulePlans}
+          planMonths={schedulePlanMonths}
+        />
       ) : null}
 
       {tab === "personal" && isCaterpillar ? (
