@@ -131,6 +131,8 @@ export async function selectAndAuthorizeOffer(params: {
       .insert({
         empresa_id: profile.empresa_id,
         rfq_id: rfq.id,
+        rfq_code: rfq.code,
+        client_name: rfq.client_name ?? "Cliente",
         provider_id: rfqProvider.provider_id,
         quote_version_id: quoteVersion.id,
         created_from: "rfq",
@@ -141,9 +143,10 @@ export async function selectAndAuthorizeOffer(params: {
         unit_price: quoteVersion.unit_price,
         total_price: quoteVersion.total_price,
         currency: quoteVersion.currency,
+        vat_included: quoteVersion.vat_included ?? true,
         authorized_by: profile.id,
         is_cheapest: isCheapest,
-        selection_reason: params.selectionReason,
+        selection_reason: isCheapest ? null : params.selectionReason,
         selection_reason_detail: params.selectionReasonDetail,
         project_id: rfq.project_id ?? null,
       })
