@@ -148,6 +148,29 @@ export const ImportScaleSchema = z.object({
 });
 export type ImportScale = z.infer<typeof ImportScaleSchema>;
 
+// STAFF blocks are a plain two-column roster (name, role) with occasional
+// section-header rows (a lone label, no role) mixed in — the model marks
+// which rows are real people so the extractor never turns a section title
+// into a person.
+export const ImportStaffRowSchema = z.object({ row: z.number().int().positive(), name: z.string().min(1), role: z.string().min(1) });
+export type ImportStaffRow = z.infer<typeof ImportStaffRowSchema>;
+
+// A schedule sheet is usually a small matrix: named rows (one per series)
+// across month columns, not a row-per-record table. The model identifies
+// each row's role explicitly. EXECUTED_* rows are evidence only — the ERP
+// derives actual progress from its own certificates and never imports a
+// spreadsheet's copy of it. Multiple contract versions (Original, Adenda 1)
+// can coexist; planVersion groups the rows that belong together.
+export const ImportScheduleSeriesRoleSchema = z.enum(["PLANNED_MONTHLY", "PLANNED_CUMULATIVE", "EXECUTED_MONTHLY", "EXECUTED_CUMULATIVE", "OTHER"]);
+export const ImportScheduleSeriesSchema = z.object({
+  row: z.number().int().positive(),
+  label: z.string().min(1),
+  role: ImportScheduleSeriesRoleSchema,
+  planVersion: z.string().min(1),
+  monthColumns: z.array(z.object({ column: z.string().min(1), monthIndex: z.number().int().positive() })),
+});
+export type ImportScheduleSeries = z.infer<typeof ImportScheduleSeriesSchema>;
+
 export const ImportBlockSchema = z.object({
   id: z.string().min(1), sheet: z.string().min(1), sourceRange: z.string().min(1), target: ImportTargetSchema, confidence: z.number().min(0).max(1), needsReview: z.boolean(),
   headerRowStart: z.number().int().positive(), headerRowEnd: z.number().int().positive(), dataRowStart: z.number().int().positive(), dataRowEnd: z.number().int().positive(), columnMappings: z.array(ImportColumnMappingSchema),
@@ -158,6 +181,8 @@ export const ImportBlockSchema = z.object({
   mainProject: z.boolean().optional(),
   scale: ImportScaleSchema.optional(),
   keyValues: z.array(ImportKeyValueSchema).optional(),
+  staffRows: z.array(ImportStaffRowSchema).optional(),
+  scheduleSeries: z.array(ImportScheduleSeriesSchema).optional(),
   warnings: z.array(z.string()).optional(),
 });
 export type ImportBlock = z.infer<typeof ImportBlockSchema>;

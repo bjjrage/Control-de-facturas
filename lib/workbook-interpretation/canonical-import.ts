@@ -8,6 +8,7 @@ import type {
   ImportRelationship,
   ImportScale,
   WorkbookBudgetItem,
+  WorkbookCell,
   WorkbookInterpretationResult,
   WorkbookRepresentation,
 } from "./types";
@@ -83,6 +84,16 @@ export type CanonicalDomainSummary = {
 
 export type CanonicalRelationship = ImportRelationship & { fromLabel: string; toLabel: string };
 
+export type CanonicalStaffRow = { name: string; role: string; sheet: string; row: number };
+
+export type CanonicalSchedulePlan = {
+  planVersion: string;
+  label: string;
+  sheet: string;
+  sourceRow: number;
+  months: { monthIndex: number; programadoPct: number }[];
+};
+
 export type CanonicalImportCandidate = {
   budgetItems: WorkbookBudgetItem[];
   budgetQuantitySource: "BUDGET" | "CERTIFICATE_CONTRACT_QUANTITY";
@@ -91,6 +102,8 @@ export type CanonicalImportCandidate = {
   relationships: CanonicalRelationship[];
   scale: CanonicalScaleAudit | null;
   certificate: CanonicalCertificateAudit;
+  staff: CanonicalStaffRow[];
+  schedulePlans: CanonicalSchedulePlan[];
   domains: CanonicalDomainSummary[];
   foreignBlocks: CanonicalForeignBlock[];
   checks: CanonicalCheck[];
@@ -320,6 +333,78 @@ function relationshipBetween(plan: ImportPlan, budgetIds: Set<string>, certifica
 
 export type CanonicalForeignBlock = { label: string; sheet: string; target: string; warnings: string[] };
 
+// ---------------------------------------------------------------------------
+// Personal: a plain (nombre, rol) roster. The model only points at rows;
+// the extractor reads name/role straight from the mapped columns, so a
+// section-header row (a label with no role) never becomes a person.
+
+function extractStaffRows(workbook: WorkbookRepresentation, block: ImportBlock): CanonicalStaffRow[] {
+  const sheet = workbook.sheets.find((candidate) => candidate.sheetName === block.sheet);
+  const nameColumn = mappingColumn(block, "name");
+  const roleColumn = mappingColumn(block, "value");
+  if (!sheet || !nameColumn || !roleColumn) return [];
+  const cells = cellIndex(sheet);
+  const rows: CanonicalStaffRow[] = [];
+  const seen = new Set<number>();
+  for (const staffRow of block.staffRows ?? []) {
+    if (seen.has(staffRow.row)) continue;
+    seen.add(staffRow.row);
+    const name = String(cells.get(`${nameColumn}${staffRow.row}`)?.raw ?? "").trim();
+    const role = String(cells.get(`${roleColumn}${staffRow.row}`)?.raw ?? "").trim();
+    if (!name || !role) continue;
+    rows.push({ name, role, sheet: block.sheet, row: staffRow.row });
+  }
+  return rows;
+}
+
+// ---------------------------------------------------------------------------
+// Curva S: only the PLANNED row(s) the model located. EXECUTED_* rows are
+// read only to keep as evidence in warnings — the ERP computes its own
+// executed curve from real certificates and this never overrides that.
+
+function percentageAt(cells: Map<string, WorkbookCell>, row: number, column: string): number | null {
+  const cell = cells.get(`${columnName(column)}${row}`);
+  const value = rawNumber(cell?.raw ?? null);
+  if (value === null) return null;
+  // A cell Excel formats as a percentage stores the 0-1 fraction; the ERP's
+  // own column is 0-100, so only fraction-formatted cells get rescaled.
+  const isFraction = typeof cell?.formatted === "string" && cell.formatted.includes("%");
+  return isFraction ? value * 100 : value;
+}
+
+function extractSchedulePlans(workbook: WorkbookRepresentation, block: ImportBlock, issues: string[]): CanonicalSchedulePlan[] {
+  const sheet = workbook.sheets.find((candidate) => candidate.sheetName === block.sheet);
+  if (!sheet) return [];
+  const cells = cellIndex(sheet);
+  const byVersion = new Map<string, NonNullable<ImportBlock["scheduleSeries"]>>();
+  for (const item of block.scheduleSeries ?? []) {
+    const list = byVersion.get(item.planVersion) ?? [];
+    list.push(item);
+    byVersion.set(item.planVersion, list);
+  }
+  const plans: CanonicalSchedulePlan[] = [];
+  for (const [planVersion, items] of byVersion) {
+    const monthly = items.find((item) => item.role === "PLANNED_MONTHLY");
+    const cumulative = items.find((item) => item.role === "PLANNED_CUMULATIVE");
+    const source = monthly ?? cumulative;
+    if (!source) { issues.push(`La versión “${planVersion}” de la curva no tiene una fila programada identificable; no se importa.`); continue; }
+    const sortedColumns = [...source.monthColumns].sort((a, b) => a.monthIndex - b.monthIndex);
+    const readings = sortedColumns.map((mc) => ({ monthIndex: mc.monthIndex, value: percentageAt(cells, source.row, mc.column) }));
+    if (readings.some((r) => r.value === null)) issues.push(`La versión “${planVersion}” de la curva tiene meses sin un valor numérico verificable; se omitieron esos meses.`);
+    const valid = readings.filter((r): r is { monthIndex: number; value: number } => r.value !== null);
+    if (!valid.length) continue;
+    // Monthly values are read directly; a cumulative row is turned into
+    // monthly ones by successive difference (month N = acumulado N - acumulado N-1).
+    const months = monthly
+      ? valid.map((r) => ({ monthIndex: r.monthIndex, programadoPct: r.value }))
+      : valid.map((r, index) => ({ monthIndex: r.monthIndex, programadoPct: r.value - (index ? valid[index - 1].value : 0) }));
+    const total = months.reduce((sum, m) => sum + m.programadoPct, 0);
+    if (Math.abs(total - 100) > 1.5) issues.push(`La versión “${planVersion}” de la curva programada suma ${formatNumber(total)}% en vez de 100%; revisar antes de activarla.`);
+    plans.push({ planVersion, label: source.label, sheet: block.sheet, sourceRow: source.row, months });
+  }
+  return plans;
+}
+
 export function buildCanonicalImportCandidate(
   workbook: WorkbookRepresentation,
   result: WorkbookInterpretationResult,
@@ -467,8 +552,28 @@ export function buildCanonicalImportCandidate(
   const labels = new Map(plan.blocks.map((block) => [block.id, blockLabel(block)]));
   const relationships = (plan.relationships ?? []).map((relationship) => ({ ...relationship, fromLabel: labels.get(relationship.from) ?? relationship.from, toLabel: labels.get(relationship.to) ?? relationship.to }));
 
+  const staffIssues: string[] = [];
+  const staffBlocksResolved = new Set<string>();
+  const staff = mainBlocks.filter((block) => block.target === "STAFF").flatMap((block) => {
+    const rows = extractStaffRows(workbook, block);
+    if (rows.length) staffBlocksResolved.add(block.id);
+    else staffIssues.push(`El bloque ${blockLabel(block)} no tiene filas de personal verificables (nombre y rol en las columnas mapeadas).`);
+    return rows;
+  });
+
+  const scheduleIssues: string[] = [];
+  const scheduleBlocksResolved = new Set<string>();
+  const schedulePlans = mainBlocks.filter((block) => block.target === "SCHEDULE").flatMap((block) => {
+    const plans = extractSchedulePlans(workbook, block, scheduleIssues);
+    if (plans.length) scheduleBlocksResolved.add(block.id);
+    return plans;
+  });
+
+  // STAFF/SCHEDULE blocks that actually yielded rows get their own dedicated
+  // sections below; the rest (extraction found nothing usable) still show
+  // up as a generic detected-but-unresolved domain.
   const domains = new Map<string, CanonicalDomainSummary>();
-  for (const block of mainBlocks.filter((item) => item.target !== "BUDGET" && item.target !== "CERTIFICATE")) {
+  for (const block of mainBlocks.filter((item) => item.target !== "BUDGET" && item.target !== "CERTIFICATE" && !staffBlocksResolved.has(item.id) && !scheduleBlocksResolved.has(item.id))) {
     const domain = domains.get(block.target) ?? { target: block.target, labels: [], sheets: [], rows: 0, warnings: [], persistence: "NOT_CONNECTED" as const };
     domain.labels.push(blockLabel(block));
     if (!domain.sheets.includes(block.sheet)) domain.sheets.push(block.sheet);
@@ -485,6 +590,8 @@ export function buildCanonicalImportCandidate(
     relationships,
     scale,
     certificate,
+    staff,
+    schedulePlans,
     domains: [...domains.values()],
     foreignBlocks: plan.blocks.filter((block) => block.mainProject === false).map((block) => ({ label: blockLabel(block), sheet: block.sheet, target: block.target, warnings: block.warnings ?? [] })),
     checks,
@@ -493,6 +600,8 @@ export function buildCanonicalImportCandidate(
       ...planCheck.warnings,
       ...checks.filter((item) => item.status === "WARNING").map((item) => `${item.label}: ${item.detail}`),
       ...(certificate.status === "DETECTED_NOT_APPLIED" ? [certificate.reason] : []),
+      ...staffIssues,
+      ...scheduleIssues,
     ])],
   };
 }

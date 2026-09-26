@@ -13,6 +13,8 @@ import { parseWorkbook } from "@/lib/workbook-interpretation/parser";
 import { certificateTotals } from "@/lib/certificates/math";
 import { ensureProjectInventoryLocation } from "@/lib/inventory/service";
 import { validateScheduleDates } from "@/lib/projects/schedule";
+import { planMeetsMinimum } from "@/lib/plans";
+import { addCertificateStaff, saveSchedulePlan } from "./certificado-anexos-actions";
 
 export async function createProject(formData: FormData): Promise<{ error: string | null; projectId?: string }> {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
@@ -80,7 +82,7 @@ export async function createProject(formData: FormData): Promise<{ error: string
 type WorkbookCreateResult = {
   error: string | null;
   projectId?: string;
-  applied?: { project: boolean; budgetItems: number; certificateItems: number };
+  applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number };
   pending?: { section: string; reason: string }[];
 };
 
@@ -225,6 +227,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
   }
 
   let certificateItems = 0;
+  let certificateId: string | null = null;
   const pending: { section: string; reason: string }[] = result.candidate.domains.map((domain) => ({
     section: domain.target,
     reason: `Detectado (${domain.labels.join(" · ")}); su persistencia todavía no está conectada.`,
@@ -281,8 +284,51 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
       return { error: `No se creó la obra porque no se pudieron calcular los totales del certificado: ${totalsError.message}` };
     }
     certificateItems = lines.length;
+    certificateId = String(header.id);
   } else if (result.candidate.certificate.status !== "NOT_DETECTED") {
     pending.push({ section: "CERTIFICADO", reason: certificateApplicable ? "No se importó: no fue aceptado en el preview." : result.candidate.certificate.reason });
+  }
+
+  // Personal y Curva S usan las acciones existentes de anexos de certificado
+  // (nivel de plan Caterpillar); se degradan a "pendiente" con un motivo
+  // claro si el plan no alcanza o el usuario no los aceptó en el preview.
+  const hasCaterpillar = planMeetsMinimum(profile.plan, "caterpillar", profile.is_super_admin);
+  let staffItems = 0;
+  const staffAccepted = formData.get("apply_staff") === "1";
+  if (result.candidate.staff.length) {
+    if (!hasCaterpillar) {
+      pending.push({ section: "PERSONAL", reason: `${result.candidate.staff.length} persona(s) detectadas; el registro de personal por certificado requiere el plan Caterpillar.` });
+    } else if (!certificateId) {
+      pending.push({ section: "PERSONAL", reason: `${result.candidate.staff.length} persona(s) detectadas; no se importaron porque el certificado no se creó en esta obra.` });
+    } else if (!staffAccepted) {
+      pending.push({ section: "PERSONAL", reason: `${result.candidate.staff.length} persona(s) detectadas; no se importaron (no fue aceptado en el preview).` });
+    } else {
+      for (const person of result.candidate.staff) {
+        const { error: staffError } = await addCertificateStaff(certificateId, person.name, person.role);
+        if (staffError) { pending.push({ section: "PERSONAL", reason: `No se pudo cargar a ${person.name}: ${staffError}` }); continue; }
+        staffItems++;
+      }
+    }
+  }
+
+  let scheduleVersions = 0;
+  const scheduleAccepted = formData.get("apply_schedule") === "1";
+  if (result.candidate.schedulePlans.length) {
+    if (!hasCaterpillar) {
+      pending.push({ section: "CRONOGRAMA", reason: `Curva de avance detectada (${result.candidate.schedulePlans.length} versión(es)); requiere el plan Caterpillar.` });
+    } else if (!scheduleAccepted) {
+      pending.push({ section: "CRONOGRAMA", reason: `Curva de avance detectada (${result.candidate.schedulePlans.length} versión(es)); no se importó (no fue aceptada en el preview).` });
+    } else {
+      for (const schedulePlan of result.candidate.schedulePlans) {
+        const { error: planError } = await saveSchedulePlan(String(project.id), {
+          planId: null,
+          label: schedulePlan.label || schedulePlan.planVersion,
+          months: schedulePlan.months.map((month) => ({ month_index: month.monthIndex, programado_pct: month.programadoPct })),
+        });
+        if (planError) { pending.push({ section: "CRONOGRAMA", reason: `No se pudo cargar la versión “${schedulePlan.planVersion}”: ${planError}` }); continue; }
+        scheduleVersions++;
+      }
+    }
   }
 
   const projectLocation = await ensureProjectInventoryLocation(admin, {
@@ -299,6 +345,8 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
         source_fingerprint: fingerprint,
         budget_items: budgetItems.length,
         certificate_items: certificateItems,
+        staff_items: staffItems,
+        schedule_versions: scheduleVersions,
         inventory_location_error: projectLocation.error,
       },
     });
@@ -306,7 +354,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
     return {
       error: `La obra y sus datos se importaron, pero falta su ubicación canónica. Abrí Ubicaciones y reintentá: ${projectLocation.error ?? "error desconocido"}`,
       projectId: String(project.id),
-      applied: { project: true, budgetItems: budgetItems.length, certificateItems },
+      applied: { project: true, budgetItems: budgetItems.length, certificateItems, staffItems, scheduleVersions },
       pending,
     };
   }
@@ -319,6 +367,8 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
       source_fingerprint: fingerprint,
       budget_items: budgetItems.length,
       certificate_items: certificateItems,
+      staff_items: staffItems,
+      schedule_versions: scheduleVersions,
       certificate_status: result.candidate.certificate.status,
       detected_domains: result.candidate.domains.map((domain) => domain.target),
       pending_sections: pending,
@@ -326,7 +376,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
   });
   revalidatePath("/projects");
   revalidatePath(`/projects/${project.id}`);
-  return { error: null, projectId: String(project.id), applied: { project: true, budgetItems: budgetItems.length, certificateItems }, pending };
+  return { error: null, projectId: String(project.id), applied: { project: true, budgetItems: budgetItems.length, certificateItems, staffItems, scheduleVersions }, pending };
 }
 
 export async function updateProjectStatus(projectId: string, status: ProjectStatus): Promise<{ error: string | null }> {

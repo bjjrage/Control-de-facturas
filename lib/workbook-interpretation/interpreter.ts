@@ -99,6 +99,14 @@ const BLOCK_SCHEMA = object({
     value: { anyOf: [{ type: "string" }, { type: "number" }] },
     notes: { type: "string" },
   }) },
+  staffRows: { type: "array", items: object({ row: ROW, name: { type: "string" }, role: { type: "string" } }) },
+  scheduleSeries: { type: "array", items: object({
+    row: ROW,
+    label: { type: "string" },
+    role: { type: "string", enum: ["PLANNED_MONTHLY", "PLANNED_CUMULATIVE", "EXECUTED_MONTHLY", "EXECUTED_CUMULATIVE", "OTHER"] },
+    planVersion: { type: "string" },
+    monthColumns: { type: "array", items: object({ column: { type: "string" }, monthIndex: { type: "integer", minimum: 1 } }) },
+  }) },
   warnings: STRINGS,
   notes: { type: "string" },
 });
@@ -143,6 +151,8 @@ Qué devolver:
 - relationships entre ids de bloques: SAME_ITEMS (misma lista de partidas), CONTRACT_SCALE (cantidad destino = cantidad origen × factor; indicá factor), SUMMARIZES, HISTORICAL_SERIES (ej. hojas mensuales), SUPPORTS (ej. acta o medición que respalda un certificado).
 - warnings en el bloque para inconsistencias documentales (ej. una carátula que menciona otro paquete u otra cantidad de viviendas). Una inconsistencia es un warning, no un motivo para omitir el bloque.
 - Datos del proyecto con provenance (hoja y celda).
+- staffRows (solo target STAFF): una entrada por PERSONA real (fila con nombre Y rol/cargo). Las filas que son solo un título de sección (ej. "OPERADORES, CHOFERES Y AYUDANTES DE CAMPO") no llevan rol: no las incluyas como persona.
+- scheduleSeries (solo target SCHEDULE): el bloque suele ser una matriz de filas nombradas (una serie por fila) contra columnas de mes, no una tabla de filas por registro. Reportá CADA fila de la matriz con su role: PLANNED_MONTHLY/PLANNED_CUMULATIVE para lo programado, EXECUTED_MONTHLY/EXECUTED_CUMULATIVE para lo ya ejecutado (esto es evidencia, el ERP calcula su propio ejecutado desde los certificados y NUNCA se importa), OTHER para desviación u otras filas. planVersion agrupa filas de la misma versión de contrato cuando hay más de una (ej. "Original", "Adenda 1"): usá el texto de la fila para distinguirlas. monthColumns mapea cada columna de mes (M1, M2, …) a su índice numérico (1, 2, …) en orden real, no en el texto de la etiqueta.
 
 No transcribas filas de partidas ni montos: indicá dónde están. Las fórmulas y los nombres definidos son evidencia fuerte de relaciones y escalas. El inventario puede venir completo; usá las herramientas sólo si una hoja figura como muestreada o necesitás detalle. Respondé con el JSON del esquema.`;
 

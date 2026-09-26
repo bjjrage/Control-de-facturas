@@ -160,6 +160,10 @@ function ResultActions({
   candidate,
   applyCertificate,
   onApplyCertificate,
+  applyStaff,
+  onApplyStaff,
+  applySchedule,
+  onApplySchedule,
   nameOverride,
   codeOverride,
   onNameOverride,
@@ -173,6 +177,10 @@ function ResultActions({
   candidate: CanonicalImportCandidate | null;
   applyCertificate: boolean;
   onApplyCertificate: (value: boolean) => void;
+  applyStaff: boolean;
+  onApplyStaff: (value: boolean) => void;
+  applySchedule: boolean;
+  onApplySchedule: (value: boolean) => void;
   nameOverride: string;
   codeOverride: string;
   onNameOverride: (value: string) => void;
@@ -216,6 +224,35 @@ function ResultActions({
                 Importar este certificado {certificate.status === "APPLY_WITH_WARNINGS" ? "a pesar de las observaciones" : ""}
               </label>
             ) : null}
+          </div>
+        ) : null}
+        {candidate?.staff.length ? (
+          <div className="rounded-lg border border-[var(--border)] bg-white/[0.025] p-2.5">
+            <p>Personal: <strong>{candidate.staff.length} persona(s)</strong> detectadas en el período del certificado.</p>
+            <ul className="mt-1 max-h-28 space-y-0.5 overflow-y-auto text-[11px] text-[var(--muted)]">
+              {candidate.staff.map((person) => <li key={`${person.sheet}-${person.row}`}>· {person.name} — {person.role}</li>)}
+            </ul>
+            <label className="mt-2 flex items-center gap-2 text-[12px]">
+              <input type="checkbox" checked={applyStaff} onChange={(event) => onApplyStaff(event.target.checked)} />
+              Importar personal al certificado
+            </label>
+          </div>
+        ) : null}
+        {candidate?.schedulePlans.length ? (
+          <div className="rounded-lg border border-[var(--border)] bg-white/[0.025] p-2.5">
+            <p>Curva S: <strong>{candidate.schedulePlans.length} versión(es)</strong> de plan programado.</p>
+            <ul className="mt-1 space-y-1 text-[11px] text-[var(--muted)]">
+              {candidate.schedulePlans.map((plan) => (
+                <li key={plan.planVersion}>
+                  · <strong className="text-[var(--foreground)]">{plan.planVersion}</strong>: {plan.months.map((m) => `M${m.monthIndex}=${m.programadoPct.toFixed(1)}%`).join(" · ")}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1 text-[11px] text-[var(--muted)]">Solo se importa lo programado; el ERP calcula el ejecutado desde sus propios certificados.</p>
+            <label className="mt-2 flex items-center gap-2 text-[12px]">
+              <input type="checkbox" checked={applySchedule} onChange={(event) => onApplySchedule(event.target.checked)} />
+              Importar curva de avance programada
+            </label>
           </div>
         ) : null}
         {candidate?.domains.length ? (
@@ -274,10 +311,12 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
   const [result, setResult] = useState<WorkbookInterpretationResult | null>(null);
   const [candidate, setCandidate] = useState<CanonicalImportCandidate | null>(null);
   const [applyCertificate, setApplyCertificate] = useState(false);
+  const [applyStaff, setApplyStaff] = useState(true);
+  const [applySchedule, setApplySchedule] = useState(true);
   const [nameOverride, setNameOverride] = useState("");
   const [codeOverride, setCodeOverride] = useState("");
   const [creating, setCreating] = useState(false);
-  const [created, setCreated] = useState<{ projectId: string; applied?: { project: boolean; budgetItems: number; certificateItems: number }; pending?: { section: string; reason: string }[] } | null>(null);
+  const [created, setCreated] = useState<{ projectId: string; applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number }; pending?: { section: string; reason: string }[] } | null>(null);
   const router = useRouter();
 
   async function inspectFile(selected: File | null) {
@@ -324,6 +363,8 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
       // A verified certificate starts checked; one with observations must be
       // accepted explicitly.
       setApplyCertificate(verified?.certificate.status === "SAFE_TO_APPLY");
+      setApplyStaff(true);
+      setApplySchedule(true);
       if (interpreted.project.name.value !== null) setNameOverride(String(interpreted.project.name.value));
       if (interpreted.project.code.value !== null) setCodeOverride(String(interpreted.project.code.value));
     } catch (cause) {
@@ -343,6 +384,8 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
     formData.set("name_override", nameOverride);
     formData.set("code_override", codeOverride);
     formData.set("apply_certificate", applyCertificate ? "1" : "0");
+    formData.set("apply_staff", applyStaff ? "1" : "0");
+    formData.set("apply_schedule", applySchedule ? "1" : "0");
     try {
       const creationResult = await createProjectFromWorkbook(formData);
       if (creationResult.error || !creationResult.projectId) {
@@ -364,7 +407,14 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
     <div className="space-y-4">
       <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] p-4">
         <div className="flex items-center gap-2 text-[13px] font-semibold text-emerald-200"><CheckCircle2 size={15} /> Obra creada</div>
-        {created.applied ? <p className="mt-2 text-[12px] text-[var(--muted)]">Presupuesto: {created.applied.budgetItems} partidas{created.applied.certificateItems ? ` · Certificado: ${created.applied.certificateItems} líneas` : " · Certificado: no importado"}.</p> : null}
+        {created.applied ? (
+          <p className="mt-2 text-[12px] text-[var(--muted)]">
+            Presupuesto: {created.applied.budgetItems} partidas
+            {created.applied.certificateItems ? ` · Certificado: ${created.applied.certificateItems} líneas` : " · Certificado: no importado"}
+            {created.applied.staffItems ? ` · Personal: ${created.applied.staffItems}` : ""}
+            {created.applied.scheduleVersions ? ` · Curva S: ${created.applied.scheduleVersions} versión(es)` : ""}.
+          </p>
+        ) : null}
       </div>
       {created.pending?.length ? (
         <section>
@@ -389,6 +439,10 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
         candidate={candidate}
         applyCertificate={applyCertificate}
         onApplyCertificate={setApplyCertificate}
+        applyStaff={applyStaff}
+        onApplyStaff={setApplyStaff}
+        applySchedule={applySchedule}
+        onApplySchedule={setApplySchedule}
         nameOverride={nameOverride}
         codeOverride={codeOverride}
         onNameOverride={setNameOverride}

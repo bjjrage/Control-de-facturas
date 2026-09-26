@@ -36,6 +36,70 @@ function result(importPlan: WorkbookInterpretationResult["importPlan"]): Workboo
 }
 
 describe("canonical workbook import mapping", () => {
+  it("extracts staff rows (skipping section headers) and planned schedule months (ignoring executed rows)", () => {
+    const workbookFile = XLSX.write(
+      {
+        SheetNames: ["personal", "curva"],
+        Sheets: {
+          personal: XLSX.utils.aoa_to_sheet([
+            ["DIRECCIÓN Y ADMINISTRACIÓN"],
+            ["Arq. Juan Pérez", "Residente de obra"],
+            ["OPERADORES"],
+            ["Ana Gómez", "Oficial"],
+          ]),
+          curva: XLSX.utils.aoa_to_sheet([
+            ["", "M1", "M2", "M3"],
+            ["Programado mes", 20, 30, 50],
+            ["Ejecutado mes", 15, 25, 45],
+          ]),
+        },
+      },
+      { type: "buffer", bookType: "xlsx" }
+    );
+    const workbook = parseWorkbook(new Uint8Array(workbookFile), "test.xlsx");
+    const importPlan = {
+      workbookType: "CONSTRUCTION_PROJECT",
+      overallConfidence: 1,
+      blocks: [
+        {
+          id: "personal", sheet: "personal", sourceRange: "A1:B4", target: "STAFF" as const, confidence: 1, needsReview: false,
+          headerRowStart: 1, headerRowEnd: 1, dataRowStart: 2, dataRowEnd: 4,
+          columnMappings: [{ column: "A", role: "name" as const, confidence: 1, notes: "" }, { column: "B", role: "value" as const, confidence: 1, notes: "" }],
+          repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "",
+          // Rows 1 and 3 are section-header labels a model might mistakenly
+          // report as staff; the extractor verifies against the real
+          // cells (which have no role in column B) and drops them regardless
+          // of what the model claims here.
+          staffRows: [{ row: 1, name: "DIRECCIÓN Y ADMINISTRACIÓN", role: "n/a" }, { row: 2, name: "Arq. Juan Pérez", role: "Residente de obra" }, { row: 3, name: "OPERADORES", role: "n/a" }, { row: 4, name: "Ana Gómez", role: "Oficial" }],
+        },
+        {
+          id: "curva", sheet: "curva", sourceRange: "A1:D3", target: "SCHEDULE" as const, confidence: 1, needsReview: false,
+          headerRowStart: 1, headerRowEnd: 1, dataRowStart: 2, dataRowEnd: 3, columnMappings: [], repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "",
+          scheduleSeries: [
+            { row: 2, label: "Programado mes", role: "PLANNED_MONTHLY" as const, planVersion: "Original", monthColumns: [{ column: "B", monthIndex: 1 }, { column: "C", monthIndex: 2 }, { column: "D", monthIndex: 3 }] },
+            { row: 3, label: "Ejecutado mes", role: "EXECUTED_MONTHLY" as const, planVersion: "Original", monthColumns: [{ column: "B", monthIndex: 1 }, { column: "C", monthIndex: 2 }, { column: "D", monthIndex: 3 }] },
+          ],
+        },
+      ],
+      unresolvedRegions: [],
+      warnings: [],
+    };
+    const candidate = buildCanonicalImportCandidate(workbook, result(importPlan));
+
+    expect(candidate.staff).toEqual([
+      { name: "Arq. Juan Pérez", role: "Residente de obra", sheet: "personal", row: 2 },
+      { name: "Ana Gómez", role: "Oficial", sheet: "personal", row: 4 },
+    ]);
+    expect(candidate.schedulePlans).toHaveLength(1);
+    expect(candidate.schedulePlans[0].planVersion).toBe("Original");
+    expect(candidate.schedulePlans[0].months).toEqual([
+      { monthIndex: 1, programadoPct: 20 },
+      { monthIndex: 2, programadoPct: 30 },
+      { monthIndex: 3, programadoPct: 50 },
+    ]);
+  });
+
+
   it("uses certificate contractual quantities for budget_items and does not apply an incompatible measurement", () => {
     const workbookFile = XLSX.write(
       {
