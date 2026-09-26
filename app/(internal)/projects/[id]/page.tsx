@@ -538,31 +538,41 @@ export default async function ProjectDetailPage({
   const laborRows = laborEntries ?? [];
   const budgetItemLabelById = new Map(items.map((i) => [i.id, `${i.code} — ${i.description}`]));
 
-  // Cotizaciones y proveedores: derivados de las OCs del proyecto
+  // Cotizaciones y proveedores: consulta canónica por project_id con fallback histórico por OCs
   const orderIds = ocs.map((o) => o.id);
-  let projectRfqs: Rfq[] = [];
-  let projectProviders: Provider[] = [];
-  if (orderIds.length > 0) {
-    const rfqIds = [...new Set(ocs.map((o) => o.rfq_id).filter((rid): rid is string => !!rid))];
-    const providerIds = [
-      ...new Set(ocs.map((o) => o.provider_id).filter((pid): pid is string => !!pid)),
-    ];
-    const [rfqFetch, providerFetch] = await Promise.all([
-      rfqIds.length > 0
-        ? supabase
-            .from("rfqs")
-            .select("*")
-            .in("id", rfqIds)
-            .order("created_at", { ascending: false })
-            .returns<Rfq[]>()
-        : Promise.resolve({ data: [] as Rfq[] }),
-      providerIds.length > 0
-        ? supabase.from("providers").select("*").in("id", providerIds).order("name").returns<Provider[]>()
-        : Promise.resolve({ data: [] as Provider[] }),
-    ]);
-    projectRfqs = rfqFetch.data ?? [];
-    projectProviders = providerFetch.data ?? [];
+  const rfqIdsFromOrders = ocs.map((o) => o.rfq_id).filter((rid): rid is string => !!rid);
+  const providerIdsFromOrders = ocs.map((o) => o.provider_id).filter((pid): pid is string => !!pid);
+
+  const [directRfqsFetch, providersFromOrdersFetch] = await Promise.all([
+    supabase
+      .from("rfqs")
+      .select("*")
+      .eq("project_id", id)
+      .order("created_at", { ascending: false })
+      .returns<Rfq[]>(),
+    providerIdsFromOrders.length > 0
+      ? supabase.from("providers").select("*").in("id", providerIdsFromOrders).order("name").returns<Provider[]>()
+      : Promise.resolve({ data: [] as Provider[] }),
+  ]);
+
+  const directRfqs = directRfqsFetch.data ?? [];
+  const directRfqIds = new Set(directRfqs.map((r) => r.id));
+  const missingLegacyRfqIds = rfqIdsFromOrders.filter((rid) => !directRfqIds.has(rid));
+
+  let legacyRfqs: Rfq[] = [];
+  if (missingLegacyRfqIds.length > 0) {
+    const { data: legacyFetch } = await supabase
+      .from("rfqs")
+      .select("*")
+      .in("id", missingLegacyRfqIds)
+      .returns<Rfq[]>();
+    legacyRfqs = legacyFetch ?? [];
   }
+
+  const projectRfqs: Rfq[] = [...directRfqs, ...legacyRfqs].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  let projectProviders: Provider[] = providersFromOrdersFetch.data ?? [];
 
   // Proveedores agregados a mano a la obra (shortlist, sin OC todavía) — se
   // suman a los derivados de OCs de arriba. `manualProviderIds` sirve para

@@ -132,7 +132,7 @@ export async function submitQuote(token: string, formData: FormData) {
     .update({ status: "RESPONDIDO", responded_at: new Date().toISOString() })
     .eq("id", rfqProvider.id);
 
-  if (rfq.status === "COTIZANDO") {
+  if (["BORRADOR", "COTIZANDO"].includes(rfq.status)) {
     await admin.from("rfqs").update({ status: "OFERTAS_RECIBIDAS" }).eq("id", rfq.id);
   }
 

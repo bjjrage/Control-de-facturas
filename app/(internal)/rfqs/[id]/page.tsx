@@ -125,11 +125,22 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
   const open = isRfqOpen(rfq);
   const closedReason = rfqClosedReason(rfq);
   const canInvite = canManage && open;
-  const canSelect = canManage && ["COTIZANDO", "OFERTAS_RECIBIDAS"].includes(rfq.status);
+  const hasQuotes = latestByRfqProvider.size > 0;
+  const canSelect = canManage && !rfq.selected_rfq_provider_id && hasQuotes && rfq.status !== "CANCELADO";
   const canCancel = canManage && ["BORRADOR", "COTIZANDO", "OFERTAS_RECIBIDAS"].includes(rfq.status);
   const canDelete = profile.role === "admin" && ["CANCELADO", "BORRADOR"].includes(rfq.status);
   const canReopen = canManage && canReopenRfq(rfq);
   const actuallyExpired = new Date(rfq.expires_at).getTime() <= Date.now();
+
+  const respondedQuotes = Array.from(latestByRfqProvider.entries()).map(([rpId, quote]) => {
+    const rp = rfqProviders.find((p) => p.id === rpId);
+    return {
+      rfqProviderId: rpId,
+      providerName: rp?.providers.name ?? "Proveedor",
+      quote,
+      isSuggested: !rfq.selected_rfq_provider_id && suggestedRfqProviderIds.has(rpId),
+    };
+  });
 
   return (
     <div className="max-w-4xl space-y-5">
@@ -259,6 +270,96 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
             Autorizada el {formatDateTime(authorizedOrder.authorized_at)}
           </p>
         </Link>
+      ) : null}
+
+      {/* Cuadro Comparativo de Ofertas */}
+      {canSeeQuotes && respondedQuotes.length > 0 ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[14px] font-semibold">Cuadro Comparativo de Ofertas</h2>
+            <span className="text-[12px] text-[var(--muted)]">
+              {respondedQuotes.length} oferta{respondedQuotes.length > 1 ? "s" : ""} recibida{respondedQuotes.length > 1 ? "s" : ""}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {respondedQuotes.map(({ rfqProviderId, providerName, quote, isSuggested }) => (
+              <div
+                key={rfqProviderId}
+                className={`rounded-lg border p-4 space-y-3 ${
+                  isSuggested
+                    ? "border-[var(--ok)]/40 bg-[var(--ok-bg)]/20"
+                    : "border-[var(--border)] bg-[var(--panel)]"
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="font-semibold text-[14px] flex items-center gap-1.5">
+                      {providerName}
+                      {isSuggested ? <Badge tone="ok">Mejor Precio</Badge> : null}
+                    </div>
+                    <div className="text-[12px] text-[var(--muted)]">
+                      Ppto: {quote.budget_number || "-"} · Versión #{quote.version_number}
+                    </div>
+                  </div>
+                  {canSelect ? (
+                    <SelectOfferDialog
+                      rfqId={rfq.id}
+                      rfqProviderId={rfqProviderId}
+                      quoteVersionId={quote.id}
+                      providerName={providerName}
+                      totalPrice={quote.total_price}
+                      currency={quote.currency}
+                      trigger={<Button className="h-7 px-3 text-[12px]">Adjudicar Oferta</Button>}
+                    />
+                  ) : null}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[12px] pt-1 border-t border-[var(--border)]/60">
+                  <div>
+                    <span className="text-[var(--muted)]">Precio Unitario:</span>{" "}
+                    <span className="font-medium">{formatMoney(quote.unit_price, quote.currency)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[var(--muted)]">Precio Total:</span>{" "}
+                    <span className="font-semibold">{formatMoney(quote.total_price, quote.currency)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[var(--muted)]">Plazo Entrega:</span>{" "}
+                    <span>{quote.delivery_time || "-"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[var(--muted)]">Validez Oferta:</span>{" "}
+                    <span>{quote.offer_validity || "-"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[var(--muted)]">Condición Fiscal:</span>{" "}
+                    <span>{quote.vat_included ? "IVA Incluido" : "Más IVA"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[var(--muted)]">Factura:</span>{" "}
+                    <span>{quote.invoice_available ? "Disponible" : "Sin Factura"}</span>
+                  </div>
+                </div>
+
+                {quote.observations ? (
+                  <p className="text-[12px] text-[var(--muted)] italic border-t border-[var(--border)]/40 pt-1">
+                    "{quote.observations}"
+                  </p>
+                ) : null}
+
+                {quote.attachment ? (
+                  <div className="pt-1">
+                    <AttachmentLink
+                      bucket={quote.attachment.bucket}
+                      path={quote.attachment.path}
+                      fileName={`Presupuesto PDF (${quote.attachment.file_name || "descargar"})`}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
       ) : null}
 
       <div>

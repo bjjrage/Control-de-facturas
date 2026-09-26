@@ -186,6 +186,9 @@ export function extractCertificateWorkbookData(workbook: WorkbookRepresentation,
     if (!description && rawValues.every((value) => value === null || value === "")) continue;
     const values = rawValues.map(rawNumber);
     if (!description || values.some((value) => value === null)) {
+      if (/(^|\s)(total|subtotal|monto total|iva|elaborado por|aprobado por|firma|supervisor|fiscalizacion)(\s|$)/i.test(normalize(description))) {
+        continue;
+      }
       throw new Error(`La fila ${row} tiene datos de partida incompletos o ambiguos. Corregí el XLSX antes de importar.`);
     }
     const [quantityContractual, quantityPrevious, quantityCurrent, unitPrice] = values as number[];

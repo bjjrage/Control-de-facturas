@@ -48,7 +48,7 @@ function rowLooksLikeSummary(cells: WorkbookCell[], block: ImportBlock, row: num
     .map((cell) => normalizedLabel(cell.raw ?? cell.formatted))
     .filter(Boolean)
     .join(" ");
-  return /(^|\s)(total|subtotal|total general|sub total|item)(\s|$)/.test(text);
+  return /(^|\s)(total|subtotal|total general|sub total|item|iva|monto total|elaborado por|aprobado por|firma|supervisor|fiscalizacion)(\s|$)/.test(text);
 }
 
 function withDeterministicRowRepairs(workbook: WorkbookRepresentation, block: ImportBlock): ImportBlock {
@@ -69,7 +69,7 @@ function withDeterministicRowRepairs(workbook: WorkbookRepresentation, block: Im
 
 function headerRole(label: string, target: ImportBlock["target"]): ImportBlock["columnMappings"][number]["role"] | null {
   const text = normalizedLabel(label);
-  if (/^cod|codigo|item n|n item/.test(text)) return "code";
+  if (/^cod|codigo|item n|n item|^item\b|\bitem\b/.test(text)) return "code";
   if (/descripcion|descrip|rubro|partida|concepto/.test(text)) return "description";
   if (/^und$|unidad|u m|unidad de medida/.test(text)) return "unit";
   if (/anterior|previous/.test(text)) return "previousQuantity";
@@ -82,24 +82,38 @@ function headerRole(label: string, target: ImportBlock["target"]): ImportBlock["
   return null;
 }
 
-function locateHeaderRow(workbook: WorkbookRepresentation, candidate: WorkbookCandidateBlock, target: ImportBlock["target"]): { row: number; mappings: ImportBlock["columnMappings"] } | null {
-  let best: { row: number; mappings: ImportBlock["columnMappings"]; score: number } | null = null;
-  for (let row = candidate.rowStart; row <= Math.min(candidate.rowEnd, candidate.rowStart + 15); row++) {
-    const mappings: ImportBlock["columnMappings"] = [];
-    for (const cell of rowCells(workbook, candidate.sheetName, row, candidate.columnStart, candidate.columnEnd)) {
-      const role = headerRole(String(cell.raw ?? cell.formatted ?? ""), target);
-      if (role && !mappings.some((mapping) => mapping.role === role)) {
-        mappings.push({ column: XLSX.utils.encode_col(cell.column - 1), role, confidence: 0.78, notes: "Inferido por reconciliación determinística." });
+function locateHeaderRow(workbook: WorkbookRepresentation, candidate: WorkbookCandidateBlock, target: ImportBlock["target"]): { headerRowStart: number; headerRowEnd: number; mappings: ImportBlock["columnMappings"] } | null {
+  let best: { headerRowStart: number; headerRowEnd: number; mappings: ImportBlock["columnMappings"]; score: number } | null = null;
+  const maxScanRow = Math.min(candidate.rowEnd - 1, candidate.rowStart + 25);
+  for (let startRow = candidate.rowStart; startRow <= maxScanRow; startRow++) {
+    for (let endRow = startRow; endRow <= Math.min(candidate.rowEnd, startRow + 2); endRow++) {
+      const mappings: ImportBlock["columnMappings"] = [];
+      for (let col = candidate.columnStart; col <= candidate.columnEnd; col++) {
+        const textParts: string[] = [];
+        for (let r = startRow; r <= endRow; r++) {
+          const cells = rowCells(workbook, candidate.sheetName, r, col, col);
+          for (const cell of cells) {
+            const val = cell.raw ?? cell.formatted;
+            if (val !== null && val !== undefined && String(val).trim()) {
+              textParts.push(String(val));
+            }
+          }
+        }
+        const combinedText = textParts.join(" ");
+        const role = headerRole(combinedText, target);
+        if (role && !mappings.some((mapping) => mapping.role === role)) {
+          mappings.push({ column: XLSX.utils.encode_col(col - 1), role, confidence: 0.78, notes: "Inferido por reconciliación determinística." });
+        }
       }
+      const required = target === "CERTIFICATE"
+        ? ["code", "description", "quantity", "previousQuantity", "currentQuantity", "cumulativeQuantity", "unitPrice"]
+        : ["description"];
+      const score = required.filter((role) => mappings.some((mapping) => mapping.role === role)).length;
+      if (!best || score > best.score) best = { headerRowStart: startRow, headerRowEnd: endRow, mappings, score };
     }
-    const required = target === "CERTIFICATE"
-      ? ["code", "description", "quantity", "previousQuantity", "currentQuantity", "cumulativeQuantity", "unitPrice"]
-      : ["description"];
-    const score = required.filter((role) => mappings.some((mapping) => mapping.role === role)).length;
-    if (!best || score > best.score) best = { row, mappings, score };
   }
   const minimum = target === "CERTIFICATE" ? 5 : 1;
-  return best && best.score >= minimum ? { row: best.row, mappings: best.mappings } : null;
+  return best && best.score >= minimum ? { headerRowStart: best.headerRowStart, headerRowEnd: best.headerRowEnd, mappings: best.mappings } : null;
 }
 
 function inferredBlock(workbook: WorkbookRepresentation, candidate: WorkbookCandidateBlock, target: "BUDGET" | "CERTIFICATE"): ImportBlock | null {
@@ -112,9 +126,9 @@ function inferredBlock(workbook: WorkbookRepresentation, candidate: WorkbookCand
     target,
     confidence: 0.78,
     needsReview: false,
-    headerRowStart: header.row,
-    headerRowEnd: header.row,
-    dataRowStart: header.row + 1,
+    headerRowStart: header.headerRowStart,
+    headerRowEnd: header.headerRowEnd,
+    dataRowStart: header.headerRowEnd + 1,
     dataRowEnd: candidate.rowEnd,
     columnMappings: header.mappings,
     repeatedHeaderRows: [],
@@ -127,21 +141,28 @@ function inferredBlock(workbook: WorkbookRepresentation, candidate: WorkbookCand
 }
 
 function candidateScore(workbook: WorkbookRepresentation, candidate: WorkbookCandidateBlock, target: "BUDGET" | "CERTIFICATE"): number {
+  const sheet = workbook.sheets.find((s) => s.sheetName === candidate.sheetName);
+  const sampleCells = sheet?.cells.filter((c) => c.row >= candidate.rowStart && c.row <= Math.min(candidate.rowEnd, candidate.rowStart + 25)) ?? [];
   const text = normalizedLabel([
     candidate.sheetName,
     candidate.title,
     ...candidate.candidateHeaders,
-    ...candidate.sampleRows.flat(),
+    ...sampleCells.map((c) => String(c.raw ?? c.formatted ?? "")),
   ].join(" "));
   if (target === "CERTIFICATE") {
-    return (/(certificado|contractual|presente|acumulado)/.test(text) ? 4 : 0)
-      + (/codigo|cod/.test(text) ? 1 : 0)
-      + (/descripcion|rubro|partida/.test(text) ? 1 : 0);
+    let score = (/(certificado|contractual|presente|acumulado)/.test(text) ? 4 : 0)
+      + (/codigo|cod|^item\b|\bitem\b/.test(text) ? 1 : 0)
+      + (/descripcion|descrip|rubro|partida/.test(text) ? 1 : 0)
+      + (/precio unitario|p u|precio/.test(text) ? 2 : 0);
+    if (/^certificado\b|certificado/i.test(candidate.sheetName)) score += 5;
+    return score;
   }
-  return (/(presupuesto|rubro|partida|precio unitario|p u)/.test(text) ? 2 : 0)
+  let score = (/(presupuesto|rubro|partida|precio unitario|p u)/.test(text) ? 2 : 0)
     + (/descripcion|rubro|partida/.test(text) ? 2 : 0)
     + (/cantidad|unidad/.test(text) ? 1 : 0)
     + (/precio/.test(text) ? 1 : 0);
+  if (/^base\b|presupuesto/i.test(candidate.sheetName)) score += 5;
+  return score;
 }
 
 /**
@@ -169,14 +190,19 @@ export function reconcileImportPlan(
     const candidates: WorkbookCandidateBlock[] = workbook.sheets.flatMap((sheet) =>
       sheet.blocks.map((block) => ({ ...block, sheetName: sheet.sheetName, sheetIndex: sheet.sheetIndex }))
     );
-    const best = candidates
+    const scoredCandidates = candidates
       .map((candidate) => ({ candidate, score: candidateScore(workbook, candidate, target) }))
-      .sort((left, right) => right.score - left.score)[0];
-    if (!best || best.score < (target === "CERTIFICATE" ? 5 : 4)) continue;
-    const inferred = inferredBlock(workbook, best.candidate, target);
-    if (!inferred) continue;
-    repairedBlocks.push(inferred);
-    warnings.push(`Se recuperó un bloque ${target} que no había sido expuesto por el modelo, usando encabezados y rangos locales verificables.`);
+      .filter((item) => item.score >= (target === "CERTIFICATE" ? 5 : 4))
+      .sort((left, right) => right.score - left.score);
+
+    for (const item of scoredCandidates) {
+      const inferred = inferredBlock(workbook, item.candidate, target);
+      if (inferred) {
+        repairedBlocks.push(inferred);
+        warnings.push(`Se recuperó un bloque ${target} que no había sido expuesto por el modelo, usando encabezados y rangos locales verificables.`);
+        break;
+      }
+    }
   }
 
   return {

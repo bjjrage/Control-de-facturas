@@ -58,7 +58,9 @@ export async function selectAndAuthorizeOffer(params: {
 }) {
   const profile = await requireProfile(["comercial", "admin"]);
   const supabase = await createClient();
-  const { data: authorizedOrderId, error } = await supabase.rpc("select_and_authorize_offer_atomically", {
+
+  let authorizedOrderId: string | null = null;
+  const { data: rpcOrderId, error: rpcError } = await supabase.rpc("select_and_authorize_offer_atomically", {
     p_empresa_id: profile.empresa_id,
     p_actor_id: profile.id,
     p_rfq_id: params.rfqId,
@@ -67,38 +69,131 @@ export async function selectAndAuthorizeOffer(params: {
     p_selection_reason: params.selectionReason,
     p_selection_reason_detail: params.selectionReasonDetail,
   });
-  if (error) return { error: error.message };
-  if (!authorizedOrderId) return { error: "No se recibió confirmación de la orden autorizada." };
 
-  const [{ data: rfq }, { data: authorizedOrder }] = await Promise.all([
-    supabase
+  if (!rpcError && rpcOrderId) {
+    authorizedOrderId = rpcOrderId;
+  } else if (
+    rpcError &&
+    !rpcError.message.includes("Could not find the function") &&
+    !rpcError.message.includes("schema cache")
+  ) {
+    return { error: rpcError.message };
+  } else {
+    // Fallback directo con control estricto multi-tenant si la RPC no está en el schema cache
+    const { data: rfq, error: rfqError } = await supabase
       .from("rfqs")
-      .select("project_id, status, selected_rfq_provider_id")
+      .select("*")
       .eq("id", params.rfqId)
       .eq("empresa_id", profile.empresa_id)
-      .maybeSingle(),
-    supabase
-      .from("authorized_orders")
-      .select("id, rfq_id, quote_version_id")
-      .eq("id", authorizedOrderId)
+      .maybeSingle();
+    if (rfqError || !rfq) return { error: "Solicitud no encontrada." };
+
+    if (rfq.status === "AUTORIZADO") {
+      const { data: existingOrder } = await supabase
+        .from("authorized_orders")
+        .select("id")
+        .eq("rfq_id", params.rfqId)
+        .eq("empresa_id", profile.empresa_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existingOrder) {
+        return { error: null, authorizedOrderId: existingOrder.id };
+      }
+      return { error: "Esta solicitud ya tiene una oferta autorizada." };
+    }
+
+    if (rfq.status === "CANCELADO") {
+      return { error: "No se puede autorizar una solicitud cancelada." };
+    }
+
+    const { data: rfqProvider } = await supabase
+      .from("rfq_providers")
+      .select("*, providers(name)")
+      .eq("id", params.rfqProviderId)
       .eq("rfq_id", params.rfqId)
       .eq("empresa_id", profile.empresa_id)
-      .maybeSingle(),
-  ]);
-  if (!rfq || rfq.status !== "AUTORIZADO" || rfq.selected_rfq_provider_id !== params.rfqProviderId
-      || !authorizedOrder || authorizedOrder.quote_version_id !== params.quoteVersionId) {
-    return { error: "La autorización se guardó, pero no se pudo confirmar su lectura. Reintentá para verificar el resultado." };
+      .maybeSingle();
+    if (!rfqProvider) return { error: "Proveedor no encontrado en esta solicitud." };
+
+    const { data: quoteVersion } = await supabase
+      .from("quote_versions")
+      .select("*")
+      .eq("id", params.quoteVersionId)
+      .eq("empresa_id", profile.empresa_id)
+      .maybeSingle();
+    if (!quoteVersion) return { error: "Cotización no encontrada." };
+
+    const isCheapest = params.selectionReason === null;
+
+    const { data: order, error: orderError } = await supabase
+      .from("authorized_orders")
+      .insert({
+        empresa_id: profile.empresa_id,
+        rfq_id: rfq.id,
+        provider_id: rfqProvider.provider_id,
+        quote_version_id: quoteVersion.id,
+        created_from: "rfq",
+        provider_name: (rfqProvider as unknown as { providers: { name: string } }).providers?.name ?? "Proveedor",
+        product: rfq.product,
+        quantity: rfq.quantity,
+        unit: rfq.unit,
+        unit_price: quoteVersion.unit_price,
+        total_price: quoteVersion.total_price,
+        currency: quoteVersion.currency,
+        authorized_by: profile.id,
+        is_cheapest: isCheapest,
+        selection_reason: params.selectionReason,
+        selection_reason_detail: params.selectionReasonDetail,
+        project_id: rfq.project_id ?? null,
+      })
+      .select("id")
+      .single();
+
+    if (orderError || !order) return { error: orderError?.message ?? "No se pudo autorizar la orden." };
+    authorizedOrderId = order.id;
+
+    // Crear ítems de la orden autorizada
+    await supabase.from("authorized_order_items").insert({
+      empresa_id: profile.empresa_id,
+      order_id: authorizedOrderId,
+      product: rfq.product,
+      quantity: rfq.quantity,
+      unit: rfq.unit,
+      unit_price: quoteVersion.unit_price,
+      total_price: quoteVersion.total_price,
+      sort_order: 0,
+    });
+
+    await supabase
+      .from("rfqs")
+      .update({
+        status: "AUTORIZADO",
+        selected_rfq_provider_id: params.rfqProviderId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", rfq.id)
+      .eq("empresa_id", profile.empresa_id);
   }
+
+  const { data: rfqRow } = await supabase
+    .from("rfqs")
+    .select("project_id")
+    .eq("id", params.rfqId)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+
   await logAudit(supabase, {
     action: "rfq.offer_authorized",
     rfqId: params.rfqId,
     rfqProviderId: params.rfqProviderId,
-    authorizedOrderId,
-    detail: { atomic_rpc: true },
+    authorizedOrderId: authorizedOrderId ?? undefined,
+    detail: { rpc: !rpcError },
   });
+
   revalidatePath(`/rfqs/${params.rfqId}`);
   revalidatePath("/orders");
-  if (rfq?.project_id) revalidatePath(`/projects/${rfq.project_id}`);
+  if (rfqRow?.project_id) revalidatePath(`/projects/${rfqRow.project_id}`);
   return { error: null, authorizedOrderId };
 }
 
