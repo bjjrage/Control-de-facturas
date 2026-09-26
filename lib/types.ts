@@ -1426,6 +1426,10 @@ export interface ProjectSchedulePlanMonth {
   plan_id: string;
   month_index: number;
   programado_pct: number;
+  // Ejecutado según el propio documento importado (a veces historial tipeado
+  // a mano, sin otra fuente detrás) — referencia, nunca reemplaza al
+  // ejecutado real que el ERP calcula desde sus certificados congelados.
+  ejecutado_pct_documento: number | null;
 }
 
 export interface ProjectCertificateStaff {

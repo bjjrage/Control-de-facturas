@@ -66,12 +66,19 @@ function buildMultiSeries(
     .sort((a, b) => a.numero - b.numero);
 
   const progByPlan = new Map<string, Map<number, number>>();
+  const docExecByPlan = new Map<string, Map<number, number>>();
   for (const plan of schedulePlans) {
     const byMonth = new Map<number, number>();
-    for (const row of planMonths[plan.id] ?? []) byMonth.set(row.month_index, row.programado_pct);
+    const docByMonth = new Map<number, number>();
+    for (const row of planMonths[plan.id] ?? []) {
+      byMonth.set(row.month_index, row.programado_pct);
+      if (row.ejecutado_pct_documento != null) docByMonth.set(row.month_index, row.ejecutado_pct_documento);
+    }
     progByPlan.set(plan.id, byMonth);
+    docExecByPlan.set(plan.id, docByMonth);
   }
   const accByPlan = new Map<string, number>(schedulePlans.map((plan) => [plan.id, 0]));
+  const docAccByPlan = new Map<string, number>(schedulePlans.map((plan) => [plan.id, 0]));
 
   let ejecAcc = 0;
   const rows: Array<{ mes: string; ejecutado: number | null } & Record<string, number | null | string>> = [];
@@ -81,6 +88,16 @@ function buildMultiSeries(
       const acc = (accByPlan.get(plan.id) ?? 0) + (progByPlan.get(plan.id)?.get(i) ?? 0);
       accByPlan.set(plan.id, acc);
       row[plan.id] = Number(acc.toFixed(2));
+      // Ejecutado según el documento: solo se dibuja para los meses que el
+      // documento realmente traía (evita una línea plana antes/después de
+      // ese rango).
+      if (docExecByPlan.get(plan.id)?.has(i)) {
+        const docAcc = (docAccByPlan.get(plan.id) ?? 0) + (docExecByPlan.get(plan.id)?.get(i) ?? 0);
+        docAccByPlan.set(plan.id, docAcc);
+        row[`${plan.id}__doc`] = Number(docAcc.toFixed(2));
+      } else {
+        row[`${plan.id}__doc`] = null;
+      }
     }
     const cert = frozenCerts[i - 1];
     if (cert && contractAmount > 0) {
@@ -244,6 +261,21 @@ function CurvaAvance({
                 connectNulls
               />
             ))}
+            {schedulePlans
+              .filter((plan) => series.some((row) => row[`${plan.id}__doc`] != null))
+              .map((plan, index) => (
+                <Line
+                  key={`${plan.id}__doc`}
+                  type="monotone"
+                  dataKey={`${plan.id}__doc`}
+                  name={`Ejecutado acum. según documento (${plan.label})`}
+                  stroke={PLAN_LINE_COLORS[index % PLAN_LINE_COLORS.length]}
+                  strokeWidth={2}
+                  strokeOpacity={0.6}
+                  dot={false}
+                  connectNulls
+                />
+              ))}
             <Line
               type="monotone"
               dataKey="ejecutado"

@@ -177,7 +177,11 @@ describe("canonical workbook import mapping", () => {
           headerRowStart: 1, headerRowEnd: 1, dataRowStart: 2, dataRowEnd: 3, columnMappings: [], repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "",
           scheduleSeries: [
             { row: 2, label: "Programado mes", role: "PLANNED_MONTHLY" as const, planVersion: "Original", monthColumns: [{ column: "B", monthIndex: 1 }, { column: "C", monthIndex: 2 }, { column: "D", monthIndex: 3 }] },
-            { row: 3, label: "Ejecutado mes", role: "EXECUTED_MONTHLY" as const, planVersion: "Original", monthColumns: [{ column: "B", monthIndex: 1 }, { column: "C", monthIndex: 2 }, { column: "D", monthIndex: 3 }] },
+            // Real workbooks have ONE shared executed row, not one per
+            // contract version — the model may label it under its own group
+            // (here "Ejecución observada") instead of "Original". It must
+            // still attach to the "Original" plan below.
+            { row: 3, label: "Ejecutado mes", role: "EXECUTED_MONTHLY" as const, planVersion: "Ejecución observada", monthColumns: [{ column: "B", monthIndex: 1 }, { column: "C", monthIndex: 2 }, { column: "D", monthIndex: 3 }] },
           ],
         },
       ],
@@ -196,6 +200,13 @@ describe("canonical workbook import mapping", () => {
       { monthIndex: 1, programadoPct: 20 },
       { monthIndex: 2, programadoPct: 30 },
       { monthIndex: 3, programadoPct: 50 },
+    ]);
+    // The document's own "Ejecutado" row is kept, separately, as reference —
+    // it is never used to override or replace the planned series above.
+    expect(candidate.schedulePlans[0].documentedExecuted).toEqual([
+      { monthIndex: 1, ejecutadoPct: 15 },
+      { monthIndex: 2, ejecutadoPct: 25 },
+      { monthIndex: 3, ejecutadoPct: 45 },
     ]);
   });
 

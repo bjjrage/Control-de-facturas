@@ -94,6 +94,10 @@ export type CanonicalSchedulePlan = {
   sheet: string;
   sourceRow: number;
   months: { monthIndex: number; programadoPct: number }[];
+  // Ejecutado según el propio documento (a veces historial tipeado a mano,
+  // sin otra fuente detrás). Nunca reemplaza el ejecutado real que el ERP
+  // calcula desde certificados; se persiste aparte como referencia.
+  documentedExecuted: { monthIndex: number; ejecutadoPct: number }[];
 };
 
 export type CanonicalImportCandidate = {
@@ -436,36 +440,65 @@ function percentageAt(cells: Map<string, WorkbookCell>, row: number, column: str
   return isFraction ? value * 100 : value;
 }
 
+type ScheduleSeriesRow = NonNullable<ImportBlock["scheduleSeries"]>[number];
+
+// Shared by PLANNED_* and EXECUTED_*: a monthly row is read as-is; a
+// cumulative row becomes monthly by successive difference (month N =
+// acumulado N - acumulado N-1). Returns null when no row of either role
+// for this metric exists in the group.
+function readMonthlySeries(
+  cells: Map<string, WorkbookCell>,
+  items: ScheduleSeriesRow[],
+  monthlyRole: string,
+  cumulativeRole: string
+): { row: number; label: string; values: { monthIndex: number; pct: number }[] } | null {
+  const monthly = items.find((item) => item.role === monthlyRole);
+  const cumulative = items.find((item) => item.role === cumulativeRole);
+  const source = monthly ?? cumulative;
+  if (!source) return null;
+  const sortedColumns = [...source.monthColumns].sort((a, b) => a.monthIndex - b.monthIndex);
+  const readings = sortedColumns.map((mc) => ({ monthIndex: mc.monthIndex, value: percentageAt(cells, source.row, mc.column) }));
+  const valid = readings.filter((r): r is { monthIndex: number; value: number } => r.value !== null);
+  if (!valid.length) return { row: source.row, label: source.label, values: [] };
+  const values = monthly
+    ? valid.map((r) => ({ monthIndex: r.monthIndex, pct: r.value }))
+    : valid.map((r, index) => ({ monthIndex: r.monthIndex, pct: r.value - (index ? valid[index - 1].value : 0) }));
+  return { row: source.row, label: source.label, values };
+}
+
 function extractSchedulePlans(workbook: WorkbookRepresentation, block: ImportBlock, issues: string[]): CanonicalSchedulePlan[] {
   const sheet = workbook.sheets.find((candidate) => candidate.sheetName === block.sheet);
   if (!sheet) return [];
   const cells = cellIndex(sheet);
-  const byVersion = new Map<string, NonNullable<ImportBlock["scheduleSeries"]>>();
-  for (const item of block.scheduleSeries ?? []) {
+  const allSeries = block.scheduleSeries ?? [];
+  const byVersion = new Map<string, ScheduleSeriesRow[]>();
+  for (const item of allSeries) {
     const list = byVersion.get(item.planVersion) ?? [];
     list.push(item);
     byVersion.set(item.planVersion, list);
   }
+  // A block usually carries ONE observed-execution row shared by every
+  // contract version (there is no "Ejecutado (Adenda 1)" — real progress
+  // doesn't fork by version), so the model may group it under its own label
+  // (e.g. "Ejecución observada") instead of "Original"/"Adenda 1". It is
+  // matched against every planned version, not only its own group.
+  const documentedExecuted = (() => {
+    const executed = readMonthlySeries(cells, allSeries, "EXECUTED_MONTHLY", "EXECUTED_CUMULATIVE");
+    return (executed?.values ?? []).map((v) => ({ monthIndex: v.monthIndex, ejecutadoPct: v.pct }));
+  })();
+
   const plans: CanonicalSchedulePlan[] = [];
   for (const [planVersion, items] of byVersion) {
-    const monthly = items.find((item) => item.role === "PLANNED_MONTHLY");
-    const cumulative = items.find((item) => item.role === "PLANNED_CUMULATIVE");
-    const source = monthly ?? cumulative;
-    if (!source) { issues.push(`La versión “${planVersion}” de la curva no tiene una fila programada identificable; no se importa.`); continue; }
-    const sortedColumns = [...source.monthColumns].sort((a, b) => a.monthIndex - b.monthIndex);
-    const readings = sortedColumns.map((mc) => ({ monthIndex: mc.monthIndex, value: percentageAt(cells, source.row, mc.column) }));
-    if (readings.some((r) => r.value === null)) issues.push(`La versión “${planVersion}” de la curva tiene meses sin un valor numérico verificable; se omitieron esos meses.`);
-    const valid = readings.filter((r): r is { monthIndex: number; value: number } => r.value !== null);
-    if (!valid.length) continue;
-    // Monthly values are read directly; a cumulative row is turned into
-    // monthly ones by successive difference (month N = acumulado N - acumulado N-1).
-    const months = monthly
-      ? valid.map((r) => ({ monthIndex: r.monthIndex, programadoPct: r.value }))
-      : valid.map((r, index) => ({ monthIndex: r.monthIndex, programadoPct: r.value - (index ? valid[index - 1].value : 0) }));
+    const planned = readMonthlySeries(cells, items, "PLANNED_MONTHLY", "PLANNED_CUMULATIVE");
+    if (!planned) continue; // a group with only EXECUTED_*/OTHER rows (e.g. "Ejecución observada") isn't a plan version.
+    if (!planned.values.length) { issues.push(`La versión “${planVersion}” de la curva no tiene un valor numérico verificable en ningún mes; no se importa.`); continue; }
+    const months = planned.values.map((v) => ({ monthIndex: v.monthIndex, programadoPct: v.pct }));
     const total = months.reduce((sum, m) => sum + m.programadoPct, 0);
     if (Math.abs(total - 100) > 1.5) issues.push(`La versión “${planVersion}” de la curva programada suma ${formatNumber(total)}% en vez de 100%; revisar antes de activarla.`);
-    plans.push({ planVersion, label: source.label, sheet: block.sheet, sourceRow: source.row, months });
+
+    plans.push({ planVersion, label: planned.label, sheet: block.sheet, sourceRow: planned.row, months, documentedExecuted });
   }
+  if (!plans.length && allSeries.length) issues.push(`El bloque ${blockLabel(block)} no tiene ninguna fila programada identificable; no se importa ninguna versión de la curva.`);
   return plans;
 }
 

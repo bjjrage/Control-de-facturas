@@ -320,10 +320,11 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
       pending.push({ section: "CRONOGRAMA", reason: `Curva de avance detectada (${result.candidate.schedulePlans.length} versión(es)); no se importó (no fue aceptada en el preview).` });
     } else {
       for (const schedulePlan of result.candidate.schedulePlans) {
+        const documentedByMonth = new Map(schedulePlan.documentedExecuted.map((entry) => [entry.monthIndex, entry.ejecutadoPct]));
         const { error: planError } = await saveSchedulePlan(String(project.id), {
           planId: null,
           label: schedulePlan.label || schedulePlan.planVersion,
-          months: schedulePlan.months.map((month) => ({ month_index: month.monthIndex, programado_pct: month.programadoPct })),
+          months: schedulePlan.months.map((month) => ({ month_index: month.monthIndex, programado_pct: month.programadoPct, ejecutado_pct_documento: documentedByMonth.get(month.monthIndex) ?? null })),
         });
         if (planError) { pending.push({ section: "CRONOGRAMA", reason: `No se pudo cargar la versión “${schedulePlan.planVersion}”: ${planError}` }); continue; }
         scheduleVersions++;
