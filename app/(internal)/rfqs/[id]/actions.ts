@@ -131,8 +131,6 @@ export async function selectAndAuthorizeOffer(params: {
       .insert({
         empresa_id: profile.empresa_id,
         rfq_id: rfq.id,
-        rfq_code: rfq.code,
-        client_name: rfq.client_name ?? "Cliente",
         provider_id: rfqProvider.provider_id,
         quote_version_id: quoteVersion.id,
         created_from: "rfq",
