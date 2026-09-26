@@ -60,7 +60,7 @@ export function MetricCard({ card, compact = false, accentClass }: { card: Metri
       className={`group kpi-hover relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-[var(--panel)] ${accentClass ?? ""} ${
         compact
           ? "h-[100px] max-h-[110px] p-3.5"
-          : "min-h-[111px] p-3 sm:min-h-[120px] sm:p-3"
+          : "min-h-[100px] p-2.5 sm:min-h-[104px] sm:p-2.5"
       } ${TONE_RING[card.tone]}`}
     >
       <div className="flex items-start justify-between gap-2">
@@ -84,13 +84,13 @@ export function MetricCard({ card, compact = false, accentClass }: { card: Metri
             </div>
           ) : null}
         </div>
-        <div className={`flex shrink-0 items-center justify-center rounded-xl ${compact ? "h-7 w-7" : "h-7 w-7 sm:h-8 sm:w-8"} ${TONE_CLASSES[card.tone]}`}>
-          <Icon size={compact ? 15 : 16} />
+        <div className={`flex shrink-0 items-center justify-center rounded-xl ${compact ? "h-7 w-7" : "h-6 w-6 sm:h-7 sm:w-7"} ${TONE_CLASSES[card.tone]}`}>
+          <Icon size={compact ? 15 : 14} />
         </div>
       </div>
 
       <div className="my-1.5 min-w-0">
-        <div className={`truncate font-bold leading-tight tracking-tight text-[var(--foreground)] ${compact ? "text-[24px]" : "text-[19px] sm:text-[22px]"}`}>
+        <div className={`truncate font-bold leading-tight tracking-tight text-[var(--foreground)] ${compact ? "text-[24px]" : "text-[18px] sm:text-[20px]"}`}>
           {card.value}
         </div>
         {card.multiCurrencyExtra ? (

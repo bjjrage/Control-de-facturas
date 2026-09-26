@@ -20,7 +20,7 @@ const TOOLTIP_STYLE = {
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-[var(--border)] px-4 py-7 text-center text-[12px] text-[var(--muted)]">
+    <div className="flex h-[140px] items-center justify-center rounded-xl border border-dashed border-[var(--border)] px-4 text-center text-[12px] text-[var(--muted)]">
       {text}
     </div>
   );
@@ -39,7 +39,7 @@ export function AdminCharts({ sales, cashflow }: { sales: SalesTrendPoint[]; cas
         </div>
         <div className="mt-2">
           {hasSales ? (
-            <ResponsiveContainer width="100%" height={150}>
+            <ResponsiveContainer width="100%" height={140}>
               <BarChart data={sales} margin={{ top: 4, right: 8, left: 8, bottom: 4 }} barCategoryGap="30%">
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="var(--muted)" />
@@ -68,7 +68,7 @@ export function AdminCharts({ sales, cashflow }: { sales: SalesTrendPoint[]; cas
         </div>
         <div className="mt-2">
           {hasCashflow ? (
-            <ResponsiveContainer width="100%" height={150}>
+            <ResponsiveContainer width="100%" height={140}>
               <BarChart data={cashflow} margin={{ top: 4, right: 8, left: 8, bottom: 4 }} barCategoryGap="30%">
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="var(--muted)" />
