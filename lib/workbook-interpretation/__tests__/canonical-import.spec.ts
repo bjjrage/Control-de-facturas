@@ -83,6 +83,59 @@ describe("canonical workbook import mapping", () => {
     expect(candidate.warnings.join(" ")).toMatch(/distinto de B\/LL\/HH\/O/);
   });
 
+  it("extracts registro LDO execution entries, matching by budget code and dropping zero/near-zero and unmatched rows", () => {
+    const workbookFile = XLSX.write(
+      {
+        SheetNames: ["base", "ldo"],
+        Sheets: {
+          base: XLSX.utils.aoa_to_sheet([
+            ["COD", "RUBRO", "UND", "CANT", "P.U."],
+            ["1", "Limpieza", "gl", 1, 100],
+            ["2", "Replanteo", "m2", 2, 50],
+          ]),
+          ldo: XLSX.utils.aoa_to_sheet([
+            ["item", "rubro", "unidad", "presente"],
+            [1, "Limpieza", "gl", 21.4],
+            [2, "Replanteo", "m2", 1.8189894035458565e-12], // floating-point noise from the sheet's own IF() formula; must be treated as "no execution"
+            [99, "Rubro inexistente", "un", 5], // no matching budget code; cannot be inserted (execution_entries needs budget_item_id)
+          ]),
+        },
+      },
+      { type: "buffer", bookType: "xlsx" }
+    );
+    const workbook = parseWorkbook(new Uint8Array(workbookFile), "test.xlsx");
+    const importPlan = {
+      workbookType: "CONSTRUCTION_PROJECT",
+      overallConfidence: 1,
+      blocks: [
+        { id: "budget", sheet: "base", sourceRange: "A1:E3", target: "BUDGET" as const, confidence: 1, needsReview: false, headerRowStart: 1, headerRowEnd: 1, dataRowStart: 2, dataRowEnd: 3, columnMappings: [
+          { column: "A", role: "code" as const, confidence: 1, notes: "" }, { column: "B", role: "description" as const, confidence: 1, notes: "" }, { column: "C", role: "unit" as const, confidence: 1, notes: "" }, { column: "D", role: "quantity" as const, confidence: 1, notes: "" }, { column: "E", role: "unitPrice" as const, confidence: 1, notes: "" },
+        ], repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "" },
+        { id: "ldo", sheet: "ldo", sourceRange: "A1:D4", target: "EXECUTION" as const, confidence: 1, needsReview: false, headerRowStart: 1, headerRowEnd: 1, dataRowStart: 2, dataRowEnd: 4, columnMappings: [
+          { column: "A", role: "code" as const, confidence: 1, notes: "" }, { column: "B", role: "description" as const, confidence: 1, notes: "" }, { column: "C", role: "unit" as const, confidence: 1, notes: "" }, { column: "D", role: "currentQuantity" as const, confidence: 1, notes: "" },
+        ], repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "" },
+      ],
+      unresolvedRegions: [],
+      warnings: [],
+    };
+    const candidate = buildCanonicalImportCandidate(workbook, result(importPlan));
+
+    expect(candidate.executionEntries).toHaveLength(2);
+    const matched = candidate.executionEntries.find((e) => e.code === "1")!;
+    expect(matched.matchedBudgetCode).toBe("1");
+    expect(matched.matchQuality).toBe("EXACT");
+    expect(matched.quantityExecuted).toBe(21.4);
+    const unmatched = candidate.executionEntries.find((e) => e.code === "99")!;
+    expect(unmatched.matchedBudgetCode).toBeNull();
+    expect(unmatched.matchQuality).toBe("UNMATCHED");
+    // Code "2" never appears: its "presente" was floating-point noise (~0),
+    // meaning nothing was actually executed that period.
+    expect(candidate.executionEntries.some((e) => e.code === "2")).toBe(false);
+    expect(candidate.domains).toHaveLength(0);
+    expect(candidate.warnings.join(" ")).toMatch(/sin avance en este período/);
+    expect(candidate.warnings.join(" ")).toMatch(/sin partida de presupuesto vinculada/);
+  });
+
   it("extracts staff rows (skipping section headers) and planned schedule months (ignoring executed rows)", () => {
     const workbookFile = XLSX.write(
       {

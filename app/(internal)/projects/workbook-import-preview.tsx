@@ -177,6 +177,8 @@ function ResultActions({
   onApplySchedule,
   applyWeather,
   onApplyWeather,
+  applyExecution,
+  onApplyExecution,
   nameOverride,
   codeOverride,
   onNameOverride,
@@ -196,6 +198,8 @@ function ResultActions({
   onApplySchedule: (value: boolean) => void;
   applyWeather: boolean;
   onApplyWeather: (value: boolean) => void;
+  applyExecution: boolean;
+  onApplyExecution: (value: boolean) => void;
   nameOverride: string;
   codeOverride: string;
   onNameOverride: (value: string) => void;
@@ -284,6 +288,19 @@ function ResultActions({
             </label>
           </div>
         ) : null}
+        {candidate?.executionEntries.length ? (
+          <div className="rounded-lg border border-[var(--border)] bg-white/[0.025] p-2.5">
+            <p>
+              Avance físico (registro LDO): <strong>{candidate.executionEntries.filter((e) => e.matchedBudgetCode).length} rubro(s)</strong> vinculados
+              {candidate.executionEntries.some((e) => !e.matchedBudgetCode) ? <span className="text-amber-100"> · {candidate.executionEntries.filter((e) => !e.matchedBudgetCode).length} sin vínculo (no se importan)</span> : null}.
+            </p>
+            <p className="mt-1 text-[11px] text-[var(--muted)]">Se carga con fecha de cierre del certificado ({candidate.certificate.periodEnd ?? "—"}).</p>
+            <label className="mt-2 flex items-center gap-2 text-[12px]">
+              <input type="checkbox" checked={applyExecution} onChange={(event) => onApplyExecution(event.target.checked)} disabled={!applyCertificate} />
+              Importar avance físico {!applyCertificate ? "(requiere importar el certificado)" : ""}
+            </label>
+          </div>
+        ) : null}
         {candidate?.domains.length ? (
           <div>
             <p>Detectado, todavía sin importar:</p>
@@ -343,10 +360,11 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
   const [applyStaff, setApplyStaff] = useState(true);
   const [applySchedule, setApplySchedule] = useState(true);
   const [applyWeather, setApplyWeather] = useState(true);
+  const [applyExecution, setApplyExecution] = useState(true);
   const [nameOverride, setNameOverride] = useState("");
   const [codeOverride, setCodeOverride] = useState("");
   const [creating, setCreating] = useState(false);
-  const [created, setCreated] = useState<{ projectId: string; applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number; weatherDays: number }; pending?: { section: string; reason: string }[] } | null>(null);
+  const [created, setCreated] = useState<{ projectId: string; applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number; weatherDays: number; executionEntries: number }; pending?: { section: string; reason: string }[] } | null>(null);
   const router = useRouter();
 
   async function inspectFile(selected: File | null) {
@@ -396,6 +414,7 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
       setApplyStaff(true);
       setApplySchedule(true);
       setApplyWeather(true);
+      setApplyExecution(true);
       if (interpreted.project.name.value !== null) setNameOverride(String(interpreted.project.name.value));
       if (interpreted.project.code.value !== null) setCodeOverride(String(interpreted.project.code.value));
     } catch (cause) {
@@ -418,6 +437,7 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
     formData.set("apply_staff", applyStaff ? "1" : "0");
     formData.set("apply_schedule", applySchedule ? "1" : "0");
     formData.set("apply_weather", applyWeather ? "1" : "0");
+    formData.set("apply_execution", applyExecution ? "1" : "0");
     try {
       const creationResult = await createProjectFromWorkbook(formData);
       if (creationResult.error || !creationResult.projectId) {
@@ -445,7 +465,8 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
             {created.applied.certificateItems ? ` · Certificado: ${created.applied.certificateItems} líneas` : " · Certificado: no importado"}
             {created.applied.staffItems ? ` · Personal: ${created.applied.staffItems}` : ""}
             {created.applied.scheduleVersions ? ` · Curva S: ${created.applied.scheduleVersions} versión(es)` : ""}
-            {created.applied.weatherDays ? ` · Libro de Obra: ${created.applied.weatherDays} día(s)` : ""}.
+            {created.applied.weatherDays ? ` · Libro de Obra: ${created.applied.weatherDays} día(s)` : ""}
+            {created.applied.executionEntries ? ` · Avance físico: ${created.applied.executionEntries} rubro(s)` : ""}.
           </p>
         ) : null}
       </div>
@@ -478,6 +499,8 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
         onApplySchedule={setApplySchedule}
         applyWeather={applyWeather}
         onApplyWeather={setApplyWeather}
+        applyExecution={applyExecution}
+        onApplyExecution={setApplyExecution}
         nameOverride={nameOverride}
         codeOverride={codeOverride}
         onNameOverride={setNameOverride}

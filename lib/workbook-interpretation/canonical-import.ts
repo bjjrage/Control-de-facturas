@@ -107,6 +107,7 @@ export type CanonicalImportCandidate = {
   staff: CanonicalStaffRow[];
   schedulePlans: CanonicalSchedulePlan[];
   weatherDays: CanonicalWeatherDay[];
+  executionEntries: CanonicalExecutionEntry[];
   domains: CanonicalDomainSummary[];
   foreignBlocks: CanonicalForeignBlock[];
   checks: CanonicalCheck[];
@@ -289,6 +290,66 @@ function readCertificateBlock(workbook: WorkbookRepresentation, block: ImportBlo
 
 export function extractCertificateItems(workbook: WorkbookRepresentation, plan: ImportPlan): CanonicalCertificateItem[] {
   return plan.blocks.filter((block) => block.target === "CERTIFICATE").flatMap((block) => readCertificateBlock(workbook, block, []));
+}
+
+// ---------------------------------------------------------------------------
+// Registro LDO (avance físico ejecutado por rubro): reuses the same generic
+// columnMappings as budget/certificate blocks — no dedicated model schema
+// needed. `execution_entries` requires a non-null budget_item_id and a
+// strictly positive quantity, so an unmatched row or a zero/near-zero
+// reading (real "nothing done this period", or floating-point noise from
+// the sheet's own IF() formulas) is dropped rather than inserted.
+
+export type CanonicalExecutionEntry = {
+  code: string | null;
+  description: string;
+  unit: string | null;
+  quantityExecuted: number;
+  matchedBudgetCode: string | null;
+  matchedBudgetRow: number | null;
+  matchQuality: CertificateMatchQuality;
+  source: { sheet: string; row: number; range: string };
+};
+
+const EXECUTION_EPSILON = 1e-6;
+
+function readExecutionBlock(workbook: WorkbookRepresentation, block: ImportBlock, issues: string[]): CanonicalExecutionEntry[] {
+  const sheet = workbook.sheets.find((candidate) => candidate.sheetName === block.sheet);
+  if (!sheet) return [];
+  const columns = { code: mappingColumn(block, "code"), description: mappingColumn(block, "description"), unit: mappingColumn(block, "unit"), current: mappingColumn(block, "currentQuantity") };
+  if (!columns.description || !columns.current) {
+    issues.push(`El bloque ${blockLabel(block)} no tiene mapeadas las columnas de descripción y cantidad presente; no se extrajo avance.`);
+    return [];
+  }
+  const cells = cellIndex(sheet);
+  const raw = (row: number, column: string | null) => (column ? cells.get(`${column}${row}`)?.raw ?? null : null);
+  const text = (row: number, column: string | null) => String(raw(row, column) ?? "").trim();
+  const excluded = excludedRows(block);
+  const result: CanonicalExecutionEntry[] = [];
+  let skippedZero = 0;
+  let unreadable = 0;
+  for (let row = block.dataRowStart; row <= block.dataRowEnd; row++) {
+    if (excluded.has(row)) continue;
+    const description = text(row, columns.description);
+    if (!description) continue;
+    const quantity = rawNumber(raw(row, columns.current));
+    if (quantity === null) { unreadable++; continue; }
+    if (Math.abs(quantity) < EXECUTION_EPSILON) { skippedZero++; continue; }
+    result.push({ code: text(row, columns.code) || null, description, unit: text(row, columns.unit) || null, quantityExecuted: quantity, matchedBudgetCode: null, matchedBudgetRow: null, matchQuality: "NO_BUDGET", source: { sheet: block.sheet, row, range: block.sourceRange } });
+  }
+  if (unreadable) issues.push(`${unreadable} fila(s) del registro de avance sin cantidad presente numérica; no se copiaron.`);
+  if (skippedZero) issues.push(`${skippedZero} rubro(s) sin avance en este período (cantidad presente cero); no generan entrada.`);
+  return result;
+}
+
+function matchExecutionToBudget(budgetLines: WorkbookBudgetItem[], entries: CanonicalExecutionEntry[]): CanonicalExecutionEntry[] {
+  const byCode = new Map(budgetLines.filter((line) => line.code).map((line) => [normalized(line.code), line]));
+  return entries.map((entry) => {
+    const budget = entry.code ? byCode.get(normalized(entry.code)) : undefined;
+    if (!budget) return { ...entry, matchQuality: "UNMATCHED" as const };
+    const sameDescription = normalized(budget.description) === normalized(entry.description);
+    return { ...entry, matchedBudgetCode: budget.code, matchedBudgetRow: budget.source.row ?? null, matchQuality: sameDescription ? ("EXACT" as const) : ("APPROXIMATE" as const) };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -612,6 +673,28 @@ export function buildCanonicalImportCandidate(
     return plans;
   });
 
+  const executionIssues: string[] = [];
+  const executionBlocksResolved = new Set<string>();
+  let executionEntries = mainBlocks.filter((block) => block.target === "EXECUTION").flatMap((block) => {
+    const entries = readExecutionBlock(workbook, block, executionIssues);
+    if (entries.length) executionBlocksResolved.add(block.id);
+    return entries;
+  });
+  executionEntries = matchExecutionToBudget(budgetLines, executionEntries);
+  const executionUnmatched = executionEntries.filter((entry) => entry.matchQuality === "UNMATCHED");
+  if (executionUnmatched.length) executionIssues.push(`${executionUnmatched.length} fila(s) de avance sin partida de presupuesto vinculada; no se pueden registrar (requiere una partida existente).`);
+  if (executionEntries.length) {
+    check("execution_budget_match", "Avance físico: partidas vinculadas al presupuesto", !executionUnmatched.length, `${executionEntries.length - executionUnmatched.length}/${executionEntries.length} vinculadas${executionUnmatched.length ? `; sin vínculo: filas ${executionUnmatched.map((entry) => entry.source.row).join(", ")}` : ""}.`);
+    // Cross-check against the certificate's own "presente" for the same
+    // line: both should describe the same period's progress at contract
+    // scale, just derived differently (per-house sum vs. contractual roll-up).
+    const mismatched = executionEntries.filter((entry) => {
+      const certificateLine = certificateByBudgetRow.get(entry.matchedBudgetRow);
+      return certificateLine && !close(certificateLine.quantityCurrent, entry.quantityExecuted, Math.max(1, Math.abs(certificateLine.quantityCurrent) * 0.01));
+    });
+    if (mismatched.length) executionIssues.push(`El avance físico difiere del "presente" del certificado en filas ${mismatched.map((entry) => entry.source.row).join(", ")}; revisar antes de confiar en ambos valores.`);
+  }
+
   const weatherIssues: string[] = [];
   const weatherBlocksResolved = new Set<string>();
   const weatherDays = mainBlocks.filter((block) => block.target === "NON_WORKING_DAYS").flatMap((block) => {
@@ -624,7 +707,7 @@ export function buildCanonicalImportCandidate(
   // their own dedicated sections below; the rest (extraction found nothing
   // usable) still show up as a generic detected-but-unresolved domain.
   const domains = new Map<string, CanonicalDomainSummary>();
-  for (const block of mainBlocks.filter((item) => item.target !== "BUDGET" && item.target !== "CERTIFICATE" && !staffBlocksResolved.has(item.id) && !scheduleBlocksResolved.has(item.id) && !weatherBlocksResolved.has(item.id))) {
+  for (const block of mainBlocks.filter((item) => item.target !== "BUDGET" && item.target !== "CERTIFICATE" && !staffBlocksResolved.has(item.id) && !scheduleBlocksResolved.has(item.id) && !weatherBlocksResolved.has(item.id) && !executionBlocksResolved.has(item.id))) {
     const domain = domains.get(block.target) ?? { target: block.target, labels: [], sheets: [], rows: 0, warnings: [], persistence: "NOT_CONNECTED" as const };
     domain.labels.push(blockLabel(block));
     if (!domain.sheets.includes(block.sheet)) domain.sheets.push(block.sheet);
@@ -644,6 +727,7 @@ export function buildCanonicalImportCandidate(
     staff,
     schedulePlans,
     weatherDays,
+    executionEntries,
     domains: [...domains.values()],
     foreignBlocks: plan.blocks.filter((block) => block.mainProject === false).map((block) => ({ label: blockLabel(block), sheet: block.sheet, target: block.target, warnings: block.warnings ?? [] })),
     checks,
@@ -655,6 +739,7 @@ export function buildCanonicalImportCandidate(
       ...staffIssues,
       ...scheduleIssues,
       ...weatherIssues,
+      ...executionIssues,
     ])],
   };
 }

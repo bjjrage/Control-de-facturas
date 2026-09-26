@@ -82,7 +82,7 @@ export async function createProject(formData: FormData): Promise<{ error: string
 type WorkbookCreateResult = {
   error: string | null;
   projectId?: string;
-  applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number; weatherDays: number };
+  applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number; weatherDays: number; executionEntries: number };
   pending?: { section: string; reason: string }[];
 };
 
@@ -354,6 +354,34 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
     }
   }
 
+  // Avance físico (registro LDO → execution_entries): no requiere plan
+  // Caterpillar (addExecutionEntry es nivel "pro"), pero sí necesita la
+  // fecha de cierre del certificado — sin certificado creado no hay a qué
+  // período atribuir el avance.
+  let executionEntries = 0;
+  const executionAccepted = formData.get("apply_execution") === "1";
+  const executableEntries = result.candidate.executionEntries.filter((entry) => entry.matchedBudgetCode);
+  if (result.candidate.executionEntries.length) {
+    if (!certificateId || !result.candidate.certificate.periodEnd) {
+      pending.push({ section: "EXECUTION", reason: `${result.candidate.executionEntries.length} fila(s) de avance físico detectadas; no se importaron porque el certificado no se creó en esta obra.` });
+    } else if (!executionAccepted) {
+      pending.push({ section: "EXECUTION", reason: `${result.candidate.executionEntries.length} fila(s) de avance físico detectadas; no se importaron (no fue aceptado en el preview).` });
+    } else if (executableEntries.length) {
+      const executionWriter = await createClient();
+      const { error: executionError } = await executionWriter
+        .from("execution_entries")
+        .insert(executableEntries.map((entry) => ({
+          project_id: project.id,
+          budget_item_id: codeToId.get(entry.matchedBudgetCode!),
+          entry_date: result.candidate.certificate.periodEnd,
+          quantity_executed: entry.quantityExecuted,
+          notes: `Importado desde ${uploaded.name} (registro LDO, certificado N°${result.candidate.certificate.number}).`,
+        })));
+      if (executionError) pending.push({ section: "EXECUTION", reason: `No se pudo cargar el avance físico: ${executionError.message}` });
+      else executionEntries = executableEntries.length;
+    }
+  }
+
   const projectLocation = await ensureProjectInventoryLocation(admin, {
     empresaId: profile.empresa_id,
     projectId: String(project.id),
@@ -371,6 +399,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
         staff_items: staffItems,
         schedule_versions: scheduleVersions,
         weather_days: weatherDays,
+        execution_entries: executionEntries,
         inventory_location_error: projectLocation.error,
       },
     });
@@ -378,7 +407,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
     return {
       error: `La obra y sus datos se importaron, pero falta su ubicación canónica. Abrí Ubicaciones y reintentá: ${projectLocation.error ?? "error desconocido"}`,
       projectId: String(project.id),
-      applied: { project: true, budgetItems: budgetItems.length, certificateItems, staffItems, scheduleVersions, weatherDays },
+      applied: { project: true, budgetItems: budgetItems.length, certificateItems, staffItems, scheduleVersions, weatherDays, executionEntries },
       pending,
     };
   }
@@ -394,6 +423,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
       staff_items: staffItems,
       schedule_versions: scheduleVersions,
       weather_days: weatherDays,
+      execution_entries: executionEntries,
       certificate_status: result.candidate.certificate.status,
       detected_domains: result.candidate.domains.map((domain) => domain.target),
       pending_sections: pending,
@@ -401,7 +431,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
   });
   revalidatePath("/projects");
   revalidatePath(`/projects/${project.id}`);
-  return { error: null, projectId: String(project.id), applied: { project: true, budgetItems: budgetItems.length, certificateItems, staffItems, scheduleVersions, weatherDays }, pending };
+  return { error: null, projectId: String(project.id), applied: { project: true, budgetItems: budgetItems.length, certificateItems, staffItems, scheduleVersions, weatherDays, executionEntries }, pending };
 }
 
 export async function updateProjectStatus(projectId: string, status: ProjectStatus): Promise<{ error: string | null }> {
