@@ -26,14 +26,29 @@ const TREND_TONE_CLASSES: Record<"up" | "down" | "neutral", string> = {
   neutral: "text-[var(--muted)] bg-[var(--hover)]",
 };
 
-// Señalador superior (misma familia que las cards de obra: inset 2px top).
-// Solo visual, se cicla por índice para no tocar datos/KPIs.
+// Señalador superior semántico (Administración): verde = cobros/entradas,
+// rojo = pagos/salidas. El ciclo por índice queda como fallback (Licitaciones).
 const ACCENT_CLASSES = [
   "kpi-accent-budget",
   "kpi-accent-purchases",
   "kpi-accent-progress",
   "kpi-accent-labor",
 ] as const;
+
+const ACCENT_BY_KEY: Record<string, string> = {
+  "facturacion-mes": "kpi-accent-inflow",
+  "facturacion-ytd": "kpi-accent-inflow",
+  "cobrado-mes": "kpi-accent-inflow",
+  "cuentas-por-cobrar": "kpi-accent-inflow",
+  "cobros-esperados": "kpi-accent-inflow",
+  "cxc-vencidas": "kpi-accent-inflow",
+  "cuentas-por-pagar": "kpi-accent-outflow",
+  "pagos-proximos": "kpi-accent-outflow",
+  "cxp-vencidas": "kpi-accent-outflow",
+  "compras-comprometidas": "kpi-accent-outflow",
+  "liquidez-disponible": "kpi-accent-budget",
+  "flujo-neto-30d": "kpi-accent-progress",
+};
 
 export function MetricCard({ card, compact = false, accentClass }: { card: MetricCardData; compact?: boolean; accentClass?: string }) {
   const Icon = DASHBOARD_ICONS[card.iconKey] ?? DASHBOARD_ICONS.receipt;
@@ -134,7 +149,11 @@ export function MetricGrid({ cards }: { cards: MetricCardData[] }) {
   return (
     <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
       {cards.map((card, index) => (
-        <MetricCard key={card.key} card={card} accentClass={ACCENT_CLASSES[index % ACCENT_CLASSES.length]} />
+        <MetricCard
+          key={card.key}
+          card={card}
+          accentClass={ACCENT_BY_KEY[card.key] ?? ACCENT_CLASSES[index % ACCENT_CLASSES.length]}
+        />
       ))}
     </div>
   );
