@@ -277,6 +277,7 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
   const [nameOverride, setNameOverride] = useState("");
   const [codeOverride, setCodeOverride] = useState("");
   const [creating, setCreating] = useState(false);
+  const [created, setCreated] = useState<{ projectId: string; applied?: { project: boolean; budgetItems: number; certificateItems: number }; pending?: { section: string; reason: string }[] } | null>(null);
   const router = useRouter();
 
   async function inspectFile(selected: File | null) {
@@ -343,12 +344,15 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
     formData.set("code_override", codeOverride);
     formData.set("apply_certificate", applyCertificate ? "1" : "0");
     try {
-      const created = await createProjectFromWorkbook(formData);
-      if (created.error || !created.projectId) {
-        setError(created.error ?? "No se pudo crear la obra.");
+      const creationResult = await createProjectFromWorkbook(formData);
+      if (creationResult.error || !creationResult.projectId) {
+        setError(creationResult.error ?? "No se pudo crear la obra.");
         return;
       }
-      router.push(`/projects/${created.projectId}`);
+      // Show what actually landed before navigating away — creation can
+      // partially succeed (budget in, certificate pending, etc.) and that
+      // must not disappear behind an immediate redirect.
+      setCreated({ projectId: creationResult.projectId, applied: creationResult.applied, pending: creationResult.pending });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo crear la obra.");
     } finally {
@@ -356,6 +360,27 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
     }
   }
 
+  if (created) return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] p-4">
+        <div className="flex items-center gap-2 text-[13px] font-semibold text-emerald-200"><CheckCircle2 size={15} /> Obra creada</div>
+        {created.applied ? <p className="mt-2 text-[12px] text-[var(--muted)]">Presupuesto: {created.applied.budgetItems} partidas{created.applied.certificateItems ? ` · Certificado: ${created.applied.certificateItems} líneas` : " · Certificado: no importado"}.</p> : null}
+      </div>
+      {created.pending?.length ? (
+        <section>
+          <h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">Pendiente (no se importó a esta obra)</h3>
+          <ul className="mt-2 space-y-1.5 text-[12px]">
+            {created.pending.map((item) => (
+              <li key={item.section} className="flex gap-1.5 rounded-lg border border-amber-300/15 bg-amber-300/[0.04] px-3 py-2 text-amber-100">
+                <TriangleAlert size={13} className="mt-0.5 shrink-0" /><span><strong>{item.section}</strong> — {item.reason}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      <div className="flex justify-end"><Button type="button" onClick={() => router.push(`/projects/${created.projectId}`)}>Ir a la obra</Button></div>
+    </div>
+  );
   if (result) return (
     <div className="space-y-4">
       <ResultPreview result={result} candidate={candidate} />

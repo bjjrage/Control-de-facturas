@@ -139,14 +139,27 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
 
   const admin = createAdminClient();
   const fingerprint = createHash("sha256").update(new Uint8Array(await uploaded.arrayBuffer())).digest("hex");
-  const { data: priorImport } = await admin
+  const { data: priorImports } = await admin
     .from("audit_logs")
     .select("detail")
     .eq("empresa_id", profile.empresa_id)
     .eq("action", "project.workbook_imported")
-    .contains("detail", { source_fingerprint: fingerprint })
-    .limit(1);
-  if (priorImport && priorImport.length > 0) return { error: "Esta planilla ya fue importada para esta empresa; no se creó una segunda obra." };
+    .contains("detail", { source_fingerprint: fingerprint });
+  const priorProjectIds = [...new Set((priorImports ?? [])
+    .map((entry) => (entry.detail as { project_id?: string } | null)?.project_id)
+    .filter((id): id is string => Boolean(id)))];
+  if (priorProjectIds.length) {
+    // A past import only blocks a retry while its project still exists.
+    // If the user deleted that (incomplete) project, the file can be
+    // re-imported instead of being stuck behind stale audit history.
+    const { data: stillExists } = await admin
+      .from("projects")
+      .select("id")
+      .eq("empresa_id", profile.empresa_id)
+      .in("id", priorProjectIds)
+      .limit(1);
+    if (stillExists && stillExists.length > 0) return { error: "Esta planilla ya fue importada para esta empresa; no se creó una segunda obra." };
+  }
   const { data: existing } = await admin
     .from("projects")
     .select("id")
