@@ -49,42 +49,52 @@ const MONTHS_ES = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
-function buildSeries(
+// One "programado" line per schedule version (Original, Adenda 1, …) plus
+// the single "ejecutado" line — plotted together, the same way the source
+// spreadsheet's own Curva S chart overlays every version against lo
+// ejecutado instead of showing one version at a time.
+function buildMultiSeries(
   certificates: ProjectCertificate[],
-  planMonths: ProjectSchedulePlanMonth[],
+  schedulePlans: ProjectSchedulePlan[],
+  planMonths: Record<string, ProjectSchedulePlanMonth[]>,
   nMonths: number,
-  contractAmount: number,
-  hasPlan: boolean
-): { mes: string; programado: number | null; ejecutado: number | null }[] {
+  contractAmount: number
+): Array<{ mes: string; ejecutado: number | null } & Record<string, number | null | string>> {
   const frozenCerts = certificates
     .filter((c) => ["ELABORADO", "VERIFICADO", "APROBADO", "FACTURADO"].includes(c.status))
     .slice()
     .sort((a, b) => a.numero - b.numero);
 
-  const progByMonth = new Map<number, number>();
-  for (const m of planMonths) progByMonth.set(m.month_index, m.programado_pct);
+  const progByPlan = new Map<string, Map<number, number>>();
+  for (const plan of schedulePlans) {
+    const byMonth = new Map<number, number>();
+    for (const row of planMonths[plan.id] ?? []) byMonth.set(row.month_index, row.programado_pct);
+    progByPlan.set(plan.id, byMonth);
+  }
+  const accByPlan = new Map<string, number>(schedulePlans.map((plan) => [plan.id, 0]));
 
-  let progAcc = 0;
   let ejecAcc = 0;
-  const rows: { mes: string; programado: number | null; ejecutado: number | null }[] = [];
+  const rows: Array<{ mes: string; ejecutado: number | null } & Record<string, number | null | string>> = [];
   for (let i = 1; i <= nMonths; i++) {
-    progAcc += progByMonth.get(i) ?? 0;
+    const row: { mes: string; ejecutado: number | null } & Record<string, number | null | string> = { mes: `M${i}`, ejecutado: null };
+    for (const plan of schedulePlans) {
+      const acc = (accByPlan.get(plan.id) ?? 0) + (progByPlan.get(plan.id)?.get(i) ?? 0);
+      accByPlan.set(plan.id, acc);
+      row[plan.id] = Number(acc.toFixed(2));
+    }
     const cert = frozenCerts[i - 1];
-    let ejec: number | null = null;
     if (cert && contractAmount > 0) {
       ejecAcc += (cert.monto_presente / contractAmount) * 100;
-      ejec = Number(ejecAcc.toFixed(2));
+      row.ejecutado = Number(ejecAcc.toFixed(2));
     } else if (frozenCerts.length >= i) {
-      ejec = Number(ejecAcc.toFixed(2));
+      row.ejecutado = Number(ejecAcc.toFixed(2));
     }
-    rows.push({
-      mes: `M${i}`,
-      programado: hasPlan ? Number(progAcc.toFixed(2)) : null,
-      ejecutado: ejec,
-    });
+    rows.push(row);
   }
   return rows;
 }
+
+const PLAN_LINE_COLORS = ["#8a8278", "#22c55e", "#eab308", "#f97316", "#a855f7", "#06b6d4"];
 
 function monthSpan(project: Project): { year: number; month: number }[] {
   const startStr = project.orden_inicio_date ?? project.start_date;
@@ -145,15 +155,14 @@ function CurvaAvance({
   const [editing, setEditing] = useState(false);
 
   const activePlan = schedulePlans.find((p) => p.is_active) ?? null;
-  const activePlanMonths = activePlan ? planMonths[activePlan.id] ?? [] : [];
   const nMonths = Math.max(
     project.plazo_dias ? Math.ceil(project.plazo_dias / 30) : 6,
     certificates.length,
-    activePlanMonths.reduce((mx, m) => Math.max(mx, m.month_index), 0),
+    ...schedulePlans.map((plan) => (planMonths[plan.id] ?? []).reduce((mx, m) => Math.max(mx, m.month_index), 0)),
     1
   );
 
-  const series = buildSeries(certificates, activePlanMonths, nMonths, project.contract_amount, !!activePlan);
+  const series = buildMultiSeries(certificates, schedulePlans, planMonths, nMonths, project.contract_amount);
 
   function run(fn: () => Promise<{ error: string | null }>) {
     setError(null);
@@ -196,7 +205,7 @@ function CurvaAvance({
         </div>
       ) : null}
 
-      {!activePlan && !editing ? (
+      {!schedulePlans.length && !editing ? (
         <p className="text-[12px] text-[var(--muted)]">
           Cargá el cronograma físico-financiero (% del contrato previsto por mes) para ver la curva. Cada
           adenda es una versión nueva; la desviación se mide contra la versión activa.
@@ -222,16 +231,19 @@ function CurvaAvance({
               formatter={(v) => (v == null ? "—" : `${Number(v).toFixed(2)}%`)}
             />
             <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Line
-              type="monotone"
-              dataKey="programado"
-              name="Programado acum."
-              stroke="#8a8278"
-              strokeDasharray="5 4"
-              strokeWidth={2}
-              dot={false}
-              connectNulls
-            />
+            {schedulePlans.map((plan, index) => (
+              <Line
+                key={plan.id}
+                type="monotone"
+                dataKey={plan.id}
+                name={`Programado acum. (${plan.label})`}
+                stroke={PLAN_LINE_COLORS[index % PLAN_LINE_COLORS.length]}
+                strokeDasharray="5 4"
+                strokeWidth={2}
+                dot={false}
+                connectNulls
+              />
+            ))}
             <Line
               type="monotone"
               dataKey="ejecutado"
