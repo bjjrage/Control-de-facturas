@@ -82,7 +82,7 @@ export async function createProject(formData: FormData): Promise<{ error: string
 type WorkbookCreateResult = {
   error: string | null;
   projectId?: string;
-  applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number };
+  applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number; weatherDays: number };
   pending?: { section: string; reason: string }[];
 };
 
@@ -331,6 +331,29 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
     }
   }
 
+  let weatherDays = 0;
+  const weatherAccepted = formData.get("apply_weather") === "1";
+  if (result.candidate.weatherDays.length) {
+    if (!hasCaterpillar) {
+      pending.push({ section: "DIAS_NO_TRABAJADOS", reason: `${result.candidate.weatherDays.length} día(s) detectados en el Libro de Obra; requiere el plan Caterpillar.` });
+    } else if (!weatherAccepted) {
+      pending.push({ section: "DIAS_NO_TRABAJADOS", reason: `${result.candidate.weatherDays.length} día(s) detectados; no se importaron (no fue aceptado en el preview).` });
+    } else {
+      // A single bulk upsert instead of one setWeatherDay() call per day — the
+      // project was just created in this same call, so there is no existing
+      // Libro de Obra to conflict with.
+      const weatherWriter = await createClient();
+      const { error: weatherError } = await weatherWriter
+        .from("project_weather_log")
+        .upsert(
+          result.candidate.weatherDays.map((day) => ({ project_id: project.id, log_date: day.date, code: day.code, recorded_by: profile.id })),
+          { onConflict: "project_id,log_date" }
+        );
+      if (weatherError) pending.push({ section: "DIAS_NO_TRABAJADOS", reason: `No se pudo cargar el Libro de Obra: ${weatherError.message}` });
+      else weatherDays = result.candidate.weatherDays.length;
+    }
+  }
+
   const projectLocation = await ensureProjectInventoryLocation(admin, {
     empresaId: profile.empresa_id,
     projectId: String(project.id),
@@ -347,6 +370,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
         certificate_items: certificateItems,
         staff_items: staffItems,
         schedule_versions: scheduleVersions,
+        weather_days: weatherDays,
         inventory_location_error: projectLocation.error,
       },
     });
@@ -354,7 +378,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
     return {
       error: `La obra y sus datos se importaron, pero falta su ubicación canónica. Abrí Ubicaciones y reintentá: ${projectLocation.error ?? "error desconocido"}`,
       projectId: String(project.id),
-      applied: { project: true, budgetItems: budgetItems.length, certificateItems, staffItems, scheduleVersions },
+      applied: { project: true, budgetItems: budgetItems.length, certificateItems, staffItems, scheduleVersions, weatherDays },
       pending,
     };
   }
@@ -369,6 +393,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
       certificate_items: certificateItems,
       staff_items: staffItems,
       schedule_versions: scheduleVersions,
+      weather_days: weatherDays,
       certificate_status: result.candidate.certificate.status,
       detected_domains: result.candidate.domains.map((domain) => domain.target),
       pending_sections: pending,
@@ -376,7 +401,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
   });
   revalidatePath("/projects");
   revalidatePath(`/projects/${project.id}`);
-  return { error: null, projectId: String(project.id), applied: { project: true, budgetItems: budgetItems.length, certificateItems, staffItems, scheduleVersions }, pending };
+  return { error: null, projectId: String(project.id), applied: { project: true, budgetItems: budgetItems.length, certificateItems, staffItems, scheduleVersions, weatherDays }, pending };
 }
 
 export async function updateProjectStatus(projectId: string, status: ProjectStatus): Promise<{ error: string | null }> {

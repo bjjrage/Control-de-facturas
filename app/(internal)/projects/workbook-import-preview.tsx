@@ -28,6 +28,17 @@ const RELATIONSHIP_LABEL: Record<string, string> = {
   SUPPORTS: "respalda",
 };
 
+function weatherByMonth(days: CanonicalImportCandidate["weatherDays"]) {
+  const byMonth = new Map<string, { B: number; LL: number; HH: number; O: number }>();
+  for (const day of days) {
+    const month = day.date.slice(0, 7);
+    const counts = byMonth.get(month) ?? { B: 0, LL: 0, HH: 0, O: 0 };
+    counts[day.code]++;
+    byMonth.set(month, counts);
+  }
+  return [...byMonth.entries()].sort(([a], [b]) => a.localeCompare(b));
+}
+
 function CandidatePreview({ candidate }: { candidate: CanonicalImportCandidate }) {
   return (
     <>
@@ -164,6 +175,8 @@ function ResultActions({
   onApplyStaff,
   applySchedule,
   onApplySchedule,
+  applyWeather,
+  onApplyWeather,
   nameOverride,
   codeOverride,
   onNameOverride,
@@ -181,6 +194,8 @@ function ResultActions({
   onApplyStaff: (value: boolean) => void;
   applySchedule: boolean;
   onApplySchedule: (value: boolean) => void;
+  applyWeather: boolean;
+  onApplyWeather: (value: boolean) => void;
   nameOverride: string;
   codeOverride: string;
   onNameOverride: (value: string) => void;
@@ -255,6 +270,20 @@ function ResultActions({
             </label>
           </div>
         ) : null}
+        {candidate?.weatherDays.length ? (
+          <div className="rounded-lg border border-[var(--border)] bg-white/[0.025] p-2.5">
+            <p>Días no trabajados: <strong>{candidate.weatherDays.length} día(s)</strong> del Libro de Obra ({candidate.weatherDays[0].date} → {candidate.weatherDays.at(-1)!.date}).</p>
+            <ul className="mt-1 space-y-0.5 text-[11px] text-[var(--muted)]">
+              {weatherByMonth(candidate.weatherDays).map(([month, counts]) => (
+                <li key={month}>· {month}: B {counts.B} · LL {counts.LL} · HH {counts.HH} · O {counts.O}</li>
+              ))}
+            </ul>
+            <label className="mt-2 flex items-center gap-2 text-[12px]">
+              <input type="checkbox" checked={applyWeather} onChange={(event) => onApplyWeather(event.target.checked)} />
+              Importar Libro de Obra (días no trabajados)
+            </label>
+          </div>
+        ) : null}
         {candidate?.domains.length ? (
           <div>
             <p>Detectado, todavía sin importar:</p>
@@ -313,10 +342,11 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
   const [applyCertificate, setApplyCertificate] = useState(false);
   const [applyStaff, setApplyStaff] = useState(true);
   const [applySchedule, setApplySchedule] = useState(true);
+  const [applyWeather, setApplyWeather] = useState(true);
   const [nameOverride, setNameOverride] = useState("");
   const [codeOverride, setCodeOverride] = useState("");
   const [creating, setCreating] = useState(false);
-  const [created, setCreated] = useState<{ projectId: string; applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number }; pending?: { section: string; reason: string }[] } | null>(null);
+  const [created, setCreated] = useState<{ projectId: string; applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number; weatherDays: number }; pending?: { section: string; reason: string }[] } | null>(null);
   const router = useRouter();
 
   async function inspectFile(selected: File | null) {
@@ -365,6 +395,7 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
       setApplyCertificate(verified?.certificate.status === "SAFE_TO_APPLY");
       setApplyStaff(true);
       setApplySchedule(true);
+      setApplyWeather(true);
       if (interpreted.project.name.value !== null) setNameOverride(String(interpreted.project.name.value));
       if (interpreted.project.code.value !== null) setCodeOverride(String(interpreted.project.code.value));
     } catch (cause) {
@@ -386,6 +417,7 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
     formData.set("apply_certificate", applyCertificate ? "1" : "0");
     formData.set("apply_staff", applyStaff ? "1" : "0");
     formData.set("apply_schedule", applySchedule ? "1" : "0");
+    formData.set("apply_weather", applyWeather ? "1" : "0");
     try {
       const creationResult = await createProjectFromWorkbook(formData);
       if (creationResult.error || !creationResult.projectId) {
@@ -412,7 +444,8 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
             Presupuesto: {created.applied.budgetItems} partidas
             {created.applied.certificateItems ? ` · Certificado: ${created.applied.certificateItems} líneas` : " · Certificado: no importado"}
             {created.applied.staffItems ? ` · Personal: ${created.applied.staffItems}` : ""}
-            {created.applied.scheduleVersions ? ` · Curva S: ${created.applied.scheduleVersions} versión(es)` : ""}.
+            {created.applied.scheduleVersions ? ` · Curva S: ${created.applied.scheduleVersions} versión(es)` : ""}
+            {created.applied.weatherDays ? ` · Libro de Obra: ${created.applied.weatherDays} día(s)` : ""}.
           </p>
         ) : null}
       </div>
@@ -443,6 +476,8 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
         onApplyStaff={setApplyStaff}
         applySchedule={applySchedule}
         onApplySchedule={setApplySchedule}
+        applyWeather={applyWeather}
+        onApplyWeather={setApplyWeather}
         nameOverride={nameOverride}
         codeOverride={codeOverride}
         onNameOverride={setNameOverride}

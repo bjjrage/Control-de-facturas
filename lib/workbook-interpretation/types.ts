@@ -171,6 +171,20 @@ export const ImportScheduleSeriesSchema = z.object({
 });
 export type ImportScheduleSeries = z.infer<typeof ImportScheduleSeriesSchema>;
 
+// A "días no trabajados" sheet is a calendar grid: one row per calendar
+// month, one column per day-of-month. The year is often a merged cell that
+// only shows on the row it starts (carry it forward); the month is Spanish
+// text ("6. Julio") the model turns into a real month number. The model
+// never reports the day codes themselves — the extractor reads each
+// (row, dayColumn) cell directly and keeps only B/LL/HH/O.
+export const ImportWeatherRowSchema = z.object({
+  row: z.number().int().positive(),
+  year: z.number().int().min(1900).max(2200),
+  month: z.number().int().min(1).max(12),
+  dayColumns: z.array(z.object({ column: z.string().min(1), day: z.number().int().min(1).max(31) })),
+});
+export type ImportWeatherRow = z.infer<typeof ImportWeatherRowSchema>;
+
 export const ImportBlockSchema = z.object({
   id: z.string().min(1), sheet: z.string().min(1), sourceRange: z.string().min(1), target: ImportTargetSchema, confidence: z.number().min(0).max(1), needsReview: z.boolean(),
   headerRowStart: z.number().int().positive(), headerRowEnd: z.number().int().positive(), dataRowStart: z.number().int().positive(), dataRowEnd: z.number().int().positive(), columnMappings: z.array(ImportColumnMappingSchema),
@@ -183,6 +197,7 @@ export const ImportBlockSchema = z.object({
   keyValues: z.array(ImportKeyValueSchema).optional(),
   staffRows: z.array(ImportStaffRowSchema).optional(),
   scheduleSeries: z.array(ImportScheduleSeriesSchema).optional(),
+  weatherRows: z.array(ImportWeatherRowSchema).optional(),
   warnings: z.array(z.string()).optional(),
 });
 export type ImportBlock = z.infer<typeof ImportBlockSchema>;

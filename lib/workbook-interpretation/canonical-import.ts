@@ -86,6 +86,8 @@ export type CanonicalRelationship = ImportRelationship & { fromLabel: string; to
 
 export type CanonicalStaffRow = { name: string; role: string; sheet: string; row: number };
 
+export type CanonicalWeatherDay = { date: string; code: "B" | "LL" | "HH" | "O"; sheet: string; row: number; column: string };
+
 export type CanonicalSchedulePlan = {
   planVersion: string;
   label: string;
@@ -104,6 +106,7 @@ export type CanonicalImportCandidate = {
   certificate: CanonicalCertificateAudit;
   staff: CanonicalStaffRow[];
   schedulePlans: CanonicalSchedulePlan[];
+  weatherDays: CanonicalWeatherDay[];
   domains: CanonicalDomainSummary[];
   foreignBlocks: CanonicalForeignBlock[];
   checks: CanonicalCheck[];
@@ -405,6 +408,46 @@ function extractSchedulePlans(workbook: WorkbookRepresentation, block: ImportBlo
   return plans;
 }
 
+// ---------------------------------------------------------------------------
+// Días no trabajados: the model only locates the calendar grid (which row is
+// which year/month, which column is which day). The extractor reads every
+// day cell itself and keeps only real B/LL/HH/O codes on real calendar
+// dates — a code the model might have echoed is never trusted directly.
+
+const WEATHER_CODES = new Set(["B", "LL", "HH", "O"]);
+
+function daysInMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function extractWeatherDays(workbook: WorkbookRepresentation, block: ImportBlock, issues: string[]): CanonicalWeatherDay[] {
+  const sheet = workbook.sheets.find((candidate) => candidate.sheetName === block.sheet);
+  if (!sheet) return [];
+  const cells = cellIndex(sheet);
+  const byDate = new Map<string, CanonicalWeatherDay>();
+  let invalidDates = 0;
+  let unrecognizedCodes = 0;
+  let conflicts = 0;
+  for (const weatherRow of block.weatherRows ?? []) {
+    const maxDay = daysInMonth(weatherRow.year, weatherRow.month);
+    for (const dayColumn of weatherRow.dayColumns) {
+      if (dayColumn.day > maxDay) { invalidDates++; continue; }
+      const raw = cells.get(`${columnName(dayColumn.column)}${weatherRow.row}`)?.raw;
+      const code = String(raw ?? "").trim().toUpperCase();
+      if (!code) continue; // blank day: no record, not an error
+      if (!WEATHER_CODES.has(code)) { unrecognizedCodes++; continue; }
+      const date = `${weatherRow.year}-${String(weatherRow.month).padStart(2, "0")}-${String(dayColumn.day).padStart(2, "0")}`;
+      const existing = byDate.get(date);
+      if (existing && existing.code !== code) { conflicts++; continue; }
+      if (!existing) byDate.set(date, { date, code: code as CanonicalWeatherDay["code"], sheet: block.sheet, row: weatherRow.row, column: dayColumn.column });
+    }
+  }
+  if (invalidDates) issues.push(`Se ignoraron ${invalidDates} columna(s) de día que no existen en su mes (ej. 30 de febrero).`);
+  if (unrecognizedCodes) issues.push(`Se ignoraron ${unrecognizedCodes} celda(s) con un código distinto de B/LL/HH/O.`);
+  if (conflicts) issues.push(`${conflicts} fecha(s) aparecían dos veces con códigos distintos; se conservó el primero.`);
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export function buildCanonicalImportCandidate(
   workbook: WorkbookRepresentation,
   result: WorkbookInterpretationResult,
@@ -569,11 +612,19 @@ export function buildCanonicalImportCandidate(
     return plans;
   });
 
-  // STAFF/SCHEDULE blocks that actually yielded rows get their own dedicated
-  // sections below; the rest (extraction found nothing usable) still show
-  // up as a generic detected-but-unresolved domain.
+  const weatherIssues: string[] = [];
+  const weatherBlocksResolved = new Set<string>();
+  const weatherDays = mainBlocks.filter((block) => block.target === "NON_WORKING_DAYS").flatMap((block) => {
+    const days = extractWeatherDays(workbook, block, weatherIssues);
+    if (days.length) weatherBlocksResolved.add(block.id);
+    return days;
+  });
+
+  // STAFF/SCHEDULE/NON_WORKING_DAYS blocks that actually yielded rows get
+  // their own dedicated sections below; the rest (extraction found nothing
+  // usable) still show up as a generic detected-but-unresolved domain.
   const domains = new Map<string, CanonicalDomainSummary>();
-  for (const block of mainBlocks.filter((item) => item.target !== "BUDGET" && item.target !== "CERTIFICATE" && !staffBlocksResolved.has(item.id) && !scheduleBlocksResolved.has(item.id))) {
+  for (const block of mainBlocks.filter((item) => item.target !== "BUDGET" && item.target !== "CERTIFICATE" && !staffBlocksResolved.has(item.id) && !scheduleBlocksResolved.has(item.id) && !weatherBlocksResolved.has(item.id))) {
     const domain = domains.get(block.target) ?? { target: block.target, labels: [], sheets: [], rows: 0, warnings: [], persistence: "NOT_CONNECTED" as const };
     domain.labels.push(blockLabel(block));
     if (!domain.sheets.includes(block.sheet)) domain.sheets.push(block.sheet);
@@ -592,6 +643,7 @@ export function buildCanonicalImportCandidate(
     certificate,
     staff,
     schedulePlans,
+    weatherDays,
     domains: [...domains.values()],
     foreignBlocks: plan.blocks.filter((block) => block.mainProject === false).map((block) => ({ label: blockLabel(block), sheet: block.sheet, target: block.target, warnings: block.warnings ?? [] })),
     checks,
@@ -602,6 +654,7 @@ export function buildCanonicalImportCandidate(
       ...(certificate.status === "DETECTED_NOT_APPLIED" ? [certificate.reason] : []),
       ...staffIssues,
       ...scheduleIssues,
+      ...weatherIssues,
     ])],
   };
 }

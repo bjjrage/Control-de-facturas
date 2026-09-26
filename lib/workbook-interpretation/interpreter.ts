@@ -107,6 +107,12 @@ const BLOCK_SCHEMA = object({
     planVersion: { type: "string" },
     monthColumns: { type: "array", items: object({ column: { type: "string" }, monthIndex: { type: "integer", minimum: 1 } }) },
   }) },
+  weatherRows: { type: "array", items: object({
+    row: ROW,
+    year: { type: "integer", minimum: 1900, maximum: 2200 },
+    month: { type: "integer", minimum: 1, maximum: 12 },
+    dayColumns: { type: "array", items: object({ column: { type: "string" }, day: { type: "integer", minimum: 1, maximum: 31 } }) },
+  }) },
   warnings: STRINGS,
   notes: { type: "string" },
 });
@@ -153,6 +159,7 @@ Qué devolver:
 - Datos del proyecto con provenance (hoja y celda).
 - staffRows (solo target STAFF): una entrada por PERSONA real (fila con nombre Y rol/cargo). Las filas que son solo un título de sección (ej. "OPERADORES, CHOFERES Y AYUDANTES DE CAMPO") no llevan rol: no las incluyas como persona.
 - scheduleSeries (solo target SCHEDULE): el bloque suele ser una matriz de filas nombradas (una serie por fila) contra columnas de mes, no una tabla de filas por registro. Reportá CADA fila de la matriz con su role: PLANNED_MONTHLY/PLANNED_CUMULATIVE para lo programado, EXECUTED_MONTHLY/EXECUTED_CUMULATIVE para lo ya ejecutado (esto es evidencia, el ERP calcula su propio ejecutado desde los certificados y NUNCA se importa), OTHER para desviación u otras filas. planVersion agrupa filas de la misma versión de contrato cuando hay más de una (ej. "Original", "Adenda 1"): usá el texto de la fila para distinguirlas. monthColumns mapea cada columna de mes (M1, M2, …) a su índice numérico (1, 2, …) en orden real, no en el texto de la etiqueta.
+- weatherRows (solo target NON_WORKING_DAYS): el bloque suele ser una grilla calendario, una fila por mes y una columna por día (1 a 31), donde cada celda tiene un código B/LL/HH/O. Por cada fila reportá year (el año real; si la celda de año está combinada y sólo aparece en la primera fila del bloque, arrastralo al resto de las filas de ese mismo bloque) y month (el número de mes 1-12 real, traducido del nombre en español — "6. Julio" es month=7, el prefijo numérico "6." es sólo un contador del proyecto y NO es el mes calendario). dayColumns mapea cada columna de día a su número de día real (1-31) según el encabezado de esa columna, no según su posición. NO reportes los códigos de cada día: el extractor los lee directo de la celda.
 
 No transcribas filas de partidas ni montos: indicá dónde están. Las fórmulas y los nombres definidos son evidencia fuerte de relaciones y escalas. El inventario puede venir completo; usá las herramientas sólo si una hoja figura como muestreada o necesitás detalle. Respondé con el JSON del esquema.`;
 

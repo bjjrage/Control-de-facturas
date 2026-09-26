@@ -36,6 +36,53 @@ function result(importPlan: WorkbookInterpretationResult["importPlan"]): Workboo
 }
 
 describe("canonical workbook import mapping", () => {
+  it("extracts días no trabajados from a month×day calendar grid, skipping invalid days and unrecognized codes", () => {
+    const workbookFile = XLSX.write(
+      {
+        SheetNames: ["clima"],
+        Sheets: {
+          clima: XLSX.utils.aoa_to_sheet([
+            ["año", "mes", 1, 2, 3, 4],
+            [2026, "1. Febrero", "B", "LL", "?", "O"],
+            [null, "2. Marzo", "HH", "B", "B", "B"],
+          ]),
+        },
+      },
+      { type: "buffer", bookType: "xlsx" }
+    );
+    const workbook = parseWorkbook(new Uint8Array(workbookFile), "test.xlsx");
+    const importPlan = {
+      workbookType: "CONSTRUCTION_PROJECT",
+      overallConfidence: 1,
+      blocks: [{
+        id: "clima", sheet: "clima", sourceRange: "A1:F3", target: "NON_WORKING_DAYS" as const, confidence: 1, needsReview: false,
+        headerRowStart: 1, headerRowEnd: 1, dataRowStart: 2, dataRowEnd: 3, columnMappings: [], repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "",
+        // Day 30 in a 28-day February must be dropped; the "?" cell in D2 has
+        // no recognized code and must be dropped too — both silently, not as
+        // hard errors, with the drop counted in warnings.
+        weatherRows: [
+          { row: 2, year: 2026, month: 2, dayColumns: [{ column: "C", day: 1 }, { column: "D", day: 2 }, { column: "E", day: 3 }, { column: "F", day: 30 }] },
+          { row: 3, year: 2026, month: 3, dayColumns: [{ column: "C", day: 1 }, { column: "D", day: 2 }, { column: "E", day: 3 }, { column: "F", day: 4 }] },
+        ],
+      }],
+      unresolvedRegions: [],
+      warnings: [],
+    };
+    const candidate = buildCanonicalImportCandidate(workbook, result(importPlan));
+
+    expect(candidate.weatherDays).toEqual([
+      { date: "2026-02-01", code: "B", sheet: "clima", row: 2, column: "C" },
+      { date: "2026-02-02", code: "LL", sheet: "clima", row: 2, column: "D" },
+      { date: "2026-03-01", code: "HH", sheet: "clima", row: 3, column: "C" },
+      { date: "2026-03-02", code: "B", sheet: "clima", row: 3, column: "D" },
+      { date: "2026-03-03", code: "B", sheet: "clima", row: 3, column: "E" },
+      { date: "2026-03-04", code: "B", sheet: "clima", row: 3, column: "F" },
+    ]);
+    expect(candidate.domains).toHaveLength(0);
+    expect(candidate.warnings.join(" ")).toMatch(/no existen en su mes/);
+    expect(candidate.warnings.join(" ")).toMatch(/distinto de B\/LL\/HH\/O/);
+  });
+
   it("extracts staff rows (skipping section headers) and planned schedule months (ignoring executed rows)", () => {
     const workbookFile = XLSX.write(
       {
