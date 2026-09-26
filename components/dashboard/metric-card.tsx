@@ -45,7 +45,7 @@ export function MetricCard({ card, compact = false, accentClass }: { card: Metri
       className={`group kpi-hover relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-[var(--panel)] ${accentClass ?? ""} ${
         compact
           ? "h-[100px] max-h-[110px] p-3.5"
-          : "min-h-[130px] p-3.5 sm:min-h-[140px] sm:p-4"
+          : "min-h-[117px] p-3 sm:min-h-[126px] sm:p-3.5"
       } ${TONE_RING[card.tone]}`}
     >
       <div className="flex items-start justify-between gap-2">
