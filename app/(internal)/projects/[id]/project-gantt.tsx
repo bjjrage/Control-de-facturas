@@ -6,6 +6,7 @@ import Link from "next/link";
 import { BudgetItem, ExecutionEntry } from "@/lib/types";
 import { updateBudgetItemSchedule } from "../actions";
 import { ProgramarPartidasDialog } from "./programar-partidas-dialog";
+import { ImportCronogramaDialog } from "./import-cronograma-dialog";
 
 type ViewMode = "day" | "week" | "month";
 
@@ -541,6 +542,7 @@ export function ProjectGantt({
           </p>
           <div className="flex flex-wrap items-center justify-center gap-2">
             <ProgramarPartidasDialog budgetItems={budgetItems} />
+            <ImportCronogramaDialog projectId={projectId} budgetItems={budgetItems} />
             <Link href={`/projects/${projectId}?tab=presupuesto`} className="text-action px-3 text-[12px]">
               Ir a Presupuesto
             </Link>
@@ -556,6 +558,7 @@ export function ProjectGantt({
         {segmented}
         <div className="flex items-center gap-3">
           <ProgramarPartidasDialog budgetItems={budgetItems} />
+          <ImportCronogramaDialog projectId={projectId} budgetItems={budgetItems} />
           <span className="pg-legend">
             <i className="pg-legend-bar" />
             relleno = % ejecutado real

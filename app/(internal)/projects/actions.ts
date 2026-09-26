@@ -767,6 +767,73 @@ export async function importBudgetItems(
   return { inserted: insertedCount, skipped, error: null };
 }
 
+export type ScheduleImportAssignment = {
+  itemId: string;
+  start_date: string;
+  end_date: string;
+  depends_on: string | null;
+};
+
+/**
+ * Aplica un import de cronograma ya previsualizado y confirmado por el usuario.
+ *
+ * SEGURIDAD: whitelist estricta — solo start_date, end_date y depends_on de
+ * budget_items existentes de ESTA obra. Jamás toca cantidades, precios,
+ * certificados, avance, stock ni crea/borra partidas. Las filas sin vincular
+ * o sin fechas nunca llegan acá (las filtra buildScheduleUpdates).
+ */
+export async function applyScheduleImport(
+  projectId: string,
+  assignments: ScheduleImportAssignment[]
+): Promise<{ applied: number; failed: { itemId: string; error: string }[] }> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const supabase = await createClient();
+  const empresaId = profile.empresa_id;
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("empresa_id", empresaId)
+    .single();
+  if (!project) return { applied: 0, failed: [{ itemId: "", error: "Proyecto no encontrado." }] };
+
+  const { data: projectItems } = await supabase
+    .from("budget_items")
+    .select("id")
+    .eq("project_id", projectId);
+  const allowedIds = new Set((projectItems ?? []).map((i) => String(i.id)));
+
+  let applied = 0;
+  const failed: { itemId: string; error: string }[] = [];
+  for (const a of assignments) {
+    if (!allowedIds.has(a.itemId)) {
+      failed.push({ itemId: a.itemId, error: "La partida no pertenece a esta obra." });
+      continue;
+    }
+    const dateError = validateScheduleDates(a.start_date, a.end_date);
+    if (dateError) {
+      failed.push({ itemId: a.itemId, error: dateError });
+      continue;
+    }
+    if (a.depends_on !== null && !allowedIds.has(a.depends_on)) {
+      failed.push({ itemId: a.itemId, error: "La predecesora no pertenece a esta obra." });
+      continue;
+    }
+    // Whitelist: SOLO columnas temporales. Ningún otro campo viaja en este update.
+    const { error } = await supabase
+      .from("budget_items")
+      .update({ start_date: a.start_date, end_date: a.end_date, depends_on: a.depends_on })
+      .eq("id", a.itemId)
+      .eq("project_id", projectId);
+    if (error) failed.push({ itemId: a.itemId, error: "No se pudo actualizar el cronograma." });
+    else applied++;
+  }
+
+  if (applied > 0) revalidatePath(`/projects/${projectId}`);
+  return { applied, failed };
+}
+
 export async function updateBudgetItemSchedule(
   itemId: string,
   startDate: string | null,
