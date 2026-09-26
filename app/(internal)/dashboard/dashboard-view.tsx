@@ -7,7 +7,7 @@ import type { DashboardViewData } from "./data";
 export function DashboardView({ data }: { data: DashboardViewData }) {
   const { adminCards, secondaryAdminCards, salesTrend, cashflowTrend, adminKpis, attentionAlerts } = data;
   return (
-    <div className="max-w-none space-y-5">
+    <div className="max-w-none space-y-4">
       <div className="flex items-baseline justify-between gap-3">
         <div>
           <h1 className="section-accent-admin text-[12px] font-bold uppercase tracking-widest">Administración</h1>
@@ -19,7 +19,7 @@ export function DashboardView({ data }: { data: DashboardViewData }) {
       {adminCards.length > 0 ? <MetricGrid cards={adminCards} /> : <MetricChips chips={adminKpis} />}
 
       {secondaryAdminCards.length > 0 ? (
-        <section aria-label="Indicadores financieros de seguimiento" className="space-y-3">
+        <section aria-label="Indicadores financieros de seguimiento" className="space-y-2">
           <h2 className="text-[11px] font-bold uppercase tracking-widest text-[var(--accent-finanzas)]">Seguimiento financiero</h2>
           <AdminCharts sales={salesTrend} cashflow={cashflowTrend} />
         </section>

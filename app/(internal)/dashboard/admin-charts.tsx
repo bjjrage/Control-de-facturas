@@ -20,7 +20,7 @@ const TOOLTIP_STYLE = {
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="flex h-[200px] items-center justify-center rounded-xl border border-dashed border-[var(--border)] px-4 text-center text-[12px] text-[var(--muted)]">
+    <div className="rounded-xl border border-dashed border-[var(--border)] px-4 py-7 text-center text-[12px] text-[var(--muted)]">
       {text}
     </div>
   );
@@ -31,13 +31,15 @@ export function AdminCharts({ sales, cashflow }: { sales: SalesTrendPoint[]; cas
   const hasCashflow = cashflow.some((p) => p.cobros > 0 || p.pagos > 0);
 
   return (
-    <div className="grid gap-3.5 lg:grid-cols-2">
-      <section className="kpi-accent-budget rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4">
-        <h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--foreground)]">Ventas últimos 6 meses</h3>
-        <p className="mt-1 text-[12px] text-[var(--muted)]">Facturado vs cobrado · Montos en PYG</p>
-        <div className="mt-3">
+    <div className="grid gap-3 lg:grid-cols-2">
+      <section className="kpi-accent-budget rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <h3 className="shrink-0 text-[11px] font-bold uppercase tracking-widest text-[var(--foreground)]">Ventas últimos 6 meses</h3>
+          <span className="truncate text-[11px] text-[var(--muted)]">Facturado vs cobrado · PYG</span>
+        </div>
+        <div className="mt-2">
           {hasSales ? (
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={150}>
               <BarChart data={sales} margin={{ top: 4, right: 8, left: 8, bottom: 4 }} barCategoryGap="30%">
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="var(--muted)" />
@@ -59,12 +61,14 @@ export function AdminCharts({ sales, cashflow }: { sales: SalesTrendPoint[]; cas
         </div>
       </section>
 
-      <section className="kpi-accent-progress rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4">
-        <h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--foreground)]">Caja próximos 30 días</h3>
-        <p className="mt-1 text-[12px] text-[var(--muted)]">Cobros vs pagos por semana · Montos en PYG</p>
-        <div className="mt-3">
+      <section className="kpi-accent-progress rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <h3 className="shrink-0 text-[11px] font-bold uppercase tracking-widest text-[var(--foreground)]">Caja próximos 30 días</h3>
+          <span className="truncate text-[11px] text-[var(--muted)]">Cobros vs pagos por semana · PYG</span>
+        </div>
+        <div className="mt-2">
           {hasCashflow ? (
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={150}>
               <BarChart data={cashflow} margin={{ top: 4, right: 8, left: 8, bottom: 4 }} barCategoryGap="30%">
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="var(--muted)" />
