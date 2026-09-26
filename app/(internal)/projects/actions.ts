@@ -106,10 +106,10 @@ function importedDate(value: string | null): string | null {
 }
 
 /**
- * Confirma un preview semántico contra el XLSX original y materializa sólo
- * entidades canónicas. La medición no se convierte en execution_entries:
- * esas filas representan hechos fechados y el workbook sólo aporta
- * cantidades acumuladas/bloques sin identidad compatible en el golden.
+ * Confirma un preview semántico contra el XLSX original y materializa la
+ * obra, su presupuesto y (si el usuario lo aceptó) el certificado. Los demás
+ * dominios detectados (curva, clima, personal, mediciones) se informan como
+ * pendientes: su persistencia todavía no está conectada.
  */
 export async function createProjectFromWorkbook(formData: FormData): Promise<WorkbookCreateResult> {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
@@ -212,9 +212,15 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
   }
 
   let certificateItems = 0;
-  const pending: { section: string; reason: string }[] = [];
-  if (result.candidate.measurement.status === "DETECTED_NOT_APPLIED") pending.push({ section: "MEDICIÓN", reason: result.candidate.measurement.reason });
-  if (result.candidate.certificate.status === "SAFE_TO_APPLY") {
+  const pending: { section: string; reason: string }[] = result.candidate.domains.map((domain) => ({
+    section: domain.target,
+    reason: `Detectado (${domain.labels.join(" · ")}); su persistencia todavía no está conectada.`,
+  }));
+  const certificateApplicable = result.candidate.certificate.status === "SAFE_TO_APPLY" || result.candidate.certificate.status === "APPLY_WITH_WARNINGS";
+  // The preview asks the user; a certificate with observations is only
+  // written when the user explicitly accepted it.
+  const certificateAccepted = formData.get("apply_certificate") === "1";
+  if (certificateApplicable && certificateAccepted) {
     // Keep certificate writes under the authenticated tenant context so the
     // database creation guard can validate auth.uid(), role and company.
     const certificateWriter = await createClient();
@@ -238,7 +244,9 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
     }
     const lines = certificate.items.map((item, index) => ({
       certificate_id: header.id,
-      budget_item_id: codeToId.get(item.code) ?? null,
+      // Lines without a budget counterpart are kept as autonomous
+      // contractual lines (budget_item_id is nullable by design).
+      budget_item_id: item.matchedBudgetCode ? codeToId.get(item.matchedBudgetCode) ?? null : null,
       codigo: item.code,
       descripcion: item.description,
       unidad: item.unit,
@@ -248,10 +256,6 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
       qty_presente: item.quantityCurrent,
       sort_order: index,
     }));
-    if (lines.some((line) => !line.budget_item_id)) {
-      await rollback();
-      return { error: "El certificado no pudo vincularse a todas las partidas canónicas; no se creó la obra." };
-    }
     const { error: linesError } = await certificateWriter.from("project_certificate_items").insert(lines);
     if (linesError) {
       await rollback();
@@ -264,8 +268,8 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
       return { error: `No se creó la obra porque no se pudieron calcular los totales del certificado: ${totalsError.message}` };
     }
     certificateItems = lines.length;
-  } else if (result.candidate.certificate.status === "DETECTED_NOT_APPLIED") {
-    pending.push({ section: "CERTIFICADO", reason: result.candidate.certificate.reason });
+  } else if (result.candidate.certificate.status !== "NOT_DETECTED") {
+    pending.push({ section: "CERTIFICADO", reason: certificateApplicable ? "No se importó: no fue aceptado en el preview." : result.candidate.certificate.reason });
   }
 
   const projectLocation = await ensureProjectInventoryLocation(admin, {
@@ -302,7 +306,8 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
       source_fingerprint: fingerprint,
       budget_items: budgetItems.length,
       certificate_items: certificateItems,
-      measurement_status: result.candidate.measurement.status,
+      certificate_status: result.candidate.certificate.status,
+      detected_domains: result.candidate.domains.map((domain) => domain.target),
       pending_sections: pending,
     },
   });

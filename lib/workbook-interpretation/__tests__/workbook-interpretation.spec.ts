@@ -208,14 +208,15 @@ describe("workbook interpretation OpenAI integration", () => {
     delete process.env.WORKBOOK_INTERPRETATION_MODEL;
     delete process.env.OPENAI_WORKBOOK_INTERPRETER_MODEL;
     process.env.OPENAI_API_KEY = "test-key";
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: "{}" } }] })));
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: "{}" }] }] })));
     vi.stubGlobal("fetch", fetchMock);
 
     await callWorkbookInterpreter(workbook);
 
+    expect(fetchMock.mock.calls[0][0]).toBe("https://api.openai.com/v1/responses");
     const request = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(request.model).toBe("gpt-6-luna");
-    expect(request.response_format.json_schema.strict).toBe(true);
+    expect(request.text.format.strict).toBe(true);
 
     vi.unstubAllGlobals();
     if (originalModel === undefined) delete process.env.WORKBOOK_INTERPRETATION_MODEL;

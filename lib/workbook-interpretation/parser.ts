@@ -4,6 +4,7 @@ import {
   WORKBOOK_MAX_SHEETS,
   type WorkbookBlock,
   type WorkbookCell,
+  type WorkbookDefinedName,
   type WorkbookRepresentation,
   type WorkbookSheetRepresentation,
 } from "./types";
@@ -106,6 +107,26 @@ export function isRangeWithinSheet(range: string, sheet: WorkbookSheetRepresenta
   }
 }
 
+// Named ranges often carry the workbook's own semantics (e.g. `viviendas`
+// pointing at the housing count used by every scaled formula).
+function definedNames(workbook: XLSX.WorkBook): WorkbookDefinedName[] {
+  const seen = new Set<string>();
+  return (workbook.Workbook?.Names ?? []).flatMap((entry) => {
+    const ref = String(entry.Ref ?? "");
+    // Broken names (#REF!, #NAME?) are leftovers of deleted ranges and `_…`
+    // names are Excel internals (print areas, sort state); none carry meaning.
+    if (!entry.Name || entry.Name.startsWith("_") || !ref || ref.includes("#") || seen.has(`${entry.Name}=${ref}`) || seen.size >= 200) return [];
+    seen.add(`${entry.Name}=${ref}`);
+    // Only names bound to a cell or range; formula-only names are usually
+    // leftovers of copied templates.
+    if (!/^'?.+?'?!\$?[A-Z]+\$?\d+(:\$?[A-Z]+\$?\d+)?$/.test(ref)) return [];
+    const match = ref.match(/^'?(.+?)'?!\$?([A-Z]+)\$?(\d+)$/);
+    const sheet = match ? match[1].replace(/''/g, "'") : null;
+    const cell = match && sheet ? workbook.Sheets[sheet]?.[`${match[2]}${match[3]}`] : undefined;
+    return [{ name: entry.Name, ref, sheet, value: cell ? cellValue(cell) : null }];
+  });
+}
+
 export function parseWorkbook(input: ArrayBuffer | Uint8Array, fileName: string): WorkbookRepresentation {
   if (input.byteLength === 0) throw new WorkbookInputError("La planilla está vacía.");
   if (input.byteLength > WORKBOOK_FILE_MAX_BYTES) throw new WorkbookInputError("El archivo supera el límite de 10 MB.");
@@ -178,6 +199,7 @@ export function parseWorkbook(input: ArrayBuffer | Uint8Array, fileName: string)
     fileName,
     workbookType: /\.csv$/i.test(fileName) ? "CSV" : "EXCEL",
     sheets,
+    definedNames: definedNames(workbook),
     totalCells,
     serializedCellCount: sheets.reduce((sum, sheet) => sum + sheet.serializedCellCount, 0),
     warnings,

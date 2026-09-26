@@ -71,8 +71,17 @@ describe("canonical workbook import mapping", () => {
         ], repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "" },
         { id: "certificate", sheet: "CERTIFICADO", sourceRange: "A3:H5", target: "CERTIFICATE" as const, confidence: 1, needsReview: false, headerRowStart: 3, headerRowEnd: 3, dataRowStart: 4, dataRowEnd: 5, columnMappings: [
           { column: "A", role: "code" as const, confidence: 1, notes: "" }, { column: "B", role: "description" as const, confidence: 1, notes: "" }, { column: "C", role: "unit" as const, confidence: 1, notes: "" }, { column: "D", role: "quantity" as const, confidence: 1, notes: "" }, { column: "E", role: "previousQuantity" as const, confidence: 1, notes: "" }, { column: "F", role: "currentQuantity" as const, confidence: 1, notes: "" }, { column: "G", role: "cumulativeQuantity" as const, confidence: 1, notes: "" }, { column: "H", role: "unitPrice" as const, confidence: 1, notes: "" },
-        ], repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "" },
-        { id: "measurement", sheet: "MEDICIÓN", sourceRange: "A1:D2", target: "MEASUREMENT" as const, confidence: 1, needsReview: false, headerRowStart: 1, headerRowEnd: 1, dataRowStart: 2, dataRowEnd: 2, columnMappings: [], repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "" },
+        ], repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "",
+          keyValues: [
+            { key: "certificateNumber" as const, cell: "A1", value: 6, notes: "" },
+            { key: "periodStart" as const, cell: "A2", value: "2026-01-01", notes: "" },
+            { key: "periodEnd" as const, cell: "A2", value: "2026-01-31", notes: "" },
+          ],
+        },
+        { id: "measurement", sheet: "MEDICIÓN", sourceRange: "A1:D2", target: "MEASUREMENT" as const, confidence: 1, needsReview: false, mainProject: false, headerRowStart: 1, headerRowEnd: 1, dataRowStart: 2, dataRowEnd: 2, columnMappings: [], repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "", warnings: ["La hoja pertenece a una identidad de obra distinta (Paquete 01 / 16 viviendas) y no se importa."] },
+      ],
+      relationships: [
+        { from: "budget", to: "certificate", type: "CONTRACT_SCALE" as const, factor: 37, confidence: 1, evidence: "test fixture" },
       ],
       unresolvedRegions: [],
       warnings: [],
@@ -83,8 +92,9 @@ describe("canonical workbook import mapping", () => {
     expect(candidate.budgetItems.map((item) => item.quantity)).toEqual([37, 74]);
     expect(candidate.certificate.status).toBe("SAFE_TO_APPLY");
     expect(candidate.certificate.itemCount).toBe(2);
-    expect(candidate.measurement.status).toBe("DETECTED_NOT_APPLIED");
-    expect(candidate.measurement.reason).toMatch(/identidad de obra distinta/);
+    expect(candidate.domains).toHaveLength(0);
+    expect(candidate.foreignBlocks).toHaveLength(1);
+    expect(candidate.foreignBlocks[0].warnings.join(" ")).toMatch(/identidad de obra distinta/);
   });
 
   it.skipIf(!fs.existsSync(path.join(process.env.USERPROFILE ?? "", "Downloads", "P05 - ID14 - SIPP 3458 - CERTIFICADO Nro. 6.-(2).xlsx")))
@@ -97,8 +107,22 @@ describe("canonical workbook import mapping", () => {
         overallConfidence: 1,
         blocks: [
           { id: "budget", sheet: "base", sourceRange: "A11:H65", target: "BUDGET" as const, confidence: 1, needsReview: false, headerRowStart: 11, headerRowEnd: 11, dataRowStart: 12, dataRowEnd: 64, columnMappings: [mapping("A", "code"), mapping("B", "description"), mapping("C", "unit"), mapping("D", "quantity"), mapping("E", "unitPrice")], repeatedHeaderRows: [], subtotalRows: [65], footerRows: [], excludedRows: [], notes: "" },
-          { id: "certificate", sheet: "CERTIFICADO", sourceRange: "A19:M75", target: "CERTIFICATE" as const, confidence: 1, needsReview: false, headerRowStart: 19, headerRowEnd: 21, dataRowStart: 22, dataRowEnd: 74, columnMappings: [mapping("A", "code"), mapping("B", "description"), mapping("C", "unit"), mapping("D", "quantity"), mapping("E", "previousQuantity"), mapping("F", "currentQuantity"), mapping("G", "cumulativeQuantity"), mapping("H", "unitPrice"), mapping("M", "percentage")], repeatedHeaderRows: [], subtotalRows: [75], footerRows: [], excludedRows: [], notes: "" },
-          { id: "measurement", sheet: "MEDICIÓN", sourceRange: "A16:E774", target: "MEASUREMENT" as const, confidence: 1, needsReview: false, headerRowStart: 16, headerRowEnd: 20, dataRowStart: 21, dataRowEnd: 774, columnMappings: [], repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "" },
+          { id: "certificate", sheet: "CERTIFICADO", sourceRange: "A19:M75", target: "CERTIFICATE" as const, confidence: 1, needsReview: false, headerRowStart: 19, headerRowEnd: 21, dataRowStart: 22, dataRowEnd: 74, columnMappings: [mapping("A", "code"), mapping("B", "description"), mapping("C", "unit"), mapping("D", "quantity"), mapping("E", "previousQuantity"), mapping("F", "currentQuantity"), mapping("G", "cumulativeQuantity"), mapping("H", "unitPrice"), mapping("M", "percentage")], repeatedHeaderRows: [], subtotalRows: [75], footerRows: [], excludedRows: [], notes: "",
+            keyValues: [
+              { key: "certificateNumber" as const, cell: "A6", value: 6, notes: "" },
+              { key: "periodStart" as const, cell: "A9", value: "2026-07-21", notes: "" },
+              { key: "periodEnd" as const, cell: "A9", value: "2026-08-20", notes: "" },
+              { key: "contractAmount" as const, cell: "C13", value: 3482791500, notes: "" },
+              { key: "declaredPreviousAmount" as const, cell: "I75", value: 1860462510, notes: "" },
+              { key: "declaredCurrentAmount" as const, cell: "J75", value: 623788012, notes: "" },
+              { key: "declaredCumulativeAmount" as const, cell: "K75", value: 2484250522, notes: "" },
+            ],
+          },
+          { id: "measurement", sheet: "MEDICIÓN", sourceRange: "A16:E774", target: "MEASUREMENT" as const, confidence: 1, needsReview: false, mainProject: false, headerRowStart: 16, headerRowEnd: 20, dataRowStart: 21, dataRowEnd: 774, columnMappings: [], repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "",
+            warnings: ["La hoja pertenece a Paquete 01 / ID 01 / SIPP 3389 (16 viviendas), distinto del proyecto principal (Paquete 05 / ID 14 / SIPP 3458, 37 viviendas)."] },
+        ],
+        relationships: [
+          { from: "budget", to: "certificate", type: "CONTRACT_SCALE" as const, factor: 37, confidence: 1, evidence: "test fixture" },
         ],
         unresolvedRegions: [],
         warnings: [],
@@ -118,11 +142,15 @@ describe("canonical workbook import mapping", () => {
       expect(candidate.certificate.status).toBe("SAFE_TO_APPLY");
       expect(candidate.certificate.itemCount).toBe(53);
       expect(candidate.certificate.matchedBudgetItems).toBe(53);
-      expect(candidate.measurement.status).toBe("DETECTED_NOT_APPLIED");
-      expect(candidate.measurement.blockCount).toBe(33);
-      expect(candidate.measurement.detailRows).toBe(528);
-      expect(candidate.measurement.matchingItems).toBe(4);
-      expect(candidate.measurement.identity).toMatchObject({ package: "1", id: "1", sipp: "3389", housingCount: "16" });
-      expect(candidate.measurement.canonicalIdentity).toMatchObject({ package: "5", id: "14", sipp: "3458" });
+      expect(candidate.certificate.number).toBe(6);
+      expect(candidate.certificate.periodStart).toBe("2026-07-21");
+      expect(candidate.certificate.periodEnd).toBe("2026-08-20");
+      expect(candidate.certificate.cumulativePercent).toBeCloseTo(0.7133, 3);
+      expect(candidate.scale?.factor).toBe(37);
+      expect(candidate.checks.filter((check) => check.status === "WARNING")).toEqual([]);
+      expect(candidate.domains).toHaveLength(0);
+      expect(candidate.foreignBlocks).toHaveLength(1);
+      expect(candidate.foreignBlocks[0].sheet).toBe("MEDICIÓN");
+      expect(candidate.foreignBlocks[0].warnings.join(" ")).toMatch(/Paquete 01.*Paquete 05/);
     });
 });

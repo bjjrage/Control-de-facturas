@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileSpreadsheet, LoaderCircle, Sparkles, TriangleAlert, Upload } from "lucide-react";
+import { CheckCircle2, FileSpreadsheet, Link2, LoaderCircle, Sparkles, TriangleAlert, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { createProjectFromWorkbook } from "./actions";
+import type { CanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
 import type { DetectedField, WorkbookInterpretationResult } from "@/lib/workbook-interpretation/types";
 
 type FileMetadata = { name: string; size: number; sheets: string[] };
@@ -13,6 +14,51 @@ type FileMetadata = { name: string; size: number; sheets: string[] };
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.ceil(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatMoney(value: number | null) {
+  return value === null ? "—" : new Intl.NumberFormat("es-PY", { style: "currency", currency: "PYG", maximumFractionDigits: 0 }).format(value);
+}
+
+const RELATIONSHIP_LABEL: Record<string, string> = {
+  SAME_ITEMS: "mismas partidas",
+  CONTRACT_SCALE: "escala contractual",
+  SUMMARIZES: "resume",
+  HISTORICAL_SERIES: "serie histórica",
+  SUPPORTS: "respalda",
+};
+
+function CandidatePreview({ candidate }: { candidate: CanonicalImportCandidate }) {
+  return (
+    <>
+      {candidate.relationships.length ? (
+        <section>
+          <h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">Relaciones entre hojas</h3>
+          <div className="mt-2 space-y-1.5">
+            {candidate.relationships.map((relationship, index) => (
+              <div key={`${relationship.from}-${relationship.to}-${index}`} className="rounded-lg border border-[var(--border)] bg-white/[0.025] px-3 py-2 text-[12px]">
+                <p className="flex flex-wrap items-center gap-1.5"><Link2 size={13} className="text-sky-200" /><strong>{relationship.fromLabel}</strong> → <strong>{relationship.toLabel}</strong><span className="rounded-full bg-sky-400/10 px-2 py-0.5 text-[10px] font-semibold text-sky-200">{RELATIONSHIP_LABEL[relationship.type] ?? relationship.type}{relationship.factor ? ` ×${relationship.factor}` : ""}</span></p>
+                {relationship.evidence ? <p className="mt-1 text-[11px] text-[var(--muted)]">{relationship.evidence}</p> : null}
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+      {candidate.checks.length ? (
+        <section>
+          <h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">Verificación aritmética</h3>
+          <ul className="mt-2 space-y-1 text-[11px]">
+            {candidate.checks.map((check) => (
+              <li key={check.id} className={`flex gap-1.5 ${check.status === "OK" ? "text-emerald-200" : "text-amber-100"}`}>
+                {check.status === "OK" ? <CheckCircle2 size={13} className="mt-0.5 shrink-0" /> : <TriangleAlert size={13} className="mt-0.5 shrink-0" />}
+                <span><strong>{check.label}</strong> — {check.detail}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+    </>
+  );
 }
 
 function Value({ label, field, money = false }: { label: string; field: DetectedField; money?: boolean }) {
@@ -34,7 +80,7 @@ function Value({ label, field, money = false }: { label: string; field: Detected
   );
 }
 
-function ResultPreview({ result }: { result: WorkbookInterpretationResult }) {
+function ResultPreview({ result, candidate }: { result: WorkbookInterpretationResult; candidate: CanonicalImportCandidate | null }) {
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] p-3">
@@ -73,6 +119,8 @@ function ResultPreview({ result }: { result: WorkbookInterpretationResult }) {
         </div>
       </section>
 
+      {candidate ? <CandidatePreview candidate={candidate} /> : null}
+
       <section>
         <h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--muted)]">Plan de importación y cobertura</h3>
         <div className="mt-2 space-y-2">
@@ -100,8 +148,18 @@ function ResultPreview({ result }: { result: WorkbookInterpretationResult }) {
   );
 }
 
+const CERTIFICATE_STATUS: Record<CanonicalImportCandidate["certificate"]["status"], { label: string; tone: string }> = {
+  SAFE_TO_APPLY: { label: "verificado", tone: "text-emerald-200" },
+  APPLY_WITH_WARNINGS: { label: "con observaciones", tone: "text-amber-200" },
+  DETECTED_NOT_APPLIED: { label: "no aplicable", tone: "text-amber-200" },
+  NOT_DETECTED: { label: "no detectado", tone: "text-[var(--muted)]" },
+};
+
 function ResultActions({
   result,
+  candidate,
+  applyCertificate,
+  onApplyCertificate,
   nameOverride,
   codeOverride,
   onNameOverride,
@@ -112,6 +170,9 @@ function ResultActions({
   onBack,
 }: {
   result: WorkbookInterpretationResult;
+  candidate: CanonicalImportCandidate | null;
+  applyCertificate: boolean;
+  onApplyCertificate: (value: boolean) => void;
   nameOverride: string;
   codeOverride: string;
   onNameOverride: (value: string) => void;
@@ -123,17 +184,67 @@ function ResultActions({
 }) {
   const nameMissing = result.project.name.status === "NOT_FOUND" || result.project.name.value === null;
   const codeMissing = result.project.code.status === "NOT_FOUND" || result.project.code.value === null;
-  const certificateBlock = result.importPlan.blocks.filter((block) => block.target === "CERTIFICATE").length;
-  const measurementBlock = result.importPlan.blocks.filter((block) => block.target === "MEASUREMENT").length;
+  const certificate = candidate?.certificate;
+  const certificateApplicable = certificate?.status === "SAFE_TO_APPLY" || certificate?.status === "APPLY_WITH_WARNINGS";
   return (
     <section className="space-y-3 rounded-xl border border-sky-300/20 bg-sky-300/[0.04] p-3">
-      <h3 className="text-[11px] font-bold uppercase tracking-widest text-sky-100">Aplicación al ERP canónico</h3>
-      <div className="grid gap-2 text-[12px] sm:grid-cols-3">
-        <p>Presupuesto: <strong>{result.budgetItems.length} partidas</strong> — aplicable a <code>budget_items</code>.</p>
-        <p>Certificado: <strong>{certificateBlock ? "detectado" : "no detectado"}</strong> — sólo se crea si coincide con el presupuesto.</p>
-        <p>Medición: <strong>{measurementBlock ? "detectada" : "no detectada"}</strong> — no se convierte en ejecución sin correspondencia segura.</p>
+      <h3 className="text-[11px] font-bold uppercase tracking-widest text-sky-100">Qué se importa al ERP</h3>
+      <div className="space-y-2 text-[12px]">
+        <p>
+          Presupuesto: <strong>{candidate?.budgetItems.length ?? result.budgetItems.length} partidas</strong>
+          {candidate ? <> · total {formatMoney(candidate.budgetTotal)}</> : null}
+          {candidate?.scale ? <span className="text-[var(--muted)]"> · cantidades de contrato (×{candidate.scale.factor} sobre {candidate.scale.fromBlock})</span> : null}
+        </p>
+        {certificate && certificate.status !== "NOT_DETECTED" ? (
+          <div className="rounded-lg border border-[var(--border)] bg-white/[0.025] p-2.5">
+            <p>
+              Certificado{certificate.number !== null ? ` N°${certificate.number}` : ""}: <strong className={CERTIFICATE_STATUS[certificate.status].tone}>{CERTIFICATE_STATUS[certificate.status].label}</strong>
+              {certificate.itemCount ? <> · {certificate.itemCount} líneas · {certificate.matchedBudgetItems} vinculadas al presupuesto</> : null}
+            </p>
+            {certificate.itemCount ? (
+              <p className="mt-1 text-[11px] text-[var(--muted)]">
+                {certificate.periodStart && certificate.periodEnd ? `Período ${certificate.periodStart} → ${certificate.periodEnd} · ` : ""}
+                Contrato {formatMoney(certificate.contractTotal)} · acumulado {formatMoney(certificate.cumulativeTotal)}
+                {certificate.cumulativePercent !== null ? ` (${(certificate.cumulativePercent * 100).toFixed(2)}%)` : ""}
+              </p>
+            ) : null}
+            {certificate.status !== "SAFE_TO_APPLY" ? <p className="mt-1 text-[11px] text-amber-100">{certificate.reason}</p> : null}
+            {certificate.issues.length ? <ul className="mt-1 space-y-0.5 text-[11px] text-amber-100">{certificate.issues.map((issue) => <li key={issue}>· {issue}</li>)}</ul> : null}
+            {certificateApplicable ? (
+              <label className="mt-2 flex items-center gap-2 text-[12px]">
+                <input type="checkbox" checked={applyCertificate} onChange={(event) => onApplyCertificate(event.target.checked)} />
+                Importar este certificado {certificate.status === "APPLY_WITH_WARNINGS" ? "a pesar de las observaciones" : ""}
+              </label>
+            ) : null}
+          </div>
+        ) : null}
+        {candidate?.domains.length ? (
+          <div>
+            <p>Detectado, todavía sin importar:</p>
+            <ul className="mt-1 space-y-0.5 text-[11px] text-[var(--muted)]">
+              {candidate.domains.map((domain) => (
+                <li key={domain.target}>
+                  · <strong className="text-[var(--foreground)]">{domain.target}</strong> — {domain.labels.join(" · ")} ({domain.sheets.join(", ")})
+                  {domain.warnings.length ? <span className="text-amber-100"> · {domain.warnings.join(" · ")}</span> : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {candidate?.foreignBlocks.length ? (
+          <div>
+            <p>De otra obra (se muestra, no se importa):</p>
+            <ul className="mt-1 space-y-0.5 text-[11px] text-[var(--muted)]">
+              {candidate.foreignBlocks.map((block) => (
+                <li key={`${block.sheet}-${block.label}`}>
+                  · <strong className="text-[var(--foreground)]">{block.sheet}</strong> — {block.label}
+                  {block.warnings.length ? <span className="text-amber-100"> · {block.warnings[0]}</span> : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
-      <p className="text-[11px] text-[var(--muted)]">Los acumulados e importes del certificado se recalculan desde <code>project_certificate_items</code>; no se importan como autoridad desde Excel.</p>
       {nameMissing || codeMissing ? (
         <div className="rounded-lg border border-amber-300/25 bg-amber-300/[0.04] p-3">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-100">Completar dato crítico</p>
@@ -161,6 +272,8 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<WorkbookInterpretationResult | null>(null);
+  const [candidate, setCandidate] = useState<CanonicalImportCandidate | null>(null);
+  const [applyCertificate, setApplyCertificate] = useState(false);
   const [nameOverride, setNameOverride] = useState("");
   const [codeOverride, setCodeOverride] = useState("");
   const [creating, setCreating] = useState(false);
@@ -170,6 +283,7 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
     setFile(selected);
     setMetadata(null);
     setResult(null);
+    setCandidate(null);
     setNameOverride("");
     setCodeOverride("");
     setError(null);
@@ -203,7 +317,12 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
       const payload = await response.json().catch(() => null);
       if (!response.ok || !payload?.result) throw new Error(payload?.error ?? "No se pudo analizar la planilla.");
       const interpreted = payload.result as WorkbookInterpretationResult;
+      const verified = (payload.candidate ?? null) as CanonicalImportCandidate | null;
       setResult(interpreted);
+      setCandidate(verified);
+      // A verified certificate starts checked; one with observations must be
+      // accepted explicitly.
+      setApplyCertificate(verified?.certificate.status === "SAFE_TO_APPLY");
       if (interpreted.project.name.value !== null) setNameOverride(String(interpreted.project.name.value));
       if (interpreted.project.code.value !== null) setCodeOverride(String(interpreted.project.code.value));
     } catch (cause) {
@@ -222,6 +341,7 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
     formData.set("result_json", JSON.stringify(result));
     formData.set("name_override", nameOverride);
     formData.set("code_override", codeOverride);
+    formData.set("apply_certificate", applyCertificate ? "1" : "0");
     try {
       const created = await createProjectFromWorkbook(formData);
       if (created.error || !created.projectId) {
@@ -238,9 +358,12 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
 
   if (result) return (
     <div className="space-y-4">
-      <ResultPreview result={result} />
+      <ResultPreview result={result} candidate={candidate} />
       <ResultActions
         result={result}
+        candidate={candidate}
+        applyCertificate={applyCertificate}
+        onApplyCertificate={setApplyCertificate}
         nameOverride={nameOverride}
         codeOverride={codeOverride}
         onNameOverride={setNameOverride}
@@ -248,7 +371,7 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
         onCreate={() => void createImportedProject()}
         creating={creating}
         error={error}
-        onBack={() => { setResult(null); setError(null); }}
+        onBack={() => { setResult(null); setCandidate(null); setError(null); }}
       />
     </div>
   );
@@ -258,6 +381,7 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
         <FileSpreadsheet className="mx-auto text-sky-200" size={26} />
         <p className="mt-2 text-[14px] font-semibold">Subí la planilla que ya usás</p>
         <p className="mt-1 text-[12px] text-[var(--muted)]">El ERP intentará entender su estructura. No necesitás adaptar headers ni crear una obra antes.</p>
+        <p className="mt-2 text-[11px] text-[var(--muted)]">Funciona mejor con hojas identificables (presupuesto, certificado, cronograma, personal, etc.). Nombres genéricos como “Hoja1”, “Hoja2” pueden quedar sin clasificar — el análisis puede tardar hasta ~2 minutos.</p>
         <label className="mt-4 inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-[var(--border)] bg-white/[0.06] px-3.5 py-2 text-[12px] font-medium hover:bg-white/[0.1]">
           <Upload size={14} /> Elegir planilla
           <input className="sr-only" type="file" accept=".xlsx,.xls,.csv" onChange={(event) => void inspectFile(event.target.files?.[0] ?? null)} />
@@ -265,7 +389,7 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
       </div>
       {error ? <p className="rounded-lg border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2 text-[12px] text-[var(--error)]">{error}</p> : null}
       {metadata ? <div className="rounded-xl border border-[var(--border)] bg-white/[0.025] p-3"><p className="text-[13px] font-semibold">{metadata.name}</p><p className="mt-0.5 text-[11px] text-[var(--muted)]">{formatBytes(metadata.size)} · {metadata.sheets.length} {metadata.sheets.length === 1 ? "hoja" : "hojas"}</p><div className="mt-2 flex flex-wrap gap-1.5">{metadata.sheets.map((sheet) => <span key={sheet} className="rounded-full border border-[var(--border)] px-2 py-1 text-[10px] text-[var(--muted)]">{sheet}</span>)}</div></div> : null}
-      {analyzing ? <div className="flex items-center justify-center gap-2 rounded-xl border border-[var(--border)] py-5 text-[13px] text-[var(--muted)]"><LoaderCircle className="animate-spin" size={16} /> Analizando la estructura de la planilla…</div> : null}
+      {analyzing ? <div className="flex items-center justify-center gap-2 rounded-xl border border-[var(--border)] py-5 text-[13px] text-[var(--muted)]"><LoaderCircle className="animate-spin" size={16} /> Analizando la estructura de la planilla… puede tardar hasta 2 minutos en obras grandes.</div> : null}
       <div className="flex justify-between gap-2"><Button type="button" variant="secondary" onClick={onBack} disabled={analyzing}>Volver</Button><Button type="button" onClick={() => void analyze()} disabled={!metadata || analyzing}>{analyzing ? "Analizando…" : "Analizar planilla"}</Button></div>
     </div>
   );

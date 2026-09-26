@@ -1,6 +1,7 @@
 import { requirePlan } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { certificateWorkbookFingerprint, extractCertificateWorkbookData, matchCertificateRows, type CertificateBudgetItem } from "@/lib/certificates/workbook-import";
+import { buildCanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
 import { reconcileImportPlan } from "@/lib/workbook-interpretation/import-plan";
 import {
   InvalidModelResponseError,
@@ -14,7 +15,9 @@ import {
 import { WorkbookInputError, parseWorkbook } from "@/lib/workbook-interpretation/parser";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// The interpreter runs one model conversation (with read tools) capped at
+// 270 s; this leaves room for parsing and the response.
+export const maxDuration = 300;
 
 function error(message: string, status: number) {
   return Response.json({ error: message }, { status });
@@ -29,9 +32,19 @@ export async function POST(request: Request) {
     if (formData.get("target") === "project-certificate") {
       return await previewProjectCertificateImport(formData, uploaded, profile);
     }
+    const requestStartedAt = performance.now();
+    const parseStartedAt = performance.now();
     const workbook = parseWorkbook(new Uint8Array(await uploaded.arrayBuffer()), uploaded.name);
+    const parseMs = Math.round(performance.now() - parseStartedAt);
     const result = await interpretWorkbook(workbook);
-    return Response.json({ result });
+    const candidateStartedAt = performance.now();
+    const candidate = buildCanonicalImportCandidate(workbook, result);
+    console.info("workbook_interpretation_request_timing", {
+      parse_ms: parseMs,
+      candidate_ms: Math.round(performance.now() - candidateStartedAt),
+      request_total_ms: Math.round(performance.now() - requestStartedAt),
+    });
+    return Response.json({ result, candidate });
   } catch (cause) {
     if (cause instanceof WorkbookInputError) return error(cause.message, 400);
     if (cause instanceof WorkbookInterpreterInputTooLargeError) return error(cause.message, 413);

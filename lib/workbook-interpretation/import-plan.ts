@@ -11,6 +11,16 @@ import {
 } from "./types";
 
 export type ImportPlanCheck = { plan: ImportPlan; warnings: string[]; coverage: ImportBlockCoverage[] };
+
+// When two columns share a role (e.g. a budget block with both a per-unit
+// subtotal and a contract-scale one), the FIRST occurrence wins — never the
+// last silently overwriting it. Callers should surface the duplicate as a
+// warning; this function only makes the choice deterministic.
+export function firstMappingByRole(columnMappings: ImportBlock["columnMappings"]) {
+  const byRole = new Map<string, ImportBlock["columnMappings"][number]>();
+  for (const mapping of columnMappings) if (!byRole.has(mapping.role)) byRole.set(mapping.role, mapping);
+  return byRole;
+}
 type WorkbookCandidateBlock = WorkbookBlock & { sheetName: string; sheetIndex: number };
 type WorkbookCell = WorkbookRepresentation["sheets"][number]["cells"][number];
 
@@ -166,10 +176,11 @@ function candidateScore(workbook: WorkbookRepresentation, candidate: WorkbookCan
 }
 
 /**
- * Repairs omissions that are safe to infer from workbook structure alone.
- * The model proposes semantics; this function only recovers a missing
- * certificate/budget block and excludes explicit summary rows. It never
- * invents business values or uses a filename/range special case.
+ * Header/name heuristics that locate a budget or certificate table without
+ * a model. Only the existing-project certificate importer
+ * (`/api/workbook-interpretation`, target `project-certificate`) still uses
+ * it; the model-driven pipeline (`validateImportPlan`) never calls it, so it
+ * cannot override the model's interpretation.
  */
 export function reconcileImportPlan(
   workbook: WorkbookRepresentation,
@@ -255,9 +266,7 @@ function coverageForBlock(workbook: WorkbookRepresentation, block: ImportBlock):
   }
   const specialRows = new Set(excludedRows.keys());
   const eligibleRows = sourceRows.filter((row) => !specialRows.has(row));
-  const pendingRows = block.target === "OTHER" || block.needsReview
-    ? eligibleRows.map((row) => ({ row, reason: block.target === "OTHER" ? "destino OTHER/unmapped" : "bloque requiere revisión" }))
-    : [];
+  const pendingRows = block.target === "OTHER" ? eligibleRows.map((row) => ({ row, reason: "destino OTHER/unmapped" })) : [];
   const warnings: string[] = [];
   if (adjacentRows.size) warnings.push(`Se detectaron filas con datos junto al rango declarado: ${[...adjacentRows].sort((a, b) => a - b).join(", ")}.`);
   if (block.target === "BUDGET" && !block.columnMappings.some((mapping) => mapping.role === "description")) warnings.push("El bloque BUDGET no tiene mapeo de descripción; requiere revisión.");
@@ -266,7 +275,7 @@ function coverageForBlock(workbook: WorkbookRepresentation, block: ImportBlock):
     sheet: block.sheet,
     sourceRange: block.sourceRange,
     sourceRows: sourceRows.length,
-    processedRows: block.target === "OTHER" || block.needsReview ? 0 : eligibleRows.length,
+    processedRows: block.target === "OTHER" ? 0 : eligibleRows.length,
     excludedRows: [...excludedRows].filter(([row]) => row >= block.dataRowStart && row <= block.dataRowEnd).map(([row, reason]) => ({ row, reason })),
     pendingRows,
     unmappedRows: [...adjacentRows].sort((a, b) => a - b),
@@ -274,42 +283,67 @@ function coverageForBlock(workbook: WorkbookRepresentation, block: ImportBlock):
   };
 }
 
+// Technical reasons a block cannot be read at all. Semantics are never
+// judged here: the model's target, labels and mappings are taken as given.
+function unreadableBlockReason(workbook: WorkbookRepresentation, block: ImportBlock): string | null {
+  const sheet = workbook.sheets.find((item) => item.sheetName === block.sheet);
+  if (!sheet) return `la hoja “${block.sheet}” no existe`;
+  if (!isRangeWithinSheet(block.sourceRange, sheet)) return `el rango ${block.sourceRange} no existe en la hoja`;
+  const invalid = block.columnMappings.find((mapping) => !/^\$?[A-Z]{1,3}\$?\d*(:\$?[A-Z]{1,3}\$?\d*)?$/i.test(mapping.column.trim()));
+  return invalid ? `columna inválida (${invalid.column})` : null;
+}
+
+/**
+ * Checks that the model's plan points at cells that exist. A block that
+ * cannot be read is dropped with a warning; the rest of the plan survives.
+ */
 export function validateImportPlan(raw: unknown, workbook: WorkbookRepresentation): ImportPlanCheck {
   const parsed = ImportPlanSchema.safeParse(raw);
   if (!parsed.success) throw new Error("El ImportPlan no cumple el contrato esperado.");
-  const repaired = reconcileImportPlan(workbook, parsed.data);
-  const warnings = [...parsed.data.warnings, ...repaired.warnings];
-  const normalizedBlocks = repaired.plan.blocks.map((block) => {
-    const sheet = workbook.sheets.find((item) => item.sheetName === block.sheet);
-    if (!sheet || !isRangeWithinSheet(block.sourceRange, sheet)) return block;
+  const warnings = [...parsed.data.warnings];
+  const unresolvedRegions = [...parsed.data.unresolvedRegions];
+  const readableBlocks = parsed.data.blocks.filter((block) => {
+    const reason = unreadableBlockReason(workbook, block);
+    if (!reason) return true;
+    warnings.push(`El bloque ${block.id} se descartó porque ${reason}.`);
+    unresolvedRegions.push({ sheet: block.sheet || "Hoja no identificada", range: block.sourceRange || "Rango no identificado", reason: `Bloque ${block.target} ilegible: ${reason}.` });
+    return false;
+  });
+  const normalizedBlocks = readableBlocks.map((block) => {
     const source = XLSX.utils.decode_range(block.sourceRange);
     const dataIsOutside = block.dataRowStart < source.s.r + 1 || block.dataRowEnd > source.e.r + 1 || block.dataRowStart > block.dataRowEnd;
     if (!dataIsOutside) return block;
     const dataRowStart = Math.max(source.s.r + 1, Math.min(block.dataRowStart, source.e.r + 1));
     const dataRowEnd = Math.max(dataRowStart, Math.min(block.dataRowEnd, source.e.r + 1));
-    warnings.push(`El bloque ${block.id} declaró datos fuera de sourceRange; se conservó como NEEDS_REVIEW y se limitó a la región verificable.`);
+    warnings.push(`El bloque ${block.id} declaró datos fuera de sourceRange; se limitó a la región verificable y requiere revisión.`);
     return { ...block, dataRowStart, dataRowEnd, needsReview: true, notes: `${block.notes} Rango de datos corregido localmente; requiere revisión.` };
   });
-  const normalizedPlan = { ...parsed.data, blocks: normalizedBlocks };
+  const blockIds = new Set(normalizedBlocks.map((block) => block.id));
+  const relationships = (parsed.data.relationships ?? []).filter((relationship) => {
+    if (blockIds.has(relationship.from) && blockIds.has(relationship.to)) return true;
+    warnings.push(`La relación ${relationship.type} ${relationship.from} → ${relationship.to} referencia bloques inexistentes y se ignoró.`);
+    return false;
+  });
+  const normalizedPlan = { ...parsed.data, blocks: normalizedBlocks, relationships, unresolvedRegions };
   const coverage = normalizedPlan.blocks.map((block) => coverageForBlock(workbook, block));
   for (const block of normalizedPlan.blocks) {
-    const sheet = workbook.sheets.find((item) => item.sheetName === block.sheet);
-    if (!sheet) throw new Error(`El bloque ${block.id} referencia una hoja inexistente.`);
-    if (!isRangeWithinSheet(block.sourceRange, sheet)) throw new Error(`El bloque ${block.id} referencia un rango inválido.`);
     const source = XLSX.utils.decode_range(block.sourceRange);
     if (block.headerRowStart > block.headerRowEnd || block.headerRowStart < source.s.r + 1 || block.headerRowEnd > source.e.r + 1) {
-      throw new Error(`El bloque ${block.id} tiene filas fuera de su rango fuente.`);
+      warnings.push(`El bloque ${block.id} declara encabezados fuera de su rango fuente.`);
     }
     for (const mapping of block.columnMappings) {
-      try {
-        const column = XLSX.utils.decode_col(mapping.column.replace(/[0-9]/g, ""));
-        if (column < source.s.c || column > source.e.c) warnings.push(`El mapeo ${mapping.column} del bloque ${block.id} queda fuera del rango fuente.`);
-      } catch {
-        throw new Error(`El bloque ${block.id} tiene una columna inválida (${mapping.column}).`);
-      }
+      const columns = mapping.column.replace(/[0-9$]/g, "").toUpperCase().split(":").map((column) => XLSX.utils.decode_col(column));
+      if (columns.some((column) => column < source.s.c || column > source.e.c)) warnings.push(`El mapeo ${mapping.column} del bloque ${block.id} queda fuera del rango fuente.`);
     }
+    // Total/footer rows usually sit just below the data rows; they only
+    // matter if they fall outside the block altogether.
     const specialRows = [...block.repeatedHeaderRows, ...block.subtotalRows, ...block.footerRows, ...block.excludedRows.map((item) => item.row)];
-    if (specialRows.some((row) => row < block.dataRowStart || row > block.dataRowEnd)) warnings.push(`El bloque ${block.id} declara filas especiales fuera de su rango de datos.`);
+    if (specialRows.some((row) => row < source.s.r + 1 || row > source.e.r + 1)) warnings.push(`El bloque ${block.id} declara filas especiales fuera de su rango fuente.`);
+    const roleCounts = new Map<string, number>();
+    for (const mapping of block.columnMappings) roleCounts.set(mapping.role, (roleCounts.get(mapping.role) ?? 0) + 1);
+    for (const [role, count] of roleCounts) {
+      if (count > 1 && role !== "ignore") warnings.push(`El bloque ${block.id} mapea ${count} columnas al rol “${role}”; se usó la primera (${block.columnMappings.find((mapping) => mapping.role === role)!.column}) y se ignoraron las demás para extracción.`);
+    }
     if (coverage.find((item) => item.blockId === block.id)?.unmappedRows.length) warnings.push(`UNMAPPED_REGION detectada junto al bloque ${block.id}; no se extendió automáticamente.`);
   }
   for (let index = 0; index < normalizedPlan.blocks.length; index++) {
@@ -339,6 +373,12 @@ export function rawNumber(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+/**
+ * Copies the rows of every BUDGET block exactly as the model mapped them.
+ * It does not judge whether a row "looks like" a total: rows the model did
+ * not exclude and that have a description become items, and the arithmetic
+ * checks surface anything that does not add up.
+ */
 export function extractBudgetItems(workbook: WorkbookRepresentation, plan: ImportPlan, initialCoverage: ImportBlockCoverage[] = []): { items: WorkbookBudgetItem[]; processedRows: number; excludedRows: number; pendingRows: number; warnings: string[]; coverage: ImportBlockCoverage[] } {
   const items: WorkbookBudgetItem[] = [];
   const warnings: string[] = [];
@@ -348,7 +388,7 @@ export function extractBudgetItems(workbook: WorkbookRepresentation, plan: Impor
   let excludedRows = 0;
   let pendingRows = 0;
   for (const block of plan.blocks) {
-    if (block.target !== "BUDGET" || block.needsReview) continue;
+    if (block.target !== "BUDGET" || block.mainProject === false) continue;
     const sheet = workbook.sheets.find((item) => item.sheetName === block.sheet);
     if (!sheet) continue;
     const byAddress = new Map(sheet.cells.map((cell) => [cell.address, cell]));
@@ -356,29 +396,25 @@ export function extractBudgetItems(workbook: WorkbookRepresentation, plan: Impor
     for (const row of block.repeatedHeaderRows) excluded.set(row, "header repetido");
     for (const row of block.subtotalRows) excluded.set(row, "subtotal/total");
     for (const row of block.footerRows) excluded.set(row, "pie de tabla");
-    const mapping = new Map(block.columnMappings.map((item) => [item.role, item]));
-    const valueAt = (row: number, column: string) => byAddress.get(`${column.replace(/[0-9]/g, "")}${row}`)?.raw ?? null;
+    const mapping = firstMappingByRole(block.columnMappings);
+    const valueAt = (row: number, column: string) => byAddress.get(`${column.replace(/[0-9$]/g, "").toUpperCase()}${row}`)?.raw ?? null;
+    const textFor = (row: number, role: "code" | "description" | "unit") => {
+      const roleMapping = mapping.get(role);
+      return roleMapping ? String(valueAt(row, roleMapping.column) ?? "").trim() : "";
+    };
+    const numberFor = (row: number, role: "quantity" | "unitPrice" | "subtotal") => {
+      const roleMapping = mapping.get(role);
+      return roleMapping ? rawNumber(valueAt(row, roleMapping.column)) : null;
+    };
     const blockCoverage = coverageById.get(block.id);
     let blockProcessed = 0;
     const blockPending: Array<{ row: number; reason: string }> = [];
     for (let row = block.dataRowStart; row <= block.dataRowEnd; row++) {
       if (excluded.has(row)) { excludedRows++; continue; }
-      const descriptionMapping = mapping.get("description");
-      const description = descriptionMapping ? String(valueAt(row, descriptionMapping.column) ?? "").trim() : "";
-      const codeValue = mapping.get("code") ? String(valueAt(row, mapping.get("code")!.column) ?? "").trim().toLowerCase() : "";
-      const summaryLabel = description.toLowerCase();
-      if (["item", "total", "subtotal", "total general"].includes(codeValue) || ["item", "total", "subtotal", "total general"].includes(summaryLabel)) {
-        excludedRows++;
-        if (blockCoverage && !blockCoverage.excludedRows.some((item) => item.row === row)) blockCoverage.excludedRows.push({ row, reason: "fila de total/subtotal" });
-        continue;
-      }
+      const description = textFor(row, "description");
       if (!description) { pendingRows++; blockPending.push({ row, reason: "no se pudo identificar descripción" }); continue; }
-      const numeric = (role: string) => {
-        const roleMapping = mapping.get(role as "quantity" | "unitPrice");
-        return roleMapping ? rawNumber(valueAt(row, roleMapping.column)) : null;
-      };
       const confidence = Math.min(block.confidence, ...block.columnMappings.filter((item) => item.role !== "ignore").map((item) => item.confidence), 1);
-      items.push({ code: mapping.get("code") ? String(valueAt(row, mapping.get("code")!.column) ?? "").trim() || null : null, description, unit: mapping.get("unit") ? String(valueAt(row, mapping.get("unit")!.column) ?? "").trim() || null : null, quantity: numeric("quantity"), unitPrice: numeric("unitPrice"), parentCode: null, confidence, source: { sheet: block.sheet, row, range: block.sourceRange } });
+      items.push({ code: textFor(row, "code") || null, description, unit: textFor(row, "unit") || null, quantity: numberFor(row, "quantity"), unitPrice: numberFor(row, "unitPrice"), subtotal: numberFor(row, "subtotal"), parentCode: null, confidence, source: { sheet: block.sheet, row, range: block.sourceRange } });
       processedRows++;
       blockProcessed++;
     }

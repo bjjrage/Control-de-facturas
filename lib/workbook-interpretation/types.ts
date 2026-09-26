@@ -74,6 +74,7 @@ export const WorkbookBudgetItemSchema = z.object({
   unit: z.string().min(1).nullable(),
   quantity: z.number().finite().nonnegative().nullable(),
   unitPrice: z.number().finite().nonnegative().nullable(),
+  subtotal: z.number().finite().nullable().optional(),
   parentCode: z.string().min(1).nullable(),
   confidence: z.number().min(0).max(1),
   source: ProvenanceSchema,
@@ -105,6 +106,13 @@ export type WorkbookBlock = {
   totalRowsWithData: number;
 };
 
+export type WorkbookDefinedName = {
+  name: string;
+  ref: string;
+  sheet: string | null;
+  value: string | number | boolean | null;
+};
+
 export type WorkbookSheetRepresentation = {
   sheetName: string;
   sheetIndex: number;
@@ -120,15 +128,52 @@ export type WorkbookSheetRepresentation = {
 
 export const ImportTargetSchema = z.enum(["PROJECT_METADATA", "BUDGET", "SCHEDULE", "MEASUREMENT", "EXECUTION", "CERTIFICATE", "STAFF", "NON_WORKING_DAYS", "APU", "BOM", "OTHER"]);
 export type ImportTarget = z.infer<typeof ImportTargetSchema>;
-export const ImportColumnRoleSchema = z.enum(["code", "description", "unit", "quantity", "unitPrice", "subtotal", "previousQuantity", "currentQuantity", "cumulativeQuantity", "percentage", "date", "name", "value", "ignore"]);
+export const ImportColumnRoleSchema = z.enum(["code", "description", "unit", "quantity", "unitPrice", "subtotal", "previousQuantity", "currentQuantity", "cumulativeQuantity", "previousAmount", "currentAmount", "cumulativeAmount", "percentage", "date", "name", "value", "ignore"]);
 export const ImportColumnMappingSchema = z.object({ column: z.string().min(1), role: ImportColumnRoleSchema, confidence: z.number().min(0).max(1), notes: z.string() });
+
+// Scalars the model locates by cell (certificate number, period, declared
+// totals). The model says where they are and what they mean; the extractor
+// verifies the value against the cell before anything uses it.
+export const ImportKeyValueKeySchema = z.enum(["certificateNumber", "periodStart", "periodEnd", "contractAmount", "declaredTotal", "declaredPreviousAmount", "declaredCurrentAmount", "declaredCumulativeAmount", "unitCount"]);
+export type ImportKeyValueKey = z.infer<typeof ImportKeyValueKeySchema>;
+export const ImportKeyValueSchema = z.object({ key: ImportKeyValueKeySchema, cell: z.string().min(1), value: z.union([z.string(), z.number()]), notes: z.string() });
+export type ImportKeyValue = z.infer<typeof ImportKeyValueSchema>;
+
+// What quantity scale a block represents (e.g. a 1-house prototype vs. the
+// 37-house contract). Declared by the model, verified arithmetically later.
+export const ImportScaleSchema = z.object({
+  basis: z.enum(["PROTOTYPE_UNIT", "CONTRACT_TOTAL", "PERIOD", "NOT_APPLICABLE", "UNKNOWN"]),
+  units: z.number().positive().nullable(),
+  evidence: z.string(),
+});
+export type ImportScale = z.infer<typeof ImportScaleSchema>;
+
 export const ImportBlockSchema = z.object({
   id: z.string().min(1), sheet: z.string().min(1), sourceRange: z.string().min(1), target: ImportTargetSchema, confidence: z.number().min(0).max(1), needsReview: z.boolean(),
   headerRowStart: z.number().int().positive(), headerRowEnd: z.number().int().positive(), dataRowStart: z.number().int().positive(), dataRowEnd: z.number().int().positive(), columnMappings: z.array(ImportColumnMappingSchema),
   repeatedHeaderRows: z.array(z.number().int().positive()), subtotalRows: z.array(z.number().int().positive()), footerRows: z.array(z.number().int().positive()), excludedRows: z.array(z.object({ row: z.number().int().positive(), reason: z.string().min(1) })), notes: z.string(),
+  label: z.string().optional(),
+  // false when the model identifies the block as belonging to a different
+  // project (sheets pasted from another obra). Such blocks are shown, never imported.
+  mainProject: z.boolean().optional(),
+  scale: ImportScaleSchema.optional(),
+  keyValues: z.array(ImportKeyValueSchema).optional(),
+  warnings: z.array(z.string()).optional(),
 });
 export type ImportBlock = z.infer<typeof ImportBlockSchema>;
-export const ImportPlanSchema = z.object({ workbookType: z.string().min(1), overallConfidence: z.number().min(0).max(1), blocks: z.array(ImportBlockSchema), unresolvedRegions: z.array(z.object({ sheet: z.string().min(1), range: z.string().min(1), reason: z.string().min(1) })), warnings: z.array(z.string()) });
+
+export const ImportRelationshipTypeSchema = z.enum(["SAME_ITEMS", "CONTRACT_SCALE", "SUMMARIZES", "HISTORICAL_SERIES", "SUPPORTS"]);
+export const ImportRelationshipSchema = z.object({
+  from: z.string().min(1),
+  to: z.string().min(1),
+  type: ImportRelationshipTypeSchema,
+  factor: z.number().positive().nullable(),
+  confidence: z.number().min(0).max(1),
+  evidence: z.string(),
+});
+export type ImportRelationship = z.infer<typeof ImportRelationshipSchema>;
+
+export const ImportPlanSchema = z.object({ workbookType: z.string().min(1), overallConfidence: z.number().min(0).max(1), blocks: z.array(ImportBlockSchema), relationships: z.array(ImportRelationshipSchema).optional(), unresolvedRegions: z.array(z.object({ sheet: z.string().min(1), range: z.string().min(1), reason: z.string().min(1) })), warnings: z.array(z.string()) });
 export type ImportPlan = z.infer<typeof ImportPlanSchema>;
 
 export const ImportBlockCoverageSchema = z.object({
@@ -151,9 +196,11 @@ export const WorkbookInterpretationResultSchema = z.object({
     sheetCount: z.number().int().positive(),
   }),
   project: ProjectInterpretationSchema,
-  detectedSections: z.array(DetectedSectionSchema),
+  // Both are filled locally (derived from the plan / copied from cells);
+  // the model no longer has to echo them.
+  detectedSections: z.array(DetectedSectionSchema).default([]),
   importPlan: ImportPlanSchema,
-  budgetItems: z.array(WorkbookBudgetItemSchema),
+  budgetItems: z.array(WorkbookBudgetItemSchema).default([]),
   coverage: z.array(ImportBlockCoverageSchema).default([]),
   warnings: z.array(z.string()),
   unknownSections: z.array(UnknownSectionSchema),
@@ -165,6 +212,7 @@ export type WorkbookRepresentation = {
   fileName: string;
   workbookType: "EXCEL" | "CSV";
   sheets: WorkbookSheetRepresentation[];
+  definedNames?: WorkbookDefinedName[];
   totalCells: number;
   serializedCellCount: number;
   warnings: string[];

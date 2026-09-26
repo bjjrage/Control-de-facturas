@@ -486,8 +486,8 @@ describe("final adversarial integrity guards", () => {
     expect(receiptUi).toContain("disabled={confirming || hasUnmappedPortalItems}");
 
     const workbookCertificateFlow = workbookAction.slice(
-      workbookAction.indexOf('if (result.candidate.certificate.status === "SAFE_TO_APPLY")'),
-      workbookAction.indexOf('} else if (result.candidate.certificate.status === "DETECTED_NOT_APPLIED")'),
+      workbookAction.indexOf("if (certificateApplicable && certificateAccepted)"),
+      workbookAction.indexOf('} else if (result.candidate.certificate.status !== "NOT_DETECTED")'),
     );
     expect(workbookCertificateFlow).toContain("const certificateWriter = await createClient();");
     expect(workbookCertificateFlow).toContain('certificateWriter.from("project_certificates")');
