@@ -7,6 +7,7 @@ import { BudgetItem, ExecutionEntry } from "@/lib/types";
 import { updateBudgetItemSchedule } from "../actions";
 import { ProgramarPartidasDialog } from "./programar-partidas-dialog";
 import { ImportCronogramaDialog } from "./import-cronograma-dialog";
+import { ClearScheduleButton } from "./clear-schedule-button";
 
 type ViewMode = "day" | "week" | "month";
 
@@ -543,6 +544,7 @@ export function ProjectGantt({
           <div className="flex flex-wrap items-center justify-center gap-2">
             <ProgramarPartidasDialog budgetItems={budgetItems} />
             <ImportCronogramaDialog projectId={projectId} budgetItems={budgetItems} />
+            <ClearScheduleButton projectId={projectId} hasSchedule={budgetItems.some((i) => i.start_date || i.end_date)} />
             <Link href={`/projects/${projectId}?tab=presupuesto`} className="text-action px-3 text-[12px]">
               Ir a Presupuesto
             </Link>
@@ -559,6 +561,7 @@ export function ProjectGantt({
         <div className="flex items-center gap-3">
           <ProgramarPartidasDialog budgetItems={budgetItems} />
           <ImportCronogramaDialog projectId={projectId} budgetItems={budgetItems} />
+          <ClearScheduleButton projectId={projectId} hasSchedule={rows.length > 0} />
           <span className="pg-legend">
             <i className="pg-legend-bar" />
             relleno = % ejecutado real

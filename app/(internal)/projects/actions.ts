@@ -394,10 +394,61 @@ export async function updateProject(projectId: string, formData: FormData): Prom
   return { error: null };
 }
 
+/**
+ * Limpia el cronograma de la obra: deja start_date, end_date y depends_on en
+ * NULL para todas sus partidas. Solo columnas temporales — cantidades,
+ * precios, avance, certificados y stock intactos. Reversible re-importando.
+ */
+export async function clearProjectSchedule(projectId: string): Promise<{ cleared: number; error: string | null }> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const supabase = await createClient();
+  const empresaId = profile.empresa_id;
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("empresa_id", empresaId)
+    .single();
+  if (!project) return { cleared: 0, error: "Proyecto no encontrado." };
+
+  // Whitelist: SOLO columnas temporales. Ningún otro campo viaja en este update.
+  const { data, error } = await supabase
+    .from("budget_items")
+    .update({ start_date: null, end_date: null, depends_on: null })
+    .eq("project_id", projectId)
+    .select("id");
+  if (error) return { cleared: 0, error: "No se pudo limpiar el cronograma." };
+
+  revalidatePath(`/projects/${projectId}`);
+  return { cleared: data?.length ?? 0, error: null };
+}
+
 export async function deleteProject(projectId: string): Promise<{ error: string | null }> {
   const profile = await requirePlan("pro", ["admin"]);
   const supabase = await createClient();
   const empresaId = profile.empresa_id;
+
+  // Las ubicaciones de inventario tipo PROJECT referencian la obra con
+  // ON DELETE RESTRICT (blindaje del pañol, 20260913230000) y no tienen
+  // policy RLS de DELETE: el cliente autenticado no puede borrarlas (no-op
+  // silencioso). Se usa el cliente admin con scoping manual por empresa para
+  // eliminar la ubicación VACÍA y desbloquear el borrado. Si tiene
+  // movimientos, recepciones o presentaciones, el DELETE falla y se explica
+  // en vez del genérico "No se pudo eliminar".
+  const admin = createAdminClient();
+  const { error: locationError } = await admin
+    .from("inventory_locations")
+    .delete()
+    .eq("project_id", projectId)
+    .eq("location_type", "PROJECT")
+    .eq("empresa_id", empresaId);
+  if (locationError) {
+    return {
+      error:
+        "No se puede eliminar: la obra tiene ubicación de inventario con movimientos o presentaciones de pañol. Limpiá el cronograma si solo querés quitar las fechas.",
+    };
+  }
 
   const { error } = await supabase.from("projects").delete().eq("id", projectId).eq("empresa_id", empresaId);
   if (error) return { error: "No se pudo eliminar el proyecto." };
