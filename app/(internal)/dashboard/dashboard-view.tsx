@@ -1,10 +1,11 @@
 import { AttentionPanel } from "@/components/dashboard/attention-panel";
 import { MetricGrid } from "@/components/dashboard/metric-card";
+import { AdminCharts } from "./admin-charts";
 import { MetricChips } from "./metric-chips";
 import type { DashboardViewData } from "./data";
 
 export function DashboardView({ data }: { data: DashboardViewData }) {
-  const { adminCards, secondaryAdminCards, adminKpis, attentionAlerts } = data;
+  const { adminCards, secondaryAdminCards, salesTrend, cashflowTrend, adminKpis, attentionAlerts } = data;
   return (
     <div className="max-w-none space-y-5">
       <div className="flex items-baseline justify-between gap-3">
@@ -19,8 +20,8 @@ export function DashboardView({ data }: { data: DashboardViewData }) {
 
       {secondaryAdminCards.length > 0 ? (
         <section aria-label="Indicadores financieros de seguimiento" className="space-y-3">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-[var(--foreground)]">Seguimiento financiero</h2>
-          <MetricGrid cards={secondaryAdminCards} />
+          <h2 className="text-[11px] font-bold uppercase tracking-widest text-[var(--accent-finanzas)]">Seguimiento financiero</h2>
+          <AdminCharts sales={salesTrend} cashflow={cashflowTrend} />
         </section>
       ) : null}
 

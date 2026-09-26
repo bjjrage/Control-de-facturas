@@ -38,6 +38,24 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+const MES_CORTO = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
+// Últimos 6 meses en formato "YYYY-MM" hasta el mes de today (para gráficos, solo visual).
+function last6Months(todayIso: string): string[] {
+  const [y, m] = todayIso.split("-").map(Number);
+  const out: string[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(y, m - 1 - i, 1);
+    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+  return out;
+}
+
+function parseLocalDate(isoDate: string): Date {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export type MetricChip = {
   key: string;
   value: string;
@@ -47,10 +65,26 @@ export type MetricChip = {
   tone: "ok" | "warn" | "error";
 };
 
+export type SalesTrendPoint = {
+  month: string;
+  label: string;
+  facturado: number;
+  cobrado: number;
+};
+
+export type CashflowTrendPoint = {
+  label: string;
+  cobros: number;
+  pagos: number;
+};
+
 export type DashboardViewData = {
   firstName: string;
   adminCards: MetricCardData[];
   secondaryAdminCards: MetricCardData[];
+  // Series para gráficos (solo PYG, como las sparklines de los KPIs). Solo visual.
+  salesTrend: SalesTrendPoint[];
+  cashflowTrend: CashflowTrendPoint[];
   // Compatibilidad con la navegación keep-alive existente del shell.
   adminKpis: MetricChip[];
   attentionAlerts: AttentionAlert[];
@@ -186,6 +220,49 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
     gastos,
   });
 
+  // Serie ventas 6 meses en PYG (misma lógica/filtros que las sparklines de los KPIs).
+  const salesTrend: SalesTrendPoint[] = last6Months(today).map((mm) => ({
+    month: mm,
+    label: MES_CORTO[Number(mm.slice(5, 7)) - 1] ?? mm,
+    facturado: Math.round(
+      salesDocs
+        .filter(
+          (d) =>
+            d.doc_type === "FACTURA" &&
+            d.status !== "BORRADOR" &&
+            d.status !== "ANULADA" &&
+            d.currency === "PYG" &&
+            d.issue_date.startsWith(mm)
+        )
+        .reduce((acc, d) => acc + d.total, 0)
+    ),
+    cobrado: Math.round(
+      receipts
+        .filter((r) => (r.currency === "PYG" || !r.currency) && r.receipt_date.startsWith(mm))
+        .reduce((acc, r) => acc + r.amount, 0)
+    ),
+  }));
+
+  // Serie caja 30 días en PYG por semana (cobros = monto ≥ 0, pagos = |monto < 0|).
+  const cashflowTrend: CashflowTrendPoint[] = [
+    { label: "Sem 1", cobros: 0, pagos: 0 },
+    { label: "Sem 2", cobros: 0, pagos: 0 },
+    { label: "Sem 3", cobros: 0, pagos: 0 },
+    { label: "Sem 4", cobros: 0, pagos: 0 },
+  ];
+  const todayDate = parseLocalDate(today);
+  for (const item of cashflowItems) {
+    if (item.moneda !== "PYG") continue;
+    const diffDays = Math.floor((parseLocalDate(item.fecha ?? today).getTime() - todayDate.getTime()) / 86400000);
+    const idx = Math.min(3, Math.max(0, Math.floor(diffDays / 7)));
+    if (item.monto >= 0) cashflowTrend[idx].cobros += item.monto;
+    else cashflowTrend[idx].pagos += Math.abs(item.monto);
+  }
+  for (const bucket of cashflowTrend) {
+    bucket.cobros = Math.round(bucket.cobros);
+    bucket.pagos = Math.round(bucket.pagos);
+  }
+
   const adminCards = computeAdminKpis({
     todayIso: today,
     salesDocs,
@@ -232,6 +309,8 @@ export async function getDashboardViewData(profile?: CurrentProfile): Promise<Da
     firstName: p.full_name.split(" ")[0],
     adminCards,
     secondaryAdminCards,
+    salesTrend,
+    cashflowTrend,
     adminKpis,
     attentionAlerts,
   };
