@@ -18,7 +18,7 @@ export class WorkbookInterpreterTimeoutError extends Error {}
 export class WorkbookInterpreterRateLimitError extends Error {}
 export class WorkbookInterpreterConfigurationError extends Error {}
 
-const DEFAULT_MODEL = "gpt-4.1-mini";
+const DEFAULT_MODEL = "gpt-6-luna";
 const IMPORT_CONTRACT_VERSION = "workbook-import-plan-v2";
 const interpretationCache = new Map<string, unknown>();
 

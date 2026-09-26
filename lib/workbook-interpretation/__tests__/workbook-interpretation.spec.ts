@@ -214,7 +214,7 @@ describe("workbook interpretation OpenAI integration", () => {
     await callWorkbookInterpreter(workbook);
 
     const request = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(request.model).toBe("gpt-4.1-mini");
+    expect(request.model).toBe("gpt-6-luna");
     expect(request.response_format.json_schema.strict).toBe(true);
 
     vi.unstubAllGlobals();
