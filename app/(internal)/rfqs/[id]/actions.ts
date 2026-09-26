@@ -135,6 +135,7 @@ export async function selectAndAuthorizeOffer(params: {
         quote_version_id: quoteVersion.id,
         created_from: "rfq",
         provider_name: (rfqProvider as unknown as { providers: { name: string } }).providers?.name ?? "Proveedor",
+        client_name: rfq.client_name ?? "Cliente",
         product: rfq.product,
         quantity: rfq.quantity,
         unit: rfq.unit,
