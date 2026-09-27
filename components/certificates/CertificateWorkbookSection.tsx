@@ -7,6 +7,7 @@ import {
   attachCertificateWorkbook,
   getCertificateWorkbook,
   getCertificateWorkbookDownloadUrl,
+  saveCertificateWorkbookSnapshot,
   type CertificateWorkbookView,
 } from "@/app/(internal)/projects/certificado-workbook-actions";
 import type { ProjectCertificateStatus } from "@/lib/types";
@@ -24,7 +25,19 @@ const CertificateWorkbookGrid = dynamic(
  * (solo en BORRADOR); si la tiene, la muestra embebida — editable en
  * BORRADOR, congelada desde ELABORADO (ver [[excel-first-certificados]]).
  */
-export function CertificateWorkbookSection({ certificateId, status }: { certificateId: string; status: ProjectCertificateStatus }) {
+export function CertificateWorkbookSection({
+  certificateId,
+  status,
+  onAvailability,
+  probeOnly = false,
+}: {
+  certificateId: string;
+  status: ProjectCertificateStatus;
+  /** Avisa si el certificado tiene planilla (para abrir esa pestaña por defecto). */
+  onAvailability?: (hasWorkbook: boolean) => void;
+  /** Solo consulta si hay planilla; no muestra nada ni carga Univer. */
+  probeOnly?: boolean;
+}) {
   const [state, setState] = useState<{ loading: boolean; error: string | null; workbook: CertificateWorkbookView | null }>({
     loading: true,
     error: null,
@@ -32,6 +45,10 @@ export function CertificateWorkbookSection({ certificateId, status }: { certific
   });
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const onAvailabilityRef = useRef(onAvailability);
+  useEffect(() => {
+    onAvailabilityRef.current = onAvailability;
+  }, [onAvailability]);
 
   // No pone loading:true de forma síncrona al llamarlo — evita el patrón que
   // React desaconseja (setState síncrono dentro del cuerpo de un efecto). El
@@ -39,7 +56,10 @@ export function CertificateWorkbookSection({ certificateId, status }: { certific
   // subir el archivo) simplemente reemplaza el resultado cuando llega.
   const load = useCallback(() => {
     getCertificateWorkbook(certificateId)
-      .then((result) => setState({ loading: false, error: result.error, workbook: result.workbook }))
+      .then((result) => {
+        setState({ loading: false, error: result.error, workbook: result.workbook });
+        onAvailabilityRef.current?.(Boolean(result.workbook));
+      })
       .catch(() => setState({ loading: false, error: "No se pudo abrir la planilla.", workbook: null }));
   }, [certificateId]);
 
@@ -65,6 +85,7 @@ export function CertificateWorkbookSection({ certificateId, status }: { certific
     if (result.url) window.open(result.url, "_blank");
   }
 
+  if (probeOnly) return null;
   if (state.loading) return <div className="text-[12px] text-[var(--muted)]">Cargando planilla…</div>;
 
   if (!state.workbook) {
@@ -101,22 +122,27 @@ export function CertificateWorkbookSection({ certificateId, status }: { certific
     );
   }
 
+  const workbookId = state.workbook.id;
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5 text-[12px] text-[var(--muted)]">
-          <FileSpreadsheet size={13} /> {state.workbook.originalFileName}
-        </div>
-        <button type="button" onClick={handleDownloadOriginal} className="text-[12px] text-action">
-          Descargar original
-        </button>
-      </div>
+    <div>
       <CertificateWorkbookGrid
-        key={state.workbook.id}
-        workbookId={state.workbook.id}
+        key={workbookId}
+        workbookId={workbookId}
         fileName={state.workbook.originalFileName}
         initialSnapshot={state.workbook.workingSnapshot}
         readOnly={status !== "BORRADOR"}
+        readOnlyLabel="Certificado elaborado — planilla congelada"
+        onSave={(snapshot) => saveCertificateWorkbookSnapshot(workbookId, snapshot)}
+        toolbar={
+          <>
+            <span className="flex items-center gap-1.5 truncate">
+              <FileSpreadsheet size={13} /> {state.workbook.originalFileName}
+            </span>
+            <button type="button" onClick={handleDownloadOriginal} className="text-action shrink-0">
+              Descargar original
+            </button>
+          </>
+        }
       />
     </div>
   );

@@ -10,6 +10,8 @@ import { createHash } from "node:crypto";
 import { buildCanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
 import { validateWorkbookInterpretation } from "@/lib/workbook-interpretation/interpreter";
 import { parseWorkbook } from "@/lib/workbook-interpretation/parser";
+import { workbookFromSnapshot } from "@/lib/certificates/workbook-store";
+import { loadImportSession } from "@/lib/certificates/import-session-store";
 import { certificateTotals } from "@/lib/certificates/math";
 import { ensureProjectInventoryLocation } from "@/lib/inventory/service";
 import { validateScheduleDates } from "@/lib/projects/schedule";
@@ -115,13 +117,28 @@ function importedDate(value: string | null): string | null {
  */
 export async function createProjectFromWorkbook(formData: FormData): Promise<WorkbookCreateResult> {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
-  const uploaded = formData.get("file");
-  const rawResult = formData.get("result_json");
-  if (!(uploaded instanceof File) || typeof rawResult !== "string") return { error: "El preview de la planilla ya no es válido." };
+  const file = formData.get("file");
+  const sessionId = (formData.get("session_id") as string | null) || null;
+  // Excel-first (Fase 4): una obra nueva puede venir de una sesión de
+  // importación — la planilla ya guardada, su análisis y su archivo original
+  // — en vez de un archivo re-subido con el resultado del preview.
+  const session = sessionId ? await loadImportSession(await createClient(), profile.empresa_id, sessionId) : null;
+  if (sessionId && !session) return { error: "La sesión de importación ya no existe." };
+  if (session && session.status !== "ANALYZED") return { error: "La planilla todavía no terminó de analizarse (o la sesión ya fue cerrada)." };
+  if (session && session.analyzedStructureHash !== session.structureHash) return { error: "La estructura de la planilla cambió desde el análisis. Reanalizá antes de crear la obra." };
+  const rawResult = session ? JSON.stringify(session.interpretation) : formData.get("result_json");
+  if ((!session && !(file instanceof File)) || typeof rawResult !== "string") return { error: "El preview de la planilla ya no es válido." };
+  const uploaded = { name: session?.originalFileName ?? (file as File).name };
+  const regime = (formData.get("contract_regime") as string | null) || null;
+  if (session && !(["PUBLIC_WORK", "PRIVATE_WORK", "OTHER"] as const).some((value) => value === regime)) {
+    return { error: "Confirmá el régimen contractual de la obra (pública, privada u otro)." };
+  }
 
   let result;
   try {
-    const workbook = parseWorkbook(new Uint8Array(await uploaded.arrayBuffer()), uploaded.name);
+    const workbook = session
+      ? workbookFromSnapshot(session.workingSnapshot)
+      : parseWorkbook(new Uint8Array(await (file as File).arrayBuffer()), (file as File).name);
     const parsedResult = JSON.parse(rawResult);
     const validated = validateWorkbookInterpretation(parsedResult, workbook);
     const candidate = buildCanonicalImportCandidate(workbook, validated);
@@ -140,7 +157,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
   if (new Set(budgetItems.map((item) => item.code)).size !== budgetItems.length) return { error: "El presupuesto contiene códigos duplicados; no se creó la obra." };
 
   const admin = createAdminClient();
-  const fingerprint = createHash("sha256").update(new Uint8Array(await uploaded.arrayBuffer())).digest("hex");
+  const fingerprint = session?.originalFileHash ?? createHash("sha256").update(new Uint8Array(await (file as File).arrayBuffer())).digest("hex");
   const { data: priorImports } = await admin
     .from("audit_logs")
     .select("detail")
@@ -186,6 +203,7 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
       comitente: importedText(projectFields.client),
       contract_number: importedText(projectFields.contractNumber),
       contract_amount: contractAmount,
+      contract_regime: regime,
       created_by: profile.id,
     })
     .select("id")
@@ -250,6 +268,9 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
         period_end: certificate.periodEnd,
         status: "BORRADOR",
         notes: `Importado desde ${uploaded.name}. Revisar y elaborar antes de avanzar el circuito.`,
+        // Un certificado que viene de un documento es autónomo (el N°6 puede
+        // existir sin 1–5): la protección de creación lo reconoce por esto.
+        import_fingerprint: fingerprint,
         created_by: profile.id,
       })
       .select("id")
@@ -271,6 +292,11 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
       qty_anterior: item.quantityPrevious,
       qty_presente: item.quantityCurrent,
       sort_order: index,
+      // Procedencia documental de cada línea ("Ver origen", auditoría).
+      source_sheet: item.source.sheet,
+      source_row: item.source.row ?? null,
+      source_cells: item.source.range ? { range: item.source.range } : null,
+      mapping_version: session?.analyzedStructureHash ?? null,
     }));
     const { error: linesError } = await certificateWriter.from("project_certificate_items").insert(lines);
     if (linesError) {
@@ -381,6 +407,41 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
       if (executionError) pending.push({ section: "EXECUTION", reason: `No se pudo cargar el avance físico: ${executionError.message}` });
       else executionEntries = executableEntries.length;
     }
+  }
+
+  // Excel-first: la planilla de la sesión pasa a ser la del certificado
+  // creado (mismo archivo original en Storage, misma copia de trabajo — no
+  // se vuelve a subir nada) y la sesión queda cerrada apuntando a la obra.
+  // Se hace al final, cuando ya no hay rollback: borrar la obra arrastraría
+  // la planilla del certificado en cascada.
+  if (session) {
+    const sessionWriter = await createClient();
+    if (certificateId) {
+      const { error: workbookError } = await sessionWriter.from("certificate_workbooks").insert({
+        empresa_id: profile.empresa_id,
+        project_id: project.id,
+        certificate_id: certificateId,
+        original_file_name: session.originalFileName,
+        original_file_size: session.originalFileSize,
+        original_storage_path: session.originalStoragePath,
+        original_file_hash: session.originalFileHash,
+        working_snapshot: session.workingSnapshot,
+        structure_hash: session.structureHash,
+        mapping: session.interpretation?.importPlan ?? null,
+        mapping_structure_hash: session.analyzedStructureHash,
+        analyzed_at: session.analyzedAt,
+        source_kind: "IMPORT_SESSION",
+        import_session_id: session.id,
+        created_by: profile.id,
+      });
+      if (workbookError) pending.push({ section: "PLANILLA", reason: `La obra se creó, pero no se pudo vincular la planilla al certificado: ${workbookError.message}` });
+    }
+    const { error: closeError } = await sessionWriter
+      .from("workbook_import_sessions")
+      .update({ status: "CONFIRMED", confirmed_project_id: project.id, confirmed_at: new Date().toISOString() })
+      .eq("id", session.id)
+      .eq("empresa_id", profile.empresa_id);
+    if (closeError) pending.push({ section: "PLANILLA", reason: `La obra se creó, pero la sesión de importación no se pudo cerrar: ${closeError.message}` });
   }
 
   const projectLocation = await ensureProjectInventoryLocation(admin, {
