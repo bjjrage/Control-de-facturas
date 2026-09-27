@@ -124,6 +124,11 @@ export type WorkbookSheetRepresentation = {
   serializedCellCount: number;
   cells: WorkbookCell[];
   blocks: WorkbookBlock[];
+  /** Hoja oculta en el Excel de origen (se conserva igual, ej. meses
+   * anteriores en el certificado de MAGY). */
+  hidden?: boolean;
+  /** Ancho en px por columna desde la A; null = ancho por defecto, 0 = oculta. */
+  columnWidths?: (number | null)[];
 };
 
 export const ImportTargetSchema = z.enum(["PROJECT_METADATA", "BUDGET", "SCHEDULE", "MEASUREMENT", "EXECUTION", "CERTIFICATE", "STAFF", "NON_WORKING_DAYS", "APU", "BOM", "OTHER"]);
