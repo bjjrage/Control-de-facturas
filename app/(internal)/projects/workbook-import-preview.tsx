@@ -210,6 +210,7 @@ function ResultActions({
   const codeMissing = result.project.code.status === "NOT_FOUND" || result.project.code.value === null;
   const certificate = candidate?.certificate;
   const certificateApplicable = certificate?.status === "SAFE_TO_APPLY" || certificate?.status === "APPLY_WITH_WARNINGS";
+  const contractMismatch = candidate?.budgetContractCheck && !candidate.budgetContractCheck.matches ? candidate.budgetContractCheck : null;
   return (
     <section className="space-y-3 rounded-xl border border-sky-300/20 bg-sky-300/[0.04] p-3">
       <h3 className="text-[11px] font-bold uppercase tracking-widest text-sky-100">Qué se importa al ERP</h3>
@@ -219,6 +220,12 @@ function ResultActions({
           {candidate ? <> · total {formatMoney(candidate.budgetTotal)}</> : null}
           {candidate?.scale ? <span className="text-[var(--muted)]"> · cantidades de contrato (×{candidate.scale.factor} sobre {candidate.scale.fromBlock})</span> : null}
         </p>
+        {contractMismatch ? (
+          <p className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2 text-[12px] text-[var(--error)]">
+            El presupuesto suma {formatMoney(contractMismatch.budgetTotal)} pero el {contractMismatch.source} es {formatMoney(contractMismatch.contractAmount)}.
+            Probablemente quedó a la escala de una unidad y no del contrato completo. No se puede crear la obra así: volvé a analizar la planilla.
+          </p>
+        ) : null}
         {certificate && certificate.status !== "NOT_DETECTED" ? (
           <div className="rounded-lg border border-[var(--border)] bg-white/[0.025] p-2.5">
             <p>
@@ -338,7 +345,7 @@ function ResultActions({
       {error ? <p className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2 text-[12px] text-[var(--error)]">{error}</p> : null}
       <div className="flex justify-between gap-2 pt-1">
         <Button type="button" variant="secondary" onClick={onBack} disabled={creating}>Volver</Button>
-        <Button type="button" onClick={onCreate} disabled={creating || (nameMissing && !nameOverride.trim()) || (codeMissing && !codeOverride.trim())}>
+        <Button type="button" onClick={onCreate} disabled={creating || Boolean(contractMismatch) || (nameMissing && !nameOverride.trim()) || (codeMissing && !codeOverride.trim())}>
           {creating ? "Creando obra…" : "Crear obra con estos datos"}
         </Button>
       </div>

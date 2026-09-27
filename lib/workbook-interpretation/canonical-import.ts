@@ -100,10 +100,22 @@ export type CanonicalSchedulePlan = {
   documentedExecuted: { monthIndex: number; ejecutadoPct: number }[];
 };
 
+/** El presupuesto a crear contra el monto de contrato que el propio
+ * documento declara. Si no coincide, la obra NO se crea (ver
+ * createProjectFromWorkbook): así se atrapa cualquier error de escala, venga
+ * de donde venga (incidente MAGY: 1 vivienda en vez de 37). */
+export type BudgetContractCheck = {
+  budgetTotal: number;
+  contractAmount: number;
+  source: string;
+  matches: boolean;
+};
+
 export type CanonicalImportCandidate = {
   budgetItems: WorkbookBudgetItem[];
   budgetQuantitySource: "BUDGET" | "CERTIFICATE_CONTRACT_QUANTITY";
   budgetTotal: number;
+  budgetContractCheck: BudgetContractCheck | null;
   budgetScale: ImportScale | null;
   relationships: CanonicalRelationship[];
   scale: CanonicalScaleAudit | null;
@@ -746,6 +758,30 @@ export function buildCanonicalImportCandidate(
     : budgetLines;
   const budgetTotal = canonicalBudgetItems.reduce((sum, item) => sum + Math.round((item.quantity ?? 0) * (item.unitPrice ?? 0)), 0);
 
+  // Presupuesto vs. contrato del propio documento. Referencia: el monto de
+  // contrato declarado y verificado en su celda; si no hay, el total
+  // contractual del certificado (cantidad contractual × precio), solo si
+  // todas sus líneas quedaron vinculadas al presupuesto.
+  let budgetContractCheck: BudgetContractCheck | null = null;
+  if (canonicalBudgetItems.length && budgetTotal > 0) {
+    const declaredContract = verifiedKeyValue(workbook, certificateBlocks, "contractAmount");
+    const reference = declaredContract?.verified && Number(declaredContract.value) > 0
+      ? { amount: Number(declaredContract.value), source: `monto de contrato declarado (${declaredContract.cell})` }
+      : totals.contractTotal && items.length && matched.length === items.length
+        ? { amount: totals.contractTotal, source: "total contractual del certificado (cantidad contractual × precio)" }
+        : null;
+    if (reference) {
+      const matches = Math.abs(budgetTotal - reference.amount) <= Math.max(1, reference.amount * 0.005);
+      budgetContractCheck = { budgetTotal, contractAmount: reference.amount, source: reference.source, matches };
+      check(
+        "budget_vs_contract",
+        "Presupuesto = monto del contrato",
+        matches,
+        `Presupuesto ${formatNumber(budgetTotal)} · ${reference.source} ${formatNumber(reference.amount)}${matches ? "." : ` (×${formatNumber(Math.round((reference.amount / budgetTotal) * 100) / 100)}). No se crea la obra así: revisar la escala del presupuesto.`}`
+      );
+    }
+  }
+
   const labels = new Map(plan.blocks.map((block) => [block.id, blockLabel(block)]));
   const relationships = (plan.relationships ?? []).map((relationship) => ({ ...relationship, fromLabel: labels.get(relationship.from) ?? relationship.from, toLabel: labels.get(relationship.to) ?? relationship.to }));
 
@@ -813,6 +849,7 @@ export function buildCanonicalImportCandidate(
     budgetItems: canonicalBudgetItems,
     budgetQuantitySource: scaled ? "CERTIFICATE_CONTRACT_QUANTITY" : "BUDGET",
     budgetTotal,
+    budgetContractCheck,
     budgetScale: budgetBlocks.find((block) => block.scale)?.scale ?? null,
     relationships,
     scale,

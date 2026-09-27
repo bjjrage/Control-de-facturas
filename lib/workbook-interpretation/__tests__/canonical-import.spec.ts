@@ -462,13 +462,34 @@ describe("canonical workbook import mapping", () => {
     expect(candidate.scale?.evidence).toMatch(/Inferida de las cantidades del propio documento: en 3\/3 partidas/);
     expect(candidate.budgetItems.map((item) => item.quantity)).toEqual([37, 74, 148]);
     expect(candidate.budgetTotal).toBe(37 * (100 + 100 + 100));
+    expect(candidate.budgetContractCheck).toMatchObject({ matches: true, contractAmount: 11100 });
   });
 
-  it("does not invent a scale when the quantities do not share one ratio", () => {
+  it("does not invent a scale when the quantities do not share one ratio — and then blocks the budget/contract mismatch", () => {
     const candidate = scaleWorkbook([37, 74, 10]);
     expect(candidate.scale).toBeNull();
     expect(candidate.budgetItems.map((item) => item.quantity)).toEqual([1, 2, 4]);
     expect(candidate.budgetTotal).toBe(300);
+    // El documento dice que el contrato vale 37·100 + 74·50 + 10·25; crear la
+    // obra con 300 dejaría todo lo demás mal: el control lo marca.
+    expect(candidate.budgetContractCheck).toMatchObject({ budgetTotal: 300, contractAmount: 7650, matches: false });
+    expect(candidate.checks.find((check) => check.id === "budget_vs_contract")?.status).toBe("WARNING");
+  });
+
+  // Regresión del incidente real: el análisis de producción del 2026-09-27
+  // (guardado tal cual en fixtures/) relacionó base ↔ certificado sin factor.
+  const goldenFile = path.join(process.env.USERPROFILE ?? "", "Downloads", "P05 - ID14 - SIPP 3458 - CERTIFICADO Nro. 6.-(2).xlsx");
+  it.skipIf(!fs.existsSync(goldenFile))("imports MAGY at contract scale with the REAL production analysis that once created it at one-house scale", () => {
+    const workbook = parseWorkbook(fs.readFileSync(goldenFile), goldenFile);
+    const productionPlan = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures", "magy-production-import-plan-2026-09-27.json"), "utf8"));
+    const candidate = buildCanonicalImportCandidate(workbook, result(productionPlan));
+    expect(candidate.scale?.factor).toBe(37);
+    expect(candidate.scale?.consistentLines).toBe(53);
+    expect(candidate.budgetItems).toHaveLength(53);
+    expect(candidate.budgetTotal).toBe(3482791500);
+    expect(candidate.budgetContractCheck).toMatchObject({ matches: true, contractAmount: 3482791500 });
+    expect(candidate.certificate.status).toBe("SAFE_TO_APPLY");
+    expect(candidate.certificate.currentTotal).toBe(623788012);
   });
 
   it.skipIf(!fs.existsSync(path.join(process.env.USERPROFILE ?? "", "Downloads", "P05 - ID14 - SIPP 3458 - CERTIFICADO Nro. 6.-(2).xlsx")))

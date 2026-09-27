@@ -152,6 +152,15 @@ export async function createProjectFromWorkbook(formData: FormData): Promise<Wor
   if (!name) return { error: "Falta un nombre de obra utilizable para crear el proyecto." };
   if (!code) return { error: "Falta un código de obra utilizable para crear el proyecto." };
 
+  // Una obra con el presupuesto a otra escala que su contrato arrastra mal
+  // todo lo demás (avance, anticipo, compras). Mejor no crearla.
+  const contractCheck = result.candidate.budgetContractCheck;
+  if (contractCheck && !contractCheck.matches) {
+    return {
+      error: `No se creó la obra: el presupuesto suma ${contractCheck.budgetTotal.toLocaleString("es-PY")} Gs pero el ${contractCheck.source} es ${contractCheck.contractAmount.toLocaleString("es-PY")} Gs. Probablemente el presupuesto quedó a la escala de una unidad (por ejemplo una vivienda) y no del contrato completo. Volvé a analizar la planilla.`,
+    };
+  }
+
   const budgetItems = result.candidate.budgetItems.filter((item) => item.code && item.description.trim());
   if (budgetItems.length !== result.candidate.budgetItems.length) return { error: "El presupuesto contiene filas sin código o descripción; no se creó la obra." };
   if (new Set(budgetItems.map((item) => item.code)).size !== budgetItems.length) return { error: "El presupuesto contiene códigos duplicados; no se creó la obra." };
