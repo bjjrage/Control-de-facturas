@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { extractBudgetItems, rawNumber, validateImportPlan, type ImportPlanCheck } from "./import-plan";
+import { extractBudgetItems, isBudgetShapedBlock, rawNumber, validateImportPlan, type ImportPlanCheck } from "./import-plan";
 import type {
   DetectedField,
   ImportBlock,
@@ -551,7 +551,7 @@ export function buildCanonicalImportCandidate(
   const plan = planCheck.plan;
   const extracted = extractBudgetItems(workbook, plan, planCheck.coverage);
   const mainBlocks = plan.blocks.filter((block) => block.mainProject !== false);
-  const budgetBlocks = mainBlocks.filter((block) => block.target === "BUDGET");
+  const budgetBlocks = mainBlocks.filter(isBudgetShapedBlock);
   const certificateBlocks = mainBlocks.filter((block) => block.target === "CERTIFICATE");
   const checks: CanonicalCheck[] = [];
   const check = (id: string, label: string, ok: boolean, detail: string) => checks.push({ id, label, status: ok ? "OK" : "WARNING", detail });

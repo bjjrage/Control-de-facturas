@@ -211,6 +211,88 @@ describe("canonical workbook import mapping", () => {
   });
 
 
+  it("extracts a budget-shaped block even when the model labels it PROJECT_METADATA/OTHER instead of BUDGET", () => {
+    // Reproduces the real MAGY run in production (2026-09-27): the `base`
+    // sheet carries the contract header ABOVE the 37-row budget table, and
+    // Luna classified the whole block as PROJECT_METADATA — with the budget
+    // columns mapped at 0.99 confidence. The extractor used to gate purely
+    // on block.target === "BUDGET" and silently produced 0 budget_items.
+    const workbookFile = XLSX.write(
+      {
+        SheetNames: ["base"],
+        Sheets: {
+          base: XLSX.utils.aoa_to_sheet([
+            ["Ficha de contrato"],
+            ["Comitente: Fundación Parque Tecnológico Itaipu-Paraguay"],
+            [],
+            ["COD", "RUBRO", "UND", "CANT", "P.U."],
+            ["1", "Limpieza de terreno", "gl", 37, 294005],
+            ["2", "Replanteo", "m2", 1569.17, 6000],
+          ]),
+        },
+      },
+      { type: "buffer", bookType: "xlsx" }
+    );
+    const workbook = parseWorkbook(new Uint8Array(workbookFile), "test.xlsx");
+    const importPlan = {
+      workbookType: "CONSTRUCTION_PROJECT",
+      overallConfidence: 1,
+      blocks: [{
+        id: "base_project", sheet: "base", sourceRange: "A1:E6",
+        target: "PROJECT_METADATA" as const, // <- misclassified, exactly like the live run
+        confidence: 0.9, needsReview: false, headerRowStart: 4, headerRowEnd: 4, dataRowStart: 5, dataRowEnd: 6,
+        columnMappings: [
+          { column: "A", role: "code" as const, confidence: 0.99, notes: "" },
+          { column: "B", role: "description" as const, confidence: 0.99, notes: "" },
+          { column: "C", role: "unit" as const, confidence: 0.99, notes: "" },
+          { column: "D", role: "quantity" as const, confidence: 0.99, notes: "" },
+          { column: "E", role: "unitPrice" as const, confidence: 0.99, notes: "" },
+        ],
+        repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "",
+      }],
+      relationships: [], unresolvedRegions: [], warnings: [],
+    };
+    const candidate = buildCanonicalImportCandidate(workbook, result(importPlan));
+    expect(candidate.budgetItems).toHaveLength(2);
+    expect(candidate.budgetItems.map((item) => item.code)).toEqual(["1", "2"]);
+    expect(candidate.budgetTotal).toBe(37 * 294005 + 1569.17 * 6000);
+  });
+
+  it("does NOT reinterpret a certificate or schedule block as budget just because it also has quantity/unitPrice columns", () => {
+    const workbookFile = XLSX.write(
+      {
+        SheetNames: ["CERTIFICADO"],
+        Sheets: {
+          CERTIFICADO: XLSX.utils.aoa_to_sheet([
+            ["COD", "RUBRO", "UND", "CANTIDAD", "P.U."],
+            ["1", "Limpieza", "gl", 37, 294005],
+          ]),
+        },
+      },
+      { type: "buffer", bookType: "xlsx" }
+    );
+    const workbook = parseWorkbook(new Uint8Array(workbookFile), "test.xlsx");
+    const importPlan = {
+      workbookType: "CONSTRUCTION_PROJECT",
+      overallConfidence: 1,
+      blocks: [{
+        id: "cert", sheet: "CERTIFICADO", sourceRange: "A1:E2", target: "CERTIFICATE" as const,
+        confidence: 0.9, needsReview: false, headerRowStart: 1, headerRowEnd: 1, dataRowStart: 2, dataRowEnd: 2,
+        columnMappings: [
+          { column: "A", role: "code" as const, confidence: 0.99, notes: "" },
+          { column: "B", role: "description" as const, confidence: 0.99, notes: "" },
+          { column: "C", role: "unit" as const, confidence: 0.99, notes: "" },
+          { column: "D", role: "quantity" as const, confidence: 0.99, notes: "" },
+          { column: "E", role: "unitPrice" as const, confidence: 0.99, notes: "" },
+        ],
+        repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "",
+      }],
+      relationships: [], unresolvedRegions: [], warnings: [],
+    };
+    const candidate = buildCanonicalImportCandidate(workbook, result(importPlan));
+    expect(candidate.budgetItems).toHaveLength(0);
+  });
+
   it("does not apply a certificate whose stored amounts (quantity × price) would not reproduce the document", () => {
     // The document is internally consistent: presente = ROUND(F × H) per line,
     // J6 = SUM. A mapping that reads the price from the wrong column (I, the

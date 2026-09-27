@@ -112,7 +112,15 @@ export function CertificateWorkbookGrid({
       clearTimeout(readyTimer);
       if (saveTimer) clearTimeout(saveTimer);
       disposable?.dispose();
-      univer.dispose();
+      // univer.dispose() desmonta el árbol de React interno de Univer. Si se
+      // llama de forma síncrona acá (dentro de la limpieza de ESTE efecto),
+      // puede coincidir con un render del árbol EXTERNO ya en curso —
+      // confirmado en vivo: "Attempted to synchronously unmount a root
+      // while React was already rendering" (ocurre con el sondeo de la
+      // sesión de importación, que re-renderiza el padre cada 3s). Diferir
+      // la destrucción a un microtask saca esa llamada del paso de commit
+      // de React, sin cambiar nada del comportamiento visible.
+      queueMicrotask(() => univer.dispose());
     };
   }, [workbookId, containerId, fileName]);
 
