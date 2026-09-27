@@ -8,9 +8,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ProjectCertificateStatus } from "@/lib/types";
 import {
   CERTIFICATE_WORKBOOKS_BUCKET,
+  computeStructureHash,
   createCertificateWorkbook,
   loadCertificateWorkbook,
   type CertificateWorkbookRow,
+  type WorkingSnapshot,
 } from "@/lib/certificates/workbook-store";
 
 /**
@@ -69,6 +71,47 @@ export async function attachCertificateWorkbook(certificateId: string, formData:
   });
   revalidatePath(`/projects/${cert.projectId}`);
   return { error: null, workbookId: result.id };
+}
+
+/**
+ * Autoguardado de la planilla embebida (Fase 3): la grilla llama a esto cada
+ * tanto mientras el usuario edita, nunca celda por celda. Solo escribe si el
+ * certificado sigue en BORRADOR — la base ya lo exige
+ * (guard_certificate_workbook_write, migración 20260927120000), esto
+ * devuelve el mismo motivo en español antes de intentar el UPDATE.
+ */
+export async function saveCertificateWorkbookSnapshot(
+  workbookId: string,
+  snapshot: WorkingSnapshot
+): Promise<{ error: string | null; structureChanged: boolean }> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase
+    .from("certificate_workbooks")
+    .select("id, certificate_id, empresa_id, structure_hash, working_revision, project_certificates!inner(status)")
+    .eq("id", workbookId)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (!existing) return { error: "Planilla no encontrada.", structureChanged: false };
+  const cert = existing.project_certificates as unknown as { status: ProjectCertificateStatus };
+  if (cert.status !== "BORRADOR") return { error: "El certificado ya no está en borrador; la planilla quedó congelada.", structureChanged: false };
+
+  const newStructureHash = computeStructureHash(snapshot);
+  const structureChanged = newStructureHash !== existing.structure_hash;
+
+  const { error } = await supabase
+    .from("certificate_workbooks")
+    .update({
+      working_snapshot: snapshot,
+      structure_hash: newStructureHash,
+      working_revision: (existing.working_revision as number) + 1,
+    })
+    .eq("id", workbookId);
+  if (error) return { error: "No se pudo guardar la planilla.", structureChanged: false };
+
+  revalidatePath(`/projects/${existing.certificate_id}`);
+  return { error: null, structureChanged };
 }
 
 export type CertificateWorkbookView = Pick<

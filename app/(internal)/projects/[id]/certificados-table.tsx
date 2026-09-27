@@ -19,6 +19,7 @@ import type {
 import { CertificateStaffSection } from "./certificate-staff-section";
 import { PasteAvanceDialog } from "./paste-avance-dialog";
 import { ProjectUnitsDialog } from "./project-units-dialog";
+import { CertificateWorkbookSection } from "@/components/certificates/CertificateWorkbookSection";
 import {
   updateCertificateItem,
   updateCertificateDeductions,
@@ -286,6 +287,8 @@ function CertificadoDetalle({
         />
         </div>
       </div>
+
+      <CertificateWorkbookSection certificateId={c.id} status={c.status} />
 
       {/* Generar factura de venta desde el certificado aprobado */}
       {c.status === "APROBADO" && clients.length > 0 ? (
