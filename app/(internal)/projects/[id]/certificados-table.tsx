@@ -215,7 +215,10 @@ function CertificadoDetalle({
   // pueda abrir directamente la planilla. Si el usuario no eligió ninguna y
   // el certificado tiene planilla, la planilla es la superficie principal.
   const urlTab = parseCertificateTab(useSearchParams().get("ctab"));
-  const [tab, setTab] = useState<CertificateTab>(urlTab ?? "resumen");
+  const [selectedTab, setTab] = useState<CertificateTab>(urlTab ?? "resumen");
+  // "Avance por unidad" no existe en una obra sin unidades (un ?ctab=avance
+  // viejo cae en Resumen).
+  const tab: CertificateTab = selectedTab === "avance" && projectUnits.length === 0 ? "resumen" : selectedTab;
   const [tabChosen, setTabChosen] = useState(urlTab !== null);
   function selectTab(next: CertificateTab) {
     setTab(next);
@@ -340,7 +343,7 @@ function CertificadoDetalle({
 
       <FirmasRow certificate={c} />
 
-      <CertificateTabs active={tab} onChange={selectTab} />
+      <CertificateTabs active={tab} onChange={selectTab} hasUnits={projectUnits.length > 0} />
 
       {tab === "resumen" ? (
         <div className="space-y-4">
@@ -432,25 +435,22 @@ function CertificadoDetalle({
       )}
 
       {tab === "avance" ? (
-        <div className="space-y-4">
-        {projectUnits.length > 0 ? (
-          <UnitAvanceSection
-            certificateId={c.id}
-            units={projectUnits}
-            progress={unitProgress}
-            editable={editableQty}
-            pending={pending}
-            onAutoFill={() => run(() => autoFillCertificateFromUnits(c.id))}
-          />
-        ) : null}
+        <UnitAvanceSection
+          certificateId={c.id}
+          units={projectUnits}
+          progress={unitProgress}
+          editable={editableQty}
+          pending={pending}
+          onAutoFill={() => run(() => autoFillCertificateFromUnits(c.id))}
+        />
+      ) : null}
 
+      {tab === "personal" ? (
         <CertificateStaffSection
           certificateId={c.id}
           staff={staff}
           editable={c.status !== "FACTURADO"}
         />
-
-        </div>
       ) : null}
 
       {tab === "liquidacion" ? (
@@ -517,12 +517,15 @@ function CertificadoDetalle({
   );
 }
 
-type CertificateTab = "resumen" | "planilla" | "avance" | "liquidacion" | "evidencias";
+type CertificateTab = "resumen" | "planilla" | "avance" | "personal" | "liquidacion" | "evidencias";
 
+// "Avance" es el avance por unidad (vivienda); solo existe si la obra tiene
+// unidades cargadas. El personal del período es un anexo aparte.
 const CERTIFICATE_TABS: { key: CertificateTab; label: string }[] = [
   { key: "resumen", label: "Resumen" },
   { key: "planilla", label: "Planilla" },
-  { key: "avance", label: "Avance" },
+  { key: "avance", label: "Avance por unidad" },
+  { key: "personal", label: "Personal" },
   { key: "liquidacion", label: "Liquidación" },
   { key: "evidencias", label: "Evidencias" },
 ];
@@ -531,10 +534,18 @@ function parseCertificateTab(value: string | null): CertificateTab | null {
   return CERTIFICATE_TABS.some((t) => t.key === value) ? (value as CertificateTab) : null;
 }
 
-function CertificateTabs({ active, onChange }: { active: CertificateTab; onChange: (tab: CertificateTab) => void }) {
+function CertificateTabs({
+  active,
+  onChange,
+  hasUnits,
+}: {
+  active: CertificateTab;
+  onChange: (tab: CertificateTab) => void;
+  hasUnits: boolean;
+}) {
   return (
     <div role="tablist" className="flex gap-1 border-b border-[var(--border)]">
-      {CERTIFICATE_TABS.map((t) => (
+      {CERTIFICATE_TABS.filter((t) => t.key !== "avance" || hasUnits).map((t) => (
         <button
           key={t.key}
           type="button"
