@@ -50,7 +50,7 @@ export const PROJECT_FEATURES = [
   { key: "compras", label: "OC", group: "Comprar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "facturas", label: "Facturas", group: "Comprar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "pagos", label: "Pagos", group: "Comprar", minPlan: "pro", roles: PROJECT_ROLES },
-  { key: "ejecucion", label: "Partes de avance", group: "Avance de obra", minPlan: "pro", roles: PROJECT_ROLES },
+  { key: "ejecucion", label: "Registro de avance", group: "Avance de obra", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "inventario", label: "Inventario", group: "Avance de obra", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "panol", label: "Depósito de obra", group: "Avance de obra", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "personal", label: "Personal", group: "Avance de obra", minPlan: "caterpillar", roles: PROJECT_ROLES },

@@ -141,7 +141,7 @@ describe("project surface contract", () => {
     expect(PROJECT_FEATURES).toHaveLength(17);
     expect(getProjectFeature("inventario").label).toBe("Inventario");
     expect(getProjectFeature("panol").label).toBe("Depósito de obra");
-    expect(getProjectFeature("ejecucion").label).toBe("Partes de avance");
+    expect(getProjectFeature("ejecucion").label).toBe("Registro de avance");
     expect(getProjectFeatureGroups().map((group) => group.label)).toContain("Avance de obra");
     expect(topbarSource).toContain("PROJECT_FEATURES.map(({ key, group, label })");
     expect(topbarSource).toContain('PROJECT_TAB_CONTEXT.stock = { group: "Avance de obra", label: "Catálogo de materiales (legado)" }');
