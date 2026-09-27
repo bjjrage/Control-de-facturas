@@ -409,6 +409,68 @@ describe("canonical workbook import mapping", () => {
     expect(candidate.foreignBlocks[0].warnings.join(" ")).toMatch(/identidad de obra distinta/);
   });
 
+  // Caso real MAGY (análisis de producción del 2026-09-27): el modelo relacionó
+  // base ↔ certificado como SAME_ITEMS sin factor y dejó el ×37 en otra relación
+  // (registro LDO → base). La obra se creó con el presupuesto de UNA vivienda.
+  function scaleWorkbook(contractual: number[]) {
+    const file = XLSX.write(
+      {
+        SheetNames: ["base", "CERTIFICADO"],
+        Sheets: {
+          base: XLSX.utils.aoa_to_sheet([
+            ["COD", "RUBRO", "UND", "CANT", "P.U."],
+            ["1", "Limpieza", "gl", 1, 100],
+            ["2", "Replanteo", "m2", 2, 50],
+            ["3", "Excavación", "m3", 4, 25],
+          ]),
+          CERTIFICADO: XLSX.utils.aoa_to_sheet([
+            ["CERTIFICADO DE EJECUCIÓN DE OBRAS N° 6", null, null, null, null, null, null, null],
+            ["Período: desde 01/01/2026 hasta 31/01/2026", null, null, null, null, null, null, null],
+            ["COD", "RUBRO", "UND", "CONTRACTUAL", "ANTERIOR", "PRESENTE", "ACUMULADO", "P.U."],
+            ["1", "Limpieza", "gl", contractual[0], 0, 1, 1, 100],
+            ["2", "Replanteo", "m2", contractual[1], 0, 2, 2, 50],
+            ["3", "Excavación", "m3", contractual[2], 0, 4, 4, 25],
+          ]),
+        },
+      },
+      { type: "buffer", bookType: "xlsx" }
+    );
+    const workbook = parseWorkbook(new Uint8Array(file), "test.xlsx");
+    const col = (column: string, role: string) => ({ column, role: role as "code", confidence: 1, notes: "" });
+    const plan = {
+      workbookType: "CONSTRUCTION_PROJECT",
+      overallConfidence: 1,
+      blocks: [
+        { id: "budget", sheet: "base", sourceRange: "A1:E4", target: "BUDGET" as const, confidence: 1, needsReview: false, headerRowStart: 1, headerRowEnd: 1, dataRowStart: 2, dataRowEnd: 4, columnMappings: [col("A", "code"), col("B", "description"), col("C", "unit"), col("D", "quantity"), col("E", "unitPrice")], repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "" },
+        { id: "certificate", sheet: "CERTIFICADO", sourceRange: "A3:H6", target: "CERTIFICATE" as const, confidence: 1, needsReview: false, headerRowStart: 3, headerRowEnd: 3, dataRowStart: 4, dataRowEnd: 6, columnMappings: [col("A", "code"), col("B", "description"), col("C", "unit"), col("D", "quantity"), col("E", "previousQuantity"), col("F", "currentQuantity"), col("G", "cumulativeQuantity"), col("H", "unitPrice")], repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "",
+          keyValues: [
+            { key: "certificateNumber" as const, cell: "A1", value: 6, notes: "" },
+            { key: "periodStart" as const, cell: "A2", value: "2026-01-01", notes: "" },
+            { key: "periodEnd" as const, cell: "A2", value: "2026-01-31", notes: "" },
+          ] },
+      ],
+      relationships: [{ from: "budget", to: "certificate", type: "SAME_ITEMS" as const, factor: null, confidence: 1, evidence: "mismas partidas" }],
+      unresolvedRegions: [],
+      warnings: [],
+    };
+    return buildCanonicalImportCandidate(workbook, result(plan));
+  }
+
+  it("infers the contract scale from the document's own quantities when the model linked budget and certificate without a factor", () => {
+    const candidate = scaleWorkbook([37, 74, 148]);
+    expect(candidate.scale?.factor).toBe(37);
+    expect(candidate.scale?.evidence).toMatch(/Inferida de las cantidades del propio documento: en 3\/3 partidas/);
+    expect(candidate.budgetItems.map((item) => item.quantity)).toEqual([37, 74, 148]);
+    expect(candidate.budgetTotal).toBe(37 * (100 + 100 + 100));
+  });
+
+  it("does not invent a scale when the quantities do not share one ratio", () => {
+    const candidate = scaleWorkbook([37, 74, 10]);
+    expect(candidate.scale).toBeNull();
+    expect(candidate.budgetItems.map((item) => item.quantity)).toEqual([1, 2, 4]);
+    expect(candidate.budgetTotal).toBe(300);
+  });
+
   it.skipIf(!fs.existsSync(path.join(process.env.USERPROFILE ?? "", "Downloads", "P05 - ID14 - SIPP 3458 - CERTIFICADO Nro. 6.-(2).xlsx")))
     ("audits the golden workbook without OpenAI or Supabase writes", () => {
       const file = path.join(process.env.USERPROFILE ?? "", "Downloads", "P05 - ID14 - SIPP 3458 - CERTIFICADO Nro. 6.-(2).xlsx");

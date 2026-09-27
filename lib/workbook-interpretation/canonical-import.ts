@@ -399,6 +399,27 @@ function relationshipBetween(plan: ImportPlan, budgetIds: Set<string>, certifica
   return links.find((link) => link.relationship.type === "CONTRACT_SCALE") ?? links[0] ?? null;
 }
 
+// The model often links budget and certificate as SAME_ITEMS and states the
+// ×N scale only through another block (MAGY: registro LDO → base ×37, base →
+// certificado sin factor) — then the budget would import at prototype scale
+// (1 house instead of 37). The document's own quantities settle it: if EVERY
+// linked line has cantidad contractual = presupuesto × N, N is the scale.
+// Conservative: needs ≥3 comparable lines covering ≥90% of the linked ones,
+// all within 0.5% of the same ratio, and a ratio clearly different from 1.
+function inferContractScale(budgetLines: WorkbookBudgetItem[], matched: CanonicalCertificateItem[]): number | null {
+  const byRow = new Map(budgetLines.map((line) => [line.source.row, line]));
+  const ratios = matched.flatMap((item) => {
+    const budget = item.matchedBudgetRow === null ? undefined : byRow.get(item.matchedBudgetRow);
+    return budget?.quantity && item.quantityContractual ? [item.quantityContractual / budget.quantity] : [];
+  });
+  if (ratios.length < 3 || ratios.length < matched.length * 0.9) return null;
+  const median = [...ratios].sort((a, b) => a - b)[Math.floor(ratios.length / 2)];
+  if (Math.abs(median - 1) <= 0.005) return null;
+  if (!ratios.every((ratio) => Math.abs(ratio - median) <= median * 0.005)) return null;
+  const whole = Math.round(median);
+  return Math.abs(whole - median) <= median * 0.005 ? whole : median;
+}
+
 export type CanonicalForeignBlock = { label: string; sheet: string; target: string; warnings: string[] };
 
 // ---------------------------------------------------------------------------
@@ -590,17 +611,24 @@ export function buildCanonicalImportCandidate(
     if (unmatched.length) certificateIssues.push(`${unmatched.length} línea(s) del certificado sin partida de presupuesto; se importarían sin vínculo.`);
   }
 
-  // Scale declared by the model, verified line by line.
+  // Scale declared by the model — or, if the model linked the blocks without
+  // a factor, the one the document's own quantities prove — verified line by
+  // line.
+  const inferredFactor = link && link.factor === 1 && matched.length ? inferContractScale(budgetLines, matched) : null;
+  const factor = inferredFactor ?? link?.factor ?? 1;
   let scale: CanonicalScaleAudit | null = null;
-  if (link && link.factor !== 1) {
+  if (link && factor !== 1) {
     const budgetByRow = new Map(budgetLines.map((line) => [line.source.row, line]));
     const budgetFor = (item: CanonicalCertificateItem) => (item.matchedBudgetRow === null ? undefined : budgetByRow.get(item.matchedBudgetRow));
     const compared = matched.filter((item) => (budgetFor(item)?.quantity ?? 0) > 0);
-    const consistent = compared.filter((item) => Math.abs(item.quantityContractual / budgetFor(item)!.quantity! - link.factor) <= link.factor * 0.005);
+    const consistent = compared.filter((item) => Math.abs(item.quantityContractual / budgetFor(item)!.quantity! - factor) <= factor * 0.005);
     const fromBlock = plan.blocks.find((block) => block.id === link.relationship.from)!;
     const toBlock = plan.blocks.find((block) => block.id === link.relationship.to)!;
-    scale = { fromBlock: blockLabel(fromBlock), toBlock: blockLabel(toBlock), factor: link.factor, comparedLines: compared.length, consistentLines: consistent.length, evidence: link.relationship.evidence };
-    check("scale_consistency", `Escala ×${formatNumber(scale.factor)} consistente`, consistent.length === compared.length, `${consistent.length}/${compared.length} partidas cumplen cantidad contractual = presupuesto × ${formatNumber(link.factor)}.`);
+    const evidence = inferredFactor
+      ? `Inferida de las cantidades del propio documento: en ${consistent.length}/${compared.length} partidas la cantidad contractual del certificado es la del presupuesto × ${formatNumber(factor)}. El análisis relacionó ambos bloques sin indicar el factor.`
+      : link.relationship.evidence;
+    scale = { fromBlock: blockLabel(fromBlock), toBlock: blockLabel(toBlock), factor, comparedLines: compared.length, consistentLines: consistent.length, evidence };
+    check("scale_consistency", `Escala ×${formatNumber(scale.factor)} consistente`, consistent.length === compared.length, `${consistent.length}/${compared.length} partidas cumplen cantidad contractual = presupuesto × ${formatNumber(factor)}.`);
     const priceMismatch = matched.filter((item) => { const budget = budgetFor(item); return budget?.unitPrice != null && !close(budget.unitPrice, item.unitPrice); });
     check("scale_unit_price", "Precios unitarios iguales en ambas escalas", !priceMismatch.length, priceMismatch.length ? `Difieren en filas ${priceMismatch.map((item) => item.source.row).join(", ")}; se usa el precio del certificado.` : `${matched.length} partidas con el mismo precio unitario.`);
   }
@@ -707,13 +735,13 @@ export function buildCanonicalImportCandidate(
   // Budget to persist: when the model declared a contract scale, the
   // contract quantities are the certificate's own contractual quantities.
   const certificateByBudgetRow = new Map(matched.map((item) => [item.matchedBudgetRow, item]));
-  const scaled = Boolean(link && link.factor !== 1 && matched.length);
+  const scaled = Boolean(link && factor !== 1 && matched.length);
   const canonicalBudgetItems = scaled
     ? budgetLines.map((line) => {
       const certificateLine = certificateByBudgetRow.get(line.source.row ?? null);
       return certificateLine
         ? { ...line, quantity: certificateLine.quantityContractual, unitPrice: certificateLine.unitPrice, subtotal: null }
-        : { ...line, quantity: line.quantity === null ? null : line.quantity * link!.factor, subtotal: null };
+        : { ...line, quantity: line.quantity === null ? null : line.quantity * factor, subtotal: null };
     })
     : budgetLines;
   const budgetTotal = canonicalBudgetItems.reduce((sum, item) => sum + Math.round((item.quantity ?? 0) * (item.unitPrice ?? 0)), 0);

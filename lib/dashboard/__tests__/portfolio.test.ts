@@ -53,11 +53,11 @@ describe("portfolio dashboard calculations", () => {
     const rows = buildPortfolioRows(
       [project()],
       [
-        { project_id: "project-1", quantity: 10, subtotal: 120 },
-        { project_id: "project-1", quantity: 10, subtotal: 80 },
+        { id: "a", project_id: "project-1", quantity: 10, subtotal: 120 },
+        { id: "b", project_id: "project-1", quantity: 10, subtotal: 80 },
       ],
       [{ project_id: "project-1", total_price: 230 }],
-      [{ project_id: "project-1", quantity_executed: 10 }],
+      [{ project_id: "project-1", budget_item_id: "a", quantity_executed: 10 }],
       "2026-09-20",
     );
 
@@ -65,7 +65,7 @@ describe("portfolio dashboard calculations", () => {
       presupuesto: 200,
       compras: 230,
       comprasPct: 115,
-      avancePct: 50,
+      avancePct: 60,
       atrasoDias: 19,
       estado: "Riesgo",
     });
@@ -78,13 +78,13 @@ describe("portfolio dashboard calculations", () => {
         project({ id: "closed", status: "COMPLETADO", budget_total: 900, end_date: "2025-01-01" }),
       ],
       [
-        { project_id: "active", quantity: 10, subtotal: 100 },
-        { project_id: "closed", quantity: 10, subtotal: 900 },
+        { id: "a1", project_id: "active", quantity: 10, subtotal: 100 },
+        { id: "c1", project_id: "closed", quantity: 10, subtotal: 900 },
       ],
       [],
       [
-        { project_id: "active", quantity_executed: 5 },
-        { project_id: "closed", quantity_executed: 10 },
+        { project_id: "active", budget_item_id: "a1", quantity_executed: 5 },
+        { project_id: "closed", budget_item_id: "c1", quantity_executed: 10 },
       ],
       "2026-09-20",
     );
@@ -101,10 +101,42 @@ describe("portfolio dashboard calculations", () => {
     });
   });
 
+  it("pondera el avance en plata por partida: no suma m2 con gl", () => {
+    const rows = buildPortfolioRows(
+      [project({ budget_total: 1000 })],
+      [
+        { id: "piso", project_id: "project-1", quantity: 100, subtotal: 100 },
+        { id: "techo", project_id: "project-1", quantity: 1, subtotal: 900 },
+      ],
+      [],
+      [
+        { project_id: "project-1", budget_item_id: "piso", quantity_executed: 150 },
+        { project_id: "project-1", budget_item_id: null, quantity_executed: 999 },
+      ],
+      "2026-08-01",
+    );
+    expect(rows[0].avancePct).toBe(10);
+  });
+
+  it("con certificados, el avance es el acumulado del último certificado sobre el contrato", () => {
+    const rows = buildPortfolioRows(
+      [project({ contract_amount: 3482791500, budget_total: 3482791500 })],
+      [{ id: "a", project_id: "project-1", quantity: 37, subtotal: 3482791500 }],
+      [],
+      [{ project_id: "project-1", budget_item_id: "a", quantity_executed: 999 }],
+      "2026-08-01",
+      [
+        { project_id: "project-1", numero: 5, monto_acumulado: 1860462510 },
+        { project_id: "project-1", numero: 6, monto_acumulado: 2484250522 },
+      ],
+    );
+    expect(rows[0].avancePct).toBe(71);
+  });
+
   it("genera solo señales operativas con datos disponibles", () => {
     const rows = buildPortfolioRows(
       [project()],
-      [{ project_id: "project-1", quantity: 1, subtotal: 100 }],
+      [{ id: "a", project_id: "project-1", quantity: 1, subtotal: 100 }],
       [{ project_id: "project-1", total_price: 120 }],
       [],
       "2026-09-20",

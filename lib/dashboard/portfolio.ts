@@ -31,6 +31,7 @@ export type PortfolioPanorama = {
 };
 
 type BudgetItemSource = {
+  id: string;
   project_id: string;
   quantity: number | null;
   subtotal: number;
@@ -43,8 +44,46 @@ type OrderSource = {
 
 type ExecutionEntrySource = {
   project_id: string;
+  budget_item_id: string | null;
   quantity_executed: number;
 };
+
+type CertificateSource = {
+  project_id: string;
+  numero: number;
+  monto_acumulado: number;
+};
+
+/**
+ * Avance físico de una obra, en %:
+ * - Con certificados: el acumulado del último certificado sobre el monto del
+ *   contrato. Es la medición oficial acordada con la fiscalización, y la
+ *   única completa cuando la obra entró al ERP a mitad de camino (MAGY: el
+ *   N°6 sin los 1–5; su registro LDO solo trae el período).
+ * - Sin certificados: lo ejecutado ponderado EN PLATA partida por partida
+ *   (cada partida topeada en su cantidad). Sumar cantidades de partidas
+ *   distintas mezcla m2 con m3 y gl y no significa nada.
+ */
+function avanceFisico(
+  contractBase: number,
+  latestCertificate: CertificateSource | undefined,
+  items: BudgetItemSource[],
+  executedByItem: Map<string, number>,
+): number {
+  if (latestCertificate && contractBase > 0) {
+    return Math.min(100, Math.round((Number(latestCertificate.monto_acumulado) / contractBase) * 100));
+  }
+  let budgetAmount = 0;
+  let executedAmount = 0;
+  for (const item of items) {
+    const quantity = item.quantity ?? 0;
+    const subtotal = item.subtotal ?? 0;
+    if (quantity <= 0 || subtotal <= 0) continue;
+    budgetAmount += subtotal;
+    executedAmount += (Math.min(executedByItem.get(item.id) ?? 0, quantity) / quantity) * subtotal;
+  }
+  return budgetAmount > 0 ? Math.min(100, Math.round((executedAmount / budgetAmount) * 100)) : 0;
+}
 
 const ESTADO_PRIORITY: Record<PortfolioEstado, number> = { Riesgo: 0, Atención: 1, Normal: 2 };
 
@@ -74,14 +113,19 @@ export function buildPortfolioRows(
   orders: OrderSource[],
   executionEntries: ExecutionEntrySource[],
   todayIso: string,
+  certificates: CertificateSource[] = [],
 ): PortfolioRow[] {
   const subtotalByProject = new Map<string, number>();
-  const budgetQtyByProject = new Map<string, number>();
+  const itemsByProject = new Map<string, BudgetItemSource[]>();
   for (const item of budgetItems) {
     subtotalByProject.set(item.project_id, (subtotalByProject.get(item.project_id) ?? 0) + (item.subtotal ?? 0));
-    if (item.quantity !== null) {
-      budgetQtyByProject.set(item.project_id, (budgetQtyByProject.get(item.project_id) ?? 0) + item.quantity);
-    }
+    itemsByProject.set(item.project_id, [...(itemsByProject.get(item.project_id) ?? []), item]);
+  }
+
+  const latestCertificateByProject = new Map<string, CertificateSource>();
+  for (const certificate of certificates) {
+    const current = latestCertificateByProject.get(certificate.project_id);
+    if (!current || certificate.numero > current.numero) latestCertificateByProject.set(certificate.project_id, certificate);
   }
 
   const purchasesByProject = new Map<string, number>();
@@ -90,17 +134,17 @@ export function buildPortfolioRows(
     purchasesByProject.set(order.project_id, (purchasesByProject.get(order.project_id) ?? 0) + (order.total_price ?? 0));
   }
 
-  const executedQtyByProject = new Map<string, number>();
+  const executedByItem = new Map<string, number>();
   for (const entry of executionEntries) {
-    executedQtyByProject.set(entry.project_id, (executedQtyByProject.get(entry.project_id) ?? 0) + (entry.quantity_executed ?? 0));
+    if (!entry.budget_item_id) continue;
+    executedByItem.set(entry.budget_item_id, (executedByItem.get(entry.budget_item_id) ?? 0) + (entry.quantity_executed ?? 0));
   }
 
   return projects.map((project) => {
     const presupuesto = Math.max(project.budget_total ?? 0, subtotalByProject.get(project.id) ?? 0);
     const compras = purchasesByProject.get(project.id) ?? 0;
-    const budgetQty = budgetQtyByProject.get(project.id) ?? 0;
-    const executedQty = executedQtyByProject.get(project.id) ?? 0;
-    const avancePct = budgetQty > 0 ? Math.min(100, Math.round((executedQty / budgetQty) * 100)) : 0;
+    const contractBase = (project.contract_amount ?? 0) > 0 ? project.contract_amount : presupuesto;
+    const avancePct = avanceFisico(contractBase, latestCertificateByProject.get(project.id), itemsByProject.get(project.id) ?? [], executedByItem);
     const comprasPct = presupuesto > 0 && compras > 0 ? Math.round((compras / presupuesto) * 1000) / 10 : null;
     const atrasoBruto =
       project.end_date && avancePct < 100
