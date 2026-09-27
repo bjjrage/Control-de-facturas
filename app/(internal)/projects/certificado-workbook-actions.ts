@@ -13,7 +13,10 @@ import {
   loadCertificateWorkbook,
   type CertificateWorkbookRow,
   type WorkingSnapshot,
+  workbookFromSnapshot,
 } from "@/lib/certificates/workbook-store";
+import { buildCanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
+import type { WorkbookInterpretationResult } from "@/lib/workbook-interpretation/types";
 
 /**
  * Fase 1 de "Certificados Excel-first" — subir y leer la planilla embebida
@@ -112,6 +115,110 @@ export async function saveCertificateWorkbookSnapshot(
 
   revalidatePath(`/projects/${existing.certificate_id}`);
   return { error: null, structureChanged };
+}
+
+export type ApplyCertificateWorkbookResult = {
+  error: string | null;
+  lines: number;
+  montoPresente: number | null;
+  warnings: string[];
+};
+
+/**
+ * "Aplicar planilla al certificado": el paso explícito que pasa lo trabajado
+ * en la planilla a los números del ERP (líneas, montos, período). El
+ * autoguardado solo cuida que no se pierda lo tipeado; esto corre UNA vez,
+ * cuando el usuario lo pide. No llama a Luna: relee las celdas con el mapeo
+ * que ya se guardó al importar. Si la estructura (hojas/columnas) cambió, ese
+ * mapeo ya no vale y no se aplica nada.
+ */
+export async function applyCertificateWorkbook(certificateId: string): Promise<ApplyCertificateWorkbookResult> {
+  const fail = (error: string, warnings: string[] = []): ApplyCertificateWorkbookResult => ({ error, lines: 0, montoPresente: null, warnings });
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const supabase = await createClient();
+
+  const { data: cert } = await supabase
+    .from("project_certificates")
+    .select("id, project_id, numero, status, projects!inner(empresa_id)")
+    .eq("id", certificateId)
+    .maybeSingle();
+  if (!cert || (cert.projects as unknown as { empresa_id: string }).empresa_id !== profile.empresa_id) return fail("Certificado no encontrado.");
+  if (cert.status !== "BORRADOR") return fail("El certificado ya no está en borrador; retrocedelo para volver a aplicar la planilla.");
+
+  const workbook = await loadCertificateWorkbook(supabase, certificateId);
+  if (!workbook) return fail("Este certificado no tiene planilla.");
+  if (!workbook.mapping) return fail("Esta planilla no tiene un análisis guardado; no se sabe qué celda es qué.");
+  const currentStructure = computeStructureHash(workbook.workingSnapshot);
+  if (workbook.mappingStructureHash && workbook.mappingStructureHash !== currentStructure) {
+    return fail("Cambió la estructura de la planilla (hojas o columnas movidas/agregadas); el análisis guardado ya no corresponde. No se aplicó nada.");
+  }
+
+  const candidate = buildCanonicalImportCandidate(
+    workbookFromSnapshot(workbook.workingSnapshot),
+    { importPlan: workbook.mapping } as WorkbookInterpretationResult
+  );
+  const doc = candidate.certificate;
+  if (doc.status !== "SAFE_TO_APPLY" && doc.status !== "APPLY_WITH_WARNINGS") {
+    return fail(`No se aplicó: ${doc.reason}`);
+  }
+  if (doc.number !== null && Number(doc.number) !== Number(cert.numero)) {
+    return fail(`La planilla dice Certificado N°${doc.number} y este es el N°${cert.numero}; no se aplicó.`);
+  }
+
+  const { data: budget } = await supabase.from("budget_items").select("id, code").eq("project_id", cert.project_id);
+  const codeToId = new Map((budget ?? []).map((row) => [String(row.code), String(row.id)]));
+  const lines = doc.items.map((item, index) => ({
+    certificate_id: certificateId,
+    budget_item_id: item.matchedBudgetCode ? codeToId.get(item.matchedBudgetCode) ?? null : null,
+    codigo: item.code,
+    descripcion: item.description,
+    unidad: item.unit,
+    qty_contractual: item.quantityContractual,
+    precio_unitario: item.unitPrice,
+    qty_anterior: item.quantityPrevious,
+    qty_presente: item.quantityCurrent,
+    sort_order: index,
+    source_sheet: item.source.sheet,
+    source_row: item.source.row ?? null,
+    source_cells: item.source.range ? { range: item.source.range } : null,
+    mapping_version: workbook.mappingStructureHash,
+  }));
+
+  // Reemplazo completo: nada referencia a estas líneas (sin FKs entrantes) y
+  // la guarda de la base solo deja escribirlas en BORRADOR.
+  const { error: deleteError } = await supabase.from("project_certificate_items").delete().eq("certificate_id", certificateId);
+  if (deleteError) return fail(`No se pudieron reemplazar las líneas: ${deleteError.message}`);
+  const { error: insertError } = await supabase.from("project_certificate_items").insert(lines);
+  if (insertError) return fail(`Se borraron las líneas anteriores pero falló la carga de las nuevas: ${insertError.message}. Volvé a apretar Aplicar.`);
+
+  const { data: stored } = await supabase
+    .from("project_certificate_items")
+    .select("monto_anterior, monto_presente")
+    .eq("certificate_id", certificateId);
+  const montoAnterior = (stored ?? []).reduce((s, i) => s + Number(i.monto_anterior ?? 0), 0);
+  const montoPresente = (stored ?? []).reduce((s, i) => s + Number(i.monto_presente ?? 0), 0);
+  const { error: headerError } = await supabase
+    .from("project_certificates")
+    .update({
+      monto_anterior: montoAnterior,
+      monto_presente: montoPresente,
+      ...(doc.periodStart ? { period_start: doc.periodStart } : {}),
+      ...(doc.periodEnd ? { period_end: doc.periodEnd } : {}),
+    })
+    .eq("id", certificateId);
+  if (headerError) return fail(`Las líneas se aplicaron pero no se pudieron actualizar los totales: ${headerError.message}`);
+
+  await logAudit(supabase, {
+    action: "project_certificate.workbook_applied",
+    detail: { project_id: cert.project_id, certificate_id: certificateId, lines: lines.length, monto_presente: montoPresente, working_structure: currentStructure },
+  });
+  revalidatePath(`/projects/${cert.project_id}`);
+  return {
+    error: null,
+    lines: lines.length,
+    montoPresente,
+    warnings: doc.status === "APPLY_WITH_WARNINGS" ? [doc.reason] : [],
+  };
 }
 
 export type CertificateWorkbookView = Pick<

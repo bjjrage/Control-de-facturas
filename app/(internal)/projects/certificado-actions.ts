@@ -490,7 +490,7 @@ export async function submitCertificate(certificateId: string): Promise<{ error:
       retencion,
     })
     .eq("id", certificateId);
-  if (error) return { error: "No se pudo elaborar el certificado." };
+  if (error) return { error: `No se pudo elaborar el certificado: ${error.message}` };
 
   await logAudit(supabase, {
     action: "project_certificate.submitted",

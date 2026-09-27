@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { FileSpreadsheet, Upload } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CheckCircle2, FileSpreadsheet, Upload } from "lucide-react";
 import {
+  applyCertificateWorkbook,
   attachCertificateWorkbook,
   getCertificateWorkbook,
   getCertificateWorkbookDownloadUrl,
@@ -38,12 +40,17 @@ export function CertificateWorkbookSection({
   /** Solo consulta si hay planilla; no muestra nada ni carga Univer. */
   probeOnly?: boolean;
 }) {
-  const [state, setState] = useState<{ loading: boolean; error: string | null; workbook: CertificateWorkbookView | null }>({
+  const [state, setState] = useState<{ loading: boolean; error: string | null; workbook: CertificateWorkbookView | null; version: number }>({
     loading: true,
     error: null,
     workbook: null,
+    version: 0,
   });
   const [uploading, setUploading] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [applyMessage, setApplyMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const saveNowRef = useRef<(() => Promise<boolean>) | null>(null);
+  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const onAvailabilityRef = useRef(onAvailability);
   useEffect(() => {
@@ -57,15 +64,18 @@ export function CertificateWorkbookSection({
   const load = useCallback(() => {
     getCertificateWorkbook(certificateId)
       .then((result) => {
-        setState({ loading: false, error: result.error, workbook: result.workbook });
+        setState((s) => ({ loading: false, error: result.error, workbook: result.workbook, version: s.version + 1 }));
         onAvailabilityRef.current?.(Boolean(result.workbook));
       })
-      .catch(() => setState({ loading: false, error: "No se pudo abrir la planilla.", workbook: null }));
+      .catch(() => setState((s) => ({ loading: false, error: "No se pudo abrir la planilla.", workbook: null, version: s.version + 1 })));
   }, [certificateId]);
 
+  // También al cambiar de estado (elaborar/retroceder): la grilla se vuelve
+  // a montar y tiene que partir de lo último guardado, no de lo que había
+  // al abrir el certificado.
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, status]);
 
   async function handleFileSelected(file: File) {
     setUploading(true);
@@ -78,6 +88,29 @@ export function CertificateWorkbookSection({
       return;
     }
     load();
+  }
+
+  async function handleApply() {
+    setApplying(true);
+    setApplyMessage(null);
+    const saved = saveNowRef.current ? await saveNowRef.current() : true;
+    if (!saved) {
+      setApplying(false);
+      setApplyMessage({ ok: false, text: "No se pudo guardar la planilla antes de aplicar; no se aplicó nada." });
+      return;
+    }
+    const result = await applyCertificateWorkbook(certificateId);
+    setApplying(false);
+    if (result.error) {
+      setApplyMessage({ ok: false, text: result.error });
+      return;
+    }
+    const monto = result.montoPresente === null ? "" : ` · monto del período ${Math.round(result.montoPresente).toLocaleString("es-PY")} Gs`;
+    setApplyMessage({
+      ok: true,
+      text: `Aplicado: ${result.lines} líneas${monto}.${result.warnings.length ? ` Observaciones: ${result.warnings.join(" ")}` : ""}`,
+    });
+    router.refresh();
   }
 
   async function handleDownloadOriginal() {
@@ -123,24 +156,42 @@ export function CertificateWorkbookSection({
   }
 
   const workbookId = state.workbook.id;
+  const readOnly = status !== "BORRADOR";
   return (
     <div>
       <CertificateWorkbookGrid
-        key={workbookId}
+        // Al elaborar o retroceder cambia si se puede editar: se vuelve a
+        // montar la grilla con el modo correcto.
+        key={`${workbookId}-${readOnly ? "ro" : "rw"}-${state.version}`}
         workbookId={workbookId}
         fileName={state.workbook.originalFileName}
         initialSnapshot={state.workbook.workingSnapshot}
-        readOnly={status !== "BORRADOR"}
+        readOnly={readOnly}
         readOnlyLabel="Certificado elaborado — planilla congelada"
         onSave={(snapshot) => saveCertificateWorkbookSnapshot(workbookId, snapshot)}
+        saveNowRef={saveNowRef}
         toolbar={
           <>
+            {readOnly ? null : (
+              <button
+                type="button"
+                disabled={applying}
+                onClick={handleApply}
+                title="Pasa lo cargado en la planilla a las líneas y montos del certificado"
+                className="flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-[var(--accent,#2f6fed)] text-white text-[12px] font-medium hover:opacity-90 disabled:opacity-50 shrink-0"
+              >
+                <CheckCircle2 size={13} /> {applying ? "Aplicando…" : "Aplicar planilla al certificado"}
+              </button>
+            )}
             <span className="flex items-center gap-1.5 truncate">
               <FileSpreadsheet size={13} /> {state.workbook.originalFileName}
             </span>
             <button type="button" onClick={handleDownloadOriginal} className="text-action shrink-0">
               Descargar original
             </button>
+            {applyMessage ? (
+              <span className={`text-[12px] ${applyMessage.ok ? "text-[var(--ok)]" : "text-[var(--error)]"}`}>{applyMessage.text}</span>
+            ) : null}
           </>
         }
       />
