@@ -211,6 +211,61 @@ describe("canonical workbook import mapping", () => {
   });
 
 
+  it("does not apply a certificate whose stored amounts (quantity × price) would not reproduce the document", () => {
+    // The document is internally consistent: presente = ROUND(F × H) per line,
+    // J6 = SUM. A mapping that reads the price from the wrong column (I, the
+    // price without IVA) while reading the amount column right is exactly
+    // how the ERP stored 629.818.012 for MAGY Cert. N°6 instead of the
+    // 623.788.012 in J75: every check that used J passed.
+    const workbookFile = XLSX.write(
+      {
+        SheetNames: ["CERTIFICADO"],
+        Sheets: {
+          CERTIFICADO: XLSX.utils.aoa_to_sheet([
+            ["CERTIFICADO DE EJECUCIÓN DE OBRAS N° 6", null, null, null, null, null, null, null, null, null],
+            ["Período: desde 01/01/2026 hasta 31/01/2026", null, null, null, null, null, null, null, null, null],
+            ["COD", "RUBRO", "UND", "CONTRACTUAL", "ANTERIOR", "PRESENTE", "ACUMULADO", "P.U. IVA incl.", "P.U. sin IVA", "MONTO PRESENTE"],
+            ["1", "Limpieza", "gl", 37, 10, 2, 12, 110, 100, 220],
+            ["2", "Replanteo", "m2", 74, 20, 4, 24, 55, 50, 220],
+            ["TOTAL", null, null, null, null, null, null, null, null, 440],
+          ]),
+        },
+      },
+      { type: "buffer", bookType: "xlsx" }
+    );
+    const workbook = parseWorkbook(new Uint8Array(workbookFile), "test.xlsx");
+    const plan = (priceColumn: "H" | "I") => ({
+      workbookType: "CONSTRUCTION_PROJECT",
+      overallConfidence: 1,
+      blocks: [{
+        id: "certificate", sheet: "CERTIFICADO", sourceRange: "A3:J6", target: "CERTIFICATE" as const, confidence: 1, needsReview: false, headerRowStart: 3, headerRowEnd: 3, dataRowStart: 4, dataRowEnd: 5,
+        columnMappings: [
+          { column: "A", role: "code" as const, confidence: 1, notes: "" }, { column: "B", role: "description" as const, confidence: 1, notes: "" }, { column: "C", role: "unit" as const, confidence: 1, notes: "" },
+          { column: "D", role: "quantity" as const, confidence: 1, notes: "" }, { column: "E", role: "previousQuantity" as const, confidence: 1, notes: "" }, { column: "F", role: "currentQuantity" as const, confidence: 1, notes: "" },
+          { column: "G", role: "cumulativeQuantity" as const, confidence: 1, notes: "" }, { column: priceColumn, role: "unitPrice" as const, confidence: 1, notes: "" }, { column: "J", role: "currentAmount" as const, confidence: 1, notes: "" },
+        ],
+        repeatedHeaderRows: [], subtotalRows: [6], footerRows: [], excludedRows: [], notes: "",
+        keyValues: [
+          { key: "certificateNumber" as const, cell: "A1", value: 6, notes: "" },
+          { key: "periodStart" as const, cell: "A2", value: "2026-01-01", notes: "" },
+          { key: "periodEnd" as const, cell: "A2", value: "2026-01-31", notes: "" },
+          { key: "declaredCurrentAmount" as const, cell: "J6", value: 440, notes: "" },
+        ],
+      }],
+      unresolvedRegions: [],
+      warnings: [],
+    });
+
+    const wrong = buildCanonicalImportCandidate(workbook, result(plan("I")));
+    expect(wrong.certificate.status).toBe("DETECTED_NOT_APPLIED");
+    expect(wrong.certificate.reason).toMatch(/400\) no reproduce el documento: total declarado 440 \(CERTIFICADO!J6\)/);
+    expect(wrong.checks.find((check) => check.id === "certificate_storage_reproduces_document")?.status).toBe("WARNING");
+
+    const right = buildCanonicalImportCandidate(workbook, result(plan("H")));
+    expect(right.certificate.status).toBe("SAFE_TO_APPLY");
+    expect(right.checks.find((check) => check.id === "certificate_storage_reproduces_document")?.status).toBe("OK");
+  });
+
   it("uses certificate contractual quantities for budget_items and does not apply an incompatible measurement", () => {
     const workbookFile = XLSX.write(
       {

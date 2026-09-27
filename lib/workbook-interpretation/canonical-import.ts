@@ -607,6 +607,7 @@ export function buildCanonicalImportCandidate(
 
   // Certificate arithmetic and declared totals.
   let totals: Pick<CanonicalCertificateAudit, "contractTotal" | "previousTotal" | "currentTotal" | "cumulativeTotal" | "cumulativePercent"> = { contractTotal: null, previousTotal: null, currentTotal: null, cumulativeTotal: null, cumulativePercent: null };
+  const storageMismatches: string[] = [];
   if (items.length) {
     const cumulativeWrong = items.filter((item) => !close(item.quantityPrevious + item.quantityCurrent, item.quantityCumulative, 1e-6));
     check("certificate_quantities", "Certificado: anterior + presente = acumulado", !cumulativeWrong.length, cumulativeWrong.length ? `No cuadran filas ${cumulativeWrong.map((item) => item.source.row).join(", ")}.` : `${items.length}/${items.length} líneas cuadran.`);
@@ -628,6 +629,35 @@ export function buildCanonicalImportCandidate(
       if (!declared) continue;
       check(`certificate_${key}`, `Certificado: ${label.toLowerCase()} = declarado`, declared.verified && close(computed, Number(declared.value), 2), `Calculado ${formatNumber(computed)} · declarado ${formatNumber(Number(declared.value))} (${declared.cell}${declared.verified ? "" : ", no verificado en la celda"}).`);
     }
+
+    // The checks above may use the document's own amount columns. The
+    // database does NOT store those: it regenerates every amount as
+    // round(cantidad × precio) per line. If the mapped quantity or price
+    // columns are wrong while the amount column is right, the checks pass
+    // and the ERP persists a total that exists nowhere in the document (the
+    // MAGY Cert. N°6 incident: 629.818.012 stored vs 623.788.012 in J75).
+    // So what the ERP will store must reproduce the document, to the guaraní,
+    // or the certificate is not applied.
+    const stored = (quantity: (item: CanonicalCertificateItem) => number) =>
+      items.reduce((sum, item) => sum + Math.round(quantity(item) * item.unitPrice), 0);
+    const storedByKind = {
+      previous: stored((item) => item.quantityPrevious),
+      current: stored((item) => item.quantityCurrent),
+    };
+    const documentTotal = (pick: (item: CanonicalCertificateItem) => number | null) =>
+      items.every((item) => pick(item) !== null) ? items.reduce((sum, item) => sum + (pick(item) ?? 0), 0) : null;
+    for (const [kind, label, declaredKey, documentColumn] of [
+      ["previous", "anterior", "declaredPreviousAmount", documentTotal((item) => item.amountPrevious)],
+      ["current", "presente", "declaredCurrentAmount", documentTotal((item) => item.amountCurrent)],
+    ] as const) {
+      const erp = storedByKind[kind];
+      const declared = verifiedKeyValue(workbook, certificateBlocks, declaredKey);
+      const references: string[] = [];
+      if (declared?.verified && Math.abs(erp - Number(declared.value)) > 1) references.push(`total declarado ${formatNumber(Number(declared.value))} (${declared.cell})`);
+      if (documentColumn !== null && Math.abs(erp - documentColumn) > 1) references.push(`suma de la columna de montos ${formatNumber(documentColumn)}`);
+      if (references.length) storageMismatches.push(`El monto ${label} que guardaría el ERP (cantidad × precio por línea = ${formatNumber(erp)}) no reproduce el documento: ${references.join(" · ")}.`);
+    }
+    check("certificate_storage_reproduces_document", "Certificado: lo que guarda el ERP = documento", !storageMismatches.length, storageMismatches.length ? storageMismatches.join(" ") : `Anterior ${formatNumber(storedByKind.previous)} · presente ${formatNumber(storedByKind.current)}, iguales al documento.`);
   }
   for (const item of checks.filter((entry) => entry.status === "WARNING" && (entry.id.startsWith("certificate_") || entry.id.startsWith("scale_")))) certificateIssues.push(`${item.label}: ${item.detail}`);
 
@@ -646,7 +676,7 @@ export function buildCanonicalImportCandidate(
   const certificateScale = certificateBlocks.find((block) => block.scale)?.scale ?? null;
   const certificateStatus: CanonicalCertificateAudit["status"] = !certificateBlocks.length
     ? "NOT_DETECTED"
-    : !items.length || identityProblems.length
+    : !items.length || identityProblems.length || storageMismatches.length
       ? "DETECTED_NOT_APPLIED"
       : certificateIssues.length ? "APPLY_WITH_WARNINGS" : "SAFE_TO_APPLY";
   const certificateReason = certificateStatus === "NOT_DETECTED"
@@ -655,6 +685,8 @@ export function buildCanonicalImportCandidate(
       ? "No se pudieron copiar líneas del certificado desde las columnas indicadas."
       : identityProblems.length
         ? `Falta ${identityProblems.join(", ")} verificable en la planilla; la base de datos lo exige para crear el certificado.`
+        : storageMismatches.length
+          ? `No se aplica: ${storageMismatches.join(" ")} Revisá qué columnas son cantidad y precio y volvé a analizar.`
         : certificateStatus === "APPLY_WITH_WARNINGS"
           ? "El certificado puede importarse, pero tiene observaciones que conviene revisar."
           : "Líneas, totales y vínculos verificados.";
