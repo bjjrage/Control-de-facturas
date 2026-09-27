@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { requirePlan } from "@/lib/auth";
 import { buildCanonicalImportCandidate, type CanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
-import { computeStructureHash, workbookFromSnapshot, type WorkingSnapshot } from "@/lib/certificates/workbook-store";
+import { computeStructureHash, ensureSnapshotFormatting, workbookFromSnapshot, type WorkingSnapshot } from "@/lib/certificates/workbook-store";
 import { loadImportSession, suggestContractRegime, type ImportSession } from "@/lib/certificates/import-session-store";
 
 /**
@@ -32,7 +32,11 @@ export async function getImportSession(sessionId: string): Promise<{ error: stri
   const supabase = await createClient();
   const session = await loadImportSession(supabase, profile.empresa_id, sessionId);
   if (!session) return { error: "Sesión no encontrada.", session: null };
-  return { error: null, session: toView(session) };
+  const formatted = await ensureSnapshotFormatting(supabase, session.workingSnapshot, session.originalStoragePath);
+  if (formatted.changed && session.status !== "CONFIRMED" && session.status !== "DISCARDED") {
+    await supabase.from("workbook_import_sessions").update({ working_snapshot: formatted.snapshot }).eq("id", sessionId).eq("empresa_id", profile.empresa_id);
+  }
+  return { error: null, session: toView({ ...session, workingSnapshot: formatted.snapshot }) };
 }
 
 /**

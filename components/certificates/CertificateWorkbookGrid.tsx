@@ -115,13 +115,14 @@ export function CertificateWorkbookGrid({
       locale: LocaleType.ES_ES,
       locales: { [LocaleType.ES_ES]: merge({}, sheetsCoreEsES) },
       presets: [
+        // Barra de formato, barra de fórmulas y pestañas de hojas siempre,
+        // como en Excel. Congelada se ven igual (para leer fórmulas y
+        // formatos) pero setEditable(false) rechaza cualquier cambio.
         UniverSheetsCorePreset({
           container: mountEl,
-          header: !readOnlyRef.current,
-          toolbar: !readOnlyRef.current,
-          formulaBar: !readOnlyRef.current,
-          // Las pestañas de hojas quedan siempre: una planilla congelada se
-          // tiene que poder recorrer (ACTA, CERTIFICADO, resumen…).
+          header: true,
+          toolbar: true,
+          formulaBar: true,
         }),
       ],
     });
@@ -145,7 +146,11 @@ export function CertificateWorkbookGrid({
       if (disposed) return false;
       setStatus("saving");
       try {
-        const nextSnapshot = univerToWorkingSnapshot(fWorkbook.save() as IWorkbookData, fileName);
+        const nextSnapshot = {
+          ...univerToWorkingSnapshot(fWorkbook.save() as IWorkbookData, fileName),
+          // Univer no maneja los nombres definidos del Excel; se conservan.
+          definedNames: initialSnapshotRef.current.definedNames,
+        };
         const result = await onSaveRef.current(nextSnapshot);
         if (!result.error) dirty = false;
         if (!disposed) setStatus(result.error ? "error" : "saved");

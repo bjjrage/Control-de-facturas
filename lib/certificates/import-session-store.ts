@@ -4,6 +4,7 @@ import { parseWorkbook, WorkbookInputError } from "@/lib/workbook-interpretation
 import type { CanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
 import type { WorkbookInterpretationResult } from "@/lib/workbook-interpretation/types";
 import { CERTIFICATE_WORKBOOKS_BUCKET, computeStructureHash, toStoredSheets, type WorkingSnapshot } from "./workbook-store";
+import { applyWorkbookFormatting, extractWorkbookFormatting } from "./workbook-formatting";
 
 /**
  * Fase 4 de "Certificados Excel-first": sesión de importación de OBRA NUEVA.
@@ -84,6 +85,7 @@ export async function createImportSession(
   } catch (cause) {
     return { id: null, error: cause instanceof WorkbookInputError ? cause.message : "No se pudo leer la planilla." };
   }
+  snapshot = applyWorkbookFormatting(snapshot, await extractWorkbookFormatting(input.bytes));
 
   const id = randomUUID();
   const storagePath = `sessions/${input.empresaId}/${id}/${input.fileName}`;

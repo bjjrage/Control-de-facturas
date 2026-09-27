@@ -10,7 +10,9 @@ import {
   CERTIFICATE_WORKBOOKS_BUCKET,
   computeStructureHash,
   createCertificateWorkbook,
+  ensureSnapshotFormatting,
   loadCertificateWorkbook,
+  mappingStillValid,
   type CertificateWorkbookRow,
   type WorkingSnapshot,
   workbookFromSnapshot,
@@ -92,7 +94,7 @@ export async function saveCertificateWorkbookSnapshot(
 
   const { data: existing } = await supabase
     .from("certificate_workbooks")
-    .select("id, certificate_id, empresa_id, structure_hash, working_revision, project_certificates!inner(status)")
+    .select("id, certificate_id, empresa_id, structure_hash, mapping_structure_hash, working_revision, project_certificates!inner(status)")
     .eq("id", workbookId)
     .eq("empresa_id", profile.empresa_id)
     .maybeSingle();
@@ -103,11 +105,21 @@ export async function saveCertificateWorkbookSnapshot(
   const newStructureHash = computeStructureHash(snapshot);
   const structureChanged = newStructureHash !== existing.structure_hash;
 
+  // Mapeo guardado con la huella vieja sobre una copia sin tocar: se pasa a
+  // la huella nueva ANTES de pisar la copia (después ya no se puede saber).
+  let mappingStructureHash = existing.mapping_structure_hash as string | null;
+  if (mappingStructureHash && mappingStructureHash === existing.structure_hash && structureChanged) {
+    const stored = await loadCertificateWorkbook(supabase, existing.certificate_id as string);
+    const check = stored ? mappingStillValid(stored.workingSnapshot, mappingStructureHash) : null;
+    if (check?.upgradedHash) mappingStructureHash = check.upgradedHash;
+  }
+
   const { error } = await supabase
     .from("certificate_workbooks")
     .update({
       working_snapshot: snapshot,
       structure_hash: newStructureHash,
+      mapping_structure_hash: mappingStructureHash,
       working_revision: (existing.working_revision as number) + 1,
     })
     .eq("id", workbookId);
@@ -149,7 +161,7 @@ export async function applyCertificateWorkbook(certificateId: string): Promise<A
   if (!workbook) return fail("Este certificado no tiene planilla.");
   if (!workbook.mapping) return fail("Esta planilla no tiene un análisis guardado; no se sabe qué celda es qué.");
   const currentStructure = computeStructureHash(workbook.workingSnapshot);
-  if (workbook.mappingStructureHash && workbook.mappingStructureHash !== currentStructure) {
+  if (!mappingStillValid(workbook.workingSnapshot, workbook.mappingStructureHash).valid) {
     return fail("Cambió la estructura de la planilla (hojas o columnas movidas/agregadas); el análisis guardado ya no corresponde. No se aplicó nada.");
   }
 
@@ -236,12 +248,25 @@ export async function getCertificateWorkbook(certificateId: string): Promise<{ e
 
   const workbook = await loadCertificateWorkbook(supabase, certificateId);
   if (!workbook) return { error: null, workbook: null };
+  const formatted = await ensureSnapshotFormatting(supabase, workbook.workingSnapshot, workbook.originalStoragePath);
+  const hashCheck = mappingStillValid(workbook.workingSnapshot, workbook.mappingStructureHash);
+  if ((formatted.changed || hashCheck.upgradedHash) && cert.status === "BORRADOR") {
+    // Se persiste para no releer el original cada vez (y la huella nueva del
+    // mapeo). Congelado, la base no deja escribir: se calcula al vuelo.
+    await supabase
+      .from("certificate_workbooks")
+      .update({
+        working_snapshot: formatted.snapshot,
+        ...(hashCheck.upgradedHash ? { structure_hash: computeStructureHash(formatted.snapshot), mapping_structure_hash: hashCheck.upgradedHash } : {}),
+      })
+      .eq("id", workbook.id);
+  }
   return {
     error: null,
     workbook: {
       id: workbook.id,
       originalFileName: workbook.originalFileName,
-      workingSnapshot: workbook.workingSnapshot,
+      workingSnapshot: formatted.snapshot,
       structureHash: workbook.structureHash,
       mapping: workbook.mapping,
       mappingStructureHash: workbook.mappingStructureHash,

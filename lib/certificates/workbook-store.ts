@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
 import { contiguousBlocks, parseWorkbook, WorkbookInputError } from "@/lib/workbook-interpretation/parser";
 import type { WorkbookCell, WorkbookDefinedName, WorkbookRepresentation, WorkbookSheetRepresentation } from "@/lib/workbook-interpretation/types";
+import { applyWorkbookFormatting, extractWorkbookFormatting } from "./workbook-formatting";
 
 /**
  * Fase 1 de "Certificados Excel-first" (ver memoria de proyecto
@@ -27,6 +28,10 @@ export const CERTIFICATE_WORKBOOKS_BUCKET = "certificate-workbooks";
 /** [fila, columna, valor, texto visible (null = igual al valor), fórmula, tipo] */
 export type StoredCell = [number, number, string | number | boolean | null, string | null, string | null, string | null];
 
+/** Estilo de celda en la forma de Univer (IStyleData): n = formato de número,
+ * bl/it = negrita/cursiva, bg = relleno, bd = bordes, ht/vt = alineación… */
+export type StoredStyle = Record<string, unknown>;
+
 export type StoredSheet = {
   name: string;
   index: number;
@@ -37,12 +42,22 @@ export type StoredSheet = {
   merges: string[];
   columnWidths: (number | null)[];
   cells: StoredCell[];
+  // Formato (ver workbook-formatting.ts). Separado de `cells` a propósito:
+  // el extractor y la huella de estructura no lo leen. Opcional porque las
+  // copias guardadas antes de esto no lo tienen.
+  /** [fila, columna, id de estilo], incluye celdas sin valor. */
+  styleCells?: [number, number, string][];
+  rowHeights?: Record<number, number>;
+  hiddenRows?: number[];
+  freeze?: { rows: number; columns: number } | null;
 };
 
 export type WorkingSnapshot = {
   fileName: string;
   sheets: StoredSheet[];
   definedNames: WorkbookDefinedName[];
+  /** id → estilo. Ausente = copia guardada antes de conservar el formato. */
+  styles?: Record<string, StoredStyle>;
 };
 
 export type CertificateWorkbookRow = {
@@ -137,8 +152,32 @@ export function workbookFromSnapshot(snapshot: WorkingSnapshot): WorkbookReprese
  * de Luna (Fase 5/6): un mapeo con un structure_hash viejo ya no es
  * confiable y hay que re-analizar; uno con el mismo hash se puede reusar
  * tal cual, aunque los valores hayan cambiado.
+ *
+ * Solo cuentan las ETIQUETAS de texto del encabezado. Un número que cae en
+ * esa fila (MAGY: "₲ 3,482,791,500", "17.91%" en CERTIFICADO) es un valor,
+ * no estructura — la versión anterior lo incluía con su texto formateado, y
+ * como la grilla no conserva ese texto, cualquier edición "cambiaba la
+ * estructura" y anulaba el mapeo.
  */
 export function computeStructureHash(snapshot: WorkingSnapshot): string {
+  const signature = snapshot.sheets.map((sheet) => {
+    const byRow = new Map<number, StoredCell[]>();
+    for (const cell of sheet.cells) byRow.set(cell[0], [...(byRow.get(cell[0]) ?? []), cell]);
+    const headerRow = [...byRow.entries()]
+      .sort(([a], [b]) => a - b)
+      .find(([, cells]) => cells.filter((c) => typeof c[2] === "string").length >= 2);
+    const headers = (headerRow?.[1] ?? [])
+      .filter((c) => typeof c[2] === "string")
+      .sort((a, b) => a[1] - b[1])
+      .map((c) => `${c[1]}:${String(c[2]).trim().toLowerCase()}`);
+    return { name: sheet.name, hidden: sheet.hidden, headers };
+  });
+  return createHash("sha256").update(JSON.stringify(`v2:${JSON.stringify(signature)}`)).digest("hex");
+}
+
+/** La huella anterior (incluía valores formateados). Solo para reconocer
+ * mapeos guardados antes del cambio: ver `mappingStillValid`. */
+function computeLegacyStructureHash(snapshot: WorkingSnapshot): string {
   const signature = snapshot.sheets.map((sheet) => {
     const byRow = new Map<number, StoredCell[]>();
     for (const cell of sheet.cells) byRow.set(cell[0], [...(byRow.get(cell[0]) ?? []), cell]);
@@ -151,6 +190,19 @@ export function computeStructureHash(snapshot: WorkingSnapshot): string {
     return { name: sheet.name, hidden: sheet.hidden, headers };
   });
   return createHash("sha256").update(JSON.stringify(signature)).digest("hex");
+}
+
+/**
+ * ¿El mapeo guardado sigue correspondiendo a esta copia? Sí si coincide con
+ * la huella actual, o con la huella vieja de esta misma copia (mapeo
+ * guardado antes del cambio de huella, sobre una copia que no se tocó).
+ * `upgradedHash` es la huella nueva con la que conviene re-guardarlo.
+ */
+export function mappingStillValid(snapshot: WorkingSnapshot, mappingHash: string | null): { valid: boolean; upgradedHash: string | null } {
+  const current = computeStructureHash(snapshot);
+  if (!mappingHash || mappingHash === current) return { valid: true, upgradedHash: null };
+  if (mappingHash === computeLegacyStructureHash(snapshot)) return { valid: true, upgradedHash: current };
+  return { valid: false, upgradedHash: null };
 }
 
 /** Sube el .xlsx original (inmutable) y guarda la copia de trabajo. Falla
@@ -173,7 +225,10 @@ export async function createCertificateWorkbook(
     .upload(storagePath, input.bytes, { contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   if (uploadError) return { id: null, error: `No se pudo guardar el archivo original: ${uploadError.message}` };
 
-  const snapshot: WorkingSnapshot = { fileName: workbook.fileName, sheets: toStoredSheets(workbook), definedNames: workbook.definedNames ?? [] };
+  const snapshot: WorkingSnapshot = applyWorkbookFormatting(
+    { fileName: workbook.fileName, sheets: toStoredSheets(workbook), definedNames: workbook.definedNames ?? [] },
+    await extractWorkbookFormatting(input.bytes)
+  );
   const { data, error } = await supabase
     .from("certificate_workbooks")
     .insert({
@@ -197,6 +252,23 @@ export async function createCertificateWorkbook(
     return { id: null, error: error?.message ?? "No se pudo guardar la planilla." };
   }
   return { id: String(data.id), error: null };
+}
+
+/**
+ * Las copias guardadas antes de conservar el formato no tienen `styles`: se
+ * lee del .xlsx original (inmutable, en Storage) y se suma. `changed` avisa
+ * si conviene persistirla para no repetir la lectura.
+ */
+export async function ensureSnapshotFormatting(
+  supabase: SupabaseClient,
+  snapshot: WorkingSnapshot,
+  originalStoragePath: string
+): Promise<{ snapshot: WorkingSnapshot; changed: boolean }> {
+  if (snapshot.styles !== undefined) return { snapshot, changed: false };
+  const { data } = await supabase.storage.from(CERTIFICATE_WORKBOOKS_BUCKET).download(originalStoragePath);
+  if (!data) return { snapshot, changed: false };
+  const formatting = await extractWorkbookFormatting(new Uint8Array(await data.arrayBuffer()));
+  return { snapshot: applyWorkbookFormatting(snapshot, formatting), changed: true };
 }
 
 type WorkbookRow = {
