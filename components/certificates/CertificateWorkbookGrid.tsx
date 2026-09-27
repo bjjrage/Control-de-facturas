@@ -76,7 +76,17 @@ export function CertificateWorkbookGrid({
       ],
     });
 
-    const fWorkbook = univerAPI.createWorkbook(workingSnapshotToUniver(initialSnapshotRef.current, workbookId) as IWorkbookData);
+    const univerSnapshot = workingSnapshotToUniver(initialSnapshotRef.current, workbookId) as IWorkbookData;
+    const fWorkbook = univerAPI.createWorkbook(univerSnapshot);
+    // Si la primera hoja del libro está oculta (frecuente: un Excel de obra
+    // suele traer meses anteriores archivados como hojas ocultas antes de la
+    // hoja "viva" — confirmado en vivo con MAGY, cuya primera hoja es
+    // "Julio", oculta), Univer la deja como activa igual y la grilla se ve
+    // en blanco. Se activa la primera hoja VISIBLE del propio libro en su
+    // lugar — no una fija por nombre, porque no todo certificado tiene una
+    // hoja "CERTIFICADO".
+    const firstVisibleSheetId = univerSnapshot.sheetOrder.find((id) => !univerSnapshot.sheets[id]?.hidden);
+    if (firstVisibleSheetId) fWorkbook.setActiveSheet(firstVisibleSheetId);
     // Las mutaciones que Univer hace al montar el libro no son ediciones del
     // usuario: no disparan un guardado.
     const readyTimer = setTimeout(() => {
