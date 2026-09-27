@@ -33,7 +33,14 @@ class Registry {
 
   register<TInput, TOutput>(def: ToolDefinition<TInput, TOutput>): void {
     if (this.map.has(def.name)) {
-      throw new Error(`Tool ya registrado: ${def.name}`);
+      // En `next dev`, la recarga en caliente vuelve a ejecutar los módulos
+      // de tools (que se registran al importarse) pero no este registro, que
+      // conserva la versión anterior: sería un "duplicado" falso que tira la
+      // página entera. Solo en desarrollo se reemplaza; en producción y en
+      // tests un nombre repetido sigue siendo un error real.
+      if (process.env.NODE_ENV !== "development") {
+        throw new Error(`Tool ya registrado: ${def.name}`);
+      }
     }
     if (!/^[a-z_][a-z0-9_]*$/.test(def.name)) {
       throw new Error(`Nombre de tool invalido (snake_case): ${def.name}`);
