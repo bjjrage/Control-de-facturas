@@ -17,7 +17,7 @@ export default async function InventarioGlobalPage() {
       .order("name"),
     supabase
       .from("productos")
-      .select("id, nombre, unidad")
+      .select("id, nombre, unidad, sku")
       .eq("empresa_id", profile.empresa_id)
       .eq("activo", true)
       .order("nombre")
@@ -47,6 +47,7 @@ export default async function InventarioGlobalPage() {
     id: product.id as string,
     name: product.nombre as string,
     unit: product.unidad as string,
+    sku: (product.sku as string | null) ?? null,
   }));
   const adminLocations = allLocations.map((location): InventoryLocationAdminRow => ({
     id: location.id as string,

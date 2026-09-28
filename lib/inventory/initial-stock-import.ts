@@ -1,7 +1,8 @@
-export type InitialStockColumnKey = "material" | "quantity" | "unit" | "location" | "unitCost" | "currency" | "exchangeRate";
+export type InitialStockColumnKey = "material" | "sku" | "quantity" | "unit" | "location" | "unitCost" | "currency" | "exchangeRate";
 
 export const INITIAL_STOCK_COLUMNS: { key: InitialStockColumnKey; label: string; required: boolean }[] = [
   { key: "material", label: "Material", required: true },
+  { key: "sku", label: "Código", required: false },
   { key: "quantity", label: "Cantidad", required: true },
   { key: "unit", label: "Unidad", required: false },
   { key: "location", label: "Ubicación", required: true },
@@ -12,6 +13,13 @@ export const INITIAL_STOCK_COLUMNS: { key: InitialStockColumnKey; label: string;
 
 const SYNONYMS: Record<InitialStockColumnKey, string[]> = {
   material: ["material", "materiales", "producto", "nombre", "insumo", "description"],
+  // El nombre de un material en la planilla de quien te da el stock (un
+  // proveedor, un conteo físico, otro sistema) casi nunca coincide letra por
+  // letra con el nombre que tiene en el catálogo — son textos libres escritos
+  // por personas distintas. Un código (SKU) es estable: si viene, matchea por
+  // ahí primero (exacto, igual que ya hace el import de presupuesto/receta);
+  // el nombre libre queda como respaldo cuando no hay código.
+  sku: ["sku", "codigo", "código", "code", "cod", "referencia"],
   quantity: ["cantidad", "existencia", "stock", "qty", "quantity"],
   unit: ["unidad", "unit", "um"],
   location: ["ubicacion", "deposito", "almacen", "obra", "location", "warehouse"],

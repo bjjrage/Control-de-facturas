@@ -43,6 +43,8 @@ export interface ManualMovementProductOption {
   id: string;
   name: string;
   unit: string;
+  /** Código estable del catálogo — matchea mucho mejor que el nombre libre. */
+  sku?: string | null;
 }
 
 export interface ManualMovementBalanceOption {
