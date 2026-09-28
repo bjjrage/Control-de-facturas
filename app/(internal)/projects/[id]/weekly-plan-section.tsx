@@ -135,6 +135,12 @@ export function WeeklyPlanSection({ project }: Props) {
   const [planMode, setPlanMode] = useState<PlanMode>("BLOCK");
   // Bloques derivados del presupuesto existente (parent_id + raíz de código).
   const blocks: BlockGroup[] = useMemo(() => buildBlockGroups(budgetItems), [budgetItems]);
+  // Partidas ejecutables (excluye rubros agrupadores, cantidad 0/null): para
+  // "Por partida" un rubro no se ejecuta, se plantea "Por bloque" (arriba).
+  const executableItems = useMemo(
+    () => budgetItems.filter((b) => !isGroupingItem(b)),
+    [budgetItems]
+  );
   const [selectedBlockKey, setSelectedBlockKey] = useState<string | null>(null);
   const [blockPp, setBlockPp] = useState<number>(10);
   const [blockFront, setBlockFront] = useState<string>("Sector A");
@@ -858,16 +864,20 @@ export function WeeklyPlanSection({ project }: Props) {
       {planMode === "ITEM" && (
       <div>
         <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-          1. ¿Qué quiero hacer? — partidas ({budgetItems.length})
+          1. ¿Qué quiero hacer? — partidas ({executableItems.length})
         </div>
         <p className="mt-0.5 text-[11px] text-[var(--muted)]">
           Definí la meta de esta semana por partida y frente. El botón Definir meta está siempre
           visible en cada tarjeta, sin scroll horizontal.
         </p>
 
-        {/* Sin overflow-x-auto a propósito: Definir meta nunca depende del scroll horizontal. */}
+        {/* Sin overflow-x-auto a propósito: Definir meta nunca depende del scroll horizontal.
+            Solo partidas ejecutables: un rubro agrupador (parent_id de otras, sin cantidad
+            propia) no se ejecuta acá — planificarlo es el modo POR BLOQUE de arriba. Mezclarlo
+            en esta lista (confirmado en vivo con MAGY, 11 rubros nuevos) hace que las primeras
+            tarjetas digan "No ejecutable" y parezca que la ejecución por partida se rompió. */}
         <div data-testid="partidas-list" className="mt-3 space-y-3">
-          {budgetItems.map((bItem) => {
+          {executableItems.map((bItem) => {
             const grouping = isGroupingItem(bItem);
             const contractual = Number(bItem.quantity) || 0;
             const executed = executedOf(bItem.id);
