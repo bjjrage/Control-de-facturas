@@ -301,7 +301,7 @@ export function ProjectTabsClient({
         ) : null}
       </div>
 
-      {tab === "costeo" ? <CosteoSection projectId={project.id} /> : null}
+      {tab === "costeo" ? <CosteoSection projectId={project.id} isCaterpillar={isCaterpillar} /> : null}
 
       {tab === "presupuesto" ? (
         <div className="space-y-3">
@@ -476,7 +476,7 @@ export function ProjectTabsClient({
 
       {tab === "personal" && isCaterpillar ? (
         <div className="space-y-3">
-          <AddLaborEntryForm projectId={project.id} />
+          <AddLaborEntryForm projectId={project.id} budgetItems={items} />
           <PersonalTable rows={laborRows} />
         </div>
       ) : null}

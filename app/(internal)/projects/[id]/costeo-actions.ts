@@ -15,6 +15,7 @@ import {
   type ResolvedPrice,
 } from "@/lib/costing/cost-budget";
 import { resolveProjectMaterialPrices, type QuoteOption } from "@/lib/costing/project-prices";
+import { computeRealVsBudget, type RealVsBudgetRow } from "@/lib/costing/real-vs-budget";
 
 // ---------------------------------------------------------------------------
 // Costeo: RFQ multi-ítem por rubro. Los insumos de la obra (cantidad de cada
@@ -364,6 +365,80 @@ export async function getCostBudgetAction(projectId: string): Promise<{ data: Co
     };
   } catch (err: any) {
     return { data: null, error: err.message || "Error al calcular el presupuesto de costo." };
+  }
+}
+
+// --- Costo real vs presupuestado (plan caterpillar) ------------------------
+
+export interface RealVsBudgetData {
+  rows: (RealVsBudgetRow & { code: string; description: string })[];
+  manoObraSinImputar: number;
+  subcontratoSinImputar: number;
+  totalReal: number;
+  totalPresupuestadoALaFecha: number;
+}
+
+export async function getRealVsBudgetAction(projectId: string): Promise<{ data: RealVsBudgetData | null; error: string | null }> {
+  try {
+    const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
+    const empresaId = profile.empresa_id;
+    const supabase = await createClient();
+
+    const budget = await getCostBudgetAction(projectId);
+    if (budget.error || !budget.data) return { data: null, error: budget.error ?? "No se pudo calcular el presupuesto de costo." };
+
+    const [execRes, consumptionRes, laborRes, certRes] = await Promise.all([
+      supabase.from("execution_entries").select("budget_item_id, quantity_executed").eq("project_id", projectId),
+      supabase.from("inventory_consumption_by_budget").select("budget_item_id, cost_consumed_company").eq("empresa_id", empresaId).eq("project_id", projectId),
+      supabase.from("daily_labor_entries").select("budget_item_id, labor_cost").eq("project_id", projectId),
+      supabase
+        .from("subcontractor_certificates")
+        .select("approved_amount, status, subcontractor_contracts!inner(budget_item_id)")
+        .eq("project_id", projectId)
+        .in("status", ["APROBADO", "PAGADO"]),
+    ]);
+
+    const sumBy = (rows: any[] | null, key: string, value: string) => {
+      const acc: Record<string, number> = {};
+      let unassigned = 0;
+      for (const r of rows ?? []) {
+        const k = r[key] as string | null;
+        const v = Number(r[value]) || 0;
+        if (!k) unassigned += v;
+        else acc[k] = (acc[k] ?? 0) + v;
+      }
+      return { acc, unassigned };
+    };
+    const executed = sumBy(execRes.data as any[], "budget_item_id", "quantity_executed");
+    const material = sumBy(consumptionRes.data as any[], "budget_item_id", "cost_consumed_company");
+    const labor = sumBy(laborRes.data as any[], "budget_item_id", "labor_cost");
+    const subRows = ((certRes.data ?? []) as any[]).map((c) => {
+      const contract = Array.isArray(c.subcontractor_contracts) ? c.subcontractor_contracts[0] : c.subcontractor_contracts;
+      return { budget_item_id: contract?.budget_item_id ?? null, approved_amount: c.approved_amount };
+    });
+    const sub = sumBy(subRows, "budget_item_id", "approved_amount");
+
+    const byId = new Map(budget.data.partidas.map((p) => [p.id, p]));
+    const rows = computeRealVsBudget({
+      partidas: budget.data.partidas.map((p) => ({ id: p.id, quantity: p.quantity, costoTotal: p.cost?.costoTotal ?? null })),
+      executedByItem: executed.acc,
+      realMaterial: material.acc,
+      realLabor: labor.acc,
+      realSubcontract: sub.acc,
+    }).map((r) => ({ ...r, code: byId.get(r.budgetItemId)?.code ?? "", description: byId.get(r.budgetItemId)?.description ?? "" }));
+
+    return {
+      data: {
+        rows,
+        manoObraSinImputar: labor.unassigned,
+        subcontratoSinImputar: sub.unassigned,
+        totalReal: rows.reduce((acc, r) => acc + r.real, 0) + labor.unassigned + sub.unassigned,
+        totalPresupuestadoALaFecha: rows.reduce((acc, r) => acc + (r.presupuestadoALaFecha ?? 0), 0),
+      },
+      error: null,
+    };
+  } catch (err: any) {
+    return { data: null, error: err.message || "Error al calcular el costo real." };
   }
 }
 

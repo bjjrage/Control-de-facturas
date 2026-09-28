@@ -19,12 +19,31 @@ export async function addLaborEntry(projectId: string, formData: FormData): Prom
 
   const workerName = (formData.get("worker_name") as string | null)?.trim();
   const hours = Number(formData.get("hours") ?? 0);
-  const hourlyCost = Number(formData.get("hourly_cost") ?? 0);
+  const hourlyCostRaw = ((formData.get("hourly_cost") as string | null) ?? "").trim();
   const entryDate = (formData.get("entry_date") as string | null) || new Date().toISOString().slice(0, 10);
   const taskDescription = (formData.get("task_description") as string | null) || null;
+  const budgetItemId = (formData.get("budget_item_id") as string | null) || null;
+  const laborRateId = (formData.get("labor_rate_id") as string | null) || null;
 
   if (!workerName) return { error: "El nombre del trabajador es obligatorio." };
   if (!(hours > 0)) return { error: "Las horas deben ser mayores a cero." };
+
+  if (budgetItemId) {
+    const { data: item } = await supabase.from("budget_items").select("id").eq("id", budgetItemId).eq("project_id", projectId).maybeSingle();
+    if (!item) return { error: "La partida no pertenece a esta obra." };
+  }
+  let rateCost: number | null = null;
+  if (laborRateId) {
+    const { data: rate } = await supabase.from("labor_rates").select("costo_hora").eq("id", laborRateId).eq("empresa_id", empresaId).maybeSingle();
+    if (!rate) return { error: "Categoría de jornal no encontrada." };
+    rateCost = Number(rate.costo_hora);
+  }
+  // El costo por hora escrito manda; si está vacío, sale del jornal. Vacío y
+  // sin categoría no se guarda como 0: el parte quedaría con costo falso.
+  const hourlyCost = hourlyCostRaw !== "" ? Number(hourlyCostRaw) : rateCost;
+  if (hourlyCost == null || !Number.isFinite(hourlyCost) || hourlyCost < 0) {
+    return { error: "Cargá el costo por hora o elegí una categoría de jornal." };
+  }
 
   const { error } = await supabase.from("daily_labor_entries").insert({
     project_id: projectId,
@@ -34,6 +53,8 @@ export async function addLaborEntry(projectId: string, formData: FormData): Prom
     hourly_cost: hourlyCost,
     task_description: taskDescription,
     recorded_by: profile.id,
+    budget_item_id: budgetItemId,
+    labor_rate_id: laborRateId,
   });
 
   if (error) return { error: "No se pudo registrar el parte." };

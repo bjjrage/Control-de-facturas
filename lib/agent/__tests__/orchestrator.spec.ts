@@ -80,7 +80,7 @@ describe("orchestrator", () => {
     expect(callCount).toBe(2);
   });
 
-  it("envia el modelo Rodrigo vigente a DeepSeek", async () => {
+  it("envia el modelo Rodrigo vigente (Luna)", async () => {
     toolRegistry.register({
       name: "structured_tool",
       description: "structured test tool",
@@ -117,7 +117,7 @@ describe("orchestrator", () => {
       tools: Array<{ function: { name: string; parameters: { properties?: Record<string, unknown> } } }>;
       messages: Array<{ role: string; content?: string }>;
     };
-    expect(requestBody.model).toBe("deepseek-flash");
+    expect(requestBody.model).toBe("gpt-6-luna");
     expect(requestBody.messages).toContainEqual({ role: "user", content: "Necesito redactar un mail." });
     expect(requestBody.messages).toContainEqual({ role: "assistant", content: "Claro. ¿A quién va?" });
     expect(requestBody.messages[0]?.content).toContain("Sos Rodrigo");

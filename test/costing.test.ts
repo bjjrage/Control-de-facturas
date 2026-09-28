@@ -213,3 +213,30 @@ describe("nextPartidaCodes", () => {
     expect(nextPartidaCodes(["1", "2", "CM-004"], 2)).toEqual(["CM-005", "CM-006"]);
   });
 });
+
+describe("computeRealVsBudget", () => {
+  it("compara el real contra el costo presupuestado × % de avance", async () => {
+    const { computeRealVsBudget } = await import("../lib/costing/real-vs-budget");
+    const rows = computeRealVsBudget({
+      partidas: [
+        { id: "p1", quantity: 100, costoTotal: 10_000_000 },
+        { id: "p2", quantity: 50, costoTotal: null },
+        { id: "p3", quantity: 10, costoTotal: 1_000_000 },
+      ],
+      executedByItem: { p1: 40, p2: 10 },
+      realMaterial: { p1: 3_000_000 },
+      realLabor: { p1: 2_000_000, p2: 500_000 },
+      realSubcontract: {},
+    });
+    const p1 = rows.find((r) => r.budgetItemId === "p1")!;
+    expect(p1.avancePct).toBe(40);
+    expect(p1.presupuestadoALaFecha).toBe(4_000_000);
+    expect(p1.real).toBe(5_000_000);
+    expect(p1.desvio).toBe(1_000_000);
+    expect(p1.desvioPct).toBe(25);
+    const p2 = rows.find((r) => r.budgetItemId === "p2")!;
+    expect(p2.presupuestadoALaFecha).toBeNull();
+    expect(p2.desvio).toBeNull();
+    expect(rows.find((r) => r.budgetItemId === "p3")).toBeUndefined();
+  });
+});

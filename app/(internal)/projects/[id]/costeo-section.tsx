@@ -13,6 +13,8 @@ import {
   createCostRfqsFromProject,
   setProjectCostPriceAction,
   clearProjectCostPriceAction,
+  getRealVsBudgetAction,
+  type RealVsBudgetData,
   type CostBudgetData,
   type CostBudgetInsumo,
   type CostRfqCreationResult,
@@ -36,7 +38,7 @@ function qty(n: number): string {
   return formatNumber(n, Number.isInteger(n) ? 0 : 2);
 }
 
-export function CosteoSection({ projectId }: { projectId: string }) {
+export function CosteoSection({ projectId, isCaterpillar }: { projectId: string; isCaterpillar: boolean }) {
   const [data, setData] = useState<CostBudgetData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -283,7 +285,81 @@ export function CosteoSection({ projectId }: { projectId: string }) {
           })}
         </Table>
       </Section>
+
+      {isCaterpillar ? <RealVsBudgetSection projectId={projectId} /> : null}
     </div>
+  );
+}
+
+function RealVsBudgetSection({ projectId }: { projectId: string }) {
+  const [data, setData] = useState<RealVsBudgetData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getRealVsBudgetAction(projectId).then((res) => {
+      setData(res.data);
+      setError(res.error);
+    });
+  }, [projectId]);
+
+  if (error) return <p className="text-[12px] text-[var(--error)]">{error}</p>;
+  if (!data) return <p className="text-[13px] text-[var(--muted)]">Calculando costo real…</p>;
+
+  const desvioTotal = data.totalReal - data.totalPresupuestadoALaFecha;
+
+  return (
+    <Section title="Real vs presupuestado">
+      <p className="text-[11px] text-[var(--muted)]">
+        Presupuestado a la fecha = costo de la partida × % de avance ejecutado. Real = consumo de materiales + partes de personal
+        imputados + certificados de subcontratistas aprobados o pagados.
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Kpi label="Presupuestado a la fecha" value={gs(data.totalPresupuestadoALaFecha)} note="Según avance ejecutado" />
+        <Kpi label="Costo real" value={gs(data.totalReal)} note="Imputado a partidas" />
+        <Kpi
+          label="Desvío"
+          value={gs(desvioTotal)}
+          note={desvioTotal > 0 ? "Gastando más de lo presupuestado" : "Dentro del presupuesto"}
+          warn={desvioTotal > 0}
+        />
+      </div>
+      {data.manoObraSinImputar > 0 || data.subcontratoSinImputar > 0 ? (
+        <p className="text-[12px] text-amber-500">
+          Sin imputar a una partida (no entra en la comparación):
+          {data.manoObraSinImputar > 0 ? ` personal ${gs(data.manoObraSinImputar)}` : ""}
+          {data.subcontratoSinImputar > 0 ? ` · subcontratos ${gs(data.subcontratoSinImputar)}` : ""}. Asigná la partida en el parte o
+          en el contrato.
+        </p>
+      ) : null}
+      {data.rows.length === 0 ? (
+        <p className="text-[13px] text-[var(--muted)]">Todavía no hay avance ni costo real imputado a partidas.</p>
+      ) : (
+        <Table head={["Código", "Descripción", "Avance", "Presupuestado", "Materiales", "Personal", "Subcontrato", "Real", "Desvío"]}>
+          {data.rows.map((r) => (
+            <tr key={r.budgetItemId}>
+              <td className="font-medium">{r.code}</td>
+              <td>{r.description}</td>
+              <td className="num">{r.avancePct}%</td>
+              <td className="num">{gs(r.presupuestadoALaFecha)}</td>
+              <td className="num">{gs(r.realMaterial)}</td>
+              <td className="num">{gs(r.realManoObra)}</td>
+              <td className="num">{gs(r.realSubcontrato)}</td>
+              <td className="num font-medium">{gs(r.real)}</td>
+              <td className="num">
+                {r.desvio == null ? (
+                  <span className="text-[var(--muted)]">Sin costo presup.</span>
+                ) : (
+                  <span className={r.desvio > 0 ? "text-[var(--error)]" : "text-emerald-500"}>
+                    {gs(r.desvio)}
+                    {r.desvioPct != null ? ` (${Math.round(r.desvioPct)}%)` : ""}
+                  </span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </Table>
+      )}
+    </Section>
   );
 }
 
