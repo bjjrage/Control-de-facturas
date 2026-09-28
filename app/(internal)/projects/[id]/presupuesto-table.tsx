@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { formatMoney, formatDate } from "@/lib/format";
 import { EditBudgetItemDialog } from "./edit-budget-item-dialog";
 import { ApuDialog } from "./apu-dialog";
 import { deleteBudgetItems } from "../actions";
+import { getApuCostSummaryAction, type ApuCostSummary } from "./apu-actions";
 
 type Row = {
   id: string;
@@ -36,7 +37,35 @@ export function PresupuestoTable({ rows, total, projectId }: { rows: Row[]; tota
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [apuCosts, setApuCosts] = useState<Record<string, ApuCostSummary>>({});
   const router = useRouter();
+
+  useEffect(() => {
+    getApuCostSummaryAction(projectId).then((res) => {
+      if (res.data) setApuCosts(res.data);
+    });
+  }, [projectId]);
+
+  function apuCostLabel(r: Row): React.ReactNode {
+    const s = apuCosts[r.id];
+    if (!s || !s.tieneApu) return <span className="text-[var(--muted)]">—</span>;
+    if (s.costoTotal === null) return <span className="text-amber-500">Costo no disp.</span>;
+    return formatMoney(s.costoTotal, "PYG");
+  }
+
+  function margenLabel(r: Row): React.ReactNode {
+    const s = apuCosts[r.id];
+    if (!s || !s.tieneApu) return <span className="text-[var(--muted)]">—</span>;
+    if (s.costoTotal === null) return <span className="text-amber-500">—</span>;
+    if (r.unitPrice == null) return <span className="text-[var(--muted)]">Sin P. Unit.</span>;
+    const margen = r.unitPrice - s.costoTotal;
+    const pct = r.unitPrice > 0 ? Math.round((margen / r.unitPrice) * 100) : 0;
+    return (
+      <span className={margen < 0 ? "text-[var(--error)]" : "text-emerald-500"}>
+        {formatMoney(margen, "PYG")} ({pct}%)
+      </span>
+    );
+  }
   const [colFilters, setColFilters] = useState<Record<ColKey, Set<string> | null>>({
     code: null,
     description: null,
@@ -174,6 +203,8 @@ export function PresupuestoTable({ rows, total, projectId }: { rows: Row[]; tota
                 Subtotal
                 <ColumnFilter values={uniques.subtotal} selected={colFilters.subtotal} onChange={(v) => setCol("subtotal", v)} />
               </th>
+              <th className="num">Costo APU</th>
+              <th className="num">Margen</th>
               <th className="num">
                 Ejecutado
                 <ColumnFilter values={uniques.execPct} selected={colFilters.execPct} onChange={(v) => setCol("execPct", v)} />
@@ -185,7 +216,7 @@ export function PresupuestoTable({ rows, total, projectId }: { rows: Row[]; tota
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={10} className="text-center text-[var(--muted)] py-6">
+                <td colSpan={12} className="text-center text-[var(--muted)] py-6">
                   {rows.length === 0 ? "Sin ítems todavía." : "Sin resultados para ese filtro."}
                 </td>
               </tr>
@@ -206,6 +237,8 @@ export function PresupuestoTable({ rows, total, projectId }: { rows: Row[]; tota
                   <td className="num">{r.quantity ?? "—"}</td>
                   <td className="num">{r.unitPrice != null ? formatMoney(r.unitPrice, "PYG") : "—"}</td>
                   <td className="num font-medium">{formatMoney(r.subtotal, "PYG")}</td>
+                  <td className="num">{apuCostLabel(r)}</td>
+                  <td className="num">{margenLabel(r)}</td>
                   <td className="num text-[var(--muted)]">{r.execPct !== null ? `${r.execPct}%` : "—"}</td>
                   <td className="text-[12px] text-[var(--muted)]">
                     {r.startDate && r.endDate ? `${formatDate(r.startDate)} → ${formatDate(r.endDate)}` : "Sin fecha"}
@@ -225,6 +258,8 @@ export function PresupuestoTable({ rows, total, projectId }: { rows: Row[]; tota
               <tr>
                 <td colSpan={6} className="text-right font-semibold">TOTAL</td>
                 <td className="num font-semibold">{formatMoney(total, "PYG")}</td>
+                <td></td>
+                <td></td>
                 <td></td>
                 <td></td>
                 <td></td>
