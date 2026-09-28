@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/browser";
 import { formatNumber, formatMoney, calcLineSubtotal } from "@/lib/format";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClassName } from "@/components/ui/button";
 import { unitsCompatibleForCosting } from "@/lib/bim/matching";
 import { findElementByExpressId } from "@/lib/bim/identity";
 import type { BimModel, BimElement, BimElementGroup, BimGroupMatch, BudgetItem } from "@/lib/types";
@@ -351,7 +351,7 @@ export function BimSection({ projectId }: { projectId: string }) {
       <div className="flex flex-wrap items-center gap-2">
         <label
           htmlFor="bim-ifc-upload"
-          className="inline-flex cursor-pointer items-center rounded-md border border-[var(--accent)] bg-[var(--accent)]/10 px-3 py-1.5 text-[13px] font-medium text-[var(--foreground)] hover:bg-[var(--accent)]/20"
+          className={buttonClassName({ variant: "primary", size: "md", className: "cursor-pointer" })}
         >
           Subir modelo IFC
         </label>
