@@ -123,7 +123,7 @@ export interface ApuLaborImportRowInput {
   itemCode: string;
   rol: string;
   horasPorUnidad: number;
-  costoHora: number;
+  costoHora: number | null;
 }
 
 export interface MappedApuLaborRow {
@@ -137,7 +137,7 @@ export interface ApuEquipmentImportRowInput {
   itemCode: string;
   tipoEquipo: string;
   horasPorUnidad: number;
-  costoHora: number;
+  costoHora: number | null;
 }
 
 export interface MappedApuEquipmentRow {
@@ -147,7 +147,7 @@ export interface MappedApuEquipmentRow {
   costoHora: number;
 }
 
-function resolveApuFreeTextImportMapping<TRow extends { itemCode: string; horasPorUnidad: number; costoHora: number }, TMapped>(
+function resolveApuFreeTextImportMapping<TRow extends { itemCode: string; horasPorUnidad: number; costoHora: number | null }, TMapped>(
   rows: TRow[],
   budgetItems: ApuBudgetItemCatalogEntry[],
   labelField: (row: TRow) => string,
@@ -174,8 +174,8 @@ function resolveApuFreeTextImportMapping<TRow extends { itemCode: string; horasP
       return;
     }
     const costo = Number(r.costoHora);
-    if (!Number.isFinite(costo) || costo < 0) {
-      errors.push({ row: rowNo, reason: "Costo por hora inválido." });
+    if (r.costoHora == null || !Number.isFinite(costo) || costo < 0) {
+      errors.push({ row: rowNo, reason: "Costo por hora vacío o inválido." });
       return;
     }
     const itemCode = String(r.itemCode ?? "").trim();
@@ -226,6 +226,74 @@ export function resolveApuLaborImportMapping(
       costoHora: Number(r.costoHora),
     })
   );
+}
+
+// --- Subcontrato (precio por unidad de partida, sin catálogo) -----------
+
+export interface ApuSubcontractImportRowInput {
+  itemCode: string;
+  descripcion: string;
+  precioPorUnidad: number;
+}
+
+export interface MappedApuSubcontractRow {
+  budgetItemId: string;
+  descripcion: string;
+  precioPorUnidad: number;
+}
+
+export function resolveApuSubcontractImportMapping(
+  rows: ApuSubcontractImportRowInput[],
+  budgetItems: ApuBudgetItemCatalogEntry[]
+): { mapped: MappedApuSubcontractRow[]; errors: ApuImportRowError[] } {
+  const itemByCode = new Map<string, ApuBudgetItemCatalogEntry[]>();
+  for (const it of budgetItems) {
+    const key = String(it.code ?? "").trim();
+    if (!key) continue;
+    if (!itemByCode.has(key)) itemByCode.set(key, []);
+    itemByCode.get(key)!.push(it);
+  }
+  const mapped: MappedApuSubcontractRow[] = [];
+  const errors: ApuImportRowError[] = [];
+  const seenPairs = new Set<string>();
+
+  (rows ?? []).forEach((r, idx) => {
+    const rowNo = idx + 1;
+    const precio = Number(r.precioPorUnidad);
+    if (!Number.isFinite(precio) || precio < 0) {
+      errors.push({ row: rowNo, reason: "Precio por unidad inválido." });
+      return;
+    }
+    const itemCode = String(r.itemCode ?? "").trim();
+    if (!itemCode) {
+      errors.push({ row: rowNo, reason: "Código de partida vacío." });
+      return;
+    }
+    const itemMatches = itemByCode.get(itemCode) ?? [];
+    if (itemMatches.length === 0) {
+      errors.push({ row: rowNo, reason: `Código de partida "${itemCode}" no existe en el presupuesto.` });
+      return;
+    }
+    if (itemMatches.length > 1) {
+      errors.push({ row: rowNo, reason: `Código de partida "${itemCode}" ambiguo (duplicado en el presupuesto).` });
+      return;
+    }
+    const descripcion = String(r.descripcion ?? "").trim();
+    if (!descripcion) {
+      errors.push({ row: rowNo, reason: "Descripción del subcontrato vacía." });
+      return;
+    }
+    const budgetItemId = itemMatches[0].id;
+    const pairKey = `${budgetItemId}::${descripcion.toLowerCase()}`;
+    if (seenPairs.has(pairKey)) {
+      errors.push({ row: rowNo, reason: `Fila duplicada: la partida "${itemCode}" ya tiene cargado "${descripcion}".` });
+      return;
+    }
+    seenPairs.add(pairKey);
+    mapped.push({ budgetItemId, descripcion, precioPorUnidad: precio });
+  });
+
+  return { mapped, errors };
 }
 
 export function resolveApuEquipmentImportMapping(

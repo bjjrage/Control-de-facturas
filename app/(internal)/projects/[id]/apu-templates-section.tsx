@@ -9,6 +9,7 @@ import {
   importApuTemplateMaterialsAction,
   importApuTemplateLaborAction,
   importApuTemplateEquipmentAction,
+  importApuTemplateSubcontractsAction,
   type ApuTemplateSummary,
 } from "./apu-templates-actions";
 
@@ -164,7 +165,7 @@ export function ApuTemplatesSection() {
         toda partida cuya descripción coincida — sin volver a cargar nada a mano.
       </p>
 
-      <div className="grid gap-4 sm:grid-cols-3 rounded-lg border border-[var(--border)] p-3">
+      <div className="grid gap-4 sm:grid-cols-2 rounded-lg border border-[var(--border)] p-3">
         <ImportBlock
           title="Materiales"
           helpText="Columnas: NOMBRE_PLANTILLA | PRODUCTO_CODIGO | CANTIDAD | DESPERDICIO_PCT (opcional)."
@@ -201,7 +202,7 @@ export function ApuTemplatesSection() {
                 templateNombre: String(r.templateNombre ?? "").trim(),
                 rol: String(r.label ?? "").trim(),
                 horasPorUnidad: parsePyNumber(r.quantity) ?? 0,
-                costoHora: parsePyNumber(r.extra) ?? 0,
+                costoHora: parsePyNumber(r.extra),
               })),
             })
           }
@@ -222,7 +223,26 @@ export function ApuTemplatesSection() {
                 templateNombre: String(r.templateNombre ?? "").trim(),
                 tipoEquipo: String(r.label ?? "").trim(),
                 horasPorUnidad: parsePyNumber(r.quantity) ?? 0,
-                costoHora: parsePyNumber(r.extra) ?? 0,
+                costoHora: parsePyNumber(r.extra),
+              })),
+            })
+          }
+          onDone={refresh}
+        />
+        <ImportBlock
+          title="Subcontrato"
+          helpText="Columnas: NOMBRE_PLANTILLA | DESCRIPCION | PRECIO_UNIDAD (precio por unidad de partida)."
+          colVariants={{
+            templateNombre: ["nombreplantilla", "plantilla", "nombre", "item", "partida"],
+            label: ["descripcion", "subcontrato", "concepto"],
+            extra: ["preciounidad", "precioporunidad", "precio", "price"],
+          }}
+          onImport={(rows) =>
+            importApuTemplateSubcontractsAction({
+              rows: rows.map((r) => ({
+                templateNombre: String(r.templateNombre ?? "").trim(),
+                descripcion: String(r.label ?? "").trim(),
+                precioPorUnidad: parsePyNumber(r.extra) ?? NaN,
               })),
             })
           }
@@ -238,14 +258,15 @@ export function ApuTemplatesSection() {
               <th className="py-1.5 px-2 text-right">Materiales</th>
               <th className="py-1.5 px-2 text-right">Mano de obra</th>
               <th className="py-1.5 px-2 text-right">Equipo</th>
+              <th className="py-1.5 px-2 text-right">Subcontrato</th>
               <th className="py-1.5 px-2"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--border)]">
             {loading ? (
-              <tr><td colSpan={5} className="py-3 px-2 text-[var(--muted)]">Cargando…</td></tr>
+              <tr><td colSpan={6} className="py-3 px-2 text-[var(--muted)]">Cargando…</td></tr>
             ) : templates.length === 0 ? (
-              <tr><td colSpan={5} className="py-3 px-2 text-[var(--muted)]">Sin plantillas cargadas todavía.</td></tr>
+              <tr><td colSpan={6} className="py-3 px-2 text-[var(--muted)]">Sin plantillas cargadas todavía.</td></tr>
             ) : (
               templates.map((t) => (
                 <tr key={t.id}>
@@ -253,6 +274,7 @@ export function ApuTemplatesSection() {
                   <td className="py-1.5 px-2 text-right">{t.materialesCount}</td>
                   <td className="py-1.5 px-2 text-right">{t.laborCount}</td>
                   <td className="py-1.5 px-2 text-right">{t.equipoCount}</td>
+                  <td className="py-1.5 px-2 text-right">{t.subcontratoCount}</td>
                   <td className="py-1.5 px-2 text-right">
                     <button onClick={() => handleDelete(t.id, t.nombre)} className="text-[var(--muted)] hover:text-[var(--error)]">
                       <Trash2 size={13} />

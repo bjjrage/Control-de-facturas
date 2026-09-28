@@ -11,18 +11,25 @@ import {
   importApuMaterialsAction,
   importApuLaborAction,
   importApuEquipmentAction,
+  importApuSubcontractsAction,
   deleteBudgetItemMaterialAction,
   deleteBudgetItemLaborAction,
   deleteBudgetItemEquipmentAction,
+  deleteBudgetItemSubcontractAction,
+  listLaborRatesAction,
   type ApuMaterialRow,
   type ApuLaborRow,
   type ApuEquipmentRow,
+  type ApuSubcontractRow,
+  type LaborRate,
 } from "./apu-actions";
 import {
   resolveApuMaterialImportMapping,
   resolveApuLaborImportMapping,
   resolveApuEquipmentImportMapping,
+  resolveApuSubcontractImportMapping,
 } from "@/lib/procurement/apu-import";
+import { matchLaborRate } from "@/lib/procurement/apu-templates";
 
 // Mismo parser PY que import-recipe-dialog.tsx / import-budget-dialog.
 function parsePyNumber(raw: unknown): number | null {
@@ -78,6 +85,8 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
   const [materials, setMaterials] = useState<ApuMaterialRow[]>([]);
   const [labor, setLabor] = useState<ApuLaborRow[]>([]);
   const [equipment, setEquipment] = useState<ApuEquipmentRow[]>([]);
+  const [subcontracts, setSubcontracts] = useState<ApuSubcontractRow[]>([]);
+  const [rates, setRates] = useState<LaborRate[]>([]);
   const [catalogs, setCatalogs] = useState<{
     budgetItems: { id: string; code: string; unit: string | null }[];
     products: { id: string; sku: string }[];
@@ -91,14 +100,17 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
     Promise.all([
       listApuAction({ projectId, budgetItemId }),
       getApuImportCatalogsAction(projectId),
-    ]).then(([apuRes, catRes]) => {
+      listLaborRatesAction(),
+    ]).then(([apuRes, catRes, ratesRes]) => {
       if (cancelled) return;
       if (apuRes.error) setLoadError(apuRes.error);
       else if (apuRes.data) {
         setMaterials(apuRes.data.materials);
         setLabor(apuRes.data.labor);
         setEquipment(apuRes.data.equipment);
+        setSubcontracts(apuRes.data.subcontracts);
       }
+      if (ratesRes.data) setRates(ratesRes.data);
       if (catRes.data) setCatalogs(catRes.data);
       else if (catRes.error) setLoadError((prev) => prev ?? catRes.error);
       setLoading(false);
@@ -114,9 +126,23 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
         setMaterials(res.data.materials);
         setLabor(res.data.labor);
         setEquipment(res.data.equipment);
+        setSubcontracts(res.data.subcontracts);
       }
     });
     router.refresh();
+  }
+
+  async function handleDeleteSubcontract(id: string) {
+    if (!window.confirm("¿Quitar este subcontrato del APU de la partida?")) return;
+    const res = await deleteBudgetItemSubcontractAction({ projectId, id });
+    if (!res.error) refresh();
+  }
+
+  // Si el rol coincide con una categoría de jornal, el costo sale de ahí
+  // (el Excel puede traer el costo vacío en ese caso).
+  function withRateCost<T extends { rol: string; costoHora: number | null }>(r: T): T {
+    const rate = matchLaborRate(r.rol, rates);
+    return rate ? { ...r, costoHora: rate.costo_hora } : r;
   }
 
   async function handleDeleteMaterial(id: string) {
@@ -146,7 +172,8 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
         );
   const costoManoObra = labor.reduce((acc, l) => acc + l.horas_por_unidad_ejecutada * l.costo_hora, 0);
   const costoEquipo = equipment.reduce((acc, e) => acc + e.horas_por_unidad_ejecutada * e.costo_hora, 0);
-  const costoTotal = costoMaterial === null ? null : costoMaterial + costoManoObra + costoEquipo;
+  const costoSubcontrato = subcontracts.reduce((acc, s) => acc + s.precio_por_unidad, 0);
+  const costoTotal = costoMaterial === null ? null : costoMaterial + costoManoObra + costoEquipo + costoSubcontrato;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -233,7 +260,7 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
 
               <ApuSection
                 title="Mano de obra"
-                helpText="Columnas: PARTIDA_CODIGO | ROL | HORAS | COSTO_HORA."
+                helpText="Columnas: PARTIDA_CODIGO | ROL | HORAS | COSTO_HORA. Si el rol coincide con una categoría de Jornales, el costo sale de ahí."
                 colVariants={{
                   itemCode: ["partidacodigo", "codigopartida", "partida", "codigo", "item", "code"],
                   label: ["rol", "role", "cargo"],
@@ -249,12 +276,14 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
                 })}
                 resolve={(rows) =>
                   resolveApuLaborImportMapping(
-                    rows.map((r) => ({
-                      itemCode: r.itemCode,
-                      rol: r.rol,
-                      horasPorUnidad: r.horasPorUnidad ?? 0,
-                      costoHora: r.costoHora ?? 0,
-                    })),
+                    rows.map((r) =>
+                      withRateCost({
+                        itemCode: r.itemCode,
+                        rol: r.rol,
+                        horasPorUnidad: r.horasPorUnidad ?? 0,
+                        costoHora: r.costoHora ?? null,
+                      })
+                    ),
                     catalogs.budgetItems
                   )
                 }
@@ -266,7 +295,7 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
                       itemCode: r.itemCode,
                       rol: r.rol,
                       horasPorUnidad: r.horasPorUnidad ?? 0,
-                      costoHora: r.costoHora ?? 0,
+                      costoHora: r.costoHora ?? null,
                     })),
                   });
                   if (res.errores.length === 0) refresh();
@@ -277,9 +306,10 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
                   <p className="text-[11px] text-[var(--muted)]">Sin mano de obra cargada.</p>
                 ) : (
                   <RowTable
-                    columns={["Rol", "Horas/unidad", "Costo/hora", ""]}
+                    columns={["Rol", "Categoría", "Horas/unidad", "Costo/hora", ""]}
                     rows={labor.map((l) => [
                       l.rol,
+                      l.categoria ?? <span className="text-[var(--muted)]">Costo propio</span>,
                       String(l.horas_por_unidad_ejecutada),
                       money(l.costo_hora),
                       <button key="del" onClick={() => handleDeleteLabor(l.id)} className="text-[var(--muted)] hover:text-[var(--error)]">
@@ -312,7 +342,7 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
                       itemCode: r.itemCode,
                       tipoEquipo: r.tipoEquipo,
                       horasPorUnidad: r.horasPorUnidad ?? 0,
-                      costoHora: r.costoHora ?? 0,
+                      costoHora: r.costoHora ?? null,
                     })),
                     catalogs.budgetItems
                   )
@@ -325,7 +355,7 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
                       itemCode: r.itemCode,
                       tipoEquipo: r.tipoEquipo,
                       horasPorUnidad: r.horasPorUnidad ?? 0,
-                      costoHora: r.costoHora ?? 0,
+                      costoHora: r.costoHora ?? null,
                     })),
                   });
                   if (res.errores.length === 0) refresh();
@@ -349,10 +379,65 @@ export function ApuDialog({ projectId, budgetItemId, budgetItemLabel }: ApuDialo
                 )}
               </ApuSection>
 
+              <ApuSection
+                title="Subcontrato"
+                helpText="Columnas: PARTIDA_CODIGO | DESCRIPCION | PRECIO_UNIDAD (precio por unidad de partida). Puede convivir con mano de obra propia."
+                colVariants={{
+                  itemCode: ["partidacodigo", "codigopartida", "partida", "codigo", "item", "code"],
+                  label: ["descripcion", "subcontrato", "concepto"],
+                  extra: ["preciounidad", "precioporunidad", "precio", "price"],
+                }}
+                budgetItems={catalogs.budgetItems}
+                buildRow={(get) => ({
+                  itemCode: String(get("itemCode") ?? "").trim(),
+                  descripcion: String(get("label") ?? "").trim(),
+                  precioPorUnidad: parsePyNumber(get("extra")),
+                })}
+                resolve={(rows) =>
+                  resolveApuSubcontractImportMapping(
+                    rows.map((r) => ({
+                      itemCode: r.itemCode,
+                      descripcion: r.descripcion,
+                      precioPorUnidad: r.precioPorUnidad ?? NaN,
+                    })),
+                    catalogs.budgetItems
+                  )
+                }
+                describeRow={(r) => `${r.itemCode || "—"} · ${r.descripcion || "—"} · ${money(r.precioPorUnidad)}`}
+                onConfirm={async (rows) => {
+                  const res = await importApuSubcontractsAction({
+                    projectId,
+                    rows: rows.map((r) => ({
+                      itemCode: r.itemCode,
+                      descripcion: r.descripcion,
+                      precioPorUnidad: r.precioPorUnidad ?? NaN,
+                    })),
+                  });
+                  if (res.errores.length === 0) refresh();
+                  return res.errores;
+                }}
+              >
+                {subcontracts.length === 0 ? (
+                  <p className="text-[11px] text-[var(--muted)]">Sin subcontrato cargado.</p>
+                ) : (
+                  <RowTable
+                    columns={["Descripción", "Precio/unidad", ""]}
+                    rows={subcontracts.map((s) => [
+                      s.descripcion,
+                      money(s.precio_por_unidad),
+                      <button key="del" onClick={() => handleDeleteSubcontract(s.id)} className="text-[var(--muted)] hover:text-[var(--error)]">
+                        <Trash2 size={13} />
+                      </button>,
+                    ])}
+                  />
+                )}
+              </ApuSection>
+
               <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-3 text-xs space-y-1">
                 <div className="flex justify-between"><span className="text-[var(--muted)]">Materiales</span><span>{materialsMissingCost.length > 0 ? <span className="text-amber-500">Costo no disponible ({materialsMissingCost.length})</span> : money(costoMaterial)}</span></div>
                 <div className="flex justify-between"><span className="text-[var(--muted)]">Mano de obra</span><span>{money(costoManoObra)}</span></div>
                 <div className="flex justify-between"><span className="text-[var(--muted)]">Equipo</span><span>{money(costoEquipo)}</span></div>
+                <div className="flex justify-between"><span className="text-[var(--muted)]">Subcontrato</span><span>{money(costoSubcontrato)}</span></div>
                 <div className="flex justify-between font-semibold pt-1 border-t border-[var(--border)]">
                   <span>Costo unitario APU</span>
                   <span>{costoTotal === null ? <span className="text-amber-500">Costo no disponible</span> : money(costoTotal)}</span>

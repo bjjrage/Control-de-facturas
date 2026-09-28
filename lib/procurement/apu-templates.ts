@@ -138,7 +138,7 @@ export interface ApuTemplateLaborImportRowInput {
   templateNombre: string;
   rol: string;
   horasPorUnidad: number;
-  costoHora: number;
+  costoHora: number | null;
 }
 
 export interface MappedApuTemplateLaborRow {
@@ -152,7 +152,7 @@ export interface ApuTemplateEquipmentImportRowInput {
   templateNombre: string;
   tipoEquipo: string;
   horasPorUnidad: number;
-  costoHora: number;
+  costoHora: number | null;
 }
 
 export interface MappedApuTemplateEquipmentRow {
@@ -163,7 +163,7 @@ export interface MappedApuTemplateEquipmentRow {
 }
 
 function resolveApuTemplateFreeTextImportMapping<
-  TRow extends { templateNombre: string; horasPorUnidad: number; costoHora: number },
+  TRow extends { templateNombre: string; horasPorUnidad: number; costoHora: number | null },
   TMapped
 >(
   rows: TRow[],
@@ -188,8 +188,8 @@ function resolveApuTemplateFreeTextImportMapping<
       return;
     }
     const costo = Number(r.costoHora);
-    if (!Number.isFinite(costo) || costo < 0) {
-      errors.push({ row: rowNo, reason: "Costo por hora inválido." });
+    if (r.costoHora == null || !Number.isFinite(costo) || costo < 0) {
+      errors.push({ row: rowNo, reason: "Costo por hora vacío o inválido." });
       return;
     }
     const label = labelField(r).trim();
@@ -208,6 +208,62 @@ function resolveApuTemplateFreeTextImportMapping<
   });
 
   return { mapped, errors };
+}
+
+export interface ApuTemplateSubcontractImportRowInput {
+  templateNombre: string;
+  descripcion: string;
+  precioPorUnidad: number;
+}
+
+export interface MappedApuTemplateSubcontractRow {
+  templateNombre: string;
+  descripcion: string;
+  precioPorUnidad: number;
+}
+
+export function resolveApuTemplateSubcontractImportMapping(
+  rows: ApuTemplateSubcontractImportRowInput[]
+): { mapped: MappedApuTemplateSubcontractRow[]; errors: ApuTemplateImportRowError[] } {
+  const mapped: MappedApuTemplateSubcontractRow[] = [];
+  const errors: ApuTemplateImportRowError[] = [];
+  const seenPairs = new Set<string>();
+  (rows ?? []).forEach((r, idx) => {
+    const rowNo = idx + 1;
+    const nombre = String(r.templateNombre ?? "").trim();
+    if (!nombre) {
+      errors.push({ row: rowNo, reason: "Nombre de plantilla vacío." });
+      return;
+    }
+    const precio = Number(r.precioPorUnidad);
+    if (!Number.isFinite(precio) || precio < 0) {
+      errors.push({ row: rowNo, reason: "Precio por unidad inválido." });
+      return;
+    }
+    const descripcion = String(r.descripcion ?? "").trim();
+    if (!descripcion) {
+      errors.push({ row: rowNo, reason: "Descripción del subcontrato vacía." });
+      return;
+    }
+    const pairKey = `${normalizeInventoryImportText(nombre)}::${descripcion.toLowerCase()}`;
+    if (seenPairs.has(pairKey)) {
+      errors.push({ row: rowNo, reason: `Fila duplicada: "${nombre}" ya tiene cargado "${descripcion}".` });
+      return;
+    }
+    seenPairs.add(pairKey);
+    mapped.push({ templateNombre: nombre, descripcion, precioPorUnidad: precio });
+  });
+  return { mapped, errors };
+}
+
+/**
+ * Enlaza una línea de mano de obra (por su rol) con una categoría de la
+ * tabla central de jornales, por nombre normalizado exacto y único. Sin
+ * match (o ambiguo) → null: la línea conserva su costo_hora propio.
+ */
+export function matchLaborRate<T extends { id: string; categoria: string }>(rol: string, rates: T[]): T | null {
+  const found = findUniqueExactInventoryMatch(rol, rates.map((r) => ({ ...r, name: r.categoria })));
+  return found ? (rates.find((r) => r.id === found.id) ?? null) : null;
 }
 
 export function resolveApuTemplateLaborImportMapping(

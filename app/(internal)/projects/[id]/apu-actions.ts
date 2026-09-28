@@ -7,19 +7,118 @@ import {
   resolveApuMaterialImportMapping,
   resolveApuLaborImportMapping,
   resolveApuEquipmentImportMapping,
+  resolveApuSubcontractImportMapping,
   type ApuMaterialImportRowInput,
   type ApuLaborImportRowInput,
   type ApuEquipmentImportRowInput,
+  type ApuSubcontractImportRowInput,
   type ApuImportRowError,
 } from "@/lib/procurement/apu-import";
-import { matchBudgetItemsToApuTemplates } from "@/lib/procurement/apu-templates";
+import { matchBudgetItemsToApuTemplates, matchLaborRate } from "@/lib/procurement/apu-templates";
+import { computePartidaCosts, type ResolvedPrice } from "@/lib/costing/cost-budget";
 
 // ---------------------------------------------------------------------------
 // CRUD + importación masiva del APU/BOM por partida: materiales, mano de
-// obra, equipo. El costo de materiales se deriva SIEMPRE en vivo de
-// productos.costo_promedio (nunca se guarda acá); mano de obra/equipo no
-// tienen catálogo, así que el costo_hora se carga directo en la fila.
+// obra, equipo y subcontrato. El costo de materiales se deriva en vivo (nunca
+// se guarda en la línea del APU). La mano de obra puede enlazarse a una
+// categoría de la tabla central de jornales (labor_rates): si está enlazada,
+// manda el costo de la categoría; si no, el costo_hora escrito en la fila.
 // ---------------------------------------------------------------------------
+
+export interface LaborRate {
+  id: string;
+  categoria: string;
+  costo_hora_base: number;
+  cargas_sociales_pct: number;
+  costo_hora: number;
+  vigente_desde: string;
+}
+
+async function loadLaborRates(supabase: Awaited<ReturnType<typeof createClient>>, empresaId: string): Promise<LaborRate[]> {
+  const { data } = await supabase
+    .from("labor_rates")
+    .select("id, categoria, costo_hora_base, cargas_sociales_pct, costo_hora, vigente_desde")
+    .eq("empresa_id", empresaId)
+    .order("categoria");
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    categoria: r.categoria,
+    costo_hora_base: Number(r.costo_hora_base),
+    cargas_sociales_pct: Number(r.cargas_sociales_pct),
+    costo_hora: Number(r.costo_hora),
+    vigente_desde: r.vigente_desde,
+  }));
+}
+
+export async function listLaborRatesAction(): Promise<{ data: LaborRate[] | null; error: string | null }> {
+  try {
+    const profile = await requirePlan("pro", ["administracion", "admin"]);
+    const supabase = await createClient();
+    return { data: await loadLaborRates(supabase, profile.empresa_id), error: null };
+  } catch (err: any) {
+    return { data: null, error: err.message || "Error al listar jornales." };
+  }
+}
+
+export async function saveLaborRateAction(params: {
+  id?: string;
+  categoria: string;
+  costoHoraBase: number;
+  cargasSocialesPct: number;
+  vigenteDesde?: string;
+}): Promise<{ success: boolean; error: string | null }> {
+  try {
+    const profile = await requirePlan("pro", ["administracion", "admin"]);
+    const supabase = await createClient();
+    const categoria = params.categoria?.trim();
+    if (!categoria) return { success: false, error: "Categoría requerida." };
+    if (!(params.costoHoraBase >= 0)) return { success: false, error: "Costo hora inválido." };
+    if (!(params.cargasSocialesPct >= 0 && params.cargasSocialesPct <= 200)) {
+      return { success: false, error: "Cargas sociales entre 0 y 200 %." };
+    }
+    const row = {
+      empresa_id: profile.empresa_id,
+      categoria,
+      costo_hora_base: params.costoHoraBase,
+      cargas_sociales_pct: params.cargasSocialesPct,
+      vigente_desde: params.vigenteDesde || new Date().toISOString().slice(0, 10),
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = params.id
+      ? await supabase.from("labor_rates").update(row).eq("id", params.id).eq("empresa_id", profile.empresa_id)
+      : await supabase.from("labor_rates").insert(row);
+    if (error) {
+      return { success: false, error: error.code === "23505" ? `Ya existe la categoría "${categoria}".` : error.message };
+    }
+    // Las líneas enlazadas guardan una copia del costo hora: se refresca.
+    if (params.id) {
+      const { data: rate } = await supabase.from("labor_rates").select("costo_hora").eq("id", params.id).maybeSingle();
+      if (rate) {
+        await Promise.all([
+          supabase.from("budget_item_labor").update({ costo_hora: rate.costo_hora }).eq("labor_rate_id", params.id).eq("empresa_id", profile.empresa_id),
+          supabase.from("apu_template_labor").update({ costo_hora: rate.costo_hora }).eq("labor_rate_id", params.id).eq("empresa_id", profile.empresa_id),
+        ]);
+      }
+    }
+    revalidatePath("/projects");
+    return { success: true, error: null };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteLaborRateAction(id: string): Promise<{ success: boolean; error: string | null }> {
+  try {
+    const profile = await requirePlan("pro", ["administracion", "admin"]);
+    const supabase = await createClient();
+    const { error } = await supabase.from("labor_rates").delete().eq("id", id).eq("empresa_id", profile.empresa_id);
+    if (error) return { success: false, error: error.message };
+    revalidatePath("/projects");
+    return { success: true, error: null };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
 
 export interface ApuMaterialRow {
   id: string;
@@ -39,6 +138,15 @@ export interface ApuLaborRow {
   rol: string;
   horas_por_unidad_ejecutada: number;
   costo_hora: number;
+  labor_rate_id: string | null;
+  categoria: string | null;
+}
+
+export interface ApuSubcontractRow {
+  id: string;
+  budget_item_id: string;
+  descripcion: string;
+  precio_por_unidad: number;
 }
 
 export interface ApuEquipmentRow {
@@ -53,13 +161,18 @@ export async function listApuAction(params: {
   projectId: string;
   budgetItemId: string;
 }): Promise<{
-  data: { materials: ApuMaterialRow[]; labor: ApuLaborRow[]; equipment: ApuEquipmentRow[] } | null;
+  data: {
+    materials: ApuMaterialRow[];
+    labor: ApuLaborRow[];
+    equipment: ApuEquipmentRow[];
+    subcontracts: ApuSubcontractRow[];
+  } | null;
   error: string | null;
 }> {
   try {
     await requirePlan("pro", ["administracion", "admin"]);
     const supabase = await createClient();
-    const [materialsRes, laborRes, equipmentRes] = await Promise.all([
+    const [materialsRes, laborRes, equipmentRes, subcontractsRes] = await Promise.all([
       supabase
         .from("budget_item_materials")
         .select("id, budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, productos(nombre, sku, unidad, costo_promedio)")
@@ -67,7 +180,7 @@ export async function listApuAction(params: {
         .eq("budget_item_id", params.budgetItemId),
       supabase
         .from("budget_item_labor")
-        .select("id, budget_item_id, rol, horas_por_unidad_ejecutada, costo_hora")
+        .select("id, budget_item_id, rol, horas_por_unidad_ejecutada, costo_hora, labor_rate_id, labor_rates(categoria)")
         .eq("project_id", params.projectId)
         .eq("budget_item_id", params.budgetItemId),
       supabase
@@ -75,10 +188,16 @@ export async function listApuAction(params: {
         .select("id, budget_item_id, tipo_equipo, horas_por_unidad_ejecutada, costo_hora")
         .eq("project_id", params.projectId)
         .eq("budget_item_id", params.budgetItemId),
+      supabase
+        .from("budget_item_subcontracts")
+        .select("id, budget_item_id, descripcion, precio_por_unidad")
+        .eq("project_id", params.projectId)
+        .eq("budget_item_id", params.budgetItemId),
     ]);
     if (materialsRes.error) return { data: null, error: materialsRes.error.message };
     if (laborRes.error) return { data: null, error: laborRes.error.message };
     if (equipmentRes.error) return { data: null, error: equipmentRes.error.message };
+    if (subcontractsRes.error) return { data: null, error: subcontractsRes.error.message };
 
     const materials: ApuMaterialRow[] = (materialsRes.data ?? []).map((r: any) => ({
       id: r.id,
@@ -99,6 +218,8 @@ export async function listApuAction(params: {
       rol: r.rol,
       horas_por_unidad_ejecutada: Number(r.horas_por_unidad_ejecutada),
       costo_hora: Number(r.costo_hora),
+      labor_rate_id: r.labor_rate_id ?? null,
+      categoria: r.labor_rates?.categoria ?? null,
     }));
     const equipment: ApuEquipmentRow[] = (equipmentRes.data ?? []).map((r: any) => ({
       id: r.id,
@@ -107,7 +228,13 @@ export async function listApuAction(params: {
       horas_por_unidad_ejecutada: Number(r.horas_por_unidad_ejecutada),
       costo_hora: Number(r.costo_hora),
     }));
-    return { data: { materials, labor, equipment }, error: null };
+    const subcontracts: ApuSubcontractRow[] = (subcontractsRes.data ?? []).map((r: any) => ({
+      id: r.id,
+      budget_item_id: r.budget_item_id,
+      descripcion: r.descripcion,
+      precio_por_unidad: Number(r.precio_por_unidad),
+    }));
+    return { data: { materials, labor, equipment, subcontracts }, error: null };
   } catch (err: any) {
     return { data: null, error: err.message || "Error al listar el APU de la partida." };
   }
@@ -177,12 +304,26 @@ export async function saveBudgetItemLaborAction(params: {
   rol: string;
   horasPorUnidad: number;
   costoHora: number;
+  laborRateId?: string | null;
 }): Promise<{ success: boolean; error: string | null }> {
   try {
     const profile = await requirePlan("pro", ["administracion", "admin"]);
     const supabase = await createClient();
     const rol = params.rol?.trim();
     if (!rol) return { success: false, error: "Rol requerido." };
+    let costoHora = params.costoHora;
+    let laborRateId: string | null = null;
+    if (params.laborRateId) {
+      const { data: rate } = await supabase
+        .from("labor_rates")
+        .select("id, costo_hora")
+        .eq("id", params.laborRateId)
+        .eq("empresa_id", profile.empresa_id)
+        .maybeSingle();
+      if (!rate) return { success: false, error: "Categoría de jornal no encontrada." };
+      laborRateId = rate.id;
+      costoHora = Number(rate.costo_hora);
+    }
     const { error } = await supabase.from("budget_item_labor").upsert(
       {
         empresa_id: profile.empresa_id,
@@ -190,7 +331,8 @@ export async function saveBudgetItemLaborAction(params: {
         budget_item_id: params.budgetItemId,
         rol,
         horas_por_unidad_ejecutada: params.horasPorUnidad,
-        costo_hora: params.costoHora,
+        costo_hora: costoHora,
+        labor_rate_id: laborRateId,
       },
       { onConflict: "budget_item_id,rol" }
     );
@@ -273,6 +415,155 @@ export async function deleteBudgetItemEquipmentAction(params: {
   }
 }
 
+export async function saveBudgetItemSubcontractAction(params: {
+  projectId: string;
+  budgetItemId: string;
+  descripcion: string;
+  precioPorUnidad: number;
+}): Promise<{ success: boolean; error: string | null }> {
+  try {
+    const profile = await requirePlan("pro", ["administracion", "admin"]);
+    const supabase = await createClient();
+    const descripcion = params.descripcion?.trim();
+    if (!descripcion) return { success: false, error: "Descripción requerida." };
+    if (!(params.precioPorUnidad >= 0)) return { success: false, error: "Precio por unidad inválido." };
+    const { error } = await supabase.from("budget_item_subcontracts").upsert(
+      {
+        empresa_id: profile.empresa_id,
+        project_id: params.projectId,
+        budget_item_id: params.budgetItemId,
+        descripcion,
+        precio_por_unidad: params.precioPorUnidad,
+      },
+      { onConflict: "budget_item_id,descripcion" }
+    );
+    if (error) return { success: false, error: error.message };
+    revalidatePath(`/projects/${params.projectId}`);
+    return { success: true, error: null };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function deleteBudgetItemSubcontractAction(params: {
+  projectId: string;
+  id: string;
+}): Promise<{ success: boolean; error: string | null }> {
+  try {
+    const profile = await requirePlan("pro", ["administracion", "admin"]);
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("budget_item_subcontracts")
+      .delete()
+      .eq("id", params.id)
+      .eq("empresa_id", profile.empresa_id);
+    if (error) return { success: false, error: error.message };
+    revalidatePath(`/projects/${params.projectId}`);
+    return { success: true, error: null };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export interface ApuCostSummary {
+  costoMaterial: number | null;
+  costoManoObra: number;
+  costoEquipo: number;
+  costoSubcontrato: number;
+  costoTotal: number | null;
+  tieneApu: boolean;
+}
+
+/**
+ * Costo unitario APU (4 patas) de TODAS las partidas del proyecto en una
+ * sola llamada — para "Costo APU" y "Margen" en la tabla de Presupuesto.
+ * El cálculo vive en lib/costing/cost-budget.ts. Por ahora el precio de los
+ * materiales es costo_promedio; si falta el de un material, la partida
+ * queda en null (nunca se finge 0).
+ */
+export async function getApuCostSummaryAction(projectId: string): Promise<{
+  data: Record<string, ApuCostSummary> | null;
+  error: string | null;
+}> {
+  try {
+    const profile = await requirePlan("pro", ["administracion", "admin"]);
+    const supabase = await createClient();
+    const [materialsRes, laborRes, equipmentRes, subcontractsRes] = await Promise.all([
+      supabase
+        .from("budget_item_materials")
+        .select("budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, productos(costo_promedio)")
+        .eq("project_id", projectId)
+        .eq("empresa_id", profile.empresa_id),
+      supabase
+        .from("budget_item_labor")
+        .select("budget_item_id, horas_por_unidad_ejecutada, costo_hora")
+        .eq("project_id", projectId)
+        .eq("empresa_id", profile.empresa_id),
+      supabase
+        .from("budget_item_equipment")
+        .select("budget_item_id, horas_por_unidad_ejecutada, costo_hora")
+        .eq("project_id", projectId)
+        .eq("empresa_id", profile.empresa_id),
+      supabase
+        .from("budget_item_subcontracts")
+        .select("budget_item_id, precio_por_unidad")
+        .eq("project_id", projectId)
+        .eq("empresa_id", profile.empresa_id),
+    ]);
+    if (materialsRes.error) return { data: null, error: materialsRes.error.message };
+    if (laborRes.error) return { data: null, error: laborRes.error.message };
+    if (equipmentRes.error) return { data: null, error: equipmentRes.error.message };
+    if (subcontractsRes.error) return { data: null, error: subcontractsRes.error.message };
+
+    const prices = new Map<string, ResolvedPrice>();
+    for (const r of (materialsRes.data ?? []) as any[]) {
+      const cp = Number(r.productos?.costo_promedio);
+      if (cp > 0) prices.set(r.producto_id, { precio: cp, fuente: "HISTORICO" });
+    }
+    const costs = computePartidaCosts(
+      [],
+      {
+        materials: ((materialsRes.data ?? []) as any[]).map((r) => ({
+          budgetItemId: r.budget_item_id,
+          productoId: r.producto_id,
+          cantidadPorUnidad: Number(r.cantidad_por_unidad_ejecutada),
+          desperdicioPct: Number(r.desperdicio_pct),
+        })),
+        labor: ((laborRes.data ?? []) as any[]).map((r) => ({
+          budgetItemId: r.budget_item_id,
+          horasPorUnidad: Number(r.horas_por_unidad_ejecutada),
+          costoHora: Number(r.costo_hora),
+        })),
+        equipment: ((equipmentRes.data ?? []) as any[]).map((r) => ({
+          budgetItemId: r.budget_item_id,
+          horasPorUnidad: Number(r.horas_por_unidad_ejecutada),
+          costoHora: Number(r.costo_hora),
+        })),
+        subcontracts: ((subcontractsRes.data ?? []) as any[]).map((r) => ({
+          budgetItemId: r.budget_item_id,
+          precioPorUnidad: Number(r.precio_por_unidad),
+        })),
+      },
+      prices
+    );
+
+    const summary: Record<string, ApuCostSummary> = {};
+    for (const c of Object.values(costs)) {
+      summary[c.budgetItemId] = {
+        costoMaterial: c.costoMaterial,
+        costoManoObra: c.costoManoObra,
+        costoEquipo: c.costoEquipo,
+        costoSubcontrato: c.costoSubcontrato,
+        costoTotal: c.costoUnitario,
+        tieneApu: c.tieneApu,
+      };
+    }
+    return { data: summary, error: null };
+  } catch (err: any) {
+    return { data: null, error: err.message || "Error al calcular el costo APU del presupuesto." };
+  }
+}
+
 /**
  * Catálogos (partidas del proyecto + productos de la empresa) para que la UI
  * arme el preview de importación del lado del cliente antes de confirmar.
@@ -344,8 +635,17 @@ export async function importApuLaborAction(params: {
 }): Promise<{ creados: number; errores: ApuImportRowError[] }> {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
-  const { budgetItems } = await loadApuCatalogs(supabase, profile.empresa_id, params.projectId);
-  const { mapped, errors } = resolveApuLaborImportMapping(params.rows, budgetItems);
+  const [{ budgetItems }, rates] = await Promise.all([
+    loadApuCatalogs(supabase, profile.empresa_id, params.projectId),
+    loadLaborRates(supabase, profile.empresa_id),
+  ]);
+  // Si el rol coincide con una categoría de jornal, manda el costo central
+  // (el COSTO_HORA del Excel puede venir vacío en ese caso).
+  const rows = params.rows.map((r) => {
+    const rate = matchLaborRate(r.rol, rates);
+    return rate ? { ...r, costoHora: rate.costo_hora } : r;
+  });
+  const { mapped, errors } = resolveApuLaborImportMapping(rows, budgetItems);
   if (mapped.length === 0) return { creados: 0, errores: errors };
 
   const { error } = await supabase.from("budget_item_labor").upsert(
@@ -356,6 +656,7 @@ export async function importApuLaborAction(params: {
       rol: m.rol,
       horas_por_unidad_ejecutada: m.horasPorUnidad,
       costo_hora: m.costoHora,
+      labor_rate_id: matchLaborRate(m.rol, rates)?.id ?? null,
     })),
     { onConflict: "budget_item_id,rol" }
   );
@@ -386,6 +687,33 @@ export async function importApuEquipmentAction(params: {
       costo_hora: m.costoHora,
     })),
     { onConflict: "budget_item_id,tipo_equipo" }
+  );
+  if (error) {
+    return { creados: 0, errores: [...errors, { row: 0, reason: `Error al guardar: ${error.message}` }] };
+  }
+  revalidatePath(`/projects/${params.projectId}`);
+  return { creados: mapped.length, errores: errors };
+}
+
+export async function importApuSubcontractsAction(params: {
+  projectId: string;
+  rows: ApuSubcontractImportRowInput[];
+}): Promise<{ creados: number; errores: ApuImportRowError[] }> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const supabase = await createClient();
+  const { budgetItems } = await loadApuCatalogs(supabase, profile.empresa_id, params.projectId);
+  const { mapped, errors } = resolveApuSubcontractImportMapping(params.rows, budgetItems);
+  if (mapped.length === 0) return { creados: 0, errores: errors };
+
+  const { error } = await supabase.from("budget_item_subcontracts").upsert(
+    mapped.map((m) => ({
+      empresa_id: profile.empresa_id,
+      project_id: params.projectId,
+      budget_item_id: m.budgetItemId,
+      descripcion: m.descripcion,
+      precio_por_unidad: m.precioPorUnidad,
+    })),
+    { onConflict: "budget_item_id,descripcion" }
   );
   if (error) {
     return { creados: 0, errores: [...errors, { row: 0, reason: `Error al guardar: ${error.message}` }] };
@@ -428,16 +756,18 @@ export async function applyApuTemplatesToProjectAction(projectId: string): Promi
     }
     const itemIds = budgetItems.map((b: any) => b.id);
 
-    const [materialsRes, laborRes, equipmentRes, templatesRes] = await Promise.all([
+    const [materialsRes, laborRes, equipmentRes, subcontractsRes, templatesRes] = await Promise.all([
       supabase.from("budget_item_materials").select("budget_item_id").in("budget_item_id", itemIds),
       supabase.from("budget_item_labor").select("budget_item_id").in("budget_item_id", itemIds),
       supabase.from("budget_item_equipment").select("budget_item_id").in("budget_item_id", itemIds),
+      supabase.from("budget_item_subcontracts").select("budget_item_id").in("budget_item_id", itemIds),
       supabase.from("apu_templates").select("id, nombre").eq("empresa_id", empresaId),
     ]);
     const hasApu = new Set<string>([
       ...(materialsRes.data ?? []).map((r: any) => r.budget_item_id),
       ...(laborRes.data ?? []).map((r: any) => r.budget_item_id),
       ...(equipmentRes.data ?? []).map((r: any) => r.budget_item_id),
+      ...(subcontractsRes.data ?? []).map((r: any) => r.budget_item_id),
     ]);
     const pendingItems = (budgetItems as any[]).filter((b) => !hasApu.has(b.id));
     const yaTeniaApu = budgetItems.length - pendingItems.length;
@@ -473,15 +803,17 @@ export async function applyApuTemplatesToProjectAction(projectId: string): Promi
     }
 
     const templateIds = [...new Set(matched.map((m) => m.templateId))];
-    const [tplMaterialsRes, tplLaborRes, tplEquipmentRes] = await Promise.all([
+    const [tplMaterialsRes, tplLaborRes, tplEquipmentRes, tplSubcontractsRes] = await Promise.all([
       supabase.from("apu_template_materials").select("template_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct").in("template_id", templateIds),
-      supabase.from("apu_template_labor").select("template_id, rol, horas_por_unidad_ejecutada, costo_hora").in("template_id", templateIds),
+      supabase.from("apu_template_labor").select("template_id, rol, horas_por_unidad_ejecutada, costo_hora, labor_rate_id").in("template_id", templateIds),
       supabase.from("apu_template_equipment").select("template_id, tipo_equipo, horas_por_unidad_ejecutada, costo_hora").in("template_id", templateIds),
+      supabase.from("apu_template_subcontracts").select("template_id, descripcion, precio_por_unidad").in("template_id", templateIds),
     ]);
 
     const materialRows: any[] = [];
     const laborRows: any[] = [];
     const equipmentRows: any[] = [];
+    const subcontractRows: any[] = [];
     for (const m of matched) {
       for (const tm of tplMaterialsRes.data ?? []) {
         if ((tm as any).template_id !== m.templateId) continue;
@@ -503,6 +835,17 @@ export async function applyApuTemplatesToProjectAction(projectId: string): Promi
           rol: (tl as any).rol,
           horas_por_unidad_ejecutada: (tl as any).horas_por_unidad_ejecutada,
           costo_hora: (tl as any).costo_hora,
+          labor_rate_id: (tl as any).labor_rate_id ?? null,
+        });
+      }
+      for (const ts of tplSubcontractsRes.data ?? []) {
+        if ((ts as any).template_id !== m.templateId) continue;
+        subcontractRows.push({
+          empresa_id: empresaId,
+          project_id: projectId,
+          budget_item_id: m.budgetItemId,
+          descripcion: (ts as any).descripcion,
+          precio_por_unidad: (ts as any).precio_por_unidad,
         });
       }
       for (const te of tplEquipmentRes.data ?? []) {
@@ -529,6 +872,10 @@ export async function applyApuTemplatesToProjectAction(projectId: string): Promi
     if (equipmentRows.length > 0) {
       const { error } = await supabase.from("budget_item_equipment").upsert(equipmentRows, { onConflict: "budget_item_id,tipo_equipo" });
       if (error) return { data: null, error: `Error al aplicar equipo: ${error.message}` };
+    }
+    if (subcontractRows.length > 0) {
+      const { error } = await supabase.from("budget_item_subcontracts").upsert(subcontractRows, { onConflict: "budget_item_id,descripcion" });
+      if (error) return { data: null, error: `Error al aplicar subcontratos: ${error.message}` };
     }
 
     revalidatePath(`/projects/${projectId}`);

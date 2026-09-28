@@ -110,7 +110,16 @@ describe("resolveApuLaborImportMapping", () => {
       budgetItems
     );
     expect(mapped).toEqual([]);
-    expect(errors[0].reason).toMatch(/Costo por hora inválido/);
+    expect(errors[0].reason).toMatch(/Costo por hora vacío o inválido/);
+  });
+
+  it("rechaza costo por hora vacío: nunca lo toma como 0", () => {
+    const { mapped, errors } = resolveApuLaborImportMapping(
+      [{ itemCode: "5", rol: "Albañil", horasPorUnidad: 2, costoHora: null }],
+      budgetItems
+    );
+    expect(mapped).toEqual([]);
+    expect(errors[0].reason).toMatch(/vacío/);
   });
 });
 

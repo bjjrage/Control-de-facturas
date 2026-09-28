@@ -7,9 +7,12 @@ import {
   resolveApuTemplateMaterialImportMapping,
   resolveApuTemplateLaborImportMapping,
   resolveApuTemplateEquipmentImportMapping,
+  resolveApuTemplateSubcontractImportMapping,
+  matchLaborRate,
   type ApuTemplateMaterialImportRowInput,
   type ApuTemplateLaborImportRowInput,
   type ApuTemplateEquipmentImportRowInput,
+  type ApuTemplateSubcontractImportRowInput,
   type ApuTemplateImportRowError,
 } from "@/lib/procurement/apu-templates";
 
@@ -25,6 +28,7 @@ export interface ApuTemplateSummary {
   materialesCount: number;
   laborCount: number;
   equipoCount: number;
+  subcontratoCount: number;
 }
 
 export async function listApuTemplatesAction(): Promise<{
@@ -43,10 +47,11 @@ export async function listApuTemplatesAction(): Promise<{
     if (!templates || templates.length === 0) return { data: [], error: null };
 
     const ids = templates.map((t) => t.id);
-    const [materialsRes, laborRes, equipmentRes] = await Promise.all([
+    const [materialsRes, laborRes, equipmentRes, subcontractsRes] = await Promise.all([
       supabase.from("apu_template_materials").select("template_id").in("template_id", ids),
       supabase.from("apu_template_labor").select("template_id").in("template_id", ids),
       supabase.from("apu_template_equipment").select("template_id").in("template_id", ids),
+      supabase.from("apu_template_subcontracts").select("template_id").in("template_id", ids),
     ]);
     const countBy = (rows: { template_id: string }[] | null) => {
       const m = new Map<string, number>();
@@ -56,6 +61,7 @@ export async function listApuTemplatesAction(): Promise<{
     const materialCounts = countBy(materialsRes.data as any);
     const laborCounts = countBy(laborRes.data as any);
     const equipmentCounts = countBy(equipmentRes.data as any);
+    const subcontractCounts = countBy(subcontractsRes.data as any);
 
     return {
       data: templates.map((t) => ({
@@ -64,6 +70,7 @@ export async function listApuTemplatesAction(): Promise<{
         materialesCount: materialCounts.get(t.id) ?? 0,
         laborCount: laborCounts.get(t.id) ?? 0,
         equipoCount: equipmentCounts.get(t.id) ?? 0,
+        subcontratoCount: subcontractCounts.get(t.id) ?? 0,
       })),
       error: null,
     };
@@ -136,7 +143,17 @@ export async function importApuTemplateLaborAction(params: {
 }): Promise<{ creados: number; errores: ApuTemplateImportRowError[] }> {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
-  const { mapped, errors } = resolveApuTemplateLaborImportMapping(params.rows);
+  const { data: ratesData } = await supabase
+    .from("labor_rates")
+    .select("id, categoria, costo_hora")
+    .eq("empresa_id", profile.empresa_id);
+  const rates = (ratesData ?? []).map((r: any) => ({ id: r.id, categoria: r.categoria, costo_hora: Number(r.costo_hora) }));
+  // Si el rol coincide con una categoría de jornal, manda el costo central.
+  const rows = params.rows.map((r) => {
+    const rate = matchLaborRate(r.rol, rates);
+    return rate ? { ...r, costoHora: rate.costo_hora } : r;
+  });
+  const { mapped, errors } = resolveApuTemplateLaborImportMapping(rows);
   if (mapped.length === 0) return { creados: 0, errores: errors };
 
   const byNombre = await ensureTemplateIds(supabase, profile.empresa_id, mapped.map((m) => m.templateNombre));
@@ -147,6 +164,7 @@ export async function importApuTemplateLaborAction(params: {
       rol: m.rol,
       horas_por_unidad_ejecutada: m.horasPorUnidad,
       costo_hora: m.costoHora,
+      labor_rate_id: matchLaborRate(m.rol, rates)?.id ?? null,
     })),
     { onConflict: "template_id,rol" }
   );
@@ -176,5 +194,28 @@ export async function importApuTemplateEquipmentAction(params: {
   );
   if (error) return { creados: 0, errores: [...errors, { row: 0, reason: `Error al guardar: ${error.message}` }] };
   revalidatePath("/configuracion");
+  return { creados: mapped.length, errores: errors };
+}
+
+export async function importApuTemplateSubcontractsAction(params: {
+  rows: ApuTemplateSubcontractImportRowInput[];
+}): Promise<{ creados: number; errores: ApuTemplateImportRowError[] }> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const supabase = await createClient();
+  const { mapped, errors } = resolveApuTemplateSubcontractImportMapping(params.rows);
+  if (mapped.length === 0) return { creados: 0, errores: errors };
+
+  const byNombre = await ensureTemplateIds(supabase, profile.empresa_id, mapped.map((m) => m.templateNombre));
+  const { error } = await supabase.from("apu_template_subcontracts").upsert(
+    mapped.map((m) => ({
+      empresa_id: profile.empresa_id,
+      template_id: byNombre.get(m.templateNombre)!,
+      descripcion: m.descripcion,
+      precio_por_unidad: m.precioPorUnidad,
+    })),
+    { onConflict: "template_id,descripcion" }
+  );
+  if (error) return { creados: 0, errores: [...errors, { row: 0, reason: `Error al guardar: ${error.message}` }] };
+  revalidatePath("/projects");
   return { creados: mapped.length, errores: errors };
 }

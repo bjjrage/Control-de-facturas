@@ -24,17 +24,21 @@ async function handler(ctx: AgentToolContext, input: GetApuOverviewInput, deps: 
   if (input.budget_item_id) laborQuery = laborQuery.eq("budget_item_id", input.budget_item_id);
   let equipmentQuery = db.from("budget_item_equipment").select("id, budget_item_id, tipo_equipo, horas_por_unidad_ejecutada, costo_hora").eq("project_id", input.project_id).eq("empresa_id", ctx.empresaId);
   if (input.budget_item_id) equipmentQuery = equipmentQuery.eq("budget_item_id", input.budget_item_id);
+  let subcontractQuery = db.from("budget_item_subcontracts").select("id, budget_item_id, descripcion, precio_por_unidad").eq("project_id", input.project_id).eq("empresa_id", ctx.empresaId);
+  if (input.budget_item_id) subcontractQuery = subcontractQuery.eq("budget_item_id", input.budget_item_id);
 
   const [
     { data: budgetItems, error: budgetError },
     { data: materials, error: materialError },
     { data: labor, error: laborError },
     { data: equipment, error: equipmentError },
-  ] = await Promise.all([budgetQuery, materialQuery, laborQuery, equipmentQuery]);
+    { data: subcontracts, error: subcontractError },
+  ] = await Promise.all([budgetQuery, materialQuery, laborQuery, equipmentQuery, subcontractQuery]);
   if (budgetError) throw new Error(`Error leyendo partidas para APU: ${budgetError.message}`);
   if (materialError) throw new Error(`Error leyendo materiales del APU: ${materialError.message}`);
   if (laborError) throw new Error(`Error leyendo mano de obra del APU: ${laborError.message}`);
   if (equipmentError) throw new Error(`Error leyendo equipo del APU: ${equipmentError.message}`);
+  if (subcontractError) throw new Error(`Error leyendo subcontratos del APU: ${subcontractError.message}`);
 
   const materialRows = (materials ?? []).map((row) => {
     const product = Array.isArray(row.productos) ? row.productos[0] : row.productos;
@@ -58,7 +62,8 @@ async function handler(ctx: AgentToolContext, input: GetApuOverviewInput, deps: 
   const laborTotal = laborRows.reduce((acc, r) => acc + r.labor_unit_cost, 0);
   const equipmentTotal = equipmentRows.reduce((acc, r) => acc + r.equipment_unit_cost, 0);
   const materialTotal = missingMaterialCost.length > 0 ? null : materialRows.reduce((acc, r) => acc + (r.material_unit_cost_with_waste ?? 0), 0);
-  const combined_unit_cost = materialTotal === null ? null : materialTotal + laborTotal + equipmentTotal;
+  const subcontractTotal = (subcontracts ?? []).reduce((acc: number, r: { precio_por_unidad: unknown }) => acc + Number(r.precio_por_unidad), 0);
+  const combined_unit_cost = materialTotal === null ? null : materialTotal + laborTotal + equipmentTotal + subcontractTotal;
 
   return {
     project,
@@ -66,6 +71,7 @@ async function handler(ctx: AgentToolContext, input: GetApuOverviewInput, deps: 
     materials: materialRows,
     labor: laborRows,
     equipment: equipmentRows,
+    subcontracts: subcontracts ?? [],
     combined_unit_cost,
     combined_unit_cost_unavailable_reason:
       combined_unit_cost === null
