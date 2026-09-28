@@ -137,8 +137,10 @@ describe("project surface contract", () => {
     expect((PROJECT_FEATURES as readonly { key: string }[]).some((feature) => feature.key === "recepciones")).toBe(false);
   });
 
-  it("keeps all 17 canonical project surfaces visible through the shared registry", () => {
-    expect(PROJECT_FEATURES).toHaveLength(17);
+  it("keeps all 18 canonical project surfaces visible through the shared registry", () => {
+    expect(PROJECT_FEATURES).toHaveLength(18);
+    expect(getProjectFeature("costeo").group).toBe("Preparar");
+    expect(getProjectFeature("costeo").minPlan).toBe("pro");
     expect(getProjectFeature("inventario").label).toBe("Inventario");
     expect(getProjectFeature("panol").label).toBe("Depósito de obra");
     expect(getProjectFeature("ejecucion").label).toBe("Registro de avance");

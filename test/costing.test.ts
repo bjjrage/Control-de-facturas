@@ -195,3 +195,13 @@ describe("cotización multi-ítem → base de precios", () => {
     expect(o.moneda_original).toBe("USD");
   });
 });
+
+describe("offerExpiryDate", () => {
+  it("interpreta días, semanas y meses desde el envío", async () => {
+    const { offerExpiryDate } = await import("../lib/costing/cost-budget");
+    expect(offerExpiryDate("2026-09-01T10:00:00Z", "30 dias")).toBe("2026-10-01");
+    expect(offerExpiryDate("2026-09-01T10:00:00Z", "2 semanas")).toBe("2026-09-15");
+    expect(offerExpiryDate("2026-09-01T10:00:00Z", "1 meses")).toBe("2026-10-01");
+    expect(offerExpiryDate("2026-09-01T10:00:00Z", "hasta agotar stock")).toBeNull();
+  });
+});

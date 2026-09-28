@@ -16,6 +16,8 @@ import {
 } from "@/lib/procurement/apu-import";
 import { matchBudgetItemsToApuTemplates, matchLaborRate } from "@/lib/procurement/apu-templates";
 import { computePartidaCosts, type ResolvedPrice } from "@/lib/costing/cost-budget";
+import { resolveProjectMaterialPrices } from "@/lib/costing/project-prices";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // ---------------------------------------------------------------------------
 // CRUD + importación masiva del APU/BOM por partida: materiales, mano de
@@ -477,9 +479,9 @@ export interface ApuCostSummary {
 /**
  * Costo unitario APU (4 patas) de TODAS las partidas del proyecto en una
  * sola llamada — para "Costo APU" y "Margen" en la tabla de Presupuesto.
- * El cálculo vive en lib/costing/cost-budget.ts. Por ahora el precio de los
- * materiales es costo_promedio; si falta el de un material, la partida
- * queda en null (nunca se finge 0).
+ * El cálculo vive en lib/costing/cost-budget.ts y el precio de los
+ * materiales en lib/costing/project-prices.ts; si falta el de un material,
+ * la partida queda en null (nunca se finge 0).
  */
 export async function getApuCostSummaryAction(projectId: string): Promise<{
   data: Record<string, ApuCostSummary> | null;
@@ -515,11 +517,16 @@ export async function getApuCostSummaryAction(projectId: string): Promise<{
     if (equipmentRes.error) return { data: null, error: equipmentRes.error.message };
     if (subcontractsRes.error) return { data: null, error: subcontractsRes.error.message };
 
+    // Mismo precio que la pestaña Costeo: elegido → cotización → estimación → costo_promedio.
+    const priceDetails = await resolveProjectMaterialPrices({
+      supabase,
+      admin: createAdminClient(),
+      empresaId: profile.empresa_id,
+      projectId,
+      productIds: ((materialsRes.data ?? []) as any[]).map((r) => r.producto_id as string),
+    });
     const prices = new Map<string, ResolvedPrice>();
-    for (const r of (materialsRes.data ?? []) as any[]) {
-      const cp = Number(r.productos?.costo_promedio);
-      if (cp > 0) prices.set(r.producto_id, { precio: cp, fuente: "HISTORICO" });
-    }
+    for (const [pid, d] of priceDetails) if (d.price) prices.set(pid, d.price);
     const costs = computePartidaCosts(
       [],
       {

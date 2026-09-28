@@ -219,3 +219,23 @@ export function suggestMaterialPrice(args: {
   if (args.costoPromedio != null && args.costoPromedio > 0) return { precio: args.costoPromedio, fuente: "HISTORICO" };
   return null;
 }
+
+/**
+ * Vencimiento de una cotización a partir de su validez ("30 dias",
+ * "2 semanas", "1 meses") contada desde que se envió. Validez ilegible →
+ * null (se trata como vigente: no se descarta un precio por no poder leer
+ * la fecha).
+ */
+export function offerExpiryDate(submittedAt: string | null, offerValidity: string | null): string | null {
+  if (!submittedAt || !offerValidity) return null;
+  const m = offerValidity.trim().toLowerCase().match(/^(\d+(?:[.,]\d+)?)\s*(d[ií]as?|semanas?|mes(?:es)?)$/);
+  if (!m) return null;
+  const n = Number(m[1].replace(",", "."));
+  const start = new Date(submittedAt);
+  if (!Number.isFinite(n) || Number.isNaN(start.getTime())) return null;
+  const unit = m[2];
+  if (unit.startsWith("d")) start.setUTCDate(start.getUTCDate() + Math.round(n));
+  else if (unit.startsWith("s")) start.setUTCDate(start.getUTCDate() + Math.round(n * 7));
+  else start.setUTCMonth(start.getUTCMonth() + Math.round(n));
+  return start.toISOString().slice(0, 10);
+}

@@ -43,6 +43,7 @@ import {
   PackageCheck,
   Archive,
   Tags,
+  Calculator,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { logout } from "@/app/(internal)/actions";
@@ -66,6 +67,7 @@ import { workspaceForPath } from "./workspace";
 // certificás y controlás. El orden sigue el flujo real de trabajo.
 const PROJECT_TAB_ICONS: Record<ProjectFeatureKey, typeof LayoutDashboard> = {
   presupuesto: ClipboardCheck,
+  costeo: Calculator,
   cronograma: GanttChartSquare,
   "plan-semanal": CalendarDays,
   bim: Boxes,
