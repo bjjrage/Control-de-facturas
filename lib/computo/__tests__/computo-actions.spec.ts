@@ -282,7 +282,7 @@ describe("importComputoExcel — flujo de acción servidor (integración mockead
     expect(result.suggested).toBe(0);
   });
 
-  it("devuelve error si no hay budget_items en el proyecto", async () => {
+  it("obra sin partidas: no consulta a la IA y deja todo sin correspondencia para crear la partida", async () => {
     tableResponses["budget_items"] = Promise.resolve({ data: [], error: null });
 
     const { importComputoExcel } = await import("@/app/(internal)/projects/[id]/computo-actions");
@@ -290,6 +290,10 @@ describe("importComputoExcel — flujo de acción servidor (integración mockead
       { description: "Excavación manual en terreno natural", quantity: 95, unit: "m3" },
     ]);
 
-    expect(result.error).toMatch(/presupuesto/i);
+    expect(result.error).toBeNull();
+    expect(mockMatchBatch).not.toHaveBeenCalled();
+    const matches = (insertedRows["computo_item_matches"] ?? []) as { status: string; budget_item_id: string | null }[];
+    expect(matches.length).toBeGreaterThan(0);
+    expect(matches.every((m) => m.status === "NO_MATCH" && m.budget_item_id === null)).toBe(true);
   });
 });

@@ -205,3 +205,11 @@ describe("offerExpiryDate", () => {
     expect(offerExpiryDate("2026-09-01T10:00:00Z", "hasta agotar stock")).toBeNull();
   });
 });
+
+describe("nextPartidaCodes", () => {
+  it("continúa la numeración CM- sin repetir códigos existentes", async () => {
+    const { nextPartidaCodes } = await import("../lib/computo/new-partidas");
+    expect(nextPartidaCodes([], 2)).toEqual(["CM-001", "CM-002"]);
+    expect(nextPartidaCodes(["1", "2", "CM-004"], 2)).toEqual(["CM-005", "CM-006"]);
+  });
+});

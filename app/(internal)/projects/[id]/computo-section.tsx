@@ -16,6 +16,7 @@ import {
   getComputoData,
   confirmComputoMatch,
   rejectComputoMatch,
+  createBudgetItemsFromComputoAction,
   getComputoExportRows,
 } from "./computo-actions";
 
@@ -80,7 +81,7 @@ export function ComputoSection({ projectId }: { projectId: string }) {
 
   const matchableBudgetItems = useMemo(() => {
     const parentIds = new Set(budgetItems.map((b) => b.parent_id).filter(Boolean));
-    return budgetItems.filter((b) => !parentIds.has(b.id) && b.unit_price != null);
+    return budgetItems.filter((b) => !parentIds.has(b.id));
   }, [budgetItems]);
 
   const budgetItemById = useMemo(() => new Map(budgetItems.map((b) => [b.id, b])), [budgetItems]);
@@ -178,6 +179,17 @@ export function ComputoSection({ projectId }: { projectId: string }) {
 
   async function handleReject(itemId: string) {
     const result = await rejectComputoMatch(projectId, itemId);
+    if (result.error) setError(result.error);
+    await refresh();
+  }
+
+  async function handleCreatePartidas(itemIds: string[]) {
+    if (itemIds.length === 0) return;
+    if (itemIds.length > 1 && !window.confirm(`¿Crear ${itemIds.length} partidas nuevas (sin precio de venta) desde el cómputo?`)) return;
+    setError(null);
+    setUploadStatus("Creando partidas…");
+    const result = await createBudgetItemsFromComputoAction(projectId, itemIds);
+    setUploadStatus(null);
     if (result.error) setError(result.error);
     await refresh();
   }
@@ -287,12 +299,23 @@ export function ComputoSection({ projectId }: { projectId: string }) {
               </div>
             ) : null}
 
-            <div className="text-[11px] text-[var(--muted)] flex flex-wrap gap-x-3">
+            <div className="text-[11px] text-[var(--muted)] flex flex-wrap items-center gap-x-3">
               {Object.entries(summaryCounts).map(([status, count]) => (
                 <span key={status}>
                   {STATUS_LABEL[status] ?? status}: {count}
                 </span>
               ))}
+              {(() => {
+                const sinPartida = impItems.filter((i) => {
+                  const s = latestMatchByItem.get(i.id)?.status;
+                  return s === "NO_MATCH" || s === "REJECTED";
+                });
+                return sinPartida.length > 0 ? (
+                  <Button variant="secondary" className="h-7 text-[11px]" onClick={() => handleCreatePartidas(sinPartida.map((i) => i.id))}>
+                    Crear partidas para las {sinPartida.length} sin correspondencia
+                  </Button>
+                ) : null;
+              })()}
             </div>
 
             <div className="space-y-1.5">
@@ -367,11 +390,22 @@ export function ComputoSection({ projectId }: { projectId: string }) {
                             Cambiar rubro
                           </Button>
                         )}
+                        {status === "NO_MATCH" ? (
+                          <Button variant="secondary" onClick={() => handleCreatePartidas([item.id])}>
+                            Crear partida
+                          </Button>
+                        ) : null}
                         <Button variant="secondary" onClick={() => handleReject(item.id)}>
                           Dejar sin asignar
                         </Button>
                       </div>
-                    ) : null}
+                    ) : (
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <Button variant="secondary" onClick={() => handleCreatePartidas([item.id])}>
+                          Crear partida
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 );
               })}

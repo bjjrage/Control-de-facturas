@@ -16,6 +16,7 @@ import { DeepSeekBatchSemanticMatcher, type BatchMatchItem } from "@/lib/bim/dee
 import { checkTechnicalIntegrity } from "@/lib/bim/technical-integrity";
 import { computoItemToBimElement } from "@/lib/computo/computo-mapper";
 import { extractComputoFromPdf } from "@/lib/computo/pdf-extractor";
+import { nextPartidaCodes } from "@/lib/computo/new-partidas";
 import type { ComputoImport, ComputoItem, ComputoItemMatch, BudgetItem } from "@/lib/types";
 
 async function assertProjectAccess(projectId: string) {
@@ -45,7 +46,9 @@ async function matchableBudgetItems(supabase: Awaited<ReturnType<typeof createCl
   const { data: budgetItems } = await supabase.from("budget_items").select("*").eq("project_id", projectId).returns<BudgetItem[]>();
   if (!budgetItems) return [];
   const parentIds = new Set(budgetItems.map((b) => b.parent_id).filter(Boolean));
-  return budgetItems.filter((b) => !parentIds.has(b.id) && b.unit_price != null);
+  // Las partidas sin precio también son candidatas: en el flujo de costeo el
+  // cómputo crea partidas antes de que exista el precio de venta.
+  return budgetItems.filter((b) => !parentIds.has(b.id));
 }
 
 // Corre el matching en lote sobre TODOS los computo_items de un import que
@@ -79,7 +82,20 @@ async function runComputoMatching(
 
   const matchable = await matchableBudgetItems(supabase, projectId);
   if (matchable.length === 0) {
-    return { ...empty, error: "El proyecto todavía no tiene ítems de presupuesto para comparar." };
+    // Obra vacía: no hay con qué comparar, así que no se consulta a la IA.
+    // Todo queda sin correspondencia y cada fila puede crear su partida.
+    const { error } = await supabase.from("computo_item_matches").insert(
+      pendingItems.map((item) => ({
+        computo_item_id: item.id,
+        budget_item_id: null,
+        method: "SEMANTIC" as const,
+        score: 0,
+        reason: "La obra todavía no tiene partidas: creá la partida desde el cómputo.",
+        status: "NO_MATCH" as const,
+      }))
+    );
+    if (error) return { ...empty, error: error.message };
+    return { ...empty, noMatch: pendingItems.length };
   }
 
   let matcher: DeepSeekBatchSemanticMatcher;
@@ -390,6 +406,68 @@ export async function confirmComputoMatch(
   await logAudit(supabase, { action: "computo.match_confirmed", detail: { project_id: projectId, computo_item_id: computoItemId, budget_item_id: budgetItemId, update_quantity: updateQuantity } });
   revalidatePath(`/projects/${projectId}`);
   return { error: null };
+}
+
+/**
+ * Crea partidas nuevas a partir de filas del cómputo que no tienen
+ * correspondencia (flujo de costeo: el cómputo crea las partidas). Sin
+ * precio de venta todavía; la cantidad es la del cómputo. Cada fila queda
+ * confirmada contra su partida nueva.
+ */
+export async function createBudgetItemsFromComputoAction(
+  projectId: string,
+  computoItemIds: string[]
+): Promise<{ created: number; error: string | null }> {
+  const { supabase } = await assertProjectAccess(projectId);
+  if (computoItemIds.length === 0) return { created: 0, error: null };
+
+  const { data: items, error: itemsError } = await supabase
+    .from("computo_items")
+    .select("id, description, quantity_value, quantity_unit, computo_imports!inner(project_id)")
+    .in("id", computoItemIds)
+    .eq("computo_imports.project_id", projectId);
+  if (itemsError) return { created: 0, error: itemsError.message };
+
+  const { data: confirmed } = await supabase
+    .from("computo_item_matches")
+    .select("computo_item_id")
+    .in("computo_item_id", computoItemIds)
+    .eq("status", "CONFIRMED");
+  const confirmedIds = new Set((confirmed ?? []).map((c) => c.computo_item_id));
+  const pending = ((items ?? []) as any[]).filter((i) => !confirmedIds.has(i.id));
+  if (pending.length === 0) return { created: 0, error: null };
+
+  const { data: existing } = await supabase.from("budget_items").select("code, sort_order").eq("project_id", projectId);
+  const codes = nextPartidaCodes((existing ?? []).map((b) => String(b.code ?? "")), pending.length);
+  let sort = Math.max(0, ...(existing ?? []).map((b) => Number(b.sort_order) || 0));
+
+  const { data: created, error: insertError } = await supabase
+    .from("budget_items")
+    .insert(
+      pending.map((it, idx) => ({
+        project_id: projectId,
+        code: codes[idx],
+        description: String(it.description ?? "").trim() || "Ítem de cómputo",
+        unit: it.quantity_unit ?? null,
+        quantity: it.quantity_value ?? null,
+        unit_price: null,
+        sort_order: ++sort,
+      }))
+    )
+    .select("id, code");
+  if (insertError) return { created: 0, error: insertError.message };
+
+  const idByCode = new Map((created ?? []).map((c) => [c.code as string, c.id as string]));
+  for (let idx = 0; idx < pending.length; idx++) {
+    const newId = idByCode.get(codes[idx]);
+    if (!newId) continue;
+    const res = await confirmComputoMatch(projectId, pending[idx].id, newId, false);
+    if (res.error) return { created: idByCode.size, error: `Partidas creadas, pero falló el enlace de "${pending[idx].description}": ${res.error}` };
+  }
+
+  await logAudit(supabase, { action: "computo.partidas_created", detail: { project_id: projectId, count: idByCode.size } });
+  revalidatePath(`/projects/${projectId}`);
+  return { created: idByCode.size, error: null };
 }
 
 export async function rejectComputoMatch(projectId: string, computoItemId: string): Promise<{ error: string | null }> {

@@ -17,6 +17,7 @@ import {
   processBimGroups,
   confirmGroupMatch,
   rejectGroupMatch,
+  createBudgetItemsFromBimGroupsAction,
   deleteBimModel,
   type ParsedElementInput,
   type ProcessBimGroupsResult,
@@ -226,7 +227,7 @@ export function BimSection({ projectId }: { projectId: string }) {
   const budgetItemById = useMemo(() => new Map(budgetItems.map((b) => [b.id, b])), [budgetItems]);
   const matchableBudgetItems = useMemo(() => {
     const parentIds = new Set(budgetItems.map((b) => b.parent_id).filter(Boolean));
-    return budgetItems.filter((b) => !parentIds.has(b.id) && b.unit_price != null);
+    return budgetItems.filter((b) => !parentIds.has(b.id));
   }, [budgetItems]);
 
   // Un grupo puede tener varias propuestas históricas (ej. tras "Recalcular");
@@ -271,6 +272,16 @@ export function BimSection({ projectId }: { projectId: string }) {
     setError(null);
     const result = await rejectGroupMatch(projectId, groupId);
     if (result.error) setError(result.error);
+    if (selectedModelId) await refreshGroups(selectedModelId);
+  }
+
+  async function handleCreatePartidas(groupIds: string[]) {
+    if (groupIds.length === 0) return;
+    if (groupIds.length > 1 && !window.confirm(`¿Crear ${groupIds.length} partidas nuevas (sin precio de venta) desde el modelo?`)) return;
+    setError(null);
+    const result = await createBudgetItemsFromBimGroupsAction(projectId, groupIds);
+    if (result.error) setError(result.error);
+    await refresh();
     if (selectedModelId) await refreshGroups(selectedModelId);
   }
 
@@ -611,9 +622,22 @@ export function BimSection({ projectId }: { projectId: string }) {
         <div ref={reviewSectionRef} className="space-y-2 pt-2">
           <div className="flex items-center justify-between">
             <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Revisión por grupo</div>
-            <button onClick={() => setShowReview((v) => !v)} className="text-[11px] text-[var(--accent)] underline">
-              {showReview ? "Ocultar" : "Mostrar"}
-            </button>
+            <div className="flex items-center gap-3">
+              {(() => {
+                const sinPartida = currentGroups.filter((g) => {
+                  const s = latestMatchByGroup.get(g.id)?.status;
+                  return s === "NO_MATCH" || s === "REJECTED";
+                });
+                return sinPartida.length > 0 ? (
+                  <Button variant="secondary" className="h-7 text-[11px]" onClick={() => handleCreatePartidas(sinPartida.map((g) => g.id))}>
+                    Crear partidas para los {sinPartida.length} grupos sin correspondencia
+                  </Button>
+                ) : null;
+              })()}
+              <button onClick={() => setShowReview((v) => !v)} className="text-[11px] text-[var(--accent)] underline">
+                {showReview ? "Ocultar" : "Mostrar"}
+              </button>
+            </div>
           </div>
 
           {showReview ? (
@@ -748,14 +772,24 @@ export function BimSection({ projectId }: { projectId: string }) {
                             Cambiar rubro
                           </Button>
                         )}
+                        {status === "NO_MATCH" ? (
+                          <Button variant="secondary" onClick={() => handleCreatePartidas([group.id])}>
+                            Crear partida
+                          </Button>
+                        ) : null}
                         <Button variant="secondary" onClick={() => handleRejectGroup(group.id)}>
                           Dejar sin asignar
                         </Button>
                       </div>
                     ) : (
-                      <button onClick={() => setChangingGroupId(group.id)} className="text-[11px] text-[var(--accent)] underline">
-                        Asignar un rubro igualmente
-                      </button>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <button onClick={() => setChangingGroupId(group.id)} className="text-[11px] text-[var(--accent)] underline">
+                          Asignar un rubro igualmente
+                        </button>
+                        <button onClick={() => handleCreatePartidas([group.id])} className="text-[11px] text-[var(--accent)] underline">
+                          Crear partida
+                        </button>
+                      </div>
                     )}
                   </div>
                 );
