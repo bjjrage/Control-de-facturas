@@ -162,7 +162,7 @@ export async function runVoiceTurn(
 
     // 4. Ejecutar orchestrator con el transcript
     const orchestrator = new AgentOrchestrator({
-      apiKey: process.env.DEEPSEEK_API_KEY,
+      apiKey: process.env.OPENAI_API_KEY ?? process.env.DEEPSEEK_API_KEY,
       maxIterations: 8,
       timeoutMs: 90_000,
     });

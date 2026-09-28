@@ -110,7 +110,7 @@ export async function POST(request: Request) {
   };
 
   try {
-    const deepseekConfigured = Boolean(process.env.DEEPSEEK_API_KEY?.trim());
+    const deepseekConfigured = Boolean(process.env.OPENAI_API_KEY?.trim() || process.env.DEEPSEEK_API_KEY?.trim());
 
     // Preview y Production deben fallar cerrado: una credencial ausente nunca
     // puede convertir a Rodrigo silenciosamente en un router de keywords.

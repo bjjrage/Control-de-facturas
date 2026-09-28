@@ -18,8 +18,8 @@
 import { normalizeUnit } from "@/lib/bim/matching";
 import type { ComputoConfidenceSummary } from "@/lib/types";
 
-const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
-const DEEPSEEK_MODEL = "deepseek-v4-flash";
+const DEEPSEEK_BASE_URL = "https://api.openai.com/v1";
+const DEEPSEEK_MODEL = "gpt-6-luna";
 const MIN_TEXT_LENGTH = 40;
 
 export class ComputoPdfConfigError extends Error {}
@@ -47,10 +47,10 @@ Respondé EXCLUSIVAMENTE un objeto JSON:
 {"tabla_clara": boolean, "filas": [{"descripcion": string, "cantidad": number|null, "unidad": string|null, "confianza": number}]}`;
 
 async function callDeepSeekExtraction(text: string): Promise<{ tablaClara: boolean; rows: ExtractedComputoRow[] } | null> {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY ?? process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
     throw new ComputoPdfConfigError(
-      "DEEPSEEK_API_KEY no está configurada. La extracción de PDF la requiere server-side; no existe un fallback silencioso."
+      "OPENAI_API_KEY no está configurada. La extracción de PDF la requiere server-side; no existe un fallback silencioso."
     );
   }
 
@@ -59,7 +59,7 @@ async function callDeepSeekExtraction(text: string): Promise<{ tablaClara: boole
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: DEEPSEEK_MODEL,
-      temperature: 0,
+      // gpt-6-luna solo acepta el temperature default (1) — omitido.
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: EXTRACTION_PROMPT },

@@ -16,8 +16,11 @@
 //     modelo respetó el whitelist de IDs).
 import type { SemanticMatcher, SemanticMatchInput, SemanticMatchResult } from "./semantic-matcher";
 
-export const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
-export const DEEPSEEK_MODEL = "deepseek-v4-flash";
+// Proveedor activo: GPT-6 Luna (OpenAI-compatible) — cambiado a pedido del
+// usuario mientras no hay saldo cargado en DeepSeek. Nombres DEEPSEEK_* se
+// mantienen para no romper imports existentes.
+export const DEEPSEEK_BASE_URL = "https://api.openai.com/v1";
+export const DEEPSEEK_MODEL = "gpt-6-luna";
 const DEFAULT_TIMEOUT_MS = 20000;
 
 export class DeepSeekConfigError extends Error {}
@@ -70,10 +73,10 @@ export class DeepSeekSemanticMatcher implements SemanticMatcher {
   public lastUsage: DeepSeekUsage | null = null;
 
   constructor(options: DeepSeekMatcherOptions = {}) {
-    const apiKey = options.apiKey ?? process.env.DEEPSEEK_API_KEY;
+    const apiKey = options.apiKey ?? process.env.OPENAI_API_KEY ?? process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {
       throw new DeepSeekConfigError(
-        "DEEPSEEK_API_KEY no está configurada. El matcher semántico DeepSeek la requiere server-side; " +
+        "OPENAI_API_KEY no está configurada. El matcher semántico la requiere server-side; " +
           "no existe un fallback silencioso a fuzzy matching cuando falta."
       );
     }
@@ -120,7 +123,7 @@ export class DeepSeekSemanticMatcher implements SemanticMatcher {
         },
         body: JSON.stringify({
           model: this.model,
-          temperature: 0,
+          // gpt-6-luna solo acepta el temperature default (1) — omitido.
           response_format: { type: "json_object" },
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
