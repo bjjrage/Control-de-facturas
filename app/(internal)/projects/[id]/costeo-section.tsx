@@ -2,22 +2,19 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { RefreshCw, Send, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClassName } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatMoney, formatNumber, formatDateTime } from "@/lib/format";
 import {
   getCostBudgetAction,
-  createCostRfqsFromProject,
   setProjectCostPriceAction,
   clearProjectCostPriceAction,
   getRealVsBudgetAction,
   type RealVsBudgetData,
   type CostBudgetData,
   type CostBudgetInsumo,
-  type CostRfqCreationResult,
 } from "./costeo-actions";
 import { LaborRatesDialog } from "./labor-rates-dialog";
 import { ApuTemplatesDialog } from "./apu-templates-dialog";
@@ -42,9 +39,6 @@ export function CosteoSection({ projectId, isCaterpillar }: { projectId: string;
   const [data, setData] = useState<CostBudgetData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [rfqPending, setRfqPending] = useState(false);
-  const [rfqResult, setRfqResult] = useState<CostRfqCreationResult | null>(null);
-  const router = useRouter();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -59,17 +53,6 @@ export function CosteoSection({ projectId, isCaterpillar }: { projectId: string;
     load();
   }, [load]);
 
-  async function handleGenerateRfqs() {
-    if (!window.confirm("Se va a crear un RFQ por rubro con los insumos de la obra y se invita a los proveedores de cada rubro. ¿Seguimos?")) return;
-    setRfqPending(true);
-    const res = await createCostRfqsFromProject(projectId);
-    setRfqPending(false);
-    if (res.error) return setError(res.error);
-    setRfqResult(res.data);
-    load();
-    router.refresh();
-  }
-
   if (loading && !data) return <p className="text-[13px] text-[var(--muted)]">Calculando presupuesto de costo…</p>;
   if (error && !data) return <p className="text-[13px] text-[var(--error)]">{error}</p>;
   if (!data) return null;
@@ -80,10 +63,10 @@ export function CosteoSection({ projectId, isCaterpillar }: { projectId: string;
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" onClick={handleGenerateRfqs} disabled={rfqPending} className="gap-1.5">
-          {rfqPending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-          Generar RFQ por rubro
-        </Button>
+        <Link href={`/rfqs?nueva=obra&obra=${projectId}`} className={buttonClassName({ variant: "primary" }) + " gap-1.5"}>
+          <Send className="h-3.5 w-3.5" />
+          Pedir precios en Compras
+        </Link>
         <ApuTemplatesDialog />
         <LaborRatesDialog />
         <ApplyApuTemplatesButton projectId={projectId} />
@@ -93,34 +76,6 @@ export function CosteoSection({ projectId, isCaterpillar }: { projectId: string;
       </div>
 
       {error ? <p className="text-[12px] text-[var(--error)]">{error}</p> : null}
-
-      {rfqResult ? (
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3 text-[12px] space-y-1">
-          {rfqResult.sinInsumos ? (
-            <p>No hay insumos para cotizar: cargá el APU de materiales de las partidas (o aplicá plantillas) primero.</p>
-          ) : (
-            <>
-              <p>
-                {rfqResult.creadas.length === 0
-                  ? "No se creó ningún RFQ."
-                  : `Se crearon ${rfqResult.creadas.length} RFQ: ${rfqResult.creadas.map((c) => `${c.code} (${c.rubro}, ${c.proveedores} proveedores)`).join(", ")}.`}
-              </p>
-              {rfqResult.rubrosSinProveedores.length > 0 ? (
-                <p className="text-amber-500">
-                  Sin proveedores de ese rubro: {rfqResult.rubrosSinProveedores.map((r) => r.rubro).join(", ")}. Asigná el rubro en
-                  Proveedores y volvé a generar.
-                </p>
-              ) : null}
-              {rfqResult.insumosSinRubro.length > 0 ? (
-                <p className="text-amber-500">
-                  Insumos sin categoría (no se pudieron mandar a ningún rubro): {rfqResult.insumosSinRubro.join(", ")}. Asignales
-                  categoría en Stock.
-                </p>
-              ) : null}
-            </>
-          )}
-        </div>
-      ) : null}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Kpi label="Costo total" value={gs(totals.costoTotal)} note={totals.completo ? "Presupuesto de costo completo" : "Parcial: ver avisos abajo"} warn={!totals.completo} />

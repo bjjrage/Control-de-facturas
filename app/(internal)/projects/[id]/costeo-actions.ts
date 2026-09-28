@@ -33,6 +33,26 @@ export interface CostRfqCreationResult {
   sinInsumos: boolean;
 }
 
+/** Obras de la empresa para armar el pedido de precios desde Compras. */
+export async function listProjectsForCostRfqAction(): Promise<{
+  data: { id: string; name: string; code: string }[] | null;
+  error: string | null;
+}> {
+  try {
+    const profile = await requirePlan("pro", ["administracion", "admin"]);
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("projects")
+      .select("id, name, code")
+      .eq("empresa_id", profile.empresa_id)
+      .order("name");
+    if (error) return { data: null, error: error.message };
+    return { data: (data ?? []) as { id: string; name: string; code: string }[], error: null };
+  } catch (e) {
+    return { data: null, error: e instanceof Error ? e.message : "No se pudieron cargar las obras." };
+  }
+}
+
 export async function createCostRfqsFromProject(
   projectId: string,
   opts: { expiresHours?: number } = {}
