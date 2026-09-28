@@ -95,11 +95,13 @@ export async function runProgressForecastAction(
     }
 
     // 3. Fetch budget items (tenant scoped via project_id and empresa_id check)
+    // Por sort_order, no por code: "code" es texto y ordena "1, 10, 11...19,
+    // 2, 20..." en vez de 1, 2, 3... (mismo bug confirmado en weekly-plan-shared.ts).
     const { data: rawBudgetItems } = await supabase
       .from("budget_items")
       .select("*")
       .eq("project_id", projectId)
-      .order("code", { ascending: true });
+      .order("sort_order", { ascending: true });
 
     const budgetItems: BudgetItem[] = (rawBudgetItems ?? []) as BudgetItem[];
     if (budgetItems.length === 0) {
