@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ColumnFilter, uniqueValues, passesColumnFilter } from "@/components/ui/column-filter";
 import { formatMoney, formatDate } from "@/lib/format";
 import { EditBudgetItemDialog } from "./edit-budget-item-dialog";
+import { ApuDialog } from "./apu-dialog";
 import { deleteBudgetItems } from "../actions";
 
 type Row = {
@@ -210,7 +211,10 @@ export function PresupuestoTable({ rows, total, projectId }: { rows: Row[]; tota
                     {r.startDate && r.endDate ? `${formatDate(r.startDate)} → ${formatDate(r.endDate)}` : "Sin fecha"}
                   </td>
                   <td>
-                    <EditBudgetItemDialog projectId={projectId} row={r} />
+                    <div className="flex items-center gap-1 justify-end">
+                      <ApuDialog projectId={projectId} budgetItemId={r.id} budgetItemLabel={`${r.code} — ${r.description}`} />
+                      <EditBudgetItemDialog projectId={projectId} row={r} />
+                    </div>
                   </td>
                 </tr>
               ))

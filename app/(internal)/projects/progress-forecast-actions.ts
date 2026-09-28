@@ -443,40 +443,5 @@ export async function runProgressForecastAction(
   }
 }
 
-/**
- * Creates or updates a material requirement for a budget item (Bill of Materials)
- */
-export async function saveBudgetItemMaterialAction(params: {
-  projectId: string;
-  budgetItemId: string;
-  productoId: string;
-  cantidadPorUnidad: number;
-  desperdicioPct?: number;
-}): Promise<{ success: boolean; error: string | null }> {
-  try {
-    const profile = await requirePlan("pro", ["administracion", "admin"]);
-    const empresaId = profile.empresa_id;
-    const supabase = await createClient();
-
-    const { error } = await supabase.from("budget_item_materials").upsert(
-      {
-        empresa_id: empresaId,
-        project_id: params.projectId,
-        budget_item_id: params.budgetItemId,
-        producto_id: params.productoId,
-        cantidad_por_unidad_ejecutada: params.cantidadPorUnidad,
-        desperdicio_pct: params.desperdicioPct ?? 0,
-      },
-      { onConflict: "budget_item_id,producto_id" }
-    );
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    revalidatePath(`/projects/${params.projectId}`);
-    return { success: true, error: null };
-  } catch (err: any) {
-    return { success: false, error: err.message };
-  }
-}
+// saveBudgetItemMaterialAction se mudó a "./[id]/apu-actions" (junto con el
+// resto del CRUD/import del APU: materiales, mano de obra, equipo).

@@ -15,7 +15,7 @@ export const ManageApuMaterialInputSchema = z.object({
 export type ManageApuMaterialInput = z.infer<typeof ManageApuMaterialInputSchema>;
 
 async function handler(_ctx: AgentToolContext, input: ManageApuMaterialInput, _deps: { db: SupabaseClient }) {
-  const actions = await import("@/app/(internal)/projects/progress-forecast-actions");
+  const actions = await import("@/app/(internal)/projects/[id]/apu-actions");
   const result = await actions.saveBudgetItemMaterialAction({
     projectId: input.project_id,
     budgetItemId: input.budget_item_id,

@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Upload, RefreshCw, CheckCircle2, AlertTriangle, X } from "lucide-react";
+import { Upload, RefreshCw, CheckCircle2, AlertTriangle, X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { importProductionRecipe } from "../production-recipe-actions";
+import { importProductionRecipe, saveProductionRecipe } from "../production-recipe-actions";
 
 // Mismo patrón que import-budget-dialog (parse PY + detección de columnas).
 function parsePyNumber(raw: unknown): number | null {
@@ -62,7 +62,16 @@ interface ParsedRow {
   manualItemId: string;
 }
 
+interface ManualRow {
+  budgetItemId: string;
+  quantity: string;
+  unit: string;
+}
+
+const EMPTY_MANUAL_ROW: ManualRow = { budgetItemId: "", quantity: "", unit: "" };
+
 export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose }: Props) {
+  const [mode, setMode] = useState<"excel" | "manual">("excel");
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -72,6 +81,72 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
   const [contractQty, setContractQty] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [manualRows, setManualRows] = useState<ManualRow[]>([{ ...EMPTY_MANUAL_ROW }]);
+
+  function updateManualRow(idx: number, field: keyof ManualRow, value: string) {
+    setManualRows((prev) =>
+      prev.map((r, i) => {
+        if (i !== idx) return r;
+        const next = { ...r, [field]: value };
+        if (field === "budgetItemId" && !r.unit) {
+          const item = budgetItems.find((b) => b.id === value);
+          if (item?.unit) next.unit = item.unit;
+        }
+        return next;
+      })
+    );
+  }
+  function addManualRow() {
+    setManualRows((prev) => [...prev, { ...EMPTY_MANUAL_ROW }]);
+  }
+  function removeManualRow(idx: number) {
+    setManualRows((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  const manualValidRows = manualRows.filter((r) => r.budgetItemId && Number(r.quantity) > 0);
+
+  async function handleConfirmManual() {
+    setSaveError(null);
+    if (!recipeCode.trim() || !recipeName.trim() || !prodUnit.trim()) {
+      setSaveError("Completá código, nombre y unidad de producción de la receta.");
+      return;
+    }
+    if (manualValidRows.length === 0) {
+      setSaveError("Agregá al menos una fila con partida y cantidad > 0.");
+      return;
+    }
+    const seen = new Set<string>();
+    for (const r of manualValidRows) {
+      if (seen.has(r.budgetItemId)) {
+        setSaveError("Hay una partida repetida entre las filas.");
+        return;
+      }
+      seen.add(r.budgetItemId);
+    }
+    setSaving(true);
+    const res = await saveProductionRecipe({
+      projectId,
+      code: recipeCode.trim(),
+      name: recipeName.trim(),
+      productionUnit: prodUnit.trim(),
+      contractTotalQuantity: contractQty.trim() ? Number(contractQty) : null,
+      sourceType: "MANUAL",
+      components: manualValidRows.map((r) => {
+        const item = budgetItems.find((b) => b.id === r.budgetItemId)!;
+        return {
+          budgetItemId: r.budgetItemId,
+          quantityPerUnit: Number(r.quantity),
+          unit: r.unit || item.unit || "unid",
+        };
+      }),
+    });
+    setSaving(false);
+    if (res.error || !res.data) {
+      setSaveError(res.error || "Error al guardar la receta.");
+      return;
+    }
+    onImported();
+  }
 
   const byCode = useMemo(() => {
     const m = new Map<string, BudgetLite[]>();
@@ -218,11 +293,31 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" data-testid="importar-receta-dialog">
       <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-[var(--foreground)]">Importar receta desde Excel</h4>
+          <h4 className="text-sm font-semibold text-[var(--foreground)]">Importar receta</h4>
           <button type="button" onClick={onClose} className="p-1 text-[var(--muted)] hover:text-[var(--foreground)]" title="Cerrar">
             <X className="h-4 w-4" />
           </button>
         </div>
+
+        <div className="flex gap-1 rounded-lg border border-[var(--border)] p-1 w-fit">
+          <button
+            type="button"
+            onClick={() => setMode("excel")}
+            className={`rounded-md px-3 py-1 text-xs ${mode === "excel" ? "bg-[var(--panel-2)] font-semibold text-[var(--foreground)]" : "text-[var(--muted)]"}`}
+          >
+            Desde Excel
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("manual")}
+            className={`rounded-md px-3 py-1 text-xs ${mode === "manual" ? "bg-[var(--panel-2)] font-semibold text-[var(--foreground)]" : "text-[var(--muted)]"}`}
+          >
+            Manual
+          </button>
+        </div>
+
+        {mode === "excel" && (
+        <>
         <p className="text-[11px] text-[var(--muted)]">
           Columnas esperadas: RECETA | UNIDAD_PRODUCCION | PARTIDA_CODIGO | PARTIDA | CANTIDAD | UNIDAD.
           El mapeo es por código exacto; lo ambiguo se elige manual. Nada se crea sin confirmar.
@@ -330,6 +425,94 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
             </div>
           </>
         )}
+        </>
+        )}
+
+        {mode === "manual" && (
+        <>
+          <p className="text-[11px] text-[var(--muted)]">
+            Cargá la receta a mano: cabecera + filas de partida/cantidad. Sin Excel.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div>
+              <label className="block text-[11px] text-[var(--muted)]">Código receta</label>
+              <Input value={recipeCode} onChange={(e) => setRecipeCode(e.target.value)} className="h-8 text-xs" />
+            </div>
+            <div>
+              <label className="block text-[11px] text-[var(--muted)]">Nombre</label>
+              <Input value={recipeName} onChange={(e) => setRecipeName(e.target.value)} className="h-8 text-xs" />
+            </div>
+            <div>
+              <label className="block text-[11px] text-[var(--muted)]">Unidad prod.</label>
+              <Input value={prodUnit} onChange={(e) => setProdUnit(e.target.value)} className="h-8 text-xs" placeholder="km" />
+            </div>
+            <div>
+              <label className="block text-[11px] text-[var(--muted)]">Tramo contractual (opcional)</label>
+              <Input value={contractQty} onChange={(e) => setContractQty(e.target.value)} className="h-8 text-xs" placeholder="10" type="number" />
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-[var(--border)] overflow-x-auto">
+            <table className="w-full text-left text-[11px]">
+              <thead>
+                <tr className="border-b border-[var(--border)] bg-[var(--panel-2)] text-[var(--muted)]">
+                  <th className="py-1.5 px-2">Partida</th>
+                  <th className="py-1.5 px-2">Cant./unidad de producción</th>
+                  <th className="py-1.5 px-2">Unidad</th>
+                  <th className="py-1.5 px-2"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border)]">
+                {manualRows.map((r, idx) => (
+                  <tr key={idx}>
+                    <td className="py-1.5 px-2">
+                      <select
+                        value={r.budgetItemId}
+                        onChange={(e) => updateManualRow(idx, "budgetItemId", e.target.value)}
+                        className="h-7 w-full max-w-64 rounded border border-[var(--border)] bg-[var(--panel)] px-1 text-[11px]"
+                      >
+                        <option value="">Elegir partida…</option>
+                        {budgetItems.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.code} · {b.description}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="py-1.5 px-2">
+                      <Input
+                        value={r.quantity}
+                        onChange={(e) => updateManualRow(idx, "quantity", e.target.value)}
+                        className="h-7 w-24 text-xs"
+                        type="number"
+                        step="any"
+                        min="0"
+                      />
+                    </td>
+                    <td className="py-1.5 px-2">
+                      <Input
+                        value={r.unit}
+                        onChange={(e) => updateManualRow(idx, "unit", e.target.value)}
+                        className="h-7 w-20 text-xs"
+                      />
+                    </td>
+                    <td className="py-1.5 px-2">
+                      {manualRows.length > 1 && (
+                        <button type="button" onClick={() => removeManualRow(idx)} className="text-[var(--muted)] hover:text-[var(--error)]" title="Quitar fila">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <button type="button" onClick={addManualRow} className="flex items-center gap-1 text-[11px] text-[var(--primary)] hover:underline">
+            <Plus className="h-3 w-3" /> Agregar fila
+          </button>
+        </>
+        )}
 
         {saveError && (
           <div className="flex items-start gap-2 text-xs text-red-500">
@@ -341,16 +524,28 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
           <Button type="button" variant="secondary" onClick={onClose} className="h-8 text-xs">
             Cancelar
           </Button>
-          <Button
-            type="button"
-            onClick={handleConfirm}
-            disabled={saving || rows.length === 0}
-            data-testid="confirmar-importacion-receta"
-            className="h-8 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
-          >
-            {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-            Confirmar importación
-          </Button>
+          {mode === "excel" ? (
+            <Button
+              type="button"
+              onClick={handleConfirm}
+              disabled={saving || rows.length === 0}
+              data-testid="confirmar-importacion-receta"
+              className="h-8 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+              Confirmar importación
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={handleConfirmManual}
+              disabled={saving || manualValidRows.length === 0}
+              className="h-8 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+              Confirmar receta
+            </Button>
+          )}
         </div>
       </div>
     </div>
