@@ -260,6 +260,9 @@ export interface AggregatedMaterial {
   cubierto_inbound: number;
   faltante: number;
   caja: number;
+  /** Sin costo_promedio cargado: `caja` es 0 por falta de dato, NO porque no
+   * haga falta comprar (mismo aviso que ya da la vista por partida). */
+  requiere_atencion_costo: boolean;
 }
 
 /**
@@ -280,6 +283,7 @@ export function aggregateMaterialsByProduct(
         prev.cubierto_inbound += m.cubierto_por_inbound;
         prev.faltante += m.deficit_compra_neta;
         prev.caja += m.caja_adicional_requerida;
+        prev.requiere_atencion_costo = prev.requiere_atencion_costo || m.requiere_atencion_costo;
       } else {
         acc.set(m.producto_id, {
           producto_id: m.producto_id,
@@ -291,6 +295,7 @@ export function aggregateMaterialsByProduct(
           cubierto_inbound: m.cubierto_por_inbound,
           faltante: m.deficit_compra_neta,
           caja: m.caja_adicional_requerida,
+          requiere_atencion_costo: m.requiere_atencion_costo,
         });
       }
     }

@@ -216,6 +216,34 @@ describe("D. Agregado de materiales del bloque sin doble conteo", () => {
     expect(agg[0].faltante).toBe(20);
     expect(agg[0].caja).toBe(20 * 70000);
   });
+
+  it("BOM cargado pero sin costo_promedio: el agregado NO finge caja 0 (caso Arena)", () => {
+    // Caso real MAGY: la partida SÍ tiene BOM, pero el producto (Arena) nunca
+    // tuvo costo_promedio cargado (nadie compró/cargó stock con costo). El
+    // faltante es real (hay déficit de compra) pero `costo_unitario` es 0 →
+    // sin el flag, `caja` calculaba 0 y la UI mostraba "Gs. 0" como si no
+    // hiciera falta comprar. Bug real: la agregación por bloque perdía
+    // `requiere_atencion_costo` que el engine sí computa por partida.
+    const arena = { producto_id: "prod-arena", producto_nombre: "Arena Lavada Gruesa", unidad_medida: "m3", cantidad_por_unidad_ejecutada: 1, desperdicio_pct: 0, costo_unitario: 0 };
+    const bom = { "b-21": [{ ...arena, budget_item_id: "b-21" }] };
+    const [block] = buildBlockGroups([fundParent, fund21]);
+    const local = blockSelectionTargets(block, { pp: 10, front: "Sector A", excludedIds: [], overrides: {} });
+    const calc = calculateWeeklyPlanRequirements({
+      project_id: "proj-block",
+      start_date: "2026-09-14",
+      end_date: "2026-09-20",
+      budget_items: [fund21],
+      executed_quantities_by_item: {},
+      targets: toEngineTargets(local),
+      materials_by_item: bom as any,
+      stock_and_inbound: {},
+    });
+    const agg = aggregateMaterialsByProduct(calc);
+    expect(agg.length).toBe(1);
+    expect(agg[0].faltante).toBeGreaterThan(0);
+    expect(agg[0].requiere_atencion_costo).toBe(true);
+    expect(agg[0].caja).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------

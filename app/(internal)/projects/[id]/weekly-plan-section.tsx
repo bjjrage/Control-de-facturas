@@ -1525,12 +1525,21 @@ export function WeeklyPlanSection({ project }: Props) {
                         <tbody className="divide-y divide-[var(--border)]">
                           {agg.map((m) => (
                             <tr key={m.producto_id}>
-                              <td className="py-1.5 px-2 font-medium text-[var(--foreground)]">{m.producto_nombre}</td>
+                              <td className="py-1.5 px-2 font-medium text-[var(--foreground)]">
+                                {m.producto_nombre}
+                                {m.requiere_atencion_costo && (
+                                  <span className="ml-1.5 text-[10px] text-amber-600 dark:text-amber-300 font-normal">
+                                    (Sin costo promedio — caja subdeclarada)
+                                  </span>
+                                )}
+                              </td>
                               <td className="py-1.5 px-2 text-right">{m.requerido.toLocaleString("es-PY")} {m.unidad_medida}</td>
                               <td className="py-1.5 px-2 text-right text-[#d6f7ec]">{m.cubierto_stock.toLocaleString("es-PY")} {m.unidad_medida}</td>
                               <td className="py-1.5 px-2 text-right text-[#dce9fb]">{m.cubierto_inbound.toLocaleString("es-PY")} {m.unidad_medida}</td>
                               <td className="py-1.5 px-2 text-right font-bold text-[#fff0cf]">{m.faltante.toLocaleString("es-PY")} {m.unidad_medida}</td>
-                              <td className="py-1.5 px-2 text-right font-bold">Gs. {m.caja.toLocaleString("es-PY")}</td>
+                              <td className="py-1.5 px-2 text-right font-bold">
+                                {m.requiere_atencion_costo ? "Costo no disponible" : `Gs. ${m.caja.toLocaleString("es-PY")}`}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -1540,6 +1549,13 @@ export function WeeklyPlanSection({ project }: Props) {
                       requerido − stock − OC = faltante · agregado de las {previewBlock.includedCount}{" "}
                       partidas del bloque
                     </p>
+                    {agg.some((m) => m.requiere_atencion_costo) && (
+                      <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-300">
+                        Costo no disponible en {agg.filter((m) => m.requiere_atencion_costo).length}{" "}
+                        {agg.filter((m) => m.requiere_atencion_costo).length === 1 ? "material" : "materiales"}: esa
+                        parte no suma a la caja total del bloque (no se muestra Gs. 0 como si no hiciera falta comprar).
+                      </p>
+                    )}
                   </div>
                 );
               })()}
