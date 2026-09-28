@@ -6,6 +6,7 @@ import { TemplateEditor } from "./template-editor";
 import { BackButton } from "@/components/ui/back-button";
 import { EmailIntegration } from "@/components/config/email-integration";
 import type { EmailConnectionSummary } from "@/lib/email/types";
+import { ApuTemplatesSection } from "./apu-templates-section";
 
 export default async function ConfiguracionPage() {
   const profile = await requireProfile(["admin"]);
@@ -40,6 +41,8 @@ export default async function ConfiguracionPage() {
       <EmpresaForm empresa={empresa} />
 
       <EmailIntegration connection={(emailConnection as EmailConnectionSummary | null) ?? null} />
+
+      <ApuTemplatesSection />
 
       <div className="space-y-2">
         <h2 className="text-[15px] font-semibold">Plantillas de documentos</h2>

@@ -12,6 +12,7 @@ import {
   type ApuEquipmentImportRowInput,
   type ApuImportRowError,
 } from "@/lib/procurement/apu-import";
+import { matchBudgetItemsToApuTemplates } from "@/lib/procurement/apu-templates";
 
 // ---------------------------------------------------------------------------
 // CRUD + importación masiva del APU/BOM por partida: materiales, mano de
@@ -391,4 +392,158 @@ export async function importApuEquipmentAction(params: {
   }
   revalidatePath(`/projects/${params.projectId}`);
   return { creados: mapped.length, errores: errors };
+}
+
+// --- Aplicar plantillas de APU de la empresa (cargadas una sola vez) -------
+
+export interface ApplyApuTemplatesResult {
+  aplicadas: number;
+  yaTeniaApu: number;
+  sinPlantilla: { budgetItemId: string; code: string; description: string }[];
+}
+
+/**
+ * Para cada partida de la obra que TODAVÍA no tiene ningún APU cargado
+ * (materiales/mano de obra/equipo), busca una plantilla de empresa cuyo
+ * nombre matchee EXACTO con la descripción de la partida y copia sus
+ * líneas. Partidas con match ambiguo o sin plantilla quedan listadas para
+ * carga manual — nunca se inventa ni se aplica a ciegas.
+ */
+export async function applyApuTemplatesToProjectAction(projectId: string): Promise<{
+  data: ApplyApuTemplatesResult | null;
+  error: string | null;
+}> {
+  try {
+    const profile = await requirePlan("pro", ["administracion", "admin"]);
+    const empresaId = profile.empresa_id;
+    const supabase = await createClient();
+
+    const { data: budgetItems, error: itemsErr } = await supabase
+      .from("budget_items")
+      .select("id, code, description")
+      .eq("project_id", projectId);
+    if (itemsErr) return { data: null, error: itemsErr.message };
+    if (!budgetItems || budgetItems.length === 0) {
+      return { data: { aplicadas: 0, yaTeniaApu: 0, sinPlantilla: [] }, error: null };
+    }
+    const itemIds = budgetItems.map((b: any) => b.id);
+
+    const [materialsRes, laborRes, equipmentRes, templatesRes] = await Promise.all([
+      supabase.from("budget_item_materials").select("budget_item_id").in("budget_item_id", itemIds),
+      supabase.from("budget_item_labor").select("budget_item_id").in("budget_item_id", itemIds),
+      supabase.from("budget_item_equipment").select("budget_item_id").in("budget_item_id", itemIds),
+      supabase.from("apu_templates").select("id, nombre").eq("empresa_id", empresaId),
+    ]);
+    const hasApu = new Set<string>([
+      ...(materialsRes.data ?? []).map((r: any) => r.budget_item_id),
+      ...(laborRes.data ?? []).map((r: any) => r.budget_item_id),
+      ...(equipmentRes.data ?? []).map((r: any) => r.budget_item_id),
+    ]);
+    const pendingItems = (budgetItems as any[]).filter((b) => !hasApu.has(b.id));
+    const yaTeniaApu = budgetItems.length - pendingItems.length;
+
+    const templates = (templatesRes.data ?? []) as { id: string; nombre: string }[];
+    if (templates.length === 0 || pendingItems.length === 0) {
+      return {
+        data: {
+          aplicadas: 0,
+          yaTeniaApu,
+          sinPlantilla: pendingItems.map((b) => ({ budgetItemId: b.id, code: b.code, description: b.description })),
+        },
+        error: null,
+      };
+    }
+
+    const { matched, unmatched } = matchBudgetItemsToApuTemplates(
+      pendingItems.map((b) => ({ id: b.id, description: b.description })),
+      templates
+    );
+    if (matched.length === 0) {
+      return {
+        data: {
+          aplicadas: 0,
+          yaTeniaApu,
+          sinPlantilla: unmatched.map((u) => {
+            const item = pendingItems.find((b) => b.id === u.budgetItemId)!;
+            return { budgetItemId: item.id, code: item.code, description: item.description };
+          }),
+        },
+        error: null,
+      };
+    }
+
+    const templateIds = [...new Set(matched.map((m) => m.templateId))];
+    const [tplMaterialsRes, tplLaborRes, tplEquipmentRes] = await Promise.all([
+      supabase.from("apu_template_materials").select("template_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct").in("template_id", templateIds),
+      supabase.from("apu_template_labor").select("template_id, rol, horas_por_unidad_ejecutada, costo_hora").in("template_id", templateIds),
+      supabase.from("apu_template_equipment").select("template_id, tipo_equipo, horas_por_unidad_ejecutada, costo_hora").in("template_id", templateIds),
+    ]);
+
+    const materialRows: any[] = [];
+    const laborRows: any[] = [];
+    const equipmentRows: any[] = [];
+    for (const m of matched) {
+      for (const tm of tplMaterialsRes.data ?? []) {
+        if ((tm as any).template_id !== m.templateId) continue;
+        materialRows.push({
+          empresa_id: empresaId,
+          project_id: projectId,
+          budget_item_id: m.budgetItemId,
+          producto_id: (tm as any).producto_id,
+          cantidad_por_unidad_ejecutada: (tm as any).cantidad_por_unidad_ejecutada,
+          desperdicio_pct: (tm as any).desperdicio_pct,
+        });
+      }
+      for (const tl of tplLaborRes.data ?? []) {
+        if ((tl as any).template_id !== m.templateId) continue;
+        laborRows.push({
+          empresa_id: empresaId,
+          project_id: projectId,
+          budget_item_id: m.budgetItemId,
+          rol: (tl as any).rol,
+          horas_por_unidad_ejecutada: (tl as any).horas_por_unidad_ejecutada,
+          costo_hora: (tl as any).costo_hora,
+        });
+      }
+      for (const te of tplEquipmentRes.data ?? []) {
+        if ((te as any).template_id !== m.templateId) continue;
+        equipmentRows.push({
+          empresa_id: empresaId,
+          project_id: projectId,
+          budget_item_id: m.budgetItemId,
+          tipo_equipo: (te as any).tipo_equipo,
+          horas_por_unidad_ejecutada: (te as any).horas_por_unidad_ejecutada,
+          costo_hora: (te as any).costo_hora,
+        });
+      }
+    }
+
+    if (materialRows.length > 0) {
+      const { error } = await supabase.from("budget_item_materials").upsert(materialRows, { onConflict: "budget_item_id,producto_id" });
+      if (error) return { data: null, error: `Error al aplicar materiales: ${error.message}` };
+    }
+    if (laborRows.length > 0) {
+      const { error } = await supabase.from("budget_item_labor").upsert(laborRows, { onConflict: "budget_item_id,rol" });
+      if (error) return { data: null, error: `Error al aplicar mano de obra: ${error.message}` };
+    }
+    if (equipmentRows.length > 0) {
+      const { error } = await supabase.from("budget_item_equipment").upsert(equipmentRows, { onConflict: "budget_item_id,tipo_equipo" });
+      if (error) return { data: null, error: `Error al aplicar equipo: ${error.message}` };
+    }
+
+    revalidatePath(`/projects/${projectId}`);
+    return {
+      data: {
+        aplicadas: matched.length,
+        yaTeniaApu,
+        sinPlantilla: unmatched.map((u) => {
+          const item = pendingItems.find((b) => b.id === u.budgetItemId)!;
+          return { budgetItemId: item.id, code: item.code, description: item.description };
+        }),
+      },
+      error: null,
+    };
+  } catch (err: any) {
+    return { data: null, error: err.message || "Error al aplicar plantillas de APU." };
+  }
 }
