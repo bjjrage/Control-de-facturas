@@ -7,7 +7,7 @@ import type { DashboardViewData } from "./data";
 export function DashboardView({ data }: { data: DashboardViewData }) {
   const { adminCards, secondaryAdminCards, salesTrend, cashflowTrend, adminKpis, attentionAlerts } = data;
   return (
-    <div className="max-w-none space-y-4">
+    <div className="max-w-none space-y-3">
       <div className="flex items-baseline justify-between gap-3">
         <div>
           <h1 className="section-accent-admin text-[12px] font-bold uppercase tracking-widest">Administración</h1>
