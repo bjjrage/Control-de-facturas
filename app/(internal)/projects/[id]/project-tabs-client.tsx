@@ -35,6 +35,7 @@ import { ImportBudgetDialog } from "./import-budget-dialog";
 import { DuplicateBudgetDialog } from "./duplicate-budget-dialog";
 import { GenerarPlanillaButton } from "./generar-planilla-button";
 import { ApplyApuTemplatesButton } from "./apply-apu-templates-button";
+import { ApuTemplatesDialog } from "./apu-templates-dialog";
 import { AddExecutionEntryForm } from "./add-execution-entry-form";
 import { ProjectStatusSelect } from "./project-status-select";
 import { EditProjectDialog } from "./edit-project-dialog";
@@ -305,6 +306,7 @@ export function ProjectTabsClient({
             <ImportBudgetDialog projectId={project.id} />
             <DuplicateBudgetDialog targetProjectId={project.id} sources={duplicateSources} />
             <GenerarPlanillaButton projectId={project.id} />
+            <ApuTemplatesDialog />
             <ApplyApuTemplatesButton projectId={project.id} />
           </div>
           <PresupuestoTable
