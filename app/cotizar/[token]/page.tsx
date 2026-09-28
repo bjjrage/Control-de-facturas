@@ -5,6 +5,7 @@ import { formatDate, formatDateTime, formatMoney, formatNumber } from "@/lib/for
 import { isRfqOpen } from "@/lib/rfq-status";
 import { RfqStatus } from "@/lib/types";
 import { QuoteForm } from "./quote-form";
+import { MultiItemQuoteForm } from "./multi-item-quote-form";
 import { markOpened } from "./actions";
 
 export default async function CotizarPage({ params }: { params: Promise<{ token: string }> }) {
@@ -39,6 +40,14 @@ export default async function CotizarPage({ params }: { params: Promise<{ token:
   await markOpened(token);
 
   const isOpen = isRfqOpen(rfq);
+
+  const { data: rfqItemsData } = await admin
+    .from("rfq_items")
+    .select("id, descripcion, cantidad, unidad")
+    .eq("rfq_id", rfq.id)
+    .order("sort_order");
+  const rfqItems = (rfqItemsData ?? []).map((it) => ({ ...it, cantidad: Number(it.cantidad) }));
+  const isMultiItem = rfqItems.length > 0;
 
   const { data: rfqAttachments } = await admin
     .from("attachments")
@@ -88,14 +97,23 @@ export default async function CotizarPage({ params }: { params: Promise<{ token:
                 {rfq.client_name}
               </div>
             ) : null}
-            <div>
-              <span className="text-[var(--muted)]">Producto: </span>
-              {rfq.product}
-            </div>
-            <div>
-              <span className="text-[var(--muted)]">Cantidad: </span>
-              {formatNumber(rfq.quantity, 2)} {rfq.unit}
-            </div>
+            {isMultiItem ? (
+              <div>
+                <span className="text-[var(--muted)]">Solicitud de precios: </span>
+                {rfqItems.length} ítems
+              </div>
+            ) : (
+              <>
+                <div>
+                  <span className="text-[var(--muted)]">Producto: </span>
+                  {rfq.product}
+                </div>
+                <div>
+                  <span className="text-[var(--muted)]">Cantidad: </span>
+                  {formatNumber(rfq.quantity, 2)} {rfq.unit}
+                </div>
+              </>
+            )}
             {rfq.specifications ? (
               <div>
                 <span className="text-[var(--muted)]">Especificaciones: </span>
@@ -153,7 +171,11 @@ export default async function CotizarPage({ params }: { params: Promise<{ token:
             <h2 className="text-[14px] font-semibold mb-3">
               {latestSubmission ? "Enviar una nueva versión" : "Enviar cotización"}
             </h2>
-            <QuoteForm token={token} quantity={rfq.quantity} unit={rfq.unit} />
+            {isMultiItem ? (
+              <MultiItemQuoteForm token={token} items={rfqItems} />
+            ) : (
+              <QuoteForm token={token} quantity={rfq.quantity} unit={rfq.unit} />
+            )}
           </div>
         ) : (
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 text-[13px] text-[var(--muted)]">

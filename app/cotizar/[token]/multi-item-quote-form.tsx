@@ -4,19 +4,26 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { formatNumber } from "@/lib/format";
-import { submitQuote } from "./actions";
+import { submitMultiItemQuote } from "./actions";
 
-export function QuoteForm({ token, quantity, unit }: { token: string; quantity: number; unit: string }) {
+export interface PortalRfqItem {
+  id: string;
+  descripcion: string;
+  cantidad: number;
+  unidad: string;
+}
+
+export function MultiItemQuoteForm({ token, items }: { token: string; items: PortalRfqItem[] }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
-  const [unitPrice, setUnitPrice] = useState("");
+  const [prices, setPrices] = useState<Record<string, string>>({});
 
-  const qtyLabel = `${Number.isInteger(Number(quantity)) ? formatNumber(quantity, 0) : formatNumber(quantity, 2)} ${unit}`;
-
-  const parsedUnit = Number(unitPrice);
-  const totalPrice =
-    Number.isFinite(parsedUnit) && parsedUnit > 0 ? Math.round(parsedUnit * quantity * 100) / 100 : 0;
+  const total = items.reduce((acc, it) => {
+    const p = Number(prices[it.id]);
+    return Number.isFinite(p) && p > 0 ? acc + p * Number(it.cantidad) : acc;
+  }, 0);
+  const cotizados = items.filter((it) => Number(prices[it.id]) > 0).length;
 
   if (done) {
     return (
@@ -28,10 +35,10 @@ export function QuoteForm({ token, quantity, unit }: { token: string; quantity: 
 
   return (
     <form
-      className="space-y-3"
+      className="space-y-4"
       action={async (formData: FormData) => {
         setPending(true);
-        const result = await submitQuote(token, formData);
+        const result = await submitMultiItemQuote(token, formData);
         setPending(false);
         if (result?.error) {
           setError(result.error);
@@ -46,6 +53,57 @@ export function QuoteForm({ token, quantity, unit }: { token: string; quantity: 
           {error}
         </div>
       ) : null}
+
+      <div>
+        <p className="text-[12px] text-[var(--muted)] mb-2">
+          Cargá el precio unitario de cada ítem que puedas cotizar. Dejá vacío lo que no cotices. Si preferís, podés
+          solo adjuntar la foto o PDF de tu presupuesto y nosotros cargamos los precios.
+        </p>
+        <div className="rounded border border-[var(--border)] overflow-x-auto">
+          <table className="w-full text-left text-[12px]">
+            <thead>
+              <tr className="border-b border-[var(--border)] bg-[var(--panel-2)] text-[var(--muted)]">
+                <th className="py-1.5 px-2">Ítem</th>
+                <th className="py-1.5 px-2 text-right">Cantidad</th>
+                <th className="py-1.5 px-2 text-right">Precio unitario</th>
+                <th className="py-1.5 px-2 text-right">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border)]">
+              {items.map((it) => {
+                const p = Number(prices[it.id]);
+                const sub = Number.isFinite(p) && p > 0 ? p * Number(it.cantidad) : null;
+                return (
+                  <tr key={it.id}>
+                    <td className="py-1.5 px-2">{it.descripcion}</td>
+                    <td className="py-1.5 px-2 text-right whitespace-nowrap">
+                      {formatNumber(Number(it.cantidad), Number.isInteger(Number(it.cantidad)) ? 0 : 2)} {it.unidad}
+                    </td>
+                    <td className="py-1.5 px-2 text-right">
+                      <Input
+                        name={`price_${it.id}`}
+                        type="number"
+                        min="0"
+                        step="any"
+                        inputMode="decimal"
+                        value={prices[it.id] ?? ""}
+                        onChange={(e) => setPrices((prev) => ({ ...prev, [it.id]: e.target.value }))}
+                        className="h-8 w-32 text-right ml-auto"
+                        placeholder="—"
+                      />
+                    </td>
+                    <td className="py-1.5 px-2 text-right whitespace-nowrap">{sub === null ? "—" : formatNumber(sub, 2)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-1 text-[12px] text-right">
+          {cotizados} de {items.length} ítems cotizados · Total: <span className="font-medium">{formatNumber(total, 2)}</span>
+        </p>
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label htmlFor="budget_number">N° de presupuesto</Label>
@@ -60,37 +118,6 @@ export function QuoteForm({ token, quantity, unit }: { token: string; quantity: 
             <option value="BRL">BRL</option>
             <option value="ARS">ARS</option>
           </Select>
-        </div>
-        <div>
-          <Label htmlFor="quantity_display">Cantidad</Label>
-          <Input id="quantity_display" value={qtyLabel} readOnly disabled />
-        </div>
-        <div />
-        <div>
-          <Label htmlFor="unit_price">Precio unitario</Label>
-          <Input
-            id="unit_price"
-            name="unit_price"
-            type="number"
-            step="0.0001"
-            min="0.0001"
-            required
-            value={unitPrice}
-            onChange={(e) => setUnitPrice(e.target.value)}
-          />
-        </div>
-        <div>
-          <Label htmlFor="total_price">Precio total (automático)</Label>
-          <Input
-            id="total_price"
-            name="total_price"
-            type="number"
-            step="0.01"
-            value={totalPrice || ""}
-            readOnly
-            tabIndex={-1}
-          />
-          <p className="text-[11px] text-[var(--muted)] mt-1">Precio unitario × {qtyLabel}</p>
         </div>
         <div>
           <Label>Plazo de entrega</Label>
@@ -130,14 +157,8 @@ export function QuoteForm({ token, quantity, unit }: { token: string; quantity: 
         <Textarea id="observations" name="observations" />
       </div>
       <div>
-        <Label htmlFor="pdf">PDF o foto del presupuesto (opcional)</Label>
-        <input
-          id="pdf"
-          name="pdf"
-          type="file"
-          accept="application/pdf,image/*"
-          className="block w-full text-[13px]"
-        />
+        <Label htmlFor="attachment">Foto o PDF de tu presupuesto (opcional)</Label>
+        <input id="attachment" name="attachment" type="file" accept="application/pdf,image/*" className="block w-full text-[13px]" />
       </div>
       <Button type="submit" disabled={pending} className="w-full">
         {pending ? "Enviando…" : "Enviar cotización"}

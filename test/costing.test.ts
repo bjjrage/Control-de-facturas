@@ -167,3 +167,31 @@ describe("jornales y subcontrato en el APU", () => {
     expect(mapped).toHaveLength(1);
   });
 });
+
+describe("cotización multi-ítem → base de precios", () => {
+  it("líneas en PYG entran VALIDA; sin precio no entran", async () => {
+    const { buildQuoteCostObservations, quoteTotal } = await import("../lib/costing/quote-observations");
+    const lines = [
+      { productoId: "cem", descripcion: "Cemento", cantidad: 100, unidad: "bolsa", precioUnitario: 70000 },
+      { productoId: "are", descripcion: "Arena", cantidad: 5, unidad: "m3", precioUnitario: null },
+    ];
+    const obs = buildQuoteCostObservations({
+      empresaId: "e1", projectId: "p1", providerId: "prov1", quoteVersionId: "qv1", currency: "PYG", fecha: "2026-09-28", lines,
+    });
+    expect(obs).toHaveLength(1);
+    expect(obs[0]).toMatchObject({ producto_id: "cem", precio_unitario: 70000, estado_evidencia: "VALIDA", unidad: "BOLSA", fuente: "COTIZACION" });
+    expect(quoteTotal(lines)).toBe(7000000);
+  });
+
+  it("otra moneda sin tipo de cambio → REVISION_REQUERIDA sin precio, nunca convierte inventando", async () => {
+    const { buildQuoteCostObservations } = await import("../lib/costing/quote-observations");
+    const [o] = buildQuoteCostObservations({
+      empresaId: "e1", projectId: null, providerId: null, quoteVersionId: "qv1", currency: "USD", fecha: "2026-09-28",
+      lines: [{ productoId: "cem", descripcion: "Cemento", cantidad: 1, unidad: "bolsa", precioUnitario: 9 }],
+    });
+    expect(o.precio_unitario).toBeNull();
+    expect(o.estado_evidencia).toBe("REVISION_REQUERIDA");
+    expect(o.precio_unitario_original).toBe(9);
+    expect(o.moneda_original).toBe("USD");
+  });
+});
