@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Costeo + Planeamiento + Tesorería — Bloque de conocimiento</title>
+<style>
+:root{--bg:#0b0d10;--panel:#11151a;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.14);--text:#f5f7fa;--muted:#96a1ad;--accent:#8ee3c6;--blue:#77b8ff;--warn:#f4c66d;--danger:#ff8b8b;--ok:#79deb3}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(circle at 10% -10%,rgba(142,227,198,.07),transparent 25%),radial-gradient(circle at 90% 0%,rgba(119,184,255,.07),transparent 30%),var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{position:sticky;top:0;z-index:10;background:rgba(11,13,16,.86);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}.top{max-width:1400px;margin:auto;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;gap:15px}.brand{display:flex;gap:11px;align-items:center}.logo{width:34px;height:34px;border:1px solid var(--line2);border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.03)}.logo:before{content:"";width:13px;height:13px;border:2px solid var(--accent);border-radius:4px;transform:rotate(45deg)}h1{font-size:14px;margin:0}.sub{font-size:11px;color:var(--muted);margin-top:2px}.actions{display:flex;gap:7px}.btn{border:1px solid var(--line);background:rgba(255,255,255,.025);color:#cbd2d9;border-radius:10px;padding:8px 10px;font-size:10px;cursor:pointer}.btn.primary{border-color:rgba(142,227,198,.22);background:rgba(142,227,198,.07);color:#e8fff7}
+.container{max-width:1400px;margin:auto;padding:26px 22px 52px}.card{border:1px solid var(--line);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.012))}
+.hero{display:grid;grid-template-columns:1.3fr .7fr;gap:16px}.hero-main,.hero-side{padding:22px}.kicker{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:800}.hero h2{font-size:31px;line-height:1.07;letter-spacing:-.035em;margin:8px 0 10px}.hero p{font-size:12.5px;line-height:1.55;color:var(--muted);margin:0;max-width:760px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.stat{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(255,255,255,.02)}.stat b{font-size:15px;display:block}.stat span{font-size:9.5px;color:var(--muted)}
+.idx{position:sticky;top:67px;z-index:9;margin-top:16px;padding:11px;display:flex;gap:7px;flex-wrap:wrap;background:rgba(11,13,16,.86);backdrop-filter:blur(18px)}.idx a{border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--muted);border-radius:999px;padding:7px 9px;font-size:9.5px;cursor:pointer;text-decoration:none}.idx a:hover{color:#fff;border-color:var(--line2)}.idx a.fut{border-style:dashed}
+.section{margin-top:24px;scroll-margin-top:140px}.title{display:flex;justify-content:space-between;align-items:end;margin-bottom:10px;gap:10px}.title h3{margin:0;font-size:14px}.title h3 .n{color:var(--blue);font-weight:750;margin-right:8px}.title p{margin:0;color:var(--muted);font-size:10.5px;text-align:right}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.grid1{display:grid;grid-template-columns:minmax(0,1fr);gap:11px}
+.item{border:1px solid var(--line);border-radius:17px;background:rgba(255,255,255,.016);overflow:hidden}.item .head{padding:14px 15px;display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:start}.num{width:31px;height:31px;border:1px solid var(--line);border-radius:10px;display:grid;place-items:center;color:var(--blue);background:rgba(119,184,255,.05);font-size:10px;font-weight:750}.item h4{margin:0 0 4px;font-size:12.5px}.summary{margin:0;color:var(--muted);font-size:10.8px;line-height:1.45}.item .body{border-top:1px solid rgba(255,255,255,.04);padding:12px 15px 15px;font-size:11px;color:var(--muted);line-height:1.55}.item .body b,.item .body strong{color:#e2e7ec}.item .body code{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:var(--accent);background:rgba(142,227,198,.06);padding:1px 5px;border-radius:6px}.item .body ul{margin:6px 0 0;padding-left:16px}.item .body li{margin:3px 0}
+.summary code{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:var(--accent);background:rgba(142,227,198,.06);padding:1px 5px;border-radius:6px}
+.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.badge{font-size:8.5px;padding:4px 6px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}.badge.ok{color:var(--ok);border-color:rgba(121,222,179,.22);background:rgba(121,222,179,.05)}.badge.warn{color:#ffd28a;border-color:rgba(244,198,109,.22);background:rgba(244,198,109,.06)}.badge.info{color:#dcecff;border-color:rgba(119,184,255,.2);background:rgba(119,184,255,.06)}.badge.fut{color:#ffb1b1;border-color:rgba(255,139,139,.2);background:rgba(255,139,139,.05)}.badge.legacy{color:#c9b8ff;border-color:rgba(160,140,255,.2);background:rgba(160,140,255,.05)}
+.state{min-width:88px;text-align:center;padding:6px 7px;border:1px solid var(--line);border-radius:999px;font-size:8.5px;color:var(--muted)}.state.done{color:var(--ok);border-color:rgba(121,222,179,.22);background:rgba(121,222,179,.05)}.state.future{color:var(--danger);border-color:rgba(255,139,139,.22);background:rgba(255,139,139,.05)}.state.part{color:#ffd28a;border-color:rgba(244,198,109,.22);background:rgba(244,198,109,.06)}
+.flow{padding:16px;overflow:auto}.flowline{display:flex;align-items:stretch;min-width:920px}.node{flex:1;min-width:120px;text-align:center;padding:11px;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.02);font-size:9px;color:var(--muted)}.node strong{display:block;color:#fff;font-size:10.5px;margin-bottom:3px}.node.hot{border-color:rgba(244,198,109,.25);background:rgba(244,198,109,.05)}.node.hot strong{color:#ffd28a}.arrow{padding:0 7px;color:#4b5560;align-self:center}
+.vflow{display:flex;flex-direction:column;gap:0}.vnode{border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.02);padding:10px 12px;font-size:10.5px;color:var(--muted)}.vnode strong{display:block;color:#fff;font-size:11px;margin-bottom:2px}.vnode code{font-family:ui-monospace,Consolas,monospace;font-size:10px;color:var(--accent)}.varrow{text-align:center;color:#4b5560;padding:3px 0;font-size:11px}.vnode.hot{border-color:rgba(244,198,109,.25);background:rgba(244,198,109,.05)}.vnode.hot strong{color:#ffd28a}
+table.tbl{width:100%;border-collapse:collapse;font-size:10.8px;margin-top:8px}table.tbl th{text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:7px 9px;border-bottom:1px solid var(--line2)}table.tbl td{padding:7px 9px;border-bottom:1px solid rgba(255,255,255,.05);color:#dbe1e7;vertical-align:top}table.tbl tr:last-child td{border-bottom:0}table.tbl code{font-family:ui-monospace,Consolas,monospace;font-size:10px;color:var(--accent)}
+.kv{display:grid;grid-template-columns:1fr auto;gap:8px;padding:7px 0;border-top:1px solid rgba(255,255,255,.04);font-size:11px}.kv:first-of-type{border-top:0;padding-top:0}.kv span:first-child{color:var(--muted)}.kv b{font-weight:600;color:#e2e7ec;text-align:right}
+.mono{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:var(--accent)}
+.note{margin-top:12px;padding:14px 16px;border:1px solid rgba(142,227,198,.14);border-radius:16px;background:rgba(142,227,198,.03)}.note strong{font-size:11px}.note p{margin:6px 0 0;color:var(--muted);font-size:10.8px;line-height:1.5}.note code,.warnbox code,.futbox code{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:var(--accent)}
+.warnbox{margin-top:12px;padding:14px 16px;border:1px solid rgba(244,198,109,.2);border-radius:16px;background:linear-gradient(180deg,rgba(244,198,109,.07),rgba(244,198,109,.025))}.warnbox strong{font-size:11px;color:#ffd28a}.warnbox p{margin:6px 0 0;color:var(--muted);font-size:10.8px;line-height:1.5}
+.futbox{margin-top:12px;padding:14px 16px;border:1px dashed rgba(255,139,139,.25);border-radius:16px;background:rgba(255,139,139,.03)}.futbox strong{font-size:11px;color:#ffb1b1}.futbox p{margin:6px 0 0;color:var(--muted);font-size:10.8px;line-height:1.5}
+pre.sql{margin:8px 0 0;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.25);font-family:ui-monospace,Consolas,monospace;font-size:10px;color:var(--accent);white-space:pre-wrap;overflow:auto}
+@media(max-width:950px){.hero,.grid{grid-template-columns:1fr}.flowline{min-width:640px}}@media(max-width:620px){.container{padding:18px 13px 40px}.top{padding:13px}.actions{display:none}.hero h2{font-size:25px}.stats{grid-template-columns:1fr}.idx{top:60px}}
+</style>
+</head>
+<body>
+<header><div class="top"><div class="brand"><div class="logo"></div><div><h1>Control de Facturas · Bloque de conocimiento</h1><div class="sub">Módulo Costeo + Planeamiento + Tesorería · rama <span class="mono">excel-first-certificados</span> · <span class="mono">3f920b9</span> · sesión 28–29/09/2026 · NO es manual de usuario final</div></div></div><div class="actions"><span class="btn primary">IMPLEMENTADO · sin mergear a main</span></div></div></header>
+<div class="container">
+
+<section class="hero">
+  <div class="card hero-main">
+    <div class="kicker">Resumen ejecutivo</div>
+    <h2>Del cómputo métrico al costo, al plan semanal y a la caja, con recetas y precios que la empresa carga una vez.</h2>
+    <p><strong style="color:#e2e7ec">Costeo</strong> agrega el presupuesto de <b>costo</b> por obra, separado del presupuesto de venta que ya existía. <strong style="color:#e2e7ec">Recetas (APU)</strong> se importan desde <b>una sola planilla</b> en cualquier formato: Luna clasifica filas y columnas y el sistema extrae los valores. <strong style="color:#e2e7ec">Lista de precios</strong> reúne planilla, cotizaciones, compras y cargas manuales. El <strong style="color:#e2e7ec">plan semanal</strong> usa esas mismas recetas y precios para calcular qué comprar, cuánta mano de obra y qué equipos hacen falta, y el <strong style="color:#e2e7ec">flujo de caja</strong> proyecta esas salidas. Se auditó tesorería y se aplicó en producción la migración que protege el libro de movimientos.</p>
+    <div class="badges"><span class="badge ok">COSTEO: IMPLEMENTADO</span><span class="badge ok">IMPORTADOR APU CON LUNA: IMPLEMENTADO</span><span class="badge ok">LISTA DE PRECIOS: IMPLEMENTADO</span><span class="badge ok">PLAN SEMANAL CONECTADO: IMPLEMENTADO</span><span class="badge ok">FLUJO DE CAJA + PLAN: IMPLEMENTADO</span><span class="badge ok">TESORERÍA ATÓMICA: EJECUTADA EN PROD</span><span class="badge warn">PRUEBA CON PLANILLA REAL: PENDIENTE</span></div>
+  </div>
+  <div class="card hero-side">
+    <div style="padding-bottom:12px"><strong>Estado de la sesión</strong></div>
+    <div class="stats">
+      <div class="stat"><b>32</b><span>commits (28/09)</span></div>
+      <div class="stat"><b>9</b><span>migraciones aplicadas</span></div>
+      <div class="stat"><b>LLM</b><span>GPT-6 Luna</span></div>
+      <div class="stat"><b>TSC</b><span>limpio</span></div>
+      <div class="stat"><b>5</b><span>fallos previos (PGlite, timeout)</span></div>
+      <div class="stat"><b>0</b><span>push / merge</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="card idx">
+  <a href="#s01">01 Resumen</a><a href="#s02">02 Flujo</a><a href="#s03">03 Costeo</a><a href="#s04">04 Recetas APU</a><a href="#s05">05 Importador Luna</a><a href="#s06">06 Lista de precios</a><a href="#s07">07 Pedido de precios</a><a href="#s08">08 Cómputo y venta</a><a href="#s09">09 Mano de obra</a><a href="#s10">10 Real vs presup.</a><a href="#s11">11 Plan semanal</a><a href="#s12">12 Flujo de caja</a><a href="#s13">13 Tesorería</a><a href="#s14">14 Data model</a><a href="#s15">15 Migraciones</a><a href="#s16">16 Seguridad</a><a href="#s17">17 Testing</a><a href="#s18">18 Decisiones</a><a href="#s19">19 Guía de uso</a><a href="#s20">20 Estado</a><a class="fut" href="#s21">21 Roadmap</a><a href="#s22">22 Deuda técnica</a><a href="#s23">23 Handoff</a>
+</div>
+
+<section class="section" id="s01"><div class="title"><div><h3><span class="n">01</span>Resumen ejecutivo</h3><p>Qué hace cada pieza y qué problema resuelve.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">A</div><div><h4>Costeo — el presupuesto de costo</h4><p class="summary">Antes el ERP solo tenía el presupuesto que se le presenta al cliente. Ahora cada obra tiene su costo propio, partida por partida, con cuatro componentes: materiales, mano de obra, equipos y subcontratos. Costo y venta quedan unidos por el margen.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">B</div><div><h4>Recetas e importador único</h4><p class="summary">La constructora carga <b>una vez</b> su planilla de recetas, con el formato que tenga. Luna la clasifica; el sistema extrae los valores de las celdas y muestra una vista previa con lo dudoso antes de guardar.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">C</div><div><h4>Lista de precios de materiales</h4><p class="summary">Precio de referencia por material y de dónde salió (planilla, cotización, compra, carga manual). Alimenta el Costeo y el plan semanal con el mismo precio.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">D</div><div><h4>Planeamiento y caja</h4><p class="summary">El plan semanal calcula materiales a comprar, horas de mano de obra, equipos y subcontratos con las recetas, y el flujo de caja proyecta esas salidas.</p></div></div></div>
+</div>
+<div class="note"><strong>Idea central</strong><p>El costeo por sí solo es lo que hace cualquier planilla. El valor del ERP está en que <b>absorbe la planilla del cliente sin retipear</b>, en que <b>los precios se mantienen con la operación real</b> y en que <b>el plan semanal y la caja salen de las mismas recetas y precios</b>. Por eso el costeo se cerró y el foco pasa a planeamiento inteligente y adaptación a planillas.</p></div>
+</section>
+
+<section class="section" id="s02"><div class="title"><div><h3><span class="n">02</span>Flujo completo</h3><p>De la medición de la obra a la caja y al control real.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><div class="flowline">
+<div class="node"><strong>Cómputo métrico</strong>BIM, Excel o PDF. Crea las partidas.</div><div class="arrow">→</div>
+<div class="node"><strong>Recetas (APU)</strong>Materiales, mano de obra, equipos y subcontratos por unidad de partida.</div><div class="arrow">→</div>
+<div class="node"><strong>Lista de precios</strong>Planilla, cotizaciones, compras, carga manual.</div><div class="arrow">→</div>
+<div class="node hot"><strong>Costeo</strong>Costo por partida y total; margen contra la venta.</div><div class="arrow">→</div>
+<div class="node"><strong>Presupuesto de venta</strong>Columnas Costo APU y Margen.</div>
+</div></div>
+<div class="card flow" style="margin-top:11px"><div class="flowline">
+<div class="node hot"><strong>Plan semanal</strong>Materiales a comprar, horas de personal, equipos, subcontratos.</div><div class="arrow">→</div>
+<div class="node"><strong>Compras</strong>Pedido de precios por rubro desde la obra: link, QR, WhatsApp.</div><div class="arrow">→</div>
+<div class="node hot"><strong>Flujo de caja</strong>Salidas del plan + cobros, facturas y gastos recurrentes.</div><div class="arrow">→</div>
+<div class="node"><strong>Ejecución</strong>Stock consumido, pagos de mano de obra, certificados de subcontratos.</div><div class="arrow">→</div>
+<div class="node hot"><strong>Real vs presupuestado</strong>Desvío por partida y de la mano de obra de la obra.</div>
+</div></div>
+<div class="note"><strong>Orden correcto</strong><p>Cómputo → costeo → presupuesto, y no al revés: se oferta en base al costo propio; el precio del Estado es solo referencial. Las cajas resaltadas se construyeron o conectaron en esta sesión.</p></div>
+</section>
+
+<section class="section" id="s03"><div class="title"><div><h3><span class="n">03</span>Pestaña Costeo</h3><p>Obra → Preparar → Costeo. Plan pro.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">I</div><div><h4>Instructivo con barra de progreso</h4><p class="summary">Cinco pasos con estado y acción: partidas con cantidad, receta de cada partida, costo por hora de la mano de obra, precio de cada material y costo final. La barra mide el porcentaje de partidas con costo completo. Cada paso muestra qué falta y qué botón usar.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">T</div><div><h4>Totales y avisos</h4><p class="summary">Costo total, venta total y margen. Aviso de partidas sin receta y de materiales sin precio. El costo de una partida con un material sin precio se marca «Falta precio»; nunca se suma como cero.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">L</div><div><h4>Listas de insumos</h4><p class="summary">Materiales (rubro, precio, fuente, subtotal, selector para cambiar precio), mano de obra por categoría (horas × costo), equipos y subcontratos, y una tabla por partida con costo unitario, costo total, venta y margen.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">R</div><div><h4>Recálculo</h4><p class="summary">Aplicar plantillas de APU o cambiar un precio recarga la tabla. El botón de refresco está en el instructivo.</p></div></div></div>
+</div>
+<div class="warnbox"><strong>Regla de oro: nunca mostrar Gs. 0 por un dato que falta</strong><p>Toda función de costo devuelve <code>null</code> ante un faltante y la pantalla lo dice («Falta precio», «Sin APU», «—»). Un cero falso engaña más que un aviso.</p></div>
+</section>
+
+<section class="section" id="s04"><div class="title"><div><h3><span class="n">04</span>Recetas (APU) y jornales</h3><p>Análisis de Precios Unitarios: qué lleva UNA unidad de cada partida.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><table class="tbl"><tr><th>Pata del APU</th><th>Se calcula</th><th>Tabla</th></tr>
+<tr><td>Materiales</td><td>cantidad por unidad × (1 + desperdicio) × precio del material</td><td><code>budget_item_materials</code> / <code>apu_template_materials</code></td></tr>
+<tr><td>Mano de obra propia</td><td>horas por unidad × costo por hora (con cargas sociales si está vinculada a un jornal)</td><td><code>budget_item_labor</code> / <code>apu_template_labor</code></td></tr>
+<tr><td>Equipos</td><td>horas por unidad × costo por hora</td><td><code>budget_item_equipment</code> / <code>apu_template_equipment</code></td></tr>
+<tr><td>Subcontrato</td><td>precio por unidad de partida</td><td><code>budget_item_subcontracts</code> / <code>apu_template_subcontracts</code></td></tr>
+</table></div>
+<div class="grid" style="margin-top:11px">
+<div class="item"><div class="head"><div class="num">J</div><div><h4>Jornales — tabla central</h4><p class="summary"><code>labor_rates</code>: categoría (oficial, ayudante…), costo por hora base y % de cargas sociales; <code>costo_hora</code> es columna generada = base × (1 + cargas/100). Actualizar una categoría refresca el costo de las líneas vinculadas. Se carga una vez por empresa.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">P</div><div><h4>Propia y subcontrato conviven</h4><p class="summary">Cada partida puede llevar mano de obra propia, subcontrato o ambos. Se elige por partida y se pueden mezclar.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">A</div><div><h4>Aplicar plantillas a la obra</h4><p class="summary">«Aplicar plantillas de APU» copia a las partidas de la obra las recetas de empresa cuyo nombre normalizado coincide de forma exacta y única. Lo que no coincide queda avisado; nada se aplica a ciegas.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">M</div><div><h4>Receta manual</h4><p class="summary">Además del importador existe la pantalla de APU por partida (materiales, mano de obra, equipo, subcontrato) para carga o corrección manual.</p></div></div></div>
+</div>
+</section>
+
+<section class="section" id="s05"><div class="title"><div><h3><span class="n">05</span>Importador único de planilla APU con Luna</h3><p>Costeo → Plantillas de APU → Importar planilla.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><div class="flowline">
+<div class="node"><strong>Lectura completa</strong>Todas las hojas y todas las celdas (<code>parseWorkbook</code>). Sin descartar nada.</div><div class="arrow">→</div>
+<div class="node hot"><strong>Diseño de columnas</strong>Luna, por hoja: qué columna es código, nombre, tipo, descripción, unidad, cantidad, precio, desperdicio, totales.</div><div class="arrow">→</div>
+<div class="node hot"><strong>Clasificación de filas</strong>Luna, por bloques de 110 filas: RECIPE_HEADER, INPUT, SECTION, TOTAL, OTHER + tipo de insumo.</div><div class="arrow">→</div>
+<div class="node"><strong>Extracción determinística</strong>El sistema lee los valores de las celdas; valida cantidades, tipos y totales.</div><div class="arrow">→</div>
+<div class="node"><strong>Vista previa</strong>Recetas, dudas, filas sin resolver. Recién ahí se guarda.</div>
+</div></div>
+<div class="grid" style="margin-top:11px">
+<div class="item"><div class="head"><div class="num">1</div><div><h4>Luna clasifica, no transcribe</h4><p class="summary">El modelo nunca devuelve valores, cantidades ni textos de la planilla: solo qué es cada columna y cada fila. Un número no puede ser inventado ni alterado por el modelo.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">2</div><div><h4>Fail-closed</h4><p class="summary">Toda fila con datos queda reconocida, ignorada a propósito o «sin resolver» con su motivo. El total de la planilla se compara con la suma de los insumos y avisa si difiere más del 2 %. Insumos repetidos, cantidades no numéricas o tipos indeterminables no se importan.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">3</div><div><h4>Guardado con revalidación</h4><p class="summary"><code>importApuPlanillaAction</code> revalida todo en el servidor. Materiales por nombre único exacto (opción de crear los nuevos en el catálogo). Mano de obra por jornal: si la categoría coincide manda su costo. Horas o jornales: para jornales se usa una equivalencia visible y editable (8 h por defecto).</p></div></div></div>
+<div class="item"><div class="head"><div class="num">4</div><div><h4>Precios de materiales de la planilla</h4><p class="summary">Los precios quedan como observaciones de costo (fuente <code>MANUAL</code>, documento <code>PLANILLA_APU:&lt;receta&gt;</code>). Sin duplicar el mismo precio al reimportar.</p></div></div></div>
+</div>
+<div class="note"><strong>Probado con Luna</strong><p>Dos planillas armadas para la prueba: bloques con títulos de sección y totales, y una fila por insumo con la partida repetida. Ambas se entendieron sin indicarle el formato (8 s y 4 s). Modelo: <code>gpt-6-luna</code>, esfuerzo bajo, salida estructurada estricta, sin <code>temperature</code>. Archivos: <code>lib/apu-import/</code>, <code>app/api/apu-import/route.ts</code>.</p></div>
+<div class="warnbox"><strong>Límites conocidos</strong><p>Máximo 6.000 filas con datos por importación. Materiales por nombre exacto (sin coincidencia aproximada). No se guarda copia del archivo original. Aún no probado con una planilla real de constructora.</p></div>
+</section>
+
+<section class="section" id="s06"><div class="title"><div><h3><span class="n">06</span>Lista de precios de materiales</h3><p>Administración → Comprar → Lista de precios (<code>/precios</code>).</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><div class="vflow">
+<div class="vnode"><strong>1. Precio elegido para la obra</strong><code>project_cost_prices</code>: el usuario elige otra cotización o carga un precio a mano en Costeo.</div><div class="varrow">↓ si no hay</div>
+<div class="vnode"><strong>2. Cotización vigente más barata de esa obra</strong>De las RFQ de la obra; solo en PYG y no vencida. En otra moneda no se compara sin tipo de cambio.</div><div class="varrow">↓ si no hay</div>
+<div class="vnode"><strong>3. Historial de precios</strong>Estimación ponderada del motor de costos sobre observaciones válidas (factura &gt; recepción &gt; orden de compra &gt; cotización &gt; manual; decaimiento por antigüedad).</div><div class="varrow">↓ si no hay</div>
+<div class="vnode"><strong>4. Costo promedio del stock</strong><code>productos.costo_promedio</code>.</div><div class="varrow">↓ si no hay</div>
+<div class="vnode hot"><strong>Sin precio</strong>Queda como faltante. Nunca 0.</div>
+</div></div>
+<div class="grid" style="margin-top:11px">
+<div class="item"><div class="head"><div class="num">V</div><div><h4>Pantalla</h4><p class="summary">Por material: precio de referencia y su origen, último precio con fuente, fecha y proveedor, cantidad de registros, filtros «sin precio» y «con precio» y <b>Fijar precio</b>. Lo fijado a mano es una observación más (<code>PRECIO_LISTA</code>).</p></div></div></div>
+<div class="item"><div class="head"><div class="num">C</div><div><h4>Compras sin material asignado</h4><p class="summary">Facturas y cotizaciones cuyo texto de producto no coincide con el catálogo. Botón para vincular las que coinciden por nombre exacto y único, y asignación manual eligiendo el material (se vinculan todas las compras con esa descripción).</p></div></div></div>
+</div>
+<div class="note"><strong>Decisión: precios de facturas manual a propósito</strong><p>Solo se guarda, como ya ocurría, la observación de una factura vinculada a su orden de compra (datos de la orden). Lo único agregado es enlazarla al material del catálogo si el nombre coincide exacto y único. No se leen las líneas de la factura para alimentar precios.</p></div>
+</section>
+
+<section class="section" id="s07"><div class="title"><div><h3><span class="n">07</span>Proveedores por rubro y pedido de precios</h3><p>El pedido nace en Compras, no en Costeo.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">R</div><div><h4>Rubros de proveedores</h4><p class="summary"><code>provider_categorias</code>: cada proveedor tiene uno o varios rubros (categorías de producto) que se eligen al crearlo y se ven como etiquetas.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">P</div><div><h4>Pedido desde una obra</h4><p class="summary">Compras → Cotizaciones de la obra → Nueva cotización → «Desde una obra». Suma los materiales de las recetas, los agrupa por rubro y arma un pedido por rubro con todos sus ítems (un RFQ multi-ítem), e invita a los proveedores de ese rubro. Rubros sin proveedores e insumos sin rubro se avisan.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">Q</div><div><h4>Portal del proveedor</h4><p class="summary"><code>/cotizar/[token]</code>: precio por línea, validez y condiciones, o adjuntar foto o PDF. Link, QR y WhatsApp (<code>wa.me</code>) desde el detalle de la RFQ. No se envía nada automáticamente.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">M</div><div><h4>Carga manual por el equipo</h4><p class="summary">Quien recibe la foto o el PDF tipea los precios. Queda como carga interna, auditada. No hay lectura automática de cotizaciones (decisión de producto).</p></div></div></div>
+</div>
+<div class="note"><strong>Tablas</strong><p><code>rfq_items</code> y <code>quote_version_items</code> (con <code>cargado_por</code> PROVEEDOR o INTERNO). Cada línea cotizada escribe una observación de costo. Las RFQ de un solo producto siguen funcionando igual. Una RFQ multi-ítem no se puede adjudicar por el flujo de un solo producto.</p></div>
+</section>
+
+<section class="section" id="s08"><div class="title"><div><h3><span class="n">08</span>Cómputo que crea partidas y presupuesto de venta</h3><p>La entrada y la salida del costeo.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">1</div><div><h4>Cómputo y BIM crean partidas</h4><p class="summary">Las filas sin coincidencia (Excel, PDF o BIM) tienen «Crear partida», una por una o en lote, con código automático <code>CM-###</code>. Un proyecto vacío ya no falla: todo queda «sin coincidencia» y se crea. El matching ya no exige que las partidas tengan precio.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">2</div><div><h4>Presupuesto de venta: Costo APU y Margen</h4><p class="summary">La tabla del presupuesto muestra el costo (mismo precio del Costeo) y el margen. El presupuesto de venta existente no se rehízo.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">3</div><div><h4>Demo BIM</h4><p class="summary">Obra demo «Edificio Aurora» y fixture IFC4 de una casa 8×6 m con geometría y quantity sets para probar el visor y el cómputo.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">4</div><div><h4>IA: GPT-6 Luna</h4><p class="summary">Rodrigo, el matching BIM y la extracción de PDF pasaron a GPT-6 Luna (<code>OPENAI_API_KEY</code>, con <code>DEEPSEEK_API_KEY</code> como respaldo de variable). Luna no acepta <code>temperature</code>; se quitó de los cuatro llamados.</p></div></div></div>
+</div>
+</section>
+
+<section class="section" id="s09"><div class="title"><div><h3><span class="n">09</span>Mano de obra: Personal y Subcontratistas</h3><p>Dos relaciones distintas que no se mezclan.</p></div><div class="state part">PARCIAL</div></div>
+<div class="card flow"><table class="tbl"><tr><th></th><th>Personal propio</th><th>Subcontratista</th></tr>
+<tr><td>Relación</td><td>Empleados o cuadrillas propias; también sereno, depositero, capataz.</td><td>Se le contrata un trabajo con un monto; pone su gente.</td></tr>
+<tr><td>Cómo cobra</td><td>Por período: semanal, quincenal o mensual.</td><td>Certifica avance; se aprueba con tope de contrato y retención; recién ahí se paga.</td></tr>
+<tr><td>Dónde se carga</td><td>Avance de obra → Personal → «Pagos de mano de obra» (<code>labor_payments</code>).</td><td>Avance de obra → Subcontratistas: contratos y certificados (sin cambios).</td></tr>
+<tr><td>Se compara con</td><td>La mano de obra estimada en las recetas, para toda la obra.</td><td>El costo por partida, según certificados aprobados o pagados.</td></tr>
+</table></div>
+<div class="grid" style="margin-top:11px">
+<div class="item"><div class="head"><div class="num">P</div><div><h4>Pagos de mano de obra</h4><p class="summary">Cuadrilla o persona, modalidad, período y monto; el destajo pide partida, cantidad y precio por unidad y calcula el monto. El resumen de la obra («Costo M. de obra») suma pagos y partes.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">D</div><div><h4>Partes diarios: opcionales</h4><p class="summary">El parte por trabajador con horas quedó plegado como opción; se puede imputar a partida y categoría de jornal. En obra nadie mide horas por partida: el control real es por período.</p></div></div></div>
+</div>
+<div class="futbox"><strong>Pendiente decidido: directo vs indirecto y «Destajo»</strong><p>«Destajo» sigue en Personal, pero un pago por avance es en la práctica un subcontrato que certifica: corresponde sacarlo y usar Subcontratistas. Además, sereno, depositero y capataz no están en ninguna receta: hay que marcar cada pago como directo o indirecto y comparar contra las recetas solo el directo (el indirecto es gasto general). Renombrar la pestaña a «Mano de obra propia». Requiere una migración corta.</p></div>
+</section>
+
+<section class="section" id="s10"><div class="title"><div><h3><span class="n">10</span>Real vs presupuestado</h3><p>Dentro de Costeo, plan caterpillar.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">R</div><div><h4>Cómo se calcula</h4><p class="summary">Real = consumo de materiales del stock (<code>inventory_consumption_by_budget</code>) + pagos de mano de obra + certificados de subcontratistas aprobados o pagados. Presupuestado a la fecha = costo de la partida × % de avance ejecutado (topado en 100 %). Desvío en Gs. y %.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">M</div><div><h4>Mano de obra de la obra</h4><p class="summary">Bloque aparte: estimada a la fecha (horas de las recetas × cantidad × avance × costo) contra lo pagado, para toda la obra. Los destajos suman además a su partida.</p></div></div></div>
+</div>
+<div class="note"><strong>Sin ruido</strong><p>Si no hay costo presupuestado ni gastos, la sección dice qué falta en lugar de mostrar ceros y filas vacías. Los subcontratos sin partida asignada se avisan aparte.</p></div>
+</section>
+
+<section class="section" id="s11"><div class="title"><div><h3><span class="n">11</span>Plan semanal conectado a recetas y precios</h3><p>El plan ya leía materiales; se cerró lo que faltaba.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">P</div><div><h4>Precios del Costeo</h4><p class="summary">El plan valoriza consumo y caja con el mismo precio que el Costeo (elegido, cotización, historial, costo promedio) vía <code>resolveProjectMaterialPrices</code>. Antes usaba solo el costo promedio del stock y por eso decía «requiere atención de costo». Si la resolución falla, queda el costo promedio.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">R</div><div><h4>Recursos de la semana</h4><p class="summary">Nuevo <code>resource_requirements</code> en el cálculo: horas y costo de mano de obra por categoría, horas y costo de equipos y monto de subcontratos = meta de la semana × horas (o precio) por unidad de la receta. Panel «Mano de obra, equipos y subcontratos de la semana» en el plan.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">S</div><div><h4>Se mantiene</h4><p class="summary">Stock disponible, órdenes de compra en camino, faltante de compra neta, clima y velocidad de avance reciente. Motor: <code>weekly-plan-engine.ts</code> (puro y testeado); carga: <code>weekly-plan-shared.ts</code>.</p></div></div></div>
+</div>
+<div class="warnbox"><strong>Hallazgo en código muerto</strong><p><code>progress-forecast-actions.ts</code> (el pronóstico de avance antiguo) consulta columnas que no existen en <code>productos</code> (<code>codigo</code>, <code>unidad_medida</code>) y su pantalla no se usa en ningún lado. No afecta al plan semanal; conviene eliminarlo o repararlo.</p></div>
+</section>
+
+<section class="section" id="s12"><div class="title"><div><h3><span class="n">12</span>Flujo de caja con el plan semanal</h3><p>Flujo de caja (<code>/flujo-caja</code>).</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><table class="tbl"><tr><th>Salida del plan</th><th>Se considera pagada</th><th>Tipo de ítem</th></tr>
+<tr><td>Materiales que faltan comprar (ya sin stock ni OC en camino)</td><td>7 días después del inicio de la semana</td><td><code>salida_proyectada_material</code></td></tr>
+<tr><td>Mano de obra</td><td>Último día de la semana</td><td><code>salida_plan_mano_de_obra</code></td></tr>
+<tr><td>Equipos</td><td>Último día de la semana</td><td><code>salida_plan_equipo</code></td></tr>
+<tr><td>Subcontratos</td><td>30 días después del cierre de la semana</td><td><code>salida_plan_subcontrato</code></td></tr>
+</table></div>
+<div class="grid" style="margin-top:11px">
+<div class="item"><div class="head"><div class="num">F</div><div><h4>Fuente</h4><p class="summary">Planes de <code>project_weekly_plans</code> con estado DRAFT o COMMITTED y fin igual o posterior a hoy, de obras activas (hasta 12). Cada plan se calcula con <code>getWeeklyPlanDetailsAction</code>; los borradores figuran marcados. Si un plan falla se omite, el resto no se toca.</p></div></div></div>
+<div class="item"><div class="head"><div class="num">I</div><div><h4>Interruptor</h4><p class="summary">Casilla «Incluir lo que planifica el plan semanal» para comparar la proyección con y sin esas salidas.</p></div></div></div>
+</div>
+<div class="warnbox"><strong>Supuestos y doble conteo</strong><p>Los plazos (7, 0 y 30 días) son parámetros de trabajo, no datos de la empresa: <code>PLAZO_PAGO_MATERIALES_DIAS</code> y <code>PLAZO_PAGO_SUBCONTRATOS_DIAS</code> en <code>lib/flujo-caja.ts</code>. Si los sueldos ya están como gasto recurrente y además las recetas calculan mano de obra propia, esa plata puede contarse dos veces; para eso está el interruptor.</p></div>
+</section>
+
+<section class="section" id="s13"><div class="title"><div><h3><span class="n">13</span>Tesorería: auditoría y correcciones</h3><p>Cuentas, libro de movimientos, transferencias y flujo de caja.</p></div><div class="state part">PARCIAL</div></div>
+<div class="card flow"><table class="tbl"><tr><th>Hallazgo</th><th>Gravedad</th><th>Estado</th></tr>
+<tr><td>En producción faltaban 4 funciones de <code>20260925022101_batch5_admin_treasury_atomicity</code>: <code>prevent_treasury_ledger_mutation</code>, <code>crear_cuenta_financiera_atomica</code>, <code>revertir_cobro_atomico</code>, <code>select_and_authorize_offer_atomically</code>. Con eso el libro podía editarse o borrarse y no se podían crear cuentas, revertir cobros ni adjudicar ofertas. Confirmado con una consulta a <code>pg_proc</code>.</td><td>Alta</td><td>Migración ejecutada («Success»)</td></tr>
+<tr><td>Los ajustes con signo negativo eran imposibles (la acción rechazaba todo monto ≤ 0). Corregido en <code>registrarMovimientoManual</code>.</td><td>Media</td><td>Corregido</td></tr>
+<tr><td>El flujo de caja no incluía lo que prevé el plan semanal (existía <code>proyeccionAvanceToFlujoItems</code> sin ningún llamador).</td><td>Media</td><td>Conectado</td></tr>
+<tr><td>Facturas de compra y de venta sin obra asociada: el filtro por obra queda incompleto.</td><td>Baja</td><td>Pendiente</td></tr>
+<tr><td>Sin importador de extractos bancarios ni conciliación; los saldos salen de lo cargado.</td><td>Media</td><td>Pendiente</td></tr>
+<tr><td>La verificación periódica de saldos (<code>verificar_saldos_tesoreria</code>) no tiene quién la ejecute.</td><td>Baja</td><td>Pendiente</td></tr>
+<tr><td>Sin pagos masivos por archivo de banco; sin tests automáticos de tesorería (solo un test de flujos con navegador).</td><td>Baja</td><td>Pendiente</td></tr>
+</table></div>
+<div class="note"><strong>Contexto de la aplicación</strong><p>Tesorería estaba vacía en producción (0 cuentas, 0 movimientos), lo que hizo segura la migración. La app ya estaba escrita para el esquema nuevo: los tests exigen que no haya escrituras directas al libro ni a los cobros. La migración corre en una sola transacción: todo o nada. El SQL se cargó en el editor con una suma de control idéntica al archivo y el usuario apretó Run.</p></div>
+<div class="warnbox"><strong>Verificación pendiente</strong><p>Confirmar las 4 funciones. Tiene que devolver 4 filas:</p><pre class="sql">select proname from pg_proc
+where pronamespace = 'public'::regnamespace
+  and proname in ('prevent_treasury_ledger_mutation','crear_cuenta_financiera_atomica',
+                  'revertir_cobro_atomico','select_and_authorize_offer_atomically')
+order by proname;</pre></div>
+</section>
+
+<section class="section" id="s14"><div class="title"><div><h3><span class="n">14</span>Data model</h3><p>Tablas nuevas de la sesión; todas con RLS por empresa.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><table class="tbl"><tr><th>Tabla</th><th>Rol</th></tr>
+<tr><td><code>labor_rates</code></td><td>Jornales: categoría, costo por hora base, % cargas sociales, <code>costo_hora</code> generado. Único por empresa y categoría.</td></tr>
+<tr><td><code>budget_item_subcontracts</code> · <code>apu_template_subcontracts</code></td><td>Cuarta pata del APU: descripción y precio por unidad de partida.</td></tr>
+<tr><td><code>labor_rate_id</code> en <code>budget_item_labor</code> y <code>apu_template_labor</code></td><td>Vínculo opcional de una línea de mano de obra con su categoría de jornal.</td></tr>
+<tr><td><code>provider_categorias</code></td><td>Rubros de cada proveedor (PK compuesta proveedor + categoría).</td></tr>
+<tr><td><code>rfq_items</code> · <code>quote_version_items</code></td><td>RFQ multi-ítem y cotización por línea, con <code>cargado_por</code> (PROVEEDOR o INTERNO).</td></tr>
+<tr><td><code>project_cost_prices</code></td><td>Precio elegido por insumo y obra, con fuente. Único por obra y producto.</td></tr>
+<tr><td><code>daily_labor_entries.budget_item_id</code> · <code>labor_rate_id</code></td><td>Imputación opcional de los partes de personal.</td></tr>
+<tr><td><code>labor_payments</code></td><td>Pagos de mano de obra por período; destajo exige partida, cantidad y precio. Chequeos: fechas coherentes, monto no negativo.</td></tr>
+<tr><td><code>cost_observations</code> (existente)</td><td>Base de precios. Nuevas fuentes: <code>PLANILLA_APU:&lt;receta&gt;</code> y <code>PRECIO_LISTA</code> (ambas <code>MANUAL</code>); las facturas ahora pueden traer <code>producto_id</code>.</td></tr>
+</table></div>
+<div class="note"><strong>Restricciones de <code>cost_observations</code> que condicionan el código</strong><p>Moneda siempre <code>PYG</code>; una observación en revisión requiere precio nulo; fuente ∈ FACTURA, RECEPCION, ORDEN_COMPRA, COTIZACION, MANUAL. Por eso una cotización en otra moneda entra como REVISION_REQUERIDA sin precio, nunca convertida a ojo.</p></div>
+</section>
+
+<section class="section" id="s15"><div class="title"><div><h3><span class="n">15</span>Migraciones</h3><p>Se aplican pegando el SQL en el editor de Supabase de producción.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">44</div><div><h4>20260928044651 · 20260928051559</h4><p class="summary">Tablas del APU (mano de obra, equipos) y plantillas de empresa. Aplicadas antes y versionadas en el repo (<code>1d42f49</code>).</p></div><div class="state done">APLICADAS</div></div></div>
+<div class="item"><div class="head"><div class="num">00</div><div><h4>20260928210000</h4><p class="summary">Jornales, vínculo de línea a jornal y subcontrato como cuarta pata del APU.</p></div><div class="state done">APLICADA</div></div></div>
+<div class="item"><div class="head"><div class="num">01</div><div><h4>20260928210100</h4><p class="summary">Rubros de proveedores.</p></div><div class="state done">APLICADA</div></div></div>
+<div class="item"><div class="head"><div class="num">02</div><div><h4>20260928210200</h4><p class="summary">RFQ multi-ítem y cotizaciones por línea.</p></div><div class="state done">APLICADA</div></div></div>
+<div class="item"><div class="head"><div class="num">03</div><div><h4>20260928210300</h4><p class="summary">Precio elegido por insumo y obra.</p></div><div class="state done">APLICADA</div></div></div>
+<div class="item"><div class="head"><div class="num">04</div><div><h4>20260928210400</h4><p class="summary">Partes de personal imputables a partida y categoría.</p></div><div class="state done">APLICADA</div></div></div>
+<div class="item"><div class="head"><div class="num">05</div><div><h4>20260928210500</h4><p class="summary">Pagos de mano de obra por período.</p></div><div class="state done">APLICADA</div></div></div>
+<div class="item"><div class="head"><div class="num">B5</div><div><h4>20260925022101 (batch 5)</h4><p class="summary">Tesorería atómica: libro append-only, alta de cuenta, reversa de cobro, adjudicación de oferta y permisos. Ejecutada con éxito; falta la consulta de confirmación de las 4 funciones.</p></div><div class="state part">EJECUTADA</div></div></div>
+</div>
+<div class="note"><strong>Sin migración</strong><p>La lista de precios, el importador de recetas, el plan semanal y el flujo de caja no necesitaron migraciones nuevas: usan tablas existentes.</p></div>
+<div class="futbox"><strong>Migraciones del repo aún pendientes en producción</strong><p>Siete migraciones de inventario, compras y pañol con funciones ausentes o parciales (detalle en la memoria del proyecto). Se revisan una por una contra los datos reales; nunca aplicar en bloque.</p></div>
+</section>
+
+<section class="section" id="s16"><div class="title"><div><h3><span class="n">16</span>Seguridad y permisos</h3><p>Aislamiento por empresa, planes y secretos.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="grid">
+<div class="item"><div class="body"><ul>
+<li><strong>RLS por empresa</strong> en todas las tablas nuevas (<code>current_empresa_id()</code>). Las de RFQ multi-ítem y precios son de solo lectura para roles internos y se escriben desde acciones de servidor validadas.</li>
+<li><strong>Gating por plan</strong>: <code>requirePlan("pro")</code> para Costeo, recetas, lista de precios y plan semanal; <code>requirePlan("caterpillar")</code> para Personal, pagos de mano de obra y real vs presupuestado.</li>
+<li><strong>Cliente administrador</strong> solo después de comprobar empresa o token: escrituras del portal del proveedor y alta de RFQ desde Costeo.</li>
+</ul></div></div>
+<div class="item"><div class="body"><ul>
+<li><strong>Portal del proveedor por token</strong>: el total y las líneas se recalculan en el servidor; los adjuntos se limitan a PDF e imágenes.</li>
+<li><strong>Links públicos</strong>: en desarrollo se arman con la dirección real de la solicitud; en producción manda <code>NEXT_PUBLIC_APP_URL</code> (el encabezado Host no es de fiar). Helper <code>lib/app-origin.ts</code>.</li>
+<li><strong>Ledger de tesorería</strong>: trigger append-only, permisos de escritura retirados y escritura solo por funciones <code>SECURITY DEFINER</code> con validación de actor, empresa y rol.</li>
+<li><strong>Secretos</strong>: <code>OPENAI_API_KEY</code> solo en servidor; nunca se loguea.</li>
+</ul></div></div>
+</div>
+</section>
+
+<section class="section" id="s17"><div class="title"><div><h3><span class="n">17</span>Testing</h3><p>Lo verificado y lo no verificado.</p></div><div class="state part">PARCIAL</div></div>
+<div class="card flow"><div class="kv"><span>tsc</span><b>limpio</b></div><div class="kv"><span>test/costing.test.ts</span><b>21 tests — costo por partida, insumos, precios, lista de precios, real vs presupuestado, mano de obra por período, recursos del plan, flujo de caja</b></div><div class="kv"><span>lib/apu-import/__tests__/extract.spec.ts</span><b>2 tests — extracción determinística y filas sin resolver</b></div><div class="kv"><span>Suite completa (última corrida)</span><b>1.248 OK · 5 fallos previos por timeout de PGlite</b></div><div class="kv"><span>Prueba real con Luna</span><b>2 planillas sintéticas, 2 formatos, sin configuración</b></div></div>
+<div class="warnbox"><strong>Visto en pantalla por el usuario</strong><p>Pestaña Costeo (tablas, recálculo al aplicar plantillas), Pagos de mano de obra en Personal, importación de cinco plantillas y su aplicación a la obra, diálogo de pedido de cotización. <b>No visto en pantalla</b>: lista de precios y vinculación de compras, plan semanal con recursos y precios, flujo de caja con el plan, alta de cuentas y ajuste negativo en tesorería. Se verificó con compilación y tests.</p></div>
+</section>
+
+<section class="section" id="s18"><div class="title"><div><h3><span class="n">18</span>Decisiones de producto</h3><p>Definitivas, no reabrir sin motivo.</p></div><div class="state done">VIGENTES</div></div>
+<div class="grid"><div class="item"><div class="body"><ul>
+<li><strong>Venta y costo son distintos</strong>; se unen por el margen. El presupuesto de venta no se rehace.</li>
+<li><strong>Orden: cómputo → costeo → presupuesto.</strong> Se oferta en base al costo propio; el precio del Estado es referencial.</li>
+<li><strong>Las recetas las carga la empresa</strong>; Luna no las inventa. Luna solo clasifica lo que trae la planilla.</li>
+<li><strong>Importar «tal cual», fail-closed</strong>: nunca perder datos; ante ambigüedad, preguntar o dejar sin resolver.</li>
+<li><strong>Sin lectura automática de cotizaciones</strong> de proveedores: el proveedor tipea o el equipo carga a mano.</li>
+</ul></div></div><div class="item"><div class="body"><ul>
+<li><strong>Precios de facturas: manual a propósito.</strong> No automatizar la lectura de líneas de factura.</li>
+<li><strong>Mano de obra propia por período</strong>, no por horas por partida. Lo que se cobra por avance es subcontrato.</li>
+<li><strong>Nunca mostrar Gs. 0</strong> por un dato faltante.</li>
+<li><strong>Los pedidos de compra viven en Compras</strong>, no se duplican en Costeo.</li>
+<li><strong>El alma del ERP</strong> es el planeamiento inteligente y la adaptación a las planillas del cliente; el costeo es la base, no el diferencial.</li>
+</ul></div></div></div>
+</section>
+
+<section class="section" id="s19"><div class="title"><div><h3><span class="n">19</span>Guía de uso: costear y planificar una obra nueva</h3><p>Base para el instructivo de usuario.</p></div><div class="state done">IMPLEMENTADO</div></div>
+<div class="card flow"><div class="vflow">
+<div class="vnode"><strong>1. Partidas</strong>Desde el presupuesto o el cómputo métrico (BIM, Excel, PDF). «Crear partida» agrega las que no existen.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>2. Jornales (una vez por empresa)</strong>Costeo → Jornales: categoría, costo por hora y cargas sociales.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>3. Importar la planilla de recetas (primera vez)</strong>Costeo → Plantillas de APU → elegir planilla → revisar dudas y filas sin resolver → Importar. Confirmar las horas de la jornada si hay jornales.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>4. Aplicar las recetas a la obra</strong>Costeo → «Aplicar plantillas de APU». Las partidas cuyo nombre coincide reciben su receta; las demás quedan avisadas.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>5. Completar precios</strong>Costeo → Insumos y Comprar → Lista de precios. Pedir cotizaciones (Compras → Cotizaciones de la obra → Nueva cotización → «Desde una obra») o «Fijar precio» a mano.</div><div class="varrow">↓</div>
+<div class="vnode hot"><strong>6. Llegar al 100 % de la barra de Costeo</strong>Ahí están el costo de la obra y el margen contra la venta.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>7. Planificar la semana</strong>Plan semanal: elegir metas. Muestra materiales a comprar, horas de personal, equipos y subcontratos, y la caja necesaria.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>8. Revisar la caja</strong>Flujo de caja: efecto de esas salidas y primer período con saldo negativo.</div><div class="varrow">↓</div>
+<div class="vnode"><strong>9. Durante la obra</strong>Registrar pagos de mano de obra (Personal) y certificados de subcontratistas. Costeo → «Real vs presupuestado» muestra el desvío.</div>
+</div></div>
+</section>
+
+<section class="section" id="s20"><div class="title"><div><h3><span class="n">20</span>Estado del módulo</h3><p>Foto final.</p></div></div>
+<div class="card flow"><table class="tbl"><tr><th>Pieza</th><th>Estado</th></tr>
+<tr><td>Pestaña Costeo con instructivo y barra de progreso</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Jornales, subcontrato como cuarta pata del APU, plantillas de empresa</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Importador único de planilla APU con Luna</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Lista de precios, fijar precio y vincular compras</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Proveedores por rubro; pedido «Desde una obra»; portal, QR y carga manual</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Cómputo y BIM crean partidas; Costo APU y Margen en el presupuesto</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Pagos de mano de obra por período</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Real vs presupuestado (materiales, mano de obra, subcontratos)</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Plan semanal con precios del Costeo y recursos de la semana</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Flujo de caja con salidas del plan semanal</td><td>IMPLEMENTADO</td></tr>
+<tr><td>Tesorería: migración atómica aplicada; ajuste negativo corregido</td><td>IMPLEMENTADO (falta confirmar las 4 funciones)</td></tr>
+<tr><td>Personal directo vs indirecto; sacar «Destajo» de Personal; renombrar pestaña</td><td>PENDIENTE</td></tr>
+<tr><td>Prueba del importador con una planilla real de constructora</td><td>PENDIENTE</td></tr>
+<tr><td>Importador de extractos bancarios y conciliación</td><td>PENDIENTE</td></tr>
+<tr><td>Oferta desde el costo: gastos generales, imprevistos, utilidad y precio</td><td>FUTURO</td></tr>
+<tr><td>Avisos automáticos de variación de precios y margen</td><td>FUTURO</td></tr>
+</table></div>
+</section>
+
+<section class="section" id="s21"><div class="title"><div><h3><span class="n">21</span>Roadmap</h3><p>Lo que sigue, en orden de prioridad.</p></div><div class="state future">PENDIENTE</div></div>
+<div class="grid">
+<div class="item"><div class="head"><div class="num">1</div><div><h4>Probar el importador con una planilla real</h4><p class="summary">Subir la planilla de recetas de una constructora y ajustar formatos, unidades y nombres. Es la validación de la promesa de adaptabilidad.</p></div><div class="state future">CORTO</div></div></div>
+<div class="item"><div class="head"><div class="num">2</div><div><h4>Ver en pantalla lo no verificado</h4><p class="summary">Lista de precios, plan semanal con recursos, flujo de caja con el plan, alta de cuenta, ajuste negativo, reversa de un cobro y la consulta de las 4 funciones.</p></div><div class="state future">CORTO</div></div></div>
+<div class="item"><div class="head"><div class="num">3</div><div><h4>Personal directo/indirecto y limpieza</h4><p class="summary">Marcar cada pago como directo o indirecto, comparar solo el directo, sacar «Destajo» y renombrar a «Mano de obra propia». Una migración corta.</p></div><div class="state future">CORTO</div></div></div>
+<div class="item"><div class="head"><div class="num">4</div><div><h4>Avisos automáticos</h4><p class="summary">Por ejemplo, «el cemento subió 12 % desde que costeaste: tus obras activas pierden X de margen».</p></div><div class="state future">MEDIANO</div></div></div>
+<div class="item"><div class="head"><div class="num">5</div><div><h4>Cierre de la oferta con margen</h4><p class="summary">Costo → gastos generales, imprevistos, utilidad → precio de oferta → comparación con lo adjudicado en la DNCP. Hoy no existe dónde estimar gastos generales.</p></div><div class="state future">MEDIANO</div></div></div>
+<div class="item"><div class="head"><div class="num">6</div><div><h4>Importador de extractos y conciliación</h4><p class="summary">Ninguna API bancaria es viable desde el hosting actual; el camino es importar el extracto.</p></div><div class="state future">MEDIANO</div></div></div>
+<div class="item"><div class="head"><div class="num">7</div><div><h4>Mejoras del importador de recetas</h4><p class="summary">Guardar el archivo original (re-analizar sin subir de nuevo), emparejamiento aproximado de materiales con sugerencias, y preguntas de Luna respondibles en pantalla.</p></div><div class="state future">MEDIANO</div></div></div>
+<div class="item"><div class="head"><div class="num">8</div><div><h4>Obra asociada a facturas en el flujo de caja</h4><p class="summary">Para que el filtro por obra sea completo.</p></div><div class="state future">MEDIANO</div></div></div>
+</div>
+<div class="futbox"><strong>Fuera de alcance por ahora</strong><p>Catálogo de tarifas de equipos (sigue el costo por hora manual), RFQ a subcontratistas (el precio de subcontrato se carga a mano en la línea del APU), API de precios de proveedores, envío automático por email o WhatsApp, estado «en estudio» de la obra antes de adjudicar. Lectura automática de líneas de factura: descartada por decisión.</p></div>
+</section>
+
+<section class="section" id="s22"><div class="title"><div><h3><span class="n">22</span>Deuda técnica y hallazgos</h3><p>Detectado, no corregido.</p></div><div class="state future">PENDIENTE</div></div>
+<div class="card flow"><table class="tbl"><tr><th>Ítem</th><th>Detalle</th></tr>
+<tr><td>Siete migraciones pendientes en producción</td><td>Inventario, compras y pañol; revisar una por una contra los datos reales antes de aplicar.</td></tr>
+<tr><td><code>convertirLicitacionAProyecto</code></td><td>Lee <code>licitacion_items.precio_unitario_estimado</code> y <code>monto_total</code>, que no existen (<code>app/(internal)/licitaciones/actions.ts</code>).</td></tr>
+<tr><td>Pronóstico de avance antiguo</td><td><code>progress-forecast-actions.ts</code> consulta columnas inexistentes de <code>productos</code> y su pantalla no se usa.</td></tr>
+<tr><td>Instrucciones del asistente Rodrigo</td><td>Todavía dicen que el APU solo tiene materiales.</td></tr>
+<tr><td>Tests con PGlite</td><td>Cinco fallos por timeout, anteriores a esta sesión.</td></tr>
+<tr><td>Materiales sin rubro</td><td>Los que crea el importador no tienen categoría; sin rubro no se les puede pedir precio a proveedores.</td></tr>
+<tr><td>Git</td><td>Todo en <code>excel-first-certificados</code>, sin subir al remoto ni mezclar con <code>main</code>. El push lo hace el usuario.</td></tr>
+</table></div>
+</section>
+
+<section class="section" id="s23"><div class="title"><div><h3><span class="n">23</span>Handoff para futuro agente</h3><p>Instrucciones de ingesta al manual maestro.</p></div></div>
+<div class="note"><strong>INSTRUCCIONES PARA EL AGENTE QUE INTEGRE EL MANUAL FINAL</strong><p>Este HTML es un módulo independiente («bloque de conocimiento»). Al integrarlo: (1) mantener la distinción entre <b>estimado</b> (recetas, Costeo) y <b>real</b> (Personal, Subcontratistas, consumo de stock): comparten nombres pero son momentos distintos; (2) no confundir Personal (pagos por período, sin certificación) con Subcontratistas (contrato, certificado, aprobación con tope y retención); (3) explicar que Luna solo <b>clasifica</b> en el importador y que los valores salen de las celdas; (4) no presentar como existentes las piezas PENDIENTE o FUTURO, en particular la oferta con margen, los avisos automáticos, la conciliación bancaria y la distinción directo/indirecto; (5) preservar la decisión de que los precios de facturas se cargan a mano; (6) los plazos de pago del flujo de caja (7, 0 y 30 días) son supuestos a validar con la empresa; (7) no afirmar que lista de precios, plan semanal con recursos y flujo de caja con el plan fueron vistos en pantalla: se verificaron con compilación y tests; (8) todo está sin mergear a <code>main</code>.</p></div>
+</section>
+
+</div>
+<script>
+document.querySelectorAll('.idx a').forEach(a=>{
+  a.addEventListener('click',()=>{
+    document.querySelectorAll('.idx a').forEach(x=>x.style.borderColor='');
+    a.style.borderColor='rgba(142,227,198,.35)';
+  });
+});
+</script>
+</body></html>
