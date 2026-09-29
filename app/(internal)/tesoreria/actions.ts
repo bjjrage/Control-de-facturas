@@ -96,9 +96,11 @@ export async function registrarMovimientoManual(data: {
   const { supabase, profile } = await ctx();
   const motivo = data.motivo.trim();
   if (!motivo) return { error: "El motivo es obligatorio" };
-  if (!data.monto || data.monto <= 0) return { error: "El monto debe ser mayor a cero" };
+  // INGRESO y EGRESO llegan siempre en positivo (el signo lo pone el tipo).
+  // AJUSTE puede ser + o -: el cliente manda el signo, solo se rechaza el cero.
+  if (!Number.isFinite(data.monto) || data.monto === 0) return { error: "El monto no puede ser cero" };
+  if (data.tipo !== "AJUSTE" && data.monto < 0) return { error: "El monto debe ser mayor a cero" };
 
-  // AJUSTE puede ser + o -; el cliente manda el signo en ese caso vía monto.
   const monto = data.tipo === "EGRESO" ? -Math.abs(data.monto) : data.tipo === "INGRESO" ? Math.abs(data.monto) : data.monto;
 
   const { data: saldo, error } = await supabase.rpc("registrar_movimiento_tesoreria", {
