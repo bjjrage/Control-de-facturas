@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { requirePlan } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { destajoAmount } from "@/lib/costing/real-vs-budget";
 
 export async function addLaborEntry(projectId: string, formData: FormData): Promise<{ error: string | null }> {
   const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
@@ -260,5 +261,120 @@ export async function rejectCertificate(certificateId: string, notes: string | n
   }
 
   revalidatePath(`/projects/${cert.project_id}`);
+  return { error: null };
+}
+
+// ---------------------------------------------------------------------------
+// Pagos de mano de obra por período (cuadrilla) y destajos. La mano de obra
+// propia se controla por lo pagado en cada período, no por horas por partida.
+// ---------------------------------------------------------------------------
+
+export interface LaborPayment {
+  id: string;
+  crew_name: string;
+  modalidad: "SEMANAL" | "QUINCENAL" | "MENSUAL" | "DESTAJO";
+  period_from: string;
+  period_to: string;
+  amount: number;
+  budget_item_id: string | null;
+  quantity: number | null;
+  unit_price: number | null;
+  notes: string | null;
+}
+
+export async function listLaborPaymentsAction(projectId: string): Promise<{ data: LaborPayment[] | null; error: string | null }> {
+  try {
+    const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("labor_payments")
+      .select("id, crew_name, modalidad, period_from, period_to, amount, budget_item_id, quantity, unit_price, notes")
+      .eq("empresa_id", profile.empresa_id)
+      .eq("project_id", projectId)
+      .order("period_from", { ascending: false });
+    if (error) return { data: null, error: error.message };
+    return {
+      data: (data ?? []).map((p: any) => ({
+        ...p,
+        amount: Number(p.amount),
+        quantity: p.quantity == null ? null : Number(p.quantity),
+        unit_price: p.unit_price == null ? null : Number(p.unit_price),
+      })) as LaborPayment[],
+      error: null,
+    };
+  } catch (e) {
+    return { data: null, error: e instanceof Error ? e.message : "No se pudieron cargar los pagos." };
+  }
+}
+
+export async function addLaborPayment(projectId: string, formData: FormData): Promise<{ error: string | null }> {
+  const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
+  const supabase = await createClient();
+  const empresaId = profile.empresa_id;
+
+  const { data: project } = await supabase.from("projects").select("id").eq("id", projectId).eq("empresa_id", empresaId).maybeSingle();
+  if (!project) return { error: "Proyecto no encontrado." };
+
+  const crewName = ((formData.get("crew_name") as string | null) ?? "").trim();
+  const modalidad = (formData.get("modalidad") as string | null) ?? "";
+  const periodFrom = (formData.get("period_from") as string | null) ?? "";
+  const periodTo = (formData.get("period_to") as string | null) ?? "";
+  const notes = ((formData.get("notes") as string | null) ?? "").trim() || null;
+
+  if (!crewName) return { error: "Indicá la cuadrilla o la persona." };
+  if (!["SEMANAL", "QUINCENAL", "MENSUAL", "DESTAJO"].includes(modalidad)) return { error: "Elegí la modalidad de pago." };
+  if (!periodFrom || !periodTo) return { error: "Indicá el período." };
+  if (periodTo < periodFrom) return { error: "El período termina antes de empezar." };
+
+  let amount = Number(formData.get("amount") ?? 0);
+  let budgetItemId: string | null = null;
+  let quantity: number | null = null;
+  let unitPrice: number | null = null;
+
+  if (modalidad === "DESTAJO") {
+    budgetItemId = (formData.get("budget_item_id") as string | null) || null;
+    quantity = Number(formData.get("quantity") ?? 0);
+    unitPrice = Number(formData.get("unit_price") ?? 0);
+    if (!budgetItemId) return { error: "El destajo va a una partida: elegila." };
+    if (!(quantity > 0)) return { error: "Indicá la cantidad ejecutada del destajo." };
+    if (!(unitPrice >= 0) || formData.get("unit_price") === "") return { error: "Indicá el precio por unidad." };
+    const { data: item } = await supabase.from("budget_items").select("id").eq("id", budgetItemId).eq("project_id", projectId).maybeSingle();
+    if (!item) return { error: "La partida no pertenece a esta obra." };
+    amount = destajoAmount(quantity, unitPrice);
+  } else if (!(amount > 0)) {
+    return { error: "Indicá el monto pagado." };
+  }
+
+  const { error } = await supabase.from("labor_payments").insert({
+    empresa_id: empresaId,
+    project_id: projectId,
+    crew_name: crewName,
+    modalidad,
+    period_from: periodFrom,
+    period_to: periodTo,
+    amount,
+    budget_item_id: budgetItemId,
+    quantity,
+    unit_price: unitPrice,
+    notes,
+    created_by: profile.id,
+  });
+  if (error) return { error: "No se pudo registrar el pago." };
+
+  revalidatePath(`/projects/${projectId}`);
+  return { error: null };
+}
+
+export async function deleteLaborPayment(projectId: string, paymentId: string): Promise<{ error: string | null }> {
+  const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("labor_payments")
+    .delete()
+    .eq("id", paymentId)
+    .eq("project_id", projectId)
+    .eq("empresa_id", profile.empresa_id);
+  if (error) return { error: "No se pudo borrar el pago." };
+  revalidatePath(`/projects/${projectId}`);
   return { error: null };
 }

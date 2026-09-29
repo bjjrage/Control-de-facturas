@@ -45,6 +45,7 @@ import { DeleteProjectButton } from "./delete-project-button";
 import { ProjectGantt } from "./project-gantt";
 import { ProjectReports } from "./reports";
 import { AddLaborEntryForm } from "./add-labor-entry-form";
+import { LaborPaymentsPanel } from "./labor-payments-panel";
 import { AddSubcontractorContractDialog } from "./add-subcontractor-contract-dialog";
 import { AddCertificadoDialog } from "./add-certificado-dialog";
 import { ImportCertificadoDialog } from "./import-certificado-dialog";
@@ -475,9 +476,15 @@ export function ProjectTabsClient({
       ) : null}
 
       {tab === "personal" && isCaterpillar ? (
-        <div className="space-y-3">
-          <AddLaborEntryForm projectId={project.id} budgetItems={items} />
-          <PersonalTable rows={laborRows} />
+        <div className="space-y-5">
+          <LaborPaymentsPanel projectId={project.id} budgetItems={items} />
+          <details className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3" open={laborRows.length > 0}>
+            <summary className="cursor-pointer text-[13px] font-semibold">Partes diarios por trabajador (opcional)</summary>
+            <div className="mt-3 space-y-3">
+              <AddLaborEntryForm projectId={project.id} budgetItems={items} />
+              <PersonalTable rows={laborRows} />
+            </div>
+          </details>
         </div>
       ) : null}
 

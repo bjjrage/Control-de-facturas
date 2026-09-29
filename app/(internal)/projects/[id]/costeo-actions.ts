@@ -15,7 +15,7 @@ import {
   type ResolvedPrice,
 } from "@/lib/costing/cost-budget";
 import { resolveProjectMaterialPrices, type QuoteOption } from "@/lib/costing/project-prices";
-import { computeRealVsBudget, type RealVsBudgetRow } from "@/lib/costing/real-vs-budget";
+import { computeRealVsBudget, laborBudgetToDate, type RealVsBudgetRow } from "@/lib/costing/real-vs-budget";
 
 // ---------------------------------------------------------------------------
 // Costeo: RFQ multi-ítem por rubro. Los insumos de la obra (cantidad de cada
@@ -394,6 +394,7 @@ export interface RealVsBudgetData {
   rows: (RealVsBudgetRow & { code: string; description: string })[];
   manoObraSinImputar: number;
   subcontratoSinImputar: number;
+  manoObra: { presupuestadoALaFecha: number; pagado: number };
   totalReal: number;
   totalPresupuestadoALaFecha: number;
 }
@@ -407,10 +408,11 @@ export async function getRealVsBudgetAction(projectId: string): Promise<{ data: 
     const budget = await getCostBudgetAction(projectId);
     if (budget.error || !budget.data) return { data: null, error: budget.error ?? "No se pudo calcular el presupuesto de costo." };
 
-    const [execRes, consumptionRes, laborRes, certRes] = await Promise.all([
+    const [execRes, consumptionRes, laborRes, paymentsRes, certRes] = await Promise.all([
       supabase.from("execution_entries").select("budget_item_id, quantity_executed").eq("project_id", projectId),
       supabase.from("inventory_consumption_by_budget").select("budget_item_id, cost_consumed_company").eq("empresa_id", empresaId).eq("project_id", projectId),
       supabase.from("daily_labor_entries").select("budget_item_id, labor_cost").eq("project_id", projectId),
+      supabase.from("labor_payments").select("budget_item_id, amount").eq("empresa_id", empresaId).eq("project_id", projectId),
       supabase
         .from("subcontractor_certificates")
         .select("approved_amount, status, subcontractor_contracts!inner(budget_item_id)")
@@ -431,7 +433,16 @@ export async function getRealVsBudgetAction(projectId: string): Promise<{ data: 
     };
     const executed = sumBy(execRes.data as any[], "budget_item_id", "quantity_executed");
     const material = sumBy(consumptionRes.data as any[], "budget_item_id", "cost_consumed_company");
-    const labor = sumBy(laborRes.data as any[], "budget_item_id", "labor_cost");
+    const laborRows = [
+      ...((laborRes.data ?? []) as any[]).map((r) => ({ budget_item_id: r.budget_item_id, cost: r.labor_cost })),
+      ...((paymentsRes.data ?? []) as any[]).map((r) => ({ budget_item_id: r.budget_item_id, cost: r.amount })),
+    ];
+    const labor = sumBy(laborRows, "budget_item_id", "cost");
+    const manoObraPagada = laborRows.reduce((acc, r) => acc + (Number(r.cost) || 0), 0);
+    const manoObraPresupuestada = laborBudgetToDate(
+      budget.data.partidas.map((p) => ({ id: p.id, quantity: p.quantity, costoManoObraUnitario: p.cost?.costoManoObra ?? 0 })),
+      executed.acc
+    );
     const subRows = ((certRes.data ?? []) as any[]).map((c) => {
       const contract = Array.isArray(c.subcontractor_contracts) ? c.subcontractor_contracts[0] : c.subcontractor_contracts;
       return { budget_item_id: contract?.budget_item_id ?? null, approved_amount: c.approved_amount };
@@ -452,6 +463,7 @@ export async function getRealVsBudgetAction(projectId: string): Promise<{ data: 
         rows,
         manoObraSinImputar: labor.unassigned,
         subcontratoSinImputar: sub.unassigned,
+        manoObra: { presupuestadoALaFecha: manoObraPresupuestada, pagado: manoObraPagada },
         totalReal: rows.reduce((acc, r) => acc + r.real, 0) + labor.unassigned + sub.unassigned,
         totalPresupuestadoALaFecha: rows.reduce((acc, r) => acc + (r.presupuestadoALaFecha ?? 0), 0),
       },

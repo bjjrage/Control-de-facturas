@@ -240,3 +240,20 @@ describe("computeRealVsBudget", () => {
     expect(rows.find((r) => r.budgetItemId === "p3")).toBeUndefined();
   });
 });
+
+describe("mano de obra por período", () => {
+  it("presupuesta la mano de obra a la fecha según el avance y calcula el destajo", async () => {
+    const { laborBudgetToDate, destajoAmount } = await import("../lib/costing/real-vs-budget");
+    const total = laborBudgetToDate(
+      [
+        { id: "a", quantity: 100, costoManoObraUnitario: 20_000 },
+        { id: "b", quantity: 10, costoManoObraUnitario: 0 },
+        { id: "c", quantity: 50, costoManoObraUnitario: 10_000 },
+      ],
+      { a: 50, b: 10, c: 80 }
+    );
+    // a: 100 × 20.000 × 50 % = 1.000.000 · c: avance topado en 100 % = 500.000
+    expect(total).toBe(1_500_000);
+    expect(destajoAmount(120, 25_000)).toBe(3_000_000);
+  });
+});

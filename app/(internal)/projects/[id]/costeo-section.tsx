@@ -262,7 +262,7 @@ function RealVsBudgetSection({ projectId }: { projectId: string }) {
   const rows = data.rows.filter((r) => r.presupuestadoALaFecha != null || r.real > 0);
   const hayPresupuesto = data.rows.some((r) => r.presupuestadoALaFecha != null);
 
-  if (rows.length === 0 && data.manoObraSinImputar === 0 && data.subcontratoSinImputar === 0) {
+  if (rows.length === 0 && data.manoObra.pagado === 0 && data.subcontratoSinImputar === 0) {
     return (
       <Section title="Real vs presupuestado">
         <p className="text-[13px] text-[var(--muted)]">
@@ -291,12 +291,28 @@ function RealVsBudgetSection({ projectId }: { projectId: string }) {
         />
       </div>
       ) : null}
-      {data.manoObraSinImputar > 0 || data.subcontratoSinImputar > 0 ? (
+      {data.manoObra.pagado > 0 || data.manoObra.presupuestadoALaFecha > 0 ? (
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3 space-y-2">
+          <div className="text-[12px] font-semibold">Mano de obra de la obra</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Kpi label="Estimada a la fecha" value={gs(data.manoObra.presupuestadoALaFecha)} note="Según recetas y avance" />
+            <Kpi label="Pagada" value={gs(data.manoObra.pagado)} note="Cuadrillas, destajos y partes" />
+            <Kpi
+              label="Desvío"
+              value={gs(data.manoObra.pagado - data.manoObra.presupuestadoALaFecha)}
+              note={data.manoObra.pagado > data.manoObra.presupuestadoALaFecha ? "Pagando más de lo estimado" : "Dentro de lo estimado"}
+              warn={data.manoObra.pagado > data.manoObra.presupuestadoALaFecha}
+            />
+          </div>
+          <p className="text-[11px] text-[var(--muted)]">
+            La mano de obra propia se compara para toda la obra, porque se paga por período. Los destajos suman además a su partida.
+          </p>
+        </div>
+      ) : null}
+      {data.subcontratoSinImputar > 0 ? (
         <p className="text-[12px] text-amber-500">
-          Sin imputar a una partida (no entra en la comparación):
-          {data.manoObraSinImputar > 0 ? ` personal ${gs(data.manoObraSinImputar)}` : ""}
-          {data.subcontratoSinImputar > 0 ? ` · subcontratos ${gs(data.subcontratoSinImputar)}` : ""}. Asigná la partida en el parte o
-          en el contrato.
+          Subcontratos sin partida asignada ({gs(data.subcontratoSinImputar)}): no entran en la comparación por partida. Asigná la
+          partida en el contrato.
         </p>
       ) : null}
       {rows.length === 0 ? (

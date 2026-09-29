@@ -53,3 +53,28 @@ export function computeRealVsBudget(input: RealVsBudgetInput): RealVsBudgetRow[]
   }
   return rows.sort((a, b) => (b.desvio ?? -Infinity) - (a.desvio ?? -Infinity));
 }
+
+/**
+ * Mano de obra presupuestada a la fecha, a nivel de obra: por cada partida,
+ * costo de mano de obra por unidad (APU) × cantidad × % de avance ejecutado.
+ * Es contra lo que se compara lo pagado a cuadrillas y destajos, porque la
+ * mano de obra propia se paga por período y no se mide por partida.
+ */
+export function laborBudgetToDate(
+  partidas: { id: string; quantity: number | null; costoManoObraUnitario: number }[],
+  executedByItem: Record<string, number>
+): number {
+  let total = 0;
+  for (const p of partidas) {
+    const qty = Number(p.quantity) || 0;
+    if (qty <= 0 || !(p.costoManoObraUnitario > 0)) continue;
+    const avance = Math.min((Number(executedByItem[p.id]) || 0) / qty, 1);
+    total += p.costoManoObraUnitario * qty * avance;
+  }
+  return total;
+}
+
+/** Monto de un destajo: cantidad ejecutada × precio por unidad. */
+export function destajoAmount(quantity: number, unitPrice: number): number {
+  return Math.round(quantity * unitPrice * 100) / 100;
+}
