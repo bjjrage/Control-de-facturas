@@ -8,7 +8,9 @@ import type {
   StockDisponibilidadInput,
   ExecutionHistoryEntry,
 } from "./progress-forecast-engine";
-import type { WeeklyPlanItemTargetInput } from "./weekly-plan-engine";
+import type { PlanHourLineInput, PlanSubcontractLineInput, WeeklyPlanItemTargetInput } from "./weekly-plan-engine";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveProjectMaterialPrices } from "@/lib/costing/project-prices";
 import type { OperationalAssessmentItem } from "./operational-analyst-llm";
 
 // ---------------------------------------------------------------------------
@@ -53,6 +55,10 @@ export interface WeeklyPlanBaseData {
   executedQuantities: Record<string, number>;
   recentEntries: ExecutionHistoryEntry[];
   materialsByItem: Record<string, BudgetItemMaterialInput[]>;
+  /** Mano de obra, equipos y subcontratos de las recetas (APU), por partida. */
+  laborByItem: Record<string, PlanHourLineInput[]>;
+  equipmentByItem: Record<string, PlanHourLineInput[]>;
+  subcontractsByItem: Record<string, PlanSubcontractLineInput[]>;
   stockAndInbound: Record<string, StockDisponibilidadInput>;
   /**
    * Detalle de inbound por línea (ADITIVO V3, no altera el mapa legacy):
@@ -60,6 +66,11 @@ export interface WeeklyPlanBaseData {
    * null si la columna aún no existe en la DB (fail-safe: todo no confirmado).
    */
   inboundDetails: InboundDetail[] | null;
+  baselineCertificate?: {
+    id: string;
+    numero: number;
+    period_end: string;
+  } | null;
 }
 
 export interface InboundDetail {
@@ -164,6 +175,179 @@ export function isGroupingItem(item: Pick<BudgetItem, "quantity">): boolean {
   return !(Number(item.quantity) > 0);
 }
 
+/**
+ * Selecciona el certificado contractual utilizable con el corte más reciente (period_end DESC).
+ * Desempate por numero DESC. Excluye certificados sin period_end.
+ */
+export function selectBaselineCertificate<
+  T extends { id: string; period_end?: string | null; numero?: number | null }
+>(certificates: T[]): T | null {
+  const candidates = (certificates ?? []).filter((c) => !!c.period_end);
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => {
+    const endA = String(a.period_end ?? "").trim();
+    const endB = String(b.period_end ?? "").trim();
+    const diff = endB.localeCompare(endA);
+    if (diff !== 0) return diff;
+    return (Number(b.numero) || 0) - (Number(a.numero) || 0);
+  });
+  return candidates[0] ?? null;
+}
+
+export interface ComputeBaselineWithDeltasInput {
+  budgetItems: Array<Pick<BudgetItem, "id"> & { code?: string | null }>;
+  baselineCertificate: { id: string; period_end: string; numero?: number | null } | null;
+  certificateItems?: Array<{
+    certificate_id?: string;
+    budget_item_id?: string | null;
+    codigo?: string | null;
+    qty_acumulada?: number | null;
+  }>;
+  executionEntries: Array<{
+    budget_item_id: string;
+    quantity_executed?: number | null;
+    entry_date?: string | null;
+  }>;
+}
+
+export interface ComputeBaselineWithDeltasResult {
+  executedQuantities: Record<string, number>;
+  recentEntries: ExecutionHistoryEntry[];
+  mappedItemsCount: number;
+  unmappedItemsCount: number;
+}
+
+/**
+ * Resuelve las cantidades ejecutadas combinando la línea base contractual
+ * del certificado más reciente con los deltas de partes diarios posteriores.
+ *
+ * Reglas de negocio:
+ * 1. baselineQty = qty_acumulada del certificado seleccionado.
+ * 2. Mapeo a budget item:
+ *    a) budget_item_id directo si existe y pertenece a budgetItems.
+ *    b) fallback por codigo == budget_items.code solamente si es match único.
+ *    c) si es ambiguo o no existe, NO inventar match.
+ * 3. deltaQty = SUM(execution_entries.quantity_executed) WHERE entry_date > certificate.period_end.
+ *    (Partes anteriores o iguales al period_end NO se suman para evitar doble conteo).
+ * 4. executedQty = baselineQty + deltaQty.
+ * 5. Si no existe certificado baseline: comportamiento actual intacto basado 100% en execution_entries.
+ * 6. recentEntries para velocidad: proviene exclusivamente de partes diarios reales (nunca del certificado).
+ */
+export function computeBaselineWithDeltas(
+  input: ComputeBaselineWithDeltasInput
+): ComputeBaselineWithDeltasResult {
+  const {
+    budgetItems,
+    baselineCertificate,
+    certificateItems = [],
+    executionEntries = [],
+  } = input;
+
+  // 1. Historial operativo para velocidad: SOLO partes diarios reales
+  const recentEntries: ExecutionHistoryEntry[] = [];
+  for (const entry of executionEntries) {
+    if (entry.entry_date) {
+      recentEntries.push({
+        budget_item_id: entry.budget_item_id,
+        entry_date: entry.entry_date,
+        quantity_executed: Number(entry.quantity_executed) || 0,
+      });
+    }
+  }
+
+  // 2. Si NO existe certificado baseline: comportamiento actual intacto
+  if (!baselineCertificate) {
+    const executedQuantities: Record<string, number> = {};
+    for (const entry of executionEntries) {
+      const bId = entry.budget_item_id;
+      const q = Number(entry.quantity_executed) || 0;
+      executedQuantities[bId] = (executedQuantities[bId] || 0) + q;
+    }
+    return {
+      executedQuantities,
+      recentEntries,
+      mappedItemsCount: 0,
+      unmappedItemsCount: 0,
+    };
+  }
+
+  // 3. Resolución de baseline contractual
+  const validBudgetItemIds = new Set(budgetItems.map((b) => b.id));
+  const itemsByCode = new Map<string, Array<{ id: string }>>();
+  for (const b of budgetItems) {
+    const normCode = (b.code ?? "").trim().toLowerCase();
+    if (!normCode) continue;
+    const list = itemsByCode.get(normCode) || [];
+    list.push(b);
+    itemsByCode.set(normCode, list);
+  }
+
+  const baselineQtyByItem: Record<string, number> = {};
+  let mappedItemsCount = 0;
+  let unmappedItemsCount = 0;
+
+  for (const certItem of certificateItems) {
+    if (certItem.certificate_id && certItem.certificate_id !== baselineCertificate.id) {
+      continue;
+    }
+
+    let resolvedBudgetItemId: string | null = null;
+
+    if (certItem.budget_item_id && validBudgetItemIds.has(certItem.budget_item_id)) {
+      resolvedBudgetItemId = certItem.budget_item_id;
+    } else if (certItem.codigo) {
+      const normCode = certItem.codigo.trim().toLowerCase();
+      const matching = itemsByCode.get(normCode);
+      if (matching && matching.length === 1) {
+        resolvedBudgetItemId = matching[0].id;
+      }
+    }
+
+    if (resolvedBudgetItemId) {
+      const q = Number(certItem.qty_acumulada) || 0;
+      baselineQtyByItem[resolvedBudgetItemId] =
+        (baselineQtyByItem[resolvedBudgetItemId] || 0) + q;
+      mappedItemsCount++;
+    } else {
+      unmappedItemsCount++;
+    }
+  }
+
+  // 4. Deltas: SUM(execution_entries.quantity_executed) WHERE entry_date > certificate.period_end
+  const deltaQtyByItem: Record<string, number> = {};
+  const cutoffDate = String(baselineCertificate.period_end).trim();
+
+  for (const entry of executionEntries) {
+    const entryDate = entry.entry_date ? String(entry.entry_date).trim() : null;
+    if (entryDate && entryDate > cutoffDate) {
+      const bId = entry.budget_item_id;
+      const q = Number(entry.quantity_executed) || 0;
+      deltaQtyByItem[bId] = (deltaQtyByItem[bId] || 0) + q;
+    }
+  }
+
+  // 5. executedQty = baselineQty + deltaQty
+  const executedQuantities: Record<string, number> = {};
+  for (const b of budgetItems) {
+    const base = baselineQtyByItem[b.id] || 0;
+    const delta = deltaQtyByItem[b.id] || 0;
+    executedQuantities[b.id] = base + delta;
+  }
+
+  for (const [bId, delta] of Object.entries(deltaQtyByItem)) {
+    if (!(bId in executedQuantities)) {
+      executedQuantities[bId] = delta;
+    }
+  }
+
+  return {
+    executedQuantities,
+    recentEntries,
+    mappedItemsCount,
+    unmappedItemsCount,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Loader compartido (server): mismos datos reales para load y preview
 // ---------------------------------------------------------------------------
@@ -197,12 +381,15 @@ export async function loadWeeklyPlanBaseData(
     return { data: null, error: "Proyecto no encontrado o sin permisos." };
   }
 
-  // 2. Partidas
+  // 2. Partidas — por sort_order, no por code: "code" es texto y ordena
+  // "1, 10, 11, ... 19, 2, 20..." en vez de 1, 2, 3... (confirmado en vivo
+  // con MAGY, códigos 1-53 sin puntos). sort_order ya viene secuencial desde
+  // la importación.
   const { data: rawBudgetItems, error: bErr } = await supabase
     .from("budget_items")
     .select("*")
     .eq("project_id", projectId)
-    .order("code", { ascending: true });
+    .order("sort_order", { ascending: true });
 
   if (bErr || !rawBudgetItems || rawBudgetItems.length === 0) {
     return {
@@ -212,7 +399,34 @@ export async function loadWeeklyPlanBaseData(
   }
   const budgetItems = rawBudgetItems as BudgetItem[];
 
-  // 3. Ejecución (CONTRATO: execution_entries NO tiene empresa_id;
+  // 3. Ejecución y Certificados Contractuales (Baseline + Deltas)
+  let rawCerts: any[] = [];
+  try {
+    const { data: certs } = await supabase
+      .from("project_certificates")
+      .select("id, numero, period_start, period_end, status")
+      .eq("project_id", projectId);
+    if (certs) rawCerts = certs;
+  } catch (err) {
+    console.warn(`[weekly-plan] Fallback al consultar certificados: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  const baselineCert = selectBaselineCertificate(rawCerts);
+
+  let rawCertItems: any[] = [];
+  if (baselineCert) {
+    try {
+      const { data: certItems } = await supabase
+        .from("project_certificate_items")
+        .select("id, certificate_id, budget_item_id, codigo, descripcion, qty_contractual, qty_anterior, qty_presente, qty_acumulada")
+        .eq("certificate_id", baselineCert.id);
+      if (certItems) rawCertItems = certItems;
+    } catch (err) {
+      console.warn(`[weekly-plan] Fallback al consultar items de certificado: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // execution_entries (CONTRATO: execution_entries NO tiene empresa_id;
   // scoping vía project_id -> projects.empresa_id)
   const { data: rawEntries, error: eErr } = await supabase
     .from("execution_entries")
@@ -226,20 +440,12 @@ export async function loadWeeklyPlanBaseData(
     };
   }
 
-  const executedQuantities: Record<string, number> = {};
-  const recentEntries: ExecutionHistoryEntry[] = [];
-  for (const entry of rawEntries ?? []) {
-    const bId = entry.budget_item_id;
-    const q = Number(entry.quantity_executed) || 0;
-    executedQuantities[bId] = (executedQuantities[bId] || 0) + q;
-    if (entry.entry_date) {
-      recentEntries.push({
-        budget_item_id: bId,
-        entry_date: entry.entry_date,
-        quantity_executed: q,
-      });
-    }
-  }
+  const { executedQuantities, recentEntries } = computeBaselineWithDeltas({
+    budgetItems,
+    baselineCertificate: baselineCert,
+    certificateItems: rawCertItems,
+    executionEntries: rawEntries ?? [],
+  });
 
   // 4. BOM (budget_item_materials × productos)
   const { data: rawMaterials, error: mErr } = await supabase
@@ -275,6 +481,47 @@ export async function loadWeeklyPlanBaseData(
           ? Number(prod.costo_promedio)
           : null,
     });
+  }
+
+  // 4b. Precio de los materiales: el mismo que usa el Costeo (elegido para la obra,
+  //     cotización, historial de precios, costo promedio). Si algo falla, queda el
+  //     costo promedio del stock que ya se cargó arriba.
+  try {
+    const productIds: string[] = [...new Set<string>((rawMaterials ?? []).map((m: any) => String(m.producto_id)))];
+    if (productIds.length > 0) {
+      const prices = await resolveProjectMaterialPrices({ supabase: supabase as unknown as Parameters<typeof resolveProjectMaterialPrices>[0]["supabase"], admin: createAdminClient(), empresaId, projectId, productIds });
+      for (const list of Object.values(materialsByItem)) {
+        for (const m of list) {
+          const precio = prices.get(m.producto_id)?.price?.precio;
+          if (precio && precio > 0) m.costo_unitario = precio;
+        }
+      }
+    }
+  } catch {
+    // se mantiene el costo promedio
+  }
+
+  // 4c. Mano de obra, equipos y subcontratos de las recetas.
+  const laborByItem: Record<string, PlanHourLineInput[]> = {};
+  const equipmentByItem: Record<string, PlanHourLineInput[]> = {};
+  const subcontractsByItem: Record<string, PlanSubcontractLineInput[]> = {};
+  try {
+    const [laborRes, equipmentRes, subcontractRes] = await Promise.all([
+      supabase.from("budget_item_labor").select("budget_item_id, rol, horas_por_unidad_ejecutada, costo_hora").eq("project_id", projectId).eq("empresa_id", empresaId),
+      supabase.from("budget_item_equipment").select("budget_item_id, tipo_equipo, horas_por_unidad_ejecutada, costo_hora").eq("project_id", projectId).eq("empresa_id", empresaId),
+      supabase.from("budget_item_subcontracts").select("budget_item_id, descripcion, precio_por_unidad").eq("project_id", projectId).eq("empresa_id", empresaId),
+    ]);
+    for (const l of (laborRes.data ?? []) as any[]) {
+      (laborByItem[l.budget_item_id] ??= []).push({ label: l.rol, horas_por_unidad: Number(l.horas_por_unidad_ejecutada), costo_hora: Number(l.costo_hora) });
+    }
+    for (const e of (equipmentRes.data ?? []) as any[]) {
+      (equipmentByItem[e.budget_item_id] ??= []).push({ label: e.tipo_equipo, horas_por_unidad: Number(e.horas_por_unidad_ejecutada), costo_hora: Number(e.costo_hora) });
+    }
+    for (const c of (subcontractRes.data ?? []) as any[]) {
+      (subcontractsByItem[c.budget_item_id] ??= []).push({ label: c.descripcion, precio_por_unidad: Number(c.precio_por_unidad) });
+    }
+  } catch {
+    // el plan sigue funcionando solo con materiales
   }
 
   // 5. Stock en obra
@@ -361,8 +608,18 @@ export async function loadWeeklyPlanBaseData(
       executedQuantities,
       recentEntries,
       materialsByItem,
+      laborByItem,
+      equipmentByItem,
+      subcontractsByItem,
       stockAndInbound,
       inboundDetails: await loadInboundDetails(supabase, rawOrders ?? [], receivedByOrderItem),
+      baselineCertificate: baselineCert
+        ? {
+            id: baselineCert.id,
+            numero: Number(baselineCert.numero) || 0,
+            period_end: String(baselineCert.period_end),
+          }
+        : null,
     },
     error: null,
   };

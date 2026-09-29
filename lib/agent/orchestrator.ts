@@ -16,8 +16,12 @@ import type { EmailPreview } from "@/lib/email/types";
 import { markEmailDraftWaitingApproval } from "@/lib/email/domain-service";
 import { formatKnowledgeContext, selectRelevantKnowledge } from "@/lib/agent/knowledge";
 
-export const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
-export const DEEPSEEK_MODEL = "deepseek-flash"; // DeepSeek V4.1 Flash para chat y tool-calling
+// Proveedor activo: GPT-6 Luna (OpenAI-compatible, mismo formato de
+// mensajes/tools que DeepSeek) — cambiado a pedido del usuario mientras no
+// hay saldo cargado en DeepSeek. Los nombres DEEPSEEK_* se mantienen para no
+// romper imports existentes; lo que cambia es el proveedor real detrás.
+export const DEEPSEEK_BASE_URL = "https://api.openai.com/v1";
+export const DEEPSEEK_MODEL = "gpt-6-luna";
 
 const DEFAULT_TIMEOUT_MS = 30000;
 const DEFAULT_MAX_ITERATIONS = 8;
@@ -180,10 +184,10 @@ export class AgentOrchestrator {
   public lastUsage: DeepSeekUsage | null = null;
 
   constructor(options: OrchestratorOptions = {}) {
-    const apiKey = options.apiKey ?? process.env.DEEPSEEK_API_KEY;
+    const apiKey = options.apiKey ?? process.env.OPENAI_API_KEY ?? process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {
       throw new DeepSeekConfigError(
-        "DEEPSEEK_API_KEY no esta configurada. El orchestrator la requiere server-side; no existe fallback silencioso."
+        "OPENAI_API_KEY no esta configurada. El orchestrator la requiere server-side; no existe fallback silencioso."
       );
     }
     this.apiKey = apiKey;
@@ -436,7 +440,7 @@ export class AgentOrchestrator {
         },
         body: JSON.stringify({
           model: this.model,
-          temperature: 0,
+          // gpt-6-luna solo acepta el temperature default (1) — omitido.
           messages,
           tools: tools.length > 0 ? tools : undefined,
           tool_choice: tools.length > 0 ? "auto" : undefined,

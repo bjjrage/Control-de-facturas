@@ -34,6 +34,10 @@ import { AddBudgetItemForm } from "./add-budget-item-form";
 import { ImportBudgetDialog } from "./import-budget-dialog";
 import { DuplicateBudgetDialog } from "./duplicate-budget-dialog";
 import { GenerarPlanillaButton } from "./generar-planilla-button";
+import { ApplyApuTemplatesButton } from "./apply-apu-templates-button";
+import { ApuTemplatesDialog } from "./apu-templates-dialog";
+import { LaborRatesDialog } from "./labor-rates-dialog";
+import { CosteoSection } from "./costeo-section";
 import { AddExecutionEntryForm } from "./add-execution-entry-form";
 import { ProjectStatusSelect } from "./project-status-select";
 import { EditProjectDialog } from "./edit-project-dialog";
@@ -41,6 +45,7 @@ import { DeleteProjectButton } from "./delete-project-button";
 import { ProjectGantt } from "./project-gantt";
 import { ProjectReports } from "./reports";
 import { AddLaborEntryForm } from "./add-labor-entry-form";
+import { LaborPaymentsPanel } from "./labor-payments-panel";
 import { AddSubcontractorContractDialog } from "./add-subcontractor-contract-dialog";
 import { AddCertificadoDialog } from "./add-certificado-dialog";
 import { ImportCertificadoDialog } from "./import-certificado-dialog";
@@ -292,10 +297,12 @@ export function ProjectTabsClient({
           <div className="kpi-hover kpi-accent-labor rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
             <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Costo M. de Obra</div>
             <div className="text-[16px] font-bold mt-1">{formatMoney(laborCostTotal, "PYG")}</div>
-            <div className="text-[11px] text-[var(--muted)] mt-0.5">{laborHoursTotal} h totales</div>
+            <div className="text-[11px] text-[var(--muted)] mt-0.5">Pagos y partes · {laborHoursTotal} h en partes</div>
           </div>
         ) : null}
       </div>
+
+      {tab === "costeo" ? <CosteoSection projectId={project.id} isCaterpillar={isCaterpillar} /> : null}
 
       {tab === "presupuesto" ? (
         <div className="space-y-3">
@@ -304,6 +311,9 @@ export function ProjectTabsClient({
             <ImportBudgetDialog projectId={project.id} />
             <DuplicateBudgetDialog targetProjectId={project.id} sources={duplicateSources} />
             <GenerarPlanillaButton projectId={project.id} />
+            <ApuTemplatesDialog />
+            <LaborRatesDialog />
+            <ApplyApuTemplatesButton projectId={project.id} />
           </div>
           <PresupuestoTable
             rows={items.map((i) => {
@@ -466,9 +476,15 @@ export function ProjectTabsClient({
       ) : null}
 
       {tab === "personal" && isCaterpillar ? (
-        <div className="space-y-3">
-          <AddLaborEntryForm projectId={project.id} />
-          <PersonalTable rows={laborRows} />
+        <div className="space-y-5">
+          <LaborPaymentsPanel projectId={project.id} budgetItems={items} />
+          <details className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3" open={laborRows.length > 0}>
+            <summary className="cursor-pointer text-[13px] font-semibold">Partes diarios por trabajador (opcional)</summary>
+            <div className="mt-3 space-y-3">
+              <AddLaborEntryForm projectId={project.id} budgetItems={items} />
+              <PersonalTable rows={laborRows} />
+            </div>
+          </details>
         </div>
       ) : null}
 

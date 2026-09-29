@@ -146,6 +146,9 @@ export async function getWeeklyPlanDetailsAction(
       executedQuantities,
       recentEntries: recentEntriesList,
       materialsByItem,
+      laborByItem,
+      equipmentByItem,
+      subcontractsByItem,
       stockAndInbound,
     } = baseRes.data;
 
@@ -265,6 +268,9 @@ export async function getWeeklyPlanDetailsAction(
       executed_quantities_by_item: executedQuantities,
       targets,
       materials_by_item: materialsByItem,
+      labor_by_item: laborByItem,
+      equipment_by_item: equipmentByItem,
+      subcontracts_by_item: subcontractsByItem,
       stock_and_inbound: stockAndInbound,
       recent_execution_entries: recentEntriesList,
       currency: "PYG",
@@ -368,6 +374,9 @@ export async function previewWeeklyPlanAction(
       executedQuantities,
       recentEntries,
       materialsByItem,
+      laborByItem,
+      equipmentByItem,
+      subcontractsByItem,
       stockAndInbound,
     } = baseRes.data;
 
@@ -424,6 +433,9 @@ export async function previewWeeklyPlanAction(
       executed_quantities_by_item: executedQuantities,
       targets,
       materials_by_item: materialsByItem,
+      labor_by_item: laborByItem,
+      equipment_by_item: equipmentByItem,
+      subcontracts_by_item: subcontractsByItem,
       stock_and_inbound: engineStockMap,
       recent_execution_entries: recentEntries,
       currency: "PYG",
@@ -755,7 +767,7 @@ async function commitProductionPlanWithMrp(
   if (baseRes.error || !baseRes.data) {
     return { data: null, error: baseRes.error || "Error al cargar datos base." };
   }
-  const { budgetItems, executedQuantities, recentEntries, materialsByItem, stockAndInbound } =
+  const { budgetItems, executedQuantities, recentEntries, materialsByItem, laborByItem, equipmentByItem, subcontractsByItem, stockAndInbound } =
     baseRes.data;
 
   // 2. Targets desde los items a guardar (NO desde el payload del cliente
@@ -782,6 +794,9 @@ async function commitProductionPlanWithMrp(
     executed_quantities_by_item: executedQuantities,
     targets,
     materials_by_item: materialsByItem,
+      labor_by_item: laborByItem,
+      equipment_by_item: equipmentByItem,
+      subcontracts_by_item: subcontractsByItem,
     stock_and_inbound: obraOnly,
     recent_execution_entries: recentEntries,
     currency: "PYG",

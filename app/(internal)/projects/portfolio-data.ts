@@ -63,15 +63,18 @@ export async function getProjectsPortfolioData(profile?: CurrentProfile): Promis
   const isCaterpillar = p.plan === "caterpillar" || p.is_super_admin;
   const emptyRows = Promise.resolve({ data: [] as unknown[] });
 
-  const [{ data: budgetItems }, { data: orders }, { data: executionEntries }, { data: products }, stockResult, { count: certificatesPending }] = await Promise.all([
+  const [{ data: budgetItems }, { data: orders }, { data: executionEntries }, { data: certificates }, { data: products }, stockResult, { count: certificatesPending }] = await Promise.all([
     projectIds.length > 0
-      ? supabase.from("budget_items").select("project_id, quantity, subtotal").in("project_id", projectIds)
+      ? supabase.from("budget_items").select("id, project_id, quantity, subtotal").in("project_id", projectIds)
       : emptyRows,
     projectIds.length > 0
       ? supabase.from("authorized_orders").select("project_id, total_price, currency").in("project_id", projectIds).eq("currency", "PYG")
       : emptyRows,
     projectIds.length > 0
-      ? supabase.from("execution_entries").select("project_id, quantity_executed").in("project_id", projectIds)
+      ? supabase.from("execution_entries").select("project_id, budget_item_id, quantity_executed").in("project_id", projectIds)
+      : emptyRows,
+    projectIds.length > 0
+      ? supabase.from("project_certificates").select("project_id, numero, monto_acumulado").in("project_id", projectIds)
       : emptyRows,
     supabase.from("productos").select("id, stock_minimo").eq("empresa_id", p.empresa_id).eq("activo", true),
     supabase.from("inventory_stock_global_quantity").select("producto_id, quantity").eq("empresa_id", p.empresa_id),
@@ -88,10 +91,11 @@ export async function getProjectsPortfolioData(profile?: CurrentProfile): Promis
   const authorizedOrders = (orders ?? []) as { project_id: string | null; total_price: number }[];
   const portfolioRows = buildPortfolioRows(
     projects,
-    (budgetItems ?? []) as { project_id: string; quantity: number | null; subtotal: number }[],
+    (budgetItems ?? []) as { id: string; project_id: string; quantity: number | null; subtotal: number }[],
     authorizedOrders,
-    (executionEntries ?? []) as { project_id: string; quantity_executed: number }[],
+    (executionEntries ?? []) as { project_id: string; budget_item_id: string | null; quantity_executed: number }[],
     new Date().toISOString().slice(0, 10),
+    (certificates ?? []) as { project_id: string; numero: number; monto_acumulado: number }[],
   );
   const sortedRows = sortPortfolioRows(portfolioRows);
   const activeProjectIds = new Set(projects.filter((project) => project.status === "ACTIVO").map((project) => project.id));

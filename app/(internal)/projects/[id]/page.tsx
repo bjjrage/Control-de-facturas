@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getAppOrigin } from "@/lib/app-origin";
 import { requirePlan } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -50,7 +51,7 @@ export default async function ProjectDetailPage({
   const { tab: rawTab } = await searchParams;
   const isCaterpillar = profile.plan === "caterpillar" || profile.is_super_admin;
   const featurePlan = isCaterpillar ? "caterpillar" : "pro";
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = await getAppOrigin();
   const normalizedTab = rawTab === "recepciones" ? "panol" : rawTab;
   const initialTab =
     isProjectFeatureKey(normalizedTab) &&
@@ -536,6 +537,8 @@ export default async function ProjectDetailPage({
   const entries = execEntries ?? [];
   const ocs = orders ?? [];
   const laborRows = laborEntries ?? [];
+  // Pagos de cuadrillas y destajos: también son costo de mano de obra de la obra.
+  const { data: laborPaymentRows } = await supabase.from("labor_payments").select("amount").eq("project_id", id);
   const budgetItemLabelById = new Map(items.map((i) => [i.id, `${i.code} — ${i.description}`]));
 
   // Cotizaciones y proveedores: consulta canónica por project_id con fallback histórico por OCs
@@ -635,7 +638,8 @@ export default async function ProjectDetailPage({
   }
 
   const laborHoursTotal = laborRows.reduce((s, l) => s + l.hours, 0);
-  const laborCostTotal = laborRows.reduce((s, l) => s + l.labor_cost, 0);
+  const laborCostTotal =
+    laborRows.reduce((s, l) => s + l.labor_cost, 0) + (laborPaymentRows ?? []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
   const itemsSubtotal = items.reduce((s, i) => s + i.subtotal, 0);
   const presupuestoTotal = Math.max(project.budget_total, itemsSubtotal);
   const comprasTotal = ocs

@@ -26,7 +26,7 @@ function asSampleValue(cell: WorkbookCell | undefined): string | number | null {
   return cell.raw;
 }
 
-function contiguousBlocks(cells: WorkbookCell[]): WorkbookBlock[] {
+export function contiguousBlocks(cells: WorkbookCell[]): WorkbookBlock[] {
   const present = cells.filter(CELL_PRESENT);
   const byCoordinate = new Map(present.map((cell) => [`${cell.row}:${cell.column}`, cell]));
   const unvisited = new Set(byCoordinate.keys());
@@ -127,6 +127,25 @@ function definedNames(workbook: XLSX.WorkBook): WorkbookDefinedName[] {
   });
 }
 
+// Hidden sheets are kept (they often hold previous periods, e.g. MAGY's
+// Julio/Junio/Mayo/Abril); the flag lets a viewer show them as hidden, like
+// Excel does, instead of quietly dropping them.
+function sheetHidden(workbook: XLSX.WorkBook, sheetIndex: number): boolean {
+  return Boolean(workbook.Workbook?.Sheets?.[sheetIndex]?.Hidden);
+}
+
+function columnWidths(worksheet: XLSX.WorkSheet, count: number): (number | null)[] {
+  const cols = worksheet["!cols"] ?? [];
+  return Array.from({ length: count }, (_, index) => {
+    const col = cols[index];
+    if (!col) return null;
+    if (col.hidden) return 0;
+    if (typeof col.wpx === "number") return Math.round(col.wpx);
+    if (typeof col.wch === "number") return Math.round(col.wch * 7 + 5);
+    return null;
+  });
+}
+
 export function parseWorkbook(input: ArrayBuffer | Uint8Array, fileName: string): WorkbookRepresentation {
   if (input.byteLength === 0) throw new WorkbookInputError("La planilla está vacía.");
   if (input.byteLength > WORKBOOK_FILE_MAX_BYTES) throw new WorkbookInputError("El archivo supera el límite de 10 MB.");
@@ -134,7 +153,7 @@ export function parseWorkbook(input: ArrayBuffer | Uint8Array, fileName: string)
 
   let workbook: XLSX.WorkBook;
   try {
-    workbook = XLSX.read(input, { type: "array", cellFormula: true, cellNF: true, cellText: true, cellDates: false });
+    workbook = XLSX.read(input, { type: "array", cellFormula: true, cellNF: true, cellText: true, cellDates: false, cellStyles: true });
   } catch {
     throw new WorkbookInputError("No se pudo leer la planilla. Verificá que el archivo no esté dañado o protegido.");
   }
@@ -158,6 +177,8 @@ export function parseWorkbook(input: ArrayBuffer | Uint8Array, fileName: string)
         serializedCellCount: 0,
         cells: [],
         blocks: [],
+        hidden: sheetHidden(workbook, sheetIndex),
+        columnWidths: [],
       } satisfies WorkbookSheetRepresentation;
     }
     const range = XLSX.utils.decode_range(usedRange);
@@ -191,6 +212,8 @@ export function parseWorkbook(input: ArrayBuffer | Uint8Array, fileName: string)
       serializedCellCount: serialized.length,
       cells: serialized,
       blocks: contiguousBlocks(serialized),
+      hidden: sheetHidden(workbook, sheetIndex),
+      columnWidths: columnWidths(worksheet, range.e.c + 1),
     } satisfies WorkbookSheetRepresentation;
   });
   if (totalCells === 0) throw new WorkbookInputError("La planilla no contiene celdas con datos.");

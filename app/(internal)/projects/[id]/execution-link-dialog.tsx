@@ -38,7 +38,7 @@ export function ExecutionLinkDialog({
           <div className="flex justify-center rounded-lg border border-[var(--border)] bg-white p-4">
             {qrDataUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={qrDataUrl} alt="QR del parte de avance" className="h-52 w-52" />
+              <img src={qrDataUrl} alt="QR del registro de avance" className="h-52 w-52" />
             ) : (
               <div className="h-52 w-52 animate-pulse rounded bg-[var(--hover)]" />
             )}

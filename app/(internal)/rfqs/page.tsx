@@ -16,7 +16,8 @@ type Filters = {
   open?: string; // "1" | "0"
   from?: string;
   to?: string;
-  nueva?: string;
+  nueva?: string; // "1" | "obra"
+  obra?: string;
 };
 
 export default async function RfqsPage({ searchParams }: { searchParams: Promise<Filters> }) {
@@ -62,9 +63,10 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
       <div className="flex items-center justify-between mt-1 mb-4">
         <h1 className="text-[17px] font-semibold">Cotizaciones</h1>
         <RfqDialog
-          key={filters.nueva === "1" ? "open" : "closed"}
+          key={filters.nueva ? `open-${filters.obra ?? ""}` : "closed"}
           trigger={<Button>+ Nueva cotización</Button>}
-          defaultOpen={filters.nueva === "1"}
+          defaultOpen={filters.nueva === "1" || filters.nueva === "obra"}
+          defaultFromProject={filters.nueva === "obra" ? filters.obra : undefined}
         />
       </div>
 

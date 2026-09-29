@@ -211,6 +211,143 @@ describe("canonical workbook import mapping", () => {
   });
 
 
+  it("extracts a budget-shaped block even when the model labels it PROJECT_METADATA/OTHER instead of BUDGET", () => {
+    // Reproduces the real MAGY run in production (2026-09-27): the `base`
+    // sheet carries the contract header ABOVE the 37-row budget table, and
+    // Luna classified the whole block as PROJECT_METADATA — with the budget
+    // columns mapped at 0.99 confidence. The extractor used to gate purely
+    // on block.target === "BUDGET" and silently produced 0 budget_items.
+    const workbookFile = XLSX.write(
+      {
+        SheetNames: ["base"],
+        Sheets: {
+          base: XLSX.utils.aoa_to_sheet([
+            ["Ficha de contrato"],
+            ["Comitente: Fundación Parque Tecnológico Itaipu-Paraguay"],
+            [],
+            ["COD", "RUBRO", "UND", "CANT", "P.U."],
+            ["1", "Limpieza de terreno", "gl", 37, 294005],
+            ["2", "Replanteo", "m2", 1569.17, 6000],
+          ]),
+        },
+      },
+      { type: "buffer", bookType: "xlsx" }
+    );
+    const workbook = parseWorkbook(new Uint8Array(workbookFile), "test.xlsx");
+    const importPlan = {
+      workbookType: "CONSTRUCTION_PROJECT",
+      overallConfidence: 1,
+      blocks: [{
+        id: "base_project", sheet: "base", sourceRange: "A1:E6",
+        target: "PROJECT_METADATA" as const, // <- misclassified, exactly like the live run
+        confidence: 0.9, needsReview: false, headerRowStart: 4, headerRowEnd: 4, dataRowStart: 5, dataRowEnd: 6,
+        columnMappings: [
+          { column: "A", role: "code" as const, confidence: 0.99, notes: "" },
+          { column: "B", role: "description" as const, confidence: 0.99, notes: "" },
+          { column: "C", role: "unit" as const, confidence: 0.99, notes: "" },
+          { column: "D", role: "quantity" as const, confidence: 0.99, notes: "" },
+          { column: "E", role: "unitPrice" as const, confidence: 0.99, notes: "" },
+        ],
+        repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "",
+      }],
+      relationships: [], unresolvedRegions: [], warnings: [],
+    };
+    const candidate = buildCanonicalImportCandidate(workbook, result(importPlan));
+    expect(candidate.budgetItems).toHaveLength(2);
+    expect(candidate.budgetItems.map((item) => item.code)).toEqual(["1", "2"]);
+    expect(candidate.budgetTotal).toBe(37 * 294005 + 1569.17 * 6000);
+  });
+
+  it("does NOT reinterpret a certificate or schedule block as budget just because it also has quantity/unitPrice columns", () => {
+    const workbookFile = XLSX.write(
+      {
+        SheetNames: ["CERTIFICADO"],
+        Sheets: {
+          CERTIFICADO: XLSX.utils.aoa_to_sheet([
+            ["COD", "RUBRO", "UND", "CANTIDAD", "P.U."],
+            ["1", "Limpieza", "gl", 37, 294005],
+          ]),
+        },
+      },
+      { type: "buffer", bookType: "xlsx" }
+    );
+    const workbook = parseWorkbook(new Uint8Array(workbookFile), "test.xlsx");
+    const importPlan = {
+      workbookType: "CONSTRUCTION_PROJECT",
+      overallConfidence: 1,
+      blocks: [{
+        id: "cert", sheet: "CERTIFICADO", sourceRange: "A1:E2", target: "CERTIFICATE" as const,
+        confidence: 0.9, needsReview: false, headerRowStart: 1, headerRowEnd: 1, dataRowStart: 2, dataRowEnd: 2,
+        columnMappings: [
+          { column: "A", role: "code" as const, confidence: 0.99, notes: "" },
+          { column: "B", role: "description" as const, confidence: 0.99, notes: "" },
+          { column: "C", role: "unit" as const, confidence: 0.99, notes: "" },
+          { column: "D", role: "quantity" as const, confidence: 0.99, notes: "" },
+          { column: "E", role: "unitPrice" as const, confidence: 0.99, notes: "" },
+        ],
+        repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "",
+      }],
+      relationships: [], unresolvedRegions: [], warnings: [],
+    };
+    const candidate = buildCanonicalImportCandidate(workbook, result(importPlan));
+    expect(candidate.budgetItems).toHaveLength(0);
+  });
+
+  it("does not apply a certificate whose stored amounts (quantity × price) would not reproduce the document", () => {
+    // The document is internally consistent: presente = ROUND(F × H) per line,
+    // J6 = SUM. A mapping that reads the price from the wrong column (I, the
+    // price without IVA) while reading the amount column right is exactly
+    // how the ERP stored 629.818.012 for MAGY Cert. N°6 instead of the
+    // 623.788.012 in J75: every check that used J passed.
+    const workbookFile = XLSX.write(
+      {
+        SheetNames: ["CERTIFICADO"],
+        Sheets: {
+          CERTIFICADO: XLSX.utils.aoa_to_sheet([
+            ["CERTIFICADO DE EJECUCIÓN DE OBRAS N° 6", null, null, null, null, null, null, null, null, null],
+            ["Período: desde 01/01/2026 hasta 31/01/2026", null, null, null, null, null, null, null, null, null],
+            ["COD", "RUBRO", "UND", "CONTRACTUAL", "ANTERIOR", "PRESENTE", "ACUMULADO", "P.U. IVA incl.", "P.U. sin IVA", "MONTO PRESENTE"],
+            ["1", "Limpieza", "gl", 37, 10, 2, 12, 110, 100, 220],
+            ["2", "Replanteo", "m2", 74, 20, 4, 24, 55, 50, 220],
+            ["TOTAL", null, null, null, null, null, null, null, null, 440],
+          ]),
+        },
+      },
+      { type: "buffer", bookType: "xlsx" }
+    );
+    const workbook = parseWorkbook(new Uint8Array(workbookFile), "test.xlsx");
+    const plan = (priceColumn: "H" | "I") => ({
+      workbookType: "CONSTRUCTION_PROJECT",
+      overallConfidence: 1,
+      blocks: [{
+        id: "certificate", sheet: "CERTIFICADO", sourceRange: "A3:J6", target: "CERTIFICATE" as const, confidence: 1, needsReview: false, headerRowStart: 3, headerRowEnd: 3, dataRowStart: 4, dataRowEnd: 5,
+        columnMappings: [
+          { column: "A", role: "code" as const, confidence: 1, notes: "" }, { column: "B", role: "description" as const, confidence: 1, notes: "" }, { column: "C", role: "unit" as const, confidence: 1, notes: "" },
+          { column: "D", role: "quantity" as const, confidence: 1, notes: "" }, { column: "E", role: "previousQuantity" as const, confidence: 1, notes: "" }, { column: "F", role: "currentQuantity" as const, confidence: 1, notes: "" },
+          { column: "G", role: "cumulativeQuantity" as const, confidence: 1, notes: "" }, { column: priceColumn, role: "unitPrice" as const, confidence: 1, notes: "" }, { column: "J", role: "currentAmount" as const, confidence: 1, notes: "" },
+        ],
+        repeatedHeaderRows: [], subtotalRows: [6], footerRows: [], excludedRows: [], notes: "",
+        keyValues: [
+          { key: "certificateNumber" as const, cell: "A1", value: 6, notes: "" },
+          { key: "periodStart" as const, cell: "A2", value: "2026-01-01", notes: "" },
+          { key: "periodEnd" as const, cell: "A2", value: "2026-01-31", notes: "" },
+          { key: "declaredCurrentAmount" as const, cell: "J6", value: 440, notes: "" },
+        ],
+      }],
+      unresolvedRegions: [],
+      warnings: [],
+    });
+
+    const wrong = buildCanonicalImportCandidate(workbook, result(plan("I")));
+    expect(wrong.certificate.status).toBe("DETECTED_NOT_APPLIED");
+    expect(wrong.certificate.reason).toMatch(/400\) no reproduce el documento: total declarado 440 \(CERTIFICADO!J6\)/);
+    expect(wrong.checks.find((check) => check.id === "certificate_storage_reproduces_document")?.status).toBe("WARNING");
+
+    const right = buildCanonicalImportCandidate(workbook, result(plan("H")));
+    expect(right.certificate.status).toBe("SAFE_TO_APPLY");
+    expect(right.checks.find((check) => check.id === "certificate_storage_reproduces_document")?.status).toBe("OK");
+  });
+
   it("uses certificate contractual quantities for budget_items and does not apply an incompatible measurement", () => {
     const workbookFile = XLSX.write(
       {
@@ -270,6 +407,89 @@ describe("canonical workbook import mapping", () => {
     expect(candidate.domains).toHaveLength(0);
     expect(candidate.foreignBlocks).toHaveLength(1);
     expect(candidate.foreignBlocks[0].warnings.join(" ")).toMatch(/identidad de obra distinta/);
+  });
+
+  // Caso real MAGY (análisis de producción del 2026-09-27): el modelo relacionó
+  // base ↔ certificado como SAME_ITEMS sin factor y dejó el ×37 en otra relación
+  // (registro LDO → base). La obra se creó con el presupuesto de UNA vivienda.
+  function scaleWorkbook(contractual: number[]) {
+    const file = XLSX.write(
+      {
+        SheetNames: ["base", "CERTIFICADO"],
+        Sheets: {
+          base: XLSX.utils.aoa_to_sheet([
+            ["COD", "RUBRO", "UND", "CANT", "P.U."],
+            ["1", "Limpieza", "gl", 1, 100],
+            ["2", "Replanteo", "m2", 2, 50],
+            ["3", "Excavación", "m3", 4, 25],
+          ]),
+          CERTIFICADO: XLSX.utils.aoa_to_sheet([
+            ["CERTIFICADO DE EJECUCIÓN DE OBRAS N° 6", null, null, null, null, null, null, null],
+            ["Período: desde 01/01/2026 hasta 31/01/2026", null, null, null, null, null, null, null],
+            ["COD", "RUBRO", "UND", "CONTRACTUAL", "ANTERIOR", "PRESENTE", "ACUMULADO", "P.U."],
+            ["1", "Limpieza", "gl", contractual[0], 0, 1, 1, 100],
+            ["2", "Replanteo", "m2", contractual[1], 0, 2, 2, 50],
+            ["3", "Excavación", "m3", contractual[2], 0, 4, 4, 25],
+          ]),
+        },
+      },
+      { type: "buffer", bookType: "xlsx" }
+    );
+    const workbook = parseWorkbook(new Uint8Array(file), "test.xlsx");
+    const col = (column: string, role: string) => ({ column, role: role as "code", confidence: 1, notes: "" });
+    const plan = {
+      workbookType: "CONSTRUCTION_PROJECT",
+      overallConfidence: 1,
+      blocks: [
+        { id: "budget", sheet: "base", sourceRange: "A1:E4", target: "BUDGET" as const, confidence: 1, needsReview: false, headerRowStart: 1, headerRowEnd: 1, dataRowStart: 2, dataRowEnd: 4, columnMappings: [col("A", "code"), col("B", "description"), col("C", "unit"), col("D", "quantity"), col("E", "unitPrice")], repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "" },
+        { id: "certificate", sheet: "CERTIFICADO", sourceRange: "A3:H6", target: "CERTIFICATE" as const, confidence: 1, needsReview: false, headerRowStart: 3, headerRowEnd: 3, dataRowStart: 4, dataRowEnd: 6, columnMappings: [col("A", "code"), col("B", "description"), col("C", "unit"), col("D", "quantity"), col("E", "previousQuantity"), col("F", "currentQuantity"), col("G", "cumulativeQuantity"), col("H", "unitPrice")], repeatedHeaderRows: [], subtotalRows: [], footerRows: [], excludedRows: [], notes: "",
+          keyValues: [
+            { key: "certificateNumber" as const, cell: "A1", value: 6, notes: "" },
+            { key: "periodStart" as const, cell: "A2", value: "2026-01-01", notes: "" },
+            { key: "periodEnd" as const, cell: "A2", value: "2026-01-31", notes: "" },
+          ] },
+      ],
+      relationships: [{ from: "budget", to: "certificate", type: "SAME_ITEMS" as const, factor: null, confidence: 1, evidence: "mismas partidas" }],
+      unresolvedRegions: [],
+      warnings: [],
+    };
+    return buildCanonicalImportCandidate(workbook, result(plan));
+  }
+
+  it("infers the contract scale from the document's own quantities when the model linked budget and certificate without a factor", () => {
+    const candidate = scaleWorkbook([37, 74, 148]);
+    expect(candidate.scale?.factor).toBe(37);
+    expect(candidate.scale?.evidence).toMatch(/Inferida de las cantidades del propio documento: en 3\/3 partidas/);
+    expect(candidate.budgetItems.map((item) => item.quantity)).toEqual([37, 74, 148]);
+    expect(candidate.budgetTotal).toBe(37 * (100 + 100 + 100));
+    expect(candidate.budgetContractCheck).toMatchObject({ matches: true, contractAmount: 11100 });
+  });
+
+  it("does not invent a scale when the quantities do not share one ratio — and then blocks the budget/contract mismatch", () => {
+    const candidate = scaleWorkbook([37, 74, 10]);
+    expect(candidate.scale).toBeNull();
+    expect(candidate.budgetItems.map((item) => item.quantity)).toEqual([1, 2, 4]);
+    expect(candidate.budgetTotal).toBe(300);
+    // El documento dice que el contrato vale 37·100 + 74·50 + 10·25; crear la
+    // obra con 300 dejaría todo lo demás mal: el control lo marca.
+    expect(candidate.budgetContractCheck).toMatchObject({ budgetTotal: 300, contractAmount: 7650, matches: false });
+    expect(candidate.checks.find((check) => check.id === "budget_vs_contract")?.status).toBe("WARNING");
+  });
+
+  // Regresión del incidente real: el análisis de producción del 2026-09-27
+  // (guardado tal cual en fixtures/) relacionó base ↔ certificado sin factor.
+  const goldenFile = path.join(process.env.USERPROFILE ?? "", "Downloads", "P05 - ID14 - SIPP 3458 - CERTIFICADO Nro. 6.-(2).xlsx");
+  it.skipIf(!fs.existsSync(goldenFile))("imports MAGY at contract scale with the REAL production analysis that once created it at one-house scale", () => {
+    const workbook = parseWorkbook(fs.readFileSync(goldenFile), goldenFile);
+    const productionPlan = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures", "magy-production-import-plan-2026-09-27.json"), "utf8"));
+    const candidate = buildCanonicalImportCandidate(workbook, result(productionPlan));
+    expect(candidate.scale?.factor).toBe(37);
+    expect(candidate.scale?.consistentLines).toBe(53);
+    expect(candidate.budgetItems).toHaveLength(53);
+    expect(candidate.budgetTotal).toBe(3482791500);
+    expect(candidate.budgetContractCheck).toMatchObject({ matches: true, contractAmount: 3482791500 });
+    expect(candidate.certificate.status).toBe("SAFE_TO_APPLY");
+    expect(candidate.certificate.currentTotal).toBe(623788012);
   });
 
   it.skipIf(!fs.existsSync(path.join(process.env.USERPROFILE ?? "", "Downloads", "P05 - ID14 - SIPP 3458 - CERTIFICADO Nro. 6.-(2).xlsx")))

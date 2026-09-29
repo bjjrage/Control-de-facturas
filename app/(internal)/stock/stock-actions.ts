@@ -341,26 +341,31 @@ export async function importarProductos(filas: FilaImport[]): Promise<ResultadoI
   let creados = 0;
   const errores: ResultadoImport["errores"] = [];
 
+  // Filas válidas primero (mismas reglas de antes), listas para insertar.
+  type ValidRow = { fila: number; nombre: string; row: Record<string, unknown> };
+  const validas: ValidRow[] = [];
   for (let i = 0; i < filas.length; i++) {
     const f = filas[i];
     const nombre = f.nombre?.trim();
     const unidad = f.unidad?.trim();
+    const fila = i + 2;
 
     if (!nombre) {
-      errores.push({ fila: i + 2, nombre: nombre || "—", mensaje: "Nombre requerido" });
+      errores.push({ fila, nombre: nombre || "—", mensaje: "Nombre requerido" });
       continue;
     }
     if (!unidad) {
-      errores.push({ fila: i + 2, nombre, mensaje: "Unidad requerida" });
+      errores.push({ fila, nombre, mensaje: "Unidad requerida" });
       continue;
     }
     const categoria_id = f.categoria_nombre
       ? (catMap.get(f.categoria_nombre.toLowerCase().trim()) ?? null)
       : null;
 
-    const { error: pErr } = await supabase
-      .from("productos")
-      .insert({
+    validas.push({
+      fila,
+      nombre,
+      row: {
         empresa_id: profile.empresa_id,
         nombre,
         unidad,
@@ -371,16 +376,28 @@ export async function importarProductos(filas: FilaImport[]): Promise<ResultadoI
         contenido_por_unidad: f.contenido_por_unidad ?? null,
         unidad_base: f.unidad_base?.trim() || null,
         created_by: profile.id,
-      })
-      .select("id")
-      .single();
+      },
+    });
+  }
 
-    if (pErr) {
-      errores.push({ fila: i + 2, nombre, mensaje: pErr.message });
+  // Un INSERT por lote, no uno por fila: con miles de filas, un viaje a la
+  // base por producto se corta por tiempo antes de terminar (confirmado en
+  // vivo: sin esto, una carga de 10.000 filas no sobrevive). Si un lote
+  // entero falla (ej. SKU duplicado en el archivo), se reintenta fila por
+  // fila SOLO ese lote para no perder cuáles exactamente fallaron.
+  const LOTE = 200;
+  for (let start = 0; start < validas.length; start += LOTE) {
+    const lote = validas.slice(start, start + LOTE);
+    const { error: loteErr } = await supabase.from("productos").insert(lote.map((v) => v.row));
+    if (!loteErr) {
+      creados += lote.length;
       continue;
     }
-
-    creados++;
+    for (const v of lote) {
+      const { error: pErr } = await supabase.from("productos").insert(v.row).select("id").single();
+      if (pErr) errores.push({ fila: v.fila, nombre: v.nombre, mensaje: pErr.message });
+      else creados++;
+    }
   }
 
   revalidatePath("/stock");

@@ -9,7 +9,7 @@ const read = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
 describe("field operations QR product contract", () => {
   it("uses construction wording for the project navigation and daily report", () => {
     expect(getProjectFeature("ejecucion")).toMatchObject({
-      label: "Partes de avance",
+      label: "Registro de avance",
       group: "Avance de obra",
     });
     expect(read("app/(internal)/projects/[id]/execution-link-dialog.tsx")).toContain("QR para Residente");

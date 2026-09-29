@@ -1,5 +1,6 @@
 "use client";
 
+import { WeeklyPlanResources } from "./weekly-plan-resources";
 import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import {
   Calendar,
@@ -135,6 +136,12 @@ export function WeeklyPlanSection({ project }: Props) {
   const [planMode, setPlanMode] = useState<PlanMode>("BLOCK");
   // Bloques derivados del presupuesto existente (parent_id + raíz de código).
   const blocks: BlockGroup[] = useMemo(() => buildBlockGroups(budgetItems), [budgetItems]);
+  // Partidas ejecutables (excluye rubros agrupadores, cantidad 0/null): para
+  // "Por partida" un rubro no se ejecuta, se plantea "Por bloque" (arriba).
+  const executableItems = useMemo(
+    () => budgetItems.filter((b) => !isGroupingItem(b)),
+    [budgetItems]
+  );
   const [selectedBlockKey, setSelectedBlockKey] = useState<string | null>(null);
   const [blockPp, setBlockPp] = useState<number>(10);
   const [blockFront, setBlockFront] = useState<string>("Sector A");
@@ -858,16 +865,20 @@ export function WeeklyPlanSection({ project }: Props) {
       {planMode === "ITEM" && (
       <div>
         <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-          1. ¿Qué quiero hacer? — partidas ({budgetItems.length})
+          1. ¿Qué quiero hacer? — partidas ({executableItems.length})
         </div>
         <p className="mt-0.5 text-[11px] text-[var(--muted)]">
           Definí la meta de esta semana por partida y frente. El botón Definir meta está siempre
           visible en cada tarjeta, sin scroll horizontal.
         </p>
 
-        {/* Sin overflow-x-auto a propósito: Definir meta nunca depende del scroll horizontal. */}
+        {/* Sin overflow-x-auto a propósito: Definir meta nunca depende del scroll horizontal.
+            Solo partidas ejecutables: un rubro agrupador (parent_id de otras, sin cantidad
+            propia) no se ejecuta acá — planificarlo es el modo POR BLOQUE de arriba. Mezclarlo
+            en esta lista (confirmado en vivo con MAGY, 11 rubros nuevos) hace que las primeras
+            tarjetas digan "No ejecutable" y parezca que la ejecución por partida se rompió. */}
         <div data-testid="partidas-list" className="mt-3 space-y-3">
-          {budgetItems.map((bItem) => {
+          {executableItems.map((bItem) => {
             const grouping = isGroupingItem(bItem);
             const contractual = Number(bItem.quantity) || 0;
             const executed = executedOf(bItem.id);
@@ -1515,12 +1526,21 @@ export function WeeklyPlanSection({ project }: Props) {
                         <tbody className="divide-y divide-[var(--border)]">
                           {agg.map((m) => (
                             <tr key={m.producto_id}>
-                              <td className="py-1.5 px-2 font-medium text-[var(--foreground)]">{m.producto_nombre}</td>
+                              <td className="py-1.5 px-2 font-medium text-[var(--foreground)]">
+                                {m.producto_nombre}
+                                {m.requiere_atencion_costo && (
+                                  <span className="ml-1.5 text-[10px] text-amber-600 dark:text-amber-300 font-normal">
+                                    (Sin costo promedio — caja subdeclarada)
+                                  </span>
+                                )}
+                              </td>
                               <td className="py-1.5 px-2 text-right">{m.requerido.toLocaleString("es-PY")} {m.unidad_medida}</td>
                               <td className="py-1.5 px-2 text-right text-[#d6f7ec]">{m.cubierto_stock.toLocaleString("es-PY")} {m.unidad_medida}</td>
                               <td className="py-1.5 px-2 text-right text-[#dce9fb]">{m.cubierto_inbound.toLocaleString("es-PY")} {m.unidad_medida}</td>
                               <td className="py-1.5 px-2 text-right font-bold text-[#fff0cf]">{m.faltante.toLocaleString("es-PY")} {m.unidad_medida}</td>
-                              <td className="py-1.5 px-2 text-right font-bold">Gs. {m.caja.toLocaleString("es-PY")}</td>
+                              <td className="py-1.5 px-2 text-right font-bold">
+                                {m.requiere_atencion_costo ? "Costo no disponible" : `Gs. ${m.caja.toLocaleString("es-PY")}`}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -1530,6 +1550,13 @@ export function WeeklyPlanSection({ project }: Props) {
                       requerido − stock − OC = faltante · agregado de las {previewBlock.includedCount}{" "}
                       partidas del bloque
                     </p>
+                    {agg.some((m) => m.requiere_atencion_costo) && (
+                      <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-300">
+                        Costo no disponible en {agg.filter((m) => m.requiere_atencion_costo).length}{" "}
+                        {agg.filter((m) => m.requiere_atencion_costo).length === 1 ? "material" : "materiales"}: esa
+                        parte no suma a la caja total del bloque (no se muestra Gs. 0 como si no hiciera falta comprar).
+                      </p>
+                    )}
                   </div>
                 );
               })()}
@@ -1577,6 +1604,8 @@ export function WeeklyPlanSection({ project }: Props) {
             </div>
           </div>
           )}
+
+          {preview.resource_requirements ? <WeeklyPlanResources data={preview.resource_requirements} /> : null}
 
           {/* Factibilidad */}
           <div className="glass-soft p-4 space-y-2">

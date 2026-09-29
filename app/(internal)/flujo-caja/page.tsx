@@ -1,6 +1,7 @@
 import { requireProfile } from "@/lib/auth";
 import type { FlujoItem } from "@/lib/flujo-caja";
-import { ocurrenciasGastoRecurrente } from "@/lib/flujo-caja";
+import { ocurrenciasGastoRecurrente, planSemanalToFlujoItems } from "@/lib/flujo-caja";
+import { getWeeklyPlanDetailsAction } from "@/app/(internal)/projects/weekly-plan-actions";
 import { createClient } from "@/lib/supabase/server";
 import type {
   CuentaFinanciera,
@@ -135,6 +136,46 @@ export default async function FlujoCajaPage() {
         ref_id: `${g.id}-${oc.fecha}`,
       });
     }
+  }
+
+  // Lo que planifican las semanas por venir (borradores y comprometidos): faltante de
+  // materiales y costo de mano de obra, equipos y subcontratos según las recetas.
+  // Si algo falla se omite el plan afectado; el resto de la proyección no se toca.
+  try {
+    const hoy = new Date().toISOString().slice(0, 10);
+    const { data: planes } = await supabase
+      .from("project_weekly_plans")
+      .select("id, project_id, status, start_date, end_date")
+      .in("status", ["DRAFT", "COMMITTED"])
+      .gte("end_date", hoy)
+      .order("start_date", { ascending: true })
+      .limit(12);
+    const nombreObra = new Map((proyectos ?? []).map((p) => [p.id as string, (p.code ? p.code + " · " : "") + p.name]));
+    const activos = (planes ?? []).filter((pl) => nombreObra.has(pl.project_id as string));
+    const resultados = await Promise.allSettled(
+      activos.map((pl) => getWeeklyPlanDetailsAction({ projectId: pl.project_id as string, planId: pl.id as string }))
+    );
+    resultados.forEach((r, i) => {
+      if (r.status !== "fulfilled" || !r.value.data) return;
+      const calc = r.value.data.calculation;
+      const pl = activos[i];
+      items.push(
+        ...planSemanalToFlujoItems({
+          planId: pl.id as string,
+          projectId: pl.project_id as string,
+          projectName: nombreObra.get(pl.project_id as string) ?? "Obra",
+          status: pl.status as string,
+          startDate: String(pl.start_date),
+          endDate: String(pl.end_date),
+          faltanteMateriales: calc.total_additional_cash_required,
+          costoManoObra: calc.resource_requirements?.total_labor_cost ?? 0,
+          costoEquipos: calc.resource_requirements?.total_equipment_cost ?? 0,
+          costoSubcontratos: calc.resource_requirements?.total_subcontract_cost ?? 0,
+        })
+      );
+    });
+  } catch {
+    // sin planes: el flujo sigue con lo demás
   }
 
   return (

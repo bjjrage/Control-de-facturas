@@ -374,10 +374,31 @@ export function rawNumber(value: unknown): number | null {
 }
 
 /**
- * Copies the rows of every BUDGET block exactly as the model mapped them.
- * It does not judge whether a row "looks like" a total: rows the model did
- * not exclude and that have a description become items, and the arithmetic
- * checks surface anything that does not add up.
+ * Luna asigna UN target por bloque, pero puede acertar el mapeo de columnas
+ * y errar esa etiqueta general — confirmado en vivo con MAGY: la hoja `base`
+ * tiene la ficha de contrato ARRIBA de la tabla de 37 partidas, y Luna
+ * clasificó todo el bloque como PROJECT_METADATA con las columnas de
+ * presupuesto mapeadas al 99% de confianza (código/descripción/unidad/
+ * cantidad/precio), en vez de BUDGET. El extractor no delega esa decisión
+ * en la etiqueta sola: si el bloque tiene el mapeo de un presupuesto, lo
+ * trata como tal — salvo que la etiqueta sea un dominio más específico que
+ * ya reclama esas mismas columnas (CERTIFICATE, SCHEDULE, STAFF, EXECUTION),
+ * donde SÍ hay que respetar la clasificación de Luna.
+ */
+export function isBudgetShapedBlock(block: ImportBlock): boolean {
+  if (block.mainProject === false) return false;
+  if (block.target === "BUDGET") return true;
+  if (block.target !== "PROJECT_METADATA" && block.target !== "OTHER") return false;
+  const roles = new Set(block.columnMappings.map((mapping) => mapping.role));
+  return roles.has("description") && roles.has("quantity") && roles.has("unitPrice");
+}
+
+/**
+ * Copies the rows of every budget-shaped block (see isBudgetShapedBlock)
+ * exactly as the model mapped them. It does not judge whether a row "looks
+ * like" a total: rows the model did not exclude and that have a description
+ * become items, and the arithmetic checks surface anything that does not
+ * add up.
  */
 export function extractBudgetItems(workbook: WorkbookRepresentation, plan: ImportPlan, initialCoverage: ImportBlockCoverage[] = []): { items: WorkbookBudgetItem[]; processedRows: number; excludedRows: number; pendingRows: number; warnings: string[]; coverage: ImportBlockCoverage[] } {
   const items: WorkbookBudgetItem[] = [];
@@ -388,7 +409,7 @@ export function extractBudgetItems(workbook: WorkbookRepresentation, plan: Impor
   let excludedRows = 0;
   let pendingRows = 0;
   for (const block of plan.blocks) {
-    if (block.target !== "BUDGET" || block.mainProject === false) continue;
+    if (!isBudgetShapedBlock(block)) continue;
     const sheet = workbook.sheets.find((item) => item.sheetName === block.sheet);
     if (!sheet) continue;
     const byAddress = new Map(sheet.cells.map((cell) => [cell.address, cell]));

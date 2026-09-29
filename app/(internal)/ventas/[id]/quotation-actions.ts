@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireModule } from "@/lib/auth";
+import { getAppOrigin } from "@/lib/app-origin";
 import { canSendForAcceptance, quotationPortalPath } from "@/lib/quotation";
 import {
   generateQuotationToken,
@@ -11,12 +12,8 @@ import {
 } from "@/lib/quotation-tokens";
 import { SalesDocument, SalesQuotationToken, WorkOrderStatus } from "@/lib/types";
 
-function appBaseUrl() {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
-}
-
-function portalUrlFor(rawToken: string) {
-  const base = appBaseUrl();
+async function portalUrlFor(rawToken: string) {
+  const base = await getAppOrigin();
   return base ? `${base}${quotationPortalPath(rawToken)}` : quotationPortalPath(rawToken);
 }
 
@@ -128,14 +125,14 @@ export async function createQuotationLink(docId: string, formData: FormData) {
   if (preparedForEmail) {
     const subject = encodeURIComponent("Cotización para tu aceptación");
     const body = encodeURIComponent(
-      `Hola,\n\nTe compartimos la cotización para tu revisión y aceptación electrónica:\n${portalUrlFor(rawToken)}\n\nSi el enlace vence o necesitás cambios, avisanos y te enviamos una versión actualizada.\n`
+      `Hola,\n\nTe compartimos la cotización para tu revisión y aceptación electrónica:\n${await portalUrlFor(rawToken)}\n\nSi el enlace vence o necesitás cambios, avisanos y te enviamos una versión actualizada.\n`
     );
     mailto = `mailto:${encodeURIComponent(preparedForEmail)}?subject=${subject}&body=${body}`;
   }
 
   revalidatePath(`/ventas/${docId}`);
   revalidatePath("/proformas");
-  return { error: null as string | null, rawToken, url: portalUrlFor(rawToken), mailto };
+  return { error: null as string | null, rawToken, url: await portalUrlFor(rawToken), mailto };
 }
 
 /**

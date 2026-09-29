@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { extractBudgetItems, rawNumber, validateImportPlan, type ImportPlanCheck } from "./import-plan";
+import { extractBudgetItems, isBudgetShapedBlock, rawNumber, validateImportPlan, type ImportPlanCheck } from "./import-plan";
 import type {
   DetectedField,
   ImportBlock,
@@ -100,10 +100,22 @@ export type CanonicalSchedulePlan = {
   documentedExecuted: { monthIndex: number; ejecutadoPct: number }[];
 };
 
+/** El presupuesto a crear contra el monto de contrato que el propio
+ * documento declara. Si no coincide, la obra NO se crea (ver
+ * createProjectFromWorkbook): así se atrapa cualquier error de escala, venga
+ * de donde venga (incidente MAGY: 1 vivienda en vez de 37). */
+export type BudgetContractCheck = {
+  budgetTotal: number;
+  contractAmount: number;
+  source: string;
+  matches: boolean;
+};
+
 export type CanonicalImportCandidate = {
   budgetItems: WorkbookBudgetItem[];
   budgetQuantitySource: "BUDGET" | "CERTIFICATE_CONTRACT_QUANTITY";
   budgetTotal: number;
+  budgetContractCheck: BudgetContractCheck | null;
   budgetScale: ImportScale | null;
   relationships: CanonicalRelationship[];
   scale: CanonicalScaleAudit | null;
@@ -399,6 +411,27 @@ function relationshipBetween(plan: ImportPlan, budgetIds: Set<string>, certifica
   return links.find((link) => link.relationship.type === "CONTRACT_SCALE") ?? links[0] ?? null;
 }
 
+// The model often links budget and certificate as SAME_ITEMS and states the
+// ×N scale only through another block (MAGY: registro LDO → base ×37, base →
+// certificado sin factor) — then the budget would import at prototype scale
+// (1 house instead of 37). The document's own quantities settle it: if EVERY
+// linked line has cantidad contractual = presupuesto × N, N is the scale.
+// Conservative: needs ≥3 comparable lines covering ≥90% of the linked ones,
+// all within 0.5% of the same ratio, and a ratio clearly different from 1.
+function inferContractScale(budgetLines: WorkbookBudgetItem[], matched: CanonicalCertificateItem[]): number | null {
+  const byRow = new Map(budgetLines.map((line) => [line.source.row, line]));
+  const ratios = matched.flatMap((item) => {
+    const budget = item.matchedBudgetRow === null ? undefined : byRow.get(item.matchedBudgetRow);
+    return budget?.quantity && item.quantityContractual ? [item.quantityContractual / budget.quantity] : [];
+  });
+  if (ratios.length < 3 || ratios.length < matched.length * 0.9) return null;
+  const median = [...ratios].sort((a, b) => a - b)[Math.floor(ratios.length / 2)];
+  if (Math.abs(median - 1) <= 0.005) return null;
+  if (!ratios.every((ratio) => Math.abs(ratio - median) <= median * 0.005)) return null;
+  const whole = Math.round(median);
+  return Math.abs(whole - median) <= median * 0.005 ? whole : median;
+}
+
 export type CanonicalForeignBlock = { label: string; sheet: string; target: string; warnings: string[] };
 
 // ---------------------------------------------------------------------------
@@ -551,7 +584,7 @@ export function buildCanonicalImportCandidate(
   const plan = planCheck.plan;
   const extracted = extractBudgetItems(workbook, plan, planCheck.coverage);
   const mainBlocks = plan.blocks.filter((block) => block.mainProject !== false);
-  const budgetBlocks = mainBlocks.filter((block) => block.target === "BUDGET");
+  const budgetBlocks = mainBlocks.filter(isBudgetShapedBlock);
   const certificateBlocks = mainBlocks.filter((block) => block.target === "CERTIFICATE");
   const checks: CanonicalCheck[] = [];
   const check = (id: string, label: string, ok: boolean, detail: string) => checks.push({ id, label, status: ok ? "OK" : "WARNING", detail });
@@ -590,23 +623,31 @@ export function buildCanonicalImportCandidate(
     if (unmatched.length) certificateIssues.push(`${unmatched.length} línea(s) del certificado sin partida de presupuesto; se importarían sin vínculo.`);
   }
 
-  // Scale declared by the model, verified line by line.
+  // Scale declared by the model — or, if the model linked the blocks without
+  // a factor, the one the document's own quantities prove — verified line by
+  // line.
+  const inferredFactor = link && link.factor === 1 && matched.length ? inferContractScale(budgetLines, matched) : null;
+  const factor = inferredFactor ?? link?.factor ?? 1;
   let scale: CanonicalScaleAudit | null = null;
-  if (link && link.factor !== 1) {
+  if (link && factor !== 1) {
     const budgetByRow = new Map(budgetLines.map((line) => [line.source.row, line]));
     const budgetFor = (item: CanonicalCertificateItem) => (item.matchedBudgetRow === null ? undefined : budgetByRow.get(item.matchedBudgetRow));
     const compared = matched.filter((item) => (budgetFor(item)?.quantity ?? 0) > 0);
-    const consistent = compared.filter((item) => Math.abs(item.quantityContractual / budgetFor(item)!.quantity! - link.factor) <= link.factor * 0.005);
+    const consistent = compared.filter((item) => Math.abs(item.quantityContractual / budgetFor(item)!.quantity! - factor) <= factor * 0.005);
     const fromBlock = plan.blocks.find((block) => block.id === link.relationship.from)!;
     const toBlock = plan.blocks.find((block) => block.id === link.relationship.to)!;
-    scale = { fromBlock: blockLabel(fromBlock), toBlock: blockLabel(toBlock), factor: link.factor, comparedLines: compared.length, consistentLines: consistent.length, evidence: link.relationship.evidence };
-    check("scale_consistency", `Escala ×${formatNumber(scale.factor)} consistente`, consistent.length === compared.length, `${consistent.length}/${compared.length} partidas cumplen cantidad contractual = presupuesto × ${formatNumber(link.factor)}.`);
+    const evidence = inferredFactor
+      ? `Inferida de las cantidades del propio documento: en ${consistent.length}/${compared.length} partidas la cantidad contractual del certificado es la del presupuesto × ${formatNumber(factor)}. El análisis relacionó ambos bloques sin indicar el factor.`
+      : link.relationship.evidence;
+    scale = { fromBlock: blockLabel(fromBlock), toBlock: blockLabel(toBlock), factor, comparedLines: compared.length, consistentLines: consistent.length, evidence };
+    check("scale_consistency", `Escala ×${formatNumber(scale.factor)} consistente`, consistent.length === compared.length, `${consistent.length}/${compared.length} partidas cumplen cantidad contractual = presupuesto × ${formatNumber(factor)}.`);
     const priceMismatch = matched.filter((item) => { const budget = budgetFor(item); return budget?.unitPrice != null && !close(budget.unitPrice, item.unitPrice); });
     check("scale_unit_price", "Precios unitarios iguales en ambas escalas", !priceMismatch.length, priceMismatch.length ? `Difieren en filas ${priceMismatch.map((item) => item.source.row).join(", ")}; se usa el precio del certificado.` : `${matched.length} partidas con el mismo precio unitario.`);
   }
 
   // Certificate arithmetic and declared totals.
   let totals: Pick<CanonicalCertificateAudit, "contractTotal" | "previousTotal" | "currentTotal" | "cumulativeTotal" | "cumulativePercent"> = { contractTotal: null, previousTotal: null, currentTotal: null, cumulativeTotal: null, cumulativePercent: null };
+  const storageMismatches: string[] = [];
   if (items.length) {
     const cumulativeWrong = items.filter((item) => !close(item.quantityPrevious + item.quantityCurrent, item.quantityCumulative, 1e-6));
     check("certificate_quantities", "Certificado: anterior + presente = acumulado", !cumulativeWrong.length, cumulativeWrong.length ? `No cuadran filas ${cumulativeWrong.map((item) => item.source.row).join(", ")}.` : `${items.length}/${items.length} líneas cuadran.`);
@@ -628,6 +669,35 @@ export function buildCanonicalImportCandidate(
       if (!declared) continue;
       check(`certificate_${key}`, `Certificado: ${label.toLowerCase()} = declarado`, declared.verified && close(computed, Number(declared.value), 2), `Calculado ${formatNumber(computed)} · declarado ${formatNumber(Number(declared.value))} (${declared.cell}${declared.verified ? "" : ", no verificado en la celda"}).`);
     }
+
+    // The checks above may use the document's own amount columns. The
+    // database does NOT store those: it regenerates every amount as
+    // round(cantidad × precio) per line. If the mapped quantity or price
+    // columns are wrong while the amount column is right, the checks pass
+    // and the ERP persists a total that exists nowhere in the document (the
+    // MAGY Cert. N°6 incident: 629.818.012 stored vs 623.788.012 in J75).
+    // So what the ERP will store must reproduce the document, to the guaraní,
+    // or the certificate is not applied.
+    const stored = (quantity: (item: CanonicalCertificateItem) => number) =>
+      items.reduce((sum, item) => sum + Math.round(quantity(item) * item.unitPrice), 0);
+    const storedByKind = {
+      previous: stored((item) => item.quantityPrevious),
+      current: stored((item) => item.quantityCurrent),
+    };
+    const documentTotal = (pick: (item: CanonicalCertificateItem) => number | null) =>
+      items.every((item) => pick(item) !== null) ? items.reduce((sum, item) => sum + (pick(item) ?? 0), 0) : null;
+    for (const [kind, label, declaredKey, documentColumn] of [
+      ["previous", "anterior", "declaredPreviousAmount", documentTotal((item) => item.amountPrevious)],
+      ["current", "presente", "declaredCurrentAmount", documentTotal((item) => item.amountCurrent)],
+    ] as const) {
+      const erp = storedByKind[kind];
+      const declared = verifiedKeyValue(workbook, certificateBlocks, declaredKey);
+      const references: string[] = [];
+      if (declared?.verified && Math.abs(erp - Number(declared.value)) > 1) references.push(`total declarado ${formatNumber(Number(declared.value))} (${declared.cell})`);
+      if (documentColumn !== null && Math.abs(erp - documentColumn) > 1) references.push(`suma de la columna de montos ${formatNumber(documentColumn)}`);
+      if (references.length) storageMismatches.push(`El monto ${label} que guardaría el ERP (cantidad × precio por línea = ${formatNumber(erp)}) no reproduce el documento: ${references.join(" · ")}.`);
+    }
+    check("certificate_storage_reproduces_document", "Certificado: lo que guarda el ERP = documento", !storageMismatches.length, storageMismatches.length ? storageMismatches.join(" ") : `Anterior ${formatNumber(storedByKind.previous)} · presente ${formatNumber(storedByKind.current)}, iguales al documento.`);
   }
   for (const item of checks.filter((entry) => entry.status === "WARNING" && (entry.id.startsWith("certificate_") || entry.id.startsWith("scale_")))) certificateIssues.push(`${item.label}: ${item.detail}`);
 
@@ -646,7 +716,7 @@ export function buildCanonicalImportCandidate(
   const certificateScale = certificateBlocks.find((block) => block.scale)?.scale ?? null;
   const certificateStatus: CanonicalCertificateAudit["status"] = !certificateBlocks.length
     ? "NOT_DETECTED"
-    : !items.length || identityProblems.length
+    : !items.length || identityProblems.length || storageMismatches.length
       ? "DETECTED_NOT_APPLIED"
       : certificateIssues.length ? "APPLY_WITH_WARNINGS" : "SAFE_TO_APPLY";
   const certificateReason = certificateStatus === "NOT_DETECTED"
@@ -655,6 +725,8 @@ export function buildCanonicalImportCandidate(
       ? "No se pudieron copiar líneas del certificado desde las columnas indicadas."
       : identityProblems.length
         ? `Falta ${identityProblems.join(", ")} verificable en la planilla; la base de datos lo exige para crear el certificado.`
+        : storageMismatches.length
+          ? `No se aplica: ${storageMismatches.join(" ")} Revisá qué columnas son cantidad y precio y volvé a analizar.`
         : certificateStatus === "APPLY_WITH_WARNINGS"
           ? "El certificado puede importarse, pero tiene observaciones que conviene revisar."
           : "Líneas, totales y vínculos verificados.";
@@ -675,16 +747,40 @@ export function buildCanonicalImportCandidate(
   // Budget to persist: when the model declared a contract scale, the
   // contract quantities are the certificate's own contractual quantities.
   const certificateByBudgetRow = new Map(matched.map((item) => [item.matchedBudgetRow, item]));
-  const scaled = Boolean(link && link.factor !== 1 && matched.length);
+  const scaled = Boolean(link && factor !== 1 && matched.length);
   const canonicalBudgetItems = scaled
     ? budgetLines.map((line) => {
       const certificateLine = certificateByBudgetRow.get(line.source.row ?? null);
       return certificateLine
         ? { ...line, quantity: certificateLine.quantityContractual, unitPrice: certificateLine.unitPrice, subtotal: null }
-        : { ...line, quantity: line.quantity === null ? null : line.quantity * link!.factor, subtotal: null };
+        : { ...line, quantity: line.quantity === null ? null : line.quantity * factor, subtotal: null };
     })
     : budgetLines;
   const budgetTotal = canonicalBudgetItems.reduce((sum, item) => sum + Math.round((item.quantity ?? 0) * (item.unitPrice ?? 0)), 0);
+
+  // Presupuesto vs. contrato del propio documento. Referencia: el monto de
+  // contrato declarado y verificado en su celda; si no hay, el total
+  // contractual del certificado (cantidad contractual × precio), solo si
+  // todas sus líneas quedaron vinculadas al presupuesto.
+  let budgetContractCheck: BudgetContractCheck | null = null;
+  if (canonicalBudgetItems.length && budgetTotal > 0) {
+    const declaredContract = verifiedKeyValue(workbook, certificateBlocks, "contractAmount");
+    const reference = declaredContract?.verified && Number(declaredContract.value) > 0
+      ? { amount: Number(declaredContract.value), source: `monto de contrato declarado (${declaredContract.cell})` }
+      : totals.contractTotal && items.length && matched.length === items.length
+        ? { amount: totals.contractTotal, source: "total contractual del certificado (cantidad contractual × precio)" }
+        : null;
+    if (reference) {
+      const matches = Math.abs(budgetTotal - reference.amount) <= Math.max(1, reference.amount * 0.005);
+      budgetContractCheck = { budgetTotal, contractAmount: reference.amount, source: reference.source, matches };
+      check(
+        "budget_vs_contract",
+        "Presupuesto = monto del contrato",
+        matches,
+        `Presupuesto ${formatNumber(budgetTotal)} · ${reference.source} ${formatNumber(reference.amount)}${matches ? "." : ` (×${formatNumber(Math.round((reference.amount / budgetTotal) * 100) / 100)}). No se crea la obra así: revisar la escala del presupuesto.`}`
+      );
+    }
+  }
 
   const labels = new Map(plan.blocks.map((block) => [block.id, blockLabel(block)]));
   const relationships = (plan.relationships ?? []).map((relationship) => ({ ...relationship, fromLabel: labels.get(relationship.from) ?? relationship.from, toLabel: labels.get(relationship.to) ?? relationship.to }));
@@ -753,6 +849,7 @@ export function buildCanonicalImportCandidate(
     budgetItems: canonicalBudgetItems,
     budgetQuantitySource: scaled ? "CERTIFICATE_CONTRACT_QUANTITY" : "BUDGET",
     budgetTotal,
+    budgetContractCheck,
     budgetScale: budgetBlocks.find((block) => block.scale)?.scale ?? null,
     relationships,
     scale,

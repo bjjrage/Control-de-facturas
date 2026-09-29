@@ -1,20 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, FileSpreadsheet, Link2, LoaderCircle, Sparkles, TriangleAlert, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { createProjectFromWorkbook } from "./actions";
+import { getImportSession, saveImportSessionSnapshot, discardImportSession, type ImportSessionView } from "./import-session-actions";
+import { CertificateWorkbookGrid } from "@/components/certificates/CertificateWorkbookGrid";
+import type { WorkingSnapshot } from "@/lib/certificates/workbook-store";
+import type { ContractRegime } from "@/lib/certificates/import-session-store";
 import type { CanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
 import type { DetectedField, WorkbookInterpretationResult } from "@/lib/workbook-interpretation/types";
-
-type FileMetadata = { name: string; size: number; sheets: string[] };
-
-function formatBytes(bytes: number) {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.ceil(bytes / 1024))} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 function formatMoney(value: number | null) {
   return value === null ? "—" : new Intl.NumberFormat("es-PY", { style: "currency", currency: "PYG", maximumFractionDigits: 0 }).format(value);
@@ -213,6 +210,7 @@ function ResultActions({
   const codeMissing = result.project.code.status === "NOT_FOUND" || result.project.code.value === null;
   const certificate = candidate?.certificate;
   const certificateApplicable = certificate?.status === "SAFE_TO_APPLY" || certificate?.status === "APPLY_WITH_WARNINGS";
+  const contractMismatch = candidate?.budgetContractCheck && !candidate.budgetContractCheck.matches ? candidate.budgetContractCheck : null;
   return (
     <section className="space-y-3 rounded-xl border border-sky-300/20 bg-sky-300/[0.04] p-3">
       <h3 className="text-[11px] font-bold uppercase tracking-widest text-sky-100">Qué se importa al ERP</h3>
@@ -222,6 +220,12 @@ function ResultActions({
           {candidate ? <> · total {formatMoney(candidate.budgetTotal)}</> : null}
           {candidate?.scale ? <span className="text-[var(--muted)]"> · cantidades de contrato (×{candidate.scale.factor} sobre {candidate.scale.fromBlock})</span> : null}
         </p>
+        {contractMismatch ? (
+          <p className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2 text-[12px] text-[var(--error)]">
+            El presupuesto suma {formatMoney(contractMismatch.budgetTotal)} pero el {contractMismatch.source} es {formatMoney(contractMismatch.contractAmount)}.
+            Probablemente quedó a la escala de una unidad y no del contrato completo. No se puede crear la obra así: volvé a analizar la planilla.
+          </p>
+        ) : null}
         {certificate && certificate.status !== "NOT_DETECTED" ? (
           <div className="rounded-lg border border-[var(--border)] bg-white/[0.025] p-2.5">
             <p>
@@ -341,7 +345,7 @@ function ResultActions({
       {error ? <p className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2 text-[12px] text-[var(--error)]">{error}</p> : null}
       <div className="flex justify-between gap-2 pt-1">
         <Button type="button" variant="secondary" onClick={onBack} disabled={creating}>Volver</Button>
-        <Button type="button" onClick={onCreate} disabled={creating || (nameMissing && !nameOverride.trim()) || (codeMissing && !codeOverride.trim())}>
+        <Button type="button" onClick={onCreate} disabled={creating || Boolean(contractMismatch) || (nameMissing && !nameOverride.trim()) || (codeMissing && !codeOverride.trim())}>
           {creating ? "Creando obra…" : "Crear obra con estos datos"}
         </Button>
       </div>
@@ -349,13 +353,25 @@ function ResultActions({
   );
 }
 
+const REGIME_OPTIONS: { value: ContractRegime; label: string }[] = [
+  { value: "PUBLIC_WORK", label: "Obra pública (certificados, anticipo, retención)" },
+  { value: "PRIVATE_WORK", label: "Obra privada" },
+  { value: "OTHER", label: "Otro" },
+];
+
+/**
+ * Fase 4 de "Certificados Excel-first" — obra nueva: el Excel se guarda al
+ * instante en una sesión de importación (sin crear ningún project) y la
+ * planilla se ve y se edita mientras Luna analiza en segundo plano. La obra
+ * se crea recién cuando el usuario confirma. Ver [[excel-first-certificados]],
+ * Corrección 1: "no queremos projects basura, placeholders, nombres
+ * inventados o obras creadas por un archivo equivocado".
+ */
 export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
-  const [file, setFile] = useState<File | null>(null);
-  const [metadata, setMetadata] = useState<FileMetadata | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [result, setResult] = useState<WorkbookInterpretationResult | null>(null);
-  const [candidate, setCandidate] = useState<CanonicalImportCandidate | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [session, setSession] = useState<ImportSessionView | null>(null);
+  const [regime, setRegime] = useState<ContractRegime | "">("");
   const [applyCertificate, setApplyCertificate] = useState(false);
   const [applyStaff, setApplyStaff] = useState(true);
   const [applySchedule, setApplySchedule] = useState(true);
@@ -367,72 +383,105 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
   const [created, setCreated] = useState<{ projectId: string; applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number; weatherDays: number; executionEntries: number }; pending?: { section: string; reason: string }[] } | null>(null);
   const router = useRouter();
 
-  async function inspectFile(selected: File | null) {
-    setFile(selected);
-    setMetadata(null);
-    setResult(null);
-    setCandidate(null);
-    setNameOverride("");
-    setCodeOverride("");
+  // Recién analizado: aplica la misma lógica que antes tenía analyze() —
+  // certificado con observaciones nunca arranca marcado, régimen sugerido
+  // pre-tildado (el usuario lo confirma igual). appliedInterpretationRef
+  // evita re-aplicar esto en cada respuesta del sondeo, solo la primera vez
+  // que una sesión trae interpretación. Se llama desde manejadores de
+  // eventos (no directo en un efecto) para no disparar varios setState
+  // síncronos en el cuerpo de un efecto.
+  const appliedInterpretationRef = useRef<string | null>(null);
+  function applySession(next: ImportSessionView) {
+    setSession(next);
+    if (!next.interpretation || next.id === appliedInterpretationRef.current) return;
+    appliedInterpretationRef.current = next.id;
+    const result = next.interpretation;
+    setApplyCertificate(next.candidate?.certificate.status === "SAFE_TO_APPLY");
+    setApplyStaff(true);
+    setApplySchedule(true);
+    setApplyWeather(true);
+    setApplyExecution(true);
+    setRegime(next.suggestedRegime ?? "");
+    if (result.project.name.value !== null) setNameOverride(String(result.project.name.value));
+    if (result.project.code.value !== null) setCodeOverride(String(result.project.code.value));
+  }
+
+  // Sondeo mientras Luna analiza — cada 3s hasta ANALYZED o ANALYSIS_FAILED.
+  useEffect(() => {
+    if (!session || (session.status !== "UPLOADED" && session.status !== "ANALYZING")) return;
+    const timer = setInterval(async () => {
+      const result = await getImportSession(session.id);
+      if (result.session) applySession(result.session);
+    }, 3000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- applySession cierra sobre estado que no debe reiniciar el sondeo.
+  }, [session?.id, session?.status]);
+
+  async function handleFileSelected(file: File | null) {
+    if (!file) return;
     setError(null);
-    if (!selected) return;
-    if (!/\.(xlsx|xls|csv)$/i.test(selected.name)) {
-      setError("Formato no válido. Subí un archivo .xlsx, .xls o .csv.");
+    if (!/\.xlsx$/i.test(file.name)) {
+      setError("Formato no válido. Subí un archivo .xlsx.");
       return;
     }
-    if (selected.size > 10 * 1024 * 1024) {
+    if (file.size > 10 * 1024 * 1024) {
       setError("El archivo supera el límite de 10 MB.");
       return;
     }
-    try {
-      const XLSX = await import("xlsx");
-      const workbook = XLSX.read(await selected.arrayBuffer(), { type: "array" });
-      if (!workbook.SheetNames.length) throw new Error();
-      setMetadata({ name: selected.name, size: selected.size, sheets: workbook.SheetNames });
-    } catch {
-      setError("No se pudo abrir el archivo. Verificá que no esté dañado o protegido.");
-    }
-  }
-
-  async function analyze() {
-    if (!file || !metadata) return;
-    setAnalyzing(true);
-    setError(null);
+    setUploading(true);
     try {
       const formData = new FormData();
       formData.set("file", file);
-      const response = await fetch("/api/workbook-interpretation", { method: "POST", body: formData });
+      const response = await fetch("/api/import-sessions", { method: "POST", body: formData });
       const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.result) throw new Error(payload?.error ?? "No se pudo analizar la planilla.");
-      const interpreted = payload.result as WorkbookInterpretationResult;
-      const verified = (payload.candidate ?? null) as CanonicalImportCandidate | null;
-      setResult(interpreted);
-      setCandidate(verified);
-      // A verified certificate starts checked; one with observations must be
-      // accepted explicitly.
-      setApplyCertificate(verified?.certificate.status === "SAFE_TO_APPLY");
-      setApplyStaff(true);
-      setApplySchedule(true);
-      setApplyWeather(true);
-      setApplyExecution(true);
-      if (interpreted.project.name.value !== null) setNameOverride(String(interpreted.project.name.value));
-      if (interpreted.project.code.value !== null) setCodeOverride(String(interpreted.project.code.value));
+      if (!response.ok || !payload?.sessionId) throw new Error(payload?.error ?? "No se pudo guardar la planilla.");
+      const result = await getImportSession(payload.sessionId as string);
+      if (result.error || !result.session) throw new Error(result.error ?? "No se pudo abrir la sesión.");
+      applySession(result.session);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo analizar la planilla.");
+      setError(cause instanceof Error ? cause.message : "No se pudo subir la planilla.");
     } finally {
-      setAnalyzing(false);
+      setUploading(false);
     }
   }
 
+  async function handleSaveSnapshot(snapshot: WorkingSnapshot) {
+    if (!session) return { error: "Sesión no encontrada." };
+    const result = await saveImportSessionSnapshot(session.id, snapshot);
+    if (!result.error) {
+      const fresh = await getImportSession(session.id);
+      if (fresh.session) applySession(fresh.session);
+    }
+    return { error: result.error };
+  }
+
+  async function handleReanalyze() {
+    if (!session) return;
+    setError(null);
+    const response = await fetch(`/api/import-sessions/${session.id}/analyze`, { method: "POST" });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      setError(payload?.error ?? "No se pudo reanalizar.");
+      return;
+    }
+    setSession({ ...session, status: "ANALYZING" });
+  }
+
+  async function handleDiscard() {
+    if (!session) return;
+    await discardImportSession(session.id);
+    setSession(null);
+  }
+
   async function createImportedProject() {
-    if (!file || !result) return;
+    if (!session?.interpretation || !regime) return;
     setCreating(true);
     setError(null);
     const formData = new FormData();
-    formData.set("file", file);
-    formData.set("result_json", JSON.stringify(result));
+    formData.set("session_id", session.id);
     formData.set("name_override", nameOverride);
     formData.set("code_override", codeOverride);
+    formData.set("contract_regime", regime);
     formData.set("apply_certificate", applyCertificate ? "1" : "0");
     formData.set("apply_staff", applyStaff ? "1" : "0");
     formData.set("apply_schedule", applySchedule ? "1" : "0");
@@ -485,49 +534,114 @@ export function WorkbookImportPreview({ onBack }: { onBack: () => void }) {
       <div className="flex justify-end"><Button type="button" onClick={() => router.push(`/projects/${created.projectId}`)}>Ir a la obra</Button></div>
     </div>
   );
-  if (result) return (
-    <div className="space-y-4">
-      <ResultPreview result={result} candidate={candidate} />
-      <ResultActions
-        result={result}
-        candidate={candidate}
-        applyCertificate={applyCertificate}
-        onApplyCertificate={setApplyCertificate}
-        applyStaff={applyStaff}
-        onApplyStaff={setApplyStaff}
-        applySchedule={applySchedule}
-        onApplySchedule={setApplySchedule}
-        applyWeather={applyWeather}
-        onApplyWeather={setApplyWeather}
-        applyExecution={applyExecution}
-        onApplyExecution={setApplyExecution}
-        nameOverride={nameOverride}
-        codeOverride={codeOverride}
-        onNameOverride={setNameOverride}
-        onCodeOverride={setCodeOverride}
-        onCreate={() => void createImportedProject()}
-        creating={creating}
-        error={error}
-        onBack={() => { setResult(null); setCandidate(null); setError(null); }}
-      />
-    </div>
-  );
-  return (
+
+  if (!session) return (
     <div className="space-y-4">
       <div className="rounded-xl border border-dashed border-sky-300/25 bg-sky-300/[0.035] p-4 text-center">
         <FileSpreadsheet className="mx-auto text-sky-200" size={26} />
         <p className="mt-2 text-[14px] font-semibold">Subí la planilla que ya usás</p>
-        <p className="mt-1 text-[12px] text-[var(--muted)]">El ERP intentará entender su estructura. No necesitás adaptar headers ni crear una obra antes.</p>
-        <p className="mt-2 text-[11px] text-[var(--muted)]">Funciona mejor con hojas identificables (presupuesto, certificado, cronograma, personal, etc.). Nombres genéricos como “Hoja1”, “Hoja2” pueden quedar sin clasificar — el análisis puede tardar hasta ~2 minutos.</p>
+        <p className="mt-1 text-[12px] text-[var(--muted)]">Se guarda al instante y la ves acá mismo. El ERP la analiza en segundo plano mientras tanto — no necesitás esperar ni adaptar headers.</p>
         <label className="mt-4 inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-[var(--border)] bg-white/[0.06] px-3.5 py-2 text-[12px] font-medium hover:bg-white/[0.1]">
-          <Upload size={14} /> Elegir planilla
-          <input className="sr-only" type="file" accept=".xlsx,.xls,.csv" onChange={(event) => void inspectFile(event.target.files?.[0] ?? null)} />
+          <Upload size={14} /> {uploading ? "Subiendo…" : "Elegir planilla"}
+          <input className="sr-only" type="file" accept=".xlsx" disabled={uploading} onChange={(event) => void handleFileSelected(event.target.files?.[0] ?? null)} />
         </label>
       </div>
       {error ? <p className="rounded-lg border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2 text-[12px] text-[var(--error)]">{error}</p> : null}
-      {metadata ? <div className="rounded-xl border border-[var(--border)] bg-white/[0.025] p-3"><p className="text-[13px] font-semibold">{metadata.name}</p><p className="mt-0.5 text-[11px] text-[var(--muted)]">{formatBytes(metadata.size)} · {metadata.sheets.length} {metadata.sheets.length === 1 ? "hoja" : "hojas"}</p><div className="mt-2 flex flex-wrap gap-1.5">{metadata.sheets.map((sheet) => <span key={sheet} className="rounded-full border border-[var(--border)] px-2 py-1 text-[10px] text-[var(--muted)]">{sheet}</span>)}</div></div> : null}
-      {analyzing ? <div className="flex items-center justify-center gap-2 rounded-xl border border-[var(--border)] py-5 text-[13px] text-[var(--muted)]"><LoaderCircle className="animate-spin" size={16} /> Analizando la estructura de la planilla… puede tardar hasta 2 minutos en obras grandes.</div> : null}
-      <div className="flex justify-between gap-2"><Button type="button" variant="secondary" onClick={onBack} disabled={analyzing}>Volver</Button><Button type="button" onClick={() => void analyze()} disabled={!metadata || analyzing}>{analyzing ? "Analizando…" : "Analizar planilla"}</Button></div>
+      <div className="flex justify-start"><Button type="button" variant="secondary" onClick={onBack} disabled={uploading}>Volver</Button></div>
+    </div>
+  );
+
+  const result = session.interpretation;
+  const candidate = session.candidate;
+  const analyzing = session.status === "UPLOADED" || session.status === "ANALYZING";
+
+  return (
+    <div className="space-y-4">
+      {/* La planilla se ve y se edita ya mismo — no hay project todavía. */}
+      <CertificateWorkbookGrid
+        key={session.id}
+        workbookId={session.id}
+        fileName={session.originalFileName}
+        initialSnapshot={session.workingSnapshot}
+        readOnly={false}
+        onSave={handleSaveSnapshot}
+        heightClassName="h-[50vh] min-h-[320px]"
+        toolbar={
+          <>
+            <span className="flex items-center gap-1.5 truncate">
+              <FileSpreadsheet size={13} /> {session.originalFileName}
+            </span>
+            {analyzing ? (
+              <span className="flex items-center gap-1 text-sky-200"><LoaderCircle className="animate-spin" size={12} /> Luna está analizando la planilla…</span>
+            ) : session.analysisStale ? (
+              <span className="flex items-center gap-1.5 text-amber-200">
+                La estructura cambió desde el análisis.
+                <button type="button" onClick={() => void handleReanalyze()} className="underline">Reanalizar</button>
+              </span>
+            ) : session.status === "ANALYSIS_FAILED" ? (
+              <span className="flex items-center gap-1.5 text-[var(--error)]">
+                {session.analysisError ?? "No se pudo analizar."}
+                <button type="button" onClick={() => void handleReanalyze()} className="underline">Reintentar</button>
+              </span>
+            ) : session.status === "ANALYZED" ? (
+              <button type="button" onClick={() => void handleReanalyze()} className="underline text-[var(--muted)]">Reanalizar</button>
+            ) : null}
+          </>
+        }
+      />
+
+      {analyzing ? (
+        <div className="flex items-center justify-center gap-2 rounded-xl border border-[var(--border)] py-5 text-[13px] text-[var(--muted)]">
+          <LoaderCircle className="animate-spin" size={16} /> Podés editar la planilla mientras tanto — el análisis puede tardar hasta 2 minutos en obras grandes.
+        </div>
+      ) : null}
+
+      {result ? (
+        <>
+          <ResultPreview result={result} candidate={candidate} />
+          <section className="space-y-2 rounded-xl border border-sky-300/20 bg-sky-300/[0.04] p-3">
+            <h3 className="text-[11px] font-bold uppercase tracking-widest text-sky-100">Régimen contractual</h3>
+            <p className="text-[11px] text-[var(--muted)]">Luna solo sugiere; confirmá una vez — después gobierna la visibilidad de Certificados en esta obra.</p>
+            <div className="flex flex-wrap gap-2">
+              {REGIME_OPTIONS.map((option) => (
+                <label key={option.value} className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] cursor-pointer ${regime === option.value ? "border-sky-300/60 bg-sky-300/[0.08]" : "border-[var(--border)]"}`}>
+                  <input type="radio" name="contract_regime" checked={regime === option.value} onChange={() => setRegime(option.value)} />
+                  {option.label}
+                </label>
+              ))}
+            </div>
+          </section>
+          <ResultActions
+            result={result}
+            candidate={candidate}
+            applyCertificate={applyCertificate}
+            onApplyCertificate={setApplyCertificate}
+            applyStaff={applyStaff}
+            onApplyStaff={setApplyStaff}
+            applySchedule={applySchedule}
+            onApplySchedule={setApplySchedule}
+            applyWeather={applyWeather}
+            onApplyWeather={setApplyWeather}
+            applyExecution={applyExecution}
+            onApplyExecution={setApplyExecution}
+            nameOverride={nameOverride}
+            codeOverride={codeOverride}
+            onNameOverride={setNameOverride}
+            onCodeOverride={setCodeOverride}
+            onCreate={() => void createImportedProject()}
+            creating={creating || !regime}
+            error={error ?? (!regime ? "Confirmá el régimen contractual antes de crear la obra." : null)}
+            onBack={() => void handleDiscard()}
+          />
+        </>
+      ) : (
+        <div className="flex justify-between gap-2">
+          <Button type="button" variant="secondary" onClick={() => void handleDiscard()}>Descartar y volver</Button>
+        </div>
+      )}
+      {!analyzing && !result && session.status === "ANALYSIS_FAILED" ? (
+        <p className="text-[12px] text-[var(--error)]">{session.analysisError ?? "No se pudo analizar la planilla."} Podés editarla y reanalizar, o descartar la sesión.</p>
+      ) : null}
     </div>
   );
 }

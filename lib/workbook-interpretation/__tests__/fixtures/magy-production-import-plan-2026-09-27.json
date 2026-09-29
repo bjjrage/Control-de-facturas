@@ -1,0 +1,3263 @@
+{
+  "blocks": [
+    {
+      "id": "cert_julio",
+      "label": "Certificado mensual de obra vial — hoja Julio (otra obra)",
+      "notes": "La hoja repite encabezados de proyecto vial y consigna Abril 2024 en la cabecera, pese al nombre Julio.",
+      "scale": {
+        "basis": "CONTRACT_TOTAL",
+        "units": null,
+        "evidence": "Hoja vial con cantidades contractuales y certificadas; no pertenece al proyecto habitacional principal."
+      },
+      "sheet": "Julio",
+      "target": "CERTIFICATE",
+      "warnings": [
+        "La identificación de la hoja corresponde al contrato vial 4600000125/2024 y al certificado N.º 1, no a la obra principal de 37 viviendas."
+      ],
+      "keyValues": [
+        {
+          "key": "certificateNumber",
+          "cell": "L2",
+          "notes": "La hoja indica certificado N.º 1.",
+          "value": 1
+        },
+        {
+          "key": "contractAmount",
+          "cell": "M10",
+          "notes": "Monto de contrato de la obra vial.",
+          "value": 3611283730
+        },
+        {
+          "key": "declaredPreviousAmount",
+          "cell": "K31",
+          "notes": "Total anterior con IVA.",
+          "value": 1666781147
+        },
+        {
+          "key": "declaredCurrentAmount",
+          "cell": "L31",
+          "notes": "Total presente con IVA.",
+          "value": 1052796917
+        },
+        {
+          "key": "declaredCumulativeAmount",
+          "cell": "M31",
+          "notes": "Total acumulado con IVA.",
+          "value": 2719578064
+        },
+        {
+          "key": "declaredTotal",
+          "cell": "P31",
+          "notes": "Total contractual de la tabla.",
+          "value": 3611283730
+        }
+      ],
+      "staffRows": [],
+      "confidence": 0.99,
+      "dataRowEnd": 33,
+      "footerRows": [],
+      "mainProject": false,
+      "needsReview": true,
+      "sourceRange": "B14:Q33",
+      "weatherRows": [],
+      "dataRowStart": 17,
+      "excludedRows": [
+        {
+          "row": 17,
+          "reason": "Encabezado de sección, no es una partida."
+        }
+      ],
+      "headerRowEnd": 16,
+      "subtotalRows": [
+        31,
+        32,
+        33
+      ],
+      "columnMappings": [
+        {
+          "role": "code",
+          "notes": "Número de partida.",
+          "column": "B",
+          "confidence": 0.98
+        },
+        {
+          "role": "description",
+          "notes": "Incluye encabezados de sección.",
+          "column": "C",
+          "confidence": 0.99
+        },
+        {
+          "role": "unit",
+          "notes": "",
+          "column": "D",
+          "confidence": 0.99
+        },
+        {
+          "role": "quantity",
+          "notes": "Cantidad contractual.",
+          "column": "E",
+          "confidence": 0.99
+        },
+        {
+          "role": "previousQuantity",
+          "notes": "Cantidad certificada anterior.",
+          "column": "G",
+          "confidence": 0.98
+        },
+        {
+          "role": "currentQuantity",
+          "notes": "Cantidad certificada en la hoja.",
+          "column": "H",
+          "confidence": 0.98
+        },
+        {
+          "role": "cumulativeQuantity",
+          "notes": "",
+          "column": "I",
+          "confidence": 0.99
+        },
+        {
+          "role": "unitPrice",
+          "notes": "",
+          "column": "J",
+          "confidence": 0.99
+        },
+        {
+          "role": "previousAmount",
+          "notes": "",
+          "column": "K",
+          "confidence": 0.99
+        },
+        {
+          "role": "currentAmount",
+          "notes": "",
+          "column": "L",
+          "confidence": 0.99
+        },
+        {
+          "role": "cumulativeAmount",
+          "notes": "",
+          "column": "M",
+          "confidence": 0.99
+        },
+        {
+          "role": "percentage",
+          "notes": "Avance acumulado de cantidades.",
+          "column": "N",
+          "confidence": 0.95
+        },
+        {
+          "role": "subtotal",
+          "notes": "Importe contractual por partida.",
+          "column": "P",
+          "confidence": 0.98
+        }
+      ],
+      "headerRowStart": 14,
+      "scheduleSeries": [],
+      "repeatedHeaderRows": []
+    },
+    {
+      "id": "cert_junio",
+      "label": "Certificado mensual de obra vial — hoja Junio (otra obra)",
+      "notes": "La cabecera consigna Abril 2024 pese al nombre Junio.",
+      "scale": {
+        "basis": "CONTRACT_TOTAL",
+        "units": null,
+        "evidence": "Cantidades contractuales y certificadas de la obra vial ajena al proyecto principal."
+      },
+      "sheet": "Junio",
+      "target": "CERTIFICATE",
+      "warnings": [
+        "La identificación de la hoja corresponde al contrato vial 4600000125/2024 y al certificado N.º 1, no a la obra principal de 37 viviendas."
+      ],
+      "keyValues": [
+        {
+          "key": "certificateNumber",
+          "cell": "L2",
+          "notes": "La hoja indica certificado N.º 1.",
+          "value": 1
+        },
+        {
+          "key": "contractAmount",
+          "cell": "M10",
+          "notes": "Monto de contrato de la obra vial.",
+          "value": 3611283730
+        },
+        {
+          "key": "declaredPreviousAmount",
+          "cell": "K31",
+          "notes": "Total anterior con IVA.",
+          "value": 589188099
+        },
+        {
+          "key": "declaredCurrentAmount",
+          "cell": "L31",
+          "notes": "Total presente con IVA.",
+          "value": 1077593048
+        },
+        {
+          "key": "declaredCumulativeAmount",
+          "cell": "M31",
+          "notes": "Total acumulado con IVA.",
+          "value": 1666781147
+        },
+        {
+          "key": "declaredTotal",
+          "cell": "P31",
+          "notes": "Total contractual de la tabla.",
+          "value": 3611283730
+        }
+      ],
+      "staffRows": [],
+      "confidence": 0.99,
+      "dataRowEnd": 33,
+      "footerRows": [],
+      "mainProject": false,
+      "needsReview": true,
+      "sourceRange": "B14:Q33",
+      "weatherRows": [],
+      "dataRowStart": 17,
+      "excludedRows": [
+        {
+          "row": 17,
+          "reason": "Encabezado de sección, no es una partida."
+        }
+      ],
+      "headerRowEnd": 16,
+      "subtotalRows": [
+        31,
+        32,
+        33
+      ],
+      "columnMappings": [
+        {
+          "role": "code",
+          "notes": "Número de partida.",
+          "column": "B",
+          "confidence": 0.98
+        },
+        {
+          "role": "description",
+          "notes": "Incluye encabezados de sección.",
+          "column": "C",
+          "confidence": 0.99
+        },
+        {
+          "role": "unit",
+          "notes": "",
+          "column": "D",
+          "confidence": 0.99
+        },
+        {
+          "role": "quantity",
+          "notes": "Cantidad contractual.",
+          "column": "E",
+          "confidence": 0.99
+        },
+        {
+          "role": "previousQuantity",
+          "notes": "",
+          "column": "G",
+          "confidence": 0.98
+        },
+        {
+          "role": "currentQuantity",
+          "notes": "",
+          "column": "H",
+          "confidence": 0.98
+        },
+        {
+          "role": "cumulativeQuantity",
+          "notes": "",
+          "column": "I",
+          "confidence": 0.99
+        },
+        {
+          "role": "unitPrice",
+          "notes": "",
+          "column": "J",
+          "confidence": 0.99
+        },
+        {
+          "role": "previousAmount",
+          "notes": "",
+          "column": "K",
+          "confidence": 0.99
+        },
+        {
+          "role": "currentAmount",
+          "notes": "",
+          "column": "L",
+          "confidence": 0.99
+        },
+        {
+          "role": "cumulativeAmount",
+          "notes": "",
+          "column": "M",
+          "confidence": 0.99
+        },
+        {
+          "role": "percentage",
+          "notes": "Avance acumulado de cantidades.",
+          "column": "N",
+          "confidence": 0.95
+        },
+        {
+          "role": "subtotal",
+          "notes": "Importe contractual por partida.",
+          "column": "P",
+          "confidence": 0.98
+        }
+      ],
+      "headerRowStart": 14,
+      "scheduleSeries": [],
+      "repeatedHeaderRows": []
+    },
+    {
+      "id": "cert_mayo",
+      "label": "Certificado mensual de obra vial — hoja Mayo (otra obra)",
+      "notes": "La cabecera consigna Abril 2024 pese al nombre Mayo.",
+      "scale": {
+        "basis": "CONTRACT_TOTAL",
+        "units": null,
+        "evidence": "Cantidades contractuales y certificadas de la obra vial ajena al proyecto principal."
+      },
+      "sheet": "Mayo",
+      "target": "CERTIFICATE",
+      "warnings": [
+        "La identificación de la hoja corresponde al contrato vial 4600000125/2024 y al certificado N.º 1, no a la obra principal de 37 viviendas."
+      ],
+      "keyValues": [
+        {
+          "key": "certificateNumber",
+          "cell": "L2",
+          "notes": "La hoja indica certificado N.º 1.",
+          "value": 1
+        },
+        {
+          "key": "contractAmount",
+          "cell": "M10",
+          "notes": "Monto de contrato de la obra vial.",
+          "value": 3611283730
+        },
+        {
+          "key": "declaredPreviousAmount",
+          "cell": "K31",
+          "notes": "Total anterior con IVA.",
+          "value": 28265694
+        },
+        {
+          "key": "declaredCurrentAmount",
+          "cell": "L31",
+          "notes": "Total presente con IVA.",
+          "value": 560922405
+        },
+        {
+          "key": "declaredCumulativeAmount",
+          "cell": "M31",
+          "notes": "Total acumulado con IVA.",
+          "value": 589188099
+        },
+        {
+          "key": "declaredTotal",
+          "cell": "P31",
+          "notes": "Total contractual de la tabla.",
+          "value": 3611283730
+        }
+      ],
+      "staffRows": [],
+      "confidence": 0.99,
+      "dataRowEnd": 33,
+      "footerRows": [],
+      "mainProject": false,
+      "needsReview": true,
+      "sourceRange": "B14:Q33",
+      "weatherRows": [],
+      "dataRowStart": 17,
+      "excludedRows": [
+        {
+          "row": 17,
+          "reason": "Encabezado de sección, no es una partida."
+        }
+      ],
+      "headerRowEnd": 16,
+      "subtotalRows": [
+        31,
+        32,
+        33
+      ],
+      "columnMappings": [
+        {
+          "role": "code",
+          "notes": "Número de partida.",
+          "column": "B",
+          "confidence": 0.98
+        },
+        {
+          "role": "description",
+          "notes": "Incluye encabezados de sección.",
+          "column": "C",
+          "confidence": 0.99
+        },
+        {
+          "role": "unit",
+          "notes": "",
+          "column": "D",
+          "confidence": 0.99
+        },
+        {
+          "role": "quantity",
+          "notes": "Cantidad contractual.",
+          "column": "E",
+          "confidence": 0.99
+        },
+        {
+          "role": "previousQuantity",
+          "notes": "",
+          "column": "G",
+          "confidence": 0.98
+        },
+        {
+          "role": "currentQuantity",
+          "notes": "",
+          "column": "H",
+          "confidence": 0.98
+        },
+        {
+          "role": "cumulativeQuantity",
+          "notes": "",
+          "column": "I",
+          "confidence": 0.99
+        },
+        {
+          "role": "unitPrice",
+          "notes": "",
+          "column": "J",
+          "confidence": 0.99
+        },
+        {
+          "role": "previousAmount",
+          "notes": "",
+          "column": "K",
+          "confidence": 0.99
+        },
+        {
+          "role": "currentAmount",
+          "notes": "",
+          "column": "L",
+          "confidence": 0.99
+        },
+        {
+          "role": "cumulativeAmount",
+          "notes": "",
+          "column": "M",
+          "confidence": 0.99
+        },
+        {
+          "role": "percentage",
+          "notes": "",
+          "column": "N",
+          "confidence": 0.95
+        },
+        {
+          "role": "subtotal",
+          "notes": "Importe contractual por partida.",
+          "column": "P",
+          "confidence": 0.98
+        }
+      ],
+      "headerRowStart": 14,
+      "scheduleSeries": [],
+      "repeatedHeaderRows": []
+    },
+    {
+      "id": "cert_abril",
+      "label": "Certificado mensual de obra vial — hoja Abril (otra obra)",
+      "notes": "La cabecera y el nombre de la hoja coinciden en Abril 2024.",
+      "scale": {
+        "basis": "CONTRACT_TOTAL",
+        "units": null,
+        "evidence": "Cantidades contractuales y certificadas de la obra vial ajena al proyecto principal."
+      },
+      "sheet": "Abril",
+      "target": "CERTIFICATE",
+      "warnings": [
+        "La identificación de la hoja corresponde al contrato vial 4600000125/2024 y al certificado N.º 1, no a la obra principal de 37 viviendas."
+      ],
+      "keyValues": [
+        {
+          "key": "certificateNumber",
+          "cell": "L2",
+          "notes": "La hoja indica certificado N.º 1.",
+          "value": 1
+        },
+        {
+          "key": "contractAmount",
+          "cell": "M10",
+          "notes": "Monto de contrato de la obra vial.",
+          "value": 3611283730
+        },
+        {
+          "key": "declaredPreviousAmount",
+          "cell": "K31",
+          "notes": "Total anterior con IVA.",
+          "value": 0
+        },
+        {
+          "key": "declaredCurrentAmount",
+          "cell": "L31",
+          "notes": "Total presente con IVA.",
+          "value": 28265694
+        },
+        {
+          "key": "declaredCumulativeAmount",
+          "cell": "M31",
+          "notes": "Total acumulado con IVA.",
+          "value": 28265694
+        },
+        {
+          "key": "declaredTotal",
+          "cell": "P31",
+          "notes": "Total contractual de la tabla.",
+          "value": 3611283730
+        }
+      ],
+      "staffRows": [],
+      "confidence": 0.99,
+      "dataRowEnd": 33,
+      "footerRows": [],
+      "mainProject": false,
+      "needsReview": true,
+      "sourceRange": "B14:Q33",
+      "weatherRows": [],
+      "dataRowStart": 17,
+      "excludedRows": [
+        {
+          "row": 17,
+          "reason": "Encabezado de sección, no es una partida."
+        }
+      ],
+      "headerRowEnd": 16,
+      "subtotalRows": [
+        31,
+        32,
+        33
+      ],
+      "columnMappings": [
+        {
+          "role": "code",
+          "notes": "Número de partida.",
+          "column": "B",
+          "confidence": 0.98
+        },
+        {
+          "role": "description",
+          "notes": "Incluye encabezados de sección.",
+          "column": "C",
+          "confidence": 0.99
+        },
+        {
+          "role": "unit",
+          "notes": "",
+          "column": "D",
+          "confidence": 0.99
+        },
+        {
+          "role": "quantity",
+          "notes": "Cantidad contractual.",
+          "column": "E",
+          "confidence": 0.99
+        },
+        {
+          "role": "previousQuantity",
+          "notes": "",
+          "column": "G",
+          "confidence": 0.98
+        },
+        {
+          "role": "currentQuantity",
+          "notes": "",
+          "column": "H",
+          "confidence": 0.98
+        },
+        {
+          "role": "cumulativeQuantity",
+          "notes": "",
+          "column": "I",
+          "confidence": 0.99
+        },
+        {
+          "role": "unitPrice",
+          "notes": "",
+          "column": "J",
+          "confidence": 0.99
+        },
+        {
+          "role": "previousAmount",
+          "notes": "",
+          "column": "K",
+          "confidence": 0.99
+        },
+        {
+          "role": "currentAmount",
+          "notes": "",
+          "column": "L",
+          "confidence": 0.99
+        },
+        {
+          "role": "cumulativeAmount",
+          "notes": "",
+          "column": "M",
+          "confidence": 0.99
+        },
+        {
+          "role": "percentage",
+          "notes": "",
+          "column": "N",
+          "confidence": 0.95
+        },
+        {
+          "role": "subtotal",
+          "notes": "Importe contractual por partida.",
+          "column": "P",
+          "confidence": 0.98
+        }
+      ],
+      "headerRowStart": 14,
+      "scheduleSeries": [],
+      "repeatedHeaderRows": []
+    },
+    {
+      "id": "presupuesto_base",
+      "label": "Presupuesto base de una vivienda y totales para 37 viviendas",
+      "notes": "El proyecto y los valores coinciden con la identificación principal del archivo.",
+      "scale": {
+        "basis": "PROTOTYPE_UNIT",
+        "units": 1,
+        "evidence": "D contiene cantidades previstas por vivienda; F= D×E y G=F×viviendas. El nombre definido viviendas refiere a base!J6=37."
+      },
+      "sheet": "base",
+      "target": "BUDGET",
+      "warnings": [],
+      "keyValues": [
+        {
+          "key": "unitCount",
+          "cell": "J6",
+          "notes": "Cantidad de viviendas.",
+          "value": 37
+        },
+        {
+          "key": "contractAmount",
+          "cell": "G65",
+          "notes": "Total para 37 viviendas, con fórmulas por ítem escaladas por viviendas.",
+          "value": 3482791500
+        },
+        {
+          "key": "declaredTotal",
+          "cell": "F65",
+          "notes": "Total de la escala de una vivienda.",
+          "value": 94129500
+        }
+      ],
+      "staffRows": [],
+      "confidence": 0.99,
+      "dataRowEnd": 64,
+      "footerRows": [
+        66,
+        70,
+        71,
+        73,
+        77,
+        78,
+        80,
+        84,
+        85
+      ],
+      "mainProject": true,
+      "needsReview": false,
+      "sourceRange": "A11:H65",
+      "weatherRows": [],
+      "dataRowStart": 12,
+      "excludedRows": [],
+      "headerRowEnd": 11,
+      "subtotalRows": [
+        65
+      ],
+      "columnMappings": [
+        {
+          "role": "code",
+          "notes": "Número de ítem.",
+          "column": "A",
+          "confidence": 0.99
+        },
+        {
+          "role": "description",
+          "notes": "",
+          "column": "B",
+          "confidence": 0.99
+        },
+        {
+          "role": "unit",
+          "notes": "",
+          "column": "C",
+          "confidence": 0.99
+        },
+        {
+          "role": "quantity",
+          "notes": "Cantidad prevista por vivienda tipo.",
+          "column": "D",
+          "confidence": 0.99
+        },
+        {
+          "role": "unitPrice",
+          "notes": "Precio unitario de la vivienda tipo.",
+          "column": "E",
+          "confidence": 0.99
+        },
+        {
+          "role": "subtotal",
+          "notes": "Precio parcial por vivienda; fórmula cantidad × precio unitario.",
+          "column": "F",
+          "confidence": 0.99
+        },
+        {
+          "role": "subtotal",
+          "notes": "Precio de partida para 37 viviendas; fórmula enlazada al subtotal y al nombre definido viviendas.",
+          "column": "G",
+          "confidence": 0.99
+        },
+        {
+          "role": "percentage",
+          "notes": "Incidencia del ítem en el monto total del contrato.",
+          "column": "H",
+          "confidence": 0.99
+        }
+      ],
+      "headerRowStart": 11,
+      "scheduleSeries": [],
+      "repeatedHeaderRows": []
+    },
+    {
+      "id": "registro_ejecucion",
+      "label": "Libro de obra: partidas ejecutadas durante el período",
+      "notes": "El período y el certificado se enlazan a base!A7 y base!A6; las filas de firma posteriores al rango de partidas no son registros de ejecución.",
+      "scale": {
+        "basis": "PERIOD",
+        "units": 37,
+        "evidence": "Encabezados E/G indican cantidades de 37 viviendas y presente período; las columnas J:AT son el detalle unitario que suma en I."
+      },
+      "sheet": "registro LDO",
+      "target": "EXECUTION",
+      "warnings": [],
+      "keyValues": [
+        {
+          "key": "unitCount",
+          "cell": "E12",
+          "notes": "Cantidad de viviendas del contrato; también se define en base!J6.",
+          "value": 37
+        }
+      ],
+      "staffRows": [],
+      "confidence": 0.99,
+      "dataRowEnd": 64,
+      "footerRows": [
+        65,
+        69,
+        70,
+        72,
+        76,
+        77,
+        79,
+        83,
+        84
+      ],
+      "mainProject": true,
+      "needsReview": false,
+      "sourceRange": "A11:AT64",
+      "weatherRows": [],
+      "dataRowStart": 12,
+      "excludedRows": [],
+      "headerRowEnd": 11,
+      "subtotalRows": [],
+      "columnMappings": [
+        {
+          "role": "code",
+          "notes": "Ítem enlazado al presupuesto base.",
+          "column": "A",
+          "confidence": 0.99
+        },
+        {
+          "role": "description",
+          "notes": "",
+          "column": "B",
+          "confidence": 0.99
+        },
+        {
+          "role": "unit",
+          "notes": "",
+          "column": "C",
+          "confidence": 0.99
+        },
+        {
+          "role": "currentQuantity",
+          "notes": "Cantidad ejecutada en este período a escala del contrato. Las columnas J:AT contienen el detalle por vivienda y no se mapean.",
+          "column": "G",
+          "confidence": 0.99
+        }
+      ],
+      "headerRowStart": 11,
+      "scheduleSeries": [],
+      "repeatedHeaderRows": []
+    },
+    {
+      "id": "acta_medicion",
+      "label": "Acta de medición que respalda el certificado N.º 6",
+      "notes": "Documento de soporte; no es el certificado financiero importable.",
+      "scale": {
+        "basis": "CONTRACT_TOTAL",
+        "units": 37,
+        "evidence": "Las partidas son mediciones agregadas del contrato; los valores enlazan por fórmula al registro LDO."
+      },
+      "sheet": "ACTA",
+      "target": "OTHER",
+      "warnings": [
+        "El texto de la narración del acta indica reunión el 20 de julio de 2026, mientras que el período declarado comienza el 21 de julio de 2026."
+      ],
+      "keyValues": [
+        {
+          "key": "certificateNumber",
+          "cell": "A6",
+          "notes": "Certificado de ejecución de obras N.º 6.",
+          "value": 6
+        },
+        {
+          "key": "periodStart",
+          "cell": "A9",
+          "notes": "Fecha inicial del período indicado en el texto.",
+          "value": "2026-07-21"
+        },
+        {
+          "key": "periodEnd",
+          "cell": "A9",
+          "notes": "Fecha final del período indicado en el texto.",
+          "value": "2026-08-20"
+        },
+        {
+          "key": "unitCount",
+          "cell": "A4",
+          "notes": "Cantidad incorporada en la identificación del paquete.",
+          "value": 37
+        }
+      ],
+      "staffRows": [],
+      "confidence": 0.99,
+      "dataRowEnd": 66,
+      "footerRows": [
+        67,
+        71,
+        72,
+        74,
+        78,
+        79,
+        81,
+        85,
+        86
+      ],
+      "mainProject": true,
+      "needsReview": true,
+      "sourceRange": "A13:N66",
+      "weatherRows": [],
+      "dataRowStart": 14,
+      "excludedRows": [],
+      "headerRowEnd": 13,
+      "subtotalRows": [],
+      "columnMappings": [
+        {
+          "role": "code",
+          "notes": "Ítem enlazado al libro de obra.",
+          "column": "A",
+          "confidence": 0.98
+        },
+        {
+          "role": "description",
+          "notes": "",
+          "column": "B",
+          "confidence": 0.99
+        },
+        {
+          "role": "unit",
+          "notes": "",
+          "column": "C",
+          "confidence": 0.99
+        },
+        {
+          "role": "previousQuantity",
+          "notes": "",
+          "column": "D",
+          "confidence": 0.99
+        },
+        {
+          "role": "currentQuantity",
+          "notes": "",
+          "column": "E",
+          "confidence": 0.99
+        },
+        {
+          "role": "cumulativeQuantity",
+          "notes": "",
+          "column": "F",
+          "confidence": 0.99
+        }
+      ],
+      "headerRowStart": 13,
+      "scheduleSeries": [],
+      "repeatedHeaderRows": []
+    },
+    {
+      "id": "medicion_copiada",
+      "label": "Planillas de medición por vivienda — Paquete 01 / ID 01 (otra obra)",
+      "notes": "Bloque de mediciones con secciones repetidas por rubro; se conserva como evidencia no importable para el proyecto principal.",
+      "scale": {
+        "basis": "PROTOTYPE_UNIT",
+        "units": 16,
+        "evidence": "El encabezado identifica explícitamente 16 viviendas y presenta detalle por vivienda."
+      },
+      "sheet": "MEDICIÓN",
+      "target": "MEASUREMENT",
+      "warnings": [
+        "La cabecera identifica Paquete 01, ID 01, SIPP 3389, Itaugua y 16 viviendas; no corresponde al Paquete 05 / ID 14 / SIPP 3458, de 37 viviendas."
+      ],
+      "keyValues": [
+        {
+          "key": "unitCount",
+          "cell": "A6",
+          "notes": "Cantidad de viviendas del proyecto distinto.",
+          "value": 16
+        }
+      ],
+      "staffRows": [],
+      "confidence": 0.99,
+      "dataRowEnd": 774,
+      "footerRows": [],
+      "mainProject": false,
+      "needsReview": true,
+      "sourceRange": "A16:E774",
+      "weatherRows": [],
+      "dataRowStart": 21,
+      "excludedRows": [
+        {
+          "row": 1,
+          "reason": "Celda con error y no forma parte de la tabla de mediciones."
+        }
+      ],
+      "headerRowEnd": 20,
+      "subtotalRows": [
+        38,
+        61,
+        84,
+        107,
+        130,
+        153,
+        176,
+        199,
+        222,
+        245,
+        268,
+        291,
+        314,
+        337,
+        360,
+        383,
+        406,
+        429,
+        452,
+        475,
+        498,
+        521,
+        544,
+        567,
+        590,
+        613,
+        636,
+        659,
+        682,
+        705,
+        728,
+        751,
+        774
+      ],
+      "columnMappings": [
+        {
+          "role": "description",
+          "notes": "Identificador de vivienda, ítem y rótulos de totales; formato heterogéneo.",
+          "column": "A",
+          "confidence": 0.99
+        },
+        {
+          "role": "previousQuantity",
+          "notes": "Cantidad anterior por vivienda.",
+          "column": "B",
+          "confidence": 0.98
+        },
+        {
+          "role": "currentQuantity",
+          "notes": "Cantidad presente por vivienda.",
+          "column": "C",
+          "confidence": 0.98
+        },
+        {
+          "role": "cumulativeQuantity",
+          "notes": "Cantidad acumulada por vivienda.",
+          "column": "D",
+          "confidence": 0.98
+        },
+        {
+          "role": "description",
+          "notes": "Encabezados de cantidad/observación; celdas de observación.",
+          "column": "E",
+          "confidence": 0.8
+        }
+      ],
+      "headerRowStart": 16,
+      "scheduleSeries": [],
+      "repeatedHeaderRows": [
+        18,
+        19,
+        20,
+        41,
+        42,
+        43,
+        64,
+        65,
+        66,
+        87,
+        88,
+        89,
+        110,
+        111,
+        112,
+        133,
+        134,
+        135,
+        156,
+        157,
+        158,
+        179,
+        180,
+        181,
+        202,
+        203,
+        204,
+        225,
+        226,
+        227,
+        248,
+        249,
+        250,
+        271,
+        272,
+        273,
+        294,
+        295,
+        296,
+        317,
+        318,
+        319,
+        340,
+        341,
+        342,
+        363,
+        364,
+        365,
+        386,
+        387,
+        388,
+        409,
+        410,
+        411,
+        432,
+        433,
+        434,
+        455,
+        456,
+        457,
+        478,
+        479,
+        480,
+        501,
+        502,
+        503,
+        524,
+        525,
+        526,
+        547,
+        548,
+        549,
+        570,
+        571,
+        572,
+        593,
+        594,
+        595,
+        616,
+        617,
+        618,
+        639,
+        640,
+        641,
+        662,
+        663,
+        664,
+        685,
+        686,
+        687,
+        708,
+        709,
+        710,
+        731,
+        732,
+        733,
+        754,
+        755,
+        756
+      ]
+    },
+    {
+      "id": "certificado_vigente",
+      "label": "Certificado de ejecución de obras N.º 6 — 37 viviendas",
+      "notes": "Es el único certificado vigente de la obra principal. El resumen general documenta el certificado anterior N.º 5.",
+      "scale": {
+        "basis": "CONTRACT_TOTAL",
+        "units": 37,
+        "evidence": "Las cantidades contractuales y certificadas están agregadas para 37 viviendas; las fórmulas y enlaces a base, ACTA y registro LDO confirman la escala."
+      },
+      "sheet": "CERTIFICADO",
+      "target": "CERTIFICATE",
+      "warnings": [],
+      "keyValues": [
+        {
+          "key": "certificateNumber",
+          "cell": "A6",
+          "notes": "Certificado N.º 6.",
+          "value": 6
+        },
+        {
+          "key": "periodStart",
+          "cell": "A9",
+          "notes": "Inicio del período.",
+          "value": "2026-07-21"
+        },
+        {
+          "key": "periodEnd",
+          "cell": "A9",
+          "notes": "Fin del período.",
+          "value": "2026-08-20"
+        },
+        {
+          "key": "contractAmount",
+          "cell": "C13",
+          "notes": "Monto del contrato con IVA.",
+          "value": 3482791500
+        },
+        {
+          "key": "declaredPreviousAmount",
+          "cell": "I75",
+          "notes": "Total certificado anterior a la fecha, con IVA.",
+          "value": 1860462510
+        },
+        {
+          "key": "declaredCurrentAmount",
+          "cell": "J75",
+          "notes": "Total de los trabajos del presente certificado, con IVA.",
+          "value": 623788012
+        },
+        {
+          "key": "declaredCumulativeAmount",
+          "cell": "K75",
+          "notes": "Total acumulado certificado, con IVA.",
+          "value": 2484250522
+        },
+        {
+          "key": "declaredTotal",
+          "cell": "K75",
+          "notes": "Total acumulado declarado en el bloque.",
+          "value": 2484250522
+        },
+        {
+          "key": "unitCount",
+          "cell": "A4",
+          "notes": "Cantidad de viviendas identificada en el encabezado del proyecto.",
+          "value": 37
+        }
+      ],
+      "staffRows": [],
+      "confidence": 0.99,
+      "dataRowEnd": 74,
+      "footerRows": [
+        78,
+        82,
+        83,
+        85,
+        89,
+        90
+      ],
+      "mainProject": true,
+      "needsReview": false,
+      "sourceRange": "A19:M77",
+      "weatherRows": [],
+      "dataRowStart": 22,
+      "excludedRows": [],
+      "headerRowEnd": 21,
+      "subtotalRows": [
+        75,
+        76,
+        77
+      ],
+      "columnMappings": [
+        {
+          "role": "code",
+          "notes": "Ítem.",
+          "column": "A",
+          "confidence": 0.99
+        },
+        {
+          "role": "description",
+          "notes": "",
+          "column": "B",
+          "confidence": 0.99
+        },
+        {
+          "role": "unit",
+          "notes": "",
+          "column": "C",
+          "confidence": 0.99
+        },
+        {
+          "role": "quantity",
+          "notes": "Cantidad contractual.",
+          "column": "D",
+          "confidence": 0.99
+        },
+        {
+          "role": "previousQuantity",
+          "notes": "",
+          "column": "E",
+          "confidence": 0.99
+        },
+        {
+          "role": "currentQuantity",
+          "notes": "",
+          "column": "F",
+          "confidence": 0.99
+        },
+        {
+          "role": "cumulativeQuantity",
+          "notes": "",
+          "column": "G",
+          "confidence": 0.99
+        },
+        {
+          "role": "unitPrice",
+          "notes": "Precio unitario con IVA.",
+          "column": "H",
+          "confidence": 0.99
+        },
+        {
+          "role": "previousAmount",
+          "notes": "",
+          "column": "I",
+          "confidence": 0.99
+        },
+        {
+          "role": "currentAmount",
+          "notes": "",
+          "column": "J",
+          "confidence": 0.99
+        },
+        {
+          "role": "cumulativeAmount",
+          "notes": "",
+          "column": "K",
+          "confidence": 0.99
+        },
+        {
+          "role": "percentage",
+          "notes": "Incidencia acumulada sobre el monto del contrato.",
+          "column": "M",
+          "confidence": 0.99
+        }
+      ],
+      "headerRowStart": 19,
+      "scheduleSeries": [],
+      "repeatedHeaderRows": []
+    },
+    {
+      "id": "resumen_factura",
+      "label": "Resumen de certificado y detalle de factura del certificado N.º 6",
+      "notes": "Resumen administrativo/financiero de soporte; no es una tabla de partidas.",
+      "scale": {
+        "basis": "PERIOD",
+        "units": 37,
+        "evidence": "Valores enlazados al certificado vigente y a la liquidación de factura del período."
+      },
+      "sheet": "resumen",
+      "target": "OTHER",
+      "warnings": [
+        "El monto escrito en letras en B37 no coincide con el monto líquido numérico de F36; conservar el documento y marcar la discrepancia."
+      ],
+      "keyValues": [
+        {
+          "key": "certificateNumber",
+          "cell": "A6",
+          "notes": "Certificado de ejecución N.º 6.",
+          "value": 6
+        },
+        {
+          "key": "periodStart",
+          "cell": "A9",
+          "notes": "Inicio del período.",
+          "value": "2026-07-21"
+        },
+        {
+          "key": "periodEnd",
+          "cell": "A9",
+          "notes": "Fin del período.",
+          "value": "2026-08-20"
+        },
+        {
+          "key": "contractAmount",
+          "cell": "C14",
+          "notes": "Monto de contrato enlazado al certificado.",
+          "value": 3482791500
+        },
+        {
+          "key": "declaredCurrentAmount",
+          "cell": "F24",
+          "notes": "Monto de los trabajos del presente certificado.",
+          "value": 623788012
+        }
+      ],
+      "staffRows": [],
+      "confidence": 0.99,
+      "dataRowEnd": 36,
+      "footerRows": [
+        39,
+        43,
+        44,
+        46,
+        50,
+        51,
+        53,
+        57,
+        58
+      ],
+      "mainProject": true,
+      "needsReview": true,
+      "sourceRange": "A13:F36",
+      "weatherRows": [],
+      "dataRowStart": 22,
+      "excludedRows": [],
+      "headerRowEnd": 21,
+      "subtotalRows": [
+        24,
+        30,
+        36
+      ],
+      "columnMappings": [
+        {
+          "role": "description",
+          "notes": "Conceptos del resumen y de la liquidación.",
+          "column": "B",
+          "confidence": 0.99
+        },
+        {
+          "role": "value",
+          "notes": "Datos de contrato y plazo.",
+          "column": "C",
+          "confidence": 0.95
+        },
+        {
+          "role": "value",
+          "notes": "Montos de certificados, factura, anticipo, retención y liquidación.",
+          "column": "F",
+          "confidence": 0.99
+        }
+      ],
+      "headerRowStart": 13,
+      "scheduleSeries": [],
+      "repeatedHeaderRows": []
+    },
+    {
+      "id": "curva_avance",
+      "label": "Curva de avance financiero: programación y ejecución mensual",
+      "notes": "El ejecutado es evidencia de avance y no debe importarse como ejecución: el ERP calcula el ejecutado desde los certificados.",
+      "scale": {
+        "basis": "PERIOD",
+        "units": 8,
+        "evidence": "Etiquetas de meses M1–M8 y series programadas/ejecutadas; fórmulas enlazan el ejecutado al certificado y al resumen general."
+      },
+      "sheet": "curva avance",
+      "target": "SCHEDULE",
+      "warnings": [
+        "Las celdas de previsión enlazadas a hojas de certificados antiguos presentan referencias #REF! en algunas hojas mensuales; no afectan la identificación de las series de esta curva."
+      ],
+      "keyValues": [],
+      "staffRows": [],
+      "confidence": 0.99,
+      "dataRowEnd": 46,
+      "footerRows": [
+        48,
+        52,
+        53,
+        55,
+        59,
+        60,
+        62,
+        66,
+        67
+      ],
+      "mainProject": true,
+      "needsReview": false,
+      "sourceRange": "B39:K46",
+      "weatherRows": [],
+      "dataRowStart": 40,
+      "excludedRows": [],
+      "headerRowEnd": 39,
+      "subtotalRows": [],
+      "columnMappings": [
+        {
+          "role": "description",
+          "notes": "Nombre y tipo de serie.",
+          "column": "B",
+          "confidence": 0.99
+        },
+        {
+          "role": "percentage",
+          "notes": "Series mensuales por M1–M8; corresponde a porcentajes financieros.",
+          "column": "D:K",
+          "confidence": 0.99
+        }
+      ],
+      "headerRowStart": 39,
+      "scheduleSeries": [
+        {
+          "row": 40,
+          "role": "PLANNED_MONTHLY",
+          "label": "Programado mes",
+          "planVersion": "Original",
+          "monthColumns": [
+            {
+              "column": "D",
+              "monthIndex": 1
+            },
+            {
+              "column": "E",
+              "monthIndex": 2
+            },
+            {
+              "column": "F",
+              "monthIndex": 3
+            },
+            {
+              "column": "G",
+              "monthIndex": 4
+            },
+            {
+              "column": "H",
+              "monthIndex": 5
+            },
+            {
+              "column": "I",
+              "monthIndex": 6
+            },
+            {
+              "column": "J",
+              "monthIndex": 7
+            },
+            {
+              "column": "K",
+              "monthIndex": 8
+            }
+          ]
+        },
+        {
+          "row": 41,
+          "role": "PLANNED_CUMULATIVE",
+          "label": "Programado acumulado",
+          "planVersion": "Original",
+          "monthColumns": [
+            {
+              "column": "D",
+              "monthIndex": 1
+            },
+            {
+              "column": "E",
+              "monthIndex": 2
+            },
+            {
+              "column": "F",
+              "monthIndex": 3
+            },
+            {
+              "column": "G",
+              "monthIndex": 4
+            },
+            {
+              "column": "H",
+              "monthIndex": 5
+            },
+            {
+              "column": "I",
+              "monthIndex": 6
+            },
+            {
+              "column": "J",
+              "monthIndex": 7
+            },
+            {
+              "column": "K",
+              "monthIndex": 8
+            }
+          ]
+        },
+        {
+          "row": 42,
+          "role": "PLANNED_MONTHLY",
+          "label": "Programado mes (Adenda 1)",
+          "planVersion": "Adenda 1",
+          "monthColumns": [
+            {
+              "column": "D",
+              "monthIndex": 1
+            },
+            {
+              "column": "E",
+              "monthIndex": 2
+            },
+            {
+              "column": "F",
+              "monthIndex": 3
+            },
+            {
+              "column": "G",
+              "monthIndex": 4
+            },
+            {
+              "column": "H",
+              "monthIndex": 5
+            },
+            {
+              "column": "I",
+              "monthIndex": 6
+            },
+            {
+              "column": "J",
+              "monthIndex": 7
+            },
+            {
+              "column": "K",
+              "monthIndex": 8
+            }
+          ]
+        },
+        {
+          "row": 43,
+          "role": "PLANNED_CUMULATIVE",
+          "label": "Programado acumulado (Adenda 1)",
+          "planVersion": "Adenda 1",
+          "monthColumns": [
+            {
+              "column": "D",
+              "monthIndex": 1
+            },
+            {
+              "column": "E",
+              "monthIndex": 2
+            },
+            {
+              "column": "F",
+              "monthIndex": 3
+            },
+            {
+              "column": "G",
+              "monthIndex": 4
+            },
+            {
+              "column": "H",
+              "monthIndex": 5
+            },
+            {
+              "column": "I",
+              "monthIndex": 6
+            },
+            {
+              "column": "J",
+              "monthIndex": 7
+            },
+            {
+              "column": "K",
+              "monthIndex": 8
+            }
+          ]
+        },
+        {
+          "row": 44,
+          "role": "EXECUTED_MONTHLY",
+          "label": "Ejecutado mes",
+          "planVersion": "Ejecución",
+          "monthColumns": [
+            {
+              "column": "D",
+              "monthIndex": 1
+            },
+            {
+              "column": "E",
+              "monthIndex": 2
+            },
+            {
+              "column": "F",
+              "monthIndex": 3
+            },
+            {
+              "column": "G",
+              "monthIndex": 4
+            },
+            {
+              "column": "H",
+              "monthIndex": 5
+            },
+            {
+              "column": "I",
+              "monthIndex": 6
+            },
+            {
+              "column": "J",
+              "monthIndex": 7
+            },
+            {
+              "column": "K",
+              "monthIndex": 8
+            }
+          ]
+        },
+        {
+          "row": 45,
+          "role": "EXECUTED_CUMULATIVE",
+          "label": "Ejecutado acumulado",
+          "planVersion": "Ejecución",
+          "monthColumns": [
+            {
+              "column": "D",
+              "monthIndex": 1
+            },
+            {
+              "column": "E",
+              "monthIndex": 2
+            },
+            {
+              "column": "F",
+              "monthIndex": 3
+            },
+            {
+              "column": "G",
+              "monthIndex": 4
+            },
+            {
+              "column": "H",
+              "monthIndex": 5
+            },
+            {
+              "column": "I",
+              "monthIndex": 6
+            },
+            {
+              "column": "J",
+              "monthIndex": 7
+            },
+            {
+              "column": "K",
+              "monthIndex": 8
+            }
+          ]
+        },
+        {
+          "row": 46,
+          "role": "OTHER",
+          "label": "Desviación (+/-)",
+          "planVersion": "Desviación",
+          "monthColumns": [
+            {
+              "column": "D",
+              "monthIndex": 1
+            },
+            {
+              "column": "E",
+              "monthIndex": 2
+            },
+            {
+              "column": "F",
+              "monthIndex": 3
+            },
+            {
+              "column": "G",
+              "monthIndex": 4
+            },
+            {
+              "column": "H",
+              "monthIndex": 5
+            },
+            {
+              "column": "I",
+              "monthIndex": 6
+            },
+            {
+              "column": "J",
+              "monthIndex": 7
+            },
+            {
+              "column": "K",
+              "monthIndex": 8
+            }
+          ]
+        }
+      ],
+      "repeatedHeaderRows": []
+    },
+    {
+      "id": "resumen_general_certificaciones",
+      "label": "Resumen histórico de certificados y facturación, certificados 1 a 6",
+      "notes": "Serie histórica de soporte; no reemplaza ni duplica el certificado vigente.",
+      "scale": {
+        "basis": "CONTRACT_TOTAL",
+        "units": 37,
+        "evidence": "Resumen acumulado de seis certificados de la obra principal, con porcentaje acumulado enlazado a CERTIFICADO."
+      },
+      "sheet": "resumen general",
+      "target": "OTHER",
+      "warnings": [],
+      "keyValues": [
+        {
+          "key": "certificateNumber",
+          "cell": "B19",
+          "notes": "Fila del certificado vigente.",
+          "value": "06"
+        },
+        {
+          "key": "contractAmount",
+          "cell": "L16",
+          "notes": "Monto del contrato enlazado al certificado.",
+          "value": 3482791500
+        },
+        {
+          "key": "declaredTotal",
+          "cell": "C20",
+          "notes": "Suma del monto certificado de los certificados 1–6; no equivale al contrato total.",
+          "value": 3318273400
+        },
+        {
+          "key": "declaredCurrentAmount",
+          "cell": "C19",
+          "notes": "Monto certificado del certificado N.º 6.",
+          "value": 623788012
+        },
+        {
+          "key": "unitCount",
+          "cell": "A4",
+          "notes": "Cantidad de viviendas de la obra.",
+          "value": 37
+        }
+      ],
+      "staffRows": [],
+      "confidence": 0.99,
+      "dataRowEnd": 20,
+      "footerRows": [
+        22,
+        26,
+        27,
+        29,
+        33,
+        34,
+        36,
+        40,
+        41
+      ],
+      "mainProject": true,
+      "needsReview": false,
+      "sourceRange": "B13:G20",
+      "weatherRows": [],
+      "dataRowStart": 14,
+      "excludedRows": [],
+      "headerRowEnd": 13,
+      "subtotalRows": [
+        20
+      ],
+      "columnMappings": [
+        {
+          "role": "code",
+          "notes": "Número de certificado.",
+          "column": "B",
+          "confidence": 0.99
+        },
+        {
+          "role": "currentAmount",
+          "notes": "Monto certificado.",
+          "column": "C",
+          "confidence": 0.99
+        },
+        {
+          "role": "value",
+          "notes": "Devolución de anticipo.",
+          "column": "D",
+          "confidence": 0.95
+        },
+        {
+          "role": "value",
+          "notes": "Retención y penalidades.",
+          "column": "E",
+          "confidence": 0.95
+        },
+        {
+          "role": "value",
+          "notes": "Monto facturado.",
+          "column": "F",
+          "confidence": 0.95
+        },
+        {
+          "role": "percentage",
+          "notes": "Porcentaje de avance del mes.",
+          "column": "G",
+          "confidence": 0.99
+        }
+      ],
+      "headerRowStart": 13,
+      "scheduleSeries": [],
+      "repeatedHeaderRows": []
+    },
+    {
+      "id": "dias_no_trabajados",
+      "label": "Calendario de días no trabajados según Libro de Obra, 2026",
+      "notes": "Se arrastra el año 2026 desde la primera fila del bloque. Los prefijos 1–7 no son meses calendario; los meses reales son febrero–agosto.",
+      "scale": {
+        "basis": "PERIOD",
+        "units": 7,
+        "evidence": "Filas mensuales de febrero a agosto de 2026 con encabezados de día 1–31."
+      },
+      "sheet": "días no trabajados",
+      "target": "NON_WORKING_DAYS",
+      "warnings": [],
+      "keyValues": [
+        {
+          "key": "periodStart",
+          "cell": "A9",
+          "notes": "Período del certificado.",
+          "value": "2026-07-21"
+        },
+        {
+          "key": "periodEnd",
+          "cell": "A9",
+          "notes": "Período del certificado.",
+          "value": "2026-08-20"
+        }
+      ],
+      "staffRows": [],
+      "confidence": 0.99,
+      "dataRowEnd": 21,
+      "footerRows": [
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        31,
+        35,
+        36,
+        38,
+        42,
+        43,
+        45,
+        49,
+        50
+      ],
+      "mainProject": true,
+      "needsReview": false,
+      "sourceRange": "B13:AL21",
+      "weatherRows": [
+        {
+          "row": 15,
+          "year": 2026,
+          "month": 2,
+          "dayColumns": [
+            {
+              "day": 1,
+              "column": "D"
+            },
+            {
+              "day": 2,
+              "column": "E"
+            },
+            {
+              "day": 3,
+              "column": "F"
+            },
+            {
+              "day": 4,
+              "column": "G"
+            },
+            {
+              "day": 5,
+              "column": "H"
+            },
+            {
+              "day": 6,
+              "column": "I"
+            },
+            {
+              "day": 7,
+              "column": "J"
+            },
+            {
+              "day": 8,
+              "column": "K"
+            },
+            {
+              "day": 9,
+              "column": "L"
+            },
+            {
+              "day": 10,
+              "column": "M"
+            },
+            {
+              "day": 11,
+              "column": "N"
+            },
+            {
+              "day": 12,
+              "column": "O"
+            },
+            {
+              "day": 13,
+              "column": "P"
+            },
+            {
+              "day": 14,
+              "column": "Q"
+            },
+            {
+              "day": 15,
+              "column": "R"
+            },
+            {
+              "day": 16,
+              "column": "S"
+            },
+            {
+              "day": 17,
+              "column": "T"
+            },
+            {
+              "day": 18,
+              "column": "U"
+            },
+            {
+              "day": 19,
+              "column": "V"
+            },
+            {
+              "day": 20,
+              "column": "W"
+            },
+            {
+              "day": 21,
+              "column": "X"
+            },
+            {
+              "day": 22,
+              "column": "Y"
+            },
+            {
+              "day": 23,
+              "column": "Z"
+            },
+            {
+              "day": 24,
+              "column": "AA"
+            },
+            {
+              "day": 25,
+              "column": "AB"
+            },
+            {
+              "day": 26,
+              "column": "AC"
+            },
+            {
+              "day": 27,
+              "column": "AD"
+            },
+            {
+              "day": 28,
+              "column": "AE"
+            },
+            {
+              "day": 29,
+              "column": "AF"
+            },
+            {
+              "day": 30,
+              "column": "AG"
+            },
+            {
+              "day": 31,
+              "column": "AH"
+            }
+          ]
+        },
+        {
+          "row": 16,
+          "year": 2026,
+          "month": 3,
+          "dayColumns": [
+            {
+              "day": 1,
+              "column": "D"
+            },
+            {
+              "day": 2,
+              "column": "E"
+            },
+            {
+              "day": 3,
+              "column": "F"
+            },
+            {
+              "day": 4,
+              "column": "G"
+            },
+            {
+              "day": 5,
+              "column": "H"
+            },
+            {
+              "day": 6,
+              "column": "I"
+            },
+            {
+              "day": 7,
+              "column": "J"
+            },
+            {
+              "day": 8,
+              "column": "K"
+            },
+            {
+              "day": 9,
+              "column": "L"
+            },
+            {
+              "day": 10,
+              "column": "M"
+            },
+            {
+              "day": 11,
+              "column": "N"
+            },
+            {
+              "day": 12,
+              "column": "O"
+            },
+            {
+              "day": 13,
+              "column": "P"
+            },
+            {
+              "day": 14,
+              "column": "Q"
+            },
+            {
+              "day": 15,
+              "column": "R"
+            },
+            {
+              "day": 16,
+              "column": "S"
+            },
+            {
+              "day": 17,
+              "column": "T"
+            },
+            {
+              "day": 18,
+              "column": "U"
+            },
+            {
+              "day": 19,
+              "column": "V"
+            },
+            {
+              "day": 20,
+              "column": "W"
+            },
+            {
+              "day": 21,
+              "column": "X"
+            },
+            {
+              "day": 22,
+              "column": "Y"
+            },
+            {
+              "day": 23,
+              "column": "Z"
+            },
+            {
+              "day": 24,
+              "column": "AA"
+            },
+            {
+              "day": 25,
+              "column": "AB"
+            },
+            {
+              "day": 26,
+              "column": "AC"
+            },
+            {
+              "day": 27,
+              "column": "AD"
+            },
+            {
+              "day": 28,
+              "column": "AE"
+            },
+            {
+              "day": 29,
+              "column": "AF"
+            },
+            {
+              "day": 30,
+              "column": "AG"
+            },
+            {
+              "day": 31,
+              "column": "AH"
+            }
+          ]
+        },
+        {
+          "row": 17,
+          "year": 2026,
+          "month": 4,
+          "dayColumns": [
+            {
+              "day": 1,
+              "column": "D"
+            },
+            {
+              "day": 2,
+              "column": "E"
+            },
+            {
+              "day": 3,
+              "column": "F"
+            },
+            {
+              "day": 4,
+              "column": "G"
+            },
+            {
+              "day": 5,
+              "column": "H"
+            },
+            {
+              "day": 6,
+              "column": "I"
+            },
+            {
+              "day": 7,
+              "column": "J"
+            },
+            {
+              "day": 8,
+              "column": "K"
+            },
+            {
+              "day": 9,
+              "column": "L"
+            },
+            {
+              "day": 10,
+              "column": "M"
+            },
+            {
+              "day": 11,
+              "column": "N"
+            },
+            {
+              "day": 12,
+              "column": "O"
+            },
+            {
+              "day": 13,
+              "column": "P"
+            },
+            {
+              "day": 14,
+              "column": "Q"
+            },
+            {
+              "day": 15,
+              "column": "R"
+            },
+            {
+              "day": 16,
+              "column": "S"
+            },
+            {
+              "day": 17,
+              "column": "T"
+            },
+            {
+              "day": 18,
+              "column": "U"
+            },
+            {
+              "day": 19,
+              "column": "V"
+            },
+            {
+              "day": 20,
+              "column": "W"
+            },
+            {
+              "day": 21,
+              "column": "X"
+            },
+            {
+              "day": 22,
+              "column": "Y"
+            },
+            {
+              "day": 23,
+              "column": "Z"
+            },
+            {
+              "day": 24,
+              "column": "AA"
+            },
+            {
+              "day": 25,
+              "column": "AB"
+            },
+            {
+              "day": 26,
+              "column": "AC"
+            },
+            {
+              "day": 27,
+              "column": "AD"
+            },
+            {
+              "day": 28,
+              "column": "AE"
+            },
+            {
+              "day": 29,
+              "column": "AF"
+            },
+            {
+              "day": 30,
+              "column": "AG"
+            },
+            {
+              "day": 31,
+              "column": "AH"
+            }
+          ]
+        },
+        {
+          "row": 18,
+          "year": 2026,
+          "month": 5,
+          "dayColumns": [
+            {
+              "day": 1,
+              "column": "D"
+            },
+            {
+              "day": 2,
+              "column": "E"
+            },
+            {
+              "day": 3,
+              "column": "F"
+            },
+            {
+              "day": 4,
+              "column": "G"
+            },
+            {
+              "day": 5,
+              "column": "H"
+            },
+            {
+              "day": 6,
+              "column": "I"
+            },
+            {
+              "day": 7,
+              "column": "J"
+            },
+            {
+              "day": 8,
+              "column": "K"
+            },
+            {
+              "day": 9,
+              "column": "L"
+            },
+            {
+              "day": 10,
+              "column": "M"
+            },
+            {
+              "day": 11,
+              "column": "N"
+            },
+            {
+              "day": 12,
+              "column": "O"
+            },
+            {
+              "day": 13,
+              "column": "P"
+            },
+            {
+              "day": 14,
+              "column": "Q"
+            },
+            {
+              "day": 15,
+              "column": "R"
+            },
+            {
+              "day": 16,
+              "column": "S"
+            },
+            {
+              "day": 17,
+              "column": "T"
+            },
+            {
+              "day": 18,
+              "column": "U"
+            },
+            {
+              "day": 19,
+              "column": "V"
+            },
+            {
+              "day": 20,
+              "column": "W"
+            },
+            {
+              "day": 21,
+              "column": "X"
+            },
+            {
+              "day": 22,
+              "column": "Y"
+            },
+            {
+              "day": 23,
+              "column": "Z"
+            },
+            {
+              "day": 24,
+              "column": "AA"
+            },
+            {
+              "day": 25,
+              "column": "AB"
+            },
+            {
+              "day": 26,
+              "column": "AC"
+            },
+            {
+              "day": 27,
+              "column": "AD"
+            },
+            {
+              "day": 28,
+              "column": "AE"
+            },
+            {
+              "day": 29,
+              "column": "AF"
+            },
+            {
+              "day": 30,
+              "column": "AG"
+            },
+            {
+              "day": 31,
+              "column": "AH"
+            }
+          ]
+        },
+        {
+          "row": 19,
+          "year": 2026,
+          "month": 6,
+          "dayColumns": [
+            {
+              "day": 1,
+              "column": "D"
+            },
+            {
+              "day": 2,
+              "column": "E"
+            },
+            {
+              "day": 3,
+              "column": "F"
+            },
+            {
+              "day": 4,
+              "column": "G"
+            },
+            {
+              "day": 5,
+              "column": "H"
+            },
+            {
+              "day": 6,
+              "column": "I"
+            },
+            {
+              "day": 7,
+              "column": "J"
+            },
+            {
+              "day": 8,
+              "column": "K"
+            },
+            {
+              "day": 9,
+              "column": "L"
+            },
+            {
+              "day": 10,
+              "column": "M"
+            },
+            {
+              "day": 11,
+              "column": "N"
+            },
+            {
+              "day": 12,
+              "column": "O"
+            },
+            {
+              "day": 13,
+              "column": "P"
+            },
+            {
+              "day": 14,
+              "column": "Q"
+            },
+            {
+              "day": 15,
+              "column": "R"
+            },
+            {
+              "day": 16,
+              "column": "S"
+            },
+            {
+              "day": 17,
+              "column": "T"
+            },
+            {
+              "day": 18,
+              "column": "U"
+            },
+            {
+              "day": 19,
+              "column": "V"
+            },
+            {
+              "day": 20,
+              "column": "W"
+            },
+            {
+              "day": 21,
+              "column": "X"
+            },
+            {
+              "day": 22,
+              "column": "Y"
+            },
+            {
+              "day": 23,
+              "column": "Z"
+            },
+            {
+              "day": 24,
+              "column": "AA"
+            },
+            {
+              "day": 25,
+              "column": "AB"
+            },
+            {
+              "day": 26,
+              "column": "AC"
+            },
+            {
+              "day": 27,
+              "column": "AD"
+            },
+            {
+              "day": 28,
+              "column": "AE"
+            },
+            {
+              "day": 29,
+              "column": "AF"
+            },
+            {
+              "day": 30,
+              "column": "AG"
+            },
+            {
+              "day": 31,
+              "column": "AH"
+            }
+          ]
+        },
+        {
+          "row": 20,
+          "year": 2026,
+          "month": 7,
+          "dayColumns": [
+            {
+              "day": 1,
+              "column": "D"
+            },
+            {
+              "day": 2,
+              "column": "E"
+            },
+            {
+              "day": 3,
+              "column": "F"
+            },
+            {
+              "day": 4,
+              "column": "G"
+            },
+            {
+              "day": 5,
+              "column": "H"
+            },
+            {
+              "day": 6,
+              "column": "I"
+            },
+            {
+              "day": 7,
+              "column": "J"
+            },
+            {
+              "day": 8,
+              "column": "K"
+            },
+            {
+              "day": 9,
+              "column": "L"
+            },
+            {
+              "day": 10,
+              "column": "M"
+            },
+            {
+              "day": 11,
+              "column": "N"
+            },
+            {
+              "day": 12,
+              "column": "O"
+            },
+            {
+              "day": 13,
+              "column": "P"
+            },
+            {
+              "day": 14,
+              "column": "Q"
+            },
+            {
+              "day": 15,
+              "column": "R"
+            },
+            {
+              "day": 16,
+              "column": "S"
+            },
+            {
+              "day": 17,
+              "column": "T"
+            },
+            {
+              "day": 18,
+              "column": "U"
+            },
+            {
+              "day": 19,
+              "column": "V"
+            },
+            {
+              "day": 20,
+              "column": "W"
+            },
+            {
+              "day": 21,
+              "column": "X"
+            },
+            {
+              "day": 22,
+              "column": "Y"
+            },
+            {
+              "day": 23,
+              "column": "Z"
+            },
+            {
+              "day": 24,
+              "column": "AA"
+            },
+            {
+              "day": 25,
+              "column": "AB"
+            },
+            {
+              "day": 26,
+              "column": "AC"
+            },
+            {
+              "day": 27,
+              "column": "AD"
+            },
+            {
+              "day": 28,
+              "column": "AE"
+            },
+            {
+              "day": 29,
+              "column": "AF"
+            },
+            {
+              "day": 30,
+              "column": "AG"
+            },
+            {
+              "day": 31,
+              "column": "AH"
+            }
+          ]
+        },
+        {
+          "row": 21,
+          "year": 2026,
+          "month": 8,
+          "dayColumns": [
+            {
+              "day": 1,
+              "column": "D"
+            },
+            {
+              "day": 2,
+              "column": "E"
+            },
+            {
+              "day": 3,
+              "column": "F"
+            },
+            {
+              "day": 4,
+              "column": "G"
+            },
+            {
+              "day": 5,
+              "column": "H"
+            },
+            {
+              "day": 6,
+              "column": "I"
+            },
+            {
+              "day": 7,
+              "column": "J"
+            },
+            {
+              "day": 8,
+              "column": "K"
+            },
+            {
+              "day": 9,
+              "column": "L"
+            },
+            {
+              "day": 10,
+              "column": "M"
+            },
+            {
+              "day": 11,
+              "column": "N"
+            },
+            {
+              "day": 12,
+              "column": "O"
+            },
+            {
+              "day": 13,
+              "column": "P"
+            },
+            {
+              "day": 14,
+              "column": "Q"
+            },
+            {
+              "day": 15,
+              "column": "R"
+            },
+            {
+              "day": 16,
+              "column": "S"
+            },
+            {
+              "day": 17,
+              "column": "T"
+            },
+            {
+              "day": 18,
+              "column": "U"
+            },
+            {
+              "day": 19,
+              "column": "V"
+            },
+            {
+              "day": 20,
+              "column": "W"
+            },
+            {
+              "day": 21,
+              "column": "X"
+            },
+            {
+              "day": 22,
+              "column": "Y"
+            },
+            {
+              "day": 23,
+              "column": "Z"
+            },
+            {
+              "day": 24,
+              "column": "AA"
+            },
+            {
+              "day": 25,
+              "column": "AB"
+            },
+            {
+              "day": 26,
+              "column": "AC"
+            },
+            {
+              "day": 27,
+              "column": "AD"
+            },
+            {
+              "day": 28,
+              "column": "AE"
+            },
+            {
+              "day": 29,
+              "column": "AF"
+            },
+            {
+              "day": 30,
+              "column": "AG"
+            },
+            {
+              "day": 31,
+              "column": "AH"
+            }
+          ]
+        }
+      ],
+      "dataRowStart": 15,
+      "excludedRows": [],
+      "headerRowEnd": 14,
+      "subtotalRows": [
+        22
+      ],
+      "columnMappings": [
+        {
+          "role": "value",
+          "notes": "Año.",
+          "column": "B",
+          "confidence": 0.99
+        },
+        {
+          "role": "value",
+          "notes": "Nombre del mes; prefijo numérico es contador del proyecto.",
+          "column": "C",
+          "confidence": 0.99
+        },
+        {
+          "role": "value",
+          "notes": "Códigos diarios de calendario; el extractor los lee directamente.",
+          "column": "D:AH",
+          "confidence": 0.99
+        },
+        {
+          "role": "value",
+          "notes": "Totales calculados por código y total mensual; no son códigos diarios.",
+          "column": "AI:AL",
+          "confidence": 0.98
+        }
+      ],
+      "headerRowStart": 13,
+      "scheduleSeries": [],
+      "repeatedHeaderRows": []
+    },
+    {
+      "id": "personal_periodo",
+      "label": "Personal empleado durante el período",
+      "notes": "Se incluyen únicamente filas con una persona y un cargo.",
+      "scale": {
+        "basis": "PERIOD",
+        "units": null,
+        "evidence": "Título de la hoja: mano de obra empleada en el período."
+      },
+      "sheet": "personal",
+      "target": "STAFF",
+      "warnings": [],
+      "keyValues": [],
+      "staffRows": [
+        {
+          "row": 13,
+          "name": "Arq. Mariano Ramão Romeiro",
+          "role": "Residente de obra"
+        },
+        {
+          "row": 14,
+          "name": "Arq. Rodrigo Ortega",
+          "role": "Fiscal de obra"
+        },
+        {
+          "row": 18,
+          "name": "Eduardo Lezcano",
+          "role": "Depositero"
+        },
+        {
+          "row": 19,
+          "name": "Roberto Fernandez",
+          "role": "Chofer"
+        },
+        {
+          "row": 20,
+          "name": "Emilio Lezcano",
+          "role": "Ayudante chofer"
+        },
+        {
+          "row": 21,
+          "name": "Jacinto Vera",
+          "role": "Oficial"
+        },
+        {
+          "row": 22,
+          "name": "Wilson Vera",
+          "role": "Oficial"
+        },
+        {
+          "row": 23,
+          "name": "Jorge Toledo",
+          "role": "Oficial"
+        },
+        {
+          "row": 24,
+          "name": "Jorge Samudio",
+          "role": "Oficial"
+        },
+        {
+          "row": 25,
+          "name": "Leonardo Vera",
+          "role": "Ayudante"
+        },
+        {
+          "row": 26,
+          "name": "Daniel Montiel",
+          "role": "Ayudante"
+        },
+        {
+          "row": 27,
+          "name": "Julio Galeano",
+          "role": "Oficial"
+        },
+        {
+          "row": 28,
+          "name": "Cristian Torres",
+          "role": "Ayudante"
+        },
+        {
+          "row": 29,
+          "name": "Alexis Villar",
+          "role": "Ayudante"
+        },
+        {
+          "row": 30,
+          "name": "Daniel Duarte",
+          "role": "Ayudante"
+        },
+        {
+          "row": 31,
+          "name": "Samuel Duarte",
+          "role": "Ayudante"
+        },
+        {
+          "row": 32,
+          "name": "Ramón Pezoa",
+          "role": "Oficial"
+        },
+        {
+          "row": 33,
+          "name": "Diego Ruiz",
+          "role": "Oficial"
+        },
+        {
+          "row": 34,
+          "name": "Diosnel Martinez",
+          "role": "Oficial"
+        },
+        {
+          "row": 35,
+          "name": "David Martinez",
+          "role": "Oficial"
+        },
+        {
+          "row": 36,
+          "name": "Milciades Diaz",
+          "role": "Oficial"
+        },
+        {
+          "row": 37,
+          "name": "Richard Ayala",
+          "role": "Oficial"
+        },
+        {
+          "row": 38,
+          "name": "Cesar Valdez",
+          "role": "Oficial"
+        },
+        {
+          "row": 39,
+          "name": "Virgilio Ruiz Diaz",
+          "role": "Oficial"
+        },
+        {
+          "row": 40,
+          "name": "Ramón Britez",
+          "role": "Oficial"
+        }
+      ],
+      "confidence": 0.99,
+      "dataRowEnd": 40,
+      "footerRows": [
+        42,
+        46,
+        47,
+        49,
+        53,
+        54,
+        56,
+        60,
+        61
+      ],
+      "mainProject": true,
+      "needsReview": false,
+      "sourceRange": "A12:B40",
+      "weatherRows": [],
+      "dataRowStart": 13,
+      "excludedRows": [
+        {
+          "row": 17,
+          "reason": "Título de sección; no es una persona ni tiene cargo."
+        }
+      ],
+      "headerRowEnd": 12,
+      "subtotalRows": [],
+      "columnMappings": [
+        {
+          "role": "name",
+          "notes": "",
+          "column": "A",
+          "confidence": 0.99
+        },
+        {
+          "role": "value",
+          "notes": "Rol o cargo.",
+          "column": "B",
+          "confidence": 0.99
+        }
+      ],
+      "headerRowStart": 12,
+      "scheduleSeries": [],
+      "repeatedHeaderRows": []
+    },
+    {
+      "id": "estadistico_obra_vial",
+      "label": "Resumen estadístico de certificaciones de obra vial — otra obra",
+      "notes": "Contiene referencias #REF! y valores enlazados a resúmenes de distintas hojas; se retiene únicamente como evidencia documental no importable.",
+      "scale": {
+        "basis": "CONTRACT_TOTAL",
+        "units": null,
+        "evidence": "Resumen de certificaciones de la obra vial identificada en los títulos y fórmulas."
+      },
+      "sheet": "Estadistico",
+      "target": "OTHER",
+      "warnings": [
+        "La hoja identifica el Convenio 4500073038/2023, la obra vial de Misiones y al contratista CONSTRUMAQ SUR SRL; no corresponde al proyecto principal."
+      ],
+      "keyValues": [
+        {
+          "key": "contractAmount",
+          "cell": "L16",
+          "notes": "El dato enlazado a CERTIFICADO!C13 corresponde al monto de contrato vial del documento copiado, no a la obra principal.",
+          "value": 3482791500
+        }
+      ],
+      "staffRows": [],
+      "confidence": 0.99,
+      "dataRowEnd": 56,
+      "footerRows": [],
+      "mainProject": false,
+      "needsReview": true,
+      "sourceRange": "B6:L56",
+      "weatherRows": [],
+      "dataRowStart": 16,
+      "excludedRows": [],
+      "headerRowEnd": 15,
+      "subtotalRows": [
+        25,
+        30,
+        31,
+        35,
+        39,
+        43,
+        47,
+        56
+      ],
+      "columnMappings": [
+        {
+          "role": "description",
+          "notes": "Conceptos del resumen.",
+          "column": "B",
+          "confidence": 0.99
+        },
+        {
+          "role": "value",
+          "notes": "",
+          "column": "C",
+          "confidence": 0.95
+        },
+        {
+          "role": "value",
+          "notes": "Montos de la obra vial.",
+          "column": "K",
+          "confidence": 0.98
+        },
+        {
+          "role": "value",
+          "notes": "",
+          "column": "L",
+          "confidence": 0.98
+        }
+      ],
+      "headerRowStart": 6,
+      "scheduleSeries": [],
+      "repeatedHeaderRows": []
+    }
+  ],
+  "warnings": [
+    "Las hojas Abril, Mayo, Junio, Julio y Estadistico son de otra obra: convenio 4500073038/2023, contrato vial 4600000125/2024, CONSTRUMAQ SUR SRL. Deben quedar excluidas de la importación al proyecto principal.",
+    "La hoja MEDICIÓN es de otro proyecto: Paquete 01 / ID 01 / SIPP 3389, Itaugua, 16 viviendas.",
+    "El encabezado del workbook y las hojas vinculadas a base identifican el proyecto principal como Paquete 05 / ID 14 / SIPP 3458, 37 viviendas.",
+    "Se detectaron filas con datos junto al rango declarado: 9, 10, 11, 12, 13.",
+    "Se detectaron filas con datos junto al rango declarado: 66.",
+    "Se detectaron filas con datos junto al rango declarado: 65.",
+    "Se detectaron filas con datos junto al rango declarado: 8, 9, 10, 11, 12, 67.",
+    "Se detectaron filas con datos junto al rango declarado: 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 78.",
+    "Se detectaron filas con datos junto al rango declarado: 37.",
+    "Se detectaron filas con datos junto al rango declarado: 22."
+  ],
+  "workbookType": "CERTIFICATE_WITH_BUDGET_EXECUTION_AND_SUPPORTING_DOCUMENTS",
+  "relationships": [
+    {
+      "to": "certificado_vigente",
+      "from": "presupuesto_base",
+      "type": "SAME_ITEMS",
+      "factor": null,
+      "evidence": "Las partidas y descripciones del certificado están enlazadas al presupuesto base; la base calcula subtotales por vivienda y totales para 37.",
+      "confidence": 0.99
+    },
+    {
+      "to": "certificado_vigente",
+      "from": "registro_ejecucion",
+      "type": "SAME_ITEMS",
+      "factor": null,
+      "evidence": "El certificado enlaza cantidades y descripciones del registro LDO mediante fórmulas.",
+      "confidence": 0.99
+    },
+    {
+      "to": "certificado_vigente",
+      "from": "acta_medicion",
+      "type": "SUPPORTS",
+      "factor": null,
+      "evidence": "El acta presenta mediciones anteriores, presentes y acumuladas; varias celdas del certificado enlazan a ACTA.",
+      "confidence": 0.99
+    },
+    {
+      "to": "certificado_vigente",
+      "from": "resumen_factura",
+      "type": "SUMMARIZES",
+      "factor": null,
+      "evidence": "El resumen enlaza monto acumulado y monto presente a CERTIFICADO!K75 e I75.",
+      "confidence": 0.99
+    },
+    {
+      "to": "certificado_vigente",
+      "from": "curva_avance",
+      "type": "SUPPORTS",
+      "factor": null,
+      "evidence": "La curva registra series programadas y ejecutadas; varias referencias del avance derivan del resumen y del certificado.",
+      "confidence": 0.96
+    },
+    {
+      "to": "certificado_vigente",
+      "from": "resumen_general_certificaciones",
+      "type": "HISTORICAL_SERIES",
+      "factor": null,
+      "evidence": "La hoja resume certificados 1–6 y enlaza la fila del certificado 6 al resumen de factura.",
+      "confidence": 0.99
+    },
+    {
+      "to": "presupuesto_base",
+      "from": "registro_ejecucion",
+      "type": "CONTRACT_SCALE",
+      "factor": 37,
+      "evidence": "Las cantidades del presupuesto base son por vivienda; el registro muestra cantidades agregadas de 37 viviendas y detalle por vivienda.",
+      "confidence": 0.99
+    },
+    {
+      "to": "registro_ejecucion",
+      "from": "dias_no_trabajados",
+      "type": "SUPPORTS",
+      "factor": null,
+      "evidence": "La grilla indica días no trabajados según anotaciones del Libro de Obra durante el período certificado.",
+      "confidence": 0.93
+    },
+    {
+      "to": "cert_mayo",
+      "from": "cert_abril",
+      "type": "HISTORICAL_SERIES",
+      "factor": null,
+      "evidence": "Las hojas mensuales de la obra vial presentan la misma lista de partidas y acumulaciones progresivas; ambas son ajenas al proyecto principal.",
+      "confidence": 0.92
+    },
+    {
+      "to": "cert_junio",
+      "from": "cert_mayo",
+      "type": "HISTORICAL_SERIES",
+      "factor": null,
+      "evidence": "Las hojas mensuales de la obra vial presentan la misma lista de partidas y acumulaciones progresivas; ambas son ajenas al proyecto principal.",
+      "confidence": 0.92
+    },
+    {
+      "to": "cert_julio",
+      "from": "cert_junio",
+      "type": "HISTORICAL_SERIES",
+      "factor": null,
+      "evidence": "Las hojas mensuales de la obra vial presentan la misma lista de partidas y acumulaciones progresivas; ambas son ajenas al proyecto principal.",
+      "confidence": 0.92
+    },
+    {
+      "to": "estadistico_obra_vial",
+      "from": "cert_abril",
+      "type": "SUMMARIZES",
+      "factor": null,
+      "evidence": "La hoja Estadistico identifica la misma obra vial, contrato y contratista; sus vínculos contienen algunas referencias inválidas.",
+      "confidence": 0.9
+    }
+  ],
+  "overallConfidence": 0.98,
+  "unresolvedRegions": [
+    {
+      "range": "B14:Q33",
+      "sheet": "Julio",
+      "reason": "UNMAPPED_REGION: filas 9, 10, 11, 12, 13 quedaron fuera del rango declarado."
+    },
+    {
+      "range": "B14:Q33",
+      "sheet": "Junio",
+      "reason": "UNMAPPED_REGION: filas 9, 10, 11, 12, 13 quedaron fuera del rango declarado."
+    },
+    {
+      "range": "B14:Q33",
+      "sheet": "Mayo",
+      "reason": "UNMAPPED_REGION: filas 9, 10, 11, 12, 13 quedaron fuera del rango declarado."
+    },
+    {
+      "range": "B14:Q33",
+      "sheet": "Abril",
+      "reason": "UNMAPPED_REGION: filas 9, 10, 11, 12, 13 quedaron fuera del rango declarado."
+    },
+    {
+      "range": "A11:H65",
+      "sheet": "base",
+      "reason": "UNMAPPED_REGION: filas 66 quedaron fuera del rango declarado."
+    },
+    {
+      "range": "A11:AT64",
+      "sheet": "registro LDO",
+      "reason": "UNMAPPED_REGION: filas 65 quedaron fuera del rango declarado."
+    },
+    {
+      "range": "A13:N66",
+      "sheet": "ACTA",
+      "reason": "UNMAPPED_REGION: filas 8, 9, 10, 11, 12, 67 quedaron fuera del rango declarado."
+    },
+    {
+      "range": "A19:M77",
+      "sheet": "CERTIFICADO",
+      "reason": "UNMAPPED_REGION: filas 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 78 quedaron fuera del rango declarado."
+    },
+    {
+      "range": "A13:F36",
+      "sheet": "resumen",
+      "reason": "UNMAPPED_REGION: filas 37 quedaron fuera del rango declarado."
+    },
+    {
+      "range": "B13:AL21",
+      "sheet": "días no trabajados",
+      "reason": "UNMAPPED_REGION: filas 22 quedaron fuera del rango declarado."
+    }
+  ]
+}

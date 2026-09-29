@@ -40,4 +40,19 @@ describe("importación de carga inicial de stock", () => {
       currency: 5,
     });
   });
+
+  it("detecta una columna de código (SKU) del catálogo", () => {
+    // El nombre libre de una planilla externa (proveedor, conteo físico, otro
+    // sistema) casi nunca coincide letra por letra con el catálogo; el
+    // código sí, porque es estable. Ver carga-inicial-stock-dialog.tsx: si
+    // la fila trae código, matchea por ahí antes que por nombre.
+    expect(detectInitialStockColumnMapping(["Material", "Código", "Cantidad", "Ubicación", "Costo unitario", "Moneda"])).toMatchObject({
+      material: 0,
+      sku: 1,
+      quantity: 2,
+      location: 3,
+      unitCost: 4,
+      currency: 5,
+    });
+  });
 });

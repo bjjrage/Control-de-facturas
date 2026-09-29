@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import type {
 import { CertificateStaffSection } from "./certificate-staff-section";
 import { PasteAvanceDialog } from "./paste-avance-dialog";
 import { ProjectUnitsDialog } from "./project-units-dialog";
+import { CertificateWorkbookSection } from "@/components/certificates/CertificateWorkbookSection";
 import {
   updateCertificateItem,
   updateCertificateDeductions,
@@ -210,6 +211,29 @@ function CertificadoDetalle({
   const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
   const [selectedClientId, setSelectedClientId] = useState("");
   const [generatingInvoice, setGeneratingInvoice] = useState(false);
+  // Pestaña del certificado. Queda en la URL (?ctab=) para que "Ver origen"
+  // pueda abrir directamente la planilla. Si el usuario no eligió ninguna y
+  // el certificado tiene planilla, la planilla es la superficie principal.
+  const urlTab = parseCertificateTab(useSearchParams().get("ctab"));
+  const [selectedTab, setTab] = useState<CertificateTab>(urlTab ?? "resumen");
+  // "Avance por unidad" no existe en una obra sin unidades (un ?ctab=avance
+  // viejo cae en Resumen).
+  const tab: CertificateTab = selectedTab === "avance" && projectUnits.length === 0 ? "resumen" : selectedTab;
+  const [tabChosen, setTabChosen] = useState(urlTab !== null);
+  function selectTab(next: CertificateTab) {
+    setTab(next);
+    setTabChosen(true);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("ctab", next);
+      window.history.replaceState(null, "", url);
+    } catch {
+      // sin URL (SSR/tests): la pestaña igual cambia en memoria
+    }
+  }
+  function handleWorkbookAvailability(hasWorkbook: boolean) {
+    if (hasWorkbook && !tabChosen) setTab("planilla");
+  }
 
   useEffect(() => {
     if (c.status === "APROBADO") {
@@ -287,6 +311,7 @@ function CertificadoDetalle({
         </div>
       </div>
 
+
       {/* Generar factura de venta desde el certificado aprobado */}
       {c.status === "APROBADO" && clients.length > 0 ? (
         <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2.5 flex flex-wrap items-center gap-2 text-[13px]">
@@ -318,123 +343,98 @@ function CertificadoDetalle({
 
       <FirmasRow certificate={c} />
 
-      {/* Liquidación — mismo cálculo que la hoja "resumen" del certificado oficial */}
-      <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] p-3 text-[12px]">
-        <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
-          Liquidación de la factura
+      <CertificateTabs active={tab} onChange={selectTab} hasUnits={projectUnits.length > 0} />
+
+      {tab === "resumen" ? (
+        <div className="space-y-4">
+        {/* Líneas por rubro */}
+        {editableQty ? (
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-[var(--muted)]">
+              Cargá la columna &quot;presente&quot; a mano, o pegala desde el Excel de medición →
+            </span>
+            <PasteAvanceDialog certificateId={c.id} items={items} />
+          </div>
+        ) : null}
+        <div className="overflow-x-auto rounded border border-[var(--border)]">
+          <table className="text-[12px]">
+            <thead>
+              <tr>
+                <th>Rubro</th>
+                <th className="num">Unidad</th>
+                <th className="num">Contractual</th>
+                <th className="num">Anterior</th>
+                <th className="num">Presente</th>
+                <th className="num">Acum.</th>
+                <th className="num">%</th>
+                <th className="num">Monto presente</th>
+                <th className="num">Monto acum.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((it) => (
+                <tr key={it.id}>
+                  <td>
+                    <span className="font-mono text-[var(--muted)]">{it.codigo}</span> {it.descripcion}
+                  </td>
+                  <td className="num">{it.unidad ?? "—"}</td>
+                  <td className="num">{formatNumber(it.qty_contractual)}</td>
+                  <td className="num">
+                    {editableQty ? (
+                      <QtyInput
+                        value={it.qty_anterior}
+                        onSave={(v) => saveField(() => updateCertificateItem(it.id, { qty_anterior: v }))}
+                      />
+                    ) : (
+                      formatNumber(it.qty_anterior)
+                    )}
+                  </td>
+                  <td className="num">
+                    {editableQty ? (
+                      <QtyInput
+                        value={it.qty_presente}
+                        onSave={(v) => saveField(() => updateCertificateItem(it.id, { qty_presente: v }))}
+                      />
+                    ) : (
+                      formatNumber(it.qty_presente)
+                    )}
+                  </td>
+                  <td className="num">{formatNumber(it.qty_acumulada)}</td>
+                  <td className="num">{pct(it.qty_acumulada, it.qty_contractual)}</td>
+                  <td className="num">{formatMoney(it.monto_presente, "PYG")}</td>
+                  <td className="num">{formatMoney(it.monto_acumulado, "PYG")}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={7} className="text-right font-semibold">
+                  Monto del certificado (c/ IVA {project.iva_pct}%)
+                </td>
+                <td className="num font-semibold">{formatMoney(c.monto_presente, "PYG")}</td>
+                <td className="num font-semibold">{formatMoney(c.monto_acumulado, "PYG")}</td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
-        <LiqRow label="Monto del certificado del mes" value={c.monto_presente} />
-        <LiqRow
-          label="Ajuste del mes"
-          value={c.ajustes}
-          editable={editableDeduc}
-          onSave={(v) => saveField(() => updateCertificateDeductions(c.id, { ajustes: v }))}
-        />
-        <LiqRow
-          label={`Devolución de anticipo${
-            c.devolucion_anticipo_pct_snap != null ? ` (${c.devolucion_anticipo_pct_snap}%)` : ""
-          }`}
-          value={-c.devolucion_anticipo}
-        />
-        <LiqRow
-          label={`Retención${c.retencion_pct_snap != null ? ` (${c.retencion_pct_snap}%)` : ""}`}
-          value={-c.retencion}
-        />
-        <LiqRow
-          label="Penalidad de avance"
-          value={-c.penalidad_avance}
-          editable={editableDeduc}
-          onSave={(v) => saveField(() => updateCertificateDeductions(c.id, { penalidad_avance: v }))}
-        />
-        <LiqRow
-          label="Penalidad de presentación"
-          value={-c.penalidad_presentacion}
-          editable={editableDeduc}
-          onSave={(v) => saveField(() => updateCertificateDeductions(c.id, { penalidad_presentacion: v }))}
-        />
-        <div className="mt-1.5 flex items-center justify-between border-t border-[var(--border)] pt-1.5 font-semibold">
-          <span>Monto líquido de la factura</span>
-          <span>{formatMoney(c.monto_liquido, "PYG")}</span>
-        </div>
-        {c.status === "BORRADOR" ? (
-          <p className="mt-1.5 text-[11px] text-[var(--muted)]">
-            La devolución de anticipo y la retención se calculan al elaborar el certificado.
+
+        {editableQty ? (
+          <p className="text-[11px] text-[var(--muted)]">
+            Editá las cantidades y salí del campo para guardar. Al elaborar, el certificado se congela.
           </p>
         ) : null}
-      </div>
-
-      {/* Líneas por rubro */}
-      {editableQty ? (
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] text-[var(--muted)]">
-            Cargá la columna &quot;presente&quot; a mano, o pegala desde el Excel de medición →
-          </span>
-          <PasteAvanceDialog certificateId={c.id} items={items} />
         </div>
       ) : null}
-      <div className="overflow-x-auto rounded border border-[var(--border)]">
-        <table className="text-[12px]">
-          <thead>
-            <tr>
-              <th>Rubro</th>
-              <th className="num">Unidad</th>
-              <th className="num">Contractual</th>
-              <th className="num">Anterior</th>
-              <th className="num">Presente</th>
-              <th className="num">Acum.</th>
-              <th className="num">%</th>
-              <th className="num">Monto presente</th>
-              <th className="num">Monto acum.</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((it) => (
-              <tr key={it.id}>
-                <td>
-                  <span className="font-mono text-[var(--muted)]">{it.codigo}</span> {it.descripcion}
-                </td>
-                <td className="num">{it.unidad ?? "—"}</td>
-                <td className="num">{formatNumber(it.qty_contractual)}</td>
-                <td className="num">
-                  {editableQty ? (
-                    <QtyInput
-                      value={it.qty_anterior}
-                      onSave={(v) => saveField(() => updateCertificateItem(it.id, { qty_anterior: v }))}
-                    />
-                  ) : (
-                    formatNumber(it.qty_anterior)
-                  )}
-                </td>
-                <td className="num">
-                  {editableQty ? (
-                    <QtyInput
-                      value={it.qty_presente}
-                      onSave={(v) => saveField(() => updateCertificateItem(it.id, { qty_presente: v }))}
-                    />
-                  ) : (
-                    formatNumber(it.qty_presente)
-                  )}
-                </td>
-                <td className="num">{formatNumber(it.qty_acumulada)}</td>
-                <td className="num">{pct(it.qty_acumulada, it.qty_contractual)}</td>
-                <td className="num">{formatMoney(it.monto_presente, "PYG")}</td>
-                <td className="num">{formatMoney(it.monto_acumulado, "PYG")}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan={7} className="text-right font-semibold">
-                Monto del certificado (c/ IVA {project.iva_pct}%)
-              </td>
-              <td className="num font-semibold">{formatMoney(c.monto_presente, "PYG")}</td>
-              <td className="num font-semibold">{formatMoney(c.monto_acumulado, "PYG")}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
 
-      {projectUnits.length > 0 ? (
+      {tab === "planilla" ? (
+        <CertificateWorkbookSection certificateId={c.id} status={c.status} onAvailability={handleWorkbookAvailability} />
+      ) : (
+        // Montada fuera de pantalla solo para saber si hay planilla y abrir
+        // esa pestaña por defecto; no carga Univer.
+        <CertificateWorkbookSection certificateId={c.id} status={c.status} onAvailability={handleWorkbookAvailability} probeOnly />
+      )}
+
+      {tab === "avance" ? (
         <UnitAvanceSection
           certificateId={c.id}
           units={projectUnits}
@@ -445,22 +445,122 @@ function CertificadoDetalle({
         />
       ) : null}
 
-      <CertificateStaffSection
-        certificateId={c.id}
-        staff={staff}
-        editable={c.status !== "FACTURADO"}
-      />
+      {tab === "personal" ? (
+        <CertificateStaffSection
+          certificateId={c.id}
+          staff={staff}
+          editable={c.status !== "FACTURADO"}
+        />
+      ) : null}
 
-      {editableQty ? (
-        <p className="text-[11px] text-[var(--muted)]">
-          Editá las cantidades y salí del campo para guardar. Al elaborar, el certificado se congela.
+      {tab === "liquidacion" ? (
+        <div className="space-y-4">
+        {/* Liquidación — mismo cálculo que la hoja "resumen" del certificado oficial */}
+        <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] p-3 text-[12px]">
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+            Liquidación de la factura
+          </div>
+          <LiqRow label="Monto del certificado del mes" value={c.monto_presente} />
+          <LiqRow
+            label="Ajuste del mes"
+            value={c.ajustes}
+            editable={editableDeduc}
+            onSave={(v) => saveField(() => updateCertificateDeductions(c.id, { ajustes: v }))}
+          />
+          <LiqRow
+            label={`Devolución de anticipo${
+              c.devolucion_anticipo_pct_snap != null ? ` (${c.devolucion_anticipo_pct_snap}%)` : ""
+            }`}
+            value={-c.devolucion_anticipo}
+          />
+          <LiqRow
+            label={`Retención${c.retencion_pct_snap != null ? ` (${c.retencion_pct_snap}%)` : ""}`}
+            value={-c.retencion}
+          />
+          <LiqRow
+            label="Penalidad de avance"
+            value={-c.penalidad_avance}
+            editable={editableDeduc}
+            onSave={(v) => saveField(() => updateCertificateDeductions(c.id, { penalidad_avance: v }))}
+          />
+          <LiqRow
+            label="Penalidad de presentación"
+            value={-c.penalidad_presentacion}
+            editable={editableDeduc}
+            onSave={(v) => saveField(() => updateCertificateDeductions(c.id, { penalidad_presentacion: v }))}
+          />
+          <div className="mt-1.5 flex items-center justify-between border-t border-[var(--border)] pt-1.5 font-semibold">
+            <span>Monto líquido de la factura</span>
+            <span>{formatMoney(c.monto_liquido, "PYG")}</span>
+          </div>
+          {c.status === "BORRADOR" ? (
+            <p className="mt-1.5 text-[11px] text-[var(--muted)]">
+              La devolución de anticipo y la retención se calculan al elaborar el certificado.
+            </p>
+          ) : null}
+        </div>
+
+        {deducciones > 0 && c.status === "APROBADO" ? (
+          <p className="text-[11px] text-[var(--muted)]">
+            Aprobado. Marcá &quot;Facturado&quot; cuando emitas la factura por {formatMoney(c.monto_liquido, "PYG")}.
+          </p>
+        ) : null}
+        </div>
+      ) : null}
+
+      {tab === "evidencias" ? (
+        <p className="text-[12px] text-[var(--muted)]">
+          Acá van a quedar las evidencias del período (fotos con GPS, actas firmadas). Todavía no hay nada cargado.
         </p>
       ) : null}
-      {deducciones > 0 && c.status === "APROBADO" ? (
-        <p className="text-[11px] text-[var(--muted)]">
-          Aprobado. Marcá &quot;Facturado&quot; cuando emitas la factura por {formatMoney(c.monto_liquido, "PYG")}.
-        </p>
-      ) : null}
+    </div>
+  );
+}
+
+type CertificateTab = "resumen" | "planilla" | "avance" | "personal" | "liquidacion" | "evidencias";
+
+// "Avance" es el avance por unidad (vivienda); solo existe si la obra tiene
+// unidades cargadas. El personal del período es un anexo aparte.
+const CERTIFICATE_TABS: { key: CertificateTab; label: string }[] = [
+  { key: "resumen", label: "Resumen" },
+  { key: "planilla", label: "Planilla" },
+  { key: "avance", label: "Avance por unidad" },
+  { key: "personal", label: "Personal" },
+  { key: "liquidacion", label: "Liquidación" },
+  { key: "evidencias", label: "Evidencias" },
+];
+
+function parseCertificateTab(value: string | null): CertificateTab | null {
+  return CERTIFICATE_TABS.some((t) => t.key === value) ? (value as CertificateTab) : null;
+}
+
+function CertificateTabs({
+  active,
+  onChange,
+  hasUnits,
+}: {
+  active: CertificateTab;
+  onChange: (tab: CertificateTab) => void;
+  hasUnits: boolean;
+}) {
+  return (
+    <div role="tablist" className="flex gap-1 border-b border-[var(--border)]">
+      {CERTIFICATE_TABS.filter((t) => t.key !== "avance" || hasUnits).map((t) => (
+        <button
+          key={t.key}
+          type="button"
+          role="tab"
+          aria-selected={active === t.key}
+          onClick={() => onChange(t.key)}
+          className={`px-3 h-8 text-[12px] -mb-px border-b-2 ${
+            active === t.key
+              ? "border-[var(--primary)] text-[var(--foreground)] font-medium"
+              : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
     </div>
   );
 }

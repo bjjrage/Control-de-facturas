@@ -1768,6 +1768,17 @@ export interface WeeklyPlanCalculationSummary {
   weather_adjusted_additional_cash_required?: number | null;
   weather_summary?: string | null;
   weather_failed_closed?: boolean;
+  /** Mano de obra, equipos y subcontratos que salen de las recetas (APU) para las metas del plan. */
+  resource_requirements?: WeeklyPlanResourceRequirements;
+}
+
+export interface WeeklyPlanResourceRequirements {
+  labor: { label: string; horas: number; costo: number }[];
+  equipment: { label: string; horas: number; costo: number }[];
+  subcontracts: { label: string; monto: number }[];
+  total_labor_cost: number;
+  total_equipment_cost: number;
+  total_subcontract_cost: number;
 }
 
 export type ProductionRecipeSource = "EXCEL" | "BIM" | "MANUAL";

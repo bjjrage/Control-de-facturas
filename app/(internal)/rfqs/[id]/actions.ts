@@ -59,6 +59,16 @@ export async function selectAndAuthorizeOffer(params: {
   const profile = await requireProfile(["comercial", "admin"]);
   const supabase = await createClient();
 
+  // Las RFQ multi-ítem son de costeo (precios de referencia por insumo): no
+  // generan una orden de compra de un solo renglón "lote".
+  const { count: itemCount } = await supabase
+    .from("rfq_items")
+    .select("id", { count: "exact", head: true })
+    .eq("rfq_id", params.rfqId);
+  if ((itemCount ?? 0) > 0) {
+    return { error: "Esta solicitud es de costeo (varios ítems): sus precios alimentan el presupuesto de costo, no se adjudica como orden de compra." };
+  }
+
   let authorizedOrderId: string | null = null;
   const { data: rpcOrderId, error: rpcError } = await supabase.rpc("select_and_authorize_offer_atomically", {
     p_empresa_id: profile.empresa_id,
@@ -283,4 +293,77 @@ export async function deleteRfq(rfqId: string) {
   await logAudit(supabase, { action: "rfq.deleted", detail: { rfq_id: rfqId } });
   revalidatePath("/rfqs");
   redirect("/rfqs");
+}
+
+/**
+ * Carga manual de precios por ítem desde la foto/PDF que mandó un proveedor
+ * (no hay parseo automático: una persona lee el adjunto y tipea). Crea una
+ * versión nueva de la cotización con cargado_por=INTERNO y queda auditado.
+ */
+export async function enterQuotePricesManually(rfqProviderId: string, formData: FormData) {
+  const profile = await requireProfile(["comercial", "administracion", "admin"]);
+  const admin = createAdminClient();
+
+  const { data: rp } = await admin
+    .from("rfq_providers")
+    .select("id, empresa_id, provider_id, rfqs!rfq_providers_rfq_id_fkey(id, project_id, status), providers(name)")
+    .eq("id", rfqProviderId)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (!rp) return { error: "Proveedor no encontrado en esta solicitud." };
+  const row = rp as unknown as {
+    id: string;
+    empresa_id: string;
+    provider_id: string;
+    rfqs: { id: string; project_id: string | null; status: string };
+    providers: { name: string };
+  };
+  if (row.rfqs.status === "CANCELADO") return { error: "La solicitud está cancelada." };
+
+  const { data: items } = await admin
+    .from("rfq_items")
+    .select("id, producto_id, descripcion, cantidad, unidad")
+    .eq("rfq_id", row.rfqs.id)
+    .order("sort_order");
+  if (!items || items.length === 0) return { error: "La solicitud no tiene ítems." };
+
+  const prices: Record<string, number | null> = {};
+  for (const it of items) {
+    const raw = formData.get(`price_${it.id}`);
+    prices[it.id] = typeof raw === "string" && raw.trim() !== "" ? Number(raw) : null;
+  }
+  const currency = (formData.get("currency") as string | null) || "PYG";
+  const budgetNumber = ((formData.get("budget_number") as string | null) ?? "").trim() || "S/N";
+
+  const { saveMultiItemQuoteVersion } = await import("@/lib/costing/quote-version-service");
+  const result = await saveMultiItemQuoteVersion(admin, {
+    empresaId: row.empresa_id,
+    rfq: row.rfqs,
+    rfqProvider: { id: row.id, provider_id: row.provider_id },
+    items: items.map((it) => ({ ...it, cantidad: Number(it.cantidad) })),
+    prices,
+    budgetNumber,
+    currency,
+    deliveryTime: ((formData.get("delivery_time") as string | null) ?? "").trim() || null,
+    offerValidity: ((formData.get("offer_validity") as string | null) ?? "").trim() || null,
+    invoiceAvailable: formData.get("invoice_available") === "on",
+    vatIncluded: formData.get("vat_included") === "on",
+    observations: `Cargado a mano por ${profile.full_name ?? profile.email ?? "usuario interno"} desde el adjunto del proveedor.`,
+    attachmentId: null,
+    cargadoPor: "INTERNO",
+  });
+  if (result.error) return { error: result.error };
+
+  await logAudit(admin, {
+    action: "quote.entered_manually",
+    rfqId: row.rfqs.id,
+    rfqProviderId: row.id,
+    actorType: "internal",
+    actorLabel: profile.full_name ?? profile.email ?? null,
+    detail: { version_number: result.versionNumber, provider: row.providers.name },
+  });
+
+  revalidatePath(`/rfqs/${row.rfqs.id}`);
+  if (row.rfqs.project_id) revalidatePath(`/projects/${row.rfqs.project_id}`);
+  return { error: null };
 }

@@ -82,7 +82,7 @@ export function CargaInicialStockDialog({
   const [headers, setHeaders] = useState<string[]>([]);
   const [sourceRows, setSourceRows] = useState<string[][]>([]);
   const [mapping, setMapping] = useState<Record<InitialStockColumnKey, number>>({
-    material: -1, quantity: -1, unit: -1, location: -1, unitCost: -1, currency: -1, exchangeRate: -1,
+    material: -1, sku: -1, quantity: -1, unit: -1, location: -1, unitCost: -1, currency: -1, exchangeRate: -1,
   });
   const [rowEdits, setRowEdits] = useState<Record<number, Partial<ImportRow>>>({});
   const [fileName, setFileName] = useState("");
@@ -114,11 +114,23 @@ export function CargaInicialStockDialog({
       return column >= 0 && column < row.length ? String(row[column] ?? "").trim() : "";
     };
     const material = valueAt("material");
+    const skuValue = valueAt("sku");
     const location = valueAt("location");
-    const autoMaterial = findUniqueExactInventoryMatch(material, products.map((product) => ({ id: product.id, name: product.name })));
+    // El código gana si viene: es estable (vos lo controlás en el catálogo),
+    // a diferencia del nombre libre que cada planilla externa escribe
+    // distinto (confirmado en vivo: ni dos archivos míos coincidieron entre
+    // sí). Sin código en la fila, cae al nombre como antes.
+    const autoMaterial =
+      (skuValue ? findUniqueExactInventoryMatch(skuValue, products.map((product) => ({ id: product.id, name: product.sku ?? "" }))) : null) ??
+      findUniqueExactInventoryMatch(material, products.map((product) => ({ id: product.id, name: product.name })));
+    // El nombre del depósito de una obra ya trae el nombre de la obra adentro
+    // ("Depósito de obra · <obra>", ver projectInventoryLocationName en
+    // lib/inventory/service.ts): pegarle projectName de nuevo generaba una
+    // clave duplicada que nadie puede escribir en una celda de Excel, y
+    // ninguna fila de obra auto-vinculaba nunca (confirmado en vivo).
     const autoLocation = findUniqueExactInventoryMatch(location, locations.map((candidate) => ({
       id: candidate.id,
-      name: [candidate.name, candidate.projectName ?? ""].filter(Boolean).join(" "),
+      name: candidate.name,
     })));
     const base: ImportRow = {
       sourceRow: index + 2,

@@ -43,6 +43,8 @@ import {
   PackageCheck,
   Archive,
   Tags,
+  CircleDollarSign,
+  Calculator,
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 import { logout } from "@/app/(internal)/actions";
@@ -66,6 +68,7 @@ import { workspaceForPath } from "./workspace";
 // certificás y controlás. El orden sigue el flujo real de trabajo.
 const PROJECT_TAB_ICONS: Record<ProjectFeatureKey, typeof LayoutDashboard> = {
   presupuesto: ClipboardCheck,
+  costeo: Calculator,
   cronograma: GanttChartSquare,
   "plan-semanal": CalendarDays,
   bim: Boxes,
@@ -137,6 +140,7 @@ const COMPRAS_ITEMS: NavItem[] = [
   { href: "/invoices", label: "Facturas", roles: ["administracion", "admin"], icon: Receipt, module: "compras" },
   { href: "/pagos", label: "Pagos", roles: ["administracion", "admin"], icon: Wallet, module: "compras" },
   { href: "/stock", label: "Materiales", roles: ["administracion", "admin"], icon: Tags, module: "compras", minPlan: "pro" },
+  { href: "/precios", label: "Lista de precios", roles: ["administracion", "admin"], icon: CircleDollarSign, module: "compras", minPlan: "pro" },
   { href: "/inventario", label: "Stock e Inventario", roles: ["administracion", "admin"], icon: Boxes, module: "compras", minPlan: "pro" },
 ];
 

@@ -5,7 +5,7 @@ export const revalidate = 0;
 
 export async function GET() {
   return NextResponse.json(
-    { deepseekConfigured: Boolean(process.env.DEEPSEEK_API_KEY?.trim()) },
+    { deepseekConfigured: Boolean(process.env.OPENAI_API_KEY?.trim() || process.env.DEEPSEEK_API_KEY?.trim()) },
     { headers: { "Cache-Control": "no-store, max-age=0" } }
   );
 }
