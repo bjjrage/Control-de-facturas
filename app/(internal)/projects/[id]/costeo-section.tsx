@@ -65,7 +65,7 @@ export function CosteoSection({ projectId, isCaterpillar }: { projectId: string;
       <div className="flex flex-wrap items-center gap-2">
         <ApuTemplatesDialog />
         <LaborRatesDialog />
-        <ApplyApuTemplatesButton projectId={projectId} />
+        <ApplyApuTemplatesButton projectId={projectId} onApplied={load} />
         <Button type="button" variant="ghost" onClick={load} className="gap-1.5" title="Recalcular">
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
         </Button>

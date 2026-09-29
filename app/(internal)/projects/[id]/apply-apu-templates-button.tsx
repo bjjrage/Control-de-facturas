@@ -6,7 +6,7 @@ import { Sparkles, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { applyApuTemplatesToProjectAction } from "./apu-actions";
 
-export function ApplyApuTemplatesButton({ projectId }: { projectId: string }) {
+export function ApplyApuTemplatesButton({ projectId, onApplied }: { projectId: string; onApplied?: () => void }) {
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<{ aplicadas: number; yaTeniaApu: number; sinPlantilla: { code: string; description: string }[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +24,7 @@ export function ApplyApuTemplatesButton({ projectId }: { projectId: string }) {
     }
     setResult(res.data);
     router.refresh();
+    onApplied?.();
   }
 
   return (
@@ -41,7 +42,7 @@ export function ApplyApuTemplatesButton({ projectId }: { projectId: string }) {
           {result.sinPlantilla.length > 0 && (
             <p className="mt-0.5 text-amber-500">
               Sin plantilla que coincida ({result.sinPlantilla.length}): {result.sinPlantilla.slice(0, 6).map((s) => s.description).join(", ")}
-              {result.sinPlantilla.length > 6 ? "…" : ""} — cargalas manual con el ícono de calculadora, o agregá la plantilla en Configuración.
+              {result.sinPlantilla.length > 6 ? "…" : ""} — cargalas a mano con el ícono de calculadora, o agregá su receta en Plantillas de APU.
             </p>
           )}
         </div>
