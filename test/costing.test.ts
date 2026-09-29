@@ -331,3 +331,21 @@ describe("plan semanal: mano de obra, equipos y subcontratos de las recetas", ()
     expect(r.total_labor_cost).toBe(640_000);
   });
 });
+
+describe("flujo de caja: salidas del plan semanal", () => {
+  it("fecha cada salida con su plazo y omite lo que es cero", async () => {
+    const { planSemanalToFlujoItems } = await import("../lib/flujo-caja");
+    const items = planSemanalToFlujoItems({
+      planId: "pl1", projectId: "p1", projectName: "Santa Elena", status: "DRAFT",
+      startDate: "2026-10-05", endDate: "2026-10-11",
+      faltanteMateriales: 2_000_000, costoManoObra: 640_000, costoEquipos: 0, costoSubcontratos: 600_000,
+    });
+    expect(items.map((i) => [i.tipo, i.fecha, i.monto])).toEqual([
+      ["salida_proyectada_material", "2026-10-12", -2_000_000],
+      ["salida_plan_mano_de_obra", "2026-10-11", -640_000],
+      ["salida_plan_subcontrato", "2026-11-10", -600_000],
+    ]);
+    expect(items[0].descripcion).toContain("borrador");
+    expect(items.every((i) => i.moneda === "PYG" && i.project_id === "p1")).toBe(true);
+  });
+});
