@@ -286,3 +286,16 @@ describe("lista de precios", () => {
     expect(sourceLabel("MANUAL", "PRECIO_LISTA")).toBe("Cargado a mano");
   });
 });
+
+describe("compras sin material asignado", () => {
+  it("agrupa por descripción y se queda con el último precio", async () => {
+    const { groupUnlinkedPurchases } = await import("../lib/costing/price-list");
+    const out = groupUnlinkedPurchases([
+      { descripcion: "Cemento CPF40 50kg", precio: 40_000, fecha: "2026-08-01", fuente: "FACTURA", documentoId: "f1" },
+      { descripcion: "Cemento CPF40 50kg", precio: 43_000, fecha: "2026-09-10", fuente: "FACTURA", documentoId: "f2" },
+      { descripcion: "Arena fina", precio: 90_000, fecha: "2026-09-01", fuente: "COTIZACION", documentoId: "q1" },
+    ]);
+    expect(out[0]).toMatchObject({ descripcion: "Cemento CPF40 50kg", registros: 2, ultimoPrecio: 43_000, fuente: "Factura" });
+    expect(out[1]).toMatchObject({ descripcion: "Arena fina", registros: 1, fuente: "Cotización" });
+  });
+});

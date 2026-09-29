@@ -112,3 +112,33 @@ export function buildPriceList(
     };
   });
 }
+
+export interface UnlinkedPurchase {
+  descripcion: string;
+  registros: number;
+  ultimoPrecio: number;
+  ultimaFecha: string;
+  fuente: string;
+}
+
+/** Agrupa las compras que no están vinculadas a un material del catálogo, por descripción. */
+export function groupUnlinkedPurchases(
+  rows: { descripcion: string; precio: number; fecha: string; fuente: string; documentoId: string | null }[]
+): UnlinkedPurchase[] {
+  const groups = new Map<string, UnlinkedPurchase>();
+  for (const r of rows) {
+    const key = r.descripcion;
+    const g = groups.get(key);
+    if (!g) {
+      groups.set(key, { descripcion: r.descripcion, registros: 1, ultimoPrecio: r.precio, ultimaFecha: r.fecha, fuente: sourceLabel(r.fuente, r.documentoId) });
+    } else {
+      g.registros++;
+      if (r.fecha > g.ultimaFecha) {
+        g.ultimaFecha = r.fecha;
+        g.ultimoPrecio = r.precio;
+        g.fuente = sourceLabel(r.fuente, r.documentoId);
+      }
+    }
+  }
+  return [...groups.values()].sort((a, b) => b.registros - a.registros || (a.ultimaFecha < b.ultimaFecha ? 1 : -1));
+}
