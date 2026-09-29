@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { RefreshCw, Send, AlertTriangle } from "lucide-react";
+import { RefreshCw, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { Button, buttonClassName } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatMoney, formatNumber, formatDateTime } from "@/lib/format";
 import {
@@ -63,10 +63,6 @@ export function CosteoSection({ projectId, isCaterpillar }: { projectId: string;
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2">
-        <Link href={`/rfqs?nueva=obra&obra=${projectId}`} className={buttonClassName({ variant: "primary" }) + " gap-1.5"}>
-          <Send className="h-3.5 w-3.5" />
-          Pedir precios en Compras
-        </Link>
         <ApuTemplatesDialog />
         <LaborRatesDialog />
         <ApplyApuTemplatesButton projectId={projectId} />
@@ -126,6 +122,7 @@ export function CosteoSection({ projectId, isCaterpillar }: { projectId: string;
       </Section>
 
       <Section title="Insumos (materiales)">
+        <p className="text-[11px] text-[var(--muted)]">Para pedir precios de estos materiales: Comprar → Cotizaciones → Nueva cotización → Desde una obra.</p>
         {data.insumos.length === 0 ? (
           <p className="text-[12px] text-[var(--muted)]">Sin materiales en el APU de las partidas.</p>
         ) : (

@@ -52,12 +52,12 @@ export function RfqDialog({
   const config = TYPE_CONFIG[quoteType];
 
   useEffect(() => {
-    if (!open || mode !== "obra" || obras.length > 0) return;
+    if (!open || mode !== "obra" || projectId || obras.length > 0) return;
     listProjectsForCostRfqAction().then((res) => {
       if (res.error) setError(res.error);
       else setObras(res.data ?? []);
     });
-  }, [open, mode, obras.length]);
+  }, [open, mode, projectId, obras.length]);
 
   async function generateFromObra() {
     if (!obraId) return setError("Elegí una obra.");
@@ -118,17 +118,19 @@ export function RfqDialog({
                 {error}
               </div>
             ) : null}
-            <div>
-              <Label htmlFor="obra_id">Obra</Label>
-              <Select id="obra_id" value={obraId} onChange={(e) => setObraId(e.target.value)}>
-                <option value="">Elegí una obra…</option>
-                {obras.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.code} — {o.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
+            {projectId ? null : (
+              <div>
+                <Label htmlFor="obra_id">Obra</Label>
+                <Select id="obra_id" value={obraId} onChange={(e) => setObraId(e.target.value)}>
+                  <option value="">Elegí una obra…</option>
+                  {obras.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.code} — {o.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            )}
             {obraResult ? (
               <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3 text-[12px] space-y-1">
                 {obraResult.sinInsumos ? (
