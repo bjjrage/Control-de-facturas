@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { requirePlan } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { normalizeInventoryImportText, findUniqueExactInventoryMatch } from "@/lib/inventory/initial-stock-import";
 import {
   resolveApuTemplateMaterialImportMapping,
   resolveApuTemplateLaborImportMapping,
@@ -218,4 +219,217 @@ export async function importApuTemplateSubcontractsAction(params: {
   if (error) return { creados: 0, errores: [...errors, { row: 0, reason: `Error al guardar: ${error.message}` }] };
   revalidatePath("/projects");
   return { creados: mapped.length, errores: errors };
+}
+
+// ---------------------------------------------------------------------------
+// Importación de UNA planilla de APU (analizada por Luna y revisada por el
+// usuario): crea las plantillas con sus cuatro tipos de líneas de una vez.
+// Se revalida todo en el servidor: nunca se confía en lo que manda el cliente.
+// ---------------------------------------------------------------------------
+
+export interface ApuPlanillaLineInput {
+  tipo: "MATERIAL" | "MANO_DE_OBRA" | "EQUIPO" | "SUBCONTRATO";
+  descripcion: string;
+  unidad: string | null;
+  cantidad: number;
+  precio: number | null;
+  desperdicioPct: number;
+}
+
+export interface ApuPlanillaRecipeInput {
+  name: string;
+  code: string | null;
+  unit: string | null;
+  lines: ApuPlanillaLineInput[];
+}
+
+export interface ApuPlanillaImportResult {
+  plantillas: number;
+  lineas: number;
+  productosCreados: number;
+  errores: { receta: string; insumo: string; motivo: string }[];
+  error: string | null;
+}
+
+const HOUR_UNIT = /^(h|hs|hr|hrs|hora|horas)$/i;
+const WORKDAY_UNIT = /^(jornal|jornales|jor|dia|dias|día|días)$/i;
+
+export async function importApuPlanillaAction(params: {
+  recipes: ApuPlanillaRecipeInput[];
+  createMissingProducts: boolean;
+  /** Horas de una jornada, para insumos de mano de obra o equipo que vienen en jornales. */
+  hoursPerWorkday?: number;
+}): Promise<ApuPlanillaImportResult> {
+  const empty = { plantillas: 0, lineas: 0, productosCreados: 0, errores: [] as ApuPlanillaImportResult["errores"] };
+  try {
+    const profile = await requirePlan("pro", ["administracion", "admin"]);
+    const supabase = await createClient();
+    const empresaId = profile.empresa_id;
+    const errores = empty.errores;
+
+    const [productsRes, ratesRes] = await Promise.all([
+      supabase.from("productos").select("id, nombre").eq("empresa_id", empresaId).eq("activo", true),
+      supabase.from("labor_rates").select("id, categoria, costo_hora").eq("empresa_id", empresaId),
+    ]);
+    const products = (productsRes.data ?? []).map((p: any) => ({ id: p.id as string, name: p.nombre as string }));
+    const rates = (ratesRes.data ?? []).map((r: any) => ({ id: r.id as string, categoria: r.categoria as string, costo_hora: Number(r.costo_hora) }));
+
+    // 1) Materiales: match único por nombre normalizado; los que no están en
+    //    el catálogo se crean solo si el usuario lo pidió.
+    const materialNames = new Map<string, { nombre: string; unidad: string | null }>();
+    for (const r of params.recipes) {
+      for (const l of r.lines) {
+        if (l.tipo !== "MATERIAL") continue;
+        const key = normalizeInventoryImportText(l.descripcion);
+        if (key && !findUniqueExactInventoryMatch(l.descripcion, products) && !materialNames.has(key)) {
+          materialNames.set(key, { nombre: l.descripcion.trim(), unidad: l.unidad?.trim() || null });
+        }
+      }
+    }
+    let productosCreados = 0;
+    if (params.createMissingProducts && materialNames.size > 0) {
+      const { data: created, error } = await supabase
+        .from("productos")
+        .insert([...materialNames.values()].map((m) => ({ empresa_id: empresaId, nombre: m.nombre, unidad: m.unidad ?? "unidad", created_by: profile.id })))
+        .select("id, nombre");
+      if (error) return { ...empty, error: `No se pudieron crear los materiales nuevos en el catálogo: ${error.message}` };
+      for (const p of created ?? []) products.push({ id: p.id, name: p.nombre });
+      productosCreados = created?.length ?? 0;
+    }
+
+    // 2) Filas por tabla, validadas.
+    const materialRows: { recipe: string; productoId: string; cantidad: number; desperdicio: number }[] = [];
+    const laborRows: { recipe: string; rol: string; horas: number; costoHora: number; rateId: string | null }[] = [];
+    const equipmentRows: { recipe: string; tipo: string; horas: number; costoHora: number }[] = [];
+    const subcontractRows: { recipe: string; descripcion: string; precio: number }[] = [];
+
+    for (const recipe of params.recipes) {
+      const rname = String(recipe.name ?? "").trim();
+      if (!rname) continue;
+      for (const l of recipe.lines ?? []) {
+        const fail = (motivo: string) => errores.push({ receta: rname, insumo: l.descripcion, motivo });
+        const cantidad = Number(l.cantidad);
+        if (!Number.isFinite(cantidad) || cantidad <= 0) {
+          fail("Cantidad inválida.");
+          continue;
+        }
+        const precio = l.precio == null ? null : Number(l.precio);
+        if (precio != null && (!Number.isFinite(precio) || precio < 0)) {
+          fail("Precio inválido.");
+          continue;
+        }
+        if (l.tipo === "MATERIAL") {
+          const product = findUniqueExactInventoryMatch(l.descripcion, products);
+          if (!product) {
+            fail("El material no está en el catálogo (o hay más de uno con ese nombre).");
+            continue;
+          }
+          const desperdicio = Number(l.desperdicioPct) || 0;
+          if (desperdicio < 0 || desperdicio > 100) {
+            fail("Desperdicio fuera de 0–100 %.");
+            continue;
+          }
+          materialRows.push({ recipe: rname, productoId: product.id, cantidad, desperdicio });
+        } else if (l.tipo === "MANO_DE_OBRA" || l.tipo === "EQUIPO") {
+          let horas = cantidad;
+          let costoPorHora = precio;
+          const unidad = l.unidad?.trim() ?? "";
+          if (unidad && WORKDAY_UNIT.test(unidad)) {
+            const hpd = Number(params.hoursPerWorkday);
+            if (!Number.isFinite(hpd) || hpd <= 0 || hpd > 24) {
+              fail(`Viene en ${unidad}: indicá cuántas horas tiene una jornada.`);
+              continue;
+            }
+            horas = cantidad * hpd;
+            costoPorHora = precio == null ? null : precio / hpd;
+          } else if (unidad && !HOUR_UNIT.test(unidad)) {
+            fail(`Debe venir en horas o jornales (vino en "${l.unidad}").`);
+            continue;
+          }
+          if (l.tipo === "MANO_DE_OBRA") {
+            const rate = matchLaborRate(l.descripcion, rates);
+            const costoHora = rate ? rate.costo_hora : costoPorHora;
+            if (costoHora == null) {
+              fail("Falta el costo por hora: cargá la categoría en Jornales o poné el precio en la planilla.");
+              continue;
+            }
+            laborRows.push({ recipe: rname, rol: l.descripcion.trim(), horas, costoHora: Math.round(costoHora * 100) / 100, rateId: rate?.id ?? null });
+          } else {
+            if (costoPorHora == null) {
+              fail("Falta el costo por hora del equipo.");
+              continue;
+            }
+            equipmentRows.push({ recipe: rname, tipo: l.descripcion.trim(), horas, costoHora: Math.round(costoPorHora * 100) / 100 });
+          }
+        } else if (l.tipo === "SUBCONTRATO") {
+          if (precio == null) {
+            fail("Falta el precio del subcontrato.");
+            continue;
+          }
+          subcontractRows.push({ recipe: rname, descripcion: l.descripcion.trim(), precio: Math.round(cantidad * precio * 100) / 100 });
+        }
+      }
+    }
+
+    // 3) Plantillas (por nombre) y líneas.
+    const usedNames = new Set([...materialRows, ...laborRows, ...equipmentRows, ...subcontractRows].map((r) => r.recipe));
+    const toCreate = params.recipes.filter((r) => usedNames.has(String(r.name ?? "").trim()));
+    const { data: existing } = await supabase
+      .from("apu_templates")
+      .select("id, nombre")
+      .eq("empresa_id", empresaId)
+      .in("nombre", toCreate.map((r) => r.name.trim()));
+    const idByName = new Map<string, string>((existing ?? []).map((t: any) => [t.nombre, t.id]));
+    const missing = toCreate.filter((r) => !idByName.has(r.name.trim()));
+    if (missing.length > 0) {
+      const { data: created, error } = await supabase
+        .from("apu_templates")
+        .insert(missing.map((r) => ({ empresa_id: empresaId, nombre: r.name.trim(), codigo: r.code?.trim() || null, unidad: r.unit?.trim() || null })))
+        .select("id, nombre");
+      if (error) return { ...empty, productosCreados, error: `Error al crear las plantillas: ${error.message}` };
+      for (const t of created ?? []) idByName.set(t.nombre, t.id);
+    }
+
+    const write = async (table: string, rows: Record<string, unknown>[], onConflict: string) => {
+      if (rows.length === 0) return null;
+      const { error } = await supabase.from(table).upsert(rows, { onConflict });
+      return error ? `Error al guardar ${table}: ${error.message}` : null;
+    };
+    const failures = (
+      await Promise.all([
+        write(
+          "apu_template_materials",
+          materialRows.map((m) => ({ empresa_id: empresaId, template_id: idByName.get(m.recipe)!, producto_id: m.productoId, cantidad_por_unidad_ejecutada: m.cantidad, desperdicio_pct: m.desperdicio })),
+          "template_id,producto_id"
+        ),
+        write(
+          "apu_template_labor",
+          laborRows.map((m) => ({ empresa_id: empresaId, template_id: idByName.get(m.recipe)!, rol: m.rol, horas_por_unidad_ejecutada: m.horas, costo_hora: m.costoHora, labor_rate_id: m.rateId })),
+          "template_id,rol"
+        ),
+        write(
+          "apu_template_equipment",
+          equipmentRows.map((m) => ({ empresa_id: empresaId, template_id: idByName.get(m.recipe)!, tipo_equipo: m.tipo, horas_por_unidad_ejecutada: m.horas, costo_hora: m.costoHora })),
+          "template_id,tipo_equipo"
+        ),
+        write(
+          "apu_template_subcontracts",
+          subcontractRows.map((m) => ({ empresa_id: empresaId, template_id: idByName.get(m.recipe)!, descripcion: m.descripcion, precio_por_unidad: m.precio })),
+          "template_id,descripcion"
+        ),
+      ])
+    ).filter(Boolean) as string[];
+    if (failures.length > 0) return { ...empty, productosCreados, error: failures.join(" · ") };
+
+    revalidatePath("/projects");
+    return {
+      plantillas: toCreate.length,
+      lineas: materialRows.length + laborRows.length + equipmentRows.length + subcontractRows.length,
+      productosCreados,
+      errores,
+      error: null,
+    };
+  } catch (err: any) {
+    return { ...empty, error: err.message || "No se pudo importar la planilla." };
+  }
 }
