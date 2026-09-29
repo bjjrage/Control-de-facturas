@@ -8,7 +8,9 @@ import type {
   StockDisponibilidadInput,
   ExecutionHistoryEntry,
 } from "./progress-forecast-engine";
-import type { WeeklyPlanItemTargetInput } from "./weekly-plan-engine";
+import type { PlanHourLineInput, PlanSubcontractLineInput, WeeklyPlanItemTargetInput } from "./weekly-plan-engine";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveProjectMaterialPrices } from "@/lib/costing/project-prices";
 import type { OperationalAssessmentItem } from "./operational-analyst-llm";
 
 // ---------------------------------------------------------------------------
@@ -53,6 +55,10 @@ export interface WeeklyPlanBaseData {
   executedQuantities: Record<string, number>;
   recentEntries: ExecutionHistoryEntry[];
   materialsByItem: Record<string, BudgetItemMaterialInput[]>;
+  /** Mano de obra, equipos y subcontratos de las recetas (APU), por partida. */
+  laborByItem: Record<string, PlanHourLineInput[]>;
+  equipmentByItem: Record<string, PlanHourLineInput[]>;
+  subcontractsByItem: Record<string, PlanSubcontractLineInput[]>;
   stockAndInbound: Record<string, StockDisponibilidadInput>;
   /**
    * Detalle de inbound por línea (ADITIVO V3, no altera el mapa legacy):
@@ -477,6 +483,47 @@ export async function loadWeeklyPlanBaseData(
     });
   }
 
+  // 4b. Precio de los materiales: el mismo que usa el Costeo (elegido para la obra,
+  //     cotización, historial de precios, costo promedio). Si algo falla, queda el
+  //     costo promedio del stock que ya se cargó arriba.
+  try {
+    const productIds: string[] = [...new Set<string>((rawMaterials ?? []).map((m: any) => String(m.producto_id)))];
+    if (productIds.length > 0) {
+      const prices = await resolveProjectMaterialPrices({ supabase: supabase as unknown as Parameters<typeof resolveProjectMaterialPrices>[0]["supabase"], admin: createAdminClient(), empresaId, projectId, productIds });
+      for (const list of Object.values(materialsByItem)) {
+        for (const m of list) {
+          const precio = prices.get(m.producto_id)?.price?.precio;
+          if (precio && precio > 0) m.costo_unitario = precio;
+        }
+      }
+    }
+  } catch {
+    // se mantiene el costo promedio
+  }
+
+  // 4c. Mano de obra, equipos y subcontratos de las recetas.
+  const laborByItem: Record<string, PlanHourLineInput[]> = {};
+  const equipmentByItem: Record<string, PlanHourLineInput[]> = {};
+  const subcontractsByItem: Record<string, PlanSubcontractLineInput[]> = {};
+  try {
+    const [laborRes, equipmentRes, subcontractRes] = await Promise.all([
+      supabase.from("budget_item_labor").select("budget_item_id, rol, horas_por_unidad_ejecutada, costo_hora").eq("project_id", projectId).eq("empresa_id", empresaId),
+      supabase.from("budget_item_equipment").select("budget_item_id, tipo_equipo, horas_por_unidad_ejecutada, costo_hora").eq("project_id", projectId).eq("empresa_id", empresaId),
+      supabase.from("budget_item_subcontracts").select("budget_item_id, descripcion, precio_por_unidad").eq("project_id", projectId).eq("empresa_id", empresaId),
+    ]);
+    for (const l of (laborRes.data ?? []) as any[]) {
+      (laborByItem[l.budget_item_id] ??= []).push({ label: l.rol, horas_por_unidad: Number(l.horas_por_unidad_ejecutada), costo_hora: Number(l.costo_hora) });
+    }
+    for (const e of (equipmentRes.data ?? []) as any[]) {
+      (equipmentByItem[e.budget_item_id] ??= []).push({ label: e.tipo_equipo, horas_por_unidad: Number(e.horas_por_unidad_ejecutada), costo_hora: Number(e.costo_hora) });
+    }
+    for (const c of (subcontractRes.data ?? []) as any[]) {
+      (subcontractsByItem[c.budget_item_id] ??= []).push({ label: c.descripcion, precio_por_unidad: Number(c.precio_por_unidad) });
+    }
+  } catch {
+    // el plan sigue funcionando solo con materiales
+  }
+
   // 5. Stock en obra
   const { data: rawStock, error: sErr } = await supabase
     .from("inventory_stock_by_project")
@@ -561,6 +608,9 @@ export async function loadWeeklyPlanBaseData(
       executedQuantities,
       recentEntries,
       materialsByItem,
+      laborByItem,
+      equipmentByItem,
+      subcontractsByItem,
       stockAndInbound,
       inboundDetails: await loadInboundDetails(supabase, rawOrders ?? [], receivedByOrderItem),
       baselineCertificate: baselineCert

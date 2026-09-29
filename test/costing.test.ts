@@ -299,3 +299,35 @@ describe("compras sin material asignado", () => {
     expect(out[1]).toMatchObject({ descripcion: "Arena fina", registros: 1, fuente: "Cotización" });
   });
 });
+
+describe("plan semanal: mano de obra, equipos y subcontratos de las recetas", () => {
+  it("calcula horas y costo por categoría a partir de la meta de la semana", async () => {
+    const { calculateWeeklyPlanRequirements } = await import("../lib/procurement/weekly-plan-engine");
+    const item = {
+      id: "b1", project_id: "p1", parent_id: null, code: "17", description: "Revoque interior", unit: "m2",
+      quantity: 1000, unit_price: 35_000, subtotal: 35_000_000, sort_order: 1, start_date: null, end_date: null,
+      depends_on: null, quantity_per_unit: null, material_requirement: "NO_MATERIAL" as const, created_at: "2026-09-01",
+    };
+    const summary = calculateWeeklyPlanRequirements({
+      project_id: "p1",
+      start_date: "2026-09-28",
+      end_date: "2026-10-04",
+      budget_items: [item],
+      executed_quantities_by_item: {},
+      targets: [{ budget_item_id: "b1", input_mode: "QUANTITY", input_value: 100 } as any],
+      materials_by_item: {},
+      stock_and_inbound: {},
+      labor_by_item: { b1: [{ label: "Oficial", horas_por_unidad: 0.8, costo_hora: 5000 }, { label: "Ayudante", horas_por_unidad: 0.8, costo_hora: 3000 }] },
+      equipment_by_item: { b1: [{ label: "Mezcladora", horas_por_unidad: 0.1, costo_hora: 16000 }] },
+      subcontracts_by_item: { b1: [{ label: "Terminación fina", precio_por_unidad: 6000 }] },
+    });
+    const r = summary.resource_requirements!;
+    expect(r.labor).toEqual([
+      { label: "Oficial", horas: 80, costo: 400_000 },
+      { label: "Ayudante", horas: 80, costo: 240_000 },
+    ]);
+    expect(r.equipment).toEqual([{ label: "Mezcladora", horas: 10, costo: 160_000 }]);
+    expect(r.subcontracts).toEqual([{ label: "Terminación fina", monto: 600_000 }]);
+    expect(r.total_labor_cost).toBe(640_000);
+  });
+});

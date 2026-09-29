@@ -1,5 +1,6 @@
 "use client";
 
+import { WeeklyPlanResources } from "./weekly-plan-resources";
 import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import {
   Calendar,
@@ -1603,6 +1604,8 @@ export function WeeklyPlanSection({ project }: Props) {
             </div>
           </div>
           )}
+
+          {preview.resource_requirements ? <WeeklyPlanResources data={preview.resource_requirements} /> : null}
 
           {/* Factibilidad */}
           <div className="glass-soft p-4 space-y-2">
