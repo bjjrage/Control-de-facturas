@@ -537,6 +537,8 @@ export default async function ProjectDetailPage({
   const entries = execEntries ?? [];
   const ocs = orders ?? [];
   const laborRows = laborEntries ?? [];
+  // Pagos de cuadrillas y destajos: también son costo de mano de obra de la obra.
+  const { data: laborPaymentRows } = await supabase.from("labor_payments").select("amount").eq("project_id", id);
   const budgetItemLabelById = new Map(items.map((i) => [i.id, `${i.code} — ${i.description}`]));
 
   // Cotizaciones y proveedores: consulta canónica por project_id con fallback histórico por OCs
@@ -636,7 +638,8 @@ export default async function ProjectDetailPage({
   }
 
   const laborHoursTotal = laborRows.reduce((s, l) => s + l.hours, 0);
-  const laborCostTotal = laborRows.reduce((s, l) => s + l.labor_cost, 0);
+  const laborCostTotal =
+    laborRows.reduce((s, l) => s + l.labor_cost, 0) + (laborPaymentRows ?? []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
   const itemsSubtotal = items.reduce((s, i) => s + i.subtotal, 0);
   const presupuestoTotal = Math.max(project.budget_total, itemsSubtotal);
   const comprasTotal = ocs

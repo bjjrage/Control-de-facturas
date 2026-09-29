@@ -297,7 +297,7 @@ export function ProjectTabsClient({
           <div className="kpi-hover kpi-accent-labor rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
             <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Costo M. de Obra</div>
             <div className="text-[16px] font-bold mt-1">{formatMoney(laborCostTotal, "PYG")}</div>
-            <div className="text-[11px] text-[var(--muted)] mt-0.5">{laborHoursTotal} h totales</div>
+            <div className="text-[11px] text-[var(--muted)] mt-0.5">Pagos y partes · {laborHoursTotal} h en partes</div>
           </div>
         ) : null}
       </div>
