@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getAppOrigin } from "@/lib/app-origin";
 import { requirePlan } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -50,7 +51,7 @@ export default async function ProjectDetailPage({
   const { tab: rawTab } = await searchParams;
   const isCaterpillar = profile.plan === "caterpillar" || profile.is_super_admin;
   const featurePlan = isCaterpillar ? "caterpillar" : "pro";
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = await getAppOrigin();
   const normalizedTab = rawTab === "recepciones" ? "panol" : rawTab;
   const initialTab =
     isProjectFeatureKey(normalizedTab) &&

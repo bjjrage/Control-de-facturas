@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getAppOrigin } from "@/lib/app-origin";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -162,7 +163,7 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
     [...cheapestByCurrency.values()].map((c) => c.rfqProviderId)
   );
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = await getAppOrigin();
   const open = isRfqOpen(rfq);
   const closedReason = rfqClosedReason(rfq);
   const canInvite = canManage && open;

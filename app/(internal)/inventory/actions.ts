@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlan } from "@/lib/auth";
+import { getAppOrigin } from "@/lib/app-origin";
 import { logAudit } from "@/lib/audit";
 import {
   createInventoryReceipt as createInventoryReceiptAtomic,
@@ -187,7 +188,7 @@ export async function createReceiptPortalLink(orderId: string) {
     detail: { expires_at: expiresAt, location_id: location.id, token_hint: generated.tokenHint },
   });
   revalidatePath(`/orders/${order.id}`);
-  return { error: null, url: receiptPortalUrl(generated.token) };
+  return { error: null, url: receiptPortalUrl(generated.token, await getAppOrigin()) };
 }
 
 export async function createInventoryLocation(args: {
@@ -356,7 +357,7 @@ export async function createWarehousePortalLink(locationId: string, expiresAt?: 
   });
   if (error) return { error: error.message, token: null, url: null };
   revalidatePath(`/projects/${location.project_id}`);
-  return { error: null, token: generated.token, url: warehousePortalUrl(generated.token) };
+  return { error: null, token: generated.token, url: warehousePortalUrl(generated.token, await getAppOrigin()) };
 }
 
 export async function revokeWarehousePortalLink(linkId: string) {
