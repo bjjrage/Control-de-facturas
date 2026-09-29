@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePlan } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { normalizeInventoryImportText, findUniqueExactInventoryMatch } from "@/lib/inventory/initial-stock-import";
+import { PLANILLA_APU_PREFIX } from "@/lib/costing/price-list";
 import {
   resolveApuTemplateMaterialImportMapping,
   resolveApuTemplateLaborImportMapping,
@@ -247,6 +248,7 @@ export interface ApuPlanillaImportResult {
   plantillas: number;
   lineas: number;
   productosCreados: number;
+  preciosGuardados: number;
   errores: { receta: string; insumo: string; motivo: string }[];
   error: string | null;
 }
@@ -260,7 +262,7 @@ export async function importApuPlanillaAction(params: {
   /** Horas de una jornada, para insumos de mano de obra o equipo que vienen en jornales. */
   hoursPerWorkday?: number;
 }): Promise<ApuPlanillaImportResult> {
-  const empty = { plantillas: 0, lineas: 0, productosCreados: 0, errores: [] as ApuPlanillaImportResult["errores"] };
+  const empty = { plantillas: 0, lineas: 0, productosCreados: 0, preciosGuardados: 0, errores: [] as ApuPlanillaImportResult["errores"] };
   try {
     const profile = await requirePlan("pro", ["administracion", "admin"]);
     const supabase = await createClient();
@@ -299,6 +301,7 @@ export async function importApuPlanillaAction(params: {
 
     // 2) Filas por tabla, validadas.
     const materialRows: { recipe: string; productoId: string; cantidad: number; desperdicio: number }[] = [];
+    const priceHints: { recipe: string; productoId: string; descripcion: string; unidad: string; precio: number }[] = [];
     const laborRows: { recipe: string; rol: string; horas: number; costoHora: number; rateId: string | null }[] = [];
     const equipmentRows: { recipe: string; tipo: string; horas: number; costoHora: number }[] = [];
     const subcontractRows: { recipe: string; descripcion: string; precio: number }[] = [];
@@ -330,6 +333,9 @@ export async function importApuPlanillaAction(params: {
             continue;
           }
           materialRows.push({ recipe: rname, productoId: product.id, cantidad, desperdicio });
+          if (precio != null && precio > 0) {
+            priceHints.push({ recipe: rname, productoId: product.id, descripcion: l.descripcion.trim(), unidad: (l.unidad?.trim() || "UN").toUpperCase(), precio });
+          }
         } else if (l.tipo === "MANO_DE_OBRA" || l.tipo === "EQUIPO") {
           let horas = cantidad;
           let costoPorHora = precio;
@@ -421,11 +427,62 @@ export async function importApuPlanillaAction(params: {
     ).filter(Boolean) as string[];
     if (failures.length > 0) return { ...empty, productosCreados, error: failures.join(" · ") };
 
+    // 4) Los precios de materiales de la planilla quedan como precio de referencia
+    //    (fuente MANUAL, marcada como planilla de APU). Una cotización o factura
+    //    posterior pesa más en la estimación. No se repite el mismo precio.
+    let preciosGuardados = 0;
+    if (priceHints.length > 0) {
+      const { data: prior } = await supabase
+        .from("cost_observations")
+        .select("producto_id, precio_unitario")
+        .eq("empresa_id", empresaId)
+        .eq("fuente", "MANUAL")
+        .like("documento_id", `${PLANILLA_APU_PREFIX}%`)
+        .in("producto_id", [...new Set(priceHints.map((h) => h.productoId))]);
+      const seen = new Set((prior ?? []).map((o: any) => `${o.producto_id}:${Number(o.precio_unitario)}`));
+      const today = new Date().toISOString().slice(0, 10);
+      const rowsToInsert = priceHints
+        .filter((h) => {
+          const key = `${h.productoId}:${h.precio}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .map((h) => ({
+          empresa_id: empresaId,
+          producto_id: h.productoId,
+          proveedor_id: null,
+          fuente: "MANUAL",
+          documento_id: `${PLANILLA_APU_PREFIX}${h.recipe}`.slice(0, 200),
+          descripcion_item: h.descripcion,
+          categoria_insumo: "MATERIAL",
+          cantidad: 1,
+          unidad: h.unidad,
+          precio_unitario: h.precio,
+          moneda: "PYG",
+          moneda_original: "PYG",
+          precio_unitario_original: h.precio,
+          tipo_cambio: null,
+          fecha_observacion: today,
+          estado_evidencia: "VALIDA",
+        }));
+      if (rowsToInsert.length > 0) {
+        const { error: obsError } = await supabase.from("cost_observations").insert(rowsToInsert);
+        if (obsError) {
+          errores.push({ receta: "—", insumo: "Precios de materiales", motivo: `No se pudieron guardar los precios de la planilla: ${obsError.message}` });
+        } else {
+          preciosGuardados = rowsToInsert.length;
+        }
+      }
+    }
+
     revalidatePath("/projects");
+    revalidatePath("/precios");
     return {
       plantillas: toCreate.length,
       lineas: materialRows.length + laborRows.length + equipmentRows.length + subcontractRows.length,
       productosCreados,
+      preciosGuardados,
       errores,
       error: null,
     };

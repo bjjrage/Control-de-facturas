@@ -257,3 +257,32 @@ describe("mano de obra por período", () => {
     expect(destajoAmount(120, 25_000)).toBe(3_000_000);
   });
 });
+
+describe("lista de precios", () => {
+  it("usa el historial, cae al costo promedio y nunca inventa un precio", async () => {
+    const { buildPriceList, sourceLabel } = await import("../lib/costing/price-list");
+    const rows = buildPriceList(
+      [
+        { id: "a", nombre: "Cemento", unidad: "bolsa", rubro: "Cementos", costoPromedio: null },
+        { id: "b", nombre: "Arena", unidad: "m3", rubro: null, costoPromedio: 90_000 },
+        { id: "c", nombre: "Listón", unidad: "m", rubro: null, costoPromedio: null },
+      ],
+      [
+        { id: "o1", productoId: "a", fuente: "MANUAL", documentoId: "PLANILLA_APU:Revoque", proveedorId: null, cantidad: 1, unidad: "BOLSA", precio: 42_000, fecha: "2026-09-01", esVolatil: false },
+        { id: "o2", productoId: "a", fuente: "FACTURA", documentoId: "f1", proveedorId: "p1", cantidad: 100, unidad: "BOLSA", precio: 45_000, fecha: "2026-09-20", esVolatil: false },
+      ],
+      "2026-09-28"
+    );
+    const a = rows.find((r) => r.productoId === "a")!;
+    expect(a.origen).toBe("HISTORIAL");
+    expect(a.precio).toBeGreaterThan(42_000);
+    expect(a.precio).toBeLessThanOrEqual(45_000);
+    expect(a.ultimo).toMatchObject({ precio: 45_000, fuente: "Factura", proveedorId: "p1" });
+    const b = rows.find((r) => r.productoId === "b")!;
+    expect(b).toMatchObject({ precio: 90_000, origen: "COSTO_PROMEDIO", ultimo: null });
+    const c = rows.find((r) => r.productoId === "c")!;
+    expect(c).toMatchObject({ precio: null, origen: null });
+    expect(sourceLabel("MANUAL", "PLANILLA_APU:x")).toBe("Planilla APU");
+    expect(sourceLabel("MANUAL", "PRECIO_LISTA")).toBe("Cargado a mano");
+  });
+});

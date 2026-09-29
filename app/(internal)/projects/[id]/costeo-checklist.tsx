@@ -90,9 +90,14 @@ export function CosteoChecklist({
             (insumosSinRubro > 0 ? ` ${insumosSinRubro} sin rubro.` : ""),
       help: "El precio de un material sale, en este orden, de: el que elijas para esta obra, la cotización más barata de tus proveedores, el historial de compras, o el costo promedio del stock. Para conseguirlo: pedí cotizaciones (Comprar → Cotizaciones → Nueva cotización → Desde una obra) o cargá un precio a mano con «Cambiar» en la lista de insumos de abajo. Los materiales sin rubro no se pueden pedir a proveedores: asignales categoría en Stock.",
       actions: (
-        <Link href={`/projects/${projectId}?tab=cotizaciones`} className="text-action text-[12px]">
-          Ir a Cotizaciones de esta obra →
-        </Link>
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          <Link href="/precios" className="text-action text-[12px]">
+            Lista de precios de materiales →
+          </Link>
+          <Link href={`/projects/${projectId}?tab=cotizaciones`} className="text-action text-[12px]">
+            Cotizaciones de esta obra →
+          </Link>
+        </div>
       ),
     },
     {

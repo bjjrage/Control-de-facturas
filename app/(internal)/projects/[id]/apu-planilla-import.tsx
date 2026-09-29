@@ -209,7 +209,8 @@ export function ApuPlanillaImport({ onDone }: { onDone: () => void }) {
           ) : (
             <div className="flex items-center gap-2 text-emerald-500">
               <CheckCircle2 className="h-4 w-4" /> {result.plantillas} plantillas y {result.lineas} insumos guardados
-              {result.productosCreados > 0 ? `; ${result.productosCreados} materiales nuevos en el catálogo` : ""}.
+              {result.productosCreados > 0 ? `; ${result.productosCreados} materiales nuevos en el catálogo` : ""}
+              {result.preciosGuardados > 0 ? `; ${result.preciosGuardados} precios de materiales guardados como referencia` : ""}.
             </div>
           )}
           {result.errores.length > 0 ? (
