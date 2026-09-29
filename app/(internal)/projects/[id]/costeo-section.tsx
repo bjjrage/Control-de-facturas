@@ -261,6 +261,20 @@ function RealVsBudgetSection({ projectId }: { projectId: string }) {
   if (!data) return <p className="text-[13px] text-[var(--muted)]">Calculando costo real…</p>;
 
   const desvioTotal = data.totalReal - data.totalPresupuestadoALaFecha;
+  // Filas sin costo presupuestado y sin gasto real no dicen nada: se ocultan.
+  const rows = data.rows.filter((r) => r.presupuestadoALaFecha != null || r.real > 0);
+  const hayPresupuesto = data.rows.some((r) => r.presupuestadoALaFecha != null);
+
+  if (rows.length === 0 && data.manoObraSinImputar === 0 && data.subcontratoSinImputar === 0) {
+    return (
+      <Section title="Real vs presupuestado">
+        <p className="text-[13px] text-[var(--muted)]">
+          Todavía no se puede comparar. Se activa cuando las partidas con avance tienen costo presupuestado (recetas APU con precios) o
+          cuando hay gastos reales cargados (consumo de stock, partes de Personal o certificados de subcontratistas).
+        </p>
+      </Section>
+    );
+  }
 
   return (
     <Section title="Real vs presupuestado">
@@ -268,6 +282,7 @@ function RealVsBudgetSection({ projectId }: { projectId: string }) {
         Presupuestado a la fecha = costo de la partida × % de avance ejecutado. Real = consumo de materiales + partes de personal
         imputados + certificados de subcontratistas aprobados o pagados.
       </p>
+      {hayPresupuesto ? (
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Kpi label="Presupuestado a la fecha" value={gs(data.totalPresupuestadoALaFecha)} note="Según avance ejecutado" />
         <Kpi label="Costo real" value={gs(data.totalReal)} note="Imputado a partidas" />
@@ -278,6 +293,7 @@ function RealVsBudgetSection({ projectId }: { projectId: string }) {
           warn={desvioTotal > 0}
         />
       </div>
+      ) : null}
       {data.manoObraSinImputar > 0 || data.subcontratoSinImputar > 0 ? (
         <p className="text-[12px] text-amber-500">
           Sin imputar a una partida (no entra en la comparación):
@@ -286,11 +302,11 @@ function RealVsBudgetSection({ projectId }: { projectId: string }) {
           en el contrato.
         </p>
       ) : null}
-      {data.rows.length === 0 ? (
+      {rows.length === 0 ? (
         <p className="text-[13px] text-[var(--muted)]">Todavía no hay avance ni costo real imputado a partidas.</p>
       ) : (
         <Table head={["Código", "Descripción", "Avance", "Presupuestado", "Materiales", "Personal", "Subcontrato", "Real", "Desvío"]}>
-          {data.rows.map((r) => (
+          {rows.map((r) => (
             <tr key={r.budgetItemId}>
               <td className="font-medium">{r.code}</td>
               <td>{r.description}</td>
