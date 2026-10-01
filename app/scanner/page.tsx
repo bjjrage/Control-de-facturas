@@ -80,6 +80,7 @@ function saveLocalMobileSession(sessionId: string, mobileClaimToken: string) {
 function ScannerContent() {
   const searchParams = useSearchParams();
   const tokenParam = searchParams.get("t") || searchParams.get("token");
+  const isCameraTestMode = searchParams.get("cameraTest") === "1";
 
   const [flowState, setFlowStateInternal] = useState<ScannerFlowState>("booting");
   const [token, setToken] = useState<string | null>(tokenParam);
@@ -174,6 +175,11 @@ function ScannerContent() {
 
   // BOOTSTRAP MÓVIL ÚNICO
   async function bootstrapScanner(source: "mount" | "pageshow" | "visibility" = "mount") {
+    if (isCameraTestMode) {
+      setFlowState("manual");
+      return;
+    }
+
     const isResumeOnly = source === "pageshow" || source === "visibility";
     // A lifecycle event must never supersede the initial QR token claim.
     if (bootstrapInFlightRef.current) return;
@@ -547,6 +553,36 @@ function ScannerContent() {
 
     // Vista 1: Entrada / Formulario PIN manual
     if (flowState === "manual" || (flowState as string) === "join") {
+      if (isCameraTestMode) {
+        return (
+          <div className="flex h-full min-h-0 flex-col w-full max-w-md mx-auto">
+            <main
+              className="flex-1 min-h-0 p-6 flex flex-col items-center justify-center text-center"
+              style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top, 0px))' }}
+            >
+              <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 mb-5">
+                <CameraIcon className="w-8 h-8" />
+              </div>
+              <h1 className="text-xl font-bold text-slate-100">Prueba de camara</h1>
+              <p className="mt-2 mb-7 text-sm text-slate-400">
+                Prueba independiente del ERP. Toca el boton y acepta el permiso de camara.
+              </p>
+              <button
+                id="btn-camera-test-open"
+                type="button"
+                onClick={handleRegularOpenCamera}
+                className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white font-semibold text-base flex items-center justify-center gap-2.5 shadow-xl shadow-emerald-900/40 transition"
+              >
+                <CameraIcon className="w-5 h-5" /> Abrir camara
+              </button>
+              <p className="mt-4 text-xs text-slate-500">
+                No hace falta QR ni PIN. Esta prueba no sube documentos al ERP.
+              </p>
+            </main>
+          </div>
+        );
+      }
+
       return (
         <div className="flex h-full min-h-0 flex-col w-full max-w-md mx-auto">
           <main
@@ -673,7 +709,9 @@ function ScannerContent() {
           onCapture={handleCapture}
           pageCount={pages.length}
           onCancel={() => {
-            if (pages.length > 0) {
+            if (isCameraTestMode) {
+              setFlowState("manual");
+            } else if (pages.length > 0) {
               setFlowState("pages");
             } else {
               setFlowState("ready");
