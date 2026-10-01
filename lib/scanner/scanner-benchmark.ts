@@ -23,6 +23,34 @@ export interface ScannerBenchmarkMetrics {
   meanQuadIoU: number;
   detectionSuccessRate: number;
   fallbackRate: number;
+  processingMeanMs: number;
+  medianProcessingMs: number;
+  p95ProcessingMs: number;
+}
+
+export interface ScannerABBenchmarkSample {
+  name: string;
+  width: number;
+  height: number;
+  expectedQuad: QuadPoints | null;
+  detectedQuad: QuadPoints | null;
+  detected: boolean;
+  fallback: boolean;
+  processingMs: number;
+}
+
+export interface ScannerABBenchmarkMetrics {
+  fixtureCount: number;
+  positiveFixtureCount: number;
+  negativeFixtureCount: number;
+  meanCornerErrorPx: number;
+  normalizedCornerErrorPercent: number;
+  maxCornerErrorPx: number;
+  meanQuadIoU: number;
+  detectionSuccessRate: number;
+  falseDetectionRate: number;
+  fallbackRate: number;
+  processingMeanMs: number;
   medianProcessingMs: number;
   p95ProcessingMs: number;
 }
@@ -123,6 +151,7 @@ export function summarizeScannerBenchmark(rows: ReturnType<typeof evaluateScanne
       meanQuadIoU: 0,
       detectionSuccessRate: 0,
       fallbackRate: 0,
+      processingMeanMs: 0,
       medianProcessingMs: 0,
       p95ProcessingMs: 0,
     };
@@ -136,6 +165,7 @@ export function summarizeScannerBenchmark(rows: ReturnType<typeof evaluateScanne
     meanQuadIoU: rows.reduce((sum, row) => sum + row.quadIoU, 0) / count,
     detectionSuccessRate: rows.filter((row) => row.success).length / count,
     fallbackRate: rows.filter((row) => !row.success).length / count,
+    processingMeanMs: processing.reduce((sum, value) => sum + value, 0) / count,
     medianProcessingMs: percentile(processing, 0.5),
     p95ProcessingMs: percentile(processing, 0.95),
   };
@@ -153,4 +183,53 @@ export function formatScannerBenchmark(label: string, metrics: ScannerBenchmarkM
     `  fallback rate: ${(metrics.fallbackRate * 100).toFixed(2)}%`,
     `  processing median/p95: ${metrics.medianProcessingMs.toFixed(2)} / ${metrics.p95ProcessingMs.toFixed(2)} ms`,
   ].join('\n');
+}
+
+export function summarizeScannerABBenchmark(
+  samples: ScannerABBenchmarkSample[]
+): ScannerABBenchmarkMetrics {
+  const positives = samples.filter((sample) => sample.expectedQuad !== null);
+  const negatives = samples.filter((sample) => sample.expectedQuad === null);
+  const cornerErrors: number[] = [];
+  const ious: number[] = [];
+
+  for (const sample of positives) {
+    const expected = sample.expectedQuad!;
+    const diagonal = Math.max(1, Math.hypot(sample.width, sample.height));
+    if (!sample.detected || !sample.detectedQuad) {
+      cornerErrors.push(diagonal, diagonal, diagonal, diagonal);
+      ious.push(0);
+      continue;
+    }
+    const expectedPoints = points(expected);
+    const actualPoints = points(sample.detectedQuad);
+    expectedPoints.forEach((point, index) => cornerErrors.push(distance(point, actualPoints[index])));
+    ious.push(quadIoU(expected, sample.detectedQuad));
+  }
+
+  const processing = samples.map((sample) => sample.processingMs);
+  const falseDetections = negatives.filter((sample) => sample.detected).length;
+  const trueDetections = positives.filter((sample) => sample.detected).length;
+  const meanCornerErrorPx =
+    cornerErrors.length > 0 ? cornerErrors.reduce((sum, value) => sum + value, 0) / cornerErrors.length : 0;
+  const meanDiagonal =
+    positives.length > 0
+      ? positives.reduce((sum, sample) => sum + Math.hypot(sample.width, sample.height), 0) / positives.length
+      : 1;
+
+  return {
+    fixtureCount: samples.length,
+    positiveFixtureCount: positives.length,
+    negativeFixtureCount: negatives.length,
+    meanCornerErrorPx,
+    normalizedCornerErrorPercent: (meanCornerErrorPx / Math.max(1, meanDiagonal)) * 100,
+    maxCornerErrorPx: cornerErrors.length > 0 ? Math.max(...cornerErrors) : 0,
+    meanQuadIoU: ious.length > 0 ? ious.reduce((sum, value) => sum + value, 0) / ious.length : 0,
+    detectionSuccessRate: positives.length > 0 ? trueDetections / positives.length : 0,
+    falseDetectionRate: negatives.length > 0 ? falseDetections / negatives.length : 0,
+    fallbackRate: samples.length > 0 ? samples.filter((sample) => sample.fallback).length / samples.length : 0,
+    processingMeanMs: processing.length > 0 ? processing.reduce((sum, value) => sum + value, 0) / processing.length : 0,
+    medianProcessingMs: percentile(processing, 0.5),
+    p95ProcessingMs: percentile(processing, 0.95),
+  };
 }

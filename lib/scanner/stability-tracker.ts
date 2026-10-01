@@ -41,6 +41,7 @@ export interface StabilityQuality {
   meanEdgeCoverage?: number;
   minEdgeCoverage?: number;
   qualityPassAcceptable?: boolean;
+  detectionQualityScore?: number;
   recentLargeJump?: boolean;
 }
 
@@ -234,6 +235,11 @@ export class DocumentStabilityTracker {
 
     const stableDurationMs = this.stableSinceMs !== null ? timestamp - this.stableSinceMs : 0;
     const progress = Math.min(1.0, stableDurationMs / this.options.requiredDurationMs);
+    const detectionQualityScore = quality.detectionQualityScore;
+    const engineQualityAcceptable =
+      typeof detectionQualityScore === 'number'
+        ? detectionQualityScore >= 0.45
+        : meanEdgeCoverage >= 0.45 && minEdgeCoverage >= 0.28;
     const computedRecentLargeJump =
       recentLargeJump ||
       (this.history.length > 1 && maxCornerDisplacement / Math.max(1, diagonal) > this.options.maxDriftRatio * 0.8);
@@ -250,8 +256,7 @@ export class DocumentStabilityTracker {
         isStable &&
         !this.captureLocked &&
         qualityPassAcceptable &&
-        meanEdgeCoverage >= 0.45 &&
-        minEdgeCoverage >= 0.28 &&
+        engineQualityAcceptable &&
         !computedRecentLargeJump,
       stabilityProgress: Number(progress.toFixed(2)),
       confidence,

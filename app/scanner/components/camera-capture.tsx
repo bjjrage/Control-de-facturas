@@ -14,10 +14,12 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import type { QuadPoints } from "@/lib/scanner/types";
-import { detectWithFallback } from "@/lib/scanner/detection-pipeline";
 import type { DetectionPipelineResult } from "@/lib/scanner/detection-pipeline";
 import { getOpenCvState, loadOpenCv, subscribeOpenCv } from "@/lib/scanner/opencv-loader";
 import type { OpenCvRuntime } from "@/lib/scanner/opencv-types";
+import { ScanicDetectionEngine } from "@/lib/scanner/scanic-detection-engine";
+import { detectWithEngineFallback } from "@/lib/scanner/scanner-engine-pipeline";
+import { shouldUseScanicPrimary } from "@/lib/scanner/scanner-engine-policy";
 import {
   calculateObjectCoverFit,
   mapVideoQuadToViewport,
@@ -34,7 +36,13 @@ import {
   isVideoElementReady,
   requestContinuousAutofocus,
 } from "@/lib/scanner/camera-helpers";
-import { debugStore, getScannerDetectorPreference, type ScannerDetectorPreference } from "@/lib/scanner/debug-store";
+import {
+  debugStore,
+  getScannerDetectorPreference,
+  getScannerEnginePreference,
+  type ScannerDetectorPreference,
+  type ScannerEnginePreference,
+} from "@/lib/scanner/debug-store";
 
 interface CameraCaptureProps {
   onCapture: (
@@ -76,7 +84,9 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
   const lastDetectionAtRef = useRef(0);
   const lastQualityAtRef = useRef(0);
   const openCvRef = useRef<OpenCvRuntime | null>(null);
+  const scanicEngineRef = useRef<ScanicDetectionEngine | null>(null);
   const detectorPreferenceRef = useRef<ScannerDetectorPreference>("auto");
+  const enginePreferenceRef = useRef<ScannerEnginePreference>("auto");
   const loopTimerRef = useRef<NodeJS.Timeout | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const isMountedRef = useRef(true);
@@ -91,6 +101,7 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
   const [torchOn, setTorchOn] = useState(false);
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [openCvState, setOpenCvState] = useState(getOpenCvState().state);
+  const [scanicState, setScanicState] = useState<"idle" | "loading" | "ready" | "failed" | "disabled">("idle");
 
   // Modos de escaneo y feedback
   const [autoCaptureEnabled, setAutoCaptureEnabled] = useState(true);
@@ -277,30 +288,66 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
     }
   }, []);
 
-  // OpenCV se carga únicamente cuando se monta la cámara. El loop puede
-  // empezar con V1 y cambiar a V2 cuando el runtime queda listo.
+  // Los motores se preparan al montar la cámara; cada frame sigue usando el
+  // downscale y la frecuencia actuales para mantener el preview fluido.
   useEffect(() => {
     detectorPreferenceRef.current = getScannerDetectorPreference();
+    enginePreferenceRef.current = getScannerEnginePreference();
+    debugStore.updateDetectionTelemetry({ enginePreference: enginePreferenceRef.current });
     const unsubscribe = subscribeOpenCv((nextState) => {
       setOpenCvState(nextState);
       debugStore.updateDetectionTelemetry({ opencvState: nextState });
     });
 
-    void loadOpenCv()
+    let active = true;
+    let scanicEngine: ScanicDetectionEngine | null = null;
+    if (shouldUseScanicPrimary(enginePreferenceRef.current)) {
+      scanicEngine = new ScanicDetectionEngine();
+      scanicEngineRef.current = scanicEngine;
+      setScanicState("loading");
+      debugStore.updateDetectionTelemetry({ scanicState: "loading" });
+      void scanicEngine.initialize()
+        .then(() => {
+          if (!active || !isMountedRef.current) return;
+          setScanicState("ready");
+          debugStore.updateDetectionTelemetry({
+            scanicState: "ready",
+            scanicInitializationMs: scanicEngine?.initTimeMs ?? 0,
+          });
+        })
+        .catch(() => {
+          if (!active || !isMountedRef.current) return;
+          setScanicState("failed");
+          debugStore.updateDetectionTelemetry({ scanicState: "failed" });
+        });
+    } else {
+      setScanicState("disabled");
+      debugStore.updateDetectionTelemetry({ scanicState: "disabled" });
+    }
+
+    if (enginePreferenceRef.current === "v1") {
+      setOpenCvState("idle");
+      debugStore.updateDetectionTelemetry({ opencvState: "idle" });
+    } else void loadOpenCv()
       .then((runtime) => {
-        if (!isMountedRef.current) return;
+        if (!active || !isMountedRef.current) return;
         openCvRef.current = runtime;
         setOpenCvState("ready");
         debugStore.updateDetectionTelemetry({ opencvState: "ready" });
       })
       .catch(() => {
-        if (!isMountedRef.current) return;
+        if (!active || !isMountedRef.current) return;
         openCvRef.current = null;
         setOpenCvState("failed");
         debugStore.updateDetectionTelemetry({ opencvState: "failed" });
       });
 
-    return unsubscribe;
+    return () => {
+      active = false;
+      unsubscribe();
+      if (scanicEngineRef.current === scanicEngine) scanicEngineRef.current = null;
+      scanicEngine?.dispose();
+    };
   }, []);
 
   // Cuando un retry cambia hasCamera de false a true, el <video> aparece en
@@ -398,6 +445,7 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
     stabilityTrackerRef.current.lockCapture();
 
     let captureSucceeded = false;
+    const sessionId = cameraSessionRef.current;
     try {
       // Haptic feedback en dispositivos compatibles
       if (typeof navigator !== "undefined" && navigator.vibrate) {
@@ -434,12 +482,15 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
         : undefined;
       let finalResult: DetectionPipelineResult | null = null;
       try {
-        finalResult = detectWithFallback({
+        finalResult = await detectWithEngineFallback({
           imageData,
           mode: "final",
+          enginePreference: enginePreferenceRef.current,
+          scanicEngine: scanicEngineRef.current,
           cv: detectorPreferenceRef.current === "v1" ? null : openCvRef.current,
           seedQuad,
         });
+        if (!isMountedRef.current || sessionId !== cameraSessionRef.current) return;
       } catch (finalError) {
         console.warn("Final scanner refinement error:", finalError);
       }
@@ -448,8 +499,12 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
       if (finalResult) {
         debugStore.updateDetectionTelemetry({
           detector: finalResult.diagnostics.detector ?? "v1",
+          enginePreference: enginePreferenceRef.current,
+          scanicState,
+          scanicInitializationMs: scanicEngineRef.current?.initTimeMs ?? 0,
           mode: "final",
           processingMs: finalResult.diagnostics.processingMs ?? 0,
+          qualityScore: finalResult.diagnostics.qualityScore ?? 0,
           candidateCount: finalResult.diagnostics.candidateCount ?? 0,
           confidence: finalResult.confidence,
           areaRatio: finalResult.diagnostics.areaRatio ?? 0,
@@ -486,7 +541,7 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
     const qualityCtx = qualityCanvas.getContext("2d", { willReadFrequently: true });
 
     // Bucle periódico a 160ms (~6 Hz) para equilibrar fluidez y bajo consumo de batería
-    loopTimerRef.current = setInterval(() => {
+    loopTimerRef.current = setInterval(async () => {
       if (isAnalyzingRef.current || captureLockedRef.current || !videoRef.current || !analysisCtx) {
         return;
       }
@@ -495,6 +550,7 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
       if (!isVideoElementReady(video)) return;
 
       isAnalyzingRef.current = true;
+      const sessionId = cameraSessionRef.current;
 
       try {
         const vw = video.videoWidth;
@@ -514,14 +570,15 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
         analysisCtx.drawImage(video, 0, 0, downW, downH);
         const imgData = analysisCtx.getImageData(0, 0, downW, downH);
 
-        // V2 fast mode usa OpenCV cuando ya está listo; V1 queda disponible
-        // desde el primer frame y ante cualquier error del runtime.
-        const result = detectWithFallback({
+        const result = await detectWithEngineFallback({
           imageData: imgData,
           mode: "fast",
+          enginePreference: enginePreferenceRef.current,
+          scanicEngine: scanicEngineRef.current,
           cv: detectorPreferenceRef.current === "v1" ? null : openCvRef.current,
           seedQuad: lastTrackedQuadRef.current,
         });
+        if (!isMountedRef.current || sessionId !== cameraSessionRef.current || captureLockedRef.current) return;
         lastDetectionRef.current = result;
 
         let fullVideoQuad: QuadPoints | null = null;
@@ -539,6 +596,7 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
           meanEdgeCoverage: result.diagnostics.meanEdgeCoverage ?? (result.diagnostics.detector === "v1" ? result.confidence * 0.8 : 0),
           minEdgeCoverage: result.diagnostics.minEdgeCoverage ?? (result.diagnostics.detector === "v1" ? result.confidence * 0.65 : 0),
           qualityPassAcceptable: result.diagnostics.qualityPassAcceptable ?? false,
+          detectionQualityScore: result.diagnostics.qualityScore,
         };
 
         // Actualizar rastreador de estabilidad temporal
@@ -557,7 +615,7 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
         // Cuando el quad fast ya lleva varios frames coherentes, hacer una
         // pasada quality a 960-1280px sin convertir cada tick en full-res.
         if (
-          openCvRef.current &&
+          (openCvRef.current || scanicEngineRef.current) &&
           qualityCtx &&
           fullVideoQuad &&
           nextStability.consecutiveFrames >= 3 &&
@@ -571,12 +629,15 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
             qualityCanvas.height = qualityH;
           }
           qualityCtx.drawImage(video, 0, 0, qualityW, qualityH);
-          const qualityResult = detectWithFallback({
+          const qualityResult = await detectWithEngineFallback({
             imageData: qualityCtx.getImageData(0, 0, qualityW, qualityH),
             mode: "quality",
+            enginePreference: enginePreferenceRef.current,
+            scanicEngine: scanicEngineRef.current,
             cv: detectorPreferenceRef.current === "v1" ? null : openCvRef.current,
             seedQuad: scaleQuad(fullVideoQuad, qualityW / vw, qualityH / vh),
           });
+          if (!isMountedRef.current || sessionId !== cameraSessionRef.current || captureLockedRef.current) return;
           lastQualityAtRef.current = nowMs;
           lastQualityDetectionRef.current = qualityResult;
           if (!qualityResult.isFallback && qualityResult.confidence >= 0.45) {
@@ -593,6 +654,7 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
               !qualityResult.isFallback &&
               Boolean(qualityResult.diagnostics.qualityPassAcceptable) &&
               qualityResult.confidence >= 0.5,
+            detectionQualityScore: qualityResult.diagnostics.qualityScore,
           };
           nextStability = stabilityTrackerRef.current.update(
             qualityQuad,
@@ -608,11 +670,15 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
         lastTrackedQuadRef.current = nextStability.smoothedQuad ?? nextStability.lastQuad;
         debugStore.updateDetectionTelemetry({
           detector: result.diagnostics.detector ?? "v1",
+          enginePreference: enginePreferenceRef.current,
+          scanicState,
+          scanicInitializationMs: scanicEngineRef.current?.initTimeMs ?? 0,
           opencvState: getOpenCvState().state,
           mode: lastQualityDetectionRef.current ? "quality" : "fast",
           processingMs: result.diagnostics.processingMs ?? 0,
           candidateCount: result.diagnostics.candidateCount ?? 0,
           confidence: result.confidence,
+          qualityScore: result.diagnostics.qualityScore ?? 0,
           areaRatio: result.diagnostics.areaRatio ?? 0,
           meanEdgeCoverage: nextStability.meanEdgeCoverage,
           minEdgeCoverage: nextStability.minEdgeCoverage,
@@ -641,7 +707,7 @@ export function CameraCapture({ onCapture, pageCount, onCancel }: CameraCaptureP
     return () => {
       if (loopTimerRef.current) clearInterval(loopTimerRef.current);
     };
-  }, [isVideoReady, hasCamera, autoCaptureEnabled, executeCapture]);
+  }, [isVideoReady, hasCamera, autoCaptureEnabled, executeCapture, scanicState]);
 
   // -------------------------------------------------------------
   // 4. OVERLAY DINÁMICO DE BORDES EN VIVO (<canvas> sobre <video>)

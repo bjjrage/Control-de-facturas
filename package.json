@@ -41,6 +41,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "recharts": "^3.10.1",
+    "scanic": "1.6.0",
     "tailwind-merge": "^3.6.0",
     "three": "^0.169.0",
     "tsx": "^4.23.12",

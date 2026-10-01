@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateScannerDetection, quadIoU, summarizeScannerBenchmark } from '../scanner-benchmark';
+import {
+  evaluateScannerDetection,
+  quadIoU,
+  summarizeScannerABBenchmark,
+  summarizeScannerBenchmark,
+} from '../scanner-benchmark';
 
 const expected = {
   topLeft: { x: 10, y: 10 },
@@ -33,5 +38,36 @@ describe('scanner benchmark utilities', () => {
     expect(summary.detectionSuccessRate).toBe(0.5);
     expect(summary.fallbackRate).toBe(0.5);
     expect(summary.p95ProcessingMs).toBe(20);
+  });
+
+  it('penalizes missed positives and counts false detections on empty scenes', () => {
+    const summary = summarizeScannerABBenchmark([
+      {
+        name: 'paper',
+        width: 120,
+        height: 220,
+        expectedQuad: expected,
+        detectedQuad: null,
+        detected: false,
+        fallback: true,
+        processingMs: 12,
+      },
+      {
+        name: 'empty',
+        width: 120,
+        height: 220,
+        expectedQuad: null,
+        detectedQuad: expected,
+        detected: true,
+        fallback: false,
+        processingMs: 8,
+      },
+    ]);
+
+    expect(summary.detectionSuccessRate).toBe(0);
+    expect(summary.falseDetectionRate).toBe(1);
+    expect(summary.fallbackRate).toBe(0.5);
+    expect(summary.meanCornerErrorPx).toBeCloseTo(Math.hypot(120, 220), 4);
+    expect(summary.processingMeanMs).toBe(10);
   });
 });

@@ -8,8 +8,9 @@ import {
   detectDocumentQuad,
   autoAdjustQuadToEdges,
   isValidConvexQuad,
-  warpPerspective,
 } from "@/lib/scanner/image-processing";
+import { getScannerEnginePreference } from "@/lib/scanner/debug-store";
+import { extractPerspectiveWithEngineFallback } from "@/lib/scanner/scanner-engine-pipeline";
 
 interface QuadEditorProps {
   imageDataUrl: string;
@@ -348,7 +349,11 @@ export function QuadEditor({ imageDataUrl, initialQuad, onConfirmCrop, onCancel 
       const srcImageData = offCtx.getImageData(0, 0, imgDims.w, imgDims.h);
 
       // 2. Aplicar warp proyectivo
-      const warpedImageData = warpPerspective(srcImageData, quad);
+      const warpedImageData = await extractPerspectiveWithEngineFallback(
+        srcImageData,
+        quad,
+        getScannerEnginePreference()
+      );
 
       // 3. Pintar en canvas destino y exportar DataURL
       const dstCanvas = document.createElement("canvas");

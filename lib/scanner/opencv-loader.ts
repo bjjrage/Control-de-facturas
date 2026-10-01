@@ -38,6 +38,16 @@ function resolveRuntime(resolve: (runtime: OpenCvRuntime) => void, reject: (reas
   const candidate = window.cv;
   if (!candidate) return false;
 
+  // OpenCV.js 4.13 exposes a Promise-like `cv` that already has the runtime
+  // methods attached. Prefer that ready runtime directly; assimilating the
+  // Emscripten thenable can stall the browser main thread during WASM startup.
+  const directRuntime = candidate as OpenCvRuntime;
+  if (typeof directRuntime.Mat === 'function') {
+    update('ready');
+    resolve(directRuntime);
+    return true;
+  }
+
   Promise.resolve(candidate)
     .then((runtime) => {
       if (!runtime || typeof runtime.Mat !== 'function') {

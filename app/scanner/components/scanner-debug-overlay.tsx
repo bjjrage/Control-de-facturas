@@ -213,15 +213,18 @@ export function ScannerDebugOverlay({
 
           <div className="bg-slate-900/80 p-2 rounded border border-emerald-800/60">
             <div className="font-bold text-emerald-200 border-b border-slate-800 pb-0.5 mb-1">
-              DOCUMENT DETECTION V2:
+              SCANNER ENGINE:
             </div>
             <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
               <div><span className="text-slate-400">detector:</span> {detection.detector}</div>
+              <div><span className="text-slate-400">selection:</span> {detection.enginePreference}</div>
+              <div><span className="text-slate-400">Scanic:</span> {detection.scanicState} ({detection.scanicInitializationMs.toFixed(0)} ms init)</div>
               <div><span className="text-slate-400">OpenCV:</span> {detection.opencvState}</div>
               <div><span className="text-slate-400">mode:</span> {detection.mode}</div>
               <div><span className="text-slate-400">processing:</span> {detection.processingMs.toFixed(1)} ms</div>
               <div><span className="text-slate-400">candidates:</span> {detection.candidateCount}</div>
               <div><span className="text-slate-400">confidence:</span> {detection.confidence.toFixed(2)}</div>
+              <div><span className="text-slate-400">engine score:</span> {detection.qualityScore.toFixed(2)}</div>
               <div><span className="text-slate-400">areaRatio:</span> {detection.areaRatio.toFixed(3)}</div>
               <div><span className="text-slate-400">edge mean/min:</span> {detection.meanEdgeCoverage.toFixed(2)} / {detection.minEdgeCoverage.toFixed(2)}</div>
               <div className="col-span-2"><span className="text-slate-400">quality pass:</span> {String(detection.qualityPassAcceptable)}</div>

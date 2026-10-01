@@ -28,13 +28,16 @@ export interface DetectedQuadResult {
   diagnostics?: DetectionDiagnostics;
 }
 
-export type ScannerDetectorName = 'v1' | 'v2';
+export type ScannerDetectorName = 'v1' | 'v2' | 'scanic';
 export type ScannerDetectionMode = 'fast' | 'quality' | 'final';
 
 export interface DetectionDiagnostics {
   detector?: ScannerDetectorName;
   mode?: ScannerDetectionMode;
+  engine?: ScannerDetectorName;
   processingMs?: number;
+  initializationMs?: number;
+  qualityScore?: number;
   candidateCount?: number;
   areaRatio?: number;
   meanEdgeCoverage?: number;

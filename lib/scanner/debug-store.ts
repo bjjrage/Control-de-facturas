@@ -51,7 +51,11 @@ const initialCameraTelemetry: CameraDebugTelemetry = {
 };
 
 export interface ScannerDetectionTelemetry {
-  detector: 'v1' | 'v2' | 'unknown';
+  detector: 'v1' | 'v2' | 'scanic' | 'unknown';
+  enginePreference: ScannerEnginePreference;
+  scanicState: 'idle' | 'loading' | 'ready' | 'failed' | 'disabled';
+  scanicInitializationMs: number;
+  qualityScore: number;
   opencvState: 'idle' | 'loading' | 'ready' | 'failed';
   processingMs: number;
   candidateCount: number;
@@ -67,6 +71,10 @@ export interface ScannerDetectionTelemetry {
 
 const initialDetectionTelemetry: ScannerDetectionTelemetry = {
   detector: 'unknown',
+  enginePreference: 'auto',
+  scanicState: 'idle',
+  scanicInitializationMs: 0,
+  qualityScore: 0,
   opencvState: 'idle',
   processingMs: 0,
   candidateCount: 0,
@@ -178,6 +186,22 @@ export function isScannerDebugActive(): boolean {
 }
 
 export type ScannerDetectorPreference = 'auto' | 'v1' | 'v2';
+export type ScannerEnginePreference = 'auto' | 'scanic' | 'opencv' | 'v1';
+
+export function getScannerEnginePreference(): ScannerEnginePreference {
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    const queryValue = params.get('scannerEngine') ?? params.get('engine');
+    if (queryValue === 'scanic' || queryValue === 'opencv' || queryValue === 'auto') return queryValue;
+
+    // Keep the previous debug selector working while the new engine flag is rolled out.
+    const detector = params.get('detector');
+    if (detector === 'v1') return 'v1';
+    if (detector === 'v2') return 'opencv';
+  }
+  const configured = process.env.NEXT_PUBLIC_SCANNER_ENGINE;
+  return configured === 'scanic' || configured === 'opencv' ? configured : 'auto';
+}
 
 export function getScannerDetectorPreference(): ScannerDetectorPreference {
   if (typeof window === 'undefined') return 'auto';
