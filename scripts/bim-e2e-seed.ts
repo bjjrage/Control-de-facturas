@@ -14,32 +14,29 @@
  * password determinístico del entorno).
  *
  * Env requerida (nunca loguea secretos):
- *   BIM_SUPABASE_URL (o NEXT_PUBLIC_SUPABASE_URL)
- *   BIM_SERVICE_ROLE_KEY (o SUPABASE_SERVICE_ROLE_KEY)
+ *   BIM_TEST_SUPABASE_URL
+ *   BIM_TEST_SERVICE_ROLE_KEY
  *   BIM_TEST_EMAIL, BIM_TEST_PASSWORD
  */
 
 import { createClient } from "@supabase/supabase-js";
+import { assertNonProductionTestTarget } from "../test-utils/external-test-target";
 
-const SUPABASE_URL = process.env.BIM_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SERVICE_ROLE_KEY = process.env.BIM_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_URL = process.env.BIM_TEST_SUPABASE_URL;
+const SERVICE_ROLE_KEY = process.env.BIM_TEST_SERVICE_ROLE_KEY;
 const TEST_EMAIL = process.env.BIM_TEST_EMAIL;
 const TEST_PASSWORD = process.env.BIM_TEST_PASSWORD;
-
-const PROD_REF = "ezucivipgmbvamhugkbj";
 
 function fail(msg: string): never {
   console.error(`❌ [bim-e2e-seed] ${msg}`);
   process.exit(1);
 }
 
-if (!SUPABASE_URL) fail("Falta BIM_SUPABASE_URL (o NEXT_PUBLIC_SUPABASE_URL).");
-if (!SERVICE_ROLE_KEY) fail("Falta BIM_SERVICE_ROLE_KEY (o SUPABASE_SERVICE_ROLE_KEY).");
+if (!SUPABASE_URL) fail("Falta BIM_TEST_SUPABASE_URL.");
+if (!SERVICE_ROLE_KEY) fail("Falta BIM_TEST_SERVICE_ROLE_KEY.");
 if (!TEST_EMAIL) fail("Falta BIM_TEST_EMAIL.");
 if (!TEST_PASSWORD) fail("Falta BIM_TEST_PASSWORD.");
-if (SUPABASE_URL.includes(PROD_REF)) {
-  fail(`La URL apunta al proyecto productivo (${PROD_REF}). Abortando por seguridad.`);
-}
+assertNonProductionTestTarget({ url: SUPABASE_URL, label: "BIM E2E seed" });
 
 async function run(): Promise<void> {
   const admin = createClient(SUPABASE_URL as string, SERVICE_ROLE_KEY as string, {

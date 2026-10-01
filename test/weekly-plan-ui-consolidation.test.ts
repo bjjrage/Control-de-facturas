@@ -6,6 +6,7 @@ import {
   checkItemBomRequirement,
 } from "../lib/procurement/weekly-plan-engine";
 import type { BudgetItem } from "../lib/types";
+import type { OperationalAssessmentItem } from "../lib/procurement/operational-analyst-llm";
 
 const ROOT = path.resolve(__dirname, "..");
 function readSource(rel: string): string {
@@ -18,8 +19,11 @@ function readSource(rel: string): string {
 describe("UI consolidation: single weekly planning experience", () => {
   it("AvanceFisicoPanel no importa ni renderiza ProgressForecastSection", () => {
     const src = readSource("app/(internal)/projects/[id]/avance-fisico-panel.tsx");
-    expect(src).toContain("WeeklyPlanSection");
+    const tabsSrc = readSource("app/(internal)/projects/[id]/project-tabs-client.tsx");
+    expect(src).not.toContain("WeeklyPlanSection");
     expect(src).not.toContain("ProgressForecastSection");
+    expect(tabsSrc).toContain('tab === "plan-semanal"');
+    expect(tabsSrc).toContain("<WeeklyPlanSection project={project} />");
     expect(src).not.toContain("Proyección Semanal Inteligente de Obra + Materiales + Impacto en Caja");
   });
 
@@ -288,7 +292,7 @@ describe("Weather overlay no inventa ni recorta la meta", () => {
         { date: "2026-09-16", precipitation_sum_mm: 0, precipitation_hours: 0, precipitation_probability_max: 5, wind_gusts_max_kmh: 10, temperature_max_c: 31, temperature_min_c: 22, weather_code: 0 },
       ],
       operational_assessments: {
-        "item-w": { budget_item_id: "item-w", productive_factor: 0.5, reasoning: "lluvia", confidence: "MEDIUM" } as any,
+        "item-w": { budget_item_id: "item-w", productive_factor: 0.5, workability: "PARTIAL", reason: "lluvia" } as OperationalAssessmentItem,
       },
     });
     expect(calc.items[0].target_quantity).toBe(120);

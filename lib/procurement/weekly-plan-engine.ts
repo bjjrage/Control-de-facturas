@@ -5,6 +5,7 @@ import {
   WeeklyPlanCalculationSummary,
   WeeklyPlanInputMode,
   WeeklyPlanItemCalculation,
+  WeeklyPlanResourceRequirements,
   WeeklyPlanStatus,
 } from "@/lib/types";
 import {
@@ -22,6 +23,19 @@ export interface WeeklyPlanItemTargetInput {
   input_value: number;
 }
 
+/** Línea de mano de obra o equipo de la receta (APU): horas por unidad de partida. */
+export interface PlanHourLineInput {
+  label: string;
+  horas_por_unidad: number;
+  costo_hora: number;
+}
+
+/** Línea de subcontrato de la receta: precio por unidad de partida. */
+export interface PlanSubcontractLineInput {
+  label: string;
+  precio_por_unidad: number;
+}
+
 export interface WeeklyPlanEngineInput {
   plan_id?: string;
   project_id: string;
@@ -32,6 +46,9 @@ export interface WeeklyPlanEngineInput {
   executed_quantities_by_item: Record<string, number>;
   targets: WeeklyPlanItemTargetInput[];
   materials_by_item: Record<string, BudgetItemMaterialInput[]>;
+  labor_by_item?: Record<string, PlanHourLineInput[]>;
+  equipment_by_item?: Record<string, PlanHourLineInput[]>;
+  subcontracts_by_item?: Record<string, PlanSubcontractLineInput[]>;
   stock_and_inbound: Record<string, StockDisponibilidadInput>;
   recent_execution_entries?: ExecutionHistoryEntry[];
   currency?: string;
@@ -178,6 +195,9 @@ export function calculateWeeklyPlanRequirements(
   let totalCoveredByInboundValue = 0;
   let totalAdditionalCashRequired = 0;
   let unconfiguredMaterialsCount = 0;
+  const laborAcc = new Map<string, { horas: number; costo: number }>();
+  const equipmentAcc = new Map<string, { horas: number; costo: number }>();
+  const subcontractAcc = new Map<string, number>();
 
   // Weather overlay accumulators
   let weatherAdjustedMaterialConsumptionValue = 0;
@@ -244,6 +264,23 @@ export function calculateWeeklyPlanRequirements(
       const wasCapped = requestedQuantity > itemRemainingBudget;
       // Deduct used quantity from remaining budget for next fronts
       itemRemainingBudget = Math.max(0, itemRemainingBudget - targetQuantity);
+
+      // Mano de obra, equipos y subcontratos de la receta para esta meta.
+      if (targetQuantity > 0) {
+        for (const line of input.labor_by_item?.[item.id] ?? []) {
+          const horas = targetQuantity * line.horas_por_unidad;
+          const acc = laborAcc.get(line.label) ?? { horas: 0, costo: 0 };
+          laborAcc.set(line.label, { horas: acc.horas + horas, costo: acc.costo + horas * line.costo_hora });
+        }
+        for (const line of input.equipment_by_item?.[item.id] ?? []) {
+          const horas = targetQuantity * line.horas_por_unidad;
+          const acc = equipmentAcc.get(line.label) ?? { horas: 0, costo: 0 };
+          equipmentAcc.set(line.label, { horas: acc.horas + horas, costo: acc.costo + horas * line.costo_hora });
+        }
+        for (const line of input.subcontracts_by_item?.[item.id] ?? []) {
+          subcontractAcc.set(line.label, (subcontractAcc.get(line.label) ?? 0) + targetQuantity * line.precio_por_unidad);
+        }
+      }
 
       // Item-level progress percentages
       const currentProgressPct =
@@ -448,5 +485,28 @@ export function calculateWeeklyPlanRequirements(
           : `Pronóstico LIVE (${weather_forecasts.length} días) evaluado con ${weatherDaysAffectedCount} días afectados.`
       : null,
     weather_failed_closed,
+    resource_requirements: buildResourceRequirements(laborAcc, equipmentAcc, subcontractAcc),
+  };
+}
+
+function buildResourceRequirements(
+  labor: Map<string, { horas: number; costo: number }>,
+  equipment: Map<string, { horas: number; costo: number }>,
+  subcontracts: Map<string, number>
+): WeeklyPlanResourceRequirements {
+  const toRows = (m: Map<string, { horas: number; costo: number }>) =>
+    [...m.entries()]
+      .map(([label, v]) => ({ label, horas: Number(v.horas.toFixed(2)), costo: Math.round(v.costo) }))
+      .sort((a, b) => b.horas - a.horas);
+  const laborRows = toRows(labor);
+  const equipmentRows = toRows(equipment);
+  const subRows = [...subcontracts.entries()].map(([label, monto]) => ({ label, monto: Math.round(monto) })).sort((a, b) => b.monto - a.monto);
+  return {
+    labor: laborRows,
+    equipment: equipmentRows,
+    subcontracts: subRows,
+    total_labor_cost: laborRows.reduce((s, r) => s + r.costo, 0),
+    total_equipment_cost: equipmentRows.reduce((s, r) => s + r.costo, 0),
+    total_subcontract_cost: subRows.reduce((s, r) => s + r.monto, 0),
   };
 }

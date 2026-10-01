@@ -6,11 +6,11 @@ import {
   SEED_PLAN,
   validateCanonicalDemoManifest,
 } from "../../tests/fixtures/erp-demo/canonical-demo";
+import { assertNonProductionTestTarget } from "../../test-utils/external-test-target";
 
 type Row = Record<string, unknown>;
 type AdminClient = SupabaseClient<any, "public", any>;
 
-const PRODUCTION_PROJECT_REF = "ezucivipgmbvamhugkbj";
 const args = new Set(process.argv.slice(2));
 
 function fail(message: string): never {
@@ -44,10 +44,6 @@ function printPlan(): void {
 }
 
 function assertSafeRuntime(url: string): void {
-  if (url.includes(PRODUCTION_PROJECT_REF)) {
-    fail(`La URL apunta al proyecto productivo (${PRODUCTION_PROJECT_REF}). Abortando.`);
-  }
-
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -55,6 +51,7 @@ function assertSafeRuntime(url: string): void {
     fail("E2E_SUPABASE_URL no es una URL válida.");
   }
 
+  assertNonProductionTestTarget({ url, label: "Canonical ERP E2E seed" });
   const isLocal = ["localhost", "127.0.0.1", "::1"].includes(parsed.hostname);
   const mode = process.env.E2E_SEED_MODE;
   if (mode !== "local" && mode !== "test") {

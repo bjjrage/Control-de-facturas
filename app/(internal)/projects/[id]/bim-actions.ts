@@ -12,6 +12,7 @@ import { DeepSeekBatchSemanticMatcher, type BatchMatchItem } from "@/lib/bim/dee
 import { groupElements } from "@/lib/bim/grouping";
 import { planRegroup } from "@/lib/bim/regroup-planning";
 import { checkTechnicalIntegrity } from "@/lib/bim/technical-integrity";
+import { nextPartidaCodes } from "@/lib/computo/new-partidas";
 import type { BimElement, BimModel, BimBudgetMatch, BimElementGroup, BimGroupMatch, BudgetItem } from "@/lib/types";
 
 async function assertProjectAccess(projectId: string) {
@@ -172,11 +173,11 @@ export async function generateMatchSuggestions(
     return { suggested: 0, error: "El proyecto todavía no tiene ítems de presupuesto para comparar." };
   }
 
-  // Solo se comparan rubros "hoja" (sin hijos) con precio cargado: no tiene
-  // sentido matchear contra un capítulo agrupador, y sin unit_price la línea
-  // igual quedaría "PRECIO NO DISPONIBLE".
+  // Solo se comparan rubros "hoja" (sin hijos): no tiene sentido matchear
+  // contra un capítulo agrupador. Las partidas sin precio también cuentan
+  // (en el flujo de costeo el cómputo crea partidas antes del precio).
   const parentIds = new Set(budgetItems.map((b) => b.parent_id).filter(Boolean));
-  const matchableItems = budgetItems.filter((b) => !parentIds.has(b.id) && b.unit_price != null);
+  const matchableItems = budgetItems.filter((b) => !parentIds.has(b.id));
 
   // Filtro determinista -> retrieval por texto -> DEEPSEEK decide. El fuzzy
   // scorer ya no es la autoridad de match, solo acota candidatos (ver
@@ -272,11 +273,9 @@ export async function processBimGroups(projectId: string, bimModelId: string): P
     supabase.from("budget_items").select("*").eq("project_id", projectId).returns<BudgetItem[]>(),
   ]);
   if (!elements || elements.length === 0) return { ...empty, error: "El modelo no tiene elementos." };
-  if (!budgetItems || budgetItems.length === 0) {
-    return { ...empty, elementCount: elements.length, error: "El proyecto todavía no tiene ítems de presupuesto para comparar." };
-  }
-  const parentIds = new Set(budgetItems.map((b) => b.parent_id).filter(Boolean));
-  const matchableItems = budgetItems.filter((b) => !parentIds.has(b.id) && b.unit_price != null);
+  // Obra sin partidas: se agrupa igual y cada grupo puede crear su partida.
+  const parentIds = new Set((budgetItems ?? []).map((b) => b.parent_id).filter(Boolean));
+  const matchableItems = (budgetItems ?? []).filter((b) => !parentIds.has(b.id));
 
   // Idempotencia SIN destruir decisiones humanas:
   //   - CONFIRMED/REJECTED son decisiones de una persona -> el grupo queda
@@ -375,6 +374,31 @@ export async function processBimGroups(projectId: string, bimModelId: string): P
     if (updateError) return { ...empty, elementCount: elements.length, error: updateError.message };
 
     groupIds.push(group.id);
+  }
+
+  if (matchableItems.length === 0) {
+    // Sin partidas no hay con qué comparar: no se consulta a la IA.
+    const { error: noMatchError } = await supabase.from("bim_group_matches").insert(
+      groupIds.map((group_id) => ({
+        group_id,
+        budget_item_id: null,
+        method: "SEMANTIC" as const,
+        score: 0,
+        reason: "La obra todavía no tiene partidas: creá la partida desde el grupo.",
+        status: "NO_MATCH" as const,
+      }))
+    );
+    return {
+      elementCount: elements.length,
+      groupCount: lockedGroupCount + drafts.length,
+      suggested: 0,
+      review: 0,
+      reviewRequired: 0,
+      noMatch: groupIds.length,
+      totalTokens: 0,
+      latencyMs: Date.now() - startedAt,
+      error: noMatchError ? noMatchError.message : null,
+    };
   }
 
   // 2) Matching semántico EN LOTE sobre los grupos (nunca sobre el texto crudo:
@@ -530,6 +554,63 @@ export async function getBimGroupsData(
 // El usuario confirma el rubro sugerido (o elige otro manualmente: method
 // pasa a MANUAL). Un grupo tiene a lo sumo un match CONFIRMADO vigente
 // (índice único parcial en la migración).
+/**
+ * Crea partidas nuevas a partir de grupos BIM sin correspondencia (flujo de
+ * costeo: el cómputo crea las partidas). Sin precio de venta; la cantidad es
+ * la medida del modelo. Cada grupo queda confirmado contra su partida.
+ */
+export async function createBudgetItemsFromBimGroupsAction(
+  projectId: string,
+  groupIds: string[]
+): Promise<{ created: number; error: string | null }> {
+  const { supabase } = await assertProjectAccess(projectId);
+  if (groupIds.length === 0) return { created: 0, error: null };
+
+  const { data: groups, error: groupsError } = await supabase
+    .from("bim_element_groups")
+    .select("id, normalized_name, ifc_type, material, quantity_unit, total_quantity")
+    .eq("project_id", projectId)
+    .in("id", groupIds);
+  if (groupsError) return { created: 0, error: groupsError.message };
+
+  const { data: confirmed } = await supabase.from("bim_group_matches").select("group_id").in("group_id", groupIds).eq("status", "CONFIRMED");
+  const confirmedIds = new Set((confirmed ?? []).map((c) => c.group_id));
+  const pending = ((groups ?? []) as any[]).filter((g) => !confirmedIds.has(g.id));
+  if (pending.length === 0) return { created: 0, error: null };
+
+  const { data: existing } = await supabase.from("budget_items").select("code, sort_order").eq("project_id", projectId);
+  const codes = nextPartidaCodes((existing ?? []).map((b) => String(b.code ?? "")), pending.length);
+  let sort = Math.max(0, ...(existing ?? []).map((b) => Number(b.sort_order) || 0));
+
+  const { data: created, error: insertError } = await supabase
+    .from("budget_items")
+    .insert(
+      pending.map((g, idx) => ({
+        project_id: projectId,
+        code: codes[idx],
+        description: [g.normalized_name ?? g.ifc_type, g.material].filter(Boolean).join(" — ") || "Elemento BIM",
+        unit: g.quantity_unit ?? null,
+        quantity: g.total_quantity ?? null,
+        unit_price: null,
+        sort_order: ++sort,
+      }))
+    )
+    .select("id, code");
+  if (insertError) return { created: 0, error: insertError.message };
+
+  const idByCode = new Map((created ?? []).map((c) => [c.code as string, c.id as string]));
+  for (let idx = 0; idx < pending.length; idx++) {
+    const newId = idByCode.get(codes[idx]);
+    if (!newId) continue;
+    const res = await confirmGroupMatch(projectId, pending[idx].id, newId, true);
+    if (res.error) return { created: idByCode.size, error: `Partidas creadas, pero falló el enlace de un grupo: ${res.error}` };
+  }
+
+  await logAudit(supabase, { action: "bim.partidas_created", detail: { project_id: projectId, count: idByCode.size } });
+  revalidatePath(`/projects/${projectId}`);
+  return { created: idByCode.size, error: null };
+}
+
 export async function confirmGroupMatch(
   projectId: string,
   groupId: string,

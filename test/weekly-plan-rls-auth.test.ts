@@ -1,14 +1,24 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { createClient } from "@supabase/supabase-js";
-import * as fs from "fs";
+import { assertNonProductionTestTarget } from "../test-utils/external-test-target";
 
 describe("Weekly Plan - Multi-tenant RLS & Security Invoker RPC Verification", () => {
-  const supabaseUrl = "https://ezucivipgmbvamhugkbj.supabase.co";
-  const anonKey =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6dWNpdmlwZ21idmFtaHVna2JqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg2MTMyNTcsImV4cCI6MjEwNDE4OTI1N30.E-WBbmwrRgVHcU_2x6bVMRutjnaXocHVdEwZsQ57Id0";
+  const supabaseUrl =
+    process.env.TEST_SUPABASE_URL ??
+    (process.env.TEST_SUPABASE_PROJECT_REF
+      ? `https://${process.env.TEST_SUPABASE_PROJECT_REF}.supabase.co`
+      : "");
+  const anonKey = process.env.TEST_SUPABASE_ANON_KEY ?? "";
+  const userAEmail = process.env.TEST_USER_A_EMAIL ?? "";
+  const userAPassword = process.env.TEST_USER_A_PASSWORD ?? "";
+  const userBEmail = process.env.TEST_USER_B_EMAIL ?? "";
+  const userBPassword = process.env.TEST_USER_B_PASSWORD ?? "";
+  assertNonProductionTestTarget({ url: supabaseUrl, label: "Weekly Plan RLS test" });
+  if (!anonKey || !userAEmail || !userAPassword || !userBEmail || !userBPassword) {
+    throw new Error("Weekly Plan RLS test requires a test API key and two dedicated test-user credentials.");
+  }
 
-  // Empresa Iasa: magymerlo@gmail.com (c040ee03-2302-49d2-8082-b2a4ae5b62af)
-  // Empresa niu.pack: marceloechauri@gmail.com (bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd)
+  // The isolated test project must be seeded with two tenant-specific users.
   let clientUserA: any; // Iasa
   let clientUserB: any; // niu.pack
   let clientAnon: any;
@@ -23,8 +33,8 @@ describe("Weekly Plan - Multi-tenant RLS & Security Invoker RPC Verification", (
     // Login User A (Iasa)
     clientUserA = createClient(supabaseUrl, anonKey, { auth: { persistSession: false } });
     const authA = await clientUserA.auth.signInWithPassword({
-      email: "magymerlo@gmail.com",
-      password: "123456",
+      email: userAEmail,
+      password: userAPassword,
     });
     expect(authA.error).toBeNull();
     expect(authA.data.session).not.toBeNull();
@@ -32,8 +42,8 @@ describe("Weekly Plan - Multi-tenant RLS & Security Invoker RPC Verification", (
     // Login User B (niu.pack)
     clientUserB = createClient(supabaseUrl, anonKey, { auth: { persistSession: false } });
     const authB = await clientUserB.auth.signInWithPassword({
-      email: "marceloechauri@gmail.com",
-      password: "123456",
+      email: userBEmail,
+      password: userBPassword,
     });
     expect(authB.error).toBeNull();
     expect(authB.data.session).not.toBeNull();

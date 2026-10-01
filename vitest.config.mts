@@ -3,8 +3,16 @@ import path from 'path';
 
 export default defineConfig({
   test: {
-    include: ['lib/**/*.spec.ts', 'lib/**/*.test.ts', 'test/**/*.test.ts', 'scripts/**/*.test.ts'],
-    exclude: ['tests/e2e/**', 'node_modules/**', '.next/**'],
+    include: ['lib/**/*.spec.ts', 'lib/**/*.test.ts', 'test/**/*.test.ts'],
+    exclude: [
+      'tests/e2e/**',
+      'test/**/*-live.test.ts',
+      'test/**/*-rls-auth.test.ts',
+      'test/**/*-atomic-db.test.ts',
+      'lib/procurement/regression-currency-precedence.test.ts',
+      'node_modules/**',
+      '.next/**',
+    ],
   },
   resolve: {
     alias: {

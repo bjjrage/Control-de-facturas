@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PaymentOrder, Provider } from "@/lib/types";
 import { BackButton } from "@/components/ui/back-button";
 import { Badge } from "@/components/ui/badge";
-import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
+import { formatDate, formatMoney } from "@/lib/format";
 import { ExecuteButton } from "./execute-button";
 
 const STATUS_TONE = { EMITIDA: "warn", EJECUTADA: "ok" } as const;
@@ -47,6 +47,12 @@ export default async function PaymentOrderDetailPage({ params }: { params: Promi
   const { data: invoices } = invoiceIds.length > 0
     ? await supabase.from("invoices").select("id, invoice_number, invoice_date, total, currency, status").in("id", invoiceIds)
     : { data: [] };
+
+  const invoiceCurrencies = [...new Set((invoices ?? []).map((invoice) => String(invoice.currency)))];
+  const paymentCurrency = invoiceCurrencies.length === 1 ? invoiceCurrencies[0] : null;
+  const compatibleCuentas = paymentCurrency
+    ? (cuentas ?? []).filter((cuenta) => cuenta.moneda === paymentCurrency)
+    : [];
 
   // Fetch OC matches for these invoices
   const { data: matches } = invoiceIds.length > 0
@@ -97,7 +103,13 @@ export default async function PaymentOrderDetailPage({ params }: { params: Promi
             </svg>
             Ver OP
           </a>
-          {op.status === "EMITIDA" ? <ExecuteButton opId={op.id} cuentas={cuentas ?? []} /> : null}
+          {op.status === "EMITIDA" ? (
+            <ExecuteButton
+              opId={op.id}
+              cuentas={compatibleCuentas}
+              invoiceCurrencies={invoiceCurrencies}
+            />
+          ) : null}
         </div>
       </div>
 

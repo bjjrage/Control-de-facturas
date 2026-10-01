@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/browser";
 import { formatNumber, formatMoney, calcLineSubtotal } from "@/lib/format";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClassName } from "@/components/ui/button";
 import { unitsCompatibleForCosting } from "@/lib/bim/matching";
 import { findElementByExpressId } from "@/lib/bim/identity";
 import type { BimModel, BimElement, BimElementGroup, BimGroupMatch, BudgetItem } from "@/lib/types";
@@ -17,6 +17,7 @@ import {
   processBimGroups,
   confirmGroupMatch,
   rejectGroupMatch,
+  createBudgetItemsFromBimGroupsAction,
   deleteBimModel,
   type ParsedElementInput,
   type ProcessBimGroupsResult,
@@ -226,7 +227,7 @@ export function BimSection({ projectId }: { projectId: string }) {
   const budgetItemById = useMemo(() => new Map(budgetItems.map((b) => [b.id, b])), [budgetItems]);
   const matchableBudgetItems = useMemo(() => {
     const parentIds = new Set(budgetItems.map((b) => b.parent_id).filter(Boolean));
-    return budgetItems.filter((b) => !parentIds.has(b.id) && b.unit_price != null);
+    return budgetItems.filter((b) => !parentIds.has(b.id));
   }, [budgetItems]);
 
   // Un grupo puede tener varias propuestas históricas (ej. tras "Recalcular");
@@ -271,6 +272,16 @@ export function BimSection({ projectId }: { projectId: string }) {
     setError(null);
     const result = await rejectGroupMatch(projectId, groupId);
     if (result.error) setError(result.error);
+    if (selectedModelId) await refreshGroups(selectedModelId);
+  }
+
+  async function handleCreatePartidas(groupIds: string[]) {
+    if (groupIds.length === 0) return;
+    if (groupIds.length > 1 && !window.confirm(`¿Crear ${groupIds.length} partidas nuevas (sin precio de venta) desde el modelo?`)) return;
+    setError(null);
+    const result = await createBudgetItemsFromBimGroupsAction(projectId, groupIds);
+    if (result.error) setError(result.error);
+    await refresh();
     if (selectedModelId) await refreshGroups(selectedModelId);
   }
 
@@ -330,13 +341,17 @@ export function BimSection({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-4">
+      <section aria-labelledby="bim-model-title" data-testid="bim-model-surface" className="space-y-3">
+        <div>
+          <h2 id="bim-model-title" className="text-[14px] font-semibold">OPCIÓN A · MODELO BIM / IFC</h2>
+          <p className="mt-0.5 text-[12px] text-[var(--muted)]">Fuente del cómputo: modelo IFC de la obra</p>
+        </div>
       <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 text-[12px] text-[var(--muted)]">
-        El BIM aporta cantidades; el presupuesto aporta precios. Subí un IFC: los elementos técnicamente
-        equivalentes se agrupan y se consultan en lote contra el catálogo de costos. Vos confirmás cada grupo —
-        ningún precio se calcula sin tu confirmación.
+        <span className="font-medium text-[var(--foreground)]">FUENTE DEL CÓMPUTO.</span> Elegí Modelo IFC (opción A)
+        o Cómputo Excel/PDF (opción B). Ambos flujos convergen en cantidades, matching, revisión humana y presupuesto;
+        ninguno genera ejecución ni certificados automáticamente. En IFC, el modelo aporta cantidades y el presupuesto
+        los precios; confirmás cada grupo antes de incorporarlo.
       </div>
-
-      <ComputoSection projectId={projectId} />
 
       {error ? (
         <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
@@ -345,7 +360,14 @@ export function BimSection({ projectId }: { projectId: string }) {
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
+        <label
+          htmlFor="bim-ifc-upload"
+          className={buttonClassName({ variant: "primary", size: "md", className: "cursor-pointer" })}
+        >
+          Subir modelo IFC
+        </label>
         <input
+          id="bim-ifc-upload"
           type="file"
           accept=".ifc"
           disabled={!!uploadStatus}
@@ -354,7 +376,7 @@ export function BimSection({ projectId }: { projectId: string }) {
             if (file) handleUpload(file);
             e.target.value = "";
           }}
-          className="text-[13px] file:mr-3 file:rounded-md file:border file:border-[var(--border)] file:bg-[var(--panel-2)] file:px-3 file:py-1.5 file:text-[13px] file:cursor-pointer"
+          className="sr-only"
         />
         {uploadStatus ? <span className="text-[12px] text-[var(--muted)]">{uploadStatus}</span> : null}
       </div>
@@ -600,9 +622,22 @@ export function BimSection({ projectId }: { projectId: string }) {
         <div ref={reviewSectionRef} className="space-y-2 pt-2">
           <div className="flex items-center justify-between">
             <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Revisión por grupo</div>
-            <button onClick={() => setShowReview((v) => !v)} className="text-[11px] text-[var(--accent)] underline">
-              {showReview ? "Ocultar" : "Mostrar"}
-            </button>
+            <div className="flex items-center gap-3">
+              {(() => {
+                const sinPartida = currentGroups.filter((g) => {
+                  const s = latestMatchByGroup.get(g.id)?.status;
+                  return s === "NO_MATCH" || s === "REJECTED";
+                });
+                return sinPartida.length > 0 ? (
+                  <Button variant="secondary" className="h-7 text-[11px]" onClick={() => handleCreatePartidas(sinPartida.map((g) => g.id))}>
+                    Crear partidas para los {sinPartida.length} grupos sin correspondencia
+                  </Button>
+                ) : null;
+              })()}
+              <button onClick={() => setShowReview((v) => !v)} className="text-[11px] text-[var(--accent)] underline">
+                {showReview ? "Ocultar" : "Mostrar"}
+              </button>
+            </div>
           </div>
 
           {showReview ? (
@@ -737,14 +772,24 @@ export function BimSection({ projectId }: { projectId: string }) {
                             Cambiar rubro
                           </Button>
                         )}
+                        {status === "NO_MATCH" ? (
+                          <Button variant="secondary" onClick={() => handleCreatePartidas([group.id])}>
+                            Crear partida
+                          </Button>
+                        ) : null}
                         <Button variant="secondary" onClick={() => handleRejectGroup(group.id)}>
                           Dejar sin asignar
                         </Button>
                       </div>
                     ) : (
-                      <button onClick={() => setChangingGroupId(group.id)} className="text-[11px] text-[var(--accent)] underline">
-                        Asignar un rubro igualmente
-                      </button>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <button onClick={() => setChangingGroupId(group.id)} className="text-[11px] text-[var(--accent)] underline">
+                          Asignar un rubro igualmente
+                        </button>
+                        <button onClick={() => handleCreatePartidas([group.id])} className="text-[11px] text-[var(--accent)] underline">
+                          Crear partida
+                        </button>
+                      </div>
                     )}
                   </div>
                 );
@@ -795,6 +840,15 @@ export function BimSection({ projectId }: { projectId: string }) {
           </p>
         </div>
       ) : null}
+      </section>
+
+      <section aria-labelledby="bim-computo-title" data-testid="bim-computo-fallback" className="space-y-3 border-t border-[var(--border)] pt-5">
+        <div>
+          <h2 id="bim-computo-title" className="text-[14px] font-semibold">OPCIÓN B · CÓMPUTO EXCEL/PDF</h2>
+          <p className="mt-0.5 text-[12px] text-[var(--muted)]">Importá cantidades desde Excel o PDF y continuá por el mismo matching, revisión humana y presupuesto.</p>
+        </div>
+        <ComputoSection projectId={projectId} />
+      </section>
     </div>
   );
 }

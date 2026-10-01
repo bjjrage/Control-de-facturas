@@ -258,7 +258,7 @@ registerTool<CreateRfqDraftInput, CreateRfqDraftOutput>({
   description:
     "Crea un borrador de Solicitud de Cotización (RFQ) para un proyecto y suppliers dados. SOLO crea draft reversible - no envía comunicaciones ni compromete dinero. Idempotente: misma key+empresa retorna draft existente. Validar proyecto, suppliers y items antes de crear. Usar cuando el usuario dice 'preparame una cotización con estos proveedores'.",
   inputSchema: CreateRfqDraftInputSchema,
-  riskLevel: 1,
+  riskLevel: 2,
   requiredRoles: null, // roles internos
   handler,
 });

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Provider, CurrencyCode } from "@/lib/types";
+import { createClient } from "@/lib/supabase/browser";
 import { createManualOrder } from "./actions";
 import { formatMoney } from "@/lib/format";
 
@@ -15,22 +16,35 @@ type ItemRow = {
   unit: string;
   unit_price: string;
   total_price: string;
+  producto_id: string;
+  expected_delivery_date: string;
   totalTouched: boolean;
 };
 
-const EMPTY_ROW: ItemRow = { product: "", quantity: "", unit: "", unit_price: "", total_price: "", totalTouched: false };
+type InventoryProduct = { id: string; nombre: string; unidad: string };
+
+const EMPTY_ROW: ItemRow = {
+  product: "",
+  quantity: "",
+  unit: "",
+  unit_price: "",
+  total_price: "",
+  producto_id: "",
+  expected_delivery_date: "",
+  totalTouched: false,
+};
 
 function ItemRowComponent({
   row,
   index,
-  currency,
+  inventoryProducts,
   onChange,
   onRemove,
   canRemove,
 }: {
   row: ItemRow;
   index: number;
-  currency: CurrencyCode;
+  inventoryProducts: InventoryProduct[];
   onChange: (idx: number, field: keyof ItemRow, value: string | boolean) => void;
   onRemove: (idx: number) => void;
   canRemove: boolean;
@@ -70,9 +84,40 @@ function ItemRowComponent({
       <td className="py-1 pr-2 w-24">
         <Input
           value={row.unit}
-          onChange={(e) => onChange(index, "unit", e.target.value)}
+          onChange={(e) => {
+            const unit = e.target.value;
+            onChange(index, "unit", unit);
+            const selected = inventoryProducts.find((product) => product.id === row.producto_id);
+            if (selected && selected.unidad.trim() !== unit.trim()) onChange(index, "producto_id", "");
+          }}
           placeholder="un, kg…"
           required
+        />
+      </td>
+      <td className="py-1 pr-2 w-44">
+        <Select
+          value={row.producto_id}
+          onChange={(e) => {
+            const selectedId = (e.target as HTMLSelectElement).value;
+            onChange(index, "producto_id", selectedId);
+            const selected = inventoryProducts.find((product) => product.id === selectedId);
+            if (selected && !row.unit.trim()) onChange(index, "unit", selected.unidad);
+          }}
+        >
+          <option value="">Sin vínculo de inventario</option>
+          {inventoryProducts
+            .filter((product) => !row.unit.trim() || product.unidad.trim() === row.unit.trim())
+            .map((product) => (
+              <option key={product.id} value={product.id}>{product.nombre} · {product.unidad}</option>
+            ))}
+        </Select>
+      </td>
+      <td className="py-1 pr-2 w-36">
+        <Input
+          type="date"
+          value={row.expected_delivery_date}
+          onChange={(e) => onChange(index, "expected_delivery_date", e.target.value)}
+          aria-label="Fecha esperada de entrega"
         />
       </td>
       <td className="py-1 pr-2 w-32">
@@ -133,7 +178,22 @@ export function OrderDialog({
   const [pending, setPending] = useState(false);
   const [currency, setCurrency] = useState<CurrencyCode>("PYG");
   const [items, setItems] = useState<ItemRow[]>([{ ...EMPTY_ROW }]);
+  const [inventoryProducts, setInventoryProducts] = useState<InventoryProduct[]>([]);
   const router = useRouter();
+
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    createClient()
+      .from("productos")
+      .select("id, nombre, unidad")
+      .eq("activo", true)
+      .order("nombre")
+      .then(({ data }) => {
+        if (active) setInventoryProducts((data as InventoryProduct[]) ?? []);
+      });
+    return () => { active = false; };
+  }, [open]);
 
   const grandTotal = items.reduce((sum, r) => {
     const v = Number(r.total_price);
@@ -188,6 +248,8 @@ export function OrderDialog({
               unit: r.unit.trim(),
               unit_price: Number(r.unit_price),
               total_price: Number(r.total_price),
+              producto_id: r.producto_id || null,
+              expected_delivery_date: r.expected_delivery_date || null,
             }))));
             formData.set("currency", currency);
             setPending(true);
@@ -248,6 +310,8 @@ export function OrderDialog({
                     <th className="text-left px-2 py-1.5 font-medium">Descripción</th>
                     <th className="text-left px-2 py-1.5 font-medium w-24">Cantidad</th>
                     <th className="text-left px-2 py-1.5 font-medium w-24">Unidad</th>
+                    <th className="text-left px-2 py-1.5 font-medium">Producto de inventario (opcional)</th>
+                    <th className="text-left px-2 py-1.5 font-medium">Entrega esperada (opcional)</th>
                     <th className="text-left px-2 py-1.5 font-medium w-32">P. Unitario</th>
                     <th className="text-left px-2 py-1.5 font-medium w-32">Total</th>
                     <th className="w-6"></th>
@@ -259,7 +323,7 @@ export function OrderDialog({
                       key={idx}
                       row={row}
                       index={idx}
-                      currency={currency}
+                      inventoryProducts={inventoryProducts}
                       onChange={updateItem}
                       onRemove={removeRow}
                       canRemove={items.length > 1}

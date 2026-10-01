@@ -67,7 +67,7 @@ registerTool<UpdateSpreadsheetRowsInput, UpdateSpreadsheetRowsOutput>({
   description:
     "Actualiza filas del snapshot de una planilla (borrador). SOLO modifica el borrador en planillas.snapshot — no toca tablas de dominio (budget_items, etc.) hasta confirmar. Idempotente: misma key+planilla+empresa retorna mismo resultado. Usar cuando el usuario edita celdas en la spreadsheet y dice 'guarda estos cambios'.",
   inputSchema: UpdateSpreadsheetRowsInputSchema,
-  riskLevel: 1,
+  riskLevel: 2,
   requiredRoles: null,
   handler,
 });

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Input, Label, Select } from "@/components/ui/input";
-import { construirProyeccion, type FlujoItem } from "@/lib/flujo-caja";
+import { construirProyeccion, TIPOS_PLAN_SEMANAL, type FlujoItem } from "@/lib/flujo-caja";
 import { formatDate, formatMoney } from "@/lib/format";
 import type {
   CuentaFinanciera,
@@ -51,7 +51,10 @@ const TIPO_LABEL: Record<FlujoItem["tipo"], string> = {
   cobro_certificado: "Cobro de certificado",
   pago_factura: "Pago de factura",
   gasto_recurrente: "Gasto recurrente",
-  salida_proyectada_material: "Salida proyectada de material",
+  salida_proyectada_material: "Plan semanal: materiales a comprar",
+  salida_plan_mano_de_obra: "Plan semanal: mano de obra",
+  salida_plan_equipo: "Plan semanal: equipos",
+  salida_plan_subcontrato: "Plan semanal: subcontratos",
 };
 
 const CURRENCIES: CurrencyCode[] = ["PYG", "USD", "EUR", "BRL", "ARS"];
@@ -80,6 +83,12 @@ export function FlujoCajaSection({
   const [moneda, setMoneda] = useState<CurrencyCode>(saldoPorMoneda[0]?.[0] ?? "PYG");
   const [gran, setGran] = useState<"semana" | "mes">("mes");
   const [projectId, setProjectId] = useState<string>("");
+  const [incluirPlan, setIncluirPlan] = useState(true);
+  const hayPlan = useMemo(() => items.some((i) => TIPOS_PLAN_SEMANAL.includes(i.tipo)), [items]);
+  const itemsVisibles = useMemo(
+    () => (incluirPlan ? items : items.filter((i) => !TIPOS_PLAN_SEMANAL.includes(i.tipo))),
+    [items, incluirPlan]
+  );
 
   const saldoInicial = useMemo(
     () => saldoPorMoneda.find(([m]) => m === moneda)?.[1] ?? 0,
@@ -87,8 +96,8 @@ export function FlujoCajaSection({
   );
 
   const proyeccion = useMemo(
-    () => construirProyeccion(saldoInicial, items, moneda, gran, projectId || null),
-    [saldoInicial, items, moneda, gran, projectId]
+    () => construirProyeccion(saldoInicial, itemsVisibles, moneda, gran, projectId || null),
+    [saldoInicial, itemsVisibles, moneda, gran, projectId]
   );
 
   const proyectoById = useMemo(() => new Map(proyectos.map((p) => [p.id, p])), [proyectos]);
@@ -168,6 +177,12 @@ export function FlujoCajaSection({
               ))}
             </Select>
           </div>
+        ) : null}
+        {hayPlan ? (
+          <label className="flex items-center gap-2 text-[12px] pb-1.5 max-w-sm" title="Compras faltantes, mano de obra, equipos y subcontratos de los planes semanales vigentes">
+            <input type="checkbox" checked={incluirPlan} onChange={(e) => setIncluirPlan(e.target.checked)} />
+            Incluir lo que planifica el plan semanal
+          </label>
         ) : null}
       </div>
 

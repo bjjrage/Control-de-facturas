@@ -2,13 +2,20 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
+  // The one-time bearer token is the credential for supplier receipt links.
+  // Validate it in the portal page/API without requiring an ERP session.
   const path = request.nextUrl.pathname;
-
-  // Scanner pages and APIs are public by design; their handlers validate the
-  // ERP profile or mobile session credential themselves. Avoid an auth lookup
-  // here so opening a QR does not wait on an unrelated ERP session check.
-  if (path.startsWith("/scanner") || path.startsWith("/api/scanner/")) {
-    return NextResponse.next({ request });
+  if (
+    path.startsWith("/recepcion/") ||
+    path.startsWith("/api/recepcion-portal/") ||
+    path.startsWith("/warehouse/") ||
+    path.startsWith("/api/warehouse-portal/")
+  ) {
+    const response = NextResponse.next({ request });
+    response.headers.set("Referrer-Policy", "no-referrer");
+    response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+    response.headers.set("Cache-Control", "no-store");
+    return response;
   }
 
   let response = NextResponse.next({ request });
@@ -49,8 +56,10 @@ export async function proxy(request: NextRequest) {
     path.startsWith("/cotizacion") ||
     path.startsWith("/certificados") ||
     path.startsWith("/avance") ||
+    path.startsWith("/scanner") ||
     path.startsWith("/_next") ||
     path.startsWith("/api/cotizar") ||
+    path.startsWith("/api/scanner") ||
     path === "/favicon.ico";
 
   if (!user && !isPublic) {

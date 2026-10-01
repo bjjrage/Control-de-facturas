@@ -119,4 +119,62 @@ describe("Cashflow 30 días", () => {
     expect(res.neto).toBe(-100000000);
     expect(res.tone).toBe("error");
   });
+
+  it("incluye certificados aprobados y evita duplicar el documento de venta vinculado", () => {
+    const items = build30DayCashflowItems({
+      todayIso,
+      ventaDocs: [{
+        id: "sale-linked",
+        code: "V-LINKED",
+        total: 200,
+        cobrado_amount: 0,
+        currency: "PYG",
+        due_date: "2026-10-03",
+        issue_date: "2026-09-19",
+      }],
+      certificados: [
+        {
+          id: "cert-approved",
+          numero: "01",
+          project_id: "p1",
+          monto_liquido: 100,
+          status: "APROBADO",
+          aprobado_at: "2026-09-01",
+        },
+        {
+          id: "cert-invoiced",
+          numero: "02",
+          project_id: "p1",
+          monto_liquido: 200,
+          status: "FACTURADO",
+          facturado_at: "2026-09-01",
+          sales_documents: { id: "sale-linked", status: "EMITIDA" },
+        },
+        {
+          id: "cert-void-invoice",
+          numero: "03",
+          project_id: "p1",
+          monto_liquido: 50,
+          status: "FACTURADO",
+          facturado_at: "2026-09-01",
+          sales_documents: [{ id: "sale-void", status: "ANULADA" }],
+        },
+        {
+          id: "cert-draft",
+          numero: "04",
+          project_id: "p1",
+          monto_liquido: 500,
+          status: "BORRADOR",
+          period_end: "2026-09-01",
+        },
+      ],
+      comprasInv: [],
+      gastos: [],
+    });
+
+    expect(items.map((item) => item.ref_id)).toEqual(["sale-linked", "cert-approved", "cert-void-invoice"]);
+    expect(items.filter((item) => item.tipo === "cobro_certificado")).toHaveLength(2);
+    expect(items.some((item) => item.ref_id === "cert-invoiced")).toBe(false);
+    expect(items.some((item) => item.ref_id === "cert-draft")).toBe(false);
+  });
 });

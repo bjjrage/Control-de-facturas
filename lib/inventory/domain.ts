@@ -109,7 +109,7 @@ export class InventoryLedger {
       }
     }
     if (input.movementType === "CONSUMPTION" && from?.projectId !== input.projectId) {
-      throw new InventoryValidationError("CONSUMPTION_NOT_FROM_PROJECT", "El consumo debe salir del pañol de la obra");
+      throw new InventoryValidationError("CONSUMPTION_NOT_FROM_PROJECT", "El consumo debe salir del depósito de la obra");
     }
     if (to?.type === "PROJECT" && input.projectId && to.projectId !== input.projectId) {
       throw new InventoryValidationError("LOCATION_PROJECT_MISMATCH", "La ubicación no pertenece al proyecto");

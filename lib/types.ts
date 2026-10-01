@@ -184,6 +184,7 @@ export interface AuthorizedOrderItem {
   id: string;
   order_id: string;
   empresa_id: string;
+  producto_id: string | null;
   product: string;
   quantity: number;
   unit: string;
@@ -953,6 +954,7 @@ export interface Licitacion {
   synced_at: string;
   created_at: string;
   updated_at: string;
+  raw_json?: unknown;
 }
 
 export interface LicitacionLote {
@@ -1424,6 +1426,10 @@ export interface ProjectSchedulePlanMonth {
   plan_id: string;
   month_index: number;
   programado_pct: number;
+  // Ejecutado según el propio documento importado (a veces historial tipeado
+  // a mano, sin otra fuente detrás) — referencia, nunca reemplaza al
+  // ejecutado real que el ERP calcula desde sus certificados congelados.
+  ejecutado_pct_documento: number | null;
 }
 
 export interface ProjectCertificateStaff {
@@ -1564,6 +1570,10 @@ export interface SalesReceipt {
   notes: string | null;
   created_by: string;
   created_at: string;
+  reversed_at: string | null;
+  reversed_by: string | null;
+  reversal_reason: string | null;
+  reversal_movement_id: string | null;
 }
 
 // ============================================================================
@@ -1758,6 +1768,17 @@ export interface WeeklyPlanCalculationSummary {
   weather_adjusted_additional_cash_required?: number | null;
   weather_summary?: string | null;
   weather_failed_closed?: boolean;
+  /** Mano de obra, equipos y subcontratos que salen de las recetas (APU) para las metas del plan. */
+  resource_requirements?: WeeklyPlanResourceRequirements;
+}
+
+export interface WeeklyPlanResourceRequirements {
+  labor: { label: string; horas: number; costo: number }[];
+  equipment: { label: string; horas: number; costo: number }[];
+  subcontracts: { label: string; monto: number }[];
+  total_labor_cost: number;
+  total_equipment_cost: number;
+  total_subcontract_cost: number;
 }
 
 export type ProductionRecipeSource = "EXCEL" | "BIM" | "MANUAL";

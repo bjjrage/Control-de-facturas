@@ -1,12 +1,24 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlan } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/lib/types";
+import { createHash } from "node:crypto";
+import { buildCanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
+import { validateWorkbookInterpretation } from "@/lib/workbook-interpretation/interpreter";
+import { parseWorkbook } from "@/lib/workbook-interpretation/parser";
+import { workbookFromSnapshot } from "@/lib/certificates/workbook-store";
+import { loadImportSession } from "@/lib/certificates/import-session-store";
+import { certificateTotals } from "@/lib/certificates/math";
+import { ensureProjectInventoryLocation } from "@/lib/inventory/service";
+import { validateScheduleDates } from "@/lib/projects/schedule";
+import { planMeetsMinimum } from "@/lib/plans";
+import { addCertificateStaff, saveSchedulePlan } from "./certificado-anexos-actions";
 
-export async function createProject(formData: FormData): Promise<{ error: string | null }> {
+export async function createProject(formData: FormData): Promise<{ error: string | null; projectId?: string }> {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
   const empresaId = profile.empresa_id;
@@ -14,7 +26,7 @@ export async function createProject(formData: FormData): Promise<{ error: string
   const name = formData.get("name") as string | null;
   const code = formData.get("code") as string | null;
   const client = (formData.get("client") as string | null) || null;
-  const location = (formData.get("location") as string | null) || null;
+  const projectAddress = (formData.get("location") as string | null) || null;
   const startDate = (formData.get("start_date") as string | null) || null;
   const endDate = (formData.get("end_date") as string | null) || null;
   const budgetTotal = Number(formData.get("budget_total") ?? 0);
@@ -29,7 +41,7 @@ export async function createProject(formData: FormData): Promise<{ error: string
       name,
       code,
       client,
-      location,
+      location: projectAddress,
       start_date: startDate,
       end_date: endDate,
       budget_total: Number.isFinite(budgetTotal) ? budgetTotal : 0,
@@ -43,25 +55,454 @@ export async function createProject(formData: FormData): Promise<{ error: string
     return { error: dup ? `Ya existe un proyecto con el código "${code}".` : (error?.message ?? "No se pudo crear el proyecto.") };
   }
 
-  // Crear depósito/pañol asociado al proyecto si se solicitó
-  const crearPanol = formData.get("crear_panol") === "1";
-  if (crearPanol) {
-    const nombreDeposito = `Pañol ${code} - ${name}`.slice(0, 100);
-    await supabase.from("depositos").insert({
-      empresa_id: empresaId,
-      nombre: nombreDeposito,
-      es_principal: false,
-      project_id: project.id,
+  const projectLocationResult = await ensureProjectInventoryLocation(supabase, {
+    empresaId,
+    projectId: String(project.id),
+    createdBy: profile.id,
+  });
+  if (projectLocationResult.error || !projectLocationResult.data) {
+    await logAudit(supabase, {
+      action: "project.created",
+      detail: { project_id: project.id, code, inventory_location_error: projectLocationResult.error },
     });
+    revalidatePath("/projects");
+    return {
+      error: `La obra se creó, pero no se pudo preparar su ubicación canónica de stock. Abrí Ubicaciones y reintentá: ${projectLocationResult.error ?? "error desconocido"}`,
+      projectId: String(project.id),
+    };
   }
 
   await logAudit(supabase, {
     action: "project.created",
-    detail: { project_id: project.id, code, panol: crearPanol },
+    detail: { project_id: project.id, code, inventory_location_id: projectLocationResult.data.id },
   });
 
   revalidatePath("/projects");
-  return { error: null };
+  return { error: null, projectId: String(project.id) };
+}
+
+type WorkbookCreateResult = {
+  error: string | null;
+  projectId?: string;
+  applied?: { project: boolean; budgetItems: number; certificateItems: number; staffItems: number; scheduleVersions: number; weatherDays: number; executionEntries: number };
+  pending?: { section: string; reason: string }[];
+};
+
+function importedText(field: { status: string; value: string | number | null }): string | null {
+  if (field.status === "NOT_FOUND" || field.value === null) return null;
+  const value = String(field.value).trim();
+  return value || null;
+}
+
+function importedNumber(field: { status: string; value: string | number | null }): number | null {
+  if (field.status === "NOT_FOUND" || field.value === null) return null;
+  const value = typeof field.value === "number" ? field.value : Number(String(field.value).replace(/[^0-9.,-]/g, "").replace(/\.(?=\d{3}(?:\.|,|$))/g, "").replace(",", "."));
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+function importedDate(value: string | null): string | null {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const match = value.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);
+  if (!match) return null;
+  const year = match[3].length === 2 ? `20${match[3]}` : match[3];
+  return `${year}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+}
+
+/**
+ * Confirma un preview semántico contra el XLSX original y materializa la
+ * obra, su presupuesto y (si el usuario lo aceptó) el certificado. Los demás
+ * dominios detectados (curva, clima, personal, mediciones) se informan como
+ * pendientes: su persistencia todavía no está conectada.
+ */
+export async function createProjectFromWorkbook(formData: FormData): Promise<WorkbookCreateResult> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const file = formData.get("file");
+  const sessionId = (formData.get("session_id") as string | null) || null;
+  // Excel-first (Fase 4): una obra nueva puede venir de una sesión de
+  // importación — la planilla ya guardada, su análisis y su archivo original
+  // — en vez de un archivo re-subido con el resultado del preview.
+  const session = sessionId ? await loadImportSession(await createClient(), profile.empresa_id, sessionId) : null;
+  if (sessionId && !session) return { error: "La sesión de importación ya no existe." };
+  if (session && session.status !== "ANALYZED") return { error: "La planilla todavía no terminó de analizarse (o la sesión ya fue cerrada)." };
+  if (session && session.analyzedStructureHash !== session.structureHash) return { error: "La estructura de la planilla cambió desde el análisis. Reanalizá antes de crear la obra." };
+  const rawResult = session ? JSON.stringify(session.interpretation) : formData.get("result_json");
+  if ((!session && !(file instanceof File)) || typeof rawResult !== "string") return { error: "El preview de la planilla ya no es válido." };
+  const uploaded = { name: session?.originalFileName ?? (file as File).name };
+  const regime = (formData.get("contract_regime") as string | null) || null;
+  if (session && !(["PUBLIC_WORK", "PRIVATE_WORK", "OTHER"] as const).some((value) => value === regime)) {
+    return { error: "Confirmá el régimen contractual de la obra (pública, privada u otro)." };
+  }
+
+  let result;
+  try {
+    const workbook = session
+      ? workbookFromSnapshot(session.workingSnapshot)
+      : parseWorkbook(new Uint8Array(await (file as File).arrayBuffer()), (file as File).name);
+    const parsedResult = JSON.parse(rawResult);
+    const validated = validateWorkbookInterpretation(parsedResult, workbook);
+    const candidate = buildCanonicalImportCandidate(workbook, validated);
+    result = { workbook, validated, candidate };
+  } catch (cause) {
+    return { error: cause instanceof Error ? cause.message : "No se pudo validar nuevamente la planilla." };
+  }
+
+  const name = ((formData.get("name_override") as string | null) || importedText(result.validated.project.name) || "").trim();
+  const code = ((formData.get("code_override") as string | null) || importedText(result.validated.project.code) || "").trim();
+  if (!name) return { error: "Falta un nombre de obra utilizable para crear el proyecto." };
+  if (!code) return { error: "Falta un código de obra utilizable para crear el proyecto." };
+
+  // Una obra con el presupuesto a otra escala que su contrato arrastra mal
+  // todo lo demás (avance, anticipo, compras). Mejor no crearla.
+  const contractCheck = result.candidate.budgetContractCheck;
+  if (contractCheck && !contractCheck.matches) {
+    return {
+      error: `No se creó la obra: el presupuesto suma ${contractCheck.budgetTotal.toLocaleString("es-PY")} Gs pero el ${contractCheck.source} es ${contractCheck.contractAmount.toLocaleString("es-PY")} Gs. Probablemente el presupuesto quedó a la escala de una unidad (por ejemplo una vivienda) y no del contrato completo. Volvé a analizar la planilla.`,
+    };
+  }
+
+  const budgetItems = result.candidate.budgetItems.filter((item) => item.code && item.description.trim());
+  if (budgetItems.length !== result.candidate.budgetItems.length) return { error: "El presupuesto contiene filas sin código o descripción; no se creó la obra." };
+  if (new Set(budgetItems.map((item) => item.code)).size !== budgetItems.length) return { error: "El presupuesto contiene códigos duplicados; no se creó la obra." };
+
+  const admin = createAdminClient();
+  const fingerprint = session?.originalFileHash ?? createHash("sha256").update(new Uint8Array(await (file as File).arrayBuffer())).digest("hex");
+  const { data: priorImports } = await admin
+    .from("audit_logs")
+    .select("detail")
+    .eq("empresa_id", profile.empresa_id)
+    .eq("action", "project.workbook_imported")
+    .contains("detail", { source_fingerprint: fingerprint });
+  const priorProjectIds = [...new Set((priorImports ?? [])
+    .map((entry) => (entry.detail as { project_id?: string } | null)?.project_id)
+    .filter((id): id is string => Boolean(id)))];
+  if (priorProjectIds.length) {
+    // A past import only blocks a retry while its project still exists.
+    // If the user deleted that (incomplete) project, the file can be
+    // re-imported instead of being stuck behind stale audit history.
+    const { data: stillExists } = await admin
+      .from("projects")
+      .select("id")
+      .eq("empresa_id", profile.empresa_id)
+      .in("id", priorProjectIds)
+      .limit(1);
+    if (stillExists && stillExists.length > 0) return { error: "Esta planilla ya fue importada para esta empresa; no se creó una segunda obra." };
+  }
+  const { data: existing } = await admin
+    .from("projects")
+    .select("id")
+    .eq("empresa_id", profile.empresa_id)
+    .eq("code", code)
+    .maybeSingle();
+  if (existing) return { error: `Ya existe una obra con el código "${code}". La importación no creó otra.` };
+
+  const projectFields = result.validated.project;
+  const contractAmount = result.candidate.budgetTotal || importedNumber(projectFields.totalAmount) || 0;
+  const { data: project, error: projectError } = await admin
+    .from("projects")
+    .insert({
+      empresa_id: profile.empresa_id,
+      name,
+      code,
+      client: importedText(projectFields.client),
+      location: importedText(projectFields.location),
+      start_date: importedDate(importedText(projectFields.startDate)),
+      end_date: importedDate(importedText(projectFields.endDate)),
+      budget_total: contractAmount,
+      comitente: importedText(projectFields.client),
+      contract_number: importedText(projectFields.contractNumber),
+      contract_amount: contractAmount,
+      contract_regime: regime,
+      created_by: profile.id,
+    })
+    .select("id")
+    .single();
+  if (projectError || !project) return { error: projectError?.message ?? "No se pudo crear la obra." };
+
+  const rollback = async () => {
+    await admin.from("projects").delete().eq("id", project.id).eq("empresa_id", profile.empresa_id);
+  };
+  const codeToId = new Map<string, string>();
+  let sortOrder = 0;
+  let budgetError: string | null = null;
+  const depthOf = (codeValue: string) => (codeValue.match(/\./g) ?? []).length;
+  const maxDepth = Math.max(0, ...budgetItems.map((item) => depthOf(item.code as string)));
+  for (let depth = 0; depth <= maxDepth && !budgetError; depth++) {
+    const level = budgetItems.filter((item) => depthOf(item.code as string) === depth);
+    if (!level.length) continue;
+    const rows = level.map((item) => {
+      const codeValue = item.code as string;
+      const parentCode = codeValue.includes(".") ? codeValue.slice(0, codeValue.lastIndexOf(".")) : null;
+      return {
+        project_id: project.id,
+        parent_id: parentCode ? codeToId.get(parentCode) ?? null : null,
+        code: codeValue,
+        description: item.description.trim(),
+        unit: item.unit,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+        sort_order: sortOrder++,
+      };
+    });
+    const { data: inserted, error } = await admin.from("budget_items").insert(rows).select("id, code");
+    if (error || !inserted) budgetError = error?.message ?? "No se pudo importar el presupuesto.";
+    else for (const row of inserted) codeToId.set(String(row.code), String(row.id));
+  }
+  if (budgetError) {
+    await rollback();
+    return { error: `No se creó la obra porque falló el presupuesto: ${budgetError}` };
+  }
+
+  let certificateItems = 0;
+  let certificateId: string | null = null;
+  const pending: { section: string; reason: string }[] = result.candidate.domains.map((domain) => ({
+    section: domain.target,
+    reason: `Detectado (${domain.labels.join(" · ")}); su persistencia todavía no está conectada.`,
+  }));
+  const certificateApplicable = result.candidate.certificate.status === "SAFE_TO_APPLY" || result.candidate.certificate.status === "APPLY_WITH_WARNINGS";
+  // The preview asks the user; a certificate with observations is only
+  // written when the user explicitly accepted it.
+  const certificateAccepted = formData.get("apply_certificate") === "1";
+  if (certificateApplicable && certificateAccepted) {
+    // Keep certificate writes under the authenticated tenant context so the
+    // database creation guard can validate auth.uid(), role and company.
+    const certificateWriter = await createClient();
+    const certificate = result.candidate.certificate;
+    const { data: header, error: headerError } = await certificateWriter
+      .from("project_certificates")
+      .insert({
+        project_id: project.id,
+        numero: certificate.number,
+        period_start: certificate.periodStart,
+        period_end: certificate.periodEnd,
+        status: "BORRADOR",
+        notes: `Importado desde ${uploaded.name}. Revisar y elaborar antes de avanzar el circuito.`,
+        // Un certificado que viene de un documento es autónomo (el N°6 puede
+        // existir sin 1–5): la protección de creación lo reconoce por esto.
+        import_fingerprint: fingerprint,
+        created_by: profile.id,
+      })
+      .select("id")
+      .single();
+    if (headerError || !header) {
+      await rollback();
+      return { error: `No se creó la obra porque falló el certificado: ${headerError?.message ?? "error desconocido"}` };
+    }
+    const lines = certificate.items.map((item, index) => ({
+      certificate_id: header.id,
+      // Lines without a budget counterpart are kept as autonomous
+      // contractual lines (budget_item_id is nullable by design).
+      budget_item_id: item.matchedBudgetCode ? codeToId.get(item.matchedBudgetCode) ?? null : null,
+      codigo: item.code,
+      descripcion: item.description,
+      unidad: item.unit,
+      qty_contractual: item.quantityContractual,
+      precio_unitario: item.unitPrice,
+      qty_anterior: item.quantityPrevious,
+      qty_presente: item.quantityCurrent,
+      sort_order: index,
+      // Procedencia documental de cada línea ("Ver origen", auditoría).
+      source_sheet: item.source.sheet,
+      source_row: item.source.row ?? null,
+      source_cells: item.source.range ? { range: item.source.range } : null,
+      mapping_version: session?.analyzedStructureHash ?? null,
+    }));
+    const { error: linesError } = await certificateWriter.from("project_certificate_items").insert(lines);
+    if (linesError) {
+      await rollback();
+      return { error: `No se creó la obra porque fallaron las líneas del certificado: ${linesError.message}` };
+    }
+    const { montoAnterior, montoPresente } = certificateTotals(lines);
+    const { error: totalsError } = await certificateWriter.from("project_certificates").update({ monto_anterior: montoAnterior, monto_presente: montoPresente }).eq("id", header.id).eq("project_id", project.id);
+    if (totalsError) {
+      await rollback();
+      return { error: `No se creó la obra porque no se pudieron calcular los totales del certificado: ${totalsError.message}` };
+    }
+    certificateItems = lines.length;
+    certificateId = String(header.id);
+  } else if (result.candidate.certificate.status !== "NOT_DETECTED") {
+    pending.push({ section: "CERTIFICADO", reason: certificateApplicable ? "No se importó: no fue aceptado en el preview." : result.candidate.certificate.reason });
+  }
+
+  // Personal y Curva S usan las acciones existentes de anexos de certificado
+  // (nivel de plan Caterpillar); se degradan a "pendiente" con un motivo
+  // claro si el plan no alcanza o el usuario no los aceptó en el preview.
+  const hasCaterpillar = planMeetsMinimum(profile.plan, "caterpillar", profile.is_super_admin);
+  let staffItems = 0;
+  const staffAccepted = formData.get("apply_staff") === "1";
+  if (result.candidate.staff.length) {
+    if (!hasCaterpillar) {
+      pending.push({ section: "PERSONAL", reason: `${result.candidate.staff.length} persona(s) detectadas; el registro de personal por certificado requiere el plan Caterpillar.` });
+    } else if (!certificateId) {
+      pending.push({ section: "PERSONAL", reason: `${result.candidate.staff.length} persona(s) detectadas; no se importaron porque el certificado no se creó en esta obra.` });
+    } else if (!staffAccepted) {
+      pending.push({ section: "PERSONAL", reason: `${result.candidate.staff.length} persona(s) detectadas; no se importaron (no fue aceptado en el preview).` });
+    } else {
+      for (const person of result.candidate.staff) {
+        const { error: staffError } = await addCertificateStaff(certificateId, person.name, person.role);
+        if (staffError) { pending.push({ section: "PERSONAL", reason: `No se pudo cargar a ${person.name}: ${staffError}` }); continue; }
+        staffItems++;
+      }
+    }
+  }
+
+  let scheduleVersions = 0;
+  const scheduleAccepted = formData.get("apply_schedule") === "1";
+  if (result.candidate.schedulePlans.length) {
+    if (!hasCaterpillar) {
+      pending.push({ section: "CRONOGRAMA", reason: `Curva de avance detectada (${result.candidate.schedulePlans.length} versión(es)); requiere el plan Caterpillar.` });
+    } else if (!scheduleAccepted) {
+      pending.push({ section: "CRONOGRAMA", reason: `Curva de avance detectada (${result.candidate.schedulePlans.length} versión(es)); no se importó (no fue aceptada en el preview).` });
+    } else {
+      for (const schedulePlan of result.candidate.schedulePlans) {
+        const documentedByMonth = new Map(schedulePlan.documentedExecuted.map((entry) => [entry.monthIndex, entry.ejecutadoPct]));
+        const { error: planError } = await saveSchedulePlan(String(project.id), {
+          planId: null,
+          label: schedulePlan.label || schedulePlan.planVersion,
+          months: schedulePlan.months.map((month) => ({ month_index: month.monthIndex, programado_pct: month.programadoPct, ejecutado_pct_documento: documentedByMonth.get(month.monthIndex) ?? null })),
+        });
+        if (planError) { pending.push({ section: "CRONOGRAMA", reason: `No se pudo cargar la versión “${schedulePlan.planVersion}”: ${planError}` }); continue; }
+        scheduleVersions++;
+      }
+    }
+  }
+
+  let weatherDays = 0;
+  const weatherAccepted = formData.get("apply_weather") === "1";
+  if (result.candidate.weatherDays.length) {
+    if (!hasCaterpillar) {
+      pending.push({ section: "DIAS_NO_TRABAJADOS", reason: `${result.candidate.weatherDays.length} día(s) detectados en el Libro de Obra; requiere el plan Caterpillar.` });
+    } else if (!weatherAccepted) {
+      pending.push({ section: "DIAS_NO_TRABAJADOS", reason: `${result.candidate.weatherDays.length} día(s) detectados; no se importaron (no fue aceptado en el preview).` });
+    } else {
+      // A single bulk upsert instead of one setWeatherDay() call per day — the
+      // project was just created in this same call, so there is no existing
+      // Libro de Obra to conflict with.
+      const weatherWriter = await createClient();
+      const { error: weatherError } = await weatherWriter
+        .from("project_weather_log")
+        .upsert(
+          result.candidate.weatherDays.map((day) => ({ project_id: project.id, log_date: day.date, code: day.code, recorded_by: profile.id })),
+          { onConflict: "project_id,log_date" }
+        );
+      if (weatherError) pending.push({ section: "DIAS_NO_TRABAJADOS", reason: `No se pudo cargar el Libro de Obra: ${weatherError.message}` });
+      else weatherDays = result.candidate.weatherDays.length;
+    }
+  }
+
+  // Avance físico (registro LDO → execution_entries): no requiere plan
+  // Caterpillar (addExecutionEntry es nivel "pro"), pero sí necesita la
+  // fecha de cierre del certificado — sin certificado creado no hay a qué
+  // período atribuir el avance.
+  let executionEntries = 0;
+  const executionAccepted = formData.get("apply_execution") === "1";
+  const executableEntries = result.candidate.executionEntries.filter((entry) => entry.matchedBudgetCode);
+  if (result.candidate.executionEntries.length) {
+    if (!certificateId || !result.candidate.certificate.periodEnd) {
+      pending.push({ section: "EXECUTION", reason: `${result.candidate.executionEntries.length} fila(s) de avance físico detectadas; no se importaron porque el certificado no se creó en esta obra.` });
+    } else if (!executionAccepted) {
+      pending.push({ section: "EXECUTION", reason: `${result.candidate.executionEntries.length} fila(s) de avance físico detectadas; no se importaron (no fue aceptado en el preview).` });
+    } else if (executableEntries.length) {
+      const executionWriter = await createClient();
+      const { error: executionError } = await executionWriter
+        .from("execution_entries")
+        .insert(executableEntries.map((entry) => ({
+          project_id: project.id,
+          budget_item_id: codeToId.get(entry.matchedBudgetCode!),
+          entry_date: result.candidate.certificate.periodEnd,
+          quantity_executed: entry.quantityExecuted,
+          notes: `Importado desde ${uploaded.name} (registro LDO, certificado N°${result.candidate.certificate.number}).`,
+        })));
+      if (executionError) pending.push({ section: "EXECUTION", reason: `No se pudo cargar el avance físico: ${executionError.message}` });
+      else executionEntries = executableEntries.length;
+    }
+  }
+
+  // Excel-first: la planilla de la sesión pasa a ser la del certificado
+  // creado (mismo archivo original en Storage, misma copia de trabajo — no
+  // se vuelve a subir nada) y la sesión queda cerrada apuntando a la obra.
+  // Se hace al final, cuando ya no hay rollback: borrar la obra arrastraría
+  // la planilla del certificado en cascada.
+  if (session) {
+    const sessionWriter = await createClient();
+    if (certificateId) {
+      const { error: workbookError } = await sessionWriter.from("certificate_workbooks").insert({
+        empresa_id: profile.empresa_id,
+        project_id: project.id,
+        certificate_id: certificateId,
+        original_file_name: session.originalFileName,
+        original_file_size: session.originalFileSize,
+        original_storage_path: session.originalStoragePath,
+        original_file_hash: session.originalFileHash,
+        working_snapshot: session.workingSnapshot,
+        structure_hash: session.structureHash,
+        mapping: session.interpretation?.importPlan ?? null,
+        mapping_structure_hash: session.analyzedStructureHash,
+        analyzed_at: session.analyzedAt,
+        source_kind: "IMPORT_SESSION",
+        import_session_id: session.id,
+        created_by: profile.id,
+      });
+      if (workbookError) pending.push({ section: "PLANILLA", reason: `La obra se creó, pero no se pudo vincular la planilla al certificado: ${workbookError.message}` });
+    }
+    const { error: closeError } = await sessionWriter
+      .from("workbook_import_sessions")
+      .update({ status: "CONFIRMED", confirmed_project_id: project.id, confirmed_at: new Date().toISOString() })
+      .eq("id", session.id)
+      .eq("empresa_id", profile.empresa_id);
+    if (closeError) pending.push({ section: "PLANILLA", reason: `La obra se creó, pero la sesión de importación no se pudo cerrar: ${closeError.message}` });
+  }
+
+  const projectLocation = await ensureProjectInventoryLocation(admin, {
+    empresaId: profile.empresa_id,
+    projectId: String(project.id),
+    createdBy: profile.id,
+  });
+  if (projectLocation.error || !projectLocation.data) {
+    await logAudit(await createClient(), {
+      action: "project.workbook_imported",
+      detail: {
+        project_id: project.id,
+        source_file: uploaded.name,
+        source_fingerprint: fingerprint,
+        budget_items: budgetItems.length,
+        certificate_items: certificateItems,
+        staff_items: staffItems,
+        schedule_versions: scheduleVersions,
+        weather_days: weatherDays,
+        execution_entries: executionEntries,
+        inventory_location_error: projectLocation.error,
+      },
+    });
+    revalidatePath("/projects");
+    return {
+      error: `La obra y sus datos se importaron, pero falta su ubicación canónica. Abrí Ubicaciones y reintentá: ${projectLocation.error ?? "error desconocido"}`,
+      projectId: String(project.id),
+      applied: { project: true, budgetItems: budgetItems.length, certificateItems, staffItems, scheduleVersions, weatherDays, executionEntries },
+      pending,
+    };
+  }
+
+  await logAudit(await createClient(), {
+    action: "project.workbook_imported",
+    detail: {
+      project_id: project.id,
+      source_file: uploaded.name,
+      source_fingerprint: fingerprint,
+      budget_items: budgetItems.length,
+      certificate_items: certificateItems,
+      staff_items: staffItems,
+      schedule_versions: scheduleVersions,
+      weather_days: weatherDays,
+      execution_entries: executionEntries,
+      certificate_status: result.candidate.certificate.status,
+      detected_domains: result.candidate.domains.map((domain) => domain.target),
+      pending_sections: pending,
+    },
+  });
+  revalidatePath("/projects");
+  revalidatePath(`/projects/${project.id}`);
+  return { error: null, projectId: String(project.id), applied: { project: true, budgetItems: budgetItems.length, certificateItems, staffItems, scheduleVersions, weatherDays, executionEntries }, pending };
 }
 
 export async function updateProjectStatus(projectId: string, status: ProjectStatus): Promise<{ error: string | null }> {
@@ -147,10 +588,61 @@ export async function updateProject(projectId: string, formData: FormData): Prom
   return { error: null };
 }
 
+/**
+ * Limpia el cronograma de la obra: deja start_date, end_date y depends_on en
+ * NULL para todas sus partidas. Solo columnas temporales — cantidades,
+ * precios, avance, certificados y stock intactos. Reversible re-importando.
+ */
+export async function clearProjectSchedule(projectId: string): Promise<{ cleared: number; error: string | null }> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const supabase = await createClient();
+  const empresaId = profile.empresa_id;
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("empresa_id", empresaId)
+    .single();
+  if (!project) return { cleared: 0, error: "Proyecto no encontrado." };
+
+  // Whitelist: SOLO columnas temporales. Ningún otro campo viaja en este update.
+  const { data, error } = await supabase
+    .from("budget_items")
+    .update({ start_date: null, end_date: null, depends_on: null })
+    .eq("project_id", projectId)
+    .select("id");
+  if (error) return { cleared: 0, error: "No se pudo limpiar el cronograma." };
+
+  revalidatePath(`/projects/${projectId}`);
+  return { cleared: data?.length ?? 0, error: null };
+}
+
 export async function deleteProject(projectId: string): Promise<{ error: string | null }> {
   const profile = await requirePlan("pro", ["admin"]);
   const supabase = await createClient();
   const empresaId = profile.empresa_id;
+
+  // Las ubicaciones de inventario tipo PROJECT referencian la obra con
+  // ON DELETE RESTRICT (blindaje del pañol, 20260913230000) y no tienen
+  // policy RLS de DELETE: el cliente autenticado no puede borrarlas (no-op
+  // silencioso). Se usa el cliente admin con scoping manual por empresa para
+  // eliminar la ubicación VACÍA y desbloquear el borrado. Si tiene
+  // movimientos, recepciones o presentaciones, el DELETE falla y se explica
+  // en vez del genérico "No se pudo eliminar".
+  const admin = createAdminClient();
+  const { error: locationError } = await admin
+    .from("inventory_locations")
+    .delete()
+    .eq("project_id", projectId)
+    .eq("location_type", "PROJECT")
+    .eq("empresa_id", empresaId);
+  if (locationError) {
+    return {
+      error:
+        "No se puede eliminar: la obra tiene ubicación de inventario con movimientos o presentaciones de pañol. Limpiá el cronograma si solo querés quitar las fechas.",
+    };
+  }
 
   const { error } = await supabase.from("projects").delete().eq("id", projectId).eq("empresa_id", empresaId);
   if (error) return { error: "No se pudo eliminar el proyecto." };
@@ -520,13 +1012,82 @@ export async function importBudgetItems(
   return { inserted: insertedCount, skipped, error: null };
 }
 
+export type ScheduleImportAssignment = {
+  itemId: string;
+  start_date: string;
+  end_date: string;
+  depends_on: string | null;
+};
+
+/**
+ * Aplica un import de cronograma ya previsualizado y confirmado por el usuario.
+ *
+ * SEGURIDAD: whitelist estricta — solo start_date, end_date y depends_on de
+ * budget_items existentes de ESTA obra. Jamás toca cantidades, precios,
+ * certificados, avance, stock ni crea/borra partidas. Las filas sin vincular
+ * o sin fechas nunca llegan acá (las filtra buildScheduleUpdates).
+ */
+export async function applyScheduleImport(
+  projectId: string,
+  assignments: ScheduleImportAssignment[]
+): Promise<{ applied: number; failed: { itemId: string; error: string }[] }> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const supabase = await createClient();
+  const empresaId = profile.empresa_id;
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("empresa_id", empresaId)
+    .single();
+  if (!project) return { applied: 0, failed: [{ itemId: "", error: "Proyecto no encontrado." }] };
+
+  const { data: projectItems } = await supabase
+    .from("budget_items")
+    .select("id")
+    .eq("project_id", projectId);
+  const allowedIds = new Set((projectItems ?? []).map((i) => String(i.id)));
+
+  let applied = 0;
+  const failed: { itemId: string; error: string }[] = [];
+  for (const a of assignments) {
+    if (!allowedIds.has(a.itemId)) {
+      failed.push({ itemId: a.itemId, error: "La partida no pertenece a esta obra." });
+      continue;
+    }
+    const dateError = validateScheduleDates(a.start_date, a.end_date);
+    if (dateError) {
+      failed.push({ itemId: a.itemId, error: dateError });
+      continue;
+    }
+    if (a.depends_on !== null && !allowedIds.has(a.depends_on)) {
+      failed.push({ itemId: a.itemId, error: "La predecesora no pertenece a esta obra." });
+      continue;
+    }
+    // Whitelist: SOLO columnas temporales. Ningún otro campo viaja en este update.
+    const { error } = await supabase
+      .from("budget_items")
+      .update({ start_date: a.start_date, end_date: a.end_date, depends_on: a.depends_on })
+      .eq("id", a.itemId)
+      .eq("project_id", projectId);
+    if (error) failed.push({ itemId: a.itemId, error: "No se pudo actualizar el cronograma." });
+    else applied++;
+  }
+
+  if (applied > 0) revalidatePath(`/projects/${projectId}`);
+  return { applied, failed };
+}
+
 export async function updateBudgetItemSchedule(
   itemId: string,
   startDate: string | null,
   endDate: string | null,
-  dependsOn: string | null
+  dependsOn?: string | null
 ): Promise<{ error: string | null }> {
   await requirePlan("pro", ["administracion", "admin"]);
+  const scheduleError = validateScheduleDates(startDate, endDate);
+  if (scheduleError) return { error: scheduleError };
   const supabase = await createClient();
 
   // budget_items no tiene empresa_id propio: RLS ya filtra por
@@ -539,9 +1100,14 @@ export async function updateBudgetItemSchedule(
     .single();
   if (fetchError || !item) return { error: "Ítem no encontrado." };
 
+  const update: { start_date: string | null; end_date: string | null; depends_on?: string | null } = {
+    start_date: startDate,
+    end_date: endDate,
+  };
+  if (dependsOn !== undefined) update.depends_on = dependsOn;
   const { error } = await supabase
     .from("budget_items")
-    .update({ start_date: startDate, end_date: endDate, depends_on: dependsOn })
+    .update(update)
     .eq("id", itemId);
 
   if (error) return { error: "No se pudo actualizar el cronograma." };

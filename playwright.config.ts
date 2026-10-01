@@ -1,11 +1,34 @@
 import { defineConfig, devices } from "@playwright/test";
-import * as dotenv from "dotenv";
-import * as path from "path";
+import {
+  createGuardedLocalWebServer,
+  loadPlaywrightTestEnvironment,
+} from "./test-utils/playwright-safety";
+import { assertNonProductionTestTarget } from "./test-utils/external-test-target";
 
-// Cargar .env.local para E2E_PASSWORD y demás variables
-dotenv.config({ path: path.resolve(__dirname, ".env.local") });
+// Cargar el entorno de desarrollo con la misma precedencia que Next.js.
+loadPlaywrightTestEnvironment();
 
 const BASE_URL = process.env.BASE_URL ?? "http://127.0.0.1:3005";
+const guardedServer = createGuardedLocalWebServer(BASE_URL, "Playwright application target");
+const { baseURL, ...webServer } = guardedServer;
+for (const [name, value] of Object.entries(process.env)) {
+  if (
+    value &&
+    [
+      "DATABASE_URL",
+      "DIRECT_URL",
+      "NEXT_PUBLIC_SUPABASE_URL",
+      "SUPABASE_DB_URL",
+      "SUPABASE_URL",
+      "E2E_SUPABASE_URL",
+      "TEST_DATABASE_URL",
+      "TEST_SUPABASE_URL",
+      "SUPABASE_TEST_URL",
+    ].includes(name)
+  ) {
+    assertNonProductionTestTarget({ url: value, label: `Playwright ${name}` });
+  }
+}
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -16,12 +39,13 @@ export default defineConfig({
 
   // En CI fallar rápido, localmente reintentar 1 vez para flakiness de red
   retries: process.env.CI ? 0 : 1,
-  workers: 1, // Tests secuenciales — comparten estado de producción
+  workers: 1, // Tests secuenciales: comparten estado del entorno local de prueba
 
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
 
+  webServer,
   use: {
-    baseURL: BASE_URL,
+    baseURL,
     screenshot: "only-on-failure",
     video: "retain-on-failure",
     trace: "on-first-retry",

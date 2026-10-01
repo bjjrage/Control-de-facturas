@@ -132,7 +132,7 @@ describe("inventario canónico: invariantes de dominio", () => {
   it("rechaza consumo desde una obra distinta al proyecto contextual", () => {
     const ledger = makeLedger();
     ledger.post(receipt());
-    expect(() => ledger.post(consumption({ fromLocationId: "obra-c" }))).toThrowError(/pañol/);
+    expect(() => ledger.post(consumption({ fromLocationId: "obra-c" }))).toThrowError(/depósito/);
   });
 
   it("rechaza una partida que pertenece a otra obra o empresa", () => {

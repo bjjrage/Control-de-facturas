@@ -13,6 +13,7 @@
 import { createClient } from "@supabase/supabase-js";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { assertNonProductionTestTarget } from "../test-utils/external-test-target";
 
 interface CheckpointData {
   wave: number;
@@ -51,11 +52,16 @@ try {
     console.error("FATAL SAFETY ERROR: NEXT_PUBLIC_SUPABASE_URL is NOT targeting klvvlybltcmowoptogpe!");
     process.exit(1);
   }
+  assertNonProductionTestTarget({
+    url: env.NEXT_PUBLIC_SUPABASE_URL,
+    projectRef: "klvvlybltcmowoptogpe",
+    label: "Historical DNCP backfill database",
+  });
   if (env.NEXT_PUBLIC_SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY) {
     supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false },
     });
-    console.log("[LAB SAFETY VERIFIED] Connected to:", env.NEXT_PUBLIC_SUPABASE_URL);
+    console.log("[LAB SAFETY VERIFIED] Connected to the configured isolated lab project.");
   }
 } catch (err: any) {
   console.error("FATAL: Could not initialize Supabase client:", err.message);

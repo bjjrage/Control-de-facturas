@@ -60,6 +60,7 @@ export interface RequirementEvaluation {
     titulo: string;
     estado: string;
   };
+  sourceEvidence?: TenderRequirement["sourceEvidence"];
   observaciones: string;
 }
 
@@ -301,6 +302,7 @@ export function evaluateTenderCompliance(
       esExcluyente: req.esExcluyente,
       verdict,
       documentoRespaldo: docRespaldo,
+      sourceEvidence: req.sourceEvidence,
       observaciones: obs
     });
   }

@@ -84,7 +84,7 @@ export async function setWeatherDay(
  */
 export async function saveSchedulePlan(
   projectId: string,
-  input: { planId: string | null; label: string; months: { month_index: number; programado_pct: number }[] }
+  input: { planId: string | null; label: string; months: { month_index: number; programado_pct: number; ejecutado_pct_documento?: number | null }[] }
 ): Promise<{ error: string | null; id: string | null }> {
   const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
   const supabase = await createClient();
@@ -97,7 +97,11 @@ export async function saveSchedulePlan(
 
   const months = input.months
     .filter((m) => m.month_index >= 1 && Number.isFinite(m.programado_pct))
-    .map((m) => ({ month_index: m.month_index, programado_pct: Math.max(0, m.programado_pct) }));
+    .map((m) => ({
+      month_index: m.month_index,
+      programado_pct: Math.max(0, m.programado_pct),
+      ejecutado_pct_documento: typeof m.ejecutado_pct_documento === "number" && Number.isFinite(m.ejecutado_pct_documento) ? Math.max(0, m.ejecutado_pct_documento) : null,
+    }));
 
   let planId = input.planId;
   if (planId) {

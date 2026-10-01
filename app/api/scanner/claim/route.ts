@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentProfile } from '@/lib/auth';
 import { claimScanSession } from '@/lib/scanner/session-service';
 import {
   getMobileCredentialFromRequest,
@@ -24,6 +25,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const profile = await getCurrentProfile().catch(() => null);
+
     const clientIp =
       req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
       req.headers.get('x-real-ip') ||
@@ -37,6 +40,7 @@ export async function POST(req: NextRequest) {
     const result = await claimScanSession(
       { token, pin, mobileClaimToken },
       mergedDeviceInfo,
+      profile?.id
     );
 
     // Responder con la sesión y credencial autorizada para el móvil

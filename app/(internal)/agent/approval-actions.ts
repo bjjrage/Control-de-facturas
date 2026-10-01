@@ -7,6 +7,7 @@ import { requireProfile } from "@/lib/auth";
 import { actorFromProfile } from "@/lib/agent/context";
 import { decideApproval, getApproval } from "@/lib/agent/approvals";
 import { executeApprovedTool } from "@/lib/agent/gateway";
+import { getTool } from "@/lib/agent/registry";
 import { emitAgentEvent, processAgentEvent } from "@/lib/agent/events";
 import { createRun, createTask, finishRun, updateTaskStatus } from "@/lib/agent/runtime";
 import { getEmailDraftSendContext, getEmailDraftPreview, getRecipientLabel, markEmailDraftWaitingApproval, recordEmailEvent } from "@/lib/email/domain-service";
@@ -17,8 +18,18 @@ export async function decideApprovalAction(params: {
   approvalId: string;
   decision: "APPROVED" | "REJECTED" | "CANCELLED";
 }) {
-  const profile = await requireProfile(["comercial", "admin"]);
+  const profile = await requireProfile(["comercial", "administracion", "admin"]);
   const supabase = await createClient();
+
+  const pendingApproval = await getApproval(supabase, params.approvalId);
+  if (!pendingApproval || pendingApproval.empresa_id !== profile.empresa_id) {
+    return { error: "Approval no encontrado.", approval: null };
+  }
+  const approvalTool = getTool(pendingApproval.tool_name);
+  if (!approvalTool) return { error: "La herramienta de esta aprobación ya no está disponible.", approval: null };
+  if (approvalTool.requiredRoles?.length && !approvalTool.requiredRoles.includes(profile.role)) {
+    return { error: `Tu rol no puede aprobar esta operación. Roles habilitados: ${approvalTool.requiredRoles.join(", ")}.`, approval: null };
+  }
 
   const approval = await decideApproval({
     db: supabase,
@@ -247,7 +258,7 @@ export async function executeApprovalAction(params: {
   approvalId: string;
   payloadToExecute: unknown;
 }) {
-  const profile = await requireProfile(["comercial", "admin"]);
+  const profile = await requireProfile(["comercial", "administracion", "admin"]);
   const supabase = await createClient();
 
   const actor = actorFromProfile(profile);

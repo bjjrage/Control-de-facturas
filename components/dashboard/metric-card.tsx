@@ -26,17 +26,41 @@ const TREND_TONE_CLASSES: Record<"up" | "down" | "neutral", string> = {
   neutral: "text-[var(--muted)] bg-[var(--hover)]",
 };
 
-export function MetricCard({ card, compact = false }: { card: MetricCardData; compact?: boolean }) {
+// Señalador superior semántico (Administración): verde = cobros/entradas,
+// rojo = pagos/salidas. El ciclo por índice queda como fallback (Licitaciones).
+const ACCENT_CLASSES = [
+  "kpi-accent-budget",
+  "kpi-accent-purchases",
+  "kpi-accent-progress",
+  "kpi-accent-labor",
+] as const;
+
+const ACCENT_BY_KEY: Record<string, string> = {
+  "facturacion-mes": "kpi-accent-inflow",
+  "facturacion-ytd": "kpi-accent-inflow",
+  "cobrado-mes": "kpi-accent-inflow",
+  "cuentas-por-cobrar": "kpi-accent-inflow",
+  "cobros-esperados": "kpi-accent-inflow",
+  "cxc-vencidas": "kpi-accent-inflow",
+  "cuentas-por-pagar": "kpi-accent-outflow",
+  "pagos-proximos": "kpi-accent-outflow",
+  "cxp-vencidas": "kpi-accent-outflow",
+  "compras-comprometidas": "kpi-accent-outflow",
+  "liquidez-disponible": "kpi-accent-budget",
+  "flujo-neto-30d": "kpi-accent-progress",
+};
+
+export function MetricCard({ card, compact = false, accentClass }: { card: MetricCardData; compact?: boolean; accentClass?: string }) {
   const Icon = DASHBOARD_ICONS[card.iconKey] ?? DASHBOARD_ICONS.receipt;
   const hasSparkline = card.sparkline && card.sparkline.length > 1;
 
   return (
     <Link
       href={card.href}
-      className={`group kpi-hover relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-[var(--panel)] ${
+      className={`group kpi-hover relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-[var(--panel)] ${accentClass ?? ""} ${
         compact
           ? "h-[100px] max-h-[110px] p-3.5"
-          : "min-h-[145px] p-4 sm:min-h-[155px] sm:p-5"
+          : "min-h-[92px] p-2 sm:min-h-[96px] sm:p-2.5"
       } ${TONE_RING[card.tone]}`}
     >
       <div className="flex items-start justify-between gap-2">
@@ -60,13 +84,13 @@ export function MetricCard({ card, compact = false }: { card: MetricCardData; co
             </div>
           ) : null}
         </div>
-        <div className={`flex shrink-0 items-center justify-center rounded-xl ${compact ? "h-7 w-7" : "h-8 w-8 sm:h-9 sm:w-9"} ${TONE_CLASSES[card.tone]}`}>
-          <Icon size={compact ? 15 : 18} />
+        <div className={`flex shrink-0 items-center justify-center rounded-xl ${compact ? "h-7 w-7" : "h-6 w-6"} ${TONE_CLASSES[card.tone]}`}>
+          <Icon size={compact ? 15 : 13} />
         </div>
       </div>
 
       <div className="my-1.5 min-w-0">
-        <div className={`truncate font-bold leading-tight tracking-tight text-[var(--foreground)] ${compact ? "text-[24px]" : "text-[20px] sm:text-[23px]"}`}>
+        <div className={`truncate font-bold leading-tight tracking-tight text-[var(--foreground)] ${compact ? "text-[24px]" : "text-[17px] sm:text-[18px]"}`}>
           {card.value}
         </div>
         {card.multiCurrencyExtra ? (
@@ -123,8 +147,14 @@ export function MetricGrid({ cards }: { cards: MetricCardData[] }) {
   if (cards.length === 0) return null;
 
   return (
-    <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
-      {cards.map((card) => <MetricCard key={card.key} card={card} />)}
+    <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+      {cards.map((card, index) => (
+        <MetricCard
+          key={card.key}
+          card={card}
+          accentClass={ACCENT_BY_KEY[card.key] ?? ACCENT_CLASSES[index % ACCENT_CLASSES.length]}
+        />
+      ))}
     </div>
   );
 }

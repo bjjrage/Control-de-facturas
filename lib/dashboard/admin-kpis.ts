@@ -1,5 +1,4 @@
 import type { CurrencyCode, InvoiceStatus, SalesDocStatus } from "@/lib/types";
-import { formatMoney } from "@/lib/format";
 import { docSaldo } from "@/lib/sales";
 import { orderRemaining } from "@/lib/reconciliation";
 import type { MetricCardData, SparklinePoint, DomainTone } from "./types";
@@ -368,4 +367,120 @@ export function computeAdminKpis(params: {
   }
 
   return kpis;
+}
+
+/**
+ * Indicadores operativos que complementan, sin alterar, los ocho KPIs
+ * ejecutivos existentes. Los importes se mantienen separados por moneda.
+ */
+export function computeAdminSecondaryKpis(params: {
+  todayIso: string;
+  salesDocs: RawSalesDocForKpi[];
+  invoices: RawInvoiceForKpi[];
+  cashflowItems: FlujoItem[];
+  showSalesKpis: boolean;
+  showInvoiceKpis: boolean;
+}): MetricCardData[] {
+  const { todayIso, salesDocs, invoices, cashflowItems, showSalesKpis, showInvoiceKpis } = params;
+  const horizon = new Date(`${todayIso}T00:00:00`);
+  horizon.setDate(horizon.getDate() + 30);
+  const horizonIso = horizon.toISOString().slice(0, 10);
+  const cards: MetricCardData[] = [];
+
+  const formatAmount = (items: { currency?: string; moneda?: string; amount: number }[]) => {
+    const totals = sumByCurrency(items, (item) => item.amount, (item) => item.currency ?? item.moneda ?? "PYG");
+    return formatMultiCurrencyBalances(totals, "PYG");
+  };
+
+  if (showInvoiceKpis) {
+    const upcomingInvoices = invoices.filter(
+      (invoice) => invoice.status !== "PAGADO"
+        && invoice.due_date !== null
+        && invoice.due_date >= todayIso
+        && invoice.due_date <= horizonIso
+    );
+    const upcoming = formatAmount(upcomingInvoices.map((invoice) => ({
+      currency: invoice.currency,
+      amount: invoice.total,
+    })));
+    cards.push({
+      key: "pagos-proximos",
+      title: "Pagos próximos",
+      value: upcoming.primaryFormatted,
+      multiCurrencyExtra: upcoming.extraFormatted,
+      secondaryText: `${upcomingInvoices.length} factura${upcomingInvoices.length === 1 ? "" : "s"} · 30 días`,
+      trendText: "Vencen en los próximos 30 días",
+      trendTone: upcomingInvoices.some((invoice) => invoice.total > 0) ? "down" : "neutral",
+      href: "/pagos",
+      iconKey: "calendar-clock",
+      tone: upcomingInvoices.some((invoice) => invoice.total > 0) ? "warn" : "neutral",
+    });
+  }
+
+  if (showSalesKpis) {
+    const expectedCollections = cashflowItems
+      .filter((item) => (item.tipo === "cobro_factura" || item.tipo === "cobro_certificado") && item.monto > 0)
+      .map((item) => ({ currency: item.moneda, amount: item.monto }));
+    const expected = formatAmount(expectedCollections);
+    cards.push({
+      key: "cobros-esperados",
+      title: "Cobros esperados",
+      value: expected.primaryFormatted,
+      multiCurrencyExtra: expected.extraFormatted,
+      secondaryText: `${expectedCollections.length} proyección${expectedCollections.length === 1 ? "" : "es"} · 30 días`,
+      trendText: "Facturas y certificados sin duplicar",
+      trendTone: "up",
+      href: "/flujo-caja",
+      iconKey: "trending-up",
+      tone: expectedCollections.length > 0 ? "ok" : "neutral",
+    });
+  }
+
+  if (showInvoiceKpis) {
+    const overdueInvoices = invoices.filter(
+      (invoice) => invoice.status !== "PAGADO" && invoice.due_date !== null && invoice.due_date < todayIso
+    );
+    const overdue = formatAmount(overdueInvoices.map((invoice) => ({
+      currency: invoice.currency,
+      amount: invoice.total,
+    })));
+    cards.push({
+      key: "cxp-vencidas",
+      title: "CxP vencidas",
+      value: overdue.primaryFormatted,
+      multiCurrencyExtra: overdue.extraFormatted,
+      secondaryText: `${overdueInvoices.length} factura${overdueInvoices.length === 1 ? "" : "s"}`,
+      trendText: overdueInvoices.length > 0 ? "Requieren seguimiento" : "Al día",
+      trendTone: overdueInvoices.length > 0 ? "down" : "up",
+      href: "/pagos",
+      iconKey: "alert-octagon",
+      tone: overdueInvoices.some((invoice) => invoice.total > 0) ? "error" : "ok",
+    });
+  }
+
+  if (showSalesKpis) {
+    const overdueSales = salesDocs
+      .filter((doc) =>
+        (doc.status === "EMITIDA" || doc.status === "COBRADA_PARCIAL")
+        && doc.due_date !== null
+        && doc.due_date < todayIso
+        && docSaldo(doc.total, doc.cobrado_amount) > 0.01
+      )
+      .map((doc) => ({ currency: doc.currency, amount: docSaldo(doc.total, doc.cobrado_amount) }));
+    const overdue = formatAmount(overdueSales);
+    cards.push({
+      key: "cxc-vencidas",
+      title: "CxC vencidas",
+      value: overdue.primaryFormatted,
+      multiCurrencyExtra: overdue.extraFormatted,
+      secondaryText: `${overdueSales.length} documento${overdueSales.length === 1 ? "" : "s"}`,
+      trendText: overdueSales.length > 0 ? "Requieren seguimiento" : "Al día",
+      trendTone: overdueSales.length > 0 ? "down" : "up",
+      href: "/cobros",
+      iconKey: "alert-octagon",
+      tone: overdueSales.length > 0 ? "error" : "ok",
+    });
+  }
+
+  return cards;
 }

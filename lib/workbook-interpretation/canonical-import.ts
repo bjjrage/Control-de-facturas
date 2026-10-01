@@ -1,0 +1,879 @@
+import * as XLSX from "xlsx";
+import { extractBudgetItems, isBudgetShapedBlock, rawNumber, validateImportPlan, type ImportPlanCheck } from "./import-plan";
+import type {
+  DetectedField,
+  ImportBlock,
+  ImportKeyValueKey,
+  ImportPlan,
+  ImportRelationship,
+  ImportScale,
+  WorkbookBudgetItem,
+  WorkbookCell,
+  WorkbookInterpretationResult,
+  WorkbookRepresentation,
+} from "./types";
+
+// The model decided what every block means. This module only:
+//   1. copies cell values from the columns/rows the model mapped,
+//   2. verifies the scalars it pointed at really are in those cells,
+//   3. runs arithmetic checks.
+// Semantic doubts become warnings for the human preview, never silent drops.
+
+export type CertificateMatchQuality = "EXACT" | "APPROXIMATE" | "UNMATCHED" | "NO_BUDGET";
+
+export type CanonicalCertificateItem = {
+  code: string | null;
+  description: string;
+  unit: string | null;
+  quantityContractual: number;
+  quantityPrevious: number;
+  quantityCurrent: number;
+  quantityCumulative: number;
+  unitPrice: number;
+  amountPrevious: number | null;
+  amountCurrent: number | null;
+  amountCumulative: number | null;
+  percentage: number | null;
+  matchedBudgetCode: string | null;
+  matchedBudgetRow: number | null;
+  matchQuality: CertificateMatchQuality;
+  matchNote: string | null;
+  source: { sheet: string; row: number; range: string };
+};
+
+export type CanonicalCertificateAudit = {
+  // DETECTED_NOT_APPLIED is reserved for technical impossibility (no
+  // readable lines, or no verifiable number/period, which the database
+  // requires). Semantic doubts give APPLY_WITH_WARNINGS.
+  status: "NOT_DETECTED" | "SAFE_TO_APPLY" | "APPLY_WITH_WARNINGS" | "DETECTED_NOT_APPLIED";
+  itemCount: number;
+  matchedBudgetItems: number;
+  number: number | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  contractTotal: number | null;
+  previousTotal: number | null;
+  currentTotal: number | null;
+  cumulativeTotal: number | null;
+  cumulativePercent: number | null;
+  scaleUnits: number | null;
+  reason: string;
+  issues: string[];
+  items: CanonicalCertificateItem[];
+};
+
+export type CanonicalCheck = { id: string; label: string; status: "OK" | "WARNING"; detail: string };
+
+export type CanonicalScaleAudit = {
+  fromBlock: string;
+  toBlock: string;
+  factor: number;
+  comparedLines: number;
+  consistentLines: number;
+  evidence: string;
+};
+
+export type CanonicalDomainSummary = {
+  target: string;
+  labels: string[];
+  sheets: string[];
+  rows: number;
+  warnings: string[];
+  persistence: "NOT_CONNECTED";
+};
+
+export type CanonicalRelationship = ImportRelationship & { fromLabel: string; toLabel: string };
+
+export type CanonicalStaffRow = { name: string; role: string; sheet: string; row: number };
+
+export type CanonicalWeatherDay = { date: string; code: "B" | "LL" | "HH" | "O"; sheet: string; row: number; column: string };
+
+export type CanonicalSchedulePlan = {
+  planVersion: string;
+  label: string;
+  sheet: string;
+  sourceRow: number;
+  months: { monthIndex: number; programadoPct: number }[];
+  // Ejecutado según el propio documento (a veces historial tipeado a mano,
+  // sin otra fuente detrás). Nunca reemplaza el ejecutado real que el ERP
+  // calcula desde certificados; se persiste aparte como referencia.
+  documentedExecuted: { monthIndex: number; ejecutadoPct: number }[];
+};
+
+/** El presupuesto a crear contra el monto de contrato que el propio
+ * documento declara. Si no coincide, la obra NO se crea (ver
+ * createProjectFromWorkbook): así se atrapa cualquier error de escala, venga
+ * de donde venga (incidente MAGY: 1 vivienda en vez de 37). */
+export type BudgetContractCheck = {
+  budgetTotal: number;
+  contractAmount: number;
+  source: string;
+  matches: boolean;
+};
+
+export type CanonicalImportCandidate = {
+  budgetItems: WorkbookBudgetItem[];
+  budgetQuantitySource: "BUDGET" | "CERTIFICATE_CONTRACT_QUANTITY";
+  budgetTotal: number;
+  budgetContractCheck: BudgetContractCheck | null;
+  budgetScale: ImportScale | null;
+  relationships: CanonicalRelationship[];
+  scale: CanonicalScaleAudit | null;
+  certificate: CanonicalCertificateAudit;
+  staff: CanonicalStaffRow[];
+  schedulePlans: CanonicalSchedulePlan[];
+  weatherDays: CanonicalWeatherDay[];
+  executionEntries: CanonicalExecutionEntry[];
+  domains: CanonicalDomainSummary[];
+  foreignBlocks: CanonicalForeignBlock[];
+  checks: CanonicalCheck[];
+  warnings: string[];
+};
+
+type Sheet = WorkbookRepresentation["sheets"][number];
+type VerifiedValue = { value: number | string; cell: string; verified: boolean; cellText: string };
+
+function normalized(value: unknown): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function fieldText(field: DetectedField): string | null {
+  if (field.status === "NOT_FOUND" || field.value === null) return null;
+  const value = String(field.value).trim();
+  return value || null;
+}
+
+function columnName(column: string): string {
+  return column.replace(/[0-9$]/g, "").toUpperCase();
+}
+
+function cellIndex(sheet: Sheet) {
+  return new Map(sheet.cells.map((cell) => [cell.address, cell]));
+}
+
+function mappingColumn(block: ImportBlock, role: string): string | null {
+  const column = block.columnMappings.find((mapping) => mapping.role === role)?.column;
+  return column ? columnName(column) : null;
+}
+
+function excludedRows(block: ImportBlock): Set<number> {
+  return new Set([
+    ...block.repeatedHeaderRows,
+    ...block.subtotalRows,
+    ...block.footerRows,
+    ...block.excludedRows.map((row) => row.row),
+  ]);
+}
+
+function blockLabel(block: ImportBlock): string {
+  return block.label || `${block.target} · ${block.sheet}`;
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("es-PY", { maximumFractionDigits: 2 }).format(value);
+}
+
+function close(left: number, right: number, tolerance = 1) {
+  return Math.abs(left - right) <= Math.max(tolerance, Math.abs(right) * 1e-6);
+}
+
+// ---------------------------------------------------------------------------
+// Scalars the model located by cell: accept them only if the cell holds them.
+
+function excelSerialToIso(serial: number): string | null {
+  const parsed = XLSX.SSF.parse_date_code(serial);
+  if (!parsed?.y) return null;
+  return `${parsed.y}-${String(parsed.m).padStart(2, "0")}-${String(parsed.d).padStart(2, "0")}`;
+}
+
+function datesInText(text: string): string[] {
+  const found: string[] = [];
+  for (const match of text.matchAll(/(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/g)) {
+    const year = match[3].length === 2 ? `20${match[3]}` : match[3];
+    found.push(`${year}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`);
+  }
+  for (const match of text.matchAll(/(\d{4})-(\d{2})-(\d{2})/g)) found.push(match[0]);
+  return found;
+}
+
+function numbersInText(text: string): number[] {
+  return [...text.matchAll(/\d+(?:[.,]\d+)*/g)].map((match) => rawNumber(match[0])).filter((value): value is number => value !== null);
+}
+
+const DATE_KEYS: ImportKeyValueKey[] = ["periodStart", "periodEnd"];
+
+function verifiedKeyValue(workbook: WorkbookRepresentation, blocks: ImportBlock[], key: ImportKeyValueKey): VerifiedValue | null {
+  for (const block of blocks) {
+    const entry = block.keyValues?.find((item) => item.key === key);
+    if (!entry) continue;
+    const [sheetPart, cellPart] = entry.cell.includes("!") ? [entry.cell.slice(0, entry.cell.lastIndexOf("!")).replace(/^'|'$/g, ""), entry.cell.slice(entry.cell.lastIndexOf("!") + 1)] : [block.sheet, entry.cell];
+    const address = cellPart.replace(/\$/g, "").toUpperCase();
+    const cell = workbook.sheets.find((sheet) => sheet.sheetName === sheetPart)?.cells.find((item) => item.address === address);
+    const cellText = cell ? String(cell.formatted ?? cell.raw ?? "") : "";
+    if (DATE_KEYS.includes(key)) {
+      const expected = String(entry.value).slice(0, 10);
+      const candidates = typeof cell?.raw === "number" ? [excelSerialToIso(cell.raw)] : datesInText(String(cell?.raw ?? ""));
+      return { value: expected, cell: `${sheetPart}!${address}`, verified: /^\d{4}-\d{2}-\d{2}$/.test(expected) && candidates.includes(expected), cellText };
+    }
+    const expected = rawNumber(entry.value);
+    if (expected === null) return { value: String(entry.value), cell: `${sheetPart}!${address}`, verified: false, cellText };
+    const candidates = typeof cell?.raw === "number" ? [cell.raw] : numbersInText(String(cell?.raw ?? ""));
+    return { value: expected, cell: `${sheetPart}!${address}`, verified: candidates.some((candidate) => close(candidate, expected)), cellText };
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Certificate lines: copied from the columns the model mapped.
+
+function readCertificateBlock(workbook: WorkbookRepresentation, block: ImportBlock, issues: string[]): CanonicalCertificateItem[] {
+  const sheet = workbook.sheets.find((candidate) => candidate.sheetName === block.sheet);
+  if (!sheet) return [];
+  const columns = {
+    code: mappingColumn(block, "code"),
+    description: mappingColumn(block, "description"),
+    unit: mappingColumn(block, "unit"),
+    contractual: mappingColumn(block, "quantity"),
+    previous: mappingColumn(block, "previousQuantity"),
+    current: mappingColumn(block, "currentQuantity"),
+    cumulative: mappingColumn(block, "cumulativeQuantity"),
+    unitPrice: mappingColumn(block, "unitPrice"),
+    amountPrevious: mappingColumn(block, "previousAmount"),
+    amountCurrent: mappingColumn(block, "currentAmount"),
+    amountCumulative: mappingColumn(block, "cumulativeAmount"),
+    percentage: mappingColumn(block, "percentage"),
+  };
+  const missing = [
+    !columns.description && "descripción",
+    !columns.contractual && "cantidad contractual",
+    !columns.unitPrice && "precio unitario",
+    !columns.current && "cantidad presente",
+    !columns.previous && !columns.cumulative && "cantidad anterior o acumulada",
+  ].filter(Boolean);
+  if (missing.length) {
+    issues.push(`El bloque ${blockLabel(block)} no tiene mapeadas las columnas: ${missing.join(", ")}.`);
+    return [];
+  }
+  const cells = cellIndex(sheet);
+  const raw = (row: number, column: string | null) => (column ? cells.get(`${column}${row}`)?.raw ?? null : null);
+  const text = (row: number, column: string | null) => String(raw(row, column) ?? "").trim();
+  const num = (row: number, column: string | null) => (column ? rawNumber(raw(row, column)) : null);
+  const excluded = excludedRows(block);
+  const result: CanonicalCertificateItem[] = [];
+  const unreadable: number[] = [];
+  for (let row = block.dataRowStart; row <= block.dataRowEnd; row++) {
+    if (excluded.has(row)) continue;
+    const description = text(row, columns.description);
+    if (!description) continue;
+    const contractual = num(row, columns.contractual);
+    const unitPrice = num(row, columns.unitPrice);
+    const current = num(row, columns.current) ?? 0;
+    const cumulativeRead = num(row, columns.cumulative);
+    const previousRead = num(row, columns.previous);
+    const previous = previousRead ?? (cumulativeRead !== null ? cumulativeRead - current : null);
+    if (contractual === null || unitPrice === null || previous === null) {
+      unreadable.push(row);
+      continue;
+    }
+    result.push({
+      code: text(row, columns.code) || null,
+      description,
+      unit: text(row, columns.unit) || null,
+      quantityContractual: contractual,
+      quantityPrevious: previous,
+      quantityCurrent: current,
+      quantityCumulative: cumulativeRead ?? previous + current,
+      unitPrice,
+      amountPrevious: num(row, columns.amountPrevious),
+      amountCurrent: num(row, columns.amountCurrent),
+      amountCumulative: num(row, columns.amountCumulative),
+      percentage: num(row, columns.percentage),
+      matchedBudgetCode: null,
+      matchedBudgetRow: null,
+      matchQuality: "NO_BUDGET",
+      matchNote: null,
+      source: { sheet: block.sheet, row, range: block.sourceRange },
+    });
+  }
+  if (unreadable.length) issues.push(`Filas del certificado con cantidad contractual o precio no numérico (no se copiaron): ${unreadable.join(", ")}.`);
+  return result;
+}
+
+export function extractCertificateItems(workbook: WorkbookRepresentation, plan: ImportPlan): CanonicalCertificateItem[] {
+  return plan.blocks.filter((block) => block.target === "CERTIFICATE").flatMap((block) => readCertificateBlock(workbook, block, []));
+}
+
+// ---------------------------------------------------------------------------
+// Registro LDO (avance físico ejecutado por rubro): reuses the same generic
+// columnMappings as budget/certificate blocks — no dedicated model schema
+// needed. `execution_entries` requires a non-null budget_item_id and a
+// strictly positive quantity, so an unmatched row or a zero/near-zero
+// reading (real "nothing done this period", or floating-point noise from
+// the sheet's own IF() formulas) is dropped rather than inserted.
+
+export type CanonicalExecutionEntry = {
+  code: string | null;
+  description: string;
+  unit: string | null;
+  quantityExecuted: number;
+  matchedBudgetCode: string | null;
+  matchedBudgetRow: number | null;
+  matchQuality: CertificateMatchQuality;
+  source: { sheet: string; row: number; range: string };
+};
+
+const EXECUTION_EPSILON = 1e-6;
+
+function readExecutionBlock(workbook: WorkbookRepresentation, block: ImportBlock, issues: string[]): CanonicalExecutionEntry[] {
+  const sheet = workbook.sheets.find((candidate) => candidate.sheetName === block.sheet);
+  if (!sheet) return [];
+  const columns = { code: mappingColumn(block, "code"), description: mappingColumn(block, "description"), unit: mappingColumn(block, "unit"), current: mappingColumn(block, "currentQuantity") };
+  if (!columns.description || !columns.current) {
+    issues.push(`El bloque ${blockLabel(block)} no tiene mapeadas las columnas de descripción y cantidad presente; no se extrajo avance.`);
+    return [];
+  }
+  const cells = cellIndex(sheet);
+  const raw = (row: number, column: string | null) => (column ? cells.get(`${column}${row}`)?.raw ?? null : null);
+  const text = (row: number, column: string | null) => String(raw(row, column) ?? "").trim();
+  const excluded = excludedRows(block);
+  const result: CanonicalExecutionEntry[] = [];
+  let skippedZero = 0;
+  let unreadable = 0;
+  for (let row = block.dataRowStart; row <= block.dataRowEnd; row++) {
+    if (excluded.has(row)) continue;
+    const description = text(row, columns.description);
+    if (!description) continue;
+    const quantity = rawNumber(raw(row, columns.current));
+    if (quantity === null) { unreadable++; continue; }
+    if (Math.abs(quantity) < EXECUTION_EPSILON) { skippedZero++; continue; }
+    result.push({ code: text(row, columns.code) || null, description, unit: text(row, columns.unit) || null, quantityExecuted: quantity, matchedBudgetCode: null, matchedBudgetRow: null, matchQuality: "NO_BUDGET", source: { sheet: block.sheet, row, range: block.sourceRange } });
+  }
+  if (unreadable) issues.push(`${unreadable} fila(s) del registro de avance sin cantidad presente numérica; no se copiaron.`);
+  if (skippedZero) issues.push(`${skippedZero} rubro(s) sin avance en este período (cantidad presente cero); no generan entrada.`);
+  return result;
+}
+
+function matchExecutionToBudget(budgetLines: WorkbookBudgetItem[], entries: CanonicalExecutionEntry[]): CanonicalExecutionEntry[] {
+  const byCode = new Map(budgetLines.filter((line) => line.code).map((line) => [normalized(line.code), line]));
+  return entries.map((entry) => {
+    const budget = entry.code ? byCode.get(normalized(entry.code)) : undefined;
+    if (!budget) return { ...entry, matchQuality: "UNMATCHED" as const };
+    const sameDescription = normalized(budget.description) === normalized(entry.description);
+    return { ...entry, matchedBudgetCode: budget.code, matchedBudgetRow: budget.source.row ?? null, matchQuality: sameDescription ? ("EXACT" as const) : ("APPROXIMATE" as const) };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Budget ↔ certificate lines. The model asserts the two blocks list the same
+// items (SAME_ITEMS / CONTRACT_SCALE); the join key is the item code, or the
+// row order when no codes exist. Differences in wording are reported.
+
+function pairCertificateLines(budgetLines: WorkbookBudgetItem[], items: CanonicalCertificateItem[]) {
+  const byCode = new Map(budgetLines.filter((line) => line.code).map((line) => [normalized(line.code), line]));
+  const useOrder = byCode.size === 0 && budgetLines.length === items.length;
+  const used = new Set<WorkbookBudgetItem>();
+  return items.map((item, index) => {
+    const budget = useOrder ? budgetLines[index] : item.code ? byCode.get(normalized(item.code)) : undefined;
+    if (!budget || used.has(budget)) return { ...item, matchQuality: "UNMATCHED" as const, matchNote: "Sin partida de presupuesto con el mismo código." };
+    used.add(budget);
+    const differences = [
+      normalized(budget.description) !== normalized(item.description) && `descripción “${budget.description}” vs “${item.description}”`,
+      normalized(budget.unit) !== normalized(item.unit) && `unidad “${budget.unit ?? "—"}” vs “${item.unit ?? "—"}”`,
+    ].filter(Boolean);
+    return {
+      ...item,
+      matchedBudgetCode: budget.code,
+      matchedBudgetRow: budget.source.row ?? null,
+      matchQuality: differences.length ? "APPROXIMATE" as const : "EXACT" as const,
+      matchNote: differences.length ? differences.join("; ") : null,
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+
+// Link between the budget and the certificate as declared by the model. A
+// CONTRACT_SCALE relationship wins over a plain SAME_ITEMS one because it
+// also carries the factor. `factor` is always oriented budget → certificate.
+function relationshipBetween(plan: ImportPlan, budgetIds: Set<string>, certificateIds: Set<string>) {
+  const links = (plan.relationships ?? []).flatMap((relationship) => {
+    if (relationship.type !== "SAME_ITEMS" && relationship.type !== "CONTRACT_SCALE") return [];
+    const scaleFactor = relationship.type === "CONTRACT_SCALE" && relationship.factor ? relationship.factor : 1;
+    if (budgetIds.has(relationship.from) && certificateIds.has(relationship.to)) return [{ relationship, factor: scaleFactor }];
+    if (certificateIds.has(relationship.from) && budgetIds.has(relationship.to)) return [{ relationship, factor: 1 / scaleFactor }];
+    return [];
+  });
+  return links.find((link) => link.relationship.type === "CONTRACT_SCALE") ?? links[0] ?? null;
+}
+
+// The model often links budget and certificate as SAME_ITEMS and states the
+// ×N scale only through another block (MAGY: registro LDO → base ×37, base →
+// certificado sin factor) — then the budget would import at prototype scale
+// (1 house instead of 37). The document's own quantities settle it: if EVERY
+// linked line has cantidad contractual = presupuesto × N, N is the scale.
+// Conservative: needs ≥3 comparable lines covering ≥90% of the linked ones,
+// all within 0.5% of the same ratio, and a ratio clearly different from 1.
+function inferContractScale(budgetLines: WorkbookBudgetItem[], matched: CanonicalCertificateItem[]): number | null {
+  const byRow = new Map(budgetLines.map((line) => [line.source.row, line]));
+  const ratios = matched.flatMap((item) => {
+    const budget = item.matchedBudgetRow === null ? undefined : byRow.get(item.matchedBudgetRow);
+    return budget?.quantity && item.quantityContractual ? [item.quantityContractual / budget.quantity] : [];
+  });
+  if (ratios.length < 3 || ratios.length < matched.length * 0.9) return null;
+  const median = [...ratios].sort((a, b) => a - b)[Math.floor(ratios.length / 2)];
+  if (Math.abs(median - 1) <= 0.005) return null;
+  if (!ratios.every((ratio) => Math.abs(ratio - median) <= median * 0.005)) return null;
+  const whole = Math.round(median);
+  return Math.abs(whole - median) <= median * 0.005 ? whole : median;
+}
+
+export type CanonicalForeignBlock = { label: string; sheet: string; target: string; warnings: string[] };
+
+// ---------------------------------------------------------------------------
+// Personal: a plain (nombre, rol) roster. The model only points at rows;
+// the extractor reads name/role straight from the mapped columns, so a
+// section-header row (a label with no role) never becomes a person.
+
+function extractStaffRows(workbook: WorkbookRepresentation, block: ImportBlock): CanonicalStaffRow[] {
+  const sheet = workbook.sheets.find((candidate) => candidate.sheetName === block.sheet);
+  const nameColumn = mappingColumn(block, "name");
+  const roleColumn = mappingColumn(block, "value");
+  if (!sheet || !nameColumn || !roleColumn) return [];
+  const cells = cellIndex(sheet);
+  const rows: CanonicalStaffRow[] = [];
+  const seen = new Set<number>();
+  for (const staffRow of block.staffRows ?? []) {
+    if (seen.has(staffRow.row)) continue;
+    seen.add(staffRow.row);
+    const name = String(cells.get(`${nameColumn}${staffRow.row}`)?.raw ?? "").trim();
+    const role = String(cells.get(`${roleColumn}${staffRow.row}`)?.raw ?? "").trim();
+    if (!name || !role) continue;
+    rows.push({ name, role, sheet: block.sheet, row: staffRow.row });
+  }
+  return rows;
+}
+
+// ---------------------------------------------------------------------------
+// Curva S: only the PLANNED row(s) the model located. EXECUTED_* rows are
+// read only to keep as evidence in warnings — the ERP computes its own
+// executed curve from real certificates and this never overrides that.
+
+function percentageAt(cells: Map<string, WorkbookCell>, row: number, column: string): number | null {
+  const cell = cells.get(`${columnName(column)}${row}`);
+  const value = rawNumber(cell?.raw ?? null);
+  if (value === null) return null;
+  // A cell Excel formats as a percentage stores the 0-1 fraction; the ERP's
+  // own column is 0-100, so only fraction-formatted cells get rescaled.
+  const isFraction = typeof cell?.formatted === "string" && cell.formatted.includes("%");
+  return isFraction ? value * 100 : value;
+}
+
+type ScheduleSeriesRow = NonNullable<ImportBlock["scheduleSeries"]>[number];
+
+// Shared by PLANNED_* and EXECUTED_*: a monthly row is read as-is; a
+// cumulative row becomes monthly by successive difference (month N =
+// acumulado N - acumulado N-1). Returns null when no row of either role
+// for this metric exists in the group.
+function readMonthlySeries(
+  cells: Map<string, WorkbookCell>,
+  items: ScheduleSeriesRow[],
+  monthlyRole: string,
+  cumulativeRole: string
+): { row: number; label: string; values: { monthIndex: number; pct: number }[] } | null {
+  const monthly = items.find((item) => item.role === monthlyRole);
+  const cumulative = items.find((item) => item.role === cumulativeRole);
+  const source = monthly ?? cumulative;
+  if (!source) return null;
+  const sortedColumns = [...source.monthColumns].sort((a, b) => a.monthIndex - b.monthIndex);
+  const readings = sortedColumns.map((mc) => ({ monthIndex: mc.monthIndex, value: percentageAt(cells, source.row, mc.column) }));
+  const valid = readings.filter((r): r is { monthIndex: number; value: number } => r.value !== null);
+  if (!valid.length) return { row: source.row, label: source.label, values: [] };
+  const values = monthly
+    ? valid.map((r) => ({ monthIndex: r.monthIndex, pct: r.value }))
+    : valid.map((r, index) => ({ monthIndex: r.monthIndex, pct: r.value - (index ? valid[index - 1].value : 0) }));
+  return { row: source.row, label: source.label, values };
+}
+
+function extractSchedulePlans(workbook: WorkbookRepresentation, block: ImportBlock, issues: string[]): CanonicalSchedulePlan[] {
+  const sheet = workbook.sheets.find((candidate) => candidate.sheetName === block.sheet);
+  if (!sheet) return [];
+  const cells = cellIndex(sheet);
+  const allSeries = block.scheduleSeries ?? [];
+  const byVersion = new Map<string, ScheduleSeriesRow[]>();
+  for (const item of allSeries) {
+    const list = byVersion.get(item.planVersion) ?? [];
+    list.push(item);
+    byVersion.set(item.planVersion, list);
+  }
+  // A block usually carries ONE observed-execution row shared by every
+  // contract version (there is no "Ejecutado (Adenda 1)" — real progress
+  // doesn't fork by version), so the model may group it under its own label
+  // (e.g. "Ejecución observada") instead of "Original"/"Adenda 1". It is
+  // matched against every planned version, not only its own group.
+  const documentedExecuted = (() => {
+    const executed = readMonthlySeries(cells, allSeries, "EXECUTED_MONTHLY", "EXECUTED_CUMULATIVE");
+    return (executed?.values ?? []).map((v) => ({ monthIndex: v.monthIndex, ejecutadoPct: v.pct }));
+  })();
+
+  const plans: CanonicalSchedulePlan[] = [];
+  for (const [planVersion, items] of byVersion) {
+    const planned = readMonthlySeries(cells, items, "PLANNED_MONTHLY", "PLANNED_CUMULATIVE");
+    if (!planned) continue; // a group with only EXECUTED_*/OTHER rows (e.g. "Ejecución observada") isn't a plan version.
+    if (!planned.values.length) { issues.push(`La versión “${planVersion}” de la curva no tiene un valor numérico verificable en ningún mes; no se importa.`); continue; }
+    const months = planned.values.map((v) => ({ monthIndex: v.monthIndex, programadoPct: v.pct }));
+    const total = months.reduce((sum, m) => sum + m.programadoPct, 0);
+    if (Math.abs(total - 100) > 1.5) issues.push(`La versión “${planVersion}” de la curva programada suma ${formatNumber(total)}% en vez de 100%; revisar antes de activarla.`);
+
+    plans.push({ planVersion, label: planned.label, sheet: block.sheet, sourceRow: planned.row, months, documentedExecuted });
+  }
+  if (!plans.length && allSeries.length) issues.push(`El bloque ${blockLabel(block)} no tiene ninguna fila programada identificable; no se importa ninguna versión de la curva.`);
+  return plans;
+}
+
+// ---------------------------------------------------------------------------
+// Días no trabajados: the model only locates the calendar grid (which row is
+// which year/month, which column is which day). The extractor reads every
+// day cell itself and keeps only real B/LL/HH/O codes on real calendar
+// dates — a code the model might have echoed is never trusted directly.
+
+const WEATHER_CODES = new Set(["B", "LL", "HH", "O"]);
+
+function daysInMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function extractWeatherDays(workbook: WorkbookRepresentation, block: ImportBlock, issues: string[]): CanonicalWeatherDay[] {
+  const sheet = workbook.sheets.find((candidate) => candidate.sheetName === block.sheet);
+  if (!sheet) return [];
+  const cells = cellIndex(sheet);
+  const byDate = new Map<string, CanonicalWeatherDay>();
+  let invalidDates = 0;
+  let unrecognizedCodes = 0;
+  let conflicts = 0;
+  for (const weatherRow of block.weatherRows ?? []) {
+    const maxDay = daysInMonth(weatherRow.year, weatherRow.month);
+    for (const dayColumn of weatherRow.dayColumns) {
+      if (dayColumn.day > maxDay) { invalidDates++; continue; }
+      const raw = cells.get(`${columnName(dayColumn.column)}${weatherRow.row}`)?.raw;
+      const code = String(raw ?? "").trim().toUpperCase();
+      if (!code) continue; // blank day: no record, not an error
+      if (!WEATHER_CODES.has(code)) { unrecognizedCodes++; continue; }
+      const date = `${weatherRow.year}-${String(weatherRow.month).padStart(2, "0")}-${String(dayColumn.day).padStart(2, "0")}`;
+      const existing = byDate.get(date);
+      if (existing && existing.code !== code) { conflicts++; continue; }
+      if (!existing) byDate.set(date, { date, code: code as CanonicalWeatherDay["code"], sheet: block.sheet, row: weatherRow.row, column: dayColumn.column });
+    }
+  }
+  if (invalidDates) issues.push(`Se ignoraron ${invalidDates} columna(s) de día que no existen en su mes (ej. 30 de febrero).`);
+  if (unrecognizedCodes) issues.push(`Se ignoraron ${unrecognizedCodes} celda(s) con un código distinto de B/LL/HH/O.`);
+  if (conflicts) issues.push(`${conflicts} fecha(s) aparecían dos veces con códigos distintos; se conservó el primero.`);
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export function buildCanonicalImportCandidate(
+  workbook: WorkbookRepresentation,
+  result: WorkbookInterpretationResult,
+  checked?: ImportPlanCheck
+): CanonicalImportCandidate {
+  const planCheck = checked ?? validateImportPlan(result.importPlan, workbook);
+  const plan = planCheck.plan;
+  const extracted = extractBudgetItems(workbook, plan, planCheck.coverage);
+  const mainBlocks = plan.blocks.filter((block) => block.mainProject !== false);
+  const budgetBlocks = mainBlocks.filter(isBudgetShapedBlock);
+  const certificateBlocks = mainBlocks.filter((block) => block.target === "CERTIFICATE");
+  const checks: CanonicalCheck[] = [];
+  const check = (id: string, label: string, ok: boolean, detail: string) => checks.push({ id, label, status: ok ? "OK" : "WARNING", detail });
+  const budgetLines = extracted.items;
+
+  // Budget arithmetic, in the budget's own scale.
+  const withMath = budgetLines.filter((item) => item.quantity !== null && item.unitPrice !== null && item.subtotal != null);
+  if (withMath.length) {
+    const wrong = withMath.filter((item) => !close(item.quantity! * item.unitPrice!, item.subtotal!));
+    check("budget_line_math", "Presupuesto: cantidad × precio = parcial", !wrong.length, `${withMath.length - wrong.length}/${withMath.length} partidas cuadran${wrong.length ? `; revisar filas ${wrong.map((item) => item.source.row).join(", ")}` : ""}.`);
+  }
+  const budgetSum = budgetLines.reduce((sum, item) => sum + (item.subtotal ?? (item.quantity ?? 0) * (item.unitPrice ?? 0)), 0);
+  const declaredBudgetTotal = verifiedKeyValue(workbook, budgetBlocks, "declaredTotal");
+  if (declaredBudgetTotal) {
+    const declared = Number(declaredBudgetTotal.value);
+    check("budget_declared_total", "Presupuesto: suma de partidas = total declarado", declaredBudgetTotal.verified && close(budgetSum, declared), `Suma ${formatNumber(budgetSum)} · total declarado ${formatNumber(declared)} (${declaredBudgetTotal.cell}${declaredBudgetTotal.verified ? "" : ", no verificado en la celda"}).`);
+  }
+
+  // Certificate lines.
+  const certificateIssues: string[] = [];
+  const certificateSheets = new Set(certificateBlocks.map((block) => block.sheet));
+  let items = certificateSheets.size > 1 ? [] : certificateBlocks.flatMap((block) => readCertificateBlock(workbook, block, certificateIssues));
+  if (certificateSheets.size > 1) certificateIssues.push(`Se marcaron certificados en varias hojas (${[...certificateSheets].join(", ")}); no se puede elegir uno automáticamente.`);
+
+  const link = relationshipBetween(plan, new Set(budgetBlocks.map((block) => block.id)), new Set(certificateBlocks.map((block) => block.id)));
+  if (items.length && budgetLines.length) {
+    if (link) items = pairCertificateLines(budgetLines, items);
+    else certificateIssues.push("El análisis no relacionó el presupuesto con el certificado; las líneas del certificado quedan sin vínculo a partidas.");
+  }
+  const matched = items.filter((item) => item.matchQuality === "EXACT" || item.matchQuality === "APPROXIMATE");
+  const approximate = items.filter((item) => item.matchQuality === "APPROXIMATE");
+  const unmatched = items.filter((item) => item.matchQuality === "UNMATCHED");
+  if (link && items.length) {
+    check("budget_certificate_match", "Presupuesto ↔ certificado: partidas vinculadas", !unmatched.length && !approximate.length, `${matched.length}/${items.length} vinculadas${approximate.length ? ` (${approximate.length} con diferencias de texto/unidad)` : ""}${unmatched.length ? `; sin vínculo: filas ${unmatched.map((item) => item.source.row).join(", ")}` : ""}.`);
+    for (const item of approximate) certificateIssues.push(`Fila ${item.source.row}: ${item.matchNote}.`);
+    if (unmatched.length) certificateIssues.push(`${unmatched.length} línea(s) del certificado sin partida de presupuesto; se importarían sin vínculo.`);
+  }
+
+  // Scale declared by the model — or, if the model linked the blocks without
+  // a factor, the one the document's own quantities prove — verified line by
+  // line.
+  const inferredFactor = link && link.factor === 1 && matched.length ? inferContractScale(budgetLines, matched) : null;
+  const factor = inferredFactor ?? link?.factor ?? 1;
+  let scale: CanonicalScaleAudit | null = null;
+  if (link && factor !== 1) {
+    const budgetByRow = new Map(budgetLines.map((line) => [line.source.row, line]));
+    const budgetFor = (item: CanonicalCertificateItem) => (item.matchedBudgetRow === null ? undefined : budgetByRow.get(item.matchedBudgetRow));
+    const compared = matched.filter((item) => (budgetFor(item)?.quantity ?? 0) > 0);
+    const consistent = compared.filter((item) => Math.abs(item.quantityContractual / budgetFor(item)!.quantity! - factor) <= factor * 0.005);
+    const fromBlock = plan.blocks.find((block) => block.id === link.relationship.from)!;
+    const toBlock = plan.blocks.find((block) => block.id === link.relationship.to)!;
+    const evidence = inferredFactor
+      ? `Inferida de las cantidades del propio documento: en ${consistent.length}/${compared.length} partidas la cantidad contractual del certificado es la del presupuesto × ${formatNumber(factor)}. El análisis relacionó ambos bloques sin indicar el factor.`
+      : link.relationship.evidence;
+    scale = { fromBlock: blockLabel(fromBlock), toBlock: blockLabel(toBlock), factor, comparedLines: compared.length, consistentLines: consistent.length, evidence };
+    check("scale_consistency", `Escala ×${formatNumber(scale.factor)} consistente`, consistent.length === compared.length, `${consistent.length}/${compared.length} partidas cumplen cantidad contractual = presupuesto × ${formatNumber(factor)}.`);
+    const priceMismatch = matched.filter((item) => { const budget = budgetFor(item); return budget?.unitPrice != null && !close(budget.unitPrice, item.unitPrice); });
+    check("scale_unit_price", "Precios unitarios iguales en ambas escalas", !priceMismatch.length, priceMismatch.length ? `Difieren en filas ${priceMismatch.map((item) => item.source.row).join(", ")}; se usa el precio del certificado.` : `${matched.length} partidas con el mismo precio unitario.`);
+  }
+
+  // Certificate arithmetic and declared totals.
+  let totals: Pick<CanonicalCertificateAudit, "contractTotal" | "previousTotal" | "currentTotal" | "cumulativeTotal" | "cumulativePercent"> = { contractTotal: null, previousTotal: null, currentTotal: null, cumulativeTotal: null, cumulativePercent: null };
+  const storageMismatches: string[] = [];
+  if (items.length) {
+    const cumulativeWrong = items.filter((item) => !close(item.quantityPrevious + item.quantityCurrent, item.quantityCumulative, 1e-6));
+    check("certificate_quantities", "Certificado: anterior + presente = acumulado", !cumulativeWrong.length, cumulativeWrong.length ? `No cuadran filas ${cumulativeWrong.map((item) => item.source.row).join(", ")}.` : `${items.length}/${items.length} líneas cuadran.`);
+    const amount = (value: number | null, quantity: number, price: number) => value ?? Math.round(quantity * price);
+    const contractTotal = items.reduce((sum, item) => sum + Math.round(item.quantityContractual * item.unitPrice), 0);
+    const previousTotal = items.reduce((sum, item) => sum + amount(item.amountPrevious, item.quantityPrevious, item.unitPrice), 0);
+    const currentTotal = items.reduce((sum, item) => sum + amount(item.amountCurrent, item.quantityCurrent, item.unitPrice), 0);
+    const cumulativeTotal = items.reduce((sum, item) => sum + amount(item.amountCumulative, item.quantityCumulative, item.unitPrice), 0);
+    totals = { contractTotal, previousTotal, currentTotal, cumulativeTotal, cumulativePercent: contractTotal ? cumulativeTotal / contractTotal : null };
+    const amountWrong = items.filter((item) => item.amountCumulative !== null && !close(item.amountCumulative, Math.round(item.quantityCumulative * item.unitPrice), 2));
+    if (items.some((item) => item.amountCumulative !== null)) check("certificate_line_amounts", "Certificado: cantidad × precio = monto", !amountWrong.length, amountWrong.length ? `Montos acumulados que no cuadran en filas ${amountWrong.map((item) => item.source.row).join(", ")}.` : "Montos por línea consistentes.");
+    for (const [key, label, computed] of [
+      ["contractAmount", "Monto de contrato", contractTotal],
+      ["declaredPreviousAmount", "Total anterior", previousTotal],
+      ["declaredCurrentAmount", "Total presente", currentTotal],
+      ["declaredCumulativeAmount", "Total acumulado", cumulativeTotal],
+    ] as const) {
+      const declared = verifiedKeyValue(workbook, certificateBlocks, key);
+      if (!declared) continue;
+      check(`certificate_${key}`, `Certificado: ${label.toLowerCase()} = declarado`, declared.verified && close(computed, Number(declared.value), 2), `Calculado ${formatNumber(computed)} · declarado ${formatNumber(Number(declared.value))} (${declared.cell}${declared.verified ? "" : ", no verificado en la celda"}).`);
+    }
+
+    // The checks above may use the document's own amount columns. The
+    // database does NOT store those: it regenerates every amount as
+    // round(cantidad × precio) per line. If the mapped quantity or price
+    // columns are wrong while the amount column is right, the checks pass
+    // and the ERP persists a total that exists nowhere in the document (the
+    // MAGY Cert. N°6 incident: 629.818.012 stored vs 623.788.012 in J75).
+    // So what the ERP will store must reproduce the document, to the guaraní,
+    // or the certificate is not applied.
+    const stored = (quantity: (item: CanonicalCertificateItem) => number) =>
+      items.reduce((sum, item) => sum + Math.round(quantity(item) * item.unitPrice), 0);
+    const storedByKind = {
+      previous: stored((item) => item.quantityPrevious),
+      current: stored((item) => item.quantityCurrent),
+    };
+    const documentTotal = (pick: (item: CanonicalCertificateItem) => number | null) =>
+      items.every((item) => pick(item) !== null) ? items.reduce((sum, item) => sum + (pick(item) ?? 0), 0) : null;
+    for (const [kind, label, declaredKey, documentColumn] of [
+      ["previous", "anterior", "declaredPreviousAmount", documentTotal((item) => item.amountPrevious)],
+      ["current", "presente", "declaredCurrentAmount", documentTotal((item) => item.amountCurrent)],
+    ] as const) {
+      const erp = storedByKind[kind];
+      const declared = verifiedKeyValue(workbook, certificateBlocks, declaredKey);
+      const references: string[] = [];
+      if (declared?.verified && Math.abs(erp - Number(declared.value)) > 1) references.push(`total declarado ${formatNumber(Number(declared.value))} (${declared.cell})`);
+      if (documentColumn !== null && Math.abs(erp - documentColumn) > 1) references.push(`suma de la columna de montos ${formatNumber(documentColumn)}`);
+      if (references.length) storageMismatches.push(`El monto ${label} que guardaría el ERP (cantidad × precio por línea = ${formatNumber(erp)}) no reproduce el documento: ${references.join(" · ")}.`);
+    }
+    check("certificate_storage_reproduces_document", "Certificado: lo que guarda el ERP = documento", !storageMismatches.length, storageMismatches.length ? storageMismatches.join(" ") : `Anterior ${formatNumber(storedByKind.previous)} · presente ${formatNumber(storedByKind.current)}, iguales al documento.`);
+  }
+  for (const item of checks.filter((entry) => entry.status === "WARNING" && (entry.id.startsWith("certificate_") || entry.id.startsWith("scale_")))) certificateIssues.push(`${item.label}: ${item.detail}`);
+
+  const number = verifiedKeyValue(workbook, certificateBlocks, "certificateNumber");
+  const periodStart = verifiedKeyValue(workbook, certificateBlocks, "periodStart");
+  const periodEnd = verifiedKeyValue(workbook, certificateBlocks, "periodEnd");
+  const identityProblems = [
+    !number?.verified && "número",
+    !periodStart?.verified && "inicio de período",
+    !periodEnd?.verified && "fin de período",
+  ].filter(Boolean);
+  for (const block of certificateBlocks) {
+    for (const warning of block.warnings ?? []) certificateIssues.push(warning);
+    if (block.needsReview) certificateIssues.push(`El análisis marcó el bloque ${blockLabel(block)} para revisión.`);
+  }
+  const certificateScale = certificateBlocks.find((block) => block.scale)?.scale ?? null;
+  const certificateStatus: CanonicalCertificateAudit["status"] = !certificateBlocks.length
+    ? "NOT_DETECTED"
+    : !items.length || identityProblems.length || storageMismatches.length
+      ? "DETECTED_NOT_APPLIED"
+      : certificateIssues.length ? "APPLY_WITH_WARNINGS" : "SAFE_TO_APPLY";
+  const certificateReason = certificateStatus === "NOT_DETECTED"
+    ? "No se detectó un certificado."
+    : !items.length
+      ? "No se pudieron copiar líneas del certificado desde las columnas indicadas."
+      : identityProblems.length
+        ? `Falta ${identityProblems.join(", ")} verificable en la planilla; la base de datos lo exige para crear el certificado.`
+        : storageMismatches.length
+          ? `No se aplica: ${storageMismatches.join(" ")} Revisá qué columnas son cantidad y precio y volvé a analizar.`
+        : certificateStatus === "APPLY_WITH_WARNINGS"
+          ? "El certificado puede importarse, pero tiene observaciones que conviene revisar."
+          : "Líneas, totales y vínculos verificados.";
+  const certificate: CanonicalCertificateAudit = {
+    status: certificateStatus,
+    itemCount: items.length,
+    matchedBudgetItems: matched.length,
+    number: number?.verified ? Number(number.value) : null,
+    periodStart: periodStart?.verified ? String(periodStart.value) : null,
+    periodEnd: periodEnd?.verified ? String(periodEnd.value) : null,
+    ...totals,
+    scaleUnits: certificateScale?.units ?? null,
+    reason: certificateReason,
+    issues: [...new Set(certificateIssues)],
+    items,
+  };
+
+  // Budget to persist: when the model declared a contract scale, the
+  // contract quantities are the certificate's own contractual quantities.
+  const certificateByBudgetRow = new Map(matched.map((item) => [item.matchedBudgetRow, item]));
+  const scaled = Boolean(link && factor !== 1 && matched.length);
+  const canonicalBudgetItems = scaled
+    ? budgetLines.map((line) => {
+      const certificateLine = certificateByBudgetRow.get(line.source.row ?? null);
+      return certificateLine
+        ? { ...line, quantity: certificateLine.quantityContractual, unitPrice: certificateLine.unitPrice, subtotal: null }
+        : { ...line, quantity: line.quantity === null ? null : line.quantity * factor, subtotal: null };
+    })
+    : budgetLines;
+  const budgetTotal = canonicalBudgetItems.reduce((sum, item) => sum + Math.round((item.quantity ?? 0) * (item.unitPrice ?? 0)), 0);
+
+  // Presupuesto vs. contrato del propio documento. Referencia: el monto de
+  // contrato declarado y verificado en su celda; si no hay, el total
+  // contractual del certificado (cantidad contractual × precio), solo si
+  // todas sus líneas quedaron vinculadas al presupuesto.
+  let budgetContractCheck: BudgetContractCheck | null = null;
+  if (canonicalBudgetItems.length && budgetTotal > 0) {
+    const declaredContract = verifiedKeyValue(workbook, certificateBlocks, "contractAmount");
+    const reference = declaredContract?.verified && Number(declaredContract.value) > 0
+      ? { amount: Number(declaredContract.value), source: `monto de contrato declarado (${declaredContract.cell})` }
+      : totals.contractTotal && items.length && matched.length === items.length
+        ? { amount: totals.contractTotal, source: "total contractual del certificado (cantidad contractual × precio)" }
+        : null;
+    if (reference) {
+      const matches = Math.abs(budgetTotal - reference.amount) <= Math.max(1, reference.amount * 0.005);
+      budgetContractCheck = { budgetTotal, contractAmount: reference.amount, source: reference.source, matches };
+      check(
+        "budget_vs_contract",
+        "Presupuesto = monto del contrato",
+        matches,
+        `Presupuesto ${formatNumber(budgetTotal)} · ${reference.source} ${formatNumber(reference.amount)}${matches ? "." : ` (×${formatNumber(Math.round((reference.amount / budgetTotal) * 100) / 100)}). No se crea la obra así: revisar la escala del presupuesto.`}`
+      );
+    }
+  }
+
+  const labels = new Map(plan.blocks.map((block) => [block.id, blockLabel(block)]));
+  const relationships = (plan.relationships ?? []).map((relationship) => ({ ...relationship, fromLabel: labels.get(relationship.from) ?? relationship.from, toLabel: labels.get(relationship.to) ?? relationship.to }));
+
+  const staffIssues: string[] = [];
+  const staffBlocksResolved = new Set<string>();
+  const staff = mainBlocks.filter((block) => block.target === "STAFF").flatMap((block) => {
+    const rows = extractStaffRows(workbook, block);
+    if (rows.length) staffBlocksResolved.add(block.id);
+    else staffIssues.push(`El bloque ${blockLabel(block)} no tiene filas de personal verificables (nombre y rol en las columnas mapeadas).`);
+    return rows;
+  });
+
+  const scheduleIssues: string[] = [];
+  const scheduleBlocksResolved = new Set<string>();
+  const schedulePlans = mainBlocks.filter((block) => block.target === "SCHEDULE").flatMap((block) => {
+    const plans = extractSchedulePlans(workbook, block, scheduleIssues);
+    if (plans.length) scheduleBlocksResolved.add(block.id);
+    return plans;
+  });
+
+  const executionIssues: string[] = [];
+  const executionBlocksResolved = new Set<string>();
+  let executionEntries = mainBlocks.filter((block) => block.target === "EXECUTION").flatMap((block) => {
+    const entries = readExecutionBlock(workbook, block, executionIssues);
+    if (entries.length) executionBlocksResolved.add(block.id);
+    return entries;
+  });
+  executionEntries = matchExecutionToBudget(budgetLines, executionEntries);
+  const executionUnmatched = executionEntries.filter((entry) => entry.matchQuality === "UNMATCHED");
+  if (executionUnmatched.length) executionIssues.push(`${executionUnmatched.length} fila(s) de avance sin partida de presupuesto vinculada; no se pueden registrar (requiere una partida existente).`);
+  if (executionEntries.length) {
+    check("execution_budget_match", "Avance físico: partidas vinculadas al presupuesto", !executionUnmatched.length, `${executionEntries.length - executionUnmatched.length}/${executionEntries.length} vinculadas${executionUnmatched.length ? `; sin vínculo: filas ${executionUnmatched.map((entry) => entry.source.row).join(", ")}` : ""}.`);
+    // Cross-check against the certificate's own "presente" for the same
+    // line: both should describe the same period's progress at contract
+    // scale, just derived differently (per-house sum vs. contractual roll-up).
+    const mismatched = executionEntries.filter((entry) => {
+      const certificateLine = certificateByBudgetRow.get(entry.matchedBudgetRow);
+      return certificateLine && !close(certificateLine.quantityCurrent, entry.quantityExecuted, Math.max(1, Math.abs(certificateLine.quantityCurrent) * 0.01));
+    });
+    if (mismatched.length) executionIssues.push(`El avance físico difiere del "presente" del certificado en filas ${mismatched.map((entry) => entry.source.row).join(", ")}; revisar antes de confiar en ambos valores.`);
+  }
+
+  const weatherIssues: string[] = [];
+  const weatherBlocksResolved = new Set<string>();
+  const weatherDays = mainBlocks.filter((block) => block.target === "NON_WORKING_DAYS").flatMap((block) => {
+    const days = extractWeatherDays(workbook, block, weatherIssues);
+    if (days.length) weatherBlocksResolved.add(block.id);
+    return days;
+  });
+
+  // STAFF/SCHEDULE/NON_WORKING_DAYS blocks that actually yielded rows get
+  // their own dedicated sections below; the rest (extraction found nothing
+  // usable) still show up as a generic detected-but-unresolved domain.
+  const domains = new Map<string, CanonicalDomainSummary>();
+  for (const block of mainBlocks.filter((item) => item.target !== "BUDGET" && item.target !== "CERTIFICATE" && !staffBlocksResolved.has(item.id) && !scheduleBlocksResolved.has(item.id) && !weatherBlocksResolved.has(item.id) && !executionBlocksResolved.has(item.id))) {
+    const domain = domains.get(block.target) ?? { target: block.target, labels: [], sheets: [], rows: 0, warnings: [], persistence: "NOT_CONNECTED" as const };
+    domain.labels.push(blockLabel(block));
+    if (!domain.sheets.includes(block.sheet)) domain.sheets.push(block.sheet);
+    domain.rows += planCheck.coverage.find((item) => item.blockId === block.id)?.sourceRows ?? 0;
+    domain.warnings.push(...(block.warnings ?? []));
+    domains.set(block.target, domain);
+  }
+
+  return {
+    budgetItems: canonicalBudgetItems,
+    budgetQuantitySource: scaled ? "CERTIFICATE_CONTRACT_QUANTITY" : "BUDGET",
+    budgetTotal,
+    budgetContractCheck,
+    budgetScale: budgetBlocks.find((block) => block.scale)?.scale ?? null,
+    relationships,
+    scale,
+    certificate,
+    staff,
+    schedulePlans,
+    weatherDays,
+    executionEntries,
+    domains: [...domains.values()],
+    foreignBlocks: plan.blocks.filter((block) => block.mainProject === false).map((block) => ({ label: blockLabel(block), sheet: block.sheet, target: block.target, warnings: block.warnings ?? [] })),
+    checks,
+    warnings: [...new Set([
+      ...extracted.warnings,
+      ...planCheck.warnings,
+      ...checks.filter((item) => item.status === "WARNING").map((item) => `${item.label}: ${item.detail}`),
+      ...(certificate.status === "DETECTED_NOT_APPLIED" ? [certificate.reason] : []),
+      ...staffIssues,
+      ...scheduleIssues,
+      ...weatherIssues,
+      ...executionIssues,
+    ])],
+  };
+}
+
+export function safeProjectField(result: WorkbookInterpretationResult, key: keyof WorkbookInterpretationResult["project"]): string | null {
+  return fieldText(result.project[key]);
+}

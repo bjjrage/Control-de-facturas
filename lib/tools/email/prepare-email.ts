@@ -16,6 +16,7 @@ export const PrepareEmailInputSchema = z.object({
   attachment_queries: z.array(z.string().min(1).max(200)).max(10).optional(),
   project_id: z.string().uuid().optional(),
   draft_id: z.string().uuid().optional(),
+  idempotency_key: z.string().uuid().optional(),
   revision_instruction: z.string().max(2_000).optional(),
   force_resend: z.boolean().optional(),
 });
@@ -35,7 +36,7 @@ registerTool<PrepareEmailToolInput, PrepareEmailOutput>({
   description:
     "Prepara un borrador interno de email sin enviarlo. Si el usuario proporciona una dirección de email explícita, usala directamente en to. Si proporciona solamente un nombre o empresa, intentá resolverlo desde los contactos del ERP. Nunca inventes una dirección y, si hay múltiples contactos posibles, preguntá cuál. Redacta un correo profesional y conciso, busca adjuntos autorizados cuando correspondan y devuelve el preview. Para editar un borrador existente usar draft_id y revision_instruction. Nunca envía ni salta la aprobación.",
   inputSchema: PrepareEmailInputSchema,
-  riskLevel: 1,
+  riskLevel: 2,
   requiredRoles: ["comercial", "admin"],
   handler,
 });

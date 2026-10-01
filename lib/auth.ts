@@ -2,8 +2,9 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { Profile, UserRole } from "@/lib/types";
+import { planMeetsMinimum, type EmpresaPlan } from "@/lib/plans";
 
-export type EmpresaPlan = "basico" | "pro" | "caterpillar";
+export type { EmpresaPlan } from "@/lib/plans";
 
 export type CurrentProfile = Profile & {
   empresa_active: boolean;
@@ -80,8 +81,6 @@ export async function requireModule(
   return profile;
 }
 
-const PLAN_RANK: Record<EmpresaPlan, number> = { basico: 0, pro: 1, caterpillar: 2 };
-
 /**
  * Gate para las rutas del módulo Construcción. Jerárquico: 'pro' habilita
  * también a las empresas en 'caterpillar'. Un cliente en 'basico' que
@@ -90,7 +89,7 @@ const PLAN_RANK: Record<EmpresaPlan, number> = { basico: 0, pro: 1, caterpillar:
  */
 export async function requirePlan(minPlan: EmpresaPlan, allowed?: UserRole[]): Promise<CurrentProfile> {
   const profile = await requireProfile(allowed);
-  if (PLAN_RANK[profile.plan] < PLAN_RANK[minPlan] && !profile.is_super_admin) notFound();
+  if (!planMeetsMinimum(profile.plan, minPlan, profile.is_super_admin)) notFound();
   return profile;
 }
 

@@ -32,10 +32,10 @@ export function AuctionBotClient() {
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight text-[var(--foreground)]">
-                SBE Auction Bot V0
+                SBE Auction Bot V0 · Simulador
               </h1>
               <p className="text-[12px] text-[var(--muted)]">
-                Motor determinístico de subasta electrónica inversa (DNCP / SBE) • Bounded Context Autónomo
+                Simulador determinístico de estrategias SBE. No se conecta a DNCP ni envía ofertas reales.
               </p>
             </div>
           </div>

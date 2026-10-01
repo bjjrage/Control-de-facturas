@@ -1,4 +1,5 @@
 import { requireProfile, type CurrentProfile } from "@/lib/auth";
+import { planMeetsMinimum } from "@/lib/plans";
 import { createClient } from "@/lib/supabase/server";
 import type { Licitacion, LicitacionPerfil } from "@/lib/types";
 import type { MetricCardData } from "@/lib/dashboard/types";
@@ -10,8 +11,6 @@ import {
   type RawLicitacionForReadiness,
 } from "@/lib/dashboard/document-readiness";
 
-const PLAN_RANK = { basico: 0, pro: 1, caterpillar: 2 } as const;
-
 export type LicitacionesPageData = {
   cards: MetricCardData[];
   licitaciones: Partial<Licitacion>[];
@@ -21,7 +20,7 @@ export type LicitacionesPageData = {
 export async function getLicitacionesPageData(profile?: CurrentProfile): Promise<LicitacionesPageData> {
   const p = profile ?? (await requireProfile(["comercial", "administracion", "admin"]));
   const supabase = await createClient();
-  const canUseLicitaciones = PLAN_RANK[p.plan] >= PLAN_RANK.pro;
+  const canUseLicitaciones = planMeetsMinimum(p.plan, "pro", p.is_super_admin);
   const emptyRows = Promise.resolve({ data: [] as unknown[] });
 
   const [{ data: licitacionesData }, { data: perfil }, { data: licDocsData }, { data: empresaDocsData }] = await Promise.all([

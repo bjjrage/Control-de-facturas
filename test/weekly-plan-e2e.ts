@@ -1,10 +1,13 @@
 import { calculateWeeklyPlanRequirements } from "../lib/procurement/weekly-plan-engine";
-import fs from "fs";
+import { assertNonProductionTestTarget } from "../test-utils/external-test-target";
 
-const token = fs.readFileSync("C:\\Users\\User\\.gemini\\antigravity\\brain\\43b8d4c1-28c5-47d0-b8c6-28c11747b59e\\scratch\\supabase_token.txt", "utf8").trim();
+const projectRef = process.env.TEST_SUPABASE_PROJECT_REF ?? "";
+const token = process.env.SUPABASE_ACCESS_TOKEN ?? "";
+assertNonProductionTestTarget({ projectRef, label: "Weekly Plan E2E script" });
+if (!token) throw new Error("Weekly Plan E2E script requires SUPABASE_ACCESS_TOKEN.");
 
 async function querySql(query: string) {
-  const resp = await fetch("https://api.supabase.com/v1/projects/ezucivipgmbvamhugkbj/database/query", {
+  const resp = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
     method: "POST",
     headers: {
       "Authorization": "Bearer " + token,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label, Select, Textarea } from "@/components/ui/input";
@@ -27,6 +28,7 @@ export function SelectOfferDialog({
   currency: string;
   trigger: React.ReactNode;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -98,6 +100,10 @@ export function SelectOfferDialog({
                 return;
               }
               setOpen(false);
+              if (result.authorizedOrderId) {
+                router.push(`/orders/${result.authorizedOrderId}`);
+                router.refresh();
+              }
             }}
           >
             {pending ? "Autorizando…" : "Autorizar"}

@@ -130,12 +130,12 @@ export function QuoteForm({ token, quantity, unit }: { token: string; quantity: 
         <Textarea id="observations" name="observations" />
       </div>
       <div>
-        <Label htmlFor="pdf">PDF del presupuesto (opcional)</Label>
+        <Label htmlFor="pdf">PDF o foto del presupuesto (opcional)</Label>
         <input
           id="pdf"
           name="pdf"
           type="file"
-          accept="application/pdf"
+          accept="application/pdf,image/*"
           className="block w-full text-[13px]"
         />
       </div>

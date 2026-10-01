@@ -19,8 +19,6 @@ export default function NuevoProductoPage() {
   const [categoriaId, setCategoriaId] = useState("");
   const [categorias, setCategorias] = useState<CategoriaProducto[]>([]);
   const [stockMinimo, setStockMinimo] = useState("");
-  const [stockInicial, setStockInicial] = useState("");
-  const [costoInicial, setCostoInicial] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -48,8 +46,6 @@ export default function NuevoProductoPage() {
       descripcion: descripcion || undefined,
       categoria_id: categoriaId || null,
       stock_minimo: stockMinimo ? parseFloat(stockMinimo) : 0,
-      stock_inicial: stockInicial ? parseFloat(stockInicial) : 0,
-      costo_inicial: costoInicial ? parseFloat(costoInicial) : undefined,
       contenido_por_unidad: contenido ? parseFloat(contenido) : undefined,
       unidad_base: unidadBase || undefined,
     });
@@ -66,9 +62,9 @@ export default function NuevoProductoPage() {
     <div className="max-w-lg space-y-5">
       <div>
         <Link href="/stock" className="text-action text-[12px] text-[var(--muted)]">
-          ← Volver a Stock
+          ← Volver a Materiales
         </Link>
-        <h1 className="text-[17px] font-semibold mt-1">Nuevo producto</h1>
+        <h1 className="text-[17px] font-semibold mt-1">Nuevo material</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 space-y-4">
@@ -81,7 +77,7 @@ export default function NuevoProductoPage() {
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
             required
-            placeholder="Ej: Cemento Portland 50kg"
+            placeholder="Ej: Cemento Portland 50 kg"
             className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
           />
         </div>
@@ -120,7 +116,7 @@ export default function NuevoProductoPage() {
             </select>
           </div>
           <div>
-            <label className="block text-[12px] text-[var(--muted)] mb-1">SKU / Código</label>
+            <label className="block text-[12px] text-[var(--muted)] mb-1">Código (opcional)</label>
             <input
               type="text"
               value={sku}
@@ -194,40 +190,10 @@ export default function NuevoProductoPage() {
             />
             <p className="text-[11px] text-[var(--muted)] mt-1">Alerta cuando el stock baje de este valor</p>
           </div>
-          <div>
-            <label className="block text-[12px] text-[var(--muted)] mb-1">Stock inicial</label>
-            <input
-              type="number"
-              min="0"
-              step="any"
-              value={stockInicial}
-              onChange={(e) => setStockInicial(e.target.value)}
-              placeholder="0"
-              className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
-            />
-            <p className="text-[11px] text-[var(--muted)] mt-1">Se registra como ENTRADA inicial</p>
-          </div>
         </div>
-
-        {stockInicial && parseFloat(stockInicial) > 0 ? (
-          <div>
-            <label className="block text-[12px] text-[var(--muted)] mb-1">
-              Costo unitario inicial (por {unidad || "unidad"})
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="any"
-              value={costoInicial}
-              onChange={(e) => setCostoInicial(e.target.value)}
-              placeholder="0"
-              className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
-            />
-            <p className="text-[11px] text-[var(--muted)] mt-1">
-              Precio de compra. Fija el costo promedio inicial del producto.
-            </p>
-          </div>
-        ) : null}
+        <p className="text-[11px] text-[var(--muted)]">
+          Creá el material sin saldo. Después registrá la existencia desde Stock e Inventario &gt; Carga inicial de stock para que quede en el libro canónico.
+        </p>
 
         {error ? (
           <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2 text-[12px] text-[var(--error)]">
@@ -240,7 +206,7 @@ export default function NuevoProductoPage() {
             <Button type="button" variant="secondary">Cancelar</Button>
           </Link>
           <Button type="submit" disabled={pending || !nombre.trim() || !unidad.trim() || (!!contenido && !unidadBase) || (!contenido && !!unidadBase)}>
-            {pending ? "Guardando…" : "Crear producto"}
+            {pending ? "Guardando…" : "Crear material"}
           </Button>
         </div>
       </form>

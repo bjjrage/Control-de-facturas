@@ -2,6 +2,7 @@
 // Run with: npx tsx scripts/verify-gate0-invariants.ts
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync } from "node:fs";
+import { assertNonProductionTestTarget } from "../test-utils/external-test-target";
 import {
   computeInvoiceStatus,
   isOverbilled,
@@ -80,6 +81,7 @@ async function run() {
     console.log("  ⚠ Skipped DB checks (missing credentials in .env.local)");
   } else {
     try {
+      assertNonProductionTestTarget({ url: env.NEXT_PUBLIC_SUPABASE_URL, label: "Gate 0 DB invariant test" });
       const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
         auth: { persistSession: false },
       });

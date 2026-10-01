@@ -70,7 +70,7 @@ describe("Rodrigo email V1 pure contracts", () => {
   });
 
   it("registers prepare as Risk 1 and send as Risk 2 with no free-form body input", () => {
-    expect(getTool("prepare_email")?.riskLevel).toBe(1);
+    expect(getTool("prepare_email")?.riskLevel).toBe(2);
     expect(getTool("send_email")?.riskLevel).toBe(2);
     const parsed = SendEmailInputSchema.safeParse({ draft_id: attachment.documentId, to: ["x@example.com"] });
     expect(parsed.success).toBe(false);

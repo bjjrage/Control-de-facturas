@@ -1,5 +1,12 @@
 import { createHash, randomBytes } from "node:crypto";
 
+export function enforceWarehousePortalFileLimit<T>(files: readonly T[], maxFiles: number):
+  | { allowed: true; files: T[] }
+  | { allowed: false; files: [] } {
+  if (files.length > maxFiles) return { allowed: false, files: [] };
+  return { allowed: true, files: [...files] };
+}
+
 export function hashWarehousePortalToken(token: string) {
   return createHash("sha256").update(token, "utf8").digest("hex");
 }

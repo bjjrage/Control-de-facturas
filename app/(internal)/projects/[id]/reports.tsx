@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "./chart-card";
-import { Project, BudgetItem, ExecutionEntry, AuthorizedOrder } from "@/lib/types";
+import { Project, BudgetItem, ExecutionEntry, AuthorizedOrder, ProjectCertificate, ProjectSchedulePlan, ProjectSchedulePlanMonth } from "@/lib/types";
 import { formatMoney, formatDate } from "@/lib/format";
 
 // Paleta con más contraste entre sí (evita dos tonos de azul o dos de rojo
@@ -25,16 +25,72 @@ function lighten(hex: string, amt: number): string {
   return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 }
 
+// Un proyecto tiene UNA sola Curva S — la misma que ya se ve en Certificar →
+// Avance físico (project_schedule_plan_months + certificados congelados).
+// Cuando el presupuesto no tiene fechas por partida (y por lo tanto no se
+// puede armar la curva de costo semanal de más abajo), este informe usa esa
+// misma fuente en vez de mostrarse vacío — nunca una segunda curva inventada
+// con otro dato. planificado/real quedan en Gs. (no en %) para que el resto
+// de este informe (comparado con compras, etc.) se lea en las mismas
+// unidades.
+function buildSCurveFromSchedulePlan(
+  project: Project,
+  certificates: ProjectCertificate[],
+  schedulePlans: ProjectSchedulePlan[],
+  planMonths: Record<string, ProjectSchedulePlanMonth[]>,
+  presupuestoTotal: number
+): { series: { date: string; planificado: number; real: number | null }[]; summary: { planificado: number; real: number; diff: number; pct: number } | null } {
+  const activePlan = schedulePlans.find((p) => p.is_active) ?? schedulePlans[0];
+  const months = activePlan ? (planMonths[activePlan.id] ?? []).slice().sort((a, b) => a.month_index - b.month_index) : [];
+  if (!months.length) return { series: [], summary: null };
+
+  const contractAmount = project.contract_amount > 0 ? project.contract_amount : presupuestoTotal;
+  const frozenCerts = certificates
+    .filter((c) => ["ELABORADO", "VERIFICADO", "APROBADO", "FACTURADO"].includes(c.status))
+    .slice()
+    .sort((a, b) => a.numero - b.numero);
+
+  let progAcc = 0;
+  let ejecAcc = 0;
+  const series = months.map((m, index) => {
+    progAcc += m.programado_pct;
+    const cert = frozenCerts[index];
+    if (cert) ejecAcc += cert.monto_presente;
+    return {
+      date: `M${m.month_index}`,
+      planificado: Math.round((progAcc / 100) * contractAmount),
+      real: frozenCerts.length > index ? Math.round(ejecAcc) : null,
+    };
+  });
+
+  const lastReal = [...series].reverse().find((p) => p.real !== null);
+  const summary = lastReal
+    ? {
+        planificado: lastReal.planificado,
+        real: lastReal.real as number,
+        diff: (lastReal.real as number) - lastReal.planificado,
+        pct: lastReal.planificado > 0 ? Math.round((((lastReal.real as number) - lastReal.planificado) / lastReal.planificado) * 1000) / 10 : 0,
+      }
+    : null;
+  return { series, summary };
+}
+
 export function ProjectReports({
   project,
   budgetItems,
   execEntries,
   orders,
+  certificates,
+  schedulePlans,
+  planMonths,
 }: {
   project: Project;
   budgetItems: BudgetItem[];
   execEntries: ExecutionEntry[];
   orders: AuthorizedOrder[];
+  certificates: ProjectCertificate[];
+  schedulePlans: ProjectSchedulePlan[];
+  planMonths: Record<string, ProjectSchedulePlanMonth[]>;
 }) {
   const [exportingPdf, setExportingPdf] = useState(false);
 
@@ -60,7 +116,7 @@ export function ProjectReports({
   const DAY_MS = 86400000;
   const sCurve = useMemo(() => {
     const withDates = budgetItems.filter((i) => i.start_date && i.end_date);
-    if (withDates.length === 0) return { series: [] as { date: string; planificado: number; real: number | null }[], summary: null };
+    if (withDates.length === 0) return buildSCurveFromSchedulePlan(project, certificates, schedulePlans, planMonths, presupuestoTotal);
 
     const parseDate = (s: string) => new Date(`${s}T00:00:00`);
     const today = new Date();
@@ -133,7 +189,7 @@ export function ProjectReports({
       : null;
 
     return { series, summary };
-  }, [budgetItems, execEntries]);
+  }, [budgetItems, execEntries, project, certificates, schedulePlans, planMonths, presupuestoTotal]);
 
   // Agrupa por código raíz ("1.1", "1.2" → rubro "1"), igual que el Gantt
   // (project-gantt.tsx) — el importador de Excel no siempre completa
@@ -252,7 +308,7 @@ export function ProjectReports({
         renderChart={(height) =>
           sCurve.series.length === 0 ? (
             <div style={{ height }} className="flex flex-col items-center justify-center gap-2 text-[12px] text-[var(--muted)]">
-              <span>Cargá fechas de inicio y fin en los ítems del presupuesto para ver la Curva S.</span>
+              <span>Cargá fechas de inicio y fin en los ítems del presupuesto, o una Curva S en Certificar → Avance físico, para ver este gráfico.</span>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={height}>

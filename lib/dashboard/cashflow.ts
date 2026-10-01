@@ -23,7 +23,7 @@ export interface RawCertificateForCashflow {
   period_end?: string | null;
   aprobado_at?: string | null;
   facturado_at?: string | null;
-  sales_documents?: { id: string; status: string }[] | null;
+  sales_documents?: { id: string; status: string } | { id: string; status: string }[] | null;
 }
 
 export interface RawInvoiceForCashflow {
@@ -52,6 +52,11 @@ function addDays(isoOrDate: string | Date, days: number): string {
   const d = new Date(isoOrDate);
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
+}
+
+function localDate(isoDate: string): Date {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  return new Date(year, month - 1, day);
 }
 
 /**
@@ -90,10 +95,18 @@ export function build30DayCashflowItems(params: {
   }
 
   // 2. Cobros de certificados de obra pendientes (estimado fecha base + 30 días)
-  // Se excluyen los que ya tienen factura de venta activa para no duplicar conteo
+  // Solo certificados aprobados/facturados son proyecciones de ingreso.
+  // Si existe un documento de venta no anulado, ese documento es la única
+  // fuente del cobro para evitar contar certificado + factura dos veces.
   for (const c of certificados) {
+    if (c.status !== "APROBADO" && c.status !== "FACTURADO") continue;
     if (!c.monto_liquido || c.monto_liquido <= 0) continue;
-    const hasActiveSalesDoc = c.sales_documents?.some((d) => d.status !== "ANULADA");
+    const salesDocuments = Array.isArray(c.sales_documents)
+      ? c.sales_documents
+      : c.sales_documents
+        ? [c.sales_documents]
+        : [];
+    const hasActiveSalesDoc = salesDocuments.some((d) => d.status !== "ANULADA");
     if (hasActiveSalesDoc) continue;
 
     const base = c.status === "FACTURADO" ? (c.facturado_at ?? c.period_end) : (c.aprobado_at ?? c.period_end);
@@ -129,14 +142,17 @@ export function build30DayCashflowItems(params: {
   }
 
   // 4. Gastos recurrentes proyectados para los próximos 30 días
-  const finDate = new Date(ventanaFinIso);
+  const finDate = localDate(ventanaFinIso);
+  finDate.setDate(finDate.getDate() + 1);
+  const desde = localDate(todayIso);
   for (const g of gastos.filter((x) => x.activo)) {
     const ocurrencias = ocurrenciasGastoRecurrente(
       g.monto_estimado,
       g.periodicidad,
       g.dia_del_mes,
       g.proximo_vencimiento,
-      finDate
+      finDate,
+      desde
     );
     for (const oc of ocurrencias) {
       if (oc.fecha > ventanaFinIso) continue;

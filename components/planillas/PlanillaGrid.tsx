@@ -151,6 +151,10 @@ export const PlanillaGrid = memo(function PlanillaGrid({
 }: PlanillaGridProps) {
   const hotRef = useRef<HotTableRef>(null);
   const deletedRef = useRef<PlanillaGridRow[]>([]);
+  // Refs para alinear la barra de filtros con las columnas reales de
+  // Handsontable — ver syncFilterBarWidths más abajo.
+  const filterButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const filterSpacerRef = useRef<HTMLSpanElement>(null);
   // true recién después de que Handsontable termina su propia construcción
   // interna (afterInit) — ver el comentario grande en handleAfterCreateRow
   // sobre por qué hace falta esta bandera.
@@ -235,18 +239,27 @@ export const PlanillaGrid = memo(function PlanillaGrid({
   // reproducido y confirmado en components/planillas antes de este fix.
   // `initialRows` es el snapshot con el que arranca la sesión y no cambia
   // en su vida útil, así que una sola computación al montar es correcta.
+  // Piso de filas en blanco al montar — que la hoja recién generada se vea
+  // y se sienta como una hoja de Excel real (varias filas vacías listas
+  // para escribir), no como una lista de 1 renglón que crece de a uno por
+  // cada click en "+ Fila". Sin esto, un proyecto sin ítems (0 filas del
+  // adaptador) mostraba una sola fila vacía al abrir la planilla.
+  const MIN_BLANK_ROWS = 20;
+
   const [seedInitialRows] = useState(() => {
     const rows = initialRows.map((r, i) => applyFormulaDefaults({ ...r }, i));
-    // Siempre termina con una fila vacía (ver ensureTrailingSpareRow) para
-    // que la grilla se sienta como Excel de verdad. Se siembra ACÁ, antes de
-    // montar, en vez de dejar que Handsontable la cree sola al iniciar:
-    // confirmado en vivo que crear una fila durante la construcción interna
-    // de Handsontable (antes de que el editor esté listo) revienta con
-    // "Cannot read properties of undefined (reading 'getActiveEditor')" en
-    // cuanto handleAfterCreateRow llama a hot.setDataAtRowProp() en ese
-    // momento (proyecto sin ítems, 0 filas iniciales, es el caso que más lo
-    // dispara).
-    rows.push(makeSpareRow(rows.length));
+    // Siempre termina con al menos MIN_BLANK_ROWS filas vacías (ver
+    // ensureTrailingSpareRow para el comportamiento en régimen, que sigue
+    // agregando de a una) para que la grilla se sienta como Excel de
+    // verdad. Se siembra ACÁ, antes de montar, en vez de dejar que
+    // Handsontable las cree solas al iniciar: confirmado en vivo que crear
+    // una fila durante la construcción interna de Handsontable (antes de
+    // que el editor esté listo) revienta con "Cannot read properties of
+    // undefined (reading 'getActiveEditor')" en cuanto handleAfterCreateRow
+    // llama a hot.setDataAtRowProp() en ese momento (proyecto sin ítems, 0
+    // filas iniciales, es el caso que más lo dispara).
+    const blanksNeeded = Math.max(1, MIN_BLANK_ROWS - rows.length);
+    for (let i = 0; i < blanksNeeded; i++) rows.push(makeSpareRow(rows.length));
     return rows;
   });
 
@@ -467,9 +480,39 @@ export const PlanillaGrid = memo(function PlanillaGrid({
     ensureTrailingSpareRow();
   }, [emitChange, ensureTrailingSpareRow]);
 
+  // La barra de filtros ("Filtrar por: Código Descripción...") es una fila
+  // de botones propia, fuera de Handsontable — NO usa sus anchos de columna
+  // reales (col.width es solo el ancho INICIAL que Handsontable recibe;
+  // manualColumnResize puede cambiarlo después, y el ancho de la columna de
+  // números de fila lo calcula Handsontable solo, sin API pública para
+  // leerlo). Confirmado en vivo contra producción: los botones quedaban
+  // angostos-según-su-texto y corridos respecto a las columnas de la grilla
+  // de abajo. Se mide el <th> real ya renderizado y se copia su ancho en px
+  // a cada botón — así quedan pixel-perfect sin importar resize manual.
+  const syncFilterBarWidths = useCallback(() => {
+    const hot = hotRef.current?.hotInstance;
+    if (!hot) return;
+    const headerRow = hot.rootElement.querySelector<HTMLTableRowElement>(".ht_master table thead tr");
+    const ths = headerRow ? Array.from(headerRow.querySelectorAll<HTMLElement>("th")) : [];
+    if (!ths.length) return;
+    if (filterSpacerRef.current) {
+      filterSpacerRef.current.style.width = `${ths[0].getBoundingClientRect().width}px`;
+    }
+    columns.forEach((col, i) => {
+      const th = ths[i + 1];
+      const btn = filterButtonRefs.current.get(col.key);
+      if (th && btn) btn.style.width = `${th.getBoundingClientRect().width}px`;
+    });
+  }, [columns]);
+
   const handleAfterInit = useCallback(() => {
     readyRef.current = true;
-  }, []);
+    syncFilterBarWidths();
+  }, [syncFilterBarWidths]);
+
+  const handleAfterColumnResize = useCallback(() => {
+    syncFilterBarWidths();
+  }, [syncFilterBarWidths]);
 
   const handleAfterSelectionEnd = useCallback((row: number, column: number) => {
     const hot = hotRef.current?.hotInstance;
@@ -915,21 +958,29 @@ export const PlanillaGrid = memo(function PlanillaGrid({
           data-fv={filterVersion}
         >
           <span className="text-[10px] text-[var(--muted)] mr-1">Filtrar por:</span>
+          {/* Espaciador — mismo ancho que la columna de números de fila de
+              Handsontable (ver syncFilterBarWidths), para que el primer
+              botón arranque alineado con la primera columna real. */}
+          <span ref={filterSpacerRef} className="shrink-0" aria-hidden />
           {columns.map((col) => {
             const hasFilter = filterValuesRef.current.has(col.key);
             return (
-              <div key={col.key} className="relative">
+              <div key={col.key} className="relative shrink-0">
                 <button
+                  ref={(el) => {
+                    if (el) filterButtonRefs.current.set(col.key, el);
+                    else filterButtonRefs.current.delete(col.key);
+                  }}
                   type="button"
                   onClick={() => handleOpenFilter(col.key)}
                   title={`Filtrar ${col.label}`}
-                  className={`flex items-center gap-1 px-2 h-6 rounded text-[11px] ${
+                  className={`flex items-center gap-1 px-2 h-6 rounded text-[11px] overflow-hidden whitespace-nowrap justify-center ${
                     hasFilter
                       ? "bg-[var(--primary)] text-[#1a0e00]"
                       : "text-[var(--foreground)] hover:bg-[var(--hover)]"
                   }`}
                 >
-                  <Filter size={11} /> {col.label}
+                  <Filter size={11} className="shrink-0" /> <span className="truncate">{col.label}</span>
                 </button>
                 {openFilterCol === col.key && filterDraft ? (
                   <div className="absolute z-20 top-7 left-0 w-56 max-h-72 flex flex-col rounded-md border border-[var(--border)] bg-[var(--panel)] shadow-lg">
@@ -1031,6 +1082,7 @@ export const PlanillaGrid = memo(function PlanillaGrid({
           afterSelectionEnd={handleAfterSelectionEnd}
           afterRender={applyStylesToDom}
           afterInit={handleAfterInit}
+          afterColumnResize={handleAfterColumnResize}
         />
       </div>
       {/* Clases fijas para la paleta de formato — no hay hex arbitrario, así

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getAppOrigin } from "@/lib/app-origin";
 import { requirePlan } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -27,28 +28,16 @@ import {
   ClimateEvidence,
 } from "@/lib/types";
 import { getProjectInventorySnapshot, getBudgetInventoryConsumption } from "@/lib/inventory/service";
+import { displayLocationName } from "@/lib/inventory/display-location-name";
+import {
+  canAccessProjectFeature,
+  getProjectFeature,
+  isProjectFeatureKey,
+  PROJECT_FEATURE_KEYS,
+} from "@/lib/projects/project-features";
 import { ProjectTabsClient } from "./project-tabs-client";
 
-const ALL_TABS = [
-  "presupuesto",
-  "cronograma",
-  "ejecucion",
-  "compras",
-  "cotizaciones",
-  "proveedores",
-  "facturas",
-  "pagos",
-  "stock",
-  "inventario",
-  "recepciones",
-  "panol",
-  "informes",
-  "personal",
-  "subcontratistas",
-  "certificados",
-  "avance-fisico",
-  "bim",
-];
+const ALL_TABS = PROJECT_FEATURE_KEYS;
 
 export default async function ProjectDetailPage({
   params,
@@ -60,9 +49,20 @@ export default async function ProjectDetailPage({
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const { id } = await params;
   const { tab: rawTab } = await searchParams;
-  const isCaterpillar = profile.plan === "caterpillar";
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-  const initialTab = ALL_TABS.includes(rawTab ?? "") ? rawTab! : "presupuesto";
+  const isCaterpillar = profile.plan === "caterpillar" || profile.is_super_admin;
+  const featurePlan = isCaterpillar ? "caterpillar" : "pro";
+  const appUrl = await getAppOrigin();
+  const normalizedTab = rawTab === "recepciones" ? "panol" : rawTab;
+  const initialTab =
+    isProjectFeatureKey(normalizedTab) &&
+    ALL_TABS.includes(normalizedTab) &&
+    canAccessProjectFeature(getProjectFeature(normalizedTab), {
+      role: profile.role,
+      plan: featurePlan,
+      isSuperAdmin: profile.is_super_admin,
+    })
+      ? normalizedTab
+      : "presupuesto";
   const supabase = await createClient();
   const empresaId = profile.empresa_id;
 
@@ -276,25 +276,12 @@ export default async function ProjectDetailPage({
     }
   }
 
-  // Consumo de materiales desde stock (SALIDA imputada a esta obra)
-  const [{ data: consumoRows }, { data: stockProyectoRows }, { data: panolesRows }] = await Promise.all([
-    supabase
+  // Compatibility summary of legacy consumption records; physical stock is read only from the canonical inventory views below.
+  const { data: consumoRows } = await supabase
       .from("stock_consumo_obra")
       .select("budget_item_id, producto_id, producto, unidad, cantidad, costo_total")
       .eq("project_id", id)
-      .eq("empresa_id", empresaId),
-    supabase
-      .from("stock_por_proyecto")
-      .select("producto_id, producto, unidad, costo_promedio, qty_comprada, qty_consumida, qty_disponible, costo_comprado, costo_consumido")
-      .eq("project_id", id)
-      .eq("empresa_id", empresaId),
-    supabase
-      .from("depositos")
-      .select("id, nombre")
-      .eq("project_id", id)
-      .eq("empresa_id", empresaId)
-      .eq("activo", true),
-  ]);
+      .eq("empresa_id", empresaId);
   const consumo = (consumoRows ?? []) as {
     budget_item_id: string | null;
     producto_id: string;
@@ -312,15 +299,52 @@ export default async function ProjectDetailPage({
     inventorySnapshot,
     budgetConsumption,
     { data: obraLocations },
+    { data: warehouseProductRows },
   ] = await Promise.all([
     getProjectInventorySnapshot(supabase, empresaId, id),
     getBudgetInventoryConsumption(supabase, empresaId, { projectId: id }),
-    supabase.from("inventory_locations").select("id, name").eq("project_id", id),
+    supabase
+      .from("inventory_locations")
+      .select("id, name, location_type, active")
+      .eq("project_id", id)
+      .eq("empresa_id", empresaId),
+    supabase
+      .from("productos")
+      .select("id, nombre, unidad")
+      .eq("empresa_id", empresaId)
+      .eq("activo", true)
+      .order("nombre")
+      .limit(1000)
+      .returns<{ id: string; nombre: string; unidad: string }[]>(),
   ]);
   const stockObra = inventorySnapshot.data as import("./inventario-obra-section").StockObraRow[];
   const consumoCanonico = budgetConsumption.data as import("./inventario-obra-section").ConsumoCanonicoRow[];
-  const locationNameById = new Map((obraLocations ?? []).map((l) => [l.id as string, l.name as string]));
+  const locationNameById = new Map((obraLocations ?? []).map((l) => [l.id as string, displayLocationName(l.name as string)]));
   const obraLocationIds = (obraLocations ?? []).map((l) => l.id as string);
+  const warehouseLocations = (obraLocations ?? [])
+    .filter((location) => location.location_type === "PROJECT" && location.active === true)
+    .map((location) => ({ id: location.id as string, name: displayLocationName(location.name as string) }));
+  const warehouseProducts = warehouseProductRows ?? [];
+
+  const { data: portalLinkRows } = obraLocationIds.length > 0
+    ? await supabase
+        .from("warehouse_portal_links")
+        .select("id, location_id, token_hint, active, expires_at, created_at, last_used_at")
+        .eq("empresa_id", empresaId)
+        .in("location_id", obraLocationIds)
+        .order("created_at", { ascending: false })
+    : { data: [] };
+  const warehousePortalLinks: import("./panol-obra-section").WarehousePortalLinkRow[] =
+    (portalLinkRows ?? []).map((link) => ({
+      id: link.id as string,
+      location_id: link.location_id as string,
+      location_name: locationNameById.get(link.location_id as string) ?? "—",
+      token_hint: link.token_hint as string,
+      active: link.active as boolean,
+      expires_at: link.expires_at as string | null,
+      created_at: link.created_at as string,
+      last_used_at: link.last_used_at as string | null,
+    }));
 
   let recepciones: import("./recepciones-obra-section").RecepcionRow[] = [];
   if (obraLocationIds.length > 0) {
@@ -410,8 +434,9 @@ export default async function ProjectDetailPage({
   {
     const { data: submissionRows } = await supabase
       .from("warehouse_submissions")
-      .select("id, location_id, period_start, period_end, status")
+      .select("id, location_id, period_start, period_end, status, upload_incomplete, processing_error")
       .eq("project_id", id)
+      .eq("empresa_id", empresaId)
       .order("period_end", { ascending: false });
     const submissionIds = (submissionRows ?? []).map((s) => s.id as string);
     const [{ data: lineRows }, { data: evidenceRows }] =
@@ -419,21 +444,30 @@ export default async function ProjectDetailPage({
         ? await Promise.all([
             supabase
               .from("warehouse_submission_lines")
-              .select("id, submission_id, raw_description, quantity, unit, state, uncertainty_reason, productos(nombre)")
+              .select("id, submission_id, raw_description, producto_id, quantity, unit, budget_item_id, state, uncertainty_reason, notes, inventory_movement_id, productos(nombre)")
+              .eq("empresa_id", empresaId)
               .in("submission_id", submissionIds)
               .returns<
                 {
                   id: string;
                   submission_id: string;
                   raw_description: string;
+                  producto_id: string | null;
                   quantity: number | null;
                   unit: string | null;
+                  budget_item_id: string | null;
                   state: "PROPOSED" | "CONFIRMED" | "REJECTED";
                   uncertainty_reason: string | null;
+                  notes: string | null;
+                  inventory_movement_id: string | null;
                   productos: { nombre: string } | { nombre: string }[] | null;
                 }[]
               >(),
-            supabase.from("warehouse_submission_evidence").select("submission_id").in("submission_id", submissionIds),
+            supabase
+              .from("warehouse_submission_evidence")
+              .select("id, submission_id, storage_bucket, storage_path, file_name, mime_type, extraction_status, extraction_error")
+              .eq("empresa_id", empresaId)
+              .in("submission_id", submissionIds),
           ])
         : [{ data: [] }, { data: [] }];
     const linesBySubmission = new Map<string, import("./panol-obra-section").PanolLineRow[]>();
@@ -443,18 +477,48 @@ export default async function ProjectDetailPage({
       list.push({
         id: l.id,
         raw_description: l.raw_description,
+        producto_id: l.producto_id,
         producto: productoRaw?.nombre ?? null,
         quantity: l.quantity,
         unit: l.unit,
+        budget_item_id: l.budget_item_id,
         state: l.state,
         uncertainty_reason: l.uncertainty_reason,
+        notes: l.notes,
+        inventory_movement_id: l.inventory_movement_id,
       });
       linesBySubmission.set(l.submission_id, list);
     }
-    const evidenceCountBySubmission = new Map<string, number>();
+    const evidenceBySubmission = new Map<string, import("./panol-obra-section").PanolEvidenceRow[]>();
+    const signedUrlByObject = new Map<string, string>();
+    const evidenceByBucket = new Map<string, { path: string; bucket: string }[]>();
+    for (const e of evidenceRows ?? []) {
+      const bucket = e.storage_bucket as string;
+      const path = e.storage_path as string;
+      if (bucket !== "warehouse-evidence" || !path) continue;
+      const list = evidenceByBucket.get(bucket) ?? [];
+      list.push({ bucket, path });
+      evidenceByBucket.set(bucket, list);
+    }
+    await Promise.all([...evidenceByBucket.entries()].map(async ([bucket, objects]) => {
+      const uniquePaths = [...new Set(objects.map((object) => object.path))];
+      const { data: signedUrls } = await supabase.storage.from(bucket).createSignedUrls(uniquePaths, 300);
+      for (const signed of signedUrls ?? []) {
+        if (signed.path && signed.signedUrl) signedUrlByObject.set(`${bucket}:${signed.path}`, signed.signedUrl);
+      }
+    }));
     for (const e of evidenceRows ?? []) {
       const key = e.submission_id as string;
-      evidenceCountBySubmission.set(key, (evidenceCountBySubmission.get(key) ?? 0) + 1);
+      const evidence = evidenceBySubmission.get(key) ?? [];
+      evidence.push({
+        id: e.id as string,
+        file_name: e.file_name as string,
+        mime_type: e.mime_type as string | null,
+        extraction_status: e.extraction_status as import("@/lib/types").WarehouseSubmissionEvidence["extraction_status"],
+        extraction_error: e.extraction_error as string | null,
+        signed_url: signedUrlByObject.get(`${e.storage_bucket as string}:${e.storage_path as string}`) ?? null,
+      });
+      evidenceBySubmission.set(key, evidence);
     }
     panolSubmissions = (submissionRows ?? []).map((s) => ({
       id: s.id as string,
@@ -462,7 +526,9 @@ export default async function ProjectDetailPage({
       period_start: s.period_start as string,
       period_end: s.period_end as string,
       status: s.status as import("./panol-obra-section").SubmissionStatus,
-      evidenceCount: evidenceCountBySubmission.get(s.id as string) ?? 0,
+      upload_incomplete: s.upload_incomplete as boolean,
+      processing_error: s.processing_error as string | null,
+      evidence: evidenceBySubmission.get(s.id as string) ?? [],
       lines: linesBySubmission.get(s.id as string) ?? [],
     }));
   }
@@ -471,33 +537,45 @@ export default async function ProjectDetailPage({
   const entries = execEntries ?? [];
   const ocs = orders ?? [];
   const laborRows = laborEntries ?? [];
+  // Pagos de cuadrillas y destajos: también son costo de mano de obra de la obra.
+  const { data: laborPaymentRows } = await supabase.from("labor_payments").select("amount").eq("project_id", id);
   const budgetItemLabelById = new Map(items.map((i) => [i.id, `${i.code} — ${i.description}`]));
 
-  // Cotizaciones y proveedores: derivados de las OCs del proyecto
+  // Cotizaciones y proveedores: consulta canónica por project_id con fallback histórico por OCs
   const orderIds = ocs.map((o) => o.id);
-  let projectRfqs: Rfq[] = [];
-  let projectProviders: Provider[] = [];
-  if (orderIds.length > 0) {
-    const rfqIds = [...new Set(ocs.map((o) => o.rfq_id).filter((rid): rid is string => !!rid))];
-    const providerIds = [
-      ...new Set(ocs.map((o) => o.provider_id).filter((pid): pid is string => !!pid)),
-    ];
-    const [rfqFetch, providerFetch] = await Promise.all([
-      rfqIds.length > 0
-        ? supabase
-            .from("rfqs")
-            .select("*")
-            .in("id", rfqIds)
-            .order("created_at", { ascending: false })
-            .returns<Rfq[]>()
-        : Promise.resolve({ data: [] as Rfq[] }),
-      providerIds.length > 0
-        ? supabase.from("providers").select("*").in("id", providerIds).order("name").returns<Provider[]>()
-        : Promise.resolve({ data: [] as Provider[] }),
-    ]);
-    projectRfqs = rfqFetch.data ?? [];
-    projectProviders = providerFetch.data ?? [];
+  const rfqIdsFromOrders = ocs.map((o) => o.rfq_id).filter((rid): rid is string => !!rid);
+  const providerIdsFromOrders = ocs.map((o) => o.provider_id).filter((pid): pid is string => !!pid);
+
+  const [directRfqsFetch, providersFromOrdersFetch] = await Promise.all([
+    supabase
+      .from("rfqs")
+      .select("*")
+      .eq("project_id", id)
+      .order("created_at", { ascending: false })
+      .returns<Rfq[]>(),
+    providerIdsFromOrders.length > 0
+      ? supabase.from("providers").select("*").in("id", providerIdsFromOrders).order("name").returns<Provider[]>()
+      : Promise.resolve({ data: [] as Provider[] }),
+  ]);
+
+  const directRfqs = directRfqsFetch.data ?? [];
+  const directRfqIds = new Set(directRfqs.map((r) => r.id));
+  const missingLegacyRfqIds = rfqIdsFromOrders.filter((rid) => !directRfqIds.has(rid));
+
+  let legacyRfqs: Rfq[] = [];
+  if (missingLegacyRfqIds.length > 0) {
+    const { data: legacyFetch } = await supabase
+      .from("rfqs")
+      .select("*")
+      .in("id", missingLegacyRfqIds)
+      .returns<Rfq[]>();
+    legacyRfqs = legacyFetch ?? [];
   }
+
+  const projectRfqs: Rfq[] = [...directRfqs, ...legacyRfqs].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  let projectProviders: Provider[] = providersFromOrdersFetch.data ?? [];
 
   // Proveedores agregados a mano a la obra (shortlist, sin OC todavía) — se
   // suman a los derivados de OCs de arriba. `manualProviderIds` sirve para
@@ -560,7 +638,8 @@ export default async function ProjectDetailPage({
   }
 
   const laborHoursTotal = laborRows.reduce((s, l) => s + l.hours, 0);
-  const laborCostTotal = laborRows.reduce((s, l) => s + l.labor_cost, 0);
+  const laborCostTotal =
+    laborRows.reduce((s, l) => s + l.labor_cost, 0) + (laborPaymentRows ?? []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
   const itemsSubtotal = items.reduce((s, i) => s + i.subtotal, 0);
   const presupuestoTotal = Math.max(project.budget_total, itemsSubtotal);
   const comprasTotal = ocs
@@ -668,13 +747,14 @@ export default async function ProjectDetailPage({
       projectSchedulePlans={projectSchedulePlans}
       schedulePlanMonths={schedulePlanMonths}
       consumo={consumo}
-      stockProyecto={(stockProyectoRows ?? []) as import("./proyecto-stock-section").StockProyectoRow[]}
-      panoles={(panolesRows ?? []) as { id: string; nombre: string }[]}
       stockObra={stockObra}
       consumoCanonico={consumoCanonico}
       budgetItemLabelById={Object.fromEntries(budgetItemLabelById)}
       recepciones={recepciones}
       panolSubmissions={panolSubmissions}
+      warehouseLocations={warehouseLocations}
+      warehousePortalLinks={warehousePortalLinks}
+      warehouseProducts={warehouseProducts}
       isAdmin={profile.role === "admin"}
       duplicateSources={duplicateSources}
       itemsSubtotal={itemsSubtotal}

@@ -1,15 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { formatDate, formatNumber } from "@/lib/format";
 import { createClient } from "@/lib/supabase/browser";
 import type { AuthorizedOrderItem, OcRecepcion } from "@/lib/types";
-import { registrarRecepcion, eliminarRecepcion } from "../oc-recepcion-actions";
+import { confirmedReceiptTotals } from "@/lib/inventory/receipt-read-model";
+import {
+  registrarRecepcion,
+  confirmarRecepcion,
+  eliminarRecepcion,
+  updateReceiptProductMapping,
+} from "../oc-recepcion-actions";
+import { ReceiptPortalLink } from "../receipt-portal-link";
 
-type ProductoLite = { id: string; nombre: string; unidad: string };
+type ProductoLite = { id: string; nombre: string; unidad: string; activo: boolean };
+export type ReceiptEvidenceView = { id: string; fileName: string; sizeBytes: number | null; url: string | null };
 
 // ─── RegistrarDialog ────────────────────────────────────────────────────────
 
@@ -30,16 +38,18 @@ function RegistrarDialog({
   const [productoPorItem, setProductoPorItem] = useState<Record<string, string>>({});
   const [productos, setProductos] = useState<ProductoLite[]>([]);
   const [pending, setPending] = useState(false);
+  const [attemptLocked, setAttemptLocked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const idempotencyKey = useRef<string | null>(null);
+  const submitting = useRef(false);
 
   useEffect(() => {
     if (!open) return;
     const supabase = createClient();
     supabase
       .from("productos")
-      .select("id, nombre, unidad")
-      .eq("activo", true)
+      .select("id, nombre, unidad, activo")
       .order("nombre")
       .then(({ data }) => setProductos((data as ProductoLite[]) ?? []));
   }, [open]);
@@ -50,18 +60,21 @@ function RegistrarDialog({
     setNotas("");
     setCantidades({});
     setProductoPorItem({});
+    setAttemptLocked(false);
     setError(null);
+    idempotencyKey.current = null;
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting.current) return;
     setError(null);
 
     const items = orderItems
       .map((it) => ({
         order_item_id: it.id,
         cantidad_recibida: parseFloat(cantidades[it.id] || "0") || 0,
-        producto_id: productoPorItem[it.id] || null,
+        producto_id: productoPorItem[it.id] ?? it.producto_id ?? null,
       }))
       .filter((i) => i.cantidad_recibida > 0);
 
@@ -70,23 +83,44 @@ function RegistrarDialog({
       return;
     }
 
+    idempotencyKey.current ??= crypto.randomUUID();
+    setAttemptLocked(true);
+    submitting.current = true;
     setPending(true);
-    const res = await registrarRecepcion(orderId, fecha, recibidoPor, items, notas || undefined);
-    setPending(false);
+    try {
+      const res = await registrarRecepcion(
+        orderId,
+        fecha,
+        recibidoPor,
+        items,
+        notas || undefined,
+        idempotencyKey.current,
+      );
+      if (res.error) {
+        setError(res.error);
+        if (!res.receiptId) {
+          setAttemptLocked(false);
+          idempotencyKey.current = null;
+        }
+        router.refresh();
+        return;
+      }
 
-    if (res.error) {
-      setError(res.error);
-      return;
+      setOpen(false);
+      reset();
+      onDone();
+      router.refresh();
+    } catch {
+      setError("No se pudo confirmar la recepción. Reintentá sin cambiar los datos para conservar la idempotencia.");
+      router.refresh();
+    } finally {
+      submitting.current = false;
+      setPending(false);
     }
-
-    setOpen(false);
-    reset();
-    onDone();
-    router.refresh();
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v && !idempotencyKey.current) reset(); }}>
       <DialogTrigger asChild>
         <Button className="h-8 px-3 text-[12px]">Registrar recepción</Button>
       </DialogTrigger>
@@ -99,6 +133,7 @@ function RegistrarDialog({
                 type="date"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
+                disabled={pending || attemptLocked}
                 required
                 className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
               />
@@ -109,6 +144,7 @@ function RegistrarDialog({
                 type="text"
                 value={recibidoPor}
                 onChange={(e) => setRecibidoPor(e.target.value)}
+                disabled={pending || attemptLocked}
                 required
                 placeholder="Nombre del receptor"
                 className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
@@ -143,6 +179,7 @@ function RegistrarDialog({
                           min="0"
                           step="any"
                           value={cantidades[it.id] ?? ""}
+                          disabled={pending || attemptLocked}
                           onChange={(e) =>
                             setCantidades((prev) => ({ ...prev, [it.id]: e.target.value }))
                           }
@@ -152,14 +189,22 @@ function RegistrarDialog({
                       </td>
                       <td>
                         <select
-                          value={productoPorItem[it.id] ?? ""}
+                          value={productoPorItem[it.id] ?? it.producto_id ?? ""}
+                          disabled={pending || attemptLocked}
                           onChange={(e) =>
                             setProductoPorItem((prev) => ({ ...prev, [it.id]: e.target.value }))
                           }
                           className="w-full h-7 rounded border border-[var(--border)] bg-[var(--panel)] px-1.5 text-[12px]"
                         >
-                          <option value="">— no cargar a stock —</option>
-                          {productos.map((p) => (
+                          <option value="" disabled={Boolean(it.producto_id)}>— no cargar a stock —</option>
+                          {it.producto_id && !productos.some((p) => p.id === it.producto_id) ? (
+                            <option value={it.producto_id}>{it.product} (asociado a la OC)</option>
+                          ) : null}
+                          {productos
+                            .filter((p) => p.activo || p.id === it.producto_id)
+                            .filter((p) => !it.producto_id || p.id === it.producto_id)
+                            .filter((p) => !it.unit.trim() || p.unidad.trim() === it.unit.trim())
+                            .map((p) => (
                             <option key={p.id} value={p.id}>{p.nombre}</option>
                           ))}
                         </select>
@@ -181,6 +226,7 @@ function RegistrarDialog({
               type="text"
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
+              disabled={pending || attemptLocked}
               placeholder="Opcional — estado de la mercadería, remito, etc."
               className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
             />
@@ -193,7 +239,7 @@ function RegistrarDialog({
           ) : null}
 
           <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+            <Button type="button" variant="secondary" onClick={() => setOpen(false)} disabled={pending}>
               Cancelar
             </Button>
             <Button type="submit" disabled={pending || !recibidoPor.trim()}>
@@ -212,22 +258,77 @@ function RecepcionCard({
   recepcion,
   orderItems,
   canDelete,
+  canConfirm,
+  canMap,
   orderId,
+  onDiscard,
+  products,
+  evidence,
 }: {
   recepcion: OcRecepcion;
   orderItems: AuthorizedOrderItem[];
   canDelete: boolean;
+  canConfirm: boolean;
+  canMap: boolean;
   orderId: string;
+  onDiscard: () => void;
+  products: ProductoLite[];
+  evidence: ReceiptEvidenceView[];
 }) {
   const [deleting, setDeleting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [mappingItemId, setMappingItemId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const items = recepcion.oc_recepcion_items ?? [];
+  const hasUnmappedPortalItems = recepcion.idempotency_key?.startsWith("receipt-portal:")
+    ? items.some((item) => !item.producto_id)
+    : false;
 
   async function handleDelete() {
-    if (!confirm("¿Eliminar esta recepción? La acción no se puede deshacer.")) return;
+    if (!confirm("¿Descartar este borrador? No afecta inventario y no se puede recuperar.")) return;
     setDeleting(true);
-    await eliminarRecepcion(recepcion.id, orderId);
+    const result = await eliminarRecepcion(recepcion.id, orderId);
+    setDeleting(false);
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    onDiscard();
     router.refresh();
+  }
+
+  async function handleConfirm() {
+    setConfirming(true);
+    setError(null);
+    try {
+      const result = await confirmarRecepcion(recepcion.id, orderId);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("No se pudo confirmar la recepción. Reintentá la operación.");
+      router.refresh();
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  async function handleProductMapping(itemId: string, productId: string) {
+    if (!productId || mappingItemId) return;
+    setMappingItemId(itemId);
+    setError(null);
+    try {
+      const result = await updateReceiptProductMapping({ receiptId: recepcion.id, itemId, productId });
+      if (result.error) setError(result.error);
+      else router.refresh();
+    } catch {
+      setError("No se pudo vincular el producto. Intentá nuevamente.");
+    } finally {
+      setMappingItemId(null);
+    }
   }
 
   return (
@@ -235,6 +336,15 @@ function RecepcionCard({
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-[13px] font-medium">{formatDate(recepcion.fecha)}</div>
+          <div className="text-[11px] text-[var(--muted)] mt-0.5">
+            {recepcion.status === "CONFIRMED"
+              ? "Confirmada"
+              : recepcion.status === "VOIDED"
+                ? "Anulada"
+                : recepcion.idempotency_key
+                  ? "Borrador · no afecta inventario"
+                  : "Histórica · pendiente de reconciliación"}
+          </div>
           <div className="text-[12px] text-[var(--muted)] mt-0.5">
             Recibido por: <span className="text-[var(--foreground)]">{recepcion.recibido_por}</span>
           </div>
@@ -242,16 +352,38 @@ function RecepcionCard({
             <div className="text-[12px] text-[var(--muted)] mt-0.5">{recepcion.notas}</div>
           ) : null}
         </div>
-        {canDelete ? (
+        {canConfirm && recepcion.status === "DRAFT" && recepcion.idempotency_key ? (
+          <div className="text-right">
+            <button
+              onClick={handleConfirm}
+              disabled={confirming || hasUnmappedPortalItems}
+              className="text-[11px] text-action hover:underline disabled:opacity-50"
+            >
+              {confirming ? "Confirmando…" : "Confirmar recepción"}
+            </button>
+            {hasUnmappedPortalItems ? (
+              <p className="mt-1 max-w-56 text-[10px] text-[var(--warn)]">
+                Vinculá cada línea a inventario antes de confirmar; así no se pierde la entrada de stock.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+        {canDelete && recepcion.status === "DRAFT" && recepcion.idempotency_key ? (
           <button
             onClick={handleDelete}
             disabled={deleting}
             className="text-[11px] text-[var(--muted)] hover:text-[var(--error)] transition-colors shrink-0 disabled:opacity-50"
           >
-            {deleting ? "Eliminando…" : "Eliminar"}
+            {deleting ? "Descartando…" : "Descartar borrador"}
           </button>
         ) : null}
       </div>
+
+      {error ? (
+        <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-3 py-2 text-[12px] text-[var(--error)]">
+          {error}
+        </div>
+      ) : null}
 
       {items.length > 0 ? (
         <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] overflow-hidden">
@@ -260,16 +392,43 @@ function RecepcionCard({
               <tr>
                 <th>Ítem</th>
                 <th className="num">Recibido</th>
+                <th>Material de inventario</th>
               </tr>
             </thead>
             <tbody>
               {items.map((ri) => {
                 const oi = orderItems.find((o) => o.id === ri.order_item_id);
+                const mappedProduct = products.find((product) => product.id === ri.producto_id);
                 return (
                   <tr key={ri.id}>
                     <td className="text-[13px]">{oi?.product ?? ri.order_item_id}</td>
                     <td className="num">
                       {formatNumber(ri.cantidad_recibida, 2)} {oi?.unit ?? ""}
+                    </td>
+                    <td className="text-[12px]">
+                      {canMap && recepcion.status === "DRAFT" ? (
+                        <select
+                          aria-label="Material de inventario"
+                          value={ri.producto_id ?? ""}
+                          disabled={mappingItemId === ri.id || mappingItemId !== null}
+                          onChange={(event) => void handleProductMapping(ri.id, event.target.value)}
+                          className="max-w-56 rounded border border-[var(--border)] bg-[var(--panel)] px-2 py-1 text-[12px]"
+                        >
+                          {!ri.producto_id ? <option value="">Sin vincular a inventario</option> : null}
+                          {products
+                            .filter((product) => product.activo && product.unidad.trim() === (oi?.unit ?? "").trim())
+                            .map((product) => (
+                              <option key={product.id} value={product.id}>{product.nombre}</option>
+                            ))}
+                        </select>
+                      ) : mappedProduct ? (
+                        mappedProduct.nombre
+                      ) : (
+                        <span className="text-[var(--warn)]">Sin vincular</span>
+                      )}
+                      {!ri.producto_id && recepcion.status === "DRAFT" ? (
+                        <span className="mt-1 block text-[10px] text-[var(--muted)]">Sin vínculo no se genera movimiento de inventario.</span>
+                      ) : null}
                     </td>
                   </tr>
                 );
@@ -277,6 +436,22 @@ function RecepcionCard({
             </tbody>
           </table>
         </div>
+      ) : null}
+
+      {evidence.length > 0 ? (
+        <section className="space-y-1.5">
+          <h3 className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">Evidencia recibida</h3>
+          <ul className="space-y-1">
+            {evidence.map((file) => (
+              <li key={file.id} className="text-[12px]">
+                {file.url ? (
+                  <a className="text-action underline" href={file.url} target="_blank" rel="noreferrer">{file.fileName}</a>
+                ) : <span>{file.fileName}</span>}
+                {file.sizeBytes != null ? <span className="ml-2 text-[var(--muted)]">{formatNumber(file.sizeBytes / 1024, 0)} KB</span> : null}
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
     </div>
   );
@@ -289,34 +464,46 @@ export function RecepcionSection({
   orderItems,
   recepciones,
   canDelete = false,
+  canConfirm = false,
+  currentUserId,
+  canDiscardOwnDraft = false,
+  canCreatePortal = false,
+  canMap = false,
+  products = [],
+  evidenceByReceipt = {},
 }: {
   orderId: string;
   orderItems: AuthorizedOrderItem[];
   recepciones: OcRecepcion[];
   canDelete?: boolean;
+  canConfirm?: boolean;
+  currentUserId: string;
+  canDiscardOwnDraft?: boolean;
+  canCreatePortal?: boolean;
+  canMap?: boolean;
+  products?: ProductoLite[];
+  evidenceByReceipt?: Record<string, ReceiptEvidenceView[]>;
 }) {
   const [key, setKey] = useState(0);
 
   if (orderItems.length === 0) return null;
 
   // Totales recibidos por ítem (suma de todas las recepciones)
-  const totalesRecibidos: Record<string, number> = {};
-  for (const rec of recepciones) {
-    for (const ri of rec.oc_recepcion_items ?? []) {
-      totalesRecibidos[ri.order_item_id] = (totalesRecibidos[ri.order_item_id] ?? 0) + ri.cantidad_recibida;
-    }
-  }
+  const totalesRecibidos = confirmedReceiptTotals(recepciones);
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-[14px] font-semibold">Recepción de mercadería</h2>
-        <RegistrarDialog
-          key={key}
-          orderId={orderId}
-          orderItems={orderItems}
-          onDone={() => setKey((k) => k + 1)}
-        />
+        <div className="flex flex-wrap gap-2">
+          {canCreatePortal ? <ReceiptPortalLink orderId={orderId} /> : null}
+          <RegistrarDialog
+            key={key}
+            orderId={orderId}
+            orderItems={orderItems}
+            onDone={() => setKey((k) => k + 1)}
+          />
+        </div>
       </div>
 
       {/* Resumen de cantidades recibidas vs ordenadas */}
@@ -368,8 +555,13 @@ export function RecepcionSection({
               key={rec.id}
               recepcion={rec}
               orderItems={orderItems}
-              canDelete={canDelete}
+              canDelete={canDelete || (canDiscardOwnDraft && rec.created_by === currentUserId)}
+              canConfirm={canConfirm}
+              canMap={canMap}
               orderId={orderId}
+              onDiscard={() => setKey((k) => k + 1)}
+              products={products}
+              evidence={evidenceByReceipt[rec.id] ?? []}
             />
           ))}
         </div>

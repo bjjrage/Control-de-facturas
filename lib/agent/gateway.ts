@@ -157,14 +157,31 @@ export async function gatewayExecute(params: GatewayExecuteParams): Promise<Gate
   if (idempotencyKey && toolName) {
     const { data: hit } = await db
       .from("agent_steps")
-      .select("output_json")
+      .select("status, output_json")
       .eq("empresa_id", actor.empresaId)
       .eq("tool_name", toolName)
       .eq("idempotency_key", idempotencyKey)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
     if (hit) {
-      // No re-ejecutar, devolver cached
-      throw new IdempotencyHit((hit as { output_json: unknown }).output_json);
+      const prior = hit as { status?: string; output_json?: unknown };
+      if (prior.status === "SUCCESS") {
+        throw new IdempotencyHit(prior.output_json);
+      }
+      if (prior.status === "WAITING_APPROVAL") {
+        const approvalId =
+          prior.output_json && typeof prior.output_json === "object" && typeof (prior.output_json as { approval_id?: unknown }).approval_id === "string"
+            ? (prior.output_json as { approval_id: string }).approval_id
+            : null;
+        if (approvalId) {
+          const approval = await getApproval(db, approvalId);
+          if (approval && ["REQUESTED", "APPROVED", "EXECUTING"].includes(approval.status)) {
+            throw new ApprovalRequiredError(`Tool ${toolName} ya tiene una aprobacion pendiente`, approvalId);
+          }
+        }
+      }
+      // ERROR/SKIPPED nunca se devuelve como éxito: se permite un retry.
     }
   }
 

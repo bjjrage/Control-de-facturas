@@ -258,7 +258,7 @@ registerTool<PreparePurchaseOrderInput, PreparePurchaseOrderOutput>({
   description:
     "Transforma una cotización seleccionada de una RFQ en una Orden de Compra (OC) draft. SOLO prepara borrador reversible - no emite OC definitiva. Reutiliza datos: supplier, project, items y prices ya existentes en la RFQ. El usuario NO debería volver a cargarlos. Preserva rfq_id, supplier_id, project_id. Idempotente: misma key+RFQ+supplier retorna draft existente. Usar cuando el usuario dice 'vamos con proveedor B. Prepará la orden.'",
   inputSchema: PreparePurchaseOrderInputSchema,
-  riskLevel: 1,
+  riskLevel: 2,
   requiredRoles: null,
   handler,
 });

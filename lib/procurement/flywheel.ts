@@ -15,6 +15,7 @@
 
 import { CostObservation } from '../cost-engine/types';
 import { calculateCostEstimate } from '../cost-engine/weighting';
+import { findUniqueExactInventoryMatch } from '../inventory/initial-stock-import';
 
 export interface FlywheelExecutionPurchaseEvent {
   empresaId: string;
@@ -131,6 +132,8 @@ export async function recordCostObservationFromInvoice(
     orderId?: string;
     projectId?: string;
     itemDescription?: string;
+    /** Material del catálogo al que corresponde la línea; si falta se busca por nombre exacto único. */
+    productoId?: string | null;
     quantity?: number;
     unit?: string;
     unitPrice?: number;
@@ -222,6 +225,27 @@ export async function recordCostObservationFromInvoice(
       categoria = 'MANO_OBRA';
     }
 
+    // Vincular la línea con un material del catálogo para que el precio llegue a la
+    // lista de precios. Solo por nombre exacto y único: si hay duda queda sin vincular
+    // (se resuelve a mano en Lista de precios), nunca se adivina.
+    let productoId: string | null = params.productoId ?? null;
+    if (!productoId) {
+      try {
+        const { data: catalog } = await supabase
+          .from("productos")
+          .select("id, nombre")
+          .eq("empresa_id", params.empresaId)
+          .eq("activo", true);
+        const match = findUniqueExactInventoryMatch(
+          description,
+          ((catalog ?? []) as { id: string; nombre: string }[]).map((p) => ({ id: p.id, name: p.nombre }))
+        );
+        productoId = match?.id ?? null;
+      } catch {
+        productoId = null;
+      }
+    }
+
     // Evitar duplicados a nivel de ítem/línea dentro del mismo documento (idempotencia granular)
     const { data: existingObs } = await supabase
       .from("cost_observations")
@@ -242,6 +266,7 @@ export async function recordCostObservationFromInvoice(
         .from("cost_observations")
         .insert({
           empresa_id: params.empresaId,
+          producto_id: productoId,
           project_id: projectId || null,
           proveedor_id: params.providerId || null,
           fuente: "FACTURA",
@@ -273,6 +298,7 @@ export async function recordCostObservationFromInvoice(
       .from("cost_observations")
       .insert({
         empresa_id: params.empresaId,
+        producto_id: productoId,
         project_id: projectId || null,
         proveedor_id: params.providerId || null,
         fuente: "FACTURA",

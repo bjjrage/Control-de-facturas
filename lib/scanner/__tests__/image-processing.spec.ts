@@ -1,7 +1,6 @@
 ﻿import { describe, expect, it } from 'vitest';
 import {
   applyScanFilter,
-  autoAdjustQuadToEdges,
   detectDefaultCorners,
   getHomographyMatrix,
   pointDistance,
@@ -21,47 +20,6 @@ describe('Image Processing & Perspective Correction', () => {
     expect(quad.topRight).toEqual({ x: 940, y: 120 });
     expect(quad.bottomRight).toEqual({ x: 940, y: 1880 });
     expect(quad.bottomLeft).toEqual({ x: 60, y: 1880 });
-  });
-
-  it('autoajusta una detección inicial hacia los cuatro bordes de la hoja', () => {
-    const width = 120;
-    const height = 100;
-    const data = new Uint8ClampedArray(width * height * 4);
-    for (let index = 0; index < data.length; index += 4) {
-      data[index] = 35;
-      data[index + 1] = 35;
-      data[index + 2] = 35;
-      data[index + 3] = 255;
-    }
-    for (let y = 20; y <= 80; y++) {
-      for (let x = 20; x <= 100; x++) {
-        const index = (y * width + x) * 4;
-        data[index] = 235;
-        data[index + 1] = 235;
-        data[index + 2] = 235;
-      }
-    }
-
-    const adjusted = autoAdjustQuadToEdges(
-      { width, height, data },
-      {
-        topLeft: { x: 25, y: 25 },
-        topRight: { x: 95, y: 25 },
-        bottomRight: { x: 95, y: 75 },
-        bottomLeft: { x: 25, y: 75 },
-      },
-      { searchRadiusPx: 12 }
-    );
-
-    expect(adjusted).not.toBeNull();
-    expect(adjusted!.topLeft.x).toBeGreaterThanOrEqual(18);
-    expect(adjusted!.topLeft.x).toBeLessThanOrEqual(22);
-    expect(adjusted!.topLeft.y).toBeGreaterThanOrEqual(18);
-    expect(adjusted!.topLeft.y).toBeLessThanOrEqual(22);
-    expect(adjusted!.bottomRight.x).toBeGreaterThanOrEqual(98);
-    expect(adjusted!.bottomRight.x).toBeLessThanOrEqual(102);
-    expect(adjusted!.bottomRight.y).toBeGreaterThanOrEqual(78);
-    expect(adjusted!.bottomRight.y).toBeLessThanOrEqual(82);
   });
 
   it('calcula matriz de homografía identidad cuando los puntos coinciden', () => {

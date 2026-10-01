@@ -75,7 +75,7 @@ export function ReimportarButton({ nro, id }: { nro: string; id: string }) {
           disabled={busy || busyConvert}
           className="bg-[var(--primary)] text-white hover:opacity-90"
           onClick={async () => {
-            if (!confirm("¿Convertir esta licitación en un Proyecto activo en el ERP? Se creará la obra, el cómputo métrico y el pañol.")) return;
+            if (!confirm("¿Convertir esta licitación en un Proyecto activo en el ERP? Se creará la obra, el cómputo métrico y el depósito.")) return;
             setBusyConvert(true);
             setError(null);
             const res = await convertirLicitacionAProyecto(id);

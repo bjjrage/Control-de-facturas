@@ -41,7 +41,7 @@ export default async function AvancePage({ params }: { params: Promise<{ token: 
         <Image src="/logo/niupack-wordmark.svg" alt="niupack" width={120} height={26} priority />
 
         <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
-          <p className="text-[11px] text-[var(--muted)] mb-1">Parte diario de avance</p>
+          <p className="text-[11px] text-[var(--muted)] mb-1">Parte diario de obra</p>
           <h1 className="text-[15px] font-semibold mb-2">{project.name}</h1>
           <div className="space-y-1 text-[13px]">
             <div><span className="text-[var(--muted)]">Código: </span>{project.code}</div>
@@ -52,7 +52,7 @@ export default async function AvancePage({ params }: { params: Promise<{ token: 
         {isActive ? (
           items.length > 0 ? (
             <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
-              <h2 className="text-[14px] font-semibold mb-3">Registrar avance de hoy</h2>
+              <h2 className="text-[14px] font-semibold mb-3">Registrar parte diario</h2>
               <AvanceForm token={token} budgetItems={items} />
             </div>
           ) : (

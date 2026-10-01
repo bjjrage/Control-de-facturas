@@ -10,10 +10,14 @@ export function ProviderDialog({
   provider,
   action,
   trigger,
+  categorias = [],
+  selectedCategoriaIds = [],
 }: {
   provider?: Provider;
   action: (formData: FormData) => Promise<{ error: string | null }>;
   trigger: React.ReactNode;
+  categorias?: { id: string; nombre: string }[];
+  selectedCategoriaIds?: string[];
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +67,26 @@ export function ProviderDialog({
           <div>
             <Label htmlFor="tax_id">RUC</Label>
             <Input id="tax_id" name="tax_id" defaultValue={provider?.tax_id ?? ""} />
+          </div>
+          <div>
+            <Label>Rubros</Label>
+            {categorias.length === 0 ? (
+              <p className="text-[12px] text-[var(--muted)]">
+                No hay categorías de producto. Crealas en Stock → Categorías para poder asignar rubros.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1 rounded border border-[var(--border)] p-2 max-h-40 overflow-y-auto">
+                {categorias.map((c) => (
+                  <label key={c.id} className="flex items-center gap-1.5 text-[12px]">
+                    <input type="checkbox" name="categoria_id" value={c.id} defaultChecked={selectedCategoriaIds.includes(c.id)} />
+                    {c.nombre}
+                  </label>
+                ))}
+              </div>
+            )}
+            <p className="mt-1 text-[11px] text-[var(--muted)]">
+              Los RFQ de costeo de un rubro se mandan a los proveedores que lo tengan tildado.
+            </p>
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>

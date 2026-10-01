@@ -40,7 +40,7 @@ export function InventarioObraSection({
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="text-[13px] font-semibold mb-2">Stock disponible en la obra</h3>
+        <h3 className="text-[13px] font-semibold mb-2">Inventario disponible en la obra</h3>
         {stock.length === 0 ? (
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 text-[13px] text-[var(--muted)]">
             Todavía no hay saldo canónico registrado para esta obra.

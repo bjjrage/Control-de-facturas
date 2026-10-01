@@ -1,5 +1,6 @@
 "use client";
 
+import { WeeklyPlanResources } from "./weekly-plan-resources";
 import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import {
   Calendar,
@@ -117,8 +118,6 @@ export function WeeklyPlanSection({ project }: Props) {
   // Plan persistido (si existe) — solo referencia secundaria.
   const [planId, setPlanId] = useState<string | undefined>(undefined);
   const [savedStatus, setSavedStatus] = useState<WeeklyPlanStatus | null>(null);
-  // V3: el plan retiene reservas ACTIVE (para gating de re-commit).
-  const [hasActiveReservations, setHasActiveReservations] = useState(false);
   const [compatStatus, setCompatStatus] = useState<WeeklyPlanStatus>("DRAFT");
   const [notes, setNotes] = useState<string>("");
 
@@ -137,6 +136,12 @@ export function WeeklyPlanSection({ project }: Props) {
   const [planMode, setPlanMode] = useState<PlanMode>("BLOCK");
   // Bloques derivados del presupuesto existente (parent_id + raíz de código).
   const blocks: BlockGroup[] = useMemo(() => buildBlockGroups(budgetItems), [budgetItems]);
+  // Partidas ejecutables (excluye rubros agrupadores, cantidad 0/null): para
+  // "Por partida" un rubro no se ejecuta, se plantea "Por bloque" (arriba).
+  const executableItems = useMemo(
+    () => budgetItems.filter((b) => !isGroupingItem(b)),
+    [budgetItems]
+  );
   const [selectedBlockKey, setSelectedBlockKey] = useState<string | null>(null);
   const [blockPp, setBlockPp] = useState<number>(10);
   const [blockFront, setBlockFront] = useState<string>("Sector A");
@@ -223,7 +228,6 @@ export function WeeklyPlanSection({ project }: Props) {
       const { plan, calculation: calc, budgetItems: bItems, executedQuantities: exec } = res.data;
       setBudgetItems(bItems);
       setExecutedQuantities(exec ?? {});
-      setHasActiveReservations(res.data.hasActiveReservations === true);
       if (plan) {
         setPlanId(plan.id);
         setStartDate(plan.start_date);
@@ -288,13 +292,8 @@ export function WeeklyPlanSection({ project }: Props) {
 
   const previewStale = preview !== null && previewKey !== null && previewKey !== currentKey;
 
-  // P1-1: un plan MRP (nace de receta, tiene preview MRP o retiene reservas
-  // de un commit previo) NO puede comprometerse con cobertura desactualizada.
-  const isMrpContext =
-    appliedRecipe !== null || previewMrp !== null ||
-    (savedStatus === "COMMITTED" && hasActiveReservations);
-  const mrpCommitBlocked =
-    isMrpContext && (!previewMrp || previewStale || !!previewMrp.centralError);
+  // Todo COMMITTED requiere una referencia MRP vigente; no hay bypass legacy.
+  const mrpCommitBlocked = !previewMrp || previewStale || !!previewMrp.centralError;
 
   // ---- edición local (sin persistir) ----
 
@@ -542,9 +541,8 @@ export function WeeklyPlanSection({ project }: Props) {
     }
     const seq = ++calcSeq.current;
     setIsCalculating(true);
-    // V3: si el cálculo nace de una receta, pedir cobertura MRP (obra ?
-    // central ? inbound a tiempo ? faltante). Si no, LEGACY intacto.
-    const useMrp = appliedRecipe !== null;
+    // Todo preview que pueda culminar en COMMITTED calcula cobertura MRP:
+    // obra → central → inbound a tiempo → faltante.
     (async () => {
       try {
         const res = await withActionTimeout(
@@ -561,7 +559,7 @@ export function WeeklyPlanSection({ project }: Props) {
                 inputMode: t.input_mode,
                 inputValue: Number(t.input_value),
               })),
-            ...(useMrp ? { coverage: { mode: "MRP" as const, neededByDate: endDate } } : {}),
+            coverage: { mode: "MRP" as const, neededByDate: endDate },
           }),
           90000,
           "El cálculo del plan"
@@ -867,16 +865,20 @@ export function WeeklyPlanSection({ project }: Props) {
       {planMode === "ITEM" && (
       <div>
         <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-          1. ¿Qué quiero hacer? — partidas ({budgetItems.length})
+          1. ¿Qué quiero hacer? — partidas ({executableItems.length})
         </div>
         <p className="mt-0.5 text-[11px] text-[var(--muted)]">
           Definí la meta de esta semana por partida y frente. El botón Definir meta está siempre
           visible en cada tarjeta, sin scroll horizontal.
         </p>
 
-        {/* Sin overflow-x-auto a propósito: Definir meta nunca depende del scroll horizontal. */}
+        {/* Sin overflow-x-auto a propósito: Definir meta nunca depende del scroll horizontal.
+            Solo partidas ejecutables: un rubro agrupador (parent_id de otras, sin cantidad
+            propia) no se ejecuta acá — planificarlo es el modo POR BLOQUE de arriba. Mezclarlo
+            en esta lista (confirmado en vivo con MAGY, 11 rubros nuevos) hace que las primeras
+            tarjetas digan "No ejecutable" y parezca que la ejecución por partida se rompió. */}
         <div data-testid="partidas-list" className="mt-3 space-y-3">
-          {budgetItems.map((bItem) => {
+          {executableItems.map((bItem) => {
             const grouping = isGroupingItem(bItem);
             const contractual = Number(bItem.quantity) || 0;
             const executed = executedOf(bItem.id);
@@ -1524,12 +1526,21 @@ export function WeeklyPlanSection({ project }: Props) {
                         <tbody className="divide-y divide-[var(--border)]">
                           {agg.map((m) => (
                             <tr key={m.producto_id}>
-                              <td className="py-1.5 px-2 font-medium text-[var(--foreground)]">{m.producto_nombre}</td>
+                              <td className="py-1.5 px-2 font-medium text-[var(--foreground)]">
+                                {m.producto_nombre}
+                                {m.requiere_atencion_costo && (
+                                  <span className="ml-1.5 text-[10px] text-amber-600 dark:text-amber-300 font-normal">
+                                    (Sin costo promedio — caja subdeclarada)
+                                  </span>
+                                )}
+                              </td>
                               <td className="py-1.5 px-2 text-right">{m.requerido.toLocaleString("es-PY")} {m.unidad_medida}</td>
                               <td className="py-1.5 px-2 text-right text-[#d6f7ec]">{m.cubierto_stock.toLocaleString("es-PY")} {m.unidad_medida}</td>
                               <td className="py-1.5 px-2 text-right text-[#dce9fb]">{m.cubierto_inbound.toLocaleString("es-PY")} {m.unidad_medida}</td>
                               <td className="py-1.5 px-2 text-right font-bold text-[#fff0cf]">{m.faltante.toLocaleString("es-PY")} {m.unidad_medida}</td>
-                              <td className="py-1.5 px-2 text-right font-bold">Gs. {m.caja.toLocaleString("es-PY")}</td>
+                              <td className="py-1.5 px-2 text-right font-bold">
+                                {m.requiere_atencion_costo ? "Costo no disponible" : `Gs. ${m.caja.toLocaleString("es-PY")}`}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -1539,6 +1550,13 @@ export function WeeklyPlanSection({ project }: Props) {
                       requerido − stock − OC = faltante · agregado de las {previewBlock.includedCount}{" "}
                       partidas del bloque
                     </p>
+                    {agg.some((m) => m.requiere_atencion_costo) && (
+                      <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-300">
+                        Costo no disponible en {agg.filter((m) => m.requiere_atencion_costo).length}{" "}
+                        {agg.filter((m) => m.requiere_atencion_costo).length === 1 ? "material" : "materiales"}: esa
+                        parte no suma a la caja total del bloque (no se muestra Gs. 0 como si no hiciera falta comprar).
+                      </p>
+                    )}
                   </div>
                 );
               })()}
@@ -1586,6 +1604,8 @@ export function WeeklyPlanSection({ project }: Props) {
             </div>
           </div>
           )}
+
+          {preview.resource_requirements ? <WeeklyPlanResources data={preview.resource_requirements} /> : null}
 
           {/* Factibilidad */}
           <div className="glass-soft p-4 space-y-2">
@@ -1815,7 +1835,7 @@ export function WeeklyPlanSection({ project }: Props) {
             </div>
             {mrpCommitBlocked && (
               <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                El cálculo de abastecimiento está desactualizado. Recalculá antes de comprometer el plan.
+                Calculá o recalculá la cobertura MRP vigente para este período antes de comprometer el plan.
               </p>
             )}
             <div className="flex flex-wrap gap-2">
@@ -1837,7 +1857,7 @@ export function WeeklyPlanSection({ project }: Props) {
                 onClick={() => handleSaveWithStatus("COMMITTED")}
                 disabled={isSaving || mrpCommitBlocked}
                 data-testid="comprometer-plan"
-                title={mrpCommitBlocked ? "El cálculo de abastecimiento está desactualizado. Recalculá antes de comprometer el plan." : undefined}
+                title={mrpCommitBlocked ? "Calculá o recalculá la cobertura MRP vigente antes de comprometer el plan." : undefined}
               >
                 {isSaving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                 Comprometer plan
@@ -1861,7 +1881,7 @@ export function WeeklyPlanSection({ project }: Props) {
                 disabled={isSaving || (compatStatus === "COMMITTED" && mrpCommitBlocked)}
                 title={
                   compatStatus === "COMMITTED" && mrpCommitBlocked
-                    ? "El cálculo de abastecimiento está desactualizado. Recalculá antes de comprometer el plan."
+                    ? "Calculá o recalculá la cobertura MRP vigente antes de comprometer el plan."
                     : undefined
                 }
                 className="h-7 px-2 rounded-md border border-[var(--border)] text-[11px] hover:bg-[var(--panel-2)]"

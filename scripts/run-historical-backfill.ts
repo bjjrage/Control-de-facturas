@@ -4,7 +4,7 @@
  * Implements:
  * - Official DNCP Search API enumeration (tipo_fecha=publicacion_llamado, date asc)
  * - Strict checkpoint & resume (data/historical-backfill-checkpoint.json)
- * - Explicit PRODUCTION SAFETY GUARD (--allow-production required for prod target)
+ * - Production is categorically blocked; only the isolated lab target is accepted
  * - Safe fail-closed transaction execution via ingestar_proceso_ocds_global
  * - Year / category / buyer / failure metrics accounting
  * - Robust 429 backoff & timeout isolation
@@ -15,6 +15,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { HistoricalDncpEnumerator, DateWindow } from "../lib/procurement/historical-enumerator";
 import { classifyProcess } from "../lib/procurement/construction-classifier";
+import { assertNonProductionTestTarget } from "../test-utils/external-test-target";
 
 export interface HistoricalCheckpoint {
   current_window_idx: number;
@@ -92,37 +93,36 @@ export function extractProjectRef(supabaseUrl: string): string | null {
   return match ? match[1] : null;
 }
 
-export function verifyProductionSafety(supabaseUrl: string, args: string[]) {
+export function verifyProductionSafety(
+  supabaseUrl: string,
+  _args: string[],
+  env: Readonly<Record<string, string | undefined>> = process.env,
+) {
   const projectRef = extractProjectRef(supabaseUrl);
-  const allowProdFlag = args.includes("--allow-production");
 
   if (!projectRef) {
     console.error(`\nFATAL: UNKNOWN_PROJECT_REF - Unable to parse project ref from URL: ${supabaseUrl}`);
     throw new Error("UNKNOWN_PROJECT_REF");
   }
 
-  if (projectRef === LAB_PROJECT_REF) {
-    console.log(`[SAFETY CHECK PASSED] Targeting authorized LAB database (${projectRef}).`);
-    return;
+  if (projectRef === PROD_PROJECT_REF) {
+    throw new Error("PRODUCTION_SAFETY_GUARD_BLOCKED: historical backfill cannot target production.");
   }
 
-  if (projectRef === PROD_PROJECT_REF) {
-    if (!allowProdFlag) {
-      console.error("\n================================================================================");
-      console.error("FATAL: PRODUCTION SAFETY GUARD TRIGGERED!");
-      console.error(`Target database is PRODUCTION (${PROD_PROJECT_REF}), but --allow-production flag was NOT provided.`);
-      console.error("Execution aborted to protect production data.");
-      console.error("================================================================================\n");
-      throw new Error("PRODUCTION_SAFETY_GUARD_BLOCKED");
-    }
-    console.log(`[SAFETY WARNING] Explicit --allow-production provided. Targeting PRODUCTION (${PROD_PROJECT_REF}).`);
+  if (projectRef === LAB_PROJECT_REF) {
+    assertNonProductionTestTarget({
+      url: supabaseUrl,
+      projectRef,
+      label: "Historical backfill database",
+      env,
+    });
+    console.log("[SAFETY CHECK PASSED] Targeting the configured isolated lab database.");
     return;
   }
 
   console.error(`\nFATAL: UNKNOWN_PROJECT_REF - Target database ref '${projectRef}' is neither authorized LAB nor PRODUCTION.`);
   throw new Error("UNKNOWN_PROJECT_REF");
 }
-
 async function fetchWithRetry(url: string, attempt = 0): Promise<any> {
   try {
     const res = await fetch(url, { headers: { Accept: "application/json" } });

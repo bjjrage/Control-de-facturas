@@ -19,6 +19,11 @@ export function formatNumber(value: number | null | undefined, decimals = 2) {
 
 export function formatDate(value: string | null | undefined) {
   if (!value) return "-";
+  // Una fecha pura ("2026-07-21") es un día de calendario, no un instante:
+  // new Date() la toma como medianoche UTC y en Paraguay (UTC−3) se muestra
+  // el día anterior. Se formatea tal cual, sin zona horaria.
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (dateOnly) return `${dateOnly[3]}/${dateOnly[2]}/${dateOnly[1]}`;
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "-";
   return new Intl.DateTimeFormat("es-PY", { day: "2-digit", month: "2-digit", year: "numeric" }).format(d);

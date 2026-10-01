@@ -34,6 +34,10 @@ import { AddBudgetItemForm } from "./add-budget-item-form";
 import { ImportBudgetDialog } from "./import-budget-dialog";
 import { DuplicateBudgetDialog } from "./duplicate-budget-dialog";
 import { GenerarPlanillaButton } from "./generar-planilla-button";
+import { ApplyApuTemplatesButton } from "./apply-apu-templates-button";
+import { ApuTemplatesDialog } from "./apu-templates-dialog";
+import { LaborRatesDialog } from "./labor-rates-dialog";
+import { CosteoSection } from "./costeo-section";
 import { AddExecutionEntryForm } from "./add-execution-entry-form";
 import { ProjectStatusSelect } from "./project-status-select";
 import { EditProjectDialog } from "./edit-project-dialog";
@@ -41,13 +45,14 @@ import { DeleteProjectButton } from "./delete-project-button";
 import { ProjectGantt } from "./project-gantt";
 import { ProjectReports } from "./reports";
 import { AddLaborEntryForm } from "./add-labor-entry-form";
+import { LaborPaymentsPanel } from "./labor-payments-panel";
 import { AddSubcontractorContractDialog } from "./add-subcontractor-contract-dialog";
 import { AddCertificadoDialog } from "./add-certificado-dialog";
+import { ImportCertificadoDialog } from "./import-certificado-dialog";
 import { CertificadosTable } from "./certificados-table";
 import { AvanceFisicoPanel } from "./avance-fisico-panel";
 import { PresupuestoTable } from "./presupuesto-table";
 import { BimSection } from "./bim-section";
-import { ComputoSection } from "./computo-section";
 import { EjecucionTable } from "./ejecucion-table";
 import { PersonalTable } from "./personal-table";
 import { ProyectoComprasTable } from "./proyecto-compras-table";
@@ -57,15 +62,19 @@ import { ProyectoPagosTable } from "./proyecto-pagos-table";
 import { ProyectoRfqsTable } from "./proyecto-rfqs-table";
 import { RfqDialog } from "@/app/(internal)/rfqs/rfq-dialog";
 import { ConsumoMaterialesSection, type ConsumoRow } from "./consumo-materiales-section";
-import { ProyectoStockSection, type StockProyectoRow } from "./proyecto-stock-section";
 import { InventarioObraSection, type StockObraRow, type ConsumoCanonicoRow } from "./inventario-obra-section";
 import { RecepcionesObraSection, type RecepcionRow } from "./recepciones-obra-section";
-import { PanolObraSection, type PanolSubmissionRow } from "./panol-obra-section";
+import {
+  PanolObraSection,
+  type PanolSubmissionRow,
+  type WarehousePortalLinkRow,
+} from "./panol-obra-section";
 import { OrderDialog } from "@/app/(internal)/orders/order-dialog";
 import { AddProjectProviderDialog } from "./add-project-provider-dialog";
 import { ExecutionLinkDialog } from "./execution-link-dialog";
 import { ProyectoProveedoresTable } from "./proyecto-proveedores-table";
 import { ClimateWorkdaysPanel } from "./climate-workdays-panel";
+import { WeeklyPlanSection } from "./weekly-plan-section";
 
 type Props = {
   project: Project;
@@ -105,13 +114,14 @@ type Props = {
   projectSchedulePlans: ProjectSchedulePlan[];
   schedulePlanMonths: Record<string, ProjectSchedulePlanMonth[]>;
   consumo: ConsumoRow[];
-  stockProyecto: StockProyectoRow[];
-  panoles: { id: string; nombre: string }[];
   stockObra: StockObraRow[];
   consumoCanonico: ConsumoCanonicoRow[];
   budgetItemLabelById: Record<string, string>;
   recepciones: RecepcionRow[];
   panolSubmissions: PanolSubmissionRow[];
+  warehouseLocations: { id: string; name: string }[];
+  warehousePortalLinks: WarehousePortalLinkRow[];
+  warehouseProducts: { id: string; nombre: string; unidad: string }[];
   isAdmin: boolean;
   duplicateSources: { id: string; code: string; name: string; itemCount: number }[];
   itemsSubtotal: number;
@@ -155,13 +165,14 @@ export function ProjectTabsClient({
   projectSchedulePlans,
   schedulePlanMonths,
   consumo,
-  stockProyecto,
-  panoles,
   stockObra,
   consumoCanonico,
   budgetItemLabelById: budgetItemLabelByIdRecord,
   recepciones,
   panolSubmissions,
+  warehouseLocations,
+  warehousePortalLinks,
+  warehouseProducts,
   isAdmin,
   duplicateSources,
   itemsSubtotal,
@@ -170,6 +181,7 @@ export function ProjectTabsClient({
   comprasPct,
 }: Props) {
   const [tab, setTab] = useState(initialTab);
+  const [certificateToOpen, setCertificateToOpen] = useState<string | null>(null);
 
   // Escucha el custom event que despacha el sidebar al hacer click en un tab
   useEffect(() => {
@@ -285,10 +297,12 @@ export function ProjectTabsClient({
           <div className="kpi-hover kpi-accent-labor rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
             <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">Costo M. de Obra</div>
             <div className="text-[16px] font-bold mt-1">{formatMoney(laborCostTotal, "PYG")}</div>
-            <div className="text-[11px] text-[var(--muted)] mt-0.5">{laborHoursTotal} h totales</div>
+            <div className="text-[11px] text-[var(--muted)] mt-0.5">Pagos y partes · {laborHoursTotal} h en partes</div>
           </div>
         ) : null}
       </div>
+
+      {tab === "costeo" ? <CosteoSection projectId={project.id} isCaterpillar={isCaterpillar} /> : null}
 
       {tab === "presupuesto" ? (
         <div className="space-y-3">
@@ -297,6 +311,9 @@ export function ProjectTabsClient({
             <ImportBudgetDialog projectId={project.id} />
             <DuplicateBudgetDialog targetProjectId={project.id} sources={duplicateSources} />
             <GenerarPlanillaButton projectId={project.id} />
+            <ApuTemplatesDialog />
+            <LaborRatesDialog />
+            <ApplyApuTemplatesButton projectId={project.id} />
           </div>
           <PresupuestoTable
             rows={items.map((i) => {
@@ -326,10 +343,7 @@ export function ProjectTabsClient({
       ) : null}
 
       {tab === "bim" ? (
-        <div className="space-y-6">
-          <BimSection projectId={project.id} />
-          <ComputoSection projectId={project.id} />
-        </div>
+        <BimSection projectId={project.id} />
       ) : null}
 
       {tab === "cronograma" ? (
@@ -343,6 +357,8 @@ export function ProjectTabsClient({
           />
         </div>
       ) : null}
+
+      {tab === "plan-semanal" ? <WeeklyPlanSection project={project} /> : null}
 
       {tab === "ejecucion" ? (
         <div className="space-y-3">
@@ -426,26 +442,49 @@ export function ProjectTabsClient({
         <ProyectoPagosTable rows={projectPaymentOrders} providerNameById={providerNameById} />
       ) : null}
 
-      {tab === "stock" ? (
-        <ProyectoStockSection rows={stockProyecto} panoles={panoles} />
-      ) : null}
-
       {tab === "inventario" ? (
         <InventarioObraSection stock={stockObra} consumo={consumoCanonico} budgetItemLabelById={budgetItemLabelById} />
       ) : null}
 
-      {tab === "recepciones" ? <RecepcionesObraSection rows={recepciones} /> : null}
-
-      {tab === "panol" ? <PanolObraSection submissions={panolSubmissions} /> : null}
+      {tab === "panol" || tab === "recepciones" ? (
+        <PanolObraSection
+          projectId={project.id}
+          locations={warehouseLocations}
+          portalLinks={warehousePortalLinks}
+          submissions={panolSubmissions}
+          products={warehouseProducts}
+          budgetItems={items.map((item) => ({
+            id: item.id,
+            code: item.code,
+            description: item.description,
+            unit: item.unit ?? "",
+          }))}
+          recepciones={recepciones}
+        />
+      ) : null}
 
       {tab === "informes" ? (
-        <ProjectReports project={project} budgetItems={items} execEntries={entries} orders={ocs} />
+        <ProjectReports
+          project={project}
+          budgetItems={items}
+          execEntries={entries}
+          orders={ocs}
+          certificates={projectCertificates}
+          schedulePlans={projectSchedulePlans}
+          planMonths={schedulePlanMonths}
+        />
       ) : null}
 
       {tab === "personal" && isCaterpillar ? (
-        <div className="space-y-3">
-          <AddLaborEntryForm projectId={project.id} />
-          <PersonalTable rows={laborRows} />
+        <div className="space-y-5">
+          <LaborPaymentsPanel projectId={project.id} budgetItems={items} />
+          <details className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3" open={laborRows.length > 0}>
+            <summary className="cursor-pointer text-[13px] font-semibold">Partes diarios por trabajador (opcional)</summary>
+            <div className="mt-3 space-y-3">
+              <AddLaborEntryForm projectId={project.id} budgetItems={items} />
+              <PersonalTable rows={laborRows} />
+            </div>
+          </details>
         </div>
       ) : null}
 
@@ -489,19 +528,23 @@ export function ProjectTabsClient({
               Certificados de ejecución para cobrar al comitente. El acumulado anterior sale de los
               certificados cerrados; el presente, del avance del período.
             </p>
-            <AddCertificadoDialog
-              projectId={project.id}
-              nextNumero={(projectCertificates[0]?.numero ?? 0) + 1}
-              suggestedStart={
-                projectCertificates[0]?.period_end
-                  ? new Date(new Date(projectCertificates[0].period_end).getTime() + 86400000)
-                      .toISOString()
-                      .slice(0, 10)
-                  : project.orden_inicio_date ?? project.start_date
-              }
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              <ImportCertificadoDialog projectId={project.id} onImported={setCertificateToOpen} />
+              <AddCertificadoDialog
+                projectId={project.id}
+                nextNumero={(projectCertificates[0]?.numero ?? 0) + 1}
+                suggestedStart={
+                  projectCertificates[0]?.period_end
+                    ? new Date(new Date(projectCertificates[0].period_end).getTime() + 86400000)
+                        .toISOString()
+                        .slice(0, 10)
+                    : project.orden_inicio_date ?? project.start_date
+                }
+              />
+            </div>
           </div>
           <CertificadosTable
+            key={certificateToOpen ?? "certificados"}
             project={project}
             certificates={projectCertificates}
             itemsByCert={certificateItemsByCert}
@@ -509,6 +552,7 @@ export function ProjectTabsClient({
             projectUnits={projectUnits}
             unitProgressByCert={unitProgressByCert}
             isAdmin={isAdmin}
+            focusCertificateId={certificateToOpen}
           />
         </div>
       ) : null}

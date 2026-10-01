@@ -2,10 +2,23 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const migration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260913230000_inventory_panol.sql"),
-  "utf8",
-);
+const readUtf8 = (relPath: string) =>
+  readFileSync(resolve(process.cwd(), relPath), "utf8").replace(/\r\n/g, "\n");
+
+const migration = readUtf8("supabase/migrations/20260913230000_inventory_panol.sql");
+const receiptMigration = readUtf8("supabase/migrations/20260924074417_canonical_purchase_receipt_flow.sql");
+const receiptActions = readUtf8("app/(internal)/orders/oc-recepcion-actions.ts");
+const receiptUi = readUtf8("app/(internal)/orders/[id]/recepcion-section.tsx");
+const manualMovementMigration = readUtf8("supabase/migrations/20260924212056_inventory_manual_movement_contract.sql");
+const manualMovementUi = readUtf8("app/(internal)/inventario/nuevo-movimiento-dialog.tsx");
+const inventoryActions = readUtf8("app/(internal)/inventory/actions.ts");
+const batch4HardeningMigration = readUtf8("supabase/migrations/20260924225450_batch4_lock_inventory_legacy_paths_and_confirm_state.sql");
+const warehouseEvidenceGateMigration = readUtf8("supabase/migrations/20260925002351_batch4_guard_incomplete_warehouse_evidence.sql");
+const manualWarehouseLineMigration = readUtf8("supabase/migrations/20260925011009_inventory_add_manual_warehouse_submission_line.sql");
+const stockActions = readUtf8("app/(internal)/stock/stock-actions.ts");
+const stockDetailPage = readUtf8("app/(internal)/stock/[id]/page.tsx");
+const approvalActions = readUtf8("app/(internal)/agent/approval-actions.ts");
+const globalInventorySection = readUtf8("app/(internal)/inventario/inventario-global-section.tsx");
 
 describe("0080 inventory migration contract", () => {
   it("fails closed when legacy cost evidence is unavailable", () => {
@@ -28,5 +41,249 @@ describe("0080 inventory migration contract", () => {
     expect(migration).toContain(
       "REVOKE ALL ON FUNCTION public.inventory_confirm_receipt(uuid, uuid, uuid, text, uuid) FROM anon;",
     );
+  });
+});
+
+describe("canonical purchase receipt migration contract", () => {
+  const legacyBackfill = receiptMigration.split(
+    "CREATE OR REPLACE FUNCTION public.inventory_create_receipt(",
+  )[0];
+  const createReceipt = receiptMigration
+    .split("CREATE OR REPLACE FUNCTION public.inventory_create_receipt(")[1]
+    ?.split("\n$$;")[0] ?? "";
+  const movementGuard = receiptMigration
+    .split("CREATE OR REPLACE FUNCTION public.enforce_confirmed_canonical_oc_receipt_movement()")[1]
+    ?.split("\n$$;")[0] ?? "";
+  const confirmReceipt = receiptMigration
+    .split("CREATE OR REPLACE FUNCTION public.inventory_confirm_receipt(")[1]
+    ?.split("\n$$;")[0] ?? "";
+
+  it("counts only tenant-matched confirmed receipt lines in the invoker view", () => {
+    const view = receiptMigration
+      .split("CREATE OR REPLACE VIEW public.oc_order_item_recibido")[1]
+      ?.split("CREATE OR REPLACE FUNCTION public.enforce_confirmed_canonical_oc_receipt_movement()")[0] ?? "";
+    expect(view).toContain("WITH (security_invoker = true) AS");
+    expect(view).toContain("AND r.empresa_id = ri.empresa_id");
+    expect(view).toContain("WHERE r.status = 'CONFIRMED'");
+  });
+
+  it("promotes only legacy receipts whose old stock movements reconcile exactly", () => {
+    expect(legacyBackfill).toContain("AND r.idempotency_key IS NULL");
+    expect(legacyBackfill).toContain("AND il.active");
+    expect(legacyBackfill).toContain("FROM public.oc_recepcion_items ri");
+    expect(legacyBackfill).toContain("oi.producto_id IS DISTINCT FROM ri.producto_id");
+    expect(legacyBackfill).toContain("trim(p.unidad) IS DISTINCT FROM trim(oi.unit)");
+    expect(legacyBackfill).toContain("FULL JOIN");
+    expect(legacyBackfill).toContain("sm.referencia_id = r.id");
+    expect(legacyBackfill).toContain("accumulated.received_quantity > oi.quantity");
+    expect(legacyBackfill).toContain("expected.expected_quantity IS DISTINCT FROM actual.actual_quantity");
+    expect(legacyBackfill).not.toContain("INSERT INTO public.inventory_movements");
+  });
+
+  it("removes direct authenticated writes and limits receipt deletion to safe drafts", () => {
+    expect(receiptMigration).toContain('DROP POLICY IF EXISTS "insert oc_recepciones"');
+    expect(receiptMigration).toContain('DROP POLICY IF EXISTS "insert oc_recepcion_items"');
+    expect(receiptMigration).toContain("AND status = 'DRAFT'");
+    expect(receiptMigration).toContain("public.is_internal_role(ARRAY['administracion','admin']::public.user_role[])");
+    expect(receiptMigration).toContain("OLD.idempotency_key IS NULL");
+    expect(receiptMigration).toContain("OLD.status IS DISTINCT FROM 'DRAFT'");
+  });
+
+  it("creates a receipt atomically with a locked idempotency key and payload comparison", () => {
+    expect(createReceipt).toContain("auth.role() IS DISTINCT FROM 'service_role'");
+    expect(createReceipt).toContain("pg_catalog.pg_advisory_xact_lock(");
+    expect(createReceipt).toContain("v_stored_items IS DISTINCT FROM v_requested_items");
+    expect(createReceipt).toContain("INSERT INTO public.oc_recepciones");
+    expect(createReceipt).toContain("INSERT INTO public.oc_recepcion_items");
+    expect(createReceipt).not.toContain("inventory_post_movement");
+    expect(createReceipt).toContain("RETURNS jsonb");
+    expect(createReceipt).toContain("'created', false");
+    expect(createReceipt).toContain("'created', true");
+    expect(createReceipt).toContain("oi.producto_id IS DISTINCT FROM nullif(entry.item->>'producto_id', '')::uuid");
+  });
+
+  it("rejects OC movements unless their confirmed source line matches exactly", () => {
+    expect(receiptMigration).toContain("BEFORE INSERT OR UPDATE ON public.inventory_movements");
+    expect(movementGuard).toContain("v_receipt.status IS DISTINCT FROM 'CONFIRMED'");
+    expect(movementGuard).toContain("v_receipt.idempotency_key IS NULL");
+    expect(movementGuard).toContain("v_receipt.producto_id IS DISTINCT FROM NEW.producto_id");
+    expect(movementGuard).toContain("v_receipt.cantidad_recibida IS DISTINCT FROM NEW.quantity");
+    expect(movementGuard).toContain("v_receipt.delivery_location_id IS DISTINCT FROM NEW.to_location_id");
+  });
+
+  it("keeps confirmed receipt lines immutable except for their exact movement link", () => {
+    expect(receiptMigration).toContain("BEFORE INSERT OR UPDATE OR DELETE ON public.oc_recepcion_items");
+    expect(receiptMigration).toContain("OLD.inventory_movement_id IS NULL");
+    expect(receiptMigration).toContain("NEW.inventory_movement_id IS NOT NULL");
+    expect(receiptMigration).toContain("m.source_line_id = NEW.id");
+    expect(receiptMigration).toContain("m.quantity = NEW.cantidad_recibida");
+    expect(receiptMigration).toContain("m.status = 'CONFIRMED'");
+  });
+
+  it("confirms inside the same transaction before posting and skips non-stock lines", () => {
+    expect(confirmReceipt).toContain("auth.role() IS DISTINCT FROM 'service_role'");
+    expect(confirmReceipt).toContain("v_receipt.status = 'DRAFT' AND v_receipt.idempotency_key IS NULL");
+    expect(confirmReceipt).toContain("nullif(trim(p_idempotency_key), '') IS DISTINCT FROM v_receipt.idempotency_key");
+    const stateChange = confirmReceipt.indexOf("UPDATE public.oc_recepciones");
+    const movementPost = confirmReceipt.indexOf("public.inventory_post_movement(");
+    expect(stateChange).toBeGreaterThanOrEqual(0);
+    expect(movementPost).toBeGreaterThan(stateChange);
+    expect(confirmReceipt).toContain("IF v_item.producto_id IS NULL THEN\n      CONTINUE;");
+    expect(confirmReceipt).toContain("oi.producto_id IS DISTINCT FROM ri.producto_id");
+    expect(confirmReceipt).toContain("ARRAY['comercial','administracion','admin']::public.user_role[]");
+  });
+
+  it("serializes receipt confirmation against OC quantity edits and preserves received quantities", () => {
+    const itemLock = confirmReceipt.indexOf("FOR UPDATE OF oi;");
+    const overReceiptLoop = confirmReceipt.indexOf("FOR v_item IN");
+    expect(itemLock).toBeGreaterThanOrEqual(0);
+    expect(overReceiptLoop).toBeGreaterThan(itemLock);
+    expect(receiptMigration).toContain("CREATE TRIGGER trg_prevent_order_quantity_below_confirmed_receipts");
+    expect(receiptMigration).toContain("NEW.quantity < v_received_quantity");
+    expect(receiptMigration).toContain("r.status = 'CONFIRMED'");
+  });
+
+  it("allows a commercial user to discard only their own canonical draft", () => {
+    expect(receiptMigration).toContain("created_by = auth.uid()");
+    expect(receiptMigration).toContain("idempotency_key IS NOT NULL");
+    expect(receiptActions).toContain('requireProfile(["comercial", "administracion", "admin"])');
+    expect(receiptActions).toContain("receipt.created_by !== profile.id");
+    expect(receiptMigration).toContain("OLD.status IS DISTINCT FROM 'DRAFT'");
+    expect(receiptActions).toContain('.select("id")');
+    expect(receiptActions).toContain("if (!deletedReceipt)");
+  });
+
+  it("does not trap users after a rejected create and filters receipt products by OC unit", () => {
+    expect(receiptUi).toContain("if (!res.receiptId)");
+    expect(receiptUi).toContain("idempotencyKey.current = null");
+    expect(receiptUi).toContain("p.unidad.trim() === it.unit.trim()");
+  });
+
+  it("keeps receipt writes behind the authenticated role-checked canonical RPCs", () => {
+    expect(receiptActions).not.toContain("createAdminClient");
+    expect(receiptActions).toContain("createInventoryReceipt(supabase");
+    expect(receiptActions).toContain("confirmInventoryReceipt(supabase");
+    expect(createReceipt).toContain("ARRAY['comercial','administracion','admin']::public.user_role[]");
+  });
+});
+
+describe("Batch 4 canonical inventory hardening", () => {
+  it("keeps warehouse confirmation behind the canonical authenticated actor and exact consumption links", () => {
+    expect(batch4HardeningMigration).toContain("REVOKE UPDATE ON public.warehouse_submissions FROM PUBLIC, anon, authenticated");
+    expect(batch4HardeningMigration).toContain("processed_at, confirmed_at, created_at, updated_at\n) ON public.warehouse_submissions FROM PUBLIC, anon, authenticated");
+    expect(batch4HardeningMigration).toContain("p_confirmed_by IS DISTINCT FROM auth.uid()");
+    expect(batch4HardeningMigration).toContain("m.source_type IS DISTINCT FROM 'WAREHOUSE_SUBMISSION'");
+    expect(batch4HardeningMigration).toContain("m.source_line_id IS DISTINCT FROM l.id");
+    expect(batch4HardeningMigration).toContain("m.project_id IS DISTINCT FROM NEW.project_id");
+    expect(batch4HardeningMigration).toContain("m.from_location_id IS DISTINCT FROM NEW.location_id");
+    expect(batch4HardeningMigration).toContain("m.from_location_id IS DISTINCT FROM v_submission.location_id");
+    expect(batch4HardeningMigration).toContain("nullif(btrim(v_submission.processing_error), '') IS NOT NULL");
+    expect(batch4HardeningMigration).toContain("btrim(v_line.raw_description) ~* '^fila [0-9]+: descripción pendiente$'");
+    expect(batch4HardeningMigration).toContain("m.budget_item_id IS DISTINCT FROM l.budget_item_id");
+    expect(batch4HardeningMigration).toContain("l.state = 'REJECTED' AND l.inventory_movement_id IS NOT NULL");
+    expect(batch4HardeningMigration).toContain("trg_prevent_confirmed_warehouse_submission_line_mutation");
+    expect(batch4HardeningMigration).toContain("WHERE id = v_submission_id\n  FOR UPDATE;");
+    expect(batch4HardeningMigration).toContain("app.warehouse_submission_confirmation");
+    expect(batch4HardeningMigration).toContain("NEW.source_id::text");
+    expect(batch4HardeningMigration).toContain("NEW.source_line_id IS NULL");
+    expect(batch4HardeningMigration).toContain("NEW.from_location_id IS DISTINCT FROM v_submission.location_id");
+    expect(batch4HardeningMigration).toContain("Una rendición confirmada es inmutable");
+  });
+
+  it("preserves rejected partial lines but refuses proposal or empty confirmations", () => {
+    expect(batch4HardeningMigration).toContain("AND l.state = 'CONFIRMED'");
+    expect(batch4HardeningMigration).toContain("l.state = 'PROPOSED'");
+    expect(batch4HardeningMigration).toContain("l.state = 'REJECTED' AND l.inventory_movement_id IS NOT NULL");
+    expect(batch4HardeningMigration).toContain("v_submission.status = 'CONFIRMED'");
+  });
+
+  it("blocks canonical confirmation while warehouse evidence is missing, processing, failed or unresolved", () => {
+    expect(warehouseEvidenceGateMigration).toContain("BEFORE UPDATE OF status ON public.warehouse_submissions");
+    expect(warehouseEvidenceGateMigration).toContain("e.extraction_status IN ('NOT_PROCESSED', 'PROCESSING', 'FAILED')");
+    expect(warehouseEvidenceGateMigration).toContain("e.extraction_error IS NOT NULL");
+  });
+
+  it("adds photo-only manual lines through a tenant-scoped, locked RPC and leaves them proposed", () => {
+    expect(manualWarehouseLineMigration).toContain("public.current_empresa_id() IS DISTINCT FROM p_empresa_id");
+    expect(manualWarehouseLineMigration).toContain("public.is_internal_role(ARRAY['administracion','admin']::public.user_role[])");
+    expect(manualWarehouseLineMigration).toContain("FOR UPDATE;");
+    expect(manualWarehouseLineMigration).toContain("v_submission.status NOT IN ('READY', 'NEEDS_REVIEW')");
+    expect(manualWarehouseLineMigration).toContain("'PROPOSED'");
+    expect(manualWarehouseLineMigration).toContain("source_evidence_id");
+    expect(manualWarehouseLineMigration).toMatch(/REVOKE ALL ON FUNCTION public\.inventory_add_manual_warehouse_submission_line\(uuid, uuid\)\s+FROM PUBLIC, anon/);
+    expect(manualWarehouseLineMigration).toMatch(/GRANT EXECUTE ON FUNCTION public\.inventory_add_manual_warehouse_submission_line\(uuid, uuid\)\s+TO authenticated/);
+    expect(inventoryActions).toContain('rpc("inventory_add_manual_warehouse_submission_line"');
+    expect(manualWarehouseLineMigration).toMatch(/REVOKE UPDATE, DELETE ON public\.warehouse_submission_evidence\s+FROM PUBLIC, anon, authenticated/);
+    expect(manualWarehouseLineMigration).toContain("GRANT UPDATE ON public.warehouse_submission_evidence TO service_role");
+    expect(manualWarehouseLineMigration).toContain("trg_00_validate_warehouse_submission_evidence_tenant");
+    expect(inventoryActions).not.toMatch(/supabase\s*\.from\("warehouse_submission_evidence"\)\s*\.update/);
+  });
+
+  it("removes legacy stock writes and prevents direct mutation of balance and cost projections", () => {
+    expect(batch4HardeningMigration).toContain("REVOKE INSERT, UPDATE ON public.productos FROM PUBLIC, anon, authenticated");
+    expect(batch4HardeningMigration).toContain("REVOKE INSERT, UPDATE, DELETE ON public.stock_movimientos");
+    expect(batch4HardeningMigration).toContain("REVOKE ALL ON FUNCTION public.registrar_stock_movimiento(");
+    expect(batch4HardeningMigration).not.toMatch(/GRANT (?:INSERT|UPDATE) \([^)]*\b(?:stock_actual|costo_promedio)\b/);
+    expect(stockActions).not.toContain('.rpc("registrar_stock_movimiento"');
+    expect(stockActions).not.toContain("stock_actual: 0");
+    expect(stockDetailPage).not.toContain("MovimientoDialog");
+    expect(stockDetailPage).toContain('href="/inventario"');
+  });
+
+  it("allows only tool-authorized roles to decide approvals and supports administration inventory approvals", () => {
+    const executeAction = approvalActions.slice(
+      approvalActions.indexOf("export async function executeApprovalAction("),
+    );
+    expect(approvalActions).toContain('requireProfile(["comercial", "administracion", "admin"])');
+    expect(approvalActions).toContain("approvalTool.requiredRoles.includes(profile.role)");
+    expect(executeAction).toContain('requireProfile(["comercial", "administracion", "admin"])');
+  });
+
+  it("renders the canonical deposit terminology in the global inventory list", () => {
+    expect(globalInventorySection).toContain("displayLocationName");
+    expect(globalInventorySection).toContain("displayLocationName(r.location_name)");
+  });
+});
+
+describe("canonical manual inventory movement contract", () => {
+  it("requires a reason for all adjustment inserts and enforces stable actor-bound manual idempotency", () => {
+    expect(manualMovementMigration).toContain("NEW.movement_type = 'ADJUSTMENT'");
+    expect(manualMovementMigration).toContain("NEW.metadata->>'reason'");
+    expect(manualMovementMigration).toContain("NEW.source_id IS DISTINCT FROM NEW.idempotency_key::uuid");
+    expect(manualMovementMigration).toContain("NEW.created_by IS DISTINCT FROM v_actor");
+    expect(manualMovementMigration).toContain("NEW.source_type <> 'MANUAL'");
+    expect(manualMovementMigration).toContain("BEFORE INSERT ON public.inventory_movements");
+    expect(manualMovementMigration).toContain("BEFORE UPDATE OF cost_currency, exchange_rate_to_company ON public.inventory_movements");
+    expect(manualMovementMigration).toContain("NEW.cost_currency <> 'PYG'");
+    expect(manualMovementMigration).toContain("FROM PUBLIC, anon, authenticated");
+  });
+
+  it("keeps manual movement writes role-gated and resolves tenant, unit and negative adjustment cost server-side", () => {
+    expect(inventoryActions).toContain('requirePlan("pro", ["administracion", "admin"])');
+    expect(inventoryActions).toContain('.eq("empresa_id", profile.empresa_id)');
+    expect(inventoryActions).toContain("buildManualInventoryMovement(input");
+    expect(inventoryActions).toContain("negativeAdjustmentUnitCost");
+    expect(inventoryActions).toContain('revalidatePath("/inventario")');
+  });
+
+  it("keeps the low-level poster private and gates all authenticated ledger writes", () => {
+    expect(manualMovementMigration).toContain("FROM PUBLIC, anon, authenticated");
+    expect(manualMovementMigration).toContain("GRANT EXECUTE ON FUNCTION public.inventory_post_manual_movement");
+    expect(manualMovementMigration).toContain("public.current_empresa_id() IS DISTINCT FROM p_empresa_id");
+    expect(manualMovementMigration).toContain("public.is_internal_role(ARRAY['administracion','admin']::public.user_role[])");
+    expect(manualMovementMigration).toContain("v_plan NOT IN ('pro', 'caterpillar')");
+    expect(manualMovementMigration).toContain("REVOKE ALL ON FUNCTION public.inventory_post_movement(");
+    expect(manualMovementMigration).toContain("CREATE TRIGGER trg_enforce_inventory_company_pro_plan");
+    expect(manualMovementMigration).toContain("v_expected_project := CASE");
+    expect(manualMovementMigration).toContain("v_posted.budget_item_id IS NOT NULL");
+    expect(manualMovementMigration).toContain("v_posted.metadata IS DISTINCT FROM coalesce(p_metadata, '{}'::jsonb)");
+    expect(manualMovementMigration).toContain("v_posted.exchange_rate_to_company IS DISTINCT FROM v_effective_exchange_rate");
+    expect(manualMovementMigration).toContain("p.empresa_id = p_empresa_id AND p.activo");
+    expect(manualMovementUi).toContain("localStorage.setItem(attemptStorageKey");
+    expect(manualMovementUi).toContain("parsePersistedManualInventoryAttempt(JSON.parse(storedAttempt))");
+    expect(manualMovementUi.indexOf("localStorage.setItem(attemptStorageKey")).toBeLessThan(
+      manualMovementUi.indexOf("postCanonicalInventoryMovement(request)"),
+    );
+    expect(inventoryActions).toContain("if (existingError) return fail(existingError.message, true)");
   });
 });

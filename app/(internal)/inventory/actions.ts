@@ -5,16 +5,30 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlan } from "@/lib/auth";
+import { getAppOrigin } from "@/lib/app-origin";
+import { logAudit } from "@/lib/audit";
 import {
+  createInventoryReceipt as createInventoryReceiptAtomic,
   confirmInventoryReceipt,
   confirmWarehouseSubmission,
-  postInventoryMovement,
+  ensureProjectInventoryLocation,
+  postManualInventoryMovement,
   saveWarehouseSubmissionLinesAtomic,
 } from "@/lib/inventory/service";
 import { generateWarehousePortalToken, sha256Bytes, warehousePortalUrl } from "@/lib/inventory/portal";
+import { generateReceiptPortalToken, receiptPortalUrl } from "@/lib/inventory/receipt-portal";
 import { parseInventorySpreadsheet, photoEvidenceProposal } from "@/lib/inventory/evidence";
 import { sanitizeFileName } from "@/lib/storage";
 import type { InventoryLocationType, InventoryMovementInput, WarehouseSubmissionLineState } from "@/lib/inventory/types";
+import {
+  buildManualInventoryMovement,
+  isManualInventoryMovementType,
+  resolveManualMovementProject,
+  validateManualInventoryMovementRequest,
+  type ManualInventoryMovementRequest,
+} from "@/lib/inventory/manual";
+
+type ManualMovementActionResult = { error: string | null; id: string | null; retryable: boolean };
 
 function clean(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -31,7 +45,7 @@ export async function createCanonicalReceipt(args: {
   orderId: string;
   fecha: string;
   recibidoPor: string;
-  deliveryLocationId: string;
+  deliveryLocationId?: string | null;
   remisionNumber?: string | null;
   idempotencyKey: string;
   items: CanonicalReceiptItemInput[];
@@ -39,71 +53,32 @@ export async function createCanonicalReceipt(args: {
 }) {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
-  if (!args.items.length || !args.recibidoPor.trim() || !args.idempotencyKey.trim()) {
+  if (
+    !args.items.length
+    || !args.recibidoPor.trim()
+    || !args.idempotencyKey.trim()
+    || new Set(args.items.map((item) => item.orderItemId)).size !== args.items.length
+    || args.items.some((item) => !item.orderItemId || !Number.isFinite(item.quantity) || item.quantity <= 0)
+  ) {
     return { error: "La recepción necesita responsable, idempotencia y al menos una línea.", id: null };
   }
-  const { data: order } = await supabase
-    .from("authorized_orders")
-    .select("id")
-    .eq("id", args.orderId)
-    .eq("empresa_id", profile.empresa_id)
-    .maybeSingle();
-  if (!order) return { error: "OC no encontrada.", id: null };
-  const { data: orderItems } = await supabase
-    .from("authorized_order_items")
-    .select("id, unit")
-    .eq("order_id", args.orderId)
-    .eq("empresa_id", profile.empresa_id);
-  const validOrderItems = new Map((orderItems ?? []).map((item) => [item.id, item.unit as string]));
-  const requestedOrderItemIds = args.items.map((item) => item.orderItemId);
-  if (
-    new Set(requestedOrderItemIds).size !== requestedOrderItemIds.length
-    || args.items.some((item) => !validOrderItems.has(item.orderItemId) || !Number.isFinite(item.quantity) || item.quantity <= 0)
-  ) {
-    return { error: "Una línea de recepción es inválida para la OC.", id: null };
-  }
-  const { data: receipt, error } = await supabase
-    .from("oc_recepciones")
-    .insert({
-      empresa_id: profile.empresa_id,
-      order_id: args.orderId,
-      fecha: args.fecha,
-      recibido_por: args.recibidoPor.trim(),
-      notas: clean(args.notes),
-      delivery_location_id: args.deliveryLocationId,
-      remision_number: clean(args.remisionNumber),
-      idempotency_key: args.idempotencyKey.trim(),
-      status: "DRAFT",
-      created_by: profile.id,
-    })
-    .select("id")
-    .single();
-  if (error || !receipt) {
-    const { data: existing } = await supabase
-      .from("oc_recepciones")
-      .select("id, order_id")
-      .eq("empresa_id", profile.empresa_id)
-      .eq("idempotency_key", args.idempotencyKey.trim())
-      .maybeSingle();
-    if (existing?.order_id === args.orderId) return { error: null, id: existing.id as string };
-    return { error: error?.message ?? "No se pudo crear la recepción.", id: null };
-  }
-  const { error: itemError } = await supabase.from("oc_recepcion_items").insert(
-    args.items.map((item) => ({
-      empresa_id: profile.empresa_id,
-      recepcion_id: receipt.id,
-      order_item_id: item.orderItemId,
-      producto_id: item.productoId ?? null,
-      cantidad_recibida: item.quantity,
-      notas: clean(item.notes),
-    }))
-  );
-  if (itemError) {
-    await supabase.from("oc_recepciones").delete().eq("id", receipt.id).eq("empresa_id", profile.empresa_id);
-    return { error: itemError.message, id: null };
+  const result = await createInventoryReceiptAtomic(supabase, {
+    empresaId: profile.empresa_id,
+    orderId: args.orderId,
+    fecha: args.fecha,
+    recibidoPor: args.recibidoPor.trim(),
+    deliveryLocationId: args.deliveryLocationId,
+    remisionNumber: clean(args.remisionNumber),
+    idempotencyKey: args.idempotencyKey.trim(),
+    createdBy: profile.id,
+    notes: clean(args.notes),
+    items: args.items,
+  });
+  if (result.error || !result.data) {
+    return { error: result.error ?? "No se pudo crear la recepción.", id: null };
   }
   revalidatePath(`/orders/${args.orderId}`);
-  return { error: null, id: receipt.id as string };
+  return { error: null, id: result.data };
 }
 
 export async function uploadReceiptEvidence(receiptId: string, files: File[]) {
@@ -157,6 +132,65 @@ export async function uploadReceiptEvidence(receiptId: string, files: File[]) {
   return { error: null, uploaded };
 }
 
+export async function createReceiptPortalLink(orderId: string) {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  if (!profile.empresa_id || !/^[0-9a-f-]{36}$/i.test(orderId)) {
+    return { error: "La orden no es válida para esta empresa.", url: null };
+  }
+  const supabase = await createClient();
+  const { data: order } = await supabase
+    .from("authorized_orders")
+    .select("id, project_id")
+    .eq("id", orderId)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (!order?.project_id) return { error: "La OC debe pertenecer a un proyecto de esta empresa.", url: null };
+
+  const { data: orderItems, error: itemsError } = await supabase
+    .from("authorized_order_items")
+    .select("id")
+    .eq("order_id", order.id)
+    .eq("empresa_id", profile.empresa_id)
+    .limit(1);
+  if (itemsError || !orderItems?.length) {
+    return { error: "La OC necesita líneas canónicas antes de habilitar recepción externa.", url: null };
+  }
+
+  const { data: location } = await supabase
+    .from("inventory_locations")
+    .select("id")
+    .eq("empresa_id", profile.empresa_id)
+    .eq("project_id", order.project_id)
+    .eq("location_type", "PROJECT")
+    .eq("active", true)
+    .order("is_primary", { ascending: false })
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (!location) return { error: "La obra necesita una ubicación canónica activa para recibir materiales.", url: null };
+
+  const generated = generateReceiptPortalToken();
+  const admin = createAdminClient();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { error } = await admin.rpc("create_receipt_portal_link", {
+    p_empresa_id: profile.empresa_id,
+    p_order_id: order.id,
+    p_location_id: location.id,
+    p_token_hash: generated.tokenHash,
+    p_token_hint: generated.tokenHint,
+    p_expires_at: expiresAt,
+    p_created_by: profile.id,
+  });
+  if (error) return { error: "No se pudo crear el enlace. Verificá cantidades pendientes e intentá nuevamente.", url: null };
+  await logAudit(supabase, {
+    action: "receipt_portal_link_created",
+    authorizedOrderId: order.id,
+    detail: { expires_at: expiresAt, location_id: location.id, token_hint: generated.tokenHint },
+  });
+  revalidatePath(`/orders/${order.id}`);
+  return { error: null, url: receiptPortalUrl(generated.token, await getAppOrigin()) };
+}
+
 export async function createInventoryLocation(args: {
   name: string;
   locationType: InventoryLocationType;
@@ -167,10 +201,25 @@ export async function createInventoryLocation(args: {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
   const name = clean(args.name);
-  if (!name) return { error: "El nombre de la ubicación es obligatorio.", id: null };
+  if (!["CENTRAL", "PROJECT", "AUXILIARY"].includes(args.locationType)) {
+    return { error: "El tipo de ubicación no es válido.", id: null };
+  }
   if (args.locationType === "PROJECT" && !args.projectId) {
     return { error: "Una ubicación de obra necesita proyecto.", id: null };
   }
+  if (args.locationType === "PROJECT") {
+    const result = await ensureProjectInventoryLocation(supabase, {
+      empresaId: profile.empresa_id,
+      projectId: args.projectId!,
+      createdBy: profile.id,
+    });
+    if (result.error || !result.data) return { error: result.error ?? "No se pudo crear la ubicación de obra.", id: null };
+    revalidatePath("/inventario");
+    revalidatePath("/inventory");
+    revalidatePath(`/projects/${args.projectId}`);
+    return { error: null, id: result.data.id };
+  }
+  if (!name || name.length > 240) return { error: "El nombre de la ubicación es obligatorio y no puede superar 240 caracteres.", id: null };
   if (args.projectId) {
     const { data: project } = await supabase
       .from("projects")
@@ -179,6 +228,16 @@ export async function createInventoryLocation(args: {
       .eq("empresa_id", profile.empresa_id)
       .maybeSingle();
     if (!project) return { error: "Proyecto inválido para esta empresa.", id: null };
+  }
+  if (args.parentLocationId) {
+    const { data: parent } = await supabase
+      .from("inventory_locations")
+      .select("id")
+      .eq("id", args.parentLocationId)
+      .eq("empresa_id", profile.empresa_id)
+      .eq("active", true)
+      .maybeSingle();
+    if (!parent) return { error: "La ubicación superior no está activa o no pertenece a esta empresa.", id: null };
   }
   const { data, error } = await supabase
     .from("inventory_locations")
@@ -194,14 +253,89 @@ export async function createInventoryLocation(args: {
     .select("id")
     .single();
   if (error || !data) return { error: error?.message ?? "No se pudo crear la ubicación.", id: null };
+  revalidatePath("/inventario");
   revalidatePath("/inventory");
   revalidatePath("/stock");
   return { error: null, id: data.id as string };
 }
 
+export async function updateInventoryLocationName(locationId: string, rawName: string) {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const name = clean(rawName);
+  if (!/^[0-9a-f-]{36}$/i.test(locationId) || !name || name.length > 240) {
+    return { error: "Revisá el nombre de la ubicación." };
+  }
+  const supabase = await createClient();
+  const { data: location } = await supabase
+    .from("inventory_locations")
+    .select("id, project_id")
+    .eq("id", locationId)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (!location) return { error: "La ubicación no existe o no pertenece a esta empresa." };
+  const { error } = await supabase
+    .from("inventory_locations")
+    .update({ name, updated_at: new Date().toISOString() })
+    .eq("id", locationId)
+    .eq("empresa_id", profile.empresa_id);
+  if (error) return { error: error.message };
+  revalidatePath("/inventario");
+  revalidatePath("/inventory");
+  if (location.project_id) revalidatePath(`/projects/${location.project_id}`);
+  return { error: null };
+}
+
+export async function setInventoryLocationActive(locationId: string, active: boolean) {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  if (!/^[0-9a-f-]{36}$/i.test(locationId) || typeof active !== "boolean") {
+    return { error: "La ubicación o el estado no son válidos." };
+  }
+  const supabase = await createClient();
+  const { data: location } = await supabase
+    .from("inventory_locations")
+    .select("id, project_id, active")
+    .eq("id", locationId)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (!location) return { error: "La ubicación no existe o no pertenece a esta empresa." };
+  if (location.active === active) return { error: null };
+
+  if (!active) {
+    const [{ data: positiveBalance, error: balanceError }, { data: activePortal, error: portalError }] = await Promise.all([
+      supabase.from("inventory_balances").select("id").eq("empresa_id", profile.empresa_id).eq("location_id", locationId).gt("quantity", 0).limit(1).maybeSingle(),
+      supabase.from("warehouse_portal_links").select("id").eq("empresa_id", profile.empresa_id).eq("location_id", locationId).eq("active", true).limit(1).maybeSingle(),
+    ]);
+    if (balanceError || portalError) return { error: "No se pudo verificar saldo o accesos activos; la ubicación sigue activa." };
+    if (positiveBalance) return { error: "Trasladá o regularizá el stock antes de desactivar esta ubicación." };
+    if (activePortal) return { error: "Revocá primero el QR del Depositero antes de desactivar esta ubicación." };
+  }
+
+  const { error } = await supabase
+    .from("inventory_locations")
+    .update({ active, ...(!active ? { is_primary: false } : {}), updated_at: new Date().toISOString() })
+    .eq("id", locationId)
+    .eq("empresa_id", profile.empresa_id);
+  if (error) return { error: error.message };
+  revalidatePath("/inventario");
+  revalidatePath("/inventory");
+  if (location.project_id) revalidatePath(`/projects/${location.project_id}`);
+  return { error: null };
+}
+
 export async function createWarehousePortalLink(locationId: string, expiresAt?: string | null) {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
+  if (typeof locationId !== "string" || !/^[0-9a-f-]{36}$/i.test(locationId)) {
+    return { error: "La ubicación de depósito no es válida.", token: null, url: null };
+  }
+  let normalizedExpiry: string | null = null;
+  if (expiresAt != null && expiresAt !== "") {
+    const parsedExpiry = new Date(expiresAt);
+    if (!Number.isFinite(parsedExpiry.getTime()) || parsedExpiry.getTime() <= Date.now()) {
+      return { error: "La fecha de expiración debe ser futura.", token: null, url: null };
+    }
+    normalizedExpiry = parsedExpiry.toISOString();
+  }
   const { data: location } = await supabase
     .from("inventory_locations")
     .select("id, location_type, project_id")
@@ -218,24 +352,174 @@ export async function createWarehousePortalLink(locationId: string, expiresAt?: 
     location_id: locationId,
     token_hash: generated.tokenHash,
     token_hint: generated.tokenHint,
-    expires_at: expiresAt ?? null,
+    expires_at: normalizedExpiry,
     created_by: profile.id,
   });
   if (error) return { error: error.message, token: null, url: null };
-  return { error: null, token: generated.token, url: warehousePortalUrl(generated.token) };
+  revalidatePath(`/projects/${location.project_id}`);
+  return { error: null, token: generated.token, url: warehousePortalUrl(generated.token, await getAppOrigin()) };
 }
 
-export async function postCanonicalInventoryMovement(input: Omit<InventoryMovementInput, "empresaId" | "createdBy">) {
+export async function revokeWarehousePortalLink(linkId: string) {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
-  const result = await postInventoryMovement(supabase, {
-    ...input,
-    empresaId: profile.empresa_id,
-    createdBy: profile.id,
-  });
-  if (result.error) return { error: result.error, id: null };
+  if (typeof linkId !== "string" || !/^[0-9a-f-]{36}$/i.test(linkId)) {
+    return { error: "El enlace de depósito no es válido." };
+  }
+  const { data: link } = await supabase
+    .from("warehouse_portal_links")
+    .select("id, location_id, active")
+    .eq("id", linkId)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (!link) return { error: "El enlace no existe o no pertenece a esta empresa." };
+  if (!link.active) return { error: null };
+
+  const { data: location } = await supabase
+    .from("inventory_locations")
+    .select("project_id, location_type")
+    .eq("id", link.location_id)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (!location || location.location_type !== "PROJECT" || !location.project_id) {
+    return { error: "No se pudo verificar el depósito de obra del enlace." };
+  }
+
+  const { error } = await supabase
+    .from("warehouse_portal_links")
+    .update({ active: false })
+    .eq("id", linkId)
+    .eq("empresa_id", profile.empresa_id)
+    .eq("active", true);
+  if (error) return { error: error.message };
+  revalidatePath(`/projects/${location.project_id}`);
+  return { error: null };
+}
+
+export async function postCanonicalInventoryMovement(input: ManualInventoryMovementRequest): Promise<ManualMovementActionResult> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  const supabase = await createClient();
+  const fail = (error: string, retryable = false): ManualMovementActionResult => ({ error, id: null, retryable });
+
+  try {
+    validateManualInventoryMovementRequest(input);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "Los datos del movimiento no son válidos.");
+  }
+  if (!isManualInventoryMovementType(input.movementType)) {
+    return fail("El tipo de movimiento manual no es válido.");
+  }
+
+  const reason = input.reason?.trim() ?? "";
+  const { data: existing, error: existingError } = await supabase
+    .from("inventory_movements")
+    .select("id, producto_id, quantity, movement_type, from_location_id, to_location_id, source_type, source_id, source_line_id, cost_currency, unit_cost, exchange_rate_to_company, metadata")
+    .eq("empresa_id", profile.empresa_id)
+    .eq("idempotency_key", input.idempotencyKey)
+    .maybeSingle();
+  // A failed lookup cannot prove that an earlier request with this key did not commit.
+  if (existingError) return fail(existingError.message, true);
+  if (existing) {
+    const storedReason = (existing.metadata as { reason?: unknown } | null)?.reason;
+    const sameRequest =
+      existing.source_type === "MANUAL"
+      && existing.source_id === input.idempotencyKey
+      && existing.source_line_id == null
+      && existing.producto_id === input.productoId
+      && Number(existing.quantity) === input.quantity
+      && existing.movement_type === input.movementType
+      && existing.from_location_id === (input.fromLocationId ?? null)
+      && existing.to_location_id === (input.toLocationId ?? null)
+      && (typeof storedReason === "string" ? storedReason : "") === reason
+      && ((existing.metadata as { effective_date?: unknown } | null)?.effective_date ?? null) === (input.initialStockDate ?? null)
+      && ((existing.metadata as { reason_type?: unknown } | null)?.reason_type ?? null) === (input.initialStockDate ? "INITIAL_STOCK" : null)
+      && (input.movementType !== "ADJUSTMENT" || existing.cost_currency === input.costCurrency)
+      && (input.movementType !== "ADJUSTMENT" || input.quantity < 0 || Number(existing.unit_cost) === input.unitCost)
+      && (input.movementType !== "ADJUSTMENT" || input.quantity < 0
+        || Number(existing.exchange_rate_to_company ?? 0) === Number(
+          input.costCurrency === "PYG" ? 1 : input.exchangeRateToCompany ?? 0,
+        ));
+    return sameRequest
+      ? { error: null, id: existing.id as string, retryable: false }
+      : fail("La clave de idempotencia ya corresponde a otro movimiento.");
+  }
+
+  const { data: product } = await supabase
+    .from("productos")
+    .select("id, unidad")
+    .eq("id", input.productoId)
+    .eq("empresa_id", profile.empresa_id)
+    .eq("activo", true)
+    .maybeSingle();
+  if (!product || typeof product.unidad !== "string" || !product.unidad.trim()) {
+    return fail("El producto no está activo, no pertenece a esta empresa o no tiene unidad válida.");
+  }
+
+  const locationIds = [...new Set([input.fromLocationId, input.toLocationId].filter((id): id is string => !!id))];
+  const { data: locations, error: locationError } = await supabase
+    .from("inventory_locations")
+    .select("id, project_id, location_type")
+    .eq("empresa_id", profile.empresa_id)
+    .eq("active", true)
+    .in("id", locationIds);
+  if (locationError) return fail(locationError.message);
+  const locationById = new Map((locations ?? []).map((location) => [location.id as string, location]));
+  if (locationIds.some((id) => !locationById.has(id))) {
+    return fail("Una ubicación no está activa o no pertenece a esta empresa.");
+  }
+  const fromLocation = input.fromLocationId ? locationById.get(input.fromLocationId) : null;
+  const toLocation = input.toLocationId ? locationById.get(input.toLocationId) : null;
+  const projectId = resolveManualMovementProject(
+    input.movementType,
+    (fromLocation?.project_id as string | null | undefined) ?? null,
+    (toLocation?.project_id as string | null | undefined) ?? null,
+  );
+
+  let negativeAdjustmentUnitCost: number | null = null;
+  if (input.movementType === "ADJUSTMENT" && input.quantity < 0) {
+    const { data: balance, error: balanceError } = await supabase
+      .from("inventory_balances")
+      .select("quantity, total_cost")
+      .eq("empresa_id", profile.empresa_id)
+      .eq("producto_id", input.productoId)
+      .eq("location_id", input.fromLocationId!)
+      .eq("cost_currency", input.costCurrency!)
+      .eq("cost_status", "COMPUTABLE")
+      .maybeSingle();
+    if (balanceError) return fail(balanceError.message);
+    const balanceQuantity = Number(balance?.quantity);
+    const totalCost = Number(balance?.total_cost);
+    if (!balance || !Number.isFinite(balanceQuantity) || balanceQuantity < Math.abs(input.quantity)) {
+      return fail("Stock computable insuficiente en esa ubicación y moneda.");
+    }
+    if (balance.total_cost == null || !Number.isFinite(totalCost) || totalCost < 0 || balanceQuantity <= 0) {
+      return fail("El costo del saldo seleccionado requiere revisión antes de ajustar.");
+    }
+    negativeAdjustmentUnitCost = Number((totalCost / balanceQuantity).toFixed(6));
+  }
+
+  let movement: InventoryMovementInput;
+  try {
+    movement = buildManualInventoryMovement(input, {
+      empresaId: profile.empresa_id,
+      createdBy: profile.id,
+      unit: product.unidad,
+      projectId,
+      negativeAdjustmentUnitCost,
+    });
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "Los datos del movimiento no son válidos.");
+  }
+
+  const result = await postManualInventoryMovement(supabase, movement);
+  if (result.error) {
+    const retryable = /fetch failed|network|timeout|timed out|connection|abort|econn/i.test(result.error);
+    return fail(result.error, retryable);
+  }
+  revalidatePath("/inventario");
   revalidatePath("/stock");
-  return { error: null, id: result.data };
+  if (projectId) revalidatePath(`/projects/${projectId}`);
+  return { error: null, id: result.data, retryable: false };
 }
 
 export async function confirmCanonicalReceipt(args: {
@@ -260,6 +544,7 @@ export async function confirmCanonicalReceipt(args: {
 
 export async function updateWarehouseSubmissionLine(args: {
   lineId: string;
+  rawDescription?: string;
   productoId?: string | null;
   quantity?: number | null;
   unit?: string | null;
@@ -269,6 +554,29 @@ export async function updateWarehouseSubmissionLine(args: {
 }) {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const supabase = await createClient();
+  if (
+    !args ||
+    typeof args.lineId !== "string" ||
+    !/^[0-9a-f-]{36}$/i.test(args.lineId) ||
+    !["PROPOSED", "CONFIRMED", "REJECTED"].includes(args.state)
+  ) {
+    return { error: "Los datos de revisión de la línea no son válidos." };
+  }
+  const productoId = clean(args.productoId);
+  const rawDescription = clean(args.rawDescription);
+  const budgetItemId = clean(args.budgetItemId);
+  const unit = clean(args.unit);
+  const quantity = args.quantity == null ? null : Number(args.quantity);
+  if (quantity != null && (!Number.isFinite(quantity) || quantity <= 0)) {
+    return { error: "La cantidad debe ser mayor a cero." };
+  }
+  if (!rawDescription) return { error: "La descripción de la línea es obligatoria." };
+  if (args.state === "CONFIRMED" && (
+    !productoId || !budgetItemId || !unit || quantity == null
+    || /^fila \d+: descripción pendiente$/i.test(rawDescription)
+  )) {
+    return { error: "Para confirmar la línea completá descripción, producto, cantidad, unidad y partida." };
+  }
   const { data: line } = await supabase
     .from("warehouse_submission_lines")
     .select("id, submission_id, inventory_movement_id")
@@ -281,20 +589,43 @@ export async function updateWarehouseSubmissionLine(args: {
   }
   const { data: submission } = await supabase
     .from("warehouse_submissions")
-    .select("status")
+    .select("status, project_id")
     .eq("id", line.submission_id)
     .eq("empresa_id", profile.empresa_id)
     .maybeSingle();
-  if (submission?.status === "CONFIRMED") {
-    return { error: "Las líneas de una rendición confirmada son inmutables." };
+  if (!submission || ["CONFIRMED", "VOIDED", "PROCESSING"].includes(submission.status)) {
+    return { error: "La rendición está cerrada o en procesamiento y no admite cambios." };
+  }
+  if (productoId) {
+    const { data: product } = await supabase
+      .from("productos")
+      .select("id, unidad, activo")
+      .eq("id", productoId)
+      .eq("empresa_id", profile.empresa_id)
+      .maybeSingle();
+    if (!product || !product.activo) return { error: "El producto no existe, está inactivo o no pertenece a esta empresa." };
+    if (unit && product.unidad.trim() !== unit.trim()) {
+      return { error: "La unidad debe coincidir con la unidad del producto." };
+    }
+  }
+  if (budgetItemId) {
+    const { data: budgetItem } = await supabase
+      .from("budget_items")
+      .select("id")
+      .eq("id", budgetItemId)
+      .eq("project_id", submission.project_id)
+      .eq("empresa_id", profile.empresa_id)
+      .maybeSingle();
+    if (!budgetItem) return { error: "La partida no pertenece a la obra de esta rendición." };
   }
   const { error } = await supabase
     .from("warehouse_submission_lines")
     .update({
-      producto_id: args.productoId ?? null,
-      quantity: args.quantity ?? null,
-      unit: clean(args.unit),
-      budget_item_id: args.budgetItemId ?? null,
+      raw_description: rawDescription,
+      producto_id: productoId,
+      quantity,
+      unit,
+      budget_item_id: budgetItemId,
       state: args.state,
       notes: clean(args.notes),
       updated_at: new Date().toISOString(),
@@ -303,6 +634,25 @@ export async function updateWarehouseSubmissionLine(args: {
     .eq("empresa_id", profile.empresa_id);
   if (error) return { error: error.message };
   revalidatePath(`/inventory/submissions/${line.submission_id}`);
+  return { error: null };
+}
+
+export async function addManualWarehouseSubmissionLine(submissionId: string) {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  if (typeof submissionId !== "string" || !/^[0-9a-f-]{36}$/i.test(submissionId)) {
+    return { error: "La rendición indicada no es válida." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("inventory_add_manual_warehouse_submission_line", {
+    p_empresa_id: profile.empresa_id,
+    p_submission_id: submissionId,
+  });
+  if (error) return { error: error.message };
+
+  const result = data as { project_id?: string | null; line_id?: string } | null;
+  if (!result?.line_id) return { error: "No se pudo agregar una línea manual a la rendición." };
+  if (result.project_id) revalidatePath(`/projects/${result.project_id}`);
   return { error: null };
 }
 
@@ -320,7 +670,7 @@ export async function processWarehouseSubmission(submissionId: string) {
   if (submission.status === "CONFIRMED" || submission.status === "VOIDED") {
     return { error: "La rendición ya no admite procesamiento.", proposals: 0 };
   }
-  await supabase
+  await admin
     .from("warehouse_submissions")
     .update({
       status: "PROCESSING",
@@ -332,10 +682,9 @@ export async function processWarehouseSubmission(submissionId: string) {
 
   const { data: evidence } = await supabase
     .from("warehouse_submission_evidence")
-    .select("id, storage_bucket, storage_path, file_name, mime_type, extraction_status")
+    .select("id, storage_bucket, storage_path, file_name, mime_type, extraction_status, extraction_error")
     .eq("submission_id", submissionId)
     .eq("empresa_id", profile.empresa_id)
-    .eq("extraction_status", "NOT_PROCESSED")
     .order("created_at");
 
   let proposalCount = 0;
@@ -344,12 +693,20 @@ export async function processWarehouseSubmission(submissionId: string) {
     errors.push(submission.processing_error);
   }
   for (const item of evidence ?? []) {
-    const { data: claimed } = await supabase
+    if (item.extraction_status === "PROPOSED" && item.extraction_error) {
+      errors.push(`${item.file_name}: ${item.extraction_error}`);
+    }
+  }
+  const evidenceToProcess = (evidence ?? []).filter((item) =>
+    item.extraction_status === "NOT_PROCESSED" || item.extraction_status === "FAILED",
+  );
+  for (const item of evidenceToProcess) {
+    const { data: claimed } = await admin
       .from("warehouse_submission_evidence")
       .update({ extraction_status: "PROCESSING" })
       .eq("id", item.id)
       .eq("empresa_id", profile.empresa_id)
-      .eq("extraction_status", "NOT_PROCESSED")
+      .in("extraction_status", ["NOT_PROCESSED", "FAILED"])
       .select("id")
       .maybeSingle();
     if (!claimed) continue;
@@ -360,9 +717,9 @@ export async function processWarehouseSubmission(submissionId: string) {
       /\.(xlsx|xls|csv)$/i.test(item.file_name);
     if (!isSpreadsheet) {
       const proposal = photoEvidenceProposal(item.file_name);
-      await supabase
+      await admin
         .from("warehouse_submission_evidence")
-        .update({ extraction_status: "PROPOSED", extraction_result: proposal, confidence: null })
+        .update({ extraction_status: "PROPOSED", extraction_result: proposal, extraction_error: null, confidence: null })
         .eq("id", item.id)
         .eq("empresa_id", profile.empresa_id);
       continue;
@@ -372,15 +729,36 @@ export async function processWarehouseSubmission(submissionId: string) {
     if (downloaded.error || !downloaded.data) {
       const message = `${item.file_name}: no se pudo leer la planilla`;
       errors.push(message);
-      await supabase
+      await admin
         .from("warehouse_submission_evidence")
         .update({ extraction_status: "FAILED", extraction_error: downloaded.error?.message ?? message })
         .eq("id", item.id)
         .eq("empresa_id", profile.empresa_id);
       continue;
     }
-    const parsed = parseInventorySpreadsheet(new Uint8Array(await downloaded.data.arrayBuffer()));
-    if (parsed.errors.length) errors.push(...parsed.errors.map((error) => `${item.file_name}: ${error}`));
+    let parsed: ReturnType<typeof parseInventorySpreadsheet>;
+    try {
+      parsed = parseInventorySpreadsheet(new Uint8Array(await downloaded.data.arrayBuffer()));
+    } catch (parseError) {
+      const message = `${item.file_name}: no se pudo interpretar la planilla`;
+      errors.push(message);
+      await admin
+        .from("warehouse_submission_evidence")
+        .update({ extraction_status: "FAILED", extraction_error: parseError instanceof Error ? parseError.message : message })
+        .eq("id", item.id)
+        .eq("empresa_id", profile.empresa_id);
+      continue;
+    }
+    if (parsed.failed) {
+      const message = `${item.file_name}: ${parsed.errors.join("; ") || "no se pudo interpretar la planilla"}`;
+      errors.push(message);
+      await admin
+        .from("warehouse_submission_evidence")
+        .update({ extraction_status: "FAILED", extraction_error: message })
+        .eq("id", item.id)
+        .eq("empresa_id", profile.empresa_id);
+      continue;
+    }
 
     const rows = parsed.rows.map((row) => ({
       rawDescription: row.rawDescription,
@@ -401,7 +779,7 @@ export async function processWarehouseSubmission(submissionId: string) {
       if (saveError || !saveResult) {
         const errMsg = `${item.file_name}: ${saveError ?? "error al guardar líneas de rendición"}`;
         errors.push(errMsg);
-        await supabase
+        await admin
           .from("warehouse_submission_evidence")
           .update({ extraction_status: "FAILED", extraction_error: errMsg })
           .eq("id", item.id)
@@ -411,18 +789,18 @@ export async function processWarehouseSubmission(submissionId: string) {
       proposalCount += saveResult.inserted_count;
     }
 
-    await supabase
+    await admin
       .from("warehouse_submission_evidence")
       .update({
         extraction_status: "PROPOSED",
         extraction_result: { rows: parsed.rows.length, errors: parsed.errors },
-        extraction_error: parsed.errors.length ? parsed.errors.join("; ") : null,
+        extraction_error: null,
         confidence: parsed.errors.length ? 0.5 : 1,
       })
       .eq("id", item.id)
       .eq("empresa_id", profile.empresa_id);
   }
-  await supabase
+  await admin
     .from("warehouse_submissions")
     .update({
       status: "NEEDS_REVIEW",

@@ -150,7 +150,7 @@ export function EjecucionTable({ rows }: { rows: Row[] }) {
                     {formatDate(r.date)}
                     {r.fromPortal ? (
                       <span
-                        title="Cargado por el capataz desde el link, sin login"
+                        title="Cargado por el Residente desde el link, sin login"
                         className="ml-1.5 text-[10px] text-[var(--muted)]"
                       >
                         📱

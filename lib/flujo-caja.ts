@@ -11,7 +11,10 @@ export type FlujoItemTipo =
   | "cobro_certificado"
   | "pago_factura"
   | "gasto_recurrente"
-  | "salida_proyectada_material";
+  | "salida_proyectada_material"
+  | "salida_plan_mano_de_obra"
+  | "salida_plan_equipo"
+  | "salida_plan_subcontrato";
 
 export interface FlujoItem {
   tipo: FlujoItemTipo;
@@ -173,7 +176,8 @@ export function ocurrenciasGastoRecurrente(
   periodicidad: string,
   diaDelMes: number | null,
   proximoVencimiento: string | null,
-  hasta: Date
+  hasta: Date,
+  desde: Date = new Date()
 ): { fecha: string; monto: number }[] {
   const pasoMeses: Record<string, number> = {
     MENSUAL: 1,
@@ -183,7 +187,7 @@ export function ocurrenciasGastoRecurrente(
     ANUAL: 12,
   };
   const paso = pasoMeses[periodicidad] ?? 1;
-  const hoy = new Date();
+  const hoy = new Date(desde);
   hoy.setHours(0, 0, 0, 0);
 
   let cursor: Date;
@@ -252,3 +256,60 @@ export function proyeccionAvanceToFlujoItems(
   return items;
 }
 
+
+/** Tipos de salida que salen del plan semanal (se pueden ocultar de la proyección). */
+export const TIPOS_PLAN_SEMANAL: FlujoItemTipo[] = [
+  "salida_proyectada_material",
+  "salida_plan_mano_de_obra",
+  "salida_plan_equipo",
+  "salida_plan_subcontrato",
+];
+
+// Supuestos de fecha de pago de lo que planifica la semana. Son parámetros
+// explícitos, no datos: materiales se pagan a plazo de proveedor desde el inicio
+// de la semana; mano de obra y equipos al cierre de la semana; subcontratos se
+// pagan contra certificado, un mes después.
+export const PLAZO_PAGO_MATERIALES_DIAS = 7;
+export const PLAZO_PAGO_SUBCONTRATOS_DIAS = 30;
+
+function addDaysIso(iso: string, days: number): string {
+  const d = new Date(iso + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Salidas de caja previstas por un plan semanal (borrador o comprometido):
+ * lo que falta comprar de materiales (ya descontado stock y OC en camino) y el
+ * costo de mano de obra, equipos y subcontratos que calculan las recetas (APU)
+ * para las metas de la semana.
+ */
+export function planSemanalToFlujoItems(plan: {
+  planId: string;
+  projectId: string;
+  projectName: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+  faltanteMateriales: number;
+  costoManoObra: number;
+  costoEquipos: number;
+  costoSubcontratos: number;
+}): FlujoItem[] {
+  const etiqueta = `Plan semanal ${plan.startDate.slice(5)}${plan.status === "DRAFT" ? " (borrador)" : ""} · ${plan.projectName}`;
+  const base = { moneda: "PYG" as CurrencyCode, project_id: plan.projectId };
+  const out: FlujoItem[] = [];
+  if (plan.faltanteMateriales > 0) {
+    out.push({ ...base, tipo: "salida_proyectada_material", descripcion: `${etiqueta}: materiales a comprar`, fecha: addDaysIso(plan.startDate, PLAZO_PAGO_MATERIALES_DIAS), monto: -plan.faltanteMateriales, ref_id: `plan_${plan.planId}_mat` });
+  }
+  if (plan.costoManoObra > 0) {
+    out.push({ ...base, tipo: "salida_plan_mano_de_obra", descripcion: `${etiqueta}: mano de obra`, fecha: plan.endDate, monto: -plan.costoManoObra, ref_id: `plan_${plan.planId}_mo` });
+  }
+  if (plan.costoEquipos > 0) {
+    out.push({ ...base, tipo: "salida_plan_equipo", descripcion: `${etiqueta}: equipos`, fecha: plan.endDate, monto: -plan.costoEquipos, ref_id: `plan_${plan.planId}_eq` });
+  }
+  if (plan.costoSubcontratos > 0) {
+    out.push({ ...base, tipo: "salida_plan_subcontrato", descripcion: `${etiqueta}: subcontratos`, fecha: addDaysIso(plan.endDate, PLAZO_PAGO_SUBCONTRATOS_DIAS), monto: -plan.costoSubcontratos, ref_id: `plan_${plan.planId}_sub` });
+  }
+  return out;
+}

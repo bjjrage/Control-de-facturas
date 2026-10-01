@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { assertNonProductionTestTarget } from "../../test-utils/external-test-target";
 
 describe("Regression: Currency Precedence & Fail-Closed Integrity", () => {
   let supabase: any;
@@ -20,6 +21,10 @@ describe("Regression: Currency Precedence & Fail-Closed Integrity", () => {
           return [l.slice(0, i).trim(), l.slice(i + 1).trim()];
         })
     );
+    assertNonProductionTestTarget({
+      url: env.NEXT_PUBLIC_SUPABASE_URL,
+      label: "Currency precedence regression test",
+    });
     expect(env.NEXT_PUBLIC_SUPABASE_URL).toContain("klvvlybltcmowoptogpe");
     supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
   });

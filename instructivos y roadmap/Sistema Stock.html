@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sistema de Stock e Inventario — Bloque de conocimiento</title>
+<style>
+:root{--bg:#0b0d10;--panel:#11151a;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.14);--text:#f5f7fa;--muted:#96a1ad;--accent:#8ee3c6;--blue:#77b8ff;--warn:#f4c66d;--danger:#ff8b8b;--ok:#79deb3}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(circle at 10% -10%,rgba(142,227,198,.07),transparent 25%),radial-gradient(circle at 90% 0%,rgba(119,184,255,.07),transparent 30%),var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{position:sticky;top:0;z-index:10;background:rgba(11,13,16,.86);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}.top{max-width:1400px;margin:auto;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;gap:15px}.brand{display:flex;gap:11px;align-items:center}.logo{width:34px;height:34px;border:1px solid var(--line2);border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.03)}.logo:before{content:"";width:13px;height:13px;border:2px solid var(--accent);border-radius:4px;transform:rotate(45deg)}h1{font-size:14px;margin:0}.sub{font-size:11px;color:var(--muted);margin-top:2px}.actions{display:flex;gap:7px}.btn{border:1px solid var(--line);background:rgba(255,255,255,.025);color:#cbd2d9;border-radius:10px;padding:8px 10px;font-size:10px}.btn.primary{border-color:rgba(142,227,198,.22);background:rgba(142,227,198,.07);color:#e8fff7}
+.container{max-width:1400px;margin:auto;padding:26px 22px 52px}.card{border:1px solid var(--line);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.012))}
+.hero{display:grid;grid-template-columns:1.3fr .7fr;gap:16px}.hero-main,.hero-side{padding:22px}.kicker{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:800}.hero h2{font-size:31px;line-height:1.07;letter-spacing:-.035em;margin:8px 0 10px}.hero p{font-size:12.5px;line-height:1.55;color:var(--muted);margin:0;max-width:820px}.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:14px}.stat{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(255,255,255,.02)}.stat b{font-size:15px;display:block}.stat span{font-size:9.5px;color:var(--muted)}
+.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:14px}.badge{font-size:8.5px;padding:4px 6px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}.badge.ok{color:var(--ok);border-color:rgba(121,222,179,.22);background:rgba(121,222,179,.05)}.badge.info{color:#dcecff;border-color:rgba(119,184,255,.2);background:rgba(119,184,255,.06)}.badge.warn{color:#ffd28a;border-color:rgba(244,198,109,.22);background:rgba(244,198,109,.06)}
+.idx{position:sticky;top:67px;z-index:9;margin-top:16px;padding:11px;display:flex;gap:7px;flex-wrap:wrap;background:rgba(11,13,16,.86);backdrop-filter:blur(18px)}.idx a{border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--muted);border-radius:999px;padding:7px 9px;font-size:9.5px;text-decoration:none;max-width:230px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.idx a:hover{color:#fff;border-color:var(--line2)}
+.section{margin-top:24px;scroll-margin-top:140px}.title{display:flex;justify-content:space-between;align-items:end;margin-bottom:10px;gap:10px}.title h3{margin:0;font-size:14px}.title h3 .n{color:var(--blue);font-weight:750;margin-right:8px}.state{min-width:88px;text-align:center;padding:6px 7px;border:1px solid var(--line);border-radius:999px;font-size:8.5px;color:var(--muted)}.state.done{color:var(--ok);border-color:rgba(121,222,179,.22);background:rgba(121,222,179,.05)}
+.section-card{border-radius:17px;overflow:hidden}.body{padding:16px 18px;font-size:11px;color:var(--muted);line-height:1.62}.body p{margin:0 0 12px}.body strong{color:#e2e7ec}.body code{font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:var(--accent);background:rgba(142,227,198,.06);padding:1px 5px;border-radius:6px}.body ul{margin:8px 0 14px;padding-left:18px}.body li{margin:4px 0}.subhead{margin:18px 0 8px;font-size:11.5px;color:#fff}.sep{height:1px;background:var(--line);margin:16px 0}
+.quote{margin:12px 0;padding:13px 15px;border:1px solid rgba(142,227,198,.18);border-radius:14px;background:rgba(142,227,198,.035);color:#dff8ef;font-size:11.5px;font-weight:650}
+.flowquote{margin:12px 0;padding:14px 16px;border:1px solid rgba(119,184,255,.18);border-radius:14px;background:rgba(119,184,255,.04);color:#dcecff;font-family:ui-monospace,Consolas,monospace;font-size:11px;overflow:auto}
+pre{overflow:auto;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#0a0c0f}pre code{background:none!important;padding:0!important;color:#dcecff!important}
+.flow{padding:16px;overflow:auto;margin-top:14px}.flowline{display:flex;align-items:stretch;min-width:980px}.node{flex:1;min-width:125px;text-align:center;padding:11px;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.02);font-size:9px;color:var(--muted)}.node strong{display:block;color:#fff;font-size:10.5px;margin-bottom:3px}.node.hot{border-color:rgba(142,227,198,.25);background:rgba(142,227,198,.05)}.node.hot strong{color:#b9f7e2}.arrow{padding:0 7px;color:#4b5560;align-self:center}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin-top:14px}.mini{border:1px solid var(--line);border-radius:14px;padding:13px;background:rgba(255,255,255,.016)}.mini b{display:block;font-size:11px;color:#fff;margin-bottom:4px}.mini span{font-size:10.3px;color:var(--muted);line-height:1.45}
+.demo{margin-top:14px;padding:14px 16px;border:1px solid var(--line2);border-radius:16px;background:rgba(255,255,255,.02)}.demo .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}.pill{border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:10.5px;color:var(--muted);flex:1;min-width:120px}.pill b{display:block;color:#fff;font-size:13px;margin-top:2px}
+@media(max-width:950px){.hero,.grid{grid-template-columns:1fr}.flowline{min-width:760px}}@media(max-width:620px){.container{padding:18px 13px 40px}.top{padding:13px}.actions{display:none}.hero h2{font-size:25px}.stats{grid-template-columns:1fr}.idx{top:60px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div class="brand">
+      <div class="logo"></div>
+      <div>
+        <h1>Control de Facturas · Bloque de conocimiento</h1>
+        <div class="sub">Sistema de Stock e Inventario · arquitectura canónica · documento de referencia</div>
+      </div>
+    </div>
+    <div class="actions"><span class="btn primary">INVENTARIO CANÓNICO</span></div>
+  </div>
+</header>
+
+<div class="container">
+<section class="hero">
+  <div class="card hero-main">
+    <div class="kicker">Resumen ejecutivo</div>
+    <h2>Un solo inventario físico. Las ubicaciones explican dónde está; los movimientos explican cómo llegó; el consumo explica dónde terminó económicamente.</h2>
+    <p>La cantidad física vive en <strong style="color:#e2e7ec">inventory_balances</strong> por ubicación. El stock global no es una segunda verdad: se deriva de las ubicaciones. Las obras funcionan como depósitos físicos, la recepción genera entradas canónicas, las transferencias conservan cantidad y costo, y el consumo imputa el material a una partida presupuestaria.</p>
+    <div class="badges">
+      <span class="badge ok">UN SOLO INVENTARIO</span>
+      <span class="badge ok">LEDGER DE MOVIMIENTOS</span>
+      <span class="badge ok">OBRAS COMO UBICACIONES</span>
+      <span class="badge info">PAÑOL EXTERNO</span>
+      <span class="badge info">MULTI-TENANT</span>
+      <span class="badge warn">COSTOS / FX FAIL-CLOSED</span>
+    </div>
+  </div>
+
+  <div class="card hero-side">
+    <div style="padding-bottom:12px"><strong>Arquitectura resumida</strong></div>
+    <div class="stats">
+      <div class="stat"><b>1</b><span>fuente física: inventory_balances</span></div>
+      <div class="stat"><b>3</b><span>tipos de ubicación</span></div>
+      <div class="stat"><b>5</b><span>tipos de movimiento</span></div>
+      <div class="stat"><b>5</b><span>vistas derivadas principales</span></div>
+      <div class="stat"><b>RFQ→OC</b><span>origen normal de entrada</span></div>
+      <div class="stat"><b>CONSUMPTION</b><span>puente a costo real de partida</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="card flow">
+  <div class="flowline">
+    <div class="node hot"><strong>RFQ / OC</strong>compra</div><div class="arrow">→</div>
+    <div class="node"><strong>Recepción</strong>remisión / evidencia</div><div class="arrow">→</div>
+    <div class="node hot"><strong>RECEIPT</strong>inventory_movements</div><div class="arrow">→</div>
+    <div class="node"><strong>Saldo físico</strong>inventory_balances</div><div class="arrow">→</div>
+    <div class="node"><strong>TRANSFER</strong>entre ubicaciones</div><div class="arrow">→</div>
+    <div class="node hot"><strong>CONSUMPTION</strong>partida + costo real</div>
+  </div>
+</div>
+
+<div class="card idx"><a href="#s01">1 Idea central: un solo invent</a><a href="#s02">2 Las obras funcionan como dep</a><a href="#s03">3 Cómo entra mercadería al sto</a><a href="#s04">4 La recepción de una OC es at</a><a href="#s05">5 Los movimientos son el libro</a><a href="#s06">6 Qué pasa con una transferenc</a><a href="#s07">7 El consumo es el momento eco</a><a href="#s08">8 El stock global no mezcla co</a><a href="#s09">9 Las transferencias conservan</a><a href="#s10">10 Manejo de moneda / FX</a><a href="#s11">11 Inventario por ubicación, ob</a><a href="#s12">12 Pañol: no obligamos al pañol</a><a href="#s13">13 Cómo trabaja el pañol en la </a><a href="#s14">14 Una rendición de pañol confi</a><a href="#s15">15 Subidas parciales de fotos: </a><a href="#s16">16 Nadie puede poner `upload_in</a><a href="#s17">17 Evidencias y almacenamiento</a><a href="#s18">18 Multiempresa / multi-tenant</a><a href="#s19">19 Qué ocurrió con el sistema l</a><a href="#s20">20 El hotfix final</a><a href="#s21">21 Qué NO hacemos con el legacy</a><a href="#s22">22 Flujo completo real</a><a href="#s23">23 Ejemplo concreto</a><a href="#s24">24 Qué significa realmente “sto</a><a href="#sfinal">Estado final</a></div>
+
+
+<section class="section" id="s01">
+  <div class="title">
+    <div><h3><span class="n">1</span>Idea central: un solo inventario canónico</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>El sistema nuevo no maneja un “stock global” y un “stock por obra” como dos cosas separadas que haya que mantener sincronizadas.</p>
+<p>La fuente de verdad física es:</p>
+<p><code>inventory_balances</code> por ubicación física.</p>
+<p>Cada saldo representa, conceptualmente:</p>
+<div class="flowquote"><strong>empresa + producto + ubicación + moneda/costo → cantidad disponible</strong></div>
+<p>El stock global de la empresa se obtiene <strong>sumando las ubicaciones</strong>. Por eso no existe una segunda operación que “aumenta el stock global”: si entraron 100 unidades a una obra, el global automáticamente pasa a incluir esas 100 porque esa obra forma parte del inventario de la empresa.</p>
+<p>Esto evita duplicaciones y descuadres.</p>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s02">
+  <div class="title">
+    <div><h3><span class="n">2</span>Las obras funcionan como depósitos / ubicaciones de inventario</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>En el modelo nuevo, una obra puede ser una ubicación física de stock.</p>
+<p>Tipos de ubicación:</p>
+<ul><li><code>CENTRAL</code>: depósito central de la empresa.</li><li><code>PROJECT</code>: depósito/pañol de una obra.</li><li><code>AUXILIARY</code>: ubicación auxiliar.</li></ul>
+<p>La tabla principal es:</p>
+<p><code>inventory_locations</code></p>
+<p>Una ubicación <code>PROJECT</code> tiene asociado obligatoriamente un <code>project_id</code>.</p>
+<p>Ejemplo:</p>
+<ul><li>Empresa NIU.PACK</li></ul>
+<p>- Depósito Central - Obra Shopping A - Obra Edificio B - Depósito auxiliar</p>
+<p>Todo forma parte de un mismo inventario empresarial.</p>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s03">
+  <div class="title">
+    <div><h3><span class="n">3</span>Cómo entra mercadería al stock</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>El flujo normal es:</p>
+<div class="flowquote"><strong>RFQ → Orden de Compra → Recepción/Remisión → Inventario</strong></div>
+<p>Una OC puede venir de Administración o de una obra.</p>
+<p>Si la compra nace desde una obra, mantiene el <code>project_id</code>.</p>
+<p>Si nace desde Administración, puede ser corporativa o asignarse a una obra.</p>
+<p>Hay una diferencia importante:</p>
+<ul><li><code>project_id</code> = para qué obra/contexto económico se hizo la compra.</li><li><code>delivery_location_id</code> = dónde físicamente entró el material.</li></ul>
+<p>Ejemplo:</p>
+<p>Se compra cemento para Obra A y el proveedor entrega directamente en Obra A.</p>
+<p>No hacemos:</p>
+<div class="quote">entra al depósito central → sale → entra en Obra A</div>
+<p>Eso inventaría dos movimientos.</p>
+<p>Se registra directamente:</p>
+<div class="flowquote"><strong>RECEIPT → ubicación Obra A</strong></div>
+<p>El stock global aumenta por agregación.</p>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s04">
+  <div class="title">
+    <div><h3><span class="n">4</span>La recepción de una OC es atómica y está protegida</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>Al confirmar una recepción, el sistema valida:</p>
+<ul><li>la OC;</li><li>sus líneas;</li><li>la empresa;</li><li>el producto;</li><li>la ubicación.</li></ul>
+<p>La función principal es:</p>
+<p><code>inventory_confirm_receipt()</code></p>
+<p>La confirmación termina generando movimientos canónicos de inventario.</p>
+<p>También se endureció un problema importante: no se puede recibir más cantidad acumulada que la comprada simplemente haciendo varias recepciones concurrentes.</p>
+<p>El control de recepción contra OC utiliza locking/transacción para que dos usuarios no puedan confirmar simultáneamente y saltarse el límite.</p>
+<p>Además hay idempotencia: repetir accidentalmente una operación no debe duplicar el stock.</p>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s05">
+  <div class="title">
+    <div><h3><span class="n">5</span>Los movimientos son el libro mayor del inventario</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>Toda modificación real del inventario se representa mediante:</p>
+<p><code>inventory_movements</code></p>
+<p>Tipos permitidos:</p>
+<ul><li><code>RECEIPT</code>: entrada por recepción.</li><li><code>TRANSFER</code>: traslado entre ubicaciones.</li><li><code>CONSUMPTION</code>: consumo real en obra.</li><li><code>RETURN</code>: devolución entre ubicaciones.</li><li><code>ADJUSTMENT</code>: corrección física controlada.</li></ul>
+<p>La función central para registrar movimientos es:</p>
+<p><code>inventory_post_movement()</code></p>
+<p>La filosofía es similar a un ledger:</p>
+<ul><li>no se pisa alegremente el historial;</li><li>un movimiento confirmado queda sellado;</li><li>si hubo un error, la corrección conceptual es mediante otro movimiento/reversión.</li></ul>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s06">
+  <div class="title">
+    <div><h3><span class="n">6</span>Qué pasa con una transferencia</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>Ejemplo:</p>
+<p>Obra A tiene 100 bolsas.</p>
+<p>Se transfieren 30 a Obra B.</p>
+<p>Resultado:</p>
+<ul><li>Obra A = 70</li><li>Obra B = 30</li><li>Global empresa = 100</li></ul>
+<p>El global no cambia.</p>
+<p>Una transferencia nunca crea stock nuevo.</p>
+<p>El movimiento contiene:</p>
+<ul><li><code>from_location_id = Obra A</code></li><li><code>to_location_id = Obra B</code></li><li>tipo <code>TRANSFER</code></li></ul>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s07">
+  <div class="title">
+    <div><h3><span class="n">7</span>El consumo es el momento económico importante</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>Cuando un material deja el pañol y realmente se utiliza, se genera:</p>
+<p><code>CONSUMPTION</code></p>
+<p>Un consumo tiene:</p>
+<ul><li>producto;</li><li>cantidad;</li><li>obra;</li><li>ubicación origen;</li><li>partida presupuestaria;</li><li>costo real.</li></ul>
+<p>Por eso la estructura permite asociar:</p>
+<p><code>project_id + budget_item_id</code></p>
+<p>El consumo es el momento en que el stock físico se transforma en:</p>
+<p><strong>costo real ejecutado de una partida.</strong></p>
+<p>Ejemplo:</p>
+<p>Presupuesto:</p>
+<div class="quote">Hormigón H21 → Gs. 50.000.000 previstos.</div>
+<p>Durante la obra salen materiales del pañol imputados a esa partida.</p>
+<p>Esos consumos forman el costo real acumulado contra el presupuesto.</p>
+<p>Flujo conceptual:</p>
+<div class="flowquote"><strong>RECEIPT → STOCK → CONSUMPTION → PARTIDA → COSTO REAL</strong></div>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s08">
+  <div class="title">
+    <div><h3><span class="n">8</span>El stock global no mezcla costos incorrectamente</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>El inventario también guarda costo.</p>
+<p>No solamente tenemos:</p>
+<div class="quote">100 bolsas</div>
+<p>También necesitamos saber:</p>
+<div class="quote">cuánto costaron.</div>
+<p>Por eso <code>inventory_balances</code> guarda información como:</p>
+<ul><li><code>quantity</code></li><li><code>total_cost</code></li><li><code>cost_currency</code></li><li><code>cost_status</code></li></ul>
+<p>Además existe:</p>
+<p><code>inventory_movement_costs</code></p>
+<p>Ahí se guarda el costo transportado por cada movimiento.</p>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s09">
+  <div class="title">
+    <div><h3><span class="n">9</span>Las transferencias conservan el costo</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>Si una bolsa costó Gs. 50.000 en Obra A y se transfiere a Obra B, no pasa mágicamente a otro costo.</p>
+<p>El sistema descarga la cantidad y costo de A y transporta ese costo a B.</p>
+<p>Esto permite que posteriormente:</p>
+<p><code>CONSUMPTION</code></p>
+<p>use el costo real que tenía el material.</p>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s10">
+  <div class="title">
+    <div><h3><span class="n">10</span>Manejo de moneda / FX</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>El sistema no interpreta un precio como guaraníes por defecto si no puede demostrar la moneda.</p>
+<p>Si encuentra un costo legacy cuya moneda no puede verificarse, queda:</p>
+<p><code>REVISION_REQUERIDA</code></p>
+<p>en vez de inventar una conversión.</p>
+<p>Si es una compra en moneda extranjera y falta tipo de cambio, también se conserva la evidencia pero no se finge un costo PYG confiable.</p>
+<p>Esto evita que un stock físicamente correcto quede financieramente mal valuado.</p>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s11">
+  <div class="title">
+    <div><h3><span class="n">11</span>Inventario por ubicación, obra y global</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>Existen vistas derivadas para consultar el inventario sin crear copias.</p>
+<h4 class="subhead"><code>inventory_stock_by_location</code></h4>
+<p>Muestra stock por ubicación.</p>
+<h4 class="subhead"><code>inventory_stock_by_project</code></h4>
+<p>Muestra el stock asociado a obras.</p>
+<h4 class="subhead"><code>inventory_stock_global</code></h4>
+<p>Agrupa todo el inventario computable de la empresa.</p>
+<h4 class="subhead"><code>inventory_stock_global_quantity</code></h4>
+<p>Permite conocer cantidad global incluso cuando el costo tenga algún estado de revisión.</p>
+<h4 class="subhead"><code>inventory_consumption_by_budget</code></h4>
+<p>Agrupa consumos por partida presupuestaria.</p>
+<p>Así Administración puede ver:</p>
+<div class="quote">¿cuánto cemento tengo en toda la empresa?</div>
+<p>Y Operativo puede ver:</p>
+<div class="quote">¿cuánto cemento tiene específicamente esta obra?</div>
+<p>Son vistas diferentes de <strong>la misma fuente de verdad</strong>.</p>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s12">
+  <div class="title">
+    <div><h3><span class="n">12</span>Pañol: no obligamos al pañolero a usar el ERP</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>El pañolero no necesita ser usuario completo del ERP.</p>
+<p>El depósito/pañol funciona con un:</p>
+<p><strong>link externo seguro</strong></p>
+<p>similar al enlace externo del residente o de aceptación de cotización.</p>
+<p>Tablas relacionadas:</p>
+<ul><li><code>warehouse_portal_links</code></li><li><code>warehouse_submissions</code></li><li><code>warehouse_submission_evidence</code></li><li><code>warehouse_submission_lines</code></li></ul>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s13">
+  <div class="title">
+    <div><h3><span class="n">13</span>Cómo trabaja el pañol en la práctica</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><h4 class="subhead">Entradas</h4>
+<p>El pañol puede recibir mercadería y cargar:</p>
+<ul><li>foto de la remisión;</li><li>referencia de OC;</li><li>evidencia.</li></ul>
+<p>El sistema ayuda a conciliar contra la OC.</p>
+<p>La confirmación humana sigue existiendo.</p>
+<h4 class="subhead">Salidas</h4>
+<p>No se obliga al pañolero a:</p>
+<ul><li>escanear QR cada vez;</li><li>entrar al ERP;</li><li>registrar cada bolsa en una pantalla;</li><li>cambiar radicalmente su forma de trabajo.</li></ul>
+<p>El mecanismo elegido es:</p>
+<div class="flowquote"><strong>cuaderno/manual durante la semana → fotos/rendición periódica → interpretación asistida → confirmación humana</strong></div>
+<p>La IA puede proponer qué dice la hoja.</p>
+<p>No se considera verdad solamente porque OCR/visión lo interpretó.</p>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s14">
+  <div class="title">
+    <div><h3><span class="n">14</span>Una rendición de pañol confirmada es inmutable</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>Una <code>warehouse_submission</code> confirmada no puede volver a abrirse silenciosamente.</p>
+<p>Ni su cabecera, ni sus líneas/evidencias deben poder alterarse para cambiar el pasado.</p>
+<p>Se agregaron triggers de base de datos para garantizarlo.</p>
+<p>Flujo:</p>
+<div class="flowquote"><strong>PROPOSED / NEEDS_REVIEW → revisión → CONFIRMED</strong></div>
+<p>Una vez <code>CONFIRMED</code>:</p>
+<p><strong>queda sellada.</strong></p>
+<p>Si hubo un error, se corrige mediante un nuevo evento/reversión, no editando la rendición histórica.</p>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s15">
+  <div class="title">
+    <div><h3><span class="n">15</span>Subidas parciales de fotos: fail closed</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>Supongamos que el pañol sube:</p>
+<ul><li>A.jpg</li><li>B.jpg</li><li>C.jpg</li></ul>
+<p>A y B llegan.</p>
+<p>C falla.</p>
+<p>El sistema usa:</p>
+<ul><li><code>pending_uploads</code></li><li><code>upload_incomplete</code></li></ul>
+<p>Cada archivo pendiente se identifica por su:</p>
+<p><strong>SHA-256</strong></p>
+<p>Si falla C, queda registrado el hash de C.</p>
+<p>Después llega D correctamente.</p>
+<p>D <strong>no puede limpiar C</strong>.</p>
+<p>C solamente desaparece de pendientes cuando se vuelve a subir exitosamente <strong>el mismo contenido/hash</strong>.</p>
+<p>Mientras exista cualquier pendiente:</p>
+<div class="flowquote"><code>upload_incomplete = true</code></div>
+<p>y:</p>
+<p><code>inventory_confirm_warehouse_submission()</code></p>
+<p>rechaza la confirmación.</p>
+<p>Es un fail-closed real.</p>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s16">
+  <div class="title">
+    <div><h3><span class="n">16</span>Nadie puede poner `upload_incomplete=false` manualmente</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>Un usuario <code>authenticated</code> no puede hacer:</p>
+<pre><code>UPDATE warehouse_submissions
+SET upload_incomplete = false;</code></pre>
+<p>ni vaciar:</p>
+<pre><code>pending_uploads = []</code></pre>
+<p>Las columnas de control quedan fuera de sus privilegios directos.</p>
+<p>La resolución del estado de uploads se hace mediante:</p>
+<p><code>inventory_apply_warehouse_upload_result()</code></p>
+<p>y esa función queda reservada al <code>service_role</code>.</p>
+<p>Así el estado se deriva del resultado real de las cargas y no de un update arbitrario.</p>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s17">
+  <div class="title">
+    <div><h3><span class="n">17</span>Evidencias y almacenamiento</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>Existe un bucket privado:</p>
+<p><code>warehouse-evidence</code></p>
+<p>para fotos/documentos.</p>
+<p>Las evidencias quedan ligadas a:</p>
+<ul><li>tenant;</li><li>submission;</li><li>ubicación/proyecto correspondiente.</li></ul>
+<p>También se endureció el storage para evitar que una empresa pueda leer evidencia de otra.</p>
+<p>El aislamiento multiempresa se valida mediante:</p>
+<ul><li>RLS;</li><li>validaciones de tenant;</li><li>funciones y referencias cruzadas.</li></ul>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s18">
+  <div class="title">
+    <div><h3><span class="n">18</span>Multiempresa / multi-tenant</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>Todo el inventario canónico lleva:</p>
+<p><code>empresa_id</code></p>
+<p>No basta con conocer el UUID de:</p>
+<ul><li>un producto;</li><li>una obra;</li><li>una ubicación;</li><li>una partida;</li><li>una recepción.</li></ul>
+<p>Las funciones validan que todas las piezas pertenezcan a la misma empresa.</p>
+<p>Ejemplos:</p>
+<ul><li>una ubicación de Empresa B no puede usarse en un movimiento de Empresa A;</li><li>una partida de una obra no puede utilizarse para imputar consumo de otra obra;</li><li>una OC de otro tenant no puede utilizarse para una recepción.</li></ul>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s19">
+  <div class="title">
+    <div><h3><span class="n">19</span>Qué ocurrió con el sistema legacy</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>Producción tenía una historia distinta al modelo nuevo.</p>
+<p>Originalmente había existido:</p>
+<ul><li><code>depositos</code></li><li><code>stock_por_deposito</code></li></ul>
+<p>Pero esas tablas ya no estaban realmente presentes en producción.</p>
+<p>El sistema legacy vigente tenía principalmente:</p>
+<ul><li><code>stock_movimientos</code></li><li><code>stock_por_proyecto</code></li><li><code>productos.stock_actual</code></li></ul>
+<p>Durante el pre-flight se descubrió que la migración nueva todavía esperaba <code>depositos/stock_por_deposito</code>.</p>
+<p>Eso hubiera hecho fallar producción.</p>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s20">
+  <div class="title">
+    <div><h3><span class="n">20</span>El hotfix final</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>Como el inventario canónico todavía no había sido instalado en producción, se corrigió la baseline antes de ejecutarla.</p>
+<p>Se quitaron:</p>
+<ul><li>el backfill desde <code>depositos</code>;</li><li>el backfill desde <code>stock_por_deposito</code>;</li><li>la escritura futura a <code>stock_por_deposito</code>.</li></ul>
+<p>No se inventó un mapeo desde el sistema viejo porque el stock legacy encontrado tenía apariencia de fixture/demo y, además, no contenía información suficiente para reconstruir correctamente una ubicación física.</p>
+<p>El inventario canónico arrancó:</p>
+<p><strong>vacío.</strong></p>
+<p>Se mantuvo una compatibilidad:</p>
+<p><code>productos.stock_actual</code></p>
+<p>se actualiza como proyección del inventario canónico.</p>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s21">
+  <div class="title">
+    <div><h3><span class="n">21</span>Qué NO hacemos con el legacy</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>No hacemos:</p>
+<ul><li>movimientos artificiales para justificar saldos viejos;</li><li>depósitos inventados;</li><li>conversión automática de <code>stock_por_proyecto</code> en ubicaciones físicas;</li><li>copia de fixtures al inventario nuevo;</li><li>mantenimiento de <code>stock_por_deposito</code>.</li></ul>
+<p>El viejo <code>/stock</code> queda como superficie legacy/compatibilidad, no como la fuente canónica nueva.</p>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s22">
+  <div class="title">
+    <div><h3><span class="n">22</span>Flujo completo real</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><h4 class="subhead">Compra</h4>
+<div class="flowquote"><strong>RFQ → OC → proveedor entrega → recepción/remisión → RECEIPT → inventory_balances</strong></div>
+<h4 class="subhead">Movimiento interno</h4>
+<div class="flowquote"><strong>Inventario Obra A → TRANSFER → Inventario Obra B</strong></div>
+<h4 class="subhead">Uso</h4>
+<div class="flowquote"><strong>Inventario Obra B → CONSUMPTION → partida presupuestaria → costo real de obra</strong></div>
+<h4 class="subhead">Pañol</h4>
+<div class="flowquote"><strong>Cuaderno/fotos → rendición → IA/OCR propone líneas → humano revisa → warehouse_submission → confirmación → movimientos de inventario → saldos actualizados</strong></div>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s23">
+  <div class="title">
+    <div><h3><span class="n">23</span>Ejemplo concreto</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>Se compran:</p>
+<p><strong>1.000 bolsas de cemento</strong></p>
+<p>para Obra A.</p>
+<p>El proveedor entrega directamente en Obra A.</p>
+<p>Resultado:</p>
+<ul><li>Obra A = 1.000</li><li>Global = 1.000</li></ul>
+<p>Después se transfieren 200 a Obra B:</p>
+<ul><li>Obra A = 800</li><li>Obra B = 200</li><li>Global = 1.000</li></ul>
+<p>En Obra A se consumen 150 para la partida “Fundaciones”:</p>
+<ul><li>Obra A = 650</li><li>Obra B = 200</li><li>Global = 850</li></ul>
+<p>Además:</p>
+<div class="flowquote"><strong>Partida Fundaciones → 150 bolsas consumidas + costo real transportado</strong></div>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="s24">
+  <div class="title">
+    <div><h3><span class="n">24</span>Qué significa realmente “stock” ahora</h3></div>
+    <div class="state done">ARQUITECTURA</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>Ya no es simplemente:</p>
+<div class="flowquote"><code>productos.stock_actual = 850</code></div>
+<p>El sistema sabe potencialmente:</p>
+<ul><li>hay 850 unidades globales;</li><li>650 están en Obra A;</li><li>200 están en Obra B;</li><li>150 fueron consumidas en Fundaciones;</li><li>esas 150 tuvieron determinado costo real;</li><li>las restantes mantienen el costo con el que ingresaron;</li><li>sabemos de qué recepción/movimiento provinieron;</li><li>sabemos qué empresa y obra corresponden.</li></ul>
+<p>Ese salto convierte el antiguo “stock” en:</p>
+<p><strong>inventario operativo + contabilidad de materiales de obra</strong></p>
+<div class="sep"></div></div>
+  </div>
+</section>
+
+<section class="section" id="sfinal">
+  <div class="title">
+    <div><h3><span class="n">✓</span>Estado final</h3></div>
+    <div class="state done">ESTADO FINAL</div>
+  </div>
+  <div class="item section-card">
+    <div class="body"><p>A nivel conceptual, el sistema queda así:</p>
+<div class="flowquote"><strong>OC → recepción → ubicación física → stock canónico → transferencia → consumo → partida → costo real</strong></div>
+<p>con:</p>
+<ul><li>pañol externo;</li><li>evidencias;</li><li>controles de concurrencia;</li><li>idempotencia;</li><li>multi-tenant;</li><li>costos/FX fail-closed;</li><li>inmutabilidad de eventos confirmados.</li></ul>
+<p>La regla que resume la arquitectura es:</p>
+<div class="quote"><strong>La cantidad física vive en <code>inventory_balances</code>; los movimientos explican cómo llegó ahí; el consumo explica dónde terminó económicamente.</strong></div></div>
+  </div>
+</section>
+
+
+<section class="section">
+  <div class="title"><div><h3><span class="n">◎</span>Ejemplo interactivo del documento</h3></div><div class="state done">PEDAGÓGICO</div></div>
+  <div class="demo">
+    <strong style="font-size:11px">1.000 bolsas llegan a Obra A → transferís a Obra B → consumís en Obra A.</strong>
+    <p style="font-size:10.5px;color:var(--muted);margin:6px 0 0">Mové los valores. El global solo baja cuando hay consumo; una transferencia no crea ni destruye stock.</p>
+    <div class="row">
+      <label class="pill">Transferencia A → B
+        <input id="transfer" type="range" min="0" max="1000" step="10" value="200" style="width:100%;margin-top:7px">
+        <b id="transfer-v">200</b>
+      </label>
+      <label class="pill">Consumo en Obra A
+        <input id="consume" type="range" min="0" max="800" step="10" value="150" style="width:100%;margin-top:7px">
+        <b id="consume-v">150</b>
+      </label>
+    </div>
+    <div class="row">
+      <div class="pill">Obra A<b id="a-v">650</b></div>
+      <div class="pill">Obra B<b id="b-v">200</b></div>
+      <div class="pill">Global<b id="g-v">850</b></div>
+      <div class="pill">Consumido / partida<b id="c-v">150</b></div>
+    </div>
+  </div>
+</section>
+</div>
+
+<script>
+document.querySelectorAll('.idx a').forEach(function(a){
+  a.addEventListener('click',function(){
+    document.querySelectorAll('.idx a').forEach(function(x){x.style.borderColor='';});
+    a.style.borderColor='rgba(142,227,198,.35)';
+  });
+});
+
+(function(){
+  var t=document.getElementById('transfer'), c=document.getElementById('consume');
+  var tv=document.getElementById('transfer-v'), cv=document.getElementById('consume-v');
+  var av=document.getElementById('a-v'), bv=document.getElementById('b-v'), gv=document.getElementById('g-v'), cons=document.getElementById('c-v');
+  function update(){
+    var transfer=Math.min(1000, Number(t.value)||0);
+    var maxConsume=Math.max(0,1000-transfer);
+    c.max=maxConsume;
+    if(Number(c.value)>maxConsume)c.value=maxConsume;
+    var consume=Number(c.value)||0;
+    tv.textContent=transfer.toLocaleString('es-PY');
+    cv.textContent=consume.toLocaleString('es-PY');
+    av.textContent=(1000-transfer-consume).toLocaleString('es-PY');
+    bv.textContent=transfer.toLocaleString('es-PY');
+    gv.textContent=(1000-consume).toLocaleString('es-PY');
+    cons.textContent=consume.toLocaleString('es-PY');
+  }
+  t.addEventListener('input',update); c.addEventListener('input',update); update();
+})();
+</script>
+</body>
+</html>

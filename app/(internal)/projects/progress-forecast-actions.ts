@@ -95,11 +95,13 @@ export async function runProgressForecastAction(
     }
 
     // 3. Fetch budget items (tenant scoped via project_id and empresa_id check)
+    // Por sort_order, no por code: "code" es texto y ordena "1, 10, 11...19,
+    // 2, 20..." en vez de 1, 2, 3... (mismo bug confirmado en weekly-plan-shared.ts).
     const { data: rawBudgetItems } = await supabase
       .from("budget_items")
       .select("*")
       .eq("project_id", projectId)
-      .order("code", { ascending: true });
+      .order("sort_order", { ascending: true });
 
     const budgetItems: BudgetItem[] = (rawBudgetItems ?? []) as BudgetItem[];
     if (budgetItems.length === 0) {
@@ -441,40 +443,5 @@ export async function runProgressForecastAction(
   }
 }
 
-/**
- * Creates or updates a material requirement for a budget item (Bill of Materials)
- */
-export async function saveBudgetItemMaterialAction(params: {
-  projectId: string;
-  budgetItemId: string;
-  productoId: string;
-  cantidadPorUnidad: number;
-  desperdicioPct?: number;
-}): Promise<{ success: boolean; error: string | null }> {
-  try {
-    const profile = await requirePlan("pro", ["administracion", "admin"]);
-    const empresaId = profile.empresa_id;
-    const supabase = await createClient();
-
-    const { error } = await supabase.from("budget_item_materials").upsert(
-      {
-        empresa_id: empresaId,
-        project_id: params.projectId,
-        budget_item_id: params.budgetItemId,
-        producto_id: params.productoId,
-        cantidad_por_unidad_ejecutada: params.cantidadPorUnidad,
-        desperdicio_pct: params.desperdicioPct ?? 0,
-      },
-      { onConflict: "budget_item_id,producto_id" }
-    );
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    revalidatePath(`/projects/${params.projectId}`);
-    return { success: true, error: null };
-  } catch (err: any) {
-    return { success: false, error: err.message };
-  }
-}
+// saveBudgetItemMaterialAction se mudó a "./[id]/apu-actions" (junto con el
+// resto del CRUD/import del APU: materiales, mano de obra, equipo).

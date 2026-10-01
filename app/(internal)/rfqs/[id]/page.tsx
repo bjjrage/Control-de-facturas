@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getAppOrigin } from "@/lib/app-origin";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -18,7 +19,8 @@ import { orderRemaining } from "@/lib/reconciliation";
 import { InviteDialog } from "./invite-dialog";
 import { SelectOfferDialog } from "./select-offer-dialog";
 import { AttachmentLink } from "./attachment-link";
-import { CopyLinkButton } from "./copy-link-button";
+import { QuoteShareButtons } from "./quote-share-buttons";
+import { ManualQuoteDialog } from "./manual-quote-dialog";
 import { AddAttachmentDialog } from "./add-attachment-dialog";
 import { cancelRfq, reopenRfq, deleteRfq } from "./actions";
 
@@ -97,6 +99,46 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
     .order("created_at")
     .returns<Attachment[]>();
 
+  // RFQ multi-ítem (costeo): precios por línea de la última versión de cada
+  // proveedor, y los adjuntos que subió cada uno (para cargar precios a mano).
+  const { data: rfqItemsData } = await supabase
+    .from("rfq_items")
+    .select("id, descripcion, cantidad, unidad")
+    .eq("rfq_id", id)
+    .order("sort_order");
+  const rfqItems = (rfqItemsData ?? []).map((it) => ({ ...it, cantidad: Number(it.cantidad) }));
+  const isMultiItem = rfqItems.length > 0;
+
+  const itemPricesByVersion = new Map<string, Map<string, number | null>>();
+  if (isMultiItem && latestByRfqProvider.size > 0) {
+    const versionIds = [...latestByRfqProvider.values()].map((v) => v.id);
+    const { data: versionItems } = await supabase
+      .from("quote_version_items")
+      .select("quote_version_id, rfq_item_id, precio_unitario")
+      .in("quote_version_id", versionIds);
+    for (const vi of versionItems ?? []) {
+      const m = itemPricesByVersion.get(vi.quote_version_id) ?? new Map<string, number | null>();
+      m.set(vi.rfq_item_id, vi.precio_unitario == null ? null : Number(vi.precio_unitario));
+      itemPricesByVersion.set(vi.quote_version_id, m);
+    }
+  }
+
+  const providerAttachments = new Map<string, Attachment[]>();
+  if (isMultiItem && rfqProviders.length > 0) {
+    const { data: provAtt } = await supabase
+      .from("attachments")
+      .select("*")
+      .in("rfq_provider_id", rfqProviders.map((rp) => rp.id))
+      .order("created_at", { ascending: false })
+      .returns<Attachment[]>();
+    for (const a of provAtt ?? []) {
+      const key = (a as Attachment & { rfq_provider_id: string | null }).rfq_provider_id;
+      if (!key) continue;
+      providerAttachments.set(key, [...(providerAttachments.get(key) ?? []), a]);
+    }
+  }
+  const canEnterPrices = ["comercial", "administracion", "admin"].includes(profile.role ?? "");
+
   let authorizedOrder: AuthorizedOrder | null = null;
   if (rfq.selected_rfq_provider_id) {
     const { data } = await supabase
@@ -121,15 +163,26 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
     [...cheapestByCurrency.values()].map((c) => c.rfqProviderId)
   );
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const appUrl = await getAppOrigin();
   const open = isRfqOpen(rfq);
   const closedReason = rfqClosedReason(rfq);
   const canInvite = canManage && open;
-  const canSelect = canManage && ["COTIZANDO", "OFERTAS_RECIBIDAS"].includes(rfq.status);
+  const hasQuotes = latestByRfqProvider.size > 0;
+  const canSelect = canManage && !isMultiItem && !rfq.selected_rfq_provider_id && hasQuotes && rfq.status !== "CANCELADO";
   const canCancel = canManage && ["BORRADOR", "COTIZANDO", "OFERTAS_RECIBIDAS"].includes(rfq.status);
   const canDelete = profile.role === "admin" && ["CANCELADO", "BORRADOR"].includes(rfq.status);
   const canReopen = canManage && canReopenRfq(rfq);
   const actuallyExpired = new Date(rfq.expires_at).getTime() <= Date.now();
+
+  const respondedQuotes = Array.from(latestByRfqProvider.entries()).map(([rpId, quote]) => {
+    const rp = rfqProviders.find((p) => p.id === rpId);
+    return {
+      rfqProviderId: rpId,
+      providerName: rp?.providers.name ?? "Proveedor",
+      quote,
+      isSuggested: !rfq.selected_rfq_provider_id && suggestedRfqProviderIds.has(rpId),
+    };
+  });
 
   return (
     <div className="max-w-4xl space-y-5">
@@ -261,6 +314,167 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
         </Link>
       ) : null}
 
+      {isMultiItem ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[14px] font-semibold">Comparativa por ítem</h2>
+            <span className="text-[12px] text-[var(--muted)]">
+              {rfqItems.length} ítems · {respondedQuotes.length} cotización{respondedQuotes.length === 1 ? "" : "es"}
+            </span>
+          </div>
+          <p className="text-[12px] text-[var(--muted)]">
+            Solicitud de costeo: estos precios alimentan el presupuesto de costo de la obra. El más bajo de cada ítem
+            queda marcado.
+          </p>
+          {canSeeQuotes && respondedQuotes.length > 0 ? (
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-x-auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Ítem</th>
+                    <th className="num">Cantidad</th>
+                    {respondedQuotes.map((q) => (
+                      <th key={q.rfqProviderId} className="num">
+                        {q.providerName}
+                        <div className="text-[10px] font-normal text-[var(--muted)]">
+                          {q.quote.currency} · {q.quote.vat_included ? "IVA incl." : "+ IVA"}
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rfqItems.map((it) => {
+                    const cells = respondedQuotes.map((q) => itemPricesByVersion.get(q.quote.id)?.get(it.id) ?? null);
+                    const priced = cells.filter((c): c is number => c != null && c > 0);
+                    const min = priced.length > 0 ? Math.min(...priced) : null;
+                    return (
+                      <tr key={it.id}>
+                        <td>{it.descripcion}</td>
+                        <td className="num whitespace-nowrap">
+                          {formatNumber(it.cantidad, Number.isInteger(it.cantidad) ? 0 : 2)} {it.unidad}
+                        </td>
+                        {cells.map((c, idx) => (
+                          <td key={idx} className={`num ${c != null && c === min && priced.length > 1 ? "font-semibold text-[var(--ok)]" : ""}`}>
+                            {c == null ? <span className="text-[var(--muted)]">No cotiza</span> : formatMoney(c, respondedQuotes[idx].quote.currency)}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={2} className="text-right font-semibold">Total</td>
+                    {respondedQuotes.map((q) => (
+                      <td key={q.rfqProviderId} className="num font-semibold">
+                        {formatMoney(q.quote.total_price, q.quote.currency)}
+                      </td>
+                    ))}
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          ) : (
+            <p className="text-[13px] text-[var(--muted)]">
+              {canSeeQuotes
+                ? "Todavía no hay cotizaciones con precios. Mandá el link o el QR a los proveedores, o cargá a mano los precios de un adjunto."
+                : "Tu rol no ve los precios cotizados."}
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      {/* Cuadro Comparativo de Ofertas */}
+      {!isMultiItem && canSeeQuotes && respondedQuotes.length > 0 ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[14px] font-semibold">Cuadro Comparativo de Ofertas</h2>
+            <span className="text-[12px] text-[var(--muted)]">
+              {respondedQuotes.length} oferta{respondedQuotes.length > 1 ? "s" : ""} recibida{respondedQuotes.length > 1 ? "s" : ""}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {respondedQuotes.map(({ rfqProviderId, providerName, quote, isSuggested }) => (
+              <div
+                key={rfqProviderId}
+                className={`rounded-lg border p-4 space-y-3 ${
+                  isSuggested
+                    ? "border-[var(--ok)]/40 bg-[var(--ok-bg)]/20"
+                    : "border-[var(--border)] bg-[var(--panel)]"
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="font-semibold text-[14px] flex items-center gap-1.5">
+                      {providerName}
+                      {isSuggested ? <Badge tone="ok">Mejor Precio</Badge> : null}
+                    </div>
+                    <div className="text-[12px] text-[var(--muted)]">
+                      Ppto: {quote.budget_number || "-"} · Versión #{quote.version_number}
+                    </div>
+                  </div>
+                  {canSelect ? (
+                    <SelectOfferDialog
+                      rfqId={rfq.id}
+                      rfqProviderId={rfqProviderId}
+                      quoteVersionId={quote.id}
+                      providerName={providerName}
+                      totalPrice={quote.total_price}
+                      currency={quote.currency}
+                      trigger={<Button className="h-7 px-3 text-[12px]">Adjudicar Oferta</Button>}
+                    />
+                  ) : null}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[12px] pt-1 border-t border-[var(--border)]/60">
+                  <div>
+                    <span className="text-[var(--muted)]">Precio Unitario:</span>{" "}
+                    <span className="font-medium">{formatMoney(quote.unit_price, quote.currency)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[var(--muted)]">Precio Total:</span>{" "}
+                    <span className="font-semibold">{formatMoney(quote.total_price, quote.currency)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[var(--muted)]">Plazo Entrega:</span>{" "}
+                    <span>{quote.delivery_time || "-"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[var(--muted)]">Validez Oferta:</span>{" "}
+                    <span>{quote.offer_validity || "-"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[var(--muted)]">Condición Fiscal:</span>{" "}
+                    <span>{quote.vat_included ? "IVA Incluido" : "Más IVA"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[var(--muted)]">Factura:</span>{" "}
+                    <span>{quote.invoice_available ? "Disponible" : "Sin Factura"}</span>
+                  </div>
+                </div>
+
+                {quote.observations ? (
+                  <p className="text-[12px] text-[var(--muted)] italic border-t border-[var(--border)]/40 pt-1">
+                    "{quote.observations}"
+                  </p>
+                ) : null}
+
+                {quote.attachment ? (
+                  <div className="pt-1">
+                    <AttachmentLink
+                      bucket={quote.attachment.bucket}
+                      path={quote.attachment.path}
+                      fileName={`Presupuesto PDF (${quote.attachment.file_name || "descargar"})`}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div>
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-[14px] font-semibold">Proveedores invitados</h2>
@@ -341,11 +555,36 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
                       </>
                     ) : null}
                     <td>
-                      {rp.status !== "RESPONDIDO" ? (
-                        <CopyLinkButton url={portalUrl} />
-                      ) : (
-                        <span className="text-[var(--muted)]">-</span>
-                      )}
+                      <div className="flex flex-col items-start gap-1">
+                        {rp.status !== "RESPONDIDO" || isMultiItem ? (
+                          <QuoteShareButtons
+                            url={portalUrl}
+                            providerName={rp.providers.name}
+                            phone={rp.providers.phone ?? null}
+                            rfqCode={rfq.code}
+                          />
+                        ) : (
+                          <span className="text-[var(--muted)]">-</span>
+                        )}
+                        {isMultiItem && canEnterPrices ? (
+                          <ManualQuoteDialog
+                            rfqProviderId={rp.id}
+                            providerName={rp.providers.name}
+                            items={rfqItems}
+                            attachments={(providerAttachments.get(rp.id) ?? []).map((a) => ({
+                              id: a.id,
+                              bucket: a.bucket,
+                              path: a.path,
+                              file_name: a.file_name,
+                            }))}
+                            trigger={
+                              <button type="button" className="text-[12px] text-[var(--primary)] underline hover:no-underline">
+                                Cargar precios del adjunto
+                              </button>
+                            }
+                          />
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 );

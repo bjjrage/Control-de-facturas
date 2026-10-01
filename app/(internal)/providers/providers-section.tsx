@@ -12,6 +12,11 @@ import { ProvidersSectionData } from "./section-action";
 
 export function ProvidersSection({ initialData }: { initialData: ProvidersSectionData }) {
   const [providers, setProviders] = useState(initialData.providers);
+  const [rubros, setRubros] = useState(initialData.rubrosByProvider);
+  const categoriaNombre = useMemo(
+    () => new Map(initialData.categorias.map((c) => [c.id, c.nombre])),
+    [initialData.categorias]
+  );
   const [pending, startTransition] = useTransition();
   const [q, setQ] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -21,6 +26,7 @@ export function ProvidersSection({ initialData }: { initialData: ProvidersSectio
   // no lo relee solo — sin esto un proveedor se veía desactualizado al volver.
   useEffect(() => {
     setProviders(initialData.providers);
+    setRubros(initialData.rubrosByProvider);
   }, [initialData]);
 
   function handleToggle(p: Provider) {
@@ -53,7 +59,11 @@ export function ProvidersSection({ initialData }: { initialData: ProvidersSectio
     <div className="max-w-4xl space-y-4">
       <div className="flex items-center justify-between mt-1">
         <h1 className="text-[17px] font-semibold">Proveedores</h1>
-        <ProviderDialog action={createProvider} trigger={<Button>Nuevo proveedor</Button>} />
+        <ProviderDialog
+          action={createProvider}
+          categorias={initialData.categorias}
+          trigger={<Button>Nuevo proveedor</Button>}
+        />
       </div>
 
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
@@ -102,6 +112,7 @@ export function ProvidersSection({ initialData }: { initialData: ProvidersSectio
               <th>Email</th>
               <th>Teléfono</th>
               <th>RUC</th>
+              <th>Rubros</th>
               <th>Estado</th>
               <th></th>
             </tr>
@@ -119,6 +130,17 @@ export function ProvidersSection({ initialData }: { initialData: ProvidersSectio
                 <td>{p.phone ?? "-"}</td>
                 <td>{p.tax_id ?? "-"}</td>
                 <td>
+                  {(rubros[p.id] ?? []).length === 0 ? (
+                    <span className="text-[12px] text-[var(--muted)]">Sin rubro</span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {(rubros[p.id] ?? []).map((cid) => (
+                        <Badge key={cid} tone="neutral">{categoriaNombre.get(cid) ?? "—"}</Badge>
+                      ))}
+                    </div>
+                  )}
+                </td>
+                <td>
                   <Badge tone={p.active ? "ok" : "neutral"}>
                     {p.active ? "Activo" : "Inactivo"}
                   </Badge>
@@ -127,7 +149,16 @@ export function ProvidersSection({ initialData }: { initialData: ProvidersSectio
                   <div className="flex justify-end gap-2">
                     <ProviderDialog
                       provider={p}
-                      action={updateProvider.bind(null, p.id)}
+                      categorias={initialData.categorias}
+                      selectedCategoriaIds={rubros[p.id] ?? []}
+                      action={async (formData: FormData) => {
+                        const result = await updateProvider(p.id, formData);
+                        if (!result.error) {
+                          const ids = formData.getAll("categoria_id").filter((v): v is string => typeof v === "string");
+                          setRubros((prev) => ({ ...prev, [p.id]: ids }));
+                        }
+                        return result;
+                      }}
                       trigger={
                         <Button variant="secondary" className="h-6 px-2 text-[12px]">
                           Editar
@@ -148,7 +179,7 @@ export function ProvidersSection({ initialData }: { initialData: ProvidersSectio
             ))}
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center text-[var(--muted)] py-6">
+                <td colSpan={8} className="text-center text-[var(--muted)] py-6">
                   {providers.length === 0 ? "No hay proveedores cargados." : "Ningún proveedor coincide con los filtros."}
                 </td>
               </tr>

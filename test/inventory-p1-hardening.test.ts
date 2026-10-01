@@ -31,7 +31,7 @@ describe("P1 hardening del inventario canónico", () => {
     expect(migration).toContain("IF p_quantity > v_ordered_quantity - v_received_quantity THEN");
     expect(migration).toContain("HAVING count(*) > 1");
     expect(migration).toContain("No se puede repetir un ítem de OC dentro de una recepción");
-    expect(actions).toContain("new Set(requestedOrderItemIds).size !== requestedOrderItemIds.length");
+    expect(actions).toContain("new Set(args.items.map((item) => item.orderItemId)).size !== args.items.length");
   });
 
   it("marca revisión cuando falta FX y agrega solo costo compañía computable", () => {
@@ -52,7 +52,8 @@ describe("P1 hardening del inventario canónico", () => {
     expect(migration).toContain("BEFORE INSERT OR UPDATE OR DELETE ON public.warehouse_submission_lines");
     expect(migration).toContain("BEFORE INSERT OR UPDATE OR DELETE ON public.warehouse_submission_evidence");
     expect(actions).toContain("line.inventory_movement_id");
-    expect(actions).toContain("submission?.status === \"CONFIRMED\"");
+    expect(actions).toContain('["CONFIRMED", "VOIDED", "PROCESSING"].includes(submission.status)');
+    expect(actions).toContain('if (args.state === "CONFIRMED" &&');
   });
 
   it("mantiene el metadato nominal al propagar capas de costo", () => {

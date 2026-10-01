@@ -5,17 +5,16 @@ import { Topbar } from "@/components/layout/topbar";
 import { AppShellClient } from "@/components/layout/app-shell-client";
 import { RodrigoAgentProvider } from "@/components/agent/rodrigo-agent-provider";
 import { RodrigoAgentWidget } from "@/components/agent/rodrigo-agent-widget";
+import { planMeetsMinimum } from "@/lib/plans";
 
 // The logo upload in the Sidebar (present on every page under this layout)
 // can rasterize a PDF, which may outlast the platform's default serverless
 // timeout (10s on Vercel's Hobby plan).
 export const maxDuration = 60;
 
-const PLAN_RANK = { basico: 0, pro: 1, caterpillar: 2 } as const;
-
 export default async function InternalLayout({ children }: { children: React.ReactNode }) {
   const profile = await requireProfile();
-  const isProOrAbove = PLAN_RANK[profile.plan] >= PLAN_RANK.pro;
+  const isProOrAbove = planMeetsMinimum(profile.plan, "pro", profile.is_super_admin);
   const showOperativo = isProOrAbove && (profile.role === "administracion" || profile.role === "admin");
   const showLicitaciones = isProOrAbove && ["comercial", "administracion", "admin"].includes(profile.role);
 

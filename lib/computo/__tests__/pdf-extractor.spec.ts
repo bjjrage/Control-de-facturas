@@ -114,9 +114,10 @@ describe("extractComputoFromPdf — gate de confianza de 3 capas", () => {
     expect(result.vicious).toBe(true);
   });
 
-  it("sin DEEPSEEK_API_KEY -> tira, nunca hay fallback silencioso", async () => {
+  it("sin API key -> tira, nunca hay fallback silencioso", async () => {
     delete process.env.DEEPSEEK_API_KEY;
+    delete process.env.OPENAI_API_KEY;
     mockGetText.mockResolvedValue({ text: "texto largo ".repeat(10) });
-    await expect(extractComputoFromPdf(Buffer.from("fake"))).rejects.toThrow(/DEEPSEEK_API_KEY/);
+    await expect(extractComputoFromPdf(Buffer.from("fake"))).rejects.toThrow(/OPENAI_API_KEY/);
   });
 });
