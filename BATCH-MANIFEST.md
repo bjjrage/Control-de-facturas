@@ -53,4 +53,22 @@
 - Regressions: ninguna modificación de código de producto.
 - Test coverage: validación estructural de ledger, hooks y protección remota.
 - HTML impact: ninguno.
-- Verdict pre-commit: **PASS**. Los diez archivos staged coinciden exactamente con el manifest, `git diff --cached --check` no reportó errores y no hay código de producto ni migraciones en el diff. La integración sigue sujeta a auditoría post-commit.
+- Verdict pre-commit: **PASS**. Los diez archivos staged coincidieron exactamente con el manifest, `git diff --cached --check` no reportó errores y no hubo código de producto ni migraciones en el diff.
+
+## Cierre de integración
+
+- Batch head: `891c3ef58b65760d611663c34e79822a1975fa58`.
+- PR: `#19`.
+- Main resultante: `20beadbcdf59c7fac64b7596aad382994c8511ed`.
+- Expected files: 10/10.
+- Unexpected files: ninguno.
+- Expected commits: 1/1.
+- Unknown commits: ninguno.
+- Migrations: ninguna.
+- Regressions: no se modificó código de producto.
+- Test coverage: ledger 72/8/45, sintaxis del generador, JSON, hook y protección remota verificados.
+- HTML impact: ninguno.
+- Vercel: proyecto principal `control-de-facturas` SUCCESS por Ignored Build Step; el proyecto histórico `control-facturas-surface-recovery` falló y no forma parte del target principal.
+- Verdict post-merge: **PASS**.
+
+La actualización de cierre autoriza exclusivamente cambios en `APPLIED-CHANGES.md` y este manifest.

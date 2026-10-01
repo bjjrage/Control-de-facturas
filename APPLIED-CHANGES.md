@@ -6,6 +6,17 @@
 - Tag: `baseline-pre-erp-hardening-2026-09-30`, creado localmente y publicado en `origin`.
 - Estado: establecido y verificado contra `origin/main` después de `git fetch`.
 - Protección remota: PR obligatorio, conversaciones resueltas, force-push/deletion bloqueados y regla aplicada a administradores.
+
+## PHASE -1 — GIT FREEZE
+
+- Base: `1a71c96279febf6636892143af20f36a0315f5ae`.
+- Batch head auditado: `891c3ef58b65760d611663c34e79822a1975fa58`.
+- PR: `#19`.
+- Main final de la integración: `20beadbcdf59c7fac64b7596aad382994c8511ed`.
+- Resultado: **ABSORBED BY `20beadbcdf59c7fac64b7596aad382994c8511ed`**.
+- Commits históricos rescatados: ninguno.
+- Migraciones: ninguna.
+- Auditoría: PASS — 10 archivos esperados, 0 inesperados, 0 commits desconocidos.
 - Batches integrados después del baseline: ninguno.
 
 ## Registro por batch
