@@ -317,30 +317,30 @@ DECLARE
   v_name text;
   v_exp timestamptz;
 BEGIN
-  -- Fail closed: hash malformado = enlace invÃ¡lido, sin distinguir motivos.
+  -- Fail closed: hash malformado = enlace inválido, sin distinguir motivos.
   IF p_token_hash IS NULL OR p_token_hash !~ '^[0-9a-f]{64}$' THEN
-    RAISE EXCEPTION 'Enlace invÃ¡lido.';
+    RAISE EXCEPTION 'Enlace inválido.';
   END IF;
   v_name := btrim(COALESCE(p_acceptor_name, ''));
   IF char_length(v_name) < 2 OR char_length(v_name) > 200 THEN
-    RAISE EXCEPTION 'IndicÃ¡ tu nombre y apellido para aceptar.';
+    RAISE EXCEPTION 'Indicá tu nombre y apellido para aceptar.';
   END IF;
 
-  -- Orden de bloqueo fijo token â†’ documento: serializa aceptaciones
+  -- Orden de bloqueo fijo token → documento: serializa aceptaciones
   -- concurrentes del mismo link en el lock del documento.
   SELECT * INTO v_tok FROM public.sales_quotation_tokens WHERE token_hash = p_token_hash FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Enlace invÃ¡lido.'; END IF;
-  IF v_tok.revoked_at IS NOT NULL THEN RAISE EXCEPTION 'Este enlace fue revocado. PedÃ­ un nuevo enlace a la empresa.'; END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Enlace inválido.'; END IF;
+  IF v_tok.revoked_at IS NOT NULL THEN RAISE EXCEPTION 'Este enlace fue revocado. Pedí un nuevo enlace a la empresa.'; END IF;
 
   SELECT * INTO v_doc FROM public.sales_documents WHERE id = v_tok.sales_document_id FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'CotizaciÃ³n no encontrada.'; END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Cotización no encontrada.'; END IF;
   -- Tenant isolation: el token solo puede resolver su propio documento.
   IF v_tok.empresa_id IS DISTINCT FROM v_doc.empresa_id THEN
-    RAISE EXCEPTION 'Enlace invÃ¡lido.';
+    RAISE EXCEPTION 'Enlace inválido.';
   END IF;
-  IF v_doc.doc_type IS DISTINCT FROM 'PROFORMA' THEN RAISE EXCEPTION 'Este documento no es una cotizaciÃ³n.'; END IF;
+  IF v_doc.doc_type IS DISTINCT FROM 'PROFORMA' THEN RAISE EXCEPTION 'Este documento no es una cotización.'; END IF;
 
-  -- Idempotencia de lectura: ya aceptada â†’ devolver lo existente.
+  -- Idempotencia de lectura: ya aceptada → devolver lo existente.
   IF v_doc.acceptance_status = 'ACCEPTED' THEN
     SELECT * INTO v_wo FROM public.work_orders WHERE sales_document_id = v_doc.id;
     SELECT * INTO v_acc FROM public.sales_quotation_acceptances WHERE sales_document_id = v_doc.id;
@@ -352,9 +352,9 @@ BEGIN
   END IF;
 
   IF v_doc.acceptance_status = 'REJECTED' THEN
-    RAISE EXCEPTION 'Esta cotizaciÃ³n fue rechazada. PedÃ­ a la empresa un nuevo ciclo de cotizaciÃ³n.';
+    RAISE EXCEPTION 'Esta cotización fue rechazada. Pedí a la empresa un nuevo ciclo de cotización.';
   END IF;
-  IF v_doc.acceptance_status = 'DRAFT' THEN RAISE EXCEPTION 'Esta cotizaciÃ³n todavÃ­a no estÃ¡ habilitada para aceptar.'; END IF;
+  IF v_doc.acceptance_status = 'DRAFT' THEN RAISE EXCEPTION 'Esta cotización todavía no está habilitada para aceptar.'; END IF;
 
   v_exp := LEAST(
     COALESCE(v_tok.expires_at, v_doc.acceptance_expires_at, now() + interval '1 second'),
@@ -368,22 +368,22 @@ BEGIN
       VALUES (v_doc.empresa_id, v_doc.id, v_tok.id, 'EXPIRED', 'sistema', p_ip, p_user_agent,
         jsonb_build_object('reason', 'expired_on_accept_attempt'));
     END IF;
-    RAISE EXCEPTION 'Esta cotizaciÃ³n venciÃ³. ContactÃ¡ a la empresa para pedir una nueva.';
+    RAISE EXCEPTION 'Esta cotización venció. Contactá a la empresa para pedir una nueva.';
   END IF;
 
   IF v_doc.acceptance_status = 'EXPIRED' THEN
-    RAISE EXCEPTION 'Esta cotizaciÃ³n venciÃ³. ContactÃ¡ a la empresa para pedir una nueva.';
+    RAISE EXCEPTION 'Esta cotización venció. Contactá a la empresa para pedir una nueva.';
   END IF;
   IF v_doc.acceptance_status <> 'PENDING_ACCEPTANCE' THEN
-    RAISE EXCEPTION 'Esta cotizaciÃ³n no estÃ¡ pendiente de aceptaciÃ³n.';
+    RAISE EXCEPTION 'Esta cotización no está pendiente de aceptación.';
   END IF;
 
-  -- VersiÃ³n congelada: el chequeo ocurre DENTRO de la transacciÃ³n con el
-  -- lock del documento ya tomado, asÃ­ que una ediciÃ³n concurrente o bien
-  -- commiteÃ³ antes (versiÃ³n distinta â†’ rechazo) o espera al lock y luego
+  -- Versión congelada: el chequeo ocurre DENTRO de la transacción con el
+  -- lock del documento ya tomado, así que una edición concurrente o bien
+  -- commiteó antes (versión distinta → rechazo) o espera al lock y luego
   -- aborta en el guard de inmutabilidad. Sin ventana superseded.
   IF v_tok.quotation_version IS DISTINCT FROM v_doc.quotation_version THEN
-    RAISE EXCEPTION 'La cotizaciÃ³n fue actualizada por la empresa. PedÃ­ el nuevo enlace antes de aceptar.';
+    RAISE EXCEPTION 'La cotización fue actualizada por la empresa. Pedí el nuevo enlace antes de aceptar.';
   END IF;
 
   SELECT name INTO v_client_name FROM public.clients WHERE id = v_doc.client_id;
@@ -403,13 +403,13 @@ BEGIN
   WHERE id = v_doc.id;
 
   -- OT interna idempotente: UNIQUE(sales_document_id) + ON CONFLICT como
-  -- backstop de concurrencia ademÃ¡s de la serializaciÃ³n por locks.
+  -- backstop de concurrencia además de la serialización por locks.
   INSERT INTO public.work_orders
     (empresa_id, sales_document_id, client_id, currency, subtotal, vat_amount, total, status, notes)
   VALUES (
     v_doc.empresa_id, v_doc.id, v_doc.client_id, v_doc.currency,
     v_doc.subtotal, v_doc.vat_amount, v_doc.total, 'PENDIENTE',
-    'Generada automÃ¡ticamente por aceptaciÃ³n electrÃ³nica de ' || v_doc.code
+    'Generada automáticamente por aceptación electrónica de ' || v_doc.code
       || ' v' || v_doc.quotation_version || ' por ' || v_name || '.'
       || CASE WHEN p_notes IS NOT NULL AND btrim(p_notes) <> '' THEN ' Comentario del cliente: ' || btrim(p_notes) ELSE '' END)
   ON CONFLICT (sales_document_id) DO NOTHING
@@ -424,8 +424,8 @@ BEGIN
     SELECT * INTO v_wo FROM public.work_orders WHERE sales_document_id = v_doc.id;
   END IF;
 
-  -- Acceptance record explÃ­cito: UNIQUE(sales_document_id) garantiza una
-  -- sola aceptaciÃ³n por cotizaciÃ³n aunque dos requests corran en paralelo.
+  -- Acceptance record explícito: UNIQUE(sales_document_id) garantiza una
+  -- sola aceptación por cotización aunque dos requests corran en paralelo.
   INSERT INTO public.sales_quotation_acceptances (
     empresa_id, sales_document_id, quotation_version, client_id, client_name_snapshot,
     subtotal_snapshot, vat_snapshot, total_snapshot, currency_snapshot, channel,
@@ -433,7 +433,7 @@ BEGIN
     token_id, token_prefix, items_snapshot, work_order_id
   ) VALUES (
     v_doc.empresa_id, v_doc.id, v_doc.quotation_version, v_doc.client_id,
-    COALESCE(v_client_name, 'â€”'),
+    COALESCE(v_client_name, '—'),
     v_doc.subtotal, v_doc.vat_amount, v_doc.total, v_doc.currency, 'PORTAL',
     v_tok.prepared_for_email, v_name,
     NULLIF(btrim(COALESCE(p_acceptor_doc, '')), ''),
@@ -445,7 +445,7 @@ BEGIN
     SELECT * INTO v_acc FROM public.sales_quotation_acceptances WHERE sales_document_id = v_doc.id;
   END IF;
 
-  -- Workflow interno resuelto por configuraciÃ³n (nunca hardcodea personas).
+  -- Workflow interno resuelto por configuración (nunca hardcodea personas).
   SELECT * INTO v_pol FROM public.resolve_work_order_policy(v_doc.empresa_id, v_doc.client_id, NULL);
   v_wf := CASE WHEN v_pol.mode = 'RESPONSIBLE_APPROVAL'
     THEN 'PENDING_INTERNAL_APPROVAL'::public.work_order_workflow_status
@@ -514,7 +514,7 @@ begin
     return jsonb_build_object('transitioned', false, 'status', v_room.status);
   end if;
 
-  -- NORMAL â†’ RANDOM
+  -- NORMAL → RANDOM
   if v_room.status = 'ACTIVE_NORMAL' then
     if v_room.started_at is null
        or v_now < v_room.started_at + (v_room.normal_duration_seconds || ' seconds')::interval then
@@ -524,7 +524,7 @@ begin
     v_offset := v_room.random_min_seconds
                 + random() * greatest(0, v_room.random_max_seconds - v_room.random_min_seconds);
 
-    -- Una sola llamada gana el roll; las demÃ¡s reusan el valor existente.
+    -- Una sola llamada gana el roll; las demás reusan el valor existente.
     insert into public.auction_sandbox_room_private (room_id, random_close_at, updated_at)
     values (p_room_id, v_now + make_interval(secs => v_offset), v_now)
     on conflict (room_id) do nothing;
@@ -543,12 +543,12 @@ begin
     return jsonb_build_object('transitioned', true, 'status', 'ACTIVE_RANDOM');
   end if;
 
-  -- ACTIVE_RANDOM â†’ CLOSED
+  -- ACTIVE_RANDOM → CLOSED
   select random_close_at into v_close
   from public.auction_sandbox_room_private where room_id = p_room_id;
 
   if v_close is null then
-    -- Backstop: si el roll nunca ocurriÃ³, generarlo ahora (una sola vez).
+    -- Backstop: si el roll nunca ocurrió, generarlo ahora (una sola vez).
     v_offset := v_room.random_min_seconds
                 + random() * greatest(0, v_room.random_max_seconds - v_room.random_min_seconds);
     insert into public.auction_sandbox_room_private (room_id, random_close_at, updated_at)
@@ -563,7 +563,7 @@ begin
   end if;
 
   if v_now < v_close then
-    -- closeRisk se deriva en app desde random_started_at + min (pÃºblico).
+    -- closeRisk se deriva en app desde random_started_at + min (público).
     return jsonb_build_object('transitioned', false, 'status', 'ACTIVE_RANDOM');
   end if;
 
@@ -665,7 +665,7 @@ BEGIN
   END IF;
   IF p_approved_pct IS NULL OR p_approved_pct <= 0 OR p_approved_pct > 100
      OR p_approved_amount IS NULL OR p_approved_amount <= 0 THEN
-    RAISE EXCEPTION 'El porcentaje y el monto aprobados deben ser vÃ¡lidos';
+    RAISE EXCEPTION 'El porcentaje y el monto aprobados deben ser válidos';
   END IF;
 
   SELECT sc.contract_id, sc.project_id, sc.status, sc.approved_pct, sc.approved_amount, sc.notes
@@ -697,14 +697,14 @@ BEGIN
   WHERE sc.contract_id = v_contract_id AND sc.id <> p_certificate_id
     AND sc.status IN ('APROBADO','PAGADO');
   IF v_other_approved + p_approved_amount > v_contracted_amount THEN
-    RAISE EXCEPTION 'La aprobaciÃ³n supera el monto contratado';
+    RAISE EXCEPTION 'La aprobación supera el monto contratado';
   END IF;
 
   UPDATE public.subcontractor_certificates sc
   SET status = 'APROBADO', approved_pct = p_approved_pct,
       approved_amount = p_approved_amount, notes = p_notes
   WHERE sc.id = p_certificate_id AND sc.project_id = v_project_id AND sc.status = 'PENDIENTE';
-  IF NOT FOUND THEN RAISE EXCEPTION 'El certificado cambiÃ³ durante la aprobaciÃ³n'; END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION 'El certificado cambió durante la aprobación'; END IF;
   RETURN p_certificate_id;
 END;
 $$;
@@ -752,7 +752,7 @@ CREATE FUNCTION "public"."bloquear_modificacion_snapshot"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
 BEGIN
-    RAISE EXCEPTION 'Los snapshots de anÃ¡lisis de licitaciÃ³n son estrictamente inmutables (append-only) y no pueden ser modificados ni eliminados.';
+    RAISE EXCEPTION 'Los snapshots de análisis de licitación son estrictamente inmutables (append-only) y no pueden ser modificados ni eliminados.';
 END;
 $$;
 
@@ -768,8 +768,8 @@ CREATE FUNCTION "public"."bump_quotation_version_on_doc_update"() RETURNS "trigg
     SET "search_path" TO 'public'
     AS $$
 BEGIN
-  -- Solo PROFORMA versiona. Si el cambio es solo de aceptaciÃ³n/estado de
-  -- cobranza (o el propio bump desde Ã­tems), no se suma de nuevo.
+  -- Solo PROFORMA versiona. Si el cambio es solo de aceptación/estado de
+  -- cobranza (o el propio bump desde ítems), no se suma de nuevo.
   IF NEW.doc_type IS DISTINCT FROM 'PROFORMA' THEN RETURN NEW; END IF;
   IF NEW.client_id IS DISTINCT FROM OLD.client_id
     OR NEW.currency IS DISTINCT FROM OLD.currency
@@ -1188,7 +1188,7 @@ DECLARE
   v_new_plan_id UUID;
 BEGIN
   IF p_status NOT IN ('DRAFT', 'COMMITTED', 'CLOSED') THEN
-    RAISE EXCEPTION 'status invÃ¡lido para commit MRP: %', p_status;
+    RAISE EXCEPTION 'status inválido para commit MRP: %', p_status;
   END IF;
 
   PERFORM 1 FROM public.projects
@@ -1201,7 +1201,7 @@ BEGIN
     PERFORM 1 FROM public.inventory_locations
       WHERE id = p_location_id AND empresa_id = v_empresa_id;
     IF NOT FOUND THEN
-      RAISE EXCEPTION 'DepÃ³sito no encontrado o sin permisos';
+      RAISE EXCEPTION 'Depósito no encontrado o sin permisos';
     END IF;
   END IF;
 
@@ -1219,8 +1219,8 @@ BEGIN
     RAISE EXCEPTION 'No se pudo persistir el plan semanal';
   END IF;
 
-  -- 2) Lifecycle de reservas EN LA MISMA transacciÃ³n.
-  -- Orden: primero liberar lo retenido (si el save falla despuÃ©s, el
+  -- 2) Lifecycle de reservas EN LA MISMA transacción.
+  -- Orden: primero liberar lo retenido (si el save falla después, el
   -- ROLLBACK lo restaura: rollback total probado en tests).
   IF p_plan_id IS NOT NULL THEN
     UPDATE public.inventory_reservations
@@ -1231,7 +1231,7 @@ BEGIN
   END IF;
 
   IF p_status = 'COMMITTED' AND p_location_id IS NOT NULL THEN
-    -- Reemplazo atÃ³mico: reserva las nuevas (o falla todo).
+    -- Reemplazo atómico: reserva las nuevas (o falla todo).
     PERFORM public.reserve_plan_stock(
       v_empresa_id, p_actor_id, p_project_id, v_new_plan_id, p_location_id,
       COALESCE(p_reserve_items, '[]'::jsonb),
@@ -1314,7 +1314,7 @@ DECLARE
   v_calculated_budget_total NUMERIC(18,2) := 0;
 BEGIN
   IF auth.uid() IS NULL THEN
-    RAISE EXCEPTION 'Acceso denegado: se requiere sesiÃ³n autenticada';
+    RAISE EXCEPTION 'Acceso denegado: se requiere sesión autenticada';
   END IF;
 
   v_current_empresa := public.current_empresa_id();
@@ -1334,11 +1334,11 @@ BEGIN
       AND empresa_id = p_empresa_id;
 
     IF v_lic_empresa IS NULL THEN
-      RAISE EXCEPTION 'LicitaciÃ³n % no encontrada para la empresa %', p_tender_id, p_empresa_id;
+      RAISE EXCEPTION 'Licitación % no encontrada para la empresa %', p_tender_id, p_empresa_id;
     END IF;
 
     IF COALESCE(v_lic_decision, '') <> 'GANADA' THEN
-      RAISE EXCEPTION 'Integridad contractual violada: la licitaciÃ³n % no tiene decisiÃ³n GANADA (estado actual: %)', p_tender_id, COALESCE(v_lic_decision, 'SIN_DECISION');
+      RAISE EXCEPTION 'Integridad contractual violada: la licitación % no tiene decisión GANADA (estado actual: %)', p_tender_id, COALESCE(v_lic_decision, 'SIN_DECISION');
     END IF;
 
     IF v_lic_proj IS NOT NULL THEN
@@ -1363,7 +1363,7 @@ BEGIN
     WHERE id = p_bid_analysis_run_id;
 
     IF v_run_empresa IS NULL OR v_run_empresa <> p_empresa_id THEN
-      RAISE EXCEPTION 'La corrida de anÃ¡lisis % no pertenece a la empresa %', p_bid_analysis_run_id, p_empresa_id;
+      RAISE EXCEPTION 'La corrida de análisis % no pertenece a la empresa %', p_bid_analysis_run_id, p_empresa_id;
     END IF;
   END IF;
 
@@ -1373,7 +1373,7 @@ BEGIN
 
   IF v_project_id IS NOT NULL THEN
     IF v_existing_tender_id IS NOT NULL AND p_tender_id IS NOT NULL AND v_existing_tender_id <> p_tender_id THEN
-      RAISE EXCEPTION 'Conflicto de integridad: ya existe un proyecto con cÃ³digo % asignado a otra licitaciÃ³n (%)', p_code, v_existing_tender_id;
+      RAISE EXCEPTION 'Conflicto de integridad: ya existe un proyecto con código % asignado a otra licitación (%)', p_code, v_existing_tender_id;
     END IF;
 
     RETURN jsonb_build_object(
@@ -1392,19 +1392,19 @@ BEGIN
     v_item_price := (v_item->>'unit_price')::NUMERIC;
 
     IF v_item_desc = '' THEN
-      RAISE EXCEPTION 'Ãtem de presupuesto invÃ¡lido: descripciÃ³n no puede ser vacÃ­a';
+      RAISE EXCEPTION 'Ítem de presupuesto inválido: descripción no puede ser vacía';
     END IF;
 
     IF v_item_unit = '' THEN
-      RAISE EXCEPTION 'Ãtem de presupuesto % sin unidad de medida verificable', v_item_desc;
+      RAISE EXCEPTION 'Ítem de presupuesto % sin unidad de medida verificable', v_item_desc;
     END IF;
 
     IF v_item_qty IS NULL OR v_item_qty <= 0 THEN
-      RAISE EXCEPTION 'Ãtem de presupuesto % tiene cantidad no vÃ¡lida (%)', v_item_desc, v_item_qty;
+      RAISE EXCEPTION 'Ítem de presupuesto % tiene cantidad no válida (%)', v_item_desc, v_item_qty;
     END IF;
 
     IF v_item_price IS NULL OR v_item_price <= 0 THEN
-      RAISE EXCEPTION 'Ãtem de presupuesto % tiene precio unitario no vÃ¡lido (%)', v_item_desc, v_item_price;
+      RAISE EXCEPTION 'Ítem de presupuesto % tiene precio unitario no válido (%)', v_item_desc, v_item_price;
     END IF;
 
     v_calculated_budget_total := v_calculated_budget_total + ROUND(v_item_qty * v_item_price, 2);
@@ -1493,7 +1493,7 @@ ALTER FUNCTION "public"."convertir_licitacion_a_proyecto_atomico"("p_empresa_id"
 -- Name: FUNCTION "convertir_licitacion_a_proyecto_atomico"("p_empresa_id" "uuid", "p_name" "text", "p_code" "text", "p_client" "text", "p_comitente" "text", "p_contract_number" "text", "p_contract_amount" numeric, "p_budget_total" numeric, "p_plazo_dias" integer, "p_anticipo_pct" numeric, "p_retencion_pct" numeric, "p_start_date" "date", "p_end_date" "date", "p_tender_id" "text", "p_bid_analysis_run_id" "uuid", "p_created_by" "uuid", "p_budget_items" "jsonb", "p_nombre_deposito" "text"); Type: COMMENT; Schema: public; Owner: postgres
 --
 
-COMMENT ON FUNCTION "public"."convertir_licitacion_a_proyecto_atomico"("p_empresa_id" "uuid", "p_name" "text", "p_code" "text", "p_client" "text", "p_comitente" "text", "p_contract_number" "text", "p_contract_amount" numeric, "p_budget_total" numeric, "p_plazo_dias" integer, "p_anticipo_pct" numeric, "p_retencion_pct" numeric, "p_start_date" "date", "p_end_date" "date", "p_tender_id" "text", "p_bid_analysis_run_id" "uuid", "p_created_by" "uuid", "p_budget_items" "jsonb", "p_nombre_deposito" "text") IS 'TransiciÃ³n atÃ³mica, idempotente y multi-tenant aislada de LicitaciÃ³n Adjudicada a Proyecto en el ERP (Gate 19)';
+COMMENT ON FUNCTION "public"."convertir_licitacion_a_proyecto_atomico"("p_empresa_id" "uuid", "p_name" "text", "p_code" "text", "p_client" "text", "p_comitente" "text", "p_contract_number" "text", "p_contract_amount" numeric, "p_budget_total" numeric, "p_plazo_dias" integer, "p_anticipo_pct" numeric, "p_retencion_pct" numeric, "p_start_date" "date", "p_end_date" "date", "p_tender_id" "text", "p_bid_analysis_run_id" "uuid", "p_created_by" "uuid", "p_budget_items" "jsonb", "p_nombre_deposito" "text") IS 'Transición atómica, idempotente y multi-tenant aislada de Licitación Adjudicada a Proyecto en el ERP (Gate 19)';
 
 
 --
@@ -1516,7 +1516,7 @@ BEGIN
   END IF;
   IF pg_catalog.btrim(coalesce(p_nombre, '')) = '' OR p_tipo NOT IN ('BANCO','CAJA','TARJETA','OTRO')
      OR p_moneda IS NULL THEN
-    RAISE EXCEPTION 'Datos de cuenta financiera invÃ¡lidos';
+    RAISE EXCEPTION 'Datos de cuenta financiera inválidos';
   END IF;
 
   INSERT INTO public.cuentas_financieras (
@@ -1570,7 +1570,7 @@ BEGIN
     WHERE id = p_location_id AND empresa_id = p_empresa_id
       AND project_id = v_order.project_id AND location_type = 'PROJECT' AND active
   ) THEN
-    RAISE EXCEPTION 'La ubicaciÃ³n de obra no es vÃ¡lida';
+    RAISE EXCEPTION 'La ubicación de obra no es válida';
   END IF;
 
   IF NOT EXISTS (
@@ -1736,7 +1736,7 @@ BEGIN
   UPDATE public.payment_orders po
   SET status = 'EJECUTADA', executed_at = pg_catalog.now(), cuenta_id = p_cuenta_id
   WHERE po.id = p_op_id AND po.empresa_id = p_empresa_id AND po.status = 'EMITIDA';
-  IF NOT FOUND THEN RAISE EXCEPTION 'La OP cambiÃ³ de estado durante la ejecuciÃ³n'; END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION 'La OP cambió de estado durante la ejecución'; END IF;
 
   UPDATE public.invoices i
   SET status = 'PAGADO', updated_at = pg_catalog.now()
@@ -2056,7 +2056,7 @@ BEGIN
   FROM public.empresas e
   WHERE e.id = NEW.empresa_id;
   IF v_plan IS NULL OR v_plan NOT IN ('pro', 'caterpillar') THEN
-    RAISE EXCEPTION 'Los movimientos canÃ³nicos de inventario requieren plan Pro';
+    RAISE EXCEPTION 'Los movimientos canónicos de inventario requieren plan Pro';
   END IF;
   RETURN NEW;
 END;
@@ -2305,7 +2305,7 @@ declare
 begin
   v_bracket := public.categorizar_tamano_contrato(p_monto);
 
-  -- Nivel 1: Match Exacto (Empresa Ã— Convocante Ã— Rubro Ã— TamaÃ±o)
+  -- Nivel 1: Match Exacto (Empresa × Convocante × Rubro × Tamaño)
   if p_comitente is not null and p_categoria is not null and p_monto is not null then
     select * into v_rec
     from public.v_procurement_competitor_contextual
@@ -2329,7 +2329,7 @@ begin
     end if;
   end if;
 
-  -- Nivel 2: Fallback Rubro + TamaÃ±o (Empresa Ã— Rubro Ã— TamaÃ±o)
+  -- Nivel 2: Fallback Rubro + Tamaño (Empresa × Rubro × Tamaño)
   if p_categoria is not null then
     select
       round(avg(win_rate_pct), 1) as win_rate_pct,
@@ -2405,7 +2405,7 @@ BEGIN
     OR NEW.due_date IS DISTINCT FROM OLD.due_date
     OR NEW.issue_date IS DISTINCT FROM OLD.issue_date
     OR NEW.quotation_version IS DISTINCT FROM OLD.quotation_version THEN
-    RAISE EXCEPTION 'CotizaciÃ³n aceptada (%) es inmutable: genere una nueva proforma para cambios.', OLD.code;
+    RAISE EXCEPTION 'Cotización aceptada (%) es inmutable: genere una nueva proforma para cambios.', OLD.code;
   END IF;
   RETURN NEW;
 END;
@@ -2429,7 +2429,7 @@ BEGIN
   SELECT acceptance_status INTO v_status
   FROM public.sales_documents WHERE id = v_doc AND doc_type = 'PROFORMA';
   IF v_status = 'ACCEPTED' THEN
-    RAISE EXCEPTION 'Ãtems de cotizaciÃ³n aceptada son inmutables (doc %).', v_doc;
+    RAISE EXCEPTION 'Ítems de cotización aceptada son inmutables (doc %).', v_doc;
   END IF;
   IF TG_OP = 'DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;
 END;
@@ -2599,7 +2599,7 @@ DECLARE
 BEGIN
   IF auth.uid() IS NULL
      OR NOT public.is_internal_role(ARRAY['administracion', 'admin']::public.user_role[]) THEN
-    RAISE EXCEPTION 'Solo administraciÃ³n puede crear certificados';
+    RAISE EXCEPTION 'Solo administración puede crear certificados';
   END IF;
 
   SELECT p.id INTO v_project_id
@@ -2631,7 +2631,7 @@ BEGIN
     RAISE EXCEPTION 'El certificado anterior debe estar aprobado antes de crear otro';
   END IF;
   IF NEW.numero IS DISTINCT FROM coalesce(v_latest_num, 0) + 1 THEN
-    RAISE EXCEPTION 'El nÃºmero del certificado cambiÃ³; actualizÃ¡ la pantalla e intentÃ¡ de nuevo';
+    RAISE EXCEPTION 'El número del certificado cambió; actualizá la pantalla e intentá de nuevo';
   END IF;
 
   RETURN NEW;
@@ -2651,23 +2651,23 @@ CREATE FUNCTION "public"."guard_project_certificate_header_immutability"() RETUR
     AS $$
 BEGIN
   IF OLD.id IS DISTINCT FROM NEW.id OR OLD.project_id IS DISTINCT FROM NEW.project_id OR OLD.numero IS DISTINCT FROM NEW.numero THEN
-    RAISE EXCEPTION 'La identidad, el proyecto y el nÃºmero del certificado son inmutables';
+    RAISE EXCEPTION 'La identidad, el proyecto y el número del certificado son inmutables';
   END IF;
   IF OLD.status = 'BORRADOR' AND NEW.status = 'ELABORADO' THEN
     IF (pg_catalog.to_jsonb(NEW) - ARRAY['status','elaborado_por','elaborado_at','closed_at','devolucion_anticipo_pct_snap','retencion_pct_snap','devolucion_anticipo','retencion','monto_liquido','monto_acumulado','updated_at'])
        IS DISTINCT FROM
        (pg_catalog.to_jsonb(OLD) - ARRAY['status','elaborado_por','elaborado_at','closed_at','devolucion_anticipo_pct_snap','retencion_pct_snap','devolucion_anticipo','retencion','monto_liquido','monto_acumulado','updated_at']) THEN
-      RAISE EXCEPTION 'La transiciÃ³n de certificado no puede modificar otros datos';
+      RAISE EXCEPTION 'La transición de certificado no puede modificar otros datos';
     END IF;
   ELSIF OLD.status = 'ELABORADO' AND NEW.status = 'VERIFICADO' THEN
     IF (pg_catalog.to_jsonb(NEW) - ARRAY['status','verificado_por','verificado_at','monto_liquido','monto_acumulado','updated_at'])
        IS DISTINCT FROM (pg_catalog.to_jsonb(OLD) - ARRAY['status','verificado_por','verificado_at','monto_liquido','monto_acumulado','updated_at']) THEN
-      RAISE EXCEPTION 'La transiciÃ³n de certificado no puede modificar otros datos';
+      RAISE EXCEPTION 'La transición de certificado no puede modificar otros datos';
     END IF;
   ELSIF OLD.status = 'VERIFICADO' AND NEW.status = 'APROBADO' THEN
     IF (pg_catalog.to_jsonb(NEW) - ARRAY['status','aprobado_por','aprobado_at','monto_liquido','monto_acumulado','updated_at'])
        IS DISTINCT FROM (pg_catalog.to_jsonb(OLD) - ARRAY['status','aprobado_por','aprobado_at','monto_liquido','monto_acumulado','updated_at']) THEN
-      RAISE EXCEPTION 'La transiciÃ³n de certificado no puede modificar otros datos';
+      RAISE EXCEPTION 'La transición de certificado no puede modificar otros datos';
     END IF;
   END IF;
   IF OLD.status NOT IN ('APROBADO', 'FACTURADO') THEN RETURN NEW; END IF;
@@ -2679,25 +2679,25 @@ BEGIN
   END IF;
   IF OLD.status = 'APROBADO' AND NEW.status = 'FACTURADO' THEN
     IF NEW.factura_numero IS NULL OR pg_catalog.btrim(NEW.factura_numero) = '' OR NEW.facturado_at IS NULL THEN
-      RAISE EXCEPTION 'Un certificado facturado requiere nÃºmero y fecha de factura';
+      RAISE EXCEPTION 'Un certificado facturado requiere número y fecha de factura';
     END IF;
     IF (pg_catalog.to_jsonb(NEW) - ARRAY['status','factura_numero','facturado_at','monto_liquido','monto_acumulado','updated_at'])
        IS DISTINCT FROM (pg_catalog.to_jsonb(OLD) - ARRAY['status','factura_numero','facturado_at','monto_liquido','monto_acumulado','updated_at']) THEN
-      RAISE EXCEPTION 'La facturaciÃ³n no puede modificar otros datos del certificado';
+      RAISE EXCEPTION 'La facturación no puede modificar otros datos del certificado';
     END IF;
     RETURN NEW;
   END IF;
   IF OLD.status = 'APROBADO' AND NEW.status = 'VERIFICADO' THEN
     IF (pg_catalog.to_jsonb(NEW) - ARRAY['status','aprobado_por','aprobado_at','monto_liquido','monto_acumulado','updated_at'])
        IS DISTINCT FROM (pg_catalog.to_jsonb(OLD) - ARRAY['status','aprobado_por','aprobado_at','monto_liquido','monto_acumulado','updated_at']) THEN
-      RAISE EXCEPTION 'La reversa de aprobaciÃ³n no puede modificar otros datos del certificado';
+      RAISE EXCEPTION 'La reversa de aprobación no puede modificar otros datos del certificado';
     END IF;
     RETURN NEW;
   END IF;
   IF OLD.status = 'FACTURADO' AND NEW.status = 'APROBADO' THEN
     IF (pg_catalog.to_jsonb(NEW) - ARRAY['status','factura_numero','facturado_at','monto_liquido','monto_acumulado','updated_at'])
        IS DISTINCT FROM (pg_catalog.to_jsonb(OLD) - ARRAY['status','factura_numero','facturado_at','monto_liquido','monto_acumulado','updated_at']) THEN
-      RAISE EXCEPTION 'La reversa de facturaciÃ³n no puede modificar otros datos del certificado';
+      RAISE EXCEPTION 'La reversa de facturación no puede modificar otros datos del certificado';
     END IF;
     RETURN NEW;
   END IF;
@@ -2722,12 +2722,12 @@ DECLARE
 BEGIN
   IF TG_OP = 'DELETE' THEN v_certificate_id := OLD.certificate_id; ELSE v_certificate_id := NEW.certificate_id; END IF;
   IF TG_OP = 'UPDATE' AND OLD.certificate_id IS DISTINCT FROM NEW.certificate_id THEN
-    RAISE EXCEPTION 'No se puede mover una lÃ­nea entre certificados';
+    RAISE EXCEPTION 'No se puede mover una línea entre certificados';
   END IF;
   SELECT c.status::text INTO v_status FROM public.project_certificates c WHERE c.id = v_certificate_id FOR UPDATE;
   IF NOT FOUND AND TG_OP = 'DELETE' THEN RETURN OLD; END IF;
   IF NOT FOUND OR v_status IS DISTINCT FROM 'BORRADOR' THEN
-    RAISE EXCEPTION 'Solo se pueden modificar lÃ­neas de un certificado en borrador';
+    RAISE EXCEPTION 'Solo se pueden modificar líneas de un certificado en borrador';
   END IF;
   IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
   RETURN NEW;
@@ -2757,7 +2757,7 @@ BEGIN
   WHERE a.transaction_id = pg_catalog.txid_current() AND a.certificate_id = OLD.id AND a.user_id = auth.uid()
     AND a.from_status = OLD.status::text AND a.to_status = NEW.status::text;
   IF FOUND THEN RETURN NEW; END IF;
-  RAISE EXCEPTION 'La regresiÃ³n de estado del certificado requiere la acciÃ³n administrativa autorizada';
+  RAISE EXCEPTION 'La regresión de estado del certificado requiere la acción administrativa autorizada';
 END;
 $$;
 
@@ -2845,10 +2845,10 @@ BEGIN
        NEW.working_snapshot IS DISTINCT FROM OLD.working_snapshot
        OR NEW.original_storage_path IS DISTINCT FROM OLD.original_storage_path
        OR NEW.status IS DISTINCT FROM OLD.status) THEN
-    RAISE EXCEPTION 'La sesiÃ³n de importaciÃ³n ya fue cerrada';
+    RAISE EXCEPTION 'La sesión de importación ya fue cerrada';
   END IF;
   IF OLD.empresa_id IS DISTINCT FROM NEW.empresa_id THEN
-    RAISE EXCEPTION 'La sesiÃ³n no puede cambiar de empresa';
+    RAISE EXCEPTION 'La sesión no puede cambiar de empresa';
   END IF;
   RETURN NEW;
 END;
@@ -2877,16 +2877,16 @@ DECLARE
 BEGIN
   IF v_user_id IS NULL
      OR NOT public.is_internal_role(ARRAY['administracion', 'admin']::public.user_role[]) THEN
-    RAISE EXCEPTION 'Solo administraciÃ³n puede importar certificados';
+    RAISE EXCEPTION 'Solo administración puede importar certificados';
   END IF;
   IF p_import_fingerprint IS NULL OR p_import_fingerprint !~ '^[0-9a-f]{64}$' THEN
-    RAISE EXCEPTION 'La huella del archivo no es vÃ¡lida';
+    RAISE EXCEPTION 'La huella del archivo no es válida';
   END IF;
   IF p_period_start IS NULL OR p_period_end IS NULL OR p_period_end < p_period_start THEN
-    RAISE EXCEPTION 'El perÃ­odo del certificado es invÃ¡lido';
+    RAISE EXCEPTION 'El período del certificado es inválido';
   END IF;
   IF p_expected_number IS NULL OR p_expected_number <= 0 THEN
-    RAISE EXCEPTION 'El nÃºmero de certificado es invÃ¡lido';
+    RAISE EXCEPTION 'El número de certificado es inválido';
   END IF;
   IF p_items IS NULL OR pg_catalog.jsonb_typeof(p_items) IS DISTINCT FROM 'array'
      OR pg_catalog.jsonb_array_length(p_items) = 0 THEN
@@ -2943,7 +2943,7 @@ BEGIN
        OR line.qty_presente IS NULL OR line.qty_presente < 0
        OR line.precio_unitario IS NULL OR line.precio_unitario < 0
   ) THEN
-    RAISE EXCEPTION 'Hay partidas invÃ¡lidas o vinculadas a otra obra';
+    RAISE EXCEPTION 'Hay partidas inválidas o vinculadas a otra obra';
   END IF;
 
   BEGIN
@@ -3071,7 +3071,7 @@ DECLARE
   v_item_sort_order INTEGER := 1;
   v_doc_key TEXT;
   
-  -- Variables de reconciliaciÃ³n de adendas independientes
+  -- Variables de reconciliación de adendas independientes
   v_amend_count INTEGER;
   v_amend_total_delta NUMERIC(18,2);
   v_amend_dur_delta INTEGER;
@@ -3082,14 +3082,14 @@ DECLARE
   r_amend RECORD;
 BEGIN
   -- 10. PRESERVAR HISTORIAL DE RELEASES Y COMPILED_RELEASE
-  -- Compatibilidad CanÃ³nica P0: p_cr permanece como parÃ¡metro con nombre.
+  -- Compatibilidad Canónica P0: p_cr permanece como parámetro con nombre.
   -- Si p_cr contiene compiledRelease, normalizar internamente y preservar el paquete completo en raw_json.
   -- Si p_cr es bare compiledRelease, soportarlo de forma transparente.
   IF p_cr ? 'compiledRelease' THEN
     v_cr := p_cr->'compiledRelease';
     IF p_cr ? 'releases' AND jsonb_typeof(p_cr->'releases') = 'array' THEN
       v_releases := p_cr->'releases';
-      -- Extraer metadatos cronolÃ³gicos de releases con semÃ¡ntica honesta (RELEASE_INDEX / RELEASE_REFERENCE)
+      -- Extraer metadatos cronológicos de releases con semántica honesta (RELEASE_INDEX / RELEASE_REFERENCE)
       SELECT jsonb_agg(jsonb_build_object(
         'id', COALESCE(rel->>'id', rel->>'url'),
         'date', rel->>'date',
@@ -3110,17 +3110,17 @@ BEGIN
 
   v_ocid := v_cr->>'ocid';
   IF v_ocid IS NULL OR trim(v_ocid) = '' THEN
-    RAISE EXCEPTION 'compiledRelease no contiene ocid vÃ¡lido';
+    RAISE EXCEPTION 'compiledRelease no contiene ocid válido';
   END IF;
 
   v_tender := COALESCE(v_cr->'tender', '{}'::JSONB);
   v_planning := COALESCE(v_cr->'planning', '{}'::JSONB);
   v_dncp_nro := COALESCE(v_tender->>'id', split_part(v_ocid, '-', 3));
-  v_titulo := COALESCE(v_tender->>'title', 'Sin tÃ­tulo');
+  v_titulo := COALESCE(v_tender->>'title', 'Sin título');
   v_buyer_name := COALESCE(v_cr->'buyer'->>'name', v_tender->'procuringEntity'->>'name');
   v_buyer_id := COALESCE(v_cr->'buyer'->>'id', v_tender->'procuringEntity'->>'id');
 
-  -- 9. HASH SEMANTICS: SHA-256 CANÃ“NICO (NO MD5)
+  -- 9. HASH SEMANTICS: SHA-256 CANÓNICO (NO MD5)
   v_sha := encode(digest(p_cr::TEXT, 'sha256'), 'hex');
 
   -- 1. Resolver o Ingestar Entidad Compradora
@@ -3139,7 +3139,7 @@ BEGIN
     RETURNING id INTO v_entity_id;
   END IF;
 
-  -- 2. Calcular montos (sin forzar PYG si no estÃ¡ verificado en evidencia)
+  -- 2. Calcular montos (sin forzar PYG si no está verificado en evidencia)
   v_monto_disp := (v_planning->'budget'->'amount'->>'amount')::NUMERIC;
   v_monto_ref := (v_tender->'value'->>'amount')::NUMERIC;
   v_moneda := v_tender->'value'->>'currency';
@@ -3237,7 +3237,7 @@ BEGIN
     END LOOP;
   END IF;
 
-  -- 5. Ingestar Ãtems Globales (1. REAL DNCP IDS ARE NOT INTEGERS: sort_order desde Orden o loop order)
+  -- 5. Ingestar Ítems Globales (1. REAL DNCP IDS ARE NOT INTEGERS: sort_order desde Orden o loop order)
   IF jsonb_typeof(v_tender->'items') = 'array' THEN
     v_item_sort_order := 1;
     FOR v_item IN SELECT * FROM jsonb_array_elements(v_tender->'items') LOOP
@@ -3270,7 +3270,7 @@ BEGIN
         v_item->>'id',
         v_item->'classification'->>'id',
         v_item->'additionalClassifications'->0->>'id',
-        COALESCE(v_item->>'description', v_item->'classification'->>'description', '(sin descripciÃ³n)'),
+        COALESCE(v_item->>'description', v_item->'classification'->>'description', '(sin descripción)'),
         (v_item->>'quantity')::NUMERIC,
         v_item->'unit'->>'name',
         (v_item->'unit'->'value'->>'amount')::NUMERIC,
@@ -3342,7 +3342,7 @@ BEGIN
         v_award_dncp_id := COALESCE(v_award->>'id', '1');
         v_award_supplier_ids := ARRAY[]::UUID[];
 
-        -- Recolectar todos los proveedores verificados de la adjudicaciÃ³n
+        -- Recolectar todos los proveedores verificados de la adjudicación
         IF jsonb_typeof(v_award->'suppliers') = 'array' THEN
           FOR v_party IN SELECT * FROM jsonb_array_elements(v_award->'suppliers') LOOP
             v_ruc_clean := public.normalizar_ruc(v_party->>'id');
@@ -3355,9 +3355,9 @@ BEGIN
           END LOOP;
         END IF;
 
-        -- SemÃ¡ntica Multi-Proveedor CanÃ³nica:
+        -- Semántica Multi-Proveedor Canónica:
         -- Exactamente 1 proveedor verificado -> supplier_id = ese ID
-        -- MÃ¡s de 1 proveedor verificado -> supplier_id = NULL
+        -- Más de 1 proveedor verificado -> supplier_id = NULL
         -- Cero proveedores verificados -> supplier_id = NULL
         IF array_length(v_award_supplier_ids, 1) = 1 THEN
           v_supplier_id := v_award_supplier_ids[1];
@@ -3443,15 +3443,15 @@ BEGIN
             END IF;
           END LOOP;
         ELSIF v_contract_award_id IS NOT NULL THEN
-          -- 2. Si el contrato no trae suppliers, heredar proveedores de la adjudicaciÃ³n vinculada
+          -- 2. Si el contrato no trae suppliers, heredar proveedores de la adjudicación vinculada
           SELECT ARRAY_AGG(DISTINCT supplier_id) INTO v_contract_supplier_ids
           FROM public.procurement_award_suppliers
           WHERE award_id = v_contract_award_id;
         END IF;
 
-        -- SemÃ¡ntica Multi-Proveedor CanÃ³nica:
+        -- Semántica Multi-Proveedor Canónica:
         -- Exactamente 1 proveedor verificado -> supplier_id = ese ID
-        -- MÃ¡s de 1 proveedor verificado -> supplier_id = NULL
+        -- Más de 1 proveedor verificado -> supplier_id = NULL
         -- Cero proveedores verificados -> supplier_id = NULL
         IF v_contract_supplier_ids IS NOT NULL AND array_length(v_contract_supplier_ids, 1) = 1 THEN
           v_contract_supplier_id := v_contract_supplier_ids[1];
@@ -3527,7 +3527,7 @@ BEGIN
             v_dncp_raw_type := COALESCE(v_amendment->>'dncpAmendmentType', v_amendment->>'amendmentType', v_amendment_desc);
             v_amendment_moneda := COALESCE(v_amendment->'amendsAmount'->>'currency', v_contract_moneda);
 
-            -- ClasificaciÃ³n con prioridad a evidencia cruda DNCP
+            -- Clasificación con prioridad a evidencia cruda DNCP
             v_amendment_tipo := 'OTHER';
             IF lower(COALESCE(v_dncp_raw_type, '')) LIKE '%reajuste%' THEN
               v_amendment_tipo := 'PRICE_ADJUSTMENT';
@@ -3688,8 +3688,8 @@ BEGIN
       END IF;
     END LOOP;
 
-    -- 8.3 TERCER PASO: Reconciliar y computar estadÃ­sticas para cada contrato del proceso
-    -- 8. AMENDMENT DIMENSIONS: Mantener incertidumbre de monto y duraciÃ³n INDEPENDIENTES
+    -- 8.3 TERCER PASO: Reconciliar y computar estadísticas para cada contrato del proceso
+    -- 8. AMENDMENT DIMENSIONS: Mantener incertidumbre de monto y duración INDEPENDIENTES
     FOR v_contract_db_id IN SELECT id FROM public.procurement_contracts WHERE process_id = v_process_id LOOP
       v_amend_count := 0;
       v_amend_total_delta := 0;
@@ -3707,12 +3707,12 @@ BEGIN
                      WHERE contract_id = v_contract_db_id LOOP
         v_amend_count := v_amend_count + 1;
 
-        -- ReconciliaciÃ³n de impacto en Monto
+        -- Reconciliación de impacto en Monto
         IF r_amend.tipo IN ('AMOUNT_INCREASE', 'AMOUNT_DECREASE', 'PRICE_ADJUSTMENT', 'SCOPE_MODIFICATION')
            OR lower(COALESCE(r_amend.dncp_amendment_type_raw, r_amend.descripcion, '')) LIKE '%monto%'
            OR lower(COALESCE(r_amend.dncp_amendment_type_raw, r_amend.descripcion, '')) LIKE '%reajuste%' THEN
           v_any_amount_amend := true;
-          -- 5. Moneda incompatible sin tipo de cambio verificado => efecto econÃ³mico no resuelto
+          -- 5. Moneda incompatible sin tipo de cambio verificado => efecto económico no resuelto
           IF r_amend.moneda IS DISTINCT FROM v_contract_moneda THEN
             v_has_unres_amt := true;
           ELSIF r_amend.monto_delta IS NULL THEN
@@ -3728,7 +3728,7 @@ BEGIN
           END IF;
         END IF;
 
-        -- ReconciliaciÃ³n de impacto en Plazo
+        -- Reconciliación de impacto en Plazo
         IF r_amend.tipo IN ('TERM_EXTENSION', 'TERM_REDUCTION', 'SCOPE_MODIFICATION')
            OR lower(COALESCE(r_amend.dncp_amendment_type_raw, r_amend.descripcion, '')) LIKE '%plazo%'
            OR lower(COALESCE(r_amend.dncp_amendment_type_raw, r_amend.descripcion, '')) LIKE '%pr%rroga%' THEN
@@ -3762,7 +3762,7 @@ BEGIN
     END LOOP;
   END IF;
 
-  -- 9. Ingestar Documentos PÃºblicos con ESCOPO DETERMINÃSTICO Y SHA-256
+  -- 9. Ingestar Documentos Públicos con ESCOPO DETERMINÍSTICO Y SHA-256
   IF jsonb_typeof(v_tender->'documents') = 'array' THEN
     FOR v_doc IN SELECT * FROM jsonb_array_elements(v_tender->'documents') LOOP
       v_doc_key := 'tender:' || COALESCE(v_doc->>'id', v_doc->>'url', encode(digest(COALESCE(v_doc->>'title', 'tender-doc'), 'sha256'), 'hex'));
@@ -3864,7 +3864,7 @@ DECLARE
   v_failed jsonb;
 BEGIN
   IF auth.role() <> 'service_role' THEN
-    RAISE EXCEPTION 'Acceso denegado: sÃ³lo el portal de rendiciones puede actualizar el estado de ingestiÃ³n';
+    RAISE EXCEPTION 'Acceso denegado: sólo el portal de rendiciones puede actualizar el estado de ingestión';
   END IF;
 
   v_resolved := coalesce(p_resolved_sha256, '{}');
@@ -3877,9 +3877,9 @@ BEGIN
   FROM public.warehouse_submissions
   WHERE id = p_submission_id AND empresa_id = p_empresa_id
   FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'RendiciÃ³n no encontrada'; END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Rendición no encontrada'; END IF;
   IF v_submission.status IN ('CONFIRMED', 'VOIDED') THEN
-    RAISE EXCEPTION 'La rendiciÃ³n estÃ¡ cerrada y no admite cambios de ingestiÃ³n';
+    RAISE EXCEPTION 'La rendición está cerrada y no admite cambios de ingestión';
   END IF;
 
   v_pending := coalesce(
@@ -3938,7 +3938,7 @@ BEGIN
   IF auth.role() <> 'service_role' THEN
     IF public.current_empresa_id() IS NULL OR public.current_empresa_id() IS DISTINCT FROM p_empresa_id
        OR NOT public.is_internal_role(ARRAY['administracion','admin']::public.user_role[]) THEN
-      RAISE EXCEPTION 'Acceso denegado para confirmar recepciÃ³n';
+      RAISE EXCEPTION 'Acceso denegado para confirmar recepción';
     END IF;
   END IF;
 
@@ -3946,12 +3946,12 @@ BEGIN
   FROM public.oc_recepciones
   WHERE id = p_receipt_id AND empresa_id = p_empresa_id
   FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'RecepciÃ³n no encontrada'; END IF;
-  IF v_receipt.status = 'VOIDED' THEN RAISE EXCEPTION 'La recepciÃ³n estÃ¡ anulada'; END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Recepción no encontrada'; END IF;
+  IF v_receipt.status = 'VOIDED' THEN RAISE EXCEPTION 'La recepción está anulada'; END IF;
   IF v_receipt.status = 'CONFIRMED' THEN
     IF p_delivery_location_id IS NOT NULL
        AND p_delivery_location_id IS DISTINCT FROM v_receipt.delivery_location_id THEN
-      RAISE EXCEPTION 'La recepciÃ³n ya fue confirmada en otra ubicaciÃ³n';
+      RAISE EXCEPTION 'La recepción ya fue confirmada en otra ubicación';
     END IF;
     SELECT coalesce(
       array_agg(ri.inventory_movement_id ORDER BY ri.id)
@@ -3966,13 +3966,13 @@ BEGIN
   SELECT id, project_id, currency INTO v_order
   FROM public.authorized_orders
   WHERE id = v_receipt.order_id AND empresa_id = p_empresa_id;
-  IF NOT FOUND THEN RAISE EXCEPTION 'La OC de la recepciÃ³n no pertenece a la empresa'; END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION 'La OC de la recepción no pertenece a la empresa'; END IF;
 
   IF NOT EXISTS (
     SELECT 1 FROM public.oc_recepcion_items
     WHERE recepcion_id = p_receipt_id AND empresa_id = p_empresa_id
   ) THEN
-    RAISE EXCEPTION 'La recepciÃ³n necesita al menos una lÃ­nea';
+    RAISE EXCEPTION 'La recepción necesita al menos una línea';
   END IF;
   IF EXISTS (
     SELECT 1
@@ -3985,7 +3985,7 @@ BEGIN
       AND ri.empresa_id = p_empresa_id
       AND oi.id IS NULL
   ) THEN
-    RAISE EXCEPTION 'Una lÃ­nea de recepciÃ³n no pertenece a la OC';
+    RAISE EXCEPTION 'Una línea de recepción no pertenece a la OC';
   END IF;
   IF EXISTS (
     SELECT 1
@@ -3994,7 +3994,7 @@ BEGIN
     GROUP BY order_item_id
     HAVING count(*) > 1
   ) THEN
-    RAISE EXCEPTION 'No se puede repetir un Ã­tem de OC dentro de una recepciÃ³n';
+    RAISE EXCEPTION 'No se puede repetir un ítem de OC dentro de una recepción';
   END IF;
 
   FOR v_item IN
@@ -4021,7 +4021,7 @@ BEGIN
       AND ri2.recepcion_id <> p_receipt_id
       AND r2.status = 'CONFIRMED';
     IF v_item.receipt_quantity > v_item.ordered_quantity - v_received_quantity THEN
-      RAISE EXCEPTION 'La recepciÃ³n supera la cantidad pendiente de la lÃ­nea de OC';
+      RAISE EXCEPTION 'La recepción supera la cantidad pendiente de la línea de OC';
     END IF;
   END LOOP;
 
@@ -4037,13 +4037,13 @@ BEGIN
     LIMIT 1;
   END IF;
   IF v_location IS NULL THEN
-    RAISE EXCEPTION 'La recepciÃ³n necesita una ubicaciÃ³n de entrega vÃ¡lida';
+    RAISE EXCEPTION 'La recepción necesita una ubicación de entrega válida';
   END IF;
   IF NOT EXISTS (
     SELECT 1 FROM public.inventory_locations
     WHERE id = v_location AND empresa_id = p_empresa_id AND active
   ) THEN
-    RAISE EXCEPTION 'La ubicaciÃ³n de entrega no pertenece a la empresa';
+    RAISE EXCEPTION 'La ubicación de entrega no pertenece a la empresa';
   END IF;
 
   FOR v_item IN
@@ -4056,7 +4056,7 @@ BEGIN
       AND oi.empresa_id = p_empresa_id
   LOOP
     IF v_item.producto_id IS NULL THEN
-      RAISE EXCEPTION 'La lÃ­nea de recepciÃ³n % necesita vincularse a un material del catÃ¡logo', v_item.id;
+      RAISE EXCEPTION 'La línea de recepción % necesita vincularse a un material del catálogo', v_item.id;
     END IF;
     IF v_item.inventory_movement_id IS NOT NULL THEN
       v_ids := array_append(v_ids, v_item.inventory_movement_id);
@@ -4116,7 +4116,7 @@ BEGIN
   IF auth.role() <> 'service_role' THEN
     IF public.current_empresa_id() IS NULL OR public.current_empresa_id() IS DISTINCT FROM p_empresa_id
        OR NOT public.is_internal_role(ARRAY['administracion','admin']::public.user_role[]) THEN
-      RAISE EXCEPTION 'Acceso denegado para confirmar rendiciÃ³n';
+      RAISE EXCEPTION 'Acceso denegado para confirmar rendición';
     END IF;
   END IF;
 
@@ -4124,8 +4124,8 @@ BEGIN
   FROM public.warehouse_submissions
   WHERE id = p_submission_id AND empresa_id = p_empresa_id
   FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'RendiciÃ³n no encontrada'; END IF;
-  IF v_submission.status = 'VOIDED' THEN RAISE EXCEPTION 'La rendiciÃ³n estÃ¡ anulada'; END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Rendición no encontrada'; END IF;
+  IF v_submission.status = 'VOIDED' THEN RAISE EXCEPTION 'La rendición está anulada'; END IF;
   IF v_submission.status = 'CONFIRMED' THEN
     SELECT coalesce(array_agg(inventory_movement_id ORDER BY line_number), '{}') INTO v_ids
     FROM public.warehouse_submission_lines
@@ -4133,16 +4133,16 @@ BEGIN
     RETURN v_ids;
   END IF;
   IF v_submission.upload_incomplete THEN
-    RAISE EXCEPTION 'La rendiciÃ³n tiene cargas de archivos incompletas o pendientes';
+    RAISE EXCEPTION 'La rendición tiene cargas de archivos incompletas o pendientes';
   END IF;
   IF v_submission.status NOT IN ('READY', 'NEEDS_REVIEW') THEN
-    RAISE EXCEPTION 'La rendiciÃ³n todavÃ­a no estÃ¡ lista para confirmar';
+    RAISE EXCEPTION 'La rendición todavía no está lista para confirmar';
   END IF;
   IF EXISTS (
     SELECT 1 FROM public.warehouse_submission_lines
     WHERE submission_id = p_submission_id AND state = 'PROPOSED'
   ) THEN
-    RAISE EXCEPTION 'La rendiciÃ³n todavÃ­a tiene lÃ­neas propuestas sin revisar';
+    RAISE EXCEPTION 'La rendición todavía tiene líneas propuestas sin revisar';
   END IF;
 
   FOR v_line IN
@@ -4152,7 +4152,7 @@ BEGIN
   LOOP
     IF v_line.producto_id IS NULL OR v_line.quantity IS NULL OR v_line.unit IS NULL
        OR v_line.budget_item_id IS NULL THEN
-      RAISE EXCEPTION 'La lÃ­nea % no estÃ¡ completa para confirmar', v_line.line_number;
+      RAISE EXCEPTION 'La línea % no está completa para confirmar', v_line.line_number;
     END IF;
     IF v_line.inventory_movement_id IS NOT NULL THEN
       v_ids := array_append(v_ids, v_line.inventory_movement_id);
@@ -4219,7 +4219,7 @@ BEGIN
     FROM public.empresas e
     WHERE e.id = p_empresa_id;
     IF v_plan IS NULL OR v_plan NOT IN ('pro', 'caterpillar') THEN
-      RAISE EXCEPTION 'Los movimientos canÃ³nicos de inventario requieren plan Pro';
+      RAISE EXCEPTION 'Los movimientos canónicos de inventario requieren plan Pro';
     END IF;
     IF p_created_by IS DISTINCT FROM v_actor THEN
       RAISE EXCEPTION 'El creador del movimiento debe ser el usuario autenticado';
@@ -4238,7 +4238,7 @@ BEGIN
     SELECT 1 FROM public.productos p
     WHERE p.id = p_producto_id AND p.empresa_id = p_empresa_id AND p.activo
   ) THEN
-    RAISE EXCEPTION 'El material no estÃ¡ activo o no pertenece a la empresa';
+    RAISE EXCEPTION 'El material no está activo o no pertenece a la empresa';
   END IF;
 
   IF p_from_location_id IS NOT NULL THEN
@@ -4246,7 +4246,7 @@ BEGIN
     FROM public.inventory_locations l
     WHERE l.id = p_from_location_id AND l.empresa_id = p_empresa_id AND l.active;
     IF NOT FOUND THEN
-      RAISE EXCEPTION 'La ubicaciÃ³n origen no pertenece a la empresa o estÃ¡ inactiva';
+      RAISE EXCEPTION 'La ubicación origen no pertenece a la empresa o está inactiva';
     END IF;
   END IF;
   IF p_to_location_id IS NOT NULL THEN
@@ -4254,7 +4254,7 @@ BEGIN
     FROM public.inventory_locations l
     WHERE l.id = p_to_location_id AND l.empresa_id = p_empresa_id AND l.active;
     IF NOT FOUND THEN
-      RAISE EXCEPTION 'La ubicaciÃ³n destino no pertenece a la empresa o estÃ¡ inactiva';
+      RAISE EXCEPTION 'La ubicación destino no pertenece a la empresa o está inactiva';
     END IF;
   END IF;
 
@@ -4300,7 +4300,7 @@ BEGIN
   FROM public.inventory_movements m
   WHERE m.id = v_movement_id AND m.empresa_id = p_empresa_id;
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'No se encontrÃ³ el movimiento resultante';
+    RAISE EXCEPTION 'No se encontró el movimiento resultante';
   END IF;
 
   IF v_posted.producto_id IS DISTINCT FROM p_producto_id
@@ -4386,26 +4386,26 @@ DECLARE
 BEGIN
   IF auth.role() <> 'service_role' THEN
     IF public.current_empresa_id() IS NULL OR public.current_empresa_id() IS DISTINCT FROM p_empresa_id THEN
-      RAISE EXCEPTION 'Acceso denegado: tenant invÃ¡lido';
+      RAISE EXCEPTION 'Acceso denegado: tenant inválido';
     END IF;
     IF NOT public.is_internal_role(ARRAY['administracion','admin']::public.user_role[]) THEN
-      RAISE EXCEPTION 'No tenÃ©s permisos para registrar movimientos de inventario';
+      RAISE EXCEPTION 'No tenés permisos para registrar movimientos de inventario';
     END IF;
   END IF;
 
   IF v_type NOT IN ('RECEIPT', 'TRANSFER', 'CONSUMPTION', 'RETURN', 'ADJUSTMENT') THEN
-    RAISE EXCEPTION 'Tipo de movimiento invÃ¡lido: %', p_movement_type;
+    RAISE EXCEPTION 'Tipo de movimiento inválido: %', p_movement_type;
   END IF;
   IF p_quantity IS NULL OR p_quantity = 0 OR (v_type <> 'ADJUSTMENT' AND p_quantity < 0) THEN
-    RAISE EXCEPTION 'La cantidad del movimiento no es vÃ¡lida';
+    RAISE EXCEPTION 'La cantidad del movimiento no es válida';
   END IF;
   IF v_type = 'RECEIPT' AND (p_from_location_id IS NOT NULL OR p_to_location_id IS NULL) THEN
-    RAISE EXCEPTION 'Una recepciÃ³n necesita solo ubicaciÃ³n destino';
+    RAISE EXCEPTION 'Una recepción necesita solo ubicación destino';
   ELSIF v_type = 'TRANSFER' AND (p_from_location_id IS NULL OR p_to_location_id IS NULL
       OR p_from_location_id = p_to_location_id) THEN
     RAISE EXCEPTION 'Una transferencia necesita origen y destino distintos';
   ELSIF v_type = 'CONSUMPTION' AND (p_from_location_id IS NULL OR p_to_location_id IS NOT NULL) THEN
-    RAISE EXCEPTION 'Un consumo necesita solo ubicaciÃ³n origen';
+    RAISE EXCEPTION 'Un consumo necesita solo ubicación origen';
   ELSIF v_type = 'RETURN' AND (p_from_location_id IS NULL OR p_to_location_id IS NULL
       OR p_from_location_id = p_to_location_id) THEN
     RAISE EXCEPTION 'RETURN necesita origen y destino distintos';
@@ -4413,7 +4413,7 @@ BEGIN
       (p_quantity > 0 AND (p_from_location_id IS NOT NULL OR p_to_location_id IS NULL))
       OR (p_quantity < 0 AND (p_from_location_id IS NULL OR p_to_location_id IS NOT NULL))
     ) THEN
-    RAISE EXCEPTION 'La forma del ajuste no es vÃ¡lida';
+    RAISE EXCEPTION 'La forma del ajuste no es válida';
   END IF;
   IF p_unit IS NULL OR length(trim(p_unit)) = 0 THEN
     RAISE EXCEPTION 'La unidad del movimiento es obligatoria';
@@ -4454,7 +4454,7 @@ BEGIN
        OR (p_unit_cost IS NOT NULL AND v_existing.unit_cost IS DISTINCT FROM p_unit_cost)
        OR (p_project_id IS NOT NULL AND v_existing.project_id IS DISTINCT FROM p_project_id)
        OR (p_budget_item_id IS NOT NULL AND v_existing.budget_item_id IS DISTINCT FROM p_budget_item_id) THEN
-      RAISE EXCEPTION 'La idempotency_key ya fue usada para otra operaciÃ³n';
+      RAISE EXCEPTION 'La idempotency_key ya fue usada para otra operación';
     END IF;
     RETURN v_existing.id;
   END IF;
@@ -4475,7 +4475,7 @@ BEGIN
          OR (p_unit_cost IS NOT NULL AND v_existing.unit_cost IS DISTINCT FROM p_unit_cost)
          OR (p_project_id IS NOT NULL AND v_existing.project_id IS DISTINCT FROM p_project_id)
          OR (p_budget_item_id IS NOT NULL AND v_existing.budget_item_id IS DISTINCT FROM p_budget_item_id) THEN
-        RAISE EXCEPTION 'El origen ya fue aplicado con otra operaciÃ³n';
+        RAISE EXCEPTION 'El origen ya fue aplicado con otra operación';
       END IF;
       RETURN v_existing.id;
     END IF;
@@ -4497,7 +4497,7 @@ BEGIN
     FROM public.inventory_locations
     WHERE id = p_from_location_id AND active;
     IF v_location_empresa IS NULL OR v_location_empresa IS DISTINCT FROM p_empresa_id THEN
-      RAISE EXCEPTION 'La ubicaciÃ³n origen no pertenece a la empresa o estÃ¡ inactiva';
+      RAISE EXCEPTION 'La ubicación origen no pertenece a la empresa o está inactiva';
     END IF;
   END IF;
   IF p_to_location_id IS NOT NULL THEN
@@ -4506,7 +4506,7 @@ BEGIN
     FROM public.inventory_locations
     WHERE id = p_to_location_id AND active;
     IF v_location_empresa IS NULL OR v_location_empresa IS DISTINCT FROM p_empresa_id THEN
-      RAISE EXCEPTION 'La ubicaciÃ³n destino no pertenece a la empresa o estÃ¡ inactiva';
+      RAISE EXCEPTION 'La ubicación destino no pertenece a la empresa o está inactiva';
     END IF;
   END IF;
 
@@ -4527,7 +4527,7 @@ BEGIN
       AND aoi.empresa_id = p_empresa_id
       AND ri.empresa_id = p_empresa_id;
     IF v_receipt_order IS NULL THEN
-      RAISE EXCEPTION 'La recepciÃ³n o su lÃ­nea no pertenece a la empresa';
+      RAISE EXCEPTION 'La recepción o su línea no pertenece a la empresa';
     END IF;
     PERFORM 1
     FROM public.authorized_orders
@@ -4544,14 +4544,14 @@ BEGIN
       AND ri2.recepcion_id <> p_source_id
       AND r2.status = 'CONFIRMED';
     IF p_quantity > v_ordered_quantity - v_received_quantity THEN
-      RAISE EXCEPTION 'La recepciÃ³n supera la cantidad pendiente de la lÃ­nea de OC';
+      RAISE EXCEPTION 'La recepción supera la cantidad pendiente de la línea de OC';
     END IF;
     IF v_receipt_product IS DISTINCT FROM p_producto_id
        OR p_quantity > v_receipt_quantity THEN
-      RAISE EXCEPTION 'La lÃ­nea de recepciÃ³n no coincide con el material o cantidad';
+      RAISE EXCEPTION 'La línea de recepción no coincide con el material o cantidad';
     END IF;
     IF v_receipt_location IS NOT NULL AND v_receipt_location IS DISTINCT FROM p_to_location_id THEN
-      RAISE EXCEPTION 'La ubicaciÃ³n no coincide con la recepciÃ³n';
+      RAISE EXCEPTION 'La ubicación no coincide con la recepción';
     END IF;
     v_context_project := coalesce(v_context_project,
       (SELECT project_id FROM public.authorized_orders WHERE id = v_receipt_order));
@@ -4561,7 +4561,7 @@ BEGIN
   IF v_to_project IS NOT NULL AND v_type IN ('RECEIPT', 'RETURN') THEN
     IF v_context_project IS NULL THEN v_context_project := v_to_project; END IF;
     IF v_context_project IS DISTINCT FROM v_to_project THEN
-      RAISE EXCEPTION 'El proyecto contextual no coincide con la ubicaciÃ³n destino';
+      RAISE EXCEPTION 'El proyecto contextual no coincide con la ubicación destino';
     END IF;
   END IF;
   IF v_type = 'CONSUMPTION' THEN
@@ -4569,7 +4569,7 @@ BEGIN
       RAISE EXCEPTION 'El consumo requiere proyecto y partida presupuestaria';
     END IF;
     IF v_from_project IS DISTINCT FROM v_context_project THEN
-      RAISE EXCEPTION 'El consumo debe salir del paÃ±ol de la obra indicada';
+      RAISE EXCEPTION 'El consumo debe salir del pañol de la obra indicada';
     END IF;
     IF NOT EXISTS (
       SELECT 1
@@ -4592,7 +4592,7 @@ BEGIN
   END IF;
 
   IF v_type = 'RECEIPT' AND (v_currency IS NULL OR p_unit_cost IS NULL) THEN
-    RAISE EXCEPTION 'La recepciÃ³n necesita costo y moneda de compra explÃ­citos';
+    RAISE EXCEPTION 'La recepción necesita costo y moneda de compra explícitos';
   END IF;
   IF v_type = 'ADJUSTMENT' AND (v_currency IS NULL OR p_unit_cost IS NULL) THEN
     RAISE EXCEPTION 'El ajuste necesita costo y moneda explicitos';
@@ -4755,7 +4755,7 @@ BEGIN
       v_remaining := v_remaining - v_take;
     END LOOP;
     IF coalesce(v_remaining, p_quantity) > 0 THEN
-      RAISE EXCEPTION 'Stock insuficiente en la ubicaciÃ³n origen: faltan %', v_remaining;
+      RAISE EXCEPTION 'Stock insuficiente en la ubicación origen: faltan %', v_remaining;
     END IF;
 
     SELECT coalesce(sum(total_cost), 0), coalesce(sum(quantity), 0),
@@ -4850,7 +4850,7 @@ BEGIN
   IF auth.role() <> 'service_role' THEN
     IF public.current_empresa_id() IS NULL OR public.current_empresa_id() IS DISTINCT FROM p_empresa_id
        OR NOT public.is_internal_role(ARRAY['administracion','admin']::public.user_role[]) THEN
-      RAISE EXCEPTION 'Acceso denegado para registrar lÃ­neas de rendiciÃ³n';
+      RAISE EXCEPTION 'Acceso denegado para registrar líneas de rendición';
     END IF;
   END IF;
 
@@ -4860,15 +4860,15 @@ BEGIN
   FOR UPDATE;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'RendiciÃ³n no encontrada o no pertenece a la empresa';
+    RAISE EXCEPTION 'Rendición no encontrada o no pertenece a la empresa';
   END IF;
 
   IF v_submission.status = 'CONFIRMED' THEN
-    RAISE EXCEPTION 'No se pueden agregar lÃ­neas a una rendiciÃ³n confirmada';
+    RAISE EXCEPTION 'No se pueden agregar líneas a una rendición confirmada';
   END IF;
 
   IF v_submission.status = 'VOIDED' THEN
-    RAISE EXCEPTION 'No se pueden agregar lÃ­neas a una rendiciÃ³n anulada';
+    RAISE EXCEPTION 'No se pueden agregar líneas a una rendición anulada';
   END IF;
 
   SELECT * INTO v_evidence
@@ -4877,7 +4877,7 @@ BEGIN
   FOR UPDATE;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'Evidencia no encontrada para esta rendiciÃ³n';
+    RAISE EXCEPTION 'Evidencia no encontrada para esta rendición';
   END IF;
 
   SELECT coalesce(max(line_number), 0) + 1 INTO v_next_line
@@ -5098,7 +5098,7 @@ declare
 begin
   select status into v_status from public.invoices where id = p_invoice_id;
   if v_status not in ('MATCH', 'APROBADO_EXCEPCION') then
-    raise exception 'La factura debe estar conciliada (MATCH) o aprobada por excepciÃ³n antes de marcar apto para pago';
+    raise exception 'La factura debe estar conciliada (MATCH) o aprobada por excepción antes de marcar apto para pago';
   end if;
 
   update public.invoices set status = 'APTO_PARA_PAGO' where id = p_invoice_id;
@@ -5200,7 +5200,7 @@ BEGIN
   IF auth.uid() IS NULL
      OR public.current_empresa_id() IS NULL
      OR NOT public.is_internal_role(ARRAY['administracion','admin']::public.user_role[]) THEN
-    RAISE EXCEPTION 'Acceso denegado para generar cÃ³digo de OP';
+    RAISE EXCEPTION 'Acceso denegado para generar código de OP';
   END IF;
   RETURN public.next_doc_code(public.current_empresa_id(), 'OP');
 END;
@@ -5249,9 +5249,9 @@ begin
   if p_text is null then
     return null;
   end if;
-  -- Quitar acentos y dobles espacios, convertir a mayÃºsculas
+  -- Quitar acentos y dobles espacios, convertir a mayúsculas
   return upper(trim(regexp_replace(
-    translate(p_text, 'Ã¡Ã©Ã­Ã³ÃºÃÃ‰ÃÃ“ÃšÃ±Ã‘Ã¼Ãœ', 'aeiouAEIOUnNuU'),
+    translate(p_text, 'áéíóúÁÉÍÓÚñÑüÜ', 'aeiouAEIOUnNuU'),
     '\s+', ' ', 'g'
   )));
 end;
@@ -5309,7 +5309,7 @@ BEGIN
   END IF;
 
   IF v_planilla.modulo <> 'computo_presupuesto' THEN
-    RAISE EXCEPTION 'Esta funciÃ³n solo confirma planillas de cÃ³mputo/presupuesto.';
+    RAISE EXCEPTION 'Esta función solo confirma planillas de cómputo/presupuesto.';
   END IF;
 
   IF v_planilla.estado = 'confirmed' THEN
@@ -5321,7 +5321,7 @@ BEGIN
   END IF;
 
   IF v_planilla.estado = 'cancelled' THEN
-    RAISE EXCEPTION 'La planilla % estÃ¡ cancelada y no puede confirmarse.', p_planilla_id;
+    RAISE EXCEPTION 'La planilla % está cancelada y no puede confirmarse.', p_planilla_id;
   END IF;
 
   v_project_id := (v_planilla.contexto->>'projectId')::uuid;
@@ -5355,7 +5355,7 @@ BEGIN
     END IF;
 
     IF v_base_updated IS NULL OR v_current_updated <> v_base_updated THEN
-      RAISE EXCEPTION 'CONFLICTO_CONCURRENCIA: la partida % cambiÃ³ desde que se abriÃ³ la planilla.', v_row_id
+      RAISE EXCEPTION 'CONFLICTO_CONCURRENCIA: la partida % cambió desde que se abrió la planilla.', v_row_id
         USING ERRCODE = 'P0409';
     END IF;
 
@@ -5371,10 +5371,10 @@ BEGIN
       v_style       := coalesce(v_row->'_style', '{}'::jsonb);
 
       IF v_code IS NULL OR trim(v_code) = '' THEN
-        RAISE EXCEPTION 'La partida % no puede quedar sin cÃ³digo.', v_row_id;
+        RAISE EXCEPTION 'La partida % no puede quedar sin código.', v_row_id;
       END IF;
       IF v_description IS NULL OR trim(v_description) = '' THEN
-        RAISE EXCEPTION 'La partida % no puede quedar sin descripciÃ³n.', v_row_id;
+        RAISE EXCEPTION 'La partida % no puede quedar sin descripción.', v_row_id;
       END IF;
 
       UPDATE public.budget_items
@@ -5404,10 +5404,10 @@ BEGIN
     v_style       := coalesce(v_row->'_style', '{}'::jsonb);
 
     IF v_code IS NULL OR trim(v_code) = '' THEN
-      RAISE EXCEPTION 'Una fila nueva no puede quedar sin cÃ³digo.';
+      RAISE EXCEPTION 'Una fila nueva no puede quedar sin código.';
     END IF;
     IF v_description IS NULL OR trim(v_description) = '' THEN
-      RAISE EXCEPTION 'Una fila nueva no puede quedar sin descripciÃ³n.';
+      RAISE EXCEPTION 'Una fila nueva no puede quedar sin descripción.';
     END IF;
 
     v_parent_id := NULL;
@@ -5489,7 +5489,7 @@ BEGIN
   WHERE id = v_submission_id
   FOR UPDATE;
   IF v_status = 'CONFIRMED' THEN
-    RAISE EXCEPTION 'La evidencia de una rendiciÃ³n confirmada es inmutable';
+    RAISE EXCEPTION 'La evidencia de una rendición confirmada es inmutable';
   END IF;
 
   IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
@@ -5519,10 +5519,10 @@ BEGIN
   FOR UPDATE;
 
   IF v_status = 'CONFIRMED' THEN
-    RAISE EXCEPTION 'Las lÃ­neas de una rendiciÃ³n confirmada son inmutables';
+    RAISE EXCEPTION 'Las líneas de una rendición confirmada son inmutables';
   END IF;
   IF TG_OP <> 'INSERT' AND OLD.inventory_movement_id IS NOT NULL THEN
-    RAISE EXCEPTION 'Una lÃ­nea vinculada a un movimiento canÃ³nico es inmutable';
+    RAISE EXCEPTION 'Una línea vinculada a un movimiento canónico es inmutable';
   END IF;
 
   IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
@@ -5544,14 +5544,14 @@ CREATE FUNCTION "public"."prevent_confirmed_warehouse_submission_mutation"() RET
 BEGIN
   IF TG_OP = 'DELETE' THEN
     IF OLD.status = 'CONFIRMED' THEN
-      RAISE EXCEPTION 'Una rendiciÃ³n confirmada es inmutable y no puede ser eliminada';
+      RAISE EXCEPTION 'Una rendición confirmada es inmutable y no puede ser eliminada';
     END IF;
     RETURN OLD;
   END IF;
 
   IF TG_OP = 'UPDATE' THEN
     IF OLD.status = 'CONFIRMED' THEN
-      RAISE EXCEPTION 'Una rendiciÃ³n confirmada es inmutable y no puede ser modificada ni reabierta';
+      RAISE EXCEPTION 'Una rendición confirmada es inmutable y no puede ser modificada ni reabierta';
     END IF;
     RETURN NEW;
   END IF;
@@ -5573,7 +5573,7 @@ CREATE FUNCTION "public"."prevent_inventory_movement_mutation"() RETURNS "trigge
     AS $$
 BEGIN
   IF TG_OP = 'DELETE' OR OLD.status = 'CONFIRMED' THEN
-    RAISE EXCEPTION 'Los movimientos de inventario confirmados son inmutables; use una reversiÃ³n o ajuste';
+    RAISE EXCEPTION 'Los movimientos de inventario confirmados son inmutables; use una reversión o ajuste';
   END IF;
   RETURN NEW;
 END;
@@ -5591,7 +5591,7 @@ CREATE FUNCTION "public"."prevent_treasury_ledger_mutation"() RETURNS "trigger"
     SET "search_path" TO ''
     AS $$
 BEGIN
-  RAISE EXCEPTION 'Los movimientos de tesorerÃ­a son append-only; registre un contra-movimiento'
+  RAISE EXCEPTION 'Los movimientos de tesorería son append-only; registre un contra-movimiento'
     USING ERRCODE = '55000';
 END;
 $$;
@@ -5612,7 +5612,7 @@ BEGIN
      AND NEW.status = 'CONFIRMED'
      AND pg_catalog.left(coalesce(NEW.idempotency_key, ''), pg_catalog.length('receipt-portal:')) = 'receipt-portal:'
      AND EXISTS (SELECT 1 FROM public.oc_recepcion_items ri WHERE ri.recepcion_id = NEW.id AND ri.empresa_id = NEW.empresa_id AND ri.producto_id IS NULL) THEN
-    RAISE EXCEPTION 'VinculÃ¡ todos los productos de inventario antes de confirmar esta recepciÃ³n externa';
+    RAISE EXCEPTION 'Vinculá todos los productos de inventario antes de confirmar esta recepción externa';
   END IF;
   RETURN NEW;
 END;
@@ -5639,8 +5639,8 @@ declare
 begin
   select status into v_current_status from public.invoices where id = p_invoice_id;
 
-  -- Una vez que una acciÃ³n humana marcÃ³ la factura apta para pago (o ya se
-  -- pagÃ³), el recÃ¡lculo automÃ¡tico de conciliaciÃ³n no debe revertirla.
+  -- Una vez que una acción humana marcó la factura apta para pago (o ya se
+  -- pagó), el recálculo automático de conciliación no debe revertirla.
   if v_current_status in ('APTO_PARA_PAGO', 'PAGADO') then
     return;
   end if;
@@ -5827,7 +5827,7 @@ begin
     set status = 'DELIVERY_UNKNOWN', error_code = 'STALE_DISPATCHING', completed_at = now()
     where id = v_attempt.id and status = 'DISPATCHING';
     update public.email_drafts
-    set status = 'DELIVERY_UNKNOWN', failure_reason = 'El intento quedÃƒÂ³ incierto y no se reintentarÃƒÂ¡ automÃƒÂ¡ticamente.'
+    set status = 'DELIVERY_UNKNOWN', failure_reason = 'El intento quedÃ³ incierto y no se reintentarÃ¡ automÃ¡ticamente.'
     where id = v_attempt.draft_id and status = 'SENDING';
     v_count := v_count + 1;
   end loop;
@@ -5864,7 +5864,7 @@ BEGIN
     RAISE EXCEPTION 'Solo se registran cobros en documentos emitidos';
   END IF;
   IF p_amount IS NULL OR p_amount <= 0 OR p_amount - (v_doc.total - v_doc.cobrado_amount) > 0.01 THEN
-    RAISE EXCEPTION 'El monto de cobro es invÃ¡lido o supera el saldo del documento';
+    RAISE EXCEPTION 'El monto de cobro es inválido o supera el saldo del documento';
   END IF;
   IF p_created_by IS NULL THEN RAISE EXCEPTION 'El actor del cobro es obligatorio'; END IF;
 
@@ -5927,7 +5927,7 @@ BEGIN
      OR p_created_by IS DISTINCT FROM auth.uid()
      OR public.current_empresa_id() IS DISTINCT FROM p_empresa_id
      OR NOT public.is_internal_role(ARRAY['administracion','admin']::public.user_role[]) THEN
-    RAISE EXCEPTION 'Acceso denegado para registrar movimiento de tesorerÃ­a';
+    RAISE EXCEPTION 'Acceso denegado para registrar movimiento de tesorería';
   END IF;
   IF p_monto IS NULL OR p_monto = 0 THEN
     RAISE EXCEPTION 'El monto no puede ser cero';
@@ -5959,14 +5959,14 @@ BEGIN
 
   IF p_payment_order_id IS NOT NULL THEN
     IF p_tipo <> 'PAGO' THEN
-      RAISE EXCEPTION 'Orden de pago invÃ¡lida para este movimiento';
+      RAISE EXCEPTION 'Orden de pago inválida para este movimiento';
     END IF;
     SELECT po.status, po.cuenta_id INTO v_op_status, v_op_cuenta
     FROM public.payment_orders po
     WHERE po.id = p_payment_order_id AND po.empresa_id = p_empresa_id
     FOR UPDATE;
     IF NOT FOUND OR v_op_status <> 'EJECUTADA' OR v_op_cuenta IS DISTINCT FROM p_cuenta_id THEN
-      RAISE EXCEPTION 'La OP no estÃ¡ ejecutada con esta cuenta de tesorerÃ­a';
+      RAISE EXCEPTION 'La OP no está ejecutada con esta cuenta de tesorería';
     END IF;
     SELECT count(*) INTO v_link_count FROM public.payment_order_invoices poi
     WHERE poi.payment_order_id = p_payment_order_id AND poi.empresa_id = p_empresa_id;
@@ -5993,14 +5993,14 @@ BEGIN
       SELECT 1 FROM public.movimientos_tesoreria m
       WHERE m.payment_order_id = p_payment_order_id AND m.tipo = 'PAGO'
     ) THEN
-      RAISE EXCEPTION 'La OP ya tiene un movimiento de pago en tesorerÃ­a';
+      RAISE EXCEPTION 'La OP ya tiene un movimiento de pago en tesorería';
     END IF;
   ELSIF p_tipo = 'PAGO' THEN
     RAISE EXCEPTION 'Un movimiento PAGO requiere una OP de origen';
   END IF;
 
   IF p_sales_receipt_id IS NOT NULL THEN
-    IF p_tipo <> 'COBRO' THEN RAISE EXCEPTION 'Referencia de cobro invÃ¡lida'; END IF;
+    IF p_tipo <> 'COBRO' THEN RAISE EXCEPTION 'Referencia de cobro inválida'; END IF;
     SELECT d.currency, r.cuenta_id, r.amount
       INTO v_ref_moneda, v_ref_cuenta, v_ref_monto
     FROM public.sales_receipts r
@@ -6018,7 +6018,7 @@ BEGIN
       SELECT 1 FROM public.movimientos_tesoreria m
       WHERE m.sales_receipt_id = p_sales_receipt_id AND m.tipo = 'COBRO'
     ) THEN
-      RAISE EXCEPTION 'El cobro ya tiene un movimiento en tesorerÃ­a';
+      RAISE EXCEPTION 'El cobro ya tiene un movimiento en tesorería';
     END IF;
   ELSIF p_tipo = 'COBRO' THEN
     RAISE EXCEPTION 'Un movimiento COBRO requiere su recibo de origen';
@@ -6095,7 +6095,7 @@ begin
       v_costo_mov   := v_costo_nuevo;
 
     else
-      raise exception 'Tipo de movimiento invÃ¡lido: %', p_tipo;
+      raise exception 'Tipo de movimiento inválido: %', p_tipo;
   end case;
 
   v_costo_total := (v_stock_nuevo * v_costo_nuevo) - (v_stock_actual * v_costo_promedio);
@@ -6148,7 +6148,7 @@ BEGIN
      OR p_cuenta_origen_id = p_cuenta_destino_id
      OR p_monto_origen IS NULL OR p_monto_origen <= 0
      OR v_monto_destino IS NULL OR v_monto_destino <= 0 THEN
-    RAISE EXCEPTION 'Cuentas y montos de transferencia invÃ¡lidos';
+    RAISE EXCEPTION 'Cuentas y montos de transferencia inválidos';
   END IF;
 
   FOR v_lock_row IN
@@ -6175,7 +6175,7 @@ BEGIN
     RAISE EXCEPTION 'Entre cuentas de la misma moneda, los montos deben coincidir';
   END IF;
   IF v_moneda_origen <> v_moneda_destino AND p_monto_destino IS NULL THEN
-    RAISE EXCEPTION 'La transferencia entre monedas requiere monto de destino explÃ­cito';
+    RAISE EXCEPTION 'La transferencia entre monedas requiere monto de destino explícito';
   END IF;
   IF v_saldo_origen < p_monto_origen THEN
     RAISE EXCEPTION 'Saldo insuficiente en la cuenta origen: disponible %, requerido %',
@@ -6219,30 +6219,30 @@ DECLARE
   v_tok public.sales_quotation_tokens%ROWTYPE;
   v_doc public.sales_documents%ROWTYPE;
 BEGIN
-  IF p_token_hash IS NULL OR p_token_hash !~ '^[0-9a-f]{64}$' THEN RAISE EXCEPTION 'Enlace invÃ¡lido.'; END IF;
+  IF p_token_hash IS NULL OR p_token_hash !~ '^[0-9a-f]{64}$' THEN RAISE EXCEPTION 'Enlace inválido.'; END IF;
   SELECT * INTO v_tok FROM public.sales_quotation_tokens WHERE token_hash = p_token_hash FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Enlace invÃ¡lido.'; END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Enlace inválido.'; END IF;
   IF v_tok.revoked_at IS NOT NULL THEN RAISE EXCEPTION 'Este enlace fue revocado.'; END IF;
 
   SELECT * INTO v_doc FROM public.sales_documents WHERE id = v_tok.sales_document_id FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'CotizaciÃ³n no encontrada.'; END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Cotización no encontrada.'; END IF;
   IF v_tok.empresa_id IS DISTINCT FROM v_doc.empresa_id THEN
-    RAISE EXCEPTION 'Enlace invÃ¡lido.';
+    RAISE EXCEPTION 'Enlace inválido.';
   END IF;
-  -- El rechazo nunca crea OT: esta funciÃ³n no inserta en work_orders ni en
-  -- sales_quotation_acceptances. Verificable por inspecciÃ³n.
-  IF v_doc.acceptance_status = 'ACCEPTED' THEN RAISE EXCEPTION 'Esta cotizaciÃ³n ya fue aceptada y no se puede rechazar.'; END IF;
+  -- El rechazo nunca crea OT: esta función no inserta en work_orders ni en
+  -- sales_quotation_acceptances. Verificable por inspección.
+  IF v_doc.acceptance_status = 'ACCEPTED' THEN RAISE EXCEPTION 'Esta cotización ya fue aceptada y no se puede rechazar.'; END IF;
   IF EXISTS (SELECT 1 FROM public.work_orders WHERE sales_document_id = v_doc.id) THEN
-    RAISE EXCEPTION 'Esta cotizaciÃ³n ya generÃ³ una Orden de Trabajo y no se puede rechazar.';
+    RAISE EXCEPTION 'Esta cotización ya generó una Orden de Trabajo y no se puede rechazar.';
   END IF;
   IF v_doc.acceptance_status = 'REJECTED' THEN
     RETURN jsonb_build_object('sales_document_id', v_doc.id, 'already_rejected', true);
   END IF;
   IF v_doc.acceptance_status <> 'PENDING_ACCEPTANCE' THEN
-    RAISE EXCEPTION 'Esta cotizaciÃ³n no estÃ¡ pendiente de aceptaciÃ³n.';
+    RAISE EXCEPTION 'Esta cotización no está pendiente de aceptación.';
   END IF;
   IF v_tok.quotation_version IS DISTINCT FROM v_doc.quotation_version THEN
-    RAISE EXCEPTION 'La cotizaciÃ³n fue actualizada por la empresa. PedÃ­ el nuevo enlace.';
+    RAISE EXCEPTION 'La cotización fue actualizada por la empresa. Pedí el nuevo enlace.';
   END IF;
 
   UPDATE public.sales_documents SET
@@ -6312,7 +6312,7 @@ BEGIN
   UPDATE public.subcontractor_certificates sc
   SET status = 'RECHAZADO', notes = p_notes
   WHERE sc.id = p_certificate_id AND sc.project_id = v_project_id AND sc.status = 'PENDIENTE';
-  IF NOT FOUND THEN RAISE EXCEPTION 'El certificado cambiÃ³ durante el rechazo'; END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION 'El certificado cambió durante el rechazo'; END IF;
   RETURN p_certificate_id;
 END;
 $$;
@@ -6376,7 +6376,7 @@ begin
                   end,
       error     = case
                     when attempts >= max_attempts
-                    then coalesce(error, 'Worker crash â€” locked_at expirÃ³ sin finish()')
+                    then coalesce(error, 'Worker crash — locked_at expiró sin finish()')
                     else error
                   end
     where status = 'processing'
@@ -6444,7 +6444,7 @@ BEGIN
   PERFORM 1 FROM public.inventory_locations
     WHERE id = p_location_id AND empresa_id = v_empresa_id;
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'DepÃ³sito no encontrado o sin permisos';
+    RAISE EXCEPTION 'Depósito no encontrado o sin permisos';
   END IF;
 
   IF p_plan_id IS NOT NULL THEN
@@ -6552,7 +6552,7 @@ BEGIN
 
   -- Algunas instalaciones arrastran el historial de migraciones sin la tabla
   -- materializada de observaciones. En ese caso la ausencia de evidencia debe
-  -- ser una revisiÃ³n explÃ­cita, nunca un motivo para reinterpretar el nominal
+  -- ser una revisión explícita, nunca un motivo para reinterpretar el nominal
   -- legacy como PYG.
   IF to_regclass('public.cost_observations') IS NULL THEN
     RETURN QUERY SELECT
@@ -6694,7 +6694,7 @@ BEGIN
   FROM public.work_order_routing_policies p
   WHERE p.empresa_id = p_empresa_id AND p.scope = 'TENANT_DEFAULT';
   IF FOUND THEN mode := r.mode; policy_id := r.id; scope := r.scope; responsible_role := r.responsible_role; RETURN NEXT; RETURN; END IF;
-  -- Fail-safe: sin configuraciÃ³n no hay pase directo a producciÃ³n.
+  -- Fail-safe: sin configuración no hay pase directo a producción.
   mode := 'RESPONSIBLE_APPROVAL'; policy_id := NULL; scope := 'SYSTEM_DEFAULT'; responsible_role := 'administracion';
   RETURN NEXT;
 END;
@@ -6728,7 +6728,7 @@ BEGIN
     RAISE EXCEPTION 'Acceso denegado para recalcular certificado';
   END IF;
   IF p_updates IS NULL OR pg_catalog.jsonb_typeof(p_updates) <> 'array' THEN
-    RAISE EXCEPTION 'La lista de cantidades no es vÃ¡lida';
+    RAISE EXCEPTION 'La lista de cantidades no es válida';
   END IF;
 
   SELECT c.project_id, c.status::text INTO v_project_id, v_status
@@ -6738,7 +6738,7 @@ BEGIN
   FOR UPDATE OF c;
   IF NOT FOUND THEN RAISE EXCEPTION 'Certificado no encontrado para la empresa'; END IF;
   IF v_status <> 'BORRADOR' THEN
-    RAISE EXCEPTION 'El certificado ya estÃ¡ elaborado y no se puede editar';
+    RAISE EXCEPTION 'El certificado ya está elaborado y no se puede editar';
   END IF;
 
   SELECT count(*), count(DISTINCT u.item_id)
@@ -6746,7 +6746,7 @@ BEGIN
   FROM pg_catalog.jsonb_to_recordset(p_updates)
     AS u(item_id uuid, qty_anterior numeric, qty_presente numeric);
   IF v_input_count <> v_distinct_count THEN
-    RAISE EXCEPTION 'La lista contiene lÃ­neas duplicadas';
+    RAISE EXCEPTION 'La lista contiene líneas duplicadas';
   END IF;
   IF EXISTS (
     SELECT 1 FROM pg_catalog.jsonb_to_recordset(p_updates)
@@ -6754,14 +6754,14 @@ BEGIN
     WHERE u.item_id IS NULL OR u.qty_anterior IS NULL OR u.qty_presente IS NULL
       OR u.qty_anterior < 0 OR u.qty_presente < 0
   ) THEN
-    RAISE EXCEPTION 'Las cantidades deben ser vÃ¡lidas y no negativas';
+    RAISE EXCEPTION 'Las cantidades deben ser válidas y no negativas';
   END IF;
 
   SELECT count(*) INTO v_expected_count
   FROM public.project_certificate_items i
   WHERE i.certificate_id = p_certificate_id AND i.budget_item_id IS NOT NULL;
   IF v_input_count <> v_expected_count THEN
-    RAISE EXCEPTION 'La lista de cantidades no coincide con las lÃ­neas del certificado';
+    RAISE EXCEPTION 'La lista de cantidades no coincide con las líneas del certificado';
   END IF;
 
   UPDATE public.project_certificate_items i
@@ -6773,7 +6773,7 @@ BEGIN
     AND i.budget_item_id IS NOT NULL;
   GET DIAGNOSTICS v_updated_count = ROW_COUNT;
   IF v_updated_count <> v_input_count THEN
-    RAISE EXCEPTION 'CambiÃ³ una lÃ­nea durante el recÃ¡lculo del certificado';
+    RAISE EXCEPTION 'Cambió una línea durante el recálculo del certificado';
   END IF;
 
   SELECT coalesce(sum(i.monto_anterior), 0), coalesce(sum(i.monto_presente), 0)
@@ -6784,7 +6784,7 @@ BEGIN
   SET monto_anterior = v_monto_anterior,
       monto_presente = v_monto_presente
   WHERE c.id = p_certificate_id AND c.project_id = v_project_id AND c.status = 'BORRADOR';
-  IF NOT FOUND THEN RAISE EXCEPTION 'El certificado cambiÃ³ durante el recÃ¡lculo'; END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION 'El certificado cambió durante el recálculo'; END IF;
 
   RETURN v_updated_count;
 END;
@@ -6809,7 +6809,7 @@ DECLARE
   v_target_status text;
 BEGIN
   IF v_user_id IS NULL OR NOT public.is_internal_role(ARRAY['admin']::public.user_role[]) THEN
-    RAISE EXCEPTION 'Solo administraciÃ³n puede retroceder un certificado';
+    RAISE EXCEPTION 'Solo administración puede retroceder un certificado';
   END IF;
   SELECT p.id INTO v_project_id
   FROM public.projects p JOIN public.project_certificates c ON c.project_id = p.id
@@ -6820,11 +6820,11 @@ BEGIN
   FROM public.project_certificates c WHERE c.id = p_certificate_id AND c.project_id = v_project_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Certificado no encontrado para la empresa'; END IF;
   IF v_status IS DISTINCT FROM p_expected_status THEN
-    RAISE EXCEPTION 'El certificado cambiÃ³ de estado; actualizÃ¡ la pantalla e intentÃ¡ de nuevo';
+    RAISE EXCEPTION 'El certificado cambió de estado; actualizá la pantalla e intentá de nuevo';
   END IF;
   v_target_status := CASE v_status WHEN 'ELABORADO' THEN 'BORRADOR' WHEN 'VERIFICADO' THEN 'ELABORADO'
     WHEN 'APROBADO' THEN 'VERIFICADO' WHEN 'FACTURADO' THEN 'APROBADO' ELSE NULL END;
-  IF v_target_status IS NULL THEN RAISE EXCEPTION 'El certificado estÃ¡ en borrador, no se puede retroceder'; END IF;
+  IF v_target_status IS NULL THEN RAISE EXCEPTION 'El certificado está en borrador, no se puede retroceder'; END IF;
   IF v_status IN ('APROBADO', 'FACTURADO') AND EXISTS (
     SELECT 1 FROM public.project_certificates later WHERE later.project_id = v_project_id AND later.numero > v_numero) THEN
     RAISE EXCEPTION 'Existe un certificado posterior que depende de este';
@@ -6913,7 +6913,7 @@ BEGIN
   END LOOP;
 
   IF v_receipt.cuenta_id IS NOT NULL AND NOT v_reversed_any THEN
-    RAISE EXCEPTION 'El cobro tiene cuenta asignada pero no se encontrÃ³ su movimiento de tesorerÃ­a';
+    RAISE EXCEPTION 'El cobro tiene cuenta asignada pero no se encontró su movimiento de tesorería';
   END IF;
 
   UPDATE public.sales_receipts r
@@ -6922,7 +6922,7 @@ BEGIN
       reversal_reason = v_reason,
       reversal_movement_id = v_first_reversal_id
   WHERE r.id = p_sales_receipt_id AND r.empresa_id = p_empresa_id AND r.reversed_at IS NULL;
-  IF NOT FOUND THEN RAISE EXCEPTION 'El cobro cambiÃ³ durante la reversa'; END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION 'El cobro cambió durante la reversa'; END IF;
   RETURN p_sales_receipt_id;
 END;
 $$;
@@ -6947,16 +6947,16 @@ DECLARE
   v_count INTEGER;
 BEGIN
   IF p_code IS NULL OR btrim(p_code) = '' THEN
-    RAISE EXCEPTION 'CÃ³digo de receta requerido';
+    RAISE EXCEPTION 'Código de receta requerido';
   END IF;
   IF p_name IS NULL OR btrim(p_name) = '' THEN
     RAISE EXCEPTION 'Nombre de receta requerido';
   END IF;
   IF p_production_unit IS NULL OR btrim(p_production_unit) = '' THEN
-    RAISE EXCEPTION 'Unidad de producciÃ³n requerida';
+    RAISE EXCEPTION 'Unidad de producción requerida';
   END IF;
   IF p_source_type NOT IN ('EXCEL', 'BIM', 'MANUAL') THEN
-    RAISE EXCEPTION 'source_type invÃ¡lido';
+    RAISE EXCEPTION 'source_type inválido';
   END IF;
 
   PERFORM 1 FROM public.projects
@@ -6973,7 +6973,7 @@ BEGIN
     v_item_id := NULLIF(v_item ->> 'budget_item_id', '')::uuid;
     v_qty := NULLIF(v_item ->> 'quantity_per_unit', '')::numeric;
     IF v_item_id IS NULL THEN
-      RAISE EXCEPTION 'Componente sin partida vÃ¡lida';
+      RAISE EXCEPTION 'Componente sin partida válida';
     END IF;
     IF v_qty IS NULL OR v_qty <= 0 THEN
       RAISE EXCEPTION 'Cantidad por unidad debe ser > 0';
@@ -7120,7 +7120,7 @@ BEGIN
     ) RETURNING id INTO v_plan_id;
   END IF;
 
-  -- Asegurar limpieza de tabla temporal en llamadas repetidas dentro de la misma transacciÃ³n
+  -- Asegurar limpieza de tabla temporal en llamadas repetidas dentro de la misma transacción
   DROP TABLE IF EXISTS tmp_item_budget_tracking;
   CREATE TEMP TABLE tmp_item_budget_tracking (
     budget_item_id UUID PRIMARY KEY,
@@ -7148,7 +7148,7 @@ BEGIN
     ON CONFLICT (budget_item_id) DO NOTHING;
   END IF;
 
-  -- Eliminar items actuales del plan dentro de la misma transacciÃ³n
+  -- Eliminar items actuales del plan dentro de la misma transacción
   DELETE FROM public.project_weekly_plan_items
   WHERE plan_id = v_plan_id;
 
@@ -7172,7 +7172,7 @@ BEGIN
 
       -- Validar input_mode
       IF v_input_mode NOT IN ('QUANTITY', 'CONTRACT_PERCENTAGE_POINTS') THEN
-        RAISE EXCEPTION 'Modo de entrada invÃ¡lido: %', v_input_mode;
+        RAISE EXCEPTION 'Modo de entrada inválido: %', v_input_mode;
       END IF;
 
       -- Validar input_value
@@ -7186,7 +7186,7 @@ BEGIN
         FROM tmp_item_budget_tracking
         WHERE budget_item_id = v_budget_item_id;
 
-        -- ConversiÃ³n semÃ¡ntica de target_quantity
+        -- Conversión semántica de target_quantity
         IF v_input_mode = 'CONTRACT_PERCENTAGE_POINTS' THEN
           v_nominal_qty := v_contractual_qty * (v_input_value / 100.0);
         ELSE
@@ -7362,7 +7362,7 @@ begin
   update public.scan_sessions
   set status = 'connected',
       mobile_claim_token_hash = p_mobile_claim_token_hash,
-      token_hash = 'CLAIMED:' || token_hash, -- Invalida QR token para cualquier operaciÃ³n futura
+      token_hash = 'CLAIMED:' || token_hash, -- Invalida QR token para cualquier operación futura
       claimed_device_info = coalesce(p_device_info, '{}'::jsonb),
       claimed_by_user_id = p_user_id,
       claimed_at = now()
@@ -7396,7 +7396,7 @@ begin
       file_size_bytes = p_file_size,
       page_count = p_page_count,
       completed_at = now(),
-      mobile_claim_token_hash = null -- Invalida la credencial mÃ³vil inmediatamente
+      mobile_claim_token_hash = null -- Invalida la credencial móvil inmediatamente
   where id = p_session_id
     and status in ('connected', 'scanning', 'processing')
     and expires_at > now()
@@ -7420,12 +7420,12 @@ CREATE FUNCTION "public"."scan_session_create_atomic"("p_empresa_id" "uuid", "p_
 declare
   v_session public.scan_sessions;
 begin
-  -- Limpiar sesiones expiradas que puedan estar reteniendo un PIN en el Ã­ndice parcial
+  -- Limpiar sesiones expiradas que puedan estar reteniendo un PIN en el índice parcial
   update public.scan_sessions
   set status = 'expired'
   where status = 'waiting' and expires_at <= clock_timestamp();
 
-  -- Intentar insertar la nueva sesiÃ³n (el Ã­ndice Ãºnico parcial garantiza ausencia de colisiÃ³n activa)
+  -- Intentar insertar la nueva sesión (el índice único parcial garantiza ausencia de colisión activa)
   insert into public.scan_sessions (
     empresa_id,
     created_by,
@@ -7498,13 +7498,13 @@ BEGIN
   JOIN public.quotes q ON q.id = qv.quote_id AND q.empresa_id = p_empresa_id
   WHERE qv.id = p_quote_version_id AND qv.empresa_id = p_empresa_id
     AND q.rfq_provider_id = p_rfq_provider_id;
-  IF NOT FOUND THEN RAISE EXCEPTION 'CotizaciÃ³n no encontrada para este proveedor y solicitud'; END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Cotización no encontrada para este proveedor y solicitud'; END IF;
   IF v_quote.version_number <> (
     SELECT max(qv_latest.version_number)
     FROM public.quote_versions qv_latest
     WHERE qv_latest.quote_id = v_quote.quote_id AND qv_latest.empresa_id = p_empresa_id
   ) THEN
-    RAISE EXCEPTION 'Solo se puede autorizar la Ãºltima versiÃ³n de la cotizaciÃ³n';
+    RAISE EXCEPTION 'Solo se puede autorizar la última versión de la cotización';
   END IF;
 
   IF v_rfq.status = 'AUTORIZADO' THEN
@@ -7522,7 +7522,7 @@ BEGIN
     RAISE EXCEPTION 'La solicitud ya tiene otra oferta autorizada';
   END IF;
   IF v_rfq.status NOT IN ('COTIZANDO','OFERTAS_RECIBIDAS') THEN
-    RAISE EXCEPTION 'La solicitud estÃ¡ cerrada o no admite autorizaciÃ³n';
+    RAISE EXCEPTION 'La solicitud está cerrada o no admite autorización';
   END IF;
 
   SELECT min(qv_comp.total_price) INTO v_lowest_competing_price
@@ -7543,7 +7543,7 @@ BEGIN
   v_is_cheapest := v_lowest_competing_price IS NULL
     OR v_quote.total_price <= v_lowest_competing_price;
   IF NOT v_is_cheapest AND p_selection_reason IS NULL THEN
-    RAISE EXCEPTION 'La oferta no es la mÃ¡s econÃ³mica: se requiere motivo de selecciÃ³n';
+    RAISE EXCEPTION 'La oferta no es la más económica: se requiere motivo de selección';
   END IF;
 
   INSERT INTO public.authorized_orders (
@@ -7566,7 +7566,7 @@ BEGIN
       updated_at = pg_catalog.now()
   WHERE r.id = p_rfq_id AND r.empresa_id = p_empresa_id
     AND r.status IN ('COTIZANDO','OFERTAS_RECIBIDAS');
-  IF NOT FOUND THEN RAISE EXCEPTION 'La solicitud cambiÃ³ durante la autorizaciÃ³n'; END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION 'La solicitud cambió durante la autorización'; END IF;
   RETURN v_order_id;
 END;
 $$;
@@ -8222,17 +8222,17 @@ BEGIN
      OR length(btrim(coalesce(p_recibido_por, ''))) NOT BETWEEN 1 AND 120
      OR p_items IS NULL OR jsonb_typeof(p_items) IS DISTINCT FROM 'array'
      OR jsonb_typeof(coalesce(p_evidence, '[]'::jsonb)) IS DISTINCT FROM 'array' THEN
-    RAISE EXCEPTION 'Datos de recepciÃ³n invÃ¡lidos';
+    RAISE EXCEPTION 'Datos de recepción inválidos';
   END IF;
   IF jsonb_array_length(p_items) NOT BETWEEN 1 AND 100 THEN
-    RAISE EXCEPTION 'La recepciÃ³n debe incluir entre 1 y 100 lÃ­neas';
+    RAISE EXCEPTION 'La recepción debe incluir entre 1 y 100 líneas';
   END IF;
 
   SELECT * INTO v_link
   FROM public.receipt_portal_links
   WHERE token_hash = p_token_hash AND active AND expires_at > now()
   FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Enlace invÃ¡lido, vencido o ya utilizado'; END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Enlace inválido, vencido o ya utilizado'; END IF;
 
   SELECT * INTO v_order
   FROM public.authorized_orders
@@ -8244,14 +8244,14 @@ BEGIN
     WHERE id = v_link.location_id AND empresa_id = v_link.empresa_id
       AND project_id = v_order.project_id AND location_type = 'PROJECT' AND active
   ) THEN
-    RAISE EXCEPTION 'La ubicaciÃ³n de obra ya no estÃ¡ activa';
+    RAISE EXCEPTION 'La ubicación de obra ya no está activa';
   END IF;
 
   SELECT count(*), count(DISTINCT x.order_item_id)
   INTO v_item_count, v_unique_item_count
   FROM jsonb_to_recordset(p_items) AS x(order_item_id uuid, quantity numeric, notes text);
   IF v_item_count <> v_unique_item_count THEN
-    RAISE EXCEPTION 'No se puede repetir una lÃ­nea de la OC';
+    RAISE EXCEPTION 'No se puede repetir una línea de la OC';
   END IF;
 
   INSERT INTO public.oc_recepciones (
@@ -8269,12 +8269,12 @@ BEGIN
       AS x(order_item_id uuid, quantity numeric, notes text)
   LOOP
     IF v_item.order_item_id IS NULL OR v_item.quantity IS NULL OR v_item.quantity <= 0 THEN
-      RAISE EXCEPTION 'Cantidad o lÃ­nea de recepciÃ³n invÃ¡lida';
+      RAISE EXCEPTION 'Cantidad o línea de recepción inválida';
     END IF;
 
     PERFORM 1 FROM public.authorized_order_items
     WHERE id = v_item.order_item_id AND order_id = v_order.id AND empresa_id = v_link.empresa_id;
-    IF NOT FOUND THEN RAISE EXCEPTION 'La lÃ­nea no pertenece a la OC'; END IF;
+    IF NOT FOUND THEN RAISE EXCEPTION 'La línea no pertenece a la OC'; END IF;
 
     SELECT oi.quantity - coalesce(sum(
       CASE WHEN r.id IS NOT NULL THEN ri.cantidad_recibida ELSE 0 END
@@ -8318,7 +8318,7 @@ BEGIN
     IF v_item.storage_bucket <> 'warehouse-evidence'
        OR left(v_item.storage_path, length(v_prefix)) <> v_prefix
        OR v_item.size_bytes <= 0 THEN
-      RAISE EXCEPTION 'Evidencia de recepciÃ³n invÃ¡lida';
+      RAISE EXCEPTION 'Evidencia de recepción inválida';
     END IF;
     INSERT INTO public.inventory_receipt_evidence (
       empresa_id, receipt_id, storage_bucket, storage_path, file_name,
@@ -8356,8 +8356,8 @@ declare
   v_bid_id      uuid;
   v_effective   text;
 begin
-  -- Idempotencia DESPUÃ‰S del lock (dos submits concurrentes con la misma
-  -- key se serializan: el segundo ve la fila del primero, sin excepciÃ³n).
+  -- Idempotencia DESPUÉS del lock (dos submits concurrentes con la misma
+  -- key se serializan: el segundo ve la fila del primero, sin excepción).
   if p_idempotency_key is not null then
     select id, server_sequence into v_bid_id, v_seq
     from public.auction_sandbox_bids
@@ -8393,7 +8393,7 @@ begin
   end if;
 
   -- Policy binding (0070): the caller passes the version its candidate was
-  -- authorized under. A newer persisted version aborts â€” the candidate was
+  -- authorized under. A newer persisted version aborts — the candidate was
   -- computed off a superseded policy and could breach the CURRENT autoLimit
   -- (which this RPC does not enforce). NULL skips (human path).
   if p_expected_policy_version is not null
@@ -8403,7 +8403,7 @@ begin
                    and version > p_expected_policy_version) then
     return jsonb_build_object(
       'accepted', false, 'rejection_code', 'POLICY_SUPERSEDED',
-      'rejection_message', 'La policy cambiÃ³ durante el envÃ­o. ReintentÃ¡ con la versiÃ³n actual.');
+      'rejection_message', 'La policy cambió durante el envío. Reintentá con la versión actual.');
   end if;
 
   -- Fase efectiva por RELOJ DEL SERVIDOR (nunca client timestamp).
@@ -8426,7 +8426,7 @@ begin
   if v_effective <> 'ACTIVE_NORMAL' and v_effective <> 'ACTIVE_RANDOM' then
     return jsonb_build_object(
       'accepted', false, 'rejection_code', 'ROOM_NOT_ACTIVE',
-      'rejection_message', 'La subasta no estÃ¡ activa.');
+      'rejection_message', 'La subasta no está activa.');
   end if;
 
   if not exists (select 1 from public.auction_sandbox_participants
@@ -8439,7 +8439,7 @@ begin
   if p_price_pyg is null or p_price_pyg <= 0 then
     return jsonb_build_object(
       'accepted', false, 'rejection_code', 'INVALID_PRICE',
-      'rejection_message', 'El precio debe ser un entero positivo en guaranÃ­es.');
+      'rejection_message', 'El precio debe ser un entero positivo en guaraníes.');
   end if;
 
   select min(price_pyg) into v_own_last
@@ -8449,7 +8449,7 @@ begin
   if v_own_last is not null and p_price_pyg >= v_own_last then
     return jsonb_build_object(
       'accepted', false, 'rejection_code', 'NOT_DECREASING',
-      'rejection_message', 'La nueva oferta debe ser menor a tu Ãºltima oferta.');
+      'rejection_message', 'La nueva oferta debe ser menor a tu última oferta.');
   end if;
 
   select min(price_pyg) into v_best
@@ -8465,7 +8465,7 @@ begin
   elsif v_best - p_price_pyg < v_room.minimum_decrement_pyg then
     return jsonb_build_object(
       'accepted', false, 'rejection_code', 'BELOW_MINIMUM_DECREMENT',
-      'rejection_message', 'No alcanza la mejora mÃ­nima sobre el mejor precio.');
+      'rejection_message', 'No alcanza la mejora mínima sobre el mejor precio.');
   end if;
 
   v_seq := v_room.next_sequence;
@@ -8518,10 +8518,10 @@ BEGIN
 
   -- Hotfix de compatibilidad con prod (2026-09-15): public.depositos /
   -- public.stock_por_deposito no existen en esta base (el modelo de
-  -- depÃ³sitos fue reemplazado por stock_movimientos + stock_por_proyecto
-  -- antes de esta migraciÃ³n). Se elimina la escritura al desglose legacy por
-  -- depÃ³sito; p_location_ids queda sin uso pero se conserva en la firma para
-  -- no romper a inventory_post_movement, que sigue invocando esta funciÃ³n.
+  -- depósitos fue reemplazado por stock_movimientos + stock_por_proyecto
+  -- antes de esta migración). Se elimina la escritura al desglose legacy por
+  -- depósito; p_location_ids queda sin uso pero se conserva en la firma para
+  -- no romper a inventory_post_movement, que sigue invocando esta función.
   NULL;
 END;
 $$;
@@ -8666,7 +8666,7 @@ BEGIN
        OR p_total_cost_company IS NULL
        OR p_exchange_rate_to_company IS NULL
        OR p_exchange_rate_to_company <= 0 THEN
-      RAISE EXCEPTION 'Un saldo computable necesita costo, moneda y FX vÃ¡lidos';
+      RAISE EXCEPTION 'Un saldo computable necesita costo, moneda y FX válidos';
     END IF;
 
     INSERT INTO public.inventory_balances (
@@ -8756,7 +8756,7 @@ BEGIN
     RETURN;
   END IF;
 
-  RAISE EXCEPTION 'Estado de costo invÃ¡lido: %', p_cost_status;
+  RAISE EXCEPTION 'Estado de costo inválido: %', p_cost_status;
 END;
 $$;
 
@@ -8802,13 +8802,13 @@ DECLARE
 BEGIN
   IF auth.role() <> 'service_role'
      AND (public.current_empresa_id() IS NULL OR public.current_empresa_id() IS DISTINCT FROM NEW.empresa_id) THEN
-    RAISE EXCEPTION 'La ubicaciÃ³n no pertenece al tenant de la sesiÃ³n';
+    RAISE EXCEPTION 'La ubicación no pertenece al tenant de la sesión';
   END IF;
 
   IF NEW.project_id IS NOT NULL THEN
     SELECT empresa_id INTO v_empresa FROM public.projects WHERE id = NEW.project_id;
     IF v_empresa IS NULL OR v_empresa IS DISTINCT FROM NEW.empresa_id THEN
-      RAISE EXCEPTION 'El proyecto no pertenece a la empresa de la ubicaciÃ³n';
+      RAISE EXCEPTION 'El proyecto no pertenece a la empresa de la ubicación';
     END IF;
   END IF;
 
@@ -8816,7 +8816,7 @@ BEGIN
     SELECT empresa_id INTO v_empresa
     FROM public.inventory_locations WHERE id = NEW.parent_location_id;
     IF v_empresa IS NULL OR v_empresa IS DISTINCT FROM NEW.empresa_id THEN
-      RAISE EXCEPTION 'La ubicaciÃ³n padre no pertenece a la misma empresa';
+      RAISE EXCEPTION 'La ubicación padre no pertenece a la misma empresa';
     END IF;
   END IF;
   RETURN NEW;
@@ -8862,7 +8862,7 @@ DECLARE
 BEGIN
   IF auth.role() <> 'service_role'
      AND (public.current_empresa_id() IS NULL OR public.current_empresa_id() IS DISTINCT FROM NEW.empresa_id) THEN
-    RAISE EXCEPTION 'El movimiento no pertenece al tenant de la sesiÃ³n';
+    RAISE EXCEPTION 'El movimiento no pertenece al tenant de la sesión';
   END IF;
 
   SELECT empresa_id INTO v_empresa FROM public.productos WHERE id = NEW.producto_id;
@@ -8873,13 +8873,13 @@ BEGIN
   IF NEW.from_location_id IS NOT NULL THEN
     SELECT empresa_id INTO v_empresa FROM public.inventory_locations WHERE id = NEW.from_location_id;
     IF v_empresa IS NULL OR v_empresa IS DISTINCT FROM NEW.empresa_id THEN
-      RAISE EXCEPTION 'La ubicaciÃ³n origen no pertenece a la empresa';
+      RAISE EXCEPTION 'La ubicación origen no pertenece a la empresa';
     END IF;
   END IF;
   IF NEW.to_location_id IS NOT NULL THEN
     SELECT empresa_id INTO v_empresa FROM public.inventory_locations WHERE id = NEW.to_location_id;
     IF v_empresa IS NULL OR v_empresa IS DISTINCT FROM NEW.empresa_id THEN
-      RAISE EXCEPTION 'La ubicaciÃ³n destino no pertenece a la empresa';
+      RAISE EXCEPTION 'La ubicación destino no pertenece a la empresa';
     END IF;
   END IF;
   IF NEW.project_id IS NOT NULL THEN
@@ -8920,7 +8920,7 @@ BEGIN
     SELECT empresa_id INTO v_empresa FROM public.inventory_locations
     WHERE id = NEW.delivery_location_id AND active;
     IF v_empresa IS NULL OR v_empresa IS DISTINCT FROM NEW.empresa_id THEN
-      RAISE EXCEPTION 'La ubicaciÃ³n de entrega no pertenece al tenant o estÃ¡ inactiva';
+      RAISE EXCEPTION 'La ubicación de entrega no pertenece al tenant o está inactiva';
     END IF;
   END IF;
   RETURN NEW;
@@ -8948,7 +8948,7 @@ BEGIN
     AND location_type = 'PROJECT'
     AND project_id IS NOT NULL;
   IF v_empresa IS NULL OR v_empresa IS DISTINCT FROM NEW.empresa_id THEN
-    RAISE EXCEPTION 'El link del paÃ±ol no referencia una ubicaciÃ³n del tenant';
+    RAISE EXCEPTION 'El link del pañol no referencia una ubicación del tenant';
   END IF;
   RETURN NEW;
 END;
@@ -8972,25 +8972,25 @@ BEGIN
   SELECT empresa_id, project_id INTO v_empresa, v_project
   FROM public.warehouse_submissions WHERE id = NEW.submission_id;
   IF v_empresa IS NULL OR v_empresa IS DISTINCT FROM NEW.empresa_id THEN
-    RAISE EXCEPTION 'La lÃ­nea de rendiciÃ³n no pertenece al tenant';
+    RAISE EXCEPTION 'La línea de rendición no pertenece al tenant';
   END IF;
   IF NEW.producto_id IS NOT NULL THEN
     SELECT empresa_id INTO v_empresa FROM public.productos WHERE id = NEW.producto_id;
     IF v_empresa IS NULL OR v_empresa IS DISTINCT FROM NEW.empresa_id THEN
-      RAISE EXCEPTION 'El material de la rendiciÃ³n no pertenece al tenant';
+      RAISE EXCEPTION 'El material de la rendición no pertenece al tenant';
     END IF;
   END IF;
   IF NEW.budget_item_id IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM public.budget_items
     WHERE id = NEW.budget_item_id AND project_id = v_project
   ) THEN
-    RAISE EXCEPTION 'La partida de la rendiciÃ³n no pertenece a la obra';
+    RAISE EXCEPTION 'La partida de la rendición no pertenece a la obra';
   END IF;
   IF NEW.source_evidence_id IS NOT NULL THEN
     SELECT empresa_id INTO v_empresa FROM public.warehouse_submission_evidence
     WHERE id = NEW.source_evidence_id AND submission_id = NEW.submission_id;
     IF v_empresa IS NULL OR v_empresa IS DISTINCT FROM NEW.empresa_id THEN
-      RAISE EXCEPTION 'La evidencia no pertenece a la rendiciÃ³n';
+      RAISE EXCEPTION 'La evidencia no pertenece a la rendición';
     END IF;
   END IF;
   RETURN NEW;
@@ -9016,17 +9016,17 @@ BEGIN
   FROM public.inventory_locations WHERE id = NEW.location_id;
   IF v_empresa IS NULL OR v_empresa IS DISTINCT FROM NEW.empresa_id
      OR v_location_project IS DISTINCT FROM NEW.project_id THEN
-    RAISE EXCEPTION 'La rendiciÃ³n no coincide con la ubicaciÃ³n/proyecto del tenant';
+    RAISE EXCEPTION 'La rendición no coincide con la ubicación/proyecto del tenant';
   END IF;
   SELECT empresa_id INTO v_empresa FROM public.projects WHERE id = NEW.project_id;
   IF v_empresa IS NULL OR v_empresa IS DISTINCT FROM NEW.empresa_id THEN
-    RAISE EXCEPTION 'El proyecto de la rendiciÃ³n no pertenece al tenant';
+    RAISE EXCEPTION 'El proyecto de la rendición no pertenece al tenant';
   END IF;
   IF NEW.portal_link_id IS NOT NULL THEN
     SELECT empresa_id INTO v_empresa FROM public.warehouse_portal_links
     WHERE id = NEW.portal_link_id AND location_id = NEW.location_id;
     IF v_empresa IS NULL OR v_empresa IS DISTINCT FROM NEW.empresa_id THEN
-      RAISE EXCEPTION 'El link del portal no corresponde a la ubicaciÃ³n';
+      RAISE EXCEPTION 'El link del portal no corresponde a la ubicación';
     END IF;
   END IF;
   RETURN NEW;
@@ -9535,7 +9535,7 @@ ALTER TABLE "public"."bid_analysis_runs" OWNER TO "postgres";
 -- Name: TABLE "bid_analysis_runs"; Type: COMMENT; Schema: public; Owner: postgres
 --
 
-COMMENT ON TABLE "public"."bid_analysis_runs" IS 'Registro histÃ³rico inmutable append-only de anÃ¡lisis de decisiÃ³n comercial (Gate 18)';
+COMMENT ON TABLE "public"."bid_analysis_runs" IS 'Registro histórico inmutable append-only de análisis de decisión comercial (Gate 18)';
 
 
 --
@@ -9771,7 +9771,7 @@ ALTER TABLE "public"."budget_items" OWNER TO "postgres";
 -- Name: COLUMN "budget_items"."style"; Type: COMMENT; Schema: public; Owner: postgres
 --
 
-COMMENT ON COLUMN "public"."budget_items"."style" IS 'Formato visual de la fila en la planilla embebida: {bold?: boolean, align?: "left"|"center"|"right", color?: string (hex), bg?: string (hex)}. Puramente presentacional, no afecta ningÃºn cÃ¡lculo.';
+COMMENT ON COLUMN "public"."budget_items"."style" IS 'Formato visual de la fila en la planilla embebida: {bold?: boolean, align?: "left"|"center"|"right", color?: string (hex), bg?: string (hex)}. Puramente presentacional, no afecta ningún cálculo.';
 
 
 --
@@ -12248,7 +12248,7 @@ ALTER TABLE "public"."sales_documents" OWNER TO "postgres";
 -- Name: COLUMN "sales_documents"."source_document_id"; Type: COMMENT; Schema: public; Owner: postgres
 --
 
-COMMENT ON COLUMN "public"."sales_documents"."source_document_id" IS 'Factura origen de la nota de crÃ©dito (nullable â€” NC libre no la tiene)';
+COMMENT ON COLUMN "public"."sales_documents"."source_document_id" IS 'Factura origen de la nota de crédito (nullable — NC libre no la tiene)';
 
 
 --
@@ -27384,6 +27384,742 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 --
 
 
+
+SET search_path = public, extensions, pg_catalog;
+
+-- Remove ambient installation defaults, then restore the exact production application ACLs.
+-- These statements execute ONLY while constructing a fresh database, never in production.
+REVOKE ALL ON ALL TABLES IN SCHEMA public, private FROM anon, authenticated, service_role;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public, private FROM anon, authenticated, service_role;
+REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public, private FROM anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.accept_quotation(p_token_hash text, p_acceptor_name text, p_acceptor_doc text, p_notes text, p_ip text, p_user_agent text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.advance_sandbox_room(p_room_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.append_sandbox_event(p_room_id uuid, p_type text, p_payload jsonb) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.approve_subcontractor_certificate_atomically(p_empresa_id uuid, p_certificate_id uuid, p_approved_pct numeric, p_approved_amount numeric, p_notes text, p_actor_id uuid) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.approve_subcontractor_certificate_atomically(p_empresa_id uuid, p_certificate_id uuid, p_approved_pct numeric, p_approved_amount numeric, p_notes text, p_actor_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.assert_mrp_actor(p_empresa_id uuid, p_actor_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.bloquear_modificacion_snapshot() TO "anon";
+GRANT EXECUTE ON FUNCTION public.bloquear_modificacion_snapshot() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.bloquear_modificacion_snapshot() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.bump_quotation_version_on_doc_update() TO "anon";
+GRANT EXECUTE ON FUNCTION public.bump_quotation_version_on_doc_update() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.bump_quotation_version_on_doc_update() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.bump_quotation_version_on_item_change() TO "anon";
+GRANT EXECUTE ON FUNCTION public.bump_quotation_version_on_item_change() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.bump_quotation_version_on_item_change() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.calcular_dv_ruc_py(p_ruc text) TO "anon";
+GRANT EXECUTE ON FUNCTION public.calcular_dv_ruc_py(p_ruc text) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.calcular_dv_ruc_py(p_ruc text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.can_read_warehouse_evidence(p_object_name text) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.can_read_warehouse_evidence(p_object_name text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.cancel_email_approval_for_draft(p_draft_id uuid, p_empresa_id uuid) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.cancel_email_approval_for_draft(p_draft_id uuid, p_empresa_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.categorizar_tamano_contrato(p_monto numeric) TO "anon";
+GRANT EXECUTE ON FUNCTION public.categorizar_tamano_contrato(p_monto numeric) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.categorizar_tamano_contrato(p_monto numeric) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.check_invoice_delete_integrity() TO "anon";
+GRANT EXECUTE ON FUNCTION public.check_invoice_delete_integrity() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.check_invoice_delete_integrity() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.claim_email_send(p_empresa_id uuid, p_user_id uuid, p_draft_id uuid, p_connection_id uuid, p_approval_id uuid, p_approved_revision bigint, p_approved_content_hash text, p_delivery_fingerprint text, p_allow_delivery_unknown_retry boolean) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.claim_invoice_job() TO "anon";
+GRANT EXECUTE ON FUNCTION public.claim_invoice_job() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.claim_invoice_job() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.commit_production_plan_atomic(p_empresa_id uuid, p_actor_id uuid, p_plan_id uuid, p_project_id uuid, p_start_date date, p_end_date date, p_status text, p_notes text, p_items jsonb, p_weather_snapshot_batch_id uuid, p_location_id uuid, p_reserve_items jsonb, p_needed_by date, p_idempotency_key text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.complete_email_send_attempt(p_send_attempt_id uuid, p_empresa_id uuid, p_user_id uuid, p_provider_message_id text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.convertir_licitacion_a_proyecto_atomico(p_empresa_id uuid, p_name text, p_code text, p_client text, p_comitente text, p_contract_number text, p_contract_amount numeric, p_budget_total numeric, p_plazo_dias integer, p_anticipo_pct numeric, p_retencion_pct numeric, p_start_date date, p_end_date date, p_tender_id text, p_bid_analysis_run_id uuid, p_created_by uuid, p_budget_items jsonb, p_nombre_deposito text) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.convertir_licitacion_a_proyecto_atomico(p_empresa_id uuid, p_name text, p_code text, p_client text, p_comitente text, p_contract_number text, p_contract_amount numeric, p_budget_total numeric, p_plazo_dias integer, p_anticipo_pct numeric, p_retencion_pct numeric, p_start_date date, p_end_date date, p_tender_id text, p_bid_analysis_run_id uuid, p_created_by uuid, p_budget_items jsonb, p_nombre_deposito text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.crear_cuenta_financiera_atomica(p_empresa_id uuid, p_nombre text, p_tipo text, p_banco text, p_numero_cuenta text, p_moneda currency_code, p_saldo_inicial numeric, p_created_by uuid) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.crear_cuenta_financiera_atomica(p_empresa_id uuid, p_nombre text, p_tipo text, p_banco text, p_numero_cuenta text, p_moneda currency_code, p_saldo_inicial numeric, p_created_by uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.create_receipt_portal_link(p_empresa_id uuid, p_order_id uuid, p_location_id uuid, p_token_hash text, p_token_hint text, p_expires_at timestamp with time zone, p_created_by uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.current_empresa_id() TO "anon";
+GRANT EXECUTE ON FUNCTION public.current_empresa_id() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.current_empresa_id() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.current_profile_role() TO "anon";
+GRANT EXECUTE ON FUNCTION public.current_profile_role() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.current_profile_role() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.ejecutar_orden_pago_atomica(p_empresa_id uuid, p_op_id uuid, p_cuenta_id uuid, p_created_by uuid) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.ejecutar_orden_pago_atomica(p_empresa_id uuid, p_op_id uuid, p_cuenta_id uuid, p_created_by uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.email_connect_gmail(p_empresa_id uuid, p_user_id uuid, p_provider_email text, p_scopes text[], p_refresh_token text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.email_connect_gmail(p_provider_email text, p_scopes text[], p_refresh_token text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.email_delete_oauth_secret(p_secret_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.email_delete_oauth_secret(p_secret_id uuid, p_empresa_id uuid, p_user_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.email_read_oauth_secret_for_revoke(p_connection_id uuid, p_empresa_id uuid, p_user_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.email_read_oauth_secret_for_send(p_send_attempt_id uuid, p_connection_id uuid, p_empresa_id uuid, p_user_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.enforce_inventory_company_pro_plan() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.enforce_manual_inventory_movement_contract() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.evaluar_estado_documento_boveda(p_fecha_vencimiento date, p_es_vencible boolean, p_dias_alerta integer) TO "anon";
+GRANT EXECUTE ON FUNCTION public.evaluar_estado_documento_boveda(p_fecha_vencimiento date, p_es_vencible boolean, p_dias_alerta integer) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.evaluar_estado_documento_boveda(p_fecha_vencimiento date, p_es_vencible boolean, p_dias_alerta integer) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.extraer_dv_ruc(p_ruc text) TO "anon";
+GRANT EXECUTE ON FUNCTION public.extraer_dv_ruc(p_ruc text) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.extraer_dv_ruc(p_ruc text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.fail_email_send_attempt(p_send_attempt_id uuid, p_empresa_id uuid, p_user_id uuid, p_error_code text, p_failure_reason text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.fn_mov_tesoreria_saldo() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.force_close_sandbox_room(p_room_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.get_competitor_contextual_fingerprint(p_supplier_id uuid, p_comitente text, p_categoria text, p_monto numeric) TO "anon";
+GRANT EXECUTE ON FUNCTION public.get_competitor_contextual_fingerprint(p_supplier_id uuid, p_comitente text, p_categoria text, p_monto numeric) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.get_competitor_contextual_fingerprint(p_supplier_id uuid, p_comitente text, p_categoria text, p_monto numeric) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.guard_accepted_quotation_immutable() TO "anon";
+GRANT EXECUTE ON FUNCTION public.guard_accepted_quotation_immutable() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.guard_accepted_quotation_immutable() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.guard_accepted_quotation_items() TO "anon";
+GRANT EXECUTE ON FUNCTION public.guard_accepted_quotation_items() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.guard_accepted_quotation_items() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.guard_agent_approval_immutable_payload() TO "anon";
+GRANT EXECUTE ON FUNCTION public.guard_agent_approval_immutable_payload() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.guard_agent_approval_immutable_payload() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.guard_email_approval_binding() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.guard_email_attachment_send_barrier() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.guard_email_draft_send_barrier() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.guard_project_certificate_create() TO "anon";
+GRANT EXECUTE ON FUNCTION public.guard_project_certificate_create() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.guard_project_certificate_create() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.guard_subcontractor_certificate_project_scope() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.guard_subcontractor_contract_project_scope() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.import_project_certificate_atomically(p_project_id uuid, p_expected_number integer, p_period_start date, p_period_end date, p_import_fingerprint text, p_items jsonb) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.ingestar_proceso_ocds_global(p_cr jsonb, p_fuente text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.inventory_apply_warehouse_upload_result(p_empresa_id uuid, p_submission_id uuid, p_resolved_sha256 text[], p_failed jsonb) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.inventory_confirm_receipt(p_empresa_id uuid, p_receipt_id uuid, p_delivery_location_id uuid, p_idempotency_key text, p_confirmed_by uuid) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.inventory_confirm_receipt(p_empresa_id uuid, p_receipt_id uuid, p_delivery_location_id uuid, p_idempotency_key text, p_confirmed_by uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.inventory_confirm_warehouse_submission(p_empresa_id uuid, p_submission_id uuid, p_confirmed_by uuid, p_idempotency_key text) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.inventory_confirm_warehouse_submission(p_empresa_id uuid, p_submission_id uuid, p_confirmed_by uuid, p_idempotency_key text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.inventory_post_manual_movement(p_empresa_id uuid, p_producto_id uuid, p_quantity numeric, p_unit text, p_movement_type text, p_from_location_id uuid, p_to_location_id uuid, p_project_id uuid, p_idempotency_key text, p_cost_currency currency_code, p_unit_cost numeric, p_exchange_rate_to_company numeric, p_created_by uuid, p_metadata jsonb) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.inventory_post_manual_movement(p_empresa_id uuid, p_producto_id uuid, p_quantity numeric, p_unit text, p_movement_type text, p_from_location_id uuid, p_to_location_id uuid, p_project_id uuid, p_idempotency_key text, p_cost_currency currency_code, p_unit_cost numeric, p_exchange_rate_to_company numeric, p_created_by uuid, p_metadata jsonb) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.inventory_post_movement(p_empresa_id uuid, p_producto_id uuid, p_quantity numeric, p_unit text, p_movement_type text, p_from_location_id uuid, p_to_location_id uuid, p_project_id uuid, p_budget_item_id uuid, p_source_type text, p_source_id uuid, p_source_line_id uuid, p_idempotency_key text, p_cost_currency currency_code, p_unit_cost numeric, p_exchange_rate_to_company numeric, p_created_by uuid, p_metadata jsonb) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.inventory_save_submission_lines_atomic(p_empresa_id uuid, p_submission_id uuid, p_evidence_id uuid, p_lines jsonb) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.inventory_save_submission_lines_atomic(p_empresa_id uuid, p_submission_id uuid, p_evidence_id uuid, p_lines jsonb) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.is_internal_role(roles user_role[]) TO "anon";
+GRANT EXECUTE ON FUNCTION public.is_internal_role(roles user_role[]) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.is_internal_role(roles user_role[]) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.is_super_admin() TO "anon";
+GRANT EXECUTE ON FUNCTION public.is_super_admin() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.is_super_admin() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.log_audit_event(p_action text, p_rfq_id uuid, p_rfq_provider_id uuid, p_invoice_id uuid, p_authorized_order_id uuid, p_detail jsonb, p_actor_type text, p_actor_label text) TO "anon";
+GRANT EXECUTE ON FUNCTION public.log_audit_event(p_action text, p_rfq_id uuid, p_rfq_provider_id uuid, p_invoice_id uuid, p_authorized_order_id uuid, p_detail jsonb, p_actor_type text, p_actor_label text) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.log_audit_event(p_action text, p_rfq_id uuid, p_rfq_provider_id uuid, p_invoice_id uuid, p_authorized_order_id uuid, p_detail jsonb, p_actor_type text, p_actor_label text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.log_quotation_view(p_token_hash text, p_ip text, p_user_agent text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.mark_email_send_attempt_dispatching(p_send_attempt_id uuid, p_empresa_id uuid, p_user_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.mark_email_send_attempt_unknown(p_send_attempt_id uuid, p_empresa_id uuid, p_user_id uuid, p_error_code text, p_failure_reason text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.mark_invoice_apto_para_pago(p_invoice_id uuid) TO "anon";
+GRANT EXECUTE ON FUNCTION public.mark_invoice_apto_para_pago(p_invoice_id uuid) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.mark_invoice_apto_para_pago(p_invoice_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.mark_invoice_pagado(p_invoice_id uuid) TO "anon";
+GRANT EXECUTE ON FUNCTION public.mark_invoice_pagado(p_invoice_id uuid) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.mark_invoice_pagado(p_invoice_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.next_cot_code() TO "anon";
+GRANT EXECUTE ON FUNCTION public.next_cot_code() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.next_cot_code() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.next_doc_code(p_empresa_id uuid, p_doc_type text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.next_op_code() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.next_op_code() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.normalizar_ruc(p_ruc text) TO "anon";
+GRANT EXECUTE ON FUNCTION public.normalizar_ruc(p_ruc text) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.normalizar_ruc(p_ruc text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.normalizar_texto(p_text text) TO "anon";
+GRANT EXECUTE ON FUNCTION public.normalizar_texto(p_text text) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.normalizar_texto(p_text text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.planilla_confirmar_computo(p_planilla_id uuid) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.planilla_confirmar_computo(p_planilla_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.prevent_confirmed_warehouse_submission_evidence_mutation() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.prevent_confirmed_warehouse_submission_line_mutation() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.prevent_confirmed_warehouse_submission_mutation() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.prevent_inventory_movement_mutation() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.prevent_treasury_ledger_mutation() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.recompute_invoice_status(p_invoice_id uuid) TO "anon";
+GRANT EXECUTE ON FUNCTION public.recompute_invoice_status(p_invoice_id uuid) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.recompute_invoice_status(p_invoice_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.recompute_order_facturado(p_order_id uuid) TO "anon";
+GRANT EXECUTE ON FUNCTION public.recompute_order_facturado(p_order_id uuid) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.recompute_order_facturado(p_order_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.recompute_order_item_quantity_invoiced() TO "anon";
+GRANT EXECUTE ON FUNCTION public.recompute_order_item_quantity_invoiced() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.recompute_order_item_quantity_invoiced() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.recompute_sales_document(p_doc uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.recover_stale_email_send_attempts(p_cutoff timestamp with time zone) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.registrar_cobro_atomico(p_empresa_id uuid, p_sales_document_id uuid, p_amount numeric, p_method text, p_receipt_date date, p_reference text, p_notes text, p_cuenta_id uuid, p_created_by uuid) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.registrar_cobro_atomico(p_empresa_id uuid, p_sales_document_id uuid, p_amount numeric, p_method text, p_receipt_date date, p_reference text, p_notes text, p_cuenta_id uuid, p_created_by uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.registrar_movimiento_tesoreria(p_empresa_id uuid, p_cuenta_id uuid, p_monto numeric, p_tipo text, p_fecha date, p_motivo text, p_payment_order_id uuid, p_sales_receipt_id uuid, p_project_id uuid, p_created_by uuid, p_permitir_negativo boolean) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.registrar_movimiento_tesoreria(p_empresa_id uuid, p_cuenta_id uuid, p_monto numeric, p_tipo text, p_fecha date, p_motivo text, p_payment_order_id uuid, p_sales_receipt_id uuid, p_project_id uuid, p_created_by uuid, p_permitir_negativo boolean) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.registrar_stock_movimiento(p_empresa_id uuid, p_producto_id uuid, p_tipo text, p_cantidad numeric, p_referencia_tipo text, p_referencia_id uuid, p_notas text, p_created_by uuid, p_costo_unitario numeric) TO "anon";
+GRANT EXECUTE ON FUNCTION public.registrar_stock_movimiento(p_empresa_id uuid, p_producto_id uuid, p_tipo text, p_cantidad numeric, p_referencia_tipo text, p_referencia_id uuid, p_notas text, p_created_by uuid, p_costo_unitario numeric) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.registrar_stock_movimiento(p_empresa_id uuid, p_producto_id uuid, p_tipo text, p_cantidad numeric, p_referencia_tipo text, p_referencia_id uuid, p_notas text, p_created_by uuid, p_costo_unitario numeric) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.registrar_transferencia(p_empresa_id uuid, p_cuenta_origen_id uuid, p_cuenta_destino_id uuid, p_monto_origen numeric, p_monto_destino numeric, p_fecha date, p_motivo text, p_created_by uuid) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.registrar_transferencia(p_empresa_id uuid, p_cuenta_origen_id uuid, p_cuenta_destino_id uuid, p_monto_origen numeric, p_monto_destino numeric, p_fecha date, p_motivo text, p_created_by uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.reject_quotation(p_token_hash text, p_reason text, p_actor_name text, p_ip text, p_user_agent text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.reject_quotation_acceptance_write() TO "anon";
+GRANT EXECUTE ON FUNCTION public.reject_quotation_acceptance_write() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.reject_quotation_acceptance_write() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.reject_subcontractor_certificate_atomically(p_empresa_id uuid, p_certificate_id uuid, p_notes text, p_actor_id uuid) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.reject_subcontractor_certificate_atomically(p_empresa_id uuid, p_certificate_id uuid, p_notes text, p_actor_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.release_plan_reservations(p_empresa_id uuid, p_actor_id uuid, p_plan_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.requeue_stale_invoice_jobs(timeout_minutes integer, max_attempts integer) TO "anon";
+GRANT EXECUTE ON FUNCTION public.requeue_stale_invoice_jobs(timeout_minutes integer, max_attempts integer) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.requeue_stale_invoice_jobs(timeout_minutes integer, max_attempts integer) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.require_fx_for_foreign_currency_inventory_adjustment() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.reserve_plan_stock(p_empresa_id uuid, p_actor_id uuid, p_project_id uuid, p_plan_id uuid, p_location_id uuid, p_items jsonb, p_needed_by date, p_idempotency_key text, p_replace boolean) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.resolve_legacy_inventory_cost(p_empresa_id uuid, p_producto_id uuid, p_legacy_unit_cost numeric) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.resolve_work_order_policy(p_empresa_id uuid, p_client_id uuid, p_project_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.resync_project_certificate_quantities_atomically(p_empresa_id uuid, p_certificate_id uuid, p_actor_id uuid, p_updates jsonb) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.resync_project_certificate_quantities_atomically(p_empresa_id uuid, p_certificate_id uuid, p_actor_id uuid, p_updates jsonb) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.revert_project_certificate_status_atomically(p_certificate_id uuid, p_expected_status text) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.revertir_cobro_atomico(p_empresa_id uuid, p_sales_receipt_id uuid, p_reversal_reason text, p_created_by uuid) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.revertir_cobro_atomico(p_empresa_id uuid, p_sales_receipt_id uuid, p_reversal_reason text, p_created_by uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.save_production_recipe_atomic(p_empresa_id uuid, p_actor_id uuid, p_recipe_id uuid, p_project_id uuid, p_code text, p_name text, p_production_unit text, p_description text, p_contract_total_quantity numeric, p_source_type text, p_source_file_name text, p_components jsonb) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.save_weekly_plan_atomic(p_plan_id uuid, p_project_id uuid, p_start_date date, p_end_date date, p_status text, p_notes text, p_items jsonb, p_weather_snapshot_batch_id uuid) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.save_weekly_plan_atomic(p_plan_id uuid, p_project_id uuid, p_start_date date, p_end_date date, p_status text, p_notes text, p_items jsonb, p_weather_snapshot_batch_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.scan_pin_check_actor_lock(p_actor_key text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.scan_pin_record_failed_attempt(p_actor_key text, p_max_attempts integer, p_lockout_seconds integer) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.scan_pin_reset_actor_attempts(p_actor_key text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.scan_session_claim_atomic(p_session_id uuid, p_mobile_claim_token_hash text, p_device_info jsonb, p_user_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.scan_session_complete_atomic(p_session_id uuid, p_storage_path text, p_file_name text, p_file_size bigint, p_page_count integer) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.scan_session_create_atomic(p_empresa_id uuid, p_user_id uuid, p_token_hash text, p_pin_code text, p_expires_at timestamp with time zone, p_context_type text, p_context_id text, p_target_field text, p_storage_bucket text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.select_and_authorize_offer_atomically(p_empresa_id uuid, p_actor_id uuid, p_rfq_id uuid, p_rfq_provider_id uuid, p_quote_version_id uuid, p_selection_reason selection_reason, p_selection_reason_detail text) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.select_and_authorize_offer_atomically(p_empresa_id uuid, p_actor_id uuid, p_rfq_id uuid, p_rfq_provider_id uuid, p_quote_version_id uuid, p_selection_reason selection_reason, p_selection_reason_detail text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_agent_approvals_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_agent_approvals_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_agent_approvals_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_agent_runs_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_agent_runs_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_agent_runs_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_agent_steps_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_agent_steps_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_agent_steps_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_agent_tasks_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_agent_tasks_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_agent_tasks_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_attachments_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_attachments_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_attachments_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_audit_logs_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_audit_logs_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_audit_logs_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_authorized_orders_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_authorized_orders_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_authorized_orders_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_empresa_id_from_caller() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_empresa_id_from_caller() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_empresa_id_from_caller() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_invoice_exceptions_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_invoice_exceptions_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_invoice_exceptions_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_invoice_order_matches_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_invoice_order_matches_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_invoice_order_matches_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_order_code() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_order_code() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_order_code() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_payment_order_invoices_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_payment_order_invoices_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_payment_order_invoices_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_payment_orders_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_payment_orders_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_payment_orders_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_quotation_acceptance_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_quotation_acceptance_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_quotation_acceptance_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_quotation_event_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_quotation_event_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_quotation_event_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_quotation_token_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_quotation_token_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_quotation_token_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_quote_versions_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_quote_versions_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_quote_versions_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_quotes_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_quotes_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_quotes_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_rfq_code() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_rfq_code() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_rfq_code() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_rfq_providers_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_rfq_providers_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_rfq_providers_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_routing_policy_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_routing_policy_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_routing_policy_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_sales_child_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_sales_child_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_sales_child_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_sales_document_code() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_sales_document_code() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_sales_document_code() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_updated_at() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_updated_at() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_updated_at() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_work_order_code() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_work_order_code() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_work_order_code() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_work_order_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_work_order_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_work_order_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.set_work_order_item_empresa() TO "anon";
+GRANT EXECUTE ON FUNCTION public.set_work_order_item_empresa() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.set_work_order_item_empresa() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.submit_receipt_portal(p_token_hash text, p_fecha date, p_recibido_por text, p_remision_number text, p_notas text, p_items jsonb, p_evidence jsonb) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.submit_sandbox_bid(p_room_id uuid, p_participant_id uuid, p_price_pyg bigint, p_idempotency_key text, p_expected_policy_version integer) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.sync_inventory_legacy_projection(p_empresa_id uuid, p_producto_id uuid, p_location_ids uuid[]) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.sync_order_payment_status(p_order_id uuid) TO "anon";
+GRANT EXECUTE ON FUNCTION public.sync_order_payment_status(p_order_id uuid) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.sync_order_payment_status(p_order_id uuid) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.trg_recompute_on_invoice_total_change() TO "anon";
+GRANT EXECUTE ON FUNCTION public.trg_recompute_on_invoice_total_change() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.trg_recompute_on_invoice_total_change() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.trg_recompute_on_match_change() TO "anon";
+GRANT EXECUTE ON FUNCTION public.trg_recompute_on_match_change() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.trg_recompute_on_match_change() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.trg_recompute_sales_doc() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.update_updated_at_column() TO "anon";
+GRANT EXECUTE ON FUNCTION public.update_updated_at_column() TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.update_updated_at_column() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.upsert_inventory_balance(p_empresa_id uuid, p_producto_id uuid, p_location_id uuid, p_cost_currency currency_code, p_quantity numeric, p_total_cost numeric, p_total_cost_company numeric, p_cost_status text, p_original_cost_currency text, p_original_unit_cost numeric, p_original_total_cost numeric, p_exchange_rate_to_company numeric, p_cost_source text) TO "service_role";
+GRANT EXECUTE ON FUNCTION public.validate_inventory_balance_tenant() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.validate_inventory_location_tenant() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.validate_inventory_movement_cost_tenant() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.validate_inventory_movement_tenant() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.validate_oc_receipt_inventory_location() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.validate_warehouse_portal_link_tenant() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.validate_warehouse_submission_line_tenant() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.validate_warehouse_submission_tenant() TO "service_role";
+GRANT EXECUTE ON FUNCTION public.verificar_saldos_tesoreria(p_empresa_id uuid) TO "authenticated";
+GRANT EXECUTE ON FUNCTION public.verificar_saldos_tesoreria(p_empresa_id uuid) TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.agent_approvals TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.agent_approvals TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.agent_approvals TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.agent_runs TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.agent_runs TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.agent_runs TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.agent_steps TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.agent_steps TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.agent_steps TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.agent_tasks TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.agent_tasks TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.agent_tasks TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.apu_template_equipment TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.apu_template_equipment TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.apu_template_labor TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.apu_template_labor TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.apu_template_materials TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.apu_template_materials TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.apu_template_subcontracts TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.apu_template_subcontracts TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.apu_templates TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.apu_templates TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.attachments TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.attachments TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.attachments TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.auction_sandbox_bids TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.auction_sandbox_bids TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.auction_sandbox_bids TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.auction_sandbox_events TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.auction_sandbox_events TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.auction_sandbox_events TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.auction_sandbox_participants TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.auction_sandbox_participants TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.auction_sandbox_participants TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.auction_sandbox_policy_versions TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.auction_sandbox_policy_versions TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.auction_sandbox_policy_versions TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.auction_sandbox_room_private TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.auction_sandbox_room_private TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.auction_sandbox_room_private TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.auction_sandbox_rooms TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.auction_sandbox_rooms TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.auction_sandbox_rooms TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.audit_logs TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.audit_logs TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.audit_logs TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.authorized_order_items TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.authorized_order_items TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.authorized_order_items TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.authorized_orders TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.authorized_orders TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.authorized_orders TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bid_analysis_runs TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bid_analysis_runs TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bid_analysis_runs TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bim_budget_matches TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bim_budget_matches TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bim_budget_matches TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bim_element_groups TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bim_element_groups TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bim_element_groups TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bim_elements TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bim_elements TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bim_elements TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bim_group_matches TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bim_group_matches TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bim_group_matches TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bim_models TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bim_models TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.bim_models TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.budget_item_equipment TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.budget_item_equipment TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.budget_item_labor TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.budget_item_labor TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.budget_item_materials TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.budget_item_materials TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.budget_item_materials TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.budget_item_subcontracts TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.budget_item_subcontracts TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.budget_items TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.budget_items TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.budget_items TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.categorias_producto TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.categorias_producto TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.categorias_producto TO "service_role";
+GRANT INSERT, SELECT, UPDATE ON TABLE public.certificate_workbooks TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.certificate_workbooks TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.clients TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.clients TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.clients TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.company_bid_vault_items TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.company_bid_vault_items TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.company_bid_vault_items TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.computo_imports TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.computo_imports TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.computo_imports TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.computo_item_matches TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.computo_item_matches TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.computo_item_matches TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.computo_items TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.computo_items TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.computo_items TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.cost_observations TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.cost_observations TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.cost_observations TO "service_role";
+GRANT SELECT, UPDATE, USAGE ON SEQUENCE public.cot_code_seq TO "anon";
+GRANT SELECT, UPDATE, USAGE ON SEQUENCE public.cot_code_seq TO "authenticated";
+GRANT SELECT, UPDATE, USAGE ON SEQUENCE public.cot_code_seq TO "service_role";
+GRANT MAINTAIN, REFERENCES, SELECT, TRIGGER ON TABLE public.cuentas_financieras TO "anon";
+GRANT MAINTAIN, REFERENCES, SELECT, TRIGGER ON TABLE public.cuentas_financieras TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.cuentas_financieras TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.daily_labor_entries TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.daily_labor_entries TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.daily_labor_entries TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.doc_code_counters TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.doc_code_counters TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.doc_code_counters TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.email_connections TO "anon";
+GRANT DELETE, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE ON TABLE public.email_connections TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.email_connections TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.email_draft_attachments TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.email_draft_attachments TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.email_draft_attachments TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.email_drafts TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.email_drafts TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.email_drafts TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.email_oauth_states TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.email_oauth_states TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.email_oauth_states TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.email_send_attempts TO "service_role";
+GRANT DELETE, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.email_send_events TO "anon";
+GRANT DELETE, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.email_send_events TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.email_send_events TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.empresa_documentos TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.empresa_documentos TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.empresa_documentos TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.empresa_licitacion_seguimiento TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.empresa_licitacion_seguimiento TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.empresa_licitacion_seguimiento TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.empresas TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.empresas TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.empresas TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.execution_entries TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.execution_entries TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.execution_entries TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.execution_entry_photos TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.execution_entry_photos TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.execution_entry_photos TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.gastos_recurrentes TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.gastos_recurrentes TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.gastos_recurrentes TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_balances TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_balances TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_consumption_by_budget TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_consumption_by_budget TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_locations TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_locations TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_movement_costs TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_movement_costs TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_movements TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_movements TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_receipt_evidence TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_receipt_evidence TO "service_role";
+GRANT MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE ON TABLE public.inventory_reservations TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_reservations TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_stock_by_location TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_stock_by_location TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_stock_by_project TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_stock_by_project TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_stock_global TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_stock_global TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_stock_global_quantity TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.inventory_stock_global_quantity TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.invoice_exceptions TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.invoice_exceptions TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.invoice_exceptions TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.invoice_item_matches TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.invoice_item_matches TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.invoice_item_matches TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.invoice_items TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.invoice_items TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.invoice_items TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.invoice_jobs TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.invoice_jobs TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.invoice_jobs TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.invoice_order_matches TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.invoice_order_matches TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.invoice_order_matches TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.invoices TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.invoices TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.invoices TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.labor_payments TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.labor_payments TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.labor_rates TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.labor_rates TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_documentos TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_documentos TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_documentos TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_items TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_items TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_items TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_lotes TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_lotes TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_lotes TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_oferentes TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_oferentes TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_oferentes TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_oferta_items TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_oferta_items TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_oferta_items TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_ofertas TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_ofertas TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_ofertas TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_perfil TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_perfil TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitacion_perfil TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitaciones TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitaciones TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.licitaciones TO "service_role";
+GRANT MAINTAIN, REFERENCES, SELECT, TRIGGER ON TABLE public.movimientos_tesoreria TO "anon";
+GRANT MAINTAIN, REFERENCES, SELECT, TRIGGER ON TABLE public.movimientos_tesoreria TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.movimientos_tesoreria TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.oc_order_item_recibido TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.oc_order_item_recibido TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.oc_order_item_recibido TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.oc_recepcion_items TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.oc_recepcion_items TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.oc_recepcion_items TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.oc_recepciones TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.oc_recepciones TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.oc_recepciones TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.payment_order_invoices TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.payment_order_invoices TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.payment_order_invoices TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.payment_orders TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.payment_orders TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.payment_orders TO "service_role";
+GRANT INSERT, SELECT, UPDATE ON TABLE public.planillas TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.planillas TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_award_suppliers TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_award_suppliers TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_award_suppliers TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_awards TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_awards TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_awards TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_bids TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_bids TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_bids TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_consortia TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_consortia TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_consortia TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_consortium_members TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_consortium_members TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_consortium_members TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_contract_amendments TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_contract_amendments TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_contract_amendments TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_contract_suppliers TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_contract_suppliers TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_contract_suppliers TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_contracts TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_contracts TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_contracts TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_documents TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_documents TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_documents TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_entities TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_entities TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_entities TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_entity_aliases TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_entity_aliases TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_entity_aliases TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_items TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_items TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_items TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_lots TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_lots TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_lots TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_process_history TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_process_history TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_process_history TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_processes TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_processes TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_processes TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_suppliers TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_suppliers TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.procurement_suppliers TO "service_role";
+GRANT MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE ON TABLE public.production_recipe_components TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.production_recipe_components TO "service_role";
+GRANT MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE ON TABLE public.production_recipes TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.production_recipes TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.productos TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.productos TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.productos TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.profiles TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.profiles TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.profiles TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_certificate_items TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_certificate_items TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_certificate_items TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_certificate_staff TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_certificate_staff TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_certificate_staff TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_certificate_unit_progress TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_certificate_unit_progress TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_certificate_unit_progress TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_certificates TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_certificates TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_certificates TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_cost_prices TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_cost_prices TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_progress_forecast_items TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_progress_forecast_items TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_progress_forecast_items TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_progress_forecast_runs TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_progress_forecast_runs TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_progress_forecast_runs TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_providers TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_providers TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_providers TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_schedule_plan_months TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_schedule_plan_months TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_schedule_plan_months TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_schedule_plans TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_schedule_plans TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_schedule_plans TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_units TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_units TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_units TO "service_role";
+GRANT INSERT, SELECT ON TABLE public.project_weather_forecast_batches TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_weather_forecast_batches TO "service_role";
+GRANT INSERT, SELECT ON TABLE public.project_weather_forecast_snapshots TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_weather_forecast_snapshots TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_weather_log TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_weather_log TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_weather_log TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_weekly_plan_items TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_weekly_plan_items TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_weekly_plan_items TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_weekly_plans TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_weekly_plans TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.project_weekly_plans TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.projects TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.projects TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.projects TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.provider_categorias TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.provider_categorias TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.providers TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.providers TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.providers TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.quote_version_items TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.quote_version_items TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.quote_versions TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.quote_versions TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.quote_versions TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.quotes TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.quotes TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.quotes TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.receipt_portal_links TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.rfq_items TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.rfq_items TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.rfq_providers TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.rfq_providers TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.rfq_providers TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.rfqs TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.rfqs TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.rfqs TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.sales_counters TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.sales_counters TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.sales_counters TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.sales_document_items TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.sales_document_items TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.sales_document_items TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.sales_documents TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.sales_documents TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.sales_documents TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.sales_quotation_acceptances TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.sales_quotation_acceptances TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.sales_quotation_acceptances TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.sales_quotation_events TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.sales_quotation_events TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.sales_quotation_events TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.sales_quotation_tokens TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.sales_quotation_tokens TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.sales_quotation_tokens TO "service_role";
+GRANT MAINTAIN, REFERENCES, SELECT, TRIGGER ON TABLE public.sales_receipts TO "anon";
+GRANT MAINTAIN, REFERENCES, SELECT, TRIGGER ON TABLE public.sales_receipts TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.sales_receipts TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.scan_pin_attempts TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.scan_pin_attempts TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.scan_pin_attempts TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.scan_sessions TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.scan_sessions TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.scan_sessions TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.stock_movimientos TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.stock_movimientos TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.stock_movimientos TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.stock_por_proyecto TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.stock_por_proyecto TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.stock_por_proyecto TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE ON TABLE public.subcontractor_certificates TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE ON TABLE public.subcontractor_certificates TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.subcontractor_certificates TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.subcontractor_contracts TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.subcontractor_contracts TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.subcontractor_contracts TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.subcontractors TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.subcontractors TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.subcontractors TO "service_role";
+GRANT MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE ON TABLE public.transferencias TO "anon";
+GRANT MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE ON TABLE public.transferencias TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.transferencias TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.v_procurement_competitor_contextual TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.v_procurement_competitor_contextual TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.v_procurement_competitor_contextual TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.v_procurement_competitor_global TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.v_procurement_competitor_global TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.v_procurement_competitor_global TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.warehouse_portal_links TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.warehouse_portal_links TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.warehouse_submission_evidence TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.warehouse_submission_evidence TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.warehouse_submission_lines TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.warehouse_submission_lines TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE ON TABLE public.warehouse_submissions TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.warehouse_submissions TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.work_order_items TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.work_order_items TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.work_order_items TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.work_order_routing_policies TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.work_order_routing_policies TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.work_order_routing_policies TO "service_role";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.work_orders TO "anon";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.work_orders TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.work_orders TO "service_role";
+GRANT INSERT, SELECT, UPDATE ON TABLE public.workbook_import_sessions TO "authenticated";
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public.workbook_import_sessions TO "service_role";
 
 
 -- Application-specific policies and Realtime membership captured from production catalogs.
