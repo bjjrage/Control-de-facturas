@@ -72,3 +72,75 @@
 - Verdict post-merge: **PASS**.
 
 La actualización de cierre autoriza exclusivamente cambios en `APPLIED-CHANGES.md` y este manifest.
+
+---
+
+# BATCH MANIFEST — Batch 02 Pricing / Flywheel
+
+## Identidad
+
+- Batch: `02-PRICING-FLYWHEEL`.
+- Rama: `batch/02-pricing-flywheel`.
+- Base SHA: `c60b26787358ad1b698fa8bf3380bd6ccda3c02d`.
+- HEAD esperado: cambios exclusivos del Batch 2, sin incorporar historia ajena.
+- Objetivo: separar compra efectiva, cotización vigente, precio adoptado, CPP y estimación; impedir que una OC se registre como FACTURA sin evidencia de precio de línea.
+
+## Archivos autorizados
+
+- `BATCH-MANIFEST.md`
+- `IMPLEMENTATION_REPORT-BATCH-02.md`
+- `lib/costing/cost-budget.ts`
+- `lib/costing/project-prices.ts`
+- `lib/costing/price-list.ts`
+- `lib/procurement/flywheel.ts`
+- `app/(internal)/projects/[id]/costeo-actions.ts`
+- `app/(internal)/projects/[id]/costeo-section.tsx`
+- `app/(internal)/precios/page.tsx`
+- `app/(internal)/precios/prices-section.tsx`
+- `test/costing.test.ts`
+- `lib/costing/__tests__/project-prices.spec.ts`
+- `lib/procurement/__tests__/flywheel-invoice-evidence.spec.ts`
+- `lib/procurement/__tests__/pricing-flow-through.spec.ts`
+
+No se autorizan otros archivos. Si la implementación requiere ampliar este listado o modificar schema, detenerse y reportar antes de hacerlo.
+
+## Tests autorizados/esperados
+
+- Tests específicos de pricing, price list, Costeo, Plan Semanal y Flujo de Caja.
+- Tests del invoice flywheel con y sin evidencia de precio de línea.
+- `npx tsc --noEmit`.
+- `npx vitest run --maxWorkers=1`.
+- `npx next build --webpack` con variables públicas ficticias locales, sin credenciales productivas.
+
+## Commits históricos autorizados
+
+- Ninguno, salvo entrada exacta en `RESCUE-ALLOWLIST.md`.
+
+## Commits históricos prohibidos
+
+- Todos los commits no indicados arriba.
+- Todo merge/rango de ramas `recovery/*`.
+
+## Migraciones
+
+- Estado según `DB_REALITY_MAP`: trabajar con el esquema existente confirmado por Batch 0.
+- Migraciones nuevas permitidas: ninguna. Si falta una columna/tabla, detenerse y reportar el gap exacto y la migration mínima propuesta sin crearla.
+- Migraciones históricas que no pueden editarse: todas.
+- Supabase producción no se modifica; no se aplican migrations.
+
+## Alcance funcional
+
+- Incluye: resolver y exponer por separado compra efectiva (`FACTURA`/`RECEPCION`), cotización, precio adoptado por contexto, CPP, estimación y referencias APU/manual; mantener cotización fuera de la selección automática; exigir evidencia de línea antes de escribir una observación `FACTURA`; regresiones de Costeo, Plan Semanal y Flujo de Caja.
+- Excluye: RFQ 2.0, adjudicación, Direct Purchase, inventario canónico, Forecast, mano de obra, Tender → Project, Migration Ledger Repair, Certificate CAS, atomicidad de certificados, cambios de schema, producción, PR y merge.
+
+## Verificación final
+
+- Expected files: las 14 rutas listadas en “Archivos autorizados”.
+- Unexpected files: ninguno.
+- Expected commits: `1c705b51050aad0e73272441f3c197dd6c5f2438` pricing; `70077a94917ae6cc6bd7452dfb45adddcf785c3e` invoice flywheel; un commit documental de cierre. Cero commits históricos.
+- Unknown commits: ninguno; la rama parte directamente del SHA base verificado.
+- Migrations: ninguna modificada o agregada.
+- Regressions: ninguna detectada; 1.283 PASS / 16 skipped en ejecución serial.
+- Test coverage: casos canónicos 1–6; Costeo, Plan Semanal, Flujo de Caja, `tsc` y build PASS.
+- HTML impact: UI de pricing/costeo identifica fuentes y decisiones adoptadas.
+- Verdict: PASS local; listo para auditoría externa. No mergear desde este batch.
