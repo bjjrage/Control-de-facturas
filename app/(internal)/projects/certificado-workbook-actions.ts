@@ -196,6 +196,33 @@ export async function applyCertificateWorkbook(certificateId: string): Promise<A
     mapping_version: workbook.mappingStructureHash,
   }));
 
+  const invalidRows: string[] = [];
+  for (const [index, line] of lines.entries()) {
+    const rowNumber = line.source_row ?? index + 1;
+    const codeLabel = line.codigo?.trim() ? ` (código ${line.codigo})` : "";
+    const rowLabel = `Fila ${rowNumber}${codeLabel}:`;
+    if (typeof line.descripcion !== "string" || !line.descripcion.trim()) {
+      invalidRows.push(`${rowLabel} la descripción está vacía.`);
+    }
+
+    const quantities = [
+      { label: "la cantidad contractual", value: line.qty_contractual },
+      { label: "la cantidad anterior", value: line.qty_anterior },
+      { label: "la cantidad presente", value: line.qty_presente },
+      { label: "el precio unitario", value: line.precio_unitario },
+    ];
+    for (const { label, value } of quantities) {
+      if (value === null || value === undefined) {
+        invalidRows.push(`${rowLabel} ${label} es obligatoria.`);
+      } else if (typeof value !== "number" || !Number.isFinite(value)) {
+        invalidRows.push(`${rowLabel} ${label} debe ser un número válido.`);
+      } else if (value < 0) {
+        invalidRows.push(`${rowLabel} ${label} no puede ser negativa.`);
+      }
+    }
+  }
+  if (invalidRows.length > 0) return fail(`No se aplicó la planilla. ${invalidRows.join(" ")}`);
+
   // Reemplazo completo: nada referencia a estas líneas (sin FKs entrantes) y
   // la guarda de la base solo deja escribirlas en BORRADOR.
   const { error: deleteError } = await supabase.from("project_certificate_items").delete().eq("certificate_id", certificateId);

@@ -88,7 +88,7 @@ export async function setCuentaActiva(id: string, activo: boolean): Promise<{ er
 export async function registrarMovimientoManual(data: {
   cuenta_id: string;
   tipo: "INGRESO" | "EGRESO" | "AJUSTE";
-  monto: number; // siempre positivo; el signo lo pone el tipo
+  monto: number; // AJUSTE puede llevar signo; INGRESO/EGRESO esperan positivo
   fecha?: string;
   motivo: string;
   project_id?: string | null;
@@ -96,9 +96,10 @@ export async function registrarMovimientoManual(data: {
   const { supabase, profile } = await ctx();
   const motivo = data.motivo.trim();
   if (!motivo) return { error: "El motivo es obligatorio" };
-  if (!data.monto || data.monto <= 0) return { error: "El monto debe ser mayor a cero" };
+  if (!Number.isFinite(data.monto) || data.monto === 0) return { error: "El monto debe ser distinto de cero" };
+  if (data.tipo !== "AJUSTE" && data.monto < 0) return { error: "El monto debe ser mayor a cero" };
 
-  // AJUSTE puede ser + o -; el cliente manda el signo en ese caso vía monto.
+  // EGRESO persiste negativo; AJUSTE conserva el signo enviado por el cliente.
   const monto = data.tipo === "EGRESO" ? -Math.abs(data.monto) : data.tipo === "INGRESO" ? Math.abs(data.monto) : data.monto;
 
   const { data: saldo, error } = await supabase.rpc("registrar_movimiento_tesoreria", {
