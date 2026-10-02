@@ -10,6 +10,7 @@ import { explodeMaterialNeeds, groupNeedsByRubro } from "@/lib/costing/insumos";
 import {
   computePartidaCosts,
   computeProjectCostTotals,
+  offerExpiryDate,
   type PartidaCost,
   type ProjectCostTotals,
   type ResolvedPrice,
@@ -493,17 +494,45 @@ export async function setProjectCostPriceAction(params: {
   try {
     const profile = await requirePlan("pro", ["administracion", "admin"]);
     const supabase = await createClient();
-    if (!(params.precio > 0)) return { error: "El precio tiene que ser mayor a cero." };
+    if (params.fuente !== "COTIZACION" && params.fuente !== "MANUAL") {
+      return { error: "La fuente del precio no es válida." };
+    }
+    if (params.fuente === "MANUAL" && (!Number.isFinite(params.precio) || params.precio <= 0)) {
+      return { error: "El precio tiene que ser un número finito mayor a cero." };
+    }
     const { data: project } = await supabase.from("projects").select("id").eq("id", params.projectId).eq("empresa_id", profile.empresa_id).maybeSingle();
     if (!project) return { error: "Obra no encontrada." };
+
+    let precioUnitario = params.precio;
+    let quoteVersionItemId: string | null = null;
+    if (params.fuente === "COTIZACION") {
+      if (typeof params.quoteVersionItemId !== "string" || !params.quoteVersionItemId.trim()) {
+        return { error: "La cotización seleccionada no es válida." };
+      }
+
+      const quotePrice = await resolveCurrentQuotePrice({
+        admin: createAdminClient(),
+        empresaId: profile.empresa_id,
+        projectId: params.projectId,
+        productoId: params.productoId,
+        quoteVersionItemId: params.quoteVersionItemId,
+      });
+      if (quotePrice.error || quotePrice.precio == null) {
+        return { error: quotePrice.error ?? "La cotización seleccionada no es válida para esta obra e insumo." };
+      }
+
+      precioUnitario = quotePrice.precio;
+      quoteVersionItemId = params.quoteVersionItemId;
+    }
+
     const { error } = await supabase.from("project_cost_prices").upsert(
       {
         empresa_id: profile.empresa_id,
         project_id: params.projectId,
         producto_id: params.productoId,
-        precio_unitario: params.precio,
+        precio_unitario: precioUnitario,
         fuente: params.fuente,
-        quote_version_item_id: params.quoteVersionItemId ?? null,
+        quote_version_item_id: quoteVersionItemId,
         updated_by: profile.id,
         updated_at: new Date().toISOString(),
       },
@@ -515,6 +544,83 @@ export async function setProjectCostPriceAction(params: {
   } catch (err: any) {
     return { error: err.message };
   }
+}
+
+/** Valida server-side que el ítem pertenezca a la cotización vigente de esta obra e insumo. */
+async function resolveCurrentQuotePrice(args: {
+  admin: ReturnType<typeof createAdminClient>;
+  empresaId: string;
+  projectId: string;
+  productoId: string;
+  quoteVersionItemId: string;
+}): Promise<{ precio: number | null; error: string | null }> {
+  const invalid = { precio: null, error: "La cotización seleccionada no es válida para esta obra e insumo." };
+  const { data: quoteItem, error: quoteItemError } = await args.admin
+    .from("quote_version_items")
+    .select("id, quote_version_id, rfq_item_id, precio_unitario")
+    .eq("id", args.quoteVersionItemId)
+    .eq("empresa_id", args.empresaId)
+    .maybeSingle();
+  if (quoteItemError || !quoteItem) return invalid;
+
+  const { data: rfqItem, error: rfqItemError } = await args.admin
+    .from("rfq_items")
+    .select("id, rfq_id, producto_id")
+    .eq("id", quoteItem.rfq_item_id)
+    .eq("empresa_id", args.empresaId)
+    .eq("producto_id", args.productoId)
+    .maybeSingle();
+  if (rfqItemError || !rfqItem) return invalid;
+
+  const { data: rfq, error: rfqError } = await args.admin
+    .from("rfqs")
+    .select("id, project_id")
+    .eq("id", rfqItem.rfq_id)
+    .eq("empresa_id", args.empresaId)
+    .eq("project_id", args.projectId)
+    .maybeSingle();
+  if (rfqError || !rfq) return invalid;
+
+  const { data: version, error: versionError } = await args.admin
+    .from("quote_versions")
+    .select("id, quote_id, version_number, currency, offer_validity, submitted_at")
+    .eq("id", quoteItem.quote_version_id)
+    .eq("empresa_id", args.empresaId)
+    .maybeSingle();
+  if (versionError || !version || version.currency !== "PYG") return invalid;
+
+  const { data: quote, error: quoteError } = await args.admin
+    .from("quotes")
+    .select("id, rfq_provider_id")
+    .eq("id", version.quote_id)
+    .eq("empresa_id", args.empresaId)
+    .maybeSingle();
+  if (quoteError || !quote) return invalid;
+
+  const { data: rfqProvider, error: rfqProviderError } = await args.admin
+    .from("rfq_providers")
+    .select("id, rfq_id")
+    .eq("id", quote.rfq_provider_id)
+    .eq("empresa_id", args.empresaId)
+    .maybeSingle();
+  if (rfqProviderError || !rfqProvider || rfqProvider.rfq_id !== rfq.id) return invalid;
+
+  const { data: currentVersion, error: currentVersionError } = await args.admin
+    .from("quote_versions")
+    .select("id")
+    .eq("quote_id", quote.id)
+    .eq("empresa_id", args.empresaId)
+    .order("version_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (currentVersionError || !currentVersion || currentVersion.id !== version.id) return invalid;
+
+  const expirationDate = offerExpiryDate(version.submitted_at, version.offer_validity);
+  if (expirationDate && expirationDate < new Date().toISOString().slice(0, 10)) return invalid;
+
+  const precio = Number(quoteItem.precio_unitario);
+  if (!Number.isFinite(precio) || precio <= 0) return invalid;
+  return { precio, error: null };
 }
 
 /** Vuelve el insumo al precio sugerido automáticamente. */
