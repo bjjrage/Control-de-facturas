@@ -9,8 +9,9 @@ import type { PriceListRow } from "@/lib/costing/price-list";
 import { setMaterialPriceAction } from "./actions";
 
 const ORIGEN_LABEL: Record<string, string> = {
-  HISTORIAL: "Historial de precios",
-  COSTO_PROMEDIO: "Costo promedio del stock",
+  ULTIMA_COMPRA: "Última compra efectiva",
+  ESTIMACION_COMPRA: "Estimación basada en compras",
+  CPP: "CPP de inventario",
 };
 
 type Filter = "all" | "sin" | "con";
@@ -51,9 +52,8 @@ export function PricesSection({ rows, providers }: { rows: PriceListRow[]; provi
       <div>
         <h1 className="text-[17px] font-semibold">Lista de precios de materiales</h1>
         <p className="text-[12px] text-[var(--muted)] max-w-3xl">
-          El precio de referencia de cada material y de dónde salió. Se arma solo con lo que entra al sistema: facturas, recepciones,
-          órdenes de compra, cotizaciones de proveedores y las planillas de recetas (APU). También podés fijar un precio a mano. Con estos
-          precios se calcula el costo de las partidas en Costeo.
+          La estimación se calcula sólo con facturas y recepciones efectivas; si no hay compras, se muestra el CPP del stock. Cotizaciones,
+          referencias manuales/APU y compras quedan identificadas por separado. El precio de Costeo puede tener una adopción propia por obra.
         </p>
       </div>
 
@@ -88,7 +88,10 @@ export function PricesSection({ rows, providers }: { rows: PriceListRow[]; provi
               <th>Rubro</th>
               <th>Unidad</th>
               <th className="num">Precio de referencia</th>
-              <th>Último precio</th>
+              <th>Última compra</th>
+              <th>Última cotización registrada</th>
+              <th>Referencia manual / APU</th>
+              <th>CPP</th>
               <th className="num">Registros</th>
               <th></th>
             </tr>
@@ -96,7 +99,7 @@ export function PricesSection({ rows, providers }: { rows: PriceListRow[]; provi
           <tbody>
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center text-[var(--muted)] py-6">
+                <td colSpan={10} className="text-center text-[var(--muted)] py-6">
                   {rows.length === 0 ? "No hay materiales en el catálogo todavía." : "Sin resultados."}
                 </td>
               </tr>
@@ -117,20 +120,40 @@ export function PricesSection({ rows, providers }: { rows: PriceListRow[]; provi
                     )}
                   </td>
                   <td className="text-[12px]">
-                    {r.ultimo ? (
+                    {r.ultimaCompra ? (
                       <div>
                         <div>
-                          {formatMoney(r.ultimo.precio, "PYG")} · {r.ultimo.fuente}
+                          {formatMoney(r.ultimaCompra.precio, "PYG")} · {r.ultimaCompra.fuente}
                         </div>
                         <div className="text-[11px] text-[var(--muted)]">
-                          {formatDate(r.ultimo.fecha)}
-                          {r.ultimo.proveedorId && providers[r.ultimo.proveedorId] ? ` · ${providers[r.ultimo.proveedorId]}` : ""}
+                          {formatDate(r.ultimaCompra.fecha)}
+                          {r.ultimaCompra.proveedorId && providers[r.ultimaCompra.proveedorId] ? ` · ${providers[r.ultimaCompra.proveedorId]}` : ""}
                         </div>
                       </div>
                     ) : (
                       <span className="text-[var(--muted)]">—</span>
                     )}
                   </td>
+                  <td className="text-[12px]">
+                    {r.ultimaCotizacion ? (
+                      <div>
+                        <div>{formatMoney(r.ultimaCotizacion.precio, "PYG")}</div>
+                        <div className="text-[11px] text-[var(--muted)]">
+                          {formatDate(r.ultimaCotizacion.fecha)}
+                          {r.ultimaCotizacion.proveedorId && providers[r.ultimaCotizacion.proveedorId] ? ` · ${providers[r.ultimaCotizacion.proveedorId]}` : ""}
+                        </div>
+                      </div>
+                    ) : <span className="text-[var(--muted)]">—</span>}
+                  </td>
+                  <td className="text-[12px]">
+                    {r.referenciaManualApu ? (
+                      <div>
+                        <div>{formatMoney(r.referenciaManualApu.precio, "PYG")} · {r.referenciaManualApu.fuente}</div>
+                        <div className="text-[11px] text-[var(--muted)]">{formatDate(r.referenciaManualApu.fecha)}</div>
+                      </div>
+                    ) : <span className="text-[var(--muted)]">—</span>}
+                  </td>
+                  <td className="num">{r.cpp == null ? <span className="text-[var(--muted)]">—</span> : formatMoney(r.cpp, "PYG")}</td>
                   <td className="num">{r.observaciones}</td>
                   <td>
                     {editing === r.productoId ? (

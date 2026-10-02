@@ -4,9 +4,10 @@ import type { CostObservation } from "@/lib/cost-engine/types";
 import { offerExpiryDate, suggestMaterialPrice, type CostPriceSource, type QuoteCandidate, type ResolvedPrice } from "./cost-budget";
 
 // ---------------------------------------------------------------------------
-// Precio de cada insumo para una obra (ver suggestMaterialPrice): elegido →
-// cotización vigente más barata de las RFQ de la obra → estimación del
-// cost-engine → costo_promedio. Server-only.
+// Precio de cada insumo para una obra (ver suggestMaterialPrice): adopción
+// humana → última compra efectiva → estimación basada en compras → CPP.
+// Las cotizaciones se devuelven como señal de mercado, fuera del selector.
+// Server-only.
 //
 // Las lecturas de cotizaciones van con el admin client filtrando SIEMPRE por
 // empresa_id: quote_versions solo es legible por comercial/admin vía RLS, y
@@ -19,14 +20,85 @@ export interface QuoteOption extends QuoteCandidate {
   currency: string;
 }
 
+export interface ProjectPriceSemantics {
+  price: ResolvedPrice | null;
+  adoptedPrice: ResolvedPrice | null;
+  lastPurchasePrice: ResolvedPrice | null;
+  currentQuote: QuoteOption | null;
+  estimatedPrice: number | null;
+}
+
 export interface MaterialPriceDetail {
   productoId: string;
   price: ResolvedPrice | null;
+  adoptedPrice: ResolvedPrice | null;
+  lastPurchasePrice: ResolvedPrice | null;
+  currentQuote: QuoteOption | null;
+  estimatedPrice: number | null;
   chosen: ResolvedPrice | null;
   quotes: QuoteOption[];
   quotesOtraMoneda: number;
   estimate: number | null;
   costoPromedio: number | null;
+}
+
+const EFFECTIVE_PURCHASE_SOURCES = new Set(["FACTURA", "RECEPCION"]);
+
+/** Pure price-layer selection shared by Costeo and Plan Semanal. */
+export function resolveProjectPriceSemantics(args: {
+  adoptedPrice?: ResolvedPrice | null;
+  purchaseObservations: CostObservation[];
+  quotes?: QuoteOption[];
+  inventoryCpp?: number | null;
+  today: string;
+}): ProjectPriceSemantics {
+  const purchases = args.purchaseObservations
+    .filter((o) =>
+      EFFECTIVE_PURCHASE_SOURCES.has(o.fuente) &&
+      o.estadoEvidencia === "VALIDA" &&
+      Number.isFinite(o.precioUnitario) &&
+      (o.precioUnitario ?? 0) > 0 &&
+      Number.isFinite(o.cantidad) &&
+      o.cantidad > 0 &&
+      !!o.unidad.trim()
+    )
+    .sort((a, b) => (a.fechaObservacion < b.fechaObservacion ? 1 : a.fechaObservacion > b.fechaObservacion ? -1 : 0));
+  const latest = purchases[0];
+  const lastPurchasePrice: ResolvedPrice | null = latest
+    ? {
+        precio: latest.precioUnitario as number,
+        fuente: latest.fuente as CostPriceSource,
+        fecha: latest.fechaObservacion,
+        documentoId: latest.documentoId ?? null,
+        proveedorId: latest.proveedorId ?? null,
+      }
+    : null;
+  const estimate = purchases.length > 0 ? calculateCostEstimate(purchases, args.today).recommendedUnitPrice : null;
+  const validQuotes = (args.quotes ?? []).filter(
+    (q) => Number.isFinite(q.precio) && q.precio > 0 && (!q.venceEl || q.venceEl >= args.today)
+  );
+  const currentQuote = validQuotes.reduce<QuoteOption | null>(
+    (best, quote) => (!best || quote.precio < best.precio ? quote : best),
+    null
+  );
+  const adoptedPrice = args.adoptedPrice && Number.isFinite(args.adoptedPrice.precio) && args.adoptedPrice.precio > 0
+    ? { ...args.adoptedPrice, adopted: true }
+    : null;
+  const price = suggestMaterialPrice({
+    chosen: adoptedPrice,
+    lastPurchase: lastPurchasePrice,
+    estimate,
+    costoPromedio: args.inventoryCpp,
+    today: args.today,
+  });
+
+  return {
+    price,
+    adoptedPrice,
+    lastPurchasePrice,
+    currentQuote,
+    estimatedPrice: estimate != null && estimate > 0 ? estimate : null,
+  };
 }
 
 export async function resolveProjectMaterialPrices(args: {
@@ -47,14 +119,15 @@ export async function resolveProjectMaterialPrices(args: {
     supabase.from("productos").select("id, costo_promedio").eq("empresa_id", empresaId).in("id", productIds),
     supabase
       .from("project_cost_prices")
-      .select("producto_id, precio_unitario, fuente, quote_version_item_id")
+      .select("producto_id, precio_unitario, fuente, quote_version_item_id, updated_at, updated_by")
       .eq("empresa_id", empresaId)
       .eq("project_id", projectId),
     supabase
       .from("cost_observations")
-      .select("id, producto_id, fuente, descripcion_item, categoria_insumo, cantidad, unidad, precio_unitario, fecha_observacion, es_volatil, estado_evidencia")
+      .select("id, producto_id, proveedor_id, documento_id, fuente, descripcion_item, categoria_insumo, cantidad, unidad, precio_unitario, fecha_observacion, es_volatil, estado_evidencia")
       .eq("empresa_id", empresaId)
       .eq("estado_evidencia", "VALIDA")
+      .in("fuente", ["FACTURA", "RECEPCION"])
       .not("precio_unitario", "is", null)
       .lte("fecha_observacion", today)
       .in("producto_id", productIds)
@@ -74,6 +147,9 @@ export async function resolveProjectMaterialPrices(args: {
       precio: Number(c.precio_unitario),
       fuente: c.fuente as CostPriceSource,
       quoteVersionItemId: c.quote_version_item_id ?? null,
+      adopted: true,
+      adoptedAt: c.updated_at ?? null,
+      adoptedBy: c.updated_by ?? null,
     });
   }
   const obsByProduct = new Map<string, CostObservation[]>();
@@ -84,6 +160,8 @@ export async function resolveProjectMaterialPrices(args: {
       id: o.id,
       empresaId,
       productoId: o.producto_id,
+      proveedorId: o.proveedor_id ?? undefined,
+      documentoId: o.documento_id ?? undefined,
       fuente: o.fuente,
       descripcionItem: o.descripcion_item,
       categoriaInsumo: o.categoria_insumo,
@@ -160,24 +238,27 @@ export async function resolveProjectMaterialPrices(args: {
 
   for (const productoId of productIds) {
     const obs = obsByProduct.get(productoId) ?? [];
-    const estimate = obs.length > 0 ? calculateCostEstimate(obs, today).recommendedUnitPrice : null;
     const quotes = (quotesByProduct.get(productoId) ?? []).sort((a, b) => a.precio - b.precio);
-    const detail: MaterialPriceDetail = {
-      productoId,
-      chosen: chosen.get(productoId) ?? null,
+    const semantics = resolveProjectPriceSemantics({
+      adoptedPrice: chosen.get(productoId) ?? null,
+      purchaseObservations: obs,
       quotes,
-      quotesOtraMoneda: otraMonedaByProduct.get(productoId) ?? 0,
-      estimate: estimate && estimate > 0 ? estimate : null,
-      costoPromedio: costoPromedio.get(productoId) ?? null,
-      price: null,
-    };
-    detail.price = suggestMaterialPrice({
-      chosen: detail.chosen,
-      quotes,
-      estimate: detail.estimate,
-      costoPromedio: detail.costoPromedio,
+      inventoryCpp: costoPromedio.get(productoId) ?? null,
       today,
     });
+    const detail: MaterialPriceDetail = {
+      productoId,
+      chosen: semantics.adoptedPrice,
+      adoptedPrice: semantics.adoptedPrice,
+      lastPurchasePrice: semantics.lastPurchasePrice,
+      currentQuote: semantics.currentQuote,
+      estimatedPrice: semantics.estimatedPrice,
+      quotes,
+      quotesOtraMoneda: otraMonedaByProduct.get(productoId) ?? 0,
+      estimate: semantics.estimatedPrice,
+      costoPromedio: costoPromedio.get(productoId) ?? null,
+      price: semantics.price,
+    };
     out.set(productoId, detail);
   }
   return out;

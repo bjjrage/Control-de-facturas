@@ -20,9 +20,12 @@ import { CosteoChecklist } from "./costeo-checklist";
 
 const FUENTE_LABEL: Record<string, string> = {
   COTIZACION: "Cotización",
-  ESTIMACION: "Historial",
-  HISTORICO: "Costo promedio",
+  ESTIMACION: "Estimación",
+  HISTORICO: "Histórico",
   MANUAL: "Manual",
+  FACTURA: "Última compra · factura",
+  RECEPCION: "Última compra · recepción",
+  CPP: "CPP de inventario",
 };
 
 function gs(n: number | null | undefined): string {
@@ -117,7 +120,7 @@ export function CosteoSection({ projectId, isCaterpillar }: { projectId: string;
         {data.insumos.length === 0 ? (
           <p className="text-[12px] text-[var(--muted)]">Sin materiales en el APU de las partidas.</p>
         ) : (
-          <Table head={["Insumo", "Rubro", "Cantidad", "Precio unitario", "Fuente", "Subtotal", ""]}>
+          <Table head={["Insumo", "Rubro", "Cantidad", "Precio unitario", "Fuente / señales", "Subtotal", ""]}>
             {data.insumos.map((i) => (
               <tr key={i.productoId}>
                 <td>{i.nombre}</td>
@@ -127,8 +130,9 @@ export function CosteoSection({ projectId, isCaterpillar }: { projectId: string;
                 </td>
                 <td className="num">{i.precio ? gs(i.precio.precio) : <span className="text-amber-500">Sin precio</span>}</td>
                 <td className="text-[12px]">
-                  {i.precio ? FUENTE_LABEL[i.precio.fuente] : "—"}
-                  {i.quotes.length > 0 ? <span className="text-[var(--muted)]"> · {i.quotes.length} cotiz.</span> : null}
+                  {i.precio ? (i.precio.adopted ? `Adoptado · ${FUENTE_LABEL[i.precio.fuente] ?? i.precio.fuente}` : FUENTE_LABEL[i.precio.fuente] ?? i.precio.fuente) : "—"}
+                  {i.lastPurchasePrice ? <div className="text-[11px] text-[var(--muted)]">Compra: {gs(i.lastPurchasePrice.precio)}</div> : null}
+                  {i.currentQuote ? <div className="text-[11px] text-[var(--muted)]">Cotización vigente: {gs(i.currentQuote.precio)}</div> : null}
                 </td>
                 <td className="num">{gs(i.subtotal)}</td>
                 <td>
@@ -401,13 +405,14 @@ function PriceChooser({ projectId, insumo, onSaved }: { projectId: string; insum
       <DialogContent title={`Precio de ${insumo.nombre}`} className="max-w-xl">
         <div className="space-y-3 text-[12px]">
           <p className="text-[var(--muted)]">
-            Actual: {insumo.precio ? `${gs(insumo.precio.precio)} (${FUENTE_LABEL[insumo.precio.fuente]})` : "sin precio"}. Si no
-            elegís nada, se usa la cotización vigente más barata; si no hay, el historial de precios; si no, el costo promedio del
-            stock.
+            Precio usado: {insumo.precio ? `${gs(insumo.precio.precio)} (${insumo.precio.adopted ? "adoptado" : FUENTE_LABEL[insumo.precio.fuente] ?? insumo.precio.fuente})` : "sin precio"}.
+            {!insumo.adoptedPrice ? " Sin adopción para esta obra, se usa la última compra efectiva, luego la estimación de compras y por último el CPP. La cotización queda como señal de mercado." : null}
+            {insumo.adoptedPrice?.adoptedAt ? ` Decisión guardada: ${formatDateTime(insumo.adoptedPrice.adoptedAt)}.` : null}
           </p>
 
           <div>
-            <div className="font-medium mb-1">Cotizaciones recibidas</div>
+            <div className="font-medium mb-1">Cotizaciones recibidas · señal de mercado</div>
+            <p className="text-[var(--muted)] mb-1">Una cotización sólo se usa en esta obra cuando elegís Adoptar.</p>
             {insumo.quotes.length === 0 ? (
               <p className="text-[var(--muted)]">Ninguna todavía.</p>
             ) : (
@@ -437,7 +442,7 @@ function PriceChooser({ projectId, insumo, onSaved }: { projectId: string; insum
                           )
                         }
                       >
-                        Usar
+                        Adoptar
                       </Button>
                     </li>
                   );
@@ -452,8 +457,9 @@ function PriceChooser({ projectId, insumo, onSaved }: { projectId: string; insum
             ) : null}
           </div>
 
-          <div className="text-[var(--muted)]">
-            Historial: {gs(insumo.estimate)} · Costo promedio: {gs(insumo.costoPromedio)}
+          <div className="text-[var(--muted)] space-y-1">
+            <div>Última compra: {insumo.lastPurchasePrice ? `${gs(insumo.lastPurchasePrice.precio)} · ${FUENTE_LABEL[insumo.lastPurchasePrice.fuente] ?? insumo.lastPurchasePrice.fuente} · ${insumo.lastPurchasePrice.fecha ?? "fecha desconocida"}` : "sin compras registradas"}</div>
+            <div>Estimación basada en compras: {gs(insumo.estimatedPrice)} · CPP de inventario: {gs(insumo.costoPromedio)}</div>
           </div>
 
           <div className="flex items-end gap-2">
