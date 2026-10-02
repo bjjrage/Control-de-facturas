@@ -113,6 +113,35 @@ export interface CostObservationRecordResult {
   pendingFx?: boolean;
 }
 
+export function validateInvoiceLineEvidence(params: {
+  itemDescription?: string;
+  quantity?: number;
+  unit?: string;
+  unitPrice?: number;
+  invoiceDate?: string;
+}):
+  | { valid: true; description: string; quantity: number; unit: string; unitPrice: number; invoiceDate: string }
+  | { valid: false; reason: string } {
+  const description = params.itemDescription?.trim() ?? "";
+  const unit = params.unit?.trim() ?? "";
+  const invoiceDate = params.invoiceDate?.trim() ?? "";
+  if (!description) return { valid: false, reason: "MISSING_ITEM_DESCRIPTION" };
+  if (params.unitPrice == null) return { valid: false, reason: "MISSING_INVOICE_LINE_UNIT_PRICE" };
+  if (!Number.isFinite(params.unitPrice) || params.unitPrice <= 0) return { valid: false, reason: "INVALID_INVOICE_LINE_UNIT_PRICE" };
+  if (params.quantity == null) return { valid: false, reason: "MISSING_INVOICE_LINE_QUANTITY" };
+  if (!Number.isFinite(params.quantity) || params.quantity <= 0) return { valid: false, reason: "INVALID_INVOICE_LINE_QUANTITY" };
+  if (!unit) return { valid: false, reason: "MISSING_INVOICE_LINE_UNIT" };
+  if (!invoiceDate) return { valid: false, reason: "MISSING_INVOICE_DATE" };
+  return {
+    valid: true,
+    description,
+    quantity: params.quantity,
+    unit,
+    unitPrice: params.unitPrice,
+    invoiceDate,
+  };
+}
+
 /**
  * Registra observaciones de costo real en base de datos desde una factura vinculada a una orden de compra o proyecto.
  * 
@@ -143,50 +172,27 @@ export async function recordCostObservationFromInvoice(
   }
 ): Promise<CostObservationRecordResult> {
   try {
-    let description = params.itemDescription?.trim() || null;
-    let qty = params.quantity && params.quantity > 0 ? Number(params.quantity) : null;
-    let unit = params.unit?.trim() || null;
-    let unitPrice = params.unitPrice && params.unitPrice > 0 ? Number(params.unitPrice) : null;
+    const evidence = validateInvoiceLineEvidence(params);
+    if (!evidence.valid) return { recorded: false, reason: evidence.reason };
+
+    const description = evidence.description;
+    const qty = evidence.quantity;
+    const unit = evidence.unit;
+    const unitPrice = evidence.unitPrice;
     let projectId = params.projectId || null;
     let currency = (params.currency || "PYG").toUpperCase().trim();
-    let exchangeRate = params.exchangeRate && params.exchangeRate > 0 ? Number(params.exchangeRate) : null;
-    let invoiceDate = params.invoiceDate?.trim() || null;
+    let exchangeRate = params.exchangeRate != null && Number.isFinite(params.exchangeRate) && params.exchangeRate > 0 ? Number(params.exchangeRate) : null;
+    const invoiceDate = evidence.invoiceDate;
 
-    // Si tenemos orderId pero faltan datos de producto, consultar la orden
-    if (params.orderId && (!description || !unitPrice || !qty || !unit || !projectId)) {
+    // La OC sólo puede aportar contexto del proyecto; nunca evidencia de la línea facturada.
+    if (params.orderId && !projectId) {
       const { data: order } = await supabase
         .from("authorized_orders")
-        .select("product, quantity, unit, unit_price, project_id, total_price, currency")
+        .select("project_id")
         .eq("id", params.orderId)
         .maybeSingle();
 
-      if (order) {
-        description = description || order.product?.trim() || null;
-        qty = qty ?? (order.quantity && Number(order.quantity) > 0 ? Number(order.quantity) : null);
-        unit = unit || order.unit?.trim() || null;
-        unitPrice = unitPrice ?? (order.unit_price && Number(order.unit_price) > 0 ? Number(order.unit_price) : null);
-        projectId = projectId || order.project_id || null;
-        if (!params.currency && order.currency) {
-          currency = order.currency.toUpperCase().trim();
-        }
-      }
-    }
-
-    // Regla P0: UNKNOWN != DEFAULT - Validación estricta de evidencia
-    if (!description) {
-      return { recorded: false, reason: 'MISSING_ITEM_DESCRIPTION' };
-    }
-    if (!unitPrice || unitPrice <= 0) {
-      return { recorded: false, reason: 'MISSING_OR_INVALID_UNIT_PRICE' };
-    }
-    if (!qty || qty <= 0) {
-      return { recorded: false, reason: 'MISSING_OR_INVALID_QUANTITY' };
-    }
-    if (!unit) {
-      return { recorded: false, reason: 'MISSING_UNIT' };
-    }
-    if (!invoiceDate) {
-      return { recorded: false, reason: 'MISSING_INVOICE_DATE' };
+      projectId = order?.project_id || null;
     }
 
     // Regla P0: Moneda canónica normalizada
