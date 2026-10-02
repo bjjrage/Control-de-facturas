@@ -55,3 +55,9 @@ next-env.d.ts
 /tests/e2e/debug-*.ts
 E2E_PASSWORD*
 .worktrees/
+
+# Recoverable production snapshots and temporary database tooling stay local.
+/BASELINE_PRE_CUTOVER_MIGRATION_LEDGER.*
+/BASELINE_FINAL_PRE_CUTOVER_MIGRATION_LEDGER.*
+/BASELINE_LEDGER_ROLLBACK.sql
+/audit-artifacts/baseline-cutover/private/

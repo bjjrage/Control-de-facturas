@@ -1,0 +1,594 @@
+﻿[
+    {
+        "name":  "0001_extensions_enums.sql",
+        "sha256":  "6D8295DC2FE30C455D547EFA6C0A66230C14D49466727F0ED0366C788E79BDF7"
+    },
+    {
+        "name":  "0002_tables.sql",
+        "sha256":  "3ED64EF95F93690809E224219F05D562568D5414118191BAA24804F69E9E1C6B"
+    },
+    {
+        "name":  "0003_functions.sql",
+        "sha256":  "FC641A2C55AC7E7248DC924583AE67765E3CCE9F313EA18FD922FD19FE834FCA"
+    },
+    {
+        "name":  "0004_rls.sql",
+        "sha256":  "DE17E94D7C004FDE14026413B7D7EB5A90C1DF9A58B82E25C11B27B5BA0EB315"
+    },
+    {
+        "name":  "0005_storage.sql",
+        "sha256":  "CB2F366CEEC33F0367E00D933F62C5F9F194B81E25371AB6ABCE34D147AB3DDA"
+    },
+    {
+        "name":  "0006_grants.sql",
+        "sha256":  "97F492355014EA602C74CD76AAAAF5C0C7D45CB517CF97DBBE2597E33D49C36E"
+    },
+    {
+        "name":  "0007_rfq_attachments.sql",
+        "sha256":  "B035E7BD4E689DC34C6A087518EE20D0E3163D0C920491ACB6CA23465651C5F2"
+    },
+    {
+        "name":  "0008_client_name_optional.sql",
+        "sha256":  "4B2E0BD254ABFAF909885A455BD36D32B378B091C9893FA8AE1BE79440D9F0DC"
+    },
+    {
+        "name":  "0009_rfq_expiry.sql",
+        "sha256":  "77B577E62E3FCFB72207E3A6E562D713ACF91BA9F6360670B16145A7950355EC"
+    },
+    {
+        "name":  "0010_branding_bucket.sql",
+        "sha256":  "DD0982C069EDBEFA27AB7730779ABD863328392554E34248EE1EFAD6E6C8634B"
+    },
+    {
+        "name":  "0011_multi_tenant.sql",
+        "sha256":  "394BA25FDEAE4B6C84995D50A97A3467ABF803D8EDEA3B61EE693C33FC86D13A"
+    },
+    {
+        "name":  "0012_super_admin.sql",
+        "sha256":  "5A94F3EDA986537294A3F97B341BAFE0E22DEB619F6C71F402127F9BA6881E5A"
+    },
+    {
+        "name":  "0013_partial_deliveries.sql",
+        "sha256":  "A2257EAB707C01C8D2F06AD3F1BB74C34EBE0DF83F96F40DBFE614F8CAC2E7A5"
+    },
+    {
+        "name":  "0014_fix_order_status_cast.sql",
+        "sha256":  "B39067602861C3510F4E171EA3C95C12EE70985442C8CC73557CD6DE7D42DA5F"
+    },
+    {
+        "name":  "0015_invoice_jobs.sql",
+        "sha256":  "02164BD63F7AB7561DA4F01967AFF05B4A76355C35105DE635C5F5F7DCDA5731"
+    },
+    {
+        "name":  "0016_recompute_order_on_unmatch.sql",
+        "sha256":  "B923EC02F0A31277507093463207F011E0BA5D1FCEC46BA51F4E085764E659AB"
+    },
+    {
+        "name":  "0017_orders_first_class.sql",
+        "sha256":  "3B50A2BF7F31B8B0139BD974ABF81A3045BF17A5EAB1E849F557A75F1F238012"
+    },
+    {
+        "name":  "0018_quote_pdf_optional.sql",
+        "sha256":  "C112B5B9991C12A15A94FD7F886A8700D85E21D27BD23D888FE4E4FB028EBCF4"
+    },
+    {
+        "name":  "0020_sales.sql",
+        "sha256":  "56939213F70C3C5CC5C52F9054B59231A3EEFE5772D5A30E04D865AAA14123A3"
+    },
+    {
+        "name":  "0021_remision.sql",
+        "sha256":  "205A6F43E794D33B113F6AA3023CDBA7A432C6FA92A34533E183491753A8A783"
+    },
+    {
+        "name":  "0022_remision_data.sql",
+        "sha256":  "644F2FFD0D74EEC51A6D89C1BDAA6DC41263A24A445E22504D5970B4EA2753C5"
+    },
+    {
+        "name":  "0023_empresa_fields.sql",
+        "sha256":  "87D811A6840EEF8BA70AA735376DB0DE2F3501C71559D01D0A6B989F26E080AA"
+    },
+    {
+        "name":  "0024_quote_type.sql",
+        "sha256":  "22EE20B188E322385B23EEC0C88B223F74DB01BBDA520367223A77F83FC3351B"
+    },
+    {
+        "name":  "0025_payment_orders.sql",
+        "sha256":  "21A2B5D42ED86372A3A4A9CEC2B6E943BFFEBF48898463770C954211CCF9EFC7"
+    },
+    {
+        "name":  "0026_requeue_stale_jobs.sql",
+        "sha256":  "352C1EA55B2DD3476530BC34211FB8C2A3A744F171EFCE1013E1F5B0ED4D0CE0"
+    },
+    {
+        "name":  "0027_per_empresa_doc_counters.sql",
+        "sha256":  "BBB23449819D97A1BB3B00E57B23F182CEEA5476FF83CADC79D8EF3F2E5F5680"
+    },
+    {
+        "name":  "0028_construccion_pro.sql",
+        "sha256":  "FFBA5EC1AE8ED3C7E041DB07336D75EDCF0138072CF61E65B6F8B137370DAF1A"
+    },
+    {
+        "name":  "0029_execution_photos.sql",
+        "sha256":  "B46257D18A8CAAB69EE6B378403E985F99557A7CF5C1F1EB9ED09263B7BECBEB"
+    },
+    {
+        "name":  "0030_construccion_caterpillar.sql",
+        "sha256":  "958883B609081826C3D0BE5F734F90F30ADD09685F20DC2788721BEA762B7DFE"
+    },
+    {
+        "name":  "0031_index_invoices_invoice_date.sql",
+        "sha256":  "24056ED6AB1DEA57117EC07B537FC160E8E9186C4EEADEC97590DDB980F104AC"
+    },
+    {
+        "name":  "0032_payment_orders_delete_policy.sql",
+        "sha256":  "7A242E4B8BA84375551CD80958695C14BD94030AB9C1BEA7154BF7AAE376A6E2"
+    },
+    {
+        "name":  "0033_fix_recompute_invoice_status_terminal.sql",
+        "sha256":  "78B2FF836421D0E9E0D2744D257C627DD46C9CF063F8163A1694136AFA209F04"
+    },
+    {
+        "name":  "0034_project_providers.sql",
+        "sha256":  "F692AE4BDFFD6BE6F4BBFD56B2545E3AF6A93EAFA70801F3787471BC23A796D8"
+    },
+    {
+        "name":  "0035_project_execution_token.sql",
+        "sha256":  "C495C94758149CA4656B9E93948AB12F50A877859B3B5CC062EFEF12318096CE"
+    },
+    {
+        "name":  "0036_order_items.sql",
+        "sha256":  "6AD7C0BFAB802F429FBE0D3EA19725AEDBAA51CD3127124EFE411E7CACB01D88"
+    },
+    {
+        "name":  "0037_order_code_empresa_fallback.sql",
+        "sha256":  "467ADCB25CDE3C3FD735F504758BFAC4EA598E87EE3BC95187DF69BACDF3E539"
+    },
+    {
+        "name":  "0038_rfqs_project_id.sql",
+        "sha256":  "FB4126284AF8A15846C2D58E9FB0A7F702646636EA2335106F2548EEC4931DFC"
+    },
+    {
+        "name":  "0039_project_certificates.sql",
+        "sha256":  "D9454F9A1EDD5789183DC90A7219D2DF37FED940282C4C8FFA0F57F143CEB902"
+    },
+    {
+        "name":  "0040_project_certificate_billing.sql",
+        "sha256":  "ABD62D09D4DC6042F7ADF445BE851D569016D0A51B6EA6073DCF7D25FE15899A"
+    },
+    {
+        "name":  "0041_project_certificate_annexes.sql",
+        "sha256":  "3D51C1A1722688E9FA9C4E39B62201D00B1D3064BE19E3DFCDCF4D3596E8D3E3"
+    },
+    {
+        "name":  "0042_oc_recepciones.sql",
+        "sha256":  "395811460F7F0EE7C7DC0AF208B13559F6F7ED17836255B8A95BBD6AA924C08E"
+    },
+    {
+        "name":  "0043_stock.sql",
+        "sha256":  "60F19DE4706BC00D281A6411B8714C6579F3F62BD970FC0B26688BE343C2D7E6"
+    },
+    {
+        "name":  "0044_recode_rfq_orders.sql",
+        "sha256":  "198FA67050C697DF11D62DE5558F0F7F53E57158D61223422595AD79BB151489"
+    },
+    {
+        "name":  "0045_producto_contenido_unidad.sql",
+        "sha256":  "4C217877144DB34F0358B871382451D65FB4015E5F87B445D0BDD92F1EFD9C81"
+    },
+    {
+        "name":  "0046_categorias_producto.sql",
+        "sha256":  "2646750077D359307D7B06CFF06539D7ECEB2F4B114FB2996D472E590509C297"
+    },
+    {
+        "name":  "0047_stock_costos.sql",
+        "sha256":  "3BE973D8796E5BF82C1E7FA511857B3CAD61E004A926DC5102CB88CCF7A49E7E"
+    },
+    {
+        "name":  "0048_stock_imputacion.sql",
+        "sha256":  "F1D6067FC593AB73275F63D17D036E6D87EA6D4878BFD42D0EB84E2F86545797"
+    },
+    {
+        "name":  "0049_recepcion_stock.sql",
+        "sha256":  "5810D96D71E58047C8652B69891D2DF84C9DB96F5154C2B7824D47BD2B177D71"
+    },
+    {
+        "name":  "0050_depositos.sql",
+        "sha256":  "5D6ACE7716F7599328CF4379CB4F2F40A871F0C56FCEC9ACF8FE0AA720F87858"
+    },
+    {
+        "name":  "0051_project_units.sql",
+        "sha256":  "46BE4617284E0BB3425BF662BD59FE58048E811BBEEB7A02043DCFC656376F30"
+    },
+    {
+        "name":  "0052_nota_credito.sql",
+        "sha256":  "9EC174D96C26E24C15DADCCDA82EED43BF31721B966CC3824DB4885DEFDEDCF0"
+    },
+    {
+        "name":  "0053_stock_por_proyecto.sql",
+        "sha256":  "AECDEDA3AE6DF30E17E1C3443AE105BF095069707045D98C5BD6651F0DD7F602"
+    },
+    {
+        "name":  "0054_execution_photo_verificacion.sql",
+        "sha256":  "8E42F98B770B432C82DDE5290BC7613F02A8D3594DDFFE24A55B84FBBD558EAA"
+    },
+    {
+        "name":  "0055_tesoreria.sql",
+        "sha256":  "606352D47F7DD154A56F6AD2EA36B0F2F88469D9FB0F3C9D048701BBD36C9538"
+    },
+    {
+        "name":  "0056_flujo_caja_enganche.sql",
+        "sha256":  "F12A7B09C30FB81B6D15A3FF82BC112AEAECC3CFC071123EE5FDF7F6E9FC8E54"
+    },
+    {
+        "name":  "0057_gastos_recurrentes.sql",
+        "sha256":  "11BA3CD98C6B7A39F8F3E068ADA6879335D011FE21E908F861AEBE1679C7D071"
+    },
+    {
+        "name":  "0058_licitaciones.sql",
+        "sha256":  "E621925CF72B0E6E88BC433E3D3F0EF76840D9E648A86070BDD1F6936D1CDEA7"
+    },
+    {
+        "name":  "0059_gate0_security_and_integrity_hardening.sql",
+        "sha256":  "109615DB014BE7317D1D046CDC24C7001DDCE4D3809D8F269E1FFA716B706764"
+    },
+    {
+        "name":  "0060_procurement_evidence_foundation.sql",
+        "sha256":  "BBAE6BB5D0A27F6B4D19315D7BC88FBA064F0983BA80EAE435A4DF751CE4073C"
+    },
+    {
+        "name":  "0061_consortia_and_normalized_bids.sql",
+        "sha256":  "8C86A521309876361303E0807053C3583F98E8D3356FB1A1BDC2DE2C6BE0A8FC"
+    },
+    {
+        "name":  "0062_competitor_intelligence.sql",
+        "sha256":  "BF3C0BB52A6C96807A2945CBB7B1F076DE4A9EF6B4D02C82997FF087EC925886"
+    },
+    {
+        "name":  "0063_cost_observations.sql",
+        "sha256":  "9A02B0BA104DD3D80E455757290802540F6F69A909434C9CB3EC5A836CDAB886"
+    },
+    {
+        "name":  "0064_company_bid_vault.sql",
+        "sha256":  "04630D5DF6A63D34B62160F23BDC7F399839D0E6D3482FDDC5C861840B780C38"
+    },
+    {
+        "name":  "0065_bid_analysis_snapshots.sql",
+        "sha256":  "FC468961102236C2EC4AC18C282B579790CCE93F890B03C9DC179F4BDDC29396"
+    },
+    {
+        "name":  "0066_bid_snapshot_nullability_and_project_linkage.sql",
+        "sha256":  "83691F23EB5AA8C069C700B4F88BE505021A014E1F7624F3A2E1E3ACDAA29474"
+    },
+    {
+        "name":  "0067_canonical_cost_and_contract_history.sql",
+        "sha256":  "CD3A8BCA982BA0BF249AEC3CB95E0A51E0BB5FEB18E7F78F48A2582C627E2BC0"
+    },
+    {
+        "name":  "0068_auction_sandbox.sql",
+        "sha256":  "4B8A3617A8EFFC1AED7A6DE5581798409BC66F3FA2C71F68DB8F87E9521BF952"
+    },
+    {
+        "name":  "0068_planning_currency_fallback.sql",
+        "sha256":  "B758ABEA3B50ACF5380DDD383C8825E5962AB500537AFBD6641482B47FEC588E"
+    },
+    {
+        "name":  "0069_security_definer_tenant_hardening.sql",
+        "sha256":  "7EFA2734CA27F23EEAD157EDFF4BCED8E0BDA15B11BF28193F636A4CADEAB00B"
+    },
+    {
+        "name":  "0070_auction_sandbox_policy_bound_submit.sql",
+        "sha256":  "03AAA7A1C5174EEDCEBAD95D8B9A72C6A7A3A5DAD0E84DCD870463AE1DF670C8"
+    },
+    {
+        "name":  "0071_auction_sandbox_override_event_types.sql",
+        "sha256":  "B27C27736E7FBF4CB816C208C478B4DCB4DF4BB92289767ED80C353A49886CEA"
+    },
+    {
+        "name":  "0071_bim_presupuesto.sql",
+        "sha256":  "1EA092559EF91A7D830AC0F984321F33050C8DF9AA43D89F67720AA4926B4418"
+    },
+    {
+        "name":  "0072_bim_elements_express_id.sql",
+        "sha256":  "4D7616703E9C9A4514CA4524411D6A6D4EBBCF1A0272D2A1355E16F5412B4750"
+    },
+    {
+        "name":  "0073_bim_groups.sql",
+        "sha256":  "D88F9E58B99028F0057BA69CCA4B0321EEB31A48BEA8FA2FD5F8619EFA611E3B"
+    },
+    {
+        "name":  "0074_bim_group_review_required.sql",
+        "sha256":  "E1A3F9279ED8A4880ED9744474730C04066BB7E74D3798DAA1C3178405C8AC87"
+    },
+    {
+        "name":  "0075_computo_import.sql",
+        "sha256":  "AE8DC4D942A793C4C58B935635A4E72A7235C9E425C577F376620D6606786D2A"
+    },
+    {
+        "name":  "0076_competitor_radar_refinement.sql",
+        "sha256":  "F04903796D0096EBA3803169B775A92301433F9416DBA3D9B04F5B692071E1FD"
+    },
+    {
+        "name":  "0077_certificate_invoice_bridge.sql",
+        "sha256":  "2752FED047ABF6884B22017801E4893E8BD758BA0763BAAC55291409C21F6114"
+    },
+    {
+        "name":  "0078_invoice_exchange_rate.sql",
+        "sha256":  "48A0B7C67A435A7D3153379017C87B777E6BC5C222ED277D885FA357EF3C71CB"
+    },
+    {
+        "name":  "0079_progress_forecast_intelligence.sql",
+        "sha256":  "261A75921F87A2C79636B03C914BE4C95BBD8E98953270BE9F962E39708826A1"
+    },
+    {
+        "name":  "0080_security_invoker_and_forecast_hash.sql",
+        "sha256":  "F40A2EDC1DC243F64BD342AFFE3084A227081CBF5E98414CC5BC63B3635D57BC"
+    },
+    {
+        "name":  "0081_stock_por_proyecto_security_invoker.sql",
+        "sha256":  "1BBFC3657470F7EDA3197C97D7D476A85420A0BB52E4A996C9292F678E78B91F"
+    },
+    {
+        "name":  "0082_project_weekly_plans.sql",
+        "sha256":  "1BDB2ACA15C70D059D98E1A4FA66BC376ADF1F072D2C3CF3084171CBC65071E8"
+    },
+    {
+        "name":  "0083_weekly_plans_hardening_and_canonical_oc.sql",
+        "sha256":  "417DD85E6FC1BA9BEE2B3BA3553A535D74044245BDC34F4F018E7AE3FDDEEEEC"
+    },
+    {
+        "name":  "0084_weekly_plan_rpc_percentage_and_security.sql",
+        "sha256":  "8A90FF8153442633317D636816B635DB08274E19E6354520B21F38A5DC08BEC6"
+    },
+    {
+        "name":  "0085_weather_forecast_batches_and_snapshot_immutability.sql",
+        "sha256":  "469038C820BAAF6383520CDDDEAC3FE2F18CD4411EAA37B923DD0762E2344305"
+    },
+    {
+        "name":  "0086_weather_snapshots_append_only_and_restrict_fk.sql",
+        "sha256":  "59F0E47EAAE45A0EA6EDACDF6CCD0CAA851F7ECD37BA3117B77723B76996B84F"
+    },
+    {
+        "name":  "0087_weather_tables_append_only_privileges.sql",
+        "sha256":  "42A3BDE194369F7E019BEE8A06106BB5C3688E619CA128CA611F32D6BF852A64"
+    },
+    {
+        "name":  "0088_planillas.sql",
+        "sha256":  "FB2A51E05AEF6488E2B07C4FFD20C98D248EEB9EB4BEFDC2C051BF43306B7D4C"
+    },
+    {
+        "name":  "0089_planillas_grants_hardening.sql",
+        "sha256":  "9F34E5C2F0303FB0A1D4058A43269AE8518E515BF16DA49115BE84EB9DCE123B"
+    },
+    {
+        "name":  "0090_quotation_acceptance_work_orders.sql",
+        "sha256":  "32508C012221C57B909ACB97F90A6771DAC99DD33A90C94C27BB7CE18BEDE7C3"
+    },
+    {
+        "name":  "0091_quotation_closure_audit.sql",
+        "sha256":  "35DF27A37B33A75218DEE6DEF3305CDE8DF06E705B4DCF3A64254BDEE36D940A"
+    },
+    {
+        "name":  "0092_quotation_hardening.sql",
+        "sha256":  "174BD586D592F600426846002A5473DBD6262C235BFE77A63DFACAF679F9B97B"
+    },
+    {
+        "name":  "0093_quotation_token_evidence_lock.sql",
+        "sha256":  "36665D54AB10B47085CA55179C7C09FD4CE7D7216FD846DCA90EAFAE8E9E30A7"
+    },
+    {
+        "name":  "0094_budget_items_row_style.sql",
+        "sha256":  "9B916EFD6AE75F960D4D96753610A0181264F4AAF8152C1AA194C2E6B474B985"
+    },
+    {
+        "name":  "20260913230000_inventory_panol.sql",
+        "sha256":  "D5F4078BB8CBAA0DB142B7C93753D5E93E6A8B69AAA6A43701CECCD3B26B1823"
+    },
+    {
+        "name":  "20260913235000_inventory_p1_hardening.sql",
+        "sha256":  "D7A90BE61142DECC7F82BC36FB07AD14902CC10ADEAF60ABA5D611165911320B"
+    },
+    {
+        "name":  "20260914001000_inventory_p1_transfer_fix.sql",
+        "sha256":  "683176D8F4BA108E41125D8CAA99D05D6F8093ACD5E5503AE5CB44823B508049"
+    },
+    {
+        "name":  "20260914010000_inventory_final_audit_hardening.sql",
+        "sha256":  "14BF7B577C0984F011690AA658FFD79025331BF7AEAFA6E2FE394701E49EB8FB"
+    },
+    {
+        "name":  "20260914020000_inventory_partial_upload_gate.sql",
+        "sha256":  "4BC623BB95D7E490B488FA1262AAC6FAD7A5C86A0B79BE5FB5DD885AFFB3C615"
+    },
+    {
+        "name":  "20260914030000_inventory_partial_upload_resolution.sql",
+        "sha256":  "7A161EB17319FFCCEA08A7A43E6CD546AE42218B96A6B756B853D122A8770FAE"
+    },
+    {
+        "name":  "20260916220000_climate_workdays_final.sql",
+        "sha256":  "8F68E23A945495EEC8012E6A87F19DD42D0B837C7C8C14CE6779486C0E0986B8"
+    },
+    {
+        "name":  "20260917000001_agent_foundation.sql",
+        "sha256":  "C90C67F7DF828C4DF47A32F70B924148693206C2B9CBF5542CF3821073825082"
+    },
+    {
+        "name":  "20260917000002_agent_approvals_execution_states.sql",
+        "sha256":  "12DF63A490BD801957E7F3B362E8B8022761122063F07588F6309A4C7B37CAAD"
+    },
+    {
+        "name":  "20260917000003_agent_life_durable_tasks.sql",
+        "sha256":  "D3E41668F29C47AFE2F4859928B740E87FB11083EF20940240B4AB5B2A688642"
+    },
+    {
+        "name":  "20260917000004_production_recipes.sql",
+        "sha256":  "6D4C73B1F4D6259A4875BCAAB7E1F71542DA92AB322385B390307887CDE3CB58"
+    },
+    {
+        "name":  "20260917000005_mrp_reservations.sql",
+        "sha256":  "83040DA8F86FECEBE2EBD22D83199F9FC6D11B9C368C42701B6090E8C7620C77"
+    },
+    {
+        "name":  "20260917235959_scan_sessions_legacy_policy_helper_compat.sql",
+        "sha256":  "0172CD9FE1ADFFFA0CC511102DACE25E682E6AA10522E15727B4143B521D90BE"
+    },
+    {
+        "name":  "20260918000001_scan_sessions.sql",
+        "sha256":  "1413D56D34233E51BA24FFBDA267F1FA12564BE13EEEA45BD1EBD26EC22C0E6B"
+    },
+    {
+        "name":  "20260918000002_mrp_hardening.sql",
+        "sha256":  "D9F19DD1E970F74AE24B2D3CFD796B93C376D34FFE959EE886E0976DDE9BD32D"
+    },
+    {
+        "name":  "20260918000003_mrp_final_integrity.sql",
+        "sha256":  "109C2E1DFD5D1EA016DEE53A17C1FF366E6199E21794A6E28A86C6C76094D35F"
+    },
+    {
+        "name":  "20260918000004_mrp_lifecycle_atomic.sql",
+        "sha256":  "C99A041EB032B7F2CC33BFC5917778832A0E4C4B0E10836E1143947329F00324"
+    },
+    {
+        "name":  "20260918020000_scan_sessions_hardening.sql",
+        "sha256":  "DA16DB5A5195FCA40EA183A42ADC096D2F876EA797B200B6C75934A9C4A11F0B"
+    },
+    {
+        "name":  "20260918030000_scan_sessions_metadata_and_policy_fix.sql",
+        "sha256":  "7DE2F0204A42EA20D47E294E04BACC27744E60486ADCBB076D7AF2E945F2366F"
+    },
+    {
+        "name":  "20260918225636_rodrigo_email_v1.sql",
+        "sha256":  "2D4A55E47DB288F8935EF2EED86DAC6801BC7513F64C06CAB1004B76BDCCAC6D"
+    },
+    {
+        "name":  "20260919003749_rodrigo_email_v1_hardening.sql",
+        "sha256":  "B9FF8ED4A17D4286B9FCEFD023765A3B50CDF49F26F441538F36BEE89BAF39E1"
+    },
+    {
+        "name":  "20260919022401_rodrigo_email_v1_hardening_batch2.sql",
+        "sha256":  "D355D2E01CED87C7960460383EC223D300FBDF74CD27BA6364694B2EEDC45302"
+    },
+    {
+        "name":  "20260919060000_agent_approval_execution_status_hotfix.sql",
+        "sha256":  "B7C079EC19A804F408D1D4D5B5938FC6260616B680C8C625CEB8E4B8408DC3AE"
+    },
+    {
+        "name":  "20260920060000_attachments_unique_storage_object.sql",
+        "sha256":  "B89811872F67F2DDB1AF56F753CB29067851EBD9445043E08F1C8463D3569BC4"
+    },
+    {
+        "name":  "20260924074417_canonical_purchase_receipt_flow.sql",
+        "sha256":  "6C11B9A4BA0FF0E133507A2CBA3029F8EB5454E846E7C891D57B5793B9BC4F9A"
+    },
+    {
+        "name":  "20260924090000_mrp_reservation_balance_guard.sql",
+        "sha256":  "F949BFDD7CAE2B712C3B7EAD02045C8EBB2B8D2395FEC26432B933CF03F410CF"
+    },
+    {
+        "name":  "20260924090510_mrp_reservation_lock_order_fix.sql",
+        "sha256":  "711D716D23AC2083A29D20FBB2F60EAD5D8DED0908924075ABD1459AA5A98CAB"
+    },
+    {
+        "name":  "20260924212056_inventory_manual_movement_contract.sql",
+        "sha256":  "621ED6D9DBD8219D1A64A8D85FD117C8AEA5918A1621B8451141741B909CB929"
+    },
+    {
+        "name":  "20260924225450_batch4_lock_inventory_legacy_paths_and_confirm_state.sql",
+        "sha256":  "965A6C84D4D5EDD9142F7BCE7BE4389BD85D1350804B22667B687AF5F36302A0"
+    },
+    {
+        "name":  "20260925002351_batch4_guard_incomplete_warehouse_evidence.sql",
+        "sha256":  "77893069174E572D3CFB6FFECB9B9AB3A0D3625BCA0CD65C9B5C1D7D9FA68E79"
+    },
+    {
+        "name":  "20260925011009_inventory_add_manual_warehouse_submission_line.sql",
+        "sha256":  "20B1BD24B771CD5E5E40BEEE20B61369B3D3BAE0561FDA1EA917F915A28634C2"
+    },
+    {
+        "name":  "20260925022101_batch5_admin_treasury_atomicity.sql",
+        "sha256":  "B5EC752DBC548CCE591E594D0B1D951B3D074F07265C785E21C88BBD10CB6729"
+    },
+    {
+        "name":  "20260925022102_batch6_project_scope_guards.sql",
+        "sha256":  "2714EA5EB8DE3390DC470090F1AA1214E1D4DBB22264A48164C46EADF2A3E9C2"
+    },
+    {
+        "name":  "20260925034114_restore_receipt_portal_canonical.sql",
+        "sha256":  "CCFEAECFF3C543ED95FAE73EB9DB0F0D9D75069DAFB76E98D97F50E4D70C75C9"
+    },
+    {
+        "name":  "20260925043900_final_adversarial_integrity_guards.sql",
+        "sha256":  "E6E69ED7A9750AB8A5DE50CEDCCE9FDD196303742391AC5E2F1AEE0E6E855312"
+    },
+    {
+        "name":  "20260925050829_certificate_status_transition_guard.sql",
+        "sha256":  "9E0AC9A08EB50385A2CAEF26B6F99CDE1D66360C6C0480F4D670D814A10C4F2B"
+    },
+    {
+        "name":  "20260925052356_serialize_certificate_create_with_revert.sql",
+        "sha256":  "1D07C4EC0B2DE36FE2410B09BA1248086E04C53F4ED349F0EE3FE10E0B08FF68"
+    },
+    {
+        "name":  "20260925053952_certificate_header_immutability_guard.sql",
+        "sha256":  "F308997FF3BE5371D88787F7D901E3E0E7E6F51B5811C05AA8ED0AAB7197CE53"
+    },
+    {
+        "name":  "20260925110000_project_certificate_workbook_import.sql",
+        "sha256":  "65A37380EDCB483F9A4C530581A5D71C9FDC621C2DA2F7F3EBD7CA1737962A7F"
+    },
+    {
+        "name":  "20260926010000_autonomous_certificate_workbook_import.sql",
+        "sha256":  "D1E86864EA382E845C9B1E234C0395AA71BC25528E92CBAAEC045E3254BC34F2"
+    },
+    {
+        "name":  "20260927120000_certificate_workbooks.sql",
+        "sha256":  "3890B86B8AF61C35C5046DA1814D80A69C7704C646C21D214A1229D13B48121A"
+    },
+    {
+        "name":  "20260927180000_workbook_import_sessions.sql",
+        "sha256":  "3F3B8BE88AB34A0A5F79DDA0E1FDBBB9BB8AC3D7EE94DBFA1CE91514F025CC10"
+    },
+    {
+        "name":  "20260927210000_certificate_header_guard_generated_column_fix.sql",
+        "sha256":  "632AB2FADA0E57FA39B95D89DF4765DBFF258BD4BB2BC586945638DA93851851"
+    },
+    {
+        "name":  "20260927212500_certificate_header_guard_exclude_all_generated_columns.sql",
+        "sha256":  "097B9CCF3002B9DCEDAD34C701C526FC8AF155BC93C706DE496FD6ABC7EAAD57"
+    },
+    {
+        "name":  "20260927224500_fix_magy_budget_contract_scale.sql",
+        "sha256":  "93759B400BA25760A145BCEA4FC924707E740A8B4153DD115A288E95E22ACC3F"
+    },
+    {
+        "name":  "20260928044651_budget_item_labor_equipment.sql",
+        "sha256":  "08BD778CFF18325CFFBFBAC76CAE36D104A61C18F3576490216BCD3119696374"
+    },
+    {
+        "name":  "20260928051559_apu_templates.sql",
+        "sha256":  "5427C30EA804AC4E130DE9C66185290B638C2CB36DA64360E680879835CE019F"
+    },
+    {
+        "name":  "20260928210000_costeo_labor_rates_and_subcontract_lines.sql",
+        "sha256":  "9549C0CD4DAD06225B31961096DAA3AA30C1AEA17B3EFEF4EABC7CD34C4C1A16"
+    },
+    {
+        "name":  "20260928210100_provider_categorias.sql",
+        "sha256":  "698BE053ADFF6C1219D9EB700BCC673F826BE21C407EDC4ADE24A9AD9483CAE5"
+    },
+    {
+        "name":  "20260928210200_rfq_multi_item.sql",
+        "sha256":  "9788E6F936D372F1BEB8770FC8066DDE0E03B361560B9C18A0D2619CD09F52C6"
+    },
+    {
+        "name":  "20260928210300_project_cost_prices.sql",
+        "sha256":  "C95D421B1C33BF13EB2A5CFAEB7E3969E84B267CC2E616875EB271E58B49A344"
+    },
+    {
+        "name":  "20260928210400_labor_entries_budget_item.sql",
+        "sha256":  "1E1BA20D90155DFFBF96DE76E9ABEEB09DA8936B11043063879169EDFCAAC8B6"
+    },
+    {
+        "name":  "20260928210500_labor_payments.sql",
+        "sha256":  "9B632AE2B4624D3E33F0E99E1A452AAD798188591D1B6A2E831DCF74E049A8FF"
+    }
+]

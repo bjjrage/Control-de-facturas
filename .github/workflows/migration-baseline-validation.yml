@@ -1,0 +1,86 @@
+name: Production Schema Baseline Validation
+on:
+  push:
+    branches: [infra/migration-baseline-cutover]
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/baseline-cutover/**'
+      - '.github/workflows/migration-baseline-validation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: migration-baseline-validation
+  cancel-in-progress: true
+jobs:
+  baseline:
+    if: github.ref == 'refs/heads/infra/migration-baseline-cutover'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      PGHOST: 127.0.0.1
+      PGPORT: 54322
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+      - name: Assert baseline-only input and no production credentials
+        run: |
+          test "$(find supabase/migrations -maxdepth 1 -name '*.sql' | wc -l)" -eq 1
+          test -z "${SUPABASE_ACCESS_TOKEN:-}"
+          test -z "${SUPABASE_DB_PASSWORD:-}"
+          mkdir -p baseline-validation-artifacts
+          sha256sum supabase/migrations/*.sql > baseline-validation-artifacts/baseline.sha256
+          python3 - <<'PY'
+          import pathlib
+          p = pathlib.Path("supabase/config.toml")
+          text = p.read_text()
+          text = text.replace('[db.seed]\nenabled = true', '[db.seed]\nenabled = false')
+          # Config includes comments between section and flag.
+          import re
+          text = re.sub(r'(\[db.seed\][\s\S]*?)enabled = true', r'\1enabled = false', text, count=1)
+          p.write_text(text)
+          PY
+      - name: Install locked application dependencies
+        run: npm ci
+      - name: Apply ONLY baseline from a clean Supabase installation
+        run: |
+          supabase start --exclude studio,imgproxy,logflare,vector,edge-runtime,supavisor
+          psql -X -v ON_ERROR_STOP=1 -Atc 'select version from supabase_migrations.schema_migrations order by version' | tee baseline-validation-artifacts/migration-versions.txt
+          test "$(cat baseline-validation-artifacts/migration-versions.txt)" = 20261002231537
+          echo PASS > baseline-validation-artifacts/clean-apply.txt
+      - name: Capture reconstructed structure and require parity
+        run: |
+          psql -X -q -v ON_ERROR_STOP=1 -At -f scripts/baseline-cutover/schema-inventory.sql > baseline-validation-artifacts/reconstructed-inventory.json
+          python3 scripts/baseline-cutover/compare-parity.py scripts/baseline-cutover/production-inventory.json baseline-validation-artifacts/reconstructed-inventory.json baseline-validation-artifacts/BASELINE_SCHEMA_PARITY.md
+      - name: Schema-sensitive type generation and DB smoke
+        run: |
+          supabase gen types --local --lang typescript --schema public > baseline-validation-artifacts/database.types.ts
+          psql -X -v ON_ERROR_STOP=1 -f scripts/baseline-cutover/db-smoke.sql | tee baseline-validation-artifacts/db-smoke.log
+      - name: Focused RFQ, pricing, Weekly Plan, inventory and costing tests
+        run: |
+          npx vitest run --maxWorkers=1 lib/tools/procurement/__tests__/send-rfq.spec.ts lib/costing/__tests__ lib/procurement/__tests__/pricing-flow-through.spec.ts lib/procurement/__tests__/weekly-plan-stock.spec.ts test/weekly-plan.test.ts test/costing.test.ts lib/inventory/__tests__/domain.spec.ts lib/inventory/__tests__/receipt-read-model.spec.ts --reporter=json --outputFile=baseline-validation-artifacts/focused-tests.json
+      - name: Collect diagnostics
+        if: failure()
+        run: |
+          docker ps -a > baseline-validation-artifacts/containers.txt
+          docker logs supabase_db_Control_de_Facturas > baseline-validation-artifacts/postgres.log 2>&1 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: baseline-validation-${{ github.run_id }}
+          path: baseline-validation-artifacts/
+          retention-days: 14
+      - name: Stop disposable environment
+        if: always()
+        run: supabase stop --no-backup || true
+
