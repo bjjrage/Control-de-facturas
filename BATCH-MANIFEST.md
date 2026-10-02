@@ -99,6 +99,7 @@ La actualización de cierre autoriza exclusivamente cambios en `APPLIED-CHANGES.
 - `app/(internal)/precios/prices-section.tsx`
 - `test/costing.test.ts`
 - `lib/costing/__tests__/project-prices.spec.ts`
+- `lib/costing/__tests__/set-project-cost-price-action.spec.ts`
 - `lib/procurement/__tests__/flywheel-invoice-evidence.spec.ts`
 - `lib/procurement/__tests__/pricing-flow-through.spec.ts`
 
@@ -135,12 +136,17 @@ No se autorizan otros archivos. Si la implementación requiere ampliar este list
 
 ## Verificación final
 
-- Expected files: las 14 rutas listadas en “Archivos autorizados”.
+- Expected files: exactamente las 15 rutas listadas en “Archivos autorizados”.
 - Unexpected files: ninguno.
-- Expected commits: `1c705b51050aad0e73272441f3c197dd6c5f2438` pricing; `70077a94917ae6cc6bd7452dfb45adddcf785c3e` invoice flywheel; un commit documental de cierre. Cero commits históricos.
+- Expected commits:
+  1. `1c705b51050aad0e73272441f3c197dd6c5f2438` — pricing.
+  2. `70077a94917ae6cc6bd7452dfb45adddcf785c3e` — invoice flywheel.
+  3. `52b71fae9126aea375461d809216f6c79a804a70` — documentación de auditoría inicial.
+  4. `b91b780b013e306540d6a40f5b5f47c975150401` — corrección P1 de provenance.
 - Unknown commits: ninguno; la rama parte directamente del SHA base verificado.
 - Migrations: ninguna modificada o agregada.
-- Regressions: ninguna detectada; 1.283 PASS / 16 skipped en ejecución serial.
+- P1 de provenance: corregido; la cotización adoptada se valida server-side contra empresa, proyecto/RFQ, producto, quote/provider y versión vigente, y el precio factual se obtiene de DB.
+- Regressions: ninguna detectada; verificación post-P1: 1.296 PASS / 16 skipped en ejecución serial.
 - Test coverage: casos canónicos 1–6; Costeo, Plan Semanal, Flujo de Caja, `tsc` y build PASS.
 - HTML impact: UI de pricing/costeo identifica fuentes y decisiones adoptadas.
 - Verdict: PASS local; listo para auditoría externa. No mergear desde este batch.

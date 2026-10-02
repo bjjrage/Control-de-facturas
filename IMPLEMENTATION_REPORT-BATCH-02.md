@@ -6,10 +6,12 @@
 - Rama: `batch/02-pricing-flywheel`.
 - Worktree: `C:\Users\User\Desktop\PORYECTOS\Control de Facturas\.worktrees\batch-02-pricing-flywheel`.
 - Base: `c60b26787358ad1b698fa8bf3380bd6ccda3c02d` (`origin/main` verificado).
-- HEAD funcional auditado antes del commit documental: `70077a94917ae6cc6bd7452dfb45adddcf785c3e`.
+- HEAD funcional actual previo a este cierre documental: `b91b780b013e306540d6a40f5b5f47c975150401`.
 - Commits funcionales:
   - `1c705b51050aad0e73272441f3c197dd6c5f2438` — `fix(pricing): separate transactional and market prices`.
   - `70077a94917ae6cc6bd7452dfb45adddcf785c3e` — `fix(flywheel): require invoice line evidence`.
+  - `b91b780b013e306540d6a40f5b5f47c975150401` — `fix(pricing): validate adopted quote provenance server-side`.
+- Commit documental previo: `52b71fae9126aea375461d809216f6c79a804a70` — `docs(batch): report pricing and flywheel audit`.
 
 ## Archivos del batch
 
@@ -23,6 +25,7 @@
 - `lib/costing/price-list.ts`.
 - `lib/costing/project-prices.ts`.
 - `lib/costing/__tests__/project-prices.spec.ts`.
+- `lib/costing/__tests__/set-project-cost-price-action.spec.ts`.
 - `lib/procurement/flywheel.ts`.
 - `lib/procurement/__tests__/flywheel-invoice-evidence.spec.ts`.
 - `lib/procurement/__tests__/pricing-flow-through.spec.ts`.
@@ -51,18 +54,34 @@ La Lista de precios prioriza como precio de referencia la última compra efectiv
 
 Los callers actuales que no envían precio/cantidad/unidad de línea dejan de crear observaciones automáticamente hasta recibir esa evidencia. No se creó una observación `FACTURA` desde una OC. No se recalificaron observaciones históricas; el batch corrige futuras escrituras y no hace backfill.
 
+## P1 post-auditoría — provenance de precio adoptado
+
+El hallazgo P1 quedó corregido en `b91b780b013e306540d6a40f5b5f47c975150401` y recibió PASS en la auditoría externa.
+
+- `COTIZACION` exige `quoteVersionItemId`.
+- El servidor valida `empresa_id` en las lecturas de provenance.
+- El servidor valida que la RFQ corresponda al proyecto indicado.
+- El servidor valida que el ítem de RFQ corresponda al `productoId` indicado.
+- El servidor valida la cadena quote/provider y que el proveedor pertenezca a esa RFQ.
+- El servidor exige que la versión de quote sea la versión vigente más reciente.
+- El servidor obtiene y persiste `precio_unitario` directamente desde DB.
+- El precio enviado por el cliente no es fuente factual y se ignora para `COTIZACION`.
+- `MANUAL` valida precio finito mayor a cero y fuerza `quote_version_item_id = null`.
+- No hubo migration, cambio de schema ni cambio en producción.
+
 ## Impacto transversal
 
 - Costeo: muestra fuente usada y presenta compra, cotización, CPP y estimación aparte; adoptar una cotización es una decisión explícita del usuario para el proyecto.
 - Plan Semanal: sigue consumiendo el resolver compartido y recibe el precio seleccionado bajo las mismas reglas.
 - Flujo de Caja: se probó que el requerimiento material derivado del plan conserva el valor de compra y no baja por la aparición de una cotización.
 
-## Verificación
+## Verificación final post-P1
 
-- Pricing / Costeo / Plan Semanal / Flujo de Caja / Invoice flywheel enfocados: **29 tests PASS**.
+- P1 específicos: **13/13 PASS**.
+- Pricing: **26/26 PASS**.
 - `npx tsc --noEmit`: **PASS**.
-- `npx vitest run --maxWorkers=1`: **1.283 PASS, 16 skipped; 146 archivos PASS, 2 skipped**.
-- `npx next build --webpack`: **PASS** con URL, anon key, service key y app URL ficticias locales; sin credenciales productivas.
+- `npx vitest run --maxWorkers=1`: **1.296 PASS, 16 skipped; 147 archivos PASS, 2 skipped**.
+- `npx next build --webpack`: **PASS** en la verificación original del Batch 2, antes del P1, con credenciales ficticias locales y sin credenciales productivas.
 - Diff revisado contra `c60b26787358ad1b698fa8bf3380bd6ccda3c02d`; rutas limitadas al manifest.
 
 ## Desvíos y declaraciones
