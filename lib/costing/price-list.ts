@@ -2,10 +2,9 @@ import { calculateCostEstimate } from "@/lib/cost-engine/weighting";
 import type { CostObservation } from "@/lib/cost-engine/types";
 
 // ---------------------------------------------------------------------------
-// Lista de precios de materiales de la empresa: para cada producto, el precio
-// de referencia y de dónde salió. Todo sale de cost_observations (facturas,
-// recepciones, órdenes de compra, cotizaciones y cargas manuales) más el costo
-// promedio del stock. Nunca se muestra 0 por un precio que falta.
+// Lista de precios de materiales: la última compra efectiva define el baseline;
+// estimación de compras, CPP, cotización registrada y referencias APU/manual se
+// exponen en campos separados. Nunca se muestra 0 por un precio que falta.
 // ---------------------------------------------------------------------------
 
 /** Prefijo del documento_id de las observaciones que vienen de una planilla de APU. */
@@ -49,10 +48,14 @@ export interface PriceListRow {
   nombre: string;
   unidad: string;
   rubro: string | null;
-  /** Precio con el que costea la obra si no hay uno elegido; null si no hay ninguno. */
+  /** Estimación basada en compras; CPP es fallback de valoración de stock. */
   precio: number | null;
-  origen: "HISTORIAL" | "COSTO_PROMEDIO" | null;
-  ultimo: { precio: number; fecha: string; fuente: string; proveedorId: string | null } | null;
+  origen: "ULTIMA_COMPRA" | "ESTIMACION_COMPRA" | "CPP" | null;
+  ultimaCompra: { precio: number; fecha: string; fuente: string; proveedorId: string | null } | null;
+  ultimaCotizacion: { precio: number; fecha: string; proveedorId: string | null } | null;
+  referenciaManualApu: { precio: number; fecha: string; fuente: string } | null;
+  cpp: number | null;
+  estimacion: number | null;
   observaciones: number;
 }
 
@@ -69,11 +72,13 @@ export function buildPriceList(
   }
   return products.map((p) => {
     const obs = (byProduct.get(p.id) ?? []).sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
-    let precio: number | null = null;
-    let origen: PriceListRow["origen"] = null;
-    if (obs.length > 0) {
+    const purchases = obs.filter((o) => o.fuente === "FACTURA" || o.fuente === "RECEPCION");
+    const quotes = obs.filter((o) => o.fuente === "COTIZACION");
+    const references = obs.filter((o) => o.fuente === "MANUAL");
+    let estimacion: number | null = null;
+    if (purchases.length > 0) {
       const estimate = calculateCostEstimate(
-        obs.slice(0, 100).map<CostObservation>((o) => ({
+        purchases.slice(0, 100).map<CostObservation>((o) => ({
           id: o.id,
           empresaId: "",
           productoId: o.productoId,
@@ -91,15 +96,24 @@ export function buildPriceList(
         today
       ).recommendedUnitPrice;
       if (estimate && estimate > 0) {
-        precio = estimate;
-        origen = "HISTORIAL";
+        estimacion = estimate;
       }
     }
-    if (precio == null && p.costoPromedio != null && p.costoPromedio > 0) {
+    const lastPurchase = purchases[0];
+    let precio: number | null = null;
+    let origen: PriceListRow["origen"] = null;
+    if (lastPurchase && lastPurchase.precio > 0) {
+      precio = lastPurchase.precio;
+      origen = "ULTIMA_COMPRA";
+    } else if (estimacion != null) {
+      precio = estimacion;
+      origen = "ESTIMACION_COMPRA";
+    } else if (p.costoPromedio != null && p.costoPromedio > 0) {
       precio = p.costoPromedio;
-      origen = "COSTO_PROMEDIO";
+      origen = "CPP";
     }
-    const last = obs[0];
+    const lastQuote = quotes[0];
+    const reference = references[0];
     return {
       productoId: p.id,
       nombre: p.nombre,
@@ -107,7 +121,11 @@ export function buildPriceList(
       rubro: p.rubro,
       precio,
       origen,
-      ultimo: last ? { precio: last.precio, fecha: last.fecha, fuente: sourceLabel(last.fuente, last.documentoId), proveedorId: last.proveedorId } : null,
+      ultimaCompra: lastPurchase ? { precio: lastPurchase.precio, fecha: lastPurchase.fecha, fuente: sourceLabel(lastPurchase.fuente, lastPurchase.documentoId), proveedorId: lastPurchase.proveedorId } : null,
+      ultimaCotizacion: lastQuote ? { precio: lastQuote.precio, fecha: lastQuote.fecha, proveedorId: lastQuote.proveedorId } : null,
+      referenciaManualApu: reference ? { precio: reference.precio, fecha: reference.fecha, fuente: sourceLabel(reference.fuente, reference.documentoId) } : null,
+      cpp: p.costoPromedio != null && p.costoPromedio > 0 ? p.costoPromedio : null,
+      estimacion,
       observaciones: obs.length,
     };
   });
@@ -127,6 +145,7 @@ export function groupUnlinkedPurchases(
 ): UnlinkedPurchase[] {
   const groups = new Map<string, UnlinkedPurchase>();
   for (const r of rows) {
+    if (r.fuente !== "FACTURA" && r.fuente !== "RECEPCION") continue;
     const key = r.descripcion;
     const g = groups.get(key);
     if (!g) {

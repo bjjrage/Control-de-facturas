@@ -190,10 +190,14 @@ export interface CostBudgetInsumo {
   rubro: string | null;
   cantidad: number;
   precio: ResolvedPrice | null;
+  adoptedPrice: ResolvedPrice | null;
+  lastPurchasePrice: ResolvedPrice | null;
+  currentQuote: QuoteOption | null;
   subtotal: number | null;
   quotes: QuoteOption[];
   quotesOtraMoneda: number;
   estimate: number | null;
+  estimatedPrice: number | null;
   costoPromedio: number | null;
 }
 
@@ -310,10 +314,14 @@ export async function getCostBudgetAction(projectId: string): Promise<{ data: Co
           rubro: info?.rubro ?? null,
           cantidad: n.cantidad,
           precio: d?.price ?? null,
+          adoptedPrice: d?.adoptedPrice ?? null,
+          lastPurchasePrice: d?.lastPurchasePrice ?? null,
+          currentQuote: d?.currentQuote ?? null,
           subtotal: d?.price ? n.cantidad * d.price.precio : null,
           quotes: d?.quotes ?? [],
           quotesOtraMoneda: d?.quotesOtraMoneda ?? 0,
           estimate: d?.estimate ?? null,
+          estimatedPrice: d?.estimatedPrice ?? null,
           costoPromedio: d?.costoPromedio ?? null,
         };
       })

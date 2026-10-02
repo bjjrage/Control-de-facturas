@@ -77,7 +77,7 @@ describe("computeProjectCostTotals", () => {
   });
 });
 
-describe("suggestMaterialPrice: orden de fuentes", () => {
+describe("suggestMaterialPrice: fuentes transaccionales separadas", () => {
   const today = "2026-09-28";
   it("elegido por el usuario manda sobre todo", () => {
     expect(
@@ -86,23 +86,24 @@ describe("suggestMaterialPrice: orden de fuentes", () => {
         quotes: [{ quoteVersionItemId: "q1", precio: 1, venceEl: null }],
         today,
       })
-    ).toEqual({ precio: 5, fuente: "MANUAL" });
+    ).toEqual({ precio: 5, fuente: "MANUAL", adopted: true });
   });
-  it("cotización vigente más barata, ignora vencidas", () => {
+  it("no promueve la cotización más barata a costo", () => {
     const r = suggestMaterialPrice({
+      lastPurchase: { precio: 100, fuente: "FACTURA", fecha: "2026-09-20" },
       quotes: [
         { quoteVersionItemId: "vieja", precio: 50, venceEl: "2026-01-01" },
         { quoteVersionItemId: "cara", precio: 90, venceEl: null },
         { quoteVersionItemId: "barata", precio: 80, venceEl: "2026-12-31" },
       ],
-      estimate: 10,
+      estimate: 105,
       today,
     });
-    expect(r).toEqual({ precio: 80, fuente: "COTIZACION", quoteVersionItemId: "barata" });
+    expect(r).toMatchObject({ precio: 100, fuente: "FACTURA" });
   });
-  it("sin cotizaciones → estimación → histórico → null", () => {
+  it("sin compra usa estimación y luego CPP, sin convertir ninguno en compra", () => {
     expect(suggestMaterialPrice({ estimate: 70, costoPromedio: 60, today })?.fuente).toBe("ESTIMACION");
-    expect(suggestMaterialPrice({ estimate: null, costoPromedio: 60, today })?.fuente).toBe("HISTORICO");
+    expect(suggestMaterialPrice({ estimate: null, costoPromedio: 60, today })?.fuente).toBe("CPP");
     expect(suggestMaterialPrice({ estimate: null, costoPromedio: 0, today })).toBeNull();
   });
 });
@@ -259,7 +260,7 @@ describe("mano de obra por período", () => {
 });
 
 describe("lista de precios", () => {
-  it("usa el historial, cae al costo promedio y nunca inventa un precio", async () => {
+  it("separa última compra, cotización, APU y CPP", async () => {
     const { buildPriceList, sourceLabel } = await import("../lib/costing/price-list");
     const rows = buildPriceList(
       [
@@ -270,16 +271,18 @@ describe("lista de precios", () => {
       [
         { id: "o1", productoId: "a", fuente: "MANUAL", documentoId: "PLANILLA_APU:Revoque", proveedorId: null, cantidad: 1, unidad: "BOLSA", precio: 42_000, fecha: "2026-09-01", esVolatil: false },
         { id: "o2", productoId: "a", fuente: "FACTURA", documentoId: "f1", proveedorId: "p1", cantidad: 100, unidad: "BOLSA", precio: 45_000, fecha: "2026-09-20", esVolatil: false },
+        { id: "o3", productoId: "a", fuente: "COTIZACION", documentoId: "q1", proveedorId: "p2", cantidad: 100, unidad: "BOLSA", precio: 40_000, fecha: "2026-09-25", esVolatil: false },
       ],
       "2026-09-28"
     );
     const a = rows.find((r) => r.productoId === "a")!;
-    expect(a.origen).toBe("HISTORIAL");
-    expect(a.precio).toBeGreaterThan(42_000);
-    expect(a.precio).toBeLessThanOrEqual(45_000);
-    expect(a.ultimo).toMatchObject({ precio: 45_000, fuente: "Factura", proveedorId: "p1" });
+    expect(a.origen).toBe("ULTIMA_COMPRA");
+    expect(a.precio).toBe(45_000);
+    expect(a.ultimaCompra).toMatchObject({ precio: 45_000, fuente: "Factura", proveedorId: "p1" });
+    expect(a.ultimaCotizacion).toMatchObject({ precio: 40_000, proveedorId: "p2" });
+    expect(a.referenciaManualApu).toMatchObject({ precio: 42_000, fuente: "Planilla APU" });
     const b = rows.find((r) => r.productoId === "b")!;
-    expect(b).toMatchObject({ precio: 90_000, origen: "COSTO_PROMEDIO", ultimo: null });
+    expect(b).toMatchObject({ precio: 90_000, origen: "CPP", cpp: 90_000, ultimaCompra: null });
     const c = rows.find((r) => r.productoId === "c")!;
     expect(c).toMatchObject({ precio: null, origen: null });
     expect(sourceLabel("MANUAL", "PLANILLA_APU:x")).toBe("Planilla APU");
@@ -295,8 +298,8 @@ describe("compras sin material asignado", () => {
       { descripcion: "Cemento CPF40 50kg", precio: 43_000, fecha: "2026-09-10", fuente: "FACTURA", documentoId: "f2" },
       { descripcion: "Arena fina", precio: 90_000, fecha: "2026-09-01", fuente: "COTIZACION", documentoId: "q1" },
     ]);
+    expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({ descripcion: "Cemento CPF40 50kg", registros: 2, ultimoPrecio: 43_000, fuente: "Factura" });
-    expect(out[1]).toMatchObject({ descripcion: "Arena fina", registros: 1, fuente: "Cotización" });
   });
 });
 

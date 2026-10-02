@@ -64,7 +64,7 @@ export default async function PreciosPage() {
     today
   );
 
-  const providerIds = [...new Set(rows.map((r) => r.ultimo?.proveedorId).filter((x): x is string => !!x))];
+  const providerIds = [...new Set(rows.flatMap((r) => [r.ultimaCompra?.proveedorId, r.ultimaCotizacion?.proveedorId]).filter((x): x is string => !!x))];
   const providers: Record<string, string> = {};
   if (providerIds.length > 0) {
     const { data } = await supabase.from("providers").select("id, name").in("id", providerIds);

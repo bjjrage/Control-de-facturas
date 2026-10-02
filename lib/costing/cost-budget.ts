@@ -12,12 +12,18 @@
 // partida es null (con la lista de faltantes). Nunca se suma como 0.
 // ---------------------------------------------------------------------------
 
-export type CostPriceSource = "COTIZACION" | "ESTIMACION" | "HISTORICO" | "MANUAL";
+export type CostPriceSource = "COTIZACION" | "ESTIMACION" | "HISTORICO" | "MANUAL" | "FACTURA" | "RECEPCION" | "CPP";
 
 export interface ResolvedPrice {
   precio: number;
   fuente: CostPriceSource;
   quoteVersionItemId?: string | null;
+  adopted?: boolean;
+  fecha?: string | null;
+  documentoId?: string | null;
+  proveedorId?: string | null;
+  adoptedAt?: string | null;
+  adoptedBy?: string | null;
 }
 
 export interface CostMaterialLine {
@@ -193,30 +199,23 @@ export interface QuoteCandidate {
 }
 
 /**
- * Precio de un insumo para esta obra, en orden:
- *   1. el elegido explícitamente por el usuario (project_cost_prices);
- *   2. la cotización vigente más barata recibida en las RFQ de la obra;
- *   3. la estimación del cost-engine (historial de precios);
- *   4. costo_promedio del stock, marcado como histórico.
- * Sin nada de eso → null (faltante). Nunca 0 por default.
+ * Selección automática por capas: adopción humana del proyecto, última compra
+ * efectiva, estimación basada en compras y CPP de inventario. Las cotizaciones
+ * se conservan fuera del selector para no convertir señal de mercado en costo.
+ * Sin fuentes disponibles → null (faltante). Nunca 0 por default.
  */
 export function suggestMaterialPrice(args: {
   chosen?: ResolvedPrice | null;
+  lastPurchase?: ResolvedPrice | null;
   quotes?: QuoteCandidate[];
   estimate?: number | null;
   costoPromedio?: number | null;
   today: string;
 }): ResolvedPrice | null {
-  if (args.chosen) return args.chosen;
-  const vigentes = (args.quotes ?? []).filter(
-    (q) => Number.isFinite(q.precio) && q.precio > 0 && (!q.venceEl || q.venceEl >= args.today)
-  );
-  if (vigentes.length > 0) {
-    const best = vigentes.reduce((a, b) => (b.precio < a.precio ? b : a));
-    return { precio: best.precio, fuente: "COTIZACION", quoteVersionItemId: best.quoteVersionItemId };
-  }
-  if (args.estimate != null && args.estimate > 0) return { precio: args.estimate, fuente: "ESTIMACION" };
-  if (args.costoPromedio != null && args.costoPromedio > 0) return { precio: args.costoPromedio, fuente: "HISTORICO" };
+  if (args.chosen && Number.isFinite(args.chosen.precio) && args.chosen.precio > 0) return { ...args.chosen, adopted: true };
+  if (args.lastPurchase && Number.isFinite(args.lastPurchase.precio) && args.lastPurchase.precio > 0) return args.lastPurchase;
+  if (args.estimate != null && Number.isFinite(args.estimate) && args.estimate > 0) return { precio: args.estimate, fuente: "ESTIMACION" };
+  if (args.costoPromedio != null && Number.isFinite(args.costoPromedio) && args.costoPromedio > 0) return { precio: args.costoPromedio, fuente: "CPP" };
   return null;
 }
 
