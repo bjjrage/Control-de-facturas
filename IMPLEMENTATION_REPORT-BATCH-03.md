@@ -2,7 +2,7 @@
 
 ## Estado
 
-**STATUS: COMPLETE.** Rama `batch/03-rfq-2-core`, con base `53898dffe0a47a517bfeb31722af2f633a31486f`. Implementado y verificado en una Preview aislada. No se abrió PR ni se hizo merge.
+**STATUS: READY FOR EXTERNAL MERGE AUDIT.** Rama `batch/03-rfq-2-core`, con base `53898dffe0a47a517bfeb31722af2f633a31486f`. Implementación, hardening y verificación final completados en Preview aislada. Producción no se modificó. Abrir PR contra `main`; no mergear.
 
 ## Schema y migrations
 
@@ -20,8 +20,10 @@
 | `20261003011539` | `B68890A16572DADCFDE182D7B8BE63040903A6CE6CDCD13D93838AA455E567BC` |
 | `20261003012030` | `437D5276B915E7DF4EC9CDC13084A1F7764C8FF93958A6999321A84D36EF1D2E` |
 | `20261003012927` | `C5F741B06D20156A5084DC467334213C88701B116C9500943CAA58F2DBF070F9` |
+| `20261003025110` | `C9B061601E315E7DB88E8D4EB28FD3236BBF10B5D03F0488B42218DE523B9F0A` |
+| `20261003030227` | `8C62C7256452DFE0A359B9ECE3BEBAF15EE68AFF72A227D0501699DB510A62EB` |
 
-Una vez aplicadas, las seis migrations no se modificaron. El ledger de Preview contiene siete entradas contando el baseline `20261002231537`.
+Las seis migrations originales se mantuvieron inmutables. Las dos migrations de hardening también quedaron inmutables después de aplicarse a Preview: la primera reemplaza MD5 por SHA-256 sobre el payload JSON determinístico de órdenes; la segunda cierra la carrera de rotación/revocación de magic links tomando locks en orden RFQ → invitación y releyendo el token bajo lock. El ledger de Preview contiene nueve entradas contando el baseline `20261002231537`.
 
 ## Flujo implementado
 
@@ -42,9 +44,14 @@ Una vez aplicadas, las seis migrations no se modificaron. El ledger de Preview c
 
 ## Seguridad y pruebas
 
-- Aislamiento tenant comprobado con usuarios autenticados reales en Preview. Lecturas anónimas y escritura directa de asignación bloqueadas; RPCs de proveedor restringidas a `service_role`; empresa ajena no puede previsualizar, autorizar, confirmar ni cerrar.
-- La revisión de Security Advisor no detectó bloqueos de permisos RFQ nuevos. Persisten avisos preexistentes de funciones/vistas legacy fuera del alcance de este batch.
-- Flujo real de navegador sobre el build de producción local y datos sintéticos de Preview: RFQ, invitaciones, link seguro, documentos/versiones, adopción manual, reparto, autorización/preview/confirmación, COST_DISCOVERY y compra directa; PASS.
+- Aislamiento tenant comprobado con usuarios autenticados reales en Preview. Lecturas anónimas y escritura directa de asignación bloqueadas; RPC de proveedor restringida a `service_role`; usuario de otra empresa no puede previsualizar ni confirmar una asignación ajena.
+- Prueba adversarial de Preview: confirmaciones concurrentes producen una sola OC por proveedor/línea/moneda; reintento secuencial devuelve el mismo conjunto de IDs; no hay duplicados ni escrituras parciales. El hash es SHA-256 hex de 64 caracteres y coincide con `extensions.digest` sobre el payload canónico.
+- `COST_DISCOVERY` rechazado server-side en `rfq_save_allocation`, `rfq_authorize_allocation`, `rfq_preview_orders` y `rfq_confirm_orders`, incluso con allocation autorizado sintético insertado directamente.
+- Pruebas cross-tenant cubren RFQ/proveedor, quote item, adjunto/invitación, allocation/version item, preview y confirmación; todos los cruces fallan cerrados.
+- Magic links: token de 256 bits, expiración, revocación y rotación; token anterior rechazado tras rotación; cierre de RFQ y proveedor inactivo bloquean submit; adjuntos deben pertenecer a la misma empresa e invitación. El portal responde `no-referrer` y `no-store`/`no-cache`; las pruebas no imprimen tokens.
+- Security Advisor actualizado: cero funciones RFQ con ejecución `anon`. Diez RPC RFQ intencionalmente disponibles para `authenticated` aparecen bajo el linter genérico SECURITY DEFINER; derivan actor del perfil autenticado y validan empresa/estado/recurso. Los intentos anónimos y cruces de tenant fueron rechazados. No se detectó bypass RFQ nuevo.
+- Findings preexistentes fuera de scope: 4 tablas RLS sin policy (`auction_sandbox_room_private`, `email_send_attempts`, `receipt_portal_links`, `scan_pin_attempts`); 2 vistas SECURITY DEFINER (`v_procurement_competitor_contextual`, `v_procurement_competitor_global`); 15 funciones con `search_path` mutable; 49 funciones SECURITY DEFINER ejecutables por anon y 79 por authenticated en total; protección de contraseñas filtradas de Auth deshabilitada. Incluye legacy de la aplicación y no se modificó en este batch.
+- Flujo real de navegador sobre build local y datos sintéticos de Preview: RFQ, invitaciones, XLSX original, corrección/versionado, conciliación humana, adopción factual desde DB, reparto, autorización/preview/confirmación, COST_DISCOVERY sin compra y compra directa con cantidad fraccional; PASS.
 - Tests enfocados RFQ/costing/procurement: 112/112 PASS.
 - Suite serial completa `npx vitest run --maxWorkers=1`: 1,345 PASS / 16 skipped (150 test files PASS, 2 skipped).
 - `npx tsc --noEmit`: PASS.
@@ -52,10 +59,11 @@ Una vez aplicadas, las seis migrations no se modificaron. El ledger de Preview c
 
 ## Preview y producción
 
-- Preview: `batch-03-rfq-2-validation`, branch UUID `2325db99-ecb4-4e66-991e-57ff21fbbfb3`, project ref `afedslxxtttyqunqmutz`, creada sin datos productivos. Estado actual `ACTIVE_HEALTHY`.
-- Replay: 7 migrations registradas. Existen las nueve relaciones verificadas: `projects`, `budget_items`, `rfqs`, `rfq_items`, `rfq_providers`, `quotes`, `quote_versions`, `quote_version_items`, `project_cost_prices`.
+- Preview: `batch-03-rfq-2-validation`, branch UUID `2325db99-ecb4-4e66-991e-57ff21fbbfb3`, project ref `afedslxxtttyqunqmutz`, creada sin datos productivos. Estado observado durante pruebas: `ACTIVE_HEALTHY`.
+- Replay: nueve migrations registradas: baseline, seis RFQ originales y dos hardening migrations. Existen las nueve relaciones verificadas: `projects`, `budget_items`, `rfqs`, `rfq_items`, `rfq_providers`, `quotes`, `quote_versions`, `quote_version_items`, `project_cost_prices`.
+- Smoke SQL en Preview terminó `PASS`; usa `BEGIN ... ROLLBACK`. Verificó SHA-256 real, dos OCs confirmadas, retry idempotente por conjunto de IDs, ninguna OC antes de confirmar y bloqueo de las cuatro acciones de compra para `COST_DISCOVERY`.
 - **Producción no modificada.** Verificación de solo lectura: ledger contiene únicamente baseline `20261002231537`; `public.rfqs.purpose` no existe en producción. No se ejecutó SQL de aplicación en producción.
 
 ## Cierre
 
-No hay bloqueadores funcionales dentro del alcance. Requieren decisión/acción humana la selección de escenarios, adjudicación/asignación, autorización, confirmación de OC y revisión de discrepancias; esto preserva los invariantes congelados. La distribución del magic link es manual. No abrir PR ni mergear desde este batch.
+No hay bloqueadores funcionales dentro del alcance. Requieren decisión/acción humana la selección de escenarios, asignación, autorización, confirmación de OC y revisión de discrepancias; esto preserva los invariantes congelados. La distribución del magic link es manual. Publicar la rama y abrir PR contra `main`; queda prohibido mergear antes de la auditoría externa.
