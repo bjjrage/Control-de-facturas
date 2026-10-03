@@ -9,4 +9,3 @@ The one-time production baseline cutover replaces inconsistent historical tracki
 Production application DDL and data must not be changed by the baseline cutover. The production baseline SQL is never executed on production; only its migration-history record is marked applied.
 
 Every future migration must be validated against a fresh environment created from the baseline. Never repair history to claim an application change has been applied without verifying its actual state.
-
