@@ -119,10 +119,8 @@ describe("BATCH 3: send_rfq Tool & Domain Service", () => {
     expect(result.rfqId).toBe("rfq-1");
     expect(result.status).toBe("COTIZANDO");
     expect(result.providersInvitedCount).toBe(2);
-    expect(rfqStatus).toBe("COTIZANDO");
-    expect(insertedProviders.length).toBe(2);
-    expect(insertedProviders[0].provider_id).toBe("prov-1");
-    expect(insertedProviders[1].provider_id).toBe("prov-2");
+    expect(mockDb.rpc).toHaveBeenCalledWith("rfq_invite", {p_rfq_id:"rfq-1",p_provider_ids:["prov-1","prov-2"]});
+    expect(insertedProviders).toHaveLength(0);
   });
 
   it("sendRfqDomainService State Revalidation: rechaza si la RFQ ya está CANCELADO o AUTORIZADO", async () => {
@@ -223,7 +221,7 @@ describe("BATCH 3: send_rfq Tool & Domain Service", () => {
     // Invariante: jamás afirmar que hubo despacho automático por email/whatsapp
     expect(result.externalDispatchPerformed).toBe(false);
     expect(result.message).toContain("No se realiza envío automático de email/WhatsApp");
-    expect(insertedRows.length).toBe(2);
-    expect(insertedRows.map((r) => r.status)).toEqual(["PENDIENTE", "PENDIENTE"]);
+    expect(mockDb.rpc).toHaveBeenCalledWith("rfq_invite", {p_rfq_id:"rfq-test-semantics",p_provider_ids:["prov-alpha","prov-beta"]});
+    expect(insertedRows).toHaveLength(0);
   });
 });

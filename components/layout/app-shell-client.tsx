@@ -118,7 +118,7 @@ function SectionSkeleton() {
   );
 }
 
-export function AppShellClient({ children }: { children: ReactNode }) {
+export function AppShellClient({ children, warmPaths }: { children: ReactNode; warmPaths: readonly string[] }) {
   const pathname = usePathname();
   const [mode, setMode] = useState<"server" | "loading" | "client">("server");
   const [activePath, setActivePath] = useState<SectionKey | null>(null);
@@ -257,8 +257,8 @@ export function AppShellClient({ children }: { children: ReactNode }) {
     async function warmAll() {
       // Current section first so it's ready soonest.
       const ordered = [
-        ...SHELL_PATHS.filter((p) => p === currentPath),
-        ...SHELL_PATHS.filter((p) => p !== currentPath),
+        ...SHELL_PATHS.filter((p) => warmPaths.includes(p) && p === currentPath),
+        ...SHELL_PATHS.filter((p) => warmPaths.includes(p) && p !== currentPath),
       ] as SectionKey[];
 
       for (const path of ordered) {
@@ -287,7 +287,7 @@ export function AppShellClient({ children }: { children: ReactNode }) {
     }
 
     warmAll();
-  }, []); // only on mount
+  }, [warmPaths]);
 
   const showSections = mode === "client";
 

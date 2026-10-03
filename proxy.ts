@@ -6,6 +6,8 @@ export async function proxy(request: NextRequest) {
   // Validate it in the portal page/API without requiring an ERP session.
   const path = request.nextUrl.pathname;
   if (
+    path.startsWith("/cotizar/") ||
+    path.startsWith("/api/cotizar/") ||
     path.startsWith("/recepcion/") ||
     path.startsWith("/api/recepcion-portal/") ||
     path.startsWith("/warehouse/") ||

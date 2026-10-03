@@ -1,188 +1,79 @@
-import { notFound } from "next/navigation";
-import Image from "next/image";
+﻿import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { formatDate, formatDateTime, formatMoney, formatNumber } from "@/lib/format";
-import { isRfqOpen } from "@/lib/rfq-status";
-import { RfqStatus } from "@/lib/types";
-import { QuoteForm } from "./quote-form";
+import { resolveSupplierInvitation } from "@/lib/rfq/offer-submission";
 import { MultiItemQuoteForm } from "./multi-item-quote-form";
 import { markOpened } from "./actions";
-
-export default async function CotizarPage({ params }: { params: Promise<{ token: string }> }) {
+export const dynamic = "force-dynamic";
+export default async function CotizarPage({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}) {
   const { token } = await params;
-  const admin = createAdminClient();
-
-  const { data: rfqProvider } = await admin
-    .from("rfq_providers")
-    .select("*, rfqs!rfq_providers_rfq_id_fkey(*), providers(name)")
-    .eq("token", token)
-    .maybeSingle();
-
-  if (!rfqProvider) notFound();
-
-  const rfq = (rfqProvider as unknown as {
-    rfqs: {
-      id: string;
-      code: string;
-      client_name: string | null;
-      mostrar_cliente_al_proveedor: boolean;
-      product: string;
-      quantity: number;
-      unit: string;
-      specifications: string | null;
-      required_date: string | null;
-      status: RfqStatus;
-      expires_at: string;
-    };
-  }).rfqs;
-  const providerName = (rfqProvider as unknown as { providers: { name: string } }).providers.name;
-
-  await markOpened(token);
-
-  const isOpen = isRfqOpen(rfq);
-
-  const { data: rfqItemsData } = await admin
-    .from("rfq_items")
-    .select("id, descripcion, cantidad, unidad")
-    .eq("rfq_id", rfq.id)
-    .order("sort_order");
-  const rfqItems = (rfqItemsData ?? []).map((it) => ({ ...it, cantidad: Number(it.cantidad) }));
-  const isMultiItem = rfqItems.length > 0;
-
-  const { data: rfqAttachments } = await admin
-    .from("attachments")
-    .select("id, bucket, path, file_name")
-    .eq("rfq_id", rfq.id)
-    .order("created_at");
-
-  const specFiles = await Promise.all(
-    (rfqAttachments ?? []).map(async (a) => {
-      const { data } = await admin.storage.from(a.bucket).createSignedUrl(a.path, 3600);
-      return { fileName: a.file_name, url: data?.signedUrl ?? null };
-    })
-  );
-
-  let latestSubmission: { total_price: number; currency: string; submitted_at: string } | null = null;
-  if (rfqProvider.status === "RESPONDIDO") {
-    const { data: quote } = await admin
-      .from("quotes")
-      .select("id")
-      .eq("rfq_provider_id", rfqProvider.id)
-      .maybeSingle();
-    if (quote) {
-      const { data: version } = await admin
-        .from("quote_versions")
-        .select("total_price, currency, submitted_at")
-        .eq("quote_id", quote.id)
-        .order("version_number", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      latestSubmission = version ?? null;
-    }
+  const db = createAdminClient();
+  let rp;
+  try {
+    rp = await resolveSupplierInvitation(db, token);
+  } catch {
+    notFound();
   }
-
+  const { data: items, error } = await db
+    .from("rfq_items")
+    .select("id,descripcion,cantidad,unidad")
+    .eq("rfq_id", rp.rfq_id)
+    .eq("empresa_id", rp.empresa_id)
+    .order("sort_order");
+  if (error) throw new Error(error.message);
+  await markOpened(token);
+  const { data: attachments } = await db
+    .from("attachments")
+    .select("id,bucket,path,file_name")
+    .eq("rfq_id", rp.rfq_id)
+    .eq("empresa_id", rp.empresa_id)
+    .eq("bucket", "rfq-attachments");
+  const files = await Promise.all(
+    (attachments ?? []).map(async (a) => ({
+      name: a.file_name,
+      url: (await db.storage.from(a.bucket).createSignedUrl(a.path, 120)).data
+        ?.signedUrl,
+    })),
+  );
   return (
-    <div className="min-h-screen bg-[var(--background)] px-4 py-8">
-      <div className="mx-auto w-full max-w-lg">
-        <div className="mb-6">
-          <Image src="/logo/niupack-wordmark.svg" alt="niupack" width={120} height={26} priority />
-        </div>
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 mb-4">
-          <p className="text-[11px] text-[var(--muted)] mb-1">Solicitud {rfq.code}</p>
-          <h1 className="text-[15px] font-semibold mb-2">Hola, {providerName}</h1>
-          <div className="space-y-1 text-[13px]">
-            {rfq.mostrar_cliente_al_proveedor && rfq.client_name ? (
-              <div>
-                <span className="text-[var(--muted)]">Cliente: </span>
-                {rfq.client_name}
-              </div>
-            ) : null}
-            {isMultiItem ? (
-              <div>
-                <span className="text-[var(--muted)]">Solicitud de precios: </span>
-                {rfqItems.length} ítems
-              </div>
-            ) : (
-              <>
-                <div>
-                  <span className="text-[var(--muted)]">Producto: </span>
-                  {rfq.product}
-                </div>
-                <div>
-                  <span className="text-[var(--muted)]">Cantidad: </span>
-                  {formatNumber(rfq.quantity, 2)} {rfq.unit}
-                </div>
-              </>
-            )}
-            {rfq.specifications ? (
-              <div>
-                <span className="text-[var(--muted)]">Especificaciones: </span>
-                {rfq.specifications}
-              </div>
-            ) : null}
-            {rfq.required_date ? (
-              <div>
-                <span className="text-[var(--muted)]">Fecha requerida: </span>
-                {formatDate(rfq.required_date)}
-              </div>
-            ) : null}
-            {isOpen ? (
-              <div>
-                <span className="text-[var(--muted)]">Cotizar antes de: </span>
-                {formatDateTime(rfq.expires_at)}
-              </div>
-            ) : null}
-          </div>
-          {specFiles.length > 0 ? (
-            <div className="mt-3 pt-3 border-t border-[var(--border)]">
-              <p className="text-[11px] text-[var(--muted)] mb-1">Archivos de referencia</p>
-              <ul className="space-y-1">
-                {specFiles.map((f, i) =>
-                  f.url ? (
-                    <li key={i}>
-                      <a
-                        href={f.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[13px] text-[var(--primary)] underline hover:no-underline"
-                      >
-                        {f.fileName}
-                      </a>
-                    </li>
-                  ) : null
-                )}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-
-        {latestSubmission ? (
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 mb-4 text-[13px]">
-            <p className="font-medium mb-0.5">Ya enviaste una cotización</p>
-            <p className="text-[var(--muted)]">
-              {formatMoney(latestSubmission.total_price, latestSubmission.currency as never)} ·{" "}
-              {formatDate(latestSubmission.submitted_at)}
-            </p>
-          </div>
-        ) : null}
-
-        {isOpen ? (
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
-            <h2 className="text-[14px] font-semibold mb-3">
-              {latestSubmission ? "Enviar una nueva versión" : "Enviar cotización"}
-            </h2>
-            {isMultiItem ? (
-              <MultiItemQuoteForm token={token} items={rfqItems} />
-            ) : (
-              <QuoteForm token={token} quantity={rfq.quantity} unit={rfq.unit} />
-            )}
-          </div>
-        ) : (
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 text-[13px] text-[var(--muted)]">
-            Esta solicitud venció o ya fue cerrada. Si querés cotizar igual, contactá a niupack.
-          </div>
-        )}
-      </div>
-    </div>
+    <main className="mx-auto max-w-4xl p-6 space-y-5">
+      <h1 className="text-xl font-semibold">
+        Solicitud {rp.rfqs.code} — {rp.providers.name}
+      </h1>
+      <p>{rp.rfqs.product}</p>
+      <p>{rp.rfqs.specifications}</p>
+      {rp.rfqs.mostrar_cliente_al_proveedor && <p>{rp.rfqs.client_name}</p>}
+      <p>
+        Link válido hasta {rp.token_expires_at ?? rp.rfqs.expires_at}. Una
+        oferta no implica adjudicación ni una orden de compra.
+      </p>
+      {files.map((f, i) =>
+        f.url ? (
+          <a
+            key={i}
+            className="block underline"
+            href={f.url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {f.name}
+          </a>
+        ) : null,
+      )}
+      {items?.length ? (
+        <MultiItemQuoteForm
+          token={token}
+          items={items.map((i) => ({ ...i, cantidad: Number(i.cantidad) }))}
+        />
+      ) : (
+        <p>
+          Solicitud histórica sin ítems estructurados. Contactá al comprador
+          para recibir una nueva solicitud.
+        </p>
+      )}
+    </main>
   );
 }

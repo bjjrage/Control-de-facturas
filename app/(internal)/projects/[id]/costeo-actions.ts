@@ -1,5 +1,6 @@
 "use server";
 
+import { createCanonicalRfq } from "@/lib/rfq/service";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlan } from "@/lib/auth";
@@ -133,44 +134,10 @@ export async function createCostRfqsFromProject(
         continue;
       }
 
-      const { data: rfq, error: rfqError } = await admin
-        .from("rfqs")
-        .insert({
-          empresa_id: empresaId,
-          quote_type: "RFQ",
-          created_by: profile.id,
-          product: `${rubroNombre} (${rubro.items.length} ítems)`,
-          quantity: 1,
-          unit: "lote",
-          internal_reference: `Costeo · ${project.name}`,
-          observations: `Solicitud de precios para costeo de obra — rubro ${rubroNombre}.`,
-          project_id: projectId,
-          status: "COTIZANDO",
-          expires_at: expiresAt,
-        })
-        .select("id, code")
-        .single();
-      if (rfqError || !rfq) return { data: null, error: `No se pudo crear el RFQ de ${rubroNombre}: ${rfqError?.message ?? ""}` };
-
-      const { error: itemsError } = await admin.from("rfq_items").insert(
-        rubro.items.map((it, idx) => ({
-          empresa_id: empresaId,
-          rfq_id: rfq.id,
-          producto_id: it.productoId,
-          descripcion: it.nombre,
-          cantidad: it.cantidad,
-          unidad: it.unidad,
-          sort_order: idx,
-        }))
-      );
-      if (itemsError) return { data: null, error: `No se pudieron cargar los ítems del RFQ de ${rubroNombre}: ${itemsError.message}` };
-
-      const { error: provError } = await admin
-        .from("rfq_providers")
-        .insert(providerIds.map((provider_id) => ({ rfq_id: rfq.id, provider_id, empresa_id: empresaId })));
-      if (provError) return { data: null, error: `No se pudieron invitar proveedores a ${rubroNombre}: ${provError.message}` };
-
-      await logAudit(admin, { action: "rfq.created", rfqId: rfq.id, detail: { costeo: true, project_id: projectId, rubro: rubroNombre } });
+      const rfq=await createCanonicalRfq(supabase,{purpose:"COST_DISCOVERY",quote_type:"RFQ",
+        product: rubroNombre,project_id:projectId,expires_at:expiresAt,
+        observations:"Solicitud de precios para costeo, sin compra automática"},
+        rubro.items.map(it=>({producto_id:it.productoId,descripcion:it.nombre,cantidad:it.cantidad,unidad:it.unidad})),providerIds);
       result.creadas.push({ rfqId: rfq.id, code: rfq.code, rubro: rubroNombre, items: rubro.items.length, proveedores: providerIds.length });
     }
 

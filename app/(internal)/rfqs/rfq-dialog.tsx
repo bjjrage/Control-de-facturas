@@ -1,270 +1,315 @@
-"use client";
-
+﻿"use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { createClient } from "@/lib/supabase/browser";
 import { createRfq } from "./actions";
 import {
   createCostRfqsFromProject,
   listProjectsForCostRfqAction,
-  type CostRfqCreationResult,
 } from "../projects/[id]/costeo-actions";
-
-type QuoteType = "RFQ" | "COT";
-
-const TYPE_CONFIG: Record<QuoteType, { label: string; description: string; submitLabel: string }> = {
-  RFQ: {
-    label: "RFQ",
-    description: "Pido precio a varios proveedores y elijo la mejor oferta",
-    submitLabel: "Crear RFQ",
-  },
-  COT: {
-    label: "Cotización",
-    description: "Ya sé a quién le compro — documento la cotización de un solo proveedor",
-    submitLabel: "Crear cotización",
-  },
+import type { RfqPurpose } from "@/lib/rfq/domain";
+type Line = {
+  descripcion: string;
+  cantidad: string;
+  unidad: string;
+  producto_id: string | null;
 };
-
+const empty = (): Line => ({
+  descripcion: "",
+  cantidad: "",
+  unidad: "",
+  producto_id: null,
+});
 export function RfqDialog({
   trigger,
   defaultOpen,
   projectId,
   defaultFromProject,
+  initialItems,
 }: {
   trigger: React.ReactNode;
   defaultOpen?: boolean;
   projectId?: string;
   defaultFromProject?: string;
+  initialItems?: {
+    descripcion: string;
+    cantidad: number;
+    unidad: string;
+    producto_id: string | null;
+  }[];
 }) {
-  const [open, setOpen] = useState(defaultOpen ?? false);
-  const [mode, setMode] = useState<"manual" | "obra">(defaultFromProject ? "obra" : "manual");
-  const [quoteType, setQuoteType] = useState<QuoteType>("RFQ");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-  const [obras, setObras] = useState<{ id: string; name: string; code: string }[]>([]);
-  const [obraId, setObraId] = useState(defaultFromProject ?? projectId ?? "");
-  const [obraResult, setObraResult] = useState<CostRfqCreationResult | null>(null);
   const router = useRouter();
-
-  const config = TYPE_CONFIG[quoteType];
-
+  const [open, setOpen] = useState(defaultOpen ?? false);
+  const [purpose, setPurpose] = useState<RfqPurpose | "">("");
+  const [mode, setMode] = useState<"manual" | "obra">(
+    defaultFromProject ? "obra" : "manual",
+  );
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
+  const [project, setProject] = useState(defaultFromProject ?? projectId ?? "");
+  const [projects, setProjects] = useState<
+    { id: string; name: string; code: string }[]
+  >([]);
+  const [products, setProducts] = useState<
+    { id: string; nombre: string; unidad: string }[]
+  >([]);
+  const [lines, setLines] = useState<Line[]>(
+    () =>
+      initialItems?.map((i) => ({ ...i, cantidad: String(i.cantidad) })) ?? [
+        empty(),
+      ],
+  );
   useEffect(() => {
-    if (!open || mode !== "obra" || projectId || obras.length > 0) return;
-    listProjectsForCostRfqAction().then((res) => {
-      if (res.error) setError(res.error);
-      else setObras(res.data ?? []);
-    });
-  }, [open, mode, projectId, obras.length]);
-
-  async function generateFromObra() {
-    if (!obraId) return setError("Elegí una obra.");
-    setPending(true);
-    setError(null);
-    const res = await createCostRfqsFromProject(obraId);
-    setPending(false);
-    if (res.error) return setError(res.error);
-    setObraResult(res.data);
-    router.refresh();
+    if (!open) return;
+    let alive = true;
+    createClient()
+      .from("productos")
+      .select("id,nombre,unidad")
+      .eq("activo", true)
+      .order("nombre")
+      .then((r) => {
+        if (alive) setProducts(r.data ?? []);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [open]);
+  async function loadProjects() {
+    setMode("obra");
+    const r = await listProjectsForCostRfqAction();
+    if (r.error) setError(r.error);
+    else setProjects(r.data ?? []);
   }
-
+  const update = (index: number, value: Partial<Line>) =>
+    setLines((l) =>
+      l.map((row, i) => (i === index ? { ...row, ...value } : row)),
+    );
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next && window.location.search.includes("nueva=")) {
-          window.history.replaceState(null, "", "/rfqs");
-        }
-      }}
-    >
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent title="Nueva cotización">
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          {(
-            [
-              ["manual", "Un producto", "Cargo el producto a mano"],
-              ["obra", "Desde una obra", "Armo el pedido con lo que necesitan las recetas"],
-            ] as const
-          ).map(([m, label, desc]) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => {
-                setMode(m);
-                setError(null);
-              }}
-              className={[
-                "rounded-lg border-2 p-3 text-left transition-colors",
-                mode === m ? "border-[var(--primary)] bg-[var(--primary-bg)]" : "border-[var(--border)] hover:border-[var(--primary)]/40",
-              ].join(" ")}
-            >
-              <div className="text-[13px] font-semibold mb-0.5">{label}</div>
-              <div className="text-[11px] text-[var(--muted)] leading-snug">{desc}</div>
-            </button>
-          ))}
+      <DialogContent title="Nueva solicitud RFQ" className="max-w-4xl">
+        <Label>Propósito obligatorio</Label>
+        <Select
+          value={purpose}
+          onChange={(e) => setPurpose(e.target.value as RfqPurpose)}
+          required
+        >
+          <option value="">Elegí explícitamente</option>
+          <option value="COST_DISCOVERY">Descubrir costos — sin compra</option>
+          <option value="PROCUREMENT">
+            Comprar — asignación y confirmación humanas
+          </option>
+        </Select>
+        <div className="flex gap-2 my-3">
+          <Button variant="secondary" onClick={() => setMode("manual")}>
+            Ítems manuales / necesidad
+          </Button>
+          <Button variant="secondary" onClick={loadProjects}>
+            Desde costeo de obra
+          </Button>
         </div>
-
+        {error && <p role="alert">{error}</p>}
         {mode === "obra" ? (
           <div className="space-y-3">
-            <p className="text-[12px] text-[var(--muted)]">
-              Suma los materiales de las recetas (APU) de la obra, los agrupa por rubro y arma un pedido de precios por rubro. Se
-              invita a los proveedores que tienen ese rubro asignado.
+            <p>
+              Genera solicitudes de precios por rubro después de tu
+              confirmación. Este circuito exige propósito Descubrir costos y no
+              crea órdenes de compra.
             </p>
-            {error ? (
-              <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
-                {error}
-              </div>
-            ) : null}
-            {projectId ? null : (
-              <div>
-                <Label htmlFor="obra_id">Obra</Label>
-                <Select id="obra_id" value={obraId} onChange={(e) => setObraId(e.target.value)}>
-                  <option value="">Elegí una obra…</option>
-                  {obras.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.code} — {o.name}
-                    </option>
-                  ))}
-                </Select>
-              </div>
+            <Label>Obra</Label>
+            <Select
+              value={project}
+              onChange={(e) => setProject(e.target.value)}
+            >
+              <option value="">Elegí una obra</option>
+              {projectId && <option value={projectId}>Obra actual</option>}
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.code} — {p.name}
+                </option>
+              ))}
+            </Select>
+            <Button
+              disabled={pending || !project || purpose !== "COST_DISCOVERY"}
+              onClick={async () => {
+                setPending(true);
+                try {
+                  const r = await createCostRfqsFromProject(project);
+                  if (r.error) setError(r.error);
+                  else {
+                    setError(
+                      `Solicitudes creadas: ${r.data?.creadas.map((c) => c.code).join(", ") || "ninguna"}. Rubros sin proveedores: ${r.data?.rubrosSinProveedores.map((r) => r.rubro).join(", ") || "ninguno"}`,
+                    );
+                    router.refresh();
+                  }
+                } finally {
+                  setPending(false);
+                }
+              }}
+            >
+              Confirmar creación de solicitudes de precios
+            </Button>
+          </div>
+        ) : (
+          <form
+            className="space-y-3"
+            action={async (fd) => {
+              setPending(true);
+              setError("");
+              try {
+                fd.set("purpose", purpose);
+                fd.set(
+                  "product",
+                  lines
+                    .map((l) => l.descripcion)
+                    .join(", ")
+                    .slice(0, 1000),
+                );
+                fd.set("quantity", "1");
+                fd.set("unit", "lote");
+                fd.set("quote_type", "RFQ");
+                fd.set(
+                  "items",
+                  JSON.stringify(
+                    lines.map((l) => ({ ...l, cantidad: Number(l.cantidad) })),
+                  ),
+                );
+                const r = await createRfq(fd);
+                if (r.error) setError(r.error);
+                else {
+                  setOpen(false);
+                  router.push("/rfqs/" + r.id);
+                }
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "Error al crear RFQ");
+              } finally {
+                setPending(false);
+              }
+            }}
+          >
+            {projectId && (
+              <input type="hidden" name="project_id" value={projectId} />
             )}
-            {obraResult ? (
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3 text-[12px] space-y-1">
-                {obraResult.sinInsumos ? (
-                  <p>Esa obra no tiene insumos: cargá las recetas (APU) de las partidas primero, en Preparar → Costeo.</p>
-                ) : (
-                  <>
-                    {obraResult.creadas.length === 0 ? <p>No se creó ningún pedido.</p> : <p>Se crearon:</p>}
-                    {obraResult.creadas.map((c) => (
-                      <p key={c.rfqId}>
-                        <Link href={`/rfqs/${c.rfqId}`} className="underline">
-                          {c.code}
-                        </Link>{" "}
-                        — {c.rubro}, {c.items} ítems, {c.proveedores} proveedores
-                      </p>
-                    ))}
-                    {obraResult.rubrosSinProveedores.length > 0 ? (
-                      <p className="text-amber-500">
-                        Sin proveedores de ese rubro: {obraResult.rubrosSinProveedores.map((r) => r.rubro).join(", ")}. Asigná el rubro
-                        en Proveedores y volvé a generar.
-                      </p>
-                    ) : null}
-                    {obraResult.insumosSinRubro.length > 0 ? (
-                      <p className="text-amber-500">Insumos sin categoría (no se incluyeron): {obraResult.insumosSinRubro.join(", ")}.</p>
-                    ) : null}
-                  </>
-                )}
-              </div>
-            ) : null}
-            <div className="flex justify-end gap-2 pt-1">
-              <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
-                Cerrar
-              </Button>
-              <Button type="button" disabled={pending || !obraId} onClick={generateFromObra}>
-                {pending ? "Generando…" : "Generar pedidos por rubro"}
-              </Button>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    <th>Descripción</th>
+                    <th>Cantidad</th>
+                    <th>Unidad</th>
+                    <th>Producto de catálogo (opcional)</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map((l, index) => (
+                    <tr key={index}>
+                      <td>
+                        <Input
+                          aria-label={`Descripción ${index + 1}`}
+                          value={l.descripcion}
+                          onChange={(e) =>
+                            update(index, { descripcion: e.target.value })
+                          }
+                          required
+                        />
+                      </td>
+                      <td>
+                        <Input
+                          aria-label={`Cantidad ${index + 1}`}
+                          type="number"
+                          min="0.0001"
+                          step="0.0001"
+                          value={l.cantidad}
+                          onChange={(e) =>
+                            update(index, { cantidad: e.target.value })
+                          }
+                          required
+                        />
+                      </td>
+                      <td>
+                        <Input
+                          aria-label={`Unidad ${index + 1}`}
+                          value={l.unidad}
+                          onChange={(e) =>
+                            update(index, { unidad: e.target.value })
+                          }
+                          required
+                        />
+                      </td>
+                      <td>
+                        <Select
+                          aria-label={`Producto ${index + 1}`}
+                          value={l.producto_id ?? ""}
+                          onChange={(e) => {
+                            const p = products.find(
+                              (p) => p.id === e.target.value,
+                            );
+                            update(index, {
+                              producto_id: p?.id ?? null,
+                              ...(p
+                                ? { descripcion: p.nombre, unidad: p.unidad }
+                                : {}),
+                            });
+                          }}
+                        >
+                          <option value="">Sin producto de catálogo</option>
+                          {products.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.nombre}
+                            </option>
+                          ))}
+                        </Select>
+                      </td>
+                      <td>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          disabled={lines.length === 1}
+                          onClick={() =>
+                            setLines((rows) =>
+                              rows.filter((_, i) => i !== index),
+                            )
+                          }
+                        >
+                          Quitar
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
-        ) : null}
-
-        <form
-          className={mode === "obra" ? "hidden" : "space-y-3"}
-          action={async (formData: FormData) => {
-            setPending(true);
-            const result = await createRfq(formData);
-            setPending(false);
-            if (result.error && !result.id) {
-              setError(result.error);
-              return;
-            }
-            setError(null);
-            setOpen(false);
-            router.push(`/rfqs/${result.id}`);
-          }}
-        >
-          {/* Selector de tipo */}
-          <div className="grid grid-cols-2 gap-2">
-            {(["RFQ", "COT"] as QuoteType[]).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setQuoteType(t)}
-                className={[
-                  "rounded-lg border-2 p-3 text-left transition-colors",
-                  quoteType === t
-                    ? "border-[var(--primary)] bg-[var(--primary-bg)]"
-                    : "border-[var(--border)] hover:border-[var(--primary)]/40",
-                ].join(" ")}
-              >
-                <div className="text-[13px] font-semibold mb-0.5">{TYPE_CONFIG[t].label}</div>
-                <div className="text-[11px] text-[var(--muted)] leading-snug">{TYPE_CONFIG[t].description}</div>
-              </button>
-            ))}
-          </div>
-          <input type="hidden" name="quote_type" value={quoteType} />
-          {projectId ? <input type="hidden" name="project_id" value={projectId} /> : null}
-
-          {error ? (
-            <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
-              {error}
-            </div>
-          ) : null}
-
-          <div className="grid grid-cols-[2fr_1fr_1fr] gap-3">
-            <div>
-              <Label htmlFor="product">Producto</Label>
-              <Input id="product" name="product" required />
-            </div>
-            <div>
-              <Label htmlFor="quantity">Cantidad</Label>
-              <Input id="quantity" name="quantity" type="number" step="0.01" min="0.01" required />
-            </div>
-            <div>
-              <Label htmlFor="unit">Unidad</Label>
-              <Input id="unit" name="unit" placeholder="kg, un, m²" required />
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="specifications">Especificaciones</Label>
-            <Textarea id="specifications" name="specifications" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="required_date">Fecha requerida</Label>
-              <Input id="required_date" name="required_date" type="date" />
-            </div>
-            <div>
-              <Label htmlFor="internal_reference">Referencia interna</Label>
-              <Input id="internal_reference" name="internal_reference" />
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="observations">Observaciones</Label>
-            <Textarea id="observations" name="observations" />
-          </div>
-          <div>
-            <Label htmlFor="attachments">Archivos de referencia (PDF, imágenes)</Label>
-            <input
-              id="attachments"
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setLines((rows) => [...rows, empty()])}
+            >
+              Agregar ítem
+            </Button>
+            <Label>Especificaciones</Label>
+            <Textarea name="specifications" />
+            <Label>Fecha requerida</Label>
+            <Input name="required_date" type="date" />
+            <Label>Referencia interna</Label>
+            <Input name="internal_reference" />
+            <Label>Observaciones</Label>
+            <Textarea name="observations" />
+            <Label>Archivos de referencia</Label>
+            <Input
               name="attachments"
               type="file"
-              accept="application/pdf,image/*"
               multiple
-              className="block w-full text-[13px]"
+              accept="application/pdf,image/png,image/jpeg"
             />
-          </div>
-          <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
-              Cancelar
+            <Button disabled={pending || !purpose}>
+              {pending ? "Creando…" : "Confirmar creación de RFQ"}
             </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Creando…" : config.submitLabel}
-            </Button>
-          </div>
-        </form>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

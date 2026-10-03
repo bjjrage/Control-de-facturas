@@ -17,7 +17,7 @@ export interface SendRfqParams {
 export interface SendRfqResult {
   rfqId: string;
   code: string;
-  status: "COTIZANDO";
+  status: "COTIZANDO" | "OFERTAS_RECIBIDAS";
   providersInvitedCount: number;
   providerIds: string[];
   externalDispatchPerformed: false;
@@ -25,7 +25,8 @@ export interface SendRfqResult {
 }
 
 export async function sendRfqDomainService(params: SendRfqParams): Promise<SendRfqResult> {
-  const { db, empresaId, userId, rfqId, providerIds, notes } = params;
+  const { db, empresaId, rfqId, notes } = params;
+  const providerIds = [...new Set(params.providerIds)];
 
   if (!providerIds || providerIds.length === 0) {
     throw new Error("Debe seleccionar al menos un proveedor para enviar la cotización.");
@@ -51,40 +52,8 @@ export async function sendRfqDomainService(params: SendRfqParams): Promise<SendR
     throw new Error(`No se puede enviar una RFQ que ya cuenta con orden de compra autorizada (id=${rfqId})`);
   }
 
-  // 2. Insertar proveedores a invitar en rfq_providers
-  // Si ya existen proveedores previamente vinculados, aseguramos invitacion sin duplicar clave única
-  const providerRows = providerIds.map((pid) => ({
-    rfq_id: rfqId,
-    provider_id: pid,
-    status: "PENDIENTE",
-  }));
-
-  const { error: insErr } = await db
-    .from("rfq_providers")
-    .upsert(providerRows, { onConflict: "rfq_id, provider_id" });
-
-  if (insErr) {
-    throw new Error(`Error al registrar proveedores en la RFQ: ${insErr.message}`);
-  }
-
-  // 3. Transicionar estado a COTIZANDO si estaba en BORRADOR
-  const updatePayload: Record<string, unknown> = {
-    status: "COTIZANDO",
-  };
-  if (notes) {
-    updatePayload.observations = notes;
-  }
-
-  const { error: updErr } = await db
-    .from("rfqs")
-    .update(updatePayload)
-    .eq("id", rfqId)
-    .eq("empresa_id", empresaId);
-
-  if (updErr) {
-    throw new Error(`Error al actualizar estado de la RFQ: ${updErr.message}`);
-  }
-
+  const {error:inviteError}=await db.rpc("rfq_invite",{p_rfq_id:rfqId,p_provider_ids:[...new Set(providerIds)]});
+  if(inviteError)throw new Error(inviteError.message);
   // 4. Log de auditoria del dominio
   try {
     await logAudit(db, {
@@ -93,7 +62,7 @@ export async function sendRfqDomainService(params: SendRfqParams): Promise<SendR
       detail: {
         provider_ids: providerIds,
         previous_status: rfq.status,
-        new_status: "COTIZANDO",
+        new_status: rfq.status === "OFERTAS_RECIBIDAS" ? "OFERTAS_RECIBIDAS" : "COTIZANDO",
         notes: notes ?? null,
       },
     });
@@ -104,7 +73,7 @@ export async function sendRfqDomainService(params: SendRfqParams): Promise<SendR
   return {
     rfqId: rfq.id,
     code: rfq.code,
-    status: "COTIZANDO",
+    status: rfq.status === "OFERTAS_RECIBIDAS" ? "OFERTAS_RECIBIDAS" : "COTIZANDO",
     providersInvitedCount: providerIds.length,
     providerIds,
     externalDispatchPerformed: false,

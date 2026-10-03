@@ -30,142 +30,11 @@ function isDateOnly(value: string): boolean {
 }
 
 /** OC manual: compra directa, sin pasar por RFQ. */
-export async function createManualOrder(formData: FormData) {
-  const profile = await requireProfile(["comercial", "administracion", "admin"]);
-  const supabase = await createClient();
-  if (!profile.empresa_id) return { error: "La cuenta no tiene una empresa activa." };
-
-  const providerId = str(formData, "provider_id");
-  const currency = (str(formData, "currency") ?? "PYG") as CurrencyCode;
-
-  if (!providerId) return { error: "Elegí un proveedor." };
-  if (!CURRENCIES.includes(currency)) return { error: "Moneda inválida." };
-
-  // Parse items sent from the multi-row form.
-  let items: OrderItemInput[] = [];
-  const itemsRaw = str(formData, "items");
-  if (itemsRaw) {
-    try {
-      const parsed: unknown = JSON.parse(itemsRaw);
-      if (!Array.isArray(parsed)) return { error: "Los ítems de la orden no son válidos." };
-      items = parsed as OrderItemInput[];
-    } catch {
-      return { error: "Error al leer los ítems de la orden." };
-    }
-  }
-
-  if (!items.length) return { error: "Agregá al menos un ítem." };
-  for (const item of items) {
-    if (!item || typeof item.product !== "string" || !item.product.trim()) {
-      return { error: "Completá la descripción de todos los ítems." };
-    }
-    if (!Number.isFinite(item.quantity) || item.quantity <= 0) {
-      return { error: "Todas las cantidades deben ser mayores a cero." };
-    }
-    if (typeof item.unit !== "string" || !item.unit.trim()) {
-      return { error: "Completá la unidad de todos los ítems." };
-    }
-    if (!Number.isFinite(item.unit_price) || item.unit_price < 0) {
-      return { error: "El precio unitario no puede ser negativo." };
-    }
-    if (!Number.isFinite(item.total_price) || item.total_price <= 0) {
-      return { error: "El total de cada ítem debe ser mayor a cero." };
-    }
-    if (item.producto_id != null && (typeof item.producto_id !== "string" || !item.producto_id.trim())) {
-      return { error: "El producto de inventario seleccionado no es válido." };
-    }
-    if (item.expected_delivery_date != null && (
-      typeof item.expected_delivery_date !== "string"
-      || (item.expected_delivery_date !== "" && !isDateOnly(item.expected_delivery_date))
-    )) {
-      return { error: "La fecha esperada de entrega no es válida." };
-    }
-  }
-
-  const productIds = [...new Set(items.flatMap((item) => item.producto_id ? [item.producto_id.trim()] : []))];
-  if (productIds.length > 0) {
-    const { data: selectedProducts, error: productsError } = await supabase
-      .from("productos")
-      .select("id, unidad, activo")
-      .eq("empresa_id", profile.empresa_id)
-      .in("id", productIds);
-    if (productsError || !selectedProducts || selectedProducts.length !== productIds.length) {
-      return { error: "Uno o más productos no pertenecen a la empresa." };
-    }
-    const productsById = new Map(selectedProducts.map((product) => [product.id, product]));
-    for (const item of items) {
-      if (!item.producto_id) continue;
-      const selectedProduct = productsById.get(item.producto_id.trim());
-      if (!selectedProduct?.activo) return { error: "El producto seleccionado está inactivo." };
-      if (selectedProduct.unidad.trim() !== item.unit.trim()) {
-        return { error: `La unidad de ${item.product.trim()} debe coincidir con la unidad del producto de inventario.` };
-      }
-    }
-  }
-
-  const grandTotal = items.reduce((s, r) => s + r.total_price, 0);
-  // Legacy columns: use first item (keeps backward compat with existing OC detail/list pages).
-  const first = items[0];
-
-  const { data: provider } = await supabase
-    .from("providers")
-    .select("id, name")
-    .eq("id", providerId)
-    .maybeSingle();
-  if (!provider) return { error: "Proveedor no encontrado." };
-
-  const projectId = str(formData, "project_id");
-
-  const { data: order, error } = await supabase
-    .from("authorized_orders")
-    .insert({
-      // empresa_id explícito: el trigger que genera el `code` (next_doc_code)
-      // corre ANTES que el trigger que setea empresa_id (orden alfabético de
-      // nombres), así que sin esto falla con "p_empresa_id es null".
-      empresa_id: profile.empresa_id,
-      provider_id: providerId,
-      provider_name: provider.name,
-      product: first.product.trim(),
-      quantity: first.quantity,
-      unit: first.unit.trim(),
-      unit_price: first.unit_price,
-      total_price: grandTotal,
-      currency,
-      vat_included: formData.get("vat_included") === "on",
-      authorized_by: profile.id,
-      is_cheapest: false,
-      created_from: "manual",
-      project_id: projectId || null,
-    })
-    .select("id")
-    .single();
-
-  if (error || !order) return { error: error?.message ?? "No se pudo crear la orden." };
-
-  // Insert all line items into authorized_order_items.
-  const itemRows = items.map((item, idx) => ({
-    order_id: order.id,
-    empresa_id: profile.empresa_id,
-    product: item.product.trim(),
-    quantity: item.quantity,
-    unit: item.unit.trim(),
-    unit_price: item.unit_price,
-    total_price: item.total_price,
-    sort_order: idx,
-    producto_id: item.producto_id?.trim() || null,
-    expected_delivery_date: item.expected_delivery_date || null,
-  }));
-  const { error: itemsError } = await supabase.from("authorized_order_items").insert(itemRows);
-  if (itemsError) {
-    // Roll back the order header to avoid orphan — best effort.
-    await supabase.from("authorized_orders").delete().eq("id", order.id);
-    return { error: `Error al guardar los ítems: ${itemsError.message}` };
-  }
-
-  await logAudit(supabase, { action: "order.created_manual", authorizedOrderId: order.id });
-  revalidatePath("/orders");
-  if (projectId) revalidatePath(`/projects/${projectId}`);
-  return { error: null, id: order.id as string };
+export async function createManualOrder(formData:FormData) {
+ const {confirmDirectPurchaseAction}=await import("./direct-purchase-actions");
+ const id=formData.get("preview_id")?.toString();const hash=formData.get("preview_hash")?.toString();
+ if(!id||!hash)return {error:"Prepará y confirmá el preview exacto de compra directa"};
+ return confirmDirectPurchaseAction(id,hash,formData.get("confirm_preview")==="on");
 }
 
 /** OC generada desde una factura ya recibida (la factura queda vinculada). */
@@ -257,11 +126,14 @@ export async function deleteOrder(orderId: string) {
 
   const { data: order } = await admin
     .from("authorized_orders")
-    .select("id, facturado_amount")
+    .select("id, facturado_amount, rfq_allocation_id, direct_purchase_preview_id")
     .eq("id", orderId)
     .eq("empresa_id", empresaId)
     .maybeSingle();
   if (!order) return { error: "Orden no encontrada." };
+  if (order.rfq_allocation_id || order.direct_purchase_preview_id) {
+    return { error: "Una OC confirmada conserva su provenance y no puede eliminarse." };
+  }
   if (order.facturado_amount > 0) {
     return { error: "No se puede eliminar: ya tiene facturas vinculadas." };
   }

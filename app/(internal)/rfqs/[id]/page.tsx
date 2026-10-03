@@ -1,605 +1,163 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getAppOrigin } from "@/lib/app-origin";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import {
-  Attachment,
-  AuthorizedOrder,
-  Provider,
-  QuoteVersion,
-  Rfq,
-  RfqProvider,
-} from "@/lib/types";
+import { getAppOrigin } from "@/lib/app-origin";
+import { loadRfqWorkspace } from "@/lib/rfq/service";
+import { magicLinkOpen } from "@/lib/rfq/domain";
+import type { Provider } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Badge, StatusBadge } from "@/components/ui/badge";
-import { formatDate, formatDateTime, formatMoney, formatNumber } from "@/lib/format";
-import { isRfqOpen, canReopenRfq, rfqClosedReason } from "@/lib/rfq-status";
-import { orderRemaining } from "@/lib/reconciliation";
 import { InviteDialog } from "./invite-dialog";
-import { SelectOfferDialog } from "./select-offer-dialog";
-import { AttachmentLink } from "./attachment-link";
-import { QuoteShareButtons } from "./quote-share-buttons";
-import { ManualQuoteDialog } from "./manual-quote-dialog";
-import { AddAttachmentDialog } from "./add-attachment-dialog";
-import { cancelRfq, reopenRfq, deleteRfq } from "./actions";
-
-export default async function RfqDetailPage({ params }: { params: Promise<{ id: string }> }) {
+import { RfqWorkspace } from "./rfq-workspace";
+import { HumanAction } from "./human-action";
+import { cancelRfq, reopenRfq } from "./actions";
+import {
+  revokeMagicLinkAction,
+  renewMagicLinkAction,
+  closeDiscoveryAction,
+} from "./workflow-actions";
+import { MultiItemQuoteForm } from "@/app/cotizar/[token]/multi-item-quote-form";
+export default async function RfqDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
-  const profile = await requireProfile(["comercial", "administracion", "admin"]);
-  const supabase = await createClient();
-
-  const { data: rfq } = await supabase.from("rfqs").select("*").eq("id", id).single<Rfq>();
-  if (!rfq) notFound();
-
-  const { data: rfqProvidersRaw } = await supabase
-    .from("rfq_providers")
-    .select("*, providers(*)")
-    .eq("rfq_id", id)
-    .order("invited_at")
-    .returns<(RfqProvider & { providers: Provider })[]>();
-  const rfqProviders = rfqProvidersRaw ?? [];
-
-  const { data: activeProviders } = await supabase
+  const profile = await requireProfile([
+    "comercial",
+    "administracion",
+    "admin",
+  ]);
+  const db = await createClient();
+  const { data: header, error } = await db
+    .from("rfqs")
+    .select("id")
+    .eq("id", id)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!header) notFound();
+  const data = await loadRfqWorkspace(db, profile.empresa_id, id);
+  const origin = await getAppOrigin();
+  const { data: vendors, error: vendorError } = await db
     .from("providers")
     .select("*")
+    .eq("empresa_id", profile.empresa_id)
     .eq("active", true)
-    .order("name")
-    .returns<Provider[]>();
-  const invitedIds = new Set(rfqProviders.map((rp) => rp.provider_id));
-  const availableProviders = (activeProviders ?? []).filter((p) => !invitedIds.has(p.id));
-
-  const canSeeQuotes = profile.role === "comercial" || profile.role === "admin";
-  const canManage = profile.role === "comercial" || profile.role === "admin";
-
-  const latestByRfqProvider = new Map<string, QuoteVersion & { attachment: Attachment | null }>();
-  if (canSeeQuotes && rfqProviders.length > 0) {
-    const rfqProviderIds = rfqProviders.map((rp) => rp.id);
-    const { data: quotes } = await supabase
-      .from("quotes")
-      .select("id, rfq_provider_id")
-      .in("rfq_provider_id", rfqProviderIds);
-    const quoteIdToRfqProvider = new Map((quotes ?? []).map((q) => [q.id, q.rfq_provider_id]));
-
-    if (quotes && quotes.length > 0) {
-      const { data: versions } = await supabase
-        .from("quote_versions")
-        .select("*")
-        .in(
-          "quote_id",
-          quotes.map((q) => q.id)
-        )
-        .order("version_number", { ascending: false })
-        .returns<QuoteVersion[]>();
-
-      const { data: attachments } = await supabase
-        .from("attachments")
-        .select("*")
-        .in("id", (versions ?? []).map((v) => v.pdf_attachment_id))
-        .returns<Attachment[]>();
-      const attachmentById = new Map((attachments ?? []).map((a) => [a.id, a]));
-
-      for (const v of versions ?? []) {
-        const rpId = quoteIdToRfqProvider.get(v.quote_id);
-        if (!rpId) continue;
-        if (!latestByRfqProvider.has(rpId)) {
-          latestByRfqProvider.set(rpId, {
-            ...v,
-            attachment: v.pdf_attachment_id ? attachmentById.get(v.pdf_attachment_id) ?? null : null,
-          });
-        }
-      }
-    }
-  }
-
-  const { data: rfqAttachments } = await supabase
-    .from("attachments")
-    .select("*")
-    .eq("rfq_id", id)
-    .order("created_at")
-    .returns<Attachment[]>();
-
-  // RFQ multi-ítem (costeo): precios por línea de la última versión de cada
-  // proveedor, y los adjuntos que subió cada uno (para cargar precios a mano).
-  const { data: rfqItemsData } = await supabase
-    .from("rfq_items")
-    .select("id, descripcion, cantidad, unidad")
-    .eq("rfq_id", id)
-    .order("sort_order");
-  const rfqItems = (rfqItemsData ?? []).map((it) => ({ ...it, cantidad: Number(it.cantidad) }));
-  const isMultiItem = rfqItems.length > 0;
-
-  const itemPricesByVersion = new Map<string, Map<string, number | null>>();
-  if (isMultiItem && latestByRfqProvider.size > 0) {
-    const versionIds = [...latestByRfqProvider.values()].map((v) => v.id);
-    const { data: versionItems } = await supabase
-      .from("quote_version_items")
-      .select("quote_version_id, rfq_item_id, precio_unitario")
-      .in("quote_version_id", versionIds);
-    for (const vi of versionItems ?? []) {
-      const m = itemPricesByVersion.get(vi.quote_version_id) ?? new Map<string, number | null>();
-      m.set(vi.rfq_item_id, vi.precio_unitario == null ? null : Number(vi.precio_unitario));
-      itemPricesByVersion.set(vi.quote_version_id, m);
-    }
-  }
-
-  const providerAttachments = new Map<string, Attachment[]>();
-  if (isMultiItem && rfqProviders.length > 0) {
-    const { data: provAtt } = await supabase
-      .from("attachments")
-      .select("*")
-      .in("rfq_provider_id", rfqProviders.map((rp) => rp.id))
-      .order("created_at", { ascending: false })
-      .returns<Attachment[]>();
-    for (const a of provAtt ?? []) {
-      const key = (a as Attachment & { rfq_provider_id: string | null }).rfq_provider_id;
-      if (!key) continue;
-      providerAttachments.set(key, [...(providerAttachments.get(key) ?? []), a]);
-    }
-  }
-  const canEnterPrices = ["comercial", "administracion", "admin"].includes(profile.role ?? "");
-
-  let authorizedOrder: AuthorizedOrder | null = null;
-  if (rfq.selected_rfq_provider_id) {
-    const { data } = await supabase
-      .from("authorized_orders")
-      .select("*")
-      .eq("rfq_id", id)
-      .maybeSingle<AuthorizedOrder>();
-    authorizedOrder = data ?? null;
-  }
-
-  // Cheapest quote received per currency, purely a visual suggestion — the
-  // final call (and the required justification if picking something else)
-  // still happens in SelectOfferDialog when someone actually authorizes.
-  const cheapestByCurrency = new Map<string, { rfqProviderId: string; total: number }>();
-  for (const [rpId, q] of latestByRfqProvider) {
-    const current = cheapestByCurrency.get(q.currency);
-    if (!current || q.total_price < current.total) {
-      cheapestByCurrency.set(q.currency, { rfqProviderId: rpId, total: q.total_price });
-    }
-  }
-  const suggestedRfqProviderIds = new Set(
-    [...cheapestByCurrency.values()].map((c) => c.rfqProviderId)
-  );
-
-  const appUrl = await getAppOrigin();
-  const open = isRfqOpen(rfq);
-  const closedReason = rfqClosedReason(rfq);
-  const canInvite = canManage && open;
-  const hasQuotes = latestByRfqProvider.size > 0;
-  const canSelect = canManage && !isMultiItem && !rfq.selected_rfq_provider_id && hasQuotes && rfq.status !== "CANCELADO";
-  const canCancel = canManage && ["BORRADOR", "COTIZANDO", "OFERTAS_RECIBIDAS"].includes(rfq.status);
-  const canDelete = profile.role === "admin" && ["CANCELADO", "BORRADOR"].includes(rfq.status);
-  const canReopen = canManage && canReopenRfq(rfq);
-  const actuallyExpired = new Date(rfq.expires_at).getTime() <= Date.now();
-
-  const respondedQuotes = Array.from(latestByRfqProvider.entries()).map(([rpId, quote]) => {
-    const rp = rfqProviders.find((p) => p.id === rpId);
-    return {
-      rfqProviderId: rpId,
-      providerName: rp?.providers.name ?? "Proveedor",
-      quote,
-      isSuggested: !rfq.selected_rfq_provider_id && suggestedRfqProviderIds.has(rpId),
-    };
-  });
-
+    .order("name");
+  if (vendorError) throw new Error(vendorError.message);
+  const open =
+    ["BORRADOR", "COTIZANDO", "OFERTAS_RECIBIDAS"].includes(data.rfq.status) &&
+    Date.parse(data.rfq.expires_at) > Date.now();
   return (
-    <div className="max-w-4xl space-y-5">
-      <Link href="/rfqs" className="text-action text-[12px] text-[var(--muted)]">
-        ← Volver a Cotizaciones
+    <main className="max-w-7xl space-y-5">
+      <Link href="/rfqs" className="underline">
+        Volver a solicitudes
       </Link>
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-[17px] font-semibold">{rfq.code}</h1>
-            <Badge tone={open ? "warn" : "neutral"}>{open ? "Abierta" : "Cerrada"}</Badge>
-            {closedReason ? <span className="text-[11px] text-[var(--muted)]">{closedReason}</span> : null}
-          </div>
-          <p className="text-[13px] text-[var(--muted)]">
-            {rfq.product} · {formatNumber(rfq.quantity, 2)} {rfq.unit}
-          </p>
-          {open || actuallyExpired ? (
-            <p className="text-[11px] text-[var(--muted)] mt-0.5">
-              {open ? `Vence: ${formatDateTime(rfq.expires_at)}` : `Venció: ${formatDateTime(rfq.expires_at)}`}
-            </p>
-          ) : null}
-        </div>
-        <div className="flex gap-2">
-          {canReopen ? (
-            <form
-              action={async () => {
-                "use server";
-                await reopenRfq(rfq.id);
-              }}
+      <h1 className="text-xl font-semibold">
+        {data.rfq.code} — {data.rfq.product}
+      </h1>
+      <p>
+        Propósito: {data.rfq.purpose ?? "Histórico sin definir"} · Estado:{" "}
+        {data.rfq.status} · Vence: {data.rfq.expires_at}
+      </p>
+      <p>{data.rfq.specifications}</p>
+      <p>
+        El sistema propone. El humano asigna, autoriza y confirma la compra.
+      </p>
+      {open && (
+        <InviteDialog
+          rfqId={id}
+          availableProviders={
+            (vendors ?? []).filter(
+              (v) => !data.providers.some((p) => p.provider_id === v.id),
+            ) as Provider[]
+          }
+          trigger={<Button>Invitar proveedores</Button>}
+        />
+      )}
+      {["BORRADOR", "COTIZANDO", "OFERTAS_RECIBIDAS"].includes(
+        data.rfq.status,
+      ) && (
+        <HumanAction
+          label="Cancelar solicitud"
+          action={cancelRfq.bind(null, id)}
+        />
+      )}
+      {data.rfq.status !== "AUTORIZADO" && !data.rfq.closed_at && !open && (
+        <HumanAction
+          label="Reabrir solicitud"
+          action={reopenRfq.bind(null, id)}
+        />
+      )}
+      <h2 className="font-semibold">Proveedores y links individuales</h2>
+      {data.providers.map((p) => (
+        <div key={p.id} className="border rounded p-3 space-y-2">
+          <strong>{p.providers?.name}</strong>
+          <span> · {p.status}</span>
+          {magicLinkOpen(p, data.rfq) ? (
+            <a
+              className="block underline break-all"
+              href={`${origin}/cotizar/${p.token}`}
+              target="_blank"
+              rel="noreferrer"
             >
-              <Button variant="secondary" type="submit">
-                Reabrir solicitud (72hs)
-              </Button>
-            </form>
-          ) : null}
-          {canCancel ? (
-            <form
-              action={async () => {
-                "use server";
-                await cancelRfq(rfq.id);
-              }}
-            >
-              <Button variant="danger" type="submit">
-                Cancelar solicitud
-              </Button>
-            </form>
-          ) : null}
-          {canDelete ? (
-            <form
-              action={async () => {
-                "use server";
-                await deleteRfq(rfq.id);
-              }}
-            >
-              <Button variant="danger" type="submit">
-                Eliminar
-              </Button>
-            </form>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 grid grid-cols-2 gap-3 text-[13px]">
-        <div>
-          <div className="text-[11px] text-[var(--muted)] mb-0.5">Especificaciones</div>
-          <div>{rfq.specifications ?? "-"}</div>
-        </div>
-        <div>
-          <div className="text-[11px] text-[var(--muted)] mb-0.5">Referencia interna</div>
-          <div>{rfq.internal_reference ?? "-"}</div>
-        </div>
-        <div>
-          <div className="text-[11px] text-[var(--muted)] mb-0.5">Fecha requerida</div>
-          <div>{formatDate(rfq.required_date)}</div>
-        </div>
-        <div>
-          <div className="text-[11px] text-[var(--muted)] mb-0.5">Mostrar cliente al proveedor</div>
-          <div>{rfq.mostrar_cliente_al_proveedor ? "Sí" : "No"}</div>
-        </div>
-        <div className="col-span-2">
-          <div className="text-[11px] text-[var(--muted)] mb-0.5">Observaciones</div>
-          <div>{rfq.observations ?? "-"}</div>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-[14px] font-semibold">Archivos de referencia</h2>
-          {canManage ? (
-            <AddAttachmentDialog rfqId={rfq.id} trigger={<Button variant="secondary" className="h-7 px-2 text-[12px]">Agregar archivo</Button>} />
-          ) : null}
-        </div>
-        {(rfqAttachments ?? []).length === 0 ? (
-          <p className="text-[13px] text-[var(--muted)]">
-            Sin archivos cargados. Subí, por ejemplo, la ficha del producto a cotizar (onzas, colores, etc.)
-            para que los proveedores la vean al cotizar.
-          </p>
-        ) : (
-          <ul className="space-y-1">
-            {(rfqAttachments ?? []).map((a) => (
-              <li key={a.id} className="text-[13px]">
-                <AttachmentLink bucket={a.bucket} path={a.path} fileName={a.file_name} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {authorizedOrder ? (
-        <Link
-          href={`/orders/${authorizedOrder.id}`}
-          className="block rounded-lg border border-[var(--ok)]/30 bg-[var(--ok-bg)] p-4 text-[13px] hover:border-[var(--ok)]/60"
-        >
-          <div className="font-medium mb-1">Orden autorizada →</div>
-          <p>
-            {authorizedOrder.provider_name} · {formatMoney(authorizedOrder.total_price, authorizedOrder.currency)}
-            {authorizedOrder.is_cheapest ? " · oferta más económica" : ` · motivo: ${authorizedOrder.selection_reason}`}
-          </p>
-          <p className="text-[12px] mt-1">
-            Facturado: {formatMoney(authorizedOrder.facturado_amount, authorizedOrder.currency)} · Saldo:{" "}
-            {formatMoney(
-              orderRemaining(authorizedOrder.total_price, authorizedOrder.facturado_amount),
-              authorizedOrder.currency
-            )}
-          </p>
-          <p className="text-[11px] text-[var(--muted)] mt-1">
-            Autorizada el {formatDateTime(authorizedOrder.authorized_at)}
-          </p>
-        </Link>
-      ) : null}
-
-      {isMultiItem ? (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[14px] font-semibold">Comparativa por ítem</h2>
-            <span className="text-[12px] text-[var(--muted)]">
-              {rfqItems.length} ítems · {respondedQuotes.length} cotización{respondedQuotes.length === 1 ? "" : "es"}
-            </span>
-          </div>
-          <p className="text-[12px] text-[var(--muted)]">
-            Solicitud de costeo: estos precios alimentan el presupuesto de costo de la obra. El más bajo de cada ítem
-            queda marcado.
-          </p>
-          {canSeeQuotes && respondedQuotes.length > 0 ? (
-            <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-x-auto">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Ítem</th>
-                    <th className="num">Cantidad</th>
-                    {respondedQuotes.map((q) => (
-                      <th key={q.rfqProviderId} className="num">
-                        {q.providerName}
-                        <div className="text-[10px] font-normal text-[var(--muted)]">
-                          {q.quote.currency} · {q.quote.vat_included ? "IVA incl." : "+ IVA"}
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rfqItems.map((it) => {
-                    const cells = respondedQuotes.map((q) => itemPricesByVersion.get(q.quote.id)?.get(it.id) ?? null);
-                    const priced = cells.filter((c): c is number => c != null && c > 0);
-                    const min = priced.length > 0 ? Math.min(...priced) : null;
-                    return (
-                      <tr key={it.id}>
-                        <td>{it.descripcion}</td>
-                        <td className="num whitespace-nowrap">
-                          {formatNumber(it.cantidad, Number.isInteger(it.cantidad) ? 0 : 2)} {it.unidad}
-                        </td>
-                        {cells.map((c, idx) => (
-                          <td key={idx} className={`num ${c != null && c === min && priced.length > 1 ? "font-semibold text-[var(--ok)]" : ""}`}>
-                            {c == null ? <span className="text-[var(--muted)]">No cotiza</span> : formatMoney(c, respondedQuotes[idx].quote.currency)}
-                          </td>
-                        ))}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td colSpan={2} className="text-right font-semibold">Total</td>
-                    {respondedQuotes.map((q) => (
-                      <td key={q.rfqProviderId} className="num font-semibold">
-                        {formatMoney(q.quote.total_price, q.quote.currency)}
-                      </td>
-                    ))}
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+              Link del proveedor
+            </a>
           ) : (
-            <p className="text-[13px] text-[var(--muted)]">
-              {canSeeQuotes
-                ? "Todavía no hay cotizaciones con precios. Mandá el link o el QR a los proveedores, o cargá a mano los precios de un adjunto."
-                : "Tu rol no ve los precios cotizados."}
-            </p>
+            <p>Link vencido o revocado</p>
+          )}
+          <HumanAction
+            label="Revocar link"
+            action={revokeMagicLinkAction.bind(null, id, p.id)}
+          />
+          {open && (
+            <HumanAction
+              label="Renovar link (invalida el anterior)"
+              action={renewMagicLinkAction.bind(null, id, p.id)}
+            />
+          )}
+          {open && !p.token_revoked_at && (
+            <details>
+              <summary>
+                Cargar nueva versión desde documento del proveedor
+              </summary>
+              <MultiItemQuoteForm token={p.id} items={data.items} internal />
+            </details>
           )}
         </div>
+      ))}
+      {data.rfq.purpose === "COST_DISCOVERY" && !data.rfq.closed_at ? (
+        <HumanAction
+          label="Finalizar sin OC"
+          confirmation="Confirmo cerrar el descubrimiento de costos sin compra"
+          action={closeDiscoveryAction.bind(null, id)}
+        />
+      ) : data.rfq.closed_at ? (
+        <p>
+          Descubrimiento cerrado por decisión humana: {data.rfq.closed_at}.
+          Ninguna OC generada.
+        </p>
       ) : null}
-
-      {/* Cuadro Comparativo de Ofertas */}
-      {!isMultiItem && canSeeQuotes && respondedQuotes.length > 0 ? (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[14px] font-semibold">Cuadro Comparativo de Ofertas</h2>
-            <span className="text-[12px] text-[var(--muted)]">
-              {respondedQuotes.length} oferta{respondedQuotes.length > 1 ? "s" : ""} recibida{respondedQuotes.length > 1 ? "s" : ""}
-            </span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {respondedQuotes.map(({ rfqProviderId, providerName, quote, isSuggested }) => (
-              <div
-                key={rfqProviderId}
-                className={`rounded-lg border p-4 space-y-3 ${
-                  isSuggested
-                    ? "border-[var(--ok)]/40 bg-[var(--ok-bg)]/20"
-                    : "border-[var(--border)] bg-[var(--panel)]"
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="font-semibold text-[14px] flex items-center gap-1.5">
-                      {providerName}
-                      {isSuggested ? <Badge tone="ok">Mejor Precio</Badge> : null}
-                    </div>
-                    <div className="text-[12px] text-[var(--muted)]">
-                      Ppto: {quote.budget_number || "-"} · Versión #{quote.version_number}
-                    </div>
-                  </div>
-                  {canSelect ? (
-                    <SelectOfferDialog
-                      rfqId={rfq.id}
-                      rfqProviderId={rfqProviderId}
-                      quoteVersionId={quote.id}
-                      providerName={providerName}
-                      totalPrice={quote.total_price}
-                      currency={quote.currency}
-                      trigger={<Button className="h-7 px-3 text-[12px]">Adjudicar Oferta</Button>}
-                    />
-                  ) : null}
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-[12px] pt-1 border-t border-[var(--border)]/60">
-                  <div>
-                    <span className="text-[var(--muted)]">Precio Unitario:</span>{" "}
-                    <span className="font-medium">{formatMoney(quote.unit_price, quote.currency)}</span>
-                  </div>
-                  <div>
-                    <span className="text-[var(--muted)]">Precio Total:</span>{" "}
-                    <span className="font-semibold">{formatMoney(quote.total_price, quote.currency)}</span>
-                  </div>
-                  <div>
-                    <span className="text-[var(--muted)]">Plazo Entrega:</span>{" "}
-                    <span>{quote.delivery_time || "-"}</span>
-                  </div>
-                  <div>
-                    <span className="text-[var(--muted)]">Validez Oferta:</span>{" "}
-                    <span>{quote.offer_validity || "-"}</span>
-                  </div>
-                  <div>
-                    <span className="text-[var(--muted)]">Condición Fiscal:</span>{" "}
-                    <span>{quote.vat_included ? "IVA Incluido" : "Más IVA"}</span>
-                  </div>
-                  <div>
-                    <span className="text-[var(--muted)]">Factura:</span>{" "}
-                    <span>{quote.invoice_available ? "Disponible" : "Sin Factura"}</span>
-                  </div>
-                </div>
-
-                {quote.observations ? (
-                  <p className="text-[12px] text-[var(--muted)] italic border-t border-[var(--border)]/40 pt-1">
-                    "{quote.observations}"
-                  </p>
-                ) : null}
-
-                {quote.attachment ? (
-                  <div className="pt-1">
-                    <AttachmentLink
-                      bucket={quote.attachment.bucket}
-                      path={quote.attachment.path}
-                      fileName={`Presupuesto PDF (${quote.attachment.file_name || "descargar"})`}
-                    />
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-[14px] font-semibold">Proveedores invitados</h2>
-          {canInvite ? (
-            <InviteDialog
-              rfqId={rfq.id}
-              availableProviders={availableProviders}
-              trigger={<Button variant="secondary">Invitar proveedores</Button>}
-            />
-          ) : null}
-        </div>
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
-          <table>
-            <thead>
-              <tr>
-                <th>Proveedor</th>
-                <th>Estado</th>
-                {canSeeQuotes ? (
-                  <>
-                    <th>Presupuesto</th>
-                    <th className="num">Total</th>
-                    <th>Entrega</th>
-                    <th>Adjunto</th>
-                    <th></th>
-                  </>
-                ) : null}
-                <th>Enlace portal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rfqProviders.map((rp) => {
-                const quote = latestByRfqProvider.get(rp.id);
-                const portalUrl = `${appUrl}/cotizar/${rp.token}`;
-                return (
-                  <tr key={rp.id}>
-                    <td className="font-medium">{rp.providers.name}</td>
-                    <td>
-                      <span className="inline-flex items-center gap-1.5">
-                        <StatusBadge status={rp.status} />
-                        {!rfq.selected_rfq_provider_id && suggestedRfqProviderIds.has(rp.id) ? (
-                          <Badge tone="ok">Sugerida</Badge>
-                        ) : null}
-                      </span>
-                    </td>
-                    {canSeeQuotes ? (
-                      <>
-                        <td>{quote?.budget_number ?? "-"}</td>
-                        <td className="num">
-                          {quote ? formatMoney(quote.total_price, quote.currency) : "-"}
-                        </td>
-                        <td>{quote?.delivery_time ?? "-"}</td>
-                        <td>
-                          {quote?.attachment ? (
-                            <AttachmentLink
-                              bucket={quote.attachment.bucket}
-                              path={quote.attachment.path}
-                              fileName="PDF"
-                            />
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-                        <td>
-                          {canSelect && quote ? (
-                            <SelectOfferDialog
-                              rfqId={rfq.id}
-                              rfqProviderId={rp.id}
-                              quoteVersionId={quote.id}
-                              providerName={rp.providers.name}
-                              totalPrice={quote.total_price}
-                              currency={quote.currency}
-                              trigger={
-                                <Button className="h-6 px-2 text-[12px]">Autorizar</Button>
-                              }
-                            />
-                          ) : null}
-                        </td>
-                      </>
-                    ) : null}
-                    <td>
-                      <div className="flex flex-col items-start gap-1">
-                        {rp.status !== "RESPONDIDO" || isMultiItem ? (
-                          <QuoteShareButtons
-                            url={portalUrl}
-                            providerName={rp.providers.name}
-                            phone={rp.providers.phone ?? null}
-                            rfqCode={rfq.code}
-                          />
-                        ) : (
-                          <span className="text-[var(--muted)]">-</span>
-                        )}
-                        {isMultiItem && canEnterPrices ? (
-                          <ManualQuoteDialog
-                            rfqProviderId={rp.id}
-                            providerName={rp.providers.name}
-                            items={rfqItems}
-                            attachments={(providerAttachments.get(rp.id) ?? []).map((a) => ({
-                              id: a.id,
-                              bucket: a.bucket,
-                              path: a.path,
-                              file_name: a.file_name,
-                            }))}
-                            trigger={
-                              <button type="button" className="text-[12px] text-[var(--primary)] underline hover:no-underline">
-                                Cargar precios del adjunto
-                              </button>
-                            }
-                          />
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {rfqProviders.length === 0 ? (
-                <tr>
-                  <td colSpan={canSeeQuotes ? 8 : 3} className="text-center text-[var(--muted)] py-6">
-                    Todavía no invitaste proveedores.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+      <RfqWorkspace
+        rfqId={id}
+        purpose={data.rfq.purpose}
+        projectId={data.rfq.project_id}
+        items={data.items}
+        offers={data.offers}
+        allocations={data.allocations}
+        canAdopt={profile.role === "admin" || profile.role === "administracion"}
+      />
+      <details>
+        <summary>Historial de versiones ({data.history.length})</summary>
+        {data.history.map((v) => (
+          <p key={String(v.id)}>
+            Versión {String(v.version_number)} · {String(v.budget_number)} ·{" "}
+            {String(v.total_price)} {String(v.currency)} ·{" "}
+            {String(v.submitted_at)} · {String(v.id)}
+          </p>
+        ))}
+      </details>
+    </main>
   );
 }

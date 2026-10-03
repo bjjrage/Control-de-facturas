@@ -12,7 +12,7 @@ Este mapa usa nombres que aparecen en consultas de la aplicación o en tools. No
 
 ## Compras
 
-`rfqs` se relaciona con `projects`, `rfq_items` y `rfq_suppliers`; estos últimos enlazan proveedores. `rfq_responses` contiene respuestas que `compare_quotations` compara. La preparación de OC usa `purchase_order_drafts` y `purchase_order_draft_items`; las órdenes autorizadas usan `authorized_orders` y `authorized_order_items`.
+`rfqs` tiene purpose explícito y se relaciona con `projects`, `rfq_items`, `rfq_providers`, `quotes`, `quote_versions` y `quote_version_items`. Cada corrección crea una versión nueva. `rfq_quote_reviews` conserva reconciliación. El sistema solo propone; `rfq_allocations` registra asignación y autorización humanas. Solo la confirmación del preview exacto genera `authorized_orders` y `authorized_order_items`. COST_DISCOVERY nunca crea OCs. Compra directa conserva un flujo separado con `direct_purchase_previews`.
 
 ## Facturas y pagos
 

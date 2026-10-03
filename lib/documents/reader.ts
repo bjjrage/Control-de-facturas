@@ -85,7 +85,8 @@ async function extractXlsxStructured(buffer: Buffer, maxRows: number, maxSheets:
   const sheets = workbook.SheetNames.slice(0, maxSheets).map((name) => {
     const sheet = workbook.Sheets[name];
     const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null, raw: false });
-    const rows = json.slice(0, maxRows);
+    // SheetJS may return rows with a custom prototype; Server Actions require plain objects.
+    const rows = json.slice(0, maxRows).map(row => ({ ...row }));
     const cols = rows.length > 0 ? Object.keys(rows[0] as Record<string, unknown>) : [];
     return { name, rows, cols };
   });
@@ -150,6 +151,9 @@ export async function readDocumentContent(params: DocumentReadParams): Promise<D
     }
 
     fileBuffer = Buffer.from(await fileData.arrayBuffer());
+    if (attachment.original_sha256 && createHash("sha256").update(fileBuffer).digest("hex") !== attachment.original_sha256) {
+      throw new Error("El documento original no coincide con el checksum registrado");
+    }
   } catch (e) {
     return {
       documentId: attachment.id,

@@ -227,6 +227,11 @@ export function suggestMaterialPrice(args: {
  */
 export function offerExpiryDate(submittedAt: string | null, offerValidity: string | null): string | null {
   if (!submittedAt || !offerValidity) return null;
+  // RFQ 2.0 supplies a factual absolute expiry, not an inferred duration.
+  if (/^\d{4}-\d{2}-\d{2}(?:[T ].*)?$/.test(offerValidity.trim())) {
+    const absolute = new Date(offerValidity.trim());
+    return Number.isFinite(absolute.getTime()) ? absolute.toISOString().slice(0, 10) : null;
+  }
   const m = offerValidity.trim().toLowerCase().match(/^(\d+(?:[.,]\d+)?)\s*(d[ií]as?|semanas?|mes(?:es)?)$/);
   if (!m) return null;
   const n = Number(m[1].replace(",", "."));
