@@ -126,6 +126,7 @@ async function main(){const c=await connect();const company=crypto.randomUUID(),
  await c.query('ROLLBACK');
  const foreign=(await c.query("select id from public.profiles where empresa_id<>$1 and active and role='admin' limit 1",[company])).rows[0];assert.ok(foreign);
  await c.query('BEGIN');await claim(c,'authenticated',foreign.id);await reject(()=>c.query('select public.weekly_plan_need_sources($1)',[plan]),'foreign tenant cannot read source snapshot','42501');assert.equal((await c.query('select count(*) n from public.weekly_plan_material_needs where plan_id=$1',[plan])).rows[0].n,'0');pass('foreign tenant RLS hides material needs');await c.query('ROLLBACK');
+ await require('./batch-08-audit-regressions.cjs')(c,{company,actor,provider,product,claim,pass,reject});
  console.log(JSON.stringify({tests:tests.length,passed:tests,fixturePolicy:'one isolated B08 tenant retained only in Preview for true concurrent retries; other scenarios rolled back'}));
  }finally{await c.query('ROLLBACK');await c.end();}}
 main().catch(e=>{console.error(e.stack);process.exit(1)});

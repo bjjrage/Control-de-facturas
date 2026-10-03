@@ -80,18 +80,48 @@ This is deliberately conservative tenant serialization. Large tenants may experi
 - 20261003191155_weekly_plan_commit_source_gate.sql
 - 20261003193500_weekly_plan_retry_target_order.sql
 
-All seven applied only to xddlzgjwufskgasomval. Baseline ledger 36 → final 43.
+The initial seven plus one external-audit corrective migration applied only to xddlzgjwufskgasomval. Baseline ledger 36 → 43 → final 44.
 Corrective migrations are additive; already applied files were not edited. No historical migration was changed.
+
+- 20261003195245_weekly_need_audit_capping_and_rfq_residual.sql
+
+## External audit correction — P1-A / P1-B
+
+Audited old HEAD: 49c21b44e99aa3982218edbe9e51fe4d14d4b855. Same branch and PR #28. Surgical DB-only behavioral corrections; no functional TS/UI change. The original seven migration files remain unchanged.
+
+### P1-A: certificate baseline capping parity
+
+Root cause: tmp_item_budget_tracking executed_qty used private.weekly_executed_quantity, but remaining_qty still subtracted the raw lifetime sum of daily execution_entries. The earlier B08 fixture had no certificate and missed this discrepancy.
+Fix: remaining_qty now subtracts the same canonical private.weekly_executed_quantity(project,item); removed the obsolete daily join/group. No second progress engine.
+Real Preview regression reads certificates/daily entries, invokes existing computeBaselineWithDeltas and calculateWeeklyPlanRequirements, then compares every persisted target in position order. Pre-fix witness: contractual 100 / certificate 80 / only 10 recorded before or on cutoff, request 30: engine 20 versus persisted 30 (FAIL reproduced). Corrected cases: certificate only → 20; certificate 80 + later delta 5 → 15; no certificate / actual 85 → 15; ordered multi-front [12,30] → [12,3]. Earlier/on-cutoff entries are intentionally different from baseline to expose rather than mask double counting. All four cases also retry and assert stable plan identity and exact persisted targets.
+
+### P1-B: RFQ current residual versus immutable history
+
+Root cause: refresh cleared a completed Direct Purchase pointer but never released a completed RFQ decision. Pre-fix Preview witness reached the canonical partial authorized OC and still returned the old RFQ as the current decision.
+Fix: positive residual releases its active pointer when the source snapshot changed and the RFQ has an AUTORIZADO order via rfq_id / canonical allocation relationship. It also releases a closed RFQ without OC, including unchanged physical sources. Lifecycle is taken from lib/rfq-status.ts and actual cancel/reopen actions: BORRADOR/COTIZANDO/OFERTAS_RECIBIDAS are bidding; non-bidding status, closed_at or expiry is closed. There is no invented CLOSED status. A genuinely open RFQ without committed result remains active across refresh. RFQ writes share the existing source serialization trigger so lifecycle reads happen under the same tenant boundary.
+The decision row, old RFQ quantity, allocation and old order are untouched. Refresh creates no RFQ. A new explicit COTIZAR calls the existing canonical RFQ gateway to create only the current residual PROCUREMENT request, with no providers/allocation/award/order.
+Actual Preview test: need 10 → explicit RFQ A → explicit invitation, factual original-attachment/quote version/review, manual allocation 6, authorization, preview and human confirm → authorized net supply 6 → residual 4 on the same logical need → history preserved, pointer null, still one RFQ → explicit RFQ B, quantity 4, purpose PROCUREMENT, zero invitations and allocations, no additional OC. Canonical confirm retry creates no duplicate OC. Cancelled and expired RFQs without OC release the pointer on refresh and retain history.
+
+### Correction validation
+
+- Focused B08 + RFQ: 226/226 PASS (14 files).
+- Real Preview DB suite: 55/55 PASS, including all prior 37 plus 18 audit cases. Corrective fixtures roll back; prior concurrency fixtures remain isolated in Preview.
+- B05 real Preview regression: 29/29 PASS.
+- Standalone RFQ/procurement regression: 51/51 PASS (3 files).
+- Full suite: 1465 PASS / 16 skipped, 157 passed files / 2 skipped; 220.06 seconds, exit 0. First concurrent attempt exceeded hooks in legacy PGlite initialization and was stopped; rerun uses one worker and hookTimeout 60000 after the build finished. No tests or functionality were weakened.
+- Typecheck: PASS; Webpack build: PASS; diff check: PASS.
+- Preview ledger: 44, exactly one corrective migration after audited 43. Production read-only ledger: 36, corrective migration absent.
+- Security Advisor counts unchanged by correction (including 96 authenticated SD notices, 5 deliberate B08 additions to the legacy 91). No new RPC or execution grants.
 
 ## Verification evidence (2026-10-03)
 
 - Focused Vitest: 170/170 PASS across 10 files, including 38 new server/canonical coverage/procurement action cases.
-- Full Vitest: 1465 PASS / 16 skipped, 157 passed files / 2 skipped; latest completed run 239.21 seconds. Skips are existing suite configuration; excluded live/e2e tests are not claimed tested.
+- Full Vitest: 1465 PASS / 16 skipped, 157 passed files / 2 skipped; initial publication run 239.21 seconds; correction run 220.06 seconds. Skips are existing suite configuration; excluded live/e2e tests are not claimed tested.
 - TypeScript noEmit: PASS (exit 0).
 - Next.js 16.3.1 build --webpack: PASS (exit 0, Preview environment only).
 - scripts/batch-08-preview.cjs: 37/37 PASS against actual Preview Postgres. Includes two separate connections racing refresh, RFQ, DP preview and human order confirmation; stale stock/receipt/BOM gates; RLS/ACL; partial receipt; need residual and reservation replacement. Script uses actual engine and allocator for main BOM case; tailored boundary cases explicitly supply controlled service-role quantities.
 - Existing scripts/batch-05-adversarial.cjs: 29/29 PASS in Preview, including different-key logical initial stock retry and receipt concurrency.
-- Preview project ACTIVE_HEALTHY verified. Final ledger 43; new RPC grants inspected READ ONLY.
+- Preview project ACTIVE_HEALTHY verified. Final ledger 44; new RPC grants inspected READ ONLY.
 - Production ledger rechecked READ ONLY: 36; Batch 08 migrations absent.
 - Git remote main rechecked: frozen base above.
 - git diff --check: PASS.
