@@ -1,4 +1,17 @@
-# BATCH MANIFEST — Fase -1 Git freeze
+# Batch 04 — manifiesto vigente
+
+- Rama: `batch/04-prebid-workspace`.
+- Base: `be1bd17cf82de5bb64f45e0f28a9a6bd1a18efb3`.
+- Decisión autorizada: PREBID pertenece a licitación; ejecución pertenece a proyecto. Motores comunes, sin proyecto ficticio.
+- Alcance y allowlist: `BATCH-04-MANIFEST.md`.
+- Archivos esperados: 24, enumerados en ese manifiesto.
+- Migrations nuevas: 8, aplicadas únicamente a `xddlzgjwufskgasomval` (Preview).
+- Publicación autorizada: push de la rama y PR contra main; sin merge ni producción.
+- Resultado: listo para auditoría externa. Handoff Tender→Project sigue fuera de este batch.
+
+---
+
+# BATCH MANIFEST — Fase -1 Git freeze (histórico)
 
 ## Identidad
 

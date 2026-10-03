@@ -36,7 +36,7 @@ const SELECT_COLS = "id, empresa_id, usuario_id, modulo, contexto, snapshot, est
 
 export async function crearPlanilla(modulo: string, contextoRaw: unknown): Promise<PlanillaSessionRow> {
   if (!isPlanillaModulo(modulo)) throw new Error(`Módulo de planilla desconocido: ${modulo}`);
-  const profile = await requireProfile(["administracion", "admin"]);
+  const profile = await requireProfile(["comercial", "administracion", "admin"]);
   const supabase = await createClient();
   const adapter = getPlanillaAdapter(modulo);
 
@@ -81,7 +81,7 @@ export async function obtenerPlanilla(
   idMaybe?: string
 ): Promise<PlanillaSessionRow> {
   if (typeof idOrSupabase === "string") {
-    const profile = await requireProfile(["administracion", "admin"]);
+    const profile = await requireProfile(["comercial", "administracion", "admin"]);
     const supabase = await createClient();
     return obtenerPlanillaWithClient(supabase, profile.empresa_id, idOrSupabase);
   }
@@ -121,7 +121,7 @@ export async function actualizarSnapshot(
   rowsMaybe?: PlanillaRowMeta[]
 ): Promise<{ updated_at: string }> {
   if (typeof idOrSupabase === "string") {
-    const profile = await requireProfile(["administracion", "admin"]);
+    const profile = await requireProfile(["comercial", "administracion", "admin"]);
     const supabase = await createClient();
     return actualizarSnapshotWithClient(supabase, profile.empresa_id, idOrSupabase, rowsOrEmpresaId as PlanillaRowMeta[]);
   }
@@ -175,7 +175,7 @@ export async function confirmarPlanilla(
   idMaybe?: string
 ): Promise<ConfirmarResultado> {
   if (typeof idOrSupabase === "string") {
-    const profile = await requireProfile(["administracion", "admin"]);
+    const profile = await requireProfile(["comercial", "administracion", "admin"]);
     const supabase: SupabaseClient = await createClient();
     return confirmarPlanillaWithClient(supabase, profile.empresa_id, idOrSupabase);
   }
