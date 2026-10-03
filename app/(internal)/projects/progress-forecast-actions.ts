@@ -172,23 +172,22 @@ export async function runProgressForecastAction(
       });
     }
 
-    // 6. Fetch stock disponible en obra (stock_por_proyecto)
+    // 6. Stock físico confirmado desde el ledger canónico, agrupado por moneda.
     const { data: rawStock } = await supabase
-      .from("stock_por_proyecto")
-      .select("producto_id, qty_disponible, costo_promedio")
+      .from("inventory_stock_by_project")
+      .select("producto_id, quantity")
       .eq("project_id", projectId)
       .eq("empresa_id", empresaId);
 
     // 7. Fetch authorized inbound orders (strictly approved/authorized/in_transit)
-    // Audit: Net inbound must be based on actual physical goods reception (oc_recepciones / oc_recepcion_items / stock_movimientos)
-    // rather than invoiced quantity. Physical reception enters stock_movimientos (ENTRADA with referencia_tipo = 'oc_recepcion'),
-    // which is already reflected in stock_por_proyecto. Thus: netInbound = max(0, totalOrdered - totalPhysicallyReceived).
+    // OC pendiente = cantidad autorizada menos recepciones CONFIRMED.
+    // Lo recibido ya forma parte de inventory_balances; no sumarlo otra vez.
     const { data: rawOrders } = await supabase
       .from("authorized_orders")
       .select("id, status, authorized_order_items(id, producto_id, quantity)")
       .eq("project_id", projectId)
       .eq("empresa_id", empresaId)
-      .in("status", ["approved", "authorized", "in_transit"]);
+      .eq("status", "AUTORIZADO");
 
     // Fetch total physically received quantities by order_item from view oc_order_item_recibido
     const { data: rawReceived } = await supabase
@@ -209,7 +208,7 @@ export async function runProgressForecastAction(
       const pId = st.producto_id;
       stockAndInbound[pId] = {
         producto_id: pId,
-        stock_disponible: Math.max(0, Number(st.qty_disponible) || 0),
+        stock_disponible: (stockAndInbound[pId]?.stock_disponible ?? 0) + Math.max(0, Number(st.quantity) || 0),
         oc_inbound: 0,
       };
     }

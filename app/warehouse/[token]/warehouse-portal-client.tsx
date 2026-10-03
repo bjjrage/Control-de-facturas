@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useRef, type FormEvent } from "react";
 import {
   Package,
   Boxes,
@@ -30,6 +30,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
 
   // State for Consumption tab
   const [selectedProductId, setSelectedProductId] = useState<string>(context.stock[0]?.productId ?? "");
+  const consumptionAttempt = useRef<{ key: string; payload: string } | null>(null);
   const [consumptionQty, setConsumptionQty] = useState<string>("");
   const [selectedBudgetItemId, setSelectedBudgetItemId] = useState<string>("");
   const [withdrawnBy, setWithdrawnBy] = useState<string>("");
@@ -73,6 +74,19 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
     }
 
     form.set("items", JSON.stringify(itemsToReceive));
+    const storageKey = "warehouse-receipt:" + context.token;
+    const payload = JSON.stringify([selectedOrder.id, form.get("fecha"), form.get("recibido_por"), form.get("remision_number"), form.get("notas"), itemsToReceive]);
+    try {
+      const saved = localStorage.getItem(storageKey);
+      const attempt = saved ? JSON.parse(saved) as { key: string; payload: string } : { key: crypto.randomUUID(), payload };
+      if (attempt.payload !== payload) throw new Error("Reintent? primero la recepci?n pendiente con los mismos datos.");
+      localStorage.setItem(storageKey, JSON.stringify(attempt));
+      form.set("idempotency_key", attempt.key);
+    } catch (error) {
+      setReceiptError(error instanceof Error ? error.message : "No se pudo conservar el intento.");
+      setReceiptSubmitting(false);
+      return;
+    }
 
     try {
       const response = await fetch(`/api/warehouse-portal/${encodeURIComponent(context.token)}`, {
@@ -117,6 +131,22 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
 
     const form = new FormData(event.currentTarget);
     form.set("action", "consumption");
+    const payload = JSON.stringify([selectedProductId, qty, selectedBudgetItemId, withdrawnBy, consumptionNotes]);
+    const storageKey = "warehouse-consumption:" + context.token;
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) consumptionAttempt.current = JSON.parse(saved);
+      if (consumptionAttempt.current && consumptionAttempt.current.payload !== payload) {
+        throw new Error("Reintent? primero la salida pendiente con los mismos datos.");
+      }
+      if (!consumptionAttempt.current) consumptionAttempt.current = { key: crypto.randomUUID(), payload };
+      localStorage.setItem(storageKey, JSON.stringify(consumptionAttempt.current));
+      form.set("idempotency_key", consumptionAttempt.current.key);
+    } catch (error) {
+      setConsumptionError(error instanceof Error ? error.message : "No se pudo conservar el intento.");
+      setConsumptionSubmitting(false);
+      return;
+    }
     form.set("producto_id", selectedProductId);
     form.set("quantity", String(qty));
     form.set("budget_item_id", selectedBudgetItemId || "");
@@ -132,6 +162,8 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
       if (!response.ok) {
         setConsumptionError(data.error ?? "No se pudo registrar la salida.");
       } else {
+        localStorage.removeItem(storageKey);
+        consumptionAttempt.current = null;
         setConsumptionSuccess("Salida de materiales registrada con éxito y descontada del stock.");
         setConsumptionQty("");
         setWithdrawnBy("");
@@ -461,7 +493,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
               </label>
 
               <label className="text-xs">
-                Imputar a Partida de Obra (opcional)
+                Imputar a Partida de Obra (obligatorio)
                 <select
                   value={selectedBudgetItemId}
                   onChange={(e) => setSelectedBudgetItemId(e.target.value)}

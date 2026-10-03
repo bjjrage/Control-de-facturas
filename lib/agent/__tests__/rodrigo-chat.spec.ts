@@ -88,7 +88,8 @@ describe("Rodrigo deterministic router", () => {
 
 describe("formatToolAnswer", () => {
   it("resume stock sin inventar cifras", () => {
-    expect(formatToolAnswer("get_stock_availability", { stock_actual: 42, reservado: 2, disponible: 40 })).toContain("42");
+    expect(formatToolAnswer("get_stock_availability", { producto: { stock_actual: 42, unidad: "un" }, por_proyecto: { qty_disponible: 40 } })).toContain("42 un");
+    expect(formatToolAnswer("get_stock_availability", { producto: { stock_actual: 42, unidad: "un" }, por_proyecto: { qty_disponible: 40 } })).toContain("40");
   });
 
   it("marca desconocidos en compare sin convertir a cero", () => {

@@ -230,8 +230,8 @@ export function formatToolAnswer(tool: string, output: unknown): string {
   try {
     switch (tool) {
       case "get_stock_availability": {
-        const s = o as { stock_actual?: number | null; reservado?: number | null; disponible?: number | null };
-        return `Stock actual: ${s.stock_actual ?? "desconocido"}. Reservado: ${s.reservado ?? 0}. Disponible: ${s.disponible ?? "desconocido"}.`;
+        const s = o as { producto?: { stock_actual: number; unidad: string }; por_proyecto?: { qty_disponible: number } | null };
+        return `Stock actual: ${s.producto?.stock_actual ?? "desconocido"} ${s.producto?.unidad ?? ""}.${s.por_proyecto ? ` Disponible en obra: ${s.por_proyecto.qty_disponible}.` : ""}`;
       }
       case "get_material_need": {
         const m = o as { summary?: { total_materials?: number; insufficient?: number; total_shortage?: number } };

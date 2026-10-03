@@ -28,6 +28,13 @@ function request(overrides: Partial<ManualInventoryMovementRequest> = {}): Manua
 }
 
 describe("movimientos humanos de inventario", () => {
+  it("rejects negative opening counts even when a normal negative adjustment is valid", () => {
+    expect(() => validateManualInventoryMovementRequest(request({
+      movementType: "ADJUSTMENT", quantity: -1, fromLocationId: centralId,
+      toLocationId: null, costCurrency: "PYG", reason: "Conteo",
+      initialStockDate: "2026-10-03",
+    }))).toThrow("fecha de carga inicial");
+  });
   it("restaura solo una solicitud persistida con versión y payload válidos", () => {
     expect(parsePersistedManualInventoryAttempt({ version: 1, request: request() })).toEqual(request());
     expect(parsePersistedManualInventoryAttempt({ version: 2, request: request() })).toBeNull();
