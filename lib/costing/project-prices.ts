@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { ownerColumn, type WorkspaceContext } from "@/lib/workspace/context";
 import { calculateCostEstimate } from "@/lib/cost-engine/weighting";
 import type { CostObservation } from "@/lib/cost-engine/types";
 import { offerExpiryDate, suggestMaterialPrice, type CostPriceSource, type QuoteCandidate, type ResolvedPrice } from "./cost-budget";
@@ -109,7 +110,16 @@ export async function resolveProjectMaterialPrices(args: {
   productIds: string[];
   today?: string;
 }): Promise<Map<string, MaterialPriceDetail>> {
-  const { supabase, admin, empresaId, projectId } = args;
+  return resolveContextMaterialPrices({ ...args, context: { kind: "PROJECT", id: args.projectId } });
+}
+
+/** The factual price selector is identical for PREBID and execution. */
+export async function resolveContextMaterialPrices(args: {
+  supabase: SupabaseClient; admin: SupabaseClient; empresaId: string;
+  context: WorkspaceContext; productIds: string[]; today?: string;
+}): Promise<Map<string, MaterialPriceDetail>> {
+  const { supabase, admin, empresaId, context } = args;
+  const column = ownerColumn(context);
   const today = args.today ?? new Date().toISOString().slice(0, 10);
   const productIds = [...new Set(args.productIds)];
   const out = new Map<string, MaterialPriceDetail>();
@@ -121,7 +131,7 @@ export async function resolveProjectMaterialPrices(args: {
       .from("project_cost_prices")
       .select("producto_id, precio_unitario, fuente, quote_version_item_id, updated_at, updated_by")
       .eq("empresa_id", empresaId)
-      .eq("project_id", projectId),
+      .eq(column, context.id),
     supabase
       .from("cost_observations")
       .select("id, producto_id, proveedor_id, documento_id, fuente, descripcion_item, categoria_insumo, cantidad, unidad, precio_unitario, fecha_observacion, es_volatil, estado_evidencia")
@@ -133,8 +143,13 @@ export async function resolveProjectMaterialPrices(args: {
       .in("producto_id", productIds)
       .order("fecha_observacion", { ascending: false })
       .limit(3000),
-    admin.from("rfqs").select("id, code").eq("empresa_id", empresaId).eq("project_id", projectId),
+    admin.from("rfqs").select("id, code").eq("empresa_id", empresaId).eq(column, context.id),
   ]);
+  if (context.kind === "TENDER") {
+    for (const result of [productsRes, chosenRes, obsRes, rfqsRes]) {
+      if (result.error) throw new Error(result.error.message);
+    }
+  }
 
   const costoPromedio = new Map<string, number>();
   for (const p of (productsRes.data ?? []) as any[]) {

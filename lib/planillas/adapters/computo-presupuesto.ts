@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BudgetItem } from "@/lib/types";
 import type { PlanillaAdapter, PlanillaChanges, PlanillaColumn, PlanillaRowMeta, ApplyResult } from "../types";
 import { PlanillaConcurrencyError } from "../types";
+import { ownerColumn, type WorkspaceContext, workspaceContextSchema } from "@/lib/workspace/context";
 
 export type ComputoRow = PlanillaRowMeta & {
   code: string;
@@ -16,7 +17,7 @@ export type ComputoRow = PlanillaRowMeta & {
   subtotal: number | null;
 };
 
-export type ComputoContexto = { projectId: string };
+export type ComputoContexto = { projectId: string } | WorkspaceContext;
 
 export const COMPUTO_PRESUPUESTO_COLUMNS: PlanillaColumn[] = [
   { key: "code", label: "Código", type: "text", width: 90 },
@@ -47,6 +48,13 @@ export const computoPresupuestoAdapter: PlanillaAdapter<ComputoRow, ComputoConte
   columns: COMPUTO_PRESUPUESTO_COLUMNS,
 
   async resolverContexto(supabase: SupabaseClient, empresaId: string, contextoRaw: unknown): Promise<ComputoContexto> {
+    if (contextoRaw && typeof contextoRaw === "object" && "kind" in contextoRaw) {
+      const context = workspaceContextSchema.parse(contextoRaw);
+      const { data, error } = await supabase.from(context.kind === "TENDER" ? "licitaciones" : "projects")
+        .select("id").eq("id", context.id).eq("empresa_id", empresaId).maybeSingle();
+      if (error || !data) throw new Error("Contexto no encontrado o de otra empresa.");
+      return context;
+    }
     const projectId = (contextoRaw as { projectId?: unknown } | null)?.projectId;
     if (typeof projectId !== "string" || !projectId) {
       throw new Error("contexto.projectId es requerido.");
@@ -68,7 +76,7 @@ export const computoPresupuestoAdapter: PlanillaAdapter<ComputoRow, ComputoConte
     const { data, error } = await supabase
       .from("budget_items")
       .select("id, code, description, unit, quantity, unit_price, subtotal, updated_at, style")
-      .eq("project_id", contexto.projectId)
+      .eq("kind" in contexto ? ownerColumn(contexto) : "project_id", "kind" in contexto ? contexto.id : contexto.projectId)
       .order("sort_order")
       .returns<(BudgetItem & { updated_at: string; style: Record<string, unknown> | null })[]>();
     if (error) throw new Error(error.message);
