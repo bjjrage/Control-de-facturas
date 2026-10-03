@@ -161,70 +161,17 @@ export function buildProjectFromAdjudicatedTender(params: TenderToProjectParams)
  * NOTA: `initialProcurementRequests` son sugerencias en memoria para planificación de compras y NO se persisten
  * como órdenes de compra automáticamente sin aprobación expresa del usuario.
  */
-export async function executeTenderToProjectTransaction(
-  supabase: any,
-  params: TenderToProjectParams
-): Promise<{ error: string | null; projectId?: string; projectCode?: string; alreadyExisted?: boolean }> {
-  const payload = buildProjectFromAdjudicatedTender(params);
-  const nombreDeposito = `Depósito ${payload.project.code} - ${payload.project.name}`.slice(0, 100);
+/** Legacy adapter: client budget/award are no longer factual inputs. */
+export async function executeTenderToProjectTransaction(supabase: any, params: TenderToProjectParams & { confirmedHandoff?: boolean }) {
+  return executeWinningTenderHandoff(supabase, params.tenderId, params.confirmedHandoff ?? false);
+}
 
-  // 1. Intentar ejecución atómica mediante RPC transaccional en PostgreSQL
+export async function executeWinningTenderHandoff(supabase: any, tenderId: string, confirmed = false): Promise<{ error: string | null; projectId?: string; projectCode?: string; alreadyExisted?: boolean }> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenderId) || confirmed !== true) return { error: "Confirmaci�n humana expl�cita del handoff requerida." };
   try {
-    const { data: rpcRes, error: rpcErr } = await supabase.rpc('convertir_licitacion_a_proyecto_atomico', {
-      p_empresa_id: payload.project.empresa_id,
-      p_name: payload.project.name,
-      p_code: payload.project.code,
-      p_client: payload.project.client,
-      p_comitente: payload.project.comitente,
-      p_contract_number: payload.project.contract_number,
-      p_contract_amount: payload.project.contract_amount,
-      p_budget_total: payload.project.budget_total,
-      p_plazo_dias: payload.project.plazo_dias,
-      p_anticipo_pct: payload.project.anticipo_pct,
-      p_retencion_pct: payload.project.retencion_pct,
-      p_start_date: payload.project.start_date,
-      p_end_date: payload.project.end_date,
-      p_tender_id: params.tenderId || null,
-      p_bid_analysis_run_id: params.bidAnalysisRunId || null,
-      p_created_by: payload.project.created_by,
-      p_budget_items: payload.budgetItems.map(b => ({
-        code: b.code,
-        description: b.description,
-        unit: b.unit,
-        quantity: b.quantity,
-        unit_price: b.unit_price,
-        sort_order: b.sort_order
-      })),
-      p_nombre_deposito: nombreDeposito
-    });
-
-    if (!rpcErr && rpcRes && rpcRes.success) {
-      return {
-        error: null,
-        projectId: rpcRes.project_id,
-        projectCode: rpcRes.project_code,
-        alreadyExisted: !!rpcRes.already_existed
-      };
-    }
-
-    if (rpcErr) {
-      if (rpcErr.message?.includes('function') && rpcErr.message?.includes('does not exist')) {
-        return {
-          error: 'MIGRATION_REQUIRED: La función atómica convertir_licitacion_a_proyecto_atomico no está instalada en la base de datos. Ejecute la migración 0068.'
-        };
-      }
-      console.error('[TenderToProject] Transacción atómica en BD falló (rollback automático):', rpcErr);
-      return { error: `Transacción atómica falló (rollback garantizado): ${rpcErr.message}` };
-    }
-
-    return { error: 'Respuesta inválida del RPC de conversión atómica.' };
-  } catch (err: any) {
-    if (err?.message?.includes('function') && err?.message?.includes('does not exist')) {
-      return {
-        error: 'MIGRATION_REQUIRED: La función atómica convertir_licitacion_a_proyecto_atomico no está instalada en la base de datos. Ejecute la migración 0068.'
-      };
-    }
-    console.error('[TenderToProject] Excepción en RPC transaccional:', err);
-    return { error: err.message || String(err) };
-  }
+    const { data, error } = await supabase.rpc("prebid_create_project", { p_tender_id: tenderId, p_confirm: true });
+    if (error) return { error: error.message };
+    if (!data?.success || !data.project_id || !data.project_code) return { error: "Respuesta inv�lida del handoff." };
+    return { error: null, projectId: data.project_id, projectCode: data.project_code, alreadyExisted: data.already_existed === true };
+  } catch (error) { return { error: error instanceof Error ? error.message : "Error de handoff." }; }
 }

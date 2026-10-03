@@ -8,8 +8,6 @@ import { DncpNotFoundError, fetchRecord, normalizarNro } from "@/lib/dncp/client
 import { parseCompiledRelease } from "@/lib/dncp/parse";
 import { assessTenderPbc, createPbcSourceMetadata } from "@/lib/procurement/pbc-provenance";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { ensureProjectInventoryLocation } from "@/lib/inventory/service";
 import type { LicitacionDecision } from "@/lib/types";
 import type { TenderComplianceReport } from "@/lib/procurement/compliance-engine";
 
@@ -400,144 +398,13 @@ export async function guardarPerfilLicitaciones(data: {
 /**
  * Convierte una licitación ganada/adjudicada en un Proyecto activo en el ERP con cómputo métrico y pañol
  */
-export async function convertirLicitacionAProyecto(
-  licitacionId: string
-): Promise<{ error?: string; projectId?: string; projectCode?: string }> {
-  const { supabase, profile } = await ctx();
-  const empresaId = profile.empresa_id;
-
-  // 1. Obtener datos de la licitación
-  const { data: lic, error: licError } = await supabase
-    .from("licitaciones")
-    .select("*")
-    .eq("id", licitacionId)
-    .eq("empresa_id", empresaId)
-    .maybeSingle();
-
-  if (licError || !lic) {
-    return { error: "Licitación no encontrada o no pertenece a la empresa." };
-  }
-
-  // Regla de Integridad Contractual: Solo se puede convertir a obra una licitación con decisión GANADA
-  if (lic.decision !== "GANADA") {
-    return {
-      error: `No se puede convertir a proyecto una licitación con estado '${lic.decision || "SIN_DECISION"}'. Debe marcarse primero como 'GANADA'.`
-    };
-  }
-
-  // 2. Verificar monto adjudicado real (FAIL CLOSED: presupuesto referencial != adjudicación)
-  const adjudicatedAmount = Number(lic.monto_adjudicado);
-  if (isNaN(adjudicatedAmount) || adjudicatedAmount <= 0) {
-    return {
-      error: "No se puede convertir a proyecto: la licitación no cuenta con monto adjudicado verificado (monto_adjudicado > 0). El presupuesto referencial no puede sustituir al valor de adjudicación contractual."
-    };
-  }
-
-  // 3. Obtener ítems de la licitación (FAIL CLOSED: cero ítems sintéticos permitidos)
-  const { data: items } = await supabase
-    .from("licitacion_items")
-    .select("*")
-    .eq("licitacion_id", licitacionId)
-    .order("sort_order");
-
-  if (!items || items.length === 0) {
-    return {
-      error: "No se puede convertir a proyecto: la licitación no cuenta con ítems económicos detallados para transferir al presupuesto de obra."
-    };
-  }
-
-  // Validar exhaustivamente cada ítem real
-  const bidItems: Array<{
-    itemNumber: number;
-    description: string;
-    quantity: number;
-    unit: string;
-    unitPricePyg: number;
-  }> = [];
-
-  for (let idx = 0; idx < items.length; idx++) {
-    const it = items[idx];
-    const itemNumber = idx + 1;
-    const desc = it.descripcion ? String(it.descripcion).trim() : "";
-    const unit = it.unidad ? String(it.unidad).trim() : "";
-    const qty = Number(it.cantidad);
-    let unitPrice: number;
-    if (it.precio_unitario_estimado !== undefined && it.precio_unitario_estimado !== null && !isNaN(Number(it.precio_unitario_estimado))) {
-      unitPrice = Number(it.precio_unitario_estimado);
-    } else if (it.monto_total !== undefined && it.monto_total !== null && it.cantidad && Number(it.cantidad) > 0) {
-      unitPrice = Number(it.monto_total) / Number(it.cantidad);
-    } else {
-      return { error: `No se puede convertir a proyecto: el ítem #${itemNumber} ("${desc.slice(0, 30)}") carece de precio unitario verificado.` };
-    }
-
-    if (!desc) {
-      return { error: `No se puede convertir a proyecto: el ítem #${itemNumber} no tiene descripción válida.` };
-    }
-    if (!unit) {
-      return { error: `No se puede convertir a proyecto: el ítem #${itemNumber} ("${desc.slice(0, 30)}") no tiene unidad de medida verificable.` };
-    }
-    if (isNaN(qty) || qty <= 0) {
-      return { error: `No se puede convertir a proyecto: el ítem #${itemNumber} ("${desc.slice(0, 30)}") tiene cantidad inválida (${it.cantidad}). Debe ser estrictamente mayor a cero.` };
-    }
-    if (isNaN(unitPrice) || unitPrice <= 0) {
-      return { error: `No se puede convertir a proyecto: el ítem #${itemNumber} ("${desc.slice(0, 30)}") tiene precio unitario inválido (${unitPrice}). Debe ser estrictamente mayor a cero.` };
-    }
-
-    bidItems.push({
-      itemNumber,
-      description: desc,
-      quantity: qty,
-      unit,
-      unitPricePyg: unitPrice
-    });
-  }
-
-  const { executeTenderToProjectTransaction } = await import("@/lib/procurement/tender-to-project");
-
-  // Invariante UNKNOWN != DEFAULT: No asumir plazos ni porcentajes arbitrarios (6 meses, 10%, 5%)
-  // Si la licitación no los especifica formalmente en el pliego, quedan en null para configuración manual.
-  const result = await executeTenderToProjectTransaction(supabase, {
-    empresaId,
-    tenderId: lic.id,
-    dncpNro: lic.dncp_nro,
-    projectTitle: lic.titulo,
-    buyerName: lic.comitente_nombre || "Entidad Convocante",
-    adjudicatedOfferPricePyg: adjudicatedAmount,
-    durationMonths: null, // UNKNOWN != DEFAULT: No inventar 6 meses
-    advancePaymentPct: null, // UNKNOWN != DEFAULT: No inventar 10%
-    retentionPct: null, // UNKNOWN != DEFAULT: No inventar 5%
-    bidItems,
-    createdBy: profile.id
-  });
-
-  if (result.error) {
-    return { error: result.error };
-  }
-  if (!result.projectId) return { error: "La licitación se convirtió, pero no se recibió el identificador de la obra." };
-
-  const canonicalLocation = await ensureProjectInventoryLocation(createAdminClient(), {
-    empresaId,
-    projectId: result.projectId,
-    createdBy: profile.id,
-  });
-  if (canonicalLocation.error || !canonicalLocation.data) {
-    revalidatePath("/projects");
-    return {
-      error: `La obra se creó desde la licitación, pero falta su ubicación canónica de stock. Abrí Ubicaciones y reintentá: ${canonicalLocation.error ?? "error desconocido"}`,
-      projectId: result.projectId,
-      projectCode: result.projectCode,
-    };
-  }
-
-  await logAudit(supabase, {
-    action: "tender.converted_to_project",
-    detail: { licitacion_id: licitacionId, project_id: result.projectId, project_code: result.projectCode, inventory_location_id: canonicalLocation.data.id }
-  });
-
-  revalidatePath("/licitaciones");
-  revalidatePath(`/licitaciones/${licitacionId}`);
-  revalidatePath("/projects");
-
+export async function convertirLicitacionAProyecto(licitacionId: string, confirmedHandoff = false): Promise<{ error?: string; projectId?: string; projectCode?: string }> {
+  const { supabase } = await ctx();
+  const { executeWinningTenderHandoff } = await import("@/lib/procurement/tender-to-project");
+  const result = await executeWinningTenderHandoff(supabase, licitacionId, confirmedHandoff);
+  if (result.error) return { error: result.error };
+  revalidatePath("/licitaciones"); revalidatePath('/licitaciones/' + licitacionId);
+  revalidatePath('/licitaciones/' + licitacionId + '/prebid'); revalidatePath("/projects");
   return { projectId: result.projectId, projectCode: result.projectCode };
 }
 

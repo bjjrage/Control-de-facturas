@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/browser";
+import { convertirLicitacionAProyecto } from "../../actions";
 import { formatMoney } from "@/lib/format";
 import type { MaterialPriceDetail } from "@/lib/costing/project-prices";
 import { DEFAULT_COST_SETTINGS, normalizeCostSettings, type CostSettingsV2 } from "@/lib/workspace/costs";
@@ -38,6 +39,10 @@ export function PrebidWorkspace({ data }: { data: Data }) {
       <p>Workspace PREBID · {data.offer?.estado ?? "BORRADOR"} · PYG</p>
       {readOnly && <p className="text-sm">Snapshot comercial conservado. Cómputo, costos y evidencia en modo lectura.</p>}
       {data.readyForProjectHandoff && <p className="font-semibold text-[var(--ok)]">READY FOR PROJECT HANDOFF · Monto adjudicado confirmado: {money(Number(data.offer?.awarded_amount))}</p>}
+      {data.handoffProject ? <Link href={`/projects/${data.handoffProject.id}`} className="underline">Abrir obra {data.handoffProject.code}</Link> : data.readyForProjectHandoff && <Button disabled={pending} onClick={() => {
+        if (!confirm("¿Crear la obra desde el snapshot ganador y la adjudicación confirmada? La historia de la licitación se conserva.")) return;
+        startTransition(async () => { const r = await convertirLicitacionAProyecto(context.id, true); if (r.error) setMessage(r.error); else if (r.projectId) router.push(`/projects/${r.projectId}`); });
+      }}>Crear obra desde oferta ganadora</Button>}
     </header>
     <nav aria-label="Etapas PREBID" className="flex flex-wrap gap-2">{tabs.map(t=><Button key={t} variant={tab===t?"primary":"secondary"} onClick={()=>setTab(t)}>{t}</Button>)}</nav>
     {message && <p role="status" className="border rounded p-3">{message}</p>}

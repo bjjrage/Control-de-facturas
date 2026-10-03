@@ -7,6 +7,7 @@ import { actionResult } from "./action-utils";
 export const ManageTenderInputSchema = z.object({
   operation: z.enum(["set_decision", "stop_following", "convert_to_project", "prepare_offer_package", "commercial_evaluation", "extract_pbc_requirements", "extract_acta_offers"]),
   tender_id: z.string().uuid(),
+  confirm_handoff: z.boolean().optional(),
   decision: z.enum(["SIN_REVISAR", "DESCARTADA", "EN_PREPARACION", "PRESENTADA", "GANADA", "PERDIDA"]).optional(),
   notes: z.string().trim().max(3000).optional(),
   annual_financing_rate_pct: z.number().finite().optional(),
@@ -32,7 +33,8 @@ async function handler(_ctx: AgentToolContext, input: ManageTenderInput, _deps: 
       result = await actions.dejarDeSeguirLicitacion(input.tender_id);
       break;
     case "convert_to_project":
-      result = await actions.convertirLicitacionAProyecto(input.tender_id);
+      if (input.confirm_handoff !== true) throw new Error("Confirmación humana del handoff requerida.");
+      result = await actions.convertirLicitacionAProyecto(input.tender_id, true);
       break;
     case "prepare_offer_package":
       result = await actions.generarPliegoOfertaCompleto(input.tender_id);

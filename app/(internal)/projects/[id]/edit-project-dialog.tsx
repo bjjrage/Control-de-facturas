@@ -123,19 +123,19 @@ export function EditProjectDialog({
                   </div>
                   <div>
                     <Label htmlFor="ep_anticipo">% Anticipo</Label>
-                    <Input id="ep_anticipo" name="anticipo_pct" type="number" step="any" min="0" max="100" defaultValue={project.anticipo_pct} />
+                    <Input id="ep_anticipo" name="anticipo_pct" type="number" step="any" min="0" max="100" defaultValue={project.anticipo_pct ?? ""} />
                   </div>
                   <div>
                     <Label htmlFor="ep_devol">% Devolución de anticipo</Label>
-                    <Input id="ep_devol" name="devolucion_anticipo_pct" type="number" step="any" min="0" max="100" defaultValue={project.devolucion_anticipo_pct} />
+                    <Input id="ep_devol" name="devolucion_anticipo_pct" type="number" step="any" min="0" max="100" defaultValue={project.devolucion_anticipo_pct ?? ""} />
                   </div>
                   <div>
                     <Label htmlFor="ep_reten">% Retención</Label>
-                    <Input id="ep_reten" name="retencion_pct" type="number" step="any" min="0" max="100" defaultValue={project.retencion_pct} />
+                    <Input id="ep_reten" name="retencion_pct" type="number" step="any" min="0" max="100" defaultValue={project.retencion_pct ?? ""} />
                   </div>
                   <div>
                     <Label htmlFor="ep_iva">% IVA</Label>
-                    <Input id="ep_iva" name="iva_pct" type="number" step="any" min="0" max="100" defaultValue={project.iva_pct} />
+                    <Input id="ep_iva" name="iva_pct" type="number" step="any" min="0" max="100" defaultValue={project.iva_pct ?? ""} />
                   </div>
                 </div>
               ) : null}
