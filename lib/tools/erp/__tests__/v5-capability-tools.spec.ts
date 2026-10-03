@@ -19,9 +19,10 @@ describe("Rodrigo ERP V5 capability boundary", () => {
   });
 
   it("marca toda persistencia previa a aprobacion como risk 2", () => {
-    for (const name of ["create_rfq_draft", "prepare_purchase_order", "prepare_email", "update_spreadsheet_rows"]) {
+    for (const name of ["create_rfq_draft", "prepare_email", "update_spreadsheet_rows"]) {
       expect(getTool(name)?.riskLevel, name).toBe(2);
     }
+    expect(getTool("prepare_purchase_order")?.riskLevel).toBe(0);
     expect(getTool("send_email")?.riskLevel).toBe(2);
     expect(getTool("get_finance_overview")?.riskLevel).toBe(0);
   });

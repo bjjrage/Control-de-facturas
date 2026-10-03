@@ -4,19 +4,19 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
 
 const migration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260925043900_final_adversarial_integrity_guards.sql"),
+  resolve(process.cwd(), "supabase/migrations_legacy_pre_baseline/20260925043900_final_adversarial_integrity_guards.sql"),
   "utf8",
 );
 const transitionMigration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260925050829_certificate_status_transition_guard.sql"),
+  resolve(process.cwd(), "supabase/migrations_legacy_pre_baseline/20260925050829_certificate_status_transition_guard.sql"),
   "utf8",
 );
 const createMigration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260925052356_serialize_certificate_create_with_revert.sql"),
+  resolve(process.cwd(), "supabase/migrations_legacy_pre_baseline/20260925052356_serialize_certificate_create_with_revert.sql"),
   "utf8",
 );
 const headerImmutabilityMigration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260925053952_certificate_header_immutability_guard.sql"),
+  resolve(process.cwd(), "supabase/migrations_legacy_pre_baseline/20260925053952_certificate_header_immutability_guard.sql"),
   "utf8",
 );
 const receiptAction = readFileSync(

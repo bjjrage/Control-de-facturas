@@ -1564,7 +1564,7 @@ export function WeeklyPlanSection({ project }: Props) {
           )}
 
           {previewMrp && previewRecipe && (
-            <MrpResultPanel preview={preview} previewRecipe={previewRecipe} previewMrp={previewMrp} />
+            <MrpResultPanel projectId={project.id} preview={preview} previewRecipe={previewRecipe} previewMrp={previewMrp} />
           )}
 
           {/* Caja primero (modo LEGACY; en MRP la caja la muestra el bloque de arriba) */}

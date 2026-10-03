@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const migration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260925022101_batch5_admin_treasury_atomicity.sql"),
+  resolve(process.cwd(), "supabase/migrations_legacy_pre_baseline/20260925022101_batch5_admin_treasury_atomicity.sql"),
   "utf8",
 );
 const dashboardData = readFileSync(resolve(process.cwd(), "app/(internal)/dashboard/data.ts"), "utf8");
@@ -42,7 +42,10 @@ describe("Batch 5 financial safety contract", () => {
   });
 
   it("routes RFQ authorization and account opening through transaction RPCs", () => {
-    expect(rfqActions).toContain('supabase.rpc("select_and_authorize_offer_atomically"');
+    const workflow=readFileSync(resolve(process.cwd(),"app/(internal)/rfqs/[id]/workflow-actions.ts"),"utf8");
+    expect(workflow).toContain('"rfq_authorize_allocation"');
+    expect(workflow).toContain('"rfq_confirm_orders"');
+    expect(rfqActions).not.toContain('supabase.rpc("select_and_authorize_offer_atomically"');
     expect(rfqActions).not.toContain('.from("authorized_orders").insert(');
     expect(treasuryActions).toContain('supabase.rpc("crear_cuenta_financiera_atomica"');
     expect(treasuryActions).not.toContain('supabase.from("cuentas_financieras").insert(');

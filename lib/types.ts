@@ -101,6 +101,7 @@ export interface Provider {
 }
 
 export interface Rfq {
+  purpose: "COST_DISCOVERY" | "PROCUREMENT" | null;
   id: string;
   empresa_id: string;
   code: string;
@@ -124,6 +125,8 @@ export interface Rfq {
 }
 
 export interface RfqProvider {
+  token_expires_at?: string | null;
+  token_revoked_at?: string | null;
   id: string;
   empresa_id: string;
   rfq_id: string;
@@ -468,6 +471,9 @@ export interface InvoiceItemMatch {
 }
 
 export interface AuthorizedOrder {
+  rfq_allocation_id?: string | null;
+  direct_purchase_preview_id?: string | null;
+  procurement_snapshot?: Record<string,unknown> | null;
   id: string;
   empresa_id: string;
   rfq_id: string | null;

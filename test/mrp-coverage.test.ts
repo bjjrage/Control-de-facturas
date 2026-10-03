@@ -91,7 +91,7 @@ describe("TEST E. Reservas descuentan disponibilidad (oversell falla)", () => {
   });
 
   it("el RPC reserva es atómico con advisory lock (fuente)", () => {
-    const mig = readSource("supabase/migrations/20260917000005_mrp_reservations.sql");
+    const mig = readSource("supabase/migrations_legacy_pre_baseline/20260917000005_mrp_reservations.sql");
     expect(mig).toContain("pg_advisory_xact_lock");
     expect(mig).toContain("FOR UPDATE");
     // Falla TODO si un producto no alcanza (nunca parcial)
@@ -119,7 +119,7 @@ describe("TEST E. Reservas descuentan disponibilidad (oversell falla)", () => {
 // ---------------------------------------------------------------------------
 describe("TEST F. Concurrencia: serialización por recurso", () => {
   it("advisory por empresa:producto:depósito + rechequeo bajo lock", () => {
-    const mig = readSource("supabase/migrations/20260917000005_mrp_reservations.sql");
+    const mig = readSource("supabase/migrations_legacy_pre_baseline/20260917000005_mrp_reservations.sql");
     expect(mig).toContain("pg_advisory_xact_lock(hashtext(");
     // Recalcula físico - ACTIVE dentro del lock
     expect(mig).toContain("status = 'ACTIVE'");
@@ -226,10 +226,10 @@ describe("TEST I. Costo inexistente no finge caja 0", () => {
 // ---------------------------------------------------------------------------
 describe("Multi-tenant: recetas y reservas aisladas por empresa", () => {
   it("migraciones con RLS fail-closed en tablas nuevas", () => {
-    const r = readSource("supabase/migrations/20260917000004_production_recipes.sql");
+    const r = readSource("supabase/migrations_legacy_pre_baseline/20260917000004_production_recipes.sql");
     expect(r).toContain("ENABLE ROW LEVEL SECURITY");
     expect(r).toContain("current_empresa_id()");
-    const m = readSource("supabase/migrations/20260917000005_mrp_reservations.sql");
+    const m = readSource("supabase/migrations_legacy_pre_baseline/20260917000005_mrp_reservations.sql");
     expect(m).toContain("ENABLE ROW LEVEL SECURITY");
     expect(m).toContain("current_empresa_id()");
     expect(m).toContain("SECURITY DEFINER");
@@ -240,7 +240,7 @@ describe("Multi-tenant: recetas y reservas aisladas por empresa", () => {
     expect(ra).toContain('eq("empresa_id",');
     const wa = readSource("app/(internal)/projects/weekly-plan-actions.ts");
     expect(wa).toContain("commit_production_plan_atomic");
-    const mig = readSource("supabase/migrations/20260917000005_mrp_reservations.sql");
+    const mig = readSource("supabase/migrations_legacy_pre_baseline/20260917000005_mrp_reservations.sql");
     expect(mig).toContain("Sin empresa (tenant fail-closed)");
   });
 });
@@ -384,9 +384,9 @@ describe("P1-2. Cantidades autoritativas salen de DB, no del browser", () => {
 // ---------------------------------------------------------------------------
 describe("P1-3. Tablas solo-lectura para authenticated; RPCs como única vía", () => {
   const mig2 = () =>
-    readSource("supabase/migrations/20260918000002_mrp_hardening.sql");
+    readSource("supabase/migrations_legacy_pre_baseline/20260918000002_mrp_hardening.sql");
   const mig3 = () =>
-    readSource("supabase/migrations/20260918000003_mrp_final_integrity.sql");
+    readSource("supabase/migrations_legacy_pre_baseline/20260918000003_mrp_final_integrity.sql");
 
   it("revoca INSERT/UPDATE/DELETE en reservas y recetas", () => {
     expect(mig2()).toContain("REVOKE INSERT, UPDATE, DELETE ON public.inventory_reservations FROM authenticated");
@@ -421,7 +421,7 @@ describe("P1-3. Tablas solo-lectura para authenticated; RPCs como única vía", 
 
 describe("P1-4/P1-5. Atomicidad real en DB (fuente)", () => {
   const mig = () =>
-    readSource("supabase/migrations/20260918000002_mrp_hardening.sql");
+    readSource("supabase/migrations_legacy_pre_baseline/20260918000002_mrp_hardening.sql");
 
   it("save_production_recipe_atomic valida tenant/proyecto/items y revierte todo", () => {
     expect(mig()).toContain("CREATE OR REPLACE FUNCTION public.save_production_recipe_atomic(");

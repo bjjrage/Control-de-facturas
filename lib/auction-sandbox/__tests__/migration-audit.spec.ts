@@ -25,11 +25,11 @@ const stripSql = (s: string): string =>
     .map((l) => (l.includes('--') ? l.slice(0, l.indexOf('--')) : l))
     .join('\n')
     .replace(/\/\*[\s\S]*?\*\//g, '');
-const sqlRaw = readFileSync(resolve(ROOT, 'supabase', 'migrations', '0068_auction_sandbox.sql'), 'utf8');
+const sqlRaw = readFileSync(resolve(ROOT, "supabase", "migrations_legacy_pre_baseline", '0068_auction_sandbox.sql'), 'utf8');
 const sql = stripSql(sqlRaw);
-const sql70Raw = readFileSync(resolve(ROOT, 'supabase', 'migrations', '0070_auction_sandbox_policy_bound_submit.sql'), 'utf8');
+const sql70Raw = readFileSync(resolve(ROOT, "supabase", "migrations_legacy_pre_baseline", '0070_auction_sandbox_policy_bound_submit.sql'), 'utf8');
 const sql70 = stripSql(sql70Raw);
-const sql71Raw = readFileSync(resolve(ROOT, 'supabase', 'migrations', '0071_auction_sandbox_override_event_types.sql'), 'utf8');
+const sql71Raw = readFileSync(resolve(ROOT, "supabase", "migrations_legacy_pre_baseline", '0071_auction_sandbox_override_event_types.sql'), 'utf8');
 const sql71 = stripSql(sql71Raw);
 
 function read(rel: string): string {

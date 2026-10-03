@@ -1,30 +1,15 @@
-import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
-const action = readFileSync(
-  resolve(process.cwd(), "app/(internal)/orders/actions.ts"),
-  "utf8",
-);
-const dialog = readFileSync(
-  resolve(process.cwd(), "app/(internal)/orders/order-dialog.tsx"),
-  "utf8",
-);
-
-describe("manual purchase order MRP inputs", () => {
-  it("persists tenant-validated catalog product and optional expected delivery date on each OC line", () => {
-    expect(action).toContain('.from("productos")');
-    expect(action).toContain('.eq("empresa_id", profile.empresa_id)');
-    expect(action).toContain("selectedProduct.unidad.trim() !== item.unit.trim()");
-    expect(action).toContain("producto_id: item.producto_id?.trim() || null");
-    expect(action).toContain("expected_delivery_date: item.expected_delivery_date || null");
-    expect(action).toContain("isDateOnly(item.expected_delivery_date)");
-  });
-
-  it("lets the user link a stock product and set the line's delivery date", () => {
-    expect(dialog).toContain('value={row.producto_id}');
-    expect(dialog).toContain('value={row.expected_delivery_date}');
-    expect(dialog).toContain("producto_id: r.producto_id || null");
-    expect(dialog).toContain("expected_delivery_date: r.expected_delivery_date || null");
-  });
+﻿import {describe,it,expect} from "vitest";
+import {readFileSync} from "node:fs";
+import {resolve} from "node:path";
+const migration=readFileSync(resolve(process.cwd(),'supabase/migrations/20261003000341_rfq_2_human_procurement.sql'),'utf8');
+const dialog=readFileSync(resolve(process.cwd(),'app/(internal)/orders/order-dialog.tsx'),'utf8');
+describe('manual purchase order preserves MRP inputs through exact preview',()=>{
+ it('validates catalog tenant, unit and active status in atomic RPC',()=>{
+  expect(migration).toContain("empresa_id=p.empresa_id AND activo AND trim(unidad)=trim(item->>'unit')");
+  expect(migration).toContain("nullif(item->>'expected_delivery_date','')::date");expect(migration).toContain('direct_purchase_confirm');
+ });
+ it('lets human link catalog, delivery, tax and terms before confirmation',()=>{
+  expect(dialog).toContain('value={row.producto_id}');expect(dialog).toContain('value={row.expected_delivery_date}');
+  expect(dialog).toContain('previewDirectPurchaseAction');expect(dialog).toContain('confirmDirectPurchaseAction');expect(dialog).toContain('Confirmo el preview mostrado');
+ });
 });

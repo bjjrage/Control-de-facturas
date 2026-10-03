@@ -5,16 +5,16 @@ import { describe, expect, it } from "vitest";
 const readUtf8 = (relPath: string) =>
   readFileSync(resolve(process.cwd(), relPath), "utf8").replace(/\r\n/g, "\n");
 
-const migration = readUtf8("supabase/migrations/20260913230000_inventory_panol.sql");
-const receiptMigration = readUtf8("supabase/migrations/20260924074417_canonical_purchase_receipt_flow.sql");
+const migration = readUtf8("supabase/migrations_legacy_pre_baseline/20260913230000_inventory_panol.sql");
+const receiptMigration = readUtf8("supabase/migrations_legacy_pre_baseline/20260924074417_canonical_purchase_receipt_flow.sql");
 const receiptActions = readUtf8("app/(internal)/orders/oc-recepcion-actions.ts");
 const receiptUi = readUtf8("app/(internal)/orders/[id]/recepcion-section.tsx");
-const manualMovementMigration = readUtf8("supabase/migrations/20260924212056_inventory_manual_movement_contract.sql");
+const manualMovementMigration = readUtf8("supabase/migrations_legacy_pre_baseline/20260924212056_inventory_manual_movement_contract.sql");
 const manualMovementUi = readUtf8("app/(internal)/inventario/nuevo-movimiento-dialog.tsx");
 const inventoryActions = readUtf8("app/(internal)/inventory/actions.ts");
-const batch4HardeningMigration = readUtf8("supabase/migrations/20260924225450_batch4_lock_inventory_legacy_paths_and_confirm_state.sql");
-const warehouseEvidenceGateMigration = readUtf8("supabase/migrations/20260925002351_batch4_guard_incomplete_warehouse_evidence.sql");
-const manualWarehouseLineMigration = readUtf8("supabase/migrations/20260925011009_inventory_add_manual_warehouse_submission_line.sql");
+const batch4HardeningMigration = readUtf8("supabase/migrations_legacy_pre_baseline/20260924225450_batch4_lock_inventory_legacy_paths_and_confirm_state.sql");
+const warehouseEvidenceGateMigration = readUtf8("supabase/migrations_legacy_pre_baseline/20260925002351_batch4_guard_incomplete_warehouse_evidence.sql");
+const manualWarehouseLineMigration = readUtf8("supabase/migrations_legacy_pre_baseline/20260925011009_inventory_add_manual_warehouse_submission_line.sql");
 const stockActions = readUtf8("app/(internal)/stock/stock-actions.ts");
 const stockDetailPage = readUtf8("app/(internal)/stock/[id]/page.tsx");
 const approvalActions = readUtf8("app/(internal)/agent/approval-actions.ts");

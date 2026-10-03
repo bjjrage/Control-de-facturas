@@ -7,8 +7,8 @@
 | Budget item | Línea de `budget_items` vinculada a una obra; se usa para cantidades, precios y necesidades de material. |
 | Producto / material | Registro de catálogo `productos`, con unidad y existencias; se consulta mediante los tools de stock/necesidad. |
 | Depósito | Ubicación de stock relacionada con `stock_por_deposito` y `depositos`. |
-| RFQ | Solicitud de cotización; se relaciona con `rfqs`, `rfq_items`, `rfq_suppliers` y respuestas. |
-| Cotización / respuesta | Respuesta de proveedor a una RFQ; la comparación lee `rfq_responses` y `rfq_items`. |
+| RFQ | Solicitud de cotización; se relaciona con `rfqs`, `rfq_items`, `rfq_providers`, `quotes` y sus versiones. |
+| Cotización / respuesta | Respuesta de proveedor a una RFQ; la comparación lee `quotes`, `quote_versions`, `quote_version_items` y `rfq_items`. |
 | OC | Orden de compra autorizada (`authorized_orders`) o un borrador de preparación; no equivale a un email ni a una factura. |
 | Plan semanal | Plan de obra persistido en `project_weekly_plans` y sus ítems; también puede generar reservas de inventario. |
 | Licitación | Convocatoria pública con lotes, ítems, oferentes, ofertas y documentos en el módulo de licitaciones. |

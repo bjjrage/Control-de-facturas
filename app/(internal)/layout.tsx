@@ -17,6 +17,15 @@ export default async function InternalLayout({ children }: { children: React.Rea
   const isProOrAbove = planMeetsMinimum(profile.plan, "pro", profile.is_super_admin);
   const showOperativo = isProOrAbove && (profile.role === "administracion" || profile.role === "admin");
   const showLicitaciones = isProOrAbove && ["comercial", "administracion", "admin"].includes(profile.role);
+  const administrative = ["administracion", "admin"].includes(profile.role);
+  const purchasing = ["comercial", "administracion", "admin"].includes(profile.role);
+  const warmPaths = [
+    "/dashboard",
+    ...(administrative ? ["/invoices", "/pagos"] : []),
+    ...(profile.role === "admin" ? ["/providers"] : []),
+    ...(purchasing ? ["/orders", "/rfqs"] : []),
+    ...(administrative && profile.modulo_ventas ? ["/clientes", "/proformas", "/remisiones", "/facturas-venta", "/cobros"] : []),
+  ];
 
   return (
     <RodrigoAgentProvider>
@@ -34,7 +43,7 @@ export default async function InternalLayout({ children }: { children: React.Rea
           showLicitaciones={showLicitaciones}
         />
         <main className="relative flex-1 min-w-0 p-5 before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_70%_0%,rgba(72,119,214,.08),transparent_28%)]">
-          <div className="relative z-[1]"><AppShellClient>{children}</AppShellClient></div>
+          <div className="relative z-[1]"><AppShellClient warmPaths={warmPaths}>{children}</AppShellClient></div>
         </main>
       </div>
       <AdminRailPanel role={profile.role} plan={profile.plan} isSuperAdmin={profile.is_super_admin} />

@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { sanitizeFileName } from "@/lib/storage";
+import { createCanonicalRfq } from "@/lib/rfq/service";
 import { revalidatePath } from "next/cache";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -15,7 +16,7 @@ function str(formData: FormData, key: string) {
 }
 
 export async function uploadRfqAttachments(rfqId: string, files: File[]) {
-  const profile = await requireProfile(["comercial", "admin"]);
+  const profile = await requireProfile(["comercial", "administracion", "admin"]);
   const admin = createAdminClient();
 
   // admin client bypasses RLS — confirm the RFQ is in the caller's empresa.
@@ -55,7 +56,7 @@ export async function uploadRfqAttachments(rfqId: string, files: File[]) {
 }
 
 export async function createRfq(formData: FormData) {
-  const profile = await requireProfile(["comercial", "admin"]);
+  const profile = await requireProfile(["comercial", "administracion", "admin"]);
   const supabase = await createClient();
 
   const product = str(formData, "product");
@@ -67,35 +68,14 @@ export async function createRfq(formData: FormData) {
     return { error: "Completá producto, unidad y una cantidad válida.", id: null };
   }
 
-  // Para COT generamos el código manualmente; RFQ usa el DEFAULT de la tabla.
-  let cotCode: string | undefined;
-  if (quoteType === "COT") {
-    const { data: codeData, error: codeError } = await supabase.rpc("next_cot_code");
-    if (codeError || !codeData) return { error: "No se pudo generar el código COT.", id: null };
-    cotCode = codeData as string;
-  }
-
-  const { data, error } = await supabase
-    .from("rfqs")
-    .insert({
-      ...(cotCode ? { code: cotCode } : {}),
-      quote_type: quoteType,
-      created_by: profile.id,
-      product,
-      quantity,
-      unit,
-      specifications: str(formData, "specifications"),
-      required_date: str(formData, "required_date"),
-      internal_reference: str(formData, "internal_reference"),
-      observations: str(formData, "observations"),
-      project_id: str(formData, "project_id") || null,
-    })
-    .select("id")
-    .single();
-
-  if (error || !data) return { error: error?.message ?? "No se pudo crear la solicitud.", id: null };
-
-  await logAudit(supabase, { action: "rfq.created", rfqId: data.id });
+  let data: { id:string };
+  try {
+    const itemsRaw=str(formData,"items");
+    const items=itemsRaw ? JSON.parse(itemsRaw) : [{descripcion:product,cantidad:quantity,unidad:unit,producto_id:null}];
+    data=await createCanonicalRfq(supabase,{purpose:str(formData,"purpose"),quote_type:quoteType,product,
+      specifications:str(formData,"specifications"),required_date:str(formData,"required_date"),
+      internal_reference:str(formData,"internal_reference"),observations:str(formData,"observations"),project_id:str(formData,"project_id")},items);
+  } catch(e) { return {error:e instanceof Error?e.message:"RFQ inválida",id:null}; }
 
   const files = formData.getAll("attachments").filter((f): f is File => f instanceof File && f.size > 0);
   if (files.length > 0) {

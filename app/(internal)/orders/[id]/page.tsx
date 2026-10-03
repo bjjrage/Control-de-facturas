@@ -102,7 +102,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   const over = isOverbilled(order.total_price, order.facturado_amount);
   const pct =
     order.total_price > 0 ? Math.min(100, Math.round((order.facturado_amount / order.total_price) * 100)) : 0;
-  const canDelete = profile.role === "admin" && order.facturado_amount === 0 && (matches ?? []).length === 0;
+  const canDelete = !order.rfq_allocation_id && !order.direct_purchase_preview_id && profile.role === "admin" && order.facturado_amount === 0 && (matches ?? []).length === 0;
 
   // Ítems: si la OC tiene detalle (authorized_order_items) lo usamos; si no,
   // una única línea sintética con los campos del encabezado (OCs viejas).
@@ -134,7 +134,15 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     <div className="max-w-3xl space-y-5">
       <div className="flex items-start justify-between">
         <div>
-          <Link href="/orders" className="text-action text-[12px] text-[var(--muted)]">
+          {order.procurement_snapshot && (
+            <section className="border rounded p-4">
+              <h2>Condiciones confirmadas</h2>
+              <p>Pago: {String(order.procurement_snapshot.payment_terms ?? "Sin dato")} · Flete final: {String(order.procurement_snapshot.freight ?? 0)} {order.currency}</p>
+              <p>Observaciones: {String(order.procurement_snapshot.observations ?? "Sin observaciones")}</p>
+              <p>Asignación: {order.rfq_allocation_id ?? "Compra directa"} · Cotización: {order.quote_version_id ?? "No aplica"}</p>
+            </section>
+          )}
+      <Link href="/orders" className="text-action text-[12px] text-[var(--muted)]">
             ← Volver a Órdenes
           </Link>
           <div className="flex items-center gap-2 mt-1">

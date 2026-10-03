@@ -39,7 +39,7 @@ async function handler(
 registerTool<IssuePurchaseOrderInput, IssuePurchaseOrderOutput>({
   name: "issue_purchase_order",
   description:
-    "Emite y formaliza una Orden de Compra (OC) oficial en authorized_orders a partir de un borrador existente (purchase_order_drafts). Requiere aprobación humana (Risk 3: compromiso financiero). Usar cuando el usuario diga 'Emití la orden' o 'Aprobá y enviá la orden de compra'.",
+    "No emite OCs desde el agente. Dirige al humano al preview y confirmación de RFQ 2.0 o compra directa en /orders.",
   inputSchema: IssuePurchaseOrderInputSchema,
   riskLevel: 3,
   requiredRoles: ["comercial", "admin"],

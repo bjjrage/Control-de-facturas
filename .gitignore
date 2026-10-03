@@ -55,3 +55,7 @@ next-env.d.ts
 /tests/e2e/debug-*.ts
 E2E_PASSWORD*
 .worktrees/
+
+# Batch 03 private non-production verification artifacts
+/audit-artifacts/batch-03/
+/rfq-*.log

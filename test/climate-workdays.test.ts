@@ -17,7 +17,7 @@ import {
   selectNearestDmhStation,
 } from "@/lib/procurement/weather-provider";
 
-const migration = readFileSync(resolve(process.cwd(), "supabase/migrations/20260916220000_climate_workdays_final.sql"), "utf8");
+const migration = readFileSync(resolve(process.cwd(), "supabase/migrations_legacy_pre_baseline/20260916220000_climate_workdays_final.sql"), "utf8");
 const hardeningMigration = migration;
 const actions = readFileSync(resolve(process.cwd(), "app/(internal)/projects/climate-actions.ts"), "utf8");
 const runner = readFileSync(resolve(process.cwd(), "lib/procurement/climate-evaluation-runner.ts"), "utf8");

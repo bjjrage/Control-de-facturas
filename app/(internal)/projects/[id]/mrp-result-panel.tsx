@@ -1,5 +1,6 @@
 "use client";
 
+import { NeedToBuy } from "./need-to-buy";
 import type {
   WeeklyPlanCalculationSummary,
 } from "@/lib/types";
@@ -15,6 +16,7 @@ interface RecipeSnapshot {
 }
 
 interface Props {
+  projectId?:string;
   preview: WeeklyPlanCalculationSummary;
   previewRecipe: RecipeSnapshot;
   previewMrp: MrpPreviewResult;
@@ -25,7 +27,7 @@ interface Props {
  * cobertura (necesito/obra/central/inbound/comprar) → caja.
  * La necesidad bruta viene del engine; aquí solo se presenta la asignación.
  */
-export function MrpResultPanel({ preview, previewRecipe, previewMrp }: Props) {
+export function MrpResultPanel({ preview, previewRecipe, previewMrp,projectId }: Props) {
   return (
     <div data-testid="resultado-receta" className="glass glass-accent-green p-4 space-y-3">
       <div>
@@ -134,6 +136,7 @@ export function MrpResultPanel({ preview, previewRecipe, previewMrp }: Props) {
       {previewMrp.lines.some((l) => l.comprar > 0) && (
         <div data-testid="compras-necesarias" className="rounded-md border border-[var(--border)] bg-[var(--panel)] p-2.5 text-[11px]">
           <div className="font-semibold text-[var(--foreground)]">Compras necesarias:</div>
+          {projectId && <NeedToBuy projectId={projectId} items={previewMrp.lines.filter(l=>l.comprar>0).map(l=>({producto_id:l.producto_id,descripcion:l.producto_nombre,cantidad:l.comprar,unidad:l.unidad_medida}))}/>}
           <ul className="mt-1 list-disc pl-4 text-[var(--muted)]">
             {previewMrp.lines
               .filter((l) => l.comprar > 0)

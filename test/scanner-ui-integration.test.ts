@@ -503,7 +503,7 @@ describe('Control Scanner - Invoice UI Integration & Zero-Duplicate Upload', () 
     const path = await import('path');
     const migrationPath = path.resolve(
       process.cwd(),
-      'supabase/migrations/20260920060000_attachments_unique_storage_object.sql'
+      'supabase/migrations_legacy_pre_baseline/20260920060000_attachments_unique_storage_object.sql'
     );
 
     expect(fs.existsSync(migrationPath)).toBe(true);

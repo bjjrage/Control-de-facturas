@@ -5,7 +5,7 @@ import { buildRfc2822Message } from "../mime";
 import { EmailDeliveryUnknownError } from "../provider";
 
 const migration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260919022401_rodrigo_email_v1_hardening_batch2.sql"),
+  resolve(process.cwd(), "supabase/migrations_legacy_pre_baseline/20260919022401_rodrigo_email_v1_hardening_batch2.sql"),
   "utf8"
 );
 const disconnectRoute = readFileSync(

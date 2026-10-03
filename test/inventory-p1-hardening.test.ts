@@ -4,12 +4,12 @@ import { resolve } from "node:path";
 
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8").replace(/\r\n/g, "\n");
 
-const migration = readSource("supabase/migrations/20260913235000_inventory_p1_hardening.sql");
+const migration = readSource("supabase/migrations_legacy_pre_baseline/20260913235000_inventory_p1_hardening.sql");
 const actions = readSource("app/(internal)/inventory/actions.ts");
-const propagationFix = readSource("supabase/migrations/20260914001000_inventory_p1_transfer_fix.sql");
-const auditFix = readSource("supabase/migrations/20260914010000_inventory_final_audit_hardening.sql");
-const gateFix = readSource("supabase/migrations/20260914020000_inventory_partial_upload_gate.sql");
-const uploadResolution = readSource("supabase/migrations/20260914030000_inventory_partial_upload_resolution.sql");
+const propagationFix = readSource("supabase/migrations_legacy_pre_baseline/20260914001000_inventory_p1_transfer_fix.sql");
+const auditFix = readSource("supabase/migrations_legacy_pre_baseline/20260914010000_inventory_final_audit_hardening.sql");
+const gateFix = readSource("supabase/migrations_legacy_pre_baseline/20260914020000_inventory_partial_upload_gate.sql");
+const uploadResolution = readSource("supabase/migrations_legacy_pre_baseline/20260914030000_inventory_partial_upload_resolution.sql");
 const portalRoute = readSource("app/api/warehouse-portal/[token]/route.ts");
 
 describe("P1 hardening del inventario canónico", () => {
