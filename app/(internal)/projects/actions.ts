@@ -549,6 +549,12 @@ export async function updateProject(projectId: string, formData: FormData): Prom
     const v = Number(formData.get(key));
     return Number.isFinite(v) ? v : fallback;
   };
+  const percentage = (key: string): number | null => {
+    const raw = formData.get(key); if (raw == null || String(raw).trim() === "") return null;
+    const value = Number(raw); return Number.isFinite(value) && value >= 0 && value <= 100 ? value : NaN;
+  };
+  const percentages = { anticipo_pct: percentage("anticipo_pct"), devolucion_anticipo_pct: percentage("devolucion_anticipo_pct"), retencion_pct: percentage("retencion_pct"), iva_pct: percentage("iva_pct") };
+  if (formData.has("contract_amount") && Object.values(percentages).some(value => value != null && !Number.isFinite(value))) return { error: "Porcentajes contractuales inv�lidos: usar 0 a 100 o dejar pendiente." };
   const contractPatch = formData.has("contract_amount")
     ? {
         comitente: (formData.get("comitente") as string | null) || null,
@@ -558,10 +564,7 @@ export async function updateProject(projectId: string, formData: FormData): Prom
         orden_inicio_date: (formData.get("orden_inicio_date") as string | null) || null,
         fiscalizacion_nombre: (formData.get("fiscalizacion_nombre") as string | null) || null,
         fiscalizacion_contrato: (formData.get("fiscalizacion_contrato") as string | null) || null,
-        anticipo_pct: num("anticipo_pct", 30),
-        devolucion_anticipo_pct: num("devolucion_anticipo_pct", 40),
-        retencion_pct: num("retencion_pct", 5),
-        iva_pct: num("iva_pct", 10),
+        ...percentages,
       }
     : {};
 

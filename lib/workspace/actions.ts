@@ -74,10 +74,12 @@ export async function loadPrebidWorkspaceAction(tenderId: string, versionId?: st
       if (r.error) throw new Error(r.error.message);
       handoff = r.data;
     }
+    const handoffProjectResult = offer?.estado === "GANADA" ? await db.from("projects").select("id,code").eq("empresa_id", profile.empresa_id).eq("source_tender_id", tenderId).maybeSingle() : { data: null, error: null };
+    if (handoffProjectResult.error) throw new Error(handoffProjectResult.error.message);
     const priceOptions = selected ? {} : Object.fromEntries(await resolveContextMaterialPrices({ supabase: db, admin: createAdminClient(),
       empresaId: profile.empresa_id, context, productIds: facts.products.map(p => p.id) }));
     return { owner, offer, versions: versionsRes.data ?? [], facts, hash, costs, priceOptions,
-      selectedVersion, handoff, products: productsRes.data ?? [], providers: providersRes.data ?? [],
+      selectedVersion, handoff, handoffProject: handoffProjectResult.data, products: productsRes.data ?? [], providers: providersRes.data ?? [],
       readOnly: !!selected || (!!offer && offer.estado !== "BORRADOR"),
       readyForProjectHandoff: offer?.estado === "GANADA" && !!offer.winning_version_id && Number(offer.awarded_amount)>0 && !!offer.awarded_confirmed_by };
   });

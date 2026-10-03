@@ -73,6 +73,9 @@ export default async function ProjectDetailPage({
     .eq("empresa_id", empresaId)
     .single<Project>();
   if (!project) notFound();
+  const baselineResult = project.source_tender_id ? await supabase.from("project_contract_baselines")
+    .select("tender_id,winning_version_id,snapshot_sha256,awarded_amount").eq("project_id", id).eq("empresa_id", empresaId).single() : { data: null, error: null };
+  if (baselineResult.error) throw new Error(baselineResult.error.message);
 
   const [{ data: budgetItems }, { data: execEntries }, { data: orders }, { data: laborEntries }, { data: allProvidersData }] =
     await Promise.all([
@@ -713,6 +716,12 @@ export default async function ProjectDetailPage({
   }
 
   return (
+    <>
+    {baselineResult.data && <section className="mb-4 rounded border p-3 text-sm">
+      Baseline contractual: <Link href={`/licitaciones/${baselineResult.data.tender_id}/prebid`} className="underline">oferta ganadora</Link>
+      <p>Adjudicación confirmada: {formatMoney(Number(baselineResult.data.awarded_amount), "PYG")} · Snapshot SHA-256: {baselineResult.data.snapshot_sha256}</p>
+      {[project.anticipo_pct,project.devolucion_anticipo_pct,project.retencion_pct,project.iva_pct].some(value=>value==null) && <p>Confirmá los porcentajes contractuales antes de certificar. Los valores pendientes no se infieren de defaults.</p>}
+    </section>}
     <ProjectTabsClient
       project={project}
       initialTab={initialTab}
@@ -763,5 +772,8 @@ export default async function ProjectDetailPage({
       comprasTotal={comprasTotal}
       comprasPct={comprasPct}
     />
+    </>
   );
 }
+import Link from "next/link";
+import { formatMoney } from "@/lib/format";

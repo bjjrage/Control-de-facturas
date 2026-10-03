@@ -45,8 +45,8 @@ async function loadOwnedProject(supabase: SupabaseClient, projectId: string, emp
   return data as
     | {
         id: string;
-        devolucion_anticipo_pct: number;
-        retencion_pct: number;
+        devolucion_anticipo_pct: number | null;
+        retencion_pct: number | null;
         contract_amount: number;
         orden_inicio_date: string | null;
         start_date: string | null;
@@ -474,6 +474,7 @@ export async function submitCertificate(certificateId: string): Promise<{ error:
   if (!project) return { error: "Proyecto no encontrado." };
 
   const { montoPresente } = await recomputeCertificateTotals(supabase, cert.id);
+  if (project.devolucion_anticipo_pct == null || project.retencion_pct == null) return { error: "Confirmá los parámetros contractuales antes de elaborar el certificado." };
   const devolucion = round0((montoPresente * project.devolucion_anticipo_pct) / 100);
   const retencion = round0((montoPresente * project.retencion_pct) / 100);
 

@@ -78,7 +78,7 @@ export function ReimportarButton({ nro, id }: { nro: string; id: string }) {
             if (!confirm("¿Convertir esta licitación en un Proyecto activo en el ERP? Se creará la obra, el cómputo métrico y el depósito.")) return;
             setBusyConvert(true);
             setError(null);
-            const res = await convertirLicitacionAProyecto(id);
+            const res = await convertirLicitacionAProyecto(id, true);
             setBusyConvert(false);
             if (res.error) {
               setError(res.error);

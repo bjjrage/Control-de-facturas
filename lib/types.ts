@@ -1093,10 +1093,12 @@ export interface Project {
   orden_inicio_date: string | null;
   fiscalizacion_nombre: string | null;
   fiscalizacion_contrato: string | null;
-  anticipo_pct: number;
-  devolucion_anticipo_pct: number;
-  retencion_pct: number;
-  iva_pct: number;
+  anticipo_pct: number | null;
+  devolucion_anticipo_pct: number | null;
+  retencion_pct: number | null;
+  iva_pct: number | null;
+  source_tender_id?: string | null;
+  source_winning_version_id?: string | null;
 }
 
 export interface BudgetItem {

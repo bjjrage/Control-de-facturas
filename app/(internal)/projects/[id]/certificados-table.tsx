@@ -102,7 +102,7 @@ export function CertificadosTable({
   }
 
   const frozen = certificates.filter((c) => FROZEN.includes(c.status));
-  const anticipoTotal = (project.contract_amount * project.anticipo_pct) / 100;
+  const anticipoTotal = project.anticipo_pct == null ? null : (project.contract_amount * project.anticipo_pct) / 100;
   const devolucionAcum = frozen.reduce((s, c) => s + c.devolucion_anticipo, 0);
   const retencionAcum = frozen.reduce((s, c) => s + c.retencion, 0);
   const facturadoAcum = certificates
@@ -125,8 +125,8 @@ export function CertificadosTable({
         />
         <Kpi
           label="Saldo de anticipo"
-          value={formatMoney(Math.max(0, anticipoTotal - devolucionAcum), "PYG")}
-          sub={`de ${formatMoney(anticipoTotal, "PYG")}`}
+          value={anticipoTotal == null ? "Pendiente de confirmar" : formatMoney(Math.max(0, anticipoTotal - devolucionAcum), "PYG")}
+          sub={anticipoTotal == null ? "Parámetro contractual desconocido" : `de ${formatMoney(anticipoTotal, "PYG")}`}
         />
         <Kpi label="Retención acumulada" value={formatMoney(retencionAcum, "PYG")} />
         <Kpi label="Facturado" value={formatMoney(facturadoAcum, "PYG")} />
