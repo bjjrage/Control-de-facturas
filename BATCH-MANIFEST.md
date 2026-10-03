@@ -150,3 +150,20 @@ No se autorizan otros archivos. Si la implementación requiere ampliar este list
 - Test coverage: casos canónicos 1–6; Costeo, Plan Semanal, Flujo de Caja, `tsc` y build PASS.
 - HTML impact: UI de pricing/costeo identifica fuentes y decisiones adoptadas.
 - Verdict: PASS local; listo para auditoría externa. No mergear desde este batch.
+
+## Batch 03 — RFQ 2.0 FULL AUTOPILOT
+
+Base: `53898dffe0a47a517bfeb31722af2f633a31486f`.
+Branch: `batch/03-rfq-2-core`.
+Estado: COMPLETE; sin PR ni merge.
+Scope: propósito explícito, modelo canónico RFQ, magic link, versionado, evidencia/reconciliación, comparativo, propuestas, asignación y autorización humanas, preview y confirmación exacta de 1..N OCs; integración con Costeo, MRP y compra directa preservando Pricing Batch 02.
+Baseline: DB-INFRA incorporado quirúrgicamente; 148 migrations históricas archivadas con 148/148 SHA256 PASS. Baseline SHA256 `A532E54FB9C3D9A10C4CC2A68C5247057D71DC70D62EA4F4AD2B91B6723C32C5`.
+Migrations nuevas: seis, solo aplicadas a Preview; versiones y hashes inmutables en `IMPLEMENTATION_REPORT-BATCH-03.md`. Producción fuera de alcance.
+Preview: `batch-03-rfq-2-validation`, UUID `2325db99-ecb4-4e66-991e-57ff21fbbfb3`, ref `afedslxxtttyqunqmutz`, `ACTIVE_HEALTHY`; siete migrations en ledger y nueve tablas representativas presentes.
+Tests: enfocados 112/112 PASS; suite serial completa y hashes de migrations históricos registrados en el reporte.
+TypeScript: `npx tsc --noEmit` PASS. Build: `npx next build --webpack` PASS; 58 rutas estáticas.
+Navegador real en Preview: invitaciones, proveedor/link, correcciones/versiones, adopción humana, asignación 4+5, autorización, preview/confirmación de dos OCs, COST_DISCOVERY sin compra y compra directa PASS. Pruebas de aislamiento tenant y permisos PASS.
+Producción: no modificada; verificación de solo lectura confirma ledger únicamente en baseline `20261002231537` y `rfqs.purpose` ausente.
+Invariantes: el sistema propone, el humano decide; ninguna selección o autorización crea OCs; confirmar el preview exacto es la única vía para generarlas; COST_DISCOVERY no genera OCs.
+Límite operativo: la entrega del magic link es manual; no se configuró correo saliente. Las imágenes/escaneos requieren reconciliación humana.
+No abrir PR ni mergear desde este batch; listo para auditoría externa.
