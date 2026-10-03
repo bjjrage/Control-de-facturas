@@ -4,10 +4,33 @@ import { resolveProjectPriceSemantics } from "@/lib/costing/project-prices";
 import type { CostObservation } from "@/lib/cost-engine/types";
 
 const percent = z.number().finite().min(0).max(100);
-export const costSettingsSchema = z.object({ indirectPct: percent, generalPct: percent,
+export const legacyCostSettingsSchema = z.object({ indirectPct: percent, generalPct: percent,
   financingPct: percent, riskPct: percent, marginPct: percent.max(99) });
+const chargeSchema = z.discriminatedUnion("mode", [
+  z.object({ mode: z.literal("PERCENT"), value: percent }).strict(),
+  z.object({ mode: z.literal("FIXED"), value: z.number().finite().min(0).max(1e15) }).strict(),
+]);
+export const costSettingsV2Schema = z.object({ schemaVersion: z.literal(2),
+  indirect: chargeSchema, financing: chargeSchema, risk: chargeSchema,
+  generalItems: z.array(z.object({ id: z.string().min(1).max(100), concept: z.string().trim().min(1).max(200),
+    mode: z.enum(["PERCENT", "FIXED"]), value: z.number().finite().min(0).max(1e15),
+  }).strict().refine(row => row.mode !== "PERCENT" || row.value <= 100)).max(100)
+    .refine(rows => new Set(rows.map(row => row.id)).size === rows.length, "Identificadores de conceptos duplicados"),
+  marginPct: percent.max(99),
+}).strict();
+export const costSettingsSchema = z.union([costSettingsV2Schema, legacyCostSettingsSchema.strict()]);
 export type CostSettings = z.infer<typeof costSettingsSchema>;
-export const DEFAULT_COST_SETTINGS: CostSettings = { indirectPct: 0, generalPct: 0, financingPct: 0, riskPct: 0, marginPct: 0 };
+export type CostSettingsV2 = z.infer<typeof costSettingsV2Schema>;
+export const DEFAULT_COST_SETTINGS: z.infer<typeof legacyCostSettingsSchema> = { indirectPct: 0, generalPct: 0, financingPct: 0, riskPct: 0, marginPct: 0 };
+/** Read V1 without mutating its immutable facts or silently changing percentage bases. */
+export function normalizeCostSettings(raw: CostSettings): CostSettingsV2 {
+  const settings = costSettingsSchema.parse(raw);
+  if ("schemaVersion" in settings) return settings;
+  return { schemaVersion: 2, indirect: { mode: "PERCENT", value: settings.indirectPct },
+    financing: { mode: "PERCENT", value: settings.financingPct }, risk: { mode: "PERCENT", value: settings.riskPct },
+    generalItems: [{ id: "legacy-general", concept: "Gastos generales (V1)", mode: "PERCENT", value: settings.generalPct }],
+    marginPct: settings.marginPct };
+}
 export type FactRow = Record<string, any>;
 export interface WorkspaceFacts {
   context: { kind: "TENDER"; id: string }; tender: FactRow; settings: CostSettings | null;
@@ -18,15 +41,17 @@ export interface WorkspaceFacts {
 }
 /** Percent bases are explicit: burdens on direct cost; margin on offered revenue. */
 export function composeOffer(directCost: number, settings: CostSettings) {
-  costSettingsSchema.parse(settings);
+  const normalized = normalizeCostSettings(settings);
   if (!Number.isFinite(directCost) || directCost <= 0) throw new Error("Costo directo positivo requerido.");
-  const burden = (pct: number) => directCost * pct / 100;
-  const indirect = burden(settings.indirectPct), general = burden(settings.generalPct);
-  const financing = burden(settings.financingPct), risk = burden(settings.riskPct);
+  const amount = (charge: { mode: "PERCENT" | "FIXED"; value: number }) => charge.mode === "PERCENT" ? directCost * charge.value / 100 : charge.value;
+  const generalItems = normalized.generalItems.map(row => ({ ...row, base: row.mode === "PERCENT" ? directCost : null, result: amount(row) }));
+  const indirect = amount(normalized.indirect), general = generalItems.reduce((sum, row) => sum + row.result, 0);
+  const financing = amount(normalized.financing), risk = amount(normalized.risk);
   const totalCost = directCost + indirect + general + financing + risk;
-  const offerAmount = Math.round(totalCost / (1 - settings.marginPct / 100) * 100) / 100;
+  const offerAmount = Math.round(totalCost / (1 - normalized.marginPct / 100) * 100) / 100;
   if (!Number.isFinite(offerAmount) || offerAmount >= 1e16) throw new Error("Oferta fuera de rango.");
-  return { directCost, indirect, general, financing, risk, totalCost, margin: offerAmount - totalCost, offerAmount };
+  return { directCost, indirect, general, financing, risk, totalCost, margin: offerAmount - totalCost, offerAmount,
+    generalItems, marginPct: normalized.marginPct };
 }
 
 /** Calculate live and archived offers with the existing APU and pricing engines. */

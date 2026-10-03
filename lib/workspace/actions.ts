@@ -18,6 +18,7 @@ async function access(raw: WorkspaceContext, write = false) {
   const context = workspaceContextSchema.parse(raw);
   const profile = await requirePlan("pro", ["comercial", "administracion", "admin"]);
   if (!profile.active || !profile.empresa_active) throw new Error("Cuenta o empresa inactiva.");
+  if (!["comercial", "administracion", "admin"].includes(profile.role)) throw new Error("Actor PREBID no autorizado.");
   const db = await createClient();
   const { data: owner, error } = await db.from(context.kind === "TENDER" ? "licitaciones" : "projects")
     .select("*").eq("id", context.id).eq("empresa_id", profile.empresa_id).maybeSingle();
@@ -187,13 +188,16 @@ export async function savePrebidSettingsAction(tenderId: string, raw: unknown) {
 }
 export async function savePrebidVersionAction(tenderId: string, present: boolean, expectedHash: string) {
   return result(async () => {
-    const { context, db } = await access({ kind: "TENDER", id: tenderId }, true);
+    const { context, db, profile } = await access({ kind: "TENDER", id: tenderId }, true);
     const r = await db.rpc("prebid_workspace", { p_tender_id: tenderId });
     if (r.error) throw new Error(r.error.message);
     if (r.data.hash !== expectedHash) throw new Error("El workspace cambió. Actualizá antes de confirmar.");
     const costs = computeWorkspaceCosts(r.data.facts);
     if (!costs.complete || !costs.offer) throw new Error("Completá cantidades, APU y evidencia de precios antes de versionar/presentar.");
-    const saved = await db.rpc("prebid_save_version", { p_tender_id: tenderId, p_present: z.boolean().parse(present),
+    // The browser supplies neither actor nor amount. This restricted RPC rechecks
+    // the active actor, tenant, draft and factual hash under the tender lock.
+    const saved = await createAdminClient().rpc("prebid_commit_version", { p_tender_id: tenderId,
+      p_actor_id: profile.id, p_empresa_id: profile.empresa_id, p_present: z.boolean().parse(present),
       p_expected_hash: expectedHash, p_offer_amount: costs.offer.offerAmount });
     if (saved.error) throw new Error(saved.error.message); revalidatePath(workspacePath(context)); return saved.data;
   });

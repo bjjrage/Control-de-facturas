@@ -11,20 +11,36 @@ CREATE FUNCTION pg_temp.reject(name text,statement text) RETURNS void LANGUAGE p
  PERFORM pg_temp.check_true(name,rejected);
 END $$;
 
+-- The production enum contains only the three allowed roles. A rollback-only
+-- NULL role fixture tests a real same-tenant profile lacking any authorized role;
+-- TypeScript tests additionally inject an unknown role. No enum/schema change persists.
+ALTER TABLE public.profiles ALTER COLUMN role DROP NOT NULL;
+CREATE TEMP TABLE prebid_hash(hash text);
+GRANT ALL ON prebid_hash TO authenticated,service_role;
+CREATE FUNCTION pg_temp.reject_42501(name text,statement text) RETURNS void LANGUAGE plpgsql AS $$
+DECLARE rejected boolean:=false;
+BEGIN
+ BEGIN EXECUTE statement; EXCEPTION WHEN insufficient_privilege THEN rejected:=true; END;
+ PERFORM pg_temp.check_true(name,rejected);
+END $$;
 INSERT INTO public.empresas(id,nombre,plan) VALUES
  ('bbbbbbbb-1111-4111-8111-111111111111','Batch04 rollback A','caterpillar'),
  ('bbbbbbbb-2222-4222-8222-222222222222','Batch04 rollback B','caterpillar');
 INSERT INTO auth.users(id,email) VALUES
  ('aaaaaaaa-1111-4111-8111-111111111111','batch04-a@example.invalid'),
- ('aaaaaaaa-2222-4222-8222-222222222222','batch04-b@example.invalid');
+ ('aaaaaaaa-2222-4222-8222-222222222222','batch04-b@example.invalid'),
+ ('aaaaaaaa-3333-4333-8333-333333333333','batch04-no-role@example.invalid');
 INSERT INTO public.profiles(id,email,full_name,role,empresa_id) VALUES
  ('aaaaaaaa-1111-4111-8111-111111111111','batch04-a@example.invalid','Test A','admin','bbbbbbbb-1111-4111-8111-111111111111'),
  ('aaaaaaaa-2222-4222-8222-222222222222','batch04-b@example.invalid','Test B','admin','bbbbbbbb-2222-4222-8222-222222222222')
  ON CONFLICT(id) DO UPDATE SET empresa_id=excluded.empresa_id,role='admin';
+INSERT INTO public.profiles(id,email,full_name,role,empresa_id)
+ VALUES('aaaaaaaa-3333-4333-8333-333333333333','batch04-no-role@example.invalid','No commercial role',NULL,'bbbbbbbb-1111-4111-8111-111111111111');
 INSERT INTO public.licitaciones(id,empresa_id,dncp_nro,ocid,titulo) VALUES
  ('cccccccc-1111-4111-8111-111111111111','bbbbbbbb-1111-4111-8111-111111111111','b04-a','b04-a','Tender A'),
  ('cccccccc-2222-4222-8222-222222222222','bbbbbbbb-2222-4222-8222-222222222222','b04-b','b04-b','Tender B'),
- ('cccccccc-3333-4333-8333-333333333333','bbbbbbbb-1111-4111-8111-111111111111','b04-lost','b04-lost','Tender lost');
+ ('cccccccc-3333-4333-8333-333333333333','bbbbbbbb-1111-4111-8111-111111111111','b04-lost','b04-lost','Tender lost'),
+ ('cccccccc-4444-4444-8444-444444444444','bbbbbbbb-1111-4111-8111-111111111111','b04-new','b04-new','Tender unauthorized insert');
 INSERT INTO public.licitacion_items(licitacion_id,empresa_id,descripcion,cantidad,unidad) VALUES
  ('cccccccc-1111-4111-8111-111111111111','bbbbbbbb-1111-4111-8111-111111111111','Measured wall',10,'m2');
 INSERT INTO public.productos(id,empresa_id,nombre,unidad) VALUES
@@ -40,6 +56,18 @@ SET LOCAL ROLE authenticated;
 INSERT INTO public.licitacion_ofertas(licitacion_id,empresa_id,created_by) VALUES
  ('cccccccc-1111-4111-8111-111111111111','bbbbbbbb-1111-4111-8111-111111111111','aaaaaaaa-1111-4111-8111-111111111111'),
  ('cccccccc-3333-4333-8333-333333333333','bbbbbbbb-1111-4111-8111-111111111111','aaaaaaaa-1111-4111-8111-111111111111');
+SELECT pg_temp.reject('draft direct GANADA bypass rejected','update public.licitaciones set decision=''GANADA'' where id=''cccccccc-1111-4111-8111-111111111111''');
+SELECT pg_temp.reject('draft direct PERDIDA bypass rejected','update public.licitaciones set decision=''PERDIDA'' where id=''cccccccc-1111-4111-8111-111111111111''');
+UPDATE public.licitaciones SET decision='EN_PREPARACION' WHERE id='cccccccc-1111-4111-8111-111111111111';
+SELECT pg_temp.check_true('legacy commercial analysis preserved',(SELECT decision='EN_PREPARACION' FROM public.licitaciones WHERE id='cccccccc-1111-4111-8111-111111111111'));
+SELECT set_config('request.jwt.claim.sub','aaaaaaaa-3333-4333-8333-333333333333',true);
+SELECT pg_temp.check_true('same tenant existing read policy preserved',(SELECT count(*)=2 FROM public.licitacion_ofertas WHERE empresa_id='bbbbbbbb-1111-4111-8111-111111111111'));
+SELECT pg_temp.reject_42501('unauthorized same tenant cost settings','update public.licitacion_ofertas set cost_settings=''{"indirectPct":10,"generalPct":0,"financingPct":0,"riskPct":0,"marginPct":0}'' where licitacion_id=''cccccccc-1111-4111-8111-111111111111''');
+SELECT pg_temp.reject_42501('unauthorized same tenant create offer','insert into public.licitacion_ofertas(licitacion_id,empresa_id,created_by) values(''cccccccc-4444-4444-8444-444444444444'',''bbbbbbbb-1111-4111-8111-111111111111'',''aaaaaaaa-3333-4333-8333-333333333333'')');
+SELECT pg_temp.reject_42501('unauthorized same tenant delete draft','delete from public.licitacion_ofertas where licitacion_id=''cccccccc-1111-4111-8111-111111111111''');
+SELECT pg_temp.reject_42501('unauthorized same tenant state','update public.licitacion_ofertas set estado=''GANADA'' where licitacion_id=''cccccccc-1111-4111-8111-111111111111''');
+SELECT pg_temp.reject_42501('unauthorized same tenant outcome','select public.prebid_record_outcome(''cccccccc-1111-4111-8111-111111111111'',''GANADA'',1500)');
+SELECT set_config('request.jwt.claim.sub','aaaaaaaa-1111-4111-8111-111111111111',true);
 SELECT pg_temp.check_true('compute import without project',public.prebid_import_computo('cccccccc-1111-4111-8111-111111111111')=1);
 SELECT pg_temp.check_true('compute import idempotent',public.prebid_import_computo('cccccccc-1111-4111-8111-111111111111')=0);
 INSERT INTO prebid_ids SELECT 'budget',id FROM public.budget_items WHERE tender_id='cccccccc-1111-4111-8111-111111111111';
@@ -48,6 +76,27 @@ SELECT pg_temp.reject('cross tenant workspace','select public.prebid_workspace('
 SELECT pg_temp.reject('cross tenant compute import','select public.prebid_import_computo(''cccccccc-2222-4222-8222-222222222222'')');
 SELECT pg_temp.reject('fake project owner','insert into public.budget_items(project_id,code,description) values(''cccccccc-1111-4111-8111-111111111111'',''fake'',''fake'')');
 SELECT pg_temp.reject('material cross tenant rejected',format('insert into public.budget_item_materials(empresa_id,tender_id,budget_item_id,producto_id,cantidad_por_unidad_ejecutada) values(''bbbbbbbb-1111-4111-8111-111111111111'',''cccccccc-1111-4111-8111-111111111111'',%L,''dddddddd-2222-4222-8222-222222222222'',1)',(SELECT id FROM prebid_ids WHERE key='budget')));
+-- V2 persistence accepts explicit modes and named concepts; V1 is restored
+-- before the exact 1460 finalizer fixture, without touching archived snapshots.
+UPDATE public.licitacion_ofertas SET cost_settings='{"schemaVersion":2,"indirect":{"mode":"FIXED","value":37},"financing":{"mode":"FIXED","value":11},"risk":{"mode":"FIXED","value":5},"generalItems":[{"id":"office","concept":"Oficina","mode":"FIXED","value":25},{"id":"insurance","concept":"Seguros","mode":"PERCENT","value":3}],"marginPct":20}' WHERE licitacion_id='cccccccc-1111-4111-8111-111111111111';
+SELECT pg_temp.check_true('V2 settings persisted without flattening concepts',(SELECT cost_settings->'schemaVersion'='2'::jsonb AND jsonb_array_length(cost_settings->'generalItems')=2 FROM public.licitacion_ofertas WHERE licitacion_id='cccccccc-1111-4111-8111-111111111111'));
+SELECT pg_temp.reject('invalid V2 null mode rejected','update public.licitacion_ofertas set cost_settings=jsonb_set(cost_settings,''{indirect,mode}'',''null'') where licitacion_id=''cccccccc-1111-4111-8111-111111111111''');
+SELECT pg_temp.reject('invalid V2 percentage rejected','update public.licitacion_ofertas set cost_settings=jsonb_set(cost_settings,''{generalItems,1,value}'',''101'') where licitacion_id=''cccccccc-1111-4111-8111-111111111111''');
+SELECT pg_temp.reject('invalid V2 empty concept rejected','update public.licitacion_ofertas set cost_settings=jsonb_set(cost_settings,''{generalItems,0,concept}'',''""'') where licitacion_id=''cccccccc-1111-4111-8111-111111111111''');
+SELECT pg_temp.reject('invalid V2 duplicate ids rejected','update public.licitacion_ofertas set cost_settings=jsonb_set(cost_settings,''{generalItems,1,id}'',''"office"'') where licitacion_id=''cccccccc-1111-4111-8111-111111111111''');
+UPDATE public.licitacion_ofertas SET cost_settings='{"indirectPct":0,"generalPct":0,"financingPct":0,"riskPct":0,"marginPct":0}' WHERE licitacion_id='cccccccc-1111-4111-8111-111111111111';
+RESET ROLE;
+UPDATE public.profiles SET active=false WHERE id='aaaaaaaa-1111-4111-8111-111111111111';
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.reject_42501('inactive same tenant offer actor rejected','update public.licitacion_ofertas set monto_total=123 where licitacion_id=''cccccccc-1111-4111-8111-111111111111''');
+RESET ROLE;
+UPDATE public.profiles SET active=true WHERE id='aaaaaaaa-1111-4111-8111-111111111111';
+UPDATE public.empresas SET active=false WHERE id='bbbbbbbb-1111-4111-8111-111111111111';
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.reject_42501('inactive company offer actor rejected','update public.licitacion_ofertas set monto_total=123 where licitacion_id=''cccccccc-1111-4111-8111-111111111111''');
+RESET ROLE;
+UPDATE public.empresas SET active=true WHERE id='bbbbbbbb-1111-4111-8111-111111111111';
+SET LOCAL ROLE authenticated;
 SELECT pg_temp.reject('null margin settings rejected','update public.licitacion_ofertas set cost_settings=''{"indirectPct":0,"generalPct":0,"financingPct":0,"riskPct":0,"marginPct":null}'' where licitacion_id=''cccccccc-1111-4111-8111-111111111111''');
 INSERT INTO prebid_ids SELECT 'bim',public.workspace_register_bim('{"kind":"TENDER","id":"cccccccc-1111-4111-8111-111111111111"}','rollback.ifc','tenders/cccccccc-1111-4111-8111-111111111111/rollback.ifc','IFC4',
  '[{"ifcGuid":"wall-a","ifcType":"IfcWall","expressId":1,"name":"wall","properties":{},"quantityType":"area","quantityValue":10,"quantityUnit":"m2","quantitySource":"IFC_QTO","quantityProperty":"NetSideArea"}]');
@@ -110,10 +159,22 @@ SELECT set_config('request.jwt.claim.sub','aaaaaaaa-1111-4111-8111-111111111111'
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.reject('superseded quote version cannot be newly adopted',format('select public.workspace_adopt_price(''{"kind":"TENDER","id":"cccccccc-1111-4111-8111-111111111111"}'',''dddddddd-1111-4111-8111-111111111111'',''COTIZACION'',999,%L)',(SELECT id FROM prebid_ids WHERE key='quote_item')));
 SELECT pg_temp.check_true('new supplier version does not auto adopt',(SELECT precio_unitario=73 FROM public.project_cost_prices WHERE tender_id='cccccccc-1111-4111-8111-111111111111'));
-SELECT pg_temp.reject('stale presentation CAS','select public.prebid_save_version(''cccccccc-1111-4111-8111-111111111111'',true,''stale'',1460)');
-INSERT INTO prebid_ids SELECT 'draft',(public.prebid_save_version('cccccccc-1111-4111-8111-111111111111',false,public.prebid_workspace('cccccccc-1111-4111-8111-111111111111')->>'hash',1460)->>'id')::uuid;
+SELECT pg_temp.check_true('unsafe browser finalizer ACL revoked',NOT has_function_privilege('authenticated','public.prebid_save_version(uuid,boolean,text,numeric)','EXECUTE'));
+SELECT pg_temp.check_true('server finalizer ACL denies browser',NOT has_function_privilege('authenticated','public.prebid_commit_version(uuid,uuid,uuid,boolean,text,numeric)','EXECUTE'));
+SELECT pg_temp.reject_42501('tampered offer 999999 with canonical facts 1460',format('select public.prebid_save_version(''cccccccc-1111-4111-8111-111111111111'',true,%L,999999)',public.prebid_workspace('cccccccc-1111-4111-8111-111111111111')->>'hash'));
+SELECT pg_temp.reject_42501('browser cannot bypass via server RPC',format('select public.prebid_commit_version(''cccccccc-1111-4111-8111-111111111111'',''aaaaaaaa-1111-4111-8111-111111111111'',''bbbbbbbb-1111-4111-8111-111111111111'',true,%L,999999)',public.prebid_workspace('cccccccc-1111-4111-8111-111111111111')->>'hash'));
+RESET ROLE;
+INSERT INTO prebid_hash SELECT public.prebid_workspace('cccccccc-1111-4111-8111-111111111111')->>'hash';
+SET LOCAL ROLE service_role;
+SELECT pg_temp.reject('server finalizer stale CAS','select public.prebid_commit_version(''cccccccc-1111-4111-8111-111111111111'',''aaaaaaaa-1111-4111-8111-111111111111'',''bbbbbbbb-1111-4111-8111-111111111111'',true,''stale'',1460)');
+SELECT pg_temp.reject_42501('server finalizer unauthorized actor',format('select public.prebid_commit_version(''cccccccc-1111-4111-8111-111111111111'',''aaaaaaaa-3333-4333-8333-333333333333'',''bbbbbbbb-1111-4111-8111-111111111111'',true,%L,1460)',(SELECT hash FROM prebid_hash)));
+SELECT pg_temp.reject_42501('server finalizer wrong tenant actor',format('select public.prebid_commit_version(''cccccccc-1111-4111-8111-111111111111'',''aaaaaaaa-2222-4222-8222-222222222222'',''bbbbbbbb-2222-4222-8222-222222222222'',true,%L,1460)',(SELECT hash FROM prebid_hash)));
+INSERT INTO prebid_ids SELECT 'draft',(public.prebid_commit_version('cccccccc-1111-4111-8111-111111111111','aaaaaaaa-1111-4111-8111-111111111111','bbbbbbbb-1111-4111-8111-111111111111',false,(SELECT hash FROM prebid_hash),1460)->>'id')::uuid;
 SELECT pg_temp.check_true('draft version does not freeze',(SELECT estado='BORRADOR' FROM public.licitacion_ofertas WHERE licitacion_id='cccccccc-1111-4111-8111-111111111111'));
-INSERT INTO prebid_ids SELECT 'submitted',(public.prebid_save_version('cccccccc-1111-4111-8111-111111111111',true,public.prebid_workspace('cccccccc-1111-4111-8111-111111111111')->>'hash',1460)->>'id')::uuid;
+INSERT INTO prebid_ids SELECT 'submitted',(public.prebid_commit_version('cccccccc-1111-4111-8111-111111111111','aaaaaaaa-1111-4111-8111-111111111111','bbbbbbbb-1111-4111-8111-111111111111',true,(SELECT hash FROM prebid_hash),1460)->>'id')::uuid;
+SELECT pg_temp.check_true('exact canonical amount 1460 persists',(SELECT monto_total=1460 FROM public.licitacion_ofertas WHERE licitacion_id='cccccccc-1111-4111-8111-111111111111'));
+RESET ROLE;
+SET LOCAL ROLE authenticated;
 SELECT pg_temp.check_true('canonical PRESENTADA',(SELECT estado='PRESENTADA' FROM public.licitacion_ofertas WHERE licitacion_id='cccccccc-1111-4111-8111-111111111111'));
 SELECT pg_temp.check_true('snapshot contains quote provenance',(SELECT snapshot->'facts'->'prices'->0->>'quote_version_item_id'=(SELECT id::text FROM prebid_ids WHERE key='quote_item') FROM public.licitacion_oferta_versions WHERE id=(SELECT id FROM prebid_ids WHERE key='submitted')));
 SELECT pg_temp.reject('submitted budget frozen',format('update public.budget_items set quantity=999 where id=%L',(SELECT id FROM prebid_ids WHERE key='budget')));
@@ -135,7 +196,12 @@ SELECT pg_temp.check_true('rfq history never reparented',(SELECT project_id IS N
 INSERT INTO public.budget_items(tender_id,code,description,quantity,unit) VALUES('cccccccc-3333-4333-8333-333333333333','1','Lost tender item',1,'u');
 INSERT INTO public.budget_item_subcontracts(empresa_id,tender_id,budget_item_id,descripcion,precio_por_unidad)
  SELECT 'bbbbbbbb-1111-4111-8111-111111111111','cccccccc-3333-4333-8333-333333333333',id,'Subcontract',100 FROM public.budget_items WHERE tender_id='cccccccc-3333-4333-8333-333333333333';
-SELECT public.prebid_save_version('cccccccc-3333-4333-8333-333333333333',true,public.prebid_workspace('cccccccc-3333-4333-8333-333333333333')->>'hash',100);
+RESET ROLE;
+UPDATE prebid_hash SET hash=public.prebid_workspace('cccccccc-3333-4333-8333-333333333333')->>'hash';
+SET LOCAL ROLE service_role;
+SELECT public.prebid_commit_version('cccccccc-3333-4333-8333-333333333333','aaaaaaaa-1111-4111-8111-111111111111','bbbbbbbb-1111-4111-8111-111111111111',true,(SELECT hash FROM prebid_hash),100);
+RESET ROLE;
+SET LOCAL ROLE authenticated;
 SELECT pg_temp.check_true('human loss no handoff',NOT (public.prebid_record_outcome('cccccccc-3333-4333-8333-333333333333','PERDIDA')->>'readyForProjectHandoff')::boolean);
 SELECT pg_temp.check_true('lost snapshot preserved',(SELECT estado='PERDIDA' AND submitted_version_id IS NOT NULL AND winning_version_id IS NULL FROM public.licitacion_ofertas WHERE licitacion_id='cccccccc-3333-4333-8333-333333333333'));
 SELECT pg_temp.reject('lost workspace immutable','delete from public.budget_items where tender_id=''cccccccc-3333-4333-8333-333333333333''');

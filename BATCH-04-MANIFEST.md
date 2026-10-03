@@ -9,7 +9,7 @@ Allowlist: this manifest; `BATCH-MANIFEST.md`; `IMPLEMENTATION_REPORT-BATCH-04.m
 
 Validation: focused tests, shared pricing/BIM/planilla regression, TypeScript, serial full Vitest, Webpack build; isolated Supabase Preview schema, RPC, permissions and lifecycle checks. Push and PR only after validation.
 
-## Exact diff allowlist (24 files)
+## Exact diff allowlist (27 files)
 
 1. `BATCH-MANIFEST.md`
 2. `BATCH-04-MANIFEST.md`
@@ -35,5 +35,18 @@ Validation: focused tests, shared pricing/BIM/planilla regression, TypeScript, s
 22. `supabase/migrations/20261003052234_prebid_boundary_completion.sql`
 23. `supabase/migrations/20261003052903_prebid_rfq_document_storage.sql`
 24. `supabase/migrations/20261003053910_prebid_actor_boundaries.sql`
+25. `supabase/migrations/20261003055813_prebid_audit_actor_and_server_boundary.sql`
+26. `supabase/migrations/20261003055843_prebid_audit_cost_composition_v2.sql`
+27. `supabase/migrations/20261003060959_prebid_audit_v2_validation_alias.sql`
 
 No historical commit was rescued. All functional work is new on the audited main base. No applied migration file was edited; Preview discoveries were resolved by subsequent additive migrations.
+
+## External audit P1 corrections
+
+Audited HEAD before fixes: `7cbb430af3f5ed3bb15a73835a6054432dfb417c`. Same branch and PR #24; no merge.
+
+- P1-A: browser finalizer revoked; authenticated Server Action computes canonical economics and invokes a service-only finalizer with independently revalidated actor, company, context and factual hash.
+- P1-B: direct offer DML now has active human/tenant/role/creator guards. Draft final lifecycle bypass is rejected while legitimate legacy analysis decisions remain available.
+- P1-C: versioned settings V2 add explicit fixed/percent charges and auditable named general concepts. V1 percentage facts remain readable and reproducible without rewriting historical versions.
+- Original eight Batch04 migrations remain byte-for-byte unchanged. Three additive corrections are applied only to `xddlzgjwufskgasomval`; Preview ledger is 20.
+- Evidence: 56 focused PREBID tests; 86 including shared pricing/BIM regressions; 85 rollback-only SQL assertions; full serial Vitest 1,401 PASS / 16 skipped. Final browser/typecheck/build/advisor evidence is recorded in `IMPLEMENTATION_REPORT-BATCH-04.md`.

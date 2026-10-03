@@ -9,9 +9,10 @@ const id="10000000-0000-4000-8000-000000000001";
 const product="20000000-0000-4000-8000-000000000002";
 const quote="30000000-0000-4000-8000-000000000003";
 const context={kind:"TENDER" as const,id};
-let db:any;
+let db:any;let admin:any;
 beforeEach(()=>{
   vi.clearAllMocks();
+  admin={rpc:vi.fn().mockResolvedValue({data:{id,version:1},error:null})};m.admin.mockReturnValue(admin);
   db={rpc:vi.fn().mockResolvedValue({data:73,error:null}),from:vi.fn((table:string)=>{
     const response=table==="licitaciones"?{id,moneda:"PYG"}:{estado:"BORRADOR"};
     const q:any={};for(const method of ["select","eq","insert","update","upsert"])q[method]=vi.fn(()=>q);
@@ -62,4 +63,18 @@ describe("PREBID server action boundaries",()=>{
   it("invalid measured quantity cannot create a budget row",async()=>{
     expect((await saveWorkspaceBudgetItemAction(context,{code:"1",description:"wall",unit:"m2",quantity:0})).error).toBeTruthy();expect(db.rpc).not.toHaveBeenCalled();
   });
+});
+
+describe('server-only canonical finalizer',()=>{
+ const facts={context,tender:{id},settings:null,items:[{id:'b',quantity:10,unit:'m2'}],materials:[{budget_item_id:'b',producto_id:product,cantidad_por_unidad_ejecutada:2,desperdicio_pct:0}],labor:[],equipment:[],subcontracts:[],products:[{id:product,costo_promedio:73}],prices:[],observations:[],rfqs:[],rfq_items:[],invitations:[],quotes:[],quote_versions:[],quote_items:[],reviews:[],bim_models:[],bim_elements:[],bim_matches:[],competition:[],asOf:'2026-10-03'};
+ it('ignores extra browser offer amount and actor, computing 1460 from server facts',async()=>{
+  db.rpc.mockResolvedValue({data:{facts,hash:'current'},error:null});
+  const invoke=savePrebidVersionAction as (...args:any[])=>ReturnType<typeof savePrebidVersionAction>;
+  expect((await invoke(id,true,'current',999999,'fake-actor')).error).toBeNull();
+  expect(admin.rpc).toHaveBeenCalledWith('prebid_commit_version',{p_tender_id:id,p_actor_id:id,p_empresa_id:id,p_present:true,p_expected_hash:'current',p_offer_amount:1460});
+  expect(db.rpc).toHaveBeenCalledTimes(1);expect(db.rpc).toHaveBeenCalledWith('prebid_workspace',{p_tender_id:id});
+ });
+ it('rechecks DB concurrency rejection without saving fallback',async()=>{db.rpc.mockResolvedValue({data:{facts,hash:'current'},error:null});admin.rpc.mockResolvedValue({data:null,error:{message:'Workspace changed'}});expect((await savePrebidVersionAction(id,true,'current')).error).toMatch(/changed/);expect(admin.rpc).toHaveBeenCalledTimes(1);});
+ it('incomplete server facts cannot finalize',async()=>{db.rpc.mockResolvedValue({data:{facts:{...facts,materials:[]},hash:'current'},error:null});expect((await savePrebidVersionAction(id,true,'current')).error).toBeTruthy();expect(admin.rpc).not.toHaveBeenCalled();});
+ it('same-tenant unauthorized role cannot reach finalizer',async()=>{m.profile.mockResolvedValue({id,empresa_id:id,active:true,empresa_active:true,role:'deposito'});expect((await savePrebidVersionAction(id,true,'current')).error).toMatch(/no autorizado/);expect(admin.rpc).not.toHaveBeenCalled();expect(db.rpc).not.toHaveBeenCalled();});
 });

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/browser";
 import { formatMoney } from "@/lib/format";
 import type { MaterialPriceDetail } from "@/lib/costing/project-prices";
-import { DEFAULT_COST_SETTINGS, type CostSettings } from "@/lib/workspace/costs";
+import { DEFAULT_COST_SETTINGS, normalizeCostSettings, type CostSettingsV2 } from "@/lib/workspace/costs";
 import {
   loadPrebidWorkspaceAction, saveWorkspaceBudgetItemAction, importTenderComputoAction,
   saveWorkspaceApuLineAction, deleteWorkspaceApuLineAction, adoptWorkspacePriceAction, createWorkspaceDiscoveryAction,
@@ -17,12 +17,11 @@ import {
 
 type Data = NonNullable<Awaited<ReturnType<typeof loadPrebidWorkspaceAction>>["data"]>;
 const inputClass = "border rounded px-2 py-1 bg-transparent w-full";
-const COST_LABELS: Record<keyof CostSettings,string> = { indirectPct:"Indirectos",generalPct:"Gastos generales",financingPct:"Financiación",riskPct:"Riesgo",marginPct:"Margen sobre venta" };
 const tabs = ["Cómputo", "BIM", "APU", "Costeo y evidencia", "Presupuesto / Oferta", "Versiones y resultado"];
 export function PrebidWorkspace({ data }: { data: Data }) {
   const router = useRouter(); const context = data.facts.context;
   const [tab, setTab] = useState(tabs[0]); const [pending, startTransition] = useTransition();
-  const [message, setMessage] = useState(""); const [settings, setSettings] = useState(data.facts.settings ?? DEFAULT_COST_SETTINGS);
+  const [message, setMessage] = useState(""); const [settings, setSettings] = useState<CostSettingsV2>(()=>normalizeCostSettings(data.facts.settings ?? DEFAULT_COST_SETTINGS));
   const [itemId, setItemId] = useState(data.facts.items[0]?.id ?? "");
   const [apuKind,setApuKind] = useState<"MATERIAL"|"LABOR"|"EQUIPMENT"|"SUBCONTRACT">("MATERIAL");
   const [selectedProviders,setSelectedProviders] = useState<string[]>([]); const [selectedElements,setSelectedElements] = useState<string[]>([]);
@@ -93,9 +92,24 @@ export function PrebidWorkspace({ data }: { data: Data }) {
       <h3>RFQs con provenance de licitación</h3>{data.facts.rfqs.map(r=><p key={r.id}><Link href={`/rfqs/${r.id}`} className="underline">{r.code} · {r.purpose} · {r.status} · ofertas y comparación</Link></p>)}
     </section>}
 
-    {tab===tabs[4] && <section className="space-y-4"><h2 className="font-semibold">Presupuesto / Oferta</h2><p className="text-sm">Indirectos, gastos generales, financiación y riesgo se calculan sobre costo directo. El margen se calcula sobre el precio de venta.</p>
-      <form className="grid gap-3 sm:grid-cols-3" onSubmit={e=>{e.preventDefault();run(()=>savePrebidSettingsAction(context.id,settings));}}>{(Object.keys(COST_LABELS) as (keyof CostSettings)[]).map(key=><label key={key}>{COST_LABELS[key]} %<input type="number" min="0" max={key==="marginPct"?99:100} step="any" required disabled={disabled} value={settings[key]} onChange={e=>setSettings(s=>({...s,[key]:Number(e.target.value)}))} className={inputClass}/></label>)}<Button type="submit" disabled={disabled}>Guardar composición</Button></form>
+    {tab===tabs[4] && <section className="space-y-4"><h2 className="font-semibold">Presupuesto / Oferta</h2><p className="text-sm">Los porcentajes usan el costo directo como base; los montos fijos se suman en PYG. El margen se calcula sobre venta.</p>
+      <form className="space-y-3" onSubmit={e=>{e.preventDefault();run(()=>savePrebidSettingsAction(context.id,settings));}}>
+        {([['indirect','Indirectos'],['financing','Financiacion'],['risk','Riesgo']] as const).map(([key,label])=><ChargeInput key={key} label={label} charge={settings[key]} disabled={disabled} base={offer?.directCost??null} onChange={charge=>setSettings(s=>({...s,[key]:charge}))}/>) }
+        <fieldset className="space-y-3 border rounded p-3"><legend>Gastos generales por concepto</legend>
+          <p className="text-sm">Conceptos libres: administracion central, oficina de obra, logistica, seguros, garantias, servicios, movilidad u otros.</p>
+          {settings.generalItems.map(row=><div key={row.id} className="space-y-2 border-b pb-3">
+            <label>Concepto<input aria-label={`Concepto ${row.id}`} required disabled={disabled} maxLength={200} value={row.concept} onChange={e=>setSettings(s=>({...s,generalItems:s.generalItems.map(r=>r.id===row.id?{...r,concept:e.target.value}:r)}))} className={inputClass}/></label>
+            <ChargeInput label={row.concept||'Gasto general'} charge={row} disabled={disabled} base={offer?.directCost??null} onChange={charge=>setSettings(s=>({...s,generalItems:s.generalItems.map(r=>r.id===row.id?{...r,...charge}:r)}))}/>
+            <Button type="button" variant="secondary" disabled={disabled} onClick={()=>setSettings(s=>({...s,generalItems:s.generalItems.filter(r=>r.id!==row.id)}))}>Quitar concepto</Button>
+          </div>)}
+          <Button type="button" disabled={disabled||settings.generalItems.length>=100} onClick={()=>setSettings(s=>({...s,generalItems:[...s.generalItems,{id:crypto.randomUUID(),concept:'',mode:'FIXED',value:0}]}))}>Agregar gasto general</Button>
+        </fieldset>
+        <label>Margen sobre venta %<input type="number" min="0" max="99" step="any" required disabled={disabled} value={settings.marginPct} onChange={e=>setSettings(s=>({...s,marginPct:Number(e.target.value)}))} className={inputClass}/></label>
+        <p>Oferta = costo total / (1 - margen sobre venta / 100). Margen = oferta - costo total.</p>
+        <Button type="submit" disabled={disabled}>Guardar composicion</Button>
+      </form>
       {!offer?<p role="alert">Costeo incompleto. Completá cantidades, APU y evidencia antes de presentar.</p>:<dl className="grid grid-cols-2 gap-2">{[["Costos directos",offer.directCost],["Indirectos",offer.indirect],["Gastos generales",offer.general],["Financiación",offer.financing],["Riesgo",offer.risk],["Costo total",offer.totalCost],["Margen",offer.margin],["PRESUPUESTO / OFERTA",data.selectedVersion?.snapshot.offerAmount??offer.offerAmount]].map(([label,value])=><div key={String(label)} className="border rounded p-3"><dt>{label}</dt><dd className="font-semibold">{money(Number(value))}</dd></div>)}</dl>}
+      {offer&&<table className="w-full text-sm"><caption>Gastos generales guardados</caption><thead><tr><th>Concepto</th><th>Base</th><th>% / monto</th><th>Resultado</th></tr></thead><tbody>{offer.generalItems.map(row=><tr key={row.id}><td>{row.concept}</td><td>{row.base==null?'Monto fijo':money(row.base)}</td><td>{row.mode==='PERCENT'?`${row.value}%`:money(row.value)}</td><td>{money(row.result)}</td></tr>)}</tbody></table>}
       <div className="flex gap-3"><Button disabled={disabled||!data.costs.complete||!data.hash} onClick={()=>run(()=>savePrebidVersionAction(context.id,false,data.hash!))}>Guardar versión</Button><Button disabled={disabled||!data.costs.complete||!data.hash} onClick={()=>{if(window.confirm("Presentar esta oferta y congelar cómputo, APU, costos y evidencia comercial?"))run(()=>savePrebidVersionAction(context.id,true,data.hash!));}}>PRESENTAR</Button></div>
     </section>}
 
@@ -112,4 +126,13 @@ export function PrebidWorkspace({ data }: { data: Data }) {
       {data.offer?.estado==="GANADA"&&<p>GANADA · snapshot ganador: {data.offer.winning_version_id}. El handoff a ejecución queda preparado para el siguiente flujo.</p>}
     </section>}
   </main>;
+}
+
+function ChargeInput({label,charge,base,disabled,onChange}:{label:string;charge:{mode:'PERCENT'|'FIXED';value:number};base:number|null;disabled:boolean;onChange:(charge:{mode:'PERCENT'|'FIXED';value:number})=>void}) {
+  const result=charge.mode==='FIXED'?charge.value:base==null?null:base*charge.value/100;
+  return <div className="grid gap-2 sm:grid-cols-3">
+    <label>{label} modo<select aria-label={`${label} modo`} disabled={disabled} value={charge.mode} onChange={e=>onChange({mode:e.target.value as 'PERCENT'|'FIXED',value:0})} className={inputClass}><option value="PERCENT">Porcentaje del costo directo</option><option value="FIXED">Monto fijo PYG</option></select></label>
+    <label>{label} {charge.mode==='PERCENT'?'%':'monto PYG'}<input required type="number" min="0" max={charge.mode==='PERCENT'?100:1e15} step="any" disabled={disabled} value={charge.value} onChange={e=>onChange({...charge,value:Number(e.target.value)})} className={inputClass}/></label>
+    <p>Base: {charge.mode==='FIXED'?'Monto fijo':base==null?'Pendiente':formatMoney(base,'PYG')} · Resultado: {result==null?'Pendiente':formatMoney(result,'PYG')}</p>
+  </div>;
 }
