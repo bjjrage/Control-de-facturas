@@ -1,4 +1,5 @@
 "use server";
+import { physicalNumber, samePhysicalUnit } from "@/lib/procurement/weekly-plan-validation";
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -174,9 +175,8 @@ export async function saveProductionRecipe(
     if (!code?.trim() || !name?.trim() || !productionUnit?.trim()) {
       return { data: null, error: "Código, nombre y unidad de producción requeridos." };
     }
-    const cleanComponents = (components ?? []).filter(
-      (c) => c.budgetItemId && Number(c.quantityPerUnit) > 0
-    );
+    const cleanComponents = components ?? [];
+    for (const c of cleanComponents) physicalNumber(c.quantityPerUnit, "Ratio de receta", Number.MIN_VALUE);
     if (cleanComponents.length === 0) {
       return { data: null, error: "La receta necesita al menos un componente con cantidad > 0." };
     }
@@ -206,6 +206,7 @@ export async function saveProductionRecipe(
       cleanComponents.map((c) => c.budgetItemId)
     );
     if (!check.ok) return { data: null, error: check.error! };
+    for (const c of cleanComponents) if (!samePhysicalUnit(c.unit, check.items?.find(i=>i.id===c.budgetItemId)?.unit)) return {data:null,error:"Unidad de componente incompatible con partida."};
 
     // P1-4: UNA sola RPC transaccional SERVER-ONLY (writes directos
     // revocados para authenticated; todo o nada, validado en DB).

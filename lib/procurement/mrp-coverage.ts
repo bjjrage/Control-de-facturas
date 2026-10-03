@@ -1,3 +1,4 @@
+import { physicalNumber, samePhysicalUnit } from "./weekly-plan-validation";
 // ---------------------------------------------------------------------------
 // Cobertura MRP (V3): asignación determinista por producto.
 //
@@ -56,19 +57,14 @@ export function compareCentralLines(
   eps = 1e-6
 ): boolean {
   if (server.length !== client.length) return false;
-  const byId = new Map(server.map((l) => [l.producto_id, Number(l.quantity) || 0]));
-  for (const c of client) {
-    if (!byId.has(c.producto_id)) return false;
-    if (Math.abs((byId.get(c.producto_id) as number) - (Number(c.quantity) || 0)) > eps) {
-      return false;
-    }
-  }
-  return true;
+  if (new Set(server.map(l => l.producto_id)).size !== server.length || new Set(client.map(l => l.producto_id)).size !== client.length) return false;
+  const byId = new Map(server.map(l => [l.producto_id, l.quantity]));
+  return client.every(c => Number.isFinite(c.quantity) && c.quantity >= 0 && Number.isFinite(byId.get(c.producto_id)) && Math.abs(byId.get(c.producto_id)! - c.quantity) <= eps);
 }
 
 function num(v: unknown): number {
   const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
+  return physicalNumber(v, "Cobertura MRP");
 }
 
 /**
@@ -86,6 +82,7 @@ function aggregateGrossByProduct(
     const req = Math.max(0, num(g.requerido));
     const obra = Math.max(0, num(g.cubierto_obra));
     if (prev) {
+      if (!samePhysicalUnit(prev.unidad_medida, g.unidad_medida)) throw new Error("Unidades incompatibles para el mismo material.");
       prev.requerido = Number((prev.requerido + req).toFixed(4));
       prev.cubierto_obra = Number((prev.cubierto_obra + obra).toFixed(4));
     } else {
@@ -121,11 +118,11 @@ export function allocateMaterialCoverage(args: {
     const cubierto_obra = Math.min(requerido, g.cubierto_obra);
     const afterObra = requerido - cubierto_obra;
 
-    const centralAvail = Math.max(0, num(centralAvailableByProduct[g.producto_id]));
+    const centralAvail = Math.max(0, num(centralAvailableByProduct[g.producto_id] ?? 0));
     const cubierto_central = Math.min(afterObra, centralAvail);
     const afterCentral = afterObra - cubierto_central;
 
-    const inboundAvail = Math.max(0, num(validInboundByProduct[g.producto_id]));
+    const inboundAvail = Math.max(0, num(validInboundByProduct[g.producto_id] ?? 0));
     const cubierto_inbound = Math.min(afterCentral, inboundAvail);
 
     const comprar = Math.max(0, afterCentral - cubierto_inbound);

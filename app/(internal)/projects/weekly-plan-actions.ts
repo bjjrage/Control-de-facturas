@@ -1,4 +1,6 @@
 "use server";
+import { buildMrpPreview } from "@/lib/procurement/weekly-plan-coverage";
+import { assertWeeklyPeriod, assertWeeklyTargets, physicalNumber } from "@/lib/procurement/weekly-plan-validation";
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -79,13 +81,14 @@ export interface GetWeeklyPlanParams {
 }
 
 export interface PreviewWeeklyPlanActionParams {
+  planId?: string;
   projectId: string;
   startDate: string; // YYYY-MM-DD
   endDate: string; // YYYY-MM-DD
   weatherOverlay: boolean;
   items: PreviewWeeklyPlanItemInput[];
   /**
-   * Cobertura MRP (V3, opcional; default LEGACY = comportamiento V1 intacto).
+   * Cobertura MRP canónica; la fecha necesaria es opcional y usa el fin del período.
    * En modo MRP el engine recibe SOLO stock de obra (oc_inbound=0) y la
    * asignación central/inbound-a-tiempo/faltante la calcula allocateMaterialCoverage.
    */
@@ -164,12 +167,14 @@ export async function getWeeklyPlanDetailsAction(
     }[] = [];
 
     if (planId) {
-      const { data: pData } = await supabase
+      const { data: pData, error: planError } = await supabase
         .from("project_weekly_plans")
         .select("*")
         .eq("id", planId)
+        .eq("project_id", projectId)
         .eq("empresa_id", empresaId)
         .single();
+      if (planError) throw new Error(planError.message);
       plan = (pData as ProjectWeeklyPlan) || null;
     } else {
       const { data: pData } = await supabase
@@ -187,23 +192,25 @@ export async function getWeeklyPlanDetailsAction(
     if (plan) {
       // P2-4: orden determinista para que el capping multi-front secuencial
       // asigne el remanente al mismo frente tras recargar.
-      const { data: piData } = await supabase
+      const { data: piData, error: itemError } = await supabase
         .from("project_weekly_plan_items")
         .select("*")
         .eq("plan_id", plan.id)
-        .order("created_at", { ascending: true });
+        .order("position", { ascending: true }).order("created_at", { ascending: true }).order("id", { ascending: true });
+      if (itemError) throw new Error(itemError.message);
       savedItems = (piData ?? []).map((pi) => ({
         budget_item_id: pi.budget_item_id,
         front_label: pi.front_label,
         input_mode: pi.input_mode as WeeklyPlanInputMode,
-        input_value: Number(pi.input_value) || 0,
+        input_value: physicalNumber(pi.input_value,"Meta guardada"),
       }));
       // V3: ¿el plan retiene reservas ACTIVE? (gating de re-commit).
-      const { count: activeResCount } = await supabase
+      const { count: activeResCount, error: reservationError } = await supabase
         .from("inventory_reservations")
         .select("id", { count: "exact", head: true })
         .eq("weekly_plan_id", plan.id)
         .eq("status", "ACTIVE");
+      if (reservationError) throw new Error(reservationError.message);
       hasActiveReservations = (activeResCount ?? 0) > 0;
     }
 
@@ -236,8 +243,9 @@ export async function getWeeklyPlanDetailsAction(
     let weatherPartial: boolean | undefined;
 
     if (weatherOverlay) {
-      const lat = project.latitude ? Number(project.latitude) : -25.455;
-      const lon = project.longitude ? Number(project.longitude) : -57.534;
+      const lat = project.latitude == null ? NaN : Number(project.latitude);
+      const lon = project.longitude == null ? NaN : Number(project.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) throw new Error("Configure coordenadas reales de la obra para usar clima.");
       const resolved = await resolveWeeklyWeather(supabase, {
         empresaId,
         projectId,
@@ -341,12 +349,14 @@ export async function previewWeeklyPlanAction(
     const supabase = await createClient();
     const { projectId, startDate, endDate, weatherOverlay, items } = params;
     // MRP calcula la cobertura con fecha acotada al período del plan.
-    const mrpMode = params.coverage?.mode === "MRP";
+    const mrpMode = true; // Batch 08: all purchase previews use the existing coverage layer.
     const neededBy = params.coverage?.neededByDate || endDate;
 
     if (!projectId) {
       return { data: null, error: "Proyecto requerido para previsualizar." };
     }
+    assertWeeklyPeriod(startDate, endDate);
+    assertWeeklyTargets(items);
     if (!startDate || !endDate) {
       return { data: null, error: "Período requerido para previsualizar (inicio y fin)." };
     }
@@ -395,8 +405,9 @@ export async function previewWeeklyPlanAction(
     let weatherPartial: boolean | undefined;
 
     if (withWeather) {
-      const lat = project.latitude ? Number(project.latitude) : -25.455;
-      const lon = project.longitude ? Number(project.longitude) : -57.534;
+      const lat = project.latitude == null ? NaN : Number(project.latitude);
+      const lon = project.longitude == null ? NaN : Number(project.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) throw new Error("Configure coordenadas reales de la obra para usar clima.");
       const resolved = await resolveWeeklyWeather(supabase, {
         empresaId,
         projectId,
@@ -418,13 +429,18 @@ export async function previewWeeklyPlanAction(
 
     // MISMO motor que load/save. Sin plan_id (no existe plan persistido para este preview).
     // V3 MRP: el engine recibe SOLO stock de obra (inbound lo asigna la capa
-    // MRP con regla de fecha); en LEGACY el mapa va completo como siempre.
+    // MRP con regla de fecha). Todo preview público usa esa misma cobertura.
     const engineStockMap = mrpMode
       ? Object.fromEntries(
           Object.entries(stockAndInbound).map(([pid, v]) => [pid, { ...v, oc_inbound: 0 }])
         )
       : stockAndInbound;
+    if (params.planId) {
+      const {data,error}=await supabase.from("project_weekly_plans").select("id").eq("id",params.planId).eq("project_id",projectId).eq("empresa_id",empresaId).single();
+      if(error || !data) throw new Error("Plan fuera del contexto de la obra");
+    }
     const calculation = calculateWeeklyPlanRequirements({
+      plan_id: params.planId,
       project_id: projectId,
       start_date: startDate,
       end_date: endDate,
@@ -473,102 +489,6 @@ export async function previewWeeklyPlanAction(
  * Capa MRP sobre el resultado del engine (V3). READ-ONLY: lee central +
  * inbound con fecha; NUNCA reserva (las reservas solo viven en el COMMIT).
  */
-async function buildMrpPreview(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  empresaId: string,
-  calculation: WeeklyPlanCalculationSummary,
-  materialsByItem: Record<string, BudgetItemMaterialInput[]>,
-  baseData: {
-    stockAndInbound: Record<string, StockDisponibilidadInput>;
-    inboundDetails: { producto_id: string; net_quantity: number; expected_delivery_date: string | null }[] | null;
-  },
-  neededBy: string
-): Promise<MrpPreviewResult> {
-  // Nombres/unidades para filas sin BOM propio (ej. inbound sin demanda).
-  const names = new Map<string, { nombre: string; unidad: string }>();
-  for (const list of Object.values(materialsByItem)) {
-    for (const m of list) {
-      if (!names.has(m.producto_id)) {
-        names.set(m.producto_id, { nombre: m.producto_nombre, unidad: m.unidad_medida });
-      }
-    }
-  }
-
-  // Central disponible (físico − reservas ACTIVE). Sin central → ceros.
-  // Si la lectura FALLA, se propaga el error (la UI avisa en vez de
-  // mostrar ceros como "sin stock").
-  const centralRes = await loadCentralAvailability(supabase, empresaId);
-  const centralAvailable = centralRes.data?.availableByProduct ?? {};
-  const centralLocation = centralRes.data?.location ?? null;
-  const centralError = centralRes.error ?? null;
-
-  // Inbound con regla de fecha: válido solo con fecha <= neededBy.
-  // Sin detalle (columna ausente) o sin fecha → no confirmado, NO descuenta.
-  const validInbound: Record<string, number> = {};
-  const unconfirmed: MrpPreviewResult["unconfirmedInbound"] = [];
-  if (baseData.inboundDetails === null) {
-    // Fallback honesto: el neto legacy existe pero sin fecha → no confirmado.
-    for (const [pid, v] of Object.entries(baseData.stockAndInbound)) {
-      if (v.oc_inbound > 0) {
-        const nm = names.get(pid);
-        unconfirmed.push({
-          producto_id: pid,
-          producto_nombre: nm?.nombre || "Material",
-          cantidad: Number(v.oc_inbound.toFixed(4)),
-        });
-      }
-    }
-  } else {
-    for (const d of baseData.inboundDetails) {
-      const onTime = d.expected_delivery_date !== null && d.expected_delivery_date <= neededBy;
-      if (onTime) {
-        validInbound[d.producto_id] = (validInbound[d.producto_id] || 0) + d.net_quantity;
-      } else {
-        const nm = names.get(d.producto_id);
-        const prev = unconfirmed.find((u) => u.producto_id === d.producto_id);
-        if (prev) prev.cantidad = Number((prev.cantidad + d.net_quantity).toFixed(4));
-        else
-          unconfirmed.push({
-            producto_id: d.producto_id,
-            producto_nombre: nm?.nombre || "Material",
-            cantidad: Number(d.net_quantity.toFixed(4)),
-          });
-      }
-    }
-  }
-
-  const gross = calculation.items.flatMap((it) =>
-    it.materials.map((m) => ({
-      producto_id: m.producto_id,
-      producto_nombre: m.producto_nombre,
-      unidad_medida: m.unidad_medida,
-      costo_unitario: m.costo_unitario,
-      requerido: m.demanda_bruta,
-      cubierto_obra: m.cubierto_por_stock,
-    }))
-  );
-
-  const allocation = allocateMaterialCoverage({
-    gross,
-    centralAvailableByProduct: centralAvailable,
-    validInboundByProduct: validInbound,
-  });
-
-  return {
-    lines: allocation.lines,
-    total_requerido_valor: allocation.total_requerido_valor,
-    total_cubierto_obra_valor: allocation.total_cubierto_obra_valor,
-    total_cubierto_central_valor: allocation.total_cubierto_central_valor,
-    total_cubierto_inbound_valor: allocation.total_cubierto_inbound_valor,
-    total_comprar_cantidad: allocation.total_comprar_cantidad,
-    total_caja_adicional: allocation.total_caja_adicional,
-    costos_pendientes: allocation.costos_pendientes,
-    centralLocation,
-    neededBy,
-    centralError,
-    unconfirmedInbound: unconfirmed,
-  };
-}
 
 /**
  * Saves or updates a Weekly Plan and its item targets atomically via PostgreSQL RPC.
@@ -586,6 +506,8 @@ export async function saveWeeklyPlanAction(
     const { planId, projectId, startDate, endDate, status, notes, weatherSnapshotBatchId, items } = params;
 
     // P1-2: misma validación de rango que el preview (no persistir rangos invertidos).
+    assertWeeklyPeriod(startDate, endDate);
+    assertWeeklyTargets(items);
     if (!startDate || !endDate) {
       return { data: null, error: "Período requerido para guardar (inicio y fin)." };
     }
@@ -760,8 +682,12 @@ async function commitProductionPlanWithMrp(
   const neededByDate = args.neededByDate || endDate;
   let serverLines: { producto_id: string; quantity: number }[] = [];
   let centralLocationId: string | null = null;
+  let sourcesHash: string | null = null;
 
   if (!args.skipCoverage) {
+  const source = await supabase.rpc("weekly_plan_project_sources",{p_project_id:projectId});
+  if(source.error || !source.data?.hash) return {data:null,error:source.error?.message || "Fuentes del plan no disponibles"};
+  sourcesHash=source.data.hash;
   // 1. Datos frescos (misma fuente que preview/load).
   const baseRes = await loadWeeklyPlanBaseData(supabase, projectId, empresaId);
   if (baseRes.error || !baseRes.data) {
@@ -786,6 +712,7 @@ async function commitProductionPlanWithMrp(
     Object.entries(stockAndInbound).map(([pid, v]) => [pid, { ...v, oc_inbound: 0 }])
   );
   const calculation = calculateWeeklyPlanRequirements({
+    plan_id: args.planId ?? undefined,
     project_id: projectId,
     start_date: startDate,
     end_date: endDate,
@@ -823,7 +750,7 @@ async function commitProductionPlanWithMrp(
   // 6. UNA transacción plan+reservas (rollback total si algo falla).
   // P1-3: RPC server-only (revocada para authenticated) con empresa/actor explícitos.
   const admin = createAdminClient();
-  const { data: rpcResult, error: rpcErr } = await admin.rpc("commit_production_plan_atomic", {
+  const commitArgs = {
     p_empresa_id: empresaId,
     p_actor_id: actorId,
     p_plan_id: args.planId,
@@ -838,7 +765,10 @@ async function commitProductionPlanWithMrp(
     p_reserve_items: serverLines,
     p_needed_by: neededByDate,
     p_idempotency_key: args.planId,
-  });
+  };
+  const { data: rpcResult, error: rpcErr } = sourcesHash
+    ? await admin.rpc("commit_weekly_plan_validated", {p_sources_hash:sourcesHash,p_args:commitArgs})
+    : await admin.rpc("commit_production_plan_atomic",commitArgs);
   if (rpcErr) {
     const msg = /insuficiente/i.test(rpcErr.message)
       ? "El stock disponible cambió desde el cálculo. Recalculá el plan."

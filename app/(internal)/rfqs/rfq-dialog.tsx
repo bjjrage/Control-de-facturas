@@ -11,6 +11,7 @@ import {
   listProjectsForCostRfqAction,
 } from "../projects/[id]/costeo-actions";
 import type { RfqPurpose } from "@/lib/rfq/domain";
+import type { NeedOrigin } from "@/lib/procurement/need-origin";
 type Line = {
   descripcion: string;
   cantidad: string;
@@ -29,11 +30,13 @@ export function RfqDialog({
   projectId,
   defaultFromProject,
   initialItems,
+  needOrigin,
 }: {
   trigger: React.ReactNode;
   defaultOpen?: boolean;
   projectId?: string;
   defaultFromProject?: string;
+  needOrigin?: NeedOrigin;
   initialItems?: {
     descripcion: string;
     cantidad: number;
@@ -43,7 +46,7 @@ export function RfqDialog({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(defaultOpen ?? false);
-  const [purpose, setPurpose] = useState<RfqPurpose | "">("");
+  const [purpose, setPurpose] = useState<RfqPurpose | "">(needOrigin ? "PROCUREMENT" : "");
   const [mode, setMode] = useState<"manual" | "obra">(
     defaultFromProject ? "obra" : "manual",
   );
@@ -93,6 +96,7 @@ export function RfqDialog({
       <DialogContent title="Nueva solicitud RFQ" className="max-w-4xl">
         <Label>Propósito obligatorio</Label>
         <Select
+          disabled={!!needOrigin}
           value={purpose}
           onChange={(e) => setPurpose(e.target.value as RfqPurpose)}
           required
@@ -103,7 +107,7 @@ export function RfqDialog({
             Comprar — asignación y confirmación humanas
           </option>
         </Select>
-        <div className="flex gap-2 my-3">
+        <div className="flex gap-2 my-3" hidden={!!needOrigin}>
           <Button variant="secondary" onClick={() => setMode("manual")}>
             Ítems manuales / necesidad
           </Button>
@@ -157,6 +161,7 @@ export function RfqDialog({
           <form
             className="space-y-3"
             action={async (fd) => {
+              if(needOrigin) fd.set("need_origin",JSON.stringify(needOrigin));
               setPending(true);
               setError("");
               try {
@@ -210,6 +215,7 @@ export function RfqDialog({
                       <td>
                         <Input
                           aria-label={`Descripción ${index + 1}`}
+                          disabled={!!needOrigin}
                           value={l.descripcion}
                           onChange={(e) =>
                             update(index, { descripcion: e.target.value })
@@ -223,6 +229,7 @@ export function RfqDialog({
                           type="number"
                           min="0.0001"
                           step="0.0001"
+                          disabled={!!needOrigin}
                           value={l.cantidad}
                           onChange={(e) =>
                             update(index, { cantidad: e.target.value })
@@ -233,6 +240,7 @@ export function RfqDialog({
                       <td>
                         <Input
                           aria-label={`Unidad ${index + 1}`}
+                          disabled={!!needOrigin}
                           value={l.unidad}
                           onChange={(e) =>
                             update(index, { unidad: e.target.value })
@@ -243,6 +251,7 @@ export function RfqDialog({
                       <td>
                         <Select
                           aria-label={`Producto ${index + 1}`}
+                          disabled={!!needOrigin}
                           value={l.producto_id ?? ""}
                           onChange={(e) => {
                             const p = products.find(
@@ -268,7 +277,7 @@ export function RfqDialog({
                         <Button
                           type="button"
                           variant="secondary"
-                          disabled={lines.length === 1}
+                          disabled={!!needOrigin || lines.length === 1}
                           onClick={() =>
                             setLines((rows) =>
                               rows.filter((_, i) => i !== index),
@@ -286,6 +295,7 @@ export function RfqDialog({
             <Button
               type="button"
               variant="secondary"
+              disabled={!!needOrigin}
               onClick={() => setLines((rows) => [...rows, empty()])}
             >
               Agregar ítem

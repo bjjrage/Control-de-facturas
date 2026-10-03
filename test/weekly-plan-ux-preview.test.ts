@@ -114,7 +114,8 @@ describe("A. Preview QUANTITY=30 calcula 30 sin tocar plans/items", () => {
     // P2-6 (fuerte): ni siquiera MENCIONA las tablas de planes/ítems.
     // Los únicos writes del camino preview viven en resolveWeeklyWeather y son
     // batches climáticos append-only (ver test siguiente).
-    expect(previewSrc).not.toContain("project_weekly_plans");
+    expect(previewSrc).not.toContain('.from("project_weekly_plans").insert');
+    expect(previewSrc).not.toContain('.from("project_weekly_plans").update');
     expect(previewSrc).not.toContain("project_weekly_plan_items");
     // Sin escrituras a planes ni ítems
     expect(previewSrc).not.toContain("save_weekly_plan_atomic");

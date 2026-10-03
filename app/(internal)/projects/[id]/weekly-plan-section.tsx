@@ -60,6 +60,8 @@ import {
 } from "@/lib/procurement/production-recipe";
 import { ImportRecipeDialog } from "./import-recipe-dialog";
 import { RecipeBlockPanel } from "./recipe-block-panel";
+import { samePhysicalUnit } from "@/lib/procurement/weekly-plan-validation";
+import { NeedToBuy } from "./need-to-buy";
 import { MrpResultPanel } from "./mrp-result-panel";
 
 interface Props {
@@ -455,6 +457,9 @@ export function WeeklyPlanSection({ project }: Props) {
     const included = new Set(
       recipe.components.map((c) => c.budget_item_id).filter((id) => childIds.has(id) && !excluded.has(id))
     );
+    if (recipe.components.some(c=>included.has(c.budget_item_id) && (!Number.isFinite(Number(c.quantity_per_production_unit)) || Number(c.quantity_per_production_unit)<=0 || !samePhysicalUnit(c.unit,budgetItems.find(b=>b.id===c.budget_item_id)?.unit)))) {
+      setErrorMsg("La receta tiene ratios o unidades incompatibles con las partidas actuales.");return;
+    }
     const eff = recipeEffectiveQty(recipe, included);
     if (eff.qty === null) {
       setErrorMsg(eff.hint || "Indicá un objetivo de producción válido.");
@@ -548,6 +553,7 @@ export function WeeklyPlanSection({ project }: Props) {
         const res = await withActionTimeout(
           previewWeeklyPlanAction({
             projectId: project.id,
+            planId: planId || undefined,
             startDate,
             endDate,
             weatherOverlay,
@@ -1563,6 +1569,7 @@ export function WeeklyPlanSection({ project }: Props) {
             </div>
           )}
 
+          {previewMrp && <NeedToBuy key={JSON.stringify([planId,currentKey,previewKey])} projectId={project.id} planId={planId || undefined} disabled={previewStale || isCalculating} seen={{plan:{startDate,endDate,items:frontTargets},coverage:previewMrp.lines}}/>}
           {previewMrp && previewRecipe && (
             <MrpResultPanel projectId={project.id} preview={preview} previewRecipe={previewRecipe} previewMrp={previewMrp} />
           )}
