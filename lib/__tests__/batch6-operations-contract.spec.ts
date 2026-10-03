@@ -5,13 +5,13 @@ import { describe, expect, it } from "vitest";
 const readUtf8 = (relPath: string) =>
   readFileSync(resolve(process.cwd(), relPath), "utf8").replace(/\r\n/g, "\n");
 
-const migration = readUtf8("supabase/migrations/20260925022102_batch6_project_scope_guards.sql");
+const migration = readUtf8("supabase/migrations_legacy_pre_baseline/20260925022102_batch6_project_scope_guards.sql");
 const bimSection = readUtf8("app/(internal)/projects/[id]/bim-section.tsx");
 const certificateActions = readUtf8("app/(internal)/projects/certificado-actions.ts");
 const caterpillarActions = readUtf8("app/(internal)/projects/caterpillar-actions.ts");
 const climateActions = readUtf8("app/(internal)/projects/climate-actions.ts");
-const caterpillarMigration = readUtf8("supabase/migrations/0030_construccion_caterpillar.sql");
-const certificateAnnexesMigration = readUtf8("supabase/migrations/0041_project_certificate_annexes.sql");
+const caterpillarMigration = readUtf8("supabase/migrations_legacy_pre_baseline/0030_construccion_caterpillar.sql");
+const certificateAnnexesMigration = readUtf8("supabase/migrations_legacy_pre_baseline/0041_project_certificate_annexes.sql");
 
 describe("Batch 6 project-operation contracts", () => {
   it("presents IFC and Excel/PDF as parallel compute sources with one human review path", () => {

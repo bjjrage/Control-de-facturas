@@ -7,9 +7,9 @@ import { buildCertificateImportLines, extractCertificateWorkbookData, matchCerti
 import { parseWorkbook } from "@/lib/workbook-interpretation/parser";
 import { reconcileImportPlan } from "@/lib/workbook-interpretation/import-plan";
 
-const createGuard = readFileSync(resolve(process.cwd(), "supabase/migrations/20260925052356_serialize_certificate_create_with_revert.sql"), "utf8");
-const importMigration = readFileSync(resolve(process.cwd(), "supabase/migrations/20260925110000_project_certificate_workbook_import.sql"), "utf8");
-const forwardMigration = readFileSync(resolve(process.cwd(), "supabase/migrations/20260926010000_autonomous_certificate_workbook_import.sql"), "utf8");
+const createGuard = readFileSync(resolve(process.cwd(), "supabase/migrations_legacy_pre_baseline/20260925052356_serialize_certificate_create_with_revert.sql"), "utf8");
+const importMigration = readFileSync(resolve(process.cwd(), "supabase/migrations_legacy_pre_baseline/20260925110000_project_certificate_workbook_import.sql"), "utf8");
+const forwardMigration = readFileSync(resolve(process.cwd(), "supabase/migrations_legacy_pre_baseline/20260926010000_autonomous_certificate_workbook_import.sql"), "utf8");
 const tenantA = "00000000-0000-4000-8000-000000000001";
 const tenantB = "00000000-0000-4000-8000-000000000002";
 const projectA = "00000000-0000-4000-8000-000000000101";

@@ -9,11 +9,11 @@ import { revokeGoogleToken } from "../google-oauth";
 import { assertAttachmentDigest, sha256Bytes } from "../content-hash";
 
 const hardeningMigration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260919003749_rodrigo_email_v1_hardening.sql"),
+  resolve(process.cwd(), "supabase/migrations_legacy_pre_baseline/20260919003749_rodrigo_email_v1_hardening.sql"),
   "utf8"
 );
 const batch2Migration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260919022401_rodrigo_email_v1_hardening_batch2.sql"),
+  resolve(process.cwd(), "supabase/migrations_legacy_pre_baseline/20260919022401_rodrigo_email_v1_hardening_batch2.sql"),
   "utf8"
 );
 const providerSource = readFileSync(resolve(process.cwd(), "lib/email/provider.ts"), "utf8");

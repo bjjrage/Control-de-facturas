@@ -149,7 +149,7 @@ describe("Avance de producción estimado (informativo, cuello de botella)", () =
 // ---------------------------------------------------------------------------
 describe("Modelo receta: migración forward-only con RLS", () => {
   const mig = () =>
-    readSource("supabase/migrations/20260917000004_production_recipes.sql");
+    readSource("supabase/migrations_legacy_pre_baseline/20260917000004_production_recipes.sql");
 
   it("crea production_recipes + components con checks y RLS tenant", () => {
     expect(mig()).toContain("CREATE TABLE IF NOT EXISTS public.production_recipes");

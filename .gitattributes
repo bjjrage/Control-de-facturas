@@ -1,0 +1,4 @@
+# Preserve exact production function bodies, including existing CRLF inside bodies.
+supabase/migrations/20261002231537_production_schema_baseline.sql -text
+# Deployed RFQ migrations must retain their exact bytes across checkouts.
+supabase/migrations/20261003*.sql -text

@@ -4,11 +4,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
 
 const balanceGuardMigration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260924090000_mrp_reservation_balance_guard.sql"),
+  resolve(process.cwd(), "supabase/migrations_legacy_pre_baseline/20260924090000_mrp_reservation_balance_guard.sql"),
   "utf8"
 ).replace(/\r\n/g, "\n");
 const migration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260924090510_mrp_reservation_lock_order_fix.sql"),
+  resolve(process.cwd(), "supabase/migrations_legacy_pre_baseline/20260924090510_mrp_reservation_lock_order_fix.sql"),
   "utf8"
 ).replace(/\r\n/g, "\n");
 

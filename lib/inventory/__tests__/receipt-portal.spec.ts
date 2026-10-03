@@ -12,10 +12,10 @@ import {
 } from "../receipt-portal";
 
 const repoRoot = process.cwd();
-const migrationPath = fs.readdirSync(path.join(repoRoot, "supabase", "migrations"))
+const migrationPath = fs.readdirSync(path.join(repoRoot, "supabase", "migrations_legacy_pre_baseline"))
   .find((name) => name.endsWith("_restore_receipt_portal_canonical.sql"));
 const migration = migrationPath
-  ? fs.readFileSync(path.join(repoRoot, "supabase", "migrations", migrationPath), "utf8")
+  ? fs.readFileSync(path.join(repoRoot, "supabase", "migrations_legacy_pre_baseline", migrationPath), "utf8")
   : "";
 const receiptActionSource = fs.readFileSync(
   path.join(repoRoot, "app", "(internal)", "orders", "oc-recepcion-actions.ts"),
