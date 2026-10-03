@@ -2,7 +2,7 @@
 
 ## Estado
 
-**STATUS: READY FOR EXTERNAL MERGE AUDIT.** Rama `batch/03-rfq-2-core`, con base `53898dffe0a47a517bfeb31722af2f633a31486f`. Implementación, hardening y verificación final completados en Preview aislada. Producción no se modificó. Abrir PR contra `main`; no mergear.
+**STATUS: READY FOR EXTERNAL MERGE AUDIT.** Rama `batch/03-rfq-2-core`, con base `53898dffe0a47a517bfeb31722af2f633a31486f`. Implementación, hardening y verificación final completados en Preview aislada. PR #23 abierto contra `main`; no mergear.
 
 ## Schema y migrations
 
@@ -63,7 +63,8 @@ Las seis migrations originales se mantuvieron inmutables. Las dos migrations de 
 - Replay: nueve migrations registradas: baseline, seis RFQ originales y dos hardening migrations. Existen las nueve relaciones verificadas: `projects`, `budget_items`, `rfqs`, `rfq_items`, `rfq_providers`, `quotes`, `quote_versions`, `quote_version_items`, `project_cost_prices`.
 - Smoke SQL en Preview terminó `PASS`; usa `BEGIN ... ROLLBACK`. Verificó SHA-256 real, dos OCs confirmadas, retry idempotente por conjunto de IDs, ninguna OC antes de confirmar y bloqueo de las cuatro acciones de compra para `COST_DISCOVERY`.
 - **Producción no modificada.** Verificación de solo lectura: ledger contiene únicamente baseline `20261002231537`; `public.rfqs.purpose` no existe en producción. No se ejecutó SQL de aplicación en producción.
+- CI del PR: el check Vercel de `control-de-facturas` pasó. Los checks de los proyectos separados `control-facturas-surface-recovery` y `control-scanner-detection-v2` fallaron con `MISSING_SERVICES` porque ambos están configurados con framework `services` pero no declaran servicios. No se modificaron esos proyectos; estas fallas no provienen del build local ni del proyecto principal.
 
 ## Cierre
 
-No hay bloqueadores funcionales dentro del alcance. Requieren decisión/acción humana la selección de escenarios, asignación, autorización, confirmación de OC y revisión de discrepancias; esto preserva los invariantes congelados. La distribución del magic link es manual. Publicar la rama y abrir PR contra `main`; queda prohibido mergear antes de la auditoría externa.
+No hay bloqueadores funcionales dentro del alcance de RFQ 2.0. Requieren decisión/acción humana la selección de escenarios, asignación, autorización, confirmación de OC y revisión de discrepancias; esto preserva los invariantes congelados. La distribución del magic link es manual. El PR está listo para auditoría externa; las dos fallas de Vercel de proyectos legacy quedan visibles para revisión. No mergear.

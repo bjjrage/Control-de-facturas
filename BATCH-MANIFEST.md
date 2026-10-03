@@ -155,7 +155,7 @@ No se autorizan otros archivos. Si la implementación requiere ampliar este list
 
 Base: `53898dffe0a47a517bfeb31722af2f633a31486f`.
 Branch: `batch/03-rfq-2-core`.
-Estado: hardening final completo; rama publicada y PR pendiente de apertura; sin merge.
+Estado: hardening final completo; rama publicada; PR #23 abierto contra `main`; sin merge.
 Scope: propósito explícito, modelo canónico RFQ, magic link, versionado, evidencia/reconciliación, comparativo, propuestas, asignación y autorización humanas, preview y confirmación exacta de 1..N OCs; integración con Costeo, MRP y compra directa preservando Pricing Batch 02.
 Baseline: DB-INFRA incorporado quirúrgicamente; 148 migrations históricas archivadas con 148/148 SHA256 PASS. Baseline SHA256 `A532E54FB9C3D9A10C4CC2A68C5247057D71DC70D62EA4F4AD2B91B6723C32C5`.
 Migrations nuevas: ocho, solo aplicadas a Preview; versiones y hashes inmutables en `IMPLEMENTATION_REPORT-BATCH-03.md`. Producción fuera de alcance.
