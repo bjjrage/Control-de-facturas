@@ -18,8 +18,8 @@ describe("Batch 5 financial safety contract", () => {
   it("uses canonical global inventory and includes approved certificates in dashboard cashflow", () => {
     expect(dashboardData).toContain('.from("inventory_stock_global_quantity")');
     expect(dashboardData).not.toContain('.select("id, nombre, stock_actual, stock_minimo, activo")');
-    expect(dashboardData).toContain('.from("project_certificates")');
-    expect(dashboardData).toContain('.in("status", ["APROBADO", "FACTURADO"])');
+    expect(dashboardData).toContain('loadCanonicalCashflow');
+    expect(readFileSync(resolve(process.cwd(), 'supabase/migrations/20261003211113_cashflow_read_sources.sql'), 'utf8')).toContain("c.status IN ('APROBADO','FACTURADO')");
     expect(dashboardData).toContain("stockSourceUnavailable:");
   });
 

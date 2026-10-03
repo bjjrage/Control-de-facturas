@@ -17,6 +17,7 @@ export function DashboardView({ data }: { data: DashboardViewData }) {
       </div>
 
       {adminCards.length > 0 ? <MetricGrid cards={adminCards} /> : <MetricChips chips={adminKpis} />}
+      {data.cashflowSummary?.length>0 && <div className="rounded-lg border border-[var(--border)] p-3 text-[12px]" aria-label="Fuentes del flujo de caja">{data.cashflowSummary.map(line=><p key={line}>{line}</p>)}</div>}
 
       {secondaryAdminCards.length > 0 ? (
         <section aria-label="Indicadores financieros de seguimiento" className="space-y-2">

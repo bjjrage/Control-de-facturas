@@ -5,6 +5,7 @@
 // tabla nueva de proyección.
 
 import type { CurrencyCode } from "@/lib/types";
+import { businessToday } from "@/lib/cashflow/dates";
 
 export type FlujoItemTipo =
   | "cobro_factura"
@@ -24,6 +25,13 @@ export interface FlujoItem {
   moneda: CurrencyCode;
   project_id: string | null;
   ref_id: string;
+  empresa_id?: string;
+  certainty?: "PLANNED" | "COMMITTED" | "ACTUAL";
+  source_type?: string;
+  source_id?: string;
+  source_at?: string;
+  quantity?: number;
+  date_basis?: "FACTUAL" | "PLANNING_FALLBACK" | "UNKNOWN";
 }
 
 export interface PeriodoFlujo {
@@ -54,14 +62,14 @@ function ymd(d: Date): string {
 
 function startOfWeek(d: Date): Date {
   const x = new Date(d);
-  const day = (x.getDay() + 6) % 7; // lunes = 0
-  x.setDate(x.getDate() - day);
-  x.setHours(0, 0, 0, 0);
+  const day = (x.getUTCDay() + 6) % 7; // lunes = 0
+  x.setUTCDate(x.getUTCDate() - day);
+  x.setUTCHours(0, 0, 0, 0);
   return x;
 }
 
 function isoWeek(d: Date): string {
-  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
   const dayNum = (t.getUTCDay() + 6) % 7;
   t.setUTCDate(t.getUTCDate() - dayNum + 3);
   const firstThursday = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
@@ -80,13 +88,13 @@ export function construirProyeccion(
   items: FlujoItem[],
   moneda: CurrencyCode,
   granularidad: "semana" | "mes",
-  projectId: string | null
+  projectId: string | null,
+  today = businessToday()
 ): ProyeccionFlujo {
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
+  const hoy = new Date(today + "T00:00:00Z");
 
   const filtrados = items.filter(
-    (i) => i.moneda === moneda && (projectId === null || i.project_id === projectId)
+    (i) => i.certainty !== "ACTUAL" && i.moneda === moneda && (projectId === null || i.project_id === projectId)
   );
 
   // Buckets
@@ -100,16 +108,16 @@ export function construirProyeccion(
     let etiqueta: string;
     if (granularidad === "semana") {
       desde = startOfWeek(hoy);
-      desde.setDate(desde.getDate() + k * 7);
+      desde.setUTCDate(desde.getUTCDate() + k * 7);
       hasta = new Date(desde);
-      hasta.setDate(hasta.getDate() + 7);
+      hasta.setUTCDate(hasta.getUTCDate() + 7);
       clave = isoWeek(desde);
       etiqueta = `Sem ${ymd(desde).slice(5)}`;
     } else {
-      desde = new Date(hoy.getFullYear(), hoy.getMonth() + k, 1);
-      hasta = new Date(hoy.getFullYear(), hoy.getMonth() + k + 1, 1);
-      clave = `${desde.getFullYear()}-${String(desde.getMonth() + 1).padStart(2, "0")}`;
-      etiqueta = `${MESES[desde.getMonth()]} ${desde.getFullYear()}`;
+      desde = new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth() + k, 1));
+      hasta = new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth() + k + 1, 1));
+      clave = `${desde.getUTCFullYear()}-${String(desde.getUTCMonth() + 1).padStart(2, "0")}`;
+      etiqueta = `${MESES[desde.getUTCMonth()]} ${desde.getUTCFullYear()}`;
     }
     periodos.push({
       clave,
@@ -133,7 +141,8 @@ export function construirProyeccion(
       continue;
     }
     // Ítems vencidos (fecha < hoy) se cargan al primer período.
-    const fechaEfectiva = item.fecha < ymd(hoy) ? ymd(hoy) : item.fecha;
+    if(item.fecha < today && item.certainty === "PLANNED") continue;
+    const fechaEfectiva = item.fecha < today ? today : item.fecha;
     if (fechaEfectiva >= finVentana) continue; // fuera de la ventana
 
     const p = periodos.find((pp) => fechaEfectiva >= pp.desde && fechaEfectiva < pp.hasta);
@@ -186,26 +195,25 @@ export function ocurrenciasGastoRecurrente(
     SEMESTRAL: 6,
     ANUAL: 12,
   };
-  const paso = pasoMeses[periodicidad] ?? 1;
-  const hoy = new Date(desde);
-  hoy.setHours(0, 0, 0, 0);
-
-  let cursor: Date;
-  if (proximoVencimiento) {
-    cursor = new Date(proximoVencimiento);
-  } else {
-    const dia = diaDelMes ?? hoy.getDate();
-    cursor = new Date(hoy.getFullYear(), hoy.getMonth(), dia);
-    if (cursor < hoy) cursor = new Date(hoy.getFullYear(), hoy.getMonth() + 1, dia);
-  }
-  cursor.setHours(0, 0, 0, 0);
-
+  const paso = pasoMeses[periodicidad];
+  if(!paso) throw new Error("Periodicidad no soportada");
+  if(!proximoVencimiento && !diaDelMes) return [];
+  const hoy = new Date(Date.UTC(desde.getUTCFullYear(),desde.getUTCMonth(),desde.getUTCDate()));
+  const origin = proximoVencimiento ? new Date(proximoVencimiento+"T00:00:00Z") : hoy;
+  if(!Number.isFinite(origin.getTime())) throw new Error("Vencimiento recurrente inválido");
+  const dia = diaDelMes ?? origin.getUTCDate();
+  if(!Number.isInteger(dia)||dia<1||dia>31) throw new Error("Día recurrente inválido");
+  const atMonth = (offset:number)=>{
+    const first=new Date(Date.UTC(origin.getUTCFullYear(),origin.getUTCMonth()+offset,1));
+    const last=new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0)).getUTCDate();
+    return new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth(),Math.min(dia,last)));
+  };
+  let offset=0;
+  let cursor=proximoVencimiento?origin:atMonth(0);
   const out: { fecha: string; monto: number }[] = [];
-  let guard = 0;
-  while (cursor < hasta && guard < 60) {
-    if (cursor >= hoy) out.push({ fecha: ymd(cursor), monto });
-    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + paso, diaDelMes ?? cursor.getDate());
-    guard++;
+  while(cursor<hasta) {
+    if(cursor>=hoy) out.push({fecha:ymd(cursor),monto});
+    offset+=paso;cursor=atMonth(offset);
   }
   return out;
 }

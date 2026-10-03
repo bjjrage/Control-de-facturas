@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { validateRecurringExpense } from "@/lib/cashflow/recurring-validation";
 import type { CurrencyCode, GastoRecurrenteCategoria, GastoRecurrentePeriodicidad } from "@/lib/types";
 
 async function ctx() {
@@ -25,10 +26,24 @@ export type GastoRecurrenteInput = {
   notas?: string;
 };
 
+async function validateContext(supabase: Awaited<ReturnType<typeof createClient>>, empresaId:string, data:GastoRecurrenteInput) {
+  const invalid=validateRecurringExpense(data);
+  if(invalid) return invalid;
+  if(data.project_id) {
+    const {data:project,error}=await supabase.from("projects").select("id").eq("id",data.project_id).eq("empresa_id",empresaId).single();
+    if(error || !project) return "Proyecto no disponible en esta empresa";
+  }
+  if(data.cuenta_id) {
+    const {data:account,error}=await supabase.from("cuentas_financieras").select("id,moneda").eq("id",data.cuenta_id).eq("empresa_id",empresaId).eq("activo",true).single();
+    if(error || !account || account.moneda!==data.moneda) return "Cuenta o moneda incompatible";
+  }
+  return null;
+}
+
 export async function crearGastoRecurrente(data: GastoRecurrenteInput): Promise<{ id?: string; error?: string }> {
   const { supabase, profile } = await ctx();
-  if (!data.descripcion.trim()) return { error: "La descripción no puede estar vacía" };
-  if (!data.monto_estimado || data.monto_estimado <= 0) return { error: "El monto debe ser mayor a cero" };
+  const invalid=await validateContext(supabase,profile.empresa_id,data);
+  if(invalid) return {error:invalid};
 
   const { data: row, error } = await supabase
     .from("gastos_recurrentes")
@@ -58,7 +73,11 @@ export async function actualizarGastoRecurrente(
   id: string,
   data: Partial<GastoRecurrenteInput>
 ): Promise<{ error?: string }> {
-  const { supabase } = await ctx();
+  const { supabase,profile } = await ctx();
+  const {data:current,error:readError}=await supabase.from("gastos_recurrentes").select("*").eq("id",id).eq("empresa_id",profile.empresa_id).single();
+  if(readError || !current) return {error:"Gasto no disponible"};
+  const invalid=await validateContext(supabase,profile.empresa_id,{...current,...data});
+  if(invalid) return {error:invalid};
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (data.descripcion !== undefined) patch.descripcion = data.descripcion.trim();
   if (data.categoria !== undefined) patch.categoria = data.categoria;
@@ -71,26 +90,26 @@ export async function actualizarGastoRecurrente(
   if (data.proximo_vencimiento !== undefined) patch.proximo_vencimiento = data.proximo_vencimiento || null;
   if (data.notas !== undefined) patch.notas = data.notas?.trim() || null;
 
-  const { error } = await supabase.from("gastos_recurrentes").update(patch).eq("id", id);
+  const { error } = await supabase.from("gastos_recurrentes").update(patch).eq("id", id).eq("empresa_id",profile.empresa_id);
   if (error) return { error: error.message };
   revalidatePath("/flujo-caja");
   return {};
 }
 
 export async function setGastoRecurrenteActivo(id: string, activo: boolean): Promise<{ error?: string }> {
-  const { supabase } = await ctx();
+  const { supabase,profile } = await ctx();
   const { error } = await supabase
     .from("gastos_recurrentes")
     .update({ activo, updated_at: new Date().toISOString() })
-    .eq("id", id);
+    .eq("id", id).eq("empresa_id",profile.empresa_id);
   if (error) return { error: error.message };
   revalidatePath("/flujo-caja");
   return {};
 }
 
 export async function eliminarGastoRecurrente(id: string): Promise<{ error?: string }> {
-  const { supabase } = await ctx();
-  const { error } = await supabase.from("gastos_recurrentes").delete().eq("id", id);
+  const { supabase,profile } = await ctx();
+  const { error } = await supabase.from("gastos_recurrentes").delete().eq("id", id).eq("empresa_id",profile.empresa_id);
   if (error) return { error: error.message };
   revalidatePath("/flujo-caja");
   return {};
