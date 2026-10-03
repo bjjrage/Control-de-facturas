@@ -1,0 +1,2562 @@
+{
+  "classification": "ACCEPTED DATA-RECONCILIATION ANOMALY",
+  "readOnlyProduction": true,
+  "rows": [
+    {
+      "id": "704a0357-f873-4ee3-b616-77bc7b2019b7",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "6a25779c-39ac-4225-a64c-a326a053feb2",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "400.0000",
+      "unit": "bolsa",
+      "cost_currency": "PYG",
+      "unit_cost": "75000.000000",
+      "idempotency_key": "737ec3cc-c786-454a-b175-60a5e85ce704",
+      "created_at": "2026-09-28 03:25:44.518617+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 2",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "9da47a53-87f0-40a3-aa71-203a676d1121",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "6a25779c-39ac-4225-a64c-a326a053feb2",
+      "to_location_id": "736cc1a8-9616-4db1-9c47-0e422ba25b58",
+      "project_id": "0ddd005f-434d-45be-ba86-75eac5edb4aa",
+      "quantity": "50.0000",
+      "unit": "bolsa",
+      "cost_currency": "PYG",
+      "unit_cost": "75000.000000",
+      "idempotency_key": "3ef32b34-0bd0-4f63-b74f-1cd52bfe5805",
+      "created_at": "2026-09-28 03:25:45.822669+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 3",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "3cb49b86-d9e6-445b-a560-323d60a8d207",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "1b3b6007-bb46-44fe-a75f-8be24b52aa8d",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "15.0000",
+      "unit": "m3",
+      "cost_currency": "PYG",
+      "unit_cost": "95000.000000",
+      "idempotency_key": "933f0cde-7ebd-43e8-9ab9-6efd4f801ada",
+      "created_at": "2026-09-28 03:25:46.805361+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 4",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "07ebddce-5238-41e7-8044-0aa82513c41a",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "acf4efdb-12de-4028-9a8f-893d4d66ae40",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "20.0000",
+      "unit": "m3",
+      "cost_currency": "PYG",
+      "unit_cost": "130000.000000",
+      "idempotency_key": "1b7bf50b-9774-4169-9a63-1f0e9deab185",
+      "created_at": "2026-09-28 03:25:47.661928+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 5",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "80cbc5e2-c1a3-4f92-b072-4cab74c96780",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "acf4efdb-12de-4028-9a8f-893d4d66ae40",
+      "to_location_id": "736cc1a8-9616-4db1-9c47-0e422ba25b58",
+      "project_id": "0ddd005f-434d-45be-ba86-75eac5edb4aa",
+      "quantity": "5.0000",
+      "unit": "m3",
+      "cost_currency": "PYG",
+      "unit_cost": "130000.000000",
+      "idempotency_key": "91228224-0bb2-497b-b17b-ce47005880ad",
+      "created_at": "2026-09-28 03:25:48.598459+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 6",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "8ee997a2-7a4f-4ec0-bebc-6977b9785d27",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "dc3c2f26-94c6-4ef6-afcf-bd598b03d64e",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "60.0000",
+      "unit": "bolsa",
+      "cost_currency": "PYG",
+      "unit_cost": "28000.000000",
+      "idempotency_key": "0276e6fa-9abd-439d-a136-855400c65a68",
+      "created_at": "2026-09-28 03:25:49.680738+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 7",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "17ecb7fb-e58a-4074-a752-b2da83245446",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "dc3c2f26-94c6-4ef6-afcf-bd598b03d64e",
+      "to_location_id": "736cc1a8-9616-4db1-9c47-0e422ba25b58",
+      "project_id": "0ddd005f-434d-45be-ba86-75eac5edb4aa",
+      "quantity": "10.0000",
+      "unit": "bolsa",
+      "cost_currency": "PYG",
+      "unit_cost": "28000.000000",
+      "idempotency_key": "fa1bf98a-4aec-43ce-84f7-e6c100393d8e",
+      "created_at": "2026-09-28 03:25:50.524835+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 8",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "6bc89f4b-821b-4406-9f64-1b6dfaf590a2",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "feab7369-aa1d-4b56-b6ba-c65419c8a8c4",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "8.0000",
+      "unit": "m3",
+      "cost_currency": "PYG",
+      "unit_cost": "40000.000000",
+      "idempotency_key": "daf56621-dd42-4b29-bd10-3bbf690ea252",
+      "created_at": "2026-09-28 03:25:51.325357+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 9",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "ecf5ac91-5c91-42a0-9caa-f40356331873",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "a713950d-8da7-466d-809a-2601469dbdb4",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "2000.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "4500.000000",
+      "idempotency_key": "8be42a50-d510-4bc6-b62c-86906ab24ee7",
+      "created_at": "2026-09-28 03:25:52.217767+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 10",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "1e83285e-7b70-405a-b3ef-5fd9e32d9c59",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "a713950d-8da7-466d-809a-2601469dbdb4",
+      "to_location_id": "736cc1a8-9616-4db1-9c47-0e422ba25b58",
+      "project_id": "0ddd005f-434d-45be-ba86-75eac5edb4aa",
+      "quantity": "1800.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "4500.000000",
+      "idempotency_key": "9ae2410f-1a5b-45e0-912c-1ae82195bde8",
+      "created_at": "2026-09-28 03:25:53.057131+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 11",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "8ccbaaa3-7441-4b7b-b763-c7cfe34b8721",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "40b12c89-c18a-40e1-b468-2f297eb31e23",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "500.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "3200.000000",
+      "idempotency_key": "3ef14302-2cfe-4f4e-9461-75a424bae7ae",
+      "created_at": "2026-09-28 03:25:54.579581+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 12",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "0b5e447f-1d7b-41f9-b658-3f1c986d927d",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "c878fa10-c925-41a3-98e2-76e374e9097b",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "80.0000",
+      "unit": "barra",
+      "cost_currency": "PYG",
+      "unit_cost": "18000.000000",
+      "idempotency_key": "b8c08926-8560-4879-a421-806ef4d3a4e6",
+      "created_at": "2026-09-28 03:25:55.329165+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 13",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "2b8b703d-d708-4dea-a87b-d915e1ffc369",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "ae42bc13-07b3-4042-b844-685a781acbc9",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "60.0000",
+      "unit": "barra",
+      "cost_currency": "PYG",
+      "unit_cost": "28000.000000",
+      "idempotency_key": "608a29f4-1559-4a91-890d-9d8029f0ef4b",
+      "created_at": "2026-09-28 03:25:56.125286+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 14",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "d25dde6c-20f7-499a-b31c-be7a2750320a",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "ae42bc13-07b3-4042-b844-685a781acbc9",
+      "to_location_id": "736cc1a8-9616-4db1-9c47-0e422ba25b58",
+      "project_id": "0ddd005f-434d-45be-ba86-75eac5edb4aa",
+      "quantity": "20.0000",
+      "unit": "barra",
+      "cost_currency": "PYG",
+      "unit_cost": "28000.000000",
+      "idempotency_key": "817a18ac-ed2d-4359-a9c7-6da3ce506260",
+      "created_at": "2026-09-28 03:25:56.943336+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 15",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "b0dfe898-6233-4e45-a797-d80079cf6aa9",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "d8dbb205-7c62-4d48-9ad8-a745b0584a01",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "40.0000",
+      "unit": "kg",
+      "cost_currency": "PYG",
+      "unit_cost": "14000.000000",
+      "idempotency_key": "ce932e24-c0d2-401a-831c-faf91c6c2a3b",
+      "created_at": "2026-09-28 03:25:57.797315+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 16",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "116d9e4d-9ee6-4344-ad95-a4b842caefc6",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "aff14fcb-695a-452b-a0ec-cee7099fc4f6",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "25.0000",
+      "unit": "kg",
+      "cost_currency": "PYG",
+      "unit_cost": "12000.000000",
+      "idempotency_key": "2f8d55d9-6d4f-4be4-9a02-6c4cfba6a34a",
+      "created_at": "2026-09-28 03:25:58.706376+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 17",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "b72003d8-c5c2-4512-a2ed-1511a037bab7",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "aff14fcb-695a-452b-a0ec-cee7099fc4f6",
+      "to_location_id": "736cc1a8-9616-4db1-9c47-0e422ba25b58",
+      "project_id": "0ddd005f-434d-45be-ba86-75eac5edb4aa",
+      "quantity": "5.0000",
+      "unit": "kg",
+      "cost_currency": "PYG",
+      "unit_cost": "12000.000000",
+      "idempotency_key": "d60e0503-cfb7-4e07-b42d-6d22f8431f87",
+      "created_at": "2026-09-28 03:25:59.550743+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 18",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "1b27a97b-bda0-4d5e-8dca-0ca55eb3fb96",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "5bf90d30-0174-4cfd-9fe7-16cc6baea195",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "150.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "3500.000000",
+      "idempotency_key": "a84eb6df-b7e2-4079-a9a2-31c13cf238c6",
+      "created_at": "2026-09-28 03:26:00.328339+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 19",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "6a07ca8d-fc63-406b-9157-53a9a1253431",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "fc805653-624f-4231-a7ce-b4bfbf098846",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "30.0000",
+      "unit": "placa",
+      "cost_currency": "PYG",
+      "unit_cost": "140000.000000",
+      "idempotency_key": "5ad97904-ed02-4e4d-a598-2bc208fcf9e6",
+      "created_at": "2026-09-28 03:26:01.106657+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 20",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "0fef8490-b9ee-44d1-89e9-da2fc0ec73b2",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "fc805653-624f-4231-a7ce-b4bfbf098846",
+      "to_location_id": "736cc1a8-9616-4db1-9c47-0e422ba25b58",
+      "project_id": "0ddd005f-434d-45be-ba86-75eac5edb4aa",
+      "quantity": "8.0000",
+      "unit": "placa",
+      "cost_currency": "PYG",
+      "unit_cost": "140000.000000",
+      "idempotency_key": "ac286ec8-b5ce-4483-a843-59f4cbdc4fe5",
+      "created_at": "2026-09-28 03:26:01.994671+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 21",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "393b13fd-aeed-42ee-bcd8-860936f1d092",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "65b50fa2-8651-41fe-83b0-c71e0801f688",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "60.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "45000.000000",
+      "idempotency_key": "b2a74216-618f-4178-a41b-4347937890f9",
+      "created_at": "2026-09-28 03:26:02.792555+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 22",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "48c4d397-b611-4892-b1da-568298a43ab4",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "2768f210-1abe-4617-9723-b2ccab645d20",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "40.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "55000.000000",
+      "idempotency_key": "01c454b2-eeaa-4e84-8a00-535793f49d6f",
+      "created_at": "2026-09-28 03:26:03.637532+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 23",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "1c790d4a-1881-44e0-af7d-74aaea02455e",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "4f520b3d-af44-49e5-afaa-d21a37f420c0",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "1500.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "8500.000000",
+      "idempotency_key": "2db49c6b-7ff8-4971-aaec-e5e696c8f208",
+      "created_at": "2026-09-28 03:26:04.542733+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 24",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "9fb17c48-a9f3-44fd-ad7f-98baa49e0125",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "4f520b3d-af44-49e5-afaa-d21a37f420c0",
+      "to_location_id": "736cc1a8-9616-4db1-9c47-0e422ba25b58",
+      "project_id": "0ddd005f-434d-45be-ba86-75eac5edb4aa",
+      "quantity": "260.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "8500.000000",
+      "idempotency_key": "f77b8d9f-2e7a-4b64-b142-f42ee2ca7268",
+      "created_at": "2026-09-28 03:26:05.892541+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 25",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "f549348b-9fdf-4afd-a29c-7a46a6ec43ad",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "b429efc3-6987-4763-ad17-2d0d6f8d7a9a",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "800.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "3200.000000",
+      "idempotency_key": "4bb073db-8ac4-4282-aef6-21a0512a3b64",
+      "created_at": "2026-09-28 03:26:06.818872+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 26",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "6c0d9e07-df31-4270-b68d-9982e372052d",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "4d2c0b62-c029-49bc-9760-36f62c49f41d",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "20.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "65000.000000",
+      "idempotency_key": "4504e0c3-8eb8-4dfa-8073-6da9643ba7b0",
+      "created_at": "2026-09-28 03:26:07.588725+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 27",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "5804a479-fcc3-46d5-b73d-b23dabe1918c",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "1f562eee-a53c-433c-b01d-7458e6616c2a",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "6.0000",
+      "unit": "rollo",
+      "cost_currency": "PYG",
+      "unit_cost": "180000.000000",
+      "idempotency_key": "599f0a01-c3f0-47e9-bd76-d0b152dbada1",
+      "created_at": "2026-09-28 03:26:08.328646+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 28",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "1f41bc51-23c4-4d31-9b80-2e1b54650d3d",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "7e980159-8eb9-4158-9b8a-12ff8f3f4a66",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "8.0000",
+      "unit": "rollo",
+      "cost_currency": "PYG",
+      "unit_cost": "90000.000000",
+      "idempotency_key": "06b5723a-ebb1-4f14-8006-2e8723aa1e94",
+      "created_at": "2026-09-28 03:26:09.151275+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 29",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "116ac33d-61ae-49d3-901e-47fbfb9eb142",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "85b94e16-a5f1-4a11-bee9-37aa7a84bc42",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "5.0000",
+      "unit": "balde 20L",
+      "cost_currency": "PYG",
+      "unit_cost": "38000.000000",
+      "idempotency_key": "07fdc381-1570-4147-86ff-d43d86446fa7",
+      "created_at": "2026-09-28 03:26:09.984856+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 30",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "3ac43ea1-46b9-492e-8b0f-4ce629546564",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "ecda7fd8-c5d2-45a6-a4a3-1fc4a1b9fe56",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "30.0000",
+      "unit": "pomo",
+      "cost_currency": "PYG",
+      "unit_cost": "12000.000000",
+      "idempotency_key": "97d1521b-ae11-498b-8831-b940c1af7073",
+      "created_at": "2026-09-28 03:26:10.701997+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 31",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "4414f19a-a334-482f-bd15-bcdd422d13a5",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "7bc27bb3-b959-43e7-92b9-95fa63f72a3e",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "200.0000",
+      "unit": "m2",
+      "cost_currency": "PYG",
+      "unit_cost": "90300.000000",
+      "idempotency_key": "28e51002-2f91-437c-b28b-c1609f847ba2",
+      "created_at": "2026-09-28 03:26:11.4589+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 32",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "7c860ff3-0a0f-43ce-8049-0cc7ce616f25",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "7ce6974a-3630-41a0-a3f5-38fb7e8fb231",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "40.0000",
+      "unit": "m2",
+      "cost_currency": "PYG",
+      "unit_cost": "105000.000000",
+      "idempotency_key": "84b93d11-3d33-48e3-a631-2d24647c75cb",
+      "created_at": "2026-09-28 03:26:12.644281+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 33",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "a054be23-daab-4726-8899-087072825816",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "a1873036-5eb0-4869-b0f4-06350f88b60b",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "150.0000",
+      "unit": "ml",
+      "cost_currency": "PYG",
+      "unit_cost": "27090.000000",
+      "idempotency_key": "16eed4f3-b324-4fa1-b055-6fa3e4dc3357",
+      "created_at": "2026-09-28 03:26:13.465394+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 34",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "fb5d90ad-205f-4dd0-8c6e-2252998cffb4",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "887bbd04-b057-4d18-8a4a-fce9633c4158",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "40.0000",
+      "unit": "m2",
+      "cost_currency": "PYG",
+      "unit_cost": "85000.000000",
+      "idempotency_key": "a1e6e41d-2ee8-45a3-a17c-72ded9f8e6e9",
+      "created_at": "2026-09-28 03:26:14.151689+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 35",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "405c18b2-5fac-48e5-98b9-d624fcfb4a4e",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "23913178-6e9f-421c-ae13-f2a8e7b34ce0",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "60.0000",
+      "unit": "bolsa",
+      "cost_currency": "PYG",
+      "unit_cost": "38000.000000",
+      "idempotency_key": "8a6d6323-cfad-4fcf-80c1-3a3767dfc2fb",
+      "created_at": "2026-09-28 03:26:14.953276+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 36",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "07c7a734-8619-4793-8077-5748fc0290c0",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "130f4985-0a82-402e-874b-9ba4deac4752",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "40.0000",
+      "unit": "kg",
+      "cost_currency": "PYG",
+      "unit_cost": "9500.000000",
+      "idempotency_key": "2436dfe7-4244-4a4c-a8e5-ef3e6a2e34da",
+      "created_at": "2026-09-28 03:26:15.755321+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 37",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "c7dd77a5-58ec-440f-945f-b6c7e00c6f84",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "000f1c39-06a4-44b5-9b08-ffaf87efe8db",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "20.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "65000.000000",
+      "idempotency_key": "8a200a55-6029-497b-b4a8-f77eb6142f45",
+      "created_at": "2026-09-28 03:26:16.583743+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 38",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "c9694ecc-16dc-4975-b6aa-60e15d2db115",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "9576ad57-bbd1-4b61-94d9-eead7ae1d9f0",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "10.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "800000.000000",
+      "idempotency_key": "997e8179-d14a-4dc2-a1fa-0fdc583e856f",
+      "created_at": "2026-09-28 03:26:17.437439+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 39",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "249dafc1-5740-4751-89aa-fc54f0a711c8",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "ad02a72e-442f-4134-9f89-9dd22593fa43",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "10.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "800000.000000",
+      "idempotency_key": "96bebbb4-ebbf-4278-93b7-98ee7bbe9b63",
+      "created_at": "2026-09-28 03:26:18.250184+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 40",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "ef90a02c-66f4-4b43-9bbd-0181f617df0b",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "dcd12efd-1d11-4f6b-a441-37b62af0196e",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "8.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "700000.000000",
+      "idempotency_key": "0b5c7d58-2f9a-4e4a-b7b1-ca8c70d91ce6",
+      "created_at": "2026-09-28 03:26:19.066901+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 41",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "423d62c4-50f5-46ef-aaf9-19a74781dc58",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "77a619fa-13be-4b72-bd16-675ae25dfc7d",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "100.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "18000.000000",
+      "idempotency_key": "9a59c211-419e-45b0-b34b-2a56095761e0",
+      "created_at": "2026-09-28 03:26:20.029793+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 42",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "42564904-d4b2-4821-82cd-23c6d08137f9",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "390499b5-3f1a-4607-a50a-5be96f680b43",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "20.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "95000.000000",
+      "idempotency_key": "b67a9962-3fc4-4006-b6f8-58dd3bcb7205",
+      "created_at": "2026-09-28 03:26:20.739941+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 43",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "8a8b565e-b6de-452c-a41c-45475d548063",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "d240c5a6-a9fe-40ba-add5-e4a1b0e88e89",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "30.0000",
+      "unit": "pomo",
+      "cost_currency": "PYG",
+      "unit_cost": "22000.000000",
+      "idempotency_key": "e88fae0b-42d3-4e58-8e08-c9f724ba4215",
+      "created_at": "2026-09-28 03:26:21.458036+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 44",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "db3514b4-efda-487b-8cc9-28190e818740",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "1a3128b9-f4b3-4f3a-b659-49092fec62df",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "40.0000",
+      "unit": "ml",
+      "cost_currency": "PYG",
+      "unit_cost": "32000.000000",
+      "idempotency_key": "1bf946c5-fde8-49d9-996d-a61053c57abc",
+      "created_at": "2026-09-28 03:26:22.731348+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 45",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "46ea3541-3fa2-4c27-b32b-53730b58dfff",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "acd0b1dd-9046-4934-8ece-57fb2bb1c8f6",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "20.0000",
+      "unit": "ml",
+      "cost_currency": "PYG",
+      "unit_cost": "18000.000000",
+      "idempotency_key": "72efff58-a02c-4106-bc3a-13b5b4bba02a",
+      "created_at": "2026-09-28 03:26:23.629473+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 46",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "040b9bb2-78d9-4a4c-a673-331605f6c044",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "6a774317-5a08-4608-92f9-ed8a19fdcd90",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "60.0000",
+      "unit": "ml",
+      "cost_currency": "PYG",
+      "unit_cost": "9500.000000",
+      "idempotency_key": "1a031a8f-52cb-4dae-afb3-d46e2b6175c2",
+      "created_at": "2026-09-28 03:26:24.474968+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 47",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "075daf9d-1b61-4b84-ae76-13cdc12d6775",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "beefac38-8979-4e83-afc9-dff7be280fda",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "30.0000",
+      "unit": "ml",
+      "cost_currency": "PYG",
+      "unit_cost": "12500.000000",
+      "idempotency_key": "2fc66c59-56a0-4cd8-9893-983e36b066e7",
+      "created_at": "2026-09-28 03:26:25.322542+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 48",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "239da0f3-b648-4b03-b921-692db20aa28e",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "ed9c35a9-2e30-4f39-bb06-c6e6d4b7e800",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "40.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "8000.000000",
+      "idempotency_key": "04514962-6945-471f-a58f-6722e5c688ef",
+      "created_at": "2026-09-28 03:26:26.137494+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 49",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "67827d96-8893-4868-9d73-02b7e1f04a54",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "693c6036-349e-4301-9ce5-9b77d81fff86",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "30.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "10500.000000",
+      "idempotency_key": "8450e48f-4cf6-40d9-b4cd-51c48028c808",
+      "created_at": "2026-09-28 03:26:26.870905+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 50",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "0e0e60ac-bed6-40f6-8671-bfeb8c422e62",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "479ac44d-8110-46ec-9262-0fb5c10d3eda",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "2.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "1200000.000000",
+      "idempotency_key": "e7cce78d-9972-45df-963d-645d38d7fe9b",
+      "created_at": "2026-09-28 03:26:27.603686+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 51",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "311d86a2-199b-483f-b8b5-9795c15e2cc5",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "47716ef3-ab8f-40df-858d-75aa86a8060b",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "2.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "520000.000000",
+      "idempotency_key": "8c4af977-7d48-48b2-9803-3b47b3d7848e",
+      "created_at": "2026-09-28 03:26:28.387759+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 52",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "14feb22b-75a5-4e24-a7fd-c0b00b96c327",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "b483ff18-54de-4abc-8f8f-47162a51a2aa",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "3.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "750000.000000",
+      "idempotency_key": "d172db7a-3e4c-4301-8360-1c268c6dc47c",
+      "created_at": "2026-09-28 03:26:29.147419+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 53",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "001b9962-9743-4f87-a755-a425e6c159cd",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "1709b8be-6c22-4b24-ba22-e32e3a63b849",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "3.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "480000.000000",
+      "idempotency_key": "79e3a0cc-5b44-49b7-b7e8-a62920fdd9f6",
+      "created_at": "2026-09-28 03:26:29.884052+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 54",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "9da35431-b42f-4dd4-a799-ffdd9cd92461",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "2edbcf52-c8c5-41ea-9346-3edd546b7777",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "8.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "380000.000000",
+      "idempotency_key": "0b5334ef-0983-430d-a12b-58c2e7e88785",
+      "created_at": "2026-09-28 03:26:30.661624+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 55",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "c9083a9d-6e9d-441c-9a47-cf71dc9d3c2c",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "115e6552-0337-4c44-a5fd-516d97c46ebc",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "20.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "45000.000000",
+      "idempotency_key": "59a4808a-fa8c-4a23-8cc0-a2df0099927f",
+      "created_at": "2026-09-28 03:26:31.456818+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 56",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "c16f339b-0472-4fb1-88c4-44aaf7724688",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "f6ba7b4f-ab49-4208-adc6-4536c45dea35",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "300.0000",
+      "unit": "ml",
+      "cost_currency": "PYG",
+      "unit_cost": "3800.000000",
+      "idempotency_key": "fe6189d3-b907-40fc-bedb-ba3702882c2a",
+      "created_at": "2026-09-28 03:26:32.295998+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 57",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "6402fbf8-2c3f-4adf-a4ab-989db1fd464d",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "041eecf3-7c2a-472d-b4c3-5db16f4ce2d2",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "120.0000",
+      "unit": "ml",
+      "cost_currency": "PYG",
+      "unit_cost": "5900.000000",
+      "idempotency_key": "950f1e1e-63b5-434f-a9f9-ee6a43206694",
+      "created_at": "2026-09-28 03:26:33.061458+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 58",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "2be4cb8d-b54c-4127-8352-4d8c46d0efd1",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "4ef4593c-aef2-409e-89dd-f1db4f864a15",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "50.0000",
+      "unit": "ml",
+      "cost_currency": "PYG",
+      "unit_cost": "8500.000000",
+      "idempotency_key": "90f847e2-0057-4526-905c-67e61f1de865",
+      "created_at": "2026-09-28 03:26:33.811445+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 59",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "f7073a1d-a09b-4e5e-b375-08cf30fbecba",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "08bb5ced-92e4-4465-b49c-6f46e0a89344",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "150.0000",
+      "unit": "ml",
+      "cost_currency": "PYG",
+      "unit_cost": "4200.000000",
+      "idempotency_key": "0cfc359b-d2bd-4555-a0d8-2c2dd9133eff",
+      "created_at": "2026-09-28 03:26:34.622206+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 60",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "b9533205-03cd-43ce-bf98-7c9d612a2d0f",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "6d1e5aa6-f868-4187-8983-90a581c86020",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "60.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "18000.000000",
+      "idempotency_key": "bf2c2dbe-1eea-4b71-afcf-e8146ce99c26",
+      "created_at": "2026-09-28 03:26:35.3719+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 61",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "a236d82a-0e1d-4608-96ca-409f7c6fb8e6",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "8b2017fa-d887-429b-8b4b-65a35a1a0ed5",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "60.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "25000.000000",
+      "idempotency_key": "d24c5e34-e745-42b2-9cfc-5650864696c7",
+      "created_at": "2026-09-28 03:26:36.165132+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 62",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "371b61dd-393d-4f97-99bd-d4e450bbac75",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "863d12f6-0f7d-458f-899f-fd1a377d0974",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "20.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "65000.000000",
+      "idempotency_key": "65d77181-94ce-42e9-8e8e-ab556e6d0d2e",
+      "created_at": "2026-09-28 03:26:36.928752+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 63",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "d58778d7-f4ae-42e2-bc91-c10a2d998b0c",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "427f6de5-54ff-4b9d-b1ec-a13924355c2b",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "15.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "105000.000000",
+      "idempotency_key": "8170dbf1-ccff-4fe1-9b8e-60b4366bcb8a",
+      "created_at": "2026-09-28 03:26:37.693251+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 64",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "a3c13011-5c60-4527-a36f-6482b148e579",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "0eb20881-7e80-466f-8efc-f04892ec747a",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "5.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "950000.000000",
+      "idempotency_key": "8d13f169-1081-496c-85cd-9ca377ff33b9",
+      "created_at": "2026-09-28 03:26:38.475981+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 65",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "16a15b9f-fcbe-4f09-9523-adedd0477c60",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "396813ee-438d-46c5-837a-79e1d6045aca",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "12.0000",
+      "unit": "balde 20L",
+      "cost_currency": "PYG",
+      "unit_cost": "420000.000000",
+      "idempotency_key": "e27f5141-ce33-4255-9889-156f8264716d",
+      "created_at": "2026-09-28 03:26:39.254984+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 66",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "1ba824a1-ee54-49c1-834d-4440e3d0c16c",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "c07f57a9-a2d7-4f4f-80b3-e7650604b33f",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "12.0000",
+      "unit": "balde 20L",
+      "cost_currency": "PYG",
+      "unit_cost": "420000.000000",
+      "idempotency_key": "e377a1ee-89fc-4794-b42f-d3db079f42c7",
+      "created_at": "2026-09-28 03:26:40.020977+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 67",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "fe81c4c0-8af1-4e5a-b94f-536977fc0aa3",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "f963a01a-5ab7-4c14-a202-91c60c2c70d7",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "15.0000",
+      "unit": "balde 4L",
+      "cost_currency": "PYG",
+      "unit_cost": "185000.000000",
+      "idempotency_key": "e226ce09-36c4-4d8a-b77d-cb0a12fe1461",
+      "created_at": "2026-09-28 03:26:40.801102+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 68",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "63919393-2798-455b-8ad8-d32113fdbe04",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "f1a6fdbd-3d6d-4ff9-ba42-08d7eb2a2368",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "30.0000",
+      "unit": "litro",
+      "cost_currency": "PYG",
+      "unit_cost": "22000.000000",
+      "idempotency_key": "854a9924-1337-4094-820d-dd6fd42e9f1b",
+      "created_at": "2026-09-28 03:26:41.606462+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 69",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "5b3f4e32-5238-45eb-9ffc-0adbe051d181",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "439048f1-4116-4683-95cb-4fb58ae8136f",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "4.0000",
+      "unit": "balde 20L",
+      "cost_currency": "PYG",
+      "unit_cost": "380000.000000",
+      "idempotency_key": "d175fdc2-8dc9-4078-af53-035342d5aefc",
+      "created_at": "2026-09-28 03:26:42.454304+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 70",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "c9331a2a-4b7f-42c8-8ca0-ad73e439b5f3",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "145e47ab-471b-402f-a276-93477ff59f94",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "100.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "3500.000000",
+      "idempotency_key": "8c75634e-f542-4940-82e4-cace0b4d2911",
+      "created_at": "2026-09-28 03:26:43.93277+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 71",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "5ef2402d-651d-4bf9-a8d9-2b9d6c23fb9f",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "5a4930fb-695d-4c79-8a0f-6372abbc4bad",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "50.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "2500.000000",
+      "idempotency_key": "974d7cd9-4e5f-425c-865e-d645bca782fe",
+      "created_at": "2026-09-28 03:26:44.654269+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 72",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "93727072-88ad-4ac3-a3ea-2f68f6e08f50",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "6a25779c-39ac-4225-a64c-a326a053feb2",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "400.0000",
+      "unit": "bolsa",
+      "cost_currency": "PYG",
+      "unit_cost": "75000.000000",
+      "idempotency_key": "1f45a6eb-1d4c-49e6-a5a6-da3d69eb72c9",
+      "created_at": "2026-09-28 03:48:22.631236+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 2",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "1cd8a5d3-8d34-4432-8356-60da394dc932",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "6a25779c-39ac-4225-a64c-a326a053feb2",
+      "to_location_id": "736cc1a8-9616-4db1-9c47-0e422ba25b58",
+      "project_id": "0ddd005f-434d-45be-ba86-75eac5edb4aa",
+      "quantity": "50.0000",
+      "unit": "bolsa",
+      "cost_currency": "PYG",
+      "unit_cost": "75000.000000",
+      "idempotency_key": "73a0edc3-6150-4f85-961b-d85a9e6b7d47",
+      "created_at": "2026-09-28 03:48:23.855892+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 3",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "5aa38ffe-17a7-42cd-95b0-290ce93cb224",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "1b3b6007-bb46-44fe-a75f-8be24b52aa8d",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "15.0000",
+      "unit": "m3",
+      "cost_currency": "PYG",
+      "unit_cost": "95000.000000",
+      "idempotency_key": "78e874e1-f738-4ae4-9811-2494e74d7196",
+      "created_at": "2026-09-28 03:48:25.061159+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 4",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "b5008791-868e-4002-8c11-1abf922029c8",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "acf4efdb-12de-4028-9a8f-893d4d66ae40",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "20.0000",
+      "unit": "m3",
+      "cost_currency": "PYG",
+      "unit_cost": "130000.000000",
+      "idempotency_key": "be1badbb-b267-402e-a918-038069bb9615",
+      "created_at": "2026-09-28 03:48:26.035982+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 5",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "f3c39171-815c-4e4a-87d0-c9ab1c7d4311",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "acf4efdb-12de-4028-9a8f-893d4d66ae40",
+      "to_location_id": "736cc1a8-9616-4db1-9c47-0e422ba25b58",
+      "project_id": "0ddd005f-434d-45be-ba86-75eac5edb4aa",
+      "quantity": "5.0000",
+      "unit": "m3",
+      "cost_currency": "PYG",
+      "unit_cost": "130000.000000",
+      "idempotency_key": "c49be1a7-092f-4e60-ad6f-8232349b2c14",
+      "created_at": "2026-09-28 03:48:26.985938+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 6",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "65696041-45d2-4a02-88b8-19f62a5974bc",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "dc3c2f26-94c6-4ef6-afcf-bd598b03d64e",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "60.0000",
+      "unit": "bolsa",
+      "cost_currency": "PYG",
+      "unit_cost": "28000.000000",
+      "idempotency_key": "80842aa5-e491-4af6-ac6e-38449ef19087",
+      "created_at": "2026-09-28 03:48:27.853605+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 7",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "e3477ee5-2dd7-4c04-bac4-cf5b3994893d",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "dc3c2f26-94c6-4ef6-afcf-bd598b03d64e",
+      "to_location_id": "736cc1a8-9616-4db1-9c47-0e422ba25b58",
+      "project_id": "0ddd005f-434d-45be-ba86-75eac5edb4aa",
+      "quantity": "10.0000",
+      "unit": "bolsa",
+      "cost_currency": "PYG",
+      "unit_cost": "28000.000000",
+      "idempotency_key": "953a8257-464a-4db4-9b7b-c4c54d04d144",
+      "created_at": "2026-09-28 03:48:28.962934+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 8",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "e9b4670b-2456-4bf9-853a-f29d19c60fdf",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "feab7369-aa1d-4b56-b6ba-c65419c8a8c4",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "8.0000",
+      "unit": "m3",
+      "cost_currency": "PYG",
+      "unit_cost": "40000.000000",
+      "idempotency_key": "215d140b-0470-4e78-ae74-de8adb52cbf6",
+      "created_at": "2026-09-28 03:48:29.787181+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 9",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "09f36d50-adc2-4abf-98d0-138fbff5daf9",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "a713950d-8da7-466d-809a-2601469dbdb4",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "2000.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "4500.000000",
+      "idempotency_key": "cd1bf352-0ad3-4514-8603-21899883ac09",
+      "created_at": "2026-09-28 03:48:30.585886+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 10",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "72bfdb82-c603-418b-8e51-0061f0ad2c96",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "a713950d-8da7-466d-809a-2601469dbdb4",
+      "to_location_id": "736cc1a8-9616-4db1-9c47-0e422ba25b58",
+      "project_id": "0ddd005f-434d-45be-ba86-75eac5edb4aa",
+      "quantity": "1800.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "4500.000000",
+      "idempotency_key": "ab1d3b77-0870-4c9f-9309-8f908a0c7c8a",
+      "created_at": "2026-09-28 03:48:31.348839+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 11",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "7f4db8db-ca9d-4b63-8fc7-a0fc42ba4c19",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "40b12c89-c18a-40e1-b468-2f297eb31e23",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "500.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "3200.000000",
+      "idempotency_key": "c84be71f-e86e-4d77-b692-6fef913ec7ce",
+      "created_at": "2026-09-28 03:48:32.227223+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 12",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "9be0e608-20e7-4308-bfb1-4993f4e0bd2c",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "c878fa10-c925-41a3-98e2-76e374e9097b",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "80.0000",
+      "unit": "barra",
+      "cost_currency": "PYG",
+      "unit_cost": "18000.000000",
+      "idempotency_key": "8d5aadcc-9d8d-4d61-8321-d32f698a782f",
+      "created_at": "2026-09-28 03:48:33.043633+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 13",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "8b4323c8-62c7-4f0c-b6c6-e9d5c0188f9c",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "ae42bc13-07b3-4042-b844-685a781acbc9",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "60.0000",
+      "unit": "barra",
+      "cost_currency": "PYG",
+      "unit_cost": "28000.000000",
+      "idempotency_key": "840613f9-7b3c-4ed7-a4f9-26d98883cdef",
+      "created_at": "2026-09-28 03:48:33.830209+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 14",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "d97d5664-57e8-464b-ad14-3e2b0603847e",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "ae42bc13-07b3-4042-b844-685a781acbc9",
+      "to_location_id": "736cc1a8-9616-4db1-9c47-0e422ba25b58",
+      "project_id": "0ddd005f-434d-45be-ba86-75eac5edb4aa",
+      "quantity": "20.0000",
+      "unit": "barra",
+      "cost_currency": "PYG",
+      "unit_cost": "28000.000000",
+      "idempotency_key": "46bf18dc-0640-4758-8dc8-174bb6254d51",
+      "created_at": "2026-09-28 03:48:34.637999+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 15",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "119a1840-7017-4b3e-a042-5436e0d3e514",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "d8dbb205-7c62-4d48-9ad8-a745b0584a01",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "40.0000",
+      "unit": "kg",
+      "cost_currency": "PYG",
+      "unit_cost": "14000.000000",
+      "idempotency_key": "eed03d07-c843-4e2e-9555-8bbf4a39c924",
+      "created_at": "2026-09-28 03:48:35.572891+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 16",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "da98d54b-4d26-4381-a69e-a660bd22c8a0",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "aff14fcb-695a-452b-a0ec-cee7099fc4f6",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "25.0000",
+      "unit": "kg",
+      "cost_currency": "PYG",
+      "unit_cost": "12000.000000",
+      "idempotency_key": "85ea969c-ece4-48e9-ac76-c71cbb11af94",
+      "created_at": "2026-09-28 03:48:36.577457+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 17",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "7d90b156-2927-4b98-b563-4d25a1a16684",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "aff14fcb-695a-452b-a0ec-cee7099fc4f6",
+      "to_location_id": "736cc1a8-9616-4db1-9c47-0e422ba25b58",
+      "project_id": "0ddd005f-434d-45be-ba86-75eac5edb4aa",
+      "quantity": "5.0000",
+      "unit": "kg",
+      "cost_currency": "PYG",
+      "unit_cost": "12000.000000",
+      "idempotency_key": "25c01b51-a2e1-4952-910e-2828e7d3b110",
+      "created_at": "2026-09-28 03:48:37.381657+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 18",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "7a5d3843-26c1-4c07-a6c6-88a8c05b5267",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "5bf90d30-0174-4cfd-9fe7-16cc6baea195",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "150.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "3500.000000",
+      "idempotency_key": "268aaaf8-dde4-4047-b7ce-6703e016298a",
+      "created_at": "2026-09-28 03:48:38.406733+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 19",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "75db501e-7a2f-4b47-87da-4e2a91670c9a",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "fc805653-624f-4231-a7ce-b4bfbf098846",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "30.0000",
+      "unit": "placa",
+      "cost_currency": "PYG",
+      "unit_cost": "140000.000000",
+      "idempotency_key": "556cdc75-d50c-4037-a286-9db3cfb81810",
+      "created_at": "2026-09-28 03:48:39.216261+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 20",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "740fbb0d-4fd0-415d-9a60-b3feebaa36d3",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "fc805653-624f-4231-a7ce-b4bfbf098846",
+      "to_location_id": "736cc1a8-9616-4db1-9c47-0e422ba25b58",
+      "project_id": "0ddd005f-434d-45be-ba86-75eac5edb4aa",
+      "quantity": "8.0000",
+      "unit": "placa",
+      "cost_currency": "PYG",
+      "unit_cost": "140000.000000",
+      "idempotency_key": "14ccaa95-df45-4c34-a20b-8674d1f53f8a",
+      "created_at": "2026-09-28 03:48:40.16043+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 21",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "b5af851c-e423-469a-96d0-8f343761c49a",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "65b50fa2-8651-41fe-83b0-c71e0801f688",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "60.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "45000.000000",
+      "idempotency_key": "09a7008d-2805-45eb-b004-1f68a9683c10",
+      "created_at": "2026-09-28 03:48:40.963418+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 22",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "f6fd7994-fa52-45ce-bdc0-f3682bd540a7",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "2768f210-1abe-4617-9723-b2ccab645d20",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "40.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "55000.000000",
+      "idempotency_key": "268e6765-33d3-4175-9232-52f919b426dd",
+      "created_at": "2026-09-28 03:48:41.669561+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 23",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "af0ee27b-0f9f-4e84-b9b2-49f80e3f3cdf",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "4f520b3d-af44-49e5-afaa-d21a37f420c0",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "1500.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "8500.000000",
+      "idempotency_key": "fb4b6756-bd38-441f-902a-1503ae0defcc",
+      "created_at": "2026-09-28 03:48:42.440375+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 24",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "adf29970-f398-4493-904e-bcc58f9c746a",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "4f520b3d-af44-49e5-afaa-d21a37f420c0",
+      "to_location_id": "736cc1a8-9616-4db1-9c47-0e422ba25b58",
+      "project_id": "0ddd005f-434d-45be-ba86-75eac5edb4aa",
+      "quantity": "260.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "8500.000000",
+      "idempotency_key": "77ce6dcc-035c-4106-85e8-c6a427b3c287",
+      "created_at": "2026-09-28 03:48:43.187554+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 25",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "c7f0d144-6309-4e90-9030-85b96a54e3a8",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "b429efc3-6987-4763-ad17-2d0d6f8d7a9a",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "800.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "3200.000000",
+      "idempotency_key": "4ff30fa8-914f-4faa-918c-9038c930185b",
+      "created_at": "2026-09-28 03:48:44.074147+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 26",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "5226316c-9cc1-471e-8660-a248de2dfb0b",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "4d2c0b62-c029-49bc-9760-36f62c49f41d",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "20.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "65000.000000",
+      "idempotency_key": "20166f11-d82b-432d-ba72-9e586708db6e",
+      "created_at": "2026-09-28 03:48:44.759483+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 27",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "daaa2872-3256-496b-86c4-43bf955a78c9",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "1f562eee-a53c-433c-b01d-7458e6616c2a",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "6.0000",
+      "unit": "rollo",
+      "cost_currency": "PYG",
+      "unit_cost": "180000.000000",
+      "idempotency_key": "302e6b7b-dd74-426a-8636-097bdd8f2714",
+      "created_at": "2026-09-28 03:48:45.550297+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 28",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "0140a2dc-1dc8-4fc8-a96f-fdf07e24b15f",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "7e980159-8eb9-4158-9b8a-12ff8f3f4a66",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "8.0000",
+      "unit": "rollo",
+      "cost_currency": "PYG",
+      "unit_cost": "90000.000000",
+      "idempotency_key": "685baf99-4d56-416e-8a27-4104b517a813",
+      "created_at": "2026-09-28 03:48:46.312441+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 29",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "3cb5c808-3b27-4549-a78c-f04774662527",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "85b94e16-a5f1-4a11-bee9-37aa7a84bc42",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "5.0000",
+      "unit": "balde 20L",
+      "cost_currency": "PYG",
+      "unit_cost": "38000.000000",
+      "idempotency_key": "37ca912c-7c2f-4ab2-9d59-9157d612c121",
+      "created_at": "2026-09-28 03:48:47.167817+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 30",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "de7b565f-a4c6-48ee-9110-07fb2ae35bb1",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "ecda7fd8-c5d2-45a6-a4a3-1fc4a1b9fe56",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "30.0000",
+      "unit": "pomo",
+      "cost_currency": "PYG",
+      "unit_cost": "12000.000000",
+      "idempotency_key": "8765ba88-3dc2-403b-9688-0e7c6c542c6d",
+      "created_at": "2026-09-28 03:48:48.07527+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 31",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "42869a94-4f78-4521-a72a-9368d2aa43ec",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "7bc27bb3-b959-43e7-92b9-95fa63f72a3e",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "200.0000",
+      "unit": "m2",
+      "cost_currency": "PYG",
+      "unit_cost": "90300.000000",
+      "idempotency_key": "c17e41c4-b437-439e-a451-6616108f0ad1",
+      "created_at": "2026-09-28 03:48:48.98254+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 32",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "b68cd57d-4547-4164-bd5e-4eefd1807b8b",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "7ce6974a-3630-41a0-a3f5-38fb7e8fb231",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "40.0000",
+      "unit": "m2",
+      "cost_currency": "PYG",
+      "unit_cost": "105000.000000",
+      "idempotency_key": "a32aabc5-aba6-459c-ae19-85e17c596bc2",
+      "created_at": "2026-09-28 03:48:49.706664+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 33",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "2910051b-1cac-4d5a-9e20-796027bd5848",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "a1873036-5eb0-4869-b0f4-06350f88b60b",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "150.0000",
+      "unit": "ml",
+      "cost_currency": "PYG",
+      "unit_cost": "27090.000000",
+      "idempotency_key": "49937773-7c97-41d3-890a-aca10e28ec20",
+      "created_at": "2026-09-28 03:48:50.441282+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 34",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "cbd415a6-050b-4316-905c-6602a4742dd9",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "887bbd04-b057-4d18-8a4a-fce9633c4158",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "40.0000",
+      "unit": "m2",
+      "cost_currency": "PYG",
+      "unit_cost": "85000.000000",
+      "idempotency_key": "25f63a05-6e11-488a-8190-73aea2328466",
+      "created_at": "2026-09-28 03:48:51.2537+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 35",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "2af5a957-bd85-4bc2-bc69-bbb444531982",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "23913178-6e9f-421c-ae13-f2a8e7b34ce0",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "60.0000",
+      "unit": "bolsa",
+      "cost_currency": "PYG",
+      "unit_cost": "38000.000000",
+      "idempotency_key": "b26d0d8a-10d5-4647-80c5-97385da81065",
+      "created_at": "2026-09-28 03:48:51.976664+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 36",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "1c2084a9-4f81-4015-8762-7ed9be582b27",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "130f4985-0a82-402e-874b-9ba4deac4752",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "40.0000",
+      "unit": "kg",
+      "cost_currency": "PYG",
+      "unit_cost": "9500.000000",
+      "idempotency_key": "1f5242f9-ed8b-421d-837c-ea0f45bd184c",
+      "created_at": "2026-09-28 03:48:52.708393+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 37",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "553c7a3a-67f8-41a1-83f4-c66927b98c0d",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "000f1c39-06a4-44b5-9b08-ffaf87efe8db",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "20.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "65000.000000",
+      "idempotency_key": "70451abb-10b3-4ea5-b7d2-1dbeac3d2147",
+      "created_at": "2026-09-28 03:48:53.565521+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 38",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "4d85d1db-700c-40fa-9e70-4d30de086f79",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "9576ad57-bbd1-4b61-94d9-eead7ae1d9f0",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "10.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "800000.000000",
+      "idempotency_key": "0f7ff645-7bc8-413a-a8ed-ff728ba6017c",
+      "created_at": "2026-09-28 03:48:54.360018+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 39",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "c83953ae-3d8b-4bb8-96df-e45efe16d8f5",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "ad02a72e-442f-4134-9f89-9dd22593fa43",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "10.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "800000.000000",
+      "idempotency_key": "fe1e9015-79b3-4ca4-ae14-76bb053b6b76",
+      "created_at": "2026-09-28 03:48:55.094099+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 40",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "654f9dc3-c1cd-4945-9bd7-992828e5075d",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "dcd12efd-1d11-4f6b-a441-37b62af0196e",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "8.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "700000.000000",
+      "idempotency_key": "24f73fa4-b24a-4afa-be7b-6bc2d79d65fb",
+      "created_at": "2026-09-28 03:48:55.869198+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 41",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "5b9ad625-ce2c-4761-a267-fc827414890b",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "77a619fa-13be-4b72-bd16-675ae25dfc7d",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "100.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "18000.000000",
+      "idempotency_key": "ed270a69-6f4f-488e-b523-9a829b727474",
+      "created_at": "2026-09-28 03:48:56.606012+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 42",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "5fdbdc2d-3dc3-419f-91dc-58e95a2c8a9f",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "390499b5-3f1a-4607-a50a-5be96f680b43",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "20.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "95000.000000",
+      "idempotency_key": "fa900397-60a0-4120-95a6-88f21ce28fc1",
+      "created_at": "2026-09-28 03:48:57.330541+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 43",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "141244d9-43a0-4755-89ec-d7a2725c1e7d",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "d240c5a6-a9fe-40ba-add5-e4a1b0e88e89",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "30.0000",
+      "unit": "pomo",
+      "cost_currency": "PYG",
+      "unit_cost": "22000.000000",
+      "idempotency_key": "751fd288-df7b-4447-9e2d-27c44c0338ed",
+      "created_at": "2026-09-28 03:48:58.101817+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 44",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "550322ff-1d51-49fb-9885-b340835b0c69",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "1a3128b9-f4b3-4f3a-b659-49092fec62df",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "40.0000",
+      "unit": "ml",
+      "cost_currency": "PYG",
+      "unit_cost": "32000.000000",
+      "idempotency_key": "ae08a95c-ef16-4277-a737-7c1451e38bba",
+      "created_at": "2026-09-28 03:48:58.793835+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 45",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "5d45d87e-b94e-46cf-a6b7-d94fc223d0b6",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "acd0b1dd-9046-4934-8ece-57fb2bb1c8f6",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "20.0000",
+      "unit": "ml",
+      "cost_currency": "PYG",
+      "unit_cost": "18000.000000",
+      "idempotency_key": "da01791b-1f39-4235-9436-d4f02e57e5fb",
+      "created_at": "2026-09-28 03:48:59.542619+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 46",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "bc1a2707-b85e-4d4c-bbcc-04104c7e5df9",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "6a774317-5a08-4608-92f9-ed8a19fdcd90",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "60.0000",
+      "unit": "ml",
+      "cost_currency": "PYG",
+      "unit_cost": "9500.000000",
+      "idempotency_key": "6aa7ba76-d2e6-4145-bc19-844b4435455c",
+      "created_at": "2026-09-28 03:49:00.258451+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 47",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "5e0e607d-503f-4027-b935-cc2a5ca87c7d",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "beefac38-8979-4e83-afc9-dff7be280fda",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "30.0000",
+      "unit": "ml",
+      "cost_currency": "PYG",
+      "unit_cost": "12500.000000",
+      "idempotency_key": "f2a2666e-ca23-41a3-9472-7b82b3e6a15e",
+      "created_at": "2026-09-28 03:49:00.944671+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 48",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "e543c6b2-8538-4d32-9a5a-46755710ec56",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "ed9c35a9-2e30-4f39-bb06-c6e6d4b7e800",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "40.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "8000.000000",
+      "idempotency_key": "a3091e04-aa81-4b28-a280-93711a91377b",
+      "created_at": "2026-09-28 03:49:01.709403+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 49",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "935147df-718c-407a-9488-eb1c4d271246",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "693c6036-349e-4301-9ce5-9b77d81fff86",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "30.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "10500.000000",
+      "idempotency_key": "854c6e96-fc5e-44ca-82a2-77b84fba8325",
+      "created_at": "2026-09-28 03:49:02.407811+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 50",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "ba6a7181-ea35-4d65-ae87-6d9997918f3d",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "479ac44d-8110-46ec-9262-0fb5c10d3eda",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "2.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "1200000.000000",
+      "idempotency_key": "ac4d389c-97a3-4386-a732-c698a346a492",
+      "created_at": "2026-09-28 03:49:03.138934+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 51",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "f9c67db4-9291-4909-8720-4f8a0fe420b3",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "47716ef3-ab8f-40df-858d-75aa86a8060b",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "2.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "520000.000000",
+      "idempotency_key": "4c03fd2d-4b5d-4bd7-84bc-c427d6636f4b",
+      "created_at": "2026-09-28 03:49:04.105437+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 52",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "b7af7481-13f5-4b3a-b262-7f1e915a736a",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "b483ff18-54de-4abc-8f8f-47162a51a2aa",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "3.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "750000.000000",
+      "idempotency_key": "b8ba1894-f7fa-468e-a0fc-879af09de6f1",
+      "created_at": "2026-09-28 03:49:04.783676+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 53",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "53931746-6939-47df-afa0-2258612ed268",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "1709b8be-6c22-4b24-ba22-e32e3a63b849",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "3.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "480000.000000",
+      "idempotency_key": "4e151855-6db2-4aa8-bed5-6203bf3547c7",
+      "created_at": "2026-09-28 03:49:05.479539+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 54",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "bd09830e-e21b-433d-b34e-b53954273c5b",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "2edbcf52-c8c5-41ea-9346-3edd546b7777",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "8.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "380000.000000",
+      "idempotency_key": "9004b581-be0f-460b-8723-8572d181a918",
+      "created_at": "2026-09-28 03:49:06.197406+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 55",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "550b75ef-4c91-4f1b-bc3e-6482a452a5fa",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "115e6552-0337-4c44-a5fd-516d97c46ebc",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "20.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "45000.000000",
+      "idempotency_key": "a357841e-cf25-4a5b-b3ca-a2243a39877c",
+      "created_at": "2026-09-28 03:49:06.885365+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 56",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "24d25a33-328e-47e7-9aab-55b426d3757c",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "f6ba7b4f-ab49-4208-adc6-4536c45dea35",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "300.0000",
+      "unit": "ml",
+      "cost_currency": "PYG",
+      "unit_cost": "3800.000000",
+      "idempotency_key": "0f0413fe-568c-4e97-9a5e-87cbca9ebf02",
+      "created_at": "2026-09-28 03:49:07.961901+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 57",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "d3304caf-5104-439b-87ac-90df40b8d88f",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "041eecf3-7c2a-472d-b4c3-5db16f4ce2d2",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "120.0000",
+      "unit": "ml",
+      "cost_currency": "PYG",
+      "unit_cost": "5900.000000",
+      "idempotency_key": "5dd3b8e7-60fe-459d-8340-da7b8b34c753",
+      "created_at": "2026-09-28 03:49:08.770809+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 58",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "65f5602a-9727-4936-bab5-ca71a2e47fc2",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "4ef4593c-aef2-409e-89dd-f1db4f864a15",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "50.0000",
+      "unit": "ml",
+      "cost_currency": "PYG",
+      "unit_cost": "8500.000000",
+      "idempotency_key": "8c886021-4c34-400f-a634-1495a2e1315c",
+      "created_at": "2026-09-28 03:49:09.600279+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 59",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "1fe27ab0-a14e-477d-8c35-cbcdb60fbbde",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "08bb5ced-92e4-4465-b49c-6f46e0a89344",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "150.0000",
+      "unit": "ml",
+      "cost_currency": "PYG",
+      "unit_cost": "4200.000000",
+      "idempotency_key": "59f0956c-c20f-4f7e-9434-cfd5f8d03e0e",
+      "created_at": "2026-09-28 03:49:10.319325+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 60",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "ed7d3cd1-51da-42b1-a0fb-e0e88ce56510",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "6d1e5aa6-f868-4187-8983-90a581c86020",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "60.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "18000.000000",
+      "idempotency_key": "432bfdd0-a4c9-4cdb-8be6-a6ca48d926da",
+      "created_at": "2026-09-28 03:49:11.037503+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 61",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "5c969f6b-6b04-40d4-810a-53effd4b1972",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "8b2017fa-d887-429b-8b4b-65a35a1a0ed5",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "60.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "25000.000000",
+      "idempotency_key": "a79852a1-bea5-4bde-98ec-85a368e4d4cf",
+      "created_at": "2026-09-28 03:49:11.815025+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 62",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "c748b1f8-5bbf-411f-a831-27df065b57de",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "863d12f6-0f7d-458f-899f-fd1a377d0974",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "20.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "65000.000000",
+      "idempotency_key": "2464571d-6f45-4a9b-9383-08001253b327",
+      "created_at": "2026-09-28 03:49:12.601821+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 63",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "b0efbfeb-ca5b-4cf2-99e6-4b8074838803",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "427f6de5-54ff-4b9d-b1ec-a13924355c2b",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "15.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "105000.000000",
+      "idempotency_key": "480e3da3-2172-4dc5-b236-bd1f22918638",
+      "created_at": "2026-09-28 03:49:13.354721+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 64",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "4eee3588-2814-4196-878c-4fb9d8b11096",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "0eb20881-7e80-466f-8efc-f04892ec747a",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "5.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "950000.000000",
+      "idempotency_key": "aed379c6-cd3b-4030-b0b2-de3f9deccd4f",
+      "created_at": "2026-09-28 03:49:14.441027+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 65",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "d1743222-9919-4418-b96f-bb4b1f7499bf",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "396813ee-438d-46c5-837a-79e1d6045aca",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "12.0000",
+      "unit": "balde 20L",
+      "cost_currency": "PYG",
+      "unit_cost": "420000.000000",
+      "idempotency_key": "ceb3ae39-f295-4f44-839a-cd8c240223f7",
+      "created_at": "2026-09-28 03:49:15.166272+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 66",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "c4a80d8e-72ec-4cc0-a8ce-13a2aae45f7e",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "c07f57a9-a2d7-4f4f-80b3-e7650604b33f",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "12.0000",
+      "unit": "balde 20L",
+      "cost_currency": "PYG",
+      "unit_cost": "420000.000000",
+      "idempotency_key": "094e9241-8d47-4ad9-ae2c-269046005717",
+      "created_at": "2026-09-28 03:49:15.906056+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 67",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "1b37dc22-857b-4182-8aab-bbc2130cab8f",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "f963a01a-5ab7-4c14-a202-91c60c2c70d7",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "15.0000",
+      "unit": "balde 4L",
+      "cost_currency": "PYG",
+      "unit_cost": "185000.000000",
+      "idempotency_key": "4a1cf9bf-f857-4b4f-9665-d9edc6462e11",
+      "created_at": "2026-09-28 03:49:16.708308+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 68",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "c7a52492-84c8-4345-ad84-ebe7c39a3e0b",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "f1a6fdbd-3d6d-4ff9-ba42-08d7eb2a2368",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "30.0000",
+      "unit": "litro",
+      "cost_currency": "PYG",
+      "unit_cost": "22000.000000",
+      "idempotency_key": "989e738b-1472-4ffb-a1d3-a2e6fb9153d7",
+      "created_at": "2026-09-28 03:49:17.475667+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 69",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "e870e15b-d25f-4dc4-bff3-87699497a806",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "439048f1-4116-4683-95cb-4fb58ae8136f",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "4.0000",
+      "unit": "balde 20L",
+      "cost_currency": "PYG",
+      "unit_cost": "380000.000000",
+      "idempotency_key": "17364cd2-c5a3-4fe1-9231-5c0fb01b56ef",
+      "created_at": "2026-09-28 03:49:18.3049+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 70",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "8946b5fe-4b73-4a9d-841c-1bf67dead31f",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "145e47ab-471b-402f-a276-93477ff59f94",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "100.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "3500.000000",
+      "idempotency_key": "6499a4c6-7a77-4da2-a1f4-24a3d3dce9bc",
+      "created_at": "2026-09-28 03:49:19.138323+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 71",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    },
+    {
+      "id": "0b2d086a-893e-401d-a7c6-8a90a01b292f",
+      "empresa_id": "bc551d96-dac1-4ffc-9fa8-c34cea6b5ffd",
+      "producto_id": "5a4930fb-695d-4c79-8a0f-6372abbc4bad",
+      "to_location_id": "a2000000-0000-4000-8000-000000000001",
+      "project_id": null,
+      "quantity": "50.0000",
+      "unit": "unid",
+      "cost_currency": "PYG",
+      "unit_cost": "2500.000000",
+      "idempotency_key": "917318e7-6087-42f1-908e-4ad1f530571b",
+      "created_at": "2026-09-28 03:49:19.965684+00",
+      "metadata": {
+        "reason": "Carga inicial de stock · archivo carga-inicial-stock-100-MAGY.xlsx, fila 72",
+        "reason_type": "INITIAL_STOCK",
+        "effective_date": "2026-09-28"
+      }
+    }
+  ]
+}

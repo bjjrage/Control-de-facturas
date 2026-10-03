@@ -7,7 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentToolContext } from "@/lib/agent/context";
 import { registerTool } from "@/lib/agent/registry";
 import { matchTenderItem } from "@/lib/procurement/item-matching";
-import { GetStockAvailabilityInputSchema } from "@/lib/tools/stock/get-stock-availability";
+import { getProjectInventorySnapshot } from "@/lib/inventory/service";
 
 export const GetMaterialNeedInputSchema = z.object({
   project_id: z.string().uuid({ message: "project_id debe ser UUID valido" }),
@@ -73,19 +73,23 @@ async function handler(
   // 3. Obtener catálogo de productos de la empresa una sola vez
   const { data: catalog, error: catErr } = await db
     .from("productos")
-    .select("id, nombre, unidad, stock_actual, activo")
+    .select("id, nombre, unidad, activo")
     .eq("empresa_id", empresaId)
     .in("activo", [true]); // solo activos
 
+  const stock = await getProjectInventorySnapshot(db, empresaId, input.project_id);
+  if (stock.error) throw new Error(stock.error);
+  const canonicalQuantity = new Map<string, number>();
+  for (const row of stock.data) canonicalQuantity.set(row.producto_id, (canonicalQuantity.get(row.producto_id) ?? 0) + Number(row.quantity));
   const catalogItems = ((catalog ?? []) as Array<{
     id: string;
     nombre: string;
     unidad: string | null;
-    stock_actual: number;
   }>).map((c) => ({
     // El motor de matching (CatalogItem) pide descripcion/unidad no nulas:
     // se derivan de nombre/unidad sin cambiar la fuente ni el flujo.
     ...c,
+    stock_actual: canonicalQuantity.get(c.id) ?? 0,
     descripcion: c.nombre,
     unidad: c.unidad ?? "",
   }));

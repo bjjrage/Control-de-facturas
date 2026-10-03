@@ -115,6 +115,7 @@ export function validateManualInventoryMovementRequest(input: ManualInventoryMov
     const parsed = new Date(`${input.initialStockDate}T00:00:00.000Z`);
     if (
       input.movementType !== "ADJUSTMENT"
+      || input.quantity <= 0
       || !/^\d{4}-\d{2}-\d{2}$/.test(input.initialStockDate)
       || !Number.isFinite(parsed.getTime())
       || parsed.toISOString().slice(0, 10) !== input.initialStockDate

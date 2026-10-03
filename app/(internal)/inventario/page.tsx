@@ -30,6 +30,7 @@ export default async function InventarioGlobalPage() {
       .limit(1000),
   ]);
 
+  if (snapshot.error) throw new Error("No se pudo leer el inventario can?nico: " + snapshot.error);
   const positiveLocations = snapshot.locations.filter((r) => (r.quantity as number) > 0);
   const allLocations = locationsResult.data ?? [];
   const activeLocations = allLocations.filter((location) => location.active === true);
@@ -84,7 +85,7 @@ export default async function InventarioGlobalPage() {
         totalCost: row.total_cost == null ? null : Number(row.total_cost),
         costStatus: row.cost_status as "COMPUTABLE" | "REVISION_REQUERIDA",
       }))}
-      movementOptionsError={locationsResult.error || productsResult.error || projectResult.error ? "No se pudieron cargar materiales, ubicaciones u obras para administrar el inventario." : null}
+      movementOptionsError={snapshot.error || locationsResult.error || productsResult.error || projectResult.error ? "No se pudieron cargar materiales, ubicaciones u obras para administrar el inventario." : null}
     />
   );
 }

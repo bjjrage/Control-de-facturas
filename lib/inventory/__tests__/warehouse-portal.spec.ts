@@ -41,8 +41,13 @@ describe("Unified Warehouse Portal & Deposit Operations", () => {
     expect(warehousePortalClientSource).toContain("action");
     expect(warehousePortalClientSource).toContain('"receipt"');
     expect(warehousePortalRouteSource).toContain('action === "receipt"');
-    expect(warehousePortalRouteSource).toContain('rpc("inventory_create_receipt"');
-    expect(warehousePortalRouteSource).toContain('rpc("inventory_confirm_receipt"');
+    expect(warehousePortalRouteSource).toContain('rpc("inventory_portal_receipt"');
+    const sql = fs.readFileSync(path.join(repoRoot, "supabase/migrations/20261003135206_inventory_portal_receipt_atomic.sql"), "utf8");
+    expect(sql).toContain("public.inventory_create_receipt(");
+    expect(sql).toContain("public.inventory_confirm_receipt(");
+    expect(sql).toContain("FOR UPDATE");
+    expect(sql).toContain("FROM PUBLIC,anon,authenticated");
+    expect(warehousePortalClientSource).toContain("localStorage.setItem");
   });
 
   it("handles material consumption with available stock validation and budget item imputation", () => {
@@ -50,10 +55,13 @@ describe("Unified Warehouse Portal & Deposit Operations", () => {
     expect(warehousePortalClientSource).toContain("budget_item_id");
     expect(warehousePortalClientSource).toContain("withdrawn_by");
     expect(warehousePortalRouteSource).toContain('action === "consumption"');
-    expect(warehousePortalRouteSource).toContain('p_movement_type: "CONSUMPTION"');
-    expect(warehousePortalRouteSource).toContain("p_budget_item_id: budgetItemId");
-    expect(warehousePortalRouteSource).toContain("p_from_location_id: location.id");
-    expect(warehousePortalRouteSource).toContain("p_project_id: location.project_id");
+    expect(warehousePortalRouteSource).toContain('rpc("inventory_portal_consumption"');
+    expect(warehousePortalRouteSource).toContain("p_budget: budgetItemId");
+    expect(warehousePortalRouteSource).toContain("p_attempt:");
+    const sql = fs.readFileSync(path.join(repoRoot, "supabase/migrations/20261003134723_inventory_confirmed_opening_guard.sql"), "utf8");
+    expect(sql).toContain("FOR UPDATE");
+    expect(sql).toContain("public.inventory_post_movement(");
+    expect(sql).toContain("'CONSUMPTION'");
   });
 
   it("enforces tenant, project and location boundaries in warehouse portal API", () => {

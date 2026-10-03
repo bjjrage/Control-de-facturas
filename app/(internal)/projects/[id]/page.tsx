@@ -317,6 +317,7 @@ export default async function ProjectDetailPage({
       .limit(1000)
       .returns<{ id: string; nombre: string; unidad: string }[]>(),
   ]);
+  if (inventorySnapshot.error || budgetConsumption.error) throw new Error("No se pudo leer el inventario can?nico de obra.");
   const stockObra = inventorySnapshot.data as import("./inventario-obra-section").StockObraRow[];
   const consumoCanonico = budgetConsumption.data as import("./inventario-obra-section").ConsumoCanonicoRow[];
   const locationNameById = new Map((obraLocations ?? []).map((l) => [l.id as string, displayLocationName(l.name as string)]));

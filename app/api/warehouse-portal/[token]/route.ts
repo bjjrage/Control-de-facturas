@@ -20,7 +20,7 @@ async function resolveLink(token: string) {
   const admin = createAdminClient();
   const { data: link } = await admin
     .from("warehouse_portal_links")
-    .select("id, empresa_id, location_id, active, expires_at")
+    .select("id, empresa_id, location_id, active, expires_at, created_by")
     .eq("token_hash", hashWarehousePortalToken(token))
     .maybeSingle();
   if (!link || !link.active || (link.expires_at && new Date(link.expires_at).getTime() <= Date.now())) return null;
@@ -90,25 +90,12 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "La OC no pertenece a esta obra o empresa." }, { status: 404 });
     }
 
-    const idempotencyKey = `warehouse-portal-receipt:${link.id}:${orderId}:${Date.now()}`;
-
-    // 1. Create Receipt via canonical RPC
-    const { data: createData, error: createError } = await admin.rpc("inventory_create_receipt", {
-      p_empresa_id: link.empresa_id,
-      p_order_id: order.id,
-      p_fecha: fecha,
-      p_recibido_por: recibidoPor,
-      p_delivery_location_id: location.id,
-      p_remision_number: remisionNumber,
-      p_idempotency_key: idempotencyKey,
-      p_created_by: link.id, // Using the portal link UUID as service creator reference or system user
-      p_notes: notas,
-      p_items: items.map((i) => ({
-        order_item_id: i.order_item_id,
-        producto_id: i.producto_id || null,
-        cantidad_recibida: Number(i.quantity),
-        notas: null,
-      })),
+    const attempt = String(formData.get("idempotency_key") ?? "");
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(attempt)) return NextResponse.json({ error: "La recepci?n requiere un intento estable." }, { status: 400 });
+    const { data: createData, error: createError } = await admin.rpc("inventory_portal_receipt", {
+      p_token_hash: hashWarehousePortalToken(token), p_order: order.id, p_date: fecha,
+      p_received_by: recibidoPor, p_remision: remisionNumber, p_attempt: attempt, p_notes: notas,
+      p_items: items.map(i => ({ order_item_id: i.order_item_id, producto_id: i.producto_id || null, cantidad_recibida: Number(i.quantity), notas: null })),
     });
 
     if (createError) {
@@ -144,43 +131,14 @@ export async function POST(request: Request, context: RouteContext) {
           mime_type: file.type || null,
           size_bytes: file.size,
           sha256,
-          uploaded_by: link.id,
+          uploaded_by: link.created_by,
         });
       }
     }
 
-    // 3. Confirm receipt directly into canonical inventory movements
-    const { data: confirmData, error: confirmError } = await admin.rpc("inventory_confirm_receipt", {
-      p_empresa_id: link.empresa_id,
-      p_receipt_id: receiptId,
-      p_delivery_location_id: location.id,
-      p_idempotency_key: idempotencyKey,
-      p_confirmed_by: link.id,
-    });
-
-    if (confirmError) {
-      // Receipt created in DRAFT mode
-      return NextResponse.json({
-        ok: true,
-        receiptId,
-        status: "DRAFT",
-        message: "Recepción guardada como borrador para revisión interna.",
-      });
-    }
-
-    // Update portal link usage timestamp
-    await admin
-      .from("warehouse_portal_links")
-      .update({ last_used_at: new Date().toISOString() })
-      .eq("id", link.id);
-
-    return NextResponse.json({
-      ok: true,
-      receiptId,
-      status: "CONFIRMED",
-      movements: confirmData,
-    });
+    return NextResponse.json({ ok: true, receiptId, status: "CONFIRMED", movements: (createData as { movements?: string[] }).movements });
   }
+
 
   // =========================================================================
   // ACTION: CONSUMPTION / SALIDA (Salida de material con imputación a partida)
@@ -223,45 +181,14 @@ export async function POST(request: Request, context: RouteContext) {
       }
     }
 
-    // Check available stock in location
-    const { data: balance } = await admin
-      .from("inventory_stock_by_location")
-      .select("quantity")
-      .eq("location_id", location.id)
-      .eq("producto_id", productoId)
-      .eq("empresa_id", link.empresa_id)
-      .maybeSingle();
-
-    const currentQty = Number(balance?.quantity ?? 0);
-    if (currentQty > 0 && quantity > currentQty) {
-      return NextResponse.json(
-        { error: `Stock insuficiente en ${displayLocationName(location.name)}. Disponible: ${currentQty} ${product.unidad}.` },
-        { status: 400 }
-      );
+    const attempt = String(formData.get("idempotency_key") ?? "");
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(attempt) || !budgetItemId) {
+      return NextResponse.json({ error: "La salida requiere partida y un intento estable." }, { status: 400 });
     }
-
-    const idempotencyKey = `warehouse-portal-consumption:${link.id}:${randomUUID()}`;
-
-    // Post canonical consumption movement
-    const { data: movementId, error: moveError } = await admin.rpc("inventory_post_movement", {
-      p_empresa_id: link.empresa_id,
-      p_producto_id: product.id,
-      p_quantity: quantity,
-      p_unit: product.unidad,
-      p_movement_type: "CONSUMPTION",
-      p_from_location_id: location.id,
-      p_project_id: location.project_id,
-      p_budget_item_id: budgetItemId,
-      p_source_type: "WAREHOUSE_PORTAL",
-      p_source_id: link.id,
-      p_source_line_id: null,
-      p_idempotency_key: idempotencyKey,
-      p_created_by: link.id,
-      p_metadata: {
-        withdrawn_by: withdrawnBy,
-        notes,
-        portal_link_id: link.id,
-      },
+    const { data: movementId, error: moveError } = await admin.rpc("inventory_portal_consumption", {
+      p_token_hash: hashWarehousePortalToken(token),
+      p_product: product.id, p_budget: budgetItemId, p_quantity: quantity, p_attempt: attempt,
+      p_metadata: { withdrawn_by: withdrawnBy, notes },
     });
 
     if (moveError) {

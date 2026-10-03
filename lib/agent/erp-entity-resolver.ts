@@ -194,8 +194,8 @@ async function resolveRows(
       return rows.map((row) => candidate(entityType, row, String(row.name), row.tax_id ? `RUC ${row.tax_id}` : row.email ? String(row.email) : null, query, { tax_id: row.tax_id, email: row.email, active: row.active }));
     }
     case "product": {
-      const rows = await readRows(db, "productos", "id, nombre, descripcion, unidad, sku, stock_actual, stock_minimo, activo", empresaId, ilike(["nombre", "descripcion", "sku"], query));
-      return rows.map((row) => candidate(entityType, row, String(row.nombre), row.sku ? `SKU ${row.sku}` : row.unidad ? String(row.unidad) : null, query, { unidad: row.unidad, stock_actual: row.stock_actual, stock_minimo: row.stock_minimo, activo: row.activo }));
+      const rows = await readRows(db, "productos", "id, nombre, descripcion, unidad, sku, stock_minimo, activo", empresaId, ilike(["nombre", "descripcion", "sku"], query));
+      return rows.map((row) => candidate(entityType, row, String(row.nombre), row.sku ? `SKU ${row.sku}` : row.unidad ? String(row.unidad) : null, query, { unidad: row.unidad, stock_minimo: row.stock_minimo, activo: row.activo }));
     }
     case "invoice": {
       const temporal = parseTemporalReference(query);

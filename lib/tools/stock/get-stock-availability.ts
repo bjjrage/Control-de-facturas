@@ -1,9 +1,10 @@
 // lib/tools/stock/get-stock-availability.ts
-// READ tool LEVEL 0 — wrapper fino sobre productos + stock_por_deposito + stock_por_proyecto.
+// READ tool LEVEL 0 — stock físico desde las vistas del ledger canónico.
 // No duplica reglas de negocio: lee vistas/tablas existentes con scoping tenant.
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AgentToolContext } from "@/lib/agent/context";
+import { getCanonicalInventorySnapshot, getProjectInventorySnapshot, getBudgetInventoryConsumption } from "@/lib/inventory/service";
 import { registerTool } from "@/lib/agent/registry";
 
 export const GetStockAvailabilityInputSchema = z.object({
@@ -35,8 +36,8 @@ export interface GetStockAvailabilityOutput {
     qty_comprada: number;
     qty_consumida: number;
     qty_disponible: number;
-    costo_comprado: number;
-    costo_consumido: number;
+    costo_comprado: number | null;
+    costo_consumido: number | null;
   } | null;
 }
 
@@ -51,7 +52,7 @@ async function handler(
   // 1. Producto (tenant-scoped)
   const { data: producto, error: prodErr } = await db
     .from("productos")
-    .select("id, empresa_id, nombre, unidad, sku, stock_actual, stock_minimo, costo_promedio, activo")
+    .select("id, empresa_id, nombre, unidad, sku, stock_minimo, costo_promedio, activo")
     .eq("id", input.producto_id)
     .eq("empresa_id", empresaId)
     .single();
@@ -60,68 +61,34 @@ async function handler(
     throw new Error(`Material/producto no encontrado o no pertenece a tu empresa (id=${input.producto_id})`);
   }
 
-  // 2. Stock por deposito (desglose por ubicacion)
-  const { data: porDepositoRaw, error: depErr } = await db
-    .from("stock_por_deposito")
-    .select("deposito_id, stock_actual, depositos!inner(nombre)")
-    .eq("producto_id", input.producto_id)
-    .eq("empresa_id", empresaId);
-
-  if (depErr) throw new Error(`Error leyendo stock por deposito: ${depErr.message}`);
-
-const porDeposito = ((porDepositoRaw ?? []) as unknown as Array<{
-    deposito_id: string;
-    stock_actual: number;
-    depositos: { nombre: string } | null;
-}>).map((r) => ({
-    deposito_id: r.deposito_id,
-    deposito_nombre: r.depositos?.nombre ?? r.deposito_id,
-    stock_actual: Number(r.stock_actual),
-  }));
-
-  // 3. Stock por proyecto (si se paso project_id, lens contable)
+  const snapshot = await getCanonicalInventorySnapshot(db, empresaId, input.producto_id);
+  if (snapshot.error) throw new Error(snapshot.error);
+  const locationTotals = new Map<string, { deposito_id: string; deposito_nombre: string; stock_actual: number }>();
+  for (const row of snapshot.locations) {
+    const current = locationTotals.get(row.location_id) ?? { deposito_id: row.location_id, deposito_nombre: row.location_name, stock_actual: 0 };
+    current.stock_actual += Number(row.quantity);
+    locationTotals.set(row.location_id, current);
+  }
+  const porDeposito = [...locationTotals.values()];
   let porProyecto: GetStockAvailabilityOutput["por_proyecto"] = null;
   if (input.project_id) {
-    // Validar que el proyecto pertenece a la empresa (anti cross-tenant via project_id inventado)
-    const { data: proj, error: projErr } = await db
-      .from("projects")
-      .select("id")
-      .eq("id", input.project_id)
-      .eq("empresa_id", empresaId)
-      .maybeSingle();
-    if (projErr) throw new Error(`Error validando proyecto: ${projErr.message}`);
-    if (!proj) throw new Error(`Proyecto no encontrado o no pertenece a tu empresa (id=${input.project_id})`);
-
-    // View stock_por_proyecto es una vista agregada; puede no tener fila si nunca hubo movimientos imputados
-    const { data: spp, error: sppErr } = await db
-      .from("stock_por_proyecto")
-      .select("qty_comprada, qty_consumida, qty_disponible, costo_comprado, costo_consumido")
-      .eq("producto_id", input.producto_id)
-      .eq("project_id", input.project_id)
-      .eq("empresa_id", empresaId)
-      .maybeSingle();
-
-    if (sppErr) throw new Error(`Error leyendo stock por proyecto: ${sppErr.message}`);
-
-    if (spp) {
-      porProyecto = {
-        project_id: input.project_id,
-        qty_comprada: Number((spp as { qty_comprada: number }).qty_comprada ?? 0),
-        qty_consumida: Number((spp as { qty_consumida: number }).qty_consumida ?? 0),
-        qty_disponible: Number((spp as { qty_disponible: number }).qty_disponible ?? 0),
-        costo_comprado: Number((spp as { costo_comprado: number }).costo_comprado ?? 0),
-        costo_consumido: Number((spp as { costo_consumido: number }).costo_consumido ?? 0),
-      };
-    } else {
-      porProyecto = {
-        project_id: input.project_id,
-        qty_comprada: 0,
-        qty_consumida: 0,
-        qty_disponible: 0,
-        costo_comprado: 0,
-        costo_consumido: 0,
-      };
-    }
+    const project = await db.from("projects").select("id").eq("id", input.project_id).eq("empresa_id", empresaId).maybeSingle();
+    if (project.error || !project.data) throw new Error("Proyecto no encontrado o no pertenece a tu empresa");
+    const [stock, consumed, receipts] = await Promise.all([
+      getProjectInventorySnapshot(db, empresaId, input.project_id, input.producto_id),
+      getBudgetInventoryConsumption(db, empresaId, { projectId: input.project_id, productoId: input.producto_id }),
+      db.from("inventory_movements").select("quantity").eq("empresa_id", empresaId).eq("producto_id", input.producto_id).eq("project_id", input.project_id).eq("movement_type", "RECEIPT").eq("status", "CONFIRMED"),
+    ]);
+    if (stock.error || consumed.error || receipts.error) throw new Error(stock.error ?? consumed.error ?? receipts.error!.message);
+    porProyecto = {
+      project_id: input.project_id,
+      qty_comprada: (receipts.data ?? []).reduce((sum, row) => sum + Number(row.quantity), 0),
+      qty_consumida: consumed.data.reduce((sum, row) => sum + Number(row.quantity_consumed), 0),
+      qty_disponible: stock.data.reduce((sum, row) => sum + Number(row.quantity), 0),
+      costo_comprado: null,
+      costo_consumido: consumed.data.every(row => row.cost_consumed_company != null)
+        ? consumed.data.reduce((sum, row) => sum + Number(row.cost_consumed_company), 0) : null,
+    };
   }
 
   return {
@@ -131,7 +98,7 @@ const porDeposito = ((porDepositoRaw ?? []) as unknown as Array<{
       nombre: (producto as { nombre: string }).nombre,
       unidad: (producto as { unidad: string }).unidad,
       sku: (producto as { sku: string | null }).sku,
-      stock_actual: Number((producto as { stock_actual: number }).stock_actual),
+      stock_actual: snapshot.global.reduce((sum, row) => sum + Number(row.quantity), 0),
       stock_minimo: Number((producto as { stock_minimo: number }).stock_minimo),
       costo_promedio: Number((producto as { costo_promedio: number }).costo_promedio ?? 0),
       activo: Boolean((producto as { activo: boolean }).activo),
