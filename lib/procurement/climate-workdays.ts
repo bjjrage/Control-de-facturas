@@ -148,6 +148,7 @@ export async function evaluateProjectWeatherDay(
 
   const weatherProvider = provider ?? createWeatherProvider(project.weather_source, project);
   const observation = await weatherProvider.getDailyWeather(project, date);
+  if (observation.date !== date || !Number.isFinite(observation.precipitation_mm) || observation.precipitation_mm < 0) throw new Error("Observación climática inválida o de otra fecha.");
   const threshold = Number(project.precipitation_threshold_mm ?? 15);
   if (!Number.isFinite(threshold) || threshold < 0) {
     throw new Error("El umbral contractual de precipitación no es válido.");

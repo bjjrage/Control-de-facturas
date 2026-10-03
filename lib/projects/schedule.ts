@@ -1,6 +1,6 @@
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
-function isValidIsoDay(value: string): boolean {
+export function isValidIsoDay(value: string): boolean {
   if (!ISO_DAY.test(value)) return false;
   const parsed = new Date(`${value}T00:00:00.000Z`);
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
@@ -22,7 +22,9 @@ export function inclusiveScheduleDuration(startDate: string, endDate: string): n
 }
 
 /** Schedule only leaf budget lines; parent rubros summarize their children in the Gantt. */
-export function scheduleLeafBudgetItems<T extends { code: string }>(items: readonly T[]): T[] {
+export function scheduleLeafBudgetItems<T extends { code: string; id?: string; parent_id?: string | null }>(items: readonly T[]): T[] {
+  const parents = new Set(items.map((item) => item.parent_id).filter(Boolean));
+  if (parents.size) return items.filter((item) => !parents.has(item.id));
   const parentCodes = new Set<string>();
   for (const item of items) {
     const separator = item.code.lastIndexOf(".");

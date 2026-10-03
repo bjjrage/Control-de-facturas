@@ -7,6 +7,7 @@ import {
   VelocityConfidence,
 } from "@/lib/types";
 import { OperationalAssessmentItem } from "./operational-analyst-llm";
+import { scheduleLeafBudgetItems } from "@/lib/projects/schedule";
 
 export interface BudgetItemMaterialInput {
   budget_item_id: string;
@@ -224,10 +225,10 @@ export function computeProgressForecast(
   // Build a map of item completion status to resolve dependencies
   const isItemCompleted = (itemId: string): boolean => {
     const it = budget_items.find((b) => b.id === itemId);
-    if (!it) return true; // If missing, do not block
+    if (!it) return false; // Unknown predecessor cannot establish completion.
     const executed = executed_quantities_by_item[itemId] || 0;
-    const qty = it.quantity ?? 0;
-    return executed >= qty;
+    const qty = it.quantity;
+    return qty != null && qty > 0 && executed >= qty;
   };
 
   // Helper to parse depends_on string (e.g. "uuid1,uuid2" or "uuid1")
@@ -262,7 +263,7 @@ export function computeProgressForecast(
     }
   }
 
-  for (const item of budget_items) {
+  for (const item of scheduleLeafBudgetItems(budget_items)) {
     const itemQty = item.quantity ?? 0;
     const executedPrevia = executed_quantities_by_item[item.id] || 0;
     const remainingQty = Math.max(0, itemQty - executedPrevia);
@@ -280,7 +281,7 @@ export function computeProgressForecast(
     if (item.start_date && item.end_date) {
       const start = new Date(item.start_date).getTime();
       const end = new Date(item.end_date).getTime();
-      const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24));
+      const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
       if (diffDays > 0) {
         plannedDays = Math.max(1, diffDays);
       }
@@ -319,8 +320,11 @@ export function computeProgressForecast(
     }
 
     // Projected quantity in horizon
+    const lastDay = new Date(start_date); lastDay.setUTCDate(lastDay.getUTCDate() + horizon_days - 1);
+    const coveredScheduledDays = new Set(forecasts.filter((day) => day.date >= start_date && day.date <= lastDay.toISOString().slice(0,10)
+      && (!item.start_date || day.date >= item.start_date) && (!item.end_date || day.date <= item.end_date)).map((day) => day.date)).size;
     const nominalProjected =
-      baseVelocityPerDay * effectiveWorkabilityFactor * horizon_days;
+      baseVelocityPerDay * effectiveWorkabilityFactor * coveredScheduledDays;
     // Strictly cap at remaining quantity (never exceed 100% of budget item)
     const projectedQuantity = Math.min(remainingQty, Math.max(0, nominalProjected));
 
@@ -421,7 +425,7 @@ export function computeProgressForecast(
   // Calculate end date based on start_date and horizon_days
   const startDateObj = new Date(start_date);
   const endDateObj = new Date(startDateObj);
-  endDateObj.setDate(endDateObj.getDate() + horizon_days);
+  endDateObj.setUTCDate(endDateObj.getUTCDate() + horizon_days - 1);
   const endDateStr = endDateObj.toISOString().split("T")[0];
 
   return {

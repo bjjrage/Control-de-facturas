@@ -17,6 +17,7 @@ import type { BimElement, BimModel, BimBudgetMatch, BimElementGroup, BimGroupMat
 
 async function assertProjectAccess(projectId: string) {
   const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
+  if (!profile.active || !profile.empresa_active) throw new Error("Usuario o empresa inactiva.");
   const supabase = await createClient();
   const { data: project } = await supabase
     .from("projects")
@@ -66,54 +67,12 @@ export async function registerBimModel(
 ): Promise<{ modelId: string | null; error: string | null }> {
   const { profile, supabase } = await assertProjectAccess(projectId);
 
-  const { data: model, error: modelError } = await supabase
-    .from("bim_models")
-    .insert({
-      project_id: projectId,
-      file_name: fileName,
-      storage_path: storagePath,
-      schema,
-      status: elements.length > 0 ? "LISTO" : "ERROR",
-      error_message: elements.length > 0 ? null : "No se encontraron elementos constructivos reconocidos en el IFC.",
-      element_count: elements.length,
-      uploaded_by: profile.id,
-    })
-    .select("id")
-    .single();
-
-  if (modelError || !model) {
-    return { modelId: null, error: modelError?.message ?? "No se pudo registrar el modelo." };
-  }
-
-  const CHUNK = 200;
-  for (let i = 0; i < elements.length; i += CHUNK) {
-    const chunk = elements.slice(i, i + CHUNK);
-    const { error } = await supabase.from("bim_elements").insert(
-      chunk.map((el) => ({
-        bim_model_id: model.id,
-        project_id: projectId,
-        ifc_guid: el.ifcGuid,
-        ifc_type: el.ifcType,
-        express_id: el.expressId,
-        name: el.name,
-        building_storey: el.buildingStorey,
-        material: el.material,
-        properties: el.properties,
-        quantity_type: el.quantityType,
-        quantity_value: el.quantityValue,
-        quantity_unit: el.quantityUnit,
-        quantity_source: el.quantitySource,
-        quantity_property: el.quantityProperty,
-      }))
-    );
-    if (error) {
-      await supabase
-        .from("bim_models")
-        .update({ status: "ERROR", error_message: error.message })
-        .eq("id", model.id);
-      return { modelId: model.id, error: `Error guardando elementos: ${error.message}` };
-    }
-  }
+  const { data: modelId, error: modelError } = await supabase.rpc("workspace_register_bim", {
+    p_context: { kind: "PROJECT", id: projectId }, p_file_name: fileName,
+    p_storage_path: storagePath, p_schema: schema, p_elements: elements,
+  });
+  if (modelError || !modelId) return { modelId: null, error: modelError?.message ?? "No se pudo registrar el modelo completo." };
+  const model = { id: modelId };
 
   await logAudit(supabase, {
     action: "bim.model_uploaded",
@@ -133,20 +92,22 @@ export async function getBimData(projectId: string): Promise<{
 }> {
   try {
     const { supabase } = await assertProjectAccess(projectId);
-    const [{ data: models }, { data: elements }, { data: budgetItems }] = await Promise.all([
+    const [{ data: models, error: modelsError }, { data: elements, error: elementsError }, { data: budgetItems, error: budgetError }] = await Promise.all([
       supabase.from("bim_models").select("*").eq("project_id", projectId).order("created_at", { ascending: false }).returns<BimModel[]>(),
       supabase.from("bim_elements").select("*").eq("project_id", projectId).order("created_at").returns<BimElement[]>(),
       supabase.from("budget_items").select("*").eq("project_id", projectId).order("sort_order").returns<BudgetItem[]>(),
     ]);
 
+    if (modelsError || elementsError || budgetError) throw new Error((modelsError || elementsError || budgetError)!.message);
     const elementIds = (elements ?? []).map((e) => e.id);
     let matches: BimBudgetMatch[] = [];
     if (elementIds.length > 0) {
-      const { data } = await supabase
+      const { data, error: matchError } = await supabase
         .from("bim_budget_matches")
         .select("*")
         .in("bim_element_id", elementIds)
         .returns<BimBudgetMatch[]>();
+      if (matchError) throw new Error(matchError.message);
       matches = data ?? [];
     }
 
@@ -165,7 +126,7 @@ export async function generateMatchSuggestions(
   const { supabase } = await assertProjectAccess(projectId);
 
   const [{ data: elements }, { data: budgetItems }] = await Promise.all([
-    supabase.from("bim_elements").select("*").eq("bim_model_id", bimModelId).returns<BimElement[]>(),
+    supabase.from("bim_elements").select("*").eq("bim_model_id", bimModelId).eq("project_id", projectId).returns<BimElement[]>(),
     supabase.from("budget_items").select("*").eq("project_id", projectId).returns<BudgetItem[]>(),
   ]);
   if (!elements || elements.length === 0) return { suggested: 0, error: "El modelo no tiene elementos." };
@@ -269,7 +230,7 @@ export async function processBimGroups(projectId: string, bimModelId: string): P
   const { supabase } = await assertProjectAccess(projectId);
 
   const [{ data: elements }, { data: budgetItems }] = await Promise.all([
-    supabase.from("bim_elements").select("*").eq("bim_model_id", bimModelId).returns<BimElement[]>(),
+    supabase.from("bim_elements").select("*").eq("bim_model_id", bimModelId).eq("project_id", projectId).returns<BimElement[]>(),
     supabase.from("budget_items").select("*").eq("project_id", projectId).returns<BudgetItem[]>(),
   ]);
   if (!elements || elements.length === 0) return { ...empty, error: "El modelo no tiene elementos." };
@@ -289,7 +250,7 @@ export async function processBimGroups(projectId: string, bimModelId: string): P
   const { data: existingGroups } = await supabase
     .from("bim_element_groups")
     .select("id")
-    .eq("bim_model_id", bimModelId)
+    .eq("bim_model_id", bimModelId).eq("project_id", projectId)
     .returns<{ id: string }[]>();
 
   let lockedGroupCount = 0;
@@ -320,7 +281,7 @@ export async function processBimGroups(projectId: string, bimModelId: string): P
     const { data: freshElements } = await supabase
       .from("bim_elements")
       .select("*")
-      .eq("bim_model_id", bimModelId)
+      .eq("bim_model_id", bimModelId).eq("project_id", projectId)
       .returns<BimElement[]>();
     elementsToGroup = (freshElements ?? []).filter((e) => e.group_id == null);
   }
@@ -532,16 +493,17 @@ export async function getBimGroupsData(
 }> {
   try {
     const { supabase } = await assertProjectAccess(projectId);
-    const [{ data: groups }, { data: elements }, { data: budgetItems }] = await Promise.all([
-      supabase.from("bim_element_groups").select("*").eq("bim_model_id", bimModelId).order("created_at").returns<BimElementGroup[]>(),
-      supabase.from("bim_elements").select("*").eq("bim_model_id", bimModelId).returns<BimElement[]>(),
+    const [{ data: groups, error: groupsError }, { data: elements, error: elementsError }, { data: budgetItems, error: budgetError }] = await Promise.all([
+      supabase.from("bim_element_groups").select("*").eq("bim_model_id", bimModelId).eq("project_id", projectId).order("created_at").returns<BimElementGroup[]>(),
+      supabase.from("bim_elements").select("*").eq("bim_model_id", bimModelId).eq("project_id", projectId).returns<BimElement[]>(),
       supabase.from("budget_items").select("*").eq("project_id", projectId).returns<BudgetItem[]>(),
     ]);
 
+    if (groupsError || elementsError || budgetError) throw new Error((groupsError || elementsError || budgetError)!.message);
     const groupIds = (groups ?? []).map((g) => g.id);
     let matches: BimGroupMatch[] = [];
     if (groupIds.length > 0) {
-      const { data } = await supabase.from("bim_group_matches").select("*").in("group_id", groupIds).returns<BimGroupMatch[]>();
+      const { data, error: matchError } = await supabase.from("bim_group_matches").select("*").in("group_id", groupIds).returns<BimGroupMatch[]>();
       matches = data ?? [];
     }
 
@@ -580,35 +542,13 @@ export async function createBudgetItemsFromBimGroupsAction(
 
   const { data: existing } = await supabase.from("budget_items").select("code, sort_order").eq("project_id", projectId);
   const codes = nextPartidaCodes((existing ?? []).map((b) => String(b.code ?? "")), pending.length);
-  let sort = Math.max(0, ...(existing ?? []).map((b) => Number(b.sort_order) || 0));
-
-  const { data: created, error: insertError } = await supabase
-    .from("budget_items")
-    .insert(
-      pending.map((g, idx) => ({
-        project_id: projectId,
-        code: codes[idx],
-        description: [g.normalized_name ?? g.ifc_type, g.material].filter(Boolean).join(" — ") || "Elemento BIM",
-        unit: g.quantity_unit ?? null,
-        quantity: g.total_quantity ?? null,
-        unit_price: null,
-        sort_order: ++sort,
-      }))
-    )
-    .select("id, code");
-  if (insertError) return { created: 0, error: insertError.message };
-
-  const idByCode = new Map((created ?? []).map((c) => [c.code as string, c.id as string]));
-  for (let idx = 0; idx < pending.length; idx++) {
-    const newId = idByCode.get(codes[idx]);
-    if (!newId) continue;
-    const res = await confirmGroupMatch(projectId, pending[idx].id, newId, true);
-    if (res.error) return { created: idByCode.size, error: `Partidas creadas, pero falló el enlace de un grupo: ${res.error}` };
-  }
-
-  await logAudit(supabase, { action: "bim.partidas_created", detail: { project_id: projectId, count: idByCode.size } });
+  const { data: createdCount, error: createError } = await supabase.rpc("execution_create_bim_partidas", {
+    p_project_id: projectId, p_groups: pending.map((g,idx) => ({id:g.id,code:codes[idx]})),
+  });
+  if (createError) return { created: 0, error: createError.message };
+  await logAudit(supabase, { action: "bim.partidas_created", detail: { project_id: projectId, count: createdCount } });
   revalidatePath(`/projects/${projectId}`);
-  return { created: idByCode.size, error: null };
+  return { created: Number(createdCount), error: null };
 }
 
 export async function confirmGroupMatch(
@@ -620,49 +560,13 @@ export async function confirmGroupMatch(
 ): Promise<{ error: string | null }> {
   const { profile, supabase } = await assertProjectAccess(projectId);
 
-  const { data: existing } = await supabase
-    .from("bim_group_matches")
-    .select("id, budget_item_id")
-    .eq("group_id", groupId)
-    .in("status", ["SUGGESTED", "REVIEW", "REVIEW_REQUIRED"])
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (existing && existing.budget_item_id === budgetItemId) {
-    const { error } = await supabase
-      .from("bim_group_matches")
-      .update({ status: "CONFIRMED", confirmed_by: profile.id, confirmed_at: new Date().toISOString() })
-      .eq("id", existing.id);
-    if (error) return { error: error.message };
-  } else {
-    // Rubro distinto al sugerido (o no había sugerencia): match manual nuevo.
-    const { error } = await supabase.from("bim_group_matches").insert({
-      group_id: groupId,
-      budget_item_id: budgetItemId,
-      method: "MANUAL",
-      status: "CONFIRMED",
-      confirmed_by: profile.id,
-      confirmed_at: new Date().toISOString(),
-    });
-    if (error) return { error: error.message };
-  }
-
-  // Propagar la cantidad medida en el IFC al rubro del presupuesto si el usuario lo pidió.
-  if (updateQuantity) {
-    const { data: group } = await supabase
-      .from("bim_element_groups")
-      .select("total_quantity")
-      .eq("id", groupId)
-      .maybeSingle();
-    if (group?.total_quantity != null) {
-      await supabase
-        .from("budget_items")
-        .update({ quantity: group.total_quantity })
-        .eq("id", budgetItemId)
-        .eq("project_id", projectId);
-    }
-  }
+  const { data: item, error: itemError } = await supabase.from("budget_items").select("updated_at").eq("id",budgetItemId).eq("project_id",projectId).single();
+  if (itemError || !item) return { error: "Partida fuera del proyecto." };
+  const { error } = await supabase.rpc("execution_confirm_bim_group", {
+    p_project_id: projectId, p_group_id: groupId, p_budget_id: budgetItemId,
+    p_update_quantity: updateQuantity, p_expected_version: item.updated_at,
+  });
+  if (error) return { error: error.message };
 
   await logAudit(supabase, { action: "bim.group_match_confirmed", detail: { project_id: projectId, group_id: groupId, budget_item_id: budgetItemId, update_quantity: updateQuantity } });
   revalidatePath(`/projects/${projectId}`);
@@ -673,6 +577,8 @@ export async function confirmGroupMatch(
 // es una conclusión de la IA). Nunca se mezclan en el mismo estado.
 export async function rejectGroupMatch(projectId: string, groupId: string): Promise<{ error: string | null }> {
   const { profile, supabase } = await assertProjectAccess(projectId);
+  const { data: group } = await supabase.from("bim_element_groups").select("id").eq("id",groupId).eq("project_id",projectId).single();
+  if (!group) return { error: "Grupo fuera del proyecto." };
   const { error } = await supabase.from("bim_group_matches").insert({
     group_id: groupId,
     budget_item_id: null,
@@ -696,6 +602,11 @@ export async function confirmBimMatch(
 ): Promise<{ error: string | null }> {
   const { profile, supabase } = await assertProjectAccess(projectId);
 
+  const [elementResult, budgetResult] = await Promise.all([
+    supabase.from("bim_elements").select("id").eq("id",bimElementId).eq("project_id",projectId).single(),
+    supabase.from("budget_items").select("id").eq("id",budgetItemId).eq("project_id",projectId).single(),
+  ]);
+  if (elementResult.error || budgetResult.error || !elementResult.data || !budgetResult.data) return { error: "Elemento o partida fuera del proyecto." };
   const { data: existing } = await supabase
     .from("bim_budget_matches")
     .select("id")
@@ -739,6 +650,8 @@ export async function confirmBimMatch(
 
 export async function discardBimMatch(projectId: string, matchId: string): Promise<{ error: string | null }> {
   const { supabase } = await assertProjectAccess(projectId);
+  const { data: match } = await supabase.from("bim_budget_matches").select("bim_elements!inner(project_id)").eq("id",matchId).eq("bim_elements.project_id",projectId).single();
+  if (!match) return { error: "Match fuera del proyecto." };
   const { error } = await supabase.from("bim_budget_matches").update({ status: "DESCARTADO" }).eq("id", matchId);
   revalidatePath(`/projects/${projectId}`);
   return { error: error?.message ?? null };
@@ -759,7 +672,7 @@ export async function applyBimQuantityToBudgetItem(
     .select("*")
     .eq("id", budgetItemId)
     .eq("project_id", projectId)
-    .single<BudgetItem>();
+    .single<BudgetItem & { updated_at: string }>();
   if (!item) return { error: "Ítem de presupuesto no encontrado.", appliedQuantity: null, warning: null };
 
   const { data: confirmedMatches } = await supabase
@@ -779,7 +692,7 @@ export async function applyBimQuantityToBudgetItem(
     .returns<BimElement[]>();
 
   const { totalQuantity, incompatible } = aggregateElementsForBudgetItem(elements ?? [], item);
-  if (totalQuantity == null) {
+  if (totalQuantity == null || incompatible.length > 0 || (elements ?? []).length !== elementIds.length || (elements ?? []).some((el) => el.quantity_value == null || el.project_id !== projectId)) {
     return {
       error: "Ninguno de los elementos confirmados tiene una cantidad con unidad compatible.",
       appliedQuantity: null,
@@ -787,7 +700,10 @@ export async function applyBimQuantityToBudgetItem(
     };
   }
 
-  const { error } = await supabase.from("budget_items").update({ quantity: totalQuantity }).eq("id", budgetItemId);
+  const { error } = await supabase.rpc("workspace_apply_bim_quantity", {
+    p_context: { kind: "PROJECT", id: projectId }, p_budget_id: budgetItemId,
+    p_elements: elementIds, p_expected_version: item.updated_at, p_quantity: totalQuantity,
+  });
   if (error) return { error: error.message, appliedQuantity: null, warning: null };
 
   revalidatePath(`/projects/${projectId}`);
@@ -817,8 +733,8 @@ export async function getBimModelFileUrl(
 
 export async function deleteBimModel(projectId: string, modelId: string): Promise<{ error: string | null }> {
   const { supabase } = await assertProjectAccess(projectId);
-  const { data: model } = await supabase.from("bim_models").select("storage_path").eq("id", modelId).single();
-  const { error } = await supabase.from("bim_models").delete().eq("id", modelId);
+  const { data: model } = await supabase.from("bim_models").select("storage_path").eq("id", modelId).eq("project_id",projectId).single();
+  const { error } = await supabase.from("bim_models").delete().eq("id", modelId).eq("project_id",projectId);
   if (error) return { error: error.message };
   if (model?.storage_path) {
     await supabase.storage.from("bim-models").remove([model.storage_path]);

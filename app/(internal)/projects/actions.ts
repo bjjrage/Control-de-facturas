@@ -626,6 +626,10 @@ export async function deleteProject(projectId: string): Promise<{ error: string 
   const supabase = await createClient();
   const empresaId = profile.empresa_id;
 
+  const { data: owned, error: ownedError } = await supabase.from("projects").select("source_tender_id").eq("id",projectId).eq("empresa_id",empresaId).single();
+  if (ownedError || !owned) return { error: "Proyecto no encontrado." };
+  if (owned.source_tender_id) return { error: "El proyecto conserva un baseline contractual de licitación y no puede eliminarse." };
+
   // Las ubicaciones de inventario tipo PROJECT referencian la obra con
   // ON DELETE RESTRICT (blindaje del pañol, 20260913230000) y no tienen
   // policy RLS de DELETE: el cliente autenticado no puede borrarlas (no-op

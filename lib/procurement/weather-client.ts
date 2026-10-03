@@ -1,3 +1,4 @@
+import { isValidIsoDay } from "@/lib/projects/schedule";
 import { DailyWeatherForecast } from "@/lib/types";
 
 export interface OpenMeteoDailyResponse {
@@ -14,6 +15,15 @@ export interface OpenMeteoDailyResponse {
     temperature_2m_min?: number[];
     weathercode?: number[];
   };
+}
+
+function requireForecastDay(daily: NonNullable<OpenMeteoDailyResponse["daily"]>, i: number) {
+  if (!isValidIsoDay(daily.time[i]) || [daily.precipitation_sum?.[i], daily.precipitation_hours?.[i],
+    daily.precipitation_probability_max?.[i], daily.wind_gusts_10m_max?.[i], daily.weathercode?.[i]]
+    .some((value) => typeof value !== "number" || !Number.isFinite(value) || value < 0)) {
+    throw new Error("Proveedor meteorológico devolvió un día incompleto; no se inventan valores cero.");
+  }
+  if (daily.time.indexOf(daily.time[i]) !== i || daily.precipitation_hours![i] > 24 || daily.precipitation_probability_max![i] > 100) throw new Error("Día meteorológico duplicado o fuera de rango.");
 }
 
 /**
@@ -62,6 +72,7 @@ export async function fetchWeatherForecast(
 
   const result: DailyWeatherForecast[] = [];
   for (let i = 0; i < data.daily.time.length; i++) {
+    requireForecastDay(data.daily, i);
     result.push({
       date: data.daily.time[i],
       precipitation_sum_mm: data.daily.precipitation_sum?.[i] ?? 0,
@@ -88,6 +99,7 @@ export async function fetchWeatherForecastRange(
   startDate: string,
   endDate: string
 ): Promise<{ forecasts: DailyWeatherForecast[]; partialCoverage: boolean; requestedDays: number; coveredDays: number }> {
+  if (!isValidIsoDay(startDate) || !isValidIsoDay(endDate)) throw new Error("Fecha meteorológica inválida.");
   const reqStart = new Date(`${startDate}T00:00:00Z`);
   const reqEnd = new Date(`${endDate}T00:00:00Z`);
 
@@ -159,6 +171,7 @@ export async function fetchWeatherForecastRange(
     const d = data.daily.time[i];
     // Strict invariant: no forecast_date < startDate or > endDate
     if (d >= startDate && d <= endDate) {
+      requireForecastDay(data.daily, i);
       forecasts.push({
         date: d,
         precipitation_sum_mm: data.daily.precipitation_sum?.[i] ?? 0,

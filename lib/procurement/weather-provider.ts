@@ -36,7 +36,7 @@ type DmhStation = {
 function coordinatesOf(project: Project) {
   const latitude = Number(project.latitude);
   const longitude = Number(project.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+  if (project.latitude == null || project.longitude == null || !Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude)>90 || Math.abs(longitude)>180) {
     throw new Error("La evaluación DMH requiere latitud y longitud de la obra.");
   }
   return { latitude, longitude };
@@ -59,6 +59,7 @@ function haversineKm(a: { latitude: number; longitude: number }, b: { latitude: 
 }
 
 function numeric(value: unknown) {
+  if (value === null || value === undefined || value === "" || typeof value === "boolean") return null;
   const result = Number(value);
   return Number.isFinite(result) ? result : null;
 }
@@ -78,7 +79,7 @@ function readStation(id: string, value: unknown): DmhStation | null {
   const precipitation = numeric(precipitationData.valor ?? precipitationData.value);
   const latitude = numeric(metadata.latitud ?? metadata.latitude);
   const longitude = numeric(metadata.longitud ?? metadata.longitude);
-  if (precipitation === null || latitude === null || longitude === null) return null;
+  if (precipitation === null || precipitation < 0 || latitude === null || longitude === null || Math.abs(latitude)>90 || Math.abs(longitude)>180) return null;
   return {
     id: String(metadata.codigo ?? metadata.code ?? id),
     name: String(metadata.nombre ?? metadata.name ?? id),
@@ -116,6 +117,7 @@ export class DmhDinacWeatherProvider implements WeatherProvider {
       .map(([id, station]) => readStation(String(id), station))
       .filter((station): station is DmhStation => station !== null);
     const selected = selectNearestDmhStation(coordinates, stations);
+    if (selected && (!selected.station.observed_at || new Intl.DateTimeFormat("en-CA", { timeZone: "America/Asuncion",year:"numeric",month:"2-digit",day:"2-digit" }).format(new Date(selected.station.observed_at)) !== _date)) throw new Error("DMH no tiene observación correspondiente a la fecha solicitada.");
     if (!selected) throw new Error("El feed DMH/DINAC no tiene una estación válida para evaluar la obra.");
     return {
       date: _date,
@@ -153,7 +155,7 @@ export class OpenMeteoWeatherProvider implements WeatherProvider {
     const precipitationValues = Array.isArray(daily.precipitation_sum) ? daily.precipitation_sum : [];
     const index = times.indexOf(date);
     const precipitation = numeric(precipitationValues[index]);
-    if (index < 0 || precipitation === null) throw new Error("Open-Meteo no devolvió precipitación diaria válida.");
+    if (index < 0 || precipitation === null || precipitation < 0) throw new Error("Open-Meteo no devolvió precipitación diaria válida.");
     return {
       date,
       precipitation_mm: Math.max(0, precipitation),

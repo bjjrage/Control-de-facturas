@@ -8,7 +8,7 @@ import {
   ProgressForecastRunSummary,
   DailyWeatherForecast,
 } from "@/lib/types";
-import { fetchWeatherForecast } from "@/lib/procurement/weather-client";
+import { fetchWeatherForecastRange } from "@/lib/procurement/weather-client";
 import {
   analyzeOperationalWorkability,
   createDegradedOperationalFallback,
@@ -21,6 +21,9 @@ import {
   BudgetItemMaterialInput,
   StockDisponibilidadInput,
 } from "@/lib/procurement/progress-forecast-engine";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveProjectMaterialPrices } from "@/lib/costing/project-prices";
+import { isValidIsoDay, scheduleLeafBudgetItems } from "@/lib/projects/schedule";
 import { deriveClimateForecastMetrics } from "@/lib/procurement/climate-metrics";
 
 export interface RunProgressForecastParams {
@@ -36,19 +39,23 @@ export async function runProgressForecastAction(
 ): Promise<{ data: ProgressForecastRunSummary | null; error: string | null }> {
   try {
     const profile = await requirePlan("pro", ["administracion", "admin"]);
+    if (!profile.active || !profile.empresa_active) throw new Error("Usuario o empresa inactiva.");
     const empresaId = profile.empresa_id;
     const supabase = await createClient();
 
     const { projectId } = params;
     // Enforce strictly: minimum 7 days
-    const horizonDays = Math.max(7, params.horizonDays || 7);
+    const horizonDays = params.horizonDays;
+    if (!Number.isInteger(horizonDays) || horizonDays < 7 || horizonDays > 90) throw new Error("Horizonte válido: 7 a 90 días enteros.");
     const startDate =
       params.startDate || new Date().toISOString().split("T")[0];
+
+    if (!isValidIsoDay(startDate)) throw new Error("Fecha de forecast inválida.");
 
     // 1. Fetch project details
     const { data: project, error: projErr } = await supabase
       .from("projects")
-      .select("id, name, location, latitude, longitude, start_date, currency:contract_amount")
+      .select("id, name, location, latitude, longitude, start_date")
       .eq("id", projectId)
       .eq("empresa_id", empresaId)
       .single();
@@ -57,36 +64,21 @@ export async function runProgressForecastAction(
       return { data: null, error: "Proyecto no encontrado o sin permisos." };
     }
 
-    // Determine geographic coordinates
-    const lat = params.customLatitude ?? (project.latitude ? Number(project.latitude) : null);
-    const lon = params.customLongitude ?? (project.longitude ? Number(project.longitude) : null);
-
-    // Default to Asunción coordinates if not specified
-    const effectiveLat = lat ?? -25.2867;
-    const effectiveLon = lon ?? -57.647;
-
-    // Update project coordinates if provided as custom
-    if (params.customLatitude && params.customLongitude) {
-      await supabase
-        .from("projects")
-        .update({
-          latitude: params.customLatitude,
-          longitude: params.customLongitude,
-        })
-        .eq("id", projectId)
-        .eq("empresa_id", empresaId);
-    }
-
+    const effectiveLat = params.customLatitude ?? (project.latitude == null ? null : Number(project.latitude));
+    const effectiveLon = params.customLongitude ?? (project.longitude == null ? null : Number(project.longitude));
+    if (effectiveLat == null || effectiveLon == null || !Number.isFinite(effectiveLat) || !Number.isFinite(effectiveLon)
+      || Math.abs(effectiveLat) > 90 || Math.abs(effectiveLon) > 180) throw new Error("Configurá coordenadas reales y válidas para la obra.");
+    // A run never silently edits project configuration.
     // 2. Fetch daily weather forecasts (Open-Meteo)
     let forecasts: DailyWeatherForecast[] = [];
     let weatherFailed = false;
     let weatherErrorMessage: string | null = null;
     try {
-      forecasts = await fetchWeatherForecast(
-        effectiveLat,
-        effectiveLon,
-        horizonDays
-      );
+      const end = new Date(startDate + "T00:00:00Z");
+      end.setUTCDate(end.getUTCDate() + horizonDays - 1);
+      const coverage = await fetchWeatherForecastRange(effectiveLat, effectiveLon, startDate, end.toISOString().slice(0,10));
+      forecasts = coverage.forecasts;
+      if (coverage.partialCoverage) weatherErrorMessage = "Cobertura meteorológica parcial; no se proyectan días sin evidencia.";
     } catch (wErr: any) {
       console.warn("Weather forecast fetch error (fail-closed):", wErr);
       weatherFailed = true;
@@ -97,11 +89,12 @@ export async function runProgressForecastAction(
     // 3. Fetch budget items (tenant scoped via project_id and empresa_id check)
     // Por sort_order, no por code: "code" es texto y ordena "1, 10, 11...19,
     // 2, 20..." en vez de 1, 2, 3... (mismo bug confirmado en weekly-plan-shared.ts).
-    const { data: rawBudgetItems } = await supabase
+    const { data: rawBudgetItems, error: rawBudgetItemsError } = await supabase
       .from("budget_items")
       .select("*")
       .eq("project_id", projectId)
       .order("sort_order", { ascending: true });
+    if (rawBudgetItemsError) throw new Error(rawBudgetItemsError.message);
 
     const budgetItems: BudgetItem[] = (rawBudgetItems ?? []) as BudgetItem[];
     if (budgetItems.length === 0) {
@@ -111,19 +104,21 @@ export async function runProgressForecastAction(
       };
     }
 
-    const { data: climateWorkdays } = await supabase
+    const { data: climateWorkdays, error: climateWorkdaysError } = await supabase
       .from("project_workday_status")
       .select("work_date, classification, decision_status")
       .eq("project_id", projectId)
       .eq("empresa_id", empresaId)
       .lte("work_date", new Date().toISOString().slice(0, 10));
+    if (climateWorkdaysError) throw new Error(climateWorkdaysError.message);
 
     // 4. Fetch execution entries: cumulative progress + recent entries (last 60 days)
-    const { data: rawEntries } = await supabase
+    const { data: rawEntries, error: rawEntriesError } = await supabase
       .from("execution_entries")
       .select("budget_item_id, quantity_executed, entry_date")
       .eq("project_id", projectId)
-      .eq("empresa_id", empresaId);
+      .lte("entry_date", new Date().toISOString().slice(0,10));
+    if (rawEntriesError) throw new Error(rawEntriesError.message);
 
     const executedQuantities: Record<string, number> = {};
     const recentEntriesList: { budget_item_id: string; entry_date: string; quantity_executed: number }[] = [];
@@ -142,14 +137,17 @@ export async function runProgressForecastAction(
     }
 
     // 5. Fetch BOM materials (budget_item_materials joined with productos)
-    const { data: rawMaterials } = await supabase
+    const { data: rawMaterials, error: rawMaterialsError } = await supabase
       .from("budget_item_materials")
       .select(
-        "id, budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, productos(id, nombre, codigo, unidad_medida, costo_promedio)"
+        "id, budget_item_id, producto_id, cantidad_por_unidad_ejecutada, desperdicio_pct, productos(id, nombre, sku, unidad, costo_promedio)"
       )
       .eq("project_id", projectId)
       .eq("empresa_id", empresaId);
+    if (rawMaterialsError) throw new Error(rawMaterialsError.message);
 
+    const priceDetails = await resolveProjectMaterialPrices({ supabase, admin: createAdminClient(), empresaId, projectId,
+      productIds: [...new Set((rawMaterials ?? []).map((m) => m.producto_id))], today: startDate });
     const materialsByItem: Record<string, BudgetItemMaterialInput[]> = {};
     for (const m of rawMaterials ?? []) {
       const prod = (m as any).productos;
@@ -161,39 +159,39 @@ export async function runProgressForecastAction(
         budget_item_id: bId,
         producto_id: m.producto_id,
         producto_nombre: prod?.nombre || "Material sin nombre",
-        producto_codigo: prod?.codigo || null,
-        unidad_medida: prod?.unidad_medida || "unid",
+        producto_codigo: prod?.sku || null,
+        unidad_medida: prod?.unidad || "",
         cantidad_por_unidad_ejecutada: Number(m.cantidad_por_unidad_ejecutada),
         desperdicio_pct: Number(m.desperdicio_pct || 0),
-        costo_unitario:
-          prod?.costo_promedio && Number(prod.costo_promedio) > 0
-            ? Number(prod.costo_promedio)
-            : null,
+        costo_unitario: priceDetails.get(m.producto_id)?.price?.precio ?? null,
       });
     }
 
     // 6. Stock físico confirmado desde el ledger canónico, agrupado por moneda.
-    const { data: rawStock } = await supabase
+    const { data: rawStock, error: rawStockError } = await supabase
       .from("inventory_stock_by_project")
       .select("producto_id, quantity")
       .eq("project_id", projectId)
       .eq("empresa_id", empresaId);
+    if (rawStockError) throw new Error(rawStockError.message);
 
     // 7. Fetch authorized inbound orders (strictly approved/authorized/in_transit)
     // OC pendiente = cantidad autorizada menos recepciones CONFIRMED.
     // Lo recibido ya forma parte de inventory_balances; no sumarlo otra vez.
-    const { data: rawOrders } = await supabase
+    const { data: rawOrders, error: rawOrdersError } = await supabase
       .from("authorized_orders")
       .select("id, status, authorized_order_items(id, producto_id, quantity)")
       .eq("project_id", projectId)
       .eq("empresa_id", empresaId)
       .eq("status", "AUTORIZADO");
+    if (rawOrdersError) throw new Error(rawOrdersError.message);
 
     // Fetch total physically received quantities by order_item from view oc_order_item_recibido
-    const { data: rawReceived } = await supabase
+    const { data: rawReceived, error: rawReceivedError } = await supabase
       .from("oc_order_item_recibido")
       .select("order_item_id, cantidad_recibida_total")
       .eq("empresa_id", empresaId);
+    if (rawReceivedError) throw new Error(rawReceivedError.message);
 
     const receivedByOrderItem: Record<string, number> = {};
     for (const r of rawReceived ?? []) {
@@ -208,7 +206,7 @@ export async function runProgressForecastAction(
       const pId = st.producto_id;
       stockAndInbound[pId] = {
         producto_id: pId,
-        stock_disponible: (stockAndInbound[pId]?.stock_disponible ?? 0) + Math.max(0, Number(st.quantity) || 0),
+        stock_disponible: (stockAndInbound[pId]?.stock_disponible ?? 0) + Number(st.quantity),
         oc_inbound: 0,
       };
     }
@@ -234,7 +232,7 @@ export async function runProgressForecastAction(
     }
 
     // 8. Identify candidate items for LLM operational assessment
-    const activeItemsToAssess: BudgetItemOperationalInput[] = budgetItems
+    const activeItemsToAssess: BudgetItemOperationalInput[] = scheduleLeafBudgetItems(budgetItems)
       .filter((it) => {
         const qty = it.quantity ?? 0;
         const exec = executedQuantities[it.id] || 0;
@@ -298,7 +296,7 @@ export async function runProgressForecastAction(
         const isStrictlyValidFactor = (val: any): boolean => {
           if (val === null || val === undefined) return false;
           const num = Number(val);
-          return typeof num === "number" && !Number.isNaN(num) && Number.isFinite(num) && num >= 0 && num <= 1;
+          return val !== "" && typeof num === "number" && !Number.isNaN(num) && Number.isFinite(num) && num >= 0 && num <= 1;
         };
 
         const allFactorsValid = allFound && activeItemsToAssess.every((it) => {
@@ -366,10 +364,11 @@ export async function runProgressForecastAction(
       budgetItems,
     });
 
-    // 11. Persist run in project_progress_forecast_runs
-    const { data: runRecord } = await supabase
-      .from("project_progress_forecast_runs")
-      .insert({
+    const unknownContractLines = forecastSummary.items.filter((row) => budgetItems.find((b) => b.id === row.budget_item_id)?.unit_price == null).length;
+    if (weatherErrorMessage) forecastSummary.llm_summary = [forecastSummary.llm_summary, weatherErrorMessage].filter(Boolean).join(" · ");
+    if (unknownContractLines) forecastSummary.llm_summary = [forecastSummary.llm_summary, `Valor contractual incompleto: ${unknownContractLines} partida(s) sin precio de venta; no equivale al monto adjudicado.`].filter(Boolean).join(" · ");
+    // Persist both tables atomically; a failure never returns a successful run.
+    const runPayload = {
         empresa_id: empresaId,
         project_id: projectId,
         horizon_days: horizonDays,
@@ -398,17 +397,15 @@ export async function runProgressForecastAction(
         effective_available_days: forecastSummary.climate_metrics.effective_available_days,
         gross_schedule_variance: forecastSummary.climate_metrics.gross_schedule_variance,
         weather_adjusted_variance: forecastSummary.climate_metrics.weather_adjusted_variance,
+        input_snapshot: { mode: "PLANNING", projectId, startDate, horizonDays,
+          coordinates: { latitude: effectiveLat, longitude: effectiveLon }, weather: forecasts,
+          weatherCoverageWarning: weatherErrorMessage, budgetItems, executedQuantities, recentEntries: recentEntriesList,
+          climateWorkdays, materialsByItem, stockAndInbound, priceProvenance: [...priceDetails.entries()],
+          operationalAnalysis },
         created_by: profile.id,
-      })
-      .select("id")
-      .single();
+      };
+    const itemPayload = forecastSummary.items.map((it) => ({
 
-    if (runRecord?.id) {
-      forecastSummary.id = runRecord.id;
-
-      // Persist snapshot items
-      const insertRows = forecastSummary.items.map((it) => ({
-        run_id: runRecord.id,
         budget_item_id: it.budget_item_id,
         item_code: it.item_code,
         item_description: it.item_description,
@@ -424,12 +421,11 @@ export async function runProgressForecastAction(
         materials_breakdown: it.materials,
       }));
 
-      if (insertRows.length > 0) {
-        await supabase
-          .from("project_progress_forecast_items")
-          .insert(insertRows);
-      }
-    }
+    const { data: runId, error: persistError } = await supabase.rpc("execution_save_forecast", {
+      p_project_id: projectId, p_run: runPayload, p_items: itemPayload,
+    });
+    if (persistError || !runId) throw new Error(persistError?.message ?? "No se pudo persistir el forecast completo.");
+    forecastSummary.id = runId;
 
     revalidatePath(`/projects/${projectId}`);
     return { data: forecastSummary, error: null };

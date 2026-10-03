@@ -145,10 +145,8 @@ export async function resolveContextMaterialPrices(args: {
       .limit(3000),
     admin.from("rfqs").select("id, code").eq("empresa_id", empresaId).eq(column, context.id),
   ]);
-  if (context.kind === "TENDER") {
-    for (const result of [productsRes, chosenRes, obsRes, rfqsRes]) {
-      if (result.error) throw new Error(result.error.message);
-    }
+  for (const result of [productsRes, chosenRes, obsRes, rfqsRes]) {
+    if (result.error) throw new Error(result.error.message);
   }
 
   const costoPromedio = new Map<string, number>();
