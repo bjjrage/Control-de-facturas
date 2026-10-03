@@ -54,6 +54,11 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
     },
   ];
 
+  // Full explicit coverage for tests asserting full-week quantities and allocations.
+  const weekForecasts = [...sampleForecasts, ...[18,19,20,21].map((day) => ({
+    ...sampleForecasts[0], date: `2026-09-${day}`,
+  }))];
+
   // 1. Proyección física no supera el remanente (techo 100%)
   it("1. no proyecta más de la cantidad restante de la partida", () => {
     const input: ProgressForecastEngineInput = {
@@ -221,7 +226,7 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
           reason: "Ok",
         },
       },
-      forecasts: sampleForecasts,
+      forecasts: weekForecasts,
       llm_used: false,
     };
 
@@ -267,7 +272,7 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
         },
       },
       operational_assessments: {},
-      forecasts: sampleForecasts,
+      forecasts: weekForecasts,
       llm_used: false,
     };
 
@@ -314,7 +319,7 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
         },
       },
       operational_assessments: {},
-      forecasts: sampleForecasts,
+      forecasts: weekForecasts,
       llm_used: false,
     };
 
@@ -361,7 +366,7 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
         },
       },
       operational_assessments: {},
-      forecasts: sampleForecasts,
+      forecasts: weekForecasts,
       llm_used: false,
     };
 
@@ -409,7 +414,7 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
         },
       },
       operational_assessments: {},
-      forecasts: sampleForecasts,
+      forecasts: weekForecasts,
       llm_used: false,
     };
 
@@ -563,7 +568,7 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
       description: "Columnas",
       quantity: 5,
       start_date: "2026-09-15",
-      end_date: "2026-09-22",
+      end_date: "2026-09-21",
     };
     const item2: BudgetItem = {
       ...baseItem,
@@ -571,7 +576,7 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
       description: "Vigas",
       quantity: 5,
       start_date: "2026-09-15",
-      end_date: "2026-09-22",
+      end_date: "2026-09-21",
     };
 
     const input: ProgressForecastEngineInput = {
@@ -612,7 +617,7 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
         },
       },
       operational_assessments: {},
-      forecasts: sampleForecasts,
+      forecasts: weekForecasts,
       llm_used: false,
     };
 
@@ -709,7 +714,7 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
           reason: "4 días normales, 1 parcial, 2 con lluvia severa bloqueados.",
         },
       },
-      forecasts: sampleForecasts,
+      forecasts: weekForecasts,
       llm_used: true,
     };
 
@@ -819,7 +824,7 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
           ...baseItem,
           quantity: 1000,
           start_date: "2026-09-15",
-          end_date: "2026-09-22",
+          end_date: "2026-09-21",
         },
       ],
       executed_quantities_by_item: { "item-1": 0 },
@@ -851,7 +856,7 @@ describe("Capa de Proyección Inteligente de Avance de Obra + Materiales + Impac
           reason: "Ok",
         },
       },
-      forecasts: sampleForecasts,
+      forecasts: weekForecasts,
       llm_used: false,
     };
 

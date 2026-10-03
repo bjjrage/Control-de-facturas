@@ -1,4 +1,5 @@
 import type { BudgetItem, ProjectWorkdayStatus, ClimateForecastMetrics } from "@/lib/types";
+import { isValidIsoDay } from "@/lib/projects/schedule";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -32,9 +33,13 @@ export function deriveClimateForecastMetrics(input: {
   budgetItems: Pick<BudgetItem, "start_date" | "end_date">[];
 }): ClimateForecastMetrics {
   const calendarDays = input.projectStartDate && input.projectStartDate <= input.asOfDate
+    && isValidIsoDay(input.projectStartDate) && isValidIsoDay(input.asOfDate)
     ? inclusiveDays(input.projectStartDate, input.asOfDate)
     : 0;
-  const effectiveWorkdays = input.workdays.filter((row) => row.decision_status === "CONFIRMED");
+  const effectiveWorkdays = [...new Map(input.workdays.filter((row) =>
+    calendarDays > 0 && row.decision_status === "CONFIRMED" && isValidIsoDay(row.work_date)
+    && row.work_date >= input.projectStartDate! && row.work_date <= input.asOfDate
+  ).map((row) => [row.work_date, row])).values()];
   const rainLost = effectiveWorkdays.filter((row) => row.classification === "NON_WORKABLE_RAIN").length;
   const rainEffectLost = effectiveWorkdays.filter((row) => row.classification === "NON_WORKABLE_RAIN_EFFECT").length;
   const otherLost = effectiveWorkdays.filter((row) => row.classification === "NON_WORKABLE_OTHER").length;
@@ -42,9 +47,10 @@ export function deriveClimateForecastMetrics(input: {
 
   const scheduledDates = new Set<string>();
   for (const item of input.budgetItems) {
-    if (!item.start_date || !item.end_date || item.start_date > input.asOfDate) continue;
+    if (!calendarDays || !item.start_date || !item.end_date || !isValidIsoDay(item.start_date) || !isValidIsoDay(item.end_date) || item.start_date > input.asOfDate) continue;
     const end = item.end_date < input.asOfDate ? item.end_date : input.asOfDate;
-    for (const date of dateRange(item.start_date, end)) scheduledDates.add(date);
+    const start = item.start_date > input.projectStartDate! ? item.start_date : input.projectStartDate!;
+    for (const date of dateRange(start, end)) scheduledDates.add(date);
   }
   const plannedDaysElapsed = scheduledDates.size;
   const grossVariance = Math.max(0, calendarDays - plannedDaysElapsed);

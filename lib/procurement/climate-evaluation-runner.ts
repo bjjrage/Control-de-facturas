@@ -1,3 +1,4 @@
+import { isValidIsoDay } from "@/lib/projects/schedule";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { evaluateProjectWeatherDay } from "./climate-workdays";
 
@@ -5,6 +6,7 @@ export async function runClimateEvaluationBatch(
   supabase: SupabaseClient,
   input: { date: string; projectId?: string; limit?: number },
 ) {
+  if (!isValidIsoDay(input.date) || (input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 1))) throw new Error("Fecha o límite climático inválido.");
   const limit = Math.min(Math.max(input.limit ?? 100, 1), 500);
   let query = supabase
     .from("projects")

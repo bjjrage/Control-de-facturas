@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "./chart-card";
 import { Project, BudgetItem, ExecutionEntry, AuthorizedOrder, ProjectCertificate, ProjectSchedulePlan, ProjectSchedulePlanMonth } from "@/lib/types";
+import { scheduleLeafBudgetItems, validateScheduleDates } from "@/lib/projects/schedule";
 import { formatMoney, formatDate } from "@/lib/format";
 
 // Paleta con más contraste entre sí (evita dos tonos de azul o dos de rojo
@@ -98,7 +99,7 @@ export function ProjectReports({
   // real de ítems cargados — mismo criterio que el dashboard general, para
   // no mostrar 0 cuando todavía no se cargó el cómputo métrico pero sí hay
   // una estimación inicial.
-  const itemsSubtotal = budgetItems.reduce((s, i) => s + i.subtotal, 0);
+  const itemsSubtotal = scheduleLeafBudgetItems(budgetItems).reduce((s, i) => s + i.subtotal, 0);
   const presupuestoTotal = Math.max(project.budget_total, itemsSubtotal);
   const comprasTotal = orders.filter((o) => o.currency === "PYG").reduce((s, o) => s + o.total_price, 0);
 
@@ -115,7 +116,8 @@ export function ProjectReports({
   // acumulado de avance.
   const DAY_MS = 86400000;
   const sCurve = useMemo(() => {
-    const withDates = budgetItems.filter((i) => i.start_date && i.end_date);
+    const withDates = scheduleLeafBudgetItems(budgetItems).filter((i) => i.start_date && i.end_date && !validateScheduleDates(i.start_date,i.end_date));
+    if (withDates.some((i) => i.unit_price == null || !Number.isFinite(i.unit_price))) return buildSCurveFromSchedulePlan(project, certificates, schedulePlans, planMonths, presupuestoTotal);
     if (withDates.length === 0) return buildSCurveFromSchedulePlan(project, certificates, schedulePlans, planMonths, presupuestoTotal);
 
     const parseDate = (s: string) => new Date(`${s}T00:00:00`);
@@ -145,8 +147,8 @@ export function ProjectReports({
       for (const item of withDates) {
         const s = parseDate(item.start_date!);
         const e = parseDate(item.end_date!);
-        const diasTotales = Math.max(1, Math.round((e.getTime() - s.getTime()) / DAY_MS));
-        const diasCorridos = Math.min(diasTotales, Math.max(0, Math.round((d.getTime() - s.getTime()) / DAY_MS)));
+        const diasTotales = Math.max(1, Math.round((e.getTime() - s.getTime()) / DAY_MS) + 1);
+        const diasCorridos = Math.min(diasTotales, Math.max(0, Math.round((d.getTime() - s.getTime()) / DAY_MS) + 1));
         total += item.subtotal * (diasCorridos / diasTotales);
       }
       return total;
@@ -198,7 +200,7 @@ export function ProjectReports({
   const pieData = useMemo(() => {
     const rootOf = (code: string) => code.split(".")[0];
     const totals = new Map<string, number>();
-    for (const item of budgetItems) {
+    for (const item of scheduleLeafBudgetItems(budgetItems)) {
       if (item.subtotal <= 0) continue;
       const root = rootOf(item.code);
       totals.set(root, (totals.get(root) ?? 0) + item.subtotal);
