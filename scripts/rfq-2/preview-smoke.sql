@@ -3,7 +3,8 @@ BEGIN;
 DO $$
 DECLARE e uuid:=gen_random_uuid(); actor uuid:=gen_random_uuid(); vendor uuid:=gen_random_uuid(); vendor2 uuid:=gen_random_uuid();
  r jsonb; item uuid; token text; token2 text; invitation uuid; document uuid; version jsonb; version2 jsonb;
- vi uuid; vi2 uuid; allocation jsonb; preview jsonb; confirmed jsonb; direct jsonb; oid uuid; unexpected integer;
+ vi uuid; vi2 uuid; allocation jsonb; preview jsonb; confirmed jsonb; again jsonb; direct jsonb; oid uuid; unexpected integer;
+ discovery_allocation uuid;
 BEGIN
  INSERT INTO public.empresas(id,nombre) VALUES(e,'RFQ 2 preview smoke');
  INSERT INTO auth.users(id,email) VALUES(actor,actor::text||'@rfq-smoke.invalid');
@@ -34,9 +35,15 @@ BEGIN
  IF unexpected<>0 THEN RAISE EXCEPTION 'Authorization created orders'; END IF;
  preview:=public.rfq_preview_orders((allocation->>'id')::uuid);
  IF jsonb_array_length(preview->'orders')<>2 THEN RAISE EXCEPTION 'Expected two exact previews'; END IF;
+ IF length(preview->>'hash')<>64 OR preview->>'hash' !~ '^[a-f0-9]{64}$' THEN RAISE EXCEPTION 'Preview hash is not SHA-256 hex'; END IF;
+ IF preview->>'hash'<>encode(extensions.digest(convert_to((preview->'orders')::text,'UTF8'),'sha256'),'hex') THEN RAISE EXCEPTION 'Preview SHA-256 mismatch'; END IF;
  confirmed:=public.rfq_confirm_orders((allocation->>'id')::uuid,preview->>'hash',true);
  IF jsonb_array_length(confirmed->'orderIds')<>2 THEN RAISE EXCEPTION 'Expected two orders'; END IF;
- PERFORM public.rfq_confirm_orders((allocation->>'id')::uuid,preview->>'hash',true);
+ again:=public.rfq_confirm_orders((allocation->>'id')::uuid,preview->>'hash',true);
+ IF again->>'alreadyConfirmed'<>'true'
+  OR ARRAY(SELECT jsonb_array_elements_text(again->'orderIds') ORDER BY 1)
+     IS DISTINCT FROM ARRAY(SELECT jsonb_array_elements_text(confirmed->'orderIds') ORDER BY 1)
+ THEN RAISE EXCEPTION 'Idempotent confirmation did not return same orders'; END IF;
  SELECT count(*) INTO unexpected FROM public.authorized_orders WHERE empresa_id=e;
  IF unexpected<>2 THEN RAISE EXCEPTION 'Duplicate orders'; END IF;
  IF EXISTS(SELECT 1 FROM public.authorized_orders o WHERE o.empresa_id=e AND o.total_price<>(o.procurement_snapshot->>'total')::numeric) THEN RAISE EXCEPTION 'Snapshot differs from order'; END IF;
@@ -49,6 +56,20 @@ BEGIN
   PERFORM public.rfq_save_allocation((r->>'id')::uuid,jsonb_build_array(jsonb_build_object('quote_version_item_id',vi,'quantity',1)),'Must reject discovery',0);
   RAISE EXCEPTION 'Cost discovery accepted allocation';
  EXCEPTION WHEN OTHERS THEN IF SQLERRM='Cost discovery accepted allocation' THEN RAISE; END IF; END;
+ INSERT INTO public.rfq_allocations(empresa_id,rfq_id,revision,lines,justification,created_by,authorized_by,authorized_at,preview,preview_hash)
+ VALUES(e,(r->>'id')::uuid,1,'[]'::jsonb,'Synthetic adversarial row',actor,actor,now(),'[]'::jsonb,'forged') RETURNING id INTO discovery_allocation;
+ BEGIN
+  PERFORM public.rfq_authorize_allocation(discovery_allocation,true);
+  RAISE EXCEPTION 'Cost discovery accepted authorization';
+ EXCEPTION WHEN OTHERS THEN IF SQLERRM='Cost discovery accepted authorization' THEN RAISE; END IF; END;
+ BEGIN
+  PERFORM public.rfq_preview_orders(discovery_allocation);
+  RAISE EXCEPTION 'Cost discovery accepted preview';
+ EXCEPTION WHEN OTHERS THEN IF SQLERRM='Cost discovery accepted preview' THEN RAISE; END IF; END;
+ BEGIN
+  PERFORM public.rfq_confirm_orders(discovery_allocation,'forged',true);
+  RAISE EXCEPTION 'Cost discovery accepted confirmation';
+ EXCEPTION WHEN OTHERS THEN IF SQLERRM='Cost discovery accepted confirmation' THEN RAISE; END IF; END;
  RAISE NOTICE 'RFQ 2 real Preview smoke: PASS. All synthetic rows roll back.';
 END $$;
 ROLLBACK;

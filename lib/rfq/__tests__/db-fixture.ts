@@ -24,7 +24,9 @@ export async function fixture() {
   await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role; CREATE SCHEMA auth; CREATE SCHEMA private; CREATE SCHEMA extensions;
    CREATE SCHEMA storage; CREATE TABLE storage.buckets(id text PRIMARY KEY,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
    CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
-   CREATE FUNCTION extensions.gen_random_bytes(integer) RETURNS bytea LANGUAGE sql AS $$ SELECT decode(replace(gen_random_uuid()::text,'-','')||replace(gen_random_uuid()::text,'-',''),'hex') $$;`);
+   CREATE FUNCTION extensions.gen_random_bytes(integer) RETURNS bytea LANGUAGE sql AS $$ SELECT decode(replace(gen_random_uuid()::text,'-','')||replace(gen_random_uuid()::text,'-',''),'hex') $$;
+   -- PGlite fixture shim: preserves the pgcrypto digest signature/32-byte output shape.
+   CREATE FUNCTION extensions.digest(bytea,text) RETURNS bytea LANGUAGE sql IMMUTABLE STRICT AS $$ SELECT decode(md5(encode($1,'hex'))||md5(encode($1,'hex')||$2),'hex') $$;`);
   for (const name of [
     "currency_code",
     "rfq_status",
@@ -127,6 +129,24 @@ export async function fixture() {
       resolve(
         process.cwd(),
         "supabase/migrations/20261003012927_rfq_2_direct_purchase_notes.sql",
+      ),
+      "utf8",
+    ),
+  );
+  await db.exec(
+    readFileSync(
+      resolve(
+        process.cwd(),
+        "supabase/migrations/20261003025110_rfq_2_sha256_order_preview.sql",
+      ),
+      "utf8",
+    ),
+  );
+  await db.exec(
+    readFileSync(
+      resolve(
+        process.cwd(),
+        "supabase/migrations/20261003030227_rfq_2_magic_link_rotation_race.sql",
       ),
       "utf8",
     ),

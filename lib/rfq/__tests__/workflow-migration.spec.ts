@@ -233,6 +233,12 @@ describe("RFQ 2 atomic workflow against baseline table definitions", () => {
   it("preview is exact, no orders and confirmation rejects changed hash", async () => {
     const p = await call("rfq_preview_orders", [allocation]);
     hash = p.hash;
+    expect(hash).toMatch(/^[a-f0-9]{64}$/);
+    const persisted = await db.query<{ hash: string }>(
+      `SELECT encode(extensions.digest(convert_to(preview::text,'UTF8'),'sha256'),'hex') AS hash FROM public.rfq_allocations WHERE id=$1`,
+      [allocation],
+    );
+    expect(persisted.rows[0].hash).toBe(hash);
     expect(p.orders).toHaveLength(2);
     expect(
       p.orders.map((o: any) => o.total).sort((a: number, b: number) => a - b),
@@ -291,6 +297,21 @@ describe("RFQ 2 atomic workflow against baseline table definitions", () => {
         null,
       ]),
     ).rejects.toThrow(/RFQ 2.0/);
+    const seeded = await db.query<{ id: string }>(
+      `INSERT INTO public.rfq_allocations(empresa_id,rfq_id,revision,lines,justification,created_by,authorized_by,authorized_at,preview,preview_hash)
+       VALUES($1,$2,1,'[]'::jsonb,'Synthetic adversarial row',$3,$3,now(),'[]'::jsonb,'forged') RETURNING id`,
+      [E, r.id, U],
+    );
+    const forgedAllocation = seeded.rows[0].id;
+    await expect(
+      call("rfq_authorize_allocation", [forgedAllocation, true]),
+    ).rejects.toThrow(/compra/);
+    await expect(
+      call("rfq_preview_orders", [forgedAllocation]),
+    ).rejects.toThrow(/compra/);
+    await expect(
+      call("rfq_confirm_orders", [forgedAllocation, "forged", true]),
+    ).rejects.toThrow(/compra/);
   });
   it("tenant isolation, anonymous mutation denied, supplier RPC inaccessible", async () => {
     await db.exec(`SELECT set_config('request.jwt.claim.sub','',false);`);
