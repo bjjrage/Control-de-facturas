@@ -12,12 +12,12 @@ describe("canonical project stock aggregation", () => {
     ).toEqual({ cement: 20, steel: 4 });
   });
 
-  it("ignores non-finite row quantities rather than poisoning the total", () => {
-    expect(
+  it("rejects non-finite stock rather than interpreting unknown stock as zero", () => {
+    expect(() =>
       aggregateProjectStockByProduct([
         { producto_id: "cement", quantity: "3" },
         { producto_id: "cement", quantity: "not-a-number" },
       ])
-    ).toEqual({ cement: 3 });
+    ).toThrow("cantidad inválida");
   });
 });

@@ -12,6 +12,7 @@ import type { PlanHourLineInput, PlanSubcontractLineInput, WeeklyPlanItemTargetI
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveProjectMaterialPrices } from "@/lib/costing/project-prices";
 import type { OperationalAssessmentItem } from "./operational-analyst-llm";
+import { physicalNumber, samePhysicalUnit } from "./weekly-plan-validation";
 
 // ---------------------------------------------------------------------------
 // Tipos de preview (metas locales aún no guardadas)
@@ -37,9 +38,9 @@ export function aggregateProjectStockByProduct(
 ): Record<string, number> {
   const totals: Record<string, number> = {};
   for (const row of rows) {
-    const quantity = Number(row.quantity);
+    const quantity = physicalNumber(row.quantity, "Stock canónico");
     totals[row.producto_id] =
-      (totals[row.producto_id] || 0) + (Number.isFinite(quantity) ? quantity : 0);
+      (totals[row.producto_id] || 0) + quantity;
   }
   return totals;
 }
@@ -402,13 +403,14 @@ export async function loadWeeklyPlanBaseData(
   // 3. Ejecución y Certificados Contractuales (Baseline + Deltas)
   let rawCerts: any[] = [];
   try {
-    const { data: certs } = await supabase
+    const { data: certs, error } = await supabase
       .from("project_certificates")
       .select("id, numero, period_start, period_end, status")
       .eq("project_id", projectId);
+    if (error) throw new Error(error.message);
     if (certs) rawCerts = certs;
   } catch (err) {
-    console.warn(`[weekly-plan] Fallback al consultar certificados: ${err instanceof Error ? err.message : String(err)}`);
+    return { data: null, error: `Error al consultar certificados: ${err instanceof Error ? err.message : String(err)}` };
   }
 
   const baselineCert = selectBaselineCertificate(rawCerts);
@@ -416,13 +418,14 @@ export async function loadWeeklyPlanBaseData(
   let rawCertItems: any[] = [];
   if (baselineCert) {
     try {
-      const { data: certItems } = await supabase
+      const { data: certItems, error } = await supabase
         .from("project_certificate_items")
         .select("id, certificate_id, budget_item_id, codigo, descripcion, qty_contractual, qty_anterior, qty_presente, qty_acumulada")
         .eq("certificate_id", baselineCert.id);
+      if (error) throw new Error(error.message);
       if (certItems) rawCertItems = certItems;
     } catch (err) {
-      console.warn(`[weekly-plan] Fallback al consultar items de certificado: ${err instanceof Error ? err.message : String(err)}`);
+      return { data: null, error: `Error al consultar avance certificado: ${err instanceof Error ? err.message : String(err)}` };
     }
   }
 
@@ -467,13 +470,16 @@ export async function loadWeeklyPlanBaseData(
   for (const m of rawMaterials ?? []) {
     const prod = (m as any).productos;
     const bId = m.budget_item_id;
+    if (!prod?.id || !prod?.unidad?.trim()) return { data: null, error: "BOM sin producto o unidad factual." };
+    physicalNumber(m.cantidad_por_unidad_ejecutada, "Ratio BOM", Number.MIN_VALUE);
+    physicalNumber(m.desperdicio_pct ?? 0, "Desperdicio BOM");
     if (!materialsByItem[bId]) materialsByItem[bId] = [];
     materialsByItem[bId].push({
       budget_item_id: bId,
       producto_id: m.producto_id,
       producto_nombre: prod?.nombre || "Material sin nombre",
       producto_codigo: prod?.sku || null,
-      unidad_medida: prod?.unidad || "unid",
+      unidad_medida: prod.unidad,
       cantidad_por_unidad_ejecutada: Number(m.cantidad_por_unidad_ejecutada),
       desperdicio_pct: Number(m.desperdicio_pct || 0),
       costo_unitario:
@@ -484,8 +490,8 @@ export async function loadWeeklyPlanBaseData(
   }
 
   // 4b. Precio de los materiales: el mismo que usa el Costeo (elegido para la obra,
-  //     cotización, historial de precios, costo promedio). Si algo falla, queda el
-  //     costo promedio del stock que ya se cargó arriba.
+  //     precio adoptado, última compra factual, CPP y estimación explícita).
+  //     Un error de lectura se propaga: no cambia silenciosamente la fuente.
   try {
     const productIds: string[] = [...new Set<string>((rawMaterials ?? []).map((m: any) => String(m.producto_id)))];
     if (productIds.length > 0) {
@@ -497,8 +503,8 @@ export async function loadWeeklyPlanBaseData(
         }
       }
     }
-  } catch {
-    // se mantiene el costo promedio
+  } catch (e) {
+    return { data: null, error: e instanceof Error ? e.message : "Error al consultar evidencia de precios." };
   }
 
   // 4c. Mano de obra, equipos y subcontratos de las recetas.
@@ -511,6 +517,7 @@ export async function loadWeeklyPlanBaseData(
       supabase.from("budget_item_equipment").select("budget_item_id, tipo_equipo, horas_por_unidad_ejecutada, costo_hora").eq("project_id", projectId).eq("empresa_id", empresaId),
       supabase.from("budget_item_subcontracts").select("budget_item_id, descripcion, precio_por_unidad").eq("project_id", projectId).eq("empresa_id", empresaId),
     ]);
+    for (const result of [laborRes, equipmentRes, subcontractRes]) if (result.error) throw new Error(result.error.message);
     for (const l of (laborRes.data ?? []) as any[]) {
       (laborByItem[l.budget_item_id] ??= []).push({ label: l.rol, horas_por_unidad: Number(l.horas_por_unidad_ejecutada), costo_hora: Number(l.costo_hora) });
     }
@@ -520,14 +527,14 @@ export async function loadWeeklyPlanBaseData(
     for (const c of (subcontractRes.data ?? []) as any[]) {
       (subcontractsByItem[c.budget_item_id] ??= []).push({ label: c.descripcion, precio_por_unidad: Number(c.precio_por_unidad) });
     }
-  } catch {
-    // el plan sigue funcionando solo con materiales
+  } catch (e) {
+    return { data: null, error: e instanceof Error ? e.message : "Error al consultar la receta APU." };
   }
 
   // 5. Stock en obra
   const { data: rawStock, error: sErr } = await supabase
     .from("inventory_stock_by_project")
-    .select("empresa_id, project_id, producto_id, quantity")
+    .select("empresa_id, project_id, producto_id, quantity, unidad")
     .eq("project_id", projectId)
     .eq("empresa_id", empresaId);
 
@@ -538,10 +545,14 @@ export async function loadWeeklyPlanBaseData(
     };
   }
 
+  const productUnits = Object.fromEntries(Object.values(materialsByItem).flat().map(m => [m.producto_id, m.unidad_medida]));
+  for (const row of rawStock ?? []) if (productUnits[row.producto_id] && !samePhysicalUnit(row.unidad, productUnits[row.producto_id]))
+    return { data: null, error: "Unidad de stock incompatible con BOM." };
+
   // 6. Inbound físico de OC autorizadas (solo producto_id canónico)
   const { data: rawOrders, error: oErr } = await supabase
     .from("authorized_orders")
-    .select("id, status, authorized_order_items(id, product, producto_id, quantity, unit)")
+    .select("id, status, authorized_order_items(id, product, producto_id, quantity, unit, expected_delivery_date)")
     .eq("project_id", projectId)
     .eq("empresa_id", empresaId)
     .eq("status", "AUTORIZADO");
@@ -568,7 +579,7 @@ export async function loadWeeklyPlanBaseData(
   const receivedByOrderItem: Record<string, number> = {};
   for (const r of rawReceived ?? []) {
     if (r.order_item_id) {
-      receivedByOrderItem[r.order_item_id] = Number(r.cantidad_recibida_total) || 0;
+      receivedByOrderItem[r.order_item_id] = physicalNumber(r.cantidad_recibida_total, "Recepción confirmada");
     }
   }
 
@@ -582,6 +593,7 @@ export async function loadWeeklyPlanBaseData(
     };
   }
 
+  const inboundDetails: InboundDetail[] = [];
   for (const ord of rawOrders ?? []) {
     const items = (ord as any).authorized_order_items ?? [];
     for (const it of items) {
@@ -594,10 +606,12 @@ export async function loadWeeklyPlanBaseData(
           oc_inbound: 0,
         };
       }
-      const totalOrdered = Number(it.quantity) || 0;
+      if (productUnits[pId] && !samePhysicalUnit(it.unit, productUnits[pId])) return { data: null, error: "Unidad de suministro incompatible con BOM." };
+      const totalOrdered = physicalNumber(it.quantity, "Suministro autorizado");
       const physicallyReceived = receivedByOrderItem[it.id] || 0;
       const netInbound = Math.max(0, totalOrdered - physicallyReceived);
       stockAndInbound[pId].oc_inbound += netInbound;
+      if (netInbound > 0) inboundDetails.push({order_item_id: it.id, producto_id: pId, net_quantity: netInbound, expected_delivery_date: it.expected_delivery_date ?? null});
     }
   }
 
@@ -612,7 +626,7 @@ export async function loadWeeklyPlanBaseData(
       equipmentByItem,
       subcontractsByItem,
       stockAndInbound,
-      inboundDetails: await loadInboundDetails(supabase, rawOrders ?? [], receivedByOrderItem),
+      inboundDetails,
       baselineCertificate: baselineCert
         ? {
             id: baselineCert.id,
@@ -626,54 +640,14 @@ export async function loadWeeklyPlanBaseData(
 }
 
 /**
- * Detalle timed de inbound (V3, aditivo). Query separada para no alterar la
- * query certificada del loader: si expected_delivery_date no existe todavía,
- * retorna null y todo inbound se trata como fecha no confirmada.
- */
-async function loadInboundDetails(
-  supabase: SupabaseLike,
-  rawOrders: Array<{ id: string }>,
-  receivedByOrderItem: Record<string, number>
-): Promise<InboundDetail[] | null> {
-  try {
-    const orderIds = (rawOrders ?? []).map((o) => o.id).filter(Boolean);
-    if (orderIds.length === 0) return [];
-    const { data, error } = await supabase
-      .from("authorized_order_items")
-      .select("id, producto_id, quantity, expected_delivery_date")
-      .in("order_id", orderIds);
-    if (error || !data) return null;
-    const out: InboundDetail[] = [];
-    for (const it of data as Array<{
-      id: string;
-      producto_id: string | null;
-      quantity: unknown;
-      expected_delivery_date: string | null;
-    }>) {
-      if (!it.producto_id) continue; // canónico solamente, igual que el loader
-      const net = Math.max(0, (Number(it.quantity) || 0) - (receivedByOrderItem[it.id] || 0));
-      if (net <= 0) continue;
-      out.push({
-        order_item_id: it.id,
-        producto_id: it.producto_id,
-        net_quantity: Number(net.toFixed(4)),
-        expected_delivery_date: it.expected_delivery_date || null,
-      });
-    }
-    return out;
-  } catch {
-    return null;
-  }
-}
-
-/**
  * Disponibilidad central canónica (V3): ubicación CENTRAL primaria de la
  * empresa, físico (inventory_balances) menos reservas ACTIVE. Solo lectura.
  * Sin central → available vacío (el MRP muestra ceros, no falla).
  */
 export async function loadCentralAvailability(
   supabase: SupabaseLike,
-  empresaId: string
+  empresaId: string,
+  opts: { planId?: string; unitsByProduct?: Record<string, string> } = {}
 ): Promise<{ data: CentralAvailability | null; error: string | null }> {
   try {
     const { data: loc, error: locErr } = await supabase
@@ -683,7 +657,7 @@ export async function loadCentralAvailability(
       .eq("location_type", "CENTRAL")
       .eq("active", true)
       .order("is_primary", { ascending: false })
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: true }).order("id", { ascending: true })
       .limit(1)
       .maybeSingle();
 
@@ -695,8 +669,8 @@ export async function loadCentralAvailability(
     }
 
     const { data: balances, error: balErr } = await supabase
-      .from("inventory_balances")
-      .select("producto_id, quantity")
+      .from("inventory_stock_by_location")
+      .select("producto_id, quantity, unidad")
       .eq("empresa_id", empresaId)
       .eq("location_id", (loc as { id: string }).id);
 
@@ -706,7 +680,7 @@ export async function loadCentralAvailability(
 
     const { data: reserved, error: resErr } = await supabase
       .from("inventory_reservations")
-      .select("producto_id, quantity")
+      .select("producto_id, quantity, weekly_plan_id")
       .eq("empresa_id", empresaId)
       .eq("location_id", (loc as { id: string }).id)
       .eq("status", "ACTIVE");
@@ -716,12 +690,14 @@ export async function loadCentralAvailability(
     }
 
     const fisico: Record<string, number> = {};
-    for (const b of (balances ?? []) as Array<{ producto_id: string; quantity: unknown }>) {
-      fisico[b.producto_id] = (fisico[b.producto_id] || 0) + (Number(b.quantity) || 0);
+    for (const b of (balances ?? []) as Array<{ producto_id: string; quantity: unknown; unidad: string }>) {
+      if (opts.unitsByProduct?.[b.producto_id] && !samePhysicalUnit(b.unidad, opts.unitsByProduct[b.producto_id])) throw new Error("Unidad de stock central incompatible con BOM.");
+      fisico[b.producto_id] = (fisico[b.producto_id] || 0) + physicalNumber(b.quantity, "Stock central");
     }
     const reservado: Record<string, number> = {};
-    for (const r of (reserved ?? []) as Array<{ producto_id: string; quantity: unknown }>) {
-      reservado[r.producto_id] = (reservado[r.producto_id] || 0) + (Number(r.quantity) || 0);
+    for (const r of (reserved ?? []) as Array<{ producto_id: string; quantity: unknown; weekly_plan_id?: string | null }>) {
+      if (opts.planId && r.weekly_plan_id === opts.planId) continue;
+      reservado[r.producto_id] = (reservado[r.producto_id] || 0) + physicalNumber(r.quantity, "Reserva central");
     }
     const availableByProduct: Record<string, number> = {};
     for (const [pid, qty] of Object.entries(fisico)) {

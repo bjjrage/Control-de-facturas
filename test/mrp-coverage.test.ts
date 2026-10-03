@@ -101,7 +101,7 @@ describe("TEST E. Reservas descuentan disponibilidad (oversell falla)", () => {
   });
 
   it("el preview NUNCA llama a RPCs de reserva (fuente)", () => {
-    const actions = readSource("app/(internal)/projects/weekly-plan-actions.ts");
+    const actions = (readSource("app/(internal)/projects/weekly-plan-actions.ts") + readSource("lib/procurement/weekly-plan-coverage.ts")) + readSource("lib/procurement/weekly-plan-coverage.ts");
     const previewStart = actions.indexOf("export async function previewWeeklyPlanAction");
     const saveStart = actions.indexOf("export async function saveWeeklyPlanAction");
     const previewSrc = actions.slice(previewStart, saveStart);
@@ -148,13 +148,13 @@ describe("TEST G. Stock ajeno no entra en cobertura", () => {
     const stockQuery = shared.slice(stockStart, inboundStart);
 
     expect(stockQuery).toContain('.from("inventory_stock_by_project")');
-    expect(stockQuery).toContain('select("empresa_id, project_id, producto_id, quantity")');
+    expect(stockQuery).toContain('select("empresa_id, project_id, producto_id, quantity, unidad")');
     expect(stockQuery).toContain('.eq("project_id", projectId)');
     expect(stockQuery).toContain('.eq("empresa_id", empresaId)');
     expect(stockQuery).not.toContain("stock_por_proyecto");
     expect(stockQuery).toContain("if (sErr)");
     expect(stockQuery).toContain("data: null");
-    expect(shared).toContain("Number.isFinite(quantity) ? quantity : 0");
+    expect(shared).toContain("physicalNumber(row.quantity");
     expect(shared).toContain("aggregateProjectStockByProduct(rawStock ?? [])");
     expect(shared).toContain("stock_disponible: Math.max(0, quantity)");
     expect(shared).not.toContain("Number(st.qty_disponible)");
@@ -173,7 +173,7 @@ describe("TEST G. Stock ajeno no entra en cobertura", () => {
 // ---------------------------------------------------------------------------
 describe("TEST H. Inbound con fecha > neededBy no descuenta", () => {
   it("la action parte inbound válido vs no confirmado por expected_delivery_date", () => {
-    const src = readSource("app/(internal)/projects/weekly-plan-actions.ts");
+    const src = (readSource("app/(internal)/projects/weekly-plan-actions.ts") + readSource("lib/procurement/weekly-plan-coverage.ts"));
     expect(src).toContain("expected_delivery_date");
     expect(src).toContain("unconfirmedInbound");
   });
@@ -215,7 +215,7 @@ describe("TEST I. Costo inexistente no finge caja 0", () => {
   it("nunca usa BudgetItem.unit_price como costo material (fuente)", () => {
     const cov = readSource("lib/procurement/mrp-coverage.ts");
     expect(cov).not.toContain("unit_price");
-    const actions = readSource("app/(internal)/projects/weekly-plan-actions.ts");
+    const actions = (readSource("app/(internal)/projects/weekly-plan-actions.ts") + readSource("lib/procurement/weekly-plan-coverage.ts"));
     // El costo viene del join de productos (costo_promedio) vía engine
     expect(actions).toContain("costo_unitario");
   });
@@ -238,7 +238,7 @@ describe("Multi-tenant: recetas y reservas aisladas por empresa", () => {
   it("actions con scoping empresa + RPC única (fuente)", () => {
     const ra = readSource("app/(internal)/projects/production-recipe-actions.ts");
     expect(ra).toContain('eq("empresa_id",');
-    const wa = readSource("app/(internal)/projects/weekly-plan-actions.ts");
+    const wa = (readSource("app/(internal)/projects/weekly-plan-actions.ts") + readSource("lib/procurement/weekly-plan-coverage.ts"));
     expect(wa).toContain("commit_production_plan_atomic");
     const mig = readSource("supabase/migrations_legacy_pre_baseline/20260917000005_mrp_reservations.sql");
     expect(mig).toContain("Sin empresa (tenant fail-closed)");
@@ -249,7 +249,7 @@ describe("Multi-tenant: recetas y reservas aisladas por empresa", () => {
 // P1. Commit atómico real: compensar + surfacing + release en lifecycle
 // ---------------------------------------------------------------------------
 describe("P1. Guardado con reservas: sin commit parcial ni zombies", () => {
-  const src = () => readSource("app/(internal)/projects/weekly-plan-actions.ts");
+  const src = () => (readSource("app/(internal)/projects/weekly-plan-actions.ts") + readSource("lib/procurement/weekly-plan-coverage.ts"));
 
   it("falla cerrado si COMMITTED no trae referencia MRP y libera reservas al bajar estado", () => {
     const actions = src();
@@ -303,7 +303,7 @@ describe("P1. Guardado con reservas: sin commit parcial ni zombies", () => {
 // ---------------------------------------------------------------------------
 describe("Central con error de lectura + recipeEffectiveQty única", () => {
   it("el resultado MRP expone centralError y la UI lo muestra", () => {
-    const actions = readSource("app/(internal)/projects/weekly-plan-actions.ts");
+    const actions = (readSource("app/(internal)/projects/weekly-plan-actions.ts") + readSource("lib/procurement/weekly-plan-coverage.ts"));
     expect(actions).toContain("centralError");
     const ui = readSource("app/(internal)/projects/[id]/mrp-result-panel.tsx");
     expect(ui).toContain("centralError");
@@ -371,7 +371,7 @@ describe("P1-2. Cantidades autoritativas salen de DB, no del browser", () => {
   });
 
   it("el save recalcula (loader+engine+allocate) y usa UNA rpc commit (fuente)", () => {
-    const src = readSource("app/(internal)/projects/weekly-plan-actions.ts");
+    const src = (readSource("app/(internal)/projects/weekly-plan-actions.ts") + readSource("lib/procurement/weekly-plan-coverage.ts"));
     expect(src).toContain("commitProductionPlanWithMrp");
     expect(src).toContain("compareCentralLines");
     expect(src).toContain("commit_production_plan_atomic");
@@ -410,7 +410,7 @@ describe("P1-3. Tablas solo-lectura para authenticated; RPCs como única vía", 
   });
 
   it("las actions invocan por admin client con empresa/actor explícitos", () => {
-    const wa = readSource("app/(internal)/projects/weekly-plan-actions.ts");
+    const wa = (readSource("app/(internal)/projects/weekly-plan-actions.ts") + readSource("lib/procurement/weekly-plan-coverage.ts"));
     expect(wa).toContain("createAdminClient");
     expect(wa).toContain("p_empresa_id");
     expect(wa).toContain("p_actor_id");

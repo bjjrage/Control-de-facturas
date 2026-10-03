@@ -14,6 +14,7 @@ import {
 import type { DirectPreview } from "@/lib/rfq/direct-purchase";
 import { formatMoney } from "@/lib/format";
 
+import type { NeedOrigin } from "@/lib/procurement/need-origin";
 type ItemRow = {
   product: string;
   quantity: string;
@@ -188,12 +189,14 @@ export function OrderDialog({
   defaultOpen,
   projectId,
   initialItems,
+  needOrigin,
   onClosed,
 }: {
   providers: Provider[];
   trigger?: React.ReactNode;
   defaultOpen?: boolean;
   projectId?: string;
+  needOrigin?: NeedOrigin;
   initialItems?: {
     product: string;
     quantity: number;
@@ -284,6 +287,7 @@ export function OrderDialog({
         <form
           className="space-y-4"
           action={async (formData: FormData) => {
+            if(needOrigin) formData.set("need_origin",JSON.stringify(needOrigin));
             // Validate
             for (const r of items) {
               if (!r.product.trim()) {

@@ -5,7 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { sanitizeFileName } from "@/lib/storage";
-import { createCanonicalRfq } from "@/lib/rfq/service";
+import { needOriginArgs } from "@/lib/procurement/need-origin";
+import { createCanonicalRfq, rpc } from "@/lib/rfq/service";
 import { revalidatePath } from "next/cache";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -72,7 +73,10 @@ export async function createRfq(formData: FormData) {
   try {
     const itemsRaw=str(formData,"items");
     const items=itemsRaw ? JSON.parse(itemsRaw) : [{descripcion:product,cantidad:quantity,unidad:unit,producto_id:null}];
-    data=await createCanonicalRfq(supabase,{purpose:str(formData,"purpose"),quote_type:quoteType,product,
+    const origin = str(formData,"need_origin");
+    if (origin) {
+      data=await rpc<{id:string}>(supabase,"weekly_plan_need_rfq",{...needOriginArgs(JSON.parse(origin)),p_header:{specifications:str(formData,"specifications"),internal_reference:str(formData,"internal_reference"),observations:str(formData,"observations")}});
+    } else data=await createCanonicalRfq(supabase,{purpose:str(formData,"purpose"),quote_type:quoteType,product,
       specifications:str(formData,"specifications"),required_date:str(formData,"required_date"),
       internal_reference:str(formData,"internal_reference"),observations:str(formData,"observations"),project_id:str(formData,"project_id")},items);
   } catch(e) { return {error:e instanceof Error?e.message:"RFQ inválida",id:null}; }

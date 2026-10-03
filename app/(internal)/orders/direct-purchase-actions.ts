@@ -6,6 +6,7 @@ import {
   directItemSchema,
   type DirectPreview,
 } from "@/lib/rfq/direct-purchase";
+import { needOriginArgs } from "@/lib/procurement/need-origin";
 import { rpc } from "@/lib/rfq/service";
 export async function previewDirectPurchaseAction(fd: FormData) {
   try {
@@ -31,10 +32,11 @@ export async function previewDirectPurchaseAction(fd: FormData) {
     };
     if (fd.get("freight") === null || fd.get("freight") === "")
       throw new Error("Flete obligatorio");
+    const origin = fd.get("need_origin");
     const data = await rpc<DirectPreview>(
       await createClient(),
-      "direct_purchase_preview",
-      { p_header: header, p_items: items },
+      origin ? "weekly_plan_need_direct_preview" : "direct_purchase_preview",
+      { p_header: header, p_items: items, ...(origin ? needOriginArgs(JSON.parse(String(origin))) : {}) },
     );
     return { error: null, data };
   } catch (e) {

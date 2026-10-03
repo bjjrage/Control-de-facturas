@@ -1,3 +1,5 @@
+import { scheduleLeafBudgetItems } from "@/lib/projects/schedule";
+import { assertWeeklyPeriod, physicalNumber } from "./weekly-plan-validation";
 import {
   BudgetItem,
   DailyWeatherForecast,
@@ -138,6 +140,18 @@ export function calculateWeeklyPlanRequirements(
     weather_failed_closed = false,
   } = input;
 
+  assertWeeklyPeriod(start_date, end_date);
+  const leaves = scheduleLeafBudgetItems(budget_items);
+  const executable = new Set(leaves.map(b => b.id));
+  for (const t of targets) {
+    physicalNumber(t.input_value, "Meta");
+    if (!["QUANTITY", "CONTRACT_PERCENTAGE_POINTS"].includes(t.input_mode) || !executable.has(t.budget_item_id))
+      throw new Error("La meta debe pertenecer a una partida hoja de la obra.");
+  }
+  for (const [id, v] of Object.entries(stock_and_inbound)) {
+    physicalNumber(v.stock_disponible, "Stock " + id);
+    physicalNumber(v.oc_inbound, "Inbound " + id);
+  }
   // Track stock and inbound allocations sequentially to prevent double counting
   const allocatedStock: Record<string, number> = {};
   const allocatedInbound: Record<string, number> = {};
@@ -159,11 +173,11 @@ export function calculateWeeklyPlanRequirements(
   let globalPreviouslyExecutedValue = 0;
 
   const itemMap = new Map<string, BudgetItem>();
-  for (const b of budget_items) {
+  for (const b of leaves) {
     itemMap.set(b.id, b);
-    const cQty = b.quantity ?? 0;
+    const cQty = physicalNumber(b.quantity,"Cantidad contractual");
     const uPrice = b.unit_price ?? 0;
-    const eQty = executed_quantities_by_item[b.id] || 0;
+    const eQty = physicalNumber(executed_quantities_by_item[b.id] ?? 0,"Avance ejecutado");
 
     const itemContractVal = cQty * uPrice;
     globalContractualValue += itemContractVal;
@@ -217,7 +231,7 @@ export function calculateWeeklyPlanRequirements(
   const planDays = Math.max(1, Math.round((planEndTs - planStartTs) / (1000 * 60 * 60 * 24)) + 1);
 
   // Process all targets per item, tracking remaining cumulative capacity across multiple fronts
-  for (const item of budget_items) {
+  for (const item of leaves) {
     const itemTargetList = targetsByItem[item.id] || [];
     if (itemTargetList.length === 0) {
       continue;
@@ -337,6 +351,9 @@ export function calculateWeeklyPlanRequirements(
       const materialDetails: MaterialRequirementDetail[] = [];
 
       for (const mat of rawMaterials) {
+        if (!mat.producto_id || !mat.unidad_medida?.trim()) throw new Error("Material sin producto o unidad factual.");
+        physicalNumber(mat.cantidad_por_unidad_ejecutada, "Ratio BOM", Number.MIN_VALUE);
+        physicalNumber(mat.desperdicio_pct ?? 0, "Desperdicio BOM");
         const wasteMultiplier = 1 + (mat.desperdicio_pct || 0) / 100;
         const demandaBruta =
           targetQuantity * mat.cantidad_por_unidad_ejecutada * wasteMultiplier;
