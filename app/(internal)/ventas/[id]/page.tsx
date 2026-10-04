@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { formatDate, formatMoney } from "@/lib/format";
 import {
   docSaldo,
+  canIssueSalesFiscalDocument,
   isOverdue,
   RECEIPT_METHOD_LABELS,
   SALES_DOC_STATUS_LABELS,
@@ -19,35 +20,52 @@ import {
 import { ReceiptDialog } from "./receipt-dialog";
 import { SifenButton } from "./sifen-button";
 import { QuotationPanel } from "./quotation-panel";
-import { emitSalesDocument, voidSalesDocument, deleteSalesDocument, reverseReceipt, convertSalesDocument } from "../actions";
+import { emitSalesDocument, voidSalesDocument, deleteSalesDocument, reverseReceipt } from "../actions";
 
-export default async function VentaDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function VentaDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string }> }) {
   const profile = await requireModule("ventas", ["administracion", "admin"]);
   const { id } = await params;
+  const { error: actionError } = await searchParams;
   const supabase = await createClient();
 
-  const { data: doc } = await supabase.from("sales_documents").select("*").eq("id", id).single<SalesDocument>();
+  const { data: doc } = await supabase
+    .from("sales_documents")
+    .select("*")
+    .eq("id", id)
+    .eq("empresa_id", profile.empresa_id)
+    .single<SalesDocument>();
   if (!doc) notFound();
 
-  const [{ data: client }, { data: items }, { data: receipts }, { data: cuentas }, { data: tokens }, { data: events }, { data: workOrder }, { data: acceptance }] = await Promise.all([
-    supabase.from("clients").select("*").eq("id", doc.client_id).single<Client>(),
-    supabase.from("sales_document_items").select("*").eq("sales_document_id", id).order("created_at").returns<SalesDocumentItem[]>(),
-    supabase.from("sales_receipts").select("*").eq("sales_document_id", id).order("receipt_date", { ascending: false }).returns<SalesReceipt[]>(),
-    supabase.from("cuentas_financieras").select("id, nombre, moneda").eq("activo", true).eq("moneda", doc.currency).order("nombre").returns<{ id: string; nombre: string; moneda: SalesDocument["currency"] }[]>(),
+  const [{ data: client }, { data: items }, { data: receipts }, { data: cuentas }, { data: tokens }, { data: events }, { data: workOrder }, { data: acceptance }, { data: sourceDocument }] = await Promise.all([
+    supabase.from("clients").select("*").eq("id", doc.client_id).eq("empresa_id", profile.empresa_id).single<Client>(),
+    supabase.from("sales_document_items").select("*").eq("sales_document_id", id).eq("empresa_id", profile.empresa_id).order("created_at").returns<SalesDocumentItem[]>(),
+    supabase.from("sales_receipts").select("*").eq("sales_document_id", id).eq("empresa_id", profile.empresa_id).order("receipt_date", { ascending: false }).returns<SalesReceipt[]>(),
+    supabase.from("cuentas_financieras").select("id, nombre, moneda").eq("empresa_id", profile.empresa_id).eq("activo", true).eq("moneda", doc.currency).order("nombre").returns<{ id: string; nombre: string; moneda: SalesDocument["currency"] }[]>(),
     doc.doc_type === "PROFORMA"
-      ? supabase.from("sales_quotation_tokens").select("*").eq("sales_document_id", id).order("created_at", { ascending: false }).returns<SalesQuotationToken[]>()
+      ? supabase.from("sales_quotation_tokens").select("*").eq("sales_document_id", id).eq("empresa_id", profile.empresa_id).order("created_at", { ascending: false }).returns<SalesQuotationToken[]>()
       : Promise.resolve({ data: [] as SalesQuotationToken[] } as { data: SalesQuotationToken[] }),
     doc.doc_type === "PROFORMA"
-      ? supabase.from("sales_quotation_events").select("*").eq("sales_document_id", id).order("created_at", { ascending: false }).limit(30).returns<SalesQuotationEvent[]>()
+      ? supabase.from("sales_quotation_events").select("*").eq("sales_document_id", id).eq("empresa_id", profile.empresa_id).order("created_at", { ascending: false }).limit(30).returns<SalesQuotationEvent[]>()
       : Promise.resolve({ data: [] as SalesQuotationEvent[] } as { data: SalesQuotationEvent[] }),
     doc.doc_type === "PROFORMA"
-      ? supabase.from("work_orders").select("*").eq("sales_document_id", id).maybeSingle<WorkOrder>().then((r) => ({ data: (r.data ?? null) as WorkOrder | null }))
+      ? supabase.from("work_orders").select("*").eq("sales_document_id", id).eq("empresa_id", profile.empresa_id).maybeSingle<WorkOrder>().then((r) => ({ data: (r.data ?? null) as WorkOrder | null }))
       : Promise.resolve({ data: null as WorkOrder | null }),
     doc.doc_type === "PROFORMA"
-      ? supabase.from("sales_quotation_acceptances").select("*").eq("sales_document_id", id).maybeSingle<SalesQuotationAcceptance>().then((r) => ({ data: (r.data ?? null) as SalesQuotationAcceptance | null }))
+      ? supabase.from("sales_quotation_acceptances").select("*").eq("sales_document_id", id).eq("empresa_id", profile.empresa_id).maybeSingle<SalesQuotationAcceptance>().then((r) => ({ data: (r.data ?? null) as SalesQuotationAcceptance | null }))
       : Promise.resolve({ data: null as SalesQuotationAcceptance | null }),
+    doc.source_document_id
+      ? supabase
+          .from("sales_documents")
+          .select("id, code, doc_type, status")
+          .eq("id", doc.source_document_id)
+          .eq("empresa_id", profile.empresa_id)
+          .maybeSingle<Pick<SalesDocument, "id" | "code" | "doc_type" | "status">>()
+      : Promise.resolve({ data: null as Pick<SalesDocument, "id" | "code" | "doc_type" | "status"> | null }),
   ]);
   const cuentasList = cuentas ?? [];
+  const { data: sourceInvoiceItems } = doc.doc_type === "NOTA_CREDITO" && doc.source_document_id
+    ? await supabase.from("sales_document_items").select("id, description").eq("sales_document_id", doc.source_document_id).eq("empresa_id", profile.empresa_id).order("created_at").returns<Pick<SalesDocumentItem, "id" | "description">[]>()
+    : { data: [] };
 
   const saldo = docSaldo(doc.total, doc.cobrado_amount);
   const isDraft = doc.status === "BORRADOR";
@@ -55,6 +73,7 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
 
   return (
     <div className="max-w-4xl space-y-5">
+      {actionError ? <p role="alert" className="text-[13px] text-[var(--error)]">{actionError}</p> : null}
       <Link href={SALES_DOC_PANEL_PATH[doc.doc_type]} className="text-action text-[12px] text-[var(--muted)]">
         <ArrowLeft size={13} /> Volver a {SALES_DOC_PANEL_TITLE[doc.doc_type]}
       </Link>
@@ -90,26 +109,14 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
             <Printer size={14} /> Imprimir
           </Link>
           {doc.doc_type === "PROFORMA" ? (
-            <form
-              action={async () => {
-                "use server";
-                const result = await convertSalesDocument(doc.id, "REMISION");
-                if (result.id) redirect(`/ventas/${result.id}`);
-              }}
-            >
-              <Button variant="secondary" type="submit">→ Generar Remisión</Button>
-            </form>
+            <Link href={`/remisiones/nueva?from=${doc.id}`}>
+              <Button variant="secondary">Preparar remisión</Button>
+            </Link>
           ) : null}
-          {doc.doc_type === "PROFORMA" || doc.doc_type === "REMISION" ? (
-            <form
-              action={async () => {
-                "use server";
-                const result = await convertSalesDocument(doc.id, "FACTURA");
-                if (result.id) redirect(`/ventas/${result.id}`);
-              }}
-            >
-              <Button variant="secondary" type="submit">→ Generar Factura</Button>
-            </form>
+          {doc.doc_type === "REMISION" ? (
+            <Link href={`/facturas-venta/nueva?from=${doc.id}`}>
+              <Button variant="secondary">Preparar factura</Button>
+            </Link>
           ) : null}
           {isDraft ? (
             <Link href={`/ventas/${doc.id}/editar`}>
@@ -120,7 +127,8 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
             <form
               action={async () => {
                 "use server";
-                await emitSalesDocument(doc.id);
+                const result = await emitSalesDocument(doc.id);
+                if (result.error) redirect(`/ventas/${doc.id}?error=${encodeURIComponent(result.error)}`);
               }}
             >
               <Button type="submit">Emitir</Button>
@@ -132,13 +140,17 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
               <Button variant="secondary">Emitir NC</Button>
             </Link>
           ) : null}
-          {(doc.doc_type === "FACTURA" || doc.doc_type === "NOTA_CREDITO") && doc.status !== "ANULADA" ? (
+          {canIssueSalesFiscalDocument(doc.doc_type, doc.status) ? (
             <SifenButton
               docId={doc.id}
               docType={doc.doc_type}
+              status={doc.status}
               cdc={doc.cdc}
               kudeUrl={doc.kude_url}
               xmlUrl={doc.xml_url}
+              providerId={doc.goekua_document_id}
+              creditNoteItems={items ?? []}
+              sourceInvoiceItems={sourceInvoiceItems ?? []}
             />
           ) : null}
           {canCollect ? (
@@ -148,7 +160,8 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
             <form
               action={async () => {
                 "use server";
-                await voidSalesDocument(doc.id);
+                const result = await voidSalesDocument(doc.id);
+                if (result.error) redirect(`/ventas/${doc.id}?error=${encodeURIComponent(result.error)}`);
               }}
             >
               <Button variant="ghost" type="submit" className="text-[12px]">
@@ -160,7 +173,9 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
             <form
               action={async () => {
                 "use server";
-                await deleteSalesDocument(doc.id);
+                const result = await deleteSalesDocument(doc.id);
+                if (result.error) redirect(`/ventas/${doc.id}?error=${encodeURIComponent(result.error)}`);
+                redirect(SALES_DOC_PANEL_PATH[doc.doc_type]);
               }}
             >
               <Button variant="ghost" type="submit" className="text-[12px] text-[var(--error)]">
@@ -189,6 +204,19 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
           <div className={`num ${saldo > 0 ? "text-[var(--warn)]" : "text-[var(--ok)]"}`}>{formatMoney(saldo, doc.currency)}</div>
         </div>
       </div>
+
+      {doc.source_document_id ? (
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3 text-[13px]">
+          <span className="text-[var(--muted)]">Documento de origen: </span>
+          {sourceDocument ? (
+            <Link href={"/ventas/" + sourceDocument.id} className="text-action font-medium">
+              {sourceDocument.code} · {SALES_DOC_TYPE_LABELS[sourceDocument.doc_type]}
+            </Link>
+          ) : (
+            <span className="text-[var(--error)]">No disponible dentro de esta empresa.</span>
+          )}
+        </div>
+      ) : null}
 
       <div>
         <h2 className="text-[14px] font-semibold mb-2">Ítems</h2>

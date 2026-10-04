@@ -1,133 +1,58 @@
-// Cliente para la API de Goekua (facturación electrónica SIFEN Paraguay)
-// Docs: https://goekua.com.py/api-docs.html
-// Auth: header x-api-key
-// Configurar en Vercel: GOEKUA_API_KEY, GOEKUA_BASE_URL (opcional)
-
-export type GoekuaVatRate = 0 | 5 | 10;
-
-export interface GoekuaItem {
-  description: string;
-  quantity: number;
-  unitPrice: number;
-  vatRate: GoekuaVatRate;
-  total: number;
-}
-
-export interface GoekuaCliente {
-  ruc: string;           // RUC con dígito verificador p.ej. "80012345-6", o CI "1234567-8"
-  businessName: string;  // Razón social
-  fantasyName?: string;
-  address?: string;
-  contributor?: boolean; // true = tiene RUC (contribuyente), false = CI
-}
-
-export interface GoekuaUsuario {
-  name: string;
-  email: string;
-  documentType: number;  // 1=CI, 2=RUC, 3=pasaporte
-  documentNumber: string;
-  phone?: string;
-  position?: string;
-}
-
-export interface GoekuaEstablecimiento {
-  id: number;           // ID del establecimiento en SIFEN (env: GOEKUA_ESTABLISHMENT_ID)
-  address: string;      // Dirección física del establecimiento
-  denomination: string; // Nombre / denominación del establecimiento
-}
-
-export interface GoekuaMedioPago {
-  type: number;   // 1=Efectivo, 2=Cheque, 3=Tarjeta débito, 4=Tarjeta crédito, 5=Transferencia
-  amount: number;
-  description?: string;
-}
-
+// Provider DTOs: https://goekua.com.py/api-docs.html (audited 2026-10-04).
+export interface GoekuaUsuario { name: string; lastName: string; email: string; documentType: number; documentNumber: string; }
+export interface GoekuaEstablecimiento { idSifen: string; address: string; houseNumber: number; cityId: number; phone: string; email: string; denomination: string; }
+export interface GoekuaCliente { ruc: string; businessName: string; address: string; email?: string; phone?: string; isContributor: boolean; }
+export interface GoekuaItem { code: string; description: string; measureUnit: number; amount: number; unitPrice: number; unitDiscountPercentage: number; unitNetDiscount: number; taxPercentage: number; taxRate: 0 | 5 | 10; ivaType: 1 | 3; }
+export interface GoekuaMedioPago { paymentType: number; charge: number; currency: string; currencyRate: number; }
 export interface GoekuaFacturaPayload {
-  user: GoekuaUsuario;
-  client: GoekuaCliente;
-  establishment: GoekuaEstablecimiento;
-  items: GoekuaItem[];
-  paymentMethods: GoekuaMedioPago[];
-  currency: string;           // "PYG"
-  currencyRate: number;       // 1 para PYG, tipo de cambio para divisas
-  transactionType: number;    // 1=Venta de mercadería, 2=Prestación de servicios, 3=Mixto
-  operationConditionType: number; // 1=Contado, 2=Crédito
-  emissionType: number;       // 1=Normal, 2=Contingencia
-  presenceIndicatorType: number;  // 1=Presencial, 2=Por internet, 3=Telemática, 9=Otro
-  documentNumber: string;     // Formato "001-001-0000001"
-  pointOfExpedition: string;  // "001"
-  timbrado?: string;
+  user: GoekuaUsuario; client: GoekuaCliente; establishment: GoekuaEstablecimiento; items: GoekuaItem[]; paymentMethods: GoekuaMedioPago[];
+  currency: string; currencyRate: number; transactionType: number; operationConditionType: number; emissionType: number;
+  presenceIndicatorType: number; pointOfExpedition: string; documentNumber: string;
+  expirationDate?: string;
 }
-
-export interface GoekuaDocumentoResult {
-  id: string;
-  cdc?: string;
-  xmlUrl?: string;
-  kudeUrl?: string;
+export interface GoekuaCreditNotePayload {
+  cdcElectronicDocumentAttached: string; emissionMotive: GoekuaEmissionMotive; user: GoekuaUsuario; establishment: GoekuaEstablecimiento;
+  items: { code: string; amount: number; unitPrice: number }[]; pointOfExpedition: string; documentNumber: string;
 }
-
-export interface GoekuaApiError {
-  error: string;
-  detail?: string;
-}
-
-export function isGoekuaConfigured(): boolean {
-  return !!process.env.GOEKUA_API_KEY;
-}
-
-function headers() {
-  return {
-    "x-api-key": process.env.GOEKUA_API_KEY!,
-    "Content-Type": "application/json",
-  };
-}
-
-function baseUrl() {
-  return process.env.GOEKUA_BASE_URL ?? "https://api.goekua.com.py";
-}
-
-export async function goekuaEmitirFactura(
-  payload: GoekuaFacturaPayload
-): Promise<GoekuaDocumentoResult | GoekuaApiError> {
+// Goekua dMotEmi catalog; labels from the SIFEN v150 manual, E401.
+export const GOEKUA_NC_MOTIVES = {
+  1: "Devolución y ajuste de precios", 2: "Devolución", 3: "Descuento", 4: "Bonificación",
+  5: "Crédito incobrable", 6: "Recupero de costo", 7: "Recupero de gasto", 8: "Ajuste de precio",
+} as const;
+export type GoekuaEmissionMotive = keyof typeof GOEKUA_NC_MOTIVES;
+export function isGoekuaEmissionMotive(value: unknown): value is GoekuaEmissionMotive { return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 8; }
+export const GOEKUA_RECONCILIATION_REQUIRED = "El documento ya fue enviado a Goekua y tiene ID de proveedor, pero todavía no se dispone del CDC. Requiere conciliación antes de reintentar.";
+// Shape check, not proof of DNIT approval. Only an explicit provider CDC field supplies identity.
+export function isFiscalCdc(value: unknown): value is string { return typeof value === "string" && /^\d{44}$/.test(value); }
+export interface GoekuaDocumentoResult { id: string; cdc?: string; xmlUrl?: string; kudeUrl?: string; }
+export interface GoekuaConsultaResult { cdc: string; kudeUrl?: string; }
+export interface GoekuaApiError { error: string; detail?: string; }
+export function isGoekuaConfigured(): boolean { return !!process.env.GOEKUA_API_KEY; }
+function headers() { return { "x-api-key": process.env.GOEKUA_API_KEY!, "Content-Type": "application/json" }; }
+function baseUrl() { return process.env.GOEKUA_BASE_URL ?? "https://api.goekua.com.py"; }
+async function createDocument(path: string, payload: GoekuaFacturaPayload | GoekuaCreditNotePayload): Promise<GoekuaDocumentoResult | GoekuaApiError> {
   if (!isGoekuaConfigured()) return { error: "GOEKUA_API_KEY no configurada" };
   try {
-    const res = await fetch(`${baseUrl()}/api/electronic-document/generate-invoice`, {
-      method: "POST",
-      headers: headers(),
-      body: JSON.stringify(payload),
-    });
-    if (res.status === 201) {
-      const data = await res.json();
-      return {
-        id:      data.id,
-        cdc:     data.cdc     ?? undefined,
-        xmlUrl:  data.xmlUrl  ?? undefined,
-        kudeUrl: data.kudeUrl ?? undefined,
-      };
-    }
-    const body = await res.text();
-    return { error: `Goekua respondió ${res.status}`, detail: body };
-  } catch (e) {
-    return { error: "Error de red al conectar con Goekua", detail: String(e) };
-  }
+    const res = await fetch(`${baseUrl()}/api/electronic-document/${path}`, { method: "POST", headers: headers(), body: JSON.stringify(payload) });
+    if (res.status !== 201) return { error: `Goekua respondió ${res.status}`, detail: await res.text() };
+    const data = await res.json();
+    if (typeof data.id !== "string" || !data.id.trim()) return { error: "Goekua respondió sin identificador; requiere conciliación, no reintentar automáticamente." };
+    // Documented response: {id}. Keep optional CDC/URLs only if actually returned.
+    return { id: data.id, ...(isFiscalCdc(data.cdc) ? { cdc: data.cdc } : {}),
+      ...(typeof data.xmlUrl === "string" ? { xmlUrl: data.xmlUrl } : {}), ...(typeof data.kudeUrl === "string" ? { kudeUrl: data.kudeUrl } : {}) };
+  } catch (error) { return { error: "Error de red al conectar con Goekua; resultado incierto, requiere conciliación antes de reintentar", detail: String(error) }; }
 }
-
-export async function goekuaConsultarDocumento(
-  cdc: string
-): Promise<GoekuaDocumentoResult | GoekuaApiError> {
+export async function goekuaEmitirFactura(payload: GoekuaFacturaPayload) { return createDocument("generate-invoice", payload); }
+export async function goekuaEmitirNotaCredito(payload: GoekuaCreditNotePayload) { return createDocument("generate-credit-note", payload); }
+export async function goekuaConsultarDocumento(cdc: string): Promise<GoekuaConsultaResult | GoekuaApiError> {
+  if (!isFiscalCdc(cdc)) return { error: "La consulta requiere un CDC fiscal real de 44 dígitos, no un ID de proveedor." };
   if (!isGoekuaConfigured()) return { error: "GOEKUA_API_KEY no configurada" };
   try {
-    const res = await fetch(`${baseUrl()}/api/electronic-document/${cdc}`, {
-      headers: { "x-api-key": process.env.GOEKUA_API_KEY! },
-      cache: "no-store",
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return { id: data.id ?? cdc, cdc, xmlUrl: data.xmlUrl, kudeUrl: data.kudeUrl };
-    }
-    const body = await res.text();
-    return { error: `Goekua respondió ${res.status}`, detail: body };
-  } catch (e) {
-    return { error: "Error de red al conectar con Goekua", detail: String(e) };
-  }
+    const res = await fetch(`${baseUrl()}/api/electronic-document/${cdc}`, { headers: headers(), cache: "no-store" });
+    if (!res.ok) return { error: `Goekua respondió ${res.status}`, detail: await res.text() };
+    const data = await res.json();
+    if (!isFiscalCdc(data.cdc) || data.cdc !== cdc) return { error: "Goekua devolvió un CDC ausente o distinto del consultado." };
+    // The official response has inline xml, not xmlUrl. Do not store XML in a URL column.
+    return { cdc, ...(typeof data.kudeUrl === "string" ? { kudeUrl: data.kudeUrl } : {}) };
+  } catch (error) { return { error: "Error de red al consultar Goekua", detail: String(error) }; }
 }

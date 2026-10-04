@@ -3,268 +3,91 @@
 import { revalidatePath } from "next/cache";
 import { requireModule } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import {
-  goekuaEmitirFactura,
-  goekuaConsultarDocumento,
-  isGoekuaConfigured,
-  type GoekuaFacturaPayload,
-} from "@/lib/goekua";
+import { goekuaEmitirFactura, goekuaEmitirNotaCredito, goekuaConsultarDocumento, isGoekuaConfigured, isFiscalCdc, GOEKUA_RECONCILIATION_REQUIRED, type GoekuaDocumentoResult } from "@/lib/goekua";
+import { buildGoekuaInvoice, buildGoekuaCreditNote } from "@/lib/goekua-payload";
 import type { Client, Empresa, SalesDocument, SalesDocumentItem } from "@/lib/types";
+import { canIssueSalesFiscalDocument } from "@/lib/sales";
+import { validateSalesEmission } from "@/lib/sales-post-ot";
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+type Result = { ok?: true; cdc?: string; goekuaDocumentId?: string; reconciliationRequired?: boolean; kudeUrl?: string; xmlUrl?: string; error?: string };
+type Company = Pick<Empresa, "nombre" | "email_empresa">;
+type Db = Awaited<ReturnType<typeof createClient>>;
+export type CreditNoteFiscalChoice = { emissionMotive?: number; sourceItemIds?: string[] };
 
-function buildPayload(
-  doc: SalesDocument,
-  items: SalesDocumentItem[],
-  client: Client,
-  empresa: Pick<Empresa, "nombre" | "ruc" | "email_empresa">
-): GoekuaFacturaPayload {
-  const establishmentId  = parseInt(process.env.GOEKUA_ESTABLISHMENT_ID  ?? "1");
-  const establishmentAddr = process.env.GOEKUA_ESTABLISHMENT_ADDRESS ?? "";
-  const establishmentName = process.env.GOEKUA_ESTABLISHMENT_NAME   ?? empresa.nombre;
-  const pointOfExpedition = process.env.GOEKUA_POINT_OF_EXPEDITION  ?? "001";
-  const timbrado          = process.env.GOEKUA_TIMBRADO;
+async function issue(docId: string, type: "FACTURA" | "NOTA_CREDITO", choice: CreditNoteFiscalChoice = {}): Promise<Result> {
+  const profile = await requireModule("ventas", ["administracion", "admin"]);
+  const db = await createClient();
+  const { data: doc } = await db.from("sales_documents").select("*").eq("id", docId).eq("empresa_id", profile.empresa_id).single<SalesDocument>();
+  if (!doc) return { error: "Documento no encontrado" };
+  if (doc.doc_type !== type) return { error: type === "FACTURA" ? "Solo se pueden emitir facturas como FE" : "Solo aplica a notas de crédito" };
+  if (!canIssueSalesFiscalDocument(doc.doc_type, doc.status)) return { error: "Primero emití el documento interno antes de emitir el documento fiscal; no puede estar anulado." };
+  const lineage = await validateSalesEmission(db, doc, profile.empresa_id);
+  if (lineage.error) return { error: lineage.error };
+  // Metadata is checked after the audited lifecycle/provenance gates.
+  if (doc.cdc) return { error: "Este documento ya tiene un CDC; no se permite otra emisión." };
+  if (doc.goekua_document_id != null) return { error: GOEKUA_RECONCILIATION_REQUIRED };
+  if (!isGoekuaConfigured()) return { error: "Facturación electrónica no configurada (falta GOEKUA_API_KEY)." };
 
-  // ¿El cliente es contribuyente? Tiene RUC si el tax_id contiene guión p.ej. "80012345-6"
-  const isContribuyente = !!(client.tax_id && client.tax_id.includes("-"));
-
-  const payload: GoekuaFacturaPayload = {
-    user: {
-      name:           empresa.nombre,
-      email:          empresa.email_empresa ?? "",
-      documentType:   2, // RUC
-      documentNumber: empresa.ruc ?? "0000000-0",
-    },
-    client: {
-      ruc:          client.tax_id ?? "0000000-0",
-      businessName: client.name,
-      address:      client.address ?? undefined,
-      contributor:  isContribuyente,
-    },
-    establishment: {
-      id:           establishmentId,
-      address:      establishmentAddr,
-      denomination: establishmentName,
-    },
-    items: items.map((it) => ({
-      description: it.description,
-      quantity:    it.quantity,
-      unitPrice:   it.unit_price,
-      vatRate:     it.vat_rate as 0 | 5 | 10,
-      total:       it.line_total,
-    })),
-    paymentMethods: [{ type: 1, amount: doc.total }], // contado / efectivo por defecto
-    currency:                doc.currency,
-    currencyRate:            1,
-    transactionType:         1, // venta de mercadería / servicio
-    operationConditionType:  1, // contado
-    emissionType:            1, // normal
-    presenceIndicatorType:   1, // presencial
-    documentNumber:          doc.code,
-    pointOfExpedition,
-  };
-
-  if (timbrado) payload.timbrado = timbrado;
-  return payload;
-}
-
-// ── acciones públicas ─────────────────────────────────────────────────────────
-
-export async function emitirFE(
-  docId: string
-): Promise<{ ok?: true; cdc?: string; error?: string }> {
-  await requireModule("ventas", ["administracion", "admin"]);
-  const supabase = await createClient();
-
-  if (!isGoekuaConfigured()) {
-    return { error: "Facturación electrónica no configurada (falta GOEKUA_API_KEY). Contactá al administrador." };
-  }
-
-  const { data: doc } = await supabase
-    .from("sales_documents")
-    .select("*")
-    .eq("id", docId)
-    .single<SalesDocument>();
-
-  if (!doc)                         return { error: "Documento no encontrado" };
-  if (doc.doc_type !== "FACTURA")   return { error: "Solo se pueden emitir facturas como FE" };
-  if (doc.cdc)                      return { error: "Este documento ya tiene un CDC — ya fue emitido" };
-  if (doc.status === "ANULADA")     return { error: "No se puede emitir una factura anulada" };
-
-  const [{ data: items }, { data: client }, { data: empresa }] = await Promise.all([
-    supabase
-      .from("sales_document_items")
-      .select("*")
-      .eq("sales_document_id", docId)
-      .returns<SalesDocumentItem[]>(),
-    supabase.from("clients").select("*").eq("id", doc.client_id).single<Client>(),
-    supabase
-      .from("empresas")
-      .select("nombre, ruc, email_empresa")
-      .eq("id", doc.empresa_id)
-      .single<Pick<Empresa, "nombre" | "ruc" | "email_empresa">>(),
+  const [{ data: items }, { data: company }] = await Promise.all([
+    db.from("sales_document_items").select("*").eq("sales_document_id", docId).eq("empresa_id", profile.empresa_id).order("created_at").returns<SalesDocumentItem[]>(),
+    db.from("empresas").select("nombre, email_empresa").eq("id", profile.empresa_id).single<Company>(),
   ]);
-
-  if (!client)        return { error: "Cliente no encontrado" };
-  if (!items?.length) return { error: "La factura no tiene ítems" };
-
-  const payload = buildPayload(doc, items, client, empresa ?? { nombre: "Empresa", ruc: null, email_empresa: null });
-  const result  = await goekuaEmitirFactura(payload);
-
-  if ("error" in result) {
-    return { error: result.error + (result.detail ? `: ${result.detail}` : "") };
-  }
-
-  await supabase
-    .from("sales_documents")
-    .update({
-      cdc:     result.cdc     ?? result.id,
-      xml_url: result.xmlUrl  ?? null,
-      kude_url:result.kudeUrl ?? null,
-    })
-    .eq("id", docId);
-
-  revalidatePath(`/ventas/${docId}`);
-  return { ok: true, cdc: result.cdc };
-}
-
-export async function emitirNC(
-  docId: string
-): Promise<{ ok?: true; cdc?: string; error?: string }> {
-  await requireModule("ventas", ["administracion", "admin"]);
-  const supabase = await createClient();
-
-  if (!isGoekuaConfigured()) {
-    return { error: "Facturación electrónica no configurada (falta GOEKUA_API_KEY). Contactá al administrador." };
-  }
-
-  const { data: doc } = await supabase
-    .from("sales_documents")
-    .select("*")
-    .eq("id", docId)
-    .single<SalesDocument>();
-
-  if (!doc)                              return { error: "Documento no encontrado" };
-  if (doc.doc_type !== "NOTA_CREDITO")   return { error: "Solo aplica a notas de crédito" };
-  if (doc.cdc)                           return { error: "Esta NC ya tiene un CDC — ya fue emitida" };
-  if (doc.status === "ANULADA")          return { error: "No se puede emitir una NC anulada" };
-
-  // CDC de la factura origen (si tiene)
-  let sourceCdc: string | null = null;
-  if (doc.source_document_id) {
-    const { data: src } = await supabase
-      .from("sales_documents")
-      .select("cdc")
-      .eq("id", doc.source_document_id)
-      .single<{ cdc: string | null }>();
-    sourceCdc = src?.cdc ?? null;
-  }
-
-  const [{ data: items }, { data: client }, { data: empresa }] = await Promise.all([
-    supabase
-      .from("sales_document_items")
-      .select("*")
-      .eq("sales_document_id", docId)
-      .returns<SalesDocumentItem[]>(),
-    supabase.from("clients").select("*").eq("id", doc.client_id).single<Client>(),
-    supabase
-      .from("empresas")
-      .select("nombre, ruc, email_empresa")
-      .eq("id", doc.empresa_id)
-      .single<Pick<Empresa, "nombre" | "ruc" | "email_empresa">>(),
-  ]);
-
-  if (!client)        return { error: "Cliente no encontrado" };
-  if (!items?.length) return { error: "La NC no tiene ítems" };
-
-  const basePayload = buildPayload(
-    doc,
-    items,
-    client,
-    empresa ?? { nombre: "Empresa", ruc: null, email_empresa: null }
-  );
-
-  // Goekua credit-note: mismo payload que factura + referencia al CDC origen
-  const ncPayload = {
-    ...basePayload,
-    ...(sourceCdc ? { referencedCdc: sourceCdc } : {}),
-  };
-
-  const establishmentId   = parseInt(process.env.GOEKUA_ESTABLISHMENT_ID  ?? "1");
-  const establishmentAddr = process.env.GOEKUA_ESTABLISHMENT_ADDRESS ?? "";
-  const establishmentName = process.env.GOEKUA_ESTABLISHMENT_NAME ?? (empresa?.nombre ?? "Empresa");
-  const pointOfExpedition = process.env.GOEKUA_POINT_OF_EXPEDITION ?? "001";
-  const timbrado          = process.env.GOEKUA_TIMBRADO;
-
-  const payload = {
-    ...ncPayload,
-    establishment: { id: establishmentId, address: establishmentAddr, denomination: establishmentName },
-    pointOfExpedition,
-    ...(timbrado ? { timbrado } : {}),
-  };
-
-  if (!process.env.GOEKUA_API_KEY) return { error: "GOEKUA_API_KEY no configurada" };
-
-  const goekuaBaseUrl = process.env.GOEKUA_BASE_URL ?? "https://api.goekua.com.py";
-  let result: { id: string; cdc?: string; xmlUrl?: string; kudeUrl?: string } | { error: string; detail?: string };
+  if (!items?.length) return { error: "El documento no tiene ítems" };
+  if (!company) return { error: "Empresa no encontrada" };
+  let result;
   try {
-    const res = await fetch(`${goekuaBaseUrl}/api/electronic-document/generate-credit-note`, {
-      method: "POST",
-      headers: { "x-api-key": process.env.GOEKUA_API_KEY!, "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (res.status === 201) {
-      const data = await res.json();
-      result = { id: data.id, cdc: data.cdc, xmlUrl: data.xmlUrl, kudeUrl: data.kudeUrl };
+    if (type === "FACTURA") {
+      const { data: client } = await db.from("clients").select("*").eq("id", doc.client_id).eq("empresa_id", profile.empresa_id).single<Client>();
+      if (!client) return { error: "Cliente no encontrado" };
+      const payload = buildGoekuaInvoice(doc, items, client, company);
+      result = await goekuaEmitirFactura(payload);
     } else {
-      const body = await res.text();
-      result = { error: `Goekua respondió ${res.status}`, detail: body };
+      const { data: source } = await db.from("sales_documents").select("cdc").eq("id", doc.source_document_id!).eq("empresa_id", profile.empresa_id).single<{ cdc: string | null }>();
+      if (!isFiscalCdc(source?.cdc)) return { error: "La factura de origen debe estar emitida fiscalmente antes de emitir la NC." };
+      const { data: sourceItems } = await db.from("sales_document_items").select("*").eq("sales_document_id", doc.source_document_id!).eq("empresa_id", profile.empresa_id).returns<SalesDocumentItem[]>();
+      const payload = buildGoekuaCreditNote(doc, items, company, source.cdc, choice.emissionMotive, choice.sourceItemIds ?? [], sourceItems ?? []);
+      // Existing append-only audit detail preserves the explicit human fiscal choice.
+      const { error: auditError } = await db.rpc("log_audit_event", {
+        p_action: "sifen.credit_note.requested",
+        p_detail: { empresa_id: profile.empresa_id, sales_document_id: docId, source_document_id: doc.source_document_id,
+          emissionMotive: payload.emissionMotive, items: payload.items, cdcElectronicDocumentAttached: source.cdc },
+      });
+      if (auditError) return { error: "No se pudo registrar el motivo fiscal de NC; no se envió a Goekua." };
+      result = await goekuaEmitirNotaCredito(payload);
     }
-  } catch (e) {
-    result = { error: "Error de red al conectar con Goekua", detail: String(e) };
-  }
-
-  if ("error" in result) {
-    return { error: result.error + (result.detail ? `: ${result.detail}` : "") };
-  }
-
-  await supabase
-    .from("sales_documents")
-    .update({
-      cdc:      result.cdc     ?? result.id,
-      xml_url:  result.xmlUrl  ?? null,
-      kude_url: result.kudeUrl ?? null,
-    })
-    .eq("id", docId);
-
-  revalidatePath(`/ventas/${docId}`);
-  return { ok: true, cdc: result.cdc };
+  } catch (error) { return { error: error instanceof Error ? error.message : "Datos fiscales inválidos." }; }
+  if ("error" in result) return { error: result.error + (result.detail ? `: ${result.detail}` : "") };
+  return persist(db, docId, profile.empresa_id, result);
 }
 
-export async function consultarFE(
-  docId: string
-): Promise<{ ok?: true; cdc?: string; kudeUrl?: string; error?: string }> {
-  await requireModule("ventas", ["administracion", "admin"]);
-  const supabase = await createClient();
+async function persist(db: Db, docId: string, tenant: string, result: GoekuaDocumentoResult): Promise<Result> {
+  const cdc = isFiscalCdc(result.cdc) ? result.cdc : null;
+  const { error } = await db.from("sales_documents").update({
+    goekua_document_id: result.id, cdc,
+    ...(result.xmlUrl ? { xml_url: result.xmlUrl } : {}),
+    ...(result.kudeUrl ? { kude_url: result.kudeUrl } : {}),
+  }).eq("id", docId).eq("empresa_id", tenant).select("id").single();
+  if (error) return { error: `Goekua creó el documento (ID ${result.id}), pero no se pudo guardar en el ERP: ${error.message}. Requiere conciliación antes de reintentar; no se reintentó automáticamente.` };
+  revalidatePath(`/ventas/${docId}`);
+  return { ok: true, goekuaDocumentId: result.id, reconciliationRequired: !cdc, ...(cdc ? { cdc } : {}), ...(result.kudeUrl ? { kudeUrl: result.kudeUrl } : {}), ...(result.xmlUrl ? { xmlUrl: result.xmlUrl } : {}) };
+}
 
-  const { data: doc } = await supabase
-    .from("sales_documents")
-    .select("cdc, kude_url")
-    .eq("id", docId)
-    .single();
+export async function emitirFE(docId: string): Promise<Result> { return issue(docId, "FACTURA"); }
+export async function emitirNC(docId: string, choice: CreditNoteFiscalChoice = {}): Promise<Result> { return issue(docId, "NOTA_CREDITO", choice); }
 
-  if (!doc?.cdc) return { error: "Este documento no tiene CDC" };
-
+export async function consultarFE(docId: string): Promise<Result> {
+  const profile = await requireModule("ventas", ["administracion", "admin"]);
+  const db = await createClient();
+  const { data: doc } = await db.from("sales_documents").select("cdc, goekua_document_id, kude_url").eq("id", docId).eq("empresa_id", profile.empresa_id).single();
+  if (!doc) return { error: "Documento no encontrado" };
+  if (!doc.cdc && doc.goekua_document_id != null) return { error: GOEKUA_RECONCILIATION_REQUIRED };
+  if (!isFiscalCdc(doc.cdc)) return { error: "Este documento no tiene un CDC fiscal real." };
   const result = await goekuaConsultarDocumento(doc.cdc);
   if ("error" in result) return { error: result.error };
-
   if (result.kudeUrl && result.kudeUrl !== doc.kude_url) {
-    await supabase
-      .from("sales_documents")
-      .update({ kude_url: result.kudeUrl, xml_url: result.xmlUrl ?? null })
-      .eq("id", docId);
+    const { error } = await db.from("sales_documents").update({ kude_url: result.kudeUrl }).eq("id", docId).eq("empresa_id", profile.empresa_id).select("id").single();
+    if (error) return { error: "No se pudo guardar el KUDE consultado." };
     revalidatePath(`/ventas/${docId}`);
   }
-
   return { ok: true, cdc: result.cdc, kudeUrl: result.kudeUrl };
 }

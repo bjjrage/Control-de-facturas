@@ -18,13 +18,28 @@ export function docSaldo(total: number, cobrado: number) {
 
 export const SALES_DOC_TYPE_LABELS: Record<SalesDocType, string> = {
   PROFORMA:      "Proforma",
+  NOTA_VENTA:    "Nota de Venta",
   REMISION:      "Remisión",
   FACTURA:       "Factura",
   NOTA_CREDITO:  "Nota de Crédito",
 };
 
+/** Document types available in the existing Sales editor. NOTA_VENTA remains a legacy/read-model type. */
+export const SALES_DOC_FORM_TYPES: SalesDocType[] = ["PROFORMA", "REMISION", "FACTURA", "NOTA_CREDITO"];
+
+export function isSalesEditorType(value: string): value is SalesDocType {
+  return SALES_DOC_FORM_TYPES.includes(value as SalesDocType);
+}
+
+/** Fiscal issuance follows the explicit human internal issuance boundary. */
+export function canIssueSalesFiscalDocument(docType: SalesDocType, status: SalesDocStatus): boolean {
+  return (docType === "FACTURA" || docType === "NOTA_CREDITO") &&
+    ["EMITIDA", "COBRADA_PARCIAL", "COBRADA"].includes(status);
+}
+
 export const SALES_DOC_PANEL_PATH: Record<SalesDocType, string> = {
   PROFORMA:     "/proformas",
+  NOTA_VENTA:   "/cobros",
   REMISION:     "/remisiones",
   FACTURA:      "/facturas-venta",
   NOTA_CREDITO: "/notas-credito",
@@ -32,6 +47,7 @@ export const SALES_DOC_PANEL_PATH: Record<SalesDocType, string> = {
 
 export const SALES_DOC_PANEL_TITLE: Record<SalesDocType, string> = {
   PROFORMA:     "Proformas",
+  NOTA_VENTA:   "Cobros",
   REMISION:     "Remisiones",
   FACTURA:      "Facturas de Venta",
   NOTA_CREDITO: "Notas de Crédito",
