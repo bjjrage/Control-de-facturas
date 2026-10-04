@@ -115,6 +115,9 @@ vi.mock('@/lib/supabase/admin', () => ({
           };
         },
         maybeSingle: async () => {
+          if (table === 'providers') {
+            return { data: filters.id === 'provider-abc-123' && filters.empresa_id === 'empresa-tenant-111' ? { id: filters.id } : null, error: null };
+          }
           if (table === 'scan_sessions') {
             const match = mockScanSessions.find((s) => {
               for (const [k, v] of Object.entries(filters)) {
@@ -688,3 +691,10 @@ describe('Control Scanner - Invoice UI Integration & Zero-Duplicate Upload', () 
     vi.useRealTimers();
   });
 });
+
+ it('denies unavailable supplier before privileged storage or invoice writes', async () => {
+    const fd=new FormData();fd.set('provider_id','unavailable-provider');fd.set('invoice_number','LOCAL-DENIAL');fd.set('invoice_date','2026-10-04');fd.set('currency','PYG');fd.set('total','100');
+    const uploads=mockStorageUploadCalls.length,invoices=mockInvoicesInserted.length;
+    expect(await createInvoice(fd)).toEqual({error:'Proveedor no disponible para esta empresa.'});
+    expect(mockStorageUploadCalls.length).toBe(uploads);expect(mockInvoicesInserted.length).toBe(invoices);
+ });

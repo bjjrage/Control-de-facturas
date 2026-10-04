@@ -5,7 +5,7 @@ import { createScanSession } from '@/lib/scanner/session-service';
 export async function POST(req: NextRequest) {
   try {
     const profile = await getCurrentProfile();
-    if (!profile || !profile.empresa_id) {
+    if (!profile || !profile.empresa_id || !profile.active || (!profile.empresa_active && !profile.is_super_admin)) {
       return NextResponse.json(
         { error: 'No autorizado. Debe iniciar sesión en el ERP.' },
         { status: 401 }

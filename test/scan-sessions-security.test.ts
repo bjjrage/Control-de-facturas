@@ -16,7 +16,7 @@ const mockSessions = new Map<string, any>();
 const mockStorageFiles = new Set<string>();
 const storageRemovedFiles: string[] = [];
 
-let currentMockProfile: { id: string; empresa_id: string; role: string } | null = null;
+let currentMockProfile: { id: string; empresa_id: string; role: string; active: boolean; empresa_active: boolean; is_super_admin: boolean } | null = null;
 let forceUploadConflict = false;
 let forceCompleteFailure = false;
 
@@ -183,6 +183,7 @@ describe('Scan Sessions Security, Tenant Isolation & Token Hardening', () => {
 
       // Usuario autenticado pertenece a Empresa B
       currentMockProfile = {
+        active: true, empresa_active: true, is_super_admin: false,
         id: 'user-B1',
         empresa_id: 'empresa-B',
         role: 'admin',
@@ -201,6 +202,7 @@ describe('Scan Sessions Security, Tenant Isolation & Token Hardening', () => {
     it('devuelve 200 y NO incluye signed_url si la sesión no está completada', async () => {
       const sessionA = await createScanSession('empresa-A', 'user-A1');
       currentMockProfile = {
+        active: true, empresa_active: true, is_super_admin: false,
         id: 'user-A1',
         empresa_id: 'empresa-A',
         role: 'user',
@@ -229,6 +231,7 @@ describe('Scan Sessions Security, Tenant Isolation & Token Hardening', () => {
       });
 
       currentMockProfile = {
+        active: true, empresa_active: true, is_super_admin: false,
         id: 'user-A1',
         empresa_id: 'empresa-A',
         role: 'user',
