@@ -634,6 +634,7 @@ export interface SalesDocument {
   status: SalesDocStatus;
   notes: string | null;
   cdc: string | null;
+  goekua_document_id: string | null;
   xml_url: string | null;
   kude_url: string | null;
   source_document_id: string | null;

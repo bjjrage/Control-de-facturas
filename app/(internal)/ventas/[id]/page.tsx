@@ -63,6 +63,9 @@ export default async function VentaDetailPage({ params, searchParams }: { params
       : Promise.resolve({ data: null as Pick<SalesDocument, "id" | "code" | "doc_type" | "status"> | null }),
   ]);
   const cuentasList = cuentas ?? [];
+  const { data: sourceInvoiceItems } = doc.doc_type === "NOTA_CREDITO" && doc.source_document_id
+    ? await supabase.from("sales_document_items").select("id, description").eq("sales_document_id", doc.source_document_id).eq("empresa_id", profile.empresa_id).order("created_at").returns<Pick<SalesDocumentItem, "id" | "description">[]>()
+    : { data: [] };
 
   const saldo = docSaldo(doc.total, doc.cobrado_amount);
   const isDraft = doc.status === "BORRADOR";
@@ -145,6 +148,9 @@ export default async function VentaDetailPage({ params, searchParams }: { params
               cdc={doc.cdc}
               kudeUrl={doc.kude_url}
               xmlUrl={doc.xml_url}
+              providerId={doc.goekua_document_id}
+              creditNoteItems={items ?? []}
+              sourceInvoiceItems={sourceInvoiceItems ?? []}
             />
           ) : null}
           {canCollect ? (

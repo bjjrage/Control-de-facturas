@@ -1,3 +1,10 @@
+# Current authorized correction
+
+See [BATCH-10-GOEKUA-CONTRACT-CORRECTION.md](BATCH-10-GOEKUA-CONTRACT-CORRECTION.md) for the current
+provider contract, separate Goekua ID/CDC persistence, human NC motive and source-item choices,
+Preview ledger 48 / Production 46 and final verification. It supersedes prior fiscal payload and
+migration-count statements below. Main/production/71x2 remain unchanged; PR #31 stays open.
+
 # Batch 10 — Sales / Post-OT implementation report
 
 ## Scope
@@ -5,7 +12,7 @@
 Branch: batch/10-sales-post-ot
 Base: 4b7896025fa01d45a87b71fe132f331ee303ca89
 Production merge/deploy: not performed
-Database migrations: one additive Preview-only migration (see BATCH-10-AUDIT-CORRECTION.md)
+Database migrations: two additive Preview-only migrations; Preview ledger 48 / Production 46 (see current correction report)
 
 The change wires accepted quotations and their canonical work orders into the existing sales document editor. A user chooses whether to prepare a remisión or factura; submitting the existing SalesForm creates a draft for review. It does not emit documents, collect payments, create treasury entries, or trigger procurement, inventory, or SIFEN actions.
 

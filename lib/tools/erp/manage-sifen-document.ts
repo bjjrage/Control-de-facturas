@@ -8,6 +8,8 @@ import { actionResult } from "./action-utils";
 export const ManageSifenDocumentInputSchema = z.object({
   operation: z.enum(["emit_invoice", "emit_credit_note", "refresh_status"]),
   document_id: z.string().uuid(),
+  emission_motive: z.number().int().min(1).max(8).optional().describe("Explicit human NC motive; never choose automatically"),
+  source_item_ids: z.array(z.string().uuid()).optional().describe("Human-selected source invoice item IDs in NC item order"),
 });
 export type ManageSifenDocumentInput = z.infer<typeof ManageSifenDocumentInputSchema>;
 
@@ -25,7 +27,7 @@ async function handler(ctx: AgentToolContext, input: ManageSifenDocumentInput, d
   const result = input.operation === "emit_invoice"
     ? await actions.emitirFE(input.document_id)
     : input.operation === "emit_credit_note"
-      ? await actions.emitirNC(input.document_id)
+      ? await actions.emitirNC(input.document_id, { emissionMotive: input.emission_motive, sourceItemIds: input.source_item_ids })
       : await actions.consultarFE(input.document_id);
   return { operation: input.operation, document_id: input.document_id, ...actionResult(result), message: "Operación SIFEN/Goekua procesada; requiere aprobación y no toca tesorería." };
 }

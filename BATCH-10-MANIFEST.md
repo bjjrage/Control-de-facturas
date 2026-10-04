@@ -36,7 +36,14 @@ Latest correction: BATCH-10-REAUDIT-CORRECTION-2.md (P1-C fiscal issuance gate; 
 - Project-certificate billing is a separate certificate_id flow and was not conflated with post-OT sales documents.
 - The existing schema allows multiple downstream documents. It has no item-level delivery/invoicing allocation, balance, or idempotency field.
 - NOTA_VENTA exists in the database and B09 read paths. It is now represented in the TypeScript read model and labels but remains unavailable as a new form type.
-- Exactly one new migration: 20261004041015_sales_provenance_guard.sql. Applied historical migrations remain unchanged.
+- Batch 10 has two additive Preview migrations: 20261004041015_sales_provenance_guard.sql and the explicitly authorized 20261004050753_goekua_document_identifier.sql. Applied historical migrations remain unchanged. Current Preview ledger: 48; Production: 46.
+
+## Authorized Goekua contract correction
+
+Current implementation and validation: [BATCH-10-GOEKUA-CONTRACT-CORRECTION.md](BATCH-10-GOEKUA-CONTRACT-CORRECTION.md).
+Provider DTOs/domain mapping, FE/NC actions, existing fiscal UI, tool fiscal choices, nullable provider ID,
+mocked outbound contract tests and rollback-only clean-apply script are included in this correction.
+The report explicitly records unresolved fiscal numbering/configuration and ID-to-CDC reconciliation gaps.
 
 ## Changed files
 
