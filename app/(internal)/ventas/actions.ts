@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { requireModule } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { lineTotal, docSaldo } from "@/lib/sales";
-import { SalesDocType, SalesDocument, SalesDocumentItem, ReceiptMethod } from "@/lib/types";
+import { SalesDocType, SalesDocument, ReceiptMethod } from "@/lib/types";
+import { canLinkSalesDocument, loadPostOtSnapshotForQuotation } from "@/lib/sales-post-ot";
 import { revalidatePath } from "next/cache";
 
 function str(fd: FormData, k: string) {
@@ -54,13 +55,75 @@ async function writeItems(supabase: Awaited<ReturnType<typeof createClient>>, do
   return error;
 }
 
+async function validateSourceDocument(input: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  empresaId: string;
+  targetType: SalesDocType;
+  sourceDocumentId: string | null;
+  workOrderId?: string | null;
+  clientId: string;
+  currency: string;
+}): Promise<{ error: string | null }> {
+  const { supabase, empresaId, targetType, sourceDocumentId, workOrderId, clientId, currency } = input;
+  if (!sourceDocumentId) {
+    return { error: workOrderId ? "La OT necesita un documento de origen válido." : null };
+  }
+
+  const { data: source } = await supabase
+    .from("sales_documents")
+    .select("id, empresa_id, client_id, currency, doc_type, status, acceptance_status")
+    .eq("id", sourceDocumentId)
+    .eq("empresa_id", empresaId)
+    .maybeSingle<Pick<SalesDocument, "id" | "empresa_id" | "client_id" | "currency" | "doc_type" | "status" | "acceptance_status">>();
+  if (!source) return { error: "El documento de origen no existe para esta empresa." };
+  if (!canLinkSalesDocument(source.doc_type, targetType)) {
+    return { error: "El tipo de documento de origen no corresponde a este documento." };
+  }
+  if (source.status === "ANULADA") return { error: "No se puede crear un documento desde un origen anulado." };
+  if (source.client_id !== clientId || source.currency !== currency) {
+    return { error: "El cliente y la moneda deben coincidir con el documento de origen." };
+  }
+
+  if (source.doc_type === "PROFORMA") {
+    if (source.acceptance_status !== "ACCEPTED") {
+      return { error: "La proforma debe estar aceptada antes de preparar documentos desde su OT." };
+    }
+    const snapshot = await loadPostOtSnapshotForQuotation(supabase, source.id, empresaId);
+    if (!snapshot) return { error: "No se pudo verificar la OT y la versión aceptada de esta proforma." };
+    if (workOrderId && snapshot.workOrder.id !== workOrderId) {
+      return { error: "La OT no corresponde al documento de origen." };
+    }
+  } else if (workOrderId) {
+    return { error: "La OT indicada no corresponde al documento de origen." };
+  }
+
+  return { error: null };
+}
+
 export async function createSalesDocument(formData: FormData) {
   const profile = await requireModule("ventas", ["administracion", "admin"]);
   const supabase = await createClient();
 
   const client_id = str(formData, "client_id");
-  const doc_type = (str(formData, "doc_type") ?? "REMISION") as SalesDocType;
+  const rawDocType = str(formData, "doc_type") ?? "REMISION";
+  const allowedCreateTypes: SalesDocType[] = ["PROFORMA", "REMISION", "FACTURA", "NOTA_CREDITO"];
+  if (!allowedCreateTypes.includes(rawDocType as SalesDocType)) return { error: "Tipo de documento invalido." };
+  const doc_type = rawDocType as SalesDocType;
   if (!client_id) return { error: "Elegí un cliente." };
+
+  const currency = str(formData, "currency") ?? "PYG";
+  const sourceDocumentId = str(formData, "source_document_id");
+  const workOrderId = str(formData, "work_order_id");
+  const sourceValidation = await validateSourceDocument({
+    supabase,
+    empresaId: profile.empresa_id,
+    targetType: doc_type,
+    sourceDocumentId,
+    workOrderId,
+    clientId: client_id,
+    currency,
+  });
+  if (sourceValidation.error) return sourceValidation;
 
   const items = parseItems(formData);
   if ("error" in items) return items;
@@ -72,9 +135,9 @@ export async function createSalesDocument(formData: FormData) {
       doc_type,
       issue_date: str(formData, "issue_date") ?? new Date().toISOString().slice(0, 10),
       due_date: str(formData, "due_date"),
-      currency: str(formData, "currency") ?? "PYG",
+      currency,
       notes: str(formData, "notes"),
-      source_document_id: str(formData, "source_document_id"),
+      source_document_id: sourceDocumentId,
       created_by: profile.id,
     })
     .select("id")
@@ -85,18 +148,19 @@ export async function createSalesDocument(formData: FormData) {
   if (itemsError) return { error: itemsError.message };
 
   revalidatePath("/ventas");
+  if (workOrderId) revalidatePath(`/ordenes-trabajo/${workOrderId}`);
   return { error: null, id: doc.id as string };
 }
 
 export async function updateSalesDocument(id: string, formData: FormData) {
-  await requireModule("ventas", ["administracion", "admin"]);
+  const profile = await requireModule("ventas", ["administracion", "admin"]);
   const supabase = await createClient();
 
   const { data: current } = await supabase
     .from("sales_documents")
-    .select("status, doc_type, acceptance_status")
+    .select("status, doc_type, acceptance_status, source_document_id, client_id, currency")
     .eq("id", id)
-    .single<{ status: string; doc_type: string; acceptance_status: string }>();
+    .single<Pick<SalesDocument, "status" | "doc_type" | "acceptance_status" | "source_document_id" | "client_id" | "currency">>();
   if (!current) return { error: "Documento no encontrado." };
   if (current.status !== "BORRADOR") return { error: "Solo se puede editar un borrador." };
   // La cotizaci├│n aceptada es inmutable: la OT ya fotografi├│ sus ├¡tems.
@@ -114,14 +178,27 @@ export async function updateSalesDocument(id: string, formData: FormData) {
   const items = parseItems(formData);
   if ("error" in items) return items;
 
+  const nextDocType = (str(formData, "doc_type") ?? "REMISION") as SalesDocType;
+  const nextClientId = str(formData, "client_id") ?? current.client_id;
+  const nextCurrency = str(formData, "currency") ?? "PYG";
+  const sourceValidation = await validateSourceDocument({
+    supabase,
+    empresaId: profile.empresa_id,
+    targetType: nextDocType,
+    sourceDocumentId: current.source_document_id,
+    clientId: nextClientId,
+    currency: nextCurrency,
+  });
+  if (sourceValidation.error) return sourceValidation;
+
   const { error } = await supabase
     .from("sales_documents")
     .update({
-      client_id: str(formData, "client_id") ?? undefined,
-      doc_type: (str(formData, "doc_type") ?? "REMISION") as SalesDocType,
+      client_id: nextClientId,
+      doc_type: nextDocType,
       issue_date: str(formData, "issue_date") ?? undefined,
       due_date: str(formData, "due_date"),
-      currency: str(formData, "currency") ?? "PYG",
+      currency: nextCurrency,
       notes: str(formData, "notes"),
     })
     .eq("id", id);
@@ -272,56 +349,4 @@ export async function reverseReceipt(receiptId: string, docId: string) {
   revalidatePath("/cobros");
   revalidatePath("/tesoreria");
   return { error: null };
-}
-
-export async function convertSalesDocument(fromId: string, toType: SalesDocType) {
-  const profile = await requireModule("ventas", ["administracion", "admin"]);
-  const supabase = await createClient();
-
-  const { data: source } = await supabase
-    .from("sales_documents")
-    .select("*")
-    .eq("id", fromId)
-    .single<SalesDocument>();
-  if (!source) return { error: "Documento no encontrado." };
-
-  const { data: sourceItems } = await supabase
-    .from("sales_document_items")
-    .select("*")
-    .eq("sales_document_id", fromId)
-    .order("created_at")
-    .returns<SalesDocumentItem[]>();
-
-  const baseNote = source.notes ? `\n\n${source.notes}` : "";
-  const { data: newDoc, error } = await supabase
-    .from("sales_documents")
-    .insert({
-      client_id: source.client_id,
-      doc_type: toType,
-      issue_date: new Date().toISOString().slice(0, 10),
-      due_date: source.due_date,
-      currency: source.currency,
-      notes: `Generado desde ${source.code}${baseNote}`,
-      created_by: profile.id,
-    })
-    .select("id")
-    .single();
-  if (error || !newDoc) return { error: error?.message ?? "No se pudo crear el documento." };
-
-  if (sourceItems && sourceItems.length > 0) {
-    const itemsError = await writeItems(
-      supabase,
-      newDoc.id,
-      sourceItems.map((it) => ({
-        description: it.description,
-        quantity: it.quantity,
-        unit_price: it.unit_price,
-        vat_rate: it.vat_rate,
-      }))
-    );
-    if (itemsError) return { error: itemsError.message };
-  }
-
-  revalidatePath("/ventas");
-  return { error: null, id: newDoc.id as string };
 }

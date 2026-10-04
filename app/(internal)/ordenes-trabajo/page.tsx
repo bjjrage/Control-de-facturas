@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireModule } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { Client, SalesDocument, WorkOrder, WorkOrderStatus } from "@/lib/types";
+import { Client, SalesDocument, SalesQuotationAcceptance, WorkOrder, WorkOrderStatus } from "@/lib/types";
 import { formatDate, formatMoney } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { BackButton } from "@/components/ui/back-button";
@@ -17,18 +17,32 @@ const TONE: Record<WorkOrderStatus, "neutral" | "warn" | "ok" | "error"> = {
 };
 
 export default async function OrdenesTrabajoPage() {
-  await requireModule("ventas", ["administracion", "admin"]);
+  const profile = await requireModule("ventas", ["administracion", "admin"]);
   const supabase = await createClient();
 
-  const [{ data: orders }, { data: clients }, { data: quotes }] = await Promise.all([
-    supabase.from("work_orders").select("*").order("created_at", { ascending: false }).returns<WorkOrder[]>(),
-    supabase.from("clients").select("id, name").returns<Pick<Client, "id" | "name">[]>(),
-    supabase.from("sales_documents").select("id, code").returns<Pick<SalesDocument, "id" | "code">[]>(),
-  ]);
+  const { data: orders } = await supabase
+    .from("work_orders")
+    .select("*")
+    .eq("empresa_id", profile.empresa_id)
+    .order("created_at", { ascending: false })
+    .returns<WorkOrder[]>();
 
   const list = orders ?? [];
+  const [{ data: clients }, { data: quotes }, { data: acceptances }] = await Promise.all([
+    supabase.from("clients").select("id, name").eq("empresa_id", profile.empresa_id).returns<Pick<Client, "id" | "name">[]>(),
+    supabase.from("sales_documents").select("id, code").eq("empresa_id", profile.empresa_id).returns<Pick<SalesDocument, "id" | "code">[]>(),
+    list.length
+      ? supabase
+          .from("sales_quotation_acceptances")
+          .select("work_order_id, client_name_snapshot")
+          .eq("empresa_id", profile.empresa_id)
+          .in("work_order_id", list.map((order) => order.id))
+          .returns<Pick<SalesQuotationAcceptance, "work_order_id" | "client_name_snapshot">[]>()
+      : Promise.resolve({ data: [] as Pick<SalesQuotationAcceptance, "work_order_id" | "client_name_snapshot">[] }),
+  ]);
   const clientById = new Map((clients ?? []).map((c) => [c.id, c.name]));
   const quoteById = new Map((quotes ?? []).map((q) => [q.id, q.code]));
+  const acceptedNameByOrderId = new Map((acceptances ?? []).map((acceptance) => [acceptance.work_order_id, acceptance.client_name_snapshot]));
   const groups = ORDER.map((s) => ({ status: s, rows: list.filter((o) => o.status === s) })).filter(
     (g) => g.rows.length > 0
   );
@@ -76,7 +90,7 @@ export default async function OrdenesTrabajoPage() {
                           {o.code}
                         </Link>
                       </td>
-                      <td>{clientById.get(o.client_id) ?? "-"}</td>
+                      <td>{acceptedNameByOrderId.get(o.id) ?? clientById.get(o.client_id) ?? "-"}</td>
                       <td className="text-[var(--muted)]">{quoteById.get(o.sales_document_id) ?? "-"}</td>
                       <td className="num">{formatMoney(o.total, o.currency)}</td>
                       <td>{formatDate(o.created_at)}</td>

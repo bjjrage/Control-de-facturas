@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Client, SalesDocument, SalesDocumentItem, SalesDocType, CurrencyCode } from "@/lib/types";
 import { formatMoney } from "@/lib/format";
-import { lineTotal, splitVat, SALES_DOC_TYPE_LABELS } from "@/lib/sales";
+import { lineTotal, splitVat, SALES_DOC_FORM_TYPES, SALES_DOC_TYPE_LABELS } from "@/lib/sales";
 
 type Row = { description: string; quantity: string; unit_price: string; vat_rate: 0 | 5 | 10 };
+type FormItem = Pick<SalesDocumentItem, "description" | "quantity" | "unit_price" | "vat_rate">;
 
 const emptyRow: Row = { description: "", quantity: "1", unit_price: "", vat_rate: 10 };
 
@@ -20,14 +21,24 @@ export function SalesForm({
   action,
   fixedDocType,
   extraHiddenFields,
+  defaultCurrency,
+  defaultDueDate,
+  defaultNotes,
+  fixedClient,
+  fixedCurrency,
 }: {
   clients: Pick<Client, "id" | "name">[];
   defaultClientId?: string;
   doc?: SalesDocument;
-  items?: SalesDocumentItem[];
+  items?: FormItem[];
   action: (formData: FormData) => Promise<{ error: string | null; id?: string }>;
   fixedDocType?: SalesDocType;
   extraHiddenFields?: Record<string, string>;
+  defaultCurrency?: CurrencyCode;
+  defaultDueDate?: string | null;
+  defaultNotes?: string | null;
+  fixedClient?: Pick<Client, "id" | "name">;
+  fixedCurrency?: CurrencyCode;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +53,7 @@ export function SalesForm({
         }))
       : [{ ...emptyRow }]
   );
+  const currency = fixedCurrency ?? doc?.currency ?? defaultCurrency ?? "PYG";
 
   const totals = useMemo(() => {
     let neto = 0;
@@ -103,6 +115,14 @@ export function SalesForm({
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 grid grid-cols-2 gap-3">
         <div>
           <Label htmlFor="client_id">Cliente</Label>
+          {fixedClient ? (
+            <>
+              <input type="hidden" name="client_id" value={fixedClient.id} />
+              <div className="h-9 flex items-center px-2.5 rounded-md border border-[var(--border)] bg-[var(--hover)] text-[13px] text-[var(--muted)]">
+                {fixedClient.name}
+              </div>
+            </>
+          ) : (
           <Select id="client_id" name="client_id" required defaultValue={doc?.client_id ?? defaultClientId ?? ""}>
             <option value="" disabled>
               Elegí un cliente
@@ -113,6 +133,7 @@ export function SalesForm({
               </option>
             ))}
           </Select>
+          )}
         </div>
         <div>
           <Label htmlFor="doc_type">Tipo de documento</Label>
@@ -125,7 +146,7 @@ export function SalesForm({
             </>
           ) : (
             <Select id="doc_type" name="doc_type" defaultValue={(doc?.doc_type ?? "REMISION") as SalesDocType}>
-              {(Object.keys(SALES_DOC_TYPE_LABELS) as SalesDocType[]).map((t) => (
+              {SALES_DOC_FORM_TYPES.map((t) => (
                 <option key={t} value={t}>
                   {SALES_DOC_TYPE_LABELS[t]}
                 </option>
@@ -144,17 +165,26 @@ export function SalesForm({
         </div>
         <div>
           <Label htmlFor="due_date">Vencimiento</Label>
-          <Input id="due_date" name="due_date" type="date" defaultValue={doc?.due_date ?? ""} />
+          <Input id="due_date" name="due_date" type="date" defaultValue={doc?.due_date ?? defaultDueDate ?? ""} />
         </div>
         <div>
           <Label htmlFor="currency">Moneda</Label>
-          <Select id="currency" name="currency" defaultValue={(doc?.currency ?? "PYG") as CurrencyCode}>
+          {fixedCurrency ? (
+            <>
+              <input type="hidden" name="currency" value={fixedCurrency} />
+              <div className="h-9 flex items-center px-2.5 rounded-md border border-[var(--border)] bg-[var(--hover)] text-[13px] text-[var(--muted)]">
+                {fixedCurrency}
+              </div>
+            </>
+          ) : (
+          <Select id="currency" name="currency" defaultValue={currency}>
             {(["PYG", "USD", "EUR", "BRL", "ARS"] as CurrencyCode[]).map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
             ))}
           </Select>
+          )}
         </div>
       </div>
 
@@ -203,7 +233,7 @@ export function SalesForm({
                     <option value="0">Exenta</option>
                   </Select>
                 </div>
-                <div className="text-[13px] num pb-2 text-right">{formatMoney(lt, (doc?.currency ?? "PYG") as CurrencyCode)}</div>
+                <div className="text-[13px] num pb-2 text-right">{formatMoney(lt, currency)}</div>
                 <button
                   type="button"
                   onClick={() => setRows((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev))}
@@ -227,22 +257,22 @@ export function SalesForm({
         <div className="mt-4 ml-auto w-64 text-[13px] border-t border-[var(--border)] pt-3 space-y-1">
           <div className="flex justify-between text-[var(--muted)]">
             <span>Neto gravado</span>
-            <span className="num">{formatMoney(totals.neto, (doc?.currency ?? "PYG") as CurrencyCode)}</span>
+            <span className="num">{formatMoney(totals.neto, currency)}</span>
           </div>
           <div className="flex justify-between text-[var(--muted)]">
             <span>IVA</span>
-            <span className="num">{formatMoney(totals.iva, (doc?.currency ?? "PYG") as CurrencyCode)}</span>
+            <span className="num">{formatMoney(totals.iva, currency)}</span>
           </div>
           <div className="flex justify-between font-semibold text-[15px]">
             <span>Total</span>
-            <span className="num">{formatMoney(totals.total, (doc?.currency ?? "PYG") as CurrencyCode)}</span>
+            <span className="num">{formatMoney(totals.total, currency)}</span>
           </div>
         </div>
       </div>
 
       <div>
         <Label htmlFor="notes">Observaciones</Label>
-        <Textarea id="notes" name="notes" defaultValue={doc?.notes ?? ""} />
+        <Textarea id="notes" name="notes" defaultValue={doc?.notes ?? defaultNotes ?? ""} />
       </div>
 
       <div className="flex justify-end gap-2">

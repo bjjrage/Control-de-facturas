@@ -3,6 +3,7 @@ import { TEMPLATE_VARIABLES } from "./template";
 
 const DOC_TYPE_NAME: Record<SalesDocType, string> = {
   PROFORMA:     "Proforma",
+  NOTA_VENTA:   "Nota de Venta",
   REMISION:     "Remisión",
   FACTURA:      "Factura",
   NOTA_CREDITO: "Nota de Crédito",
