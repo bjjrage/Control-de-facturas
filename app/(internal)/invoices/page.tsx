@@ -244,7 +244,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
                       <td className="num">{formatMoney(i.total, i.currency)}</td>
                       {profile.role === "admin" ? (
                         <td>
-                          <DeleteInvoiceButton invoiceId={i.id} compact />
+                          <DeleteInvoiceButton invoiceId={i.id} status={i.status} compact />
                         </td>
                       ) : null}
                     </tr>

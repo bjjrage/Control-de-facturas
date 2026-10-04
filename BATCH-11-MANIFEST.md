@@ -638,3 +638,15 @@ Tests: lib/__tests__/b11-authority-db.spec.ts adds 25 expected-denial/authorized
 Final: focused 61 PASS; DB 57 PASS; cross-module 506 PASS/39 files; full Vitest 1729 PASS/16 SKIP; typecheck, Webpack build and diff check PASS. Preview read-only catalog PASS; ledger 52, Production ledger 48. Advisor remains 149 (2 ERROR/147 WARN), no correction increase. Actual multi-connection live race/authenticated RLS/E2E/visual NOT VERIFIED. Hosted Preview previously canceled by ignored-build-step; no READY claimed.
 
 P1 financial link immutability corrected; identified P0/P1 open: 0/0. Inherited P2/P3 debt retained. READY FOR EXTERNAL RE-AUDIT. No Production/data/71x2/main mutation, real fiscal issuance, merge or new roadmap batch.
+
+## External re-audit correction #2 — deleteInvoice fail-fast
+
+Prior audited HEAD: 0bbdfbdcf1b0330df895337fd47fb927150a37be. No migration/schema change.
+
+app/(internal)/invoices/[id]/actions.ts rejects APTO_PARA_PAGO/PAGADO before any cleanup, then stops at the first error in each required child/parent deletion. In particular the settled-link guard rejection prevents subsequent exception/audit/OP/invoice/Storage cleanup. The existing admin/tenant scope and editable unpaid hard-delete path remain.
+
+The three existing DeleteInvoiceButton surfaces in the invoice detail page, invoices index and kept-alive invoice section now receive status and hide the control for APTO/PAGADO; server authority remains in the action/database guard.
+
+lib/__tests__/b11-delete-invoice.spec.ts adds 16 tests: both early status denials, race/fail-fast cleanup order, each child failure, normal MATCH deletion and attachment cleanup, role denial, and protected/editable UI visibility.
+
+Validation: focused 77 PASS; DB behavior 57 PASS; cross-module 522 PASS / 40 files; full 1745 PASS / 16 SKIP; isolated typecheck, Webpack build and diff check PASS. Preview ledger unchanged at 52; Production read-only ledger 48. No production, main or business data changes. No new migration; no merge/deploy. P0/P1 known open: 0/0; inherited P2/P3 verification limits persist. READY FOR EXTERNAL RE-AUDIT.

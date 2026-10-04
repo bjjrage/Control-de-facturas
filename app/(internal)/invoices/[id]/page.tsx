@@ -120,7 +120,7 @@ export default async function InvoiceDetailPage({
           ) : invoice.status === "APTO_PARA_PAGO" ? (
             <CreateOpButton invoiceId={invoice.id} />
           ) : null}
-          {profile.role === "admin" ? <DeleteInvoiceButton invoiceId={invoice.id} redirectTo="/invoices" /> : null}
+          {profile.role === "admin" ? <DeleteInvoiceButton invoiceId={invoice.id} status={invoice.status} redirectTo="/invoices" /> : null}
         </div>
       </div>
 

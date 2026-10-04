@@ -207,3 +207,22 @@ Preview migration applied explicitly to xddlzgjwufskgasomval with --skip-vault; 
 The prior primary Vercel Preview was CANCELED by Ignored Build Step despite a green GitHub check. Hosted Preview remains NOT VERIFIED; local build and Preview DB results are separate evidence. No Vercel settings or legacy projects modified.
 
 P0 identified/open: 2/0. P1 identified/open: 8/0 (the seven initial corrections plus this external P1). Existing documented P2/P3 debt remains. Final verdict: READY FOR EXTERNAL RE-AUDIT; not authorization to merge or deploy Production.
+
+## External re-audit correction #2 — hard-delete fail-fast
+
+Audited prior HEAD: 0bbdfbdcf1b0330df895337fd47fb927150a37be. This correction changes application guards/tests/docs only: **no migration and no database mutation**.
+
+**B11-11 / P1:** admin deleteInvoice() blocked PAGADO but allowed APTO_PARA_PAGO. The action then ignored failures from invoice_order_matches, invoice_exceptions, audit_logs and payment_order_invoices cleanup. The settled-link trigger could reject the first delete while later evidence cleanup continued.
+
+- Both APTO_PARA_PAGO and PAGADO now return a clear error before any child query/mutation, audit deletion or Storage request.
+- Every required destructive delete (invoice_order_matches, invoice_exceptions, audit_logs, payment_order_invoices, invoices) checks the database error and returns immediately. The first relationship-guard error during a concurrent approval/payment race stops all subsequent cleanup; no later evidence or Storage is touched and the action never reports success.
+- Existing admin-only authority, tenant-scoped lookup, executed-OP protection and unpaid hard-delete capability remain.
+- All three existing DeleteInvoiceButton surfaces now receive invoice status and hide the action for APTO_PARA_PAGO/PAGADO. Editable statuses remain deletable. The server action and database guard remain canonical.
+
+### Correction #2 evidence
+
+New targeted suite: lib/__tests__/b11-delete-invoice.spec.ts, 16 tests. Proves APTO/PAGADO early denial; simulated race guard denial followed by zero exception/audit/OP/invoice/Storage operations; fail-fast at every required cleanup delete; successful MATCH cleanup including attachment/storage; admin-only denial; hidden protected controls in all existing surfaces and preserved editable-state controls. No live identity was impersonated.
+
+Final validation: focused 77 PASS (16 delete-action/UI + 57 actual PostgreSQL DB behavior + 4 unmatch action), cross-module 522 PASS / 40 files, full Vitest 1745 PASS / 16 declared SKIP (168 files PASS / 2 SKIP), Next 16.3.8 Webpack build PASS, isolated typecheck PASS, diff check PASS. Existing settled-link tests and canonical OP exactly-once/treasury/B09 assertions remain green.
+
+No migration was created or applied. Preview ledger remains 52; Production ledger 48 (read-only). No Production/main/business data modification. Main remains 3572a70375317e7a532faf9be0fea93a6d8e3120; PR #32 remains open/unmerged. This completes the identified correction #2; remaining verification limits are inherited P3 (authenticated live session/hosted Preview/live multi-connection race).
