@@ -27,6 +27,10 @@ export const SALES_DOC_TYPE_LABELS: Record<SalesDocType, string> = {
 /** Document types available in the existing Sales editor. NOTA_VENTA remains a legacy/read-model type. */
 export const SALES_DOC_FORM_TYPES: SalesDocType[] = ["PROFORMA", "REMISION", "FACTURA", "NOTA_CREDITO"];
 
+export function isSalesEditorType(value: string): value is SalesDocType {
+  return SALES_DOC_FORM_TYPES.includes(value as SalesDocType);
+}
+
 export const SALES_DOC_PANEL_PATH: Record<SalesDocType, string> = {
   PROFORMA:     "/proformas",
   NOTA_VENTA:   "/cobros",

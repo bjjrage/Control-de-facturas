@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, Printer } from "lucide-react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireModule } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Client, SalesDocument, SalesDocumentItem, SalesQuotationAcceptance, SalesQuotationEvent, SalesQuotationToken, SalesReceipt, WorkOrder } from "@/lib/types";
@@ -21,9 +21,10 @@ import { SifenButton } from "./sifen-button";
 import { QuotationPanel } from "./quotation-panel";
 import { emitSalesDocument, voidSalesDocument, deleteSalesDocument, reverseReceipt } from "../actions";
 
-export default async function VentaDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function VentaDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string }> }) {
   const profile = await requireModule("ventas", ["administracion", "admin"]);
   const { id } = await params;
+  const { error: actionError } = await searchParams;
   const supabase = await createClient();
 
   const { data: doc } = await supabase
@@ -68,6 +69,7 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
 
   return (
     <div className="max-w-4xl space-y-5">
+      {actionError ? <p role="alert" className="text-[13px] text-[var(--error)]">{actionError}</p> : null}
       <Link href={SALES_DOC_PANEL_PATH[doc.doc_type]} className="text-action text-[12px] text-[var(--muted)]">
         <ArrowLeft size={13} /> Volver a {SALES_DOC_PANEL_TITLE[doc.doc_type]}
       </Link>
@@ -121,7 +123,8 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
             <form
               action={async () => {
                 "use server";
-                await emitSalesDocument(doc.id);
+                const result = await emitSalesDocument(doc.id);
+                if (result.error) redirect(`/ventas/${doc.id}?error=${encodeURIComponent(result.error)}`);
               }}
             >
               <Button type="submit">Emitir</Button>
@@ -149,7 +152,8 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
             <form
               action={async () => {
                 "use server";
-                await voidSalesDocument(doc.id);
+                const result = await voidSalesDocument(doc.id);
+                if (result.error) redirect(`/ventas/${doc.id}?error=${encodeURIComponent(result.error)}`);
               }}
             >
               <Button variant="ghost" type="submit" className="text-[12px]">
@@ -161,7 +165,9 @@ export default async function VentaDetailPage({ params }: { params: Promise<{ id
             <form
               action={async () => {
                 "use server";
-                await deleteSalesDocument(doc.id);
+                const result = await deleteSalesDocument(doc.id);
+                if (result.error) redirect(`/ventas/${doc.id}?error=${encodeURIComponent(result.error)}`);
+                redirect(SALES_DOC_PANEL_PATH[doc.doc_type]);
               }}
             >
               <Button variant="ghost" type="submit" className="text-[12px] text-[var(--error)]">

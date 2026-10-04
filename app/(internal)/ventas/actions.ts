@@ -3,9 +3,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireModule } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
-import { lineTotal, docSaldo } from "@/lib/sales";
+import { lineTotal, docSaldo, isSalesEditorType } from "@/lib/sales";
 import { SalesDocType, SalesDocument, ReceiptMethod } from "@/lib/types";
-import { canLinkSalesDocument, loadPostOtSnapshotForQuotation } from "@/lib/sales-post-ot";
+import { canLinkSalesDocument, loadPostOtSnapshotForQuotation, validateSalesEmission, loadSalesDocumentDescendants } from "@/lib/sales-post-ot";
 import { revalidatePath } from "next/cache";
 
 function str(fd: FormData, k: string) {
@@ -106,9 +106,8 @@ export async function createSalesDocument(formData: FormData) {
 
   const client_id = str(formData, "client_id");
   const rawDocType = str(formData, "doc_type") ?? "REMISION";
-  const allowedCreateTypes: SalesDocType[] = ["PROFORMA", "REMISION", "FACTURA", "NOTA_CREDITO"];
-  if (!allowedCreateTypes.includes(rawDocType as SalesDocType)) return { error: "Tipo de documento invalido." };
-  const doc_type = rawDocType as SalesDocType;
+  if (!isSalesEditorType(rawDocType)) return { error: "Tipo de documento invalido." };
+  const doc_type = rawDocType;
   if (!client_id) return { error: "Elegí un cliente." };
 
   const currency = str(formData, "currency") ?? "PYG";
@@ -163,6 +162,9 @@ export async function updateSalesDocument(id: string, formData: FormData) {
     .single<Pick<SalesDocument, "status" | "doc_type" | "acceptance_status" | "source_document_id" | "client_id" | "currency">>();
   if (!current) return { error: "Documento no encontrado." };
   if (current.status !== "BORRADOR") return { error: "Solo se puede editar un borrador." };
+  if (formData.has("source_document_id") && str(formData, "source_document_id") !== current.source_document_id) {
+    return { error: "El documento de origen es inmutable: no se puede cambiar ni borrar." };
+  }
   // La cotizaci├│n aceptada es inmutable: la OT ya fotografi├│ sus ├¡tems.
   // Editar una PENDING invalida el link (bump de quotation_version, migraci├│n 0090).
   if (current.doc_type === "PROFORMA" && current.acceptance_status === "ACCEPTED") {
@@ -178,7 +180,8 @@ export async function updateSalesDocument(id: string, formData: FormData) {
   const items = parseItems(formData);
   if ("error" in items) return items;
 
-  const nextDocType = (str(formData, "doc_type") ?? "REMISION") as SalesDocType;
+  const nextDocType = str(formData, "doc_type") ?? "REMISION";
+  if (!isSalesEditorType(nextDocType)) return { error: "Tipo de documento invalido." };
   const nextClientId = str(formData, "client_id") ?? current.client_id;
   const nextCurrency = str(formData, "currency") ?? "PYG";
   const sourceValidation = await validateSourceDocument({
@@ -213,16 +216,19 @@ export async function updateSalesDocument(id: string, formData: FormData) {
 }
 
 export async function emitSalesDocument(id: string) {
-  await requireModule("ventas", ["administracion", "admin"]);
+  const profile = await requireModule("ventas", ["administracion", "admin"]);
   const supabase = await createClient();
   const { data: doc } = await supabase
     .from("sales_documents")
-    .select("status, total")
+    .select("*")
     .eq("id", id)
-    .single<{ status: string; total: number }>();
+    .eq("empresa_id", profile.empresa_id)
+    .single<SalesDocument>();
   if (!doc) return { error: "Documento no encontrado." };
   if (doc.status !== "BORRADOR") return { error: "El documento ya fue emitido." };
   if (doc.total <= 0) return { error: "El total debe ser mayor a cero." };
+  const lineage = await validateSalesEmission(supabase, doc, profile.empresa_id);
+  if (lineage.error) return lineage;
 
   const { error } = await supabase.from("sales_documents").update({ status: "EMITIDA" }).eq("id", id);
   if (error) return { error: error.message };
@@ -232,8 +238,13 @@ export async function emitSalesDocument(id: string) {
 }
 
 export async function voidSalesDocument(id: string) {
-  await requireModule("ventas", ["administracion", "admin"]);
+  const profile = await requireModule("ventas", ["administracion", "admin"]);
   const supabase = await createClient();
+  const descendants = await loadSalesDocumentDescendants(supabase, id, profile.empresa_id);
+  if (descendants.error) return { error: descendants.error };
+  if (descendants.documents.some((child) => child.status !== "ANULADA")) {
+    return { error: "Anula primero los documentos derivados activos, desde el ultimo hacia el origen." };
+  }
   const { data: doc } = await supabase
     .from("sales_documents")
     .select("cobrado_amount")
@@ -250,12 +261,17 @@ export async function voidSalesDocument(id: string) {
 }
 
 export async function deleteSalesDocument(id: string) {
-  await requireModule("ventas", ["administracion", "admin"]);
+  const profile = await requireModule("ventas", ["administracion", "admin"]);
   const supabase = await createClient();
+  const descendants = await loadSalesDocumentDescendants(supabase, id, profile.empresa_id);
+  if (descendants.error) return { error: descendants.error };
+  if (descendants.documents.length) {
+    return { error: "Tiene documentos derivados: elimina primero los borradores hijos. La trazabilidad debe conservarse." };
+  }
   const { data: doc } = await supabase.from("sales_documents").select("status").eq("id", id).single<{ status: string }>();
   if (doc && doc.status !== "BORRADOR") return { error: "Solo se puede eliminar un borrador. Anulalo en su lugar." };
   const { error } = await supabase.from("sales_documents").delete().eq("id", id);
-  if (error) return { error: error.message };
+  if (error) return { error: error.code === "23503" ? "Tiene documentos derivados: la trazabilidad debe conservarse." : error.message };
   revalidatePath("/ventas");
   return { error: null };
 }

@@ -315,3 +315,40 @@ export async function loadSalesDocumentDescendants(
 
   return { documents: found, error: null };
 }
+
+/** Re-read the complete factual chain at issuance; never infer a missing link. */
+export async function validateSalesEmission(
+  supabase: SalesSupabase,
+  document: Pick<SalesDocument, "id" | "empresa_id" | "client_id" | "currency" | "doc_type" | "source_document_id">,
+  empresaId: string
+): Promise<{ error: string | null }> {
+  if (document.empresa_id !== empresaId) return { error: "Documento de otra empresa." };
+  let child = document;
+  const visited = new Set<string>([child.id]);
+  while (child.source_document_id) {
+    if (visited.has(child.source_document_id)) return { error: "Cadena de origen circular." };
+    visited.add(child.source_document_id);
+    const { data: source, error } = await supabase.from("sales_documents").select("*")
+      .eq("id", child.source_document_id).eq("empresa_id", empresaId).maybeSingle<SalesDocument>();
+    if (error || !source || source.empresa_id !== empresaId) return { error: "No se puede emitir: falta el documento de origen de esta empresa." };
+    if (source.status === "ANULADA") return { error: "No se puede emitir: el origen esta anulado." };
+    if (!canLinkSalesDocument(source.doc_type, child.doc_type) || source.client_id !== child.client_id || source.currency !== child.currency) {
+      return { error: "No se puede emitir: tipo, cliente o moneda incompatibles con el origen." };
+    }
+    if (child.doc_type === "NOTA_CREDITO" && !["EMITIDA", "COBRADA_PARCIAL", "COBRADA"].includes(source.status)) {
+      return { error: "La nota de credito requiere una factura emitida." };
+    }
+    if (source.doc_type === "PROFORMA") {
+      if (!await loadPostOtSnapshotForQuotation(supabase, source.id, empresaId)) {
+        return { error: "No se puede emitir: la version aceptada, OT o snapshot de la proforma no es valido." };
+      }
+      return { error: null };
+    }
+    child = source;
+  }
+  // Standalone/manual documents remain supported. Linked remisiones must trace to an accepted quote.
+  if (document.source_document_id && child.doc_type === "REMISION") {
+    return { error: "No se puede emitir: la remision de origen no tiene una proforma aceptada y OT." };
+  }
+  return { error: null };
+}

@@ -7,9 +7,9 @@
 - Base commit: 4b7896025fa01d45a87b71fe132f331ee303ca89
 - Target: pull request to main; do not merge or deploy
 - Production DB mutations: prohibited; none performed
-- Database migrations in this batch: 0
-- Preview project checked read-only: xddlzgjwufskgasomval
-- Preview ledger at check: 46
+- Database migrations in this batch: 1 (Preview only)
+- Preview project migrated and tested: xddlzgjwufskgasomval
+- Preview ledger after correction: 47; Production ledger: 46
 
 ## Discovered module map
 
@@ -28,13 +28,13 @@
 
 ## Schema facts
 
-- sales_documents.source_document_id already exists as a self-reference; no schema addition is needed.
+- sales_documents.source_document_id already exists as a self-reference; the audit correction replaces SET NULL with RESTRICT and adds an authoritative provenance trigger.
 - sales_quotation_acceptances and work_orders each enforce a single accepted record/order per quotation.
 - Acceptance snapshots customer, amount, currency, version, and item details; work_order_items copies accepted items.
 - Project-certificate billing is a separate certificate_id flow and was not conflated with post-OT sales documents.
 - The existing schema allows multiple downstream documents. It has no item-level delivery/invoicing allocation, balance, or idempotency field.
 - NOTA_VENTA exists in the database and B09 read paths. It is now represented in the TypeScript read model and labels but remains unavailable as a new form type.
-- No new or changed migration file is part of this batch.
+- Exactly one new migration: 20261004041015_sales_provenance_guard.sql. Applied historical migrations remain unchanged.
 
 ## Changed files
 
@@ -54,7 +54,7 @@
 - IMPLEMENTATION_REPORT-BATCH-10.md
 - BATCH-10-MANIFEST.md
 
-## Checks
+## Original checks (current correction results in BATCH-10-AUDIT-CORRECTION.md)
 
 - Focused tests: passed
 - Full Vitest suite: one complete run passed (1,546 passed, 16 skipped). A final repeat timed out only in the unrelated schedule-import PGlite test (1,545 passed, 16 skipped); that file passed 20/20 in isolation.

@@ -5,7 +5,7 @@
 Branch: batch/10-sales-post-ot
 Base: 4b7896025fa01d45a87b71fe132f331ee303ca89
 Production merge/deploy: not performed
-Database migrations: none
+Database migrations: one additive Preview-only migration (see BATCH-10-AUDIT-CORRECTION.md)
 
 The change wires accepted quotations and their canonical work orders into the existing sales document editor. A user chooses whether to prepare a remisión or factura; submitting the existing SalesForm creates a draft for review. It does not emit documents, collect payments, create treasury entries, or trigger procurement, inventory, or SIFEN actions.
 
@@ -47,12 +47,12 @@ The accepted quotation and acceptance are append-only/versioned; each quotation 
 
 ## Preserved boundaries
 
-- No database/schema/migration changes.
+- The original implementation had no migration; the external audit correction adds one provenance guard migration to Preview only.
 - No changes to electronic quotation acceptance, the existing work-order creation RPC, cobro/reversal RPCs, treasury, inventory, purchasing, or the PREBID engine.
 - No production database or production application mutation was performed.
 - No production deployment or merge was performed.
 
-## Validation
+## Original validation (superseded by BATCH-10-AUDIT-CORRECTION.md)
 
 - Focused post-OT and quotation tests: passed.
 - Full Vitest suite: one run passed with 1,546 passed and 16 skipped (160 files passed, 2 skipped). A final repeat had 1,545 passed, 16 skipped, and one timeout in the unrelated schedule-import PGlite test; that entire file passed 20/20 when run alone. Focused post-OT/quotation tests passed.
@@ -66,4 +66,4 @@ The accepted quotation and acceptance are append-only/versioned; each quotation 
 
 - There is no DB-level allocation/idempotency contract for multiple partial deliveries or invoices. The UI lists factual linked documents but does not claim a remaining quantity or “fully invoiced/delivered” state.
 - Historical note-only conversions remain unmapped until a human establishes their provenance.
-- The SQL smoke requires authenticated JWT context that the Supabase SQL runner does not supply; no identity was fabricated to make it pass.
+- The correction adds a rollback-only Preview SQL smoke with explicit synthetic SQL auth context. This is a database test, not a browser login or visual smoke.
