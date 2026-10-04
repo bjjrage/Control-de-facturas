@@ -102,6 +102,7 @@ export function LicitacionesSection({
                 <th className="num">Referencial</th>
                 <th>Entrega ofertas</th>
                 <th>Estado</th>
+                <th>PREBID</th>
                 <th>Seguimiento</th>
               </tr>
             </thead>
@@ -158,6 +159,11 @@ function LicitacionRow({ lic }: { lic: Partial<Licitacion> }) {
         <span className="text-[12px] text-[var(--muted)]">{lic.estado_detalle ?? lic.estado ?? "—"}</span>
       </td>
       <td>
+        <Link href={`/licitaciones/${lic.id}/prebid`} className="text-action text-[12px] font-medium whitespace-nowrap">
+          Abrir PREBID
+        </Link>
+      </td>
+      <td>
         <select
           value={lic.decision ?? "SIN_REVISAR"}
           onChange={async (e) => {
@@ -175,7 +181,7 @@ function LicitacionRow({ lic }: { lic: Partial<Licitacion> }) {
   );
 }
 
-function ImportarDialog() {
+export function ImportarDialog({ triggerLabel = "Importar DNCP" }: { triggerLabel?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -201,7 +207,7 @@ function ImportarDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Importar DNCP</Button>
+        <Button>{triggerLabel}</Button>
       </DialogTrigger>
       <DialogContent title="Importar licitación de la DNCP">
         <div className="space-y-3">
@@ -364,7 +370,7 @@ function ImportarCostosDialog() {
       setError(res.error);
       return;
     }
-    setOk(`Se importaron exitosamente ${res.importados} observaciones de costo real para calibrar el Cost Engine.`);
+    setOk(`Se importaron exitosamente ${res.importados} observaciones de costos históricos.`);
     setFile(null);
     setNombreObra("");
     router.refresh();
@@ -373,12 +379,15 @@ function ImportarCostosDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="secondary">Calibrar costos</Button>
+        <Button variant="secondary">Costos históricos</Button>
       </DialogTrigger>
-      <DialogContent title="Calibrar Cost Engine con Obras Anteriores">
+      <DialogContent title="Base histórica del Cost Engine">
         <div className="space-y-3">
           <p className="text-[12px] text-[var(--muted)]">
-            Subí planillas de cómputo métrico o precios unitarios de obras anteriores (Excel o CSV). El sistema inferirá automáticamente las columnas, categorías de insumo (materiales, equipos, combustibles) y precios unitarios.
+            Importá APUs, cómputos o costos reales de obras anteriores para alimentar la evidencia histórica del Cost Engine. Podés subir planillas Excel o CSV; el sistema inferirá las columnas, categorías de insumo y precios unitarios.
+          </p>
+          <p role="note" className="rounded-md border border-[var(--error)] bg-[var(--panel-2)] px-3 py-2 text-[12px] font-medium text-[var(--error)]">
+            No uses este importador para cargar la oferta económica de la licitación actual.
           </p>
           <div>
             <Label htmlFor="cost-obra">Nombre o referencia de la obra</Label>
@@ -415,7 +424,7 @@ function ImportarCostosDialog() {
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="secondary" onClick={() => setOpen(false)} disabled={busy}>Cerrar</Button>
             <Button onClick={submit} disabled={busy || !file}>
-              {busy ? "Procesando…" : "Importar y Calibrar"}
+              {busy ? "Procesando…" : "Importar costos históricos"}
             </Button>
           </div>
         </div>
