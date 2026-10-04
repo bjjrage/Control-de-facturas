@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { formatDate, formatMoney } from "@/lib/format";
 import {
   docSaldo,
+  canIssueSalesFiscalDocument,
   isOverdue,
   RECEIPT_METHOD_LABELS,
   SALES_DOC_STATUS_LABELS,
@@ -136,10 +137,11 @@ export default async function VentaDetailPage({ params, searchParams }: { params
               <Button variant="secondary">Emitir NC</Button>
             </Link>
           ) : null}
-          {(doc.doc_type === "FACTURA" || doc.doc_type === "NOTA_CREDITO") && doc.status !== "ANULADA" ? (
+          {canIssueSalesFiscalDocument(doc.doc_type, doc.status) ? (
             <SifenButton
               docId={doc.id}
               docType={doc.doc_type}
+              status={doc.status}
               cdc={doc.cdc}
               kudeUrl={doc.kude_url}
               xmlUrl={doc.xml_url}

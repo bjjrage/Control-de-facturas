@@ -1,5 +1,7 @@
 # Batch 10 — external audit correction, PR #31
 
+P1-A/P1-B were subsequently closed by external re-audit. See BATCH-10-REAUDIT-CORRECTION-2.md for the later P1-C correction and latest validation.
+
 Branch: batch/10-sales-post-ot
 Audited old HEAD: 04e1d57db8551db9fb0a8d12a213cc2f687fb186
 Main/base: 4b7896025fa01d45a87b71fe132f331ee303ca89

@@ -1,5 +1,7 @@
 # Batch 10 manifest — Sales / Post-OT
 
+Latest correction: BATCH-10-REAUDIT-CORRECTION-2.md (P1-C fiscal issuance gate; no additional migration).
+
 ## Git and release target
 
 - Repository: bjjrage/Control-de-facturas

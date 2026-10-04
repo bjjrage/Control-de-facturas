@@ -10,6 +10,8 @@ import {
   type GoekuaFacturaPayload,
 } from "@/lib/goekua";
 import type { Client, Empresa, SalesDocument, SalesDocumentItem } from "@/lib/types";
+import { canIssueSalesFiscalDocument } from "@/lib/sales";
+import { validateSalesEmission } from "@/lib/sales-post-ot";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -73,7 +75,7 @@ function buildPayload(
 export async function emitirFE(
   docId: string
 ): Promise<{ ok?: true; cdc?: string; error?: string }> {
-  await requireModule("ventas", ["administracion", "admin"]);
+  const profile = await requireModule("ventas", ["administracion", "admin"]);
   const supabase = await createClient();
 
   if (!isGoekuaConfigured()) {
@@ -84,20 +86,27 @@ export async function emitirFE(
     .from("sales_documents")
     .select("*")
     .eq("id", docId)
+    .eq("empresa_id", profile.empresa_id)
     .single<SalesDocument>();
 
   if (!doc)                         return { error: "Documento no encontrado" };
   if (doc.doc_type !== "FACTURA")   return { error: "Solo se pueden emitir facturas como FE" };
   if (doc.cdc)                      return { error: "Este documento ya tiene un CDC — ya fue emitido" };
   if (doc.status === "ANULADA")     return { error: "No se puede emitir una factura anulada" };
+  if (!canIssueSalesFiscalDocument(doc.doc_type, doc.status)) {
+    return { error: "Primero emiti el documento interno antes de emitir la factura fiscal." };
+  }
+  const lineage = await validateSalesEmission(supabase, doc, profile.empresa_id);
+  if (lineage.error) return { error: lineage.error };
 
   const [{ data: items }, { data: client }, { data: empresa }] = await Promise.all([
     supabase
       .from("sales_document_items")
       .select("*")
       .eq("sales_document_id", docId)
+      .eq("empresa_id", profile.empresa_id)
       .returns<SalesDocumentItem[]>(),
-    supabase.from("clients").select("*").eq("id", doc.client_id).single<Client>(),
+    supabase.from("clients").select("*").eq("id", doc.client_id).eq("empresa_id", profile.empresa_id).single<Client>(),
     supabase
       .from("empresas")
       .select("nombre, ruc, email_empresa")
@@ -115,14 +124,17 @@ export async function emitirFE(
     return { error: result.error + (result.detail ? `: ${result.detail}` : "") };
   }
 
-  await supabase
+  const { error: persistError } = await supabase
     .from("sales_documents")
     .update({
       cdc:     result.cdc     ?? result.id,
       xml_url: result.xmlUrl  ?? null,
       kude_url:result.kudeUrl ?? null,
     })
-    .eq("id", docId);
+    .eq("id", docId)
+    .eq("empresa_id", profile.empresa_id)
+    .select("id").single();
+  if (persistError) return { error: `Goekua emitio el documento (${result.cdc ?? result.id}), pero no se pudo guardar en el ERP: ${persistError.message}. Requiere conciliacion antes de reintentar.` };
 
   revalidatePath(`/ventas/${docId}`);
   return { ok: true, cdc: result.cdc };
@@ -131,7 +143,7 @@ export async function emitirFE(
 export async function emitirNC(
   docId: string
 ): Promise<{ ok?: true; cdc?: string; error?: string }> {
-  await requireModule("ventas", ["administracion", "admin"]);
+  const profile = await requireModule("ventas", ["administracion", "admin"]);
   const supabase = await createClient();
 
   if (!isGoekuaConfigured()) {
@@ -142,12 +154,19 @@ export async function emitirNC(
     .from("sales_documents")
     .select("*")
     .eq("id", docId)
+    .eq("empresa_id", profile.empresa_id)
     .single<SalesDocument>();
 
   if (!doc)                              return { error: "Documento no encontrado" };
   if (doc.doc_type !== "NOTA_CREDITO")   return { error: "Solo aplica a notas de crédito" };
   if (doc.cdc)                           return { error: "Esta NC ya tiene un CDC — ya fue emitida" };
   if (doc.status === "ANULADA")          return { error: "No se puede emitir una NC anulada" };
+  if (!canIssueSalesFiscalDocument(doc.doc_type, doc.status)) {
+    return { error: "Primero emiti el documento interno antes de emitir la nota de credito fiscal." };
+  }
+  if (!doc.source_document_id) return { error: "La NC fiscal requiere una factura de origen valida." };
+  const lineage = await validateSalesEmission(supabase, doc, profile.empresa_id);
+  if (lineage.error) return { error: lineage.error };
 
   // CDC de la factura origen (si tiene)
   let sourceCdc: string | null = null;
@@ -156,7 +175,9 @@ export async function emitirNC(
       .from("sales_documents")
       .select("cdc")
       .eq("id", doc.source_document_id)
+      .eq("empresa_id", profile.empresa_id)
       .single<{ cdc: string | null }>();
+    if (!src) return { error: "Factura de origen no encontrada para esta empresa." };
     sourceCdc = src?.cdc ?? null;
   }
 
@@ -165,8 +186,9 @@ export async function emitirNC(
       .from("sales_document_items")
       .select("*")
       .eq("sales_document_id", docId)
+      .eq("empresa_id", profile.empresa_id)
       .returns<SalesDocumentItem[]>(),
-    supabase.from("clients").select("*").eq("id", doc.client_id).single<Client>(),
+    supabase.from("clients").select("*").eq("id", doc.client_id).eq("empresa_id", profile.empresa_id).single<Client>(),
     supabase
       .from("empresas")
       .select("nombre, ruc, email_empresa")
@@ -228,14 +250,17 @@ export async function emitirNC(
     return { error: result.error + (result.detail ? `: ${result.detail}` : "") };
   }
 
-  await supabase
+  const { error: persistError } = await supabase
     .from("sales_documents")
     .update({
       cdc:      result.cdc     ?? result.id,
       xml_url:  result.xmlUrl  ?? null,
       kude_url: result.kudeUrl ?? null,
     })
-    .eq("id", docId);
+    .eq("id", docId)
+    .eq("empresa_id", profile.empresa_id)
+    .select("id").single();
+  if (persistError) return { error: `Goekua emitio la NC (${result.cdc ?? result.id}), pero no se pudo guardar en el ERP: ${persistError.message}. Requiere conciliacion antes de reintentar.` };
 
   revalidatePath(`/ventas/${docId}`);
   return { ok: true, cdc: result.cdc };

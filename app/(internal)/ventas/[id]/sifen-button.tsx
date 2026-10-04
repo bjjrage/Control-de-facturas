@@ -3,22 +3,26 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { emitirFE, emitirNC, consultarFE } from "../sifen-actions";
-import type { SalesDocType } from "@/lib/types";
+import type { SalesDocType, SalesDocStatus } from "@/lib/types";
+import { canIssueSalesFiscalDocument } from "@/lib/sales";
 
 interface Props {
   docId:   string;
   docType: SalesDocType;
+  status: SalesDocStatus;
   cdc:     string | null;
   kudeUrl: string | null;
   xmlUrl:  string | null;
 }
 
-export function SifenButton({ docId, docType, cdc: initialCdc, kudeUrl: initialKude, xmlUrl: initialXml }: Props) {
+export function SifenButton({ docId, docType, status, cdc: initialCdc, kudeUrl: initialKude, xmlUrl: initialXml }: Props) {
   const [cdc,     setCdc]     = useState(initialCdc);
   const [kudeUrl, setKudeUrl] = useState(initialKude);
   const [xmlUrl,  setXmlUrl]  = useState(initialXml);
   const [error,   setError]   = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  if (!canIssueSalesFiscalDocument(docType, status)) return null;
 
   function emitir() {
     setError(null);

@@ -31,6 +31,12 @@ export function isSalesEditorType(value: string): value is SalesDocType {
   return SALES_DOC_FORM_TYPES.includes(value as SalesDocType);
 }
 
+/** Fiscal issuance follows the explicit human internal issuance boundary. */
+export function canIssueSalesFiscalDocument(docType: SalesDocType, status: SalesDocStatus): boolean {
+  return (docType === "FACTURA" || docType === "NOTA_CREDITO") &&
+    ["EMITIDA", "COBRADA_PARCIAL", "COBRADA"].includes(status);
+}
+
 export const SALES_DOC_PANEL_PATH: Record<SalesDocType, string> = {
   PROFORMA:     "/proformas",
   NOTA_VENTA:   "/cobros",
