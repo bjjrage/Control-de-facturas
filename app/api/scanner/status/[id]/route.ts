@@ -10,7 +10,7 @@ export async function GET(
   try {
     // 1. Autorización obligatoria: sólo usuarios autenticados del ERP
     const profile = await getCurrentProfile().catch(() => null);
-    if (!profile || !profile.empresa_id) {
+    if (!profile || !profile.empresa_id || !profile.active || (!profile.empresa_active && !profile.is_super_admin)) {
       return NextResponse.json(
         { error: 'No autorizado. Se requiere sesión activa en el ERP.' },
         { status: 401 }

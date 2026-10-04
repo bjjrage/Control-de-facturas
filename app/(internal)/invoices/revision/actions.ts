@@ -46,6 +46,10 @@ export async function resolveInvoiceJob(jobId: string, formData: FormData) {
   }
   if (total === null || total <= 0) return { error: "El total debe ser mayor a cero." };
 
+  const { data: provider, error: providerError } = await supabase.from("providers")
+    .select("id").eq("id", providerId).eq("empresa_id", empresaId).maybeSingle();
+  if (providerError || !provider) return { error: "Proveedor no disponible para esta empresa." };
+
   // El archivo ya está en Storage (inbox). Lo movemos a su ubicación por proveedor.
   const finalPath = `${providerId}/${Date.now()}-${sanitizeFileName(job.file_name)}`;
   let attachmentId: string | null = null;

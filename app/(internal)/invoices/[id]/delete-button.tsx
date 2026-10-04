@@ -4,7 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { InvoiceStatus } from "@/lib/types";
 import { deleteInvoice } from "./actions";
+
+export function canHardDeleteInvoice(status: InvoiceStatus) {
+  return status !== "APTO_PARA_PAGO" && status !== "PAGADO";
+}
 
 /**
  * Admin-only hard delete. Used both on the invoice detail page (full button,
@@ -13,11 +18,13 @@ import { deleteInvoice } from "./actions";
  */
 export function DeleteInvoiceButton({
   invoiceId,
+  status,
   redirectTo,
   compact,
   onDeleted,
 }: {
   invoiceId: string;
+  status: InvoiceStatus;
   redirectTo?: string;
   compact?: boolean;
   onDeleted?: () => void;
@@ -44,6 +51,8 @@ export function DeleteInvoiceButton({
       setPending(false);
     }
   }
+
+  if (!canHardDeleteInvoice(status)) return null;
 
   if (compact) {
     return (

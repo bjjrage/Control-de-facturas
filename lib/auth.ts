@@ -39,8 +39,8 @@ export const getCurrentProfile = cache(async function getCurrentProfile(): Promi
   }).empresas;
   return {
     ...(data as Profile),
-    empresa_active: empresa?.active ?? true,
-    modulo_compras: empresa?.modulo_compras ?? true,
+    empresa_active: empresa?.active ?? false,
+    modulo_compras: empresa?.modulo_compras ?? false,
     modulo_ventas: empresa?.modulo_ventas ?? false,
     plan: empresa?.plan ?? "basico",
   };
@@ -49,6 +49,7 @@ export const getCurrentProfile = cache(async function getCurrentProfile(): Promi
 export async function requireProfile(allowed?: UserRole[]): Promise<CurrentProfile> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
+  if (!profile.active) redirect("/suspendido");
   // A user whose empresa was deactivated is locked out (super-admins excepted).
   if (!profile.empresa_active && !profile.is_super_admin) redirect("/suspendido");
   if (allowed && !allowed.includes(profile.role)) redirect("/dashboard");

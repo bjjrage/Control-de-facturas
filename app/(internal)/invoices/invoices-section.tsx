@@ -338,6 +338,7 @@ export function InvoicesSection({ initialData }: { initialData: InvoicesSectionD
                         <td>
                           <DeleteInvoiceButton
                             invoiceId={i.id}
+                            status={i.status}
                             compact
                             onDeleted={() => {
                               setInvoices((prev) => prev.filter((x) => x.id !== i.id));

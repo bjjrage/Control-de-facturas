@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     const result = await claimScanSession(
       { token, pin, mobileClaimToken },
       mergedDeviceInfo,
-      profile?.id
+      profile?.active && (profile.empresa_active || profile.is_super_admin) ? profile.id : undefined
     );
 
     // Responder con la sesión y credencial autorizada para el móvil

@@ -12,7 +12,8 @@ import { LinkOrderDialog } from "@/app/(internal)/invoices/link-order-dialog";
 import { CreateOrderFromInvoiceDialog } from "./create-order-dialog";
 import { ExceptionDialog } from "./exception-dialog";
 import { AttachmentLink } from "./attachment-link";
-import { unmatchOrder, markAptoYCrearOp } from "./actions";
+import { markAptoYCrearOp } from "./actions";
+import { UnmatchOrderButton } from "./unmatch-button";
 import { DeleteInvoiceButton } from "./delete-button";
 import { CreateOpButton } from "./create-op-button";
 
@@ -119,7 +120,7 @@ export default async function InvoiceDetailPage({
           ) : invoice.status === "APTO_PARA_PAGO" ? (
             <CreateOpButton invoiceId={invoice.id} />
           ) : null}
-          {profile.role === "admin" ? <DeleteInvoiceButton invoiceId={invoice.id} redirectTo="/invoices" /> : null}
+          {profile.role === "admin" ? <DeleteInvoiceButton invoiceId={invoice.id} status={invoice.status} redirectTo="/invoices" /> : null}
         </div>
       </div>
 
@@ -177,16 +178,10 @@ export default async function InvoiceDetailPage({
                 <div className="font-medium text-[13px]">{linkedOrder.code}</div>
                 <div className="text-[12px] text-[var(--muted)]">{linkedOrder.product}</div>
               </div>
-              <form
-                action={async () => {
-                  "use server";
-                  await unmatchOrder(invoice.id, match!.id, linkedOrder.id);
-                }}
-              >
-                <Button variant="ghost" className="h-6 px-2 text-[12px]" type="submit">
-                  Desvincular
-                </Button>
-              </form>
+              {!['APTO_PARA_PAGO', 'PAGADO'].includes(invoice.status)
+                && !['APTO_PARA_PAGO', 'PAGADO'].includes(linkedOrder.status) ? (
+                <UnmatchOrderButton invoiceId={invoice.id} matchId={match!.id} orderId={linkedOrder.id} />
+              ) : null}
             </div>
             <div className="mt-3 grid grid-cols-3 gap-3 text-[13px] border-t border-[var(--border)] pt-3">
               <div>

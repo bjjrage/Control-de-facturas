@@ -71,6 +71,10 @@ export async function createInvoice(formData: FormData) {
 
   const admin = createAdminClient();
   const empresaId = profile.empresa_id;
+  const { data: provider, error: providerError } = await admin.from("providers")
+    .select("id").eq("id", providerId).eq("empresa_id", empresaId).maybeSingle();
+  if (providerError || !provider) return { error: "Proveedor no disponible para esta empresa." };
+
   let attachmentId: string | null = null;
   let newlyCreatedScannerAttachmentId: string | null = null;
 
@@ -380,7 +384,7 @@ export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Pr
     .insert({ invoice_id: invoiceId, authorized_order_id: orderId, empresa_id: empresaId });
   if (matchError) return { error: "No se pudo vincular: " + matchError.message };
 
-  await supabase.from("invoices").update({ status: "MATCH" }).eq("id", invoiceId).eq("empresa_id", empresaId);
+  // The match trigger performs canonical reconciliation, including overbilling review.
 
   // Cost Engine Flywheel: Alimentar observaciones de costo real
   try {

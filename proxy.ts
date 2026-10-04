@@ -20,6 +20,11 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
+  // These exact worker routes authenticate their own CRON_SECRET before any privileged work.
+  if (path === "/api/cron/climate-evaluation" || path === "/api/cron/tender-monitoring") {
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

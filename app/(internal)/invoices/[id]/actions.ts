@@ -61,10 +61,16 @@ export async function matchOrder(invoiceId: string, authorizedOrderId: string) {
 export async function unmatchOrder(invoiceId: string, matchId: string, authorizedOrderId: string) {
   await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
-  await supabase.from("invoice_order_matches").delete().eq("id", matchId);
+  const { data, error } = await supabase.from("invoice_order_matches")
+    .delete().eq("id", matchId).eq("invoice_id", invoiceId)
+    .eq("authorized_order_id", authorizedOrderId).select("id");
+  if (error) return { error: error.message };
+  if (!data?.length) return { error: "El vínculo no existe o no tenés permiso para desvincularlo." };
   await logAudit(supabase, { action: "invoice.order_unmatched", invoiceId, authorizedOrderId });
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoiceId}`);
+  revalidatePath(`/orders/${authorizedOrderId}`);
+  return { error: null };
 }
 
 export async function approveException(invoiceId: string, reason: string, comment: string | null) {
@@ -169,24 +175,27 @@ export async function deleteInvoice(invoiceId: string) {
 
   // Scope the lookup to the caller's empresa — the admin client bypasses RLS,
   // so without this an admin could delete another tenant's invoice by id.
-  const { data: invoice } = await admin
+  const { data: invoice, error: invoiceLookupError } = await admin
     .from("invoices")
     .select("attachment_id, status, invoice_number")
     .eq("id", invoiceId)
     .eq("empresa_id", empresaId)
     .maybeSingle();
+  if (invoiceLookupError) return { error: invoiceLookupError.message };
   if (!invoice) return { error: "Factura no encontrada." };
 
-  if (invoice.status === "PAGADO") {
-    return { error: "No se puede eliminar la factura " + (invoice.invoice_number ?? "") + " porque ya fue pagada (integridad contable)." };
+  if (invoice.status === "APTO_PARA_PAGO" || invoice.status === "PAGADO") {
+    const reason = invoice.status === "PAGADO" ? "ya fue pagada" : "ya está aprobada para pago";
+    return { error: `No se puede eliminar la factura ${invoice.invoice_number ?? ""} porque ${reason} (integridad contable).` };
   }
 
   // Verificar si está en una orden de pago ejecutada
-  const { data: inExecutedOp } = await admin
+  const { data: inExecutedOp, error: executedOpLookupError } = await admin
     .from("payment_order_invoices")
     .select("payment_orders(status)")
     .eq("invoice_id", invoiceId)
     .eq("empresa_id", empresaId);
+  if (executedOpLookupError) return { error: executedOpLookupError.message };
 
   const hasExecutedOp = (inExecutedOp ?? []).some(
     (row: unknown) => (row as { payment_orders: { status: string } | null })?.payment_orders?.status === "EJECUTADA"
@@ -195,11 +204,17 @@ export async function deleteInvoice(invoiceId: string) {
     return { error: "No se puede eliminar una factura vinculada a una orden de pago ejecutada." };
   }
 
-  await admin.from("invoice_order_matches").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
-  await admin.from("invoice_exceptions").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
-  await admin.from("audit_logs").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
+  // Stop on the first failure: the relationship guard also closes the race
+  // between the status read above and the start of this privileged cleanup.
+  const { error: matchDeleteError } = await admin.from("invoice_order_matches").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
+  if (matchDeleteError) return { error: matchDeleteError.message };
+  const { error: exceptionDeleteError } = await admin.from("invoice_exceptions").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
+  if (exceptionDeleteError) return { error: exceptionDeleteError.message };
+  const { error: auditDeleteError } = await admin.from("audit_logs").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
+  if (auditDeleteError) return { error: auditDeleteError.message };
   // payment_order_invoices tiene FK NO ACTION — solo se remueve si la OP no fue ejecutada
-  await admin.from("payment_order_invoices").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
+  const { error: paymentOrderLinkDeleteError } = await admin.from("payment_order_invoices").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
+  if (paymentOrderLinkDeleteError) return { error: paymentOrderLinkDeleteError.message };
 
   const { error } = await admin.from("invoices").delete().eq("id", invoiceId).eq("empresa_id", empresaId);
   if (error) return { error: error.message };
