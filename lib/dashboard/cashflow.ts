@@ -1,7 +1,9 @@
 import type { CurrencyCode } from "@/lib/types";
 import { formatMoney } from "@/lib/format";
 import type { FlujoItem } from "@/lib/flujo-caja";
-import { ocurrenciasGastoRecurrente } from "@/lib/flujo-caja";
+import { buildCanonicalCashflow } from "@/lib/cashflow/model";
+import { addCashDays, financialWindow } from "@/lib/cashflow/dates";
+import type { CashflowSources } from "@/lib/cashflow/types";
 import type { DomainTone } from "./types";
 
 export interface RawSalesDocForCashflow {
@@ -48,128 +50,22 @@ export interface RawGastoRecurrenteForCashflow {
   project_id: string | null;
 }
 
-function addDays(isoOrDate: string | Date, days: number): string {
-  const d = new Date(isoOrDate);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-function localDate(isoDate: string): Date {
-  const [year, month, day] = isoDate.split("-").map(Number);
-  return new Date(year, month - 1, day);
-}
-
-/**
- * Cruza las fuentes financieras existentes (cobros pendientes, certificados de obra,
- * facturas de compra y gastos recurrentes) dentro de la ventana de 30 días,
- * reutilizando la lógica canónica de lib/flujo-caja.ts.
- */
+/** Compatibility adapter for older callers; all financial decisions use B09. */
 export function build30DayCashflowItems(params: {
-  todayIso: string;
-  ventaDocs: RawSalesDocForCashflow[];
-  certificados: RawCertificateForCashflow[];
-  comprasInv: RawInvoiceForCashflow[];
+  todayIso: string; ventaDocs: RawSalesDocForCashflow[];
+  certificados: RawCertificateForCashflow[]; comprasInv: RawInvoiceForCashflow[];
   gastos: RawGastoRecurrenteForCashflow[];
 }): FlujoItem[] {
-  const { todayIso, ventaDocs, certificados, comprasInv, gastos } = params;
-  const ventanaFinIso = addDays(todayIso, 30);
-  const items: FlujoItem[] = [];
-
-  // 1. Cobros de facturas y notas de venta pendientes con vencimiento/emisión en la ventana
-  for (const d of ventaDocs) {
-    const saldo = (d.total ?? 0) - (d.cobrado_amount ?? 0);
-    if (saldo <= 0.01) continue;
-    const fecha = d.due_date ?? d.issue_date;
-    // Si no tiene fecha o si cae dentro de los próximos 30 días (o ya está vencido, que se computa en el horizonte próximo)
-    if (fecha && fecha > ventanaFinIso) continue;
-
-    items.push({
-      tipo: "cobro_factura",
-      descripcion: `Cobro ${d.code || d.id}`,
-      fecha: fecha ?? todayIso,
-      monto: saldo,
-      moneda: (d.currency as CurrencyCode) || "PYG",
-      project_id: null,
-      ref_id: d.id,
-    });
-  }
-
-  // 2. Cobros de certificados de obra pendientes (estimado fecha base + 30 días)
-  // Solo certificados aprobados/facturados son proyecciones de ingreso.
-  // Si existe un documento de venta no anulado, ese documento es la única
-  // fuente del cobro para evitar contar certificado + factura dos veces.
-  for (const c of certificados) {
-    if (c.status !== "APROBADO" && c.status !== "FACTURADO") continue;
-    if (!c.monto_liquido || c.monto_liquido <= 0) continue;
-    const salesDocuments = Array.isArray(c.sales_documents)
-      ? c.sales_documents
-      : c.sales_documents
-        ? [c.sales_documents]
-        : [];
-    const hasActiveSalesDoc = salesDocuments.some((d) => d.status !== "ANULADA");
-    if (hasActiveSalesDoc) continue;
-
-    const base = c.status === "FACTURADO" ? (c.facturado_at ?? c.period_end) : (c.aprobado_at ?? c.period_end);
-    const fechaEstimada = base ? addDays(String(base).slice(0, 10), 30) : todayIso;
-    if (fechaEstimada > ventanaFinIso) continue;
-
-    items.push({
-      tipo: "cobro_certificado",
-      descripcion: `Certificado N° ${c.numero}`,
-      fecha: fechaEstimada,
-      monto: c.monto_liquido,
-      moneda: "PYG",
-      project_id: c.project_id,
-      ref_id: c.id,
-    });
-  }
-
-  // 3. Pagos de facturas de compra pendientes
-  for (const inv of comprasInv) {
-    if (!inv.total || inv.total <= 0) continue;
-    const fecha = inv.due_date ?? inv.invoice_date;
-    if (fecha && fecha > ventanaFinIso) continue;
-
-    items.push({
-      tipo: "pago_factura",
-      descripcion: `Pago factura ${inv.invoice_number}`,
-      fecha: fecha ?? todayIso,
-      monto: -inv.total,
-      moneda: (inv.currency as CurrencyCode) || "PYG",
-      project_id: null,
-      ref_id: inv.id,
-    });
-  }
-
-  // 4. Gastos recurrentes proyectados para los próximos 30 días
-  const finDate = localDate(ventanaFinIso);
-  finDate.setDate(finDate.getDate() + 1);
-  const desde = localDate(todayIso);
-  for (const g of gastos.filter((x) => x.activo)) {
-    const ocurrencias = ocurrenciasGastoRecurrente(
-      g.monto_estimado,
-      g.periodicidad,
-      g.dia_del_mes,
-      g.proximo_vencimiento,
-      finDate,
-      desde
-    );
-    for (const oc of ocurrencias) {
-      if (oc.fecha > ventanaFinIso) continue;
-      items.push({
-        tipo: "gasto_recurrente",
-        descripcion: g.descripcion,
-        fecha: oc.fecha,
-        monto: -oc.monto,
-        moneda: g.moneda,
-        project_id: g.project_id,
-        ref_id: `${g.id}-${oc.fecha}`,
-      });
-    }
-  }
-
-  return items;
+  const empresa_id="legacy-adapter", stamp=<T extends object>(r:T)=>({...r,empresa_id});
+  const s:CashflowSources={empresa_id,read_at:params.todayIso+"T00:00:00Z",from:params.todayIso,until:addCashDays(params.todayIso,30),
+    accounts:[],projects:[...new Set([...params.certificados.map(c=>c.project_id),...params.gastos.flatMap(g=>g.project_id?[g.project_id]:[])])].map(id=>({id,empresa_id})),
+    expenses:params.gastos.map(stamp) as CashflowSources["expenses"],
+    sales:params.ventaDocs.map(d=>({...stamp(d),status:"EMITIDA"})),
+    certificates:params.certificados.map(c=>({...stamp(c),sales_documents:Array.isArray(c.sales_documents)?c.sales_documents:c.sales_documents?[c.sales_documents]:[]})),
+    invoices:params.comprasInv.map(stamp),receipts:[],orders:[],invoice_links:[],payments:[],payment_links:[],movements:[],labor_payments:[],subcontracts:[],planning:[]};
+  return financialWindow(buildCanonicalCashflow(s,empresa_id),s.from,s.until).map(i=>({...i,ref_id:i.source_type==="RECURRING_EXPENSE"?i.source_id+"-"+i.fecha:(i.source_id??i.ref_id)}));
 }
+
 
 /**
  * Calcula el flujo neto a 30 días para una moneda específica (por defecto PYG).
@@ -188,7 +84,7 @@ export function calculate30DayNetCashflow(
   let salidas = 0;
 
   for (const item of items) {
-    if (item.moneda !== moneda) continue;
+    if (item.moneda !== moneda || item.certainty === "ACTUAL" || item.fecha === null) continue;
     if (item.monto >= 0) {
       entradas += item.monto;
     } else {

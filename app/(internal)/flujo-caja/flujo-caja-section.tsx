@@ -51,10 +51,10 @@ const TIPO_LABEL: Record<FlujoItem["tipo"], string> = {
   cobro_certificado: "Cobro de certificado",
   pago_factura: "Pago de factura",
   gasto_recurrente: "Gasto recurrente",
-  salida_proyectada_material: "Plan semanal: materiales a comprar",
-  salida_plan_mano_de_obra: "Plan semanal: mano de obra",
-  salida_plan_equipo: "Plan semanal: equipos",
-  salida_plan_subcontrato: "Plan semanal: subcontratos",
+  salida_proyectada_material: "Materiales",
+  salida_plan_mano_de_obra: "Mano de obra",
+  salida_plan_equipo: "Equipos",
+  salida_plan_subcontrato: "Subcontratos",
 };
 
 const CURRENCIES: CurrencyCode[] = ["PYG", "USD", "EUR", "BRL", "ARS"];
@@ -66,6 +66,7 @@ export function FlujoCajaSection({
   cuentas,
   proyectos,
   hayCuentas,
+  today,
 }: {
   saldoPorMoneda: [CurrencyCode, number][];
   items: FlujoItem[];
@@ -73,6 +74,7 @@ export function FlujoCajaSection({
   cuentas: CuentaFinanciera[];
   proyectos: ProyectoLite[];
   hayCuentas: boolean;
+  today: string;
 }) {
   const monedas = useMemo(() => {
     const s = new Set<CurrencyCode>(saldoPorMoneda.map(([m]) => m));
@@ -80,29 +82,29 @@ export function FlujoCajaSection({
     return [...s];
   }, [saldoPorMoneda, items]);
 
-  const [moneda, setMoneda] = useState<CurrencyCode>(saldoPorMoneda[0]?.[0] ?? "PYG");
+  const [moneda, setMoneda] = useState<CurrencyCode>(saldoPorMoneda[0]?.[0] ?? items[0]?.moneda ?? "PYG");
   const [gran, setGran] = useState<"semana" | "mes">("mes");
   const [projectId, setProjectId] = useState<string>("");
   const [incluirPlan, setIncluirPlan] = useState(true);
-  const hayPlan = useMemo(() => items.some((i) => TIPOS_PLAN_SEMANAL.includes(i.tipo)), [items]);
+  const hayPlan = useMemo(() => items.some((i) => i.certainty === "PLANNED" && TIPOS_PLAN_SEMANAL.includes(i.tipo)), [items]);
   const itemsVisibles = useMemo(
-    () => (incluirPlan ? items : items.filter((i) => !TIPOS_PLAN_SEMANAL.includes(i.tipo))),
+    () => (incluirPlan ? items : items.filter((i) => !(i.certainty === "PLANNED" && TIPOS_PLAN_SEMANAL.includes(i.tipo)))),
     [items, incluirPlan]
   );
 
   const saldoInicial = useMemo(
-    () => saldoPorMoneda.find(([m]) => m === moneda)?.[1] ?? 0,
-    [saldoPorMoneda, moneda]
+    () => projectId ? 0 : saldoPorMoneda.find(([m]) => m === moneda)?.[1] ?? 0,
+    [saldoPorMoneda, moneda, projectId]
   );
 
   const proyeccion = useMemo(
-    () => construirProyeccion(saldoInicial, itemsVisibles, moneda, gran, projectId || null),
-    [saldoInicial, itemsVisibles, moneda, gran, projectId]
+    () => construirProyeccion(saldoInicial, itemsVisibles, moneda, gran, projectId || null,today),
+    [saldoInicial, itemsVisibles, moneda, gran, projectId,today]
   );
 
   const proyectoById = useMemo(() => new Map(proyectos.map((p) => [p.id, p])), [proyectos]);
 
-  if (!hayCuentas) {
+  if (!hayCuentas && items.length === 0) {
     return (
       <div className="max-w-3xl mt-1">
         <h1 className="text-[17px] font-semibold">Flujo de caja</h1>
@@ -133,6 +135,10 @@ export function FlujoCajaSection({
           </p>
         </div>
         <GastosDialog cuentas={cuentas} proyectos={proyectos} />
+      </div>
+      <p className="text-[12px] text-[var(--muted)]">Proyección derivada de las fuentes actuales. Monedas separadas; fechas desconocidas fuera del total fechado. {projectId ? "El flujo de esta obra parte de cero: el saldo bancario pertenece a la empresa." : "El saldo actual ya incluye los movimientos de Tesorería."}</p>
+      <div className="flex flex-wrap gap-4 text-[12px]" aria-label="Certeza de las salidas">
+        {(["PLANNED","COMMITTED"] as const).map(certainty=><span key={certainty}>{certainty === "PLANNED" ? "Planificado" : "Comprometido"}: {formatMoney(proyeccion.periodos.flatMap(p=>p.items).filter(i=>i.certainty===certainty && i.monto<0).reduce((n,i)=>n-i.monto,0),moneda)}</span>)}
       </div>
 
       {/* Controles */}
@@ -261,7 +267,7 @@ export function FlujoCajaSection({
             Sin fecha de vencimiento ({proyeccion.sinFecha.length})
           </h2>
           <p className="text-[12px] text-[var(--muted)] mb-2">
-            No entran en la proyección hasta que tengan fecha. Cargá el vencimiento en la factura para ubicarlos.
+            Excluidos del total fechado. La OC y otros compromisos conservan fecha desconocida cuando no existe un vencimiento factual.
           </p>
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-x-auto">
             <table>
@@ -272,7 +278,7 @@ export function FlujoCajaSection({
                 {proyeccion.sinFecha.map((i) => (
                   <tr key={i.ref_id}>
                     <td>{i.descripcion}</td>
-                    <td>{TIPO_LABEL[i.tipo]}</td>
+                    <td>{TIPO_LABEL[i.tipo]} · {i.certainty}<div className="text-[11px] text-[var(--muted)]">{i.source_type} · {i.source_id}</div></td>
                     <td className={`num ${i.monto >= 0 ? "text-[var(--ok)]" : "text-[var(--error)]"}`}>
                       {i.monto >= 0 ? "" : "−"}{formatMoney(Math.abs(i.monto), i.moneda)}
                     </td>
@@ -290,7 +296,7 @@ export function FlujoCajaSection({
         <div className="px-4 pb-4 overflow-x-auto">
           <table>
             <thead>
-              <tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Obra</th><th className="num">Monto</th></tr>
+              <tr><th>Fecha</th><th>Concepto</th><th>Tipo / certeza</th><th>Obra</th><th className="num">Monto</th></tr>
             </thead>
             <tbody>
               {proyeccion.periodos.flatMap((p) =>
@@ -300,7 +306,7 @@ export function FlujoCajaSection({
                     <tr key={i.ref_id}>
                       <td>{formatDate(i.fecha)}</td>
                       <td>{i.descripcion}</td>
-                      <td>{TIPO_LABEL[i.tipo]}</td>
+                      <td>{TIPO_LABEL[i.tipo]} · {i.certainty}<div className="text-[11px] text-[var(--muted)]">{i.source_type} · {i.source_id} · {i.date_basis}</div></td>
                       <td className="text-[var(--muted)]">
                         {i.project_id ? proyectoById.get(i.project_id)?.name ?? "—" : "—"}
                       </td>
@@ -313,6 +319,13 @@ export function FlujoCajaSection({
             </tbody>
           </table>
         </div>
+      </details>
+      <details className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+        <summary className="cursor-pointer text-[14px] font-semibold">Pagos / caja registrados (excluidos de la proyección futura)</summary>
+        <p className="text-[12px] text-[var(--muted)]">ACTUAL indica un registro existente. Sin fecha factual, el movimiento permanece sin fecha. No se vuelve a descontar del saldo bancario.</p>
+        <table><thead><tr><th>Fecha</th><th>Fuente</th><th>Obra</th><th className="num">Monto</th></tr></thead><tbody>
+          {items.filter(i=>i.certainty==="ACTUAL" && i.moneda===moneda && (!projectId || i.project_id===projectId)).map(i=><tr key={i.ref_id}><td>{i.fecha ? formatDate(i.fecha) : "Sin fecha factual"}</td><td>{i.descripcion}</td><td>{i.project_id?proyectoById.get(i.project_id)?.name:"Sin atribución"}</td><td className="num">{formatMoney(i.monto,i.moneda)}</td></tr>)}
+        </tbody></table>
       </details>
 
       {/* Gastos recurrentes */}

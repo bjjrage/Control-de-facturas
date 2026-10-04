@@ -1,0 +1,548 @@
+{
+  "from": "2026-10-03",
+  "sales": [],
+  "until": "2027-03-31",
+  "orders": [],
+  "read_at": "2026-10-03T22:08:56.52809+00:00",
+  "accounts": [],
+  "expenses": [],
+  "invoices": [],
+  "payments": [],
+  "planning": [
+    {
+      "facts": {
+        "bom": [
+          {
+            "id": "c34307fb-55db-46a1-886d-82aa53da7b24",
+            "tender_id": null,
+            "created_at": "2026-10-03T22:08:56.52809+00:00",
+            "empresa_id": "b0900000-0000-4000-8000-000000000001",
+            "project_id": "c0900000-0000-4000-8000-000000000001",
+            "updated_at": "2026-10-03T22:08:56.52809+00:00",
+            "producto_id": "d0900000-0000-4000-8000-000000000001",
+            "budget_item_id": "e0900000-0000-4000-8000-000000000001",
+            "desperdicio_pct": 0,
+            "cantidad_por_unidad_ejecutada": 1
+          }
+        ],
+        "labor": [],
+        "budget": [
+          {
+            "id": "e0900000-0000-4000-8000-000000000001",
+            "code": "1",
+            "unit": "u",
+            "style": {},
+            "end_date": null,
+            "quantity": 1000,
+            "subtotal": 0,
+            "parent_id": null,
+            "tender_id": null,
+            "created_at": "2026-10-03T22:08:56.52809+00:00",
+            "depends_on": null,
+            "project_id": "c0900000-0000-4000-8000-000000000001",
+            "sort_order": 0,
+            "start_date": null,
+            "unit_price": null,
+            "updated_at": "2026-10-03T22:08:56.52809+00:00",
+            "description": "Wall",
+            "quantity_per_unit": null,
+            "licitacion_item_id": null,
+            "material_requirement": "REQUIRES_BOM"
+          }
+        ],
+        "orders": [],
+        "central": null,
+        "products": [
+          {
+            "id": "d0900000-0000-4000-8000-000000000001",
+            "activo": true,
+            "nombre": "B09 bricks",
+            "unidad": "u",
+            "costo_promedio": 10
+          }
+        ],
+        "equipment": [],
+        "execution": [],
+        "certificates": [],
+        "observations": [],
+        "reservations": [],
+        "subcontracts": [],
+        "central_stock": [],
+        "project_stock": [],
+        "adopted_prices": [],
+        "certificate_items": []
+      },
+      "plans": [
+        {
+          "plan": {
+            "id": "f0900000-0000-4000-8000-000000000000",
+            "notes": null,
+            "status": "DRAFT",
+            "end_date": "2026-10-09",
+            "created_at": "2026-10-03T22:08:56.52809+00:00",
+            "created_by": null,
+            "empresa_id": "b0900000-0000-4000-8000-000000000001",
+            "project_id": "c0900000-0000-4000-8000-000000000001",
+            "start_date": "2026-10-03",
+            "updated_at": "2026-10-03T22:08:56.52809+00:00",
+            "weather_snapshot_batch_id": null
+          },
+          "targets": [
+            {
+              "id": "6f47c5af-c5b3-468c-8595-e9c0f5c5ff3a",
+              "unit": "u",
+              "plan_id": "f0900000-0000-4000-8000-000000000000",
+              "position": 0,
+              "created_at": "2026-10-03T22:08:56.52809+00:00",
+              "input_mode": "QUANTITY",
+              "updated_at": "2026-10-03T22:08:56.52809+00:00",
+              "front_label": null,
+              "input_value": 10,
+              "budget_item_id": "e0900000-0000-4000-8000-000000000001",
+              "target_quantity": 10
+            }
+          ]
+        },
+        {
+          "plan": {
+            "id": "f0900000-0000-4000-8000-000000000001",
+            "notes": null,
+            "status": "DRAFT",
+            "end_date": "2026-10-16",
+            "created_at": "2026-10-03T22:08:56.52809+00:00",
+            "created_by": null,
+            "empresa_id": "b0900000-0000-4000-8000-000000000001",
+            "project_id": "c0900000-0000-4000-8000-000000000001",
+            "start_date": "2026-10-10",
+            "updated_at": "2026-10-03T22:08:56.52809+00:00",
+            "weather_snapshot_batch_id": null
+          },
+          "targets": [
+            {
+              "id": "3ec55af0-79f5-4201-a388-9b02463b7e40",
+              "unit": "u",
+              "plan_id": "f0900000-0000-4000-8000-000000000001",
+              "position": 0,
+              "created_at": "2026-10-03T22:08:56.52809+00:00",
+              "input_mode": "QUANTITY",
+              "updated_at": "2026-10-03T22:08:56.52809+00:00",
+              "front_label": null,
+              "input_value": 10,
+              "budget_item_id": "e0900000-0000-4000-8000-000000000001",
+              "target_quantity": 10
+            }
+          ]
+        },
+        {
+          "plan": {
+            "id": "f0900000-0000-4000-8000-000000000002",
+            "notes": null,
+            "status": "DRAFT",
+            "end_date": "2026-10-23",
+            "created_at": "2026-10-03T22:08:56.52809+00:00",
+            "created_by": null,
+            "empresa_id": "b0900000-0000-4000-8000-000000000001",
+            "project_id": "c0900000-0000-4000-8000-000000000001",
+            "start_date": "2026-10-17",
+            "updated_at": "2026-10-03T22:08:56.52809+00:00",
+            "weather_snapshot_batch_id": null
+          },
+          "targets": [
+            {
+              "id": "267c0965-ded8-4b86-a47f-0e76ebd40e3c",
+              "unit": "u",
+              "plan_id": "f0900000-0000-4000-8000-000000000002",
+              "position": 0,
+              "created_at": "2026-10-03T22:08:56.52809+00:00",
+              "input_mode": "QUANTITY",
+              "updated_at": "2026-10-03T22:08:56.52809+00:00",
+              "front_label": null,
+              "input_value": 10,
+              "budget_item_id": "e0900000-0000-4000-8000-000000000001",
+              "target_quantity": 10
+            }
+          ]
+        },
+        {
+          "plan": {
+            "id": "f0900000-0000-4000-8000-000000000003",
+            "notes": null,
+            "status": "DRAFT",
+            "end_date": "2026-10-30",
+            "created_at": "2026-10-03T22:08:56.52809+00:00",
+            "created_by": null,
+            "empresa_id": "b0900000-0000-4000-8000-000000000001",
+            "project_id": "c0900000-0000-4000-8000-000000000001",
+            "start_date": "2026-10-24",
+            "updated_at": "2026-10-03T22:08:56.52809+00:00",
+            "weather_snapshot_batch_id": null
+          },
+          "targets": [
+            {
+              "id": "592219f6-45c4-46f1-9388-9dd191f74a74",
+              "unit": "u",
+              "plan_id": "f0900000-0000-4000-8000-000000000003",
+              "position": 0,
+              "created_at": "2026-10-03T22:08:56.52809+00:00",
+              "input_mode": "QUANTITY",
+              "updated_at": "2026-10-03T22:08:56.52809+00:00",
+              "front_label": null,
+              "input_value": 10,
+              "budget_item_id": "e0900000-0000-4000-8000-000000000001",
+              "target_quantity": 10
+            }
+          ]
+        },
+        {
+          "plan": {
+            "id": "f0900000-0000-4000-8000-000000000004",
+            "notes": null,
+            "status": "DRAFT",
+            "end_date": "2026-11-06",
+            "created_at": "2026-10-03T22:08:56.52809+00:00",
+            "created_by": null,
+            "empresa_id": "b0900000-0000-4000-8000-000000000001",
+            "project_id": "c0900000-0000-4000-8000-000000000001",
+            "start_date": "2026-10-31",
+            "updated_at": "2026-10-03T22:08:56.52809+00:00",
+            "weather_snapshot_batch_id": null
+          },
+          "targets": [
+            {
+              "id": "9ab762b5-18af-4aeb-b795-9f1e2855c84d",
+              "unit": "u",
+              "plan_id": "f0900000-0000-4000-8000-000000000004",
+              "position": 0,
+              "created_at": "2026-10-03T22:08:56.52809+00:00",
+              "input_mode": "QUANTITY",
+              "updated_at": "2026-10-03T22:08:56.52809+00:00",
+              "front_label": null,
+              "input_value": 10,
+              "budget_item_id": "e0900000-0000-4000-8000-000000000001",
+              "target_quantity": 10
+            }
+          ]
+        },
+        {
+          "plan": {
+            "id": "f0900000-0000-4000-8000-000000000005",
+            "notes": null,
+            "status": "DRAFT",
+            "end_date": "2026-11-13",
+            "created_at": "2026-10-03T22:08:56.52809+00:00",
+            "created_by": null,
+            "empresa_id": "b0900000-0000-4000-8000-000000000001",
+            "project_id": "c0900000-0000-4000-8000-000000000001",
+            "start_date": "2026-11-07",
+            "updated_at": "2026-10-03T22:08:56.52809+00:00",
+            "weather_snapshot_batch_id": null
+          },
+          "targets": [
+            {
+              "id": "9b553432-8ce3-416b-93cd-935651c5c991",
+              "unit": "u",
+              "plan_id": "f0900000-0000-4000-8000-000000000005",
+              "position": 0,
+              "created_at": "2026-10-03T22:08:56.52809+00:00",
+              "input_mode": "QUANTITY",
+              "updated_at": "2026-10-03T22:08:56.52809+00:00",
+              "front_label": null,
+              "input_value": 10,
+              "budget_item_id": "e0900000-0000-4000-8000-000000000001",
+              "target_quantity": 10
+            }
+          ]
+        },
+        {
+          "plan": {
+            "id": "f0900000-0000-4000-8000-000000000006",
+            "notes": null,
+            "status": "DRAFT",
+            "end_date": "2026-11-20",
+            "created_at": "2026-10-03T22:08:56.52809+00:00",
+            "created_by": null,
+            "empresa_id": "b0900000-0000-4000-8000-000000000001",
+            "project_id": "c0900000-0000-4000-8000-000000000001",
+            "start_date": "2026-11-14",
+            "updated_at": "2026-10-03T22:08:56.52809+00:00",
+            "weather_snapshot_batch_id": null
+          },
+          "targets": [
+            {
+              "id": "448d67c9-952d-48e9-92de-347e4eb11d47",
+              "unit": "u",
+              "plan_id": "f0900000-0000-4000-8000-000000000006",
+              "position": 0,
+              "created_at": "2026-10-03T22:08:56.52809+00:00",
+              "input_mode": "QUANTITY",
+              "updated_at": "2026-10-03T22:08:56.52809+00:00",
+              "front_label": null,
+              "input_value": 10,
+              "budget_item_id": "e0900000-0000-4000-8000-000000000001",
+              "target_quantity": 10
+            }
+          ]
+        },
+        {
+          "plan": {
+            "id": "f0900000-0000-4000-8000-000000000007",
+            "notes": null,
+            "status": "DRAFT",
+            "end_date": "2026-11-27",
+            "created_at": "2026-10-03T22:08:56.52809+00:00",
+            "created_by": null,
+            "empresa_id": "b0900000-0000-4000-8000-000000000001",
+            "project_id": "c0900000-0000-4000-8000-000000000001",
+            "start_date": "2026-11-21",
+            "updated_at": "2026-10-03T22:08:56.52809+00:00",
+            "weather_snapshot_batch_id": null
+          },
+          "targets": [
+            {
+              "id": "88bc337b-2bf2-4dc0-8bc6-db425e36ab51",
+              "unit": "u",
+              "plan_id": "f0900000-0000-4000-8000-000000000007",
+              "position": 0,
+              "created_at": "2026-10-03T22:08:56.52809+00:00",
+              "input_mode": "QUANTITY",
+              "updated_at": "2026-10-03T22:08:56.52809+00:00",
+              "front_label": null,
+              "input_value": 10,
+              "budget_item_id": "e0900000-0000-4000-8000-000000000001",
+              "target_quantity": 10
+            }
+          ]
+        },
+        {
+          "plan": {
+            "id": "f0900000-0000-4000-8000-000000000008",
+            "notes": null,
+            "status": "DRAFT",
+            "end_date": "2026-12-04",
+            "created_at": "2026-10-03T22:08:56.52809+00:00",
+            "created_by": null,
+            "empresa_id": "b0900000-0000-4000-8000-000000000001",
+            "project_id": "c0900000-0000-4000-8000-000000000001",
+            "start_date": "2026-11-28",
+            "updated_at": "2026-10-03T22:08:56.52809+00:00",
+            "weather_snapshot_batch_id": null
+          },
+          "targets": [
+            {
+              "id": "ea32b71c-34e3-4025-9cf1-0aab6ae3e5d4",
+              "unit": "u",
+              "plan_id": "f0900000-0000-4000-8000-000000000008",
+              "position": 0,
+              "created_at": "2026-10-03T22:08:56.52809+00:00",
+              "input_mode": "QUANTITY",
+              "updated_at": "2026-10-03T22:08:56.52809+00:00",
+              "front_label": null,
+              "input_value": 10,
+              "budget_item_id": "e0900000-0000-4000-8000-000000000001",
+              "target_quantity": 10
+            }
+          ]
+        },
+        {
+          "plan": {
+            "id": "f0900000-0000-4000-8000-000000000009",
+            "notes": null,
+            "status": "DRAFT",
+            "end_date": "2026-12-11",
+            "created_at": "2026-10-03T22:08:56.52809+00:00",
+            "created_by": null,
+            "empresa_id": "b0900000-0000-4000-8000-000000000001",
+            "project_id": "c0900000-0000-4000-8000-000000000001",
+            "start_date": "2026-12-05",
+            "updated_at": "2026-10-03T22:08:56.52809+00:00",
+            "weather_snapshot_batch_id": null
+          },
+          "targets": [
+            {
+              "id": "74112ca9-4004-4d87-9694-1476473aa981",
+              "unit": "u",
+              "plan_id": "f0900000-0000-4000-8000-000000000009",
+              "position": 0,
+              "created_at": "2026-10-03T22:08:56.52809+00:00",
+              "input_mode": "QUANTITY",
+              "updated_at": "2026-10-03T22:08:56.52809+00:00",
+              "front_label": null,
+              "input_value": 10,
+              "budget_item_id": "e0900000-0000-4000-8000-000000000001",
+              "target_quantity": 10
+            }
+          ]
+        },
+        {
+          "plan": {
+            "id": "f0900000-0000-4000-8000-000000000010",
+            "notes": null,
+            "status": "DRAFT",
+            "end_date": "2026-12-18",
+            "created_at": "2026-10-03T22:08:56.52809+00:00",
+            "created_by": null,
+            "empresa_id": "b0900000-0000-4000-8000-000000000001",
+            "project_id": "c0900000-0000-4000-8000-000000000001",
+            "start_date": "2026-12-12",
+            "updated_at": "2026-10-03T22:08:56.52809+00:00",
+            "weather_snapshot_batch_id": null
+          },
+          "targets": [
+            {
+              "id": "97e568d9-41ac-4406-92d7-5d0844a99ddf",
+              "unit": "u",
+              "plan_id": "f0900000-0000-4000-8000-000000000010",
+              "position": 0,
+              "created_at": "2026-10-03T22:08:56.52809+00:00",
+              "input_mode": "QUANTITY",
+              "updated_at": "2026-10-03T22:08:56.52809+00:00",
+              "front_label": null,
+              "input_value": 10,
+              "budget_item_id": "e0900000-0000-4000-8000-000000000001",
+              "target_quantity": 10
+            }
+          ]
+        },
+        {
+          "plan": {
+            "id": "f0900000-0000-4000-8000-000000000011",
+            "notes": null,
+            "status": "DRAFT",
+            "end_date": "2026-12-25",
+            "created_at": "2026-10-03T22:08:56.52809+00:00",
+            "created_by": null,
+            "empresa_id": "b0900000-0000-4000-8000-000000000001",
+            "project_id": "c0900000-0000-4000-8000-000000000001",
+            "start_date": "2026-12-19",
+            "updated_at": "2026-10-03T22:08:56.52809+00:00",
+            "weather_snapshot_batch_id": null
+          },
+          "targets": [
+            {
+              "id": "b65529c9-b1f5-4bf1-b3d8-88d22c9e8c2d",
+              "unit": "u",
+              "plan_id": "f0900000-0000-4000-8000-000000000011",
+              "position": 0,
+              "created_at": "2026-10-03T22:08:56.52809+00:00",
+              "input_mode": "QUANTITY",
+              "updated_at": "2026-10-03T22:08:56.52809+00:00",
+              "front_label": null,
+              "input_value": 10,
+              "budget_item_id": "e0900000-0000-4000-8000-000000000001",
+              "target_quantity": 10
+            }
+          ]
+        },
+        {
+          "plan": {
+            "id": "f0900000-0000-4000-8000-000000000012",
+            "notes": null,
+            "status": "DRAFT",
+            "end_date": "2027-01-01",
+            "created_at": "2026-10-03T22:08:56.52809+00:00",
+            "created_by": null,
+            "empresa_id": "b0900000-0000-4000-8000-000000000001",
+            "project_id": "c0900000-0000-4000-8000-000000000001",
+            "start_date": "2026-12-26",
+            "updated_at": "2026-10-03T22:08:56.52809+00:00",
+            "weather_snapshot_batch_id": null
+          },
+          "targets": [
+            {
+              "id": "7de4d826-34f2-43f4-91be-033361439a61",
+              "unit": "u",
+              "plan_id": "f0900000-0000-4000-8000-000000000012",
+              "position": 0,
+              "created_at": "2026-10-03T22:08:56.52809+00:00",
+              "input_mode": "QUANTITY",
+              "updated_at": "2026-10-03T22:08:56.52809+00:00",
+              "front_label": null,
+              "input_value": 10,
+              "budget_item_id": "e0900000-0000-4000-8000-000000000001",
+              "target_quantity": 10
+            }
+          ]
+        },
+        {
+          "plan": {
+            "id": "f0900000-0000-4000-8000-000000000013",
+            "notes": null,
+            "status": "DRAFT",
+            "end_date": "2027-01-08",
+            "created_at": "2026-10-03T22:08:56.52809+00:00",
+            "created_by": null,
+            "empresa_id": "b0900000-0000-4000-8000-000000000001",
+            "project_id": "c0900000-0000-4000-8000-000000000001",
+            "start_date": "2027-01-02",
+            "updated_at": "2026-10-03T22:08:56.52809+00:00",
+            "weather_snapshot_batch_id": null
+          },
+          "targets": [
+            {
+              "id": "68330d5d-db33-45b6-9970-dd4bd8110f2d",
+              "unit": "u",
+              "plan_id": "f0900000-0000-4000-8000-000000000013",
+              "position": 0,
+              "created_at": "2026-10-03T22:08:56.52809+00:00",
+              "input_mode": "QUANTITY",
+              "updated_at": "2026-10-03T22:08:56.52809+00:00",
+              "front_label": null,
+              "input_value": 10,
+              "budget_item_id": "e0900000-0000-4000-8000-000000000001",
+              "target_quantity": 10
+            }
+          ]
+        },
+        {
+          "plan": {
+            "id": "f0900000-0000-4000-8000-000000000014",
+            "notes": null,
+            "status": "DRAFT",
+            "end_date": "2027-01-15",
+            "created_at": "2026-10-03T22:08:56.52809+00:00",
+            "created_by": null,
+            "empresa_id": "b0900000-0000-4000-8000-000000000001",
+            "project_id": "c0900000-0000-4000-8000-000000000001",
+            "start_date": "2027-01-09",
+            "updated_at": "2026-10-03T22:08:56.52809+00:00",
+            "weather_snapshot_batch_id": null
+          },
+          "targets": [
+            {
+              "id": "4d9d4aa6-9be1-415d-ae92-92fce6387696",
+              "unit": "u",
+              "plan_id": "f0900000-0000-4000-8000-000000000014",
+              "position": 0,
+              "created_at": "2026-10-03T22:08:56.52809+00:00",
+              "input_mode": "QUANTITY",
+              "updated_at": "2026-10-03T22:08:56.52809+00:00",
+              "front_label": null,
+              "input_value": 10,
+              "budget_item_id": "e0900000-0000-4000-8000-000000000001",
+              "target_quantity": 10
+            }
+          ]
+        }
+      ],
+      "project_id": "c0900000-0000-4000-8000-000000000001"
+    }
+  ],
+  "projects": [
+    {
+      "id": "c0900000-0000-4000-8000-000000000001",
+      "code": "B09-A",
+      "name": "B09 A",
+      "status": "ACTIVO",
+      "comitente": null,
+      "empresa_id": "b0900000-0000-4000-8000-000000000001"
+    }
+  ],
+  "receipts": [],
+  "movements": [],
+  "empresa_id": "b0900000-0000-4000-8000-000000000001",
+  "certificates": [],
+  "subcontracts": [],
+  "invoice_links": [],
+  "payment_links": [],
+  "labor_payments": []
+}

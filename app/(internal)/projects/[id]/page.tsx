@@ -1,3 +1,4 @@
+import { readAll } from "@/lib/cashflow/load";
 import { notFound } from "next/navigation";
 import { getAppOrigin } from "@/lib/app-origin";
 import { requirePlan } from "@/lib/auth";
@@ -39,6 +40,10 @@ import { ProjectTabsClient } from "./project-tabs-client";
 
 const ALL_TABS = PROJECT_FEATURE_KEYS;
 
+async function completeRead<T>(_db: Awaited<ReturnType<typeof createClient>>, query:any):Promise<{data:T[]}> {
+  return {data:await readAll<T>((from,to)=>query.order("id").range(from,to))};
+}
+
 export default async function ProjectDetailPage({
   params,
   searchParams,
@@ -79,31 +84,31 @@ export default async function ProjectDetailPage({
 
   const [{ data: budgetItems }, { data: execEntries }, { data: orders }, { data: laborEntries }, { data: allProvidersData }] =
     await Promise.all([
-      supabase
+      completeRead<BudgetItem>(supabase,supabase
         .from("budget_items")
-        .select("*")
+        .select("*", { count: "exact" })
         .eq("project_id", id)
         .order("sort_order")
-        .returns<BudgetItem[]>(),
-      supabase
+        .returns<BudgetItem[]>()),
+      completeRead<ExecutionEntry>(supabase,supabase
         .from("execution_entries")
-        .select("*")
+        .select("*", { count: "exact" })
         .eq("project_id", id)
         .order("entry_date", { ascending: false })
-        .returns<ExecutionEntry[]>(),
-      supabase
+        .returns<ExecutionEntry[]>()),
+      completeRead<AuthorizedOrder>(supabase,supabase
         .from("authorized_orders")
-        .select("*")
+        .select("*", { count: "exact" }).eq("empresa_id",empresaId)
         .eq("project_id", id)
         .order("authorized_at", { ascending: false })
-        .returns<AuthorizedOrder[]>(),
+        .returns<AuthorizedOrder[]>()),
       isCaterpillar
-        ? supabase
+        ? completeRead<DailyLaborEntry>(supabase,supabase
             .from("daily_labor_entries")
-            .select("*")
+            .select("*", { count: "exact" })
             .eq("project_id", id)
             .order("entry_date", { ascending: false })
-            .returns<DailyLaborEntry[]>()
+            .returns<DailyLaborEntry[]>())
         : Promise.resolve({ data: [] as DailyLaborEntry[] }),
       supabase.from("providers").select("*").eq("active", true).order("name").returns<Provider[]>(),
     ]);
@@ -122,12 +127,12 @@ export default async function ProjectDetailPage({
   const schedulePlanMonths: Record<string, ProjectSchedulePlanMonth[]> = {};
   if (isCaterpillar) {
     const [{ data: certRows }, { data: weatherRows }, { data: planRows }, { data: unitRows }, { data: eventRows }, { data: workdayRows }, { data: evidenceRows }] = await Promise.all([
-      supabase
+      completeRead<ProjectCertificate>(supabase,supabase
         .from("project_certificates")
-        .select("*")
+        .select("*", { count: "exact" })
         .eq("project_id", id)
         .order("numero", { ascending: false })
-        .returns<ProjectCertificate[]>(),
+        .returns<ProjectCertificate[]>()),
       supabase
         .from("project_weather_log")
         .select("*")
@@ -180,12 +185,12 @@ export default async function ProjectDetailPage({
     if (projectCertificates.length > 0) {
       const certIds = projectCertificates.map((c) => c.id);
       const [{ data: itemRows }, { data: staffRows }, { data: progressRows }] = await Promise.all([
-        supabase
+        completeRead<ProjectCertificateItem>(supabase,supabase
           .from("project_certificate_items")
-          .select("*")
+          .select("*", { count: "exact" })
           .in("certificate_id", certIds)
           .order("sort_order")
-          .returns<ProjectCertificateItem[]>(),
+          .returns<ProjectCertificateItem[]>()),
         supabase
           .from("project_certificate_staff")
           .select("*")
@@ -251,30 +256,30 @@ export default async function ProjectDetailPage({
   let certificates: SubcontractorCertificate[] = [];
   if (isCaterpillar) {
     const [{ data: subs }, { data: contractRows }] = await Promise.all([
-      supabase
+      completeRead<Subcontractor>(supabase,supabase
         .from("subcontractors")
-        .select("*")
+        .select("*", { count: "exact" })
         .eq("empresa_id", empresaId)
         .order("name")
-        .returns<Subcontractor[]>(),
-      supabase
+        .returns<Subcontractor[]>()),
+      completeRead<SubcontractorContract>(supabase,supabase
         .from("subcontractor_contracts")
-        .select("*")
+        .select("*", { count: "exact" })
         .eq("project_id", id)
         .order("created_at", { ascending: false })
-        .returns<SubcontractorContract[]>(),
+        .returns<SubcontractorContract[]>()),
     ]);
     subcontractorCatalog = subs ?? [];
     contracts = contractRows ?? [];
     if (contracts.length > 0) {
-      const { data: certRows } = await supabase
+      const { data: certRows } = await completeRead<SubcontractorCertificate>(supabase,supabase
         .from("subcontractor_certificates")
-        .select("*")
+        .select("*", { count: "exact" })
         .in(
           "contract_id",
           contracts.map((c) => c.id)
         )
-        .returns<SubcontractorCertificate[]>();
+        .returns<SubcontractorCertificate[]>());
       certificates = certRows ?? [];
     }
   }
@@ -542,7 +547,7 @@ export default async function ProjectDetailPage({
   const ocs = orders ?? [];
   const laborRows = laborEntries ?? [];
   // Pagos de cuadrillas y destajos: también son costo de mano de obra de la obra.
-  const { data: laborPaymentRows } = await supabase.from("labor_payments").select("amount").eq("project_id", id);
+  const { data: laborPaymentRows } = await completeRead<{amount:number}>(supabase,supabase.from("labor_payments").select("id,amount",{count:"exact"}).eq("project_id", id).eq("empresa_id",empresaId));
   const budgetItemLabelById = new Map(items.map((i) => [i.id, `${i.code} — ${i.description}`]));
 
   // Cotizaciones y proveedores: consulta canónica por project_id con fallback histórico por OCs
@@ -604,38 +609,40 @@ export default async function ProjectDetailPage({
   let projectPaymentOrders: PaymentOrder[] = [];
   let providerNameById: Record<string, string> = {};
   if (orderIds.length > 0) {
-    const { data: matches } = await supabase
+    const { data: matches } = await completeRead<{invoice_id:string}>(supabase,supabase
       .from("invoice_order_matches")
-      .select("invoice_id")
-      .in("authorized_order_id", orderIds);
+      .select("id,invoice_id",{count:"exact"})
+      .eq("empresa_id",empresaId)
+      .in("authorized_order_id", orderIds));
     const invoiceIds = (matches ?? []).map((m) => m.invoice_id as string);
     if (invoiceIds.length > 0) {
       const [{ data: invoiceRows }, { data: providerRows }] = await Promise.all([
-        supabase
+        completeRead<Invoice>(supabase,supabase
           .from("invoices")
-          .select("*")
+          .select("*", { count: "exact" }).eq("empresa_id",empresaId)
           .in("id", invoiceIds)
           .order("invoice_date", { ascending: false })
-          .returns<Invoice[]>(),
+          .returns<Invoice[]>()),
         supabase.from("providers").select("id, name").returns<Pick<Provider, "id" | "name">[]>(),
       ]);
       projectInvoices = invoiceRows ?? [];
       providerNameById = Object.fromEntries((providerRows ?? []).map((p) => [p.id, p.name]));
 
-      const { data: poInvoices } = await supabase
+      const { data: poInvoices } = await completeRead<{payment_order_id:string}>(supabase,supabase
         .from("payment_order_invoices")
-        .select("payment_order_id")
-        .in("invoice_id", invoiceIds);
+        .select("id,payment_order_id",{count:"exact"})
+        .eq("empresa_id",empresaId)
+        .in("invoice_id", invoiceIds));
       const paymentOrderIds = [
         ...new Set((poInvoices ?? []).map((p) => p.payment_order_id as string)),
       ];
       if (paymentOrderIds.length > 0) {
-        const { data: poRows } = await supabase
+        const { data: poRows } = await completeRead<PaymentOrder>(supabase,supabase
           .from("payment_orders")
-          .select("*")
+          .select("*", { count: "exact" }).eq("empresa_id",empresaId)
           .in("id", paymentOrderIds)
           .order("created_at", { ascending: false })
-          .returns<PaymentOrder[]>();
+          .returns<PaymentOrder[]>());
         projectPaymentOrders = poRows ?? [];
       }
     }

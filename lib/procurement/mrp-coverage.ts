@@ -1,4 +1,9 @@
 import { physicalNumber, samePhysicalUnit } from "./weekly-plan-validation";
+
+/** Canonical B08 physical eligibility: undated/late supply cannot cover a need. */
+export function isTimelyInbound(expectedDeliveryDate: string | null, neededBy: string): boolean {
+  return expectedDeliveryDate !== null && expectedDeliveryDate <= neededBy;
+}
 // ---------------------------------------------------------------------------
 // Cobertura MRP (V3): asignación determinista por producto.
 //

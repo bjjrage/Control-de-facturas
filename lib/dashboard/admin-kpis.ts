@@ -5,6 +5,7 @@ import type { MetricCardData, SparklinePoint, DomainTone } from "./types";
 import { formatMultiCurrencyBalances, sumByCurrency } from "./currency-helper";
 import type { FlujoItem } from "@/lib/flujo-caja";
 import { calculate30DayNetCashflow } from "./cashflow";
+import { addCashDays } from "@/lib/cashflow/dates";
 
 export interface RawSalesDocForKpi {
   id: string;
@@ -59,9 +60,9 @@ export interface RawOrderForKpi {
 export function getLastNMonths(todayDate: Date, count = 6): string[] {
   const months: string[] = [];
   for (let i = count - 1; i >= 0; i--) {
-    const d = new Date(todayDate.getFullYear(), todayDate.getMonth() - i, 1);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const d = new Date(Date.UTC(todayDate.getUTCFullYear(), todayDate.getUTCMonth() - i, 1));
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
     months.push(`${yyyy}-${mm}`);
   }
   return months;
@@ -94,11 +95,11 @@ export function computeAdminKpis(params: {
   } = params;
 
   const todayDate = new Date(todayIso);
-  const currentYear = todayDate.getFullYear();
-  const currentMonthStr = `${currentYear}-${String(todayDate.getMonth() + 1).padStart(2, "0")}`;
+  const currentYear = todayDate.getUTCFullYear();
+  const currentMonthStr = `${currentYear}-${String(todayDate.getUTCMonth() + 1).padStart(2, "0")}`;
 
-  const prevMonthDate = new Date(todayDate.getFullYear(), todayDate.getMonth() - 1, 1);
-  const prevMonthStr = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}`;
+  const prevMonthDate = new Date(Date.UTC(todayDate.getUTCFullYear(), todayDate.getUTCMonth() - 1, 1));
+  const prevMonthStr = `${prevMonthDate.getUTCFullYear()}-${String(prevMonthDate.getUTCMonth() + 1).padStart(2, "0")}`;
 
   const last6Months = getLastNMonths(todayDate, 6);
 
@@ -295,8 +296,8 @@ export function computeAdminKpis(params: {
     key: "flujo-neto-30d",
     title: "Flujo neto 30 días",
     value: formattedNeto,
-    multiCurrencyExtra: null,
-    secondaryText: "Próximos 30 días de caja",
+    multiCurrencyExtra: [...new Set(cashflowItems.map(i=>i.moneda))].filter(m=>m!=="PYG").map(m=>calculate30DayNetCashflow(cashflowItems,m).formattedNeto).join(" · ") || null,
+    secondaryText: "Proyección fechada; actual y sin fecha separados",
     trendText: neto >= 0 ? "Superávit proyectado" : "Déficit proyectado",
     trendTone: neto >= 0 ? "up" : "down",
     href: "/flujo-caja",
@@ -382,9 +383,7 @@ export function computeAdminSecondaryKpis(params: {
   showInvoiceKpis: boolean;
 }): MetricCardData[] {
   const { todayIso, salesDocs, invoices, cashflowItems, showSalesKpis, showInvoiceKpis } = params;
-  const horizon = new Date(`${todayIso}T00:00:00`);
-  horizon.setDate(horizon.getDate() + 30);
-  const horizonIso = horizon.toISOString().slice(0, 10);
+  const horizonIso = addCashDays(todayIso,30);
   const cards: MetricCardData[] = [];
 
   const formatAmount = (items: { currency?: string; moneda?: string; amount: number }[]) => {
