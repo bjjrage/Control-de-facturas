@@ -41,7 +41,7 @@ Rows retain company, project, source type/id, source read time, quantity where a
 | Subcontract | Plan END + 30 days |
 
 Factual invoice due dates supersede speculative timing. OC payment terms are free text: OC residual commitments retain an unknown date rather than parse or invent terms.
-Financial OC supersession includes late or unknown delivery commitments; it does not promise physical on-time supply and does not change B08 MRP.
+Physical OC coverage uses the canonical B08 delivery predicate: only AUTORIZADO lines with expected delivery on/before the saved plan's END (B08 default need date) cover planned demand. Confirmed receipts are deducted from inbound and covered only through canonical physical stock. Late/undated OC remain separate COMMITTED obligations and do not erase additional planned shortage purchases. Dated remaining line balances are consumed once across plans; a late line can become eligible for a later period. The shared predicate was extracted without changing B08 behavior.
 
 ## PLANNED / COMMITTED / ACTUAL and precedence
 - PLANNED: uncovered saved-plan resource demand and explicit recurring forecast templates.
@@ -49,7 +49,7 @@ Financial OC supersession includes late or unknown delivery commitments; it does
 - ACTUAL: recorded settlements, treasury and sales receipts. They are displayed separately and never deducted again from an account's current opening balance.
 - Plan material → OC quantity → confirmed physical receipt → linked invoice → executed payment → treasury uses physical coverage and factual financial links, not description/provider/amount heuristics.
 - Partial OC suppresses only its quantity. Central/project stock and supply are consumed once across plans.
-- Sales document supersedes its certificate; treasury supersedes its linked receipt.
+- Issued sales documents (EMITIDA, COBRADA_PARCIAL, COBRADA in the real SalesDocStatus domain) supersede their certificate; BORRADOR and ANULADA do not. Only EMITIDA/COBRADA_PARCIAL carry a future remaining balance. COBRADA keeps certificate fallback suppressed while receipts/treasury represent actual cash. Treasury supersedes its linked receipt.
 - Labor facts suppress only proven budget/period amounts. Subcontract contracts suppress linked speculative costs; approved net, retention and contractual remainder are separated.
 
 ## Currency, dates and window
@@ -75,10 +75,10 @@ Preview: `xddlzgjwufskgasomval`, UUID `d030820b-c2e1-4d52-b3cb-0e21ddacfbfb`, AC
 Production remains at 44. No production data or schema writes.
 
 ## Verification
-- Focused Cashflow/Dashboard/separation: 114 PASS, including 55 canonical adversarial cases.
-- Combined focused + procurement/weekly-plan regression: 210 PASS across 23 files (96 procurement cases).
+- Post-audit focused Cashflow/Dashboard/separation: 129 PASS across 10 files, including 70 canonical cases (15 new external-audit cases).
+- Post-audit procurement/Weekly Plan-MRP regression: 181 PASS across 18 files (96 procurement cases across 13 files; 85 Weekly Plan cases across 5 files).
 - Preview SQL: 18/18 PASS; fixture transaction rolls back. Exact returned snapshot is committed as `preview-snapshot.json`.
-- Full serial Vitest: 1,520 PASS / 16 skipped; procurement and weekly-plan regressions included.
+- Post-audit full serial Vitest: 1,535 PASS / 16 skipped across 160 files (158 passed, 2 skipped); procurement and weekly-plan regressions included.
 - TypeScript noEmit: PASS.
 - Next Webpack production build: PASS.
 - Diff whitespace check: PASS.
@@ -86,13 +86,18 @@ Production remains at 44. No production data or schema writes.
 - Temporary Preview smoke users/tenants and related fixtures removed; subsequent read-only counts show zero fixture users/tenants. SQL checks create no MRP requirement snapshots.
 - Security Advisor reviewed: existing legacy definer views, mutable search paths, legacy callable functions and Auth warnings are outside this batch. The new authenticated SECURITY DEFINER RPC produces the generic exposure advisory intentionally: authorization guards and anon denial are tested; base RPC privilege is revoked.
 
+Post-audit DB rerun: the existing 18/18 Preview tests passed with ROLLBACK; subsequent fixture tenant/user counts were zero. Preview ledger remains 46, production ledger was rechecked read-only at 44/latest `20261003195245`. No additive migration was needed; both original B09 migrations retain their original bytes (SHA256 `8a7ddc19cc0e2b4353949edf000374cacb9dae903640507d87b40f312458a4eb` and `9fd75b4ea0639a8c0a9c26b68b0ae8cef3ec1355ac6ea9e51c8c04dd8b3fea16`, in listed migration order).
+
+The six new physical parity cases exercise the actual `buildMrpPreview` B08 path (central reader isolated to an empty pool): timely delivery including the need-date boundary, late delivery, undated delivery, confirmed full receipt with no inbound, partial timely receipt and partial late receipt. Each keeps the existing OC commitment, compares physical shortage/receipt/inbound quantities to B08, and checks Dashboard/Cashflow parity. Two additional cases cover eligibility in a later plan with one-time consumption and B08's authorized-status gate. Seven certificate cases exercise APROBADO/no-document, APROBADO/draft, FACTURADO/draft and the issued/partially collected/collected/cancelled lifecycle. Remaining receivable plus actual cash is conserved without doubling linked treasury/receipt events.
+
 Advisor remediation references:
 [Security definer view](https://supabase.com/docs/guides/database/database-linter?lint=0010_security_definer_view),
 [Function search path](https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable).
 
 ## P0 / P1 / P2 / P3 and practical limits
-No known unresolved P0/P1 in the implemented read model; external audit remains pending.
+External audit of `c0cf6fab40b4a8f9261872642b6193eb5384acfc` found two P1 blockers: late/unknown OC erased physical shortage cash, and draft sales documents suppressed certificate fallback. Both are corrected in the same branch; external re-audit remains pending. No known unresolved P0/P1 in the corrected read model.
 P2:
+- Invoice status review: the existing CxP business read model in `lib/dashboard/admin-kpis.ts` (unpaidInvoices and canonical Cashflow adapter) includes every status except PAGADO. B09 preserves PENDIENTE, MATCH, REQUIERE_REVISION, APROBADO_EXCEPCION and APTO_PARA_PAGO as COMMITTED, unless an executed linked payment proves settlement. This is unpaid-liability visibility, not authorization to pay. No existing canonical CxP exclusion for pending/review invoices was found; whether business policy should narrow COMMITTED is retained as P2 and behavior is unchanged.
 - OC free-text payment terms have no canonical due-date FK; commitments stay undated.
 - Equipment APU rows and recurring templates lack settlement lineage. Their PLANNED facts cannot be automatically matched to invoices/treasury by guesses; unrelated company payables remain separate.
 - Unlinked invoices remain company-scoped; no guessed project attribution.

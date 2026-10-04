@@ -1,10 +1,13 @@
-import type { CurrencyCode } from "@/lib/types";
+import type { CurrencyCode, SalesDocStatus } from "@/lib/types";
 import type { FlujoItem } from "@/lib/flujo-caja";
 import { ocurrenciasGastoRecurrente } from "@/lib/flujo-caja";
 import { orderRemaining } from "@/lib/reconciliation";
 import { addCashDays, businessToday, dateOnly, financialWindow } from "./dates";
 import { derivePlanningCash } from "./planning";
 import { money, nonnegative, type CashflowSources, type SourceRow } from "./types";
+// Only issued lifecycle facts supersede a certificate; paid documents stay
+// here even though the RPC no longer returns them among future receivables.
+const issuedSalesStatuses: readonly SalesDocStatus[] = ["EMITIDA", "COBRADA_PARCIAL", "COBRADA"];
 export function validateSources(s: CashflowSources, empresaId: string) {
     if (!s || s.empresa_id !== empresaId || !s.read_at)
         throw new Error("Fuentes financieras de otra empresa o no disponibles");
@@ -119,7 +122,7 @@ export function buildCanonicalCashflow(s: CashflowSources, empresaId: string): F
         add(d, "cobro_factura", remaining, d.currency, factualDate(d.due_date), "COMMITTED", "SALES_DOCUMENT", certificate?.project_id ?? null);
     }
     for (const c of s.certificates) {
-        if (!["APROBADO", "FACTURADO"].includes(c.status) || (c.sales_documents ?? []).some((d: SourceRow) => d.status !== "ANULADA"))
+        if (!["APROBADO", "FACTURADO"].includes(c.status) || (c.sales_documents ?? []).some((d: SourceRow) => issuedSalesStatuses.includes(d.status)))
             continue;
         const base = factualDate(c.status === "FACTURADO" ? (c.facturado_at ?? c.period_end) : (c.aprobado_at ?? c.period_end));
         add(c, "cobro_certificado", nonnegative(c.monto_liquido), "PYG", base ? addCashDays(base, 30) : null, "COMMITTED", "CERTIFICATE", c.project_id, "PLANNING_FALLBACK");

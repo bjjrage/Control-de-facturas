@@ -3,10 +3,11 @@
 Branch: `batch/09-cashflow-dashboard`
 Base: `6db18552eab235933c55503d3d774775dbceea58`
 Target: `main`; merge forbidden.
-Expected publication: one commit, `fix(cashflow): unify financial projections and dashboard sources`.
+Initial publication: one commit, `fix(cashflow): unify financial projections and dashboard sources` (`c0cf6fab40b4a8f9261872642b6193eb5384acfc`).
+External audit correction: an additional commit on the same branch/PR; no merge or production deployment.
 The immutable commit SHA is recorded by Git and the PR.
 
-## Expected diff: 26 files
+## Expected diff from frozen base: 28 files
 - `app/(internal)/dashboard/dashboard-view.tsx`
 - `app/(internal)/dashboard/data.ts`
 - `app/(internal)/dashboard/page.tsx`
@@ -29,6 +30,8 @@ The immutable commit SHA is recorded by Git and the PR.
 - `lib/cashflow/planning.ts`
 - `lib/cashflow/recurring-validation.ts`
 - `lib/cashflow/types.ts`
+- `lib/procurement/mrp-coverage.ts`
+- `lib/procurement/weekly-plan-coverage.ts`
 - `supabase/migrations/20261003211113_cashflow_read_sources.sql`
 - `supabase/migrations/20261003212845_cashflow_sales_actuals.sql`
 - `IMPLEMENTATION_REPORT-BATCH-09.md`
@@ -44,14 +47,15 @@ No production test data, stock reconciliation or main branch update.
 
 ## Audit evidence
 See [implementation report](IMPLEMENTATION_REPORT-BATCH-09.md).
-Focused: 114 PASS. Canonical cases: 55 PASS.
-DB matrix: 18 PASS. Full serial suite: 1,520 PASS / 16 skipped.
+Post-audit focused: 129 PASS. Canonical cases: 70 PASS, including 15 new audit cases.
+Procurement/Weekly Plan-MRP: 181 PASS (96 procurement, 85 Weekly Plan).
+DB matrix rerun: 18 PASS with ROLLBACK; no persistent synthetic fixtures. Full serial suite: 1,535 PASS / 16 skipped.
 Typecheck/build/diff: PASS.
 Frozen base and branch identity checked before publication.
 PR must remain open; external audit and production deploy remain pending.
 
 ## Explicit limitations
-No invented FX, due dates or linkage. Undated commitments are visible outside dated net.
+No invented FX, due dates or linkage. Undated commitments are visible outside dated net. Late/undated OC do not cover a plan's shortage; timely coverage shares B08's exact eligibility predicate. Draft/cancelled sales documents retain certificate fallback; issued/partially collected/collected documents supersede it.
 Equipment/recurrence facts without settlement FK remain explicit planned forecasts.
 Historical B1B project labor cost metric and legacy Security Advisor notices are documented in the report.
 No Batch 10 implementation.

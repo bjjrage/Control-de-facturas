@@ -2,7 +2,7 @@ import type { WeeklyPlanCalculationSummary } from "@/lib/types";
 import type { BudgetItemMaterialInput, StockDisponibilidadInput } from "./progress-forecast-engine";
 import type { MrpPreviewResult } from "@/app/(internal)/projects/weekly-plan-actions";
 import { loadCentralAvailability } from "./weekly-plan-shared";
-import { allocateMaterialCoverage } from "./mrp-coverage";
+import { allocateMaterialCoverage, isTimelyInbound } from "./mrp-coverage";
 export async function buildMrpPreview(
   supabase: { from: (table: string) => any },
   empresaId: string,
@@ -40,7 +40,7 @@ export async function buildMrpPreview(
   const validInbound: Record<string, number> = {};
   const unconfirmed: MrpPreviewResult["unconfirmedInbound"] = [];
     for (const d of baseData.inboundDetails) {
-      const onTime = d.expected_delivery_date !== null && d.expected_delivery_date <= neededBy;
+      const onTime = isTimelyInbound(d.expected_delivery_date, neededBy);
       if (onTime) {
         validInbound[d.producto_id] = (validInbound[d.producto_id] || 0) + d.net_quantity;
       } else {

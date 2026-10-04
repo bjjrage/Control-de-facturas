@@ -3,14 +3,13 @@ import type { CostObservation } from "@/lib/cost-engine/types";
 import { resolveProjectPriceSemantics } from "@/lib/costing/project-prices";
 import { calculateWeeklyPlanRequirements, type PlanHourLineInput, type PlanSubcontractLineInput } from "@/lib/procurement/weekly-plan-engine";
 import { selectBaselineCertificate, computeBaselineWithDeltas } from "@/lib/procurement/weekly-plan-shared";
-import { allocateMaterialCoverage } from "@/lib/procurement/mrp-coverage";
+import { allocateMaterialCoverage, isTimelyInbound } from "@/lib/procurement/mrp-coverage";
 import { samePhysicalUnit } from "@/lib/procurement/weekly-plan-validation";
 import { addCashDays } from "./dates";
 import { nonnegative, type CashflowSources } from "./types";
 import type { BudgetItemMaterialInput } from "@/lib/procurement/progress-forecast-engine";
-/** Reuses B07/B08 quantities and coverage. Financial supersession also accounts
- * for authorized supply with unknown/late delivery: it is still a commitment,
- * even though B08 correctly refuses to promise physical availability. */
+/** Reuses B07/B08 quantities and physical coverage. Late/undated OC remain
+ * separate financial commitments and cannot erase a plan's physical shortage. */
 export function derivePlanningCash(s: CashflowSources): FlujoItem[] {
     const out: FlujoItem[] = [];
     const centralUsed: Record<string, number> = {};
@@ -24,11 +23,11 @@ export function derivePlanningCash(s: CashflowSources): FlujoItem[] {
         const stock: Record<string, number> = {};
         for (const r of f.project_stock)
             stock[r.producto_id] = (stock[r.producto_id] ?? 0) + nonnegative(r.quantity);
-        const supply: Record<string, number> = {};
-        for (const o of s.orders.filter(o => o.project_id === context.project_id)) {
+        const supply: { producto_id: string; remaining: number; expected_delivery_date: string | null }[] = [];
+        for (const o of s.orders.filter(o => o.project_id === context.project_id && o.status === "AUTORIZADO")) {
             for (const i of o.items ?? [])
                 if (i.producto_id)
-                    supply[i.producto_id] = (supply[i.producto_id] ?? 0) + Math.max(0, nonnegative(i.quantity) - nonnegative(i.received));
+                    supply.push({ producto_id: i.producto_id, remaining: Math.max(0, nonnegative(i.quantity) - nonnegative(i.received)), expected_delivery_date: i.expected_delivery_date == null ? null : String(i.expected_delivery_date) });
         }
         return [context.project_id, { executed, stock, supply }] as const;
     }));
@@ -84,7 +83,13 @@ export function derivePlanningCash(s: CashflowSources): FlujoItem[] {
         }
         for (const id of Object.keys(central))
             central[id] = Math.max(0, central[id] - (centralUsed[id] ?? 0));
-        const coverage = allocateMaterialCoverage({ gross: calc.items.flatMap(i => i.materials.map(m => ({ producto_id: m.producto_id, producto_nombre: m.producto_nombre, unidad_medida: m.unidad_medida, costo_unitario: m.costo_unitario, requerido: m.demanda_bruta, cubierto_obra: m.cubierto_por_stock }))), centralAvailableByProduct: central, validInboundByProduct: state.supply });
+        // B08's saved-plan default need date is END (not the cash fallback START+7).
+        // Keep dated line balances so later plans can use supply ineligible now.
+        const eligibleSupply = state.supply.filter(i => isTimelyInbound(i.expected_delivery_date, plan.end_date));
+        const validInbound: Record<string, number> = {};
+        for (const i of eligibleSupply)
+            validInbound[i.producto_id] = (validInbound[i.producto_id] ?? 0) + i.remaining;
+        const coverage = allocateMaterialCoverage({ gross: calc.items.flatMap(i => i.materials.map(m => ({ producto_id: m.producto_id, producto_nombre: m.producto_nombre, unidad_medida: m.unidad_medida, costo_unitario: m.costo_unitario, requerido: m.demanda_bruta, cubierto_obra: m.cubierto_por_stock }))), centralAvailableByProduct: central, validInboundByProduct: validInbound });
         const emit = (tipo: FlujoItem["tipo"], amount: number, date: string, ref: string, quantity?: number) => {
             if (amount <= 0)
                 return;
@@ -92,7 +97,12 @@ export function derivePlanningCash(s: CashflowSources): FlujoItem[] {
         };
         for (const line of coverage.lines) {
             state.stock[line.producto_id] = Math.max(0, (state.stock[line.producto_id] ?? 0) - line.cubierto_obra);
-            state.supply[line.producto_id] = Math.max(0, (state.supply[line.producto_id] ?? 0) - line.cubierto_inbound);
+            let inboundUsed = line.cubierto_inbound;
+            for (const i of eligibleSupply.filter(i => i.producto_id === line.producto_id)) {
+                const used = Math.min(inboundUsed, i.remaining);
+                i.remaining -= used;
+                inboundUsed -= used;
+            }
             // Reservations already reduce the free pool for other plans: consuming a
             // plan's own reservation must not also reduce that same free pool.
             const own = f.reservations.filter(r => r.weekly_plan_id === plan.id && r.producto_id === line.producto_id).reduce((n, r) => n + nonnegative(r.quantity), 0);
