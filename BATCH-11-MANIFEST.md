@@ -622,3 +622,19 @@ READY FOR EXTERNAL AUDIT. 19 changed files; 3 new additive migrations; historica
 Focused 89 PASS; isolated PostgreSQL 32 PASS; cross-module 528 PASS; full Vitest 1700 PASS / 16 SKIP; typecheck PASS; Next 16.3.8 Webpack build PASS; diff check PASS. Live Preview read-only catalog PASS. Authenticated live RLS/E2E/visual NOT VERIFIED (P3).
 P0/P1 identified findings fixed; documented P2/P3 retained. Advisor 162 (2 ERROR/160 WARN) -> 149 (2 ERROR/147 WARN), 0 new findings. Runtime audit 0 critical after bounded security patch; 3 legacy package entries remain.
 PR publication occurs after this documentation commit. Base/branch above; final HEAD is available in git/PR. No merge or Production deployment permitted by this batch.
+
+## External audit correction delta (supersedes original final counts)
+
+Prior audited HEAD: f8e542020287254720648c929332a844ad97410f. PR #32, same batch/11-final-hardening branch.
+
+New migration: supabase/migrations/20261004213348_b11_settled_financial_relationships.sql (one additive migration; prior applied migrations unchanged).
+
+Changed authority: BEFORE INSERT/UPDATE/DELETE invoker guards on invoice_order_matches and payment_order_invoices, plus settled-invoice BEFORE DELETE cascade protection. No RLS/grant/calculation redesign. Exact OLD/NEW parents locked in canonical invoice -> OC / OP -> invoice order; settled relationships have no service exemption. Normal unpaid reconciliation and EMITIDA membership remain intact.
+
+Application: app/(internal)/invoices/[id]/actions.ts checks scoped DELETE errors/row results before audit/revalidation. app/(internal)/invoices/[id]/unmatch-button.tsx displays the canonical business error; invoice and OC detail pages hide unlink for frozen states. No redesign.
+
+Tests: lib/__tests__/b11-authority-db.spec.ts adds 25 expected-denial/authorized workflow cases executing actual migrations/baseline PostgreSQL functions and RLS. lib/__tests__/b11-unmatch-action.spec.ts adds 4 action regressions. All synthetic DB test mutations are local rollback transactions; live Preview verification is read-only catalog only.
+
+Final: focused 61 PASS; DB 57 PASS; cross-module 506 PASS/39 files; full Vitest 1729 PASS/16 SKIP; typecheck, Webpack build and diff check PASS. Preview read-only catalog PASS; ledger 52, Production ledger 48. Advisor remains 149 (2 ERROR/147 WARN), no correction increase. Actual multi-connection live race/authenticated RLS/E2E/visual NOT VERIFIED. Hosted Preview previously canceled by ignored-build-step; no READY claimed.
+
+P1 financial link immutability corrected; identified P0/P1 open: 0/0. Inherited P2/P3 debt retained. READY FOR EXTERNAL RE-AUDIT. No Production/data/71x2/main mutation, real fiscal issuance, merge or new roadmap batch.

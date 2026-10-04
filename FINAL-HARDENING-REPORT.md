@@ -1,6 +1,6 @@
 # FINAL ERP HARDENING - BATCH 11
 
-Status: discovery completed before fixes; defensive corrections implemented. READY FOR EXTERNAL AUDIT. Patched-runtime verification complete. PR publication follows this report.
+Status: discovery completed before fixes; external audit financial-link correction implemented in PR #32. READY FOR EXTERNAL RE-AUDIT. Final Preview ledger: 52; Production: 48. Original B11 snapshot below is retained; the external correction section supersedes its final counts/ledger.
 
 Base: 3572a70375317e7a532faf9be0fea93a6d8e3120. Branch: batch/11-final-hardening. Production read-only. Starting Preview/Production ledgers: 48/48.
 
@@ -165,3 +165,45 @@ Final concurrency delta: 20261004210311_b11_invoice_reconciliation_lock.sql lock
 All changed actor/role/tenant/status/source/cron boundaries were rechecked through their actual migration/server implementations, authorized local operations and expected denials. Existing canonical money RPCs remain authoritative; default grants alone were not equated with write access where RLS already denies writes (e.g. sales_receipts).
 
 Source review found no new release-blocking unbounded recursion/full-scan path introduced by B11. Legacy manual reconciliation scans pending tenant invoices and does sequential matching; this is P2 scale debt, not a claimed load-test pass. No speculative performance rewrite or accounting redesign was performed.
+
+## External audit correction — immutable financial relationships
+
+Audited prior HEAD: f8e542020287254720648c929332a844ad97410f. Same branch and PR #32; no merge or Production deployment.
+
+**B11-10 / P1:** invoice_order_matches and payment_order_invoices retained INSERT/DELETE policies after financial approval/settlement. unmatchOrder ignored DELETE errors and reported/audited success. Deleting a settled link could remove invoice -> OC or OP -> invoice evidence while the invoice/OP/treasury facts survived; the OC reconciliation could regress.
+
+Minimum correction: one new additive migration, 20261004213348_b11_settled_financial_relationships.sql. The prior three B11 migrations remain byte-for-byte unchanged.
+
+- BEFORE INSERT/UPDATE/DELETE invoker guards freeze invoice -> OC when either OLD/NEW invoice is APTO_PARA_PAGO/PAGADO or OLD/NEW OC is APTO_PARA_PAGO/PAGADO. FACTURADO and normal unpaid reconciliation remain editable under existing RLS.
+- BEFORE INSERT/UPDATE/DELETE invoker guards freeze OP -> invoice when either OLD/NEW OP is EJECUTADA or OLD/NEW invoice is PAGADO. EMITIDA membership INSERT/DELETE remains available; no UPDATE policy is added.
+- No service/maintenance exemption. Parents are locked with FOR UPDATE in stable ID order: invoice -> OC, matching approval/reconciliation; OP -> invoices, matching canonical OP execution. No global locks or financial calculation changes.
+- A BEFORE DELETE invoice-parent guard prevents APTO/PAGADO deletion from erasing links through FK cascade. The existing executed-OP parent guard remains authoritative. Unpaid OP deletion still cascades normally.
+- unmatchOrder checks the actual DB result, scopes all three IDs, returns the canonical business error, and does not audit/revalidate a rejected or missing deletion. A small shared action-state button displays errors; both existing detail screens hide unlink for frozen invoice/OC states. No UI redesign.
+
+### Correction evidence
+
+The B11 local PostgreSQL harness now executes all four actual B11 migrations plus actual baseline relationship RLS, tenant triggers, reconciliation trigger, OP execution, treasury RPC and balance trigger. All synthetic local test changes use rollback transactions. No live unauthorized access/identity impersonation or remote business mutations were attempted.
+
+25 new DB cases cover unpaid unlink and reconciliation; APTO/PAGADO deletion/INSERT/repoint denial; OLD and NEW terminal parents; EMITIDA membership under inherited policies; executed OP membership denial; paid invoice membership evidence; parent cascade denial; canonical approved OP execution and replay rejection; exactly one -100 treasury movement/balance effect; unchanged invoice/OC/OP/treasury source facts after rejected mutations. Four action tests cover canonical business errors, stale/missing links, successful audit/revalidation and role denial.
+
+Lock ordering is verified against the actual PostgreSQL function definitions. No multi-connection live race test is claimed. B09 cashflow/dashboard regressions pass, with canonical facts preserved.
+
+| Final check | Result |
+|---|---|
+| Focused correction/B11 DB/action | 61 PASS across 2 files |
+| Actual migration PostgreSQL suite | 57 PASS (32 existing + 25 correction) |
+| Cross-module, including treasury/cashflow/dashboard/Sales/inventory/weekly/workspace | 506 PASS across 39 files |
+| Full Vitest | 1729 PASS / 16 SKIP; 167 files PASS / 2 SKIP |
+| Typecheck | PASS |
+| Webpack build | PASS, Next 16.3.8; 59 static pages; localhost-only build placeholders |
+| Diff check | PASS |
+| Preview read-only catalog | PASS; ledger 52, all three new guards enabled, ordered parent locks and invoker security asserted |
+| Production read-only ledger | 48 |
+| Preview Advisor | Unchanged: 149 = 2 ERROR + 147 WARN; correction adds 0 findings |
+| Authenticated live RLS/E2E/visual | NOT VERIFIED, inherited P3 |
+
+Preview migration applied explicitly to xddlzgjwufskgasomval with --skip-vault; dry-run listed exactly this one migration. Docker catalog-cache warning does not affect the successful migration/catalog assertions. No historical data repair or persistent test fixtures. No SIFEN, Goekua, stock, certificate, labor, Direct Purchase or accounting scope expanded.
+
+The prior primary Vercel Preview was CANCELED by Ignored Build Step despite a green GitHub check. Hosted Preview remains NOT VERIFIED; local build and Preview DB results are separate evidence. No Vercel settings or legacy projects modified.
+
+P0 identified/open: 2/0. P1 identified/open: 8/0 (the seven initial corrections plus this external P1). Existing documented P2/P3 debt remains. Final verdict: READY FOR EXTERNAL RE-AUDIT; not authorization to merge or deploy Production.

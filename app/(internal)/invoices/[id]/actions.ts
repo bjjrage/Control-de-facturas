@@ -61,10 +61,16 @@ export async function matchOrder(invoiceId: string, authorizedOrderId: string) {
 export async function unmatchOrder(invoiceId: string, matchId: string, authorizedOrderId: string) {
   await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
-  await supabase.from("invoice_order_matches").delete().eq("id", matchId);
+  const { data, error } = await supabase.from("invoice_order_matches")
+    .delete().eq("id", matchId).eq("invoice_id", invoiceId)
+    .eq("authorized_order_id", authorizedOrderId).select("id");
+  if (error) return { error: error.message };
+  if (!data?.length) return { error: "El vínculo no existe o no tenés permiso para desvincularlo." };
   await logAudit(supabase, { action: "invoice.order_unmatched", invoiceId, authorizedOrderId });
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoiceId}`);
+  revalidatePath(`/orders/${authorizedOrderId}`);
+  return { error: null };
 }
 
 export async function approveException(invoiceId: string, reason: string, comment: string | null) {

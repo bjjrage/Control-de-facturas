@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { formatDate, formatMoney, formatNumber } from "@/lib/format";
 import { orderRemaining, isOverbilled } from "@/lib/reconciliation";
-import { unmatchOrder } from "@/app/(internal)/invoices/[id]/actions";
+import { UnmatchOrderButton } from "@/app/(internal)/invoices/[id]/unmatch-button";
 import { InvoiceDialog } from "@/app/(internal)/invoices/invoice-dialog";
 import { LinkInvoiceDialog } from "./link-invoice-dialog";
 import { OrderPipeline } from "../order-pipeline";
@@ -315,16 +315,10 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                     <StatusBadge status={m.invoices.status} />
                   </td>
                   <td>
-                    <form
-                      action={async () => {
-                        "use server";
-                        await unmatchOrder(m.invoices.id, m.id, order.id);
-                      }}
-                    >
-                      <Button variant="ghost" className="h-6 px-2 text-[12px]" type="submit">
-                        Desvincular
-                      </Button>
-                    </form>
+                    {!['APTO_PARA_PAGO', 'PAGADO'].includes(m.invoices.status)
+                      && !['APTO_PARA_PAGO', 'PAGADO'].includes(order.status) ? (
+                      <UnmatchOrderButton invoiceId={m.invoices.id} matchId={m.id} orderId={order.id} />
+                    ) : null}
                   </td>
                 </tr>
               ))}

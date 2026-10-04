@@ -2,7 +2,7 @@
 BEGIN READ ONLY;
 DO $$
 BEGIN
- ASSERT (SELECT count(*) FROM supabase_migrations.schema_migrations)=51, 'Unexpected Preview ledger';
+ ASSERT (SELECT count(*) FROM supabase_migrations.schema_migrations)=52, 'Unexpected Preview ledger';
  ASSERT NOT has_function_privilege('anon','public.claim_invoice_job()','EXECUTE');
  ASSERT NOT has_function_privilege('authenticated','public.claim_invoice_job()','EXECUTE');
  ASSERT has_function_privilege('service_role','public.claim_invoice_job()','EXECUTE');
@@ -18,7 +18,15 @@ BEGIN
  ASSERT pg_get_functiondef('public.current_profile_role()'::regprocedure) LIKE '%p.active%';
  ASSERT pg_get_functiondef('public.ejecutar_orden_pago_atomica(uuid,uuid,uuid,uuid)'::regprocedure) LIKE '%i.status = ''APTO_PARA_PAGO''%';
  ASSERT pg_get_functiondef('public.recompute_invoice_status(uuid)'::regprocedure) LIKE '%where id=p_invoice_id for update%';
+ ASSERT (SELECT count(*) FROM pg_trigger WHERE tgname IN ('b11_invoice_order_relationship','b11_op_invoice_relationship','b11_settled_invoice_delete') AND tgenabled='O')=3;
+ ASSERT pg_get_functiondef('private.b11_guard_invoice_order_relationship()'::regprocedure) LIKE '%ORDER BY i.id FOR UPDATE%';
+ ASSERT pg_get_functiondef('private.b11_guard_invoice_order_relationship()'::regprocedure) LIKE '%ORDER BY o.id FOR UPDATE%';
+ ASSERT pg_get_functiondef('private.b11_guard_op_invoice_relationship()'::regprocedure) LIKE '%ORDER BY p.id FOR UPDATE%';
+ ASSERT pg_get_functiondef('private.b11_guard_op_invoice_relationship()'::regprocedure) LIKE '%ORDER BY i.id FOR UPDATE%';
+ ASSERT (SELECT bool_and(NOT prosecdef) FROM pg_proc WHERE oid IN ('private.b11_guard_invoice_order_relationship()'::regprocedure,'private.b11_guard_op_invoice_relationship()'::regprocedure,'private.b11_guard_settled_invoice_delete()'::regprocedure));
+ ASSERT pg_get_functiondef('private.b11_guard_invoice_order_relationship()'::regprocedure) LIKE '%''APTO_PARA_PAGO'',''PAGADO''%';
+ ASSERT pg_get_functiondef('private.b11_guard_op_invoice_relationship()'::regprocedure) LIKE '%''EJECUTADA''%';
 END;
 $$;
-SELECT 'PASS' AS defensive_catalog_verification,51 AS expected_preview_ledger;
+SELECT 'PASS' AS defensive_catalog_verification,52 AS expected_preview_ledger;
 ROLLBACK;
