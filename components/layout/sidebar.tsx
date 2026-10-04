@@ -127,6 +127,7 @@ const OPERATIVO_ITEMS: NavItem[] = [
 
 const LICITACIONES_ITEMS: NavItem[] = [
   { href: "/licitaciones", label: "Dashboard", roles: ["comercial", "administracion", "admin"], icon: LayoutDashboard, minPlan: "pro", exact: true },
+  { href: "/licitaciones/prebid", label: "PREBID", roles: ["comercial", "administracion", "admin"], icon: ClipboardCheck, minPlan: "pro", exact: true },
   { href: "/licitaciones/competidores", label: "Competidores", roles: ["comercial", "administracion", "admin"], icon: Radar, minPlan: "pro" },
   { href: "/licitaciones/documentos", label: "Documentos", roles: ["comercial", "administracion", "admin"], icon: FileText, minPlan: "pro" },
   { href: "/licitaciones/auction-bot", label: "Auction Bot", roles: ["comercial", "administracion", "admin"], icon: Bot, minPlan: "pro" },
