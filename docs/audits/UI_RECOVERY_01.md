@@ -1,5 +1,17 @@
 # UI RECOVERY 01
 
+## Calendar selection update — current implementation
+
+User steering supersedes the compact click-cycle request: retain the month-card layout at HEAD `56b92fb7f18ae1ac8a50a8b3bc5323950acc11ce`. Plain click selects one date; Ctrl/Meta+click adds/removes dates across months. A touch-friendly selection toggle provides the same behavior without modifiers. The top toolbar applies B/LL/HH/O to selected dates; selection itself does not write.
+
+Client orchestration invokes existing canonical create/override actions sequentially, once per distinct date. It reports success and failure by date, removes successful dates from selection and leaves failures selected for retry. The UI prevents duplicate submissions while saving. Refresh runs after all attempts, including transport errors, because a response can be lost after a commit. This is an explicit non-atomic sequence; no batch RPC, source change, database operation or migration was added.
+
+Proposal confirmation stays separate from manual classification. Resident evidence, QR, evaluation, advanced details and read-only legacy remain intact. Single-date proposal/evidence details are collapsed so selection does not open a large panel.
+
+Verification: focused suite 84 PASS; full suite 176 files passed/2 skipped, 1,863 tests passed/16 skipped; typecheck PASS; Webpack build PASS, 59 static pages; diff check PASS. Actual local Firefox: 18 checks PASS, no page errors, screenshots identify synthetic fixtures explicitly. Authenticated deployed-data acceptance remains NOT VERIFIED. Exact-SHA Preview evidence is saved separately after deployment so it does not change the deployed commit.
+
+Architecture for the next delivery is documented in `docs/architecture/CONTRACT_CLIMATE_CALCULATION.md`: configurable rules, evidence eligibility, versioned evaluations, approval separation and certificate snapshots. It requires no real PBC to design; all examples are synthetic. This document is a proposal, not a released contractual calculation engine or DB schema.
+
 ## Final climate source semantics correction
 
 Preceding audited HEAD: `511ee59862f6eb0d04aca12c3cc097ec8dee87a8`. The application delta is two provenance values: `overrideWeatherWorkday` and `createRainEffectWorkday` now persist `source: "MANUAL"` for authenticated administrative decisions. Authorization, classification, calendar architecture and other action behavior are unchanged. `confirmWeatherWorkday` is unchanged: confirming an unmodified AUTOMATIC or RESIDENT proposal preserves its origin and records the human in `confirmed_by`.

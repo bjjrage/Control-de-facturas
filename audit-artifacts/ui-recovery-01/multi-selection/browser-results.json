@@ -1,0 +1,25 @@
+{
+  "scope": "Local Firefox with actual AvanceFisicoPanel and synthetic action adapters; not authenticated deployed acceptance",
+  "passed": 18,
+  "checks": [
+    "all calendar days render",
+    "153 dates over 5 months",
+    "zero native selects",
+    "advanced and legacy initially collapsed",
+    "resident QR action visible",
+    "automatic proposal and resident evidence on date",
+    "selecting performs no mutation",
+    "Ctrl adds across months",
+    "Ctrl removes",
+    "multiple dates create canonical HH",
+    "existing dates use canonical overrides",
+    "plain click replaces selection",
+    "partial failure retains only failed date",
+    "failed-date retry",
+    "plain confirmation preserves AUTOMATIC origin",
+    "existing QR dialog renders",
+    "touch selection toggle",
+    "no page errors"
+  ],
+  "pageErrors": []
+}

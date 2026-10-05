@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { climateToday } from "@/lib/procurement/climate-entry";
 import { LIBRO_LABELS, libroCode, libroDayFacts, libroMonths } from "@/lib/procurement/climate-calendar";
+import { selectClimateDate, type ClimateSelectionResult } from "@/lib/projects/climate-selection";
 import type { ClimateEvent, ClimateEvidence, Project, ProjectWorkdayStatus, WeatherCode } from "@/lib/types";
 
 const MONTHS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -11,32 +12,67 @@ const COLORS: Record<WeatherCode, string> = { B: "text-[var(--ok)]", LL: "text-[
 
 export function ClimateLibroCalendar({ project, events, workdays, evidence, pending, onSelectDate, onMark, onConfirm, onIgnore, onPhoto }: {
   project: Project; events: ClimateEvent[]; workdays: ProjectWorkdayStatus[]; evidence: ClimateEvidence[]; pending: boolean;
-  onSelectDate: (date: string) => void; onMark: (date: string, code: WeatherCode) => void;
+  onSelectDate: (date: string) => void; onMark: (dates: string[], code: WeatherCode) => Promise<ClimateSelectionResult>;
   onConfirm: (day: ProjectWorkdayStatus) => void; onIgnore: (day: ProjectWorkdayStatus) => void; onPhoto: (photo: ClimateEvidence) => void;
 }) {
   const today = climateToday();
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [additive, setAdditive] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [result, setResult] = useState<ClimateSelectionResult | null>(null);
+  const busy = pending || saving;
   const months = libroMonths(project, [...events.map(event => event.event_date), ...workdays.map(day => day.work_date)], today);
   const confirmed = workdays.filter(day => day.decision_status === "CONFIRMED");
   const counts = (days: ProjectWorkdayStatus[]) => { const codes = days.map(libroCode); return { rain: codes.filter(code => code === "LL").length, humid: codes.filter(code => code === "HH").length, other: codes.filter(code => code === "O").length }; };
   const totals = counts(confirmed);
-  const selectedFacts = selected ? libroDayFacts(selected, events, workdays, evidence) : null;
+  const selectedDate = selected.length === 1 ? selected[0] : null;
+  const selectedFacts = selectedDate ? libroDayFacts(selectedDate, events, workdays, evidence) : null;
+  async function markSelection(code: WeatherCode) {
+    if (busy || savingRef.current || !selected.length) return;
+    savingRef.current = true;
+    setSaving(true);
+    setResult(null);
+    const dates = [...selected];
+    try {
+      const outcome = await onMark(dates, code);
+      setResult(outcome);
+      // Successful dates are removed so retrying cannot silently reapply them.
+      setSelected(outcome.failed.map(item => item.date));
+    } catch {
+      setResult({ saved: [], failed: dates.map(date => ({ date, error: "No se pudo completar. Revisá el estado de cada día antes de reintentar." })) });
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  }
   return <div className="space-y-3" data-testid="canonical-libro-calendar">
     <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs" aria-label="Totales del Libro confirmado">
       <span>Lluvia <strong>{totals.rain}</strong></span><span>Húmedos <strong>{totals.humid}</strong></span><span>Otros <strong>{totals.other}</strong></span><span>Total no trabajados <strong>{totals.rain + totals.humid + totals.other}</strong></span>
     </div>
-    <p className="text-[11px] text-[var(--muted)]">Seleccioná un día y marcá B, LL, HH u O. El estado final lo decide una persona; meteorología y residente aportan evidencia.</p>
+    <p className="text-[11px] text-[var(--muted)]">Clic para seleccionar un día; Ctrl + clic para sumar o quitar días de cualquier mes. Luego aplicá B, LL, HH u O. Seleccionar no modifica el Libro.</p>
     <div className="flex flex-wrap gap-3 text-[11px]">{(Object.keys(LIBRO_LABELS) as WeatherCode[]).map(code => <span key={code}><strong className={COLORS[code]}>{code}</strong> · {LIBRO_LABELS[code]}</span>)}</div>
-    {selected && selectedFacts ? <div className="rounded-lg border border-[var(--primary)]/40 bg-[var(--panel-2)] p-3 space-y-2" aria-label={`Detalle del día ${selected}`}>
-      <div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-xs">{selected} · Libro: {selectedFacts.final ?? "sin decisión final"}{selectedFacts.final ? " · Confirmado por una persona" : ""}</strong><Button type="button" variant="ghost" size="sm" onClick={() => setSelected(null)}>Cerrar día</Button></div>
-      <div className="flex flex-wrap items-center gap-2" aria-label="Marcar estado del Libro">{(Object.keys(LIBRO_LABELS) as WeatherCode[]).map(code => <Button key={code} type="button" size="sm" variant={selectedFacts.final === code ? "primary" : "secondary"} disabled={pending} onClick={() => onMark(selected, code)} aria-label={`Marcar ${code} ${selected}`} title={LIBRO_LABELS[code]}>{code}</Button>)}
-        {selectedFacts.day?.decision_status === "PROPOSED" ? <><Button type="button" size="sm" disabled={pending} onClick={() => onConfirm(selectedFacts.day!)}>Confirmar sugerencia {selectedFacts.proposal}</Button><Button type="button" size="sm" variant="secondary" disabled={pending} onClick={() => onIgnore(selectedFacts.day!)}>Ignorar sugerencia · marcar B</Button></> : null}
+    <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--panel)] p-2" aria-label="Marcar estado del Libro">
+      <strong className="mr-2 text-xs" aria-live="polite">{selected.length} {selected.length === 1 ? "día seleccionado" : "días seleccionados"}</strong>
+      {(Object.keys(LIBRO_LABELS) as WeatherCode[]).map(code => <Button key={code} type="button" size="sm" variant={selectedFacts?.final === code ? "primary" : "secondary"} disabled={busy || !selected.length} onClick={() => void markSelection(code)} aria-label={`Aplicar ${code} a días seleccionados`} title={LIBRO_LABELS[code]}>{code}</Button>)}
+      <Button type="button" variant="ghost" size="sm" disabled={busy} aria-pressed={additive} onClick={() => setAdditive(value => !value)}>Selección múltiple</Button>
+      <Button type="button" variant="ghost" size="sm" disabled={busy || !selected.length} onClick={() => setSelected([])}>Limpiar selección</Button>
+      {saving ? <span className="text-xs" role="status">Guardando días…</span> : null}
+    </div>
+    {result ? <div className="text-xs" role="status">
+      <p>{result.saved.length} {result.saved.length === 1 ? "día guardado" : "días guardados"} · {result.failed.length} {result.failed.length === 1 ? "día pendiente" : "días pendientes"}.</p>
+      {result.failed.length ? <ul className="mt-1 list-disc pl-4">{result.failed.map(item => <li key={item.date}>{item.date}: {item.error}</li>)}</ul> : null}
+    </div> : null}
+    {selectedDate && selectedFacts ? <details key={selectedDate} className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-2 text-xs">
+      <summary className="cursor-pointer">{selectedDate} · Libro: {selectedFacts.final ?? "sin decisión final"} · ver propuesta y evidencia</summary>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {selectedFacts.day?.decision_status === "PROPOSED" ? <><Button type="button" size="sm" disabled={busy} onClick={() => onConfirm(selectedFacts.day!)}>Confirmar sugerencia {selectedFacts.proposal}</Button><Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => onIgnore(selectedFacts.day!)}>Ignorar sugerencia · marcar B</Button></> : null}
       </div>
       <div className="grid gap-2 text-[11px] sm:grid-cols-2">
         <div><strong>Meteorología</strong>{selectedFacts.observations.filter(event => event.external_precipitation_mm !== null && event.external_precipitation_mm !== undefined).map(event => <p key={event.id}>{event.source === "DMH_DINAC" ? "DMH/DINAC" : event.source} {event.external_precipitation_mm} mm{event.external_threshold_exceeded ? " · sugerencia LL" : ""}</p>)}{!selectedFacts.observations.some(event => event.external_precipitation_mm != null) ? <p className="text-[var(--muted)]">Sin observación externa.</p> : null}</div>
         <div><strong>Residente · evidencia, sin confirmación contractual</strong>{selectedFacts.residentPhotos.map(photo => <div key={photo.id} className="flex flex-wrap items-center gap-2"><span>Pluviómetro {String(photo.metadata?.precipitation_mm ?? selectedFacts.observations.find(event => event.id === photo.climate_event_id)?.local_precipitation_mm ?? "—")} mm</span><Button type="button" size="sm" variant="ghost" onClick={() => onPhoto(photo)}>Ver foto</Button></div>)}{!selectedFacts.residentPhotos.length ? <p className="text-[var(--muted)]">Sin reporte residente.</p> : null}</div>
       </div>
-    </div> : null}
+    </details> : null}
     <div className="grid gap-3 xl:grid-cols-2">{months.map(({ year, month }) => {
       const prefix = `${year}-${String(month + 1).padStart(2, "0")}`;
       const monthCounts = counts(confirmed.filter(day => day.work_date.startsWith(prefix)));
@@ -50,7 +86,7 @@ export function ClimateLibroCalendar({ project, events, workdays, evidence, pend
             const outside = date > today || !!project.start_date && date < project.start_date;
             const external = facts.observations.find(event => event.external_precipitation_mm != null);
             const resident = facts.residentPhotos[0];
-            return <button key={date} type="button" aria-label={`Día ${date}`} aria-pressed={selected === date} disabled={pending || outside} onClick={() => { setSelected(date); onSelectDate(date); }} className={`min-w-0 rounded-md border p-1 text-left text-[10px] disabled:opacity-35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${selected === date ? "border-[var(--primary)] bg-[var(--hover)]" : "border-[var(--border)] bg-[var(--panel-2)]"}`}>
+            return <button key={date} type="button" data-testid={`libro-day-${date}`} aria-label={`Día ${date}`} aria-pressed={selected.includes(date)} disabled={busy || outside} onClick={event => { setSelected(value => selectClimateDate(value, date, additive || event.ctrlKey || event.metaKey)); setResult(null); onSelectDate(date); }} className={`min-w-0 rounded-md border p-1 text-left text-[10px] disabled:opacity-35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${selected.includes(date) ? "border-[var(--primary)] bg-[var(--hover)] ring-1 ring-[var(--primary)]" : "border-[var(--border)] bg-[var(--panel-2)]"}`}>
               <span className="flex justify-between gap-1"><span>{index + 1}</span><strong className={facts.final ? COLORS[facts.final] : "text-[var(--muted)]"}>{facts.final ?? "—"}</strong></span>
               <span className="block truncate text-[9px] text-[var(--muted)]">{facts.final ? "Final humano" : "Sin final"}</span>
               {facts.proposal ? <span className="block truncate text-[9px] text-[var(--warn)]">{facts.day?.proposed_automatically ? "Sugerencia" : "Propuesta"} {facts.proposal}</span> : null}

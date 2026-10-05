@@ -7,6 +7,7 @@ import { EditProjectDialog } from "./edit-project-dialog";
 import { ClimateLibroCalendar } from "./climate-libro-calendar";
 import { ExecutionLinkDialog } from "./execution-link-dialog";
 import { libroDecision } from "@/lib/procurement/climate-calendar";
+import { saveClimateSelection } from "@/lib/projects/climate-selection";
 import { isValidProjectCoords } from "@/lib/projects/location-fields";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
@@ -81,7 +82,9 @@ export function ClimateWorkdaysPanel({
   } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [localMm, setLocalMm] = useState<Record<string, string>>({});
-  const [pending, startTransition] = useTransition();
+  const [transitionPending, startTransition] = useTransition();
+  const [marking, setMarking] = useState(false);
+  const pending = transitionPending || marking;
   const fileInputByEvent = useRef<Record<string, HTMLInputElement | null>>({});
   const eventById = useMemo(() => new Map(events.map((event) => [event.id, event])), [events]);
   const rows = useMemo(
@@ -164,11 +167,22 @@ export function ClimateWorkdaysPanel({
       {message ? <p className="text-xs text-[var(--muted)]" role="status">{message}</p> : null}
 
       <ClimateLibroCalendar project={project} events={events} workdays={workdays} evidence={evidence} pending={pending} onSelectDate={setDate}
-        onMark={(workDate, code) => run(() => {
-          const decision = libroDecision(code);
-          const existing = workdays.find(day => day.work_date === workDate);
-          return existing ? overrideWeatherWorkday(project.id, existing.id, { ...decision, notes: existing.notes }) : createOtherWorkday(project.id, workDate, "", decision.classification, decision.reasonCode);
-        })}
+        onMark={async (workDates, code) => {
+          setMarking(true);
+          setMessage(null);
+          try {
+            const decision = libroDecision(code);
+            const result = await saveClimateSelection(workDates, workDate => {
+              const existing = workdays.find(day => day.work_date === workDate);
+              return existing ? overrideWeatherWorkday(project.id, existing.id, { ...decision, notes: existing.notes }) : createOtherWorkday(project.id, workDate, "", decision.classification, decision.reasonCode);
+            });
+            // Reload even after transport errors: a response may be lost after a commit.
+            if (workDates.length) startTransition(() => router.refresh());
+            return result;
+          } finally {
+            setMarking(false);
+          }
+        }}
         onConfirm={workday => run(() => confirmWeatherWorkday(project.id, workday.id))}
         onIgnore={workday => run(() => overrideWeatherWorkday(project.id, workday.id, { classification: "WORKABLE", reasonCode: null, notes: workday.notes }))}
         onPhoto={async photo => {
