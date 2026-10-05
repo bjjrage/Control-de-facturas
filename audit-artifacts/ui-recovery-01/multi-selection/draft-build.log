@@ -1,0 +1,130 @@
+▲ Next.js 16.3.8 (webpack)
+✓ Running next.config.ts took 491ms
+- Experiments (use with caution):
+  · serverActions
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 43s
+  Running TypeScript ...
+  Finished TypeScript in 17.2s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/59) ...
+  Generating static pages using 7 workers (14/59)
+  Generating static pages using 7 workers (29/59)
+  Generating static pages using 7 workers (44/59)
+✓ Generating static pages using 7 workers (59/59) in 26.5s
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /agent/activity
+├ ƒ /api/agent/chat
+├ ƒ /api/agent/health
+├ ƒ /api/agent/status
+├ ƒ /api/agent/voice/session
+├ ƒ /api/agent/voice/stream
+├ ƒ /api/agent/voice/transcribe
+├ ƒ /api/apu-import
+├ ƒ /api/cron/climate-evaluation
+├ ƒ /api/cron/tender-monitoring
+├ ƒ /api/import-sessions
+├ ƒ /api/import-sessions/[id]/analyze
+├ ƒ /api/integrations/gmail/callback
+├ ƒ /api/integrations/gmail/connect
+├ ƒ /api/integrations/gmail/disconnect
+├ ƒ /api/integrations/gmail/status
+├ ƒ /api/planillas
+├ ƒ /api/planillas/[id]
+├ ƒ /api/planillas/[id]/confirmar
+├ ƒ /api/projects/[id]/certificado/[certId]/pdf
+├ ƒ /api/projects/[id]/report
+├ ƒ /api/recepcion-portal/[token]
+├ ƒ /api/scanner/claim
+├ ƒ /api/scanner/mobile-session
+├ ƒ /api/scanner/session
+├ ƒ /api/scanner/status/[id]
+├ ƒ /api/scanner/upload
+├ ƒ /api/warehouse-portal/[token]
+├ ƒ /api/workbook-interpretation
+├ ƒ /auction-lab/join/[token]
+├ ƒ /auction-lab/watch/[token]
+├ ƒ /avance/[token]
+├ ƒ /certificados/[token]
+├ ƒ /clientes
+├ ƒ /clientes/[id]
+├ ƒ /clientes/[id]/estado-cuenta
+├ ƒ /cobros
+├ ƒ /configuracion
+├ ƒ /costs
+├ ƒ /cotizacion/[token]
+├ ƒ /cotizar/[token]
+├ ƒ /dashboard
+├ ƒ /empresas
+├ ƒ /facturas-venta
+├ ƒ /facturas-venta/nueva
+├ ƒ /flujo-caja
+├ ƒ /inventario
+├ ƒ /invoices
+├ ƒ /invoices/[id]
+├ ƒ /invoices/bulk
+├ ƒ /invoices/export
+├ ƒ /invoices/revision
+├ ƒ /licitaciones
+├ ƒ /licitaciones/[id]
+├ ƒ /licitaciones/[id]/prebid
+├ ƒ /licitaciones/auction-bot
+├ ƒ /licitaciones/auction-lab
+├ ƒ /licitaciones/auction-lab/[roomId]
+├ ƒ /licitaciones/competidores
+├ ƒ /licitaciones/competidores/[ruc]
+├ ƒ /licitaciones/documentos
+├ ƒ /licitaciones/prebid
+├ ƒ /login
+├ ƒ /notas-credito
+├ ƒ /ordenes-trabajo
+├ ƒ /ordenes-trabajo/[id]
+├ ƒ /orders
+├ ƒ /orders/[id]
+├ ƒ /pagos
+├ ƒ /pagos/[id]
+├ ƒ /pagos/[id]/imprimir
+├ ƒ /pagos/nueva
+├ ƒ /planillas/[id]
+├ ƒ /precios
+├ ƒ /proformas
+├ ƒ /proformas/nueva
+├ ƒ /projects
+├ ƒ /projects/[id]
+├ ƒ /providers
+├ ƒ /providers/[id]
+├ ƒ /recepcion/[token]
+├ ƒ /remisiones
+├ ƒ /remisiones/nueva
+├ ○ /reset-password
+├ ƒ /rfqs
+├ ƒ /rfqs/[id]
+├ ○ /scanner
+├ ƒ /stock
+├ ƒ /stock/[id]
+├ ƒ /stock/[id]/editar
+├ ƒ /stock/export
+├ ƒ /stock/nuevo
+├ ○ /suspendido
+├ ƒ /tesoreria
+├ ƒ /users
+├ ƒ /ventas
+├ ƒ /ventas/[id]
+├ ƒ /ventas/[id]/editar
+├ ƒ /ventas/[id]/imprimir
+├ ƒ /ventas/export
+├ ƒ /ventas/nueva
+├ ƒ /ventas/nueva-nc
+└ ƒ /warehouse/[token]
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand

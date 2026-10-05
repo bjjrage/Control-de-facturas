@@ -6,8 +6,6 @@ import { CloudRain, FileImage, RefreshCw } from "lucide-react";
 import { EditProjectDialog } from "./edit-project-dialog";
 import { ClimateLibroCalendar } from "./climate-libro-calendar";
 import { ExecutionLinkDialog } from "./execution-link-dialog";
-import { libroDecision } from "@/lib/procurement/climate-calendar";
-import { saveClimateSelection } from "@/lib/projects/climate-selection";
 import { isValidProjectCoords } from "@/lib/projects/location-fields";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
@@ -19,7 +17,7 @@ import {
   createRainEffectWorkday,
   evaluateProjectWeatherDayAction,
   overrideWeatherWorkday,
-  createOtherWorkday,
+  saveWeatherCalendarDraft,
   updateLocalPrecipitation,
 } from "../climate-actions";
 
@@ -167,24 +165,20 @@ export function ClimateWorkdaysPanel({
       {message ? <p className="text-xs text-[var(--muted)]" role="status">{message}</p> : null}
 
       <ClimateLibroCalendar project={project} events={events} workdays={workdays} evidence={evidence} pending={pending} onSelectDate={setDate}
-        onMark={async (workDates, code) => {
+        onSave={async entries => {
           setMarking(true);
           setMessage(null);
           try {
-            const decision = libroDecision(code);
-            const result = await saveClimateSelection(workDates, workDate => {
-              const existing = workdays.find(day => day.work_date === workDate);
-              return existing ? overrideWeatherWorkday(project.id, existing.id, { ...decision, notes: existing.notes }) : createOtherWorkday(project.id, workDate, "", decision.classification, decision.reasonCode);
-            });
-            // Reload even after transport errors: a response may be lost after a commit.
-            if (workDates.length) startTransition(() => router.refresh());
-            return result;
+            return await saveWeatherCalendarDraft(project.id, entries);
+          } catch (error) {
+            // The response can be lost after commit; reload persisted facts for review.
+            startTransition(() => router.refresh());
+            throw error;
           } finally {
             setMarking(false);
           }
         }}
         onConfirm={workday => run(() => confirmWeatherWorkday(project.id, workday.id))}
-        onIgnore={workday => run(() => overrideWeatherWorkday(project.id, workday.id, { classification: "WORKABLE", reasonCode: null, notes: workday.notes }))}
         onPhoto={async photo => {
           if (!photo.storage_path) return;
           const result = await createClient().storage.from("execution-photos").createSignedUrl(photo.storage_path, 60);

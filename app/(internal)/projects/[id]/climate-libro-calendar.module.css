@@ -8,7 +8,12 @@
 .day:not(:disabled):hover {
   background: rgba(65, 121, 215, 0.3);
   border-color: #7eafff;
-  box-shadow: inset 0 0 0 1px rgba(126, 175, 255, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(126, 175, 255, 0.45), 0 0 9px rgba(88, 151, 255, 0.28);
+}
+
+.day[data-draft="true"] {
+  border-style: dashed;
+  border-color: var(--warn);
 }
 
 .day[aria-pressed="true"]:not(:disabled) {
@@ -19,9 +24,35 @@
 
 .day[aria-pressed="true"]:not(:disabled):hover {
   background: rgba(50, 106, 208, 0.62);
+  box-shadow: inset 0 0 0 1px #b2ceff, 0 0 9px rgba(88, 151, 255, 0.28);
 }
 
 .day:focus-visible {
   outline: 2px solid #b2ceff;
   outline-offset: 2px;
 }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; }
+.controlGroup { flex: 1 1 240px; display: flex; flex-direction: column; gap: 9px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
+.groupLabel { font-size: 11px; font-weight: 700; color: var(--foreground); }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.helper { font-size: 10px; color: var(--muted); }
+.modeButton, .clearButton, .typeButton, .saveButton { min-height: 34px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 11px; font-weight: 600; cursor: pointer; transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }
+.modeButton { display: inline-flex; align-items: center; gap: 7px; color: var(--foreground); background: var(--panel-2); }
+.modeButton[aria-pressed="true"] { background: #204678; border-color: #91bfff; color: #fff; box-shadow: inset 0 0 0 1px #91bfff; }
+.modeButton:not(:disabled):hover { border-color: #91bfff; box-shadow: 0 0 8px #5897ff40; }
+.modeBadge { padding: 2px 5px; border-radius: 4px; font-size: 9px; background: #ffffff12; }
+.modeButton[aria-pressed="true"] .modeBadge { background: #b5d1ff; color: #112d51; }
+.clearButton { color: var(--muted); background: transparent; }
+.clearButton:not(:disabled):hover { color: var(--foreground); background: var(--panel-2); border-color: #8290a5; }
+.typeButton { display: inline-flex; align-items: center; gap: 6px; color: var(--type-color); border-color: var(--type-border); background: var(--type-bg); }
+.typeButton[data-code="B"] { --type-color: #74e6bd; --type-border: #34846e; --type-bg: #14392f; --type-glow: #55ddb34d; }
+.typeButton[data-code="LL"] { --type-color: #b5d1ff; --type-border: #537db5; --type-bg: #1b3454; --type-glow: #88b7ff4d; }
+.typeButton[data-code="HH"] { --type-color: #ffda80; --type-border: #9d7938; --type-bg: #40321b; --type-glow: #ffc75d4d; }
+.typeButton[data-code="O"] { --type-color: #ddc0ff; --type-border: #8562ae; --type-bg: #32223f; --type-glow: #c496ff4d; }
+.typeButton:not(:disabled):hover { border-color: var(--type-color); background: color-mix(in srgb, var(--type-bg), var(--type-color) 18%); box-shadow: 0 0 10px var(--type-glow); }
+.typeLabel { font-size: 10px; font-weight: 400; }
+.saveButton { color: #fff; background: #245f91; border-color: #73b2df; }
+.saveButton:not(:disabled):hover { background: #327aaf; box-shadow: 0 0 9px #73b2df45; }
+.toolbar button:disabled { opacity: .45; cursor: not-allowed; }
+.toolbar button:focus-visible { outline: 2px solid #b2ceff; outline-offset: 3px; }

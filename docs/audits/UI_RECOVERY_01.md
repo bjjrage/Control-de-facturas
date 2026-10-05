@@ -1,5 +1,15 @@
 # UI RECOVERY 01
 
+## Mixed calendar draft and explicit final save
+
+Supersedes the earlier immediate-save toolbar below. Selecting dates and assigning B/LL/HH/O now makes a local draft only. Different groups can receive different types, and a later assignment replaces that date's draft type. Calendar cells show the draft code and “Sin guardar”; confirmed counters continue to represent saved human decisions. “Guardar cambios” submits the whole draft through one server action. Successful dates leave the draft; failed dates retain their codes and remain selected for retry. Discard clears local changes without writes. A browser close/reload warning protects a nonempty draft.
+
+The administrative save wrapper validates authorization, project ownership, distinct dates, supported codes and project/date boundaries before writing. It reads each current day and delegates to existing canonical create/override actions, with at most three dates in flight. This remains explicitly non-atomic across dates and reports partial failures. Existing authority, MANUAL provenance for overrides, unchanged-proposal confirmation provenance, resident evidence and legacy read-only behavior remain intact. No schema, migration or resident backend changes.
+
+Controls have three separate groups: selection, type assignment and final save. Multiple selection has a persistent pressed background, checkmark and ACTIVA/INACTIVA badge, independent of hover. Type buttons use green B, blue LL, amber HH and purple O with individual hover glows. The day hover has a small glow only under the pointer; selected cells remain distinct.
+
+Actual local Firefox: **30 checks PASS**, no page errors, including zero action calls while staging mixed types, one explicit mixed save, partial failure/retry, discard, distinct type colors/hovers and persistent multiple-selection styling. Evidence is synthetic local verification, not authenticated deployed-data acceptance. Focused climate regressions: **93 PASS**. Full suite: **1,872 PASS / 16 skipped**; typecheck PASS; Webpack build PASS, 59 static pages; diff check PASS. Exact-SHA Preview evidence is saved separately after deployment so it does not change the deployed commit. No merge or Production/DB mutation.
+
 ## Hover correction
 
 The Tailwind `enabled:hover:bg-blue-*` class introduced at `c03c80cc2703157c955d7d0adcc361650284bc60` unintentionally matched the global legacy `button[class*="bg-blue-"]` selector, which forces permanent background/border/inset shadow using `!important`. It also masked selection styles. The correction removes those utility names from day buttons and isolates idle/hover/selected styling in a CSS Module, leaving shared ERP CSS unchanged. Hover affects only the enabled day under the cursor; selection remains filled, bordered and checked after the cursor leaves. The toolbar is no longer sticky.

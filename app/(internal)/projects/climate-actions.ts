@@ -1,6 +1,8 @@
 "use server";
 
 import { locateLocalClimateEvent, validClimateDate } from "@/lib/procurement/climate-entry";
+import { libroDecision } from "@/lib/procurement/climate-calendar";
+import { saveClimateDraftEntries, type ClimateDraftEntry, type ClimateSelectionResult } from "@/lib/projects/climate-selection";
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -47,6 +49,36 @@ async function ownedProject(projectId: string, empresaId: string) {
     .eq("empresa_id", empresaId)
     .single();
   return { supabase, exists: !!data };
+}
+
+/** One explicit save for the calendar draft. No new persistence or authority.
+ * Day writes can partially succeed; every result is returned for safe retry. */
+export async function saveWeatherCalendarDraft(
+  projectId: string,
+  entries: ClimateDraftEntry[],
+): Promise<ClimateSelectionResult> {
+  const profile = await requirePlan("pro", ["administracion", "admin"]);
+  if (!Array.isArray(entries) || !entries.length || entries.length > 1000 || entries.some(entry =>
+    !entry || typeof entry.date !== "string" || !["B", "LL", "HH", "O"].includes(entry.code)
+  ) || new Set(entries.map(entry => entry.date)).size !== entries.length) {
+    return { saved: [], failed: [], error: "El borrador contiene fechas o tipos inválidos." };
+  }
+  const supabase = await createClient();
+  const { data: project } = await supabase.from("projects").select("start_date")
+    .eq("id", projectId).eq("empresa_id", profile.empresa_id).single();
+  if (!project) return { saved: [], failed: [], error: "Proyecto no encontrado." };
+  if (entries.some(entry => !validClimateDate(entry.date, project.start_date))) {
+    return { saved: [], failed: [], error: "El borrador contiene fechas futuras, inválidas o anteriores al proyecto." };
+  }
+  return saveClimateDraftEntries(entries, async entry => {
+    const { data: existing, error } = await supabase.from("project_workday_status")
+      .select("id, notes").eq("project_id", projectId).eq("work_date", entry.date).maybeSingle();
+    if (error) return { error: "No se pudo leer el estado actual de la jornada." };
+    const decision = libroDecision(entry.code);
+    return existing
+      ? overrideWeatherWorkday(projectId, existing.id, { ...decision, notes: existing.notes })
+      : createOtherWorkday(projectId, entry.date, "", decision.classification, decision.reasonCode);
+  });
 }
 
 export async function updateProjectClimateConfig(

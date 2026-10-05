@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { selectClimateDate, saveClimateSelection } from "@/lib/projects/climate-selection";
+import { selectClimateDate, saveClimateSelection, stageClimateDraft, saveClimateDraftEntries } from "@/lib/projects/climate-selection";
 
 describe("climate selection without persistence on click", () => {
   it("plain click replaces selection", () => {
@@ -14,6 +14,27 @@ describe("climate selection without persistence on click", () => {
     const dates = ["2026-09-03"];
     selectClimateDate(dates, "2026-09-04", true);
     expect(dates).toEqual(["2026-09-03"]);
+  });
+});
+
+describe("mixed calendar draft", () => {
+  it("stages different codes, replaces only the reassigned day and leaves the input unchanged", () => {
+    const initial = { "2026-09-03": "LL" as const };
+    const next = stageClimateDraft(initial, ["2026-09-04", "2026-09-05"], "HH");
+    expect(stageClimateDraft(next, ["2026-09-04"], "B")).toEqual({ "2026-09-03": "LL", "2026-09-04": "B", "2026-09-05": "HH" });
+    expect(initial).toEqual({ "2026-09-03": "LL" });
+  });
+  it("saves a mixed draft with at most three concurrent independent day operations", async () => {
+    let active = 0, maximum = 0;
+    const entries = ["B", "LL", "HH", "O", "B"] as const;
+    const result = await saveClimateDraftEntries(entries.map((code, index) => ({ date: `2026-09-0${index + 1}`, code })), async entry => {
+      active++; maximum = Math.max(maximum, active);
+      await Promise.resolve(); active--;
+      return { error: entry.code === "O" ? "denied" : null };
+    });
+    expect(maximum).toBe(3);
+    expect(result.saved).toEqual(["2026-09-01", "2026-09-02", "2026-09-03", "2026-09-05"]);
+    expect(result.failed).toEqual([{ date: "2026-09-04", error: "denied" }]);
   });
 });
 

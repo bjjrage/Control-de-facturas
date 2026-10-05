@@ -36,11 +36,12 @@ describe("canonical administrative calendar projection", () => {
     expect(libroMonths(project, ["2027-02-03"], "2026-10-05")).toContainEqual({ year: 2027, month: 1 });
   });
   it("renders every monthly day with independent proposal and resident evidence, without auto-confirm calls", () => {
-    const onConfirm = vi.fn(), onMark = vi.fn();
-    const html = renderToStaticMarkup(createElement(ClimateLibroCalendar, { project, events: [event], workdays: [proposed], evidence: [photo], pending: false, onSelectDate: vi.fn(), onMark, onConfirm, onIgnore: vi.fn(), onPhoto: vi.fn() }));
+    const onConfirm = vi.fn(), onSave = vi.fn();
+    const html = renderToStaticMarkup(createElement(ClimateLibroCalendar, { project, events: [event], workdays: [proposed], evidence: [photo], pending: false, onSelectDate: vi.fn(), onSave, onConfirm, onPhoto: vi.fn() }));
     expect(html).toContain("Septiembre 2026"); expect(html).toContain('aria-label="Día 2026-09-30"');
     expect(html).toContain("Sugerencia LL"); expect(html).toContain("DMH 18 mm"); expect(html).toContain("23 mm · Residente");
-    expect(onConfirm).not.toHaveBeenCalled(); expect(onMark).not.toHaveBeenCalled();
+    expect(html).toContain("Guardar cambios"); expect(html).toContain("Descartar cambios");
+    expect(onConfirm).not.toHaveBeenCalled(); expect(onSave).not.toHaveBeenCalled();
   });
   it("keeps calendar first, advanced editing secondary, legacy collapsed and the existing resident link", () => {
     const panel = readFileSync("app/(internal)/projects/[id]/climate-workdays-panel.tsx", "utf8");

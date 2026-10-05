@@ -13,7 +13,7 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({ from(tabl
   };
   const q={select(){return q;},eq(key:string,value:unknown){filters.push([key,value]);return q;},insert(p:Record<string,unknown>){mode="insert";payload=p;return q;},update(p:Record<string,unknown>){mode="update";payload=p;return q;},single(){return Promise.resolve(execute());},maybeSingle(){return Promise.resolve(execute());},then(resolve:(v:unknown)=>unknown){return Promise.resolve(execute()).then(resolve);}};return q;
 } }) }));
-import { confirmWeatherWorkday, overrideWeatherWorkday, createRainEffectWorkday, createOtherWorkday, updateLocalPrecipitation } from "@/app/(internal)/projects/climate-actions";
+import { confirmWeatherWorkday, overrideWeatherWorkday, createRainEffectWorkday, createOtherWorkday, updateLocalPrecipitation, saveWeatherCalendarDraft } from "@/app/(internal)/projects/climate-actions";
 import { libroDecision } from "@/lib/procurement/climate-calendar";
 
 beforeEach(()=>{state.rows={projects:[{id:"project-a",empresa_id:"tenant",start_date:"2026-01-01",precipitation_threshold_mm:15}],project_workday_status:[],climate_events:[],climate_evidence:[]};state.writes=[];});
@@ -30,6 +30,33 @@ function expectEvidencePreserved(evidence: Record<string, unknown>[]) {
   expect(state.writes.every(write => ["project_workday_status", "climate_events"].includes(write.table))).toBe(true);
   expect(state.writes.some(write => write.table === "project_weather_log" || write.table === "climate_evidence")).toBe(false);
 }
+
+describe("explicit mixed calendar save", () => {
+  it("saves B/LL/HH/O in one orchestration through canonical actions and preserves resident evidence", async () => {
+    const evidence = seedProposal("RESIDENT");
+    const entries = [{ date: "2026-09-03", code: "B" }, { date: "2026-09-04", code: "LL" }, { date: "2026-09-05", code: "HH" }, { date: "2026-09-06", code: "O" }] as const;
+    expect(await saveWeatherCalendarDraft("project-a", [...entries])).toEqual({ saved: entries.map(entry => entry.date), failed: [] });
+    for (const entry of entries) {
+      const decision = libroDecision(entry.code);
+      expect(state.rows.project_workday_status.find(row => row.work_date === entry.date)).toMatchObject({ classification: decision.classification, reason_code: decision.reasonCode, source: "MANUAL", confirmed_by: "actor", decision_status: "CONFIRMED" });
+    }
+    expectEvidencePreserved(evidence);
+  });
+  it("denies a foreign project before any day write", async () => {
+    expect((await saveWeatherCalendarDraft("foreign", [{ date: "2026-09-03", code: "B" }])).error).toBeTruthy();
+    expect(state.writes).toHaveLength(0);
+  });
+  it.each([
+    [{ date: "2026-09-03", code: "LL" }, { date: "2026-09-03", code: "HH" }],
+    [{ date: "2026-09-03", code: "INVALID" }],
+    [{ date: "2026-02-30", code: "B" }],
+    [{ date: "2099-09-03", code: "B" }],
+    [{ date: "2025-09-03", code: "B" }],
+  ].map(entries => ({ entries })))("rejects malformed, duplicate, future and pre-project entries before writing", async ({ entries }) => {
+    expect((await saveWeatherCalendarDraft("project-a", entries as Parameters<typeof saveWeatherCalendarDraft>[1])).error).toBeTruthy();
+    expect(state.writes).toHaveLength(0);
+  });
+});
 
 describe.each(["AUTOMATIC", "RESIDENT"] as const)("climate provenance from %s proposals", source => {
   it("preserves proposal origin on unchanged confirmation and records the human", async () => {
