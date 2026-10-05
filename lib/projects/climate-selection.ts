@@ -40,8 +40,9 @@ export async function saveClimateDraftEntries(
 }
 
 export function selectClimateDate(selected: string[], date: string, additive: boolean): string[] {
+  if (selected.includes(date)) return selected.filter(value => value !== date);
   if (!additive) return [date];
-  return selected.includes(date) ? selected.filter(value => value !== date) : [...selected, date].sort();
+  return [...selected, date].sort();
 }
 
 /** Client orchestration only: each existing server action retains its own checks.
