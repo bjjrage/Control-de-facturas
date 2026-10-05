@@ -38,10 +38,10 @@ export function ClimateLibroCalendar({ project, events, workdays, evidence, pend
   const totals = counts(confirmed);
   const selectedDate = selected.length === 1 ? selected[0] : null;
   const selectedFacts = selectedDate ? libroDayFacts(selectedDate, events, workdays, evidence) : null;
+  const selectedDraft = selectedDate ? draft[selectedDate] : undefined;
   function markSelection(code: WeatherCode) {
     if (busy || !selected.length) return;
     setDraft(value => stageClimateDraft(value, selected, code));
-    setSelected([]);
     setResult(null);
   }
   async function saveDraft() {
@@ -68,6 +68,7 @@ export function ClimateLibroCalendar({ project, events, workdays, evidence, pend
   }
   return <div className="space-y-3" data-testid="canonical-libro-calendar">
     <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs" aria-label="Totales del Libro confirmado">
+      <span className="text-[var(--muted)]">Libro guardado:</span>
       <span>Lluvia <strong>{totals.rain}</strong></span><span>Húmedos <strong>{totals.humid}</strong></span><span>Otros <strong>{totals.other}</strong></span><span>Total no trabajados <strong>{totals.rain + totals.humid + totals.other}</strong></span>
     </div>
     <p className="text-[11px] text-[var(--muted)]">Seleccioná días con clic o Ctrl + clic y asigná B, LL, HH u O. Armá todos los grupos y después pulsá Guardar cambios. Los tipos quedan en borrador hasta guardar.</p>
@@ -78,11 +79,17 @@ export function ClimateLibroCalendar({ project, events, workdays, evidence, pend
       <button className={styles.modeButton} type="button" disabled={busy} aria-label="Selección múltiple" aria-pressed={additive} onClick={() => setAdditive(value => !value)}>
         <span aria-hidden="true">{additive ? "✓" : "+"}</span> Selección múltiple <span className={styles.modeBadge}>{additive ? "ACTIVA" : "INACTIVA"}</span>
       </button>
-      <button className={styles.clearButton} type="button" disabled={busy || !selected.length} onClick={() => setSelected([])}>Limpiar selección</button>
-      <span className={styles.helper} aria-live="polite">{draftCount} {draftCount === 1 ? "cambio sin guardar" : "cambios sin guardar"}</span>
+      <button className={styles.clearButton} type="button" disabled={busy || !selected.length} title="Desmarcar los días seleccionados. Conserva los cambios del borrador." onClick={() => setSelected([])}>Limpiar selección</button>
+      <span className={styles.draftCount} data-pending={draftCount > 0} aria-live="polite">{draftCount} {draftCount === 1 ? "cambio sin guardar" : "cambios sin guardar"}</span>
       <button className={styles.saveButton} type="button" disabled={busy || !draftCount} onClick={() => startTransition(() => saveDraft())}>Guardar cambios</button>
-      <button className={styles.clearButton} type="button" disabled={busy || !draftCount} onClick={() => { setDraft({}); setSelected([]); setResult(null); }}>Descartar cambios</button>
-      {saving ? <span className="text-xs" role="status">Guardando días…</span> : null}
+      <button className={styles.discardButton} type="button" disabled={busy || !draftCount} title="Eliminar todos los cambios sin guardar y restaurar los valores guardados de los días." onClick={() => { if (!selected.length) setSelected(Object.keys(draft)); setDraft({}); setResult(null); }}>Descartar cambios</button>
+      <p className={styles.workflowHint} role="status">{saving
+        ? "Guardando los cambios del calendario…"
+        : draftCount > 0
+          ? `Tenés ${draftCount} ${draftCount === 1 ? "día modificado" : "días modificados"}. Podés seguir corrigiendo tipos. Guardar confirma todos los cambios; descartar restaura los valores guardados.`
+          : selected.length > 0
+            ? "Elegí B, LL, HH u O para estos días. Podés cambiar el tipo antes de guardar. Limpiar selección sólo desmarca los días."
+            : "Seleccioná días en el calendario para asignarles un tipo. Activá selección múltiple o usá Ctrl + clic para sumar días."}</p>
     </div>
     {result ? <div className="text-xs" role="status">
       <p>{result.saved.length} {result.saved.length === 1 ? "día guardado" : "días guardados"} · {result.failed.length} {result.failed.length === 1 ? "día pendiente" : "días pendientes"}.</p>
@@ -90,7 +97,7 @@ export function ClimateLibroCalendar({ project, events, workdays, evidence, pend
       {result.failed.length ? <ul className="mt-1 list-disc pl-4">{result.failed.map(item => <li key={item.date}>{item.date}: {item.error}</li>)}</ul> : null}
     </div> : null}
     {selectedDate && selectedFacts ? <details key={selectedDate} className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-2 text-xs">
-      <summary className="cursor-pointer">{selectedDate} · Libro: {selectedFacts.final ?? "sin decisión final"} · ver propuesta y evidencia</summary>
+      <summary className="cursor-pointer">{selectedDate} · {selectedDraft ? `Borrador: ${selectedDraft} · guardado: ${selectedFacts.final ?? "sin decisión final"}` : `Libro: ${selectedFacts.final ?? "sin decisión final"}`} · ver propuesta y evidencia</summary>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {selectedFacts.day?.decision_status === "PROPOSED" ? <><Button type="button" size="sm" disabled={busy || !!draft[selectedDate]} onClick={() => onConfirm(selectedFacts.day!)}>Confirmar sugerencia {selectedFacts.proposal}</Button><Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => markSelection("B")}>Marcar B en borrador</Button></> : null}
       </div>

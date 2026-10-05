@@ -1,5 +1,9 @@
 # UI RECOVERY 01
 
+## Calendar workflow guidance and visible recovery actions
+
+Assigning a type now retains selected dates so users can immediately revise their type or explicitly clear the selection. Clear selection preserves the draft; discard restores saved classifications while retaining selected dates (or selecting affected dates if none were selected). Clear has a visible slate accent and pale text; discard uses a warm orange accent, distinct from blue save. Both enabled controls have strong border/hover contrast. A compact full-width sentence in the existing toolbar explains the current next step for idle, selected, pending-draft and saving states. Saved totals are visibly labeled; the single-day detail distinguishes its draft type from its saved classification. Calendar geometry, server actions, resident evidence and calculations remain unchanged. No new test run for this correction; Preview compilation is checked independently.
+
 ## Semantic calendar colors
 
 Type buttons use the existing dark ERP surface, pale text, colored border and left inset accent rather than solid colored fills. Calendar drafts now carry the corresponding B green / LL blue / HH amber / O purple tint, border and pending label. A dashed border means unsaved; a white selection outline and checkmark indicate selection independently of the type color. Hover uses that date's accent only under the pointer. No layout, persistence, authorization or calculation changes. No new test run for these styling corrections; the Preview build validates compilation.

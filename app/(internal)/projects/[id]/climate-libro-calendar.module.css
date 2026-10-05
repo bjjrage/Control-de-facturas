@@ -42,15 +42,19 @@
 }
 
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
-.helper { font-size: 10px; color: var(--muted); }
-.modeButton, .clearButton, .typeButton, .saveButton { min-height: 34px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 11px; font-weight: 600; cursor: pointer; transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }
+.draftCount { font-size: 11px; color: var(--muted); }
+.draftCount[data-pending="true"] { color: #ffda80; font-weight: 600; }
+.workflowHint { flex-basis: 100%; margin: 0; padding-top: 7px; border-top: 1px solid var(--border); font-size: 11px; line-height: 1.5; color: #c7d8ee; }
+.modeButton, .clearButton, .typeButton, .saveButton, .discardButton { min-height: 34px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 11px; font-weight: 600; cursor: pointer; transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }
 .modeButton { display: inline-flex; align-items: center; gap: 7px; color: var(--foreground); background: var(--panel-2); }
 .modeButton[aria-pressed="true"] { background: #204678; border-color: #91bfff; color: #fff; box-shadow: inset 0 0 0 1px #91bfff; }
 .modeButton:not(:disabled):hover { border-color: #91bfff; box-shadow: 0 0 8px #5897ff40; }
 .modeBadge { padding: 2px 5px; border-radius: 4px; font-size: 9px; background: #ffffff12; }
 .modeButton[aria-pressed="true"] .modeBadge { background: #b5d1ff; color: #112d51; }
-.clearButton { color: var(--muted); background: transparent; }
-.clearButton:not(:disabled):hover { color: var(--foreground); background: var(--panel-2); border-color: #8290a5; }
+.clearButton { color: #eef5ff; background: rgba(20,33,53,.88); border-color: #768aa7; box-shadow: inset 3px 0 0 #92a7c6; }
+.clearButton:not(:disabled):hover { background: #253952; border-color: #c7d8ee; box-shadow: inset 3px 0 0 #c7d8ee, 0 0 8px #92a7c630; }
+.discardButton { color: #ffe1cc; background: rgba(20,33,53,.88); border-color: #c98760; box-shadow: inset 3px 0 0 #efa775; }
+.discardButton:not(:disabled):hover { color: #fff; background: #433022; border-color: #ffc59a; box-shadow: inset 3px 0 0 #ffc59a, 0 0 8px #efa77535; }
 .typeButton { display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 6px 10px; border-radius: 8px; font-weight: 500; color: #eef5ff; border-color: rgba(var(--type-accent), .34); background: rgba(20, 33, 53, .88); box-shadow: inset 3px 0 0 rgba(var(--type-accent), .72), inset 0 1px 0 rgba(255,255,255,.035); }
 .typeButton[data-code="B"] { --type-accent: 52, 211, 153; }
 .typeButton[data-code="LL"] { --type-accent: 96, 165, 250; }
