@@ -1,0 +1,27 @@
+.day {
+  background: var(--panel-2);
+  border-color: var(--border);
+  box-shadow: none;
+  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.day:not(:disabled):hover {
+  background: rgba(65, 121, 215, 0.3);
+  border-color: #7eafff;
+  box-shadow: inset 0 0 0 1px rgba(126, 175, 255, 0.45);
+}
+
+.day[aria-pressed="true"]:not(:disabled) {
+  background: rgba(50, 106, 208, 0.48);
+  border-color: #b2ceff;
+  box-shadow: inset 0 0 0 1px #b2ceff;
+}
+
+.day[aria-pressed="true"]:not(:disabled):hover {
+  background: rgba(50, 106, 208, 0.62);
+}
+
+.day:focus-visible {
+  outline: 2px solid #b2ceff;
+  outline-offset: 2px;
+}

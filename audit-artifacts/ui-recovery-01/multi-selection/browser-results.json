@@ -1,7 +1,11 @@
 {
   "scope": "Local Firefox with actual AvanceFisicoPanel and synthetic action adapters; not authenticated deployed acceptance",
-  "passed": 18,
+  "passed": 23,
   "checks": [
+    "idle cells have no permanent illumination",
+    "hover illuminates only the pointed cell",
+    "hover illumination disappears on leave",
+    "disabled dates do not illuminate",
     "all calendar days render",
     "153 dates over 5 months",
     "zero native selects",
@@ -9,6 +13,7 @@
     "resident QR action visible",
     "automatic proposal and resident evidence on date",
     "selecting performs no mutation",
+    "selection remains visibly filled and checked after pointer leaves",
     "Ctrl adds across months",
     "Ctrl removes",
     "multiple dates create canonical HH",

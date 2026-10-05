@@ -40,7 +40,8 @@ async function main() {
     }
   }]});
   const css = await require('postcss')([require('@tailwindcss/postcss')()]).process(fs.readFileSync('app/globals.css','utf8'),{from:path.resolve('app/globals.css')});
-  fs.writeFileSync(path.join(outputs,'ui.css'),css.css);
+  const moduleCss = fs.readFileSync(path.join(outputs,'ui.css'),'utf8');
+  fs.writeFileSync(path.join(outputs,'ui.css'),css.css+'\n'+moduleCss);
   const server=http.createServer((req,res)=>{
     if(req.url==='/'){res.setHeader('Content-Type','text/html');return res.end('<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/ui.css"><div id="root"></div><script src="/ui.js"></script></html>');}
     const file=path.join(outputs,req.url==='/ui.js'?'ui.js':'ui.css');res.setHeader('Content-Type',req.url==='/ui.js'?'text/javascript':'text/css');res.end(fs.readFileSync(file));
@@ -56,6 +57,17 @@ async function main() {
   try {
     await page.goto('http://127.0.0.1:'+server.address().port);
     await day('2026-07-21').waitFor();
+    await page.mouse.move(0,0);
+    const appearance = locator => locator.evaluate(element => { const style = getComputedStyle(element); return { background:style.backgroundColor, border:style.borderColor, shadow:style.boxShadow }; });
+    const idle = await appearance(day('2026-07-22'));
+    assert.equal(idle.shadow,'none');assert.equal((await appearance(day('2026-08-08'))).shadow,'none');checks.push('idle cells have no permanent illumination');
+    await day('2026-07-22').hover();await page.waitForTimeout(180);
+    const hovered = await appearance(day('2026-07-22'));
+    assert.notEqual(hovered.background,idle.background);assert.notEqual(hovered.border,idle.border);assert.notEqual(hovered.shadow,'none');
+    assert.equal((await appearance(day('2026-08-08'))).shadow,'none');checks.push('hover illuminates only the pointed cell');
+    await page.screenshot({path:path.join(dir,'calendar-hover-only.png'),fullPage:true});
+    await page.mouse.move(0,0);await page.waitForTimeout(180);assert.deepEqual(await appearance(day('2026-07-22')),idle);checks.push('hover illumination disappears on leave');
+    await day('2026-11-02').hover();await page.waitForTimeout(180);assert.equal((await appearance(day('2026-11-02'))).shadow,'none');checks.push('disabled dates do not illuminate');
     check('all calendar days render',()=>assert.ok(true));
     assert.equal(await page.locator('[data-testid^="libro-day-"]').count(),153);checks.push('153 dates over 5 months');
     assert.equal(await page.locator('select').count(),0);checks.push('zero native selects');
@@ -63,6 +75,8 @@ async function main() {
     assert.ok(await page.getByRole('button',{name:'Link / QR para residente'}).isVisible());checks.push('resident QR action visible');
     assert.ok((await day('2026-09-03').innerText()).includes('Sugerencia LL'));assert.ok((await day('2026-09-03').innerText()).includes('23 mm'));checks.push('automatic proposal and resident evidence on date');
     await day('2026-07-22').click();assert.equal((await writes()).length,0);checks.push('selecting performs no mutation');
+    await page.mouse.move(0,0);await page.waitForTimeout(180);
+    assert.notEqual((await appearance(day('2026-07-22'))).background,idle.background);assert.ok((await day('2026-07-22').innerText()).includes('✓'));checks.push('selection remains visibly filled and checked after pointer leaves');
     await day('2026-08-08').click({modifiers:['Control']});assert.equal(await page.locator('[aria-pressed="true"][data-testid^="libro-day-"]').count(),2);checks.push('Ctrl adds across months');
     await day('2026-07-22').click({modifiers:['Control']});assert.equal(await page.locator('[aria-pressed="true"][data-testid^="libro-day-"]').count(),1);checks.push('Ctrl removes');
     await day('2026-07-22').click({modifiers:['Control']});

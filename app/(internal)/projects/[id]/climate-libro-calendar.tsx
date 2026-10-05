@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { climateToday } from "@/lib/procurement/climate-entry";
 import { LIBRO_LABELS, libroCode, libroDayFacts, libroMonths } from "@/lib/procurement/climate-calendar";
 import { selectClimateDate, type ClimateSelectionResult } from "@/lib/projects/climate-selection";
+import styles from "./climate-libro-calendar.module.css";
 import type { ClimateEvent, ClimateEvidence, Project, ProjectWorkdayStatus, WeatherCode } from "@/lib/types";
 
 const MONTHS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -52,7 +53,7 @@ export function ClimateLibroCalendar({ project, events, workdays, evidence, pend
     </div>
     <p className="text-[11px] text-[var(--muted)]">Clic para seleccionar un día; Ctrl + clic para sumar o quitar días de cualquier mes. Luego aplicá B, LL, HH u O. Seleccionar no modifica el Libro.</p>
     <div className="flex flex-wrap gap-3 text-[11px]">{(Object.keys(LIBRO_LABELS) as WeatherCode[]).map(code => <span key={code}><strong className={COLORS[code]}>{code}</strong> · {LIBRO_LABELS[code]}</span>)}</div>
-    <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--panel)] p-2" aria-label="Marcar estado del Libro">
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--panel)] p-2" aria-label="Marcar estado del Libro">
       <strong className="mr-2 text-xs" aria-live="polite">{selected.length} {selected.length === 1 ? "día seleccionado" : "días seleccionados"}</strong>
       {(Object.keys(LIBRO_LABELS) as WeatherCode[]).map(code => <Button key={code} type="button" size="sm" variant={selectedFacts?.final === code ? "primary" : "secondary"} disabled={busy || !selected.length} onClick={() => void markSelection(code)} aria-label={`Aplicar ${code} a días seleccionados`} title={LIBRO_LABELS[code]}>{code}</Button>)}
       <Button type="button" variant="ghost" size="sm" disabled={busy} aria-pressed={additive} onClick={() => setAdditive(value => !value)}>Selección múltiple</Button>
@@ -86,8 +87,8 @@ export function ClimateLibroCalendar({ project, events, workdays, evidence, pend
             const outside = date > today || !!project.start_date && date < project.start_date;
             const external = facts.observations.find(event => event.external_precipitation_mm != null);
             const resident = facts.residentPhotos[0];
-            return <button key={date} type="button" data-testid={`libro-day-${date}`} aria-label={`Día ${date}`} aria-pressed={selected.includes(date)} disabled={busy || outside} onClick={event => { setSelected(value => selectClimateDate(value, date, additive || event.ctrlKey || event.metaKey)); setResult(null); onSelectDate(date); }} className={`min-w-0 rounded-md border p-1 text-left text-[10px] transition-[background-color,border-color,box-shadow] duration-150 enabled:hover:border-blue-300 enabled:hover:bg-blue-500/30 enabled:hover:shadow-[0_0_14px_rgba(96,165,250,0.55)] enabled:hover:ring-1 enabled:hover:ring-blue-300/80 disabled:opacity-35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${selected.includes(date) ? "border-[var(--primary)] bg-[var(--hover)] ring-1 ring-[var(--primary)]" : "border-[var(--border)] bg-[var(--panel-2)]"}`}>
-              <span className="flex justify-between gap-1"><span>{index + 1}</span><strong className={facts.final ? COLORS[facts.final] : "text-[var(--muted)]"}>{facts.final ?? "—"}</strong></span>
+            return <button key={date} type="button" data-testid={`libro-day-${date}`} aria-label={`Día ${date}`} aria-pressed={selected.includes(date)} disabled={busy || outside} onClick={event => { setSelected(value => selectClimateDate(value, date, additive || event.ctrlKey || event.metaKey)); setResult(null); onSelectDate(date); }} className={`${styles.day} min-w-0 rounded-md border p-1 text-left text-[10px] disabled:opacity-35`}>
+              <span className="flex justify-between gap-1"><span>{index + 1}{selected.includes(date) ? <span aria-hidden="true" className="ml-1 font-bold text-white">✓</span> : null}</span><strong className={facts.final ? COLORS[facts.final] : "text-[var(--muted)]"}>{facts.final ?? "—"}</strong></span>
               <span className="block truncate text-[9px] text-[var(--muted)]">{facts.final ? "Final humano" : "Sin final"}</span>
               {facts.proposal ? <span className="block truncate text-[9px] text-[var(--warn)]">{facts.day?.proposed_automatically ? "Sugerencia" : "Propuesta"} {facts.proposal}</span> : null}
               {external ? <span className="block truncate text-[9px] text-[#b5d1ff]">{external.source === "DMH_DINAC" ? "DMH" : "Meteo"} {external.external_precipitation_mm} mm</span> : null}

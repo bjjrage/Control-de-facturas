@@ -1,5 +1,11 @@
 # UI RECOVERY 01
 
+## Hover correction
+
+The Tailwind `enabled:hover:bg-blue-*` class introduced at `c03c80cc2703157c955d7d0adcc361650284bc60` unintentionally matched the global legacy `button[class*="bg-blue-"]` selector, which forces permanent background/border/inset shadow using `!important`. It also masked selection styles. The correction removes those utility names from day buttons and isolates idle/hover/selected styling in a CSS Module, leaving shared ERP CSS unchanged. Hover affects only the enabled day under the cursor; selection remains filled, bordered and checked after the cursor leaves. The toolbar is no longer sticky.
+
+Actual local Firefox verification: **23 checks PASS**, including computed idle/hover/leave/disabled/selection styles, multi-selection, partial results and confirmation provenance. Focused climate suite: **84 PASS**. Captures remain explicitly synthetic, not authenticated deployed acceptance. No backend, domain, DB, migration or Production changes.
+
 ## Calendar selection update — current implementation
 
 User steering supersedes the compact click-cycle request: retain the month-card layout at HEAD `56b92fb7f18ae1ac8a50a8b3bc5323950acc11ce`. Plain click selects one date; Ctrl/Meta+click adds/removes dates across months. A touch-friendly selection toggle provides the same behavior without modifiers. The top toolbar applies B/LL/HH/O to selected dates; selection itself does not write.
