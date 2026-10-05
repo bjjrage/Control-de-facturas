@@ -1,0 +1,21 @@
+{
+  "precedingHead": "511ee59862f6eb0d04aca12c3cc097ec8dee87a8",
+  "focused": {
+    "files": 5,
+    "passed": 78
+  },
+  "full": {
+    "filesPassed": 175,
+    "filesSkipped": 2,
+    "passed": 1857,
+    "skipped": 16
+  },
+  "typecheck": "PASS",
+  "webpackBuild": "PASS",
+  "staticPages": 59,
+  "appDelta": "Two RESIDENT to MANUAL provenance values only",
+  "confirmActionChanged": false,
+  "migrations": 0,
+  "productionDeploy": false,
+  "databaseMutated": false
+}

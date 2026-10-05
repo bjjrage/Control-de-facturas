@@ -38,7 +38,7 @@ describe("Canonical climate workflow in the historical Libro", () => {
     expect(panel).toContain("overrideWeatherWorkday(project.id, workday.id");
     expect(actions).toContain("export async function overrideWeatherWorkday(");
     expect(actions).toContain('status: "OVERRIDDEN"');
-    expect(actions).toContain('source: "RESIDENT"');
+    expect(actions).toContain('source: "MANUAL"');
   });
 
   it("keeps project_weather_log visible only as a non-authoritative legacy history", () => {

@@ -1,5 +1,16 @@
 # UI RECOVERY 01
 
+## Final climate source semantics correction
+
+Preceding audited HEAD: `511ee59862f6eb0d04aca12c3cc097ec8dee87a8`. The application delta is two provenance values: `overrideWeatherWorkday` and `createRainEffectWorkday` now persist `source: "MANUAL"` for authenticated administrative decisions. Authorization, classification, calendar architecture and other action behavior are unchanged. `confirmWeatherWorkday` is unchanged: confirming an unmodified AUTOMATIC or RESIDENT proposal preserves its origin and records the human in `confirmed_by`.
+
+Thirteen new action regressions cover both proposal origins, confirmation, B/LL/HH/O overrides and rain-effect insertion/replacement. Each checks that resident `climate_evidence` remains identical and no evidence or `project_weather_log` writes occur. The former static RESIDENT assertion was corrected to MANUAL.
+
+- Focused climate/resident suite: 5 files, **78 tests PASS**.
+- Full suite: 175 files passed, 2 skipped; **1,857 tests passed, 16 skipped**.
+- Typecheck: PASS. Webpack build: PASS, 59 static pages. Diff check: PASS; staged check is required before commit.
+- No migration, UI redesign, merge, Production deployment or database mutation. The new Preview uses the published commit SHA; deployment evidence is saved separately so it does not change that SHA.
+
 ## Correction #3 + Climate Calendar Recovery — current implementation
 
 This section supersedes the earlier remaining-native-select classification and manual-form-first climate UI. PR #33 remains on `fix/ui-surface-recovery-01`; preceding audited HEAD is `f98c3b51d00bb87c267464ff3291b05d20f5bca1`, base/main `87be09df1c1bf116564375b81c2884b2835ae425`.
