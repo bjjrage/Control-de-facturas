@@ -4,6 +4,9 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CloudRain, FileImage, RefreshCw } from "lucide-react";
 import { EditProjectDialog } from "./edit-project-dialog";
+import { ClimateLibroCalendar } from "./climate-libro-calendar";
+import { ExecutionLinkDialog } from "./execution-link-dialog";
+import { libroDecision } from "@/lib/procurement/climate-calendar";
 import { isValidProjectCoords } from "@/lib/projects/location-fields";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
@@ -55,12 +58,14 @@ export function ClimateWorkdaysPanel({
   workdays,
   evidence,
   historicalOnly = false,
+  appUrl = "",
 }: {
   project: Project;
   events: ClimateEvent[];
   workdays: ProjectWorkdayStatus[];
   evidence: ClimateEvidence[];
   historicalOnly?: boolean;
+  appUrl?: string;
 }) {
   const router = useRouter();
   const today = localDateIso();
@@ -75,8 +80,6 @@ export function ClimateWorkdaysPanel({
     notes: string;
   } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [manualType, setManualType] = useState<"WORKABLE" | "NON_WORKABLE_RAIN" | "NON_WORKABLE_OTHER">("WORKABLE");
-  const [manualNote, setManualNote] = useState("");
   const [localMm, setLocalMm] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
   const fileInputByEvent = useRef<Record<string, HTMLInputElement | null>>({});
@@ -133,7 +136,7 @@ export function ClimateWorkdaysPanel({
         <div>
           <div className="flex items-center gap-2">
             <CloudRain className="h-4 w-4 text-[var(--primary)]" />
-            <h3 className="text-sm font-semibold">Jornadas climáticas</h3>
+            <h3 className="text-sm font-semibold">JORNADAS CLIMÁTICAS / LIBRO DE OBRA</h3>
           </div>
           <p className="mt-1 text-xs text-[var(--muted)]">
             Umbral contractual: {project.precipitation_threshold_mm ?? 15} mm · fuente: {project.weather_source ?? "dmh-dinac"}
@@ -154,19 +157,28 @@ export function ClimateWorkdaysPanel({
             {pending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : null}
             Evaluar clima
           </Button>
+          <ExecutionLinkDialog appUrl={appUrl} token={project.execution_token} projectCode={project.code} triggerLabel="Link / QR para residente" />
         </div>
       </div>
 
       {message ? <p className="text-xs text-[var(--muted)]" role="status">{message}</p> : null}
 
-      <div className="flex flex-wrap items-end gap-2 rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-3">
-        <label className="grid gap-1 text-xs">Entrada manual · fecha<Input type="date" aria-label="Fecha entrada manual" value={date} max={today} min={project.start_date ?? undefined} onChange={e => setDate(e.target.value)} className="h-8 w-auto" /></label>
-        <label className="grid gap-1 text-xs">Tipo<Select disabled={pending} aria-label="Tipo entrada manual" value={manualType} onValueChange={v => setManualType(v as typeof manualType)} className="h-8 w-56">
-          <option value="WORKABLE">Día trabajable</option><option value="NON_WORKABLE_RAIN">Día de lluvia</option><option value="NON_WORKABLE_OTHER">No trabajable por otra causa</option>
-        </Select></label>
-        <label className="grid gap-1 text-xs">Nota<Input value={manualNote} onChange={e => setManualNote(e.target.value)} maxLength={500} className="h-8 w-48" /></label>
-        <Button type="button" disabled={pending || !date || date > today} className="h-8 text-xs" onClick={() => run(() => createOtherWorkday(project.id, date, manualNote, manualType))}>Guardar decisión manual</Button>
-      </div>
+      <ClimateLibroCalendar project={project} events={events} workdays={workdays} evidence={evidence} pending={pending} onSelectDate={setDate}
+        onMark={(workDate, code) => run(() => {
+          const decision = libroDecision(code);
+          const existing = workdays.find(day => day.work_date === workDate);
+          return existing ? overrideWeatherWorkday(project.id, existing.id, { ...decision, notes: existing.notes }) : createOtherWorkday(project.id, workDate, "", decision.classification, decision.reasonCode);
+        })}
+        onConfirm={workday => run(() => confirmWeatherWorkday(project.id, workday.id))}
+        onIgnore={workday => run(() => overrideWeatherWorkday(project.id, workday.id, { classification: "WORKABLE", reasonCode: null, notes: workday.notes }))}
+        onPhoto={async photo => {
+          if (!photo.storage_path) return;
+          const result = await createClient().storage.from("execution-photos").createSignedUrl(photo.storage_path, 60);
+          if (result.data) window.open(result.data.signedUrl, "_blank", "noopener,noreferrer");
+          else setMessage("No se pudo abrir la foto.");
+        }} />
+      <details className="rounded-lg border border-[var(--border)] p-3">
+        <summary className="cursor-pointer text-xs font-medium">Detalle avanzado · mediciones, evidencia y correcciones</summary>
 
       {rows.length === 0 ? (
         <p className="rounded-lg border border-dashed border-[var(--border)] p-4 text-xs text-[var(--muted)]">
@@ -319,6 +331,7 @@ export function ClimateWorkdaysPanel({
         <Button type="button" variant="secondary" disabled={pending || (localMm[event.id] ?? String(event.local_precipitation_mm ?? "")) === ""} className="h-7 text-xs" onClick={() => run(() => updateLocalPrecipitation(project.id, event.id, Number(localMm[event.id] ?? event.local_precipitation_mm)))}>Guardar medición</Button>
         <label className="text-[var(--muted)]">Foto del pluviómetro<input type="file" accept="image/jpeg,image/png,image/webp" disabled={pending} className="block max-w-48 text-xs" onChange={e => { const file = e.target.files?.[0]; if (file) uploadEvidence(event, undefined, file); e.currentTarget.value = ""; }} /></label>
       </div>)}
+      </details>
     </section>
   );
 }

@@ -1,0 +1,257 @@
+[
+  {
+    "file": "components/auction-bot/policy-config-form.tsx",
+    "opening": "<select\r\n            value={scope}\r\n            onChange={(e) => setScope(e.target.value as AuctionScope)}\r\n            className=\"w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-1.5 text-[13px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500\"\r\n          >",
+    "children": "<option value=\"ITEM\">ITEM — un ítem de la subasta</option><option value=\"LOT\">LOT — un lote de la subasta</option><option value=\"TOTAL\">TOTAL — la subasta completa</option>"
+  },
+  {
+    "file": "components/auction-bot/policy-config-form.tsx",
+    "opening": "<select\r\n              value={positionStrategy}\r\n              onChange={(e) => handleStrategyChange(e.target.value as PositionStrategyId)}\r\n              className=\"w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-1.5 text-[13px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500\"\r\n            >",
+    "children": "<option value=\"TARGET_RANK_1\">Posición #1 (Líder)</option><option value=\"TARGET_TOP_2\">Top 2 (Menor movimiento necesario)</option><option value=\"TARGET_TOP_3\">Top 3 (Menor movimiento necesario)</option>"
+  },
+  {
+    "file": "components/auction-bot/policy-config-form.tsx",
+    "opening": "<select\r\n              value={normalPhaseBehavior}\r\n              onChange={(e) => setNormalPhaseBehavior(e.target.value as NormalPhaseBehavior)}\r\n              className=\"w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-1.5 text-[13px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500\"\r\n            >",
+    "children": "<option value=\"WAIT\">WAIT — Esperar tácticamente</option><option value=\"ACTIVE\">ACTIVE — Defender posición</option>"
+  },
+  {
+    "file": "components/auction-bot/policy-config-form.tsx",
+    "opening": "<select\r\n                value={mipymeExecutionMode}\r\n                onChange={(e) => setMipymeExecutionMode(e.target.value as ExecutionMode)}\r\n                className=\"w-full rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 py-1.5 text-[12px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500\"\r\n              >",
+    "children": "<option value=\"BOUNDED_AUTO\">Bounded Auto</option><option value=\"ASSISTED\">Assisted</option><option value=\"OBSERVE\">Observe</option>"
+  },
+  {
+    "file": "app/warehouse/[token]/warehouse-portal-client.tsx",
+    "opening": "<select\r\n                  value={selectedOrderId}\r\n                  onChange={(e) => {\r\n                    setSelectedOrderId(e.target.value);\r\n                    setReceiptQuantities({});\r\n                  }}\r\n                  className=\"mt-1 block w-full rounded-xl border border-[var(--border)] bg-[var(--panel-2)] p-2.5 text-xs text-[var(--foreground)] focus:ring-1 focus:ring-[var(--primary)]\"\r\n                >",
+    "children": "{context.orders.map((order) => (\r\n                    <option key={order.id} value={order.id}>\r\n                      {order.code} · {order.providerName} ({order.items.filter((i) => i.pending > 0).length} ítems pendientes)\r\n                    </option>\r\n                  ))}"
+  },
+  {
+    "file": "app/warehouse/[token]/warehouse-portal-client.tsx",
+    "opening": "<select\r\n                value={selectedProductId}\r\n                onChange={(e) => setSelectedProductId(e.target.value)}\r\n                required\r\n                className=\"mt-1 block w-full rounded-xl border border-[var(--border)] bg-[var(--panel-2)] p-2.5 text-xs text-[var(--foreground)]\"\r\n              >",
+    "children": "<option value=\"\">Seleccionar material</option>{context.stock.map((item) => (\r\n                  <option key={item.productId} value={item.productId}>\r\n                    {item.productName} · Disponible: {formatNumber(item.quantity, 2)} {item.unit}\r\n                  </option>\r\n                ))}{context.allProducts\r\n                  .filter((p) => !context.stock.some((s) => s.productId === p.id))\r\n                  .map((p) => (\r\n                    <option key={p.id} value={p.id}>\r\n                      {p.name} · Sin stock actual (0 {p.unit})\r\n                    </option>\r\n                  ))}"
+  },
+  {
+    "file": "app/warehouse/[token]/warehouse-portal-client.tsx",
+    "opening": "<select\r\n                  value={selectedBudgetItemId}\r\n                  onChange={(e) => setSelectedBudgetItemId(e.target.value)}\r\n                  className=\"mt-1 block w-full rounded-xl border border-[var(--border)] bg-[var(--panel-2)] p-2 text-xs text-[var(--foreground)]\"\r\n                >",
+    "children": "<option value=\"\">Sin partida específica</option>{context.budgetItems.map((bi) => (\r\n                    <option key={bi.id} value={bi.id}>\r\n                      {bi.code} · {bi.description}\r\n                    </option>\r\n                  ))}"
+  },
+  {
+    "file": "app/(internal)/cobros/cobros-filter.tsx",
+    "opening": "<select\r\n      defaultValue={selected ?? \"\"}\r\n      onChange={(e) =>\r\n        router.push(`/cobros${e.target.value ? `?client=${e.target.value}` : \"\"}`)\r\n      }\r\n      className=\"h-8 rounded-md border border-[var(--border)] bg-[var(--panel)] px-2 text-[13px] focus:outline-none\"\r\n    >",
+    "children": "<option value=\"\">Todos los clientes</option>{clients.map((c) => (\r\n        <option key={c.id} value={c.id}>\r\n          {c.name}\r\n        </option>\r\n      ))}"
+  },
+  {
+    "file": "app/(internal)/inventario/ubicaciones-dialog.tsx",
+    "opening": "<select className={`${fieldClass} mt-1`} value={locationType} onChange={(event) => setLocationType(event.target.value as InventoryLocationType)}>",
+    "children": "<option value=\"CENTRAL\">Depósito central</option><option value=\"PROJECT\">Depósito de obra</option><option value=\"AUXILIARY\">Depósito auxiliar</option>"
+  },
+  {
+    "file": "app/(internal)/inventario/ubicaciones-dialog.tsx",
+    "opening": "<select className={`${fieldClass} mt-1`} value={projectId} onChange={(event) => setProjectId(event.target.value)} required>",
+    "children": "<option value=\"\">Seleccionar obra</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.code} · {project.name}</option>)}"
+  },
+  {
+    "file": "app/(internal)/inventario/ubicaciones-dialog.tsx",
+    "opening": "<select className={`${fieldClass} mt-1`} value={parentLocationId} onChange={(event) => setParentLocationId(event.target.value)}>",
+    "children": "<option value=\"\">Sin ubicación superior</option>{locations.filter((location) => location.active).map((location) => <option key={location.id} value={location.id}>{location.projectName ? `${location.projectName} · ` : \"\"}{location.name}</option>)}"
+  },
+  {
+    "file": "app/(internal)/inventario/carga-inicial-stock-dialog.tsx",
+    "opening": "<select className={`${fieldClass} mt-1`} value={materialId} onChange={(event) => setMaterialId(event.target.value)} required>",
+    "children": "<option value=\"\">Seleccionar material</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}"
+  },
+  {
+    "file": "app/(internal)/inventario/carga-inicial-stock-dialog.tsx",
+    "opening": "<select className={`${fieldClass} mt-1`} value={locationId} onChange={(event) => setLocationId(event.target.value)} required>",
+    "children": "<option value=\"\">Seleccionar ubicación</option>{locations.map((location) => <option key={location.id} value={location.id}>{location.projectName ? `${location.projectName} · ${location.name}` : location.name}</option>)}"
+  },
+  {
+    "file": "app/(internal)/inventario/carga-inicial-stock-dialog.tsx",
+    "opening": "<select className={`${fieldClass} mt-1`} value={currency} onChange={(event) => setCurrency(event.target.value as CurrencyCode | \"\")} required>",
+    "children": "<option value=\"\">Seleccionar</option>{CURRENCIES.map((code) => <option key={code} value={code}>{code}</option>)}"
+  },
+  {
+    "file": "app/(internal)/inventario/carga-inicial-stock-dialog.tsx",
+    "opening": "<select className={`${fieldClass} mt-1`} value={mapping[key]} onChange={(event) => changeColumn(key, Number(event.target.value))}>",
+    "children": "<option value={-1}>No usar</option>{headers.map((header, index) => <option key={`${index}-${header}`} value={index}>{header || `Columna ${index + 1}`}</option>)}"
+  },
+  {
+    "file": "app/(internal)/inventario/carga-inicial-stock-dialog.tsx",
+    "opening": "<select aria-label={`Material fila ${row.sourceRow}`} className={fieldClass} value={productId} onChange={(event) => setRowEdits((current) => ({ ...current, [index]: { ...current[index], materialId: event.target.value } }))}>",
+    "children": "<option value=\"\">Sin vínculo</option>{products.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}"
+  },
+  {
+    "file": "app/(internal)/inventario/carga-inicial-stock-dialog.tsx",
+    "opening": "<select aria-label={`Ubicación fila ${row.sourceRow}`} className={fieldClass} value={targetLocationId} onChange={(event) => setRowEdits((current) => ({ ...current, [index]: { ...current[index], locationId: event.target.value } }))}>",
+    "children": "<option value=\"\">Sin vínculo</option>{locations.map((option) => <option key={option.id} value={option.id}>{option.projectName ? `${option.projectName} · ${option.name}` : option.name}</option>)}"
+  },
+  {
+    "file": "app/(internal)/inventario/carga-inicial-stock-dialog.tsx",
+    "opening": "<select aria-label={`Moneda fila ${row.sourceRow}`} className={fieldClass} value={parseInventoryImportCurrency(row.currency) ?? \"\"} onChange={(event) => setRowEdits((current) => ({ ...current, [index]: { ...current[index], currency: event.target.value } }))}>",
+    "children": "<option value=\"\">Sin asignar</option>{CURRENCIES.map((code) => <option key={code} value={code}>{code}</option>)}"
+  },
+  {
+    "file": "app/(internal)/inventario/nuevo-movimiento-dialog.tsx",
+    "opening": "<select\r\n                    id=\"manual-movement-type\"\r\n                    className={fieldClass}\r\n                    value={movementType}\r\n                    disabled={locked}\r\n                    onChange={(event) => setMovementType(event.target.value as ManualInventoryMovementType)}\r\n                  >",
+    "children": "<option value=\"TRANSFER\">Transferencia</option><option value=\"RETURN\">Devolución</option><option value=\"ADJUSTMENT\">Ajuste autorizado</option>"
+  },
+  {
+    "file": "app/(internal)/inventario/nuevo-movimiento-dialog.tsx",
+    "opening": "<select\r\n                    id=\"manual-movement-product\"\r\n                    className={fieldClass}\r\n                    value={productId}\r\n                    disabled={locked}\r\n                    required\r\n                    onChange={(event) => setProductId(event.target.value)}\r\n                  >",
+    "children": "<option value=\"\">Seleccionar producto…</option>{products.map((product) => (\r\n                      <option key={product.id} value={product.id}>{product.name} · {product.unit}</option>\r\n                    ))}"
+  },
+  {
+    "file": "app/(internal)/inventario/nuevo-movimiento-dialog.tsx",
+    "opening": "<select\r\n                        id=\"manual-adjustment-direction\"\r\n                        className={fieldClass}\r\n                        value={adjustmentDirection}\r\n                        disabled={locked}\r\n                        onChange={(event) => setAdjustmentDirection(event.target.value as \"INCREASE\" | \"DECREASE\")}\r\n                      >",
+    "children": "<option value=\"INCREASE\">Entrada por ajuste</option><option value=\"DECREASE\">Salida por ajuste</option>"
+  },
+  {
+    "file": "app/(internal)/inventario/nuevo-movimiento-dialog.tsx",
+    "opening": "<select\r\n                        id=\"manual-adjustment-location\"\r\n                        className={fieldClass}\r\n                        value={adjustmentLocationId}\r\n                        disabled={locked}\r\n                        required\r\n                        onChange={(event) => setAdjustmentLocationId(event.target.value)}\r\n                      >",
+    "children": "<option value=\"\">Seleccionar ubicación…</option>{locations.map((location) => (\r\n                          <option key={location.id} value={location.id}>{locationLabel(location)}</option>\r\n                        ))}"
+  },
+  {
+    "file": "app/(internal)/inventario/nuevo-movimiento-dialog.tsx",
+    "opening": "<select\r\n                        id=\"manual-adjustment-currency\"\r\n                        className={fieldClass}\r\n                        value={effectiveCostCurrency}\r\n                        disabled={locked}\r\n                        onChange={(event) => {\r\n                          setCostCurrency(event.target.value as CurrencyCode);\r\n                          setUnitCost(\"\");\r\n                          setExchangeRate(\"\");\r\n                        }}\r\n                      >",
+    "children": "{isAdjustmentIncrease\r\n                          ? CURRENCIES.map((currency) => (\r\n                            <option key={currency.code} value={currency.code}>{currency.label}</option>\r\n                          ))\r\n                          : adjustmentCurrencies.map((currency) => (\r\n                            <option key={currency} value={currency}>\r\n                              {CURRENCIES.find((option) => option.code === currency)?.label ?? currency}\r\n                            </option>\r\n                          ))}"
+  },
+  {
+    "file": "app/(internal)/inventario/nuevo-movimiento-dialog.tsx",
+    "opening": "<select\r\n                        id=\"manual-movement-from\"\r\n                        className={fieldClass}\r\n                        value={fromLocationId}\r\n                        disabled={locked}\r\n                        required\r\n                        onChange={(event) => setFromLocationId(event.target.value)}\r\n                      >",
+    "children": "<option value=\"\">Seleccionar origen…</option>{locations.map((location) => (\r\n                          <option key={location.id} value={location.id}>{locationLabel(location)}</option>\r\n                        ))}"
+  },
+  {
+    "file": "app/(internal)/inventario/nuevo-movimiento-dialog.tsx",
+    "opening": "<select\r\n                        id=\"manual-movement-to\"\r\n                        className={fieldClass}\r\n                        value={toLocationId}\r\n                        disabled={locked}\r\n                        required\r\n                        onChange={(event) => setToLocationId(event.target.value)}\r\n                      >",
+    "children": "<option value=\"\">Seleccionar destino…</option>{locations.map((location) => (\r\n                          <option key={location.id} value={location.id} disabled={location.id === fromLocationId}>\r\n                            {locationLabel(location)}\r\n                          </option>\r\n                        ))}"
+  },
+  {
+    "file": "app/(internal)/licitaciones/licitaciones-section.tsx",
+    "opening": "<select\r\n          value={lic.decision ?? \"SIN_REVISAR\"}\r\n          onChange={async (e) => {\r\n            await setLicitacionDecision(lic.id as string, e.target.value as LicitacionDecision);\r\n            router.refresh();\r\n          }}\r\n          className=\"text-[12px] rounded border border-[var(--border)] bg-[var(--panel-2)] px-1.5 py-1 outline-none\"\r\n        >",
+    "children": "{(Object.keys(DECISION_LABEL) as LicitacionDecision[]).map((d) => (\r\n            <option key={d} value={d}>{DECISION_LABEL[d]}</option>\r\n          ))}"
+  },
+  {
+    "file": "app/(internal)/licitaciones/competidores/competidores-radar-client.tsx",
+    "opening": "<select\r\n            value={currentFilters.period}\r\n            onChange={(e) => updateQuery({ period: Number(e.target.value) as RadarPeriodMonths, page: undefined })}\r\n            className=\"rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-xs font-medium text-[var(--foreground)] shadow-2xs focus:border-[var(--nav-active)] focus:outline-none\"\r\n          >",
+    "children": "<option value={12}>12 meses</option><option value={24}>24 meses (Default)</option><option value={36}>36 meses</option><option value={60}>5 años</option><option value={0}>Todo el histórico</option>"
+  },
+  {
+    "file": "app/(internal)/licitaciones/competidores/competidores-radar-client.tsx",
+    "opening": "<select\r\n            value={currentFilters.evidence}\r\n            onChange={(e) => updateQuery({ evidence: e.target.value as RadarEvidenceFilter, page: undefined })}\r\n            className=\"rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-xs font-medium text-[var(--foreground)] shadow-2xs focus:border-[var(--nav-active)] focus:outline-none\"\r\n          >",
+    "children": "<option value=\"CON_EVIDENCIA\">Con evidencia (Default)</option><option value=\"ACTIVOS\">Activos</option><option value=\"TODOS\">Todos los proveedores</option>"
+  },
+  {
+    "file": "app/(internal)/licitaciones/competidores/competidores-radar-client.tsx",
+    "opening": "<select\r\n            value={currentFilters.minBids}\r\n            onChange={(e) => updateQuery({ minBids: Number(e.target.value), page: undefined })}\r\n            className=\"rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-xs font-medium text-[var(--foreground)] shadow-2xs focus:border-[var(--nav-active)] focus:outline-none\"\r\n          >",
+    "children": "<option value={1}>&gt;= 1 (Default)</option><option value={3}>&gt;= 3</option><option value={5}>&gt;= 5</option><option value={10}>&gt;= 10</option>"
+  },
+  {
+    "file": "app/(internal)/licitaciones/competidores/competidores-radar-client.tsx",
+    "opening": "<select\r\n            value={currentFilters.certainty}\r\n            onChange={(e) => updateQuery({ certainty: e.target.value as RadarCertaintyFilter, page: undefined })}\r\n            className=\"rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-xs font-medium text-[var(--foreground)] shadow-2xs focus:border-[var(--nav-active)] focus:outline-none\"\r\n          >",
+    "children": "<option value=\"TODAS\">Todas</option><option value=\"ALTA\">ALTA (&gt;=15 obs)</option><option value=\"MEDIA\">MEDIA (5-14 obs)</option><option value=\"BAJA\">BAJA (2-4 obs)</option><option value=\"INSUFICIENTE\">INSUFICIENTE (&lt;2)</option>"
+  },
+  {
+    "file": "app/(internal)/licitaciones/competidores/competidores-radar-client.tsx",
+    "opening": "<select\r\n            value={currentFilters.outcome}\r\n            onChange={(e) => updateQuery({ outcome: e.target.value as RadarOutcomeFilter, page: undefined })}\r\n            className=\"rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-xs font-medium text-[var(--foreground)] shadow-2xs focus:border-[var(--nav-active)] focus:outline-none\"\r\n          >",
+    "children": "<option value=\"TODOS\">Todos</option><option value=\"CON_ADJUDICACIONES\">Con adjudicaciones</option><option value=\"SIN_ADJUDICACIONES\">Sin adjudicaciones</option>"
+  },
+  {
+    "file": "app/(internal)/orders/[id]/recepcion-section.tsx",
+    "opening": "<select\r\n                          value={productoPorItem[it.id] ?? it.producto_id ?? \"\"}\r\n                          disabled={pending || attemptLocked}\r\n                          onChange={(e) =>\r\n                            setProductoPorItem((prev) => ({ ...prev, [it.id]: e.target.value }))\r\n                          }\r\n                          className=\"w-full h-7 rounded border border-[var(--border)] bg-[var(--panel)] px-1.5 text-[12px]\"\r\n                        >",
+    "children": "<option value=\"\" disabled={Boolean(it.producto_id)}>— no cargar a stock —</option>{it.producto_id && !productos.some((p) => p.id === it.producto_id) ? (\r\n                            <option value={it.producto_id}>{it.product} (asociado a la OC)</option>\r\n                          ) : null}{productos\r\n                            .filter((p) => p.activo || p.id === it.producto_id)\r\n                            .filter((p) => !it.producto_id || p.id === it.producto_id)\r\n                            .filter((p) => !it.unit.trim() || p.unidad.trim() === it.unit.trim())\r\n                            .map((p) => (\r\n                            <option key={p.id} value={p.id}>{p.nombre}</option>\r\n                          ))}"
+  },
+  {
+    "file": "app/(internal)/orders/[id]/recepcion-section.tsx",
+    "opening": "<select\r\n                          aria-label=\"Material de inventario\"\r\n                          value={ri.producto_id ?? \"\"}\r\n                          disabled={mappingItemId === ri.id || mappingItemId !== null}\r\n                          onChange={(event) => void handleProductMapping(ri.id, event.target.value)}\r\n                          className=\"max-w-56 rounded border border-[var(--border)] bg-[var(--panel)] px-2 py-1 text-[12px]\"\r\n                        >",
+    "children": "{!ri.producto_id ? <option value=\"\">Sin vincular a inventario</option> : null}{products\r\n                            .filter((product) => product.activo && product.unidad.trim() === (oi?.unit ?? \"\").trim())\r\n                            .map((product) => (\r\n                              <option key={product.id} value={product.id}>{product.nombre}</option>\r\n                            ))}"
+  },
+  {
+    "file": "app/(internal)/licitaciones/auction-lab/create-room-form.tsx",
+    "opening": "<select\r\n            id=\"lab-scope\"\r\n            value={form.scope}\r\n            onChange={(e) => set('scope', (e.target as HTMLSelectElement).value as typeof form.scope)}\r\n            className=\"w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-1.5 text-[13px] outline-none\"\r\n          >",
+    "children": "<option value=\"ITEM\">ITEM</option><option value=\"LOT\">LOT</option><option value=\"TOTAL\">TOTAL</option>"
+  },
+  {
+    "file": "app/(internal)/ventas/[id]/sifen-button.tsx",
+    "opening": "<select aria-label=\"Motivo fiscal de NC\" value={motive} onChange={e => setMotive(e.target.value)} disabled={pending}>",
+    "children": "<option value=\"\">Seleccionar motivo</option>{Object.entries(GOEKUA_NC_MOTIVES).map(([value, label]) => <option key={value} value={value}>{value} — {label}</option>)}"
+  },
+  {
+    "file": "app/(internal)/ventas/[id]/sifen-button.tsx",
+    "opening": "<select aria-label={`Ítem de origen para ${item.description}`} value={sourceIds[item.id] ?? \"\"} onChange={e => setSourceIds(prev => ({ ...prev, [item.id]: e.target.value }))} disabled={pending}>",
+    "children": "<option value=\"\">Seleccionar ítem</option>{sourceInvoiceItems.map(source => <option key={source.id} value={source.id}>{source.description}</option>)}"
+  },
+  {
+    "file": "app/(internal)/stock/[id]/editar/page.tsx",
+    "opening": "<select\r\n            value={categoriaId}\r\n            onChange={(e) => setCategoriaId(e.target.value)}\r\n            className=\"w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]\"\r\n          >",
+    "children": "<option value=\"\">Sin categoría</option>{categorias.map((c) => (\r\n              <option key={c.id} value={c.id}>{c.nombre}</option>\r\n            ))}"
+  },
+  {
+    "file": "app/(internal)/stock/[id]/editar/page.tsx",
+    "opening": "<select\r\n              value={unidad}\r\n              onChange={(e) => setUnidad(e.target.value)}\r\n              required\r\n              className=\"w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]\"\r\n            >",
+    "children": "<option value=\"\">— seleccioná —</option>{UNIDADES_COMPRA.map((u) => (\r\n                <option key={u} value={u}>{u}</option>\r\n              ))}"
+  },
+  {
+    "file": "app/(internal)/stock/[id]/editar/page.tsx",
+    "opening": "<select\r\n              value={unidadBase}\r\n              onChange={(e) => setUnidadBase(e.target.value)}\r\n              disabled={!contenido}\r\n              className=\"w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px] disabled:opacity-40\"\r\n            >",
+    "children": "<option value=\"\">— seleccioná —</option>{UNIDADES_BASE.map((u) => (\r\n                <option key={u} value={u}>{u}</option>\r\n              ))}"
+  },
+  {
+    "file": "app/(internal)/stock/importar-dialog.tsx",
+    "opening": "<select\r\n                            value={mapping[key]}\r\n                            onChange={(e) =>\r\n                              setMapping((m) => ({ ...m, [key]: parseInt(e.target.value) }))\r\n                            }\r\n                            className=\"w-full rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-[12px] text-[var(--foreground)]\"\r\n                          >",
+    "children": "<option value={-1}>— No usar —</option>{headers.map((h, i) => (\r\n                              <option key={i} value={i}>\r\n                                {h || `Columna ${i + 1}`}\r\n                              </option>\r\n                            ))}"
+  },
+  {
+    "file": "app/(internal)/stock/nuevo/page.tsx",
+    "opening": "<select\r\n            id=\"p-categoria\"\r\n            name=\"categoria\"\r\n            value={categoriaId}\r\n            onChange={(e) => setCategoriaId(e.target.value)}\r\n            className=\"w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]\"\r\n          >",
+    "children": "<option value=\"\">Sin categoría</option>{categorias.map((c) => (\r\n              <option key={c.id} value={c.id}>{c.nombre}</option>\r\n            ))}"
+  },
+  {
+    "file": "app/(internal)/stock/nuevo/page.tsx",
+    "opening": "<select\r\n              id=\"p-unidad\"\r\n              name=\"unidad\"\r\n              value={unidad}\r\n              onChange={(e) => setUnidad(e.target.value)}\r\n              required\r\n              className=\"w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]\"\r\n            >",
+    "children": "<option value=\"\">— seleccioná —</option>{UNIDADES_COMPRA.map((u) => (\r\n                <option key={u} value={u}>{u}</option>\r\n              ))}"
+  },
+  {
+    "file": "app/(internal)/stock/nuevo/page.tsx",
+    "opening": "<select\r\n              value={unidadBase}\r\n              onChange={(e) => setUnidadBase(e.target.value)}\r\n              disabled={!contenido}\r\n              className=\"w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px] disabled:opacity-40\"\r\n            >",
+    "children": "<option value=\"\">— seleccioná —</option>{UNIDADES_BASE.map((u) => (\r\n                <option key={u} value={u}>{u}</option>\r\n              ))}"
+  },
+  {
+    "file": "app/(internal)/projects/[id]/bim-section.tsx",
+    "opening": "<select\r\n                            className=\"rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-[12px]\"\r\n                            defaultValue=\"\"\r\n                            onChange={(e) => {\r\n                              if (e.target.value) handleConfirmGroup(group.id, e.target.value);\r\n                            }}\r\n                          >",
+    "children": "<option value=\"\" disabled>\r\n                              Elegir rubro…\r\n                            </option>{matchableBudgetItems.map((b) => (\r\n                              <option key={b.id} value={b.id}>\r\n                                {b.code} — {b.description} ({b.unit})\r\n                              </option>\r\n                            ))}"
+  },
+  {
+    "file": "app/(internal)/projects/[id]/import-certificado-dialog.tsx",
+    "opening": "<select\r\n                              aria-label={`Partida de presupuesto para ${row.code ?? row.description}`}\r\n                              value={selectedId}\r\n                              onChange={(event) => setMappings((current) => ({ ...current, [row.sourceRow]: event.target.value }))}\r\n                              className=\"w-full min-w-64 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-2 py-1.5 text-[11px]\"\r\n                            >",
+    "children": "<option value=\"\">Seleccionar partida…</option>{preview.budgetItems.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.description} ({item.unit ?? \"sin unidad\"})</option>)}"
+  },
+  {
+    "file": "app/(internal)/projects/[id]/import-recipe-dialog.tsx",
+    "opening": "<select\r\n                            value={p.row.manualItemId}\r\n                            onChange={(e) =>\r\n                              setRows(rows.map((r) => (r.idx === p.row.idx ? { ...r, manualItemId: e.target.value } : r)))\r\n                            }\r\n                            className=\"h-7 max-w-56 rounded border border-[var(--border)] bg-[var(--panel)] px-1 text-[11px]\"\r\n                            data-testid={`mapeo-manual-${p.row.idx}`}\r\n                          >",
+    "children": "<option value=\"\">Elegir partida…</option>{budgetItems.map((b) => (\r\n                              <option key={b.id} value={b.id}>\r\n                                {b.code} · {b.description}\r\n                              </option>\r\n                            ))}"
+  },
+  {
+    "file": "app/(internal)/projects/[id]/import-recipe-dialog.tsx",
+    "opening": "<select\r\n                        value={r.budgetItemId}\r\n                        onChange={(e) => updateManualRow(idx, \"budgetItemId\", e.target.value)}\r\n                        className=\"h-7 w-full max-w-64 rounded border border-[var(--border)] bg-[var(--panel)] px-1 text-[11px]\"\r\n                      >",
+    "children": "<option value=\"\">Elegir partida…</option>{budgetItems.map((b) => (\r\n                          <option key={b.id} value={b.id}>\r\n                            {b.code} · {b.description}\r\n                          </option>\r\n                        ))}"
+  },
+  {
+    "file": "app/(internal)/projects/[id]/panol-obra-section.tsx",
+    "opening": "<select\r\n          value={draft.productoId}\r\n          disabled={locked}\r\n          onChange={(event) => {\r\n            const productoId = event.target.value;\r\n            const selected = products.find((item) => item.id === productoId);\r\n            setDraft((current) => ({\r\n              ...current,\r\n              productoId,\r\n              unit: selected?.unidad ?? current.unit,\r\n            }));\r\n          }}\r\n          className=\"mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--panel)] px-2 text-[12px] text-[var(--foreground)]\"\r\n        >",
+    "children": "<option value=\"\">Seleccionar producto</option>{products.map((product) => <option key={product.id} value={product.id}>{product.nombre} · {product.unidad}</option>)}"
+  },
+  {
+    "file": "app/(internal)/projects/[id]/panol-obra-section.tsx",
+    "opening": "<select\r\n          value={draft.budgetItemId}\r\n          disabled={locked}\r\n          onChange={(event) => setDraft((current) => ({ ...current, budgetItemId: event.target.value }))}\r\n          className=\"mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--panel)] px-2 text-[12px] text-[var(--foreground)]\"\r\n        >",
+    "children": "<option value=\"\">Seleccionar partida</option>{budgetItems.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.description}</option>)}"
+  },
+  {
+    "file": "app/(internal)/projects/[id]/panol-obra-section.tsx",
+    "opening": "<select\r\n          value={draft.state}\r\n          disabled={locked}\r\n          onChange={(event) => setDraft((current) => ({ ...current, state: event.target.value as LineState }))}\r\n          className=\"mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--panel)] px-2 text-[12px] text-[var(--foreground)]\"\r\n        >",
+    "children": "{([\"PROPOSED\", \"CONFIRMED\", \"REJECTED\"] as LineState[]).map((state) => <option key={state} value={state}>{LINE_STATE_LABEL[state]}</option>)}"
+  },
+  {
+    "file": "app/(internal)/projects/[id]/panol-obra-section.tsx",
+    "opening": "<select value={locationId} onChange={(event) => setSelectedLocationId(event.target.value)} className=\"mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 text-xs text-[var(--foreground)]\">",
+    "children": "{locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}"
+  }
+]

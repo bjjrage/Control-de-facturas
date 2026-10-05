@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { useState, useRef, type FormEvent } from "react";
 import {
   Package,
@@ -283,7 +285,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
             <form onSubmit={handleReceiptSubmit} className="space-y-4">
               <label className="block text-xs font-medium">
                 Seleccionar Orden de Compra (OC)
-                <select
+                <Select
                   value={selectedOrderId}
                   onChange={(e) => {
                     setSelectedOrderId(e.target.value);
@@ -296,7 +298,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
                       {order.code} · {order.providerName} ({order.items.filter((i) => i.pending > 0).length} ítems pendientes)
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
 
               {selectedOrder && (
@@ -446,7 +448,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
           <form onSubmit={handleConsumptionSubmit} className="space-y-4">
             <label className="block text-xs font-medium">
               Material / Producto
-              <select
+              <Select
                 value={selectedProductId}
                 onChange={(e) => setSelectedProductId(e.target.value)}
                 required
@@ -465,7 +467,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
                       {p.name} · Sin stock actual (0 {p.unit})
                     </option>
                   ))}
-              </select>
+              </Select>
             </label>
 
             {selectedStockItem && (
@@ -494,7 +496,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
 
               <label className="text-xs">
                 Imputar a Partida de Obra (obligatorio)
-                <select
+                <Select
                   value={selectedBudgetItemId}
                   onChange={(e) => setSelectedBudgetItemId(e.target.value)}
                   className="mt-1 block w-full rounded-xl border border-[var(--border)] bg-[var(--panel-2)] p-2 text-xs text-[var(--foreground)]"
@@ -505,7 +507,7 @@ export function WarehousePortalClient({ context }: { context: WarehousePortalCon
                       {bi.code} · {bi.description}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             </div>
 

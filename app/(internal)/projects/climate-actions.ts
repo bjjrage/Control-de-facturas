@@ -299,6 +299,7 @@ export async function createOtherWorkday(
   workDate: string,
   notes: string,
   classification: "WORKABLE" | "NON_WORKABLE_RAIN" | "NON_WORKABLE_OTHER" = "NON_WORKABLE_OTHER",
+  reasonCode: ClimateReasonCode | null = "OTHER",
 ): Promise<{ error: string | null }> {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const { supabase, exists } = await ownedProject(projectId, profile.empresa_id);
@@ -314,6 +315,7 @@ export async function createOtherWorkday(
   if (existing?.decision_status === "CONFIRMED") return { error: "La jornada ya tiene una decisión confirmada." };
 
   if (!["WORKABLE", "NON_WORKABLE_RAIN", "NON_WORKABLE_OTHER"].includes(classification)) return { error: "Clasificación inválida." };
+  if (reasonCode && !REASONS.includes(reasonCode)) return { error: "Causa inválida." };
   const { data: project } = await supabase.from("projects").select("start_date,precipitation_threshold_mm").eq("id", projectId).single();
   if (!project || !validClimateDate(workDate, project.start_date)) return { error: "Fecha fuera del período de obra." };
   let climateEventId: string | null = existing?.climate_event_id ?? null;
@@ -325,7 +327,7 @@ export async function createOtherWorkday(
     work_date: workDate,
     classification,
     climate_event_id: climateEventId,
-    reason_code: classification === "NON_WORKABLE_OTHER" ? "OTHER" : null,
+    reason_code: classification === "NON_WORKABLE_OTHER" ? reasonCode ?? "OTHER" : null,
     notes: notes.trim() || null,
     source: "MANUAL",
     decision_status: "CONFIRMED",

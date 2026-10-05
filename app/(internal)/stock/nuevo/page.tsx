@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -84,7 +86,7 @@ export default function NuevoProductoPage() {
 
         <div>
           <label htmlFor="p-categoria" className="block text-[12px] text-[var(--muted)] mb-1">Categoría</label>
-          <select
+          <Select
             id="p-categoria"
             name="categoria"
             value={categoriaId}
@@ -95,13 +97,13 @@ export default function NuevoProductoPage() {
             {categorias.map((c) => (
               <option key={c.id} value={c.id}>{c.nombre}</option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label htmlFor="p-unidad" className="block text-[12px] text-[var(--muted)] mb-1">Unidad de compra *</label>
-            <select
+            <Select
               id="p-unidad"
               name="unidad"
               value={unidad}
@@ -113,7 +115,7 @@ export default function NuevoProductoPage() {
               {UNIDADES_COMPRA.map((u) => (
                 <option key={u} value={u}>{u}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <label className="block text-[12px] text-[var(--muted)] mb-1">Código (opcional)</label>
@@ -142,7 +144,7 @@ export default function NuevoProductoPage() {
           </div>
           <div>
             <label className="block text-[12px] text-[var(--muted)] mb-1">Unidad base</label>
-            <select
+            <Select
               value={unidadBase}
               onChange={(e) => setUnidadBase(e.target.value)}
               disabled={!contenido}
@@ -152,7 +154,7 @@ export default function NuevoProductoPage() {
               {UNIDADES_BASE.map((u) => (
                 <option key={u} value={u}>{u}</option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
         {contenido && unidadBase ? (

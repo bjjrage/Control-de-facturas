@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -100,18 +102,18 @@ export function UbicacionesDialog({
 
           <form onSubmit={createLocation} className="grid gap-2 rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3 sm:grid-cols-2">
             <label className="text-[11px] text-[var(--muted)]">Tipo
-              <select className={`${fieldClass} mt-1`} value={locationType} onChange={(event) => setLocationType(event.target.value as InventoryLocationType)}>
+              <Select className={`${fieldClass} mt-1`} value={locationType} onChange={(event) => setLocationType(event.target.value as InventoryLocationType)}>
                 <option value="CENTRAL">Depósito central</option>
                 <option value="PROJECT">Depósito de obra</option>
                 <option value="AUXILIARY">Depósito auxiliar</option>
-              </select>
+              </Select>
             </label>
             {locationType === "PROJECT" ? (
               <label className="text-[11px] text-[var(--muted)]">Obra
-                <select className={`${fieldClass} mt-1`} value={projectId} onChange={(event) => setProjectId(event.target.value)} required>
+                <Select className={`${fieldClass} mt-1`} value={projectId} onChange={(event) => setProjectId(event.target.value)} required>
                   <option value="">Seleccionar obra</option>
                   {projects.map((project) => <option key={project.id} value={project.id}>{project.code} · {project.name}</option>)}
-                </select>
+                </Select>
               </label>
             ) : (
               <label className="text-[11px] text-[var(--muted)]">Nombre
@@ -120,10 +122,10 @@ export function UbicacionesDialog({
             )}
             {locationType === "AUXILIARY" ? (
               <label className="text-[11px] text-[var(--muted)]">Depende de (opcional)
-                <select className={`${fieldClass} mt-1`} value={parentLocationId} onChange={(event) => setParentLocationId(event.target.value)}>
+                <Select className={`${fieldClass} mt-1`} value={parentLocationId} onChange={(event) => setParentLocationId(event.target.value)}>
                   <option value="">Sin ubicación superior</option>
                   {locations.filter((location) => location.active).map((location) => <option key={location.id} value={location.id}>{location.projectName ? `${location.projectName} · ` : ""}{location.name}</option>)}
-                </select>
+                </Select>
               </label>
             ) : null}
             {locationType === "CENTRAL" ? (

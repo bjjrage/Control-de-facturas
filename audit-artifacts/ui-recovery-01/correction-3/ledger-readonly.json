@@ -1,0 +1,7 @@
+{
+  "date": "2026-10-05",
+  "query": "select count(*)::integer as migration_count from supabase_migrations.schema_migrations",
+  "production": 52,
+  "previewValidation": 52,
+  "mutations": 0
+}

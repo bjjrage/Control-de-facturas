@@ -1,5 +1,57 @@
 # UI RECOVERY 01
 
+## Correction #3 + Climate Calendar Recovery — current implementation
+
+This section supersedes the earlier remaining-native-select classification and manual-form-first climate UI. PR #33 remains on `fix/ui-surface-recovery-01`; preceding audited HEAD is `f98c3b51d00bb87c267464ff3291b05d20f5bca1`, base/main `87be09df1c1bf116564375b81c2884b2835ae425`.
+
+### Resident evidence integrity
+
+`registerResidentRain` now validates the existing token/project/date/mm/image, uploads immutable content-addressed storage, locates the canonical event, inserts/finds immutable `RAIN_GAUGE_PHOTO`, then writes local measurement and creates/preserves the workday proposal. An evidence-insert failure may leave an observation/storage object but cannot create a resident measurement or workday proposal. Storage failure creates no climate facts.
+
+Evidence is not a completion flag. Retries with existing evidence resume measurement and workday operations; the old `measurement_saved` metadata flag cannot short-circuit a partial report. Evidence is never updated. A unique-conflict insert is accepted only after finding the expected project/path/event/photo evidence. Identical concurrent reports converge to **one event, one evidence and one workday** in regression tests. A preexisting confirmed human decision remains unchanged. Resident reports never confirm contractual days.
+
+### Global Select completion
+
+All **51** operational native selectors in the previous inventory were individually reviewed and migrated across **18 files** to the existing shared Radix Select. TypeScript AST contract snapshots compare every original prop, option, enum, default and callback after migration; the obsolete HTMLSelectElement cast in Auction Lab became the shared callback's string value. No action payloads or business calculations changed.
+
+Disabled first empty placeholders remain empty without an explicit value/default; required browser validation blocks submission until selection. Reset restores the placeholder. Authored data attributes are retained, labels render in SSR, and the trigger's inner layout keeps text and arrow on one line on mobile even when callers retain native `block` classes. Installed Radix `unstable_Provider` remains the existing documented upgrade boundary; no package change.
+
+`correction-3/native-select-remaining.txt`: **0 operational native dropdowns; technical exceptions NONE** in app/components. The correction-2 list is retained as historical BEFORE evidence. Inventory, Stock, Warehouse, Licitaciones/Competidores/Auction Lab, Recepciones, SIFEN, BIM, imports, Pañol and Cobros are covered.
+
+### Administrative Libro calendar
+
+The old base `avance-fisico-panel.tsx` calendar interaction was the reference. The primary climate surface is now **JORNADAS CLIMÁTICAS / LIBRO DE OBRA**, followed by confirmed-day counters and monthly calendars with every date visible. Clicking a day opens a compact inline panel; B/LL/HH/O buttons save through existing human actions. The repetitive manual entry form was removed. Measurements, evidence uploads, rain-effect continuation and detailed overrides remain in a secondary collapsed advanced section.
+
+| Libro code | Canonical classification | Reason |
+| --- | --- | --- |
+| B | WORKABLE | null |
+| LL | NON_WORKABLE_RAIN | null |
+| HH | NON_WORKABLE_OTHER | TERRAIN_SATURATED |
+| O | NON_WORKABLE_OTHER | OTHER |
+
+`createOtherWorkday` gains only an optional validated reason parameter, preserving its existing default and authorization/date/tenant checks. Existing rows use `overrideWeatherWorkday`; proposals can be explicitly confirmed with `confirmWeatherWorkday`. The calendar's "Ignorar sugerencia · marcar B" explicitly records a human WORKABLE decision without inventing an ignored status. Confirmed counts use canonical human decisions only.
+
+Final human Libro state, pending meteorological suggestion and resident photo/mm evidence are projected independently. Resident photo metadata retains the reported mm snapshot; external DMH/DINAC values remain separate. Photos are retrieved using the existing short-lived signed URL flow. `evaluateProjectWeatherDayAction` and the existing DMH/DINAC system are reused; no second evaluator or automatic confirmation was added. Future/pre-start dates remain visible but cannot be marked through the calendar.
+
+The calendar header reuses `ExecutionLinkDialog`, the existing `execution_token`, server-provided app origin and `/avance/[token]`. QR/copy link explain both daily progress and rain/photo evidence. No new token. `project_weather_log` stays read-only under **Histórico anterior**, collapsed by default. Existing Open-Meteo supporting-history access remains there. There is no legacy/canonical dual write or new authority.
+
+### Current verification and evidence
+
+- Focused final suite: **164 tests PASS** (resident 17, Select 13, all migration contracts 20, existing climate 28, manual actions 10, calendar projection 10, SIFEN 66).
+- Full suite: **175 files passed, 2 skipped; 1,844 tests passed, 16 skipped**. Command: `vitest run --maxWorkers=2 --hookTimeout=60000 --testTimeout=30000`. A prior default-timeout run timed out during local PGlite initialization while building concurrently; final validation is sequential. No test implementation was weakened for that timeout.
+- Typecheck: PASS, `tsc --noEmit`.
+- Final Webpack build: PASS, `next build --webpack`, TypeScript and 59 static pages.
+- Diff check: PASS before publication; staged check required before commit.
+- Actual Windows Firefox: **25 checks PASS**, no page errors: 10 global module/placeholder checks plus 15 PREBID/RFQ/personnel/climate/calendar/resident checks. These exercise actual action/route/FormData payloads with local stubs.
+- `audit-artifacts/ui-recovery-01/correction-3/` includes expanded Inventory/SIFEN/mobile Warehouse selectors, primary calendar with confirmed human HH + pending DMH proposal + resident mm/photo, existing QR, calendar marking controls, climate override, resident mobile and legacy collapse evidence.
+- Screenshots are actual components with synthetic data; server actions, Supabase reads and fetch are intercepted locally. They are not authenticated deployed-data acceptance. No ERP production record was created or edited.
+- Preview validation and Production migration ledgers: **52 / 52**, reconfirmed with SELECT COUNT only on 2026-10-05. **0 migrations / 0 database mutations**.
+- No merge, main modification, Production deploy, financial formula, RFQ semantics, MRP or climate engine change.
+
+Final Preview must use the published correction SHA in the existing `control-de-facturas` Vercel project and deployment-only ignored-build bypass. Exact SHA/READY/URL and root check are recorded separately after deployment so no follow-up report commit changes the deployed HEAD.
+
+P0: none identified. P1: both external audit findings corrected; administrative calendar restored. P2: none newly identified. P3: authenticated acceptance on deployed data remains for Marcelo; Radix unstable API upgrade boundary remains documented. External/manual review readiness requires the READY Preview of the final published SHA.
+
 ## Correction #2 — current review evidence
 
 This section supersedes the earlier correction's native-select approach, missing resident workflow, verification counts and review blockers below. Earlier sections retain the implementation history.

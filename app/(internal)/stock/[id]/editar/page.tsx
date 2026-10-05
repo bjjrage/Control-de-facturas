@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -111,7 +113,7 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
 
         <div>
           <label className="block text-[12px] text-[var(--muted)] mb-1">Categoría</label>
-          <select
+          <Select
             value={categoriaId}
             onChange={(e) => setCategoriaId(e.target.value)}
             className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]"
@@ -120,13 +122,13 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
             {categorias.map((c) => (
               <option key={c.id} value={c.id}>{c.nombre}</option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-[12px] text-[var(--muted)] mb-1">Unidad de compra *</label>
-            <select
+            <Select
               value={unidad}
               onChange={(e) => setUnidad(e.target.value)}
               required
@@ -136,7 +138,7 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
               {UNIDADES_COMPRA.map((u) => (
                 <option key={u} value={u}>{u}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <label className="block text-[12px] text-[var(--muted)] mb-1">Código (opcional)</label>
@@ -165,7 +167,7 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
           </div>
           <div>
             <label className="block text-[12px] text-[var(--muted)] mb-1">Unidad base</label>
-            <select
+            <Select
               value={unidadBase}
               onChange={(e) => setUnidadBase(e.target.value)}
               disabled={!contenido}
@@ -175,7 +177,7 @@ export default function EditarProductoPage({ params }: { params: Promise<{ id: s
               {UNIDADES_BASE.map((u) => (
                 <option key={u} value={u}>{u}</option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
         {contenido && unidadBase ? (

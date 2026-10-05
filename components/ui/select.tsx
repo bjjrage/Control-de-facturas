@@ -29,7 +29,8 @@ type Props = Omit<SelectHTMLAttributes<HTMLSelectElement>, "onChange" | "multipl
  * boundary covered by the SSR and Firefox regressions when upgrading Radix. */
 export function Select({ children, value: controlled, defaultValue, onChange, onValueChange, name, disabled, required, id, className, form, title, ...rest }: Props) {
   const options = optionsFrom(children);
-  const initial = String(defaultValue ?? options.find(o => !o.disabled)?.value ?? "");
+  // An authored empty placeholder remains empty even when it is disabled.
+  const initial = String(defaultValue ?? options[0]?.value ?? "");
   const [internal, setInternal] = useState(initial);
   const input = useRef<HTMLInputElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -53,8 +54,8 @@ export function Select({ children, value: controlled, defaultValue, onChange, on
       onValueChange?.(next);
       onChange?.({ target: { value: next }, currentTarget: { value: next } });
     }}>
-      <Radix.Trigger ref={trigger} id={id} title={title} aria-label={rest["aria-label"]} aria-labelledby={rest["aria-labelledby"]} aria-describedby={rest["aria-describedby"]} aria-required={required} aria-invalid={rest["aria-invalid"]} className={cn("flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-white/[0.09] bg-[#17253a] px-3 text-left text-[12px] text-[var(--foreground)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] disabled:opacity-50", className)}>
-        <Radix.Value /><Radix.Icon><ChevronDown className="h-3.5 w-3.5 shrink-0" /></Radix.Icon>
+      <Radix.Trigger {...Object.fromEntries(Object.entries(rest).filter(([key]) => key.startsWith("data-")))} ref={trigger} id={id} title={title} aria-label={rest["aria-label"]} aria-labelledby={rest["aria-labelledby"]} aria-describedby={rest["aria-describedby"]} aria-required={required} aria-invalid={rest["aria-invalid"]} className={cn("flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-white/[0.09] bg-[#17253a] px-3 text-left text-[12px] text-[var(--foreground)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] disabled:opacity-50", className)}>
+        <span className="flex w-full min-w-0 items-center justify-between gap-2"><Radix.Value className="min-w-0 truncate">{options.find(option => option.value === value)?.label}</Radix.Value><Radix.Icon className="shrink-0"><ChevronDown className="h-3.5 w-3.5" /></Radix.Icon></span>
       </Radix.Trigger>
       <Radix.Portal><Radix.Content position="popper" sideOffset={4} className="z-[150] max-h-[min(320px,var(--radix-select-content-available-height))] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-lg border border-[var(--border)] bg-[#17253a] p-1 text-[12px] text-[var(--foreground)] shadow-xl">
         <Radix.ScrollUpButton className="text-center">↑</Radix.ScrollUpButton>

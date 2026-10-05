@@ -143,6 +143,7 @@ export function AvanceFisicoPanel({
   climateEvidence,
   schedulePlans,
   planMonths,
+  appUrl,
 }: {
   project: Project;
   certificates: ProjectCertificate[];
@@ -152,6 +153,7 @@ export function AvanceFisicoPanel({
   climateEvidence: ClimateEvidence[];
   schedulePlans: ProjectSchedulePlan[];
   planMonths: Record<string, ProjectSchedulePlanMonth[]>;
+  appUrl?: string;
 }) {
   return (
     <div className="space-y-6">
@@ -168,8 +170,9 @@ export function AvanceFisicoPanel({
           workdays={climateWorkdays}
           evidence={climateEvidence}
           historicalOnly
+          appUrl={appUrl}
         />
-        <DiasNoTrabajados project={project} weatherLogs={weatherLogs} />
+        <details className="rounded-lg border border-[var(--border)] p-3"><summary className="cursor-pointer text-xs text-[var(--muted)]">Histórico anterior · LEGACY · solo lectura</summary><DiasNoTrabajados project={project} weatherLogs={weatherLogs} /></details>
       </div>
     </div>
   );

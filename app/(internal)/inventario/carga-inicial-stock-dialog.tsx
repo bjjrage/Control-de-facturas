@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { useCallback, useMemo, useState, useSyncExternalStore, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -378,16 +380,16 @@ export function CargaInicialStockDialog({
                 <form onSubmit={handleManualSubmit} className="space-y-3 rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3">
                   <div className="grid gap-3 md:grid-cols-2">
                     <label className="text-[12px] text-[var(--muted)]">Material
-                      <select className={`${fieldClass} mt-1`} value={materialId} onChange={(event) => setMaterialId(event.target.value)} required>
+                      <Select className={`${fieldClass} mt-1`} value={materialId} onChange={(event) => setMaterialId(event.target.value)} required>
                         <option value="">Seleccionar material</option>
                         {products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
-                      </select>
+                      </Select>
                     </label>
                     <label className="text-[12px] text-[var(--muted)]">Ubicación
-                      <select className={`${fieldClass} mt-1`} value={locationId} onChange={(event) => setLocationId(event.target.value)} required>
+                      <Select className={`${fieldClass} mt-1`} value={locationId} onChange={(event) => setLocationId(event.target.value)} required>
                         <option value="">Seleccionar ubicación</option>
                         {locations.map((location) => <option key={location.id} value={location.id}>{location.projectName ? `${location.projectName} · ${location.name}` : location.name}</option>)}
-                      </select>
+                      </Select>
                     </label>
                     <label className="text-[12px] text-[var(--muted)]">Cantidad {selectedMaterial ? `(${selectedMaterial.unit})` : ""}
                       <input className={`${fieldClass} mt-1`} type="number" min="0.0001" step="0.0001" value={quantity} onChange={(event) => setQuantity(event.target.value)} required />
@@ -396,10 +398,10 @@ export function CargaInicialStockDialog({
                       <input className={`${fieldClass} mt-1`} type="number" min="0" step="0.000001" value={unitCost} onChange={(event) => setUnitCost(event.target.value)} required />
                     </label>
                     <label className="text-[12px] text-[var(--muted)]">Moneda
-                      <select className={`${fieldClass} mt-1`} value={currency} onChange={(event) => setCurrency(event.target.value as CurrencyCode | "")} required>
+                      <Select className={`${fieldClass} mt-1`} value={currency} onChange={(event) => setCurrency(event.target.value as CurrencyCode | "")} required>
                         <option value="">Seleccionar</option>
                         {CURRENCIES.map((code) => <option key={code} value={code}>{code}</option>)}
-                      </select>
+                      </Select>
                     </label>
                     {currency && currency !== "PYG" ? (
                       <label className="text-[12px] text-[var(--muted)]">Tipo de cambio a PYG
@@ -421,10 +423,10 @@ export function CargaInicialStockDialog({
                       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                         {INITIAL_STOCK_COLUMNS.map(({ key, label, required }) => (
                           <label key={key} className="text-[11px] text-[var(--muted)]">{label}{required ? " *" : ""}
-                            <select className={`${fieldClass} mt-1`} value={mapping[key]} onChange={(event) => changeColumn(key, Number(event.target.value))}>
+                            <Select className={`${fieldClass} mt-1`} value={mapping[key]} onChange={(event) => changeColumn(key, Number(event.target.value))}>
                               <option value={-1}>No usar</option>
                               {headers.map((header, index) => <option key={`${index}-${header}`} value={index}>{header || `Columna ${index + 1}`}</option>)}
-                            </select>
+                            </Select>
                           </label>
                         ))}
                       </div>
@@ -439,13 +441,13 @@ export function CargaInicialStockDialog({
                             return (
                               <tr key={row.sourceRow}>
                                 <td>{row.sourceRow} · {row.material || "—"}</td>
-                                <td><select aria-label={`Material fila ${row.sourceRow}`} className={fieldClass} value={productId} onChange={(event) => setRowEdits((current) => ({ ...current, [index]: { ...current[index], materialId: event.target.value } }))}><option value="">Sin vínculo</option>{products.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}</select></td>
+                                <td><Select aria-label={`Material fila ${row.sourceRow}`} className={fieldClass} value={productId} onChange={(event) => setRowEdits((current) => ({ ...current, [index]: { ...current[index], materialId: event.target.value } }))}><option value="">Sin vínculo</option>{products.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}</Select></td>
                                 <td><input aria-label={`Cantidad fila ${row.sourceRow}`} className={fieldClass} type="number" min="0.0001" step="0.0001" value={row.quantity} onChange={(event) => setRowEdits((current) => ({ ...current, [index]: { ...current[index], quantity: event.target.value } }))} /></td>
                                 <td><input aria-label={`Unidad fila ${row.sourceRow}`} className={fieldClass} value={row.unit || product?.unit || ""} onChange={(event) => setRowEdits((current) => ({ ...current, [index]: { ...current[index], unit: event.target.value } }))} /></td>
                                 <td>{row.location || "—"}</td>
-                                <td><select aria-label={`Ubicación fila ${row.sourceRow}`} className={fieldClass} value={targetLocationId} onChange={(event) => setRowEdits((current) => ({ ...current, [index]: { ...current[index], locationId: event.target.value } }))}><option value="">Sin vínculo</option>{locations.map((option) => <option key={option.id} value={option.id}>{option.projectName ? `${option.projectName} · ${option.name}` : option.name}</option>)}</select></td>
+                                <td><Select aria-label={`Ubicación fila ${row.sourceRow}`} className={fieldClass} value={targetLocationId} onChange={(event) => setRowEdits((current) => ({ ...current, [index]: { ...current[index], locationId: event.target.value } }))}><option value="">Sin vínculo</option>{locations.map((option) => <option key={option.id} value={option.id}>{option.projectName ? `${option.projectName} · ${option.name}` : option.name}</option>)}</Select></td>
                                 <td><input aria-label={`Costo unitario fila ${row.sourceRow}`} className={fieldClass} type="number" min="0" step="0.000001" value={row.unitCost} onChange={(event) => setRowEdits((current) => ({ ...current, [index]: { ...current[index], unitCost: event.target.value } }))} /></td>
-                                <td><select aria-label={`Moneda fila ${row.sourceRow}`} className={fieldClass} value={parseInventoryImportCurrency(row.currency) ?? ""} onChange={(event) => setRowEdits((current) => ({ ...current, [index]: { ...current[index], currency: event.target.value } }))}><option value="">Sin asignar</option>{CURRENCIES.map((code) => <option key={code} value={code}>{code}</option>)}</select></td>
+                                <td><Select aria-label={`Moneda fila ${row.sourceRow}`} className={fieldClass} value={parseInventoryImportCurrency(row.currency) ?? ""} onChange={(event) => setRowEdits((current) => ({ ...current, [index]: { ...current[index], currency: event.target.value } }))}><option value="">Sin asignar</option>{CURRENCIES.map((code) => <option key={code} value={code}>{code}</option>)}</Select></td>
                                 <td>{parseInventoryImportCurrency(row.currency) !== "PYG" ? <input aria-label={`Tipo de cambio fila ${row.sourceRow}`} className={fieldClass} type="number" min="0.00000001" step="0.00000001" value={row.exchangeRate} onChange={(event) => setRowEdits((current) => ({ ...current, [index]: { ...current[index], exchangeRate: event.target.value } }))} /> : "—"}</td>
                                 <td className={rowErrors[index].length ? "text-[var(--error)]" : "text-[var(--ok)]"}>{rowErrors[index].length ? rowErrors[index].join("; ") : "Lista"}</td>
                               </tr>

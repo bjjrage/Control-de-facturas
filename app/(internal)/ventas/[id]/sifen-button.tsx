@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { emitirFE, emitirNC, consultarFE } from "../sifen-actions";
@@ -114,16 +116,16 @@ export function SifenButton({ docId, docType, status, cdc: initialCdc, kudeUrl: 
     <div className="flex flex-col items-end gap-1">
       {docType === "NOTA_CREDITO" ? <>
         <label className="text-[12px]">Motivo fiscal de NC
-          <select aria-label="Motivo fiscal de NC" value={motive} onChange={e => setMotive(e.target.value)} disabled={pending}>
+          <Select aria-label="Motivo fiscal de NC" value={motive} onChange={e => setMotive(e.target.value)} disabled={pending}>
             <option value="">Seleccionar motivo</option>
             {Object.entries(GOEKUA_NC_MOTIVES).map(([value, label]) => <option key={value} value={value}>{value} — {label}</option>)}
-          </select>
+          </Select>
         </label>
         {creditNoteItems.map(item => <label key={item.id} className="text-[12px]">{item.description}: ítem de factura origen
-          <select aria-label={`Ítem de origen para ${item.description}`} value={sourceIds[item.id] ?? ""} onChange={e => setSourceIds(prev => ({ ...prev, [item.id]: e.target.value }))} disabled={pending}>
+          <Select aria-label={`Ítem de origen para ${item.description}`} value={sourceIds[item.id] ?? ""} onChange={e => setSourceIds(prev => ({ ...prev, [item.id]: e.target.value }))} disabled={pending}>
             <option value="">Seleccionar ítem</option>
             {sourceInvoiceItems.map(source => <option key={source.id} value={source.id}>{source.description}</option>)}
-          </select>
+          </Select>
         </label>)}
       </> : null}
       <Button onClick={emitir} disabled={pending || (docType === "NOTA_CREDITO" && (!motive || !creditNoteItems.length || creditNoteItems.some(i => !sourceIds[i.id])))} variant="secondary">

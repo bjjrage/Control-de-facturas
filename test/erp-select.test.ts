@@ -23,6 +23,16 @@ describe("ERP Radix Select contracts", () => {
     const html = renderToStaticMarkup(createElement(Select, { name: "required", required: true, defaultValue: "" }, createElement("option", { value: "" }, "Choose")));
     expect(html).toMatch(/<input[^>]+required=""/); expect(html).toContain('aria-required="true"');
   });
+  it("keeps a disabled first empty placeholder empty without value or defaultValue", () => {
+    const html = renderToStaticMarkup(createElement(Select, { name: "provider_id", required: true }, createElement("option", { value: "", disabled: true }, "Elegí proveedor"), createElement("option", { value: "provider-a" }, "A")));
+    expect(html).toMatch(/<input[^>]+name="provider_id"[^>]+value=""/);
+    expect(html).toMatch(/<input[^>]+required=""/);
+    expect(html).not.toMatch(/<input[^>]+value="provider-a"/);
+  });
+  it("preserves operational data attributes on the visible trigger", () => {
+    const html = renderToStaticMarkup(createElement(Select, { "data-testid": "mapping-1" } as Parameters<typeof Select>[0], createElement("option", { value: "" }, "Choose")));
+    expect(html).toMatch(/<button[^>]+data-testid="mapping-1"/);
+  });
   it("migrates the required PREBID/RFQ/climate/personnel/weekly-plan surfaces", () => {
     for (const file of ["app/(internal)/licitaciones/[id]/prebid/workspace.tsx", "app/(internal)/rfqs/rfq-dialog.tsx", "app/(internal)/projects/[id]/climate-workdays-panel.tsx", "app/(internal)/projects/[id]/add-labor-entry-form.tsx", "app/(internal)/projects/[id]/weekly-plan-section.tsx"]) {
       const source = readFileSync(file,"utf8"); expect(source).toContain("Select"); expect(source).not.toMatch(/<select\b/);

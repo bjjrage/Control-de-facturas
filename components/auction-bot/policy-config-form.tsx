@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import React, { useRef, useState } from "react";
 import {
   AuctionPolicy,
@@ -287,7 +289,7 @@ export function PolicyConfigForm({
         </div>
         <div>
           <label className="block text-[12px] font-medium text-[var(--foreground)] mb-1">Alcance (Scope) *</label>
-          <select
+          <Select
             value={scope}
             onChange={(e) => setScope(e.target.value as AuctionScope)}
             className="w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-1.5 text-[13px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -295,7 +297,7 @@ export function PolicyConfigForm({
             <option value="ITEM">ITEM — un ítem de la subasta</option>
             <option value="LOT">LOT — un lote de la subasta</option>
             <option value="TOTAL">TOTAL — la subasta completa</option>
-          </select>
+          </Select>
         </div>
         <div>
           <label className="block text-[12px] font-medium text-[var(--foreground)] mb-1">ID Ítem / Lote / Total *</label>
@@ -341,7 +343,7 @@ export function PolicyConfigForm({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-[12px] font-medium text-[var(--muted)] mb-1">Objetivo de Posición</label>
-            <select
+            <Select
               value={positionStrategy}
               onChange={(e) => handleStrategyChange(e.target.value as PositionStrategyId)}
               className="w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-1.5 text-[13px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -349,7 +351,7 @@ export function PolicyConfigForm({
               <option value="TARGET_RANK_1">Posición #1 (Líder)</option>
               <option value="TARGET_TOP_2">Top 2 (Menor movimiento necesario)</option>
               <option value="TARGET_TOP_3">Top 3 (Menor movimiento necesario)</option>
-            </select>
+            </Select>
           </div>
 
           <div>
@@ -409,14 +411,14 @@ export function PolicyConfigForm({
             <label className="block text-[12px] font-medium text-[var(--muted)] mb-1">
               Fase Normal de Lances
             </label>
-            <select
+            <Select
               value={normalPhaseBehavior}
               onChange={(e) => setNormalPhaseBehavior(e.target.value as NormalPhaseBehavior)}
               className="w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-1.5 text-[13px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="WAIT">WAIT — Esperar tácticamente</option>
               <option value="ACTIVE">ACTIVE — Defender posición</option>
-            </select>
+            </Select>
           </div>
 
           <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
@@ -536,7 +538,7 @@ export function PolicyConfigForm({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
             <div>
               <label className="block text-[11px] font-medium text-[var(--muted)] mb-1">Modo</label>
-              <select
+              <Select
                 value={mipymeExecutionMode}
                 onChange={(e) => setMipymeExecutionMode(e.target.value as ExecutionMode)}
                 className="w-full rounded-md border border-[var(--border)] bg-[var(--panel)] px-3 py-1.5 text-[12px] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -544,7 +546,7 @@ export function PolicyConfigForm({
                 <option value="BOUNDED_AUTO">Bounded Auto</option>
                 <option value="ASSISTED">Assisted</option>
                 <option value="OBSERVE">Observe</option>
-              </select>
+              </Select>
             </div>
 
             <div>

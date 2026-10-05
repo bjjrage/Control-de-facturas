@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -332,7 +334,7 @@ export function NuevoMovimientoDialog({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelClass} htmlFor="manual-movement-type">Tipo</label>
-                  <select
+                  <Select
                     id="manual-movement-type"
                     className={fieldClass}
                     value={movementType}
@@ -342,11 +344,11 @@ export function NuevoMovimientoDialog({
                     <option value="TRANSFER">Transferencia</option>
                     <option value="RETURN">Devolución</option>
                     <option value="ADJUSTMENT">Ajuste autorizado</option>
-                  </select>
+                  </Select>
                 </div>
                 <div>
                   <label className={labelClass} htmlFor="manual-movement-product">Producto</label>
-                  <select
+                  <Select
                     id="manual-movement-product"
                     className={fieldClass}
                     value={productId}
@@ -358,7 +360,7 @@ export function NuevoMovimientoDialog({
                     {products.map((product) => (
                       <option key={product.id} value={product.id}>{product.name} · {product.unit}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               </div>
 
@@ -367,7 +369,7 @@ export function NuevoMovimientoDialog({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className={labelClass} htmlFor="manual-adjustment-direction">Tipo de ajuste</label>
-                      <select
+                      <Select
                         id="manual-adjustment-direction"
                         className={fieldClass}
                         value={adjustmentDirection}
@@ -376,11 +378,11 @@ export function NuevoMovimientoDialog({
                       >
                         <option value="INCREASE">Entrada por ajuste</option>
                         <option value="DECREASE">Salida por ajuste</option>
-                      </select>
+                      </Select>
                     </div>
                     <div>
                       <label className={labelClass} htmlFor="manual-adjustment-location">Ubicación</label>
-                      <select
+                      <Select
                         id="manual-adjustment-location"
                         className={fieldClass}
                         value={adjustmentLocationId}
@@ -392,7 +394,7 @@ export function NuevoMovimientoDialog({
                         {locations.map((location) => (
                           <option key={location.id} value={location.id}>{locationLabel(location)}</option>
                         ))}
-                      </select>
+                      </Select>
                     </div>
                   </div>
 
@@ -413,7 +415,7 @@ export function NuevoMovimientoDialog({
                     </div>
                     <div>
                       <label className={labelClass} htmlFor="manual-adjustment-currency">Moneda de costo</label>
-                      <select
+                      <Select
                         id="manual-adjustment-currency"
                         className={fieldClass}
                         value={effectiveCostCurrency}
@@ -433,7 +435,7 @@ export function NuevoMovimientoDialog({
                               {CURRENCIES.find((option) => option.code === currency)?.label ?? currency}
                             </option>
                           ))}
-                      </select>
+                      </Select>
                     </div>
                   </div>
 
@@ -504,7 +506,7 @@ export function NuevoMovimientoDialog({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className={labelClass} htmlFor="manual-movement-from">Origen</label>
-                      <select
+                      <Select
                         id="manual-movement-from"
                         className={fieldClass}
                         value={fromLocationId}
@@ -516,11 +518,11 @@ export function NuevoMovimientoDialog({
                         {locations.map((location) => (
                           <option key={location.id} value={location.id}>{locationLabel(location)}</option>
                         ))}
-                      </select>
+                      </Select>
                     </div>
                     <div>
                       <label className={labelClass} htmlFor="manual-movement-to">Destino</label>
-                      <select
+                      <Select
                         id="manual-movement-to"
                         className={fieldClass}
                         value={toLocationId}
@@ -534,7 +536,7 @@ export function NuevoMovimientoDialog({
                             {locationLabel(location)}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">

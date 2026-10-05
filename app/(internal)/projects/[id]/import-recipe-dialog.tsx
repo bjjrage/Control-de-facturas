@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { useMemo, useState } from "react";
 import { Upload, RefreshCw, CheckCircle2, AlertTriangle, X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -386,7 +388,7 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
                             {budgetItems.find((b) => b.id === p.st.itemId)?.description}
                           </span>
                         ) : (
-                          <select
+                          <Select
                             value={p.row.manualItemId}
                             onChange={(e) =>
                               setRows(rows.map((r) => (r.idx === p.row.idx ? { ...r, manualItemId: e.target.value } : r)))
@@ -400,7 +402,7 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
                                 {b.code} · {b.description}
                               </option>
                             ))}
-                          </select>
+                          </Select>
                         )}
                       </td>
                       <td className="py-1.5 px-2">
@@ -466,7 +468,7 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
                 {manualRows.map((r, idx) => (
                   <tr key={idx}>
                     <td className="py-1.5 px-2">
-                      <select
+                      <Select
                         value={r.budgetItemId}
                         onChange={(e) => updateManualRow(idx, "budgetItemId", e.target.value)}
                         className="h-7 w-full max-w-64 rounded border border-[var(--border)] bg-[var(--panel)] px-1 text-[11px]"
@@ -477,7 +479,7 @@ export function ImportRecipeDialog({ projectId, budgetItems, onImported, onClose
                             {b.code} · {b.description}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </td>
                     <td className="py-1.5 px-2">
                       <Input

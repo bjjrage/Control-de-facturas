@@ -10,9 +10,15 @@ function database() {
   const files = new Set<string>();
   const writes: { table: string; payload: Record<string, unknown> }[] = [];
   let uploadFail = false;
+  const failures = new Map<string, number>();
   const db = { from(table: string) {
     const filters: [string,unknown][] = []; let op = "read", payload: Record<string,unknown> = {};
     const run = () => {
+      const failureKey = `${table}:${op}`;
+      if ((failures.get(failureKey) ?? 0) > 0) {
+        failures.set(failureKey, failures.get(failureKey)! - 1);
+        return { data: null, error: { code: "temporary", message: "temporary failure" } };
+      }
       const match = rows[table].filter(row => filters.every(([key,value]) => row[key] === value));
       if (op === "insert") {
         const unique = table === "climate_events" ? "event_date" : table === "project_workday_status" ? "work_date" : "storage_path";
@@ -26,7 +32,7 @@ function database() {
     const q = { select() { return q; }, eq(key:string,value:unknown) { filters.push([key,value]); return q; }, insert(value:Record<string,unknown>) {op="insert";payload=value;return q;}, update(value:Record<string,unknown>) {op="update";payload=value;return q;}, single() {return Promise.resolve(run());}, maybeSingle() {return Promise.resolve(run());}, then(resolve: (v:unknown)=>unknown) { return Promise.resolve(run()).then(resolve); } };
     return q;
   }, storage: {from(bucket:string) { expect(bucket).toBe("execution-photos"); return { async upload(path:string,_bytes:Buffer,options:{upsert:boolean}) {expect(options.upsert).toBe(false);if(uploadFail)return{error:{message:"failed"}}; if(files.has(path))return{error:{message:"The resource already exists",statusCode:"409"}};files.add(path);return{error:null};} }; }} };
-  return { db: db as unknown as SupabaseClient, rows, files, writes, failUpload: () => { uploadFail = true; } };
+  return { db: db as unknown as SupabaseClient, rows, files, writes, failUpload: () => { uploadFail = true; }, failOnce: (table: string, op: string) => failures.set(`${table}:${op}`, 1) };
 }
 function form(mm="22") {
   const f = new FormData(); f.set("date","2026-09-03"); f.set("precipitation_mm",mm);
@@ -63,13 +69,56 @@ describe("resident rainfall token boundary and canonical persistence", () => {
     expect((await registerResidentRain(d.db,token,form())).error).toBeNull();expect(d.rows.climate_events[0]).toMatchObject({external_precipitation_mm:3,external_threshold_exceeded:false,threshold_exceeded:false,local_precipitation_mm:22,status:"CONFIRMED"});expect(d.rows.project_workday_status[0].classification).toBe("WORKABLE");
   });
   it("creates no facts if storage upload fails", async () => {const d=database();d.failUpload();expect((await registerResidentRain(d.db,token,form())).error).toBeTruthy();expect(d.writes).toHaveLength(0);});
+  it("does not persist a resident measurement or proposal when immutable evidence insertion fails", async () => {
+    const d = database(); d.failOnce("climate_evidence", "insert");
+    expect((await registerResidentRain(d.db, token, form())).error).toBeTruthy();
+    expect(d.rows.climate_events).toHaveLength(1);
+    expect(d.rows.climate_events[0].local_precipitation_mm).toBeUndefined();
+    expect(d.rows.climate_evidence).toHaveLength(0);
+    expect(d.rows.project_workday_status).toHaveLength(0);
+    expect((await registerResidentRain(d.db, token, form())).error).toBeNull();
+    expect(d.rows.climate_evidence).toHaveLength(1);
+    expect(d.rows.project_workday_status).toHaveLength(1);
+  });
+  it("resumes local measurement after evidence exists without duplicating or updating immutable evidence", async () => {
+    const d = database(); d.failOnce("climate_events", "update");
+    expect((await registerResidentRain(d.db, token, form())).error).toBeTruthy();
+    expect(d.rows.climate_evidence).toHaveLength(1);
+    expect(d.rows.climate_events[0].local_precipitation_mm).toBeUndefined();
+    expect(d.rows.project_workday_status).toHaveLength(0);
+    const evidence = structuredClone(d.rows.climate_evidence[0]);
+    expect((await registerResidentRain(d.db, token, form())).error).toBeNull();
+    expect(d.rows.climate_events[0].local_precipitation_mm).toBe(22);
+    expect(d.rows.project_workday_status).toHaveLength(1);
+    expect(d.rows.climate_evidence).toEqual([evidence]);
+    expect(d.writes.some(w => w.table === "climate_evidence" && w !== d.writes.find(x => x.table === "climate_evidence"))).toBe(false);
+  });
+  it("resumes a failed workday insertion even when evidence and measurement already exist", async () => {
+    const d = database(); d.failOnce("project_workday_status", "insert");
+    expect((await registerResidentRain(d.db, token, form())).error).toBeTruthy();
+    expect(d.rows.climate_evidence).toHaveLength(1);
+    expect(d.rows.climate_events[0].local_precipitation_mm).toBe(22);
+    expect(d.rows.project_workday_status).toHaveLength(0);
+    // A stale metadata flag from the preceding implementation must not short-circuit retries.
+    (d.rows.climate_evidence[0].metadata as Record<string, unknown>).measurement_saved = true;
+    expect((await registerResidentRain(d.db, token, form())).error).toBeNull();
+    expect(d.rows.project_workday_status).toHaveLength(1);
+    expect(d.rows.climate_evidence).toHaveLength(1);
+  });
+  it("writes photo evidence before local measurement and the resident proposal", async () => {
+    const d = database(); expect((await registerResidentRain(d.db, token, form())).error).toBeNull();
+    const evidenceIndex = d.writes.findIndex(w => w.table === "climate_evidence");
+    const measurementIndex = d.writes.findIndex(w => w.table === "climate_events" && "local_precipitation_mm" in w.payload);
+    const proposalIndex = d.writes.findIndex(w => w.table === "project_workday_status");
+    expect(evidenceIndex).toBeGreaterThan(-1); expect(measurementIndex).toBeGreaterThan(evidenceIndex); expect(proposalIndex).toBeGreaterThan(measurementIndex);
+  });
   it("deduplicates simultaneous reports through project/date and evidence keys", async () => {
     const d=database();const results=await Promise.all([registerResidentRain(d.db,token,form()),registerResidentRain(d.db,token,form())]);
     expect(results).toEqual([{error:null},{error:null}]);expect(d.rows.climate_events).toHaveLength(1);expect(d.rows.project_workday_status).toHaveLength(1);expect(d.rows.climate_evidence).toHaveLength(1);
   });
   it("keeps internal authority and legacy read-only while exposing existing actions", () => {
     const actions=readFileSync("app/(internal)/projects/climate-actions.ts","utf8"),panel=readFileSync("app/(internal)/projects/[id]/climate-workdays-panel.tsx","utf8"),resident=readFileSync("app/avance/[token]/resident-workflows.tsx","utf8");
-    expect(actions).not.toContain('.from("project_weather_log")');expect(actions).toContain('requirePlan("pro", ["administracion", "admin"])');expect(panel).toContain("createOtherWorkday(project.id, date, manualNote, manualType)");expect(panel).toContain("updateLocalPrecipitation(project.id, event.id");expect(panel).toContain("confirmWeatherWorkday(project.id");expect(panel).toContain("overrideWeatherWorkday(project.id");expect(resident).toContain("if (guard.current) return;");expect(resident).toContain("guard.current = true;");expect(resident).toContain("finally { guard.current = false");
+    expect(actions).not.toContain('.from("project_weather_log")');expect(actions).toContain('requirePlan("pro", ["administracion", "admin"])');expect(panel).toContain("createOtherWorkday(project.id, workDate");expect(panel).toContain("updateLocalPrecipitation(project.id, event.id");expect(panel).toContain("confirmWeatherWorkday(project.id");expect(panel).toContain("overrideWeatherWorkday(project.id");expect(resident).toContain("if (guard.current) return;");expect(resident).toContain("guard.current = true;");expect(resident).toContain("finally { guard.current = false");
     expect(readFileSync("app/(internal)/projects/[id]/avance-fisico-panel.tsx","utf8")).toContain("HISTÓRICO LEGACY — SOLO LECTURA");
   });
 });

@@ -33,18 +33,31 @@ export async function registerResidentRain(db: SupabaseClient, token: string, fo
   const digest = createHash("sha256").update(JSON.stringify([date, mm, notes])).update(bytes).digest("hex");
   const path = `${project.id}/climate/resident/${date}/${digest}.${jpeg ? "jpg" : png ? "png" : "webp"}`;
   try {
-    const prior = await db.from("climate_evidence").select("id,metadata").eq("project_id", project.id).eq("storage_path", path).maybeSingle();
+    const readEvidence = () => db.from("climate_evidence").select("id,climate_event_id,evidence_type").eq("project_id", project.id).eq("storage_path", path).maybeSingle();
+    const prior = await readEvidence();
     if (prior.error) throw new Error("No se pudo comprobar el reporte.");
-    if (prior.data?.metadata?.measurement_saved) return { error: null };
-    const uploaded = await db.storage.from("execution-photos").upload(path, bytes, { contentType: photo.type, upsert: false });
-    if (uploaded.error && !["409","Duplicate"].includes(String(uploaded.error.statusCode)) && !/already exists/i.test(uploaded.error.message)) throw new Error("No se pudo guardar la foto. Reintentá el mismo reporte.");
+    if (!prior.data) {
+      const uploaded = await db.storage.from("execution-photos").upload(path, bytes, { contentType: photo.type, upsert: false });
+      if (uploaded.error && !["409","Duplicate"].includes(String(uploaded.error.statusCode)) && !/already exists/i.test(uploaded.error.message)) throw new Error("No se pudo guardar la foto. Reintentá el mismo reporte.");
+    }
     const threshold = Number(project.precipitation_threshold_mm ?? 15);
     const event = await locateLocalClimateEvent(db, project.id, date, threshold);
+    let existingEvidence = prior.data;
+    if (!existingEvidence) {
+      // Evidence must exist before any resident measurement or workday proposal.
+      // Only event linkage: an existing workday may legitimately reference another causal event.
+      const evidence = await db.from("climate_evidence").insert({ project_id: project.id, climate_event_id: event.id, evidence_type: "RAIN_GAUGE_PHOTO", storage_bucket: "execution-photos", storage_path: path, file_name: `pluviometro-${date}`, mime_type: photo.type, size_bytes: bytes.length, metadata: { submitted_by_portal: true, precipitation_mm: mm, notes: notes || null } });
+      if (evidence.error) {
+        if (evidence.error.code !== "23505") throw new Error("No se pudo registrar la evidencia de la foto. Reintentá el mismo reporte.");
+        const concurrent = await readEvidence();
+        if (concurrent.error || !concurrent.data) throw new Error("No se pudo comprobar la evidencia de la foto. Reintentá el mismo reporte.");
+        existingEvidence = concurrent.data;
+      }
+    }
+    if (existingEvidence && (existingEvidence.climate_event_id !== event.id || existingEvidence.evidence_type !== "RAIN_GAUGE_PHOTO")) throw new Error("La evidencia no corresponde a este reporte.");
+    // Immutable evidence is not a completion marker: retries resume both canonical writes.
     const saved = await attachLocalPrecipitation(db, project.id, event.id, mm);
     await proposeResidentWorkday(db, project.id, date, event.id, mm, Number(saved.contract_threshold_mm ?? threshold), notes || null);
-    // Only event linkage: an existing workday may legitimately reference another causal event.
-    const evidence = await db.from("climate_evidence").insert({ project_id: project.id, climate_event_id: event.id, evidence_type: "RAIN_GAUGE_PHOTO", storage_bucket: "execution-photos", storage_path: path, file_name: `pluviometro-${date}`, mime_type: photo.type, size_bytes: bytes.length, metadata: { submitted_by_portal: true, precipitation_mm: mm, notes: notes || null, measurement_saved: true } });
-    if (evidence.error && evidence.error.code !== "23505") throw new Error("La medición se guardó; reintentá para adjuntar su foto.");
     return { error: null };
   } catch (cause) {
     return { error: cause instanceof Error ? cause.message : "No se pudo registrar la lluvia." };

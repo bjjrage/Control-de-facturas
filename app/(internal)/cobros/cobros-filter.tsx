@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { useRouter } from "next/navigation";
 
 export function CobrosFilter({
@@ -11,7 +13,7 @@ export function CobrosFilter({
 }) {
   const router = useRouter();
   return (
-    <select
+    <Select
       defaultValue={selected ?? ""}
       onChange={(e) =>
         router.push(`/cobros${e.target.value ? `?client=${e.target.value}` : ""}`)
@@ -24,6 +26,6 @@ export function CobrosFilter({
           {c.name}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }

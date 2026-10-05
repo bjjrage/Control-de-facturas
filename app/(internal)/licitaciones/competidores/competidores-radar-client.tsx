@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -223,7 +225,7 @@ export function CompetidoresRadarClient({
         {/* Período */}
         <div className="flex items-center gap-1">
           <span className="text-[var(--muted)]">Período:</span>
-          <select
+          <Select
             value={currentFilters.period}
             onChange={(e) => updateQuery({ period: Number(e.target.value) as RadarPeriodMonths, page: undefined })}
             className="rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-xs font-medium text-[var(--foreground)] shadow-2xs focus:border-[var(--nav-active)] focus:outline-none"
@@ -233,13 +235,13 @@ export function CompetidoresRadarClient({
             <option value={36}>36 meses</option>
             <option value={60}>5 años</option>
             <option value={0}>Todo el histórico</option>
-          </select>
+          </Select>
         </div>
 
         {/* Actividad / Evidencia */}
         <div className="flex items-center gap-1">
           <span className="text-[var(--muted)]">Actividad:</span>
-          <select
+          <Select
             value={currentFilters.evidence}
             onChange={(e) => updateQuery({ evidence: e.target.value as RadarEvidenceFilter, page: undefined })}
             className="rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-xs font-medium text-[var(--foreground)] shadow-2xs focus:border-[var(--nav-active)] focus:outline-none"
@@ -247,13 +249,13 @@ export function CompetidoresRadarClient({
             <option value="CON_EVIDENCIA">Con evidencia (Default)</option>
             <option value="ACTIVOS">Activos</option>
             <option value="TODOS">Todos los proveedores</option>
-          </select>
+          </Select>
         </div>
 
         {/* Ofertas Mínimas */}
         <div className="flex items-center gap-1">
           <span className="text-[var(--muted)]">Ofertas mín.:</span>
-          <select
+          <Select
             value={currentFilters.minBids}
             onChange={(e) => updateQuery({ minBids: Number(e.target.value), page: undefined })}
             className="rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-xs font-medium text-[var(--foreground)] shadow-2xs focus:border-[var(--nav-active)] focus:outline-none"
@@ -262,13 +264,13 @@ export function CompetidoresRadarClient({
             <option value={3}>&gt;= 3</option>
             <option value={5}>&gt;= 5</option>
             <option value={10}>&gt;= 10</option>
-          </select>
+          </Select>
         </div>
 
         {/* Certeza */}
         <div className="flex items-center gap-1">
           <span className="text-[var(--muted)]">Certeza:</span>
-          <select
+          <Select
             value={currentFilters.certainty}
             onChange={(e) => updateQuery({ certainty: e.target.value as RadarCertaintyFilter, page: undefined })}
             className="rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-xs font-medium text-[var(--foreground)] shadow-2xs focus:border-[var(--nav-active)] focus:outline-none"
@@ -278,13 +280,13 @@ export function CompetidoresRadarClient({
             <option value="MEDIA">MEDIA (5-14 obs)</option>
             <option value="BAJA">BAJA (2-4 obs)</option>
             <option value="INSUFICIENTE">INSUFICIENTE (&lt;2)</option>
-          </select>
+          </Select>
         </div>
 
         {/* Resultado */}
         <div className="flex items-center gap-1">
           <span className="text-[var(--muted)]">Resultado:</span>
-          <select
+          <Select
             value={currentFilters.outcome}
             onChange={(e) => updateQuery({ outcome: e.target.value as RadarOutcomeFilter, page: undefined })}
             className="rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-xs font-medium text-[var(--foreground)] shadow-2xs focus:border-[var(--nav-active)] focus:outline-none"
@@ -292,7 +294,7 @@ export function CompetidoresRadarClient({
             <option value="TODOS">Todos</option>
             <option value="CON_ADJUDICACIONES">Con adjudicaciones</option>
             <option value="SIN_ADJUDICACIONES">Sin adjudicaciones</option>
-          </select>
+          </Select>
         </div>
       </div>
 

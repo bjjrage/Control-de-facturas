@@ -4,7 +4,7 @@ const path = require('node:path');
 const http = require('node:http');
 const assert = require('node:assert/strict');
 const { firefox } = require('playwright');
-const output = path.join(process.cwd(), 'audit-artifacts/ui-recovery-01/correction-2');
+const output = path.join(process.cwd(), process.argv[2] || 'audit-artifacts/ui-recovery-01/correction-2');
 const fixture = path.join(process.cwd(), 'audit-artifacts/ui-recovery-01/local');
 
 (async () => {
@@ -90,6 +90,29 @@ const fixture = path.join(process.cwd(), 'audit-artifacts/ui-recovery-01/local')
     await page.keyboard.press('Escape');
 
     await page.getByRole('button', { name: 'Clima / Libro', exact: true }).click();
+    assert.equal(await page.locator('details').first().getAttribute('open'), null);
+    assert.equal(await page.getByText('Histórico anterior · LEGACY · solo lectura', { exact: true }).locator('..').getAttribute('open'), null);
+    await page.getByRole('button', { name: 'Día 2026-09-03', exact: true }).click();
+    await page.getByLabel('Detalle del día 2026-09-03').getByRole('button', { name: 'Confirmar sugerencia LL', exact: true }).waitFor();
+    await capture('calendar-primary-proposal-resident');
+    await page.getByRole('button', { name: 'Link / QR para residente', exact: true }).click();
+    await page.getByRole('dialog').getByRole('img', { name: 'QR del registro de avance' }).waitFor();
+    assert.match(await page.getByRole('dialog').innerText(), /\/avance\/11111111-1111-4111-8111-111111111111/);
+    await capture('calendar-resident-qr');
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Confirmar sugerencia LL', exact: true }).click();
+    await page.waitForFunction(() => window.__actionCalls?.some(c => c.name === 'confirmWeatherWorkday'));
+    assert.equal((await calls('confirmWeatherWorkday'))[0].args[1], 'climate-workday-1');
+    await page.getByRole('button', { name: 'Ignorar sugerencia · marcar B', exact: true }).click();
+    await page.waitForFunction(() => window.__actionCalls?.some(c => c.name === 'overrideWeatherWorkday'));
+    assert.equal((await calls('overrideWeatherWorkday')).at(-1).args[2].classification, 'WORKABLE');
+    tests.push('Calendar proposal/resident evidence, explicit human confirm/ignore, existing resident QR');
+    await page.getByRole('button', { name: 'Día 2026-09-02', exact: true }).click();
+    await page.getByRole('button', { name: 'Marcar B 2026-09-02', exact: true }).click();
+    await page.waitForFunction(() => window.__actionCalls?.some(c => c.name === 'overrideWeatherWorkday' && c.args[1] === 'human-workday-fixture'));
+    assert.equal((await calls('overrideWeatherWorkday')).find(c => c.args[1] === 'human-workday-fixture').args[2].classification, 'WORKABLE');
+    tests.push('Calendar admin corrects an existing confirmed human day through existing override action');
+    await page.getByText('Detalle avanzado · mediciones, evidencia y correcciones', { exact: true }).click();
     await page.getByRole('button', { name: 'Corregir / Override', exact: true }).click();
     const classification = page.getByRole('combobox', { name: 'Clasificación final', exact: true });
     await classification.click(); await page.getByRole('listbox').waitFor();
@@ -99,19 +122,23 @@ const fixture = path.join(process.cwd(), 'audit-artifacts/ui-recovery-01/local')
     await reason.click(); await page.getByRole('option', { name: 'Acceso bloqueado', exact: true }).click();
     await page.getByRole('button', { name: 'Guardar override', exact: true }).click();
     await page.waitForFunction(() => window.__actionCalls?.some(c => c.name === 'overrideWeatherWorkday'));
-    const override = (await calls('overrideWeatherWorkday'))[0].args[2];
+    const override = (await calls('overrideWeatherWorkday')).at(-1).args[2];
     assert.equal(override.classification, 'NON_WORKABLE_OTHER'); assert.equal(override.reasonCode, 'ACCESS_BLOCKED');
     tests.push('Climate exact canonical enum payload');
     await capture('climate-review-manual');
-    await page.getByText('HISTÓRICO LEGACY — SOLO LECTURA', { exact: true }).scrollIntoViewIfNeeded();
+    await page.getByText('Histórico anterior · LEGACY · solo lectura', { exact: true }).scrollIntoViewIfNeeded();
     await capture('legacy-read-only');
     assert.equal(await page.locator('select').count(), 0);
-    await page.getByRole('combobox', { name: 'Tipo entrada manual' }).click();
-    await page.getByRole('option', { name: 'Día de lluvia', exact: true }).click();
-    await page.getByRole('button', { name: 'Guardar decisión manual' }).click();
-    await page.waitForFunction(() => window.__actionCalls?.some(c => c.name === 'createOtherWorkday'));
-    assert.equal((await calls('createOtherWorkday'))[0].args[3], 'NON_WORKABLE_RAIN');
-    tests.push('Manual canonical entry selected classification');
+    for (const [index, code, classification, reason] of [[4,'B','WORKABLE',null],[5,'LL','NON_WORKABLE_RAIN',null],[6,'HH','NON_WORKABLE_OTHER','TERRAIN_SATURATED'],[7,'O','NON_WORKABLE_OTHER','OTHER']]) {
+      const date=`2026-09-${String(index).padStart(2,'0')}`;
+      await page.getByRole('button',{name:`Día ${date}`,exact:true}).click();
+      await page.getByRole('button',{name:`Marcar ${code} ${date}`,exact:true}).click();
+      await page.waitForFunction(d=>window.__actionCalls?.some(c=>c.name==='createOtherWorkday'&&c.args[1]===d),date);
+      const saved=(await calls('createOtherWorkday')).find(c=>c.args[1]===date).args;
+      assert.equal(saved[3],classification);assert.equal(saved[4],reason);
+      tests.push(`Calendar ${code} actual canonical classification/reason payload`);
+    }
+    await capture('calendar-manual-day');
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole('button', { name: 'Residente', exact: true }).click();
     await page.getByRole('button', { name: 'Registrar lluvia', exact: true }).click();

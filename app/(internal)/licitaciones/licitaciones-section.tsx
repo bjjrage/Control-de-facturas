@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -164,7 +166,7 @@ function LicitacionRow({ lic }: { lic: Partial<Licitacion> }) {
         </Link>
       </td>
       <td>
-        <select
+        <Select
           value={lic.decision ?? "SIN_REVISAR"}
           onChange={async (e) => {
             await setLicitacionDecision(lic.id as string, e.target.value as LicitacionDecision);
@@ -175,7 +177,7 @@ function LicitacionRow({ lic }: { lic: Partial<Licitacion> }) {
           {(Object.keys(DECISION_LABEL) as LicitacionDecision[]).map((d) => (
             <option key={d} value={d}>{DECISION_LABEL[d]}</option>
           ))}
-        </select>
+        </Select>
       </td>
     </tr>
   );

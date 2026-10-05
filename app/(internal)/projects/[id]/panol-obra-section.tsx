@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
@@ -163,7 +165,7 @@ function SubmissionLineEditor({
       </label>
       <label className="text-[10px] text-[var(--muted)]">
         Producto
-        <select
+        <Select
           value={draft.productoId}
           disabled={locked}
           onChange={(event) => {
@@ -179,7 +181,7 @@ function SubmissionLineEditor({
         >
           <option value="">Seleccionar producto</option>
           {products.map((product) => <option key={product.id} value={product.id}>{product.nombre} · {product.unidad}</option>)}
-        </select>
+        </Select>
       </label>
       <label className="text-[10px] text-[var(--muted)]">
         Cantidad
@@ -204,7 +206,7 @@ function SubmissionLineEditor({
       </label>
       <label className="text-[10px] text-[var(--muted)]">
         Partida de obra
-        <select
+        <Select
           value={draft.budgetItemId}
           disabled={locked}
           onChange={(event) => setDraft((current) => ({ ...current, budgetItemId: event.target.value }))}
@@ -212,18 +214,18 @@ function SubmissionLineEditor({
         >
           <option value="">Seleccionar partida</option>
           {budgetItems.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.description}</option>)}
-        </select>
+        </Select>
       </label>
       <label className="text-[10px] text-[var(--muted)]">
         Revisión
-        <select
+        <Select
           value={draft.state}
           disabled={locked}
           onChange={(event) => setDraft((current) => ({ ...current, state: event.target.value as LineState }))}
           className="mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--panel)] px-2 text-[12px] text-[var(--foreground)]"
         >
           {(["PROPOSED", "CONFIRMED", "REJECTED"] as LineState[]).map((state) => <option key={state} value={state}>{LINE_STATE_LABEL[state]}</option>)}
-        </select>
+        </Select>
       </label>
       <div className="flex items-end">
         <Button type="button" onClick={save} disabled={locked || pending} className="h-9 w-full px-2 text-[11px]">
@@ -406,9 +408,9 @@ export function PanolObraSection({
         {locations.length > 1 ? (
           <label className="mt-3 block max-w-md text-[11px] text-[var(--muted)]">
             Ubicación de depósito
-            <select value={locationId} onChange={(event) => setSelectedLocationId(event.target.value)} className="mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 text-xs text-[var(--foreground)]">
+            <Select value={locationId} onChange={(event) => setSelectedLocationId(event.target.value)} className="mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 text-xs text-[var(--foreground)]">
               {locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
-            </select>
+            </Select>
           </label>
         ) : locations.length === 1 ? <p className="mt-2 text-[11px] text-[var(--muted)]">Ubicación: {locations[0].name}</p> : (
           <div className="mt-3 flex flex-wrap items-center gap-3">

@@ -354,6 +354,7 @@ export function ProjectTabsClient({
             events={climateEvents}
             workdays={climateWorkdays}
             evidence={climateEvidence}
+            appUrl={appUrl}
           />
         </div>
       ) : null}
@@ -567,6 +568,7 @@ export function ProjectTabsClient({
           climateEvidence={climateEvidence}
           schedulePlans={projectSchedulePlans}
           planMonths={schedulePlanMonths}
+          appUrl={appUrl}
         />
       ) : null}
     </div>
