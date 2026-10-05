@@ -32,10 +32,7 @@
   outline-offset: 2px;
 }
 
-.toolbar { display: flex; flex-wrap: wrap; gap: 10px; }
-.controlGroup { flex: 1 1 240px; display: flex; flex-direction: column; gap: 9px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
-.groupLabel { font-size: 11px; font-weight: 700; color: var(--foreground); }
-.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
 .helper { font-size: 10px; color: var(--muted); }
 .modeButton, .clearButton, .typeButton, .saveButton { min-height: 34px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 11px; font-weight: 600; cursor: pointer; transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }
 .modeButton { display: inline-flex; align-items: center; gap: 7px; color: var(--foreground); background: var(--panel-2); }
@@ -51,7 +48,6 @@
 .typeButton[data-code="HH"] { --type-color: #ffda80; --type-border: #9d7938; --type-bg: #40321b; --type-glow: #ffc75d4d; }
 .typeButton[data-code="O"] { --type-color: #ddc0ff; --type-border: #8562ae; --type-bg: #32223f; --type-glow: #c496ff4d; }
 .typeButton:not(:disabled):hover { border-color: var(--type-color); background: color-mix(in srgb, var(--type-bg), var(--type-color) 18%); box-shadow: 0 0 10px var(--type-glow); }
-.typeLabel { font-size: 10px; font-weight: 400; }
 .saveButton { color: #fff; background: #245f91; border-color: #73b2df; }
 .saveButton:not(:disabled):hover { background: #327aaf; box-shadow: 0 0 9px #73b2df45; }
 .toolbar button:disabled { opacity: .45; cursor: not-allowed; }

@@ -1,5 +1,9 @@
 # UI RECOVERY 01
 
+## Compact toolbar restored
+
+User requested retaining the previous single compact toolbar rather than three panels. Restored the original order: selected count, B/LL/HH/O, multiple-selection toggle, clear selection, draft count and save/discard. Kept individual type colors and hovers, bordered selection controls and the persistent ACTIVA/INACTIVA mode badge. Removed the three group cards and expanded type labels. Draft/save behavior, calendar layout and server actions are unchanged. Previous verification below describes its corresponding commit; no new test run for this layout-only correction.
+
 ## Mixed calendar draft and explicit final save
 
 Supersedes the earlier immediate-save toolbar below. Selecting dates and assigning B/LL/HH/O now makes a local draft only. Different groups can receive different types, and a later assignment replaces that date's draft type. Calendar cells show the draft code and “Sin guardar”; confirmed counters continue to represent saved human decisions. “Guardar cambios” submits the whole draft through one server action. Successful dates leave the draft; failed dates retain their codes and remain selected for retry. Discard clears local changes without writes. A browser close/reload warning protects a nonempty draft.

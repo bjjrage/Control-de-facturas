@@ -73,31 +73,15 @@ export function ClimateLibroCalendar({ project, events, workdays, evidence, pend
     <p className="text-[11px] text-[var(--muted)]">Seleccioná días con clic o Ctrl + clic y asigná B, LL, HH u O. Armá todos los grupos y después pulsá Guardar cambios. Los tipos quedan en borrador hasta guardar.</p>
     <div className="flex flex-wrap gap-3 text-[11px]">{(Object.keys(LIBRO_LABELS) as WeatherCode[]).map(code => <span key={code}><strong className={COLORS[code]}>{code}</strong> · {LIBRO_LABELS[code]}</span>)}</div>
     <div className={styles.toolbar} aria-label="Marcar estado del Libro">
-      <div className={styles.controlGroup}>
-        <span className={styles.groupLabel}>1 · Seleccionar días</span>
-        <div className={styles.controls}>
-          <button className={styles.modeButton} type="button" disabled={busy} aria-label="Selección múltiple" aria-pressed={additive} onClick={() => setAdditive(value => !value)}>
-            <span aria-hidden="true">{additive ? "✓" : "+"}</span> Selección múltiple <span className={styles.modeBadge}>{additive ? "ACTIVA" : "INACTIVA"}</span>
-          </button>
-          <button className={styles.clearButton} type="button" disabled={busy || !selected.length} onClick={() => setSelected([])}>Limpiar selección</button>
-        </div>
-        <span className={styles.helper} aria-live="polite">{selected.length} {selected.length === 1 ? "día seleccionado" : "días seleccionados"} · {additive ? "Cada clic suma o quita un día" : "Clic individual · Ctrl + clic para sumar"}</span>
-      </div>
-      <div className={styles.controlGroup}>
-        <span className={styles.groupLabel}>2 · Asignar tipo al borrador</span>
-        <div className={styles.controls}>
-          {(Object.keys(LIBRO_LABELS) as WeatherCode[]).map(code => <button className={styles.typeButton} data-code={code} key={code} type="button" disabled={busy || !selected.length} onClick={() => markSelection(code)} aria-label={`Aplicar ${code} a días seleccionados`} title={`${LIBRO_LABELS[code]} · preparar sin guardar`}>{code}<span className={styles.typeLabel}>{LIBRO_LABELS[code]}</span></button>)}
-        </div>
-        <span className={styles.helper}>Asignar un tipo no guarda. Podés seguir con otro grupo.</span>
-      </div>
-      <div className={styles.controlGroup}>
-        <span className={styles.groupLabel}>3 · Guardar todos los cambios</span>
-        <div className={styles.controls}>
-          <button className={styles.saveButton} type="button" disabled={busy || !draftCount} onClick={() => startTransition(() => saveDraft())}>Guardar cambios</button>
-          <button className={styles.clearButton} type="button" disabled={busy || !draftCount} onClick={() => { setDraft({}); setSelected([]); setResult(null); }}>Descartar cambios</button>
-        </div>
-        <span className={styles.helper} aria-live="polite">{draftCount} {draftCount === 1 ? "cambio sin guardar" : "cambios sin guardar"}</span>
-      </div>
+      <strong className="mr-2 text-xs" aria-live="polite">{selected.length} {selected.length === 1 ? "día seleccionado" : "días seleccionados"}</strong>
+      {(Object.keys(LIBRO_LABELS) as WeatherCode[]).map(code => <button className={styles.typeButton} data-code={code} key={code} type="button" disabled={busy || !selected.length} onClick={() => markSelection(code)} aria-label={`Aplicar ${code} a días seleccionados`} title={`${LIBRO_LABELS[code]} · preparar sin guardar`}>{code}</button>)}
+      <button className={styles.modeButton} type="button" disabled={busy} aria-label="Selección múltiple" aria-pressed={additive} onClick={() => setAdditive(value => !value)}>
+        <span aria-hidden="true">{additive ? "✓" : "+"}</span> Selección múltiple <span className={styles.modeBadge}>{additive ? "ACTIVA" : "INACTIVA"}</span>
+      </button>
+      <button className={styles.clearButton} type="button" disabled={busy || !selected.length} onClick={() => setSelected([])}>Limpiar selección</button>
+      <span className={styles.helper} aria-live="polite">{draftCount} {draftCount === 1 ? "cambio sin guardar" : "cambios sin guardar"}</span>
+      <button className={styles.saveButton} type="button" disabled={busy || !draftCount} onClick={() => startTransition(() => saveDraft())}>Guardar cambios</button>
+      <button className={styles.clearButton} type="button" disabled={busy || !draftCount} onClick={() => { setDraft({}); setSelected([]); setResult(null); }}>Descartar cambios</button>
       {saving ? <span className="text-xs" role="status">Guardando días…</span> : null}
     </div>
     {result ? <div className="text-xs" role="status">
