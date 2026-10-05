@@ -1,5 +1,47 @@
 # UI RECOVERY 01
 
+## Correction #2 — current review evidence
+
+This section supersedes the earlier correction's native-select approach, missing resident workflow, verification counts and review blockers below. Earlier sections retain the implementation history.
+
+- Same PR #33 and branch `fix/ui-surface-recovery-01`; preceding HEAD `11d4b1f242b1068cf2582208df4c758676327c1b`.
+- Manual workday entry reuses `createOtherWorkday` with the three canonical classifications. Dates are validated against project start and today; tenant authorization and human decision rules remain enforced. Concurrent confirmation prevents overwrite.
+- Local precipitation reuses `updateLocalPrecipitation` and the existing local-measurement helper. External precipitation and external/local threshold flags remain separate. Event observations without a workday can also receive a local measurement and rain-gauge evidence.
+- Existing `/avance/[token]`, project execution token and QR are reused. The mobile portal has Parte diario / Registrar lluvia tabs. Rain requires one validated image, date and nonnegative local millimetres; notes are optional. The server resolves the active project from the token, rejects browser project/company/event/decision authority, and validates historical dates and image bytes/dimensions.
+- Resident rain uses `climate_events`, `project_workday_status` and immutable `climate_evidence` with `RAIN_GAUGE_PHOTO`. It only proposes a workday; it cannot confirm a contractual lost day. Existing human Confirmar / Override remain available. Existing human decisions are preserved.
+- A synchronous submit guard plus content-addressed project storage path, no-upsert upload, project/date uniqueness and duplicate retry handling protect submissions. Evidence references its actual event without changing an existing workday's causal event.
+- Legacy `project_weather_log` is subordinate and read-only: `HISTÓRICO LEGACY — SOLO LECTURA`. These new entry paths never write legacy rows.
+- Shared Select uses installed Radix Select 2.3.7, portal rendering and dark ERP styling. Its exported `unstable_Provider` avoids the primitive's native bubble select; a single form input preserves successful-control semantics. This dependency boundary is regression-covered and must be rechecked on a Radix upgrade. No dependency/package changes.
+- Required PREBID, RFQ, Personnel, climate, Weekly Plan and schedule selectors were migrated. There are **51 remaining raw native selectors outside these corrected flows**; exact locations are in `audit-artifacts/ui-recovery-01/correction-2/native-select-remaining.txt`. This is not a claim of repository-wide elimination.
+- Read-only production schema inspection confirmed UUID execution tokens, nullable evidence uploader, project/date unique keys, immutable evidence/storage constraints, causal/tenant guards and required image bucket. No schema gap or migration. Production ledger **52**; existing validation Preview ledger **52**. No database mutations were performed.
+
+### Correction #2 verification
+
+| Check | Result |
+| --- | --- |
+| Focused climate tests | 47 PASS: existing climate suites 28, resident rain 13, internal actions 6 |
+| Shared Select unit/contracts | 11 PASS |
+| Actual components in Windows Firefox | 10 PASS, no page errors; keyboard, modal portal, actual PREBID/RFQ/personnel/climate/result payloads, mobile rain and disabled/read-only semantics |
+| Full suite | 173 files passed, 2 skipped; 1,804 tests passed, 16 skipped |
+| Typecheck | PASS (`tsc --noEmit`) |
+| Build | PASS (`next build --webpack`, 59 static pages) |
+| Default Turbopack local build | Environment limitation: node_modules junction resolves outside filesystem root. No build configuration change was made. |
+| Build environment | Only existing public Preview Supabase URL/anon values were injected into the child process; no env file or remote configuration was changed. |
+| Diff check | PASS before publication |
+| Migrations / Production data mutations | 0 / 0 |
+
+Firefox screenshots and `browser-results.json` in `audit-artifacts/ui-recovery-01/correction-2/` show the actual components with synthetic fixtures. All server actions are blocked/stubbed and no ERP records are created. Evidence includes PREBID and RFQ expanded selectors, climate classification, the manual/review panel, mobile resident rain and subordinate legacy history. These captures are local verification, not authenticated acceptance on deployed data.
+
+The branch Preview will be created from the published correction SHA in the existing Vercel project, using a deployment-specific ignored-build override. Project and Production settings must remain unchanged. Its exact deployment SHA, READY state and URL are reported separately after deployment; the earlier Preview is not evidence for this correction.
+
+### Correction #2 classification
+
+- P0: none identified.
+- P1: reported missing climate workflows and Firefox dropdown defects corrected and locally verified; external review remains required.
+- P2: no new defect identified in the corrected scope; earlier missing capabilities remain outside this task.
+- P3: 51 native selectors outside the corrected flows; authenticated deployed-data visual acceptance not performed. Radix unstable provider upgrade boundary documented and tested.
+- No merge, main changes, Production deployment, database change, financial formula, MRP rule or RFQ semantic change. Review readiness requires a READY Preview of the published correction SHA.
+
 ## Release boundary
 
 - Branch: `fix/ui-surface-recovery-01`.

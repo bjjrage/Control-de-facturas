@@ -1,0 +1,18 @@
+{
+  "browser": "Windows Firefox / Playwright",
+  "fixtureOnly": true,
+  "productionMutations": 0,
+  "tests": [
+    "PREBID actual APU payload product/item/quantity",
+    "Radix Arrow/End/Enter/Escape keyboard interaction",
+    "Existing RFQ discovery product/provider payload",
+    "RFQ actual catalog selection action payload",
+    "Personnel actual FormData item/category",
+    "Climate exact canonical enum payload",
+    "Manual canonical entry selected classification",
+    "Mobile resident photo required; no browser runtime fatal",
+    "PREBID actual Resultado FormData",
+    "Read-only disabled Select excluded from actual FormData"
+  ],
+  "errors": []
+}

@@ -14,7 +14,8 @@ describe("field operations QR product contract", () => {
     });
     expect(read("app/(internal)/projects/[id]/execution-link-dialog.tsx")).toContain("QR para Residente");
     expect(read("app/(internal)/projects/[id]/execution-link-dialog.tsx")).not.toContain("capataz");
-    expect(read("app/avance/[token]/page.tsx")).toContain("Registrar parte diario");
+    expect(read("app/avance/[token]/page.tsx")).toContain("<ResidentWorkflows token={token}");
+    expect(read("app/avance/[token]/resident-workflows.tsx")).toContain("Parte diario");
     expect(read("app/avance/[token]/avance-form.tsx")).toContain("Registrar parte diario");
     expect(read("app/(internal)/projects/[id]/ejecucion-table.tsx")).not.toContain("capataz");
   });
@@ -26,7 +27,8 @@ describe("field operations QR product contract", () => {
     expect(dialog).toContain("QRCode.toDataURL(portalUrl");
     expect(dialog).toContain("Descargar QR");
     expect(dialog).toContain("Copiar link");
-    expect(portal).toContain("<AvanceForm token={token}");
+    expect(portal).toContain("<ResidentWorkflows token={token}");
+    expect(read("app/avance/[token]/resident-workflows.tsx")).toContain("<AvanceForm token={token}");
   });
 
   it("shows one-time warehouse QR material while preserving scoped revoke and rotate actions", () => {

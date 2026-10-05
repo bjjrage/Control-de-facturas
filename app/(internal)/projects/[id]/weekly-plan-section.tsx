@@ -1,4 +1,6 @@
 "use client";
+import { Select } from "@/components/ui/input";
+
 
 import { WeeklyPlanResources } from "./weekly-plan-resources";
 import { useState, useEffect, useMemo, useRef, Fragment } from "react";
@@ -1883,7 +1885,7 @@ export function WeeklyPlanSection({ project }: Props) {
             </div>
             <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--muted)]">
               <span>Estado (compatibilidad):</span>
-              <select
+              <Select
                 value={compatStatus}
                 onChange={(e) => setCompatStatus(e.target.value as WeeklyPlanStatus)}
                 data-testid="compat-status"
@@ -1892,7 +1894,7 @@ export function WeeklyPlanSection({ project }: Props) {
                 <option value="DRAFT">Borrador (DRAFT)</option>
                 <option value="COMMITTED">Comprometido (COMMITTED)</option>
                 <option value="CLOSED">Cerrado (CLOSED)</option>
-              </select>
+              </Select>
               <button
                 type="button"
                 onClick={() => handleSaveWithStatus(compatStatus)}

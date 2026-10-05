@@ -1,5 +1,7 @@
 "use server";
 
+import { locateLocalClimateEvent, validClimateDate } from "@/lib/procurement/climate-entry";
+
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requirePlan } from "@/lib/auth";
@@ -296,38 +298,48 @@ export async function createOtherWorkday(
   projectId: string,
   workDate: string,
   notes: string,
+  classification: "WORKABLE" | "NON_WORKABLE_RAIN" | "NON_WORKABLE_OTHER" = "NON_WORKABLE_OTHER",
 ): Promise<{ error: string | null }> {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const { supabase, exists } = await ownedProject(projectId, profile.empresa_id);
   if (!exists) return { error: "Proyecto no encontrado." };
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate)) return { error: "La fecha no es válida." };
+  if (!validClimateDate(workDate)) return { error: "La fecha no es válida." };
+  if (typeof notes !== "string" || notes.length > 500) return { error: "La nota admite hasta 500 caracteres." };
   const { data: existing } = await supabase
     .from("project_workday_status")
-    .select("id, decision_status")
+    .select("id, decision_status, climate_event_id")
     .eq("project_id", projectId)
     .eq("work_date", workDate)
     .maybeSingle();
   if (existing?.decision_status === "CONFIRMED") return { error: "La jornada ya tiene una decisión confirmada." };
 
+  if (!["WORKABLE", "NON_WORKABLE_RAIN", "NON_WORKABLE_OTHER"].includes(classification)) return { error: "Clasificación inválida." };
+  const { data: project } = await supabase.from("projects").select("start_date,precipitation_threshold_mm").eq("id", projectId).single();
+  if (!project || !validClimateDate(workDate, project.start_date)) return { error: "Fecha fuera del período de obra." };
+  let climateEventId: string | null = existing?.climate_event_id ?? null;
+  if (classification === "NON_WORKABLE_RAIN") {
+    try { climateEventId = (await locateLocalClimateEvent(supabase, projectId, workDate, Number(project.precipitation_threshold_mm ?? 15))).id; } catch { return { error: "No se pudo registrar el evento de lluvia." }; }
+  }
   const payload = {
     project_id: projectId,
     work_date: workDate,
-    classification: "NON_WORKABLE_OTHER",
-    reason_code: "OTHER",
+    classification,
+    climate_event_id: climateEventId,
+    reason_code: classification === "NON_WORKABLE_OTHER" ? "OTHER" : null,
     notes: notes.trim() || null,
-    source: "RESIDENT",
+    source: "MANUAL",
     decision_status: "CONFIRMED",
     proposed_automatically: false,
     confirmed_by: profile.id,
     confirmed_at: new Date().toISOString(),
   };
-  const { error } = existing
-    ? await supabase.from("project_workday_status").update(payload).eq("id", existing.id).eq("project_id", projectId)
-    : await supabase.from("project_workday_status").insert(payload);
-  if (error) return { error: "No se pudo registrar la jornada no trabajable." };
+  const { data: saved, error } = existing
+    ? await supabase.from("project_workday_status").update(payload).eq("id", existing.id).eq("project_id", projectId).eq("decision_status", "PROPOSED").select("id").maybeSingle()
+    : await supabase.from("project_workday_status").insert(payload).select("id").single();
+  if (error || !saved) return { error: "No se pudo registrar la jornada; recargá para revisar su decisión actual." };
   await logAudit(supabase, {
     action: "workday_weather_overridden",
-    detail: { project_id: projectId, work_date: workDate, classification: "NON_WORKABLE_OTHER", notes: notes.trim() || null },
+    detail: { project_id: projectId, work_date: workDate, classification, notes: notes.trim() || null },
   });
   revalidatePath(`/projects/${projectId}`);
   return { error: null };

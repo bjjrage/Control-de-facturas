@@ -1,4 +1,6 @@
 "use client";
+import { Select } from "@/components/ui/input";
+
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -119,7 +121,7 @@ export function RecipeBlockPanel(props: Props) {
           <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
             <div className="min-w-0">
               <label className="block text-[11px] text-[var(--muted)]">Receta</label>
-              <select
+              <Select
                 value={selectedRecipeId}
                 onChange={(e) => onSelectRecipe(e.target.value)}
                 data-testid="receta-select"
@@ -131,7 +133,7 @@ export function RecipeBlockPanel(props: Props) {
                     {r.recipe.code} · {r.recipe.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             {selected && (
               <div>

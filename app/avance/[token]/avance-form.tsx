@@ -1,4 +1,6 @@
 "use client";
+import { Select } from "@/components/ui/input";
+
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -87,7 +89,7 @@ export function AvanceForm({ token, budgetItems }: { token: string; budgetItems:
       ) : null}
       <div>
         <label className="text-[12px] font-medium text-[var(--muted)] mb-1 block">Ítem del presupuesto</label>
-        <select
+        <Select
           name="budget_item_id"
           required
           value={selectedItemId}
@@ -100,7 +102,7 @@ export function AvanceForm({ token, budgetItems }: { token: string; budgetItems:
               {i.code} — {i.description} ({i.unit})
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>

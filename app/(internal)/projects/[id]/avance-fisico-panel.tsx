@@ -1,4 +1,6 @@
 "use client";
+import { Select } from "@/components/ui/input";
+
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -218,7 +220,7 @@ function CurvaAvance({
         <div className="text-[13px] font-semibold">Curva de avance financiero</div>
         <div className="flex items-center gap-2">
           {schedulePlans.length > 0 ? (
-            <select
+            <Select
               className="h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 text-[12px]"
               value={activePlan?.id ?? ""}
               onChange={(e) => run(() => activateSchedulePlan(e.target.value))}
@@ -230,7 +232,7 @@ function CurvaAvance({
                   {p.is_active ? " (activa)" : ""}
                 </option>
               ))}
-            </select>
+            </Select>
           ) : null}
           <Button variant="secondary" onClick={() => setEditing((v) => !v)}>
             {editing ? "Cerrar" : activePlan ? "Editar cronograma" : "Cargar cronograma"}
@@ -512,7 +514,7 @@ function DiasNoTrabajados({
     <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <div className="text-[13px] font-semibold">Historial meteorologico legado - solo lectura</div>
+          <div className="text-[13px] font-semibold">HISTÓRICO LEGACY — SOLO LECTURA</div>
           <p className="text-[11px] text-[var(--muted)]">
             Datos conservados de <code>project_weather_log</code>. No representan el registro contractual vigente;
             las propuestas y decisiones se consultan en Jornadas climaticas.

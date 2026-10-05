@@ -155,7 +155,7 @@ describe("setWeatherDay propaga errores reales", () => {
 
   it("the legacy calendar is clearly labelled and read-only", () => {
     const src = readSource("app/(internal)/projects/[id]/avance-fisico-panel.tsx");
-    expect(src).toContain("Historial meteorologico legado - solo lectura");
+    expect(src).toContain("HISTÓRICO LEGACY — SOLO LECTURA");
     expect(src).toContain("LEGACY");
     expect(src).not.toContain("setWeatherDay");
     expect(src).not.toContain("Registrar día");

@@ -41,20 +41,4 @@ export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLab
   );
 }
 
-export const Select = forwardRef<
-  HTMLSelectElement,
-  React.SelectHTMLAttributes<HTMLSelectElement>
->(function Select({ className, children, ...props }, ref) {
-  return (
-    <select
-      ref={ref}
-      className={cn(
-        "h-9 w-full rounded-lg border border-white/[0.09] bg-[#17253a] px-3 text-[12px] outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-all focus:border-[var(--primary)]/70 focus:bg-white/[0.05] focus:ring-2 focus:ring-[var(--primary)]/10",
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </select>
-  );
-});
+export { Select } from "./select";

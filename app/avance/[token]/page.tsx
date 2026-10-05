@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDate } from "@/lib/format";
-import { AvanceForm } from "./avance-form";
+import { ResidentWorkflows } from "./resident-workflows";
 
 export default async function AvancePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -50,17 +50,7 @@ export default async function AvancePage({ params }: { params: Promise<{ token: 
         </div>
 
         {isActive ? (
-          items.length > 0 ? (
-            <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5">
-              <h2 className="text-[14px] font-semibold mb-3">Registrar parte diario</h2>
-              <AvanceForm token={token} budgetItems={items} />
-            </div>
-          ) : (
-            <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 text-[13px] text-[var(--muted)]">
-              Todavía no hay ítems de presupuesto cargados en esta obra — pedile a la empresa que cargue el
-              presupuesto antes de reportar avance.
-            </div>
-          )
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5"><ResidentWorkflows token={token} budgetItems={items} /></div>
         ) : (
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-5 text-[13px] text-[var(--muted)]">
             Esta obra no está activa ({project.status.toLowerCase()}) — no se puede cargar avance nuevo.

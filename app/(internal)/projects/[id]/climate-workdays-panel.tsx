@@ -6,7 +6,7 @@ import { CloudRain, FileImage, RefreshCw } from "lucide-react";
 import { EditProjectDialog } from "./edit-project-dialog";
 import { isValidProjectCoords } from "@/lib/projects/location-fields";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, Select } from "@/components/ui/input";
 import type { ClimateEvidence, ClimateEvent, ClimateReasonCode, Project, ProjectWorkdayClassification, ProjectWorkdayStatus } from "@/lib/types";
 import { createClient } from "@/lib/supabase/browser";
 import {
@@ -15,6 +15,8 @@ import {
   createRainEffectWorkday,
   evaluateProjectWeatherDayAction,
   overrideWeatherWorkday,
+  createOtherWorkday,
+  updateLocalPrecipitation,
 } from "../climate-actions";
 
 const REASONS: { value: ClimateReasonCode; label: string }[] = [
@@ -73,6 +75,9 @@ export function ClimateWorkdaysPanel({
     notes: string;
   } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [manualType, setManualType] = useState<"WORKABLE" | "NON_WORKABLE_RAIN" | "NON_WORKABLE_OTHER">("WORKABLE");
+  const [manualNote, setManualNote] = useState("");
+  const [localMm, setLocalMm] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
   const fileInputByEvent = useRef<Record<string, HTMLInputElement | null>>({});
   const eventById = useMemo(() => new Map(events.map((event) => [event.id, event])), [events]);
@@ -84,9 +89,11 @@ export function ClimateWorkdaysPanel({
   const run = (action: () => Promise<{ error: string | null }>) => {
     setMessage(null);
     startTransition(async () => {
-      const result = await action();
-      setMessage(result.error ?? "Listo.");
-      if (!result.error) router.refresh();
+      try {
+        const result = await action();
+        setMessage(result.error ?? "Listo.");
+        if (!result.error) router.refresh();
+      } catch { setMessage("No se pudo guardar. Revisá los datos y reintentá."); }
     });
   };
 
@@ -152,6 +159,15 @@ export function ClimateWorkdaysPanel({
 
       {message ? <p className="text-xs text-[var(--muted)]" role="status">{message}</p> : null}
 
+      <div className="flex flex-wrap items-end gap-2 rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-3">
+        <label className="grid gap-1 text-xs">Entrada manual · fecha<Input type="date" aria-label="Fecha entrada manual" value={date} max={today} min={project.start_date ?? undefined} onChange={e => setDate(e.target.value)} className="h-8 w-auto" /></label>
+        <label className="grid gap-1 text-xs">Tipo<Select disabled={pending} aria-label="Tipo entrada manual" value={manualType} onValueChange={v => setManualType(v as typeof manualType)} className="h-8 w-56">
+          <option value="WORKABLE">Día trabajable</option><option value="NON_WORKABLE_RAIN">Día de lluvia</option><option value="NON_WORKABLE_OTHER">No trabajable por otra causa</option>
+        </Select></label>
+        <label className="grid gap-1 text-xs">Nota<Input value={manualNote} onChange={e => setManualNote(e.target.value)} maxLength={500} className="h-8 w-48" /></label>
+        <Button type="button" disabled={pending || !date || date > today} className="h-8 text-xs" onClick={() => run(() => createOtherWorkday(project.id, date, manualNote, manualType))}>Guardar decisión manual</Button>
+      </div>
+
       {rows.length === 0 ? (
         <p className="rounded-lg border border-dashed border-[var(--border)] p-4 text-xs text-[var(--muted)]">
           Todavía no hay jornadas climáticas registradas.
@@ -167,6 +183,7 @@ export function ClimateWorkdaysPanel({
                 <th className="px-3 py-2 text-right">DMH mm</th>
                 <th className="px-3 py-2 text-right">Pluviómetro mm</th>
                 <th className="px-3 py-2">Decisión</th>
+                <th className="px-3 py-2">Evidencia</th>
                 <th className="px-3 py-2">Acciones</th>
               </tr>
             </thead>
@@ -188,9 +205,25 @@ export function ClimateWorkdaysPanel({
                       {event?.external_station_name ? <span className="block text-[10px] text-[var(--muted)]">{event.external_station_name}</span> : null}
                       {event?.local_source ? <span className="block text-[10px] text-[var(--muted)]">Local: {event.local_source}</span> : null}
                     </td>
-                    <td className="px-3 py-2 text-right">{event?.external_precipitation_mm ?? "—"}</td>
-                    <td className="px-3 py-2 text-right">{event?.local_precipitation_mm ?? "—"}</td>
+                    <td className="px-3 py-2 text-right">{event?.external_precipitation_mm ?? "—"}{event ? <span className="block text-[10px] text-[var(--muted)]">Umbral externo: {event.external_threshold_exceeded ? "alcanzado" : "no alcanzado"}</span> : null}</td>
+                    <td className="px-3 py-2 text-right">
+                      {event ? <div className="grid gap-1 text-left">
+                        <label className="text-[10px] text-[var(--muted)]">Medición local<Input aria-label={`Medición local ${workday.work_date}`} type="number" min="0" max="999999.99" step="0.01" value={localMm[event.id] ?? String(event.local_precipitation_mm ?? "")} onChange={e => setLocalMm(current => ({ ...current, [event.id]: e.target.value }))} disabled={pending} className="h-7 w-24 text-xs" /></label>
+                        <Button type="button" variant="secondary" className="h-7 text-[10px]" disabled={pending || (localMm[event.id] ?? String(event.local_precipitation_mm ?? "")) === ""} onClick={() => run(() => updateLocalPrecipitation(project.id, event.id, Number(localMm[event.id] ?? event.local_precipitation_mm)))}>Guardar medición</Button>
+                        {rowEvidence.some(e => e.metadata?.submitted_by_portal === true) ? <span className="text-[10px] text-[var(--muted)]">Medición residente</span> : null}
+                        <span className="text-[10px] text-[var(--muted)]">Umbral local: {event.local_threshold_exceeded ? "alcanzado" : "no alcanzado"}</span>
+                      </div> : "—"}
+                    </td>
                     <td className="px-3 py-2">{event?.status === "OVERRIDDEN" ? "Override" : workday.decision_status === "CONFIRMED" ? "Confirmada" : workday.proposed_automatically ? "Propuesta automática" : "Propuesta"}</td>
+                    <td className="px-3 py-2">
+                      {rowEvidence.map(item => <Button key={item.id} type="button" variant="ghost" className="h-7 text-[10px]" onClick={async () => {
+                        if (!item.storage_path) return;
+                        const result = await createClient().storage.from("execution-photos").createSignedUrl(item.storage_path, 60);
+                        if (result.data) window.open(result.data.signedUrl, "_blank", "noopener,noreferrer");
+                        else setMessage("No se pudo abrir la foto.");
+                      }}>{item.evidence_type === "RAIN_GAUGE_PHOTO" ? "Foto pluviómetro" : "Evidencia"}{item.metadata?.submitted_by_portal === true ? " · residente" : ""}</Button>)}
+                      {!rowEvidence.length ? "—" : null}
+                    </td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap items-center gap-2">
                         {workday.decision_status === "PROPOSED" ? (
@@ -210,7 +243,7 @@ export function ClimateWorkdaysPanel({
                               type="file"
                               accept="image/*"
                               className="block h-7 w-44 text-[11px]"
-                              aria-label={`Adjuntar evidencia ${workday.work_date}`}
+                              aria-label={`Foto del pluviómetro ${workday.work_date}`}
                               onChange={(input) => {
                                 const file = input.target.files?.[0];
                                 if (file) uploadEvidence(event, workday, file);
@@ -218,39 +251,38 @@ export function ClimateWorkdaysPanel({
                               }}
                             />
                             <Button type="button" variant="secondary" className="h-7 gap-1 text-[11px]" disabled={pending} onClick={() => fileInputByEvent.current[event.id]?.click()}>
-                              <FileImage className="h-3.5 w-3.5" /> Evidencia
+                              <FileImage className="h-3.5 w-3.5" /> Foto del pluviómetro
                             </Button>
                           </>
                         ) : null}
                         {canEffect ? (
                           <>
                             <Input aria-label={`Fecha efecto ${workday.work_date}`} type="date" value={parentId === workday.id ? effectDate : nextDay(workday.work_date)} onChange={(input) => { setParentId(workday.id); setEffectDate(input.target.value); }} className="h-7 w-auto text-[11px]" />
-                            <select aria-label={`Causa efecto ${workday.work_date}`} value={parentId === workday.id ? reason : "TERRAIN_SATURATED"} onChange={(input) => { setParentId(workday.id); setReason(input.target.value as ClimateReasonCode); }} className="h-7 rounded-md border border-[var(--border)] bg-[var(--panel)] px-2 text-[11px]">
+                            <Select disabled={pending} aria-label={`Causa efecto ${workday.work_date}`} value={parentId === workday.id ? reason : "TERRAIN_SATURATED"} onChange={(input) => { setParentId(workday.id); setReason(input.target.value as ClimateReasonCode); }} className="h-7 rounded-md border border-[var(--border)] bg-[var(--panel)] px-2 text-[11px]">
                               {REASONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                            </select>
+                            </Select>
                             <Button type="button" variant="secondary" className="h-7 text-[11px]" disabled={pending} onClick={() => run(() => createRainEffectWorkday(project.id, parentId === workday.id && effectDate ? effectDate : nextDay(workday.work_date), workday.id, parentId === workday.id ? reason : "TERRAIN_SATURATED"))}>
                               Marcar efecto
                             </Button>
                           </>
                         ) : null}
-                        {rowEvidence.length > 0 ? <span className="text-[var(--muted)]">{rowEvidence.length} evidencia(s)</span> : null}
                         {overrideDraft?.workdayId === workday.id ? (
                           <div className="basis-full rounded border border-[var(--border)] bg-[var(--panel-2)] p-2">
                             <div className="flex flex-wrap items-end gap-2">
                               <label className="grid gap-1 text-[10px] text-[var(--muted)]">
                                 Clasificación final
-                                <select value={overrideDraft.classification} onChange={(input) => setOverrideDraft({ ...overrideDraft, classification: input.target.value as ProjectWorkdayClassification })} className="h-7 rounded-md border border-[var(--border)] bg-[var(--panel)] px-2 text-[11px] text-[var(--foreground)]">
+                                <Select disabled={pending} value={overrideDraft.classification} onChange={(input) => setOverrideDraft({ ...overrideDraft, classification: input.target.value as ProjectWorkdayClassification })} className="h-7 rounded-md border border-[var(--border)] bg-[var(--panel)] px-2 text-[11px] text-[var(--foreground)]">
                                   <option value="WORKABLE">Trabajable</option>
                                   <option value="NON_WORKABLE_RAIN">Día de lluvia</option>
                                   <option value="NON_WORKABLE_OTHER">No trabajable por otra causa</option>
-                                </select>
+                                </Select>
                               </label>
                               {overrideDraft.classification === "NON_WORKABLE_OTHER" ? (
                                 <label className="grid gap-1 text-[10px] text-[var(--muted)]">
                                   Causa
-                                  <select value={overrideDraft.reasonCode} onChange={(input) => setOverrideDraft({ ...overrideDraft, reasonCode: input.target.value as ClimateReasonCode })} className="h-7 rounded-md border border-[var(--border)] bg-[var(--panel)] px-2 text-[11px] text-[var(--foreground)]">
+                                  <Select value={overrideDraft.reasonCode} onChange={(input) => setOverrideDraft({ ...overrideDraft, reasonCode: input.target.value as ClimateReasonCode })} className="h-7 rounded-md border border-[var(--border)] bg-[var(--panel)] px-2 text-[11px] text-[var(--foreground)]">
                                     {REASONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                                  </select>
+                                  </Select>
                                 </label>
                               ) : null}
                               <label className="grid min-w-44 flex-1 gap-1 text-[10px] text-[var(--muted)]">
@@ -281,6 +313,12 @@ export function ClimateWorkdaysPanel({
           </table>
         </div>
       )}
+      {events.filter(event => !workdays.some(day => day.climate_event_id === event.id)).map(event => <div key={event.id} className="flex flex-wrap items-end gap-2 rounded-lg border border-[var(--border)] p-3 text-xs">
+        <div><p>{event.event_date} · {event.source}</p><p className="text-[var(--muted)]">Sin decisión contractual · DMH/DINAC: {event.external_precipitation_mm ?? "—"} mm</p></div>
+        <label>Medición local<Input aria-label={`Medición local ${event.event_date}`} type="number" min="0" max="999999.99" step="0.01" value={localMm[event.id] ?? String(event.local_precipitation_mm ?? "")} onChange={e => setLocalMm(current => ({ ...current, [event.id]: e.target.value }))} className="h-7 w-24" /></label>
+        <Button type="button" variant="secondary" disabled={pending || (localMm[event.id] ?? String(event.local_precipitation_mm ?? "")) === ""} className="h-7 text-xs" onClick={() => run(() => updateLocalPrecipitation(project.id, event.id, Number(localMm[event.id] ?? event.local_precipitation_mm)))}>Guardar medición</Button>
+        <label className="text-[var(--muted)]">Foto del pluviómetro<input type="file" accept="image/jpeg,image/png,image/webp" disabled={pending} className="block max-w-48 text-xs" onChange={e => { const file = e.target.files?.[0]; if (file) uploadEvidence(event, undefined, file); e.currentTarget.value = ""; }} /></label>
+      </div>)}
     </section>
   );
 }
