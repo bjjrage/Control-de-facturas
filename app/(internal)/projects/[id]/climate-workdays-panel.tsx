@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CloudRain, FileImage, RefreshCw } from "lucide-react";
 import { EditProjectDialog } from "./edit-project-dialog";
 import { ClimateLibroCalendar } from "./climate-libro-calendar";
+import { ContractClimateDialog } from "./contract-climate-dialog";
 import { ExecutionLinkDialog } from "./execution-link-dialog";
 import { isValidProjectCoords } from "@/lib/projects/location-fields";
 import { Button } from "@/components/ui/button";
@@ -140,7 +141,7 @@ export function ClimateWorkdaysPanel({
             <h3 className="text-sm font-semibold">JORNADAS CLIMÁTICAS / LIBRO DE OBRA</h3>
           </div>
           <p className="mt-1 text-xs text-[var(--muted)]">
-            Umbral contractual: {project.precipitation_threshold_mm ?? 15} mm · fuente: {project.weather_source ?? "dmh-dinac"}
+            Umbral de propuesta automática: {project.precipitation_threshold_mm ?? 15} mm · fuente: {project.weather_source ?? "dmh-dinac"}. Las reglas del PBC se configuran por separado.
           </p>
           <p className="mt-1 text-xs text-[var(--muted)]">Evaluá una fecha por vez; las propuestas automáticas requieren confirmación humana.{historicalOnly ? " El Libro muestra fechas históricas, hasta hoy." : ""}</p>
         </div>
@@ -159,6 +160,7 @@ export function ClimateWorkdaysPanel({
             Evaluar clima
           </Button>
           <ExecutionLinkDialog appUrl={appUrl} token={project.execution_token} projectCode={project.code} triggerLabel="Link / QR para residente" />
+          <ContractClimateDialog project={project} />
         </div>
       </div>
 

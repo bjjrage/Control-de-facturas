@@ -1,6 +1,18 @@
 # Arquitectura de cálculo climático contractual
 
-Estado: propuesta de arquitectura para revisión. No implementa todavía un motor contractual, tablas nuevas ni migraciones. No requiere un PBC real para diseñarse: los casos de esta propuesta son sintéticos. Los parámetros se validarán contra documentos al configurar cada contrato.
+Estado: arquitectura con una primera implementación funcional en Preview, solicitada posteriormente por el usuario. El botón **Parámetros del PBC**, junto al calendario, registra reglas por proyecto/contrato en versiones inmutables DRAFT/VALIDATED. No requiere un PBC real para desarrollar la arquitectura; los valores deben ser revisados contra documentos al configurar cada contrato.
+
+## Implementación disponible
+
+- Formulario de documento/cláusula, vigencia, plazo/calendario, umbral/fuente, tipos y causas elegibles, evidencia/causalidad/conformidad, tolerancia, topes y redondeo. Los valores jurídicos no tienen defaults globales. Inicio/plazo existentes del proyecto se muestran como base editable.
+- Fórmula permitida `EXCESS_ELIGIBLE_DAYS_V1`: días confirmados elegibles menos tolerancia, redondeo y topes. Tolerancia mensual, acumulada o por período; meses parciales completos o prorrateados por días corridos dentro del plazo base. No admite carry-over, jornadas parciales, fórmulas arbitrarias ni cambios de acumulador entre adendas; estos casos quedan bloqueados o como borrador para implementación específica.
+- Versiones con igual vigencia: usa la versión validada más reciente. Cambios compatibles por fecha se resuelven con su vigencia. Una adenda que altera plazo/calendario/tolerancia acumulada entre vigencias se bloquea explícitamente: no inventa cómo mezclar acumuladores.
+- Valoraciones de impedimento/conformidad con referencias, ligadas a la huella de la jornada: una corrección posterior invalida su uso hasta volver a valorar. No modifica evidencia ni autoridad del Libro.
+- Prórrogas ya aprobadas, documentadas y separadas del resultado climático. La fecha teórica climática y el vencimiento con aprobaciones son salidas diferentes; no se suman dos veces automáticamente.
+- Anexo completo asociado explícitamente a un certificado BORRADOR, con reglas/hechos/resultado y hash inmutables. El PDF usa el snapshot más reciente asociado antes de la emisión. El período del certificado queda protegido una vez que tiene anexo. No cambia importes ni la curva financiera.
+- Migración `20261005232618_contract_climate_parameters`: cuatro tablas nuevas con RLS, acceso por tenant/rol/plan, INSERT/SELECT internos, sin grants a anon, sin backfill. Aplicada exclusivamente al proyecto Preview `xddlzgjwufskgasomval`; Production no se modificó. Evaluaciones independientes son de sólo lectura; su persistencia autónoma sigue siendo una ampliación futura.
+
+La implementación V1 no reemplaza todo el diseño extendido siguiente. En particular, no presenta un ajuste porcentual de curva como si fueran días de prórroga y no afirma soportar cualquier fórmula de PBC.
 
 ## 1. Separación de responsabilidades
 
@@ -66,7 +78,7 @@ Estos nombres son diseño, no tablas ya existentes.
 
 Claves foráneas y unicidad deben incluir la pertenencia al mismo tenant/proyecto. RLS y acciones mantienen las autorizaciones administrativas actuales, sin otorgar privilegios nuevos. Activación, aprobación documental y congelado serán transacciones controladas; evaluar/consultar será de sólo lectura salvo la creación explícita de una evaluación.
 
-No se aplicará migración para estas entidades dentro de PR #33. La segunda PR presentará DDL, políticas, acciones y pruebas para revisión antes de aplicar a Preview.
+El plan inicial de separar todo en una segunda PR fue sustituido por la solicitud posterior de implementar el registro ahora. La V1 y su migración Preview continúan en PR #33; no se fusionó ni desplegó Production.
 
 ## 4. Algoritmo de evaluación
 

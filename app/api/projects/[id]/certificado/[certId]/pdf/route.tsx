@@ -3,6 +3,7 @@ import { Document, Page, Text, View, StyleSheet, renderToBuffer } from "@react-p
 import { requirePlan } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney, formatNumber } from "@/lib/format";
+import type { ContractClimateResult, ContractClimatePolicy } from "@/lib/projects/contract-climate";
 import type {
   Project,
   ProjectCertificate,
@@ -85,11 +86,13 @@ function CertificadoPdf({
   cert,
   items,
   staff,
+  climate,
 }: {
   project: Project;
   cert: ProjectCertificate;
   items: ProjectCertificateItem[];
   staff: ProjectCertificateStaff[];
+  climate?: { input_hash: string; snapshot: { result: ContractClimateResult; inputs: { policies: ContractClimatePolicy[] } } } | null;
 }) {
   const deducciones =
     cert.devolucion_anticipo + cert.retencion + cert.penalidad_avance + cert.penalidad_presentacion - cert.ajustes;
@@ -245,6 +248,24 @@ function CertificadoPdf({
           <Text style={styles.footerText} render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
         </View>
       </Page>
+      {climate ? <Page size="A4" style={styles.page}>
+        <Text style={styles.h1}>Anexo climático contractual · Certificado Nº {cert.numero}</Text>
+        <Text style={{marginTop:6}}>Período: {climate.snapshot.result.periodStart} a {climate.snapshot.result.periodEnd}</Text>
+        <Text style={{marginTop:6}}>Motor: {climate.snapshot.result.engine} · Estado: {climate.snapshot.result.status}</Text>
+        {climate.snapshot.inputs.policies.filter(p=>climate.snapshot.result.policyIds.includes(p.id)).map(p=><Text key={p.id}>PBC V{p.version}: {p.parameters.documentRef} · {p.parameters.clauseRef}</Text>)}
+        <Text style={styles.sectionTitle}>Días del período</Text>
+        <Text>Elegibles: {climate.snapshot.result.eligibleDays} · Computables: {climate.snapshot.result.computableDays}</Text>
+        <Text>Vencimiento base: {climate.snapshot.result.baseDueDate} · Con prórrogas aprobadas: {climate.snapshot.result.officialDueDate}</Text>
+        <Text style={{marginTop:4,color:C.muted}}>El cálculo justifica días; no aprueba prórrogas ni altera cantidades, precios o importes del certificado.</Text>
+        <Text style={styles.sectionTitle}>Tolerancias y límites</Text>
+        {climate.snapshot.result.groups.map(g=><Text key={g.key}>{g.key}: {g.eligible} elegibles − {g.tolerance} de tolerancia → {g.computable} computables, después de topes.</Text>)}
+        <Text style={styles.sectionTitle}>Desglose por fecha</Text>
+        {climate.snapshot.result.dates.map(day=><View key={day.date} style={styles.tr} wrap={false}>
+          <Text style={{width:"24%",fontSize:8}}>{day.date} · {day.code??"—"}</Text>
+          <Text style={{width:"65%",fontSize:8}}>{day.reason}</Text><Text style={{width:"11%",fontSize:8}}>{day.computableDays} días</Text>
+        </View>)}
+        <Text style={{marginTop:12,fontSize:7,color:C.muted}}>Huella de entradas y resultado: {climate.input_hash}</Text>
+      </Page> : null}
     </Document>
   );
 }
@@ -293,9 +314,13 @@ export async function GET(
 
     const items = itemRows ?? [];
     const staff = staffRows ?? [];
+    const { data: climate, error: climateError } = await supabase.from("certificate_climate_snapshots")
+      .select("input_hash,snapshot").eq("certificate_id",certId).eq("project_id",id).eq("empresa_id",empresaId)
+      .order("created_at",{ascending:false}).limit(1).maybeSingle();
+    if (climateError && !["42P01","PGRST205"].includes(climateError.code)) throw new Error(climateError.message);
 
     const buffer = await renderToBuffer(
-      <CertificadoPdf project={project} cert={cert} items={items} staff={staff} />
+      <CertificadoPdf project={project} cert={cert} items={items} staff={staff} climate={climate} />
     );
 
     const filename = `certificado-${cert.numero}-${project.code ?? project.id}.pdf`;
