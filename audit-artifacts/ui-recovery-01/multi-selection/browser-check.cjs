@@ -89,7 +89,7 @@ async function main() {
     await day('2026-07-22').click();assert.equal((await writes()).length,0);checks.push('selecting performs no mutation');
     const typeButtons=['B','LL','HH','O'].map(code=>page.getByRole('button',{name:`Aplicar ${code} a días seleccionados`,exact:true}));
     const typeStyles=await Promise.all(typeButtons.map(appearance));
-    assert.equal(new Set(typeStyles.map(style=>style.background)).size,4);checks.push('four distinct type button colors');
+    assert.equal(new Set(typeStyles.map(style=>style.border)).size,4);checks.push('four distinct type button accent colors');
     for(let i=0;i<typeButtons.length;i++){await typeButtons[i].hover();await page.waitForTimeout(180);assert.notDeepEqual(await appearance(typeButtons[i]),typeStyles[i]);}
     checks.push('each type has its own hover');
     await page.mouse.move(0,0);await page.waitForTimeout(180);
