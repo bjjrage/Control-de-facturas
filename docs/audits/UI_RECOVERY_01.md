@@ -1,5 +1,9 @@
 # UI RECOVERY 01
 
+## Semantic calendar colors
+
+Type buttons use the existing dark ERP surface, pale text, colored border and left inset accent rather than solid colored fills. Calendar drafts now carry the corresponding B green / LL blue / HH amber / O purple tint, border and pending label. A dashed border means unsaved; a white selection outline and checkmark indicate selection independently of the type color. Hover uses that date's accent only under the pointer. No layout, persistence, authorization or calculation changes. No new test run for these styling corrections; the Preview build validates compilation.
+
 ## Compact toolbar restored
 
 User requested retaining the previous single compact toolbar rather than three panels. Restored the original order: selected count, B/LL/HH/O, multiple-selection toggle, clear selection, draft count and save/discard. Kept individual type colors and hovers, bordered selection controls and the persistent ACTIVA/INACTIVA mode badge. Removed the three group cards and expanded type labels. Draft/save behavior, calendar layout and server actions are unchanged. Previous verification below describes its corresponding commit; no new test run for this layout-only correction.
