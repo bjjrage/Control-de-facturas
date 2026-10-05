@@ -562,6 +562,9 @@ export function ProjectTabsClient({
           project={project}
           certificates={projectCertificates}
           weatherLogs={projectWeatherLogs}
+          climateEvents={climateEvents}
+          climateWorkdays={climateWorkdays}
+          climateEvidence={climateEvidence}
           schedulePlans={projectSchedulePlans}
           planMonths={schedulePlanMonths}
         />

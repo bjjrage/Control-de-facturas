@@ -7,13 +7,14 @@ import { EditProjectDialog } from "./edit-project-dialog";
 import { isValidProjectCoords } from "@/lib/projects/location-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { ClimateEvidence, ClimateEvent, ClimateReasonCode, Project, ProjectWorkdayStatus } from "@/lib/types";
+import type { ClimateEvidence, ClimateEvent, ClimateReasonCode, Project, ProjectWorkdayClassification, ProjectWorkdayStatus } from "@/lib/types";
 import { createClient } from "@/lib/supabase/browser";
 import {
   addClimateEvidence,
   confirmWeatherWorkday,
   createRainEffectWorkday,
   evaluateProjectWeatherDayAction,
+  overrideWeatherWorkday,
 } from "../climate-actions";
 
 const REASONS: { value: ClimateReasonCode; label: string }[] = [
@@ -38,6 +39,10 @@ function nextDay(value: string) {
   return date.toISOString().slice(0, 10);
 }
 
+function localDateIso(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 function safeFileName(name: string) {
   return name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "evidencia";
 }
@@ -47,17 +52,26 @@ export function ClimateWorkdaysPanel({
   events,
   workdays,
   evidence,
+  historicalOnly = false,
 }: {
   project: Project;
   events: ClimateEvent[];
   workdays: ProjectWorkdayStatus[];
   evidence: ClimateEvidence[];
+  historicalOnly?: boolean;
 }) {
   const router = useRouter();
-  const [date, setDate] = useState(project.start_date ?? new Date().toISOString().slice(0, 10));
+  const today = localDateIso();
+  const [date, setDate] = useState(() => project.start_date && (!historicalOnly || project.start_date <= today) ? project.start_date : today);
   const [effectDate, setEffectDate] = useState("");
   const [reason, setReason] = useState<ClimateReasonCode>("TERRAIN_SATURATED");
   const [parentId, setParentId] = useState<string | null>(null);
+  const [overrideDraft, setOverrideDraft] = useState<{
+    workdayId: string;
+    classification: ProjectWorkdayClassification;
+    reasonCode: ClimateReasonCode;
+    notes: string;
+  } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const fileInputByEvent = useRef<Record<string, HTMLInputElement | null>>({});
@@ -117,13 +131,14 @@ export function ClimateWorkdaysPanel({
           <p className="mt-1 text-xs text-[var(--muted)]">
             Umbral contractual: {project.precipitation_threshold_mm ?? 15} mm · fuente: {project.weather_source ?? "dmh-dinac"}
           </p>
+          <p className="mt-1 text-xs text-[var(--muted)]">Evaluá una fecha por vez; las propuestas automáticas requieren confirmación humana.{historicalOnly ? " El Libro muestra fechas históricas, hasta hoy." : ""}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Input aria-label="Fecha a evaluar" type="date" value={date} onChange={(event) => setDate(event.target.value)} className="h-8 w-auto text-xs" />
+          <Input aria-label={historicalOnly ? "Fecha histórica a evaluar" : "Fecha a evaluar"} type="date" max={historicalOnly ? today : undefined} value={date} onChange={(event) => setDate(event.target.value)} className="h-8 w-auto text-xs" />
           <Button
             type="button"
             className="h-8 gap-1.5 text-xs"
-            disabled={pending || !date || !isValidProjectCoords(project.latitude,project.longitude)}
+            disabled={pending || !date || (historicalOnly && date > today) || !isValidProjectCoords(project.latitude,project.longitude)}
             onClick={() => run(async () => {
               const result = await evaluateProjectWeatherDayAction(project.id, date);
               return { error: result.error };
@@ -147,7 +162,8 @@ export function ClimateWorkdaysPanel({
             <thead className="bg-[var(--panel-2)] text-[var(--muted)]">
               <tr>
                 <th className="px-3 py-2">Fecha</th>
-                <th className="px-3 py-2">Estado</th>
+                <th className="px-3 py-2">Clasificación</th>
+                <th className="px-3 py-2">Fuente meteorológica</th>
                 <th className="px-3 py-2 text-right">DMH mm</th>
                 <th className="px-3 py-2 text-right">Pluviómetro mm</th>
                 <th className="px-3 py-2">Decisión</th>
@@ -164,18 +180,28 @@ export function ClimateWorkdaysPanel({
                     <td className="px-3 py-2 font-mono">{workday.work_date}</td>
                     <td className="px-3 py-2">
                       <span className={workday.classification === "NON_WORKABLE_RAIN" ? "text-blue-700 dark:text-blue-300" : "text-[var(--foreground)]"}>
-                        {CLASSIFICATION_LABEL[workday.classification]}
+                        {workday.decision_status === "PROPOSED" ? "Propuesta · " : "Final · "}{CLASSIFICATION_LABEL[workday.classification]}
                       </span>
+                    </td>
+                    <td className="px-3 py-2">
+                      <span>{event?.source ?? workday.source}</span>
+                      {event?.external_station_name ? <span className="block text-[10px] text-[var(--muted)]">{event.external_station_name}</span> : null}
+                      {event?.local_source ? <span className="block text-[10px] text-[var(--muted)]">Local: {event.local_source}</span> : null}
                     </td>
                     <td className="px-3 py-2 text-right">{event?.external_precipitation_mm ?? "—"}</td>
                     <td className="px-3 py-2 text-right">{event?.local_precipitation_mm ?? "—"}</td>
-                    <td className="px-3 py-2">{workday.decision_status === "CONFIRMED" ? "Confirmada" : "Propuesta"}</td>
+                    <td className="px-3 py-2">{event?.status === "OVERRIDDEN" ? "Override" : workday.decision_status === "CONFIRMED" ? "Confirmada" : workday.proposed_automatically ? "Propuesta automática" : "Propuesta"}</td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap items-center gap-2">
                         {workday.decision_status === "PROPOSED" ? (
-                          <Button type="button" variant="secondary" className="h-7 text-[11px]" disabled={pending} onClick={() => run(() => confirmWeatherWorkday(project.id, workday.id))}>
-                            Confirmar
-                          </Button>
+                          <>
+                            <Button type="button" variant="secondary" className="h-7 text-[11px]" disabled={pending} onClick={() => run(() => confirmWeatherWorkday(project.id, workday.id))}>
+                              Confirmar
+                            </Button>
+                            <Button type="button" variant="secondary" className="h-7 text-[11px]" disabled={pending} onClick={() => setOverrideDraft({ workdayId: workday.id, classification: workday.classification === "NON_WORKABLE_RAIN_EFFECT" ? "WORKABLE" : workday.classification, reasonCode: workday.reason_code ?? "OTHER", notes: workday.notes ?? "" })}>
+                              Corregir / Override
+                            </Button>
+                          </>
                         ) : null}
                         {event ? (
                           <>
@@ -208,6 +234,44 @@ export function ClimateWorkdaysPanel({
                           </>
                         ) : null}
                         {rowEvidence.length > 0 ? <span className="text-[var(--muted)]">{rowEvidence.length} evidencia(s)</span> : null}
+                        {overrideDraft?.workdayId === workday.id ? (
+                          <div className="basis-full rounded border border-[var(--border)] bg-[var(--panel-2)] p-2">
+                            <div className="flex flex-wrap items-end gap-2">
+                              <label className="grid gap-1 text-[10px] text-[var(--muted)]">
+                                Clasificación final
+                                <select value={overrideDraft.classification} onChange={(input) => setOverrideDraft({ ...overrideDraft, classification: input.target.value as ProjectWorkdayClassification })} className="h-7 rounded-md border border-[var(--border)] bg-[var(--panel)] px-2 text-[11px] text-[var(--foreground)]">
+                                  <option value="WORKABLE">Trabajable</option>
+                                  <option value="NON_WORKABLE_RAIN">Día de lluvia</option>
+                                  <option value="NON_WORKABLE_OTHER">No trabajable por otra causa</option>
+                                </select>
+                              </label>
+                              {overrideDraft.classification === "NON_WORKABLE_OTHER" ? (
+                                <label className="grid gap-1 text-[10px] text-[var(--muted)]">
+                                  Causa
+                                  <select value={overrideDraft.reasonCode} onChange={(input) => setOverrideDraft({ ...overrideDraft, reasonCode: input.target.value as ClimateReasonCode })} className="h-7 rounded-md border border-[var(--border)] bg-[var(--panel)] px-2 text-[11px] text-[var(--foreground)]">
+                                    {REASONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                                  </select>
+                                </label>
+                              ) : null}
+                              <label className="grid min-w-44 flex-1 gap-1 text-[10px] text-[var(--muted)]">
+                                Nota de la decisión
+                                <Input value={overrideDraft.notes} onChange={(input) => setOverrideDraft({ ...overrideDraft, notes: input.target.value })} maxLength={500} className="h-7 text-[11px]" />
+                              </label>
+                              <Button type="button" className="h-7 text-[11px]" disabled={pending} onClick={() => run(async () => {
+                                const result = await overrideWeatherWorkday(project.id, workday.id, {
+                                  classification: overrideDraft.classification,
+                                  reasonCode: overrideDraft.classification === "NON_WORKABLE_OTHER" ? overrideDraft.reasonCode : null,
+                                  notes: overrideDraft.notes,
+                                });
+                                if (!result.error) setOverrideDraft(null);
+                                return result;
+                              })}>
+                                Guardar override
+                              </Button>
+                              <Button type="button" variant="secondary" className="h-7 text-[11px]" disabled={pending} onClick={() => setOverrideDraft(null)}>Cancelar</Button>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     </td>
                   </tr>

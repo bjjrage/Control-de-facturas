@@ -24,22 +24,18 @@ export interface HistoricalWeatherResult {
 }
 
 /**
- * EVIDENCIA meteorológica HISTÓRICA para el Libro de Obra — contexto distinto
- * del Weather Overlay futuro (ese no se toca).
+ * Evidencia meteorologica historica de apoyo para el Libro de Obra.
  *
- * - Solo lectura: UN select al proyecto + fetch al provider por rango.
- * - CERO writes: no inserta ni actualiza project_weather_log, climate_events,
- *   project_workday_status, climate_evidence ni forecast batches/snapshots.
- * - El Libro sigue siendo DECISIÓN humana: el clima nunca escribe LL/HH/O
- *   solo; la UI ofrece "Usar como Lluvioso (LL)" explícito vía setWeatherDay.
- * - Sin invención: si falla el provider, error claro y días ausentes
- *   (nunca 0 mm fabricado).
- */
-export async function getHistoricalWeatherAction(
+ * - Solo lectura: consulta el proyecto y obtiene observaciones por rango.
+ * - No crea ni modifica filas del Libro legacy ni del registro contractual canonico.
+ * - Las propuestas contractuales DMH/DINAC se evaluan en el flujo canonico;
+ *   una persona confirma o corrige cada propuesta.
+ * - Si falla el proveedor, devuelve error y no inventa datos ni precipitacion cero.
+ */export async function getHistoricalWeatherAction(
   params: GetHistoricalWeatherParams
 ): Promise<{ data: HistoricalWeatherResult | null; error: string | null }> {
   try {
-    // Misma puerta que el Libro de Obra manual (setWeatherDay).
+    // Valida el acceso al proyecto antes de consultar el proveedor meteorologico.
     const profile = await requirePlan("caterpillar", ["administracion", "admin"]);
     const empresaId = profile.empresa_id;
     const supabase = await createClient();
