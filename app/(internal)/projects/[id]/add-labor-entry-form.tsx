@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { addLaborEntry } from "../caterpillar-actions";
@@ -38,7 +39,7 @@ export function AddLaborEntryForm({
   }
 
   return (
-    <form
+    <Dialog open={open} onOpenChange={setOpen}><DialogContent title="Registrar parte diario de personal"><form
       className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-3 space-y-3"
       action={async (formData: FormData) => {
         setPending(true);
@@ -131,6 +132,6 @@ export function AddLaborEntryForm({
           {pending ? "Registrando…" : "Registrar"}
         </Button>
       </div>
-    </form>
+    </form></DialogContent></Dialog>
   );
 }

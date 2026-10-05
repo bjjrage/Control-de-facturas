@@ -3,6 +3,8 @@
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CloudRain, FileImage, RefreshCw } from "lucide-react";
+import { EditProjectDialog } from "./edit-project-dialog";
+import { isValidProjectCoords } from "@/lib/projects/location-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ClimateEvidence, ClimateEvent, ClimateReasonCode, Project, ProjectWorkdayStatus } from "@/lib/types";
@@ -105,11 +107,12 @@ export function ClimateWorkdaysPanel({
 
   return (
     <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4 space-y-4" aria-label="Climate Workdays">
+      <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--muted)]"><span>{isValidProjectCoords(project.latitude,project.longitude)?"Ubicación climática configurada. La evaluación propone una jornada; una persona confirma el hecho.":"Configurá latitud y longitud para consultar evidencia meteorológica."}</span><EditProjectDialog project={project} focusLocation trigger={<Button size="sm" variant="secondary">Configurar ubicación</Button>}/></div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <CloudRain className="h-4 w-4 text-blue-600" />
-            <h3 className="text-sm font-semibold">Climate Workdays</h3>
+            <CloudRain className="h-4 w-4 text-[var(--primary)]" />
+            <h3 className="text-sm font-semibold">Jornadas climáticas</h3>
           </div>
           <p className="mt-1 text-xs text-[var(--muted)]">
             Umbral contractual: {project.precipitation_threshold_mm ?? 15} mm · fuente: {project.weather_source ?? "dmh-dinac"}
@@ -120,7 +123,7 @@ export function ClimateWorkdaysPanel({
           <Button
             type="button"
             className="h-8 gap-1.5 text-xs"
-            disabled={pending || !date}
+            disabled={pending || !date || !isValidProjectCoords(project.latitude,project.longitude)}
             onClick={() => run(async () => {
               const result = await evaluateProjectWeatherDayAction(project.id, date);
               return { error: result.error };

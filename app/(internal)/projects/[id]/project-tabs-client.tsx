@@ -481,7 +481,7 @@ export function ProjectTabsClient({
           <details className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3" open={laborRows.length > 0}>
             <summary className="cursor-pointer text-[13px] font-semibold">Partes diarios por trabajador (opcional)</summary>
             <div className="mt-3 space-y-3">
-              <AddLaborEntryForm projectId={project.id} budgetItems={items} />
+              <div className="flex items-center justify-between gap-3"><p className="text-xs text-[var(--muted)]">Partes diarios: persona, partida, horas y costo del jornal.</p><AddLaborEntryForm projectId={project.id} budgetItems={items} /></div>
               <PersonalTable rows={laborRows} />
             </div>
           </details>

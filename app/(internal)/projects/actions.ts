@@ -1,5 +1,7 @@
 "use server";
 
+import { projectLocationPatch } from "@/lib/projects/location-fields";
+
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlan } from "@/lib/auth";
@@ -541,6 +543,8 @@ export async function updateProject(projectId: string, formData: FormData): Prom
   const budgetTotal = Number(formData.get("budget_total") ?? 0);
 
   if (!name) return { error: "El nombre es obligatorio." };
+  const coordinates = projectLocationPatch(formData);
+  if (coordinates.error) return { error: coordinates.error };
 
   // Datos de contrato (obra pública) — solo se envían desde el bloque plegable
   // del formulario. Si el form no los trae, no se tocan.
@@ -578,6 +582,7 @@ export async function updateProject(projectId: string, formData: FormData): Prom
       end_date: endDate,
       budget_total: Number.isFinite(budgetTotal) ? budgetTotal : 0,
       ...contractPatch,
+      ...coordinates.patch,
     })
     .eq("id", projectId)
     .eq("empresa_id", empresaId);

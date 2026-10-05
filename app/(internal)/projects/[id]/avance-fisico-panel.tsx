@@ -12,6 +12,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { EditProjectDialog } from "./edit-project-dialog";
+import { isValidProjectCoords } from "@/lib/projects/location-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type {
@@ -40,7 +42,7 @@ const WEATHER_LABEL: Record<WeatherCode, string> = {
 };
 const WEATHER_STYLE: Record<WeatherCode, string> = {
   B: "bg-[var(--panel-2)] text-[var(--muted)]",
-  LL: "bg-blue-500/25 text-blue-700 dark:text-blue-300",
+  LL: "bg-[var(--primary)]/15 text-[#b5d1ff] ring-1 ring-[var(--primary)]/30",
   HH: "bg-[var(--warn-bg)]/55 text-[#fff8e8] ring-1 ring-[var(--warn)]/20",
   O: "bg-[var(--hover)] text-[var(--foreground)]",
 };
@@ -576,6 +578,7 @@ function DiasNoTrabajados({
         </div>
       </div>
 
+      <div className="erp-surface-strong p-3 text-[12px] text-[var(--muted)] space-y-2"><p>Asistencia meteorológica: elegí un mes → consultá el clima observado → revisá la precipitación → confirmá LL o registrá otro estado. La evidencia no modifica el Libro automáticamente.</p>{!isValidProjectCoords(project.latitude,project.longitude)&&<div className="flex flex-wrap items-center gap-2"><span>Falta la ubicación climática.</span><EditProjectDialog project={project} focusLocation trigger={<Button size="sm" variant="secondary">Configurar ubicación</Button>}/></div>}</div>
       <div className="flex flex-wrap items-center gap-2">
         <Button
           variant="secondary"
@@ -660,16 +663,16 @@ function DiasNoTrabajados({
                   {MONTHS_ES[month]} {year}
                 </div>
                 {!hist || (!hist.loading && Object.keys(hist.days).length === 0 && !hist.error) ? (
-                  <button
+                  <Button variant="secondary" size="sm"
                     type="button"
                     onClick={() => loadHistMonth(year, month)}
-                    disabled={busy || hist?.loading}
+                    disabled={busy || hist?.loading || !isValidProjectCoords(project.latitude,project.longitude)}
                     data-testid={`ver-clima-${year}-${mm}`}
-                    className="h-6 px-2 rounded-md border border-[var(--border)] text-[11px] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--panel-2)]"
+
                     title="Cargar clima observado de este mes (una sola consulta por rango)"
                   >
                     {hist?.loading ? "Cargando clima…" : "Ver clima observado"}
-                  </button>
+                  </Button>
                 ) : null}
                 {hist?.loading ? (
                   <span className="text-[11px] text-[var(--muted)]">Cargando clima observado…</span>
@@ -701,7 +704,7 @@ function DiasNoTrabajados({
                     const obsLabel = obs
                       ? `Clima observado: ${fmtMm(mmVal)} mm de precipitación. Fuente: ${obs.source}`
                       : null;
-                    const regLabel = code ? `Registro de obra: ${WEATHER_LABEL[code]} (${code})` : "Registro de obra: sin registro";
+                    const regLabel = code ? `Registro humano de obra: ${WEATHER_LABEL[code]} (${code})` : "Registro de obra: sin registro";
                     return (
                       <div key={dateStr} className="flex flex-col items-center w-8 shrink-0">
                         <button
@@ -717,7 +720,7 @@ function DiasNoTrabajados({
                         </button>
                         {mmVal !== null ? (
                           <span
-                            className={`text-[9px] leading-tight ${rainy ? "text-blue-600 dark:text-blue-300" : "text-[var(--muted)]/50"}`}
+                            className={`text-[9px] leading-tight ${rainy ? "text-[#b5d1ff]" : "text-[var(--muted)]/50"}`}
                             title={obsLabel ?? undefined}
                           >
                             {rainy ? `🌧 ${fmtMm(mmVal)}` : "0 mm"}
@@ -726,13 +729,13 @@ function DiasNoTrabajados({
                         {rainy && code !== "LL" ? (
                           <button
                             type="button"
-                            onClick={() => persist(dateStr, "LL")}
+                            onClick={() => { setEditorDate(dateStr); setEditorCode("LL"); setEditorOpen(true); }}
                             disabled={busy}
                             data-testid={`usar-como-ll-${dateStr}`}
-                            title={`Usar como Lluvioso (LL) — registra ${dateStr} en el Libro de Obra (acción explícita)`}
+                            title={`Revisar sugerencia LL para ${dateStr}; confirmar con Guardar día en el editor`} aria-label={`Revisar sugerencia LL para ${dateStr}`}
                             className="mt-0.5 rounded border border-blue-500/40 px-1 text-[9px] font-semibold text-blue-600 dark:text-blue-300 hover:bg-blue-500/10"
                           >
-                            LL
+                            +LL
                           </button>
                         ) : null}
                       </div>

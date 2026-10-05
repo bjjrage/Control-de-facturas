@@ -12,10 +12,12 @@ export function EditProjectDialog({
   project,
   trigger,
   showContract = false,
+  focusLocation = false,
 }: {
   project: Project;
   trigger: React.ReactNode;
   showContract?: boolean;
+  focusLocation?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +83,14 @@ export function EditProjectDialog({
             </div>
           </div>
 
+          <fieldset className="erp-surface-strong rounded-lg p-3 space-y-2">
+            <legend className="text-[12px] font-semibold">Ubicación climática</legend>
+            <p className="text-[11px] text-[var(--muted)]">Se utiliza para consultar clima y evaluar jornadas. Usá coordenadas decimales; dejá ambas vacías si todavía no están confirmadas.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label htmlFor="ep_latitude">Latitud</Label><Input autoFocus={focusLocation} id="ep_latitude" name="latitude" type="number" step="any" min="-90" max="90" defaultValue={project.latitude ?? ""}/></div>
+              <div><Label htmlFor="ep_longitude">Longitud</Label><Input id="ep_longitude" name="longitude" type="number" step="any" min="-180" max="180" defaultValue={project.longitude ?? ""}/></div>
+            </div>
+          </fieldset>
           {showContract ? (
             <div className="rounded border border-[var(--border)] bg-[var(--panel-2)]">
               <button

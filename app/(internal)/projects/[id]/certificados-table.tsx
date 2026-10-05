@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { buttonClassName, Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatMoney, formatNumber, formatDate } from "@/lib/format";
 import type {
@@ -288,9 +288,9 @@ function CertificadoDetalle({
           <Link
             href={`/api/projects/${project.id}/certificado/${c.id}/pdf`}
             target="_blank"
-            className="text-[12px] text-action"
+            className={buttonClassName({variant:"secondary",size:"sm"})}
           >
-            Descargar PDF
+            PDF del certificado contractual
           </Link>
           <WorkflowBar
           status={c.status}
@@ -344,6 +344,7 @@ function CertificadoDetalle({
       <FirmasRow certificate={c} />
 
       <CertificateTabs active={tab} onChange={selectTab} hasUnits={projectUnits.length > 0} />
+      <p className="text-[12px] text-[var(--muted)]">{CERTIFICATE_TAB_HELP[tab]}</p>
 
       {tab === "resumen" ? (
         <div className="space-y-4">
@@ -510,7 +511,7 @@ function CertificadoDetalle({
 
       {tab === "evidencias" ? (
         <p className="text-[12px] text-[var(--muted)]">
-          Acá van a quedar las evidencias del período (fotos con GPS, actas firmadas). Todavía no hay nada cargado.
+          La carga y consulta de anexos del período no está implementada en esta pestaña. El PDF contractual disponible no incluye fotos ni actas adjuntas.
         </p>
       ) : null}
     </div>
@@ -522,13 +523,22 @@ type CertificateTab = "resumen" | "planilla" | "avance" | "personal" | "liquidac
 // "Avance" es el avance por unidad (vivienda); solo existe si la obra tiene
 // unidades cargadas. El personal del período es un anexo aparte.
 const CERTIFICATE_TABS: { key: CertificateTab; label: string }[] = [
-  { key: "resumen", label: "Resumen" },
-  { key: "planilla", label: "Planilla" },
+  { key: "resumen", label: "Certificado contractual" },
+  { key: "planilla", label: "Planilla de soporte" },
   { key: "avance", label: "Avance por unidad" },
-  { key: "personal", label: "Personal" },
+  { key: "personal", label: "Personal del período" },
   { key: "liquidacion", label: "Liquidación" },
-  { key: "evidencias", label: "Evidencias" },
+  { key: "evidencias", label: "Anexos / evidencias" },
 ];
+
+const CERTIFICATE_TAB_HELP: Record<CertificateTab,string> = {
+  resumen: "Rubros y avance contractual del período. El PDF incluye estos rubros, la liquidación y las firmas.",
+  planilla: "Planilla de soporte: mediciones y procedencia del avance. No es un documento PDF independiente.",
+  avance: "Avance físico por unidad de obra; soporte de las cantidades certificadas.",
+  personal: "Personal declarado del período: anexo de apoyo, separado de pagos y jornales. No hay reporte imprimible independiente; el PDF usa los roles de firma.",
+  liquidacion: "Deducciones y monto líquido de este certificado. Esta liquidación se incluye en su PDF; no es una liquidación de personal.",
+  evidencias: "Sección reservada para anexos de soporte; sin carga, consulta ni impresión de anexos disponible aquí.",
+};
 
 function parseCertificateTab(value: string | null): CertificateTab | null {
   return CERTIFICATE_TABS.some((t) => t.key === value) ? (value as CertificateTab) : null;
@@ -544,7 +554,7 @@ function CertificateTabs({
   hasUnits: boolean;
 }) {
   return (
-    <div role="tablist" className="flex gap-1 border-b border-[var(--border)]">
+    <div role="tablist" className="flex flex-wrap gap-1 border-b border-[var(--border)]">
       {CERTIFICATE_TABS.filter((t) => t.key !== "avance" || hasUnits).map((t) => (
         <button
           key={t.key}

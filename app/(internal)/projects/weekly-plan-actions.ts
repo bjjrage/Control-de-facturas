@@ -340,6 +340,7 @@ export async function previewWeeklyPlanAction(
     budgetItems: BudgetItem[];
     executedQuantities: Record<string, number>;
     mrp?: MrpPreviewResult | null;
+    weatherDays?: Pick<DailyWeatherForecast,"date"|"precipitation_sum_mm"|"weather_code">[];
   } | null;
   error: string | null;
 }> {
@@ -471,6 +472,7 @@ export async function previewWeeklyPlanAction(
     return {
       data: {
         calculation,
+        weatherDays: weatherForecasts.map(({date,precipitation_sum_mm,weather_code})=>({date,precipitation_sum_mm,weather_code})),
         budgetItems,
         executedQuantities,
         mrp: mrpMode

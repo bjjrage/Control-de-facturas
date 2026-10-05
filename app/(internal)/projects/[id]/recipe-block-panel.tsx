@@ -100,14 +100,14 @@ export function RecipeBlockPanel(props: Props) {
         <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
           Objetivo de producción (receta)
         </span>
-        <button
+        <Button variant="secondary" size="sm"
           type="button"
           onClick={onImport}
           data-testid="importar-receta"
-          className="h-7 px-2 rounded-md border border-dashed border-[var(--border)] text-[11px] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--panel-2)]"
+
         >
           + Importar receta
-        </button>
+        </Button>
       </div>
       {options.length === 0 ? (
         <p className="text-[11px] text-[var(--muted)]">

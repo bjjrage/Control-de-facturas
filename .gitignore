@@ -59,3 +59,6 @@ E2E_PASSWORD*
 # Batch 03 private non-production verification artifacts
 /audit-artifacts/batch-03/
 /rfq-*.log
+
+# UI Recovery private screenshots and generated local fixture bundle
+/audit-artifacts/ui-recovery-01/

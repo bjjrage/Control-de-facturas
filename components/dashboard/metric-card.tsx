@@ -50,14 +50,16 @@ const ACCENT_BY_KEY: Record<string, string> = {
   "flujo-neto-30d": "kpi-accent-progress",
 };
 
+function MetricSurface({card,children,className}:{card:MetricCardData;children:React.ReactNode;className:string}) { return card.informational ? <div className={className}>{children}</div> : <Link href={card.href} title={`Abrir ${card.title}`} className={className}>{children}</Link>; }
+
 export function MetricCard({ card, compact = false, accentClass }: { card: MetricCardData; compact?: boolean; accentClass?: string }) {
   const Icon = DASHBOARD_ICONS[card.iconKey] ?? DASHBOARD_ICONS.receipt;
   const hasSparkline = card.sparkline && card.sparkline.length > 1;
 
+
   return (
-    <Link
-      href={card.href}
-      className={`group kpi-hover relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-[var(--panel)] ${accentClass ?? ""} ${
+    <MetricSurface card={card}
+      className={`${card.informational ? "cursor-default" : "group kpi-hover cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--primary)]"} relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-[var(--panel)] ${accentClass ?? ""} ${
         compact
           ? "h-[100px] max-h-[110px] p-3.5"
           : "min-h-[92px] p-2 sm:min-h-[96px] sm:p-2.5"
@@ -139,7 +141,7 @@ export function MetricCard({ card, compact = false, accentClass }: { card: Metri
           </div>
         ) : null}
       </div>
-    </Link>
+    </MetricSurface>
   );
 }
 

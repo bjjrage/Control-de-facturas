@@ -20,6 +20,8 @@ import {
   List,
   Boxes,
 } from "lucide-react";
+import { EditProjectDialog } from "./edit-project-dialog";
+import { isValidProjectCoords } from "@/lib/projects/location-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type {
@@ -188,6 +190,7 @@ export function WeeklyPlanSection({ project }: Props) {
   const [saveWarning, setSaveWarning] = useState<string | null>(null);
 
   // Resultado del preview SIN guardar — "¿qué necesito? / ¿es factible?".
+  const [weatherDays,setWeatherDays] = useState<NonNullable<NonNullable<Awaited<ReturnType<typeof previewWeeklyPlanAction>>["data"]>["weatherDays"]>>([]);
   const [preview, setPreview] = useState<WeeklyPlanCalculationSummary | null>(null);
   const [previewKey, setPreviewKey] = useState<string | null>(null);
 
@@ -581,6 +584,7 @@ export function WeeklyPlanSection({ project }: Props) {
             setExecutedQuantities(res.data.executedQuantities);
           }
           setPreview(res.data.calculation);
+          setWeatherDays(res.data.weatherDays??[]);
           setPreviewKey(currentKey);
           setExpandedResultKey(null);
           setPreviewMrp(res.data.mrp ?? null);
@@ -769,6 +773,7 @@ export function WeeklyPlanSection({ project }: Props) {
           <div className="segmented-control text-xs">
             <button
               type="button"
+              aria-pressed={!weatherOverlay}
               onClick={() => setWeatherOverlay(false)}
               className={`segmented-item px-2.5 py-1 ${
                 !weatherOverlay
@@ -780,6 +785,7 @@ export function WeeklyPlanSection({ project }: Props) {
             </button>
             <button
               type="button"
+              aria-pressed={weatherOverlay}
               onClick={() => setWeatherOverlay(true)}
               className={`segmented-item px-2.5 py-1 ${
                 weatherOverlay
@@ -792,6 +798,8 @@ export function WeeklyPlanSection({ project }: Props) {
             </button>
           </div>
 
+          {weatherOverlay && !isValidProjectCoords(project.latitude,project.longitude) && <EditProjectDialog project={project} focusLocation trigger={<Button size="sm" variant="secondary">Configurar ubicación</Button>}/>}
+          <p className="basis-full text-[11px] text-[var(--muted)]">{weatherOverlay?"Clima ON: requiere coordenadas. Recalculá para evaluar la capacidad de las partidas sensibles y su brecha por lluvia; no cambia la meta base ni el Libro de Obra.":"Clima OFF: factibilidad sin proyección meteorológica. Activá Clima ON y recalculá para comparar."}</p>
           {savedStatus ? (
             <span className="text-[11px] text-[var(--muted)] rounded-full border border-[var(--border)] px-2 py-0.5">
               Plan guardado: {savedStatus}
@@ -1456,6 +1464,7 @@ export function WeeklyPlanSection({ project }: Props) {
             </div>
           )}
 
+          {preview.weather_overlay_enabled && !preview.weather_failed_closed && <div className="erp-surface-strong p-3 text-xs text-[var(--muted)]">Consumo de materiales proyectado con clima: {preview.weather_adjusted_material_consumption_value==null?"Sin cálculo":preview.weather_adjusted_material_consumption_value.toLocaleString("es-PY")+" PYG"}. La compra y la caja base corresponden a la meta completa. No se calcula una pérdida monetaria por lluvia.</div>}
           {preview.weather_overlay_enabled ? (
             <div className="semantic-info glass-accent-blue p-3.5 rounded-xl text-xs">
               <div className="font-semibold flex flex-wrap items-center gap-2 text-[var(--foreground)]">
@@ -1482,6 +1491,7 @@ export function WeeklyPlanSection({ project }: Props) {
                   </span>
                 ) : null}
               </div>
+              {weatherDays.length>0&&<div className="mt-3 overflow-x-auto"><table><caption className="text-left py-2">Fechas con precipitación en la evidencia consultada (no son días contractuales no trabajados)</caption><thead><tr><th>Fecha</th><th>Precipitación</th></tr></thead><tbody>{weatherDays.filter(d=>d.precipitation_sum_mm>0).map(d=><tr key={d.date}><td>{d.date}</td><td>{d.precipitation_sum_mm} mm</td></tr>)}</tbody></table>{!weatherDays.some(d=>d.precipitation_sum_mm>0)&&<p>Sin precipitación en los días cubiertos.</p>}</div>}
               <p className="mt-1 text-[#dce9fb]">
                 {preview.weather_summary}. La meta base y la compra recomendada no se recortan
                 automáticamente.
@@ -1494,6 +1504,7 @@ export function WeeklyPlanSection({ project }: Props) {
             </div>
           )}
 
+          {preview.weather_overlay_enabled&&!preview.weather_failed_closed&&<div className="erp-table-shell overflow-x-auto"><table><caption className="px-3 py-2 text-left font-semibold">Partidas planificadas · capacidad con clima</caption><thead><tr><th>Partida / frente</th><th>Factor productivo</th><th>Capacidad</th><th>Brecha frente a meta</th></tr></thead><tbody>{preview.items.map(ci=><tr key={ci.budget_item_id+ci.front_label}><td>{ci.item_code} · {ci.item_description} · {ci.front_label}</td><td>{ci.weather_workability_factor==null?"Sin evaluación":Math.round(ci.weather_workability_factor*100)+"%"}</td><td>{ci.weather_adjusted_capacity??"—"} {ci.unit}</td><td>{ci.weather_gap_quantity??"—"} {ci.unit}</td></tr>)}</tbody></table><p className="px-3 py-2 text-xs text-[var(--muted)]">Un factor menor a 100% reduce la capacidad estimada de esa partida en el período. Las cantidades objetivo permanecen iguales.</p></div>}
           {/* Encabezado agregado del bloque (modo bloque): BLOQUE → NECESIDAD TOTAL → DETALLE */}
           {planMode === "BLOCK" && previewBlock && (
             <div data-testid="resultado-bloque" className="glass glass-accent-green p-4">

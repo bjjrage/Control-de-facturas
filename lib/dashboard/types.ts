@@ -16,6 +16,7 @@ export interface MetricCardData {
   trendText?: string | null;
   trendTone?: "up" | "down" | "neutral";
   href: string;
+  informational?: boolean;
   iconKey: DashboardIconKey;
   tone: DomainTone;
   sparkline?: SparklinePoint[];

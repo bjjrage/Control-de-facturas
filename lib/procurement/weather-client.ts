@@ -245,15 +245,7 @@ export const MISSING_PROJECT_LOCATION_MSG =
  * null/undefined/""/NaN/Infinity o fuera de rango → inválidas.
  * (0,0 es rango válido pero nunca llega como default: sin dato se rechaza.)
  */
-export function isValidProjectCoords(latitude: unknown, longitude: unknown): boolean {
-  if (latitude === null || latitude === undefined || latitude === "") return false;
-  if (longitude === null || longitude === undefined || longitude === "") return false;
-  const lat = typeof latitude === "string" ? Number(latitude) : (latitude as number);
-  const lon = typeof longitude === "string" ? Number(longitude) : (longitude as number);
-  if (typeof lat !== "number" || typeof lon !== "number") return false;
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
-  return lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
-}
+export { isValidProjectCoords } from "@/lib/projects/location-fields";
 
 // ---------------------------------------------------------------------------
 // Clima HISTÓRICO observado (Libro de Obra) — contexto DISTINTO del overlay

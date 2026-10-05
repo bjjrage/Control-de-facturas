@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { formatDate, formatMoney, formatNumber } from "@/lib/format";
@@ -70,7 +71,7 @@ export function LaborPaymentsPanel({
       </div>
 
       {open ? (
-        <form
+        <Dialog open={open} onOpenChange={setOpen}><DialogContent title="Registrar pago de mano de obra"><form
           className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-3 space-y-3"
           action={async (formData: FormData) => {
             setPending(true);
@@ -160,7 +161,7 @@ export function LaborPaymentsPanel({
               {pending ? "Guardando…" : "Registrar pago"}
             </Button>
           </div>
-        </form>
+        </form></DialogContent></Dialog>
       ) : null}
 
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-x-auto">
@@ -203,9 +204,8 @@ export function LaborPaymentsPanel({
                   </td>
                   <td className="num font-medium">{formatMoney(p.amount, "PYG")}</td>
                   <td>
-                    <button
+                    <Button variant="ghost" size="sm"
                       type="button"
-                      className="text-action text-[12px]"
                       onClick={async () => {
                         if (!window.confirm("¿Borrar este pago?")) return;
                         const res = await deleteLaborPayment(projectId, p.id);
@@ -215,7 +215,7 @@ export function LaborPaymentsPanel({
                       }}
                     >
                       Borrar
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))
