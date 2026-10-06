@@ -160,8 +160,14 @@ export function evaluateContractClimate(input: {
         const extAllowed=!!event && (!p.sourceName.trim() || event.source===p.sourceName.trim()) && (!p.stationId.trim() || event.external_station_id===p.stationId.trim());
         const ext=extAllowed?event?.external_precipitation_mm:null,local=event?.local_precipitation_mm;
         const values=p.rainSource==="EXTERNAL"?[ext]:p.rainSource==="LOCAL"?[local]:[ext,local];
-        if(values.every(x=>x==null))pending("Falta medición de la fuente/estación exigida.");
-        else if(!values.some(threshold)){row.state="EXCLUDED";row.reason="La precipitación no supera el umbral configurado.";}
+        if(values.some(threshold)) {
+          // One accepted source is enough when the PBC allows either source.
+        } else if(values.some(x=>x==null)) {
+          // Missing data is unknown, not proof that the threshold was missed.
+          pending("Falta medición de la fuente/estación exigida.");
+        } else {
+          row.state="EXCLUDED";row.reason="La precipitación no supera el umbral configurado.";
+        }
       }
     }
     allDates.push(row);

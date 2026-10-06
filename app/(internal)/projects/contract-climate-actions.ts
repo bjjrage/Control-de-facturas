@@ -3,6 +3,7 @@
 import { createHash } from "node:crypto";
 import { requirePlan } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { readAll } from "@/lib/cashflow/load";
 import { climateToday } from "@/lib/procurement/climate-entry";
 import { revalidatePath } from "next/cache";
@@ -95,7 +96,9 @@ export async function attachContractClimateToCertificate(projectId:string,certif
     if(result.status!=="COMPLETE")return {error:`El anexo no está completo: ${result.issues.join(" ")}`};
     const inputs={policies:context.policies,workdays:context.workdays,events:context.events,evidence:context.evidence,assessments:context.assessments,adjustments:context.adjustments};
     const inputHash=createHash("sha256").update(JSON.stringify({inputs,result})).digest("hex");
-    const {error}=await context.db.from("certificate_climate_snapshots").insert({project_id:projectId,empresa_id:context.profile.empresa_id,
+    // Direct authenticated snapshot writes are revoked. This privileged insert is
+    // safe only after the tenant/admin gate above and server-side recomputation.
+    const {error}=await createAdminClient().from("certificate_climate_snapshots").insert({project_id:projectId,empresa_id:context.profile.empresa_id,
       certificate_id:certificateId,created_by:context.profile.id,input_hash:inputHash,snapshot:{inputs,result}});
     if(error)return {error:error.message};
     await logAudit(context.db,{action:"contract_climate.certificate_annex_attached",detail:{project_id:projectId,certificate_id:certificateId,input_hash:inputHash}});

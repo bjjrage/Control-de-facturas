@@ -35,8 +35,11 @@ describe("PREBID visibility surface contract", () => {
     expect(existingPrebidRoute).toContain("<PrebidWorkspace");
   });
 
-  it("reuses the existing DNCP import flow for the empty state", () => {
-    expect(prebidIndex).toContain("No hay licitaciones para preparar.");
+  it("keeps PREBID open without tenders and reuses the existing DNCP import flow", () => {
+    expect(prebidIndex).toContain("<PrebidWorkspace data={displayData} />");
+    expect(prebidIndex).toContain("context: null");
+    expect(prebidIndex).toContain("PREBID está abierto.");
+    expect(prebidIndex).toContain("Todavía no hay licitaciones cargadas.");
     expect(prebidIndex).toContain('<ImportarDialog triggerLabel="IMPORTAR DNCP" />');
     expect(dashboard).toContain("importarLicitacion(valor.trim())");
   });
