@@ -9,10 +9,12 @@ export function ExecutionLinkDialog({
   appUrl,
   token,
   projectCode,
+  triggerLabel = "QR para Residente",
 }: {
   appUrl: string;
   token: string;
   projectCode?: string;
+  triggerLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -31,7 +33,7 @@ export function ExecutionLinkDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="secondary">QR para Residente</Button>
+        <Button variant="secondary">{triggerLabel}</Button>
       </DialogTrigger>
       <DialogContent title="QR para Residente">
         <div className="space-y-3">
@@ -71,6 +73,10 @@ export function ExecutionLinkDialog({
             <span className="text-[11px] text-[var(--muted)] break-all">{portalUrl}</span>
           </div>
 
+          <p className="text-[11px] text-[var(--muted)]">
+            El residente puede cargar partes diarios y reportes de lluvia con pluviómetro y foto.
+            Los reportes de lluvia aportan evidencia; el Libro requiere una decisión administrativa.
+          </p>
           <p className="text-[11px] text-[var(--muted)]">
             El Residente puede registrar partes diarios de obra desde su celular. El formulario permite elegir
             una partida, indicar cantidad, fecha, notas y fotos, sin iniciar sesión.

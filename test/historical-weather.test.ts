@@ -294,31 +294,30 @@ describe("P1-2. Ubicación faltante/inválida no consulta al provider", () => {
     expect(src).not.toContain("-57.534");
   });
 
-  it("la UI muestra el mensaje de ubicación y el Libro manual sigue disponible", () => {
+  it("the Libro shows canonical coordinate guidance and retains legacy history as read only", () => {
     const ui = readSource("app/(internal)/projects/[id]/avance-fisico-panel.tsx");
-    expect(ui).toContain("ubicación geográfica");
-    // Libro manual intacto
-    expect(ui).toContain("Registrar día");
-    expect(ui).toContain("Guardar día");
+    const climate = readSource("app/(internal)/projects/[id]/climate-workdays-panel.tsx");
+    expect(ui).toContain('data-testid="legacy-project-weather-log"');
+    expect(ui).not.toContain("setWeatherDay");
+    expect(climate).toContain("isValidProjectCoords");
+    expect(climate).toContain("latitud y longitud");
   });
 });
 
 // ---------------------------------------------------------------------------
-// J. "Usar como Lluvioso" explícito usa el mecanismo actual del Libro
 // ---------------------------------------------------------------------------
-describe("J. LL explícito reutiliza setWeatherDay (sin auto-escritura)", () => {
-  it("la UI ofrece acción explícita por día que delega al Libro actual", () => {
+// J. Legacy Libro history is read-only and non-authoritative
+// ---------------------------------------------------------------------------
+describe("J. Legacy Libro history is read-only", () => {
+  it("keeps historical rows separate from the canonical workday registry", () => {
     const ui = readSource("app/(internal)/projects/[id]/avance-fisico-panel.tsx");
-    expect(ui).toContain("usar-como-ll");
-    expect(ui).toContain("Usar como Lluvioso");
-    // Delega en el mecanismo existente (persist → setWeatherDay), no escribe directo
-    expect(ui).toContain("setWeatherDay");
+    expect(ui).toContain('data-testid="legacy-project-weather-log"');
+    expect(ui).toContain("LEGACY");
+    expect(ui).not.toContain("setWeatherDay");
+    expect(ui).not.toContain("onClick={() => cycle(dateStr)}");
+    expect(ui).not.toContain("usar-como-ll");
   });
 });
-
-// ---------------------------------------------------------------------------
-// K. Falla provider → mensaje claro, manual intacto, sin ceros inventados
-// ---------------------------------------------------------------------------
 describe("K. Fail cerrado histórico: sin datos inventados", () => {
   it("si el provider falla, el rango lanza (el llamador informa, no inventa)", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("network down"); }));

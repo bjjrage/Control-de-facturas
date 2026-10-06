@@ -1,4 +1,6 @@
 "use client";
+import { Select } from "@/components/ui/input";
+
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -12,18 +14,22 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { ClimateWorkdaysPanel } from "./climate-workdays-panel";
+import { isValidProjectCoords } from "@/lib/projects/location-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type {
   Project,
   ProjectCertificate,
   ProjectWeatherLog,
+  ClimateEvent,
+  ProjectWorkdayStatus,
+  ClimateEvidence,
   ProjectSchedulePlan,
   ProjectSchedulePlanMonth,
   WeatherCode,
 } from "@/lib/types";
 import {
-  setWeatherDay,
   saveSchedulePlan,
   activateSchedulePlan,
   deleteSchedulePlan,
@@ -31,7 +37,6 @@ import {
 import { getHistoricalWeatherAction } from "../historical-weather-actions";
 import type { DailyObservedWeather } from "@/lib/procurement/weather-client";
 
-const WEATHER_CYCLE: (WeatherCode | null)[] = [null, "B", "LL", "HH", "O"];
 const WEATHER_LABEL: Record<WeatherCode, string> = {
   B: "Bueno / practicable",
   LL: "Lluvioso",
@@ -40,7 +45,7 @@ const WEATHER_LABEL: Record<WeatherCode, string> = {
 };
 const WEATHER_STYLE: Record<WeatherCode, string> = {
   B: "bg-[var(--panel-2)] text-[var(--muted)]",
-  LL: "bg-blue-500/25 text-blue-700 dark:text-blue-300",
+  LL: "bg-[var(--primary)]/15 text-[#b5d1ff] ring-1 ring-[var(--primary)]/30",
   HH: "bg-[var(--warn-bg)]/55 text-[#fff8e8] ring-1 ring-[var(--warn)]/20",
   O: "bg-[var(--hover)] text-[var(--foreground)]",
 };
@@ -125,18 +130,30 @@ function monthSpan(project: Project): { year: number; month: number }[] {
   return out;
 }
 
+function localDateIso(date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 export function AvanceFisicoPanel({
   project,
   certificates,
   weatherLogs,
+  climateEvents,
+  climateWorkdays,
+  climateEvidence,
   schedulePlans,
   planMonths,
+  appUrl,
 }: {
   project: Project;
   certificates: ProjectCertificate[];
   weatherLogs: ProjectWeatherLog[];
+  climateEvents: ClimateEvent[];
+  climateWorkdays: ProjectWorkdayStatus[];
+  climateEvidence: ClimateEvidence[];
   schedulePlans: ProjectSchedulePlan[];
   planMonths: Record<string, ProjectSchedulePlanMonth[]>;
+  appUrl?: string;
 }) {
   return (
     <div className="space-y-6">
@@ -146,7 +163,17 @@ export function AvanceFisicoPanel({
         schedulePlans={schedulePlans}
         planMonths={planMonths}
       />
-      <DiasNoTrabajados project={project} weatherLogs={weatherLogs} />
+      <div className="space-y-3">
+        <ClimateWorkdaysPanel
+          project={project}
+          events={climateEvents}
+          workdays={climateWorkdays}
+          evidence={climateEvidence}
+          historicalOnly
+          appUrl={appUrl}
+        />
+        <details className="rounded-lg border border-[var(--border)] p-3"><summary className="cursor-pointer text-xs text-[var(--muted)]">Histórico anterior · LEGACY · solo lectura</summary><DiasNoTrabajados project={project} weatherLogs={weatherLogs} /></details>
+      </div>
     </div>
   );
 }
@@ -196,7 +223,7 @@ function CurvaAvance({
         <div className="text-[13px] font-semibold">Curva de avance financiero</div>
         <div className="flex items-center gap-2">
           {schedulePlans.length > 0 ? (
-            <select
+            <Select
               className="h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 text-[12px]"
               value={activePlan?.id ?? ""}
               onChange={(e) => run(() => activateSchedulePlan(e.target.value))}
@@ -208,7 +235,7 @@ function CurvaAvance({
                   {p.is_active ? " (activa)" : ""}
                 </option>
               ))}
-            </select>
+            </Select>
           ) : null}
           <Button variant="secondary" onClick={() => setEditing((v) => !v)}>
             {editing ? "Cerrar" : activePlan ? "Editar cronograma" : "Cargar cronograma"}
@@ -423,18 +450,6 @@ function DiasNoTrabajados({
   project: Project;
   weatherLogs: ProjectWeatherLog[];
 }) {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState<{ error: string | null; success: string | null }>({
-    error: null,
-    success: null,
-  });
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [editorDate, setEditorDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
-  const [editorCode, setEditorCode] = useState<string>("LL");
-  // Evidencia meteorológica HISTÓRICA observada (solo lectura, por mes).
-  // El clima NUNCA escribe el Libro solo: solo setWeatherDay con acción
-  // explícita del usuario (ciclo de día, editor o "Usar como Lluvioso").
   const [histByMonth, setHistByMonth] = useState<
     Record<
       string,
@@ -452,60 +467,8 @@ function DiasNoTrabajados({
     return m;
   }, [weatherLogs]);
 
+  const today = localDateIso();
   const months = useMemo(() => monthSpan(project), [project]);
-
-  const counts = useMemo(() => {
-    let b = 0, ll = 0, hh = 0, o = 0;
-    for (const w of weatherLogs) {
-      if (w.code === "B") b++;
-      else if (w.code === "LL") ll++;
-      else if (w.code === "HH") hh++;
-      else if (w.code === "O") o++;
-    }
-    return { b, ll, hh, o, total: ll + hh + o };
-  }, [weatherLogs]);
-
-  async function persist(dateStr: string, code: WeatherCode | null) {
-    if (busy) return;
-    setBusy(true);
-    setFeedback({ error: null, success: null });
-    const res = await setWeatherDay(project.id, dateStr, code);
-    setBusy(false);
-    if (res.error) {
-      setFeedback({ error: res.error, success: null });
-      return;
-    }
-    setFeedback({
-      error: null,
-      success:
-        code === null
-          ? `Registro de ${dateStr} eliminado.`
-          : `${dateStr} registrado como ${WEATHER_LABEL[code]}.`,
-    });
-    router.refresh();
-  }
-
-  async function cycle(dateStr: string) {
-    const current = byDate.get(dateStr) ?? null;
-    const idx = WEATHER_CYCLE.indexOf(current);
-    const next = WEATHER_CYCLE[(idx + 1) % WEATHER_CYCLE.length];
-    await persist(dateStr, next);
-    // Sincroniza editor si está abierto
-    setEditorDate(dateStr);
-    if (next) setEditorCode(next);
-  }
-
-  async function saveFromEditor() {
-    if (!editorDate) {
-      setFeedback({ error: "Elegí una fecha válida.", success: null });
-      return;
-    }
-    if (editorCode === "__CLEAR__") {
-      await persist(editorDate, null);
-    } else {
-      await persist(editorDate, editorCode as WeatherCode);
-    }
-  }
 
   function monthKey(year: number, month: number): string {
     return `${year}-${String(month + 1).padStart(2, "0")}`;
@@ -514,7 +477,8 @@ function DiasNoTrabajados({
   function monthRange(year: number, month: number): { start: string; end: string } {
     const last = new Date(year, month + 1, 0).getDate();
     const mm = String(month + 1).padStart(2, "0");
-    return { start: `${year}-${mm}-01`, end: `${year}-${mm}-${String(last).padStart(2, "0")}` };
+    const monthEnd = `${year}-${mm}-${String(last).padStart(2, "0")}`;
+    return { start: `${year}-${mm}-01`, end: monthEnd > today ? today : monthEnd };
   }
 
   // UNA sola consulta por rango mensual (nunca una request por día).
@@ -523,6 +487,7 @@ function DiasNoTrabajados({
     const cur = histByMonth[key];
     if (cur && (cur.loading || Object.keys(cur.days).length > 0 || cur.error)) return;
     const { start, end } = monthRange(year, month);
+    if (start > today) return;
     setHistByMonth((prev) => ({
       ...prev,
       [key]: { days: {}, sources: [], loading: true, error: null },
@@ -552,95 +517,19 @@ function DiasNoTrabajados({
     <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <div className="text-[13px] font-semibold">Días no trabajados (Libro de Obra) — registro histórico</div>
+          <div className="text-[13px] font-semibold">HISTÓRICO LEGACY — SOLO LECTURA</div>
           <p className="text-[11px] text-[var(--muted)]">
-            Lo que realmente ocurrió (contractual). No es pronóstico futuro — el clima futuro se ve en
-            Plan Semanal → Clima ON. Podés cargar el clima <em>observado</em> por mes como evidencia:
-            el dato meteorológico no decide por vos, el registro en el Libro siempre es humano.
+            Datos conservados de <code>project_weather_log</code>. No representan el registro contractual vigente;
+            las propuestas y decisiones se consultan en Jornadas climaticas.
           </p>
         </div>
-        <div className="flex gap-3 text-[12px]">
-          <span>
-            Lluvia <strong>{counts.ll}</strong>
-          </span>
-          <span>
-            Húmedos <strong>{counts.hh}</strong>
-          </span>
-          <span>
-            Otros <strong>{counts.o}</strong>
-          </span>
-          <span className="text-[var(--muted)]">
-            Total no trabajados <strong className="text-[var(--foreground)]">{counts.total}</strong>
-            {project.plazo_dias ? ` / plazo ${project.plazo_dias} d` : ""}
-          </span>
-        </div>
+        <span className="rounded-full border border-[var(--border)] px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">LEGACY - {weatherLogs.length} registros</span>
       </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="secondary"
-          onClick={() => setEditorOpen((v) => !v)}
-          className="h-8 text-xs"
-        >
-          {editorOpen ? "Cerrar editor" : "Registrar día"}
-        </Button>
-        <div className="flex flex-wrap gap-2 text-[11px] text-[var(--muted)]">
-          <LegendChip code="B" />
-          <LegendChip code="LL" />
-          <LegendChip code="HH" />
-          <LegendChip code="O" />
-          <span className="ml-1">— clic en un día para avanzar B → LL → HH → O → vacío</span>
-        </div>
+      <div className="erp-surface-strong p-3 text-[12px] text-[var(--muted)] space-y-1">
+        <p>Open-Meteo aporta clima observado como evidencia de apoyo. No crea ni confirma jornadas contractuales.</p>
+        {!isValidProjectCoords(project.latitude, project.longitude) ? <p>La consulta de evidencia requiere latitud y longitud configuradas. La evaluacion DMH/DINAC tambien necesita ambas coordenadas.</p> : null}
       </div>
-
-      {editorOpen ? (
-        <div className="rounded border border-[var(--border)] bg-[var(--panel-2)] p-3 flex flex-wrap items-end gap-3">
-          <div>
-            <label className="text-[11px] text-[var(--muted)]">Fecha</label>
-            <Input
-              type="date"
-              value={editorDate}
-              onChange={(e) => setEditorDate(e.target.value)}
-              className="h-8 w-40"
-            />
-          </div>
-          <div>
-            <label className="text-[11px] text-[var(--muted)]">Estado</label>
-            <select
-              value={editorCode}
-              onChange={(e) => setEditorCode(e.target.value)}
-              className="h-8 rounded border border-[var(--border)] bg-[var(--panel)] px-2 text-[12px]"
-            >
-              <option value="B">Bueno / practicable (B)</option>
-              <option value="LL">Lluvioso (LL)</option>
-              <option value="HH">Húmedo / encharcado (HH)</option>
-              <option value="O">Otra circunstancia (O)</option>
-              <option value="__CLEAR__">Limpiar registro (borrar)</option>
-            </select>
-          </div>
-          <Button disabled={busy} onClick={saveFromEditor} className="h-8 text-xs">
-            {busy ? "Guardando…" : "Guardar día"}
-          </Button>
-          <span className="text-[11px] text-[var(--muted)]">
-            {editorDate && byDate.get(editorDate)
-              ? `Actual: ${WEATHER_LABEL[byDate.get(editorDate)!]}`
-              : "Sin registro en esa fecha"}
-          </span>
-        </div>
-      ) : null}
-
-      {feedback.error ? (
-        <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
-          {feedback.error}
-        </div>
-      ) : null}
-      {feedback.success ? (
-        <div className="semantic-success rounded px-2.5 py-1.5 text-[12px]">
-          {feedback.success}
-        </div>
-      ) : null}
-
-      <div className="space-y-3 overflow-x-auto" data-testid="libro-calendario">
+      <div className="space-y-3 overflow-x-auto" data-testid="legacy-project-weather-log">
         {months.map(({ year, month }) => {
           const days = new Date(year, month + 1, 0).getDate();
           const key = monthKey(year, month);
@@ -649,9 +538,10 @@ function DiasNoTrabajados({
           const rainyDays = obsDays.filter((o) => Number(o.precipitation_mm) > 0);
           const totalMm = rainyDays.reduce((s, o) => s + (Number(o.precipitation_mm) || 0), 0);
           const mm = String(month + 1).padStart(2, "0");
-          let llInMonth = 0;
-          for (const [dateStr, code] of byDate) {
-            if (code === "LL" && dateStr.startsWith(`${year}-${mm}-`)) llInMonth++;
+          const isFutureMonth = `${year}-${mm}-01` > today;
+          let legacyRowsInMonth = 0;
+          for (const [dateStr] of byDate) {
+            if (dateStr.startsWith(`${year}-${mm}-`)) legacyRowsInMonth++;
           }
           return (
             <div key={`${year}-${month}`} className="space-y-1">
@@ -659,17 +549,17 @@ function DiasNoTrabajados({
                 <div className="w-28 shrink-0 text-[12px] text-[var(--muted)]">
                   {MONTHS_ES[month]} {year}
                 </div>
-                {!hist || (!hist.loading && Object.keys(hist.days).length === 0 && !hist.error) ? (
-                  <button
+                {!isFutureMonth && (!hist || (!hist.loading && Object.keys(hist.days).length === 0 && !hist.error)) ? (
+                  <Button variant="secondary" size="sm"
                     type="button"
                     onClick={() => loadHistMonth(year, month)}
-                    disabled={busy || hist?.loading}
+                    disabled={hist?.loading || !isValidProjectCoords(project.latitude,project.longitude)}
                     data-testid={`ver-clima-${year}-${mm}`}
-                    className="h-6 px-2 rounded-md border border-[var(--border)] text-[11px] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--panel-2)]"
+
                     title="Cargar clima observado de este mes (una sola consulta por rango)"
                   >
                     {hist?.loading ? "Cargando clima…" : "Ver clima observado"}
-                  </button>
+                  </Button>
                 ) : null}
                 {hist?.loading ? (
                   <span className="text-[11px] text-[var(--muted)]">Cargando clima observado…</span>
@@ -681,9 +571,9 @@ function DiasNoTrabajados({
                 ) : null}
                 {hist && !hist.loading && !hist.error && Object.keys(hist.days).length > 0 ? (
                   <span className="text-[11px] text-[var(--muted)]" data-testid={`resumen-clima-${year}-${mm}`}>
-                    Clima observado · {MONTHS_ES[month]}: {rainyDays.length}{" "}
+                    Evidencia Open-Meteo (solo apoyo) · {MONTHS_ES[month]}: {rainyDays.length}{" "}
                     {rainyDays.length === 1 ? "día con precipitación" : "días con precipitación"},{" "}
-                    {fmtMm(totalMm)} mm acumulados | Libro: {llInMonth} {llInMonth === 1 ? "día LL" : "días LL"}
+                    {fmtMm(totalMm)} mm acumulados · {legacyRowsInMonth} {legacyRowsInMonth === 1 ? "fila legacy" : "filas legacy"}
                     {hist.sources.length > 0 ? ` · Fuente: ${hist.sources.join(" + ")}` : ""}
                   </span>
                 ) : null}
@@ -701,40 +591,26 @@ function DiasNoTrabajados({
                     const obsLabel = obs
                       ? `Clima observado: ${fmtMm(mmVal)} mm de precipitación. Fuente: ${obs.source}`
                       : null;
-                    const regLabel = code ? `Registro de obra: ${WEATHER_LABEL[code]} (${code})` : "Registro de obra: sin registro";
+                    const regLabel = code ? `Registro legacy de solo lectura: ${WEATHER_LABEL[code]} (${code})` : "Sin fila legacy";
                     return (
                       <div key={dateStr} className="flex flex-col items-center w-8 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => cycle(dateStr)}
-                          disabled={busy}
-                          title={`${dateStr}${code ? ` · ${WEATHER_LABEL[code]} (clic para cambiar)` : " · sin registro (clic para B)"}${obsLabel ? `\n${obsLabel}` : ""}\n${regLabel}`}
-                          className={`h-6 w-6 rounded text-[10px] font-medium ${
+                        <span
+                          title={`${dateStr} - Solo lectura - ${regLabel}${obsLabel ? `\n${obsLabel}` : ""}`}
+                          className={`inline-flex h-6 w-6 items-center justify-center rounded text-[10px] font-medium ${
                             code ? WEATHER_STYLE[code] : "bg-[var(--panel-2)] text-[var(--muted)]/40"
                           }`}
                         >
                           {code ?? d + 1}
-                        </button>
+                        </span>
                         {mmVal !== null ? (
                           <span
-                            className={`text-[9px] leading-tight ${rainy ? "text-blue-600 dark:text-blue-300" : "text-[var(--muted)]/50"}`}
+                            className={`text-[9px] leading-tight ${rainy ? "text-[#b5d1ff]" : "text-[var(--muted)]/50"}`}
                             title={obsLabel ?? undefined}
                           >
                             {rainy ? `🌧 ${fmtMm(mmVal)}` : "0 mm"}
                           </span>
                         ) : null}
-                        {rainy && code !== "LL" ? (
-                          <button
-                            type="button"
-                            onClick={() => persist(dateStr, "LL")}
-                            disabled={busy}
-                            data-testid={`usar-como-ll-${dateStr}`}
-                            title={`Usar como Lluvioso (LL) — registra ${dateStr} en el Libro de Obra (acción explícita)`}
-                            className="mt-0.5 rounded border border-blue-500/40 px-1 text-[9px] font-semibold text-blue-600 dark:text-blue-300 hover:bg-blue-500/10"
-                          >
-                            LL
-                          </button>
-                        ) : null}
+
                       </div>
                     );
                   })}
@@ -745,13 +621,5 @@ function DiasNoTrabajados({
         })}
       </div>
     </div>
-  );
-}
-
-function LegendChip({ code }: { code: WeatherCode }) {
-  return (
-    <span className={`rounded px-1.5 py-0.5 ${WEATHER_STYLE[code]}`}>
-      {code} · {WEATHER_LABEL[code]}
-    </span>
   );
 }

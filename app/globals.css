@@ -500,7 +500,7 @@ button[class*="bg-rose-"] {
   min-width: 0;
 }
 
-.erp-workspace :where(
+.erp-workspace > :where(
   .max-w-3xl,
   .max-w-4xl,
   .max-w-5xl,
@@ -730,3 +730,7 @@ button[class*="bg-rose-"] {
   border-color: rgba(45,212,191,.26);
   box-shadow: inset 0 0 0 1px rgba(45,212,191,.04);
 }
+
+/* Native menus use the same opaque OS surface as dialogs, including legacy selects. */
+select option, select optgroup { background-color: #17253a; color: var(--foreground); }
+select:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }

@@ -1,0 +1,18 @@
+{
+  "browser": "Windows Firefox / Playwright",
+  "fixtureOnly": true,
+  "productionMutations": 0,
+  "tests": [
+    "Disabled empty first placeholder: empty FormData, invalid required, reset preserved",
+    "Inventory actual create-location payload PROJECT/project-a",
+    "Stock actual product payload unit/category IDs",
+    "Warehouse actual consumption FormData product/item/quantity",
+    "Competitors actual navigation period enum",
+    "Receipt actual action order item/product IDs",
+    "SIFEN actual NC motive/source ID payload",
+    "BIM actual group/budget-item IDs",
+    "Panol actual draft line product/item/state payload (blocked action)",
+    "Cobros actual client-ID navigation"
+  ],
+  "errors": []
+}

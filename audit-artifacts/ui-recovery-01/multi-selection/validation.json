@@ -1,0 +1,22 @@
+{
+  "oldHead": "56b92fb7f18ae1ac8a50a8b3bc5323950acc11ce",
+  "focusedTests": 84,
+  "fullTests": {
+    "passed": 1863,
+    "skipped": 16,
+    "filesPassed": 176,
+    "filesSkipped": 2
+  },
+  "typecheck": "PASS",
+  "webpackBuild": "PASS",
+  "staticPages": 59,
+  "firefoxLocal": 18,
+  "authenticatedDeployedScreenshot": "NOT VERIFIED",
+  "backendChanged": false,
+  "residentBackendChanged": false,
+  "weatherSemanticsChanged": false,
+  "migrations": 0,
+  "databaseModified": false,
+  "productionDeployed": false,
+  "contractCalculationArchitecture": "Proposal only; synthetic examples; no engine released"
+}

@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -188,7 +190,7 @@ function RegistrarDialog({
                         />
                       </td>
                       <td>
-                        <select
+                        <Select
                           value={productoPorItem[it.id] ?? it.producto_id ?? ""}
                           disabled={pending || attemptLocked}
                           onChange={(e) =>
@@ -207,7 +209,7 @@ function RegistrarDialog({
                             .map((p) => (
                             <option key={p.id} value={p.id}>{p.nombre}</option>
                           ))}
-                        </select>
+                        </Select>
                       </td>
                     </tr>
                   ))}
@@ -407,7 +409,7 @@ function RecepcionCard({
                     </td>
                     <td className="text-[12px]">
                       {canMap && recepcion.status === "DRAFT" ? (
-                        <select
+                        <Select
                           aria-label="Material de inventario"
                           value={ri.producto_id ?? ""}
                           disabled={mappingItemId === ri.id || mappingItemId !== null}
@@ -420,7 +422,7 @@ function RecepcionCard({
                             .map((product) => (
                               <option key={product.id} value={product.id}>{product.nombre}</option>
                             ))}
-                        </select>
+                        </Select>
                       ) : mappedProduct ? (
                         mappedProduct.nombre
                       ) : (

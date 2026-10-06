@@ -1,4 +1,6 @@
 import { createElement } from "react";
+import { readFileSync } from "node:fs";
+import { GOEKUA_NC_MOTIVES } from "../goekua";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import type { SalesDocStatus, SalesDocType } from "../types";
@@ -286,7 +288,12 @@ describe("Goekua actual outbound request contract (mocked HTTP only)", () => {
   });
   it("renders eight motives with a blank human selection",()=>{
     const html=renderToStaticMarkup(createElement(SifenButton,{docId:"doc",docType:"NOTA_CREDITO",status:"EMITIDA",cdc:null,kudeUrl:null,xmlUrl:null,creditNoteItems:[item],sourceInvoiceItems:[item]}));
-    expect(html).toContain("Seleccionar motivo");expect(html).toContain('value="8"');expect(html).toContain("disabled");
-    expect(html).toContain('value="" selected=""');
+    expect(html).toContain("Seleccionar motivo");expect(html).toContain("disabled");
+    expect(html).not.toContain("<select");
+    expect(html).toMatch(/<input[^>]+value=""/);
+    expect(html.match(/role="combobox"/g)).toHaveLength(2);
+    const source = readFileSync("app/(internal)/ventas/[id]/sifen-button.tsx", "utf8");
+    expect(source).toContain("Object.entries(GOEKUA_NC_MOTIVES)");
+    expect(Object.keys(GOEKUA_NC_MOTIVES)).toEqual(["1", "2", "3", "4", "5", "6", "7", "8"]);
   });
 });

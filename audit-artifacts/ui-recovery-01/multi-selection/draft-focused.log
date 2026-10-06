@@ -1,0 +1,8 @@
+
+ RUN  v4.1.10 C:/Users/User/Desktop/PORYECTOS/Control de Facturas/.worktrees/ui-surface-recovery-01
+
+
+ Test Files  6 passed (6)
+      Tests  93 passed (93)
+   Start at  19:29:50
+   Duration  2.15s (transform 566ms, setup 0ms, import 1.11s, tests 517ms, environment 2ms)

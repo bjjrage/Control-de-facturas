@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/browser";
 import { formatNumber, formatMoney, calcLineSubtotal } from "@/lib/format";
@@ -751,7 +753,7 @@ export function BimSection({ projectId }: { projectId: string }) {
                           </>
                         ) : null}
                         {changingGroupId === group.id ? (
-                          <select
+                          <Select
                             className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-[12px]"
                             defaultValue=""
                             onChange={(e) => {
@@ -766,7 +768,7 @@ export function BimSection({ projectId }: { projectId: string }) {
                                 {b.code} — {b.description} ({b.unit})
                               </option>
                             ))}
-                          </select>
+                          </Select>
                         ) : (
                           <Button variant="secondary" onClick={() => setChangingGroupId(group.id)}>
                             Cambiar rubro

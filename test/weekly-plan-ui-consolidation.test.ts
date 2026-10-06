@@ -153,15 +153,13 @@ describe("setWeatherDay propaga errores reales", () => {
     expect(src).not.toMatch(/await supabase\.from\("project_weather_log"\)\.delete\(\)\.eq[^;]*;\s*\} else/);
   });
 
-  it("DiasNoTrabajados muestra loading / éxito / error real y editor Registrar día", () => {
+  it("the legacy calendar is clearly labelled and read-only", () => {
     const src = readSource("app/(internal)/projects/[id]/avance-fisico-panel.tsx");
-    expect(src).toContain("Registrar día");
-    expect(src).toContain("Guardar día");
-    expect(src).toContain("Limpiar registro");
-    expect(src).toContain("Guardando");
-    expect(src).toContain("feedback.error");
-    expect(src).toContain("feedback.success");
-    expect(src).toContain("registro histórico");
+    expect(src).toContain("HISTÓRICO LEGACY — SOLO LECTURA");
+    expect(src).toContain("LEGACY");
+    expect(src).not.toContain("setWeatherDay");
+    expect(src).not.toContain("Registrar día");
+    expect(src).not.toContain("Guardar día");
   });
 });
 

@@ -1,0 +1,3 @@
+0 operational native dropdowns in app/ and components/.
+Technical exceptions: NONE.
+The correction-2 inventory is the historical BEFORE list of 51 controls.

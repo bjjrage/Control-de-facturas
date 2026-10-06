@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
@@ -258,7 +260,7 @@ export function ImportarDialog() {
                           {required && <span className="text-[var(--error)] ml-0.5">*</span>}
                         </td>
                         <td className="px-3 py-1.5">
-                          <select
+                          <Select
                             value={mapping[key]}
                             onChange={(e) =>
                               setMapping((m) => ({ ...m, [key]: parseInt(e.target.value) }))
@@ -271,7 +273,7 @@ export function ImportarDialog() {
                                 {h || `Columna ${i + 1}`}
                               </option>
                             ))}
-                          </select>
+                          </Select>
                         </td>
                       </tr>
                     ))}

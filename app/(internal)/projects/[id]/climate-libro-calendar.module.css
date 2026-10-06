@@ -1,0 +1,67 @@
+.day {
+  --day-accent: 126, 175, 255;
+  background: var(--panel-2);
+  border-color: var(--border);
+  box-shadow: none;
+  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.day[data-code="B"] { --day-accent: 52, 211, 153; }
+.day[data-code="LL"] { --day-accent: 96, 165, 250; }
+.day[data-code="HH"] { --day-accent: 245, 185, 66; }
+.day[data-code="O"] { --day-accent: 192, 132, 252; }
+
+.day:not(:disabled):hover {
+  background: rgba(var(--day-accent), .2);
+  border-color: rgba(var(--day-accent), .8);
+  box-shadow: inset 0 0 0 1px rgba(var(--day-accent), .3), 0 0 9px rgba(var(--day-accent), .28);
+}
+
+.day[data-draft="true"] {
+  border-style: dashed;
+  border-color: rgba(var(--day-accent), .75);
+  background: rgba(var(--day-accent), .13);
+}
+
+.draftLabel { color: rgb(var(--day-accent)); }
+
+.day[aria-pressed="true"]:not(:disabled) {
+  background: rgba(var(--day-accent), .25);
+  border-color: #eef5ff;
+  box-shadow: inset 0 0 0 1px #eef5ff;
+}
+
+.day[aria-pressed="true"]:not(:disabled):hover {
+  background: rgba(var(--day-accent), .33);
+  box-shadow: inset 0 0 0 1px #eef5ff, 0 0 9px rgba(var(--day-accent), .28);
+}
+
+.day:focus-visible {
+  outline: 2px solid #b2ceff;
+  outline-offset: 2px;
+}
+
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+.draftCount { font-size: 11px; color: var(--muted); }
+.draftCount[data-pending="true"] { color: #ffda80; font-weight: 600; }
+.workflowHint { flex-basis: 100%; margin: 0; padding-top: 7px; border-top: 1px solid var(--border); font-size: 11px; line-height: 1.5; color: #c7d8ee; }
+.modeButton, .clearButton, .typeButton, .saveButton, .discardButton { min-height: 34px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 11px; font-weight: 600; cursor: pointer; transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }
+.modeButton { display: inline-flex; align-items: center; gap: 7px; color: var(--foreground); background: var(--panel-2); }
+.modeButton[aria-pressed="true"] { background: #204678; border-color: #91bfff; color: #fff; box-shadow: inset 0 0 0 1px #91bfff; }
+.modeButton:not(:disabled):hover { border-color: #91bfff; box-shadow: 0 0 8px #5897ff40; }
+.modeBadge { padding: 2px 5px; border-radius: 4px; font-size: 9px; background: #ffffff12; }
+.modeButton[aria-pressed="true"] .modeBadge { background: #b5d1ff; color: #112d51; }
+.clearButton { color: #eef5ff; background: rgba(20,33,53,.88); border-color: #768aa7; box-shadow: inset 3px 0 0 #92a7c6; }
+.clearButton:not(:disabled):hover { background: #253952; border-color: #c7d8ee; box-shadow: inset 3px 0 0 #c7d8ee, 0 0 8px #92a7c630; }
+.discardButton { color: #ffe1cc; background: rgba(20,33,53,.88); border-color: #c98760; box-shadow: inset 3px 0 0 #efa775; }
+.discardButton:not(:disabled):hover { color: #fff; background: #433022; border-color: #ffc59a; box-shadow: inset 3px 0 0 #ffc59a, 0 0 8px #efa77535; }
+.typeButton { display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 6px 10px; border-radius: 8px; font-weight: 500; color: #eef5ff; border-color: rgba(var(--type-accent), .34); background: rgba(20, 33, 53, .88); box-shadow: inset 3px 0 0 rgba(var(--type-accent), .72), inset 0 1px 0 rgba(255,255,255,.035); }
+.typeButton[data-code="B"] { --type-accent: 52, 211, 153; }
+.typeButton[data-code="LL"] { --type-accent: 96, 165, 250; }
+.typeButton[data-code="HH"] { --type-accent: 245, 185, 66; }
+.typeButton[data-code="O"] { --type-accent: 192, 132, 252; }
+.typeButton:not(:disabled):hover { border-color: rgba(var(--type-accent), .52); background: rgba(27, 45, 70, .94); }
+.saveButton { color: #fff; background: #245f91; border-color: #73b2df; }
+.saveButton:not(:disabled):hover { background: #327aaf; box-shadow: 0 0 9px #73b2df45; }
+.toolbar button:disabled { opacity: .45; cursor: not-allowed; }
+.toolbar button:focus-visible { outline: 2px solid #b2ceff; outline-offset: 3px; }

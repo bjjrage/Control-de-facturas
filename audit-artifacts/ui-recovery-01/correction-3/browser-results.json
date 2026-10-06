@@ -1,0 +1,23 @@
+{
+  "browser": "Windows Firefox / Playwright",
+  "fixtureOnly": true,
+  "productionMutations": 0,
+  "tests": [
+    "PREBID actual APU payload product/item/quantity",
+    "Radix Arrow/End/Enter/Escape keyboard interaction",
+    "Existing RFQ discovery product/provider payload",
+    "RFQ actual catalog selection action payload",
+    "Personnel actual FormData item/category",
+    "Calendar proposal/resident evidence, explicit human confirm/ignore, existing resident QR",
+    "Calendar admin corrects an existing confirmed human day through existing override action",
+    "Climate exact canonical enum payload",
+    "Calendar B actual canonical classification/reason payload",
+    "Calendar LL actual canonical classification/reason payload",
+    "Calendar HH actual canonical classification/reason payload",
+    "Calendar O actual canonical classification/reason payload",
+    "Mobile resident photo required; no browser runtime fatal",
+    "PREBID actual Resultado FormData",
+    "Read-only disabled Select excluded from actual FormData"
+  ],
+  "errors": []
+}

@@ -47,7 +47,7 @@ export function InvoiceDialog({
   const [attachedDoc, setAttachedDoc] = useState<AttachedDocument | null>(null);
   const router = useRouter();
 
-  const providerRef = useRef<HTMLSelectElement>(null);
+  const [providerId, setProviderId] = useState(defaultProviderId ?? "");
   const invoiceNumberRef = useRef<HTMLInputElement>(null);
   const invoiceDateRef = useRef<HTMLInputElement>(null);
   const dueDateRef = useRef<HTMLInputElement>(null);
@@ -83,8 +83,8 @@ export function InvoiceDialog({
       if (orderReferenceRef.current) orderReferenceRef.current.value = d.order_reference ?? "";
       if (productDescriptionRef.current) productDescriptionRef.current.value = d.product_description ?? "";
 
-      if (d.provider_id && providerRef.current) {
-        providerRef.current.value = d.provider_id;
+      if (d.provider_id) {
+        setProviderId(d.provider_id);
         setScanNotice("Factura leída. Revisá los datos antes de crear.");
       } else if (d.provider_name) {
         setScanNotice(
@@ -314,7 +314,7 @@ export function InvoiceDialog({
 
           <div>
             <Label htmlFor="provider_id">Proveedor</Label>
-            <Select id="provider_id" name="provider_id" required defaultValue={defaultProviderId ?? ""} ref={providerRef}>
+            <Select id="provider_id" name="provider_id" required value={providerId} onValueChange={setProviderId}>
               <option value="" disabled>
                 Elegí un proveedor
               </option>

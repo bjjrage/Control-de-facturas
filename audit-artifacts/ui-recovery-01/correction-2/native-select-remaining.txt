@@ -1,0 +1,51 @@
+components\auction-bot\policy-config-form.tsx:290:          <select
+components\auction-bot\policy-config-form.tsx:344:            <select
+components\auction-bot\policy-config-form.tsx:412:            <select
+components\auction-bot\policy-config-form.tsx:539:              <select
+app\warehouse\[token]\warehouse-portal-client.tsx:286:                <select
+app\warehouse\[token]\warehouse-portal-client.tsx:449:              <select
+app\warehouse\[token]\warehouse-portal-client.tsx:497:                <select
+app\(internal)\cobros\cobros-filter.tsx:14:    <select
+app\(internal)\inventario\ubicaciones-dialog.tsx:103:              <select className={`${fieldClass} mt-1`} value={locationType} onChange={(event) => setLocationType(event.target.value as InventoryLocationType)}>
+app\(internal)\inventario\ubicaciones-dialog.tsx:111:                <select className={`${fieldClass} mt-1`} value={projectId} onChange={(event) => setProjectId(event.target.value)} required>
+app\(internal)\inventario\ubicaciones-dialog.tsx:123:                <select className={`${fieldClass} mt-1`} value={parentLocationId} onChange={(event) => setParentLocationId(event.target.value)}>
+app\(internal)\inventario\carga-inicial-stock-dialog.tsx:381:                      <select className={`${fieldClass} mt-1`} value={materialId} onChange={(event) => setMaterialId(event.target.value)} required>
+app\(internal)\inventario\carga-inicial-stock-dialog.tsx:387:                      <select className={`${fieldClass} mt-1`} value={locationId} onChange={(event) => setLocationId(event.target.value)} required>
+app\(internal)\inventario\carga-inicial-stock-dialog.tsx:399:                      <select className={`${fieldClass} mt-1`} value={currency} onChange={(event) => setCurrency(event.target.value as CurrencyCode | "")} required>
+app\(internal)\inventario\carga-inicial-stock-dialog.tsx:424:                            <select className={`${fieldClass} mt-1`} value={mapping[key]} onChange={(event) => changeColumn(key, Number(event.target.value))}>
+app\(internal)\inventario\carga-inicial-stock-dialog.tsx:442:                                <td><select aria-label={`Material fila ${row.sourceRow}`} className={fieldClass} value={productId} onChange={(event) => setRowEdits((current) => ({ ...current, [index]: { ...current[index], materialId: event.target.value } }))}><option value="">Sin vínculo</option>{products.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}</select></td>
+app\(internal)\inventario\carga-inicial-stock-dialog.tsx:446:                                <td><select aria-label={`Ubicación fila ${row.sourceRow}`} className={fieldClass} value={targetLocationId} onChange={(event) => setRowEdits((current) => ({ ...current, [index]: { ...current[index], locationId: event.target.value } }))}><option value="">Sin vínculo</option>{locations.map((option) => <option key={option.id} value={option.id}>{option.projectName ? `${option.projectName} · ${option.name}` : option.name}</option>)}</select></td>
+app\(internal)\inventario\carga-inicial-stock-dialog.tsx:448:                                <td><select aria-label={`Moneda fila ${row.sourceRow}`} className={fieldClass} value={parseInventoryImportCurrency(row.currency) ?? ""} onChange={(event) => setRowEdits((current) => ({ ...current, [index]: { ...current[index], currency: event.target.value } }))}><option value="">Sin asignar</option>{CURRENCIES.map((code) => <option key={code} value={code}>{code}</option>)}</select></td>
+app\(internal)\inventario\nuevo-movimiento-dialog.tsx:335:                  <select
+app\(internal)\inventario\nuevo-movimiento-dialog.tsx:349:                  <select
+app\(internal)\inventario\nuevo-movimiento-dialog.tsx:370:                      <select
+app\(internal)\inventario\nuevo-movimiento-dialog.tsx:383:                      <select
+app\(internal)\inventario\nuevo-movimiento-dialog.tsx:416:                      <select
+app\(internal)\inventario\nuevo-movimiento-dialog.tsx:507:                      <select
+app\(internal)\inventario\nuevo-movimiento-dialog.tsx:523:                      <select
+app\(internal)\licitaciones\licitaciones-section.tsx:167:        <select
+app\(internal)\licitaciones\competidores\competidores-radar-client.tsx:226:          <select
+app\(internal)\licitaciones\competidores\competidores-radar-client.tsx:242:          <select
+app\(internal)\licitaciones\competidores\competidores-radar-client.tsx:256:          <select
+app\(internal)\licitaciones\competidores\competidores-radar-client.tsx:271:          <select
+app\(internal)\licitaciones\competidores\competidores-radar-client.tsx:287:          <select
+app\(internal)\orders\[id]\recepcion-section.tsx:191:                        <select
+app\(internal)\orders\[id]\recepcion-section.tsx:410:                        <select
+app\(internal)\licitaciones\auction-lab\create-room-form.tsx:88:          <select
+app\(internal)\ventas\[id]\sifen-button.tsx:117:          <select aria-label="Motivo fiscal de NC" value={motive} onChange={e => setMotive(e.target.value)} disabled={pending}>
+app\(internal)\ventas\[id]\sifen-button.tsx:123:          <select aria-label={`Ítem de origen para ${item.description}`} value={sourceIds[item.id] ?? ""} onChange={e => setSourceIds(prev => ({ ...prev, [item.id]: e.target.value }))} disabled={pending}>
+app\(internal)\stock\[id]\editar\page.tsx:114:          <select
+app\(internal)\stock\[id]\editar\page.tsx:129:            <select
+app\(internal)\stock\[id]\editar\page.tsx:168:            <select
+app\(internal)\stock\importar-dialog.tsx:261:                          <select
+app\(internal)\stock\nuevo\page.tsx:87:          <select
+app\(internal)\stock\nuevo\page.tsx:104:            <select
+app\(internal)\stock\nuevo\page.tsx:145:            <select
+app\(internal)\projects\[id]\bim-section.tsx:754:                          <select
+app\(internal)\projects\[id]\import-certificado-dialog.tsx:207:                            <select
+app\(internal)\projects\[id]\import-recipe-dialog.tsx:389:                          <select
+app\(internal)\projects\[id]\import-recipe-dialog.tsx:469:                      <select
+app\(internal)\projects\[id]\panol-obra-section.tsx:166:        <select
+app\(internal)\projects\[id]\panol-obra-section.tsx:207:        <select
+app\(internal)\projects\[id]\panol-obra-section.tsx:219:        <select
+app\(internal)\projects\[id]\panol-obra-section.tsx:409:            <select value={locationId} onChange={(event) => setSelectedLocationId(event.target.value)} className="mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 text-xs text-[var(--foreground)]">

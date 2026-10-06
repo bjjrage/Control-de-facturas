@@ -1,4 +1,6 @@
 "use client";
+import { Select } from "@/components/ui/input";
+
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,14 +102,14 @@ export function RecipeBlockPanel(props: Props) {
         <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
           Objetivo de producción (receta)
         </span>
-        <button
+        <Button variant="secondary" size="sm"
           type="button"
           onClick={onImport}
           data-testid="importar-receta"
-          className="h-7 px-2 rounded-md border border-dashed border-[var(--border)] text-[11px] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--panel-2)]"
+
         >
           + Importar receta
-        </button>
+        </Button>
       </div>
       {options.length === 0 ? (
         <p className="text-[11px] text-[var(--muted)]">
@@ -119,7 +121,7 @@ export function RecipeBlockPanel(props: Props) {
           <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
             <div className="min-w-0">
               <label className="block text-[11px] text-[var(--muted)]">Receta</label>
-              <select
+              <Select
                 value={selectedRecipeId}
                 onChange={(e) => onSelectRecipe(e.target.value)}
                 data-testid="receta-select"
@@ -131,7 +133,7 @@ export function RecipeBlockPanel(props: Props) {
                     {r.recipe.code} · {r.recipe.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             {selected && (
               <div>

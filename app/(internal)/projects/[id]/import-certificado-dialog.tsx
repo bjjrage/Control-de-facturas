@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/select";
+
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, FileSpreadsheet, Upload } from "lucide-react";
@@ -204,7 +206,7 @@ export function ImportCertificadoDialog({
                         <tr key={`${row.sourceRow}-${row.code ?? "line"}`}>
                           <td><div className="font-medium">{row.code ? `${row.code} · ` : ""}{row.description}</div><div className="text-[10px] text-[var(--muted)]">Fila {row.sourceRow} · {row.unit ?? "sin unidad"} · contractual {number(row.quantityContractual)}</div></td>
                           <td>
-                            <select
+                            <Select
                               aria-label={`Partida de presupuesto para ${row.code ?? row.description}`}
                               value={selectedId}
                               onChange={(event) => setMappings((current) => ({ ...current, [row.sourceRow]: event.target.value }))}
@@ -212,7 +214,7 @@ export function ImportCertificadoDialog({
                             >
                               <option value="">Seleccionar partida…</option>
                               {preview.budgetItems.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.description} ({item.unit ?? "sin unidad"})</option>)}
-                            </select>
+                            </Select>
                             {budget ? <span className="text-[10px] text-[var(--muted)]">{budget.code} · {budget.description}</span> : null}
                           </td>
                           <td className={`num ${previousMismatch ? "text-amber-300" : ""}`}>{number(row.quantityPrevious)}</td>

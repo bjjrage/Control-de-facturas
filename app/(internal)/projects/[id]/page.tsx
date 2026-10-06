@@ -133,12 +133,12 @@ export default async function ProjectDetailPage({
         .eq("project_id", id)
         .order("numero", { ascending: false })
         .returns<ProjectCertificate[]>()),
-      supabase
+      completeRead<ProjectWeatherLog>(supabase,supabase
         .from("project_weather_log")
         .select("*")
         .eq("project_id", id)
         .order("log_date")
-        .returns<ProjectWeatherLog[]>(),
+        .returns<ProjectWeatherLog[]>()),
       supabase
         .from("project_schedule_plans")
         .select("*")
@@ -152,27 +152,24 @@ export default async function ProjectDetailPage({
         .eq("activo", true)
         .order("sort_order")
         .returns<ProjectUnit[]>(),
-      supabase
+      completeRead<ClimateEvent>(supabase,supabase
         .from("climate_events")
         .select("*")
         .eq("project_id", id)
         .order("event_date", { ascending: false })
-        .limit(90)
-        .returns<ClimateEvent[]>(),
-      supabase
+        .returns<ClimateEvent[]>()),
+      completeRead<ProjectWorkdayStatus>(supabase,supabase
         .from("project_workday_status")
         .select("*")
         .eq("project_id", id)
         .order("work_date", { ascending: false })
-        .limit(90)
-        .returns<ProjectWorkdayStatus[]>(),
-      supabase
+        .returns<ProjectWorkdayStatus[]>()),
+      completeRead<ClimateEvidence>(supabase,supabase
         .from("climate_evidence")
         .select("*")
         .eq("project_id", id)
         .order("created_at", { ascending: false })
-        .limit(180)
-        .returns<ClimateEvidence[]>(),
+        .returns<ClimateEvidence[]>()),
     ]);
     projectCertificates = certRows ?? [];
     projectWeatherLogs = weatherRows ?? [];
@@ -224,27 +221,24 @@ export default async function ProjectDetailPage({
 
   if (!isCaterpillar) {
     const [{ data: eventRows }, { data: workdayRows }, { data: evidenceRows }] = await Promise.all([
-      supabase
+      completeRead<ClimateEvent>(supabase,supabase
         .from("climate_events")
         .select("*")
         .eq("project_id", id)
         .order("event_date", { ascending: false })
-        .limit(90)
-        .returns<ClimateEvent[]>(),
-      supabase
+        .returns<ClimateEvent[]>()),
+      completeRead<ProjectWorkdayStatus>(supabase,supabase
         .from("project_workday_status")
         .select("*")
         .eq("project_id", id)
         .order("work_date", { ascending: false })
-        .limit(90)
-        .returns<ProjectWorkdayStatus[]>(),
-      supabase
+        .returns<ProjectWorkdayStatus[]>()),
+      completeRead<ClimateEvidence>(supabase,supabase
         .from("climate_evidence")
         .select("*")
         .eq("project_id", id)
         .order("created_at", { ascending: false })
-        .limit(180)
-        .returns<ClimateEvidence[]>(),
+        .returns<ClimateEvidence[]>()),
     ]);
     climateEvents = eventRows ?? [];
     climateWorkdays = workdayRows ?? [];

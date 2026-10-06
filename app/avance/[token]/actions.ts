@@ -3,6 +3,14 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 
+import { registerResidentRain } from "@/lib/procurement/resident-rain";
+
+export async function submitResidentRain(token: string, form: FormData): Promise<{ error: string | null }> {
+  const result = await registerResidentRain(createAdminClient(), token, form);
+  if (!result.error) revalidatePath(`/avance/${token}`);
+  return result;
+}
+
 const MAX_PHOTOS = 5;
 
 /**

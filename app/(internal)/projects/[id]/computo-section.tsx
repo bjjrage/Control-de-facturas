@@ -1,4 +1,6 @@
 "use client";
+import { Select } from "@/components/ui/input";
+
 
 // Importador de cómputo métrico (Excel/PDF) — mismo pipeline de matching
 // semántico que BIM, para proyectos sin modelo IFC. Ver
@@ -369,7 +371,7 @@ export function ComputoSection({ projectId }: { projectId: string }) {
                           <Button onClick={() => handleConfirm(item.id, match.budget_item_id!)}>Confirmar</Button>
                         ) : null}
                         {changingItemId === item.id ? (
-                          <select
+                          <Select
                             className="rounded border border-[var(--border)] bg-[var(--panel-2)] px-2 py-1 text-[12px]"
                             defaultValue=""
                             onChange={(e) => {
@@ -384,7 +386,7 @@ export function ComputoSection({ projectId }: { projectId: string }) {
                                 {b.code} — {b.description} ({b.unit})
                               </option>
                             ))}
-                          </select>
+                          </Select>
                         ) : (
                           <Button variant="secondary" onClick={() => setChangingItemId(item.id)}>
                             Cambiar rubro

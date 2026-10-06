@@ -94,8 +94,9 @@ export function RfqDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent title="Nueva solicitud RFQ" className="max-w-4xl">
-        <Label>Propósito obligatorio</Label>
+        <Label htmlFor="rfq-purpose">Propósito obligatorio</Label>
         <Select
+          id="rfq-purpose"
           disabled={!!needOrigin}
           value={purpose}
           onChange={(e) => setPurpose(e.target.value as RfqPurpose)}
@@ -123,8 +124,9 @@ export function RfqDialog({
               confirmación. Este circuito exige propósito Descubrir costos y no
               crea órdenes de compra.
             </p>
-            <Label>Obra</Label>
+            <Label htmlFor="rfq-project">Obra</Label>
             <Select
+              id="rfq-project"
               value={project}
               onChange={(e) => setProject(e.target.value)}
             >

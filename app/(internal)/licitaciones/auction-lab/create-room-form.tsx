@@ -1,5 +1,7 @@
 'use client';
 
+import { Select } from '@/components/ui/select';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -85,16 +87,16 @@ export function CreateRoomForm() {
         </div>
         <div>
           <Label htmlFor="lab-scope">Scope *</Label>
-          <select
+          <Select
             id="lab-scope"
             value={form.scope}
-            onChange={(e) => set('scope', (e.target as HTMLSelectElement).value as typeof form.scope)}
+            onChange={(e) => set('scope', e.target.value as typeof form.scope)}
             className="w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-1.5 text-[13px] outline-none"
           >
             <option value="ITEM">ITEM</option>
             <option value="LOT">LOT</option>
             <option value="TOTAL">TOTAL</option>
-          </select>
+          </Select>
         </div>
         <div>
           <Label htmlFor="lab-group">Group ID *</Label>
