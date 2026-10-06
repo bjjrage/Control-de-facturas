@@ -55,7 +55,7 @@ export function composeOffer(directCost: number, settings: CostSettings) {
 }
 
 /** Calculate live and archived offers with the existing APU and pricing engines. */
-export function computeWorkspaceCosts(facts: WorkspaceFacts) {
+export function computeWorkspaceCosts(facts: Omit<WorkspaceFacts, "context">) {
   const parentIds = new Set(facts.items.map(r => r.parent_id).filter(Boolean));
   const leaves = facts.items.filter(r => !parentIds.has(r.id));
   const prices = new Map<string, ResolvedPrice>();
