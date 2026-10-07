@@ -3,6 +3,9 @@
 
 export const UNIDADES_COMPRA = [
   "unidad",
+  "un",
+  "barra",
+  "balde",
   "par",
   "bolsa",
   "saco",
@@ -16,6 +19,7 @@ export const UNIDADES_COMPRA = [
   "g",
   "tonelada",
   "lt",
+  "L",
   "ml",
   "m",
   "m²",
@@ -27,11 +31,13 @@ export const UNIDADES_BASE = [
   "g",
   "tonelada",
   "lt",
+  "L",
   "ml",
   "m",
   "m²",
   "m³",
   "unidad",
+  "un",
 ] as const;
 
 export type UnidadCompra = (typeof UNIDADES_COMPRA)[number];

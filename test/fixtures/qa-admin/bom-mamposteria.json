@@ -1,0 +1,14 @@
+{
+  "purpose": "Synthetic functional QA fixture, not a construction specification",
+  "itemCode": "03",
+  "targetQuantity": 100,
+  "targetUnit": "m²",
+  "materials": [
+    { "sku": "MAT-CEM-001", "name": "Cemento Portland 50 kg", "unit": "bolsa", "quantityPerUnit": 0.25, "wastePct": 0, "centralStock": 100, "unitCost": 68000 },
+    { "sku": "MAT-LAD-001", "name": "Ladrillo común", "unit": "un", "quantityPerUnit": 40, "wastePct": 0, "centralStock": 2000, "unitCost": 1400 },
+    { "sku": "MAT-ARE-001", "name": "Arena lavada", "unit": "m³", "quantityPerUnit": 0.02, "wastePct": 0, "centralStock": 5, "unitCost": 220000 }
+  ],
+  "expectedGross": [25, 4000, 2],
+  "expectedToBuy": [0, 2000, 0],
+  "manualRfqAlternative": { "cementBags": 60, "bricks": 3000 }
+}

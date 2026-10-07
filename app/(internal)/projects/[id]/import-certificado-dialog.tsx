@@ -3,7 +3,6 @@
 import { Select } from "@/components/ui/select";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { AlertTriangle, FileSpreadsheet, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -48,7 +47,6 @@ export function ImportCertificadoDialog({
   const [pending, setPending] = useState(false);
   const [confirmDiscrepancies, setConfirmDiscrepancies] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const router = useRouter();
 
   function selectFile(nextFile: File | null) {
     setFile(nextFile);
@@ -139,7 +137,6 @@ export function ImportCertificadoDialog({
       }
       setOpen(false);
       onImported(result.id);
-      router.refresh();
     } finally {
       setPending(false);
     }

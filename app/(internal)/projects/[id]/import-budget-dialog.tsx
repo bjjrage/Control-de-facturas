@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
@@ -113,7 +112,6 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
   const [step, setStep] = useState<Step>("upload");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const router = useRouter();
 
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -254,7 +252,6 @@ export function ImportBudgetDialog({ projectId }: { projectId: string }) {
     }
     setOpen(false);
     reset();
-    router.refresh();
   }
 
   return (

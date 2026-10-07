@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { refreshAfterSave } from "@/lib/refresh-after-save";
 
 function str(formData: FormData, key: string) {
   const v = formData.get(key);
@@ -54,7 +55,7 @@ export async function createProvider(formData: FormData) {
 
   if (error || !created) return { error: error?.message ?? "No se pudo crear el proveedor." };
   const rubrosError = await syncProviderRubros(supabase, profile.empresa_id, created.id, formData);
-  revalidatePath("/providers");
+  refreshAfterSave("/providers");
   return { error: rubrosError ? `Proveedor creado, pero no se guardaron los rubros: ${rubrosError}` : null };
 }
 
@@ -78,7 +79,7 @@ export async function updateProvider(id: string, formData: FormData) {
 
   if (error) return { error: error.message };
   const rubrosError = await syncProviderRubros(supabase, profile.empresa_id, id, formData);
-  revalidatePath("/providers");
+  refreshAfterSave("/providers");
   return { error: rubrosError ? `Proveedor guardado, pero no se guardaron los rubros: ${rubrosError}` : null };
 }
 
