@@ -96,6 +96,7 @@ export interface Provider {
   email: string | null;
   phone: string | null;
   tax_id: string | null;
+  payment_terms?: string | null;
   active: boolean;
   created_at: string;
 }

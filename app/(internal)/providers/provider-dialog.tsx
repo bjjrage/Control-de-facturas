@@ -69,6 +69,10 @@ export function ProviderDialog({
             <Input id="tax_id" name="tax_id" defaultValue={provider?.tax_id ?? ""} />
           </div>
           <div>
+            <Label htmlFor="payment_terms">Condiciones de pago</Label>
+            <Input id="payment_terms" name="payment_terms" maxLength={500} placeholder="Ej.: 30 días" defaultValue={provider?.payment_terms ?? ""} />
+          </div>
+          <div>
             <Label>Rubros</Label>
             {categorias.length === 0 ? (
               <p className="text-[12px] text-[var(--muted)]">
