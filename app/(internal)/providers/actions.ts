@@ -10,6 +10,16 @@ function str(formData: FormData, key: string) {
   return typeof v === "string" && v.trim() !== "" ? v.trim() : null;
 }
 
+function providerPaymentTerms(formData: FormData) {
+  const raw = formData.get("payment_terms");
+  // Older forms omit this field; an edit must preserve the stored terms.
+  if (raw === null) return { value: undefined, error: null };
+  if (typeof raw !== "string") return { value: undefined, error: "Las condiciones de pago deben ser texto." };
+  const value = raw.trim();
+  if (value.length > 500) return { value: undefined, error: "Las condiciones de pago admiten hasta 500 caracteres." };
+  return { value: value || null, error: null };
+}
+
 /**
  * Rubros del proveedor = categorías de producto que vende. Reemplaza el set
  * completo: lo que no viene tildado en el formulario deja de ser su rubro.
@@ -40,6 +50,8 @@ export async function createProvider(formData: FormData) {
 
   const name = str(formData, "name");
   if (!name) return { error: "El nombre es obligatorio." };
+  const paymentTerms = providerPaymentTerms(formData);
+  if (paymentTerms.error) return { error: paymentTerms.error };
 
   const { data: created, error } = await supabase
     .from("providers")
@@ -49,6 +61,7 @@ export async function createProvider(formData: FormData) {
       email: str(formData, "email"),
       phone: str(formData, "phone"),
       tax_id: str(formData, "tax_id"),
+      ...(paymentTerms.value !== undefined ? { payment_terms: paymentTerms.value } : {}),
     })
     .select("id")
     .single();
@@ -65,6 +78,8 @@ export async function updateProvider(id: string, formData: FormData) {
 
   const name = str(formData, "name");
   if (!name) return { error: "El nombre es obligatorio." };
+  const paymentTerms = providerPaymentTerms(formData);
+  if (paymentTerms.error) return { error: paymentTerms.error };
 
   const { error } = await supabase
     .from("providers")
@@ -74,6 +89,7 @@ export async function updateProvider(id: string, formData: FormData) {
       email: str(formData, "email"),
       phone: str(formData, "phone"),
       tax_id: str(formData, "tax_id"),
+      ...(paymentTerms.value !== undefined ? { payment_terms: paymentTerms.value } : {}),
     })
     .eq("id", id);
 

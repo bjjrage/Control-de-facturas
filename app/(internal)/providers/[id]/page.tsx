@@ -126,6 +126,9 @@ export default async function ProviderDetailPage({ params }: { params: Promise<{
         <p className="text-[13px] text-[var(--muted)]">
           {provider.contact_name ?? "-"} · {provider.email ?? "-"} · {provider.phone ?? "-"} · RUC {provider.tax_id ?? "-"}
         </p>
+        {provider.payment_terms ? (
+          <p className="text-[13px] text-[var(--muted)]">Condiciones de pago: {provider.payment_terms}</p>
+        ) : null}
       </div>
 
       <div>
