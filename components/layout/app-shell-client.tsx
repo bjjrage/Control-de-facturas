@@ -247,7 +247,9 @@ export function AppShellClient({ children, warmPaths }: { children: ReactNode; w
           setMode("server");
         }
       });
-  }, [pathname]);
+  // A successful Server Action refreshes the RSC children without changing
+  // pathname. Reload our separate keep-alive snapshot on that response too.
+  }, [pathname, children]);
 
   // Pre-warm ALL sections in background on first mount — first-click on any
   // section will be instant. We load the current path first, then the rest.

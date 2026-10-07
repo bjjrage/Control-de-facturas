@@ -54,15 +54,19 @@ function isXlsx(buffer: Buffer): boolean {
 }
 
 /** Extrae texto de PDF usando pdf-parse (lazy import) */
-async function extractPdfText(buffer: Buffer, maxChars: number): Promise<{
+export async function extractPdfText(buffer: Buffer, maxChars: number): Promise<{
   text: string;
   truncated: boolean;
   requiresVision: boolean;
 }> {
   const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({ data: buffer });
-  const result = await parser.getText();
-  await parser.destroy();
+  let result;
+  try {
+    result = await parser.getText();
+  } finally {
+    await parser.destroy();
+  }
 
   const text = result.text.trim();
   const truncated = text.length > maxChars;

@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlan } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
+import { refreshAfterSave } from "@/lib/refresh-after-save";
 import { ProjectStatus } from "@/lib/types";
 import { createHash } from "node:crypto";
 import { buildCanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
@@ -79,7 +80,7 @@ export async function createProject(formData: FormData): Promise<{ error: string
     detail: { project_id: project.id, code, inventory_location_id: projectLocationResult.data.id },
   });
 
-  revalidatePath("/projects");
+  refreshAfterSave("/projects");
   return { error: null, projectId: String(project.id) };
 }
 
@@ -1020,7 +1021,7 @@ export async function importBudgetItems(
     return { inserted: insertedCount, skipped, error: `Se importaron ${insertedCount} ítems antes de un error: ${lastError}` };
   }
 
-  revalidatePath(`/projects/${projectId}`);
+  refreshAfterSave(`/projects/${projectId}`, "/projects");
   return { inserted: insertedCount, skipped, error: null };
 }
 

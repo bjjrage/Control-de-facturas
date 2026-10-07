@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -15,7 +14,6 @@ export function NewProjectDialog({ trigger }: { trigger: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [partialProjectId, setPartialProjectId] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const router = useRouter();
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
@@ -54,7 +52,6 @@ export function NewProjectDialog({ trigger }: { trigger: React.ReactNode }) {
             setError(null);
             setPartialProjectId(null);
             setOpen(false);
-            router.refresh();
           }}
         >
           {error ? (

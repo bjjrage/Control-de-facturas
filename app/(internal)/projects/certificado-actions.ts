@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePlan } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
+import { refreshAfterSave } from "@/lib/refresh-after-save";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ProjectCertificateStatus } from "@/lib/types";
 import type { ProjectUnit } from "@/lib/types";
@@ -252,7 +253,7 @@ export async function importCertificateWorkbook(
     .maybeSingle();
   if (existingImportError) return { error: "No se pudo verificar si este archivo ya fue importado.", id: null, alreadyImported: false };
   if (existingImport) {
-    revalidatePath(`/projects/${projectId}`);
+    refreshAfterSave(`/projects/${projectId}`, "/projects");
     return { error: null, id: existingImport.id, alreadyImported: true };
   }
 
@@ -338,7 +339,7 @@ export async function importCertificateWorkbook(
       },
     });
   }
-  revalidatePath(`/projects/${projectId}`);
+  refreshAfterSave(`/projects/${projectId}`, "/projects");
   return { error: null, id: imported.certificate_id, alreadyImported: Boolean(imported.already_imported) };
 }
 
