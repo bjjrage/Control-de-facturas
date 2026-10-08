@@ -67,6 +67,13 @@ No hubo refactors, cambios de arquitectura ni de reglas de negocio certificadas.
   durante la espera. Procedencia intacta y honesta: `source: "camara" | "archivo"`,
   fecha/hora/GPS reales; no se falsifica nada; sin la foto no se puede enviar
   (regla del pluviómetro conservada).
+- **Revisión independiente (cierre del PR #36):** el input de fallback contenía
+  `capture="environment"`, que en navegadores móviles puede obligar a re-abrir la cámara
+  justo cuando la cámara ya está fallando. Corregido: `capture` eliminado del input de
+  fallback (queda `type="file" accept="image/*" multiple`); se conserva la aparición del
+  fallback ante error/timeout y la procedencia `camara`/`archivo`. Verificado con
+  Playwright (emulación móvil): el input NO presenta `capture` y permite seleccionar una
+  imagen existente.
 - **Evidencia:** `dom/STEP-46.md` (botón «Abrir cámara» activo, «Enviar» deshabilitado
   sin fallback visible).
 
@@ -112,14 +119,14 @@ No hubo refactors, cambios de arquitectura ni de reglas de negocio certificadas.
 
 | Control | Resultado |
 |---|---|
-| Tests focalizados nuevos | 49 PASS (12 imputación + 19 auditoría multitenant portal + 14 cámara + 4 clima/HH/anexo) |
+| Tests focalizados nuevos | 50 PASS (12 imputación + 19 auditoría multitenant portal + 15 cámara + 4 clima/HH/anexo) |
 | Tests de inventario / clima / security / cámara existentes | PASS |
-| Suite completa serial (`vitest run --no-file-parallelism`) | **1958 PASS / 16 skipped / 0 FAIL** (baseline 1909 + 49 nuevos) |
+| Suite completa serial (`vitest run --no-file-parallelism`) | **1959 PASS / 16 skipped / 0 FAIL** (baseline 1909 + 50 nuevos) |
 | Suite completa paralela (`npm test`) — registro separado | 6 specs PGlite (schedule-*, final-recovery-integrity, certificate-workbook-import, mrp-reservation-migration, provider-payment-terms-migration) alcanzan timeout de 5 s por paralelismo en esta máquina; los 6 pasan 46/46 en serie y no tocan archivos del batch (verificado con stash). NO se aumentaron timeouts ni se deshabilitaron pruebas |
 | Typecheck (`tsc --noEmit`) | PASS (exit 0) |
 | Build (`next build`) | PASS (compiled successfully, sin warnings) |
-| Lint comparativo (8 archivos del batch) | 1 error preexistente en `warehouse-portal-data.ts:113` (`prefer-const`, línea no tocada, idéntico en baseline). **NEW LINT REGRESSIONS = 0** |
-| Cámara — verificación visual Playwright (harness temporal no comiteado, bundle compilado del componente real, sin datos en DB) | **18/18 PASS**: desktop 9 + `MOBILE EMULATION: PASS` (iPhone 14: los 9 casos). Cámara disponible/permitida, denied, notfound, busy, pendiente indefinida (timeout 10 s), respuesta tardía con `track.stop` del stream, fallback «Subir foto» funcional con `source:"archivo"` y metadatos reales, entorno no soportado, reintento, viewport 390×844. `PHYSICAL MOBILE DEVICE: NOT TESTED` |
+| Lint comparativo (archivos del batch) | 1 error preexistente en `warehouse-portal-data.ts:113` (`prefer-const`, línea no tocada, idéntico en baseline). **NEW LINT REGRESSIONS = 0** |
+| Cámara — verificación visual Playwright (harness temporal no comiteado, bundle compilado del componente real, sin datos en DB) | **20/20 PASS**: desktop 10 + `MOBILE EMULATION: PASS` (iPhone 14: los 10 casos). Cámara disponible/permitida, denied, notfound, busy, pendiente indefinida (timeout 10 s), respuesta tardía con `track.stop` del stream, fallback «Subir foto» funcional con `source:"archivo"` y metadatos reales, input de fallback **sin `capture=`** y con selección de imagen existente verificada, entorno no soportado, reintento, viewport 390×844. `PHYSICAL MOBILE DEVICE: NOT TESTED` |
 
 ## 4. Aislamiento multitenant (auditoría focalizada de la fase de revisión)
 

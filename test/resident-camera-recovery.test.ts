@@ -68,6 +68,16 @@ describe("recuperación de cámara del residente (fuente)", () => {
     expect(fallbackCondition).not.toContain('"no-camara"');
   });
 
+  it("el input de fallback no fuerza la reapertura de la cámara (sin capture=)", () => {
+    const fallbackBlock = component.slice(component.indexOf("Subir foto"), component.indexOf("</label>", component.indexOf("Subir foto")));
+    const inputTag = fallbackBlock.match(/<input[\s\S]*?\/>/)?.[0] ?? "";
+    expect(inputTag).toContain('type="file"');
+    expect(inputTag).toContain('accept="image/*"');
+    expect(inputTag).toContain("multiple");
+    expect(inputTag).not.toContain("capture=");
+    expect(fallbackBlock).toContain("obligaría a abrir");
+  });
+
   it("discrimina estados: denegado, sin cámara, sin respuesta y error de captura", () => {
     expect(component).toContain('setCamError(info.isPermissionDenied ? "denied" : "no-camara")');
     expect(component).toContain('setCamError("sin-respuesta")');

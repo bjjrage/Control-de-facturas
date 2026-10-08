@@ -263,10 +263,11 @@ export function CapturaVerificada({
           {camError ? (
             <label className="h-9 px-3 rounded-md border border-dashed border-[var(--border)] text-[12px] flex items-center cursor-pointer">
               Subir foto
+              {/* Sin capture="environment": en navegadores móviles obligaría a abrir
+                  la cámara de nuevo justo cuando la cámara ya está fallando. */}
               <input
                 type="file"
                 accept="image/*"
-                capture="environment"
                 multiple
                 className="hidden"
                 disabled={full || busy}
