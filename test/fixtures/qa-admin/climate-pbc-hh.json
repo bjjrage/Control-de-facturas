@@ -1,0 +1,64 @@
+{
+  "engine": "EXCESS_ELIGIBLE_DAYS_V1",
+  "identificacion": "Fixture sintético QA — PBC-QA-001. Solo testing, no representa hechos reales.",
+  "pbc": {
+    "schemaVersion": 1,
+    "label": "PBC QA Clima",
+    "documentRef": "PBC-QA-001",
+    "clauseRef": "14.3",
+    "effectiveFrom": "2026-10-01",
+    "startDate": "2026-10-01",
+    "baseDays": 120,
+    "dayBasis": "CALENDAR",
+    "includeStart": true,
+    "workingWeekdays": [0, 1, 2, 3, 4, 5, 6],
+    "holidays": [],
+    "thresholdMm": 20,
+    "thresholdOperator": "GT",
+    "rainSource": "EITHER",
+    "sourceName": "",
+    "stationId": "",
+    "eligibleCodes": ["LL", "HH"],
+    "otherReasons": [],
+    "requireEvidence": true,
+    "requireCausality": true,
+    "requireImpediment": false,
+    "requireConformity": false,
+    "toleranceDays": 2,
+    "toleranceScope": "MONTH",
+    "partialMonth": "FULL",
+    "capMode": "NONE",
+    "monthlyCap": null,
+    "totalCap": null,
+    "rounding": "FLOOR",
+    "formula": "EXCESS_ELIGIBLE_DAYS_V1",
+    "unsupportedClause": ""
+  },
+  "escenarioHistorico": {
+    "nota": "Fechas corregidas al corte del 07/10/2026: los días de lluvia deben ser históricos confirmados, nunca futuros.",
+    "LL": { "fecha": "2026-10-04", "mmLocal": 35, "evidencia": ["FOTO_LLUVIA_QA.png adjuntada a la jornada LL (RAIN_GAUGE_PHOTO)"] },
+    "HH": {
+      "fecha": "2026-10-05",
+      "causal": "jornada LL confirmada anterior",
+      "evidencia": ["DOC_EVIDENCIA_HH_QA.pdf adjuntado a la jornada HH (OTHER) — obligatorio porque requireEvidence=true; una referencia en notas NO es evidencia"]
+    },
+    "B": { "fecha": "2026-10-06" }
+  },
+  "esperado": {
+    "sinEvidenciaHH": { "elegibles": 1, "hhEstado": "PENDING", "hhRazon": "Falta evidencia exigida por el PBC." },
+    "conEvidenciaHH": { "elegibles": 2, "computables": 0, "tolerancia": 2, "extension": 0, "estado": "COMPLETE" },
+    "anexoFueraDeCorte": {
+      "periodo": ["2026-10-01", "2026-10-31"],
+      "asOf": "2026-10-07",
+      "estado": "BLOCKED",
+      "razon": "Elegí un período válido, hasta la fecha de corte.",
+      "clasificacion": "EXPECTED — el motor no trata fechas futuras como historial; corregir el fixture, no el motor."
+    },
+    "anexoDentroDeCorte": {
+      "periodo": ["2026-10-01", "2026-10-06"],
+      "asOf": "2026-10-07",
+      "estado": "COMPLETE",
+      "clasificacion": "Procedimiento QA — el anexo del certificado debe usar el período vigente al corte histórico."
+    }
+  }
+}

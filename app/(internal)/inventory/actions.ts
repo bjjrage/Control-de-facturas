@@ -609,13 +609,16 @@ export async function updateWarehouseSubmissionLine(args: {
     }
   }
   if (budgetItemId) {
-    const { data: budgetItem } = await supabase
+    // budget_items no tiene empresa_id; el scoping multitenant se garantiza con
+    // project_id (la rendición ya fue validada contra la empresa del usuario)
+    // y la RLS de budget_items resuelve la pertenencia vía projects.empresa_id.
+    const { data: budgetItem, error: budgetItemError } = await supabase
       .from("budget_items")
       .select("id")
       .eq("id", budgetItemId)
       .eq("project_id", submission.project_id)
-      .eq("empresa_id", profile.empresa_id)
       .maybeSingle();
+    if (budgetItemError) return { error: "No se pudo validar la partida. Intentá nuevamente." };
     if (!budgetItem) return { error: "La partida no pertenece a la obra de esta rendición." };
   }
   const { error } = await supabase
