@@ -1,8 +1,17 @@
 # QA ADMIN REMEDIATION 2 — REPORT
 
-**Branch:** `fix/qa-admin-remediation-2` · **HEAD:** `bd117a008af2ac7bbeb07d9d97e9586b96b5412f`
+**Branch:** `fix/qa-admin-remediation-2` (base: `origin/main` = `a5e175d4de27b27eca4deafcd5407f78198a5eb0`)
+
+- COMMITS CONOCIDOS:
+  - `bd117a008af2ac7bbeb07d9d97e9586b96b5412f` — implementación (fix: budget-item authorization, resident camera recovery and QA climate fixtures).
+  - `71e6a386232c7f5c68f1f1db9411792b3fff63a0` — documentación inicial (docs: add QA Admin Remediation 2 report and handoff).
+  - Posterior a ellos puede existir un commit documental de revisión; el HEAD final exacto
+    se verifica con `git rev-parse HEAD` sobre `fix/qa-admin-remediation-2` y se informa en
+    el reporte de entrega del chat (los documentos NO fijan su propio SHA para que no
+    quede obsoleto con cada commit nuevo).
 **Base:** `origin/main` = `a5e175d4de27b27eca4deafcd5407f78198a5eb0`
-**Estado:** listo para revisión. NO se hizo merge ni deploy. Se espera autorización.
+**Estado:** listo para revisión. PR contra `main` pendiente de creación/aprobación. NO se
+hace merge ni deploy. Se espera autorización humana.
 
 ---
 
@@ -99,25 +108,55 @@ No hubo refactors, cambios de arquitectura ni de reglas de negocio certificadas.
 - **Alcance:** NO se corrigió (prohibido ampliar el batch sin aprobación). Riesgo residual
   documentado para decisión del Master.
 
-## 3. Validación
+## 3. Validación (re-verificada en la fase de revisión/PR)
 
 | Control | Resultado |
 |---|---|
-| Tests focalizados nuevos | 30 PASS (12 imputación + 14 cámara + 4 clima/HH/anexo) |
-| Tests de inventario / clima / security / cámara existentes | 144 PASS |
-| Suite completa (`vitest run --no-file-parallelism`) | **1939 PASS / 16 skipped / 0 FAIL** (baseline 1909 + 30 nuevos) |
-| Typecheck (`tsc --noEmit`) | PASS |
+| Tests focalizados nuevos | 49 PASS (12 imputación + 19 auditoría multitenant portal + 14 cámara + 4 clima/HH/anexo) |
+| Tests de inventario / clima / security / cámara existentes | PASS |
+| Suite completa serial (`vitest run --no-file-parallelism`) | **1958 PASS / 16 skipped / 0 FAIL** (baseline 1909 + 49 nuevos) |
+| Suite completa paralela (`npm test`) — registro separado | 6 specs PGlite (schedule-*, final-recovery-integrity, certificate-workbook-import, mrp-reservation-migration, provider-payment-terms-migration) alcanzan timeout de 5 s por paralelismo en esta máquina; los 6 pasan 46/46 en serie y no tocan archivos del batch (verificado con stash). NO se aumentaron timeouts ni se deshabilitaron pruebas |
+| Typecheck (`tsc --noEmit`) | PASS (exit 0) |
 | Build (`next build`) | PASS (compiled successfully, sin warnings) |
-| Lint comparativo | 1 error preexistente en `warehouse-portal-data.ts:113` (`prefer-const`, línea no tocada, idéntico en baseline). **NEW LINT REGRESSIONS = 0** |
-| Nota suite | En paralelo (`npm test` en esta máquina lenta) 6 specs PGlite no alcanzan timeout de 5 s; pasan 46/46 en serie y no están relacionadas con este cambio (verificado con stash) |
+| Lint comparativo (8 archivos del batch) | 1 error preexistente en `warehouse-portal-data.ts:113` (`prefer-const`, línea no tocada, idéntico en baseline). **NEW LINT REGRESSIONS = 0** |
+| Cámara — verificación visual Playwright (harness temporal no comiteado, bundle compilado del componente real, sin datos en DB) | **18/18 PASS**: desktop 9 + `MOBILE EMULATION: PASS` (iPhone 14: los 9 casos). Cámara disponible/permitida, denied, notfound, busy, pendiente indefinida (timeout 10 s), respuesta tardía con `track.stop` del stream, fallback «Subir foto» funcional con `source:"archivo"` y metadatos reales, entorno no soportado, reintento, viewport 390×844. `PHYSICAL MOBILE DEVICE: NOT TESTED` |
 
-## 4. Aislamiento multitenant
+## 4. Aislamiento multitenant (auditoría focalizada de la fase de revisión)
 
-- RLS de `budget_items` intacta (`budget_items_select` por `projects.empresa_id`).
-- Validación canónica DB intacta (`inventory_post_movement`: partida → obra → empresa).
-- Los tests nuevos cubren: partida de otra obra (rechazo), producto de otra empresa
-  (rechazo), error de consulta (no loot en escritura), doble confirmación (rechazo),
-  y pivote de la cadena partida → obra → empresa en SQL baseline.
+Cadena completa verificada READ-ONLY contra la baseline SQL y la ruta de API —
+el portal usa service_role, por lo que la protección son las validaciones explícitas,
+no la RLS:
+
+1. Token resuelto por **hash** (`hashWarehousePortalToken`); enlaces inactivos o vencidos
+   se rechazan tanto en la ruta (`resolveLink`) como en la RPC (`inventory_portal_consumption`).
+2. La ubicación del enlace se resuelve con `.eq("empresa_id", link.empresa_id)` — la obra
+   y la empresa derivan del enlace, nunca de parámetros del cliente (la ruta no lee
+   `project_id`/`empresa_id` de form-data).
+3. La partida se valida contra `location.project_id` (ruta, ahora sin columna inexistente)
+   **y** en SQL canónico con `JOIN projects pr … pr.empresa_id = p_empresa_id`.
+4. El producto se valida activo y de `link.empresa_id` en la ruta; en SQL vuelve a
+   validarse («El material no pertenece a la empresa») y también exige unidad coincidente.
+5. `p_empresa_id` de la RPC sale de `link.empresa_id` (server-side); la RPC solo corre con
+   service_role (REVOKE a PUBLIC/anon/authenticated; GRANT a service_role).
+6. `inventory_post_movement` (SECURITY DEFINER, search_path=''):
+   - no service_role → exige `current_empresa_id() == p_empresa_id` y rol interno;
+   - cantidad null/0/negativa → reject; CONSUMPTION exige solo ubicación origen;
+   - ubicación origen ajena al tenant o inactiva → reject; el consumo debe salir del
+     pañol de la obra contextual (from_project == context_project);
+   - partida → obra → empresa vía JOIN (reject «La partida no pertenece al proyecto y
+     tenant indicados»);
+   - **idempotencia**: clave obligatoria, advisory lock por `empresa:clave`, movement
+     existente con misma clave y mismos datos devuelve el MISMO id (sin duplicado), y
+     con datos distintos rechaza («La idempotency_key ya fue usada para otra operación»
+     / «El origen ya fue aplicado con otra operación» con `source_id+source_line_id` = link+attempt);
+   - stock insuficiente en la ubicación origen → reject (sin saldos negativos).
+7. Casos negativos codificados en `test/inventory-portal-multitenant-audit.test.ts`
+   (19 aserciones READ-ONLY contra los archivos fuente y SQL): token inválido/vencido/
+   revocado, producto de otra empresa, partida de otra obra/otra empresa, ubicación
+   ajena al enlace, consumo sin partida, cantidad inválida, repetición de intento
+   (idempotencia), y relación de empresa inconsistente en cada eslabón.
+
+**Vulnerabilidades detectadas: 0.** No se modificó RLS ni funciones SQL.
 
 ## 5. Infraestructura (§14)
 
@@ -132,9 +171,12 @@ M  app/(internal)/inventory/actions.ts
 M  app/api/warehouse-portal/[token]/route.ts
 M  components/captura-verificada.tsx
 M  lib/inventory/warehouse-portal-data.ts
+A  QA_ADMIN_REMEDIATION_2_HANDOFF.md
+A  QA_ADMIN_REMEDIATION_2_REPORT.md
 A  test/fixtures/qa-admin/DOC_EVIDENCIA_HH_QA.pdf
 A  test/fixtures/qa-admin/climate-pbc-hh.json
 A  test/inventory-budget-item-authorization.test.ts
+A  test/inventory-portal-multitenant-audit.test.ts  (fase de revisión: auditoría READ-ONLY del portal)
 A  test/qa-climate-hh-annex-fixture.test.ts
 A  test/resident-camera-recovery.test.ts
 ```

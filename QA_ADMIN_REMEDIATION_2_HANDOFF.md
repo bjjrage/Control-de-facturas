@@ -2,7 +2,7 @@
 
 Documento para continuar sin depender de la conversación previa.
 Estado al cierre: branch `fix/qa-admin-remediation-2` pusheada, esperando revisión humana
-y PR. **No hay merge ni deploy autorizados todavía.**
+y apertura de PR contra `main`. **No hay merge ni deploy autorizados todavía.**
 
 ---
 
@@ -13,13 +13,17 @@ y PR. **No hay merge ni deploy autorizados todavía.**
 - Nueva branch: `fix/qa-admin-remediation-2` (creada desde el `origin/main` anterior; NO se
   reutilizó la branch de Remediation 1; push a `origin/fix/qa-admin-remediation-2`).
 - SHA final de `main`: **igual al inicial** (no se tocó main).
-- HEAD de la branch: `bd117a008af2ac7bbeb07d9d97e9586b96b5412f`.
-- Commits: 1 → `bd117a0 fix: budget-item authorization, resident camera recovery and QA climate fixtures`.
-- Archivos modificados: los 4 listados en el Report §6. Nuevos: 3 tests + 2 fixtures.
+- Commits conocidos del batch (verificados en `git log origin/main..HEAD`):
+  1. `bd117a008af2ac7bbeb07d9d97e9586b96b5412f` — fix: budget-item authorization, resident camera recovery and QA climate fixtures.
+  2. `71e6a386232c7f5c68f1f1db9411792b3fff63a0` — docs: add QA Admin Remediation 2 report and handoff.
+  3. Son posibles commits documentales de revisión posteriores a este archivo: NO fijar aquí
+     el SHA definitivo (quedaría obsoleto). El HEAD final exacto se obtiene con
+     `git rev-parse HEAD` sobre la branch y se reporta en el chat.
+- Archivos modificados: los 4 listados en el Report §6. Nuevos: 3 tests + 2 fixtures (+ estos documentos).
 - Archivos no relacionados preservados: `audit-artifacts/batch-0.5-nonprod-2026-10-01/`,
   `audit-artifacts/erp-total-reality-audit-2026-09-30/`, `planillas-ejemplo/`,
   `~$MAGY - Cronograma Adenda 1.xlsx` (untracked, sin tocar).
-- PR creado: **NO** (pendiente de aprobación para abrir PR a main).
+- PR creado: estado vivo más reciente se verifica con `gh pr list --head fix/qa-admin-remediation-2`.
 - Nota: trabajo previo no committeado de otros agentes no fue borrado ni reseteado; hubo
   stashes históricos ajenos que quedaron intactos (`git stash` solo con push/pop propios,
   verificados).
@@ -117,7 +121,8 @@ npm run build                                      # PASS
 
 ## Próximo paso recomendado
 
-1. Revisión humana de la branch + apertura de PR y merge autorizado.
+1. PR creado contra `main` (verificar número/URL con `gh pr list --head fix/qa-admin-remediation-2`).
+   Espera revisión y merge autorizado por humanos. NO mergear ni desplegar sin autorización.
 2. Deploy a Vercel Preview/Staging y corrida focalizada de las cadenas:
    - 43 → 44 → 59 (consumo por portal pañol y por revisión de rendición; validar
      consumos canónicos únicos, luego stock 140/3500).
