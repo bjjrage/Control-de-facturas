@@ -193,12 +193,16 @@ export async function getWarehousePortalContext(token: string): Promise<Warehous
   }));
 
   // 5. Fetch budget items for this project
-  const { data: budgetData } = await admin
+  // budget_items no tiene empresa_id; el scoping multitenant queda garantizado
+  // por project_id (el proyecto ya fue validado contra link.empresa_id) y la
+  // RLS de budget_items resuelve la pertenencia vía projects.empresa_id.
+  const { data: budgetData, error: budgetError } = await admin
     .from("budget_items")
     .select("id, code, description, unit")
     .eq("project_id", project.id)
-    .eq("empresa_id", link.empresa_id)
     .order("sort_order");
+
+  if (budgetError) return null;
 
   const budgetItems: WarehousePortalBudgetItem[] = (budgetData ?? []).map((bi) => ({
     id: bi.id,

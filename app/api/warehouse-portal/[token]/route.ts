@@ -168,15 +168,20 @@ export async function POST(request: Request, context: RouteContext) {
 
     // If budget item is provided, verify it belongs to this project and tenant
     if (budgetItemId) {
+      // budget_items no tiene empresa_id; el scoping multitenant queda garantizado
+      // por project_id (la ubicación/link ya fue validado contra link.empresa_id)
+      // y la RLS de budget_items resuelve la pertenencia vía projects.empresa_id.
       const { data: budgetItem, error: biErr } = await admin
         .from("budget_items")
         .select("id")
         .eq("id", budgetItemId)
         .eq("project_id", location.project_id)
-        .eq("empresa_id", link.empresa_id)
         .maybeSingle();
 
-      if (biErr || !budgetItem) {
+      if (biErr) {
+        return NextResponse.json({ error: "No se pudo validar la partida. Intentá nuevamente." }, { status: 500 });
+      }
+      if (!budgetItem) {
         return NextResponse.json({ error: "La partida no pertenece a esta obra." }, { status: 400 });
       }
     }

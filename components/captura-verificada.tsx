@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { checkCameraEnvironment, parseCameraError } from "@/lib/scanner/camera-helpers";
 
 /**
  * Foto tomada con verificación. `blob` es el JPEG comprimido listo para subir;
@@ -18,6 +19,30 @@ export type VerifiedPhoto = {
 
 const MAX_EDGE = 1600;
 const JPEG_QUALITY = 0.8;
+const CAM_TIMEOUT_MS = 10000;
+
+export type CamError = "denied" | "no-camara" | "sin-respuesta" | "captura";
+
+export type CamOutcome =
+  | { kind: "stream"; stream: MediaStream }
+  | { kind: "error"; error: unknown }
+  | { kind: "timeout" };
+
+export function raceCameraRequest(request: Promise<MediaStream>): Promise<CamOutcome> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (outcome: CamOutcome) => {
+      if (settled) return;
+      settled = true;
+      resolve(outcome);
+    };
+    const timer = setTimeout(() => finish({ kind: "timeout" }), CAM_TIMEOUT_MS);
+    request.then(
+      (stream) => { clearTimeout(timer); finish({ kind: "stream", stream }); },
+      (error) => { clearTimeout(timer); finish({ kind: "error", error }); },
+    );
+  });
+}
 
 async function blobFromCanvas(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -82,7 +107,9 @@ export function CapturaVerificada({
 }) {
   const [photos, setPhotos] = useState<VerifiedPhoto[]>([]);
   const [camOpen, setCamOpen] = useState(false);
-  const [camError, setCamError] = useState<string | null>(null);
+  const [camError, setCamError] = useState<CamError | null>(null);
+  const [camMessage, setCamMessage] = useState<string | null>(null);
+  const [camPending, setCamPending] = useState(false);
   const [busy, setBusy] = useState(false);
   const [gpsState, setGpsState] = useState<"idle" | "ok" | "denied">("idle");
 
@@ -113,23 +140,46 @@ export function CapturaVerificada({
 
   async function openCamera() {
     setCamError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
-        audio: false,
-      });
-      streamRef.current = stream;
+    setCamMessage(null);
+    const env = checkCameraEnvironment();
+    if (!env.isSupported) {
+      setCamError("no-camara");
+      setCamMessage(env.reason ?? "Tu navegador no soporta acceso directo a cámara. Podés subir una foto.");
+      return;
+    }
+    setCamPending(true);
+    const request = navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" } },
+      audio: false,
+    });
+    const outcome = await raceCameraRequest(request);
+    setCamPending(false);
+    if (outcome.kind === "stream") {
+      streamRef.current = outcome.stream;
       setCamOpen(true);
       // el <video> monta en el siguiente render
       requestAnimationFrame(() => {
         if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+          videoRef.current.srcObject = outcome.stream;
           videoRef.current.play().catch(() => {});
         }
       });
-    } catch {
-      setCamError("no-camara");
+      return;
     }
+    if (outcome.kind === "timeout") {
+      // La solicitud quedó esperando sin resolver: liberar la cámara cuando
+      // finalmente responda para no dejarla ocupada.
+      request.then(
+        (late) => { if (streamRef.current !== late) late.getTracks().forEach((t) => t.stop()); },
+        () => {},
+      );
+      setCamError("sin-respuesta");
+      setCamMessage("La cámara no respondió. Podés reintentar o subir una foto del archivo.");
+      return;
+    }
+    const info = parseCameraError(outcome.error);
+    setCamError(info.isPermissionDenied ? "denied" : "no-camara");
+    setCamMessage(info.message);
   }
 
   function closeCamera() {
@@ -205,12 +255,12 @@ export function CapturaVerificada({
           <button
             type="button"
             onClick={openCamera}
-            disabled={full || busy}
+            disabled={full || busy || camPending}
             className="h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--panel)] text-[13px] font-medium disabled:opacity-50"
           >
-            {photos.length > 0 ? "Tomar otra foto" : "Abrir cámara"}
+            {camPending ? "Esperando cámara…" : photos.length > 0 ? "Tomar otra foto" : "Abrir cámara"}
           </button>
-          {camError === "no-camara" ? (
+          {camError ? (
             <label className="h-9 px-3 rounded-md border border-dashed border-[var(--border)] text-[12px] flex items-center cursor-pointer">
               Subir foto
               <input
@@ -256,6 +306,8 @@ export function CapturaVerificada({
 
       {camError === "captura" ? (
         <p className="text-[11px] text-[var(--error)]">No se pudo procesar la foto. Probá de nuevo.</p>
+      ) : camError && camMessage ? (
+        <p className="text-[11px] text-[var(--error)]">{camMessage}</p>
       ) : null}
 
       <p className="text-[11px] text-[var(--muted)]">
