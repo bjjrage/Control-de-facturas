@@ -6,6 +6,7 @@ import { requireProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { sanitizeFileName } from "@/lib/storage";
 import { autoMatchInvoiceByAmount } from "@/lib/invoice-auto-match";
+import { applyDeterministicItemMatches, insertInvoiceItems, parseInvoiceLinesInput } from "@/lib/invoice-items";
 import { revalidatePath } from "next/cache";
 
 function str(fd: FormData, k: string) {
@@ -97,7 +98,40 @@ export async function resolveInvoiceJob(jobId: string, formData: FormData) {
   }
 
   await logAudit(supabase, { action: "invoice.created", invoiceId: invoice.id, detail: { source: "bulk_review" } });
-  await autoMatchInvoiceByAmount(supabase, { invoiceId: invoice.id, providerId, total, empresaId });
+  const matchedOrderId = await autoMatchInvoiceByAmount(supabase, { invoiceId: invoice.id, providerId, total, empresaId });
+
+  // Líneas del job revisado (si la extracción las trajo): habilitan la
+  // conciliación por ítem sin cambiar el flujo de revisión existente.
+  const jobLines = parseInvoiceLinesInput(
+    (job.extracted as { items?: unknown } | null)?.items ?? []
+  );
+  if (jobLines.length > 0) {
+    const { error: linesError } = await insertInvoiceItems(supabase, {
+      empresaId,
+      invoiceId: invoice.id as string,
+      items: jobLines,
+    });
+    if (linesError) {
+      await logAudit(supabase, {
+        action: "invoice.lines_save_failed",
+        invoiceId: invoice.id,
+        detail: { error: linesError },
+      });
+    } else if (matchedOrderId) {
+      const { error: itemError } = await applyDeterministicItemMatches(supabase, {
+        empresaId,
+        invoiceId: invoice.id as string,
+        orderId: matchedOrderId,
+      });
+      if (itemError) {
+        await logAudit(supabase, {
+          action: "invoice.item_match_failed",
+          invoiceId: invoice.id,
+          detail: { error: itemError },
+        });
+      }
+    }
+  }
 
   await supabase
     .from("invoice_jobs")

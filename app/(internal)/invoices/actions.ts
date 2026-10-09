@@ -6,6 +6,7 @@ import { requireProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { sanitizeFileName } from "@/lib/storage";
 import { autoMatchInvoice } from "@/lib/invoice-auto-match";
+import { applyDeterministicItemMatches, insertInvoiceItems, parseInvoiceLinesInput } from "@/lib/invoice-items";
 import { revalidatePath } from "next/cache";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -209,6 +210,24 @@ export async function createInvoice(formData: FormData) {
 
   await logAudit(supabase, { action: "invoice.created", invoiceId: invoice.id });
 
+  // Líneas de detalle (revisadas por el humano en el diálogo): se persisten para
+  // habilitar la conciliación por ítem. Best-effort: la factura vale sin líneas.
+  const dialogLines = parseInvoiceLinesInput(formData.get("items_json"));
+  if (dialogLines.length > 0) {
+    const { error: linesError } = await insertInvoiceItems(supabase, {
+      empresaId,
+      invoiceId: invoice.id as string,
+      items: dialogLines,
+    });
+    if (linesError) {
+      await logAudit(supabase, {
+        action: "invoice.lines_save_failed",
+        invoiceId: invoice.id,
+        detail: { error: linesError },
+      });
+    }
+  }
+
   // Si viene de "Cargar factura para esta orden", se vincula directo a esa OC;
   // si no, se intenta la conciliación automática por monto.
   const linkOrderId = str(formData, "link_order_id");
@@ -230,6 +249,23 @@ export async function createInvoice(formData: FormData) {
       orderReference: str(formData, "order_reference"),
       productDescription: str(formData, "product_description"),
     });
+  }
+
+  // Conciliación por ítem determinística sobre el vínculo autorizado: solo el
+  // caso inequívoco crea matches; lo demás queda pendiente de revisión manual.
+  if (autoMatchedOrderId) {
+    const { error: itemError } = await applyDeterministicItemMatches(supabase, {
+      empresaId,
+      invoiceId: invoice.id as string,
+      orderId: autoMatchedOrderId,
+    });
+    if (itemError) {
+      await logAudit(supabase, {
+        action: "invoice.item_match_failed",
+        invoiceId: invoice.id,
+        detail: { error: itemError },
+      });
+    }
   }
 
   // Cost Engine Flywheel: Alimentar observaciones de costo real si la factura se vinculó a una OC
@@ -358,7 +394,11 @@ export async function getCandidateOrders(invoiceId: string): Promise<{
 }
 
 /** Vincula manualmente una factura PENDIENTE a una OC y la pasa a MATCH. */
-export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Promise<{ error: string | null }> {
+export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Promise<{
+  error: string | null;
+  itemMatched?: number;
+  itemPending?: number;
+}> {
   const profile = await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
   const empresaId = profile.empresa_id;
@@ -386,6 +426,21 @@ export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Pr
 
   // The match trigger performs canonical reconciliation, including overbilling review.
 
+  // Conciliación por ítem determinística: solo el caso inequívoco crea matches.
+  const { error: itemError, applied, pending } = await applyDeterministicItemMatches(supabase, {
+    empresaId,
+    invoiceId,
+    orderId,
+  });
+  if (itemError) {
+    await logAudit(supabase, {
+      action: "invoice.item_match_failed",
+      invoiceId,
+      authorizedOrderId: orderId,
+      detail: { error: itemError },
+    });
+  }
+
   // Cost Engine Flywheel: Alimentar observaciones de costo real
   try {
     const { recordCostObservationFromInvoice } = await import("@/lib/procurement/flywheel");
@@ -407,5 +462,5 @@ export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Pr
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoiceId}`);
   revalidatePath(`/orders/${orderId}`);
-  return { error: null };
+  return { error: null, itemMatched: applied.length, itemPending: pending };
 }

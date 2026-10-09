@@ -12,6 +12,7 @@ import { LinkOrderDialog } from "@/app/(internal)/invoices/link-order-dialog";
 import { CreateOrderFromInvoiceDialog } from "./create-order-dialog";
 import { ExceptionDialog } from "./exception-dialog";
 import { AttachmentLink } from "./attachment-link";
+import { InvoiceLinesSection, type InvoiceLineView, type OrderLineView } from "./invoice-lines-section";
 import { markAptoYCrearOp } from "./actions";
 import { UnmatchOrderButton } from "./unmatch-button";
 import { DeleteInvoiceButton } from "./delete-button";
@@ -75,6 +76,77 @@ export default async function InvoiceDetailPage({
       .maybeSingle();
     attachment = data ?? null;
   }
+
+  // Líneas de la factura con sus imputaciones por ítem (si existen).
+  const { data: invoiceLines } = await supabase
+    .from("invoice_items")
+    .select("id, product_description, quantity, unit, unit_price, subtotal")
+    .eq("invoice_id", id)
+    .order("sort_order");
+  const lineIds = (invoiceLines ?? []).map((l) => l.id as string);
+  const { data: itemMatches } = lineIds.length
+    ? await supabase
+        .from("invoice_item_matches")
+        .select("id, invoice_item_id, order_item_id, quantity_matched")
+        .in("invoice_item_id", lineIds)
+    : { data: null as null };
+  const matchedOrderIds = [...new Set((itemMatches ?? []).map((m) => m.order_item_id as string))];
+  const { data: matchedOrderLines } = matchedOrderIds.length
+    ? await supabase
+        .from("authorized_order_items")
+        .select("id, product, quantity, unit")
+        .in("id", matchedOrderIds)
+    : { data: null as null };
+  const { data: linkedOrderLines } = linkedOrder
+    ? await supabase
+        .from("authorized_order_items")
+        .select("id, product, quantity, unit, quantity_invoiced")
+        .eq("order_id", linkedOrder.id)
+        .order("sort_order")
+    : { data: null as null };
+  const orderLineById = new Map(
+    [...(matchedOrderLines ?? []), ...(linkedOrderLines ?? [])].map((l) => [l.id as string, l])
+  );
+  // Códigos de OC para las líneas imputadas (normalmente la OC vinculada).
+  const matchedOrderItemIds = (itemMatches ?? []).map((m) => m.order_item_id as string);
+  const { data: linkedItemsOrders } = linkedOrder
+    ? await supabase
+        .from("authorized_order_items")
+        .select("id")
+        .eq("order_id", linkedOrder.id)
+        .in("id", matchedOrderItemIds.length ? matchedOrderItemIds : ["00000000-0000-0000-0000-000000000000"])
+    : { data: null as null };
+  const linkedItemIds = new Set((linkedItemsOrders ?? []).map((l) => l.id as string));
+  const orderCodeFor = (orderItemId: string) =>
+    linkedItemIds.has(orderItemId) && linkedOrder ? linkedOrder.code : "OC";
+  const lineViews: InvoiceLineView[] = (invoiceLines ?? []).map((l) => ({
+    id: l.id as string,
+    product_description: l.product_description as string,
+    quantity: l.quantity as number | null,
+    unit: l.unit as string | null,
+    unit_price: l.unit_price as number | null,
+    subtotal: l.subtotal as number | null,
+    matches: (itemMatches ?? [])
+      .filter((m) => (m.invoice_item_id as string) === (l.id as string))
+      .map((m) => {
+        const ol = orderLineById.get(m.order_item_id as string);
+        return {
+          id: m.id as string,
+          orderItemId: m.order_item_id as string,
+          orderCode: orderCodeFor(m.order_item_id as string),
+          orderProduct: (ol?.product as string | undefined) ?? "Ítem",
+          quantityMatched: Number(m.quantity_matched),
+        };
+      }),
+  }));
+  const orderLineViews: OrderLineView[] = (linkedOrderLines ?? []).map((l) => ({
+    id: l.id as string,
+    code: linkedOrder!.code,
+    product: l.product as string,
+    quantity: Number(l.quantity),
+    unit: l.unit as string,
+    quantity_invoiced: Number(l.quantity_invoiced ?? 0),
+  }));
 
   return (
     <div className="max-w-4xl space-y-5">
@@ -212,6 +284,14 @@ export default async function InvoiceDetailPage({
           </div>
         )}
       </div>
+
+      <InvoiceLinesSection
+        invoiceId={invoice.id}
+        canMutate={invoice.status === "PENDIENTE" || invoice.status === "MATCH" || invoice.status === "REQUIERE_REVISION"}
+        lines={lineViews}
+        orderLines={orderLineViews}
+        linkedOrderCode={linkedOrder?.code ?? null}
+      />
 
       {(exceptions ?? []).length > 0 ? (
         <div>

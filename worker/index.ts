@@ -16,6 +16,7 @@
 import { config } from "dotenv";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { extractInvoiceFieldsFromFile } from "../lib/invoice-extraction";
+import { validateInvoiceArithmetic } from "../lib/invoice-arithmetic";
 import { findProviderByTaxId } from "../lib/provider-lookup";
 import { autoMatchInvoice } from "../lib/invoice-auto-match";
 import { matchInvoiceItemsToOrderItems } from "../lib/invoice-item-match";
@@ -106,6 +107,19 @@ async function processJob(job: InvoiceJob) {
       extracted: parsed,
       provider_id: provider?.id ?? null,
       message: `${reason} Completala en revisión.`,
+    });
+  }
+
+  // Validación aritmética determinística: una extracción inconsistente nunca
+  // avanza silenciosamente; queda en revisión con el motivo explícito.
+  const arithmetic = validateInvoiceArithmetic(parsed);
+  if (arithmetic.status !== "VALIDA") {
+    return finish(job.id, {
+      status: "needs_review",
+      outcome: "needs_manual",
+      extracted: { ...parsed, validation: arithmetic },
+      provider_id: provider.id,
+      message: `Revisión aritmética: ${arithmetic.issues[0] ?? "datos inconsistentes."}`,
     });
   }
 
