@@ -13,6 +13,10 @@ import { revalidatePath } from "next/cache";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
+type CreateInvoiceResult =
+  | { error: string; id?: undefined; autoMatched?: undefined; warning?: undefined; arithmeticIssues?: string[]; invoiceId?: string }
+  | { error: null; id: string; autoMatched: boolean; warning?: string };
+
 /**
  * Reintenta la conciliación automática sobre todas las facturas pendientes de
  * vincular. Útil después de autorizar órdenes nuevas, o de corregir montos.
@@ -54,7 +58,7 @@ function num(formData: FormData, key: string) {
   return Number.isFinite(n) ? n : null;
 }
 
-export async function createInvoice(formData: FormData) {
+export async function createInvoice(formData: FormData): Promise<CreateInvoiceResult> {
   const profile = await requireProfile(["administracion", "admin"]);
 
   const providerId = str(formData, "provider_id");
@@ -275,6 +279,7 @@ export async function createInvoice(formData: FormData) {
   // si no, se intenta la conciliación automática por monto.
   const linkOrderId = str(formData, "link_order_id");
   let autoMatchedOrderId: string | null = null;
+  let itemMatchWarning: string | undefined;
   if (linkOrderId) {
     const { error: matchError } = await supabase
       .from("invoice_order_matches")
@@ -282,6 +287,8 @@ export async function createInvoice(formData: FormData) {
     if (!matchError) {
       autoMatchedOrderId = linkOrderId;
       revalidatePath(`/orders/${linkOrderId}`);
+    } else {
+      itemMatchWarning = "La factura se creó, pero no pudo vincularse a la orden elegida. Revisá el vínculo antes de aprobar el pago.";
     }
   } else {
     autoMatchedOrderId = await autoMatchInvoice(supabase, {
@@ -297,22 +304,25 @@ export async function createInvoice(formData: FormData) {
   // Conciliación por ítem determinística sobre el vínculo autorizado: solo el
   // caso inequívoco crea matches; lo demás queda pendiente de revisión manual.
   if (autoMatchedOrderId) {
-    const { error: itemError } = await applyDeterministicItemMatches(supabase, {
+    const { error: itemError, pending } = await applyDeterministicItemMatches(supabase, {
       empresaId,
       invoiceId: invoice.id as string,
       orderId: autoMatchedOrderId,
     });
     if (itemError) {
+      itemMatchWarning = "La factura se creó y vinculó, pero no se completó la conciliación por línea. Revisala antes de aprobar el pago.";
       await logAudit(supabase, {
         action: "invoice.item_match_failed",
         invoiceId: invoice.id,
         detail: { error: itemError },
       });
+    } else if (pending > 0) {
+      itemMatchWarning = `${pending} línea(s) quedaron sin imputación. Revisalas antes de aprobar el pago.`;
     }
   }
 
   // Cost Engine Flywheel: Alimentar observaciones de costo real si la factura se vinculó a una OC
-  const activeOrderId = linkOrderId || autoMatchedOrderId;
+  const activeOrderId = autoMatchedOrderId;
   if (activeOrderId) {
     try {
       const { recordCostObservationFromInvoice } = await import("@/lib/procurement/flywheel");
@@ -333,7 +343,12 @@ export async function createInvoice(formData: FormData) {
 
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoice.id}`);
-  return { error: null, id: invoice.id as string, autoMatched: autoMatchedOrderId !== null };
+  return {
+    error: null,
+    id: invoice.id as string,
+    autoMatched: autoMatchedOrderId !== null,
+    ...(itemMatchWarning ? { warning: itemMatchWarning } : {}),
+  };
 }
 
 export type OrderCandidate = {
@@ -441,6 +456,7 @@ export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Pr
   error: string | null;
   itemMatched?: number;
   itemPending?: number;
+  warning?: string;
 }> {
   const profile = await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
@@ -505,5 +521,14 @@ export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Pr
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoiceId}`);
   revalidatePath(`/orders/${orderId}`);
-  return { error: null, itemMatched: applied.length, itemPending: pending };
+  return {
+    error: null,
+    itemMatched: applied.length,
+    itemPending: pending,
+    ...(itemError || pending > 0 ? {
+      warning: itemError
+        ? "La factura quedó vinculada, pero no se completó la conciliación por línea. Revisala antes de aprobar el pago."
+        : `${pending} línea(s) quedaron sin imputación. Revisalas antes de aprobar el pago.`,
+    } : {}),
+  };
 }

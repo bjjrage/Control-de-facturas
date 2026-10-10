@@ -393,7 +393,9 @@ BEGIN
   IF NEW.quantity IS NULL OR NEW.quantity <= 0
      OR NEW.quantity IN ('NaN'::numeric,'Infinity'::numeric,'-Infinity'::numeric)
      OR NEW.unit_price IN ('NaN'::numeric,'Infinity'::numeric,'-Infinity'::numeric)
-     OR NEW.total_price IN ('NaN'::numeric,'Infinity'::numeric,'-Infinity'::numeric) THEN
+     OR NEW.total_price IN ('NaN'::numeric,'Infinity'::numeric,'-Infinity'::numeric)
+     OR (NEW.unit_price IS NOT NULL AND NEW.unit_price < 0)
+     OR (NEW.total_price IS NOT NULL AND NEW.total_price < 0) THEN
     RAISE EXCEPTION 'La cantidad y los importes de la OC deben ser positivos y finitos';
   END IF;
   IF TG_OP='UPDATE' THEN
@@ -985,6 +987,9 @@ DECLARE
   v_invoice_empresa uuid;
   v_status public.invoice_status;
   v_attachment_id uuid;
+  v_cleanup_bucket text;
+  v_cleanup_path text;
+  v_attachment record;
   v_op record;
   v_locked_ops uuid[] := ARRAY[]::uuid[];
 BEGIN
@@ -1022,6 +1027,16 @@ BEGIN
     RAISE EXCEPTION 'No se puede eliminar una factura apta para pago o pagada' USING ERRCODE='55000';
   END IF;
 
+  -- Serialize attachment cleanup with concurrent FK references. Shared
+  -- attachments remain present, and the caller removes Storage only if this
+  -- transaction reports that it actually deleted the metadata row.
+  IF v_attachment_id IS NOT NULL THEN
+    SELECT a.id,a.bucket,a.path INTO v_attachment
+    FROM public.attachments a
+    WHERE a.id=v_attachment_id AND a.empresa_id=p_empresa_id
+    FOR UPDATE;
+  END IF;
+
   -- A link through another OP may have committed between the initial OP scan
   -- and our invoice lock. Do not acquire its OP lock after the invoice lock:
   -- abort and let the caller retry with the complete ordered lock set.
@@ -1050,12 +1065,103 @@ BEGIN
   DELETE FROM public.invoice_exceptions e
   WHERE e.invoice_id=p_invoice_id AND e.empresa_id=p_empresa_id;
   DELETE FROM public.audit_logs a
-  WHERE a.invoice_id=p_invoice_id AND a.empresa_id=p_empresa_id;
+  WHERE a.invoice_id=p_invoice_id
+    AND (a.empresa_id=p_empresa_id OR a.empresa_id IS NULL);
   DELETE FROM public.invoices i
   WHERE i.id=p_invoice_id AND i.empresa_id=p_empresa_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'La factura cambió durante el borrado' USING ERRCODE='40001'; END IF;
 
-  RETURN jsonb_build_object('ok',true,'attachment_id',v_attachment_id);
+  IF v_attachment.id IS NOT NULL
+     AND NOT EXISTS (SELECT 1 FROM public.invoices i WHERE i.attachment_id=v_attachment.id) THEN
+    BEGIN
+      DELETE FROM public.attachments a
+      WHERE a.id=v_attachment.id AND a.empresa_id=p_empresa_id
+      RETURNING a.bucket,a.path INTO v_cleanup_bucket,v_cleanup_path;
+    EXCEPTION WHEN foreign_key_violation OR raise_exception THEN
+      -- Other durable evidence can reference this attachment. Preserve it and
+      -- allow the invoice deletion to commit with no Storage cleanup request.
+      v_cleanup_bucket := NULL;
+      v_cleanup_path := NULL;
+    END;
+  END IF;
+
+  RETURN jsonb_build_object('ok',true,'attachment_id',v_attachment_id,
+    'cleanup_bucket',v_cleanup_bucket,'cleanup_path',v_cleanup_path);
+END;
+$function$;
+
+-- A claimed job is never made claimable again after its invoice_id checkpoint
+-- exists. If the worker dies after creating the invoice, the stale lease goes
+-- to manual review and preserves that known invoice instead of duplicating it.
+CREATE OR REPLACE FUNCTION public.claim_invoice_job()
+RETURNS public.invoice_jobs
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $function$
+DECLARE v_job public.invoice_jobs;
+BEGIN
+  IF auth.role() IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Invoice jobs are service-role only' USING ERRCODE='42501';
+  END IF;
+  UPDATE public.invoice_jobs j
+  SET status='processing', locked_at=pg_catalog.now(), attempts=j.attempts+1,
+      updated_at=pg_catalog.now()
+  WHERE j.id=(
+    SELECT q.id FROM public.invoice_jobs q
+    WHERE q.status='queued' AND q.invoice_id IS NULL
+    ORDER BY q.created_at,q.id
+    LIMIT 1 FOR UPDATE SKIP LOCKED
+  )
+  RETURNING j.* INTO v_job;
+  RETURN v_job;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.requeue_stale_invoice_jobs(
+  timeout_minutes integer DEFAULT 15,
+  max_attempts integer DEFAULT 3
+)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $function$
+DECLARE v_count integer;
+BEGIN
+  IF auth.role() IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Invoice jobs are service-role only' USING ERRCODE='42501';
+  END IF;
+  WITH affected AS (
+    UPDATE public.invoice_jobs j
+    SET status=CASE
+          WHEN j.invoice_id IS NOT NULL THEN 'needs_review'::public.invoice_job_status
+          WHEN j.attempts >= max_attempts THEN 'failed'::public.invoice_job_status
+          ELSE 'queued'::public.invoice_job_status
+        END,
+        outcome=CASE WHEN j.invoice_id IS NOT NULL THEN 'needs_manual' ELSE j.outcome END,
+        locked_at=NULL,
+        message=CASE
+          WHEN j.invoice_id IS NOT NULL THEN
+            'El worker expiró después de crear la factura. Revisá la factura existente antes de continuar.'
+          WHEN j.attempts >= max_attempts THEN
+            'Abandonado tras ' || j.attempts || ' intentos (timeout de worker).'
+          ELSE j.message
+        END,
+        error=CASE
+          WHEN j.invoice_id IS NOT NULL THEN
+            coalesce(j.error,'Worker crash con factura ya creada; no reencolar para evitar duplicados.')
+          WHEN j.attempts >= max_attempts THEN
+            coalesce(j.error,'Worker crash: locked_at expiró sin finish()')
+          ELSE j.error
+        END,
+        updated_at=pg_catalog.now()
+    WHERE j.status='processing'
+      AND j.locked_at < pg_catalog.now() - (timeout_minutes || ' minutes')::interval
+    RETURNING j.id
+  )
+  SELECT count(*) INTO v_count FROM affected;
+  RETURN coalesce(v_count,0);
 END;
 $function$;
 
@@ -1072,15 +1178,17 @@ REVOKE ALL ON FUNCTION public.unmatch_invoice_order(uuid, uuid, uuid, uuid) FROM
 REVOKE ALL ON FUNCTION public.delete_invoice_item(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.delete_invoice_item_match(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.delete_invoice(uuid, uuid) FROM PUBLIC, anon, authenticated;
-REVOKE ALL PRIVILEGES ON TABLE public.invoice_item_matches FROM anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.claim_invoice_job() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.requeue_stale_invoice_jobs(integer, integer) FROM PUBLIC, anon, authenticated;
+REVOKE ALL PRIVILEGES ON TABLE public.invoice_item_matches FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT ON TABLE public.invoice_item_matches TO authenticated, service_role;
-REVOKE ALL PRIVILEGES ON TABLE public.invoice_order_matches FROM anon, authenticated, service_role;
+REVOKE ALL PRIVILEGES ON TABLE public.invoice_order_matches FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT, INSERT ON TABLE public.invoice_order_matches TO authenticated, service_role;
-REVOKE ALL PRIVILEGES ON TABLE public.invoice_items FROM anon, authenticated, service_role;
+REVOKE ALL PRIVILEGES ON TABLE public.invoice_items FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT, INSERT ON TABLE public.invoice_items TO authenticated, service_role;
 REVOKE TRUNCATE ON TABLE public.invoice_item_matches, public.invoice_items,
   public.invoice_order_matches, public.authorized_order_items,
-  public.invoices, public.authorized_orders FROM anon, authenticated, service_role;
+  public.invoices, public.authorized_orders FROM PUBLIC, anon, authenticated, service_role;
 REVOKE TRIGGER, REFERENCES, MAINTAIN ON TABLE public.invoice_item_matches,
   public.invoice_items, public.invoice_order_matches,
   public.authorized_order_items, public.invoices, public.authorized_orders
@@ -1096,5 +1204,7 @@ GRANT EXECUTE ON FUNCTION public.unmatch_invoice_order(uuid, uuid, uuid, uuid) T
 GRANT EXECUTE ON FUNCTION public.delete_invoice_item(uuid, uuid, uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.delete_invoice_item_match(uuid, uuid, uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.delete_invoice(uuid, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.claim_invoice_job() TO service_role;
+GRANT EXECUTE ON FUNCTION public.requeue_stale_invoice_jobs(integer, integer) TO service_role;
 
 COMMIT;

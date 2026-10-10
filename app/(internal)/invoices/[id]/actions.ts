@@ -19,7 +19,7 @@ function itemMutationsAllowed(status: string): boolean {
   return status === "PENDIENTE" || status === "MATCH" || status === "REQUIERE_REVISION";
 }
 
-export async function matchOrder(invoiceId: string, authorizedOrderId: string) {
+export async function matchOrder(invoiceId: string, authorizedOrderId: string): Promise<{ error: string | null; warning?: string }> {
   const profile = await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
 
@@ -36,7 +36,7 @@ export async function matchOrder(invoiceId: string, authorizedOrderId: string) {
   }
 
   // Conciliación por ítem determinística sobre el vínculo autorizado.
-  const { error: itemError } = await applyDeterministicItemMatches(supabase, {
+  const { error: itemError, pending } = await applyDeterministicItemMatches(supabase, {
     empresaId: profile.empresa_id,
     invoiceId,
     orderId: authorizedOrderId,
@@ -81,7 +81,14 @@ export async function matchOrder(invoiceId: string, authorizedOrderId: string) {
 
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoiceId}`);
-  return { error: null };
+  return {
+    error: null,
+    ...(itemError || pending > 0 ? {
+      warning: itemError
+        ? "La factura quedó vinculada, pero no se completó la conciliación por línea. Revisala antes de aprobar el pago."
+        : `${pending} línea(s) quedaron sin imputación. Revisalas antes de aprobar el pago.`,
+    } : {}),
+  };
 }
 
 export async function unmatchOrder(invoiceId: string, matchId: string, authorizedOrderId: string) {
@@ -208,34 +215,24 @@ export async function deleteInvoice(invoiceId: string): Promise<{ error: string 
     p_invoice_id: invoiceId,
   });
   if (error) return { error: error.message };
-  const result = data as { ok?: boolean; attachment_id?: string | null; error?: string } | null;
+  const result = data as {
+    ok?: boolean;
+    attachment_id?: string | null;
+    cleanup_bucket?: string | null;
+    cleanup_path?: string | null;
+    error?: string;
+  } | null;
   if (!result?.ok) return { error: result?.error ?? "No se pudo eliminar la factura." };
 
   // The invoice and its financial metadata are already committed as deleted.
   // Storage is outside PostgreSQL, so a cleanup failure is reported as a
   // warning and never presented as if the invoice deletion had rolled back.
   let warning: string | undefined;
-  if (result.attachment_id) {
+  if (result.cleanup_bucket && result.cleanup_path) {
     try {
       const admin = createAdminClient();
-      const { data: attachment, error: attachmentLookupError } = await admin
-        .from("attachments")
-        .select("bucket, path")
-        .eq("id", result.attachment_id)
-        .eq("empresa_id", empresaId)
-        .maybeSingle();
-      if (attachmentLookupError) {
-        warning = "La factura se eliminó, pero no se pudo comprobar la limpieza de su archivo adjunto.";
-      } else if (attachment) {
-        const { error: storageError } = await admin.storage.from(attachment.bucket).remove([attachment.path]);
-        if (storageError) {
-          warning = "La factura se eliminó, pero no se pudo borrar su archivo adjunto.";
-        } else {
-          const { error: attachmentDeleteError } = await admin.from("attachments").delete()
-            .eq("id", result.attachment_id).eq("empresa_id", empresaId);
-          if (attachmentDeleteError) warning = "La factura se eliminó, pero quedó pendiente limpiar el registro de su archivo adjunto.";
-        }
-      }
+      const { error: storageError } = await admin.storage.from(result.cleanup_bucket).remove([result.cleanup_path]);
+      if (storageError) warning = "La factura se eliminó, pero no se pudo borrar su archivo adjunto.";
     } catch {
       warning = "La factura se eliminó, pero falló la limpieza de su archivo adjunto.";
     }
@@ -299,7 +296,7 @@ export async function addInvoiceItem(invoiceId: string, raw: {
 /** Corrige una línea pre-APTO en una transacción, preservando su ID. */
 export async function updateInvoiceItem(itemId: string, raw: {
   description: string; quantity?: number | null; unit?: string | null; unit_price?: number | null; subtotal?: number | null;
-}): Promise<{ error: string | null; id?: string }> {
+}): Promise<{ error: string | null; id?: string; warning?: string }> {
   const profile = await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
   const { data: line, error: lineError } = await supabase
@@ -335,6 +332,7 @@ export async function updateInvoiceItem(itemId: string, raw: {
   // tenía match, conserva el comportamiento anterior de propuesta determinística.
   const link = await getHeaderLink(supabase, { empresaId: profile.empresa_id, invoiceId });
   let revalidated = 0;
+  let rematchFailed = false;
   if (link.ok) {
     const { data: corrected } = await supabase
       .from("invoice_items")
@@ -363,6 +361,7 @@ export async function updateInvoiceItem(itemId: string, raw: {
         });
         revalidated = applied.applied.length;
         if (applied.error) {
+          rematchFailed = true;
           await logAudit(supabase, {
             action: "invoice.item_revalidation_failed",
             invoiceId,
@@ -374,7 +373,12 @@ export async function updateInvoiceItem(itemId: string, raw: {
   }
   await logAudit(supabase, { action: "invoice.item_corrected_runtime", invoiceId, detail: { revalidated } });
   revalidatePath(`/invoices/${invoiceId}`);
-  return { error: null, id: itemId };
+  const matchesKept = Number((correction as { matches_kept?: number } | null)?.matches_kept ?? 0);
+  const remainsUnmatched = link.ok && matchesKept === 0 && revalidated === 0;
+  const warning = rematchFailed || remainsUnmatched
+    ? "La corrección se guardó. La línea quedó sin imputación y requiere revisión antes de aprobar el pago."
+    : undefined;
+  return { error: null, id: itemId, ...(warning ? { warning } : {}) };
 }
 
 /** Elimina una línea pre-APTO (CASCADE elimina sus matches; el trigger recalcula). */
@@ -438,6 +442,10 @@ export async function createInvoiceItemMatch(args: {
   });
   if (result.error) return { error: result.error };
   if (!result.applied.length) {
+    if (result.idempotent) {
+      revalidatePath(`/invoices/${args.invoiceId}`);
+      return { error: null };
+    }
     if (result.skippedDuplicate) return { error: "Esa línea ya está imputada a ese ítem de OC." };
     if (result.skippedNoLink) return { error: "La línea, el ítem o el vínculo con la OC cambiaron; actualizá e intentá nuevamente." };
     if (result.skippedOverDocumented) return { error: "La cantidad supera la cantidad documentada en la línea de factura." };

@@ -161,6 +161,7 @@ export async function insertValidatedItemMatches(
   skippedOverDocumented: number;
   skippedOverRemaining: number;
   skippedDuplicate: number;
+  idempotent: number;
   skippedMismatch: number;
 }> {
   const applied: AppliedItemMatch[] = [];
@@ -168,6 +169,7 @@ export async function insertValidatedItemMatches(
   let skippedOverDocumented = 0;
   let skippedOverRemaining = 0;
   let skippedDuplicate = 0;
+  let idempotent = 0;
   let skippedMismatch = 0;
   const bail = (error: string | null) => ({
     error,
@@ -176,6 +178,7 @@ export async function insertValidatedItemMatches(
     skippedOverDocumented,
     skippedOverRemaining,
     skippedDuplicate,
+    idempotent,
     skippedMismatch,
   });
 
@@ -273,13 +276,14 @@ export async function insertValidatedItemMatches(
     // idéntico es idempotencia, no exceso; igual orden que la vía manual).
     const { data: dup, error: dupError } = await supabase
       .from("invoice_item_matches")
-      .select("id")
+      .select("id, quantity_matched")
       .eq("invoice_item_id", proposal.invoiceItemId)
       .eq("order_item_id", proposal.orderItemId)
       .maybeSingle();
     if (dupError) return bail(`No se pudo verificar duplicados: ${dupError.message}`);
     if (dup) {
-      skippedDuplicate++;
+      if (Number((dup as { quantity_matched?: unknown }).quantity_matched) === proposal.quantityMatched) idempotent++;
+      else skippedDuplicate++;
       continue;
     }
     // H1-8: cantidad documentada válida.
@@ -328,7 +332,7 @@ export async function insertValidatedItemMatches(
       return bail(result?.error ?? "La RPC rechazó la imputación sin confirmar su causa.");
     }
     if (result.duplicate) {
-      skippedDuplicate++;
+      idempotent++;
       continue;
     }
     matchedByLine.set(proposal.invoiceItemId, already + proposal.quantityMatched);

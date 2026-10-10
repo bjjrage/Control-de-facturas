@@ -15,6 +15,7 @@ function makeDb(seed: Record<string, Row[]> = {}) {
   for (const [k, v] of Object.entries(seed)) tables[k] = v.map((r) => ({ ...r }));
   const rpcCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
   let seq = 100;
+  let beforeNextJobUpdate: (() => void) | null = null;
 
   function recompute(orderItemId: string) {
     const sum = (tables.invoice_item_matches ?? [])
@@ -65,6 +66,10 @@ function makeDb(seed: Record<string, Row[]> = {}) {
       state.filters.push((r) => vals.includes(r[col]));
       return api;
     }) as never;
+    api.is = ((col: string, val: unknown) => {
+      state.filters.push((r) => r[col] === val);
+      return api;
+    }) as never;
     api.order = ((col: string) => {
       state.orderBy = col;
       return api;
@@ -98,9 +103,24 @@ function makeDb(seed: Record<string, Row[]> = {}) {
       sub.single = (async () => ({ data: pick(inserted[0], state.selectCols), error: null })) as never;
       return sub;
     }) as never;
-    api.update = (() => {
+    api.update = ((payload: Row) => {
       const sub: Record<string, (...args: never[]) => unknown> = {};
-      sub.eq = api.eq;
+      if (table === "invoice_jobs") {
+        const filters = [...state.filters];
+        sub.eq = ((col: string, val: unknown) => { filters.push((r) => r[col] === val); return sub; }) as never;
+        sub.is = ((col: string, val: unknown) => { filters.push((r) => r[col] === val); return sub; }) as never;
+        sub.select = ((_cols?: string) => sub) as never;
+        sub.maybeSingle = (async () => {
+          beforeNextJobUpdate?.();
+          beforeNextJobUpdate = null;
+          const target = (tables.invoice_jobs ?? []).find((r) => filters.every((f) => f(r)));
+          if (!target) return { data: null, error: null };
+          Object.assign(target, payload);
+          return { data: target, error: null };
+        }) as never;
+      } else {
+        sub.eq = api.eq;
+      }
       return sub;
     }) as never;
     api.delete = (() => {
@@ -277,7 +297,7 @@ function makeDb(seed: Record<string, Row[]> = {}) {
       return { data: null, error: null };
     },
   };
-  return { client, tables, rpcCalls };
+  return { client, tables, rpcCalls, beforeNextJobUpdate: (fn: () => void) => { beforeNextJobUpdate = fn; } };
 }
 
 const mocks = vi.hoisted(() => ({ requireProfile: vi.fn(), requireEmpresaId: vi.fn(), db: null as null | ReturnType<typeof makeDb> }));
@@ -380,9 +400,9 @@ describe("BUG-038: vínculo crea imputación inequívoca y el trigger recalcula"
 
   it("match repetido no duplica cantidades", async () => {
     await linkInvoiceToOrder(INV2, OC);
-    // la misma imputación otra vez por vía manual debe rechazarse
+    // la misma imputación otra vez por vía manual se confirma como idempotente
     const dup = await createInvoiceItemMatch({ invoiceId: INV2, invoiceItemId: IL2, orderItemId: OL1, quantity: 2500 });
-    expect(dup.error).toContain("ya está imputada");
+    expect(dup.error).toBeNull();
     const ol = mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!;
     expect(ol.quantity_invoiced).toBe(2500);
     expect(mocks.db!.tables.invoice_item_matches).toHaveLength(1);
@@ -436,6 +456,13 @@ describe("BUG-038: casos que quedan sin conciliar (no se inventa)", () => {
     const result = await createInvoiceItemMatch({ invoiceId: INV, invoiceItemId: IL1, orderItemId: OL1, quantity: 2501 });
     expect(result.error).toContain("documentada");
     expect(mocks.db!.tables.invoice_item_matches).toHaveLength(0);
+  });
+
+  it("repetir la misma imputación manual confirma éxito idempotente", async () => {
+    const args = { invoiceId: INV, invoiceItemId: IL1, orderItemId: OL1, quantity: 100 };
+    expect((await createInvoiceItemMatch(args)).error).toBeNull();
+    expect((await createInvoiceItemMatch(args)).error).toBeNull();
+    expect(mocks.db!.tables.invoice_item_matches).toHaveLength(1);
   });
 
   it("producto ajeno a la OC se rechaza en imputación manual", async () => {
@@ -687,10 +714,10 @@ describe("R3-02: integridad de cantidades a nivel acción", () => {
     expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(3000);
   });
 
-  it("reintento idéntico no duplica (error fail-closed, cantidad intacta)", async () => {
+  it("reintento idéntico se confirma sin duplicar ni cambiar cantidad", async () => {
     expect((await createInvoiceItemMatch({ invoiceId: INV, invoiceItemId: IL1, orderItemId: OL1, quantity: 2500 })).error).toBeNull();
     const retry = await createInvoiceItemMatch({ invoiceId: INV, invoiceItemId: IL1, orderItemId: OL1, quantity: 2500 });
-    expect(retry.error).toContain("ya está imputada");
+    expect(retry.error).toBeNull();
     expect(mocks.db!.tables.invoice_item_matches).toHaveLength(1);
     expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(2500);
   });
@@ -773,6 +800,46 @@ describe("worker job recovery: evita facturas duplicadas", () => {
     expect(result.error).toContain("ya creó una factura");
     expect(result.invoiceId).toBe(INV);
     expect(mocks.db!.tables.invoices).toHaveLength(2);
+  });
+
+  it("resolveInvoiceJob rechaza jobs que no están en revisión manual", async () => {
+    mocks.db!.tables.invoice_jobs[0] = { id: jobId, empresa_id: TENANT, invoice_id: null, status: "queued" };
+    const result = await resolveInvoiceJob(jobId, new FormData());
+    expect(result.error).toContain("no está disponible");
+    expect(mocks.db!.tables.invoices).toHaveLength(2);
+    expect(mocks.db!.tables.invoice_jobs[0].status).toBe("queued");
+  });
+
+  it("resolveInvoiceJob usa CAS antes de crear y pierde si otra solicitud reclamó el job", async () => {
+    mocks.db!.tables.invoice_jobs[0] = { id: jobId, empresa_id: TENANT, invoice_id: null, status: "needs_review" };
+    mocks.db!.tables.providers = [{ id: UID(9), empresa_id: TENANT }];
+    mocks.db!.beforeNextJobUpdate(() => { mocks.db!.tables.invoice_jobs[0].status = "processing"; });
+    const form = new FormData();
+    form.set("provider_id", UID(9));
+    form.set("invoice_number", "MANUAL-1");
+    form.set("invoice_date", "2026-10-10");
+    form.set("currency", "PYG");
+    form.set("total", "100");
+    form.set("arithmetic_confirmed", "on");
+    const result = await resolveInvoiceJob(jobId, form);
+    expect(result.error).toContain("ya está siendo procesado");
+    expect(mocks.db!.tables.invoices).toHaveLength(2);
+    expect(mocks.db!.tables.invoice_jobs[0].status).toBe("processing");
+  });
+
+  it("retryInvoiceJob hace compare-and-set failed + invoice_id NULL", async () => {
+    mocks.db!.tables.invoice_jobs[0] = { id: jobId, empresa_id: TENANT, invoice_id: null, status: "failed" };
+    const result = await retryInvoiceJob(jobId);
+    expect(result.error).toBeNull();
+    expect(mocks.db!.tables.invoice_jobs[0].status).toBe("queued");
+  });
+
+  it("retryInvoiceJob no sobreescribe processing si el estado cambia tras leer", async () => {
+    mocks.db!.tables.invoice_jobs[0] = { id: jobId, empresa_id: TENANT, invoice_id: null, status: "failed" };
+    mocks.db!.beforeNextJobUpdate(() => { mocks.db!.tables.invoice_jobs[0].status = "processing"; });
+    const result = await retryInvoiceJob(jobId);
+    expect(result.error).toContain("cambió de estado");
+    expect(mocks.db!.tables.invoice_jobs[0].status).toBe("processing");
   });
 });
 
@@ -952,7 +1019,7 @@ describe("H1: servicio compartido insertValidatedItemMatches (invariantes propia
     const retry = await svc([{ invoiceItemId: IL1, orderItemId: OL1, quantityMatched: 2500 }]);
     expect(retry.error).toBeNull();
     expect(retry.applied).toHaveLength(0);
-    expect(retry.skippedDuplicate).toBe(1);
+    expect(retry.idempotent).toBe(1);
     expect(mocks.db!.tables.invoice_item_matches).toHaveLength(1);
     expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(2500);
   });

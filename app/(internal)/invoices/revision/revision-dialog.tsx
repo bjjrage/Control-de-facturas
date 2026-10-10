@@ -45,6 +45,7 @@ export function RevisionDialog({
               setError(result.error);
               return;
             }
+            if (result?.warning) alert(result.warning);
             setError(null);
             setOpen(false);
           }}

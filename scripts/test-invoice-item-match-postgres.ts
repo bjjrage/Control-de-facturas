@@ -31,6 +31,7 @@ type Fixture = {
   orderItemBadScale: string;
   orderItemDeadlock: string;
   orderItemDelete: string;
+  sharedAttachmentId: string;
   invoices: Array<{ id: string; lineId: string; linkId: string }>;
   invoiceB: { id: string; lineId: string; linkId: string };
 };
@@ -79,7 +80,8 @@ async function seed(): Promise<Fixture> {
   const orderItemBadScale = randomUUID();
   const orderItemDeadlock = randomUUID();
   const orderItemDelete = randomUUID();
-  const invoices = Array.from({ length: 8 }, () => ({ id: randomUUID(), lineId: randomUUID(), linkId: randomUUID() }));
+  const sharedAttachmentId = randomUUID();
+  const invoices = Array.from({ length: 9 }, () => ({ id: randomUUID(), lineId: randomUUID(), linkId: randomUUID() }));
   const invoiceB = { id: randomUUID(), lineId: randomUUID(), linkId: randomUUID() };
 
   await withClient(async (client) => {
@@ -101,8 +103,8 @@ async function seed(): Promise<Fixture> {
       await client.query("INSERT INTO public.providers (id,empresa_id,name) VALUES ($1,$3,'R3 supplier A'),($2,$4,'R3 supplier B')", [providerA, providerB, companyA, companyB]);
       await client.query(
         `INSERT INTO public.authorized_orders (id,provider_id,code,provider_name,product,quantity,unit,unit_price,total_price,currency,vat_included,authorized_by,is_cheapest,empresa_id,created_from)
-         VALUES ($1,$3,'R3-A','R3 supplier A','Ladrillo común',1000,'un',10,10000,'PYG',false,$5,true,$7,'manual'),
-                ($2,$4,'R3-B','R3 supplier B','Ladrillo común',1000,'un',10,10000,'PYG',false,$6,true,$8,'manual')`,
+         VALUES ($1,$3,'R3-A','R3 supplier A','Ladrillo común',1000,'un',10,10000,'PYG',false,$5,true,$7,'invoice'),
+                ($2,$4,'R3-B','R3 supplier B','Ladrillo común',1000,'un',10,10000,'PYG',false,$6,true,$8,'invoice')`,
         [orderA, orderB, providerA, providerB, adminA, adminB, companyA, companyB],
       );
       await client.query(
@@ -142,13 +144,22 @@ async function seed(): Promise<Fixture> {
         `INSERT INTO public.invoice_order_matches (id,invoice_id,authorized_order_id,empresa_id) VALUES ($1,$2,$3,$4)`,
         [invoiceB.linkId, invoiceB.id, orderB, companyB],
       );
+      await client.query(
+        `INSERT INTO public.attachments(id,bucket,path,file_name,uploaded_by,empresa_id)
+         VALUES($1,'invoices','r3/shared.pdf','shared.pdf',$2,$3)`,
+        [sharedAttachmentId, adminA, companyA],
+      );
+      await client.query(
+        "UPDATE public.invoices SET attachment_id=$1 WHERE id=ANY($2::uuid[])",
+        [sharedAttachmentId, [invoices[7].id, invoices[8].id]],
+      );
       await client.query("COMMIT");
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
     }
   });
-  return { companyA, companyB, adminA, adminB, commercialA, providerA, orderA, orderItemA, orderItemIdem, orderItemUnmatch, orderItemApproval, orderItemPrecision, orderItemBadScale, orderItemDeadlock, orderItemDelete, invoices, invoiceB };
+  return { companyA, companyB, adminA, adminB, commercialA, providerA, orderA, orderItemA, orderItemIdem, orderItemUnmatch, orderItemApproval, orderItemPrecision, orderItemBadScale, orderItemDeadlock, orderItemDelete, sharedAttachmentId, invoices, invoiceB };
 }
 
 async function createMatch(client: Client, f: Fixture, invoiceIndex: number, orderItemId: string, qty: string) {
@@ -198,6 +209,12 @@ async function main() {
     await asActor(client, f.adminB, async () => {
       await assert.rejects(createMatch(client, f, 0, f.orderItemA, "10"), (error: unknown) => pgErrorCode(error) === "42501");
     });
+    await asActor(client, f.adminA, async () => {
+      await assert.rejects(client.query("SELECT public.create_invoice_item_match($1,$2,$3,$4,$5,$6)", [f.companyB, f.invoices[0].id, f.orderA, f.invoices[0].lineId, f.orderItemA, "10"]), (error: unknown) => pgErrorCode(error) === "42501");
+    });
+    await asActor(client, f.adminB, async () => {
+      await assert.rejects(client.query("SELECT public.create_invoice_item_match($1,$2,$3,$4,$5,$6)", [f.companyB, f.invoices[0].id, f.orderA, f.invoices[0].lineId, f.orderItemA, "10"]), (error: unknown) => ["42501", "23514"].includes(pgErrorCode(error) ?? ""));
+    });
     await asActor(client, f.commercialA, async () => {
       await assert.rejects(createMatch(client, f, 0, f.orderItemA, "10"), (error: unknown) => pgErrorCode(error) === "42501");
     });
@@ -210,7 +227,68 @@ async function main() {
       await assert.rejects(client.query("TRUNCATE public.invoice_item_matches"), (error: unknown) => pgErrorCode(error) === "42501");
     });
   });
-  checks.push("tenant isolation, unauthorized role, anon EXECUTE, and direct match write denied");
+  await withClient(async (client) => {
+    await client.query("UPDATE public.profiles SET active=false WHERE id=$1", [f.adminA]);
+    await asActor(client, f.adminA, async () => {
+      await assert.rejects(createMatch(client, f, 0, f.orderItemA, "10"), (error: unknown) => pgErrorCode(error) === "42501");
+    });
+    await client.query("UPDATE public.profiles SET active=true WHERE id=$1", [f.adminA]);
+  });
+  checks.push("tenant ownership/spoofing, inactive and unauthorized actors, anon EXECUTE, and direct match write denied");
+
+  // Worker crash recovery must never enqueue a job that already crossed the invoice creation checkpoint.
+  const jobWithInvoice = randomUUID();
+  const staleWithoutInvoice = randomUUID();
+  const exhaustedWithoutInvoice = randomUUID();
+  const queuedWithInvoice = randomUUID();
+  const queuedWithoutInvoice = randomUUID();
+  await withClient(async (client) => {
+    await client.query(
+      `INSERT INTO public.invoice_jobs(id,empresa_id,created_by,storage_path,file_name,mime_type,status,attempts,invoice_id,locked_at)
+       VALUES($1,$5,$6,'r3/stale-created.pdf','stale-created.pdf','application/pdf','processing',1,$7,now()-interval '1 hour'),
+             ($2,$5,$6,'r3/stale-empty.pdf','stale-empty.pdf','application/pdf','processing',1,NULL,now()-interval '1 hour'),
+             ($3,$5,$6,'r3/stale-exhausted.pdf','stale-exhausted.pdf','application/pdf','processing',3,NULL,now()-interval '1 hour'),
+             ($4,$5,$6,'r3/queued-created.pdf','queued-created.pdf','application/pdf','queued',0,$7,NULL)`,
+      [jobWithInvoice, staleWithoutInvoice, exhaustedWithoutInvoice, queuedWithInvoice, f.companyA, f.adminA, f.invoices[6].id],
+    );
+    await client.query(
+      `INSERT INTO public.invoice_jobs(id,empresa_id,created_by,storage_path,file_name,mime_type,status,attempts)
+       VALUES($1,$2,$3,'r3/queued-empty.pdf','queued-empty.pdf','application/pdf','queued',0)`,
+      [queuedWithoutInvoice, f.companyA, f.adminA],
+    );
+  });
+  await withClient(async (client) => {
+    await asActor(client, f.adminA, async () => {
+      await assert.rejects(client.query("SELECT public.claim_invoice_job()"), (error: unknown) => pgErrorCode(error) === "42501");
+      await assert.rejects(client.query("SELECT public.requeue_stale_invoice_jobs(15,3)"), (error: unknown) => pgErrorCode(error) === "42501");
+    });
+  });
+  const jobStates = await withClient(async (client) => {
+    await client.query("SET ROLE service_role");
+    await client.query("SELECT set_config('request.jwt.claim.role','service_role',false), set_config('request.jwt.claim.sub','',false)");
+    try {
+      const claim = await client.query("SELECT (public.claim_invoice_job()).id AS id");
+      const requeued = await client.query("SELECT public.requeue_stale_invoice_jobs(15,3) AS count");
+      const rows = await client.query(
+        "SELECT id,status::text,attempts,invoice_id,outcome,locked_at,message FROM public.invoice_jobs WHERE id=ANY($1::uuid[])",
+        [[jobWithInvoice, staleWithoutInvoice, exhaustedWithoutInvoice, queuedWithInvoice, queuedWithoutInvoice]],
+      );
+      return { claimedId: claim.rows[0].id as string | null, count: requeued.rows[0].count as number, rows: rows.rows };
+    } finally { await client.query("RESET ROLE"); }
+  });
+  assert.equal(jobStates.claimedId, queuedWithoutInvoice, "claim must skip a queued job that already has an invoice checkpoint");
+  assert.equal(jobStates.count, 3);
+  const stateById = new Map(jobStates.rows.map((row) => [row.id as string, row]));
+  const reviewJob = stateById.get(jobWithInvoice);
+  assert.equal(reviewJob?.status, "needs_review");
+  assert.equal(reviewJob?.outcome, "needs_manual");
+  assert.equal(reviewJob?.invoice_id, f.invoices[6].id);
+  assert.equal(reviewJob?.locked_at, null);
+  assert.equal(stateById.get(staleWithoutInvoice)?.status, "queued", "stale job without invoice remains retryable below max attempts");
+  assert.equal(stateById.get(exhaustedWithoutInvoice)?.status, "failed");
+  assert.equal(stateById.get(queuedWithInvoice)?.status, "queued", "claim must not consume post-checkpoint work");
+  assert.equal(stateById.get(queuedWithoutInvoice)?.status, "processing", "claim must transition the eligible job to processing");
+  checks.push("worker-only invoice job RPCs; claim skips invoice-checkpoint jobs; stale checkpoint moves to needs_review preserving invoice_id while retryable/exhausted jobs follow their own branches");
 
   // Exact numeric precision, non-finite rejection, and worker audit attribution.
   const oneCent = await withClient((client) => asActor(client, f.adminA, () => createMatch(client, f, 5, f.orderItemPrecision, "0.01")));
@@ -242,8 +320,9 @@ async function main() {
   await withClient(async (client) => {
     await client.query(
       `INSERT INTO public.audit_logs(id,empresa_id,actor_id,actor_type,action,invoice_id,detail)
-       VALUES($1,$2,$3,'internal','test.invoice.child',$4,'{}'::jsonb)`,
-      [deletionAuditId, f.companyA, f.adminA, f.invoices[7].id],
+       VALUES($1,$2,$3,'internal','test.invoice.child',$4,'{}'::jsonb),
+             ($5,NULL,NULL,'system','test.invoice.legacy',$4,'{}'::jsonb)`,
+      [deletionAuditId, f.companyA, f.adminA, f.invoices[7].id, randomUUID()],
     );
     await client.query(
       `INSERT INTO public.invoice_exceptions(invoice_id,empresa_id,approved_by,reason,difference_amount,difference_pct)
@@ -254,6 +333,10 @@ async function main() {
     "SELECT public.delete_invoice($1,$2) AS result", [f.companyA, f.invoices[7].id],
   )));
   assert.equal(deleteResult.rows[0].result.ok, true);
+  assert.equal(deleteResult.rows[0].result.cleanup_bucket, null);
+  assert.equal(deleteResult.rows[0].result.cleanup_path, null);
+  const sharedAttachment = await withClient(async (client) => client.query("SELECT count(*)::int AS count FROM public.attachments WHERE id=$1", [f.sharedAttachmentId]));
+  assert.equal(sharedAttachment.rows[0].count, 1, "shared attachment metadata must remain while another invoice references it");
   const deletedGraph = await withClient(async (client) => client.query(
     `SELECT (SELECT count(*)::int FROM public.invoices WHERE id=$1) AS invoice_count,
             (SELECT count(*)::int FROM public.invoice_items WHERE invoice_id=$1) AS line_count,
@@ -265,7 +348,14 @@ async function main() {
     [f.invoices[7].id, f.invoices[7].lineId, f.orderItemDelete],
   ));
   assert.deepEqual(deletedGraph.rows[0], { invoice_count: 0, line_count: 0, link_count: 0, match_count: 0, exception_count: 0, audit_count: 0, invoiced: "0.00" });
-  checks.push("delete_invoice atomically removes editable invoice graph, exceptions, audit rows and derived counters");
+  const exclusiveDelete = await withClient((client) => asActor(client, f.adminA, () => client.query(
+    "SELECT public.delete_invoice($1,$2) AS result", [f.companyA, f.invoices[8].id],
+  )));
+  assert.equal(exclusiveDelete.rows[0].result.cleanup_bucket, "invoices");
+  assert.equal(exclusiveDelete.rows[0].result.cleanup_path, "r3/shared.pdf");
+  const removedAttachment = await withClient(async (client) => client.query("SELECT count(*)::int AS count FROM public.attachments WHERE id=$1", [f.sharedAttachmentId]));
+  assert.equal(removedAttachment.rows[0].count, 0, "exclusive attachment metadata should be removed atomically");
+  checks.push("delete_invoice atomically removes editable invoice graphs and audit rows, preserves shared attachment metadata, and reports/deletes the final attachment reference for storage cleanup");
 
   // Two different invoices race for the same 1,000-unit order item. Exactly one 800-unit allocation can commit.
   const raceResults = await Promise.all([

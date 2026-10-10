@@ -30,7 +30,7 @@ test.beforeAll(async () => {
   const provider = (await db.query("INSERT INTO public.providers(empresa_id,name) VALUES($1,'R3 Supplier') RETURNING id", [ids.empresa])).rows[0].id;
   await db.query(`INSERT INTO public.authorized_orders(id,empresa_id,provider_id,provider_name,product,quantity,unit,
       unit_price,total_price,currency,vat_included,authorized_by,created_from)
-    VALUES($1,$2,$3,'R3 Supplier','Ladrillo comun',3000,'un',1400,4200000,'PYG',true,$4,'manual')`, [ids.order, ids.empresa, provider, userId]);
+    VALUES($1,$2,$3,'R3 Supplier','Ladrillo comun',3000,'un',1400,4200000,'PYG',true,$4,'invoice')`, [ids.order, ids.empresa, provider, userId]);
   await db.query(`INSERT INTO public.authorized_order_items(id,order_id,empresa_id,product,quantity,unit,unit_price,total_price)
     VALUES($1,$2,$3,'Ladrillo comun',3000,'un',1400,4200000)`, [ids.orderLine, ids.order, ids.empresa]);
   await db.query(`INSERT INTO public.invoices(id,empresa_id,provider_id,invoice_number,invoice_date,total,currency,created_by)

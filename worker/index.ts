@@ -56,6 +56,7 @@ type InvoiceJob = {
   mime_type: string;
   batch_date: string;
   attempts: number;
+  invoice_id?: string | null;
 };
 
 let stopping = false;
@@ -66,11 +67,26 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const log = (...a: unknown[]) => console.log(new Date().toISOString(), ...a);
 
 async function finish(jobId: string, patch: Record<string, unknown>) {
-  await db.from("invoice_jobs").update({ locked_at: null, ...patch }).eq("id", jobId);
+  const { data, error } = await db.from("invoice_jobs")
+    .update({ locked_at: null, ...patch })
+    .eq("id", jobId)
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(`No se pudo guardar el estado del job ${jobId}: ${error.message}`);
+  if (!data) throw new Error(`El job ${jobId} desapareció antes de guardar su estado.`);
 }
 
 async function processJob(job: InvoiceJob) {
   log(`job ${job.id} — ${job.file_name} (intento ${job.attempts})`);
+
+  if (job.invoice_id) {
+    return finish(job.id, {
+      status: "needs_review",
+      outcome: "needs_manual",
+      error: "El job ya referencia una factura creada; no se volverá a procesar como una factura nueva.",
+      message: "Este job ya creó una factura. Revisá la factura existente antes de continuar.",
+    });
+  }
 
   const { data: blob, error: dlError } = await db.storage
     .from(job.storage_bucket)
@@ -172,6 +188,29 @@ async function processJob(job: InvoiceJob) {
     });
   }
 
+  // Checkpoint the generated invoice reference before doing more work. Stale
+  // recovery protects jobs after this write; a crash between invoice INSERT
+  // and this checkpoint still needs manual reconciliation.
+  job.invoice_id = invoice.id as string;
+  const { data: linkedJob, error: linkJobError } = await db.from("invoice_jobs")
+    .update({ invoice_id: job.invoice_id })
+    .eq("id", job.id)
+    .eq("status", "processing")
+    .is("invoice_id", null)
+    .select("id")
+    .maybeSingle();
+  if (linkJobError || !linkedJob) {
+    const message = linkJobError?.message ?? "El job cambió antes de guardar la referencia de la factura creada.";
+    await logAudit(db, { action: "invoice.job_reference_failed", invoiceId: invoice.id, detail: { error: message, job_id: job.id } });
+    return finish(job.id, {
+      status: "needs_review",
+      outcome: "needs_manual",
+      invoice_id: job.invoice_id,
+      error: message,
+      message: "La factura se creó, pero el job no pudo registrar su referencia. Revisá manualmente antes de continuar.",
+    });
+  }
+
   await logAudit(db, { action: "invoice.created", invoiceId: invoice.id, detail: { source: "bulk_worker" } });
 
   // Guardar líneas de detalle extraídas por el AI.
@@ -226,6 +265,7 @@ async function processJob(job: InvoiceJob) {
   // líneas. Las propuestas del motor semántico pasan por el mismo control
   // validado que la vía del diálogo (vínculo de cabecera, tope documentado,
   // remanente, duplicados): lo que excede queda pendiente, nunca se contabiliza.
+  let itemMatchError: string | null = null;
   if (!itemSaveError && matchedOrderId && invoiceItemIds.length > 0) {
     const { data: orderItems } = await db
       .from("authorized_order_items")
@@ -263,6 +303,7 @@ async function processJob(job: InvoiceJob) {
         })),
       });
       if (validated.error) {
+        itemMatchError = validated.error;
         await logAudit(db, {
           action: "invoice.item_match_failed",
           invoiceId: invoice.id as string,
@@ -273,14 +314,16 @@ async function processJob(job: InvoiceJob) {
   }
 
   return finish(job.id, {
-    status: itemSaveError ? "needs_review" : "done",
-    outcome: itemSaveError ? "needs_manual" : matchedOrderId ? "matched" : "created_unmatched",
+    status: itemSaveError || itemMatchError ? "needs_review" : "done",
+    outcome: itemSaveError || itemMatchError ? "needs_manual" : matchedOrderId ? "matched" : "created_unmatched",
     extracted: parsed,
     provider_id: provider.id,
     invoice_id: invoice.id,
-    error: itemSaveError,
+    error: itemSaveError ?? itemMatchError,
     message: itemSaveError
       ? "La factura se creó, pero no se pudieron guardar todas sus líneas. Revisá manualmente antes de conciliar."
+      : itemMatchError
+      ? "La factura se creó, pero falló una imputación de línea. Revisá las imputaciones antes de aprobar el pago."
       : matchedOrderId
       ? "Conciliada automáticamente."
       : "Cargada, pero ninguna orden pendiente coincide — vinculala a mano.",
@@ -291,15 +334,16 @@ async function main() {
   log(`worker arrancado — polling cada ${POLL_MS}ms`);
   while (!stopping) {
     // Reencolar jobs huérfanos antes de reclamar uno nuevo.
-    // Si el worker murió a mitad de un job, locked_at queda viejo; esta llamada
-    // los devuelve a 'queued' (o a 'failed' si ya agotaron MAX_ATTEMPTS).
+    // Si el worker murió a mitad de un job, locked_at queda viejo. Los jobs sin
+    // factura vuelven a cola/fallo; los que ya guardaron invoice_id pasan a
+    // needs_review para que nadie genere otra factura al reintentarlos.
     try {
       const { data: stale, error: staleErr } = await db.rpc("requeue_stale_invoice_jobs", {
         timeout_minutes: 30,  // locked_at no se actualiza durante el procesamiento → este es el tiempo máximo de un job
         max_attempts: MAX_ATTEMPTS,
       });
       if (staleErr) log("requeue_stale error:", staleErr.message);
-      else if (stale && stale > 0) log(`requeue_stale: ${stale} job(s) recuperados`);
+      else if (stale && stale > 0) log(`requeue_stale: ${stale} job(s) recuperados para reintento o revisión`);
     } catch (e) {
       log("requeue_stale throw:", (e as Error).message);
     }
@@ -319,7 +363,19 @@ async function main() {
       await processJob(job);
     } catch (e) {
       log(`job ${job.id} throw:`, (e as Error).message);
-      await finish(job.id, { status: "failed", error: (e as Error).message ?? "error inesperado" });
+      try {
+        await finish(job.id, job.invoice_id
+          ? {
+              status: "needs_review",
+              outcome: "needs_manual",
+              invoice_id: job.invoice_id,
+              error: (e as Error).message ?? "error inesperado",
+              message: "La factura ya se creó, pero el procesamiento se interrumpió. Revisá la factura existente.",
+            }
+          : { status: "failed", error: (e as Error).message ?? "error inesperado" });
+      } catch (finishError) {
+        log(`job ${job.id} finish error:`, (finishError as Error).message);
+      }
     }
   }
   log("worker detenido");

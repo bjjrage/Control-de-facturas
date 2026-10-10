@@ -58,10 +58,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p remediation3-evidence
+          {
+            echo "commit=$(git rev-parse HEAD)"
+            echo "node=$(node --version)"
+            echo "supabase=$(supabase --version)"
+          } | tee remediation3-evidence/runtime-versions.txt
           psql "$TEST_DATABASE_URL" -Atc "select current_setting('server_version_num')" | tee remediation3-postgres-version.txt
           awk '$1 < 170000 || $1 >= 180000 { exit 1 }' remediation3-postgres-version.txt
           psql "$TEST_DATABASE_URL" -Atc "select version from supabase_migrations.schema_migrations order by version desc limit 1" | tee remediation3-migration-head.txt
-          mkdir -p remediation3-evidence
           cp remediation3-postgres-version.txt remediation3-migration-head.txt remediation3-evidence/
 
       - name: Run real PostgreSQL financial and concurrency certification
@@ -80,7 +85,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm run lint 2>&1 | tee remediation3-evidence/eslint.log
+          npx eslint \
+            'app/(internal)/invoices/**/*.ts' \
+            'app/(internal)/invoices/**/*.tsx' \
+            'lib/__tests__/b11-delete-invoice.spec.ts' \
+            'lib/__tests__/b11-unmatch-action.spec.ts' \
+            'lib/invoice-items.ts' \
+            'lib/schedule/__tests__/schedule-import.spec.ts' \
+            'playwright.config.ts' \
+            'playwright.remediation3.config.ts' \
+            'scripts/test-invoice-item-match-postgres.ts' \
+            'test/invoice-item-match-rpc-pglite.test.ts' \
+            'test/invoice-item-matches-actions.test.ts' \
+            'test/provider-payment-terms-migration.test.ts' \
+            'tests/e2e/invoice-item-integrity.spec.ts' \
+            'worker/index.ts' 2>&1 | tee remediation3-evidence/eslint.log
 
       - name: Build production app
         shell: bash

@@ -22,7 +22,9 @@ function num(fd: FormData, k: string) {
 }
 
 /** Completa a mano un job que quedó en needs_review: crea la factura y lo cierra. */
-export async function resolveInvoiceJob(jobId: string, formData: FormData) {
+export async function resolveInvoiceJob(jobId: string, formData: FormData): Promise<
+  { error: string; invoiceId?: string; warning?: undefined } | { error: null; invoiceId: string; warning?: string }
+> {
   const profile = await requireProfile(["administracion", "admin"]);
   const empresaId = profile.empresa_id;
   const supabase = await createClient();
@@ -35,7 +37,9 @@ export async function resolveInvoiceJob(jobId: string, formData: FormData) {
     .eq("empresa_id", empresaId)
     .maybeSingle();
   if (!job) return { error: "Job no encontrado." };
-  if (job.status === "done") return { error: "Este archivo ya fue procesado." };
+  if (job.status !== "needs_review" && job.status !== "failed") {
+    return { error: "Este job no está disponible para resolución manual; actualizá la pantalla antes de continuar." };
+  }
   if (job.invoice_id) {
     return {
       error: "Este job ya creó una factura. No se generó otra; revisá o corregí la factura existente.",
@@ -88,6 +92,29 @@ export async function resolveInvoiceJob(jobId: string, formData: FormData) {
     .select("id").eq("id", providerId).eq("empresa_id", empresaId).maybeSingle();
   if (providerError || !provider) return { error: "Proveedor no disponible para esta empresa." };
 
+  // Claim the manual resolution before touching Storage or creating an invoice.
+  // Concurrent submissions race on this conditional update; only one may proceed.
+  const claim = await supabase.from("invoice_jobs")
+    .update({ status: "processing", error: null, message: "Resolución manual en curso." })
+    .eq("id", jobId)
+    .eq("empresa_id", empresaId)
+    .eq("status", job.status)
+    .is("invoice_id", null)
+    .select("id")
+    .maybeSingle();
+  if (claim.error || !claim.data) {
+    return { error: "Este job ya está siendo procesado o cambió de estado. Actualizá la pantalla antes de continuar." };
+  }
+
+  const restoreClaim = async (message: string) => {
+    await supabase.from("invoice_jobs")
+      .update({ status: job.status, message })
+      .eq("id", jobId)
+      .eq("empresa_id", empresaId)
+      .eq("status", "processing")
+      .is("invoice_id", null);
+  };
+
   // El archivo ya está en Storage (inbox). Lo movemos a su ubicación por proveedor.
   const finalPath = `${providerId}/${Date.now()}-${sanitizeFileName(job.file_name)}`;
   let attachmentId: string | null = null;
@@ -126,11 +153,36 @@ export async function resolveInvoiceJob(jobId: string, formData: FormData) {
     .single();
 
   if (error || !invoice) {
+    await restoreClaim(error?.message ?? "No se pudo crear la factura; el job requiere revisión.");
     return {
       error:
         error?.code === "23505"
           ? "Ya existe una factura con ese número para este proveedor."
           : (error?.message ?? "No se pudo crear la factura."),
+    };
+  }
+
+  // Persist the invoice reference immediately. From this point onward a retry
+  // must resume by inspecting this invoice, never create another one.
+  const checkpoint = await supabase.from("invoice_jobs")
+    .update({
+      status: "needs_review",
+      outcome: "needs_manual",
+      invoice_id: invoice.id,
+      message: "La factura se creó; se está verificando su contenido y conciliación.",
+    })
+    .eq("id", jobId)
+    .eq("empresa_id", empresaId)
+    .eq("status", "processing")
+    .is("invoice_id", null)
+    .select("id")
+    .maybeSingle();
+  if (checkpoint.error || !checkpoint.data) {
+    revalidatePath("/invoices/revision");
+    revalidatePath("/invoices");
+    return {
+      error: "La factura se creó, pero el job no pudo guardar su referencia. No vuelvas a crearla; verificá la factura existente.",
+      invoiceId: invoice.id as string,
     };
   }
 
@@ -167,7 +219,8 @@ export async function resolveInvoiceJob(jobId: string, formData: FormData) {
         invoice_id: invoice.id,
         error: linesError,
         message: "La factura se creó, pero sus líneas no se guardaron. Revisá la factura existente antes de continuar.",
-      }).eq("id", jobId).eq("empresa_id", empresaId);
+      }).eq("id", jobId).eq("empresa_id", empresaId)
+        .eq("status", "needs_review").eq("invoice_id", invoice.id);
       revalidatePath("/invoices/revision");
       revalidatePath("/invoices");
       return { error: "La factura se creó, pero no se guardaron sus líneas. No se vinculó ni concilió.", invoiceId: invoice.id as string };
@@ -175,29 +228,55 @@ export async function resolveInvoiceJob(jobId: string, formData: FormData) {
   }
 
   const matchedOrderId = await autoMatchInvoiceByAmount(supabase, { invoiceId: invoice.id, providerId, total, empresaId });
+  let itemMatchError: string | null = null;
+  let itemMatchPending = 0;
   if (jobLines.length > 0 && matchedOrderId) {
-      const { error: itemError } = await applyDeterministicItemMatches(supabase, {
-        empresaId,
-        invoiceId: invoice.id as string,
-        orderId: matchedOrderId,
+    const { error: itemError, pending } = await applyDeterministicItemMatches(supabase, {
+      empresaId,
+      invoiceId: invoice.id as string,
+      orderId: matchedOrderId,
+    });
+    itemMatchPending = pending;
+    if (itemError) {
+      itemMatchError = itemError;
+      await logAudit(supabase, {
+        action: "invoice.item_match_failed",
+        invoiceId: invoice.id,
+        detail: { error: itemError },
       });
-      if (itemError) {
-        await logAudit(supabase, {
-          action: "invoice.item_match_failed",
-          invoiceId: invoice.id,
-          detail: { error: itemError },
-        });
-      }
+    }
   }
 
-  await supabase
+  const jobUpdate = await supabase
     .from("invoice_jobs")
-    .update({ status: "done", outcome: "created_unmatched", invoice_id: invoice.id, message: "Cargada desde revisión." })
-    .eq("id", jobId);
+    .update({
+      status: itemMatchError ? "needs_review" : "done",
+      outcome: itemMatchError ? "needs_manual" : matchedOrderId ? "matched" : "created_unmatched",
+      invoice_id: invoice.id,
+      error: itemMatchError,
+      message: itemMatchError
+        ? "La factura se creó, pero falló una imputación de línea. Revisá las imputaciones antes de aprobar el pago."
+        : itemMatchPending > 0
+        ? `${itemMatchPending} línea(s) quedaron sin imputación; revisalas antes de aprobar el pago.`
+        : matchedOrderId ? "Cargada y vinculada a una orden." : "Cargada, pero quedó sin vincular a una orden.",
+    })
+    .eq("id", jobId)
+    .eq("empresa_id", empresaId)
+    .eq("status", "needs_review")
+    .eq("invoice_id", invoice.id)
+    .select("id")
+    .maybeSingle();
 
   revalidatePath("/invoices/revision");
   revalidatePath("/invoices");
-  return { error: null, invoiceId: invoice.id as string };
+  const warning = jobUpdate.error || !jobUpdate.data
+    ? "La factura se creó, pero no se pudo actualizar el estado del job. Revisá la factura existente; no vuelvas a crearla."
+    : itemMatchError
+    ? "La factura se creó, pero requiere revisar sus imputaciones antes de aprobar el pago."
+    : itemMatchPending > 0
+    ? `${itemMatchPending} línea(s) quedaron sin imputación y requieren revisión.`
+    : undefined;
+  return { error: null, invoiceId: invoice.id as string, ...(warning ? { warning } : {}) };
 }
 
 /** Reencola un job para que el worker lo intente de nuevo. */
@@ -213,12 +292,17 @@ export async function retryInvoiceJob(jobId: string) {
   if (lookupError) return { error: lookupError.message };
   if (!job) return { error: "Job no encontrado." };
   if (job.invoice_id) return { error: "Este job ya creó una factura y no se puede reencolar. Revisá la factura existente." };
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("invoice_jobs")
     .update({ status: "queued", attempts: 0, error: null, message: null, outcome: null })
     .eq("id", jobId)
-    .eq("empresa_id", profile.empresa_id);
+    .eq("empresa_id", profile.empresa_id)
+    .eq("status", "failed")
+    .is("invoice_id", null)
+    .select("id")
+    .maybeSingle();
   if (error) return { error: error.message };
+  if (!updated) return { error: "El job cambió de estado o ya creó una factura; actualizá la pantalla antes de reintentar." };
   revalidatePath("/invoices/revision");
   return { error: null };
 }

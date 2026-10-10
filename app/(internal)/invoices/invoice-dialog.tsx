@@ -187,6 +187,7 @@ export function InvoiceDialog({
               setError(result.error);
               return;
             }
+            if (result.warning) alert(result.warning);
             setError(null);
             setOpen(false);
             router.push(`/invoices/${result.id}?${result.autoMatched ? "autoMatched=1" : "created=1"}`);

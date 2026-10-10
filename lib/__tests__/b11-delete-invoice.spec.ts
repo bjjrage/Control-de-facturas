@@ -29,7 +29,15 @@ vi.mock("@/lib/supabase/server", () => ({
       if (mocks.selectedInvoice?.status === "APTO_PARA_PAGO" || mocks.selectedInvoice?.status === "PAGADO") {
         return { data: null, error: { message: "No se puede eliminar la factura aprobada o pagada." } };
       }
-      return { data: { ok: true, attachment_id: mocks.selectedInvoice?.attachment_id ?? null }, error: null };
+      return {
+        data: {
+          ok: true,
+          attachment_id: mocks.selectedInvoice?.attachment_id ?? null,
+          cleanup_bucket: mocks.attachment?.bucket ?? null,
+          cleanup_path: mocks.attachment?.path ?? null,
+        },
+        error: null,
+      };
     },
   }),
 }));
@@ -103,9 +111,7 @@ describe("B11 hard invoice delete — atomic database delete and post-commit sto
     expect(await deleteInvoice("invoice-1")).toEqual({ error: null });
     expect(mocks.rpcCalls).toEqual([{ name: "delete_invoice", args: { p_empresa_id: "authorized-local-company", p_invoice_id: "invoice-1" } }]);
     expect(mocks.storageRemove).toHaveBeenCalledWith("invoice-files", ["company/invoice.pdf"]);
-    expect(mocks.events.indexOf("delete_invoice.rpc")).toBeLessThan(mocks.events.indexOf("attachments.select"));
-    expect(mocks.events.indexOf("attachments.select")).toBeLessThan(mocks.events.indexOf("storage.remove"));
-    expect(mocks.events.indexOf("storage.remove")).toBeLessThan(mocks.events.indexOf("attachments.delete"));
+    expect(mocks.events).toEqual(["delete_invoice.rpc", "storage.remove"]);
   });
 
   it("reports attachment cleanup failure as warning after invoice deletion commits", async () => {

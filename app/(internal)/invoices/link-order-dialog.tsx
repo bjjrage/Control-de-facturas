@@ -46,6 +46,7 @@ export function LinkOrderDialog({
     const res = await linkInvoiceToOrder(invoiceId, orderId);
     setLinking(null);
     if (res.error) { setError(res.error); return; }
+    if (res.warning) alert(res.warning);
     setOpen(false);
   }
 

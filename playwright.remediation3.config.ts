@@ -1,7 +1,8 @@
 import { defineConfig } from "@playwright/test";
 import { assertNonProductionTestTarget } from "./test-utils/external-test-target";
 
-// This certification owns its app process and never reads developer .env files.
+// This certification owns its app process and requires explicit loopback env
+// values, which override any developer .env defaults inherited by Next.js.
 for (const key of ["TEST_DATABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"]) {
   const value = process.env[key];
   if (!value) throw new Error(`${key} is required for isolated Remediation 3 E2E`);

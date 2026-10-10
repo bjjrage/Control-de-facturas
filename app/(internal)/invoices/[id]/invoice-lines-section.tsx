@@ -331,6 +331,7 @@ export function InvoiceLinesSection({
                                   setError(result.error);
                                   return;
                                 }
+                                if (result.warning) alert(result.warning);
                                 setError(null);
                                 await refresh();
                               }}

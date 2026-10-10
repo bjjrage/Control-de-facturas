@@ -107,6 +107,7 @@ beforeAll(async () => {
   await db.exec(`
     CREATE TYPE public.user_role AS ENUM ('comercial', 'administracion', 'admin');
     CREATE TYPE public.invoice_status AS ENUM ('PENDIENTE','MATCH','REQUIERE_REVISION','APROBADO_EXCEPCION','APTO_PARA_PAGO','PAGADO');
+    CREATE TYPE public.invoice_job_status AS ENUM ('queued','processing','needs_review','failed');
     CREATE TABLE public.empresas (id uuid PRIMARY KEY, active boolean NOT NULL DEFAULT true);
     CREATE TABLE public.profiles (id uuid PRIMARY KEY, empresa_id uuid, role public.user_role, active boolean DEFAULT true, is_super_admin boolean DEFAULT false);
     CREATE TABLE public.authorized_orders (id uuid PRIMARY KEY, empresa_id uuid NOT NULL);
@@ -116,6 +117,7 @@ beforeAll(async () => {
     CREATE TABLE public.invoice_order_matches (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), invoice_id uuid NOT NULL UNIQUE, authorized_order_id uuid NOT NULL, empresa_id uuid NOT NULL);
     CREATE TABLE public.invoice_item_matches (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), invoice_item_id uuid NOT NULL, order_item_id uuid NOT NULL, empresa_id uuid NOT NULL, quantity_matched numeric NOT NULL, CONSTRAINT m_qty CHECK (quantity_matched > 0));
     CREATE TABLE public.audit_logs (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), empresa_id uuid, actor_id uuid, actor_type text NOT NULL, actor_label text, action text NOT NULL, rfq_id uuid, rfq_provider_id uuid, invoice_id uuid, authorized_order_id uuid, detail jsonb);
+    CREATE TABLE public.invoice_jobs (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), empresa_id uuid NOT NULL, created_by uuid NOT NULL, storage_bucket text NOT NULL DEFAULT 'invoice-files', storage_path text NOT NULL, file_name text NOT NULL, mime_type text NOT NULL, batch_date date NOT NULL DEFAULT current_date, status public.invoice_job_status NOT NULL DEFAULT 'queued', attempts integer NOT NULL DEFAULT 0, extracted jsonb, provider_id uuid, invoice_id uuid, outcome text, message text, error text, locked_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
   `);
   // Gate B11 + auditoría + trigger canónico (copias del schema real).
   await db.exec(`
@@ -176,7 +178,7 @@ beforeAll(async () => {
 }, T.timeout);
 
 beforeEach(async () => {
-  await db.exec(`TRUNCATE public.invoice_item_matches, public.invoice_order_matches, public.invoice_items, public.authorized_order_items, public.authorized_orders, public.invoices, public.profiles, public.empresas, public.audit_logs`);
+  await db.exec(`TRUNCATE public.invoice_item_matches, public.invoice_order_matches, public.invoice_items, public.authorized_order_items, public.authorized_orders, public.invoices, public.profiles, public.empresas, public.audit_logs, public.invoice_jobs`);
   await seed();
   await setActor("authenticated", ADMIN_A);
 }, T.timeout);

@@ -68,6 +68,7 @@ export function MatchDialog({
                         setError(result.error);
                         return;
                       }
+                      if (result?.warning) alert(result.warning);
                       setOpen(false);
                     }}
                   >
