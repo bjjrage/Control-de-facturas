@@ -574,7 +574,7 @@ async function main() {
   await withClient(async (client) => asActor(client, f.adminA, async () => {
     await client.query(
       `INSERT INTO public.invoice_items(id,invoice_id,empresa_id,product_description,quantity,unit,unit_price,subtotal)
-       VALUES($1,$2,$3,'raw numeric precision valid',1.2345,'un',1.0000,1.23)`,
+       VALUES($1,$2,$3,'Ladrillo común',1.2345,'un',1.0000,1.23)`,
       [precisionLineId, f.invoices[5].id, f.companyA],
     );
     for (const source of invalidSourceLines) {
