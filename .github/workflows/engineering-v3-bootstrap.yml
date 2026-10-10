@@ -1,0 +1,185 @@
+# SENTINEL / AUDIT-CODE-V3: disposable runner ONLY. Not a release gate or ERP certification.
+name: Engineering V3 Bootstrap - frozen SHA - no production
+
+on:
+  push:
+    branches:
+      - audit/engineering-v3-bootstrap
+    paths:
+      - '.github/workflows/engineering-v3-bootstrap.yml'
+      - 'audit/v3-bootstrap/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: engineering-v3-bootstrap-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  runner-bootstrap:
+    if: >-
+      github.repository == 'bjjrage/Control-de-facturas' &&
+      github.ref == 'refs/heads/audit/engineering-v3-bootstrap' &&
+      github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    env:
+      AUDIT_SHA: '953ebba505b38313bd3e18e6cb9fbf31b7e1eb89'
+      AUDIT_TREE: 'a91c8c54dd9d80b7f63a86015eff2e516b21b98f'
+      EVIDENCE_DIR: ${{ github.workspace }}/audit-evidence
+      PYTHONDONTWRITEBYTECODE: '1'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Initialize artifact directory and run identity
+        run: |
+          set -euo pipefail
+          mkdir -p "$EVIDENCE_DIR"
+          {
+            printf 'repository=%s\n' "$GITHUB_REPOSITORY"
+            printf 'branch=%s\n' "$GITHUB_REF"
+            printf 'run_url=https://github.com/%s/actions/runs/%s\n' "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+            printf 'expected_commit=%s\n' "$AUDIT_SHA"
+            printf 'expected_tree=%s\n' "$AUDIT_TREE"
+          } > "$EVIDENCE_DIR/EXECUTION_IDENTITY.txt"
+
+      - name: Checkout audit-only branch (scripts, no persisted credentials)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          path: bootstrap-src
+          fetch-depth: 1
+          persist-credentials: false
+          submodules: false
+
+      - name: Checkout exact frozen ERP SHA separately
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: 953ebba505b38313bd3e18e6cb9fbf31b7e1eb89
+          path: frozen-src
+          fetch-depth: 1
+          persist-credentials: false
+          submodules: false
+
+      - name: Refuse branch/code drift and production environment
+        run: |
+          set -euo pipefail
+          python3 bootstrap-src/audit/v3-bootstrap/runner_gate.py \
+            --source frozen-src \
+            --bootstrap bootstrap-src \
+            --evidence "$EVIDENCE_DIR"
+
+      - name: Test audit tooling against synthetic adversarial fixtures
+        run: |
+          set -euo pipefail
+          STATUS=0
+          {
+            python3 bootstrap-src/audit/v3-bootstrap/selftest_inventory_generator.py
+            python3 -m unittest discover -s bootstrap-src/audit/v3-bootstrap/tests -v
+          } > "$RUNNER_TEMP/runner-selftests.raw.log" 2>&1 || STATUS=$?
+          python3 bootstrap-src/audit/v3-bootstrap/safe_log.py             "$RUNNER_TEMP/runner-selftests.raw.log" "$EVIDENCE_DIR/RUNNER_SELFTESTS.redacted.log"
+          if [[ "$STATUS" -ne 0 ]]; then
+            echo "Synthetic audit tool selftests failed" >&2
+            exit "$STATUS"
+          fi
+          echo "SYNTHETIC_AUDIT_TOOL_SELFTESTS=PASS_NOT_ERP_TESTS"             > "$EVIDENCE_DIR/RUNNER_SELFTESTS_STATUS.txt"
+
+      - name: Download and cross-check complete REST Git tree
+        run: |
+          set -euo pipefail
+          python3 bootstrap-src/audit/v3-bootstrap/baseline_from_github_tree.py \
+            --download --repo frozen-src --out "$EVIDENCE_DIR"
+          python3 - <<'PY'
+          import json,os,pathlib
+          result=json.loads((pathlib.Path(os.environ["EVIDENCE_DIR"])/"GIT_TREE_ATTESTATION.json").read_text())
+          assert result["git_checkout_blobs_crosschecked"] is True
+          assert result["files"] == 1584 and result["directories"] == 293
+          assert result["tree_sha"] == os.environ["AUDIT_TREE"]
+          assert result["reviewed_files"] == 0
+          print("INVENTORY=COMPLETE_VERIFIED, files=1584, reviewed=0")
+          PY
+
+      - name: Scan source signals, test exclusions and workflows (no execution)
+        run: |
+          set -euo pipefail
+          python3 bootstrap-src/audit/v3-bootstrap/source_signal_inventory.py \
+            --source frozen-src \
+            --inventory "$EVIDENCE_DIR/INVENTORY.csv" \
+            --out "$EVIDENCE_DIR"
+
+      - name: Set Docker egress firewall before executing database SQL
+        run: |
+          set -euo pipefail
+          bash bootstrap-src/audit/v3-bootstrap/docker_egress_guard.sh "$EVIDENCE_DIR"
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Install frozen lockfile dependencies without lifecycle scripts
+        run: |
+          set -euo pipefail
+          bash bootstrap-src/audit/v3-bootstrap/node_capacity.sh frozen-src "$EVIDENCE_DIR"
+
+      - name: Setup pinned Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.114.0
+
+      - name: Record versioned runner tools
+        run: |
+          set -euo pipefail
+          {
+            printf 'git='; git --version
+            printf 'node='; node --version
+            printf 'npm='; npm --version
+            printf 'docker='; docker --version
+            printf 'supabase='; supabase --version
+            printf 'psql='; psql --version
+            printf 'runner_image=%s\n' "${ImageOS:-ubuntu-24.04}"
+            printf 'runner_image_version=%s\n' "${ImageVersion:-NOT_SUPPLIED}"
+            printf 'supabase_cli_requested=2.114.0\n'
+          } > "$EVIDENCE_DIR/RUNTIME_VERSIONS.txt"
+
+      - name: Start disposable Supabase and reconstruct PostgreSQL 17 schema
+        run: |
+          set -euo pipefail
+          python3 bootstrap-src/audit/v3-bootstrap/local_schema_capacity.py \
+            --source frozen-src --out "$EVIDENCE_DIR" --temp "$RUNNER_TEMP"
+
+      - name: Stop local disposable stack (no backup, no remote)
+        if: always()
+        run: |
+          set -euo pipefail
+          if command -v supabase >/dev/null && [[ -f frozen-src/supabase/config.toml ]]; then
+            mkdir -p "$RUNNER_TEMP/audit-stop-home"
+            (
+              cd frozen-src
+              env -i PATH="$PATH" HOME="$RUNNER_TEMP/audit-stop-home" CI=true \
+                supabase stop --no-backup
+            ) > "$RUNNER_TEMP/supabase-stop.raw.log" 2>&1 || true
+          fi
+          echo 'DISPOSABLE_LOCAL_STACK_CLEANUP=ATTEMPTED' >> "$EVIDENCE_DIR/EXECUTION_IDENTITY.txt"
+
+      - name: Generate evidence manifest even on failure
+        if: always()
+        run: |
+          set -euo pipefail
+          if [[ -f bootstrap-src/audit/v3-bootstrap/evidence_manifest.py ]]; then
+            python3 bootstrap-src/audit/v3-bootstrap/evidence_manifest.py \
+              --out "$EVIDENCE_DIR" --repository "$GITHUB_REPOSITORY" \
+              --run-id "$GITHUB_RUN_ID"
+          else
+            echo "bootstrap script checkout unavailable" > "$EVIDENCE_DIR/MANIFEST_BLOCKED.txt"
+          fi
+
+      - name: Upload evidence (even when a stage fails)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: SENTINEL-V3-BOOTSTRAP-${{ github.run_id }}
+          path: audit-evidence/
+          if-no-files-found: error
+          retention-days: 30
