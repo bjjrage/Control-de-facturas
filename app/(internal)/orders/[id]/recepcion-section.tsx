@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { formatDate, formatNumber } from "@/lib/format";
 import { createClient } from "@/lib/supabase/browser";
 import type { AuthorizedOrderItem, OcRecepcion } from "@/lib/types";
+import { compareInvoiceQuantitySum, formatInvoiceQuantity, subtractInvoiceQuantitySumExact } from "@/lib/invoice-item-reconcile";
 import { confirmedReceiptTotals } from "@/lib/inventory/receipt-read-model";
 import {
   registrarRecepcion,
@@ -19,6 +20,7 @@ import {
 import { ReceiptPortalLink } from "../receipt-portal-link";
 
 type ProductoLite = { id: string; nombre: string; unidad: string; activo: boolean };
+type OrderItemWithExactQuantity = AuthorizedOrderItem & { quantity_text: string };
 export type ReceiptEvidenceView = { id: string; fileName: string; sizeBytes: number | null; url: string | null };
 
 // ─── RegistrarDialog ────────────────────────────────────────────────────────
@@ -29,7 +31,7 @@ function RegistrarDialog({
   onDone,
 }: {
   orderId: string;
-  orderItems: AuthorizedOrderItem[];
+  orderItems: OrderItemWithExactQuantity[];
   onDone: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -173,7 +175,7 @@ function RegistrarDialog({
                     <tr key={it.id}>
                       <td className="text-[13px]">{it.product}</td>
                       <td className="num text-[var(--muted)]">
-                        {formatNumber(it.quantity, 2)} {it.unit}
+                        {formatInvoiceQuantity(it.quantity_text)} {it.unit}
                       </td>
                       <td className="num">
                         <input
@@ -268,7 +270,7 @@ function RecepcionCard({
   evidence,
 }: {
   recepcion: OcRecepcion;
-  orderItems: AuthorizedOrderItem[];
+  orderItems: OrderItemWithExactQuantity[];
   canDelete: boolean;
   canConfirm: boolean;
   canMap: boolean;
@@ -475,7 +477,7 @@ export function RecepcionSection({
   evidenceByReceipt = {},
 }: {
   orderId: string;
-  orderItems: AuthorizedOrderItem[];
+  orderItems: OrderItemWithExactQuantity[];
   recepciones: OcRecepcion[];
   canDelete?: boolean;
   canConfirm?: boolean;
@@ -522,13 +524,17 @@ export function RecepcionSection({
           <tbody>
             {orderItems.map((it) => {
               const recibido = totalesRecibidos[it.id] ?? 0;
-              const pendiente = Math.max(0, it.quantity - recibido);
-              const completo = pendiente === 0;
-              const excedido = recibido > it.quantity;
+              // Receipt rows are numeric(18,2), so fixed-four text removes only
+              // binary-float addition noise while preserving the order's exact 4dp.
+              const recibidoText = recibido.toFixed(4);
+              const comparison = compareInvoiceQuantitySum([recibidoText], it.quantity_text);
+              const pendiente = subtractInvoiceQuantitySumExact(it.quantity_text, [recibidoText]);
+              const completo = comparison === 0;
+              const excedido = comparison === 1;
               return (
                 <tr key={it.id}>
                   <td className="font-medium">{it.product}</td>
-                  <td className="num">{formatNumber(it.quantity, 2)} {it.unit}</td>
+                  <td className="num">{formatInvoiceQuantity(it.quantity_text)} {it.unit}</td>
                   <td className={`num ${excedido ? "text-[var(--warn)]" : recibido > 0 ? "text-[var(--ok)]" : "text-[var(--muted)]"}`}>
                     {formatNumber(recibido, 2)} {it.unit}
                   </td>
@@ -537,7 +543,7 @@ export function RecepcionSection({
                       ? "Excedido"
                       : completo
                         ? <span className="text-[var(--ok)]">Completo</span>
-                        : `${formatNumber(pendiente, 2)} ${it.unit}`}
+                        : `${formatInvoiceQuantity(pendiente)} ${it.unit}`}
                   </td>
                 </tr>
               );

@@ -33,6 +33,12 @@ function makeDb(seed: Record<string, Row[]> = {}) {
     for (const part of cols.split(",")) {
       const c = part.trim();
       if (!c || c === "*") { Object.assign(out, row); continue; }
+      const textCast = /^(\w+)::text$/.exec(c);
+      if (textCast) {
+        const value = row[textCast[1]];
+        out[textCast[1]] = value == null ? value : String(value);
+        continue;
+      }
       const inner = c.match(/^(\w+)!inner\((\w+)\)$/);
       if (inner) {
         if (inner[1] === "invoices") {
@@ -359,7 +365,7 @@ import {
   deleteInvoice,
   updateInvoiceItem,
 } from "@/app/(internal)/invoices/[id]/actions";
-import { insertValidatedItemMatches } from "@/lib/invoice-items";
+import { insertValidatedItemMatches, parseInvoiceLinesInput } from "@/lib/invoice-items";
 import { discardInvoiceJob, resolveInvoiceJob, retryInvoiceJob } from "@/app/(internal)/invoices/revision/actions";
 
 const INV = UID(1);
@@ -706,7 +712,7 @@ describe("R3-02: integridad de cantidades a nivel acción", () => {
   it("negativa, cero y NaN se rechazan", async () => {
     for (const q of [-5, 0, NaN]) {
       const r = await createInvoiceItemMatch({ invoiceId: INV, invoiceItemId: IL1, orderItemId: OL1, quantity: q });
-      expect(r.error).toContain("mayor a cero");
+      expect(r.error).toContain("positiva");
     }
   });
 
@@ -1035,6 +1041,44 @@ describe("H1: servicio compartido insertValidatedItemMatches (invariantes propia
       expectedOrderId: orderId,
       proposals,
     });
+
+  it("H1-precision: aplica 1.2345 exacto y omite 1.23456 antes de la RPC", async () => {
+    const valid = await svc([{ invoiceItemId: IL1, orderItemId: OL1, quantityMatched: 1.2345 }]);
+    expect(valid.applied).toEqual([{ invoiceItemId: IL1, orderItemId: OL1, quantityMatched: 1.2345 }]);
+    expect(mocks.db!.rpcCalls.at(-1)?.args.p_quantity).toBe(1.2345);
+    expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)?.quantity_invoiced).toBe(1.2345);
+
+    mocks.db!.rpcCalls.length = 0;
+    const invalid = await svc([{ invoiceItemId: IL2, orderItemId: OL1, quantityMatched: 1.23456 }]);
+    expect(invalid.applied).toHaveLength(0);
+    expect(invalid.skippedOverDocumented).toBe(1);
+    expect(mocks.db!.rpcCalls).toHaveLength(0);
+  });
+
+  it("preserva la cadena decimal de UI hasta la RPC y rechaza el quinto decimal de un número grande", async () => {
+    const [parsed] = parseInvoiceLinesInput(JSON.stringify([
+      { description: "Cable", quantity: "1.230000", unit: "m" },
+    ]));
+    expect(parsed.quantity).toBe("1.230000");
+    const result = await createInvoiceItemMatch({
+      invoiceId: INV,
+      invoiceItemId: IL1,
+      orderItemId: OL1,
+      quantity: "1.2345",
+    });
+    expect(result.error).toBeNull();
+    expect(mocks.db!.rpcCalls.at(-1)?.args.p_quantity).toBe("1.2345");
+
+    mocks.db!.rpcCalls.length = 0;
+    const rejected = await createInvoiceItemMatch({
+      invoiceId: INV,
+      invoiceItemId: IL1,
+      orderItemId: OL1,
+      quantity: "999999999999.00001",
+    });
+    expect(rejected.error).toContain("cuatro decimales");
+    expect(mocks.db!.rpcCalls).toHaveLength(0);
+  });
 
   it("H1-4: línea de otra factura (misma empresa) se omite aunque exista", async () => {
     const r = await svc([{ invoiceItemId: IL2, orderItemId: OL1, quantityMatched: 100 }]);

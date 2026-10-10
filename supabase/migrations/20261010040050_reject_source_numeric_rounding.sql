@@ -1,9 +1,9 @@
--- Numeric typmods round before BEFORE triggers run. Store editable invoice and
--- authorized-order source amounts without typmods so the existing source
--- guards can reject excessive scale instead of observing already-rounded data.
+-- Numeric typmods round before BEFORE triggers run. Store editable quantities
+-- and amounts without typmods so source guards can reject excess precision
+-- instead of observing already-rounded data.
 BEGIN;
 
-LOCK TABLE public.invoice_items,public.authorized_order_items IN ACCESS EXCLUSIVE MODE;
+LOCK TABLE public.invoice_items,public.authorized_order_items,public.invoice_item_matches IN ACCESS EXCLUSIVE MODE;
 LOCK TABLE public.invoice_jobs IN ACCESS EXCLUSIVE MODE;
 
 DO $source_numeric_preflight$
@@ -12,7 +12,7 @@ BEGIN
     SELECT 1 FROM public.invoice_items l
     WHERE (l.quantity IS NOT NULL AND (
              l.quantity::text IN ('NaN','Infinity','-Infinity') OR l.quantity<=0
-             OR l.quantity>=1000000000000::numeric OR pg_catalog.scale(l.quantity)>2))
+             OR l.quantity>=1000000000000::numeric OR l.quantity<>round(l.quantity,4)))
        OR (l.unit_price IS NOT NULL AND (
              l.unit_price::text IN ('NaN','Infinity','-Infinity') OR l.unit_price<0
              OR l.unit_price>=10000000000::numeric OR pg_catalog.scale(l.unit_price)>4))
@@ -22,13 +22,25 @@ BEGIN
   ) OR EXISTS (
     SELECT 1 FROM public.authorized_order_items oi
     WHERE oi.quantity::text IN ('NaN','Infinity','-Infinity') OR oi.quantity<=0
-       OR oi.quantity>=1000000000000::numeric OR pg_catalog.scale(oi.quantity)>2
+       OR oi.quantity>=100000000000000::numeric OR oi.quantity<>round(oi.quantity,4)
        OR oi.unit_price::text IN ('NaN','Infinity','-Infinity') OR oi.unit_price<0
        OR oi.unit_price>=10000000000::numeric OR pg_catalog.scale(oi.unit_price)>4
        OR oi.total_price::text IN ('NaN','Infinity','-Infinity') OR oi.total_price<=0
        OR oi.total_price>=1000000000000::numeric OR pg_catalog.scale(oi.total_price)>2
+  ) OR EXISTS (
+    SELECT 1 FROM public.invoice_item_matches m
+    WHERE m.quantity_matched IS NULL OR m.quantity_matched<=0
+       OR m.quantity_matched IN ('NaN'::numeric,'Infinity'::numeric,'-Infinity'::numeric)
+       OR m.quantity_matched>=1000000000000::numeric
+       OR m.quantity_matched<>round(m.quantity_matched,4)
+  ) OR EXISTS (
+    SELECT 1 FROM public.authorized_order_items oi
+    WHERE oi.quantity_invoiced<0
+       OR oi.quantity_invoiced IN ('NaN'::numeric,'Infinity'::numeric,'-Infinity'::numeric)
+       OR oi.quantity_invoiced>=100000000000000::numeric
+       OR oi.quantity_invoiced<>round(oi.quantity_invoiced,4)
   ) THEN
-    RAISE EXCEPTION 'Source numeric precision preflight failed; inspect and explicitly repair invoice/order item data before retrying';
+    RAISE EXCEPTION 'Source numeric precision preflight failed; inspect invoice/order/match quantities and explicitly repair inconsistent data before retrying';
   END IF;
 END;
 $source_numeric_preflight$;
@@ -56,7 +68,7 @@ CREATE TEMP TABLE _r3_source_numeric_trigger_backup (
 INSERT INTO _r3_source_numeric_trigger_backup(relid,trigger_name,trigger_def,enabled)
 SELECT t.tgrelid,t.tgname,pg_catalog.pg_get_triggerdef(t.oid),t.tgenabled
 FROM pg_catalog.pg_trigger t
-WHERE t.tgrelid IN ('public.invoice_items'::regclass,'public.authorized_order_items'::regclass)
+WHERE t.tgrelid IN ('public.invoice_items'::regclass,'public.authorized_order_items'::regclass,'public.invoice_item_matches'::regclass)
   AND NOT t.tgisinternal
   AND t.tgattr::text <> '';
 
@@ -77,34 +89,52 @@ ALTER TABLE public.invoice_items
 ALTER TABLE public.authorized_order_items
   ALTER COLUMN quantity TYPE numeric USING quantity::numeric,
   ALTER COLUMN unit_price TYPE numeric USING unit_price::numeric,
-  ALTER COLUMN total_price TYPE numeric USING total_price::numeric;
+  ALTER COLUMN total_price TYPE numeric USING total_price::numeric,
+  ALTER COLUMN quantity_invoiced TYPE numeric USING quantity_invoiced::numeric;
+
+ALTER TABLE public.invoice_item_matches
+  ALTER COLUMN quantity_matched TYPE numeric USING quantity_matched::numeric;
 
 ALTER TABLE public.invoice_items
   ADD CONSTRAINT r3_invoice_items_quantity_precision_check CHECK (
     quantity IS NULL OR (quantity::text NOT IN ('NaN','Infinity','-Infinity')
-      AND quantity>0 AND quantity<1000000000000::numeric AND pg_catalog.scale(quantity)<=2)
+      AND quantity>0 AND quantity<1000000000000::numeric AND quantity=round(quantity,4))
   ),
   ADD CONSTRAINT r3_invoice_items_unit_price_precision_check CHECK (
     unit_price IS NULL OR (unit_price::text NOT IN ('NaN','Infinity','-Infinity')
-      AND unit_price>=0 AND unit_price<10000000000::numeric AND pg_catalog.scale(unit_price)<=4)
+      AND unit_price>=0 AND unit_price<10000000000::numeric AND unit_price=round(unit_price,4))
   ),
   ADD CONSTRAINT r3_invoice_items_subtotal_precision_check CHECK (
     subtotal IS NULL OR (subtotal::text NOT IN ('NaN','Infinity','-Infinity')
-      AND subtotal>=0 AND subtotal<1000000000000::numeric AND pg_catalog.scale(subtotal)<=2)
+      AND subtotal>=0 AND subtotal<1000000000000::numeric AND subtotal=round(subtotal,2))
   );
 
 ALTER TABLE public.authorized_order_items
   ADD CONSTRAINT r3_aoi_quantity_precision_check CHECK (
     quantity::text NOT IN ('NaN','Infinity','-Infinity')
-      AND quantity>0 AND quantity<1000000000000::numeric AND pg_catalog.scale(quantity)<=2
+      AND quantity>0 AND quantity<100000000000000::numeric AND quantity=round(quantity,4)
   ),
   ADD CONSTRAINT r3_aoi_unit_price_precision_check CHECK (
     unit_price::text NOT IN ('NaN','Infinity','-Infinity')
-      AND unit_price>=0 AND unit_price<10000000000::numeric AND pg_catalog.scale(unit_price)<=4
+      AND unit_price>=0 AND unit_price<10000000000::numeric AND unit_price=round(unit_price,4)
   ),
   ADD CONSTRAINT r3_aoi_total_price_precision_check CHECK (
     total_price::text NOT IN ('NaN','Infinity','-Infinity')
-      AND total_price>0 AND total_price<1000000000000::numeric AND pg_catalog.scale(total_price)<=2
+      AND total_price>0 AND total_price<1000000000000::numeric AND total_price=round(total_price,2)
+  );
+
+ALTER TABLE public.invoice_item_matches
+  ADD CONSTRAINT r3_invoice_item_matches_quantity_precision_check CHECK (
+    quantity_matched::text NOT IN ('NaN','Infinity','-Infinity')
+      AND quantity_matched>0 AND quantity_matched<1000000000000::numeric
+      AND quantity_matched=round(quantity_matched,4)
+  );
+
+ALTER TABLE public.authorized_order_items
+  ADD CONSTRAINT r3_aoi_quantity_invoiced_precision_check CHECK (
+    quantity_invoiced::text NOT IN ('NaN','Infinity','-Infinity')
+      AND quantity_invoiced>=0 AND quantity_invoiced<100000000000000::numeric
+      AND quantity_invoiced=round(quantity_invoiced,4)
   );
 
 DO $restore_column_triggers$

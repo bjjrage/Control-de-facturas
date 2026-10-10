@@ -80,27 +80,27 @@ export default async function InvoiceDetailPage({
   // Líneas de la factura con sus imputaciones por ítem (si existen).
   const { data: invoiceLines } = await supabase
     .from("invoice_items")
-    .select("id, product_description, quantity, unit, unit_price, subtotal")
+    .select("id, product_description, quantity::text, unit, unit_price, subtotal")
     .eq("invoice_id", id)
     .order("sort_order");
   const lineIds = (invoiceLines ?? []).map((l) => l.id as string);
   const { data: itemMatches } = lineIds.length
     ? await supabase
         .from("invoice_item_matches")
-        .select("id, invoice_item_id, order_item_id, quantity_matched")
+        .select("id, invoice_item_id, order_item_id, quantity_matched::text")
         .in("invoice_item_id", lineIds)
     : { data: null as null };
   const matchedOrderIds = [...new Set((itemMatches ?? []).map((m) => m.order_item_id as string))];
   const { data: matchedOrderLines } = matchedOrderIds.length
     ? await supabase
         .from("authorized_order_items")
-        .select("id, product, quantity, unit")
+        .select("id, product, quantity::text, unit")
         .in("id", matchedOrderIds)
     : { data: null as null };
   const { data: linkedOrderLines } = linkedOrder
     ? await supabase
         .from("authorized_order_items")
-        .select("id, product, quantity, unit, quantity_invoiced")
+        .select("id, product, quantity::text, unit, quantity_invoiced::text")
         .eq("order_id", linkedOrder.id)
         .order("sort_order")
     : { data: null as null };
@@ -122,7 +122,7 @@ export default async function InvoiceDetailPage({
   const lineViews: InvoiceLineView[] = (invoiceLines ?? []).map((l) => ({
     id: l.id as string,
     product_description: l.product_description as string,
-    quantity: l.quantity as number | null,
+    quantity: l.quantity as string | null,
     unit: l.unit as string | null,
     unit_price: l.unit_price as number | null,
     subtotal: l.subtotal as number | null,
@@ -135,7 +135,7 @@ export default async function InvoiceDetailPage({
           orderItemId: m.order_item_id as string,
           orderCode: orderCodeFor(m.order_item_id as string),
           orderProduct: (ol?.product as string | undefined) ?? "Ítem",
-          quantityMatched: Number(m.quantity_matched),
+          quantityMatched: m.quantity_matched as string,
         };
       }),
   }));
@@ -143,9 +143,9 @@ export default async function InvoiceDetailPage({
     id: l.id as string,
     code: linkedOrder!.code,
     product: l.product as string,
-    quantity: Number(l.quantity),
+    quantity: l.quantity as string,
     unit: l.unit as string,
-    quantity_invoiced: Number(l.quantity_invoiced ?? 0),
+    quantity_invoiced: (l.quantity_invoiced as string | null) ?? "0",
   }));
 
   return (

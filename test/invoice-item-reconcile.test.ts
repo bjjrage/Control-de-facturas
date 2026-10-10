@@ -3,8 +3,12 @@ import {
   unitsCompatible,
   normalizeDescription,
   orderLineRemaining,
+  compareInvoiceQuantitySum,
   suggestInvoiceItemMatches,
   validateManualItemMatch,
+  isValidInvoiceQuantity,
+  formatInvoiceQuantity,
+  subtractInvoiceQuantitySumExact,
   type ReconcilableInvoiceLine,
   type ReconcilableOrderLine,
 } from "@/lib/invoice-item-reconcile";
@@ -65,7 +69,7 @@ describe("suggestInvoiceItemMatches (caso inequívoco)", () => {
        orderLine({ id: "ol-2", product: "Ladrillo común", quantity: 3000, unit: "un" })]
     );
     expect(proposals).toHaveLength(2);
-    expect(proposals.map((p) => p.quantityMatched).sort((a, b) => a - b)).toEqual([60, 2500]);
+    expect(proposals.map((p) => Number(p.quantityMatched)).sort((a, b) => a - b)).toEqual([60, 2500]);
   });
 
   it("factura sin líneas verificables queda sin conciliar", () => {
@@ -108,6 +112,54 @@ describe("suggestInvoiceItemMatches (caso inequívoco)", () => {
     expect(proposals[0].quantityMatched).toBe(2500);
     expect(proposals[0].quantityMatched).not.toBe(3000);
   });
+
+  it("preserva una cantidad física de cuatro decimales en la propuesta", () => {
+    const proposals = suggestInvoiceItemMatches(
+      [line({ quantity: 1.2345 })],
+      [orderLine({ quantity: 60, quantity_invoiced: 58.7655 })],
+    );
+    expect(proposals).toEqual([{ invoiceItemId: "il-1", orderItemId: "ol-1", quantityMatched: 1.2345, overRemaining: false }]);
+  });
+
+  it("compara el remanente con suma decimal exacta en el límite", () => {
+    const exact = suggestInvoiceItemMatches(
+      [line({ quantity: 1.2345 })],
+      [orderLine({ quantity: 60, quantity_invoiced: 58.7655 })],
+    );
+    const over = suggestInvoiceItemMatches(
+      [line({ quantity: 1.2345 })],
+      [orderLine({ quantity: 60, quantity_invoiced: 58.7656 })],
+    );
+    expect(exact[0].overRemaining).toBe(false);
+    expect(over[0].overRemaining).toBe(true);
+  });
+
+  it("compara una OC válida por encima del rango histórico de la línea de factura", () => {
+    const orderQuantity = "1000000000001";
+    const proposals = suggestInvoiceItemMatches(
+      [line({ quantity: 0.0001 })],
+      [orderLine({ quantity: orderQuantity, quantity_invoiced: 0 })],
+    );
+    expect(proposals[0].overRemaining).toBe(false);
+    expect(isValidInvoiceQuantity(orderQuantity)).toBe(false);
+    expect(compareInvoiceQuantitySum([0, 0.0001], orderQuantity)).toBe(-1);
+  });
+
+  it("mantiene cantidades grandes como texto decimal exacto", () => {
+    expect(isValidInvoiceQuantity("999999999999.0000")).toBe(true);
+    expect(isValidInvoiceQuantity("999999999999.00001")).toBe(false);
+    expect(isValidInvoiceQuantity(Number("999999999999.00001"))).toBe(false);
+    expect(compareInvoiceQuantitySum(["999999999999.0000"], "999999999999.0001")).toBe(-1);
+    expect(subtractInvoiceQuantitySumExact("3000.0000", ["2999.9999"])).toBe("0.0001");
+    expect(compareInvoiceQuantitySum(["1.2300"], "1.2345")).toBe(-1);
+    expect(subtractInvoiceQuantitySumExact("1.2345", ["1.2300"])).toBe("0.0045");
+    expect(formatInvoiceQuantity("0.0001")).toBe("0,0001");
+    expect(formatInvoiceQuantity("999999999999.0001")).toBe("999.999.999.999,0001");
+  });
+
+  it("no propone una cantidad con precisión efectiva mayor a cuatro decimales", () => {
+    expect(suggestInvoiceItemMatches([line({ quantity: 1.23456 })], [orderLine()])).toEqual([]);
+  });
 });
 
 describe("validateManualItemMatch (confirmación humana explícita)", () => {
@@ -129,6 +181,36 @@ describe("validateManualItemMatch (confirmación humana explícita)", () => {
 
   it("acepta fracción finita válida (el esquema es numeric, sin regla de enteros)", () => {
     expect(validateManualItemMatch({ ...base, quantity: 2500.5, invoiceLine: { ...base.invoiceLine, quantity: 2500.5 } }).ok).toBe(true);
+  });
+
+  it("acepta 1.2345 y rechaza una quinta cifra sin redondearla", () => {
+    const valid = validateManualItemMatch({
+      ...base,
+      invoiceLine: { ...base.invoiceLine, quantity: 1.2345 },
+      orderLine: { ...base.orderLine, quantity: 60 },
+      quantity: 1.2345,
+    });
+    expect(valid.ok).toBe(true);
+    expect(validateManualItemMatch({ ...base, quantity: 1.23456 }).ok).toBe(false);
+  });
+
+  it("acepta una suma fraccionaria exacta igual al remanente y bloquea el exceso", () => {
+    const args = {
+      ...base,
+      invoiceLine: { ...base.invoiceLine, quantity: 1.2345 },
+      orderLine: { ...base.orderLine, quantity: 60, quantity_invoiced: 58.7655 },
+      quantity: 1.2345,
+    };
+    expect(validateManualItemMatch(args).ok).toBe(true);
+    expect(validateManualItemMatch({ ...args, orderLine: { ...args.orderLine, quantity_invoiced: 58.7656 } }).ok).toBe(false);
+  });
+
+  it("la política admite ceros finales y mantiene el rango común de factura", () => {
+    expect(isValidInvoiceQuantity(60)).toBe(true); // 60.0000 al serializar desde UI/worker
+    expect(isValidInvoiceQuantity(3000)).toBe(true);
+    expect(isValidInvoiceQuantity(1.2345)).toBe(true);
+    expect(isValidInvoiceQuantity(1.23456)).toBe(false);
+    expect(isValidInvoiceQuantity(1_000_000_000_000)).toBe(false);
   });
 
   it("rechaza cantidad no finita (NaN)", () => {

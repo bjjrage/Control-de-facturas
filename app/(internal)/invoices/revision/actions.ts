@@ -7,6 +7,7 @@ import { logAudit } from "@/lib/audit";
 import { sanitizeFileName } from "@/lib/storage";
 import { autoMatchInvoiceByAmount } from "@/lib/invoice-auto-match";
 import { validateInvoiceArithmetic } from "@/lib/invoice-arithmetic";
+import { INVOICE_QUANTITY_ERROR, isValidInvoiceQuantity } from "@/lib/invoice-item-reconcile";
 import { applyDeterministicItemMatches, insertInvoiceItems, parseInvoiceLinesInput } from "@/lib/invoice-items";
 import { revalidatePath } from "next/cache";
 
@@ -73,6 +74,9 @@ export async function resolveInvoiceJob(jobId: string, formData: FormData): Prom
   const jobLinesPreview = parseInvoiceLinesInput(
     (job.extracted as { items?: unknown } | null)?.items ?? []
   );
+  if (jobLinesPreview.some((line) => line.quantity !== null && !isValidInvoiceQuantity(line.quantity))) {
+    return { error: INVOICE_QUANTITY_ERROR };
+  }
   const arithmetic = validateInvoiceArithmetic({
     provider_name: null,
     provider_tax_id: null,

@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireProfile, requireEmpresaId } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { differenceAmount, differencePct } from "@/lib/reconciliation";
-import { suggestInvoiceItemMatches, type ReconcilableInvoiceLine, type ReconcilableOrderLine } from "@/lib/invoice-item-reconcile";
+import { INVOICE_QUANTITY_ERROR, isValidInvoiceQuantity, suggestInvoiceItemMatches, type ReconcilableInvoiceLine, type ReconcilableOrderLine } from "@/lib/invoice-item-reconcile";
 import {
   applyDeterministicItemMatches,
   getHeaderLink,
@@ -262,7 +262,7 @@ async function loadInvoiceForItems(supabase: Awaited<ReturnType<typeof createCli
 
 /** Agrega una línea manual a una factura pre-APTO (revisión humana explícita). */
 export async function addInvoiceItem(invoiceId: string, raw: {
-  description: string; quantity?: number | null; unit?: string | null; unit_price?: number | null; subtotal?: number | null;
+  description: string; quantity?: number | string | null; unit?: string | null; unit_price?: number | null; subtotal?: number | null;
 }): Promise<{ error: string | null; id?: string }> {
   const profile = await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
@@ -273,13 +273,14 @@ export async function addInvoiceItem(invoiceId: string, raw: {
   }
   const [parsed] = parseInvoiceLinesInput([raw]);
   if (!parsed) return { error: "La línea necesita al menos una descripción válida." };
+  if (parsed.quantity !== null && !isValidInvoiceQuantity(parsed.quantity)) return { error: INVOICE_QUANTITY_ERROR };
   const { data, error } = await supabase
     .from("invoice_items")
     .insert({
       invoice_id: invoiceId,
       empresa_id: profile.empresa_id,
       product_description: parsed.description,
-      quantity: parsed.quantity,
+      quantity: parsed.quantity as unknown as number | null,
       unit: parsed.unit,
       unit_price: parsed.unit_price,
       subtotal: parsed.subtotal,
@@ -295,7 +296,7 @@ export async function addInvoiceItem(invoiceId: string, raw: {
 
 /** Corrige una línea pre-APTO en una transacción, preservando su ID. */
 export async function updateInvoiceItem(itemId: string, raw: {
-  description: string; quantity?: number | null; unit?: string | null; unit_price?: number | null; subtotal?: number | null;
+  description: string; quantity?: number | string | null; unit?: string | null; unit_price?: number | null; subtotal?: number | null;
 }): Promise<{ error: string | null; id?: string; warning?: string }> {
   const profile = await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
@@ -313,12 +314,13 @@ export async function updateInvoiceItem(itemId: string, raw: {
   }
   const [parsed] = parseInvoiceLinesInput([raw]);
   if (!parsed) return { error: "La línea necesita al menos una descripción válida." };
+  if (parsed.quantity !== null && !isValidInvoiceQuantity(parsed.quantity)) return { error: INVOICE_QUANTITY_ERROR };
   const invoiceId = (line as unknown as { invoice_id: string }).invoice_id;
   const { data: correction, error } = await supabase.rpc("correct_invoice_item", {
     p_empresa_id: profile.empresa_id,
     p_invoice_item_id: itemId,
     p_description: parsed.description,
-    p_quantity: parsed.quantity,
+    p_quantity: parsed.quantity as unknown as number | null,
     p_unit: parsed.unit,
     p_unit_price: parsed.unit_price,
     p_subtotal: parsed.subtotal,
@@ -336,13 +338,13 @@ export async function updateInvoiceItem(itemId: string, raw: {
   if (link.ok) {
     const { data: corrected } = await supabase
       .from("invoice_items")
-      .select("id, invoice_id, empresa_id, product_description, quantity, unit")
+      .select("id, invoice_id, empresa_id, product_description, quantity::text, unit")
       .eq("id", itemId)
       .eq("empresa_id", profile.empresa_id)
       .maybeSingle();
     const { data: orderLines } = await supabase
       .from("authorized_order_items")
-      .select("id, order_id, empresa_id, product, quantity, unit, quantity_invoiced")
+      .select("id, order_id, empresa_id, product, quantity::text, unit, quantity_invoiced::text")
       .eq("order_id", link.orderId)
       .eq("empresa_id", profile.empresa_id)
       .order("sort_order");
@@ -415,14 +417,14 @@ export async function createInvoiceItemMatch(args: {
   invoiceId: string;
   invoiceItemId: string;
   orderItemId: string;
-  quantity: number;
+  quantity: number | string;
 }): Promise<{ error: string | null; id?: string }> {
   const profile = await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
   const invoice = await loadInvoiceForItems(supabase, args.invoiceId, profile.empresa_id);
   if (!invoice) return { error: "Factura no encontrada." };
-  if (!Number.isFinite(args.quantity) || args.quantity <= 0) {
-    return { error: "La cantidad imputada debe ser mayor a cero." };
+  if (!isValidInvoiceQuantity(args.quantity)) {
+    return { error: INVOICE_QUANTITY_ERROR };
   }
   const link = await getHeaderLink(supabase, { empresaId: profile.empresa_id, invoiceId: args.invoiceId });
   if (!link.ok) return { error: link.error };

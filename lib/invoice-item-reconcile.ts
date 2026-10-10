@@ -10,12 +10,14 @@
  *   SIN CONCILIAR para revisión humana explícita.
  */
 
+export type PhysicalQuantity = number | string;
+
 export type ReconcilableInvoiceLine = {
   id: string;
   invoice_id: string;
   empresa_id: string;
   product_description: string;
-  quantity: number | null;
+  quantity: PhysicalQuantity | null;
   unit: string | null;
 };
 
@@ -24,17 +26,118 @@ export type ReconcilableOrderLine = {
   order_id: string;
   empresa_id: string;
   product: string;
-  quantity: number;
+  quantity: PhysicalQuantity;
   unit: string;
-  quantity_invoiced: number;
+  quantity_invoiced: PhysicalQuantity;
 };
 
 export type ItemMatchProposal = {
   invoiceItemId: string;
   orderItemId: string;
-  quantityMatched: number;
+  quantityMatched: PhysicalQuantity;
   overRemaining: boolean;
 };
+
+export const INVOICE_QUANTITY_ERROR = "La cantidad debe ser positiva, menor a 1.000.000.000.000 y exacta hasta cuatro decimales.";
+
+const QUANTITY_SCALE = BigInt(10_000);
+const MAX_INVOICE_QUANTITY_UNITS = BigInt("10000000000000000");
+const MAX_ORDER_QUANTITY_UNITS = BigInt("1000000000000000000");
+// Above this bound, an IEEE-754 number cannot be trusted to preserve a fifth
+// decimal at the source boundary. Large physical quantities must be strings.
+const MAX_NUMBER_QUANTITY = 1_000_000_000;
+
+function decimalTextUnits(value: string): bigint | null {
+  if (value.length === 0 || value.length > 100) return null;
+  const match = /^(\d*)(?:\.(\d*))?$/.exec(value);
+  if (!match || (!match[1] && !match[2])) return null;
+  const integer = match[1] || "0";
+  const fraction = match[2] ?? "";
+  const significantFraction = fraction.replace(/0+$/, "");
+  if (significantFraction.length > 4) return null;
+  return BigInt(integer) * QUANTITY_SCALE + BigInt(significantFraction.padEnd(4, "0") || "0");
+}
+
+function quantityUnits(value: unknown): bigint | null {
+  let units: bigint | null;
+  if (typeof value === "string") {
+    units = decimalTextUnits(value);
+  } else if (typeof value === "number" && Number.isFinite(value) && value >= 0 && value < MAX_NUMBER_QUANTITY) {
+    // Compatibility for existing callers with numbers. Every untrusted textual
+    // quantity must stay a string until it reaches this validator.
+    const exact = value.toFixed(4);
+    if (Number(exact) !== value) return null;
+    units = decimalTextUnits(exact);
+  } else {
+    return null;
+  }
+  return units !== null && units < MAX_ORDER_QUANTITY_UNITS ? units : null;
+}
+
+/** Matches the invoice/order-line PostgreSQL contract without rounding input. */
+export function isValidInvoiceQuantity(value: unknown): value is PhysicalQuantity {
+  const units = quantityUnits(value);
+  return units !== null && units > BigInt(0) && units < MAX_INVOICE_QUANTITY_UNITS;
+}
+
+/** Untrusted form/OCR input must retain its original decimal text. */
+export function isValidInvoiceQuantityInput(value: unknown): value is string {
+  return typeof value === "string" && isValidInvoiceQuantity(value);
+}
+
+/** Compare a sum of quantities to a documented/ordered ceiling without binary-float addition. */
+export function compareInvoiceQuantitySum(values: unknown[], ceiling: unknown): -1 | 0 | 1 | null {
+  const units = values.map(quantityUnits);
+  const ceilingUnits = quantityUnits(ceiling);
+  if (ceilingUnits === null || units.some((value) => value === null)) return null;
+  const total = (units as bigint[]).reduce<bigint>((sum, value) => sum + value, BigInt(0));
+  return total < ceilingUnits ? -1 : total > ceilingUnits ? 1 : 0;
+}
+
+/** Add validated 4-decimal physical quantities with integer arithmetic. */
+export function sumInvoiceQuantities(values: unknown[]): number {
+  const units = values.map(quantityUnits);
+  if (units.some((value) => value === null)) return Number.NaN;
+  return Number((units as bigint[]).reduce<bigint>((sum, value) => sum + value, BigInt(0))) / Number(QUANTITY_SCALE);
+}
+
+/** Subtract validated physical quantities with integer arithmetic. */
+export function subtractInvoiceQuantities(total: unknown, used: unknown): number {
+  const totalUnits = quantityUnits(total);
+  const usedUnits = quantityUnits(used);
+  if (totalUnits === null || usedUnits === null) return Number.NaN;
+  return Number(totalUnits - usedUnits) / Number(QUANTITY_SCALE);
+}
+
+/** Subtract a set of matches directly, without converting the running sum to Number. */
+export function subtractInvoiceQuantitySum(total: unknown, used: unknown[]): number {
+  const totalUnits = quantityUnits(total);
+  const units = used.map(quantityUnits);
+  if (totalUnits === null || units.some((value) => value === null)) return Number.NaN;
+  return Number(totalUnits - (units as bigint[]).reduce<bigint>((sum, value) => sum + value, BigInt(0))) / Number(QUANTITY_SCALE);
+}
+
+/** Exact decimal text for a remaining quantity, suitable for display and inputs. */
+export function subtractInvoiceQuantitySumExact(total: unknown, used: unknown[]): string | null {
+  const totalUnits = quantityUnits(total);
+  const units = used.map(quantityUnits);
+  if (totalUnits === null || units.some((value) => value === null)) return null;
+  const remainder = totalUnits - (units as bigint[]).reduce<bigint>((sum, value) => sum + value, BigInt(0));
+  const sign = remainder < BigInt(0) ? "-" : "";
+  const absolute = remainder < BigInt(0) ? -remainder : remainder;
+  return `${sign}${absolute / QUANTITY_SCALE}.${(absolute % QUANTITY_SCALE).toString().padStart(4, "0")}`;
+}
+
+/** Format an exact physical quantity using es-PY grouping without a Number cast. */
+export function formatInvoiceQuantity(value: unknown, decimals = 4): string {
+  const units = quantityUnits(value);
+  if (units === null || decimals < 0 || decimals > 4) return "-";
+  const integer = new Intl.NumberFormat("es-PY", { maximumFractionDigits: 0 }).format(Number(units / QUANTITY_SCALE));
+  const fraction = (units % QUANTITY_SCALE).toString().padStart(4, "0").slice(0, decimals).replace(/0+$/, "");
+  if (!fraction) return integer;
+  const decimalSeparator = new Intl.NumberFormat("es-PY").formatToParts(1.1).find((part) => part.type === "decimal")?.value ?? ",";
+  return `${integer}${decimalSeparator}${fraction}`;
+}
 
 const UNIT_ALIASES: Record<string, string> = {
   unidad: "un",
@@ -131,8 +234,8 @@ export function descriptionsMatch(invoiceDesc: string, orderDesc: string): boole
   return shorter.every((w) => longer.includes(w));
 }
 
-export function orderLineRemaining(orderLine: { quantity: number; quantity_invoiced: number | null | undefined }): number {
-  return Number(orderLine.quantity) - Number(orderLine.quantity_invoiced ?? 0);
+export function orderLineRemaining(orderLine: { quantity: PhysicalQuantity; quantity_invoiced: PhysicalQuantity | null | undefined }): number {
+  return subtractInvoiceQuantities(orderLine.quantity, orderLine.quantity_invoiced ?? 0);
 }
 
 export type SuggestOptions = {
@@ -154,8 +257,8 @@ export function suggestInvoiceItemMatches(
   const usedOrderLines = new Set<string>();
 
   for (const line of invoiceLines) {
-    const qty = Number(line.quantity);
-    if (!line.product_description?.trim() || !Number.isFinite(qty) || qty <= 0) continue;
+    const qty = line.quantity;
+    if (!line.product_description?.trim() || !isValidInvoiceQuantity(qty)) continue;
     if (!line.unit) continue;
 
     const candidates = orderLines.filter(
@@ -167,11 +270,12 @@ export function suggestInvoiceItemMatches(
     if (candidates.length !== 1) continue;
     const target = candidates[0];
     usedOrderLines.add(target.id);
+    const orderComparison = compareInvoiceQuantitySum([target.quantity_invoiced ?? 0, qty], target.quantity);
     proposals.push({
       invoiceItemId: line.id,
       orderItemId: target.id,
       quantityMatched: qty,
-      overRemaining: qty > orderLineRemaining(target),
+      overRemaining: orderComparison !== -1 && orderComparison !== 0,
     });
   }
   return proposals;
@@ -191,19 +295,18 @@ export type ManualMatchCheck =
  *   autorice excesos: no existe mecanismo que autorice exceder cantidades
  *   (invoice_exceptions solo cubre sobrefacturación financiera, no cantidades).
  * - Línea sin cantidad documentada (null) no admite imputación: sin conciliar.
- * - Fracciones finitas se aceptan tal cual (el esquema es numeric, sin regla
- *   de enteros por unidad); no finitas se rechazan.
+ * - Cantidades físicas se aceptan hasta cuatro decimales, sin redondear.
  */
 export function validateManualItemMatch(args: {
   invoiceEmpresaId: string;
   orderEmpresaId: string;
   invoiceStatus: string;
-  invoiceLine: { id: string; invoice_id: string; description: string; quantity: number | null; unit: string | null };
-  orderLine: { id: string; product: string; quantity: number; unit: string; quantity_invoiced: number };
+  invoiceLine: { id: string; invoice_id: string; description: string; quantity: PhysicalQuantity | null; unit: string | null };
+  orderLine: { id: string; product: string; quantity: PhysicalQuantity; unit: string; quantity_invoiced: PhysicalQuantity };
   invoiceLineCount: number;
   orderLineCount: number;
-  quantity: number;
-  existingLineMatched: number;
+  quantity: PhysicalQuantity;
+  existingLineMatched: PhysicalQuantity;
   duplicateExists: boolean;
 }): ManualMatchCheck {
   if (args.invoiceEmpresaId !== args.orderEmpresaId) {
@@ -212,8 +315,11 @@ export function validateManualItemMatch(args: {
   if (["APTO_PARA_PAGO", "PAGADO"].includes(args.invoiceStatus)) {
     return { ok: false, error: "La factura ya está aprobada o pagada; la conciliación por ítem queda congelada." };
   }
-  if (!Number.isFinite(args.quantity) || args.quantity <= 0) {
-    return { ok: false, error: "La cantidad imputada debe ser mayor a cero." };
+  if (!isValidInvoiceQuantity(args.quantity)) {
+    return { ok: false, error: INVOICE_QUANTITY_ERROR };
+  }
+  if (args.invoiceLine.quantity !== null && !isValidInvoiceQuantity(args.invoiceLine.quantity)) {
+    return { ok: false, error: "La cantidad documentada de la línea no cumple la precisión admitida." };
   }
   if (!unitsCompatible(args.invoiceLine.unit, args.orderLine.unit)) {
     return { ok: false, error: "La unidad de la línea de factura no coincide con la de la OC." };
@@ -226,13 +332,21 @@ export function validateManualItemMatch(args: {
     return { ok: false, error: "Esa línea ya está imputada a ese ítem de OC." };
   }
   const lineQty = args.invoiceLine.quantity;
-  if (lineQty === null || !Number.isFinite(lineQty)) {
+  if (lineQty === null || !isValidInvoiceQuantity(lineQty)) {
     return { ok: false, error: "La línea no tiene cantidad documentada; no se puede imputar." };
   }
-  if (args.existingLineMatched + args.quantity > lineQty + 1e-9) {
+  const lineComparison = compareInvoiceQuantitySum([args.existingLineMatched, args.quantity], lineQty);
+  if (lineComparison === null) {
+    return { ok: false, error: "La cantidad imputada existente no cumple la precisión admitida." };
+  }
+  if (lineComparison === 1) {
     return { ok: false, error: `La imputación supera la cantidad documentada de la línea (${lineQty}): ya hay ${args.existingLineMatched} imputados.` };
   }
-  if (args.quantity > orderLineRemaining(args.orderLine) + 1e-9) {
+  const orderComparison = compareInvoiceQuantitySum([args.orderLine.quantity_invoiced, args.quantity], args.orderLine.quantity);
+  if (orderComparison === null) {
+    return { ok: false, error: "La cantidad imputada a la OC no cumple la precisión admitida." };
+  }
+  if (orderComparison === 1) {
     return { ok: false, error: `La cantidad supera el remanente de la OC (${orderLineRemaining(args.orderLine)} pendientes). Queda sin conciliar.` };
   }
   return { ok: true, overRemaining: false };

@@ -7,6 +7,7 @@ import { logAudit } from "@/lib/audit";
 import { sanitizeFileName } from "@/lib/storage";
 import { autoMatchInvoice } from "@/lib/invoice-auto-match";
 import { validateInvoiceArithmetic } from "@/lib/invoice-arithmetic";
+import { INVOICE_QUANTITY_ERROR, isValidInvoiceQuantity } from "@/lib/invoice-item-reconcile";
 import type { ExtractedInvoiceItem } from "@/lib/invoice-extraction";
 import { applyDeterministicItemMatches, insertInvoiceItems, parseInvoiceLinesInput } from "@/lib/invoice-items";
 import { revalidatePath } from "next/cache";
@@ -83,6 +84,9 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
   // queda auditada. La carga manual legítima sigue funcionando: con valores
   // consistentes no se pide nada extra.
   const dialogLines = parseInvoiceLinesInput(formData.get("items_json"));
+  if (dialogLines.some((line) => line.quantity !== null && !isValidInvoiceQuantity(line.quantity))) {
+    return { error: INVOICE_QUANTITY_ERROR };
+  }
   const arithmetic = validateInvoiceArithmetic({
     provider_name: null,
     provider_tax_id: null,

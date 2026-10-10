@@ -18,6 +18,7 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 import { extractInvoiceFieldsFromFile } from "../lib/invoice-extraction";
 import { validateInvoiceArithmetic } from "../lib/invoice-arithmetic";
+import { compareInvoiceQuantitySum, isValidInvoiceQuantity, type PhysicalQuantity } from "../lib/invoice-item-reconcile";
 import { insertValidatedItemMatches } from "../lib/invoice-items";
 import { findProviderByTaxId } from "../lib/provider-lookup";
 import { autoMatchInvoice } from "../lib/invoice-auto-match";
@@ -246,14 +247,16 @@ async function processJob(job: InvoiceJob) {
   const indexedItems = (parsed.items ?? [])
     .map((item, idx) => ({ item, idx }))
     .filter(({ item }) => Boolean(item.description?.trim()));
-  if (indexedItems.length > 0) {
+  if (indexedItems.some(({ item }) => item.quantity !== null && !isValidInvoiceQuantity(item.quantity))) {
+    itemSaveError = "Una cantidad extraída no conserva la precisión admitida; las líneas no se guardaron y requieren revisión.";
+  } else if (indexedItems.length > 0) {
     const { data: insertedItems, error: itemError } = await db
       .from("invoice_items")
       .insert(indexedItems.map(({ item, idx }) => ({
           invoice_id: invoice.id,
           empresa_id: job.empresa_id,
           product_description: item.description.trim(),
-          quantity: item.quantity,
+          quantity: item.quantity as unknown as number | null,
           unit: item.unit,
           unit_price: item.unit_price,
           subtotal: item.subtotal,
@@ -298,7 +301,7 @@ async function processJob(job: InvoiceJob) {
   if (!itemSaveError && matchedOrderId && invoiceItemIds.length > 0) {
     const { data: orderItems, error: orderItemsError } = await db
       .from("authorized_order_items")
-      .select("id, product, quantity, unit, quantity_invoiced")
+      .select("id, product, quantity::text, unit, quantity_invoiced::text")
       .eq("order_id", matchedOrderId)
       .order("sort_order");
 
@@ -316,9 +319,9 @@ async function processJob(job: InvoiceJob) {
         orderItems.map((o) => ({
           id: o.id as string,
           product: o.product as string,
-          quantity: o.quantity as number,
+          quantity: o.quantity as string,
           unit: o.unit as string,
-          quantity_invoiced: o.quantity_invoiced as number,
+          quantity_invoiced: o.quantity_invoiced as string,
         })),
         invoiceItemsForMatch
       );
@@ -346,20 +349,22 @@ async function processJob(job: InvoiceJob) {
       }
       if (!validated.error) {
         const { data: persisted, error: persistedError } = await db.from("invoice_item_matches")
-          .select("invoice_item_id, quantity_matched")
+          .select("invoice_item_id, quantity_matched::text")
           .eq("empresa_id", job.empresa_id)
           .in("invoice_item_id", invoiceItemIds.map(({ id }) => id));
         if (persistedError) itemMatchError = `No se pudo verificar el resultado de conciliación: ${persistedError.message}`;
         else {
-          const matchedByLine = new Map<string, number>();
+          const matchedByLine = new Map<string, PhysicalQuantity[]>();
           for (const match of persisted ?? []) {
             const lineId = match.invoice_item_id as string;
-            matchedByLine.set(lineId, (matchedByLine.get(lineId) ?? 0) + Number(match.quantity_matched));
+            const quantities = matchedByLine.get(lineId) ?? [];
+            quantities.push(match.quantity_matched as string);
+            matchedByLine.set(lineId, quantities);
           }
           for (const { id, idx } of invoiceItemIds) {
-            const documented = Number(parsed.items[idx].quantity);
-            if (!Number.isFinite(documented) || documented <= 0
-              || (matchedByLine.get(id) ?? 0) + 1e-9 < documented) itemMatchPending++;
+            const documented = parsed.items[idx].quantity;
+            const comparison = compareInvoiceQuantitySum(matchedByLine.get(id) ?? [], documented);
+            if (!isValidInvoiceQuantity(documented) || comparison === null || comparison === -1) itemMatchPending++;
           }
         }
       }

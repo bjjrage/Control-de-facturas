@@ -1,16 +1,20 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   descriptionsMatch,
+  compareInvoiceQuantitySum,
+  INVOICE_QUANTITY_ERROR,
+  isValidInvoiceQuantity,
   orderLineRemaining,
   suggestInvoiceItemMatches,
   unitsCompatible,
+  type PhysicalQuantity,
   type ReconcilableInvoiceLine,
   type ReconcilableOrderLine,
 } from "./invoice-item-reconcile";
 
 export type InvoiceLineInput = {
   description: string;
-  quantity: number | null;
+  quantity: PhysicalQuantity | null;
   unit: string | null;
   unit_price: number | null;
   subtotal: number | null;
@@ -24,8 +28,7 @@ function cleanLine(raw: unknown): InvoiceLineInput | null {
   const description = typeof r.description === "string" ? r.description.trim().slice(0, 500) : "";
   if (!description) return null;
   const numOrNull = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
-  const quantity = numOrNull(r.quantity);
-  if (quantity !== null && quantity <= 0) return null;
+  const quantity = typeof r.quantity === "string" || typeof r.quantity === "number" ? r.quantity : null;
   const unitPrice = numOrNull(r.unit_price ?? r.unitPrice);
   if (unitPrice !== null && unitPrice < 0) return null;
   return {
@@ -61,11 +64,16 @@ export async function insertInvoiceItems(
 ): Promise<{ error: string | null; count: number }> {
   const items = args.items.slice(0, MAX_LINES);
   if (!items.length) return { error: null, count: 0 };
+  if (items.some((item) => item.quantity !== null && !isValidInvoiceQuantity(item.quantity))) {
+    return { error: INVOICE_QUANTITY_ERROR, count: 0 };
+  }
   const rows = items.map((item, i) => ({
       invoice_id: args.invoiceId,
       empresa_id: args.empresaId,
       product_description: item.description,
-      quantity: item.quantity,
+      // Supabase's generated numeric type is `number`, but PostgREST accepts
+      // decimal text and PostgreSQL parses it exactly. Keep strings intact.
+      quantity: item.quantity as unknown as number | null,
       unit: item.unit,
       unit_price: item.unit_price,
       subtotal: item.subtotal,
@@ -79,7 +87,7 @@ export async function insertInvoiceItems(
   return { error: null, count: rows.length };
 }
 
-export type AppliedItemMatch = { invoiceItemId: string; orderItemId: string; quantityMatched: number };
+export type AppliedItemMatch = { invoiceItemId: string; orderItemId: string; quantityMatched: PhysicalQuantity };
 
 export type HeaderLinkCheck =
   | { ok: true; orderId: string }
@@ -106,7 +114,7 @@ export async function getHeaderLink(
   return { ok: true, orderId: (data as { authorized_order_id: string }).authorized_order_id };
 }
 
-export type ValidatedProposal = { invoiceItemId: string; orderItemId: string; quantityMatched: number };
+export type ValidatedProposal = { invoiceItemId: string; orderItemId: string; quantityMatched: PhysicalQuantity };
 
 /**
  * Inserción validada compartida (diálogo + conciliación + worker bulk + corrección):
@@ -213,11 +221,11 @@ export async function insertValidatedItemMatches(
     { count: invoiceLineCount, error: ilCountError },
     { count: orderLineCount, error: olCountError },
   ] = await Promise.all([
-    supabase.from("invoice_items").select("id, invoice_id, product_description, quantity, unit").eq("empresa_id", args.empresaId).in("id", invoiceItemIds.length ? invoiceItemIds : [emptyId]),
-    supabase.from("authorized_order_items").select("id, order_id, product, quantity, unit, quantity_invoiced").eq("empresa_id", args.empresaId).in("id", orderItemIds.length ? orderItemIds : [emptyId]),
+    supabase.from("invoice_items").select("id, invoice_id, product_description, quantity::text, unit").eq("empresa_id", args.empresaId).in("id", invoiceItemIds.length ? invoiceItemIds : [emptyId]),
+    supabase.from("authorized_order_items").select("id, order_id, product, quantity::text, unit, quantity_invoiced::text").eq("empresa_id", args.empresaId).in("id", orderItemIds.length ? orderItemIds : [emptyId]),
     // H1-9: matches previamente persistidos de estas líneas (la invariante
     // documental cubre TODO lo imputado, no solo el batch en curso).
-    supabase.from("invoice_item_matches").select("invoice_item_id, quantity_matched").eq("empresa_id", args.empresaId).in("invoice_item_id", invoiceItemIds.length ? invoiceItemIds : [emptyId]),
+    supabase.from("invoice_item_matches").select("invoice_item_id, quantity_matched::text").eq("empresa_id", args.empresaId).in("invoice_item_id", invoiceItemIds.length ? invoiceItemIds : [emptyId]),
     supabase.from("invoice_items").select("id", { count: "exact", head: true }).eq("invoice_id", args.invoiceId).eq("empresa_id", args.empresaId),
     supabase.from("authorized_order_items").select("id", { count: "exact", head: true }).eq("order_id", args.expectedOrderId).eq("empresa_id", args.empresaId),
   ]);
@@ -229,24 +237,26 @@ export async function insertValidatedItemMatches(
   const lineById = new Map((invoiceLines ?? []).map((l) => [l.id as string, l]));
   const orderById = new Map((orderLines ?? []).map((l) => [l.id as string, l]));
   // H1-9: semilla con lo ya persistido (fail-closed arriba si la consulta falló).
-  const matchedByLine = new Map<string, number>();
+  const matchedByLine = new Map<string, PhysicalQuantity[]>();
   for (const m of priorMatches ?? []) {
     const lid = (m as { invoice_item_id: string }).invoice_item_id;
-    matchedByLine.set(lid, (matchedByLine.get(lid) ?? 0) + Number((m as { quantity_matched: number }).quantity_matched));
+    const quantities = matchedByLine.get(lid) ?? [];
+    quantities.push((m as { quantity_matched: PhysicalQuantity }).quantity_matched);
+    matchedByLine.set(lid, quantities);
   }
   // H1-12: el bypass por caso inequívoco exige 1 línea y 1 ítem reales.
   const singleToSingle = (invoiceLineCount ?? 0) === 1 && (orderLineCount ?? 0) === 1;
 
   for (const proposal of args.proposals) {
-    if (!Number.isFinite(proposal.quantityMatched) || proposal.quantityMatched <= 0) {
+    if (!isValidInvoiceQuantity(proposal.quantityMatched)) {
       skippedOverDocumented++;
       continue;
     }
     const line = lineById.get(proposal.invoiceItemId) as unknown as {
-      id: string; invoice_id: string; product_description: string; quantity: number | null; unit: string | null;
+      id: string; invoice_id: string; product_description: string; quantity: PhysicalQuantity | null; unit: string | null;
     } | undefined;
     const order = orderById.get(proposal.orderItemId) as unknown as {
-      id: string; order_id: string; product: string; quantity: number; unit: string; quantity_invoiced: number;
+      id: string; order_id: string; product: string; quantity: PhysicalQuantity; unit: string; quantity_invoiced: PhysicalQuantity;
     } | undefined;
     if (!line || !order) {
       skippedNoLink++;
@@ -276,33 +286,37 @@ export async function insertValidatedItemMatches(
     // idéntico es idempotencia, no exceso; igual orden que la vía manual).
     const { data: dup, error: dupError } = await supabase
       .from("invoice_item_matches")
-      .select("id, quantity_matched")
+      .select("id, quantity_matched::text")
       .eq("invoice_item_id", proposal.invoiceItemId)
       .eq("order_item_id", proposal.orderItemId)
       .maybeSingle();
     if (dupError) return bail(`No se pudo verificar duplicados: ${dupError.message}`);
     if (dup) {
-      if (Number((dup as { quantity_matched?: unknown }).quantity_matched) === proposal.quantityMatched) idempotent++;
+      if (compareInvoiceQuantitySum([(dup as { quantity_matched?: PhysicalQuantity }).quantity_matched], proposal.quantityMatched) === 0) idempotent++;
       else skippedDuplicate++;
       continue;
     }
     // H1-8: cantidad documentada válida.
-    const lineQty = Number(line.quantity);
-    if (!Number.isFinite(lineQty)) {
+    const lineQty = line.quantity as PhysicalQuantity | null;
+    if (!isValidInvoiceQuantity(lineQty)) {
       skippedOverDocumented++;
       continue;
     }
-    const already = matchedByLine.get(proposal.invoiceItemId) ?? 0;
+    const already = matchedByLine.get(proposal.invoiceItemId) ?? [];
     // H1-9 (regla A): persistido + batch nunca supera lo documentado.
-    if (already + proposal.quantityMatched > lineQty + 1e-9) {
+    const lineComparison = compareInvoiceQuantitySum([...already, proposal.quantityMatched], lineQty);
+    if (lineComparison === null || lineComparison === 1) {
       skippedOverDocumented++;
       continue;
     }
     // H1-10 (regla B): nunca se contabiliza por encima del remanente.
     // This is only a fast local filter; the RPC rechecks the current remainder
     // after locking the invoice, header link, order, line, and order item.
-    const remaining = orderLineRemaining(order);
-    if (proposal.quantityMatched > remaining + 1e-9) {
+    const orderComparison = compareInvoiceQuantitySum(
+      [order.quantity_invoiced as PhysicalQuantity ?? 0, proposal.quantityMatched],
+      order.quantity as PhysicalQuantity,
+    );
+    if (orderComparison === null || orderComparison === 1) {
       skippedOverRemaining++;
       continue;
     }
@@ -312,7 +326,9 @@ export async function insertValidatedItemMatches(
       p_expected_order_id: args.expectedOrderId,
       p_invoice_item_id: proposal.invoiceItemId,
       p_order_item_id: proposal.orderItemId,
-      p_quantity: proposal.quantityMatched,
+      // Keep the original decimal string at runtime; this cast bridges the
+      // generated Supabase `numeric -> number` declaration only.
+      p_quantity: proposal.quantityMatched as unknown as number,
     });
     if (error) {
       if (error.code === "23505") {
@@ -335,7 +351,7 @@ export async function insertValidatedItemMatches(
       idempotent++;
       continue;
     }
-    matchedByLine.set(proposal.invoiceItemId, already + proposal.quantityMatched);
+    matchedByLine.set(proposal.invoiceItemId, [...already, proposal.quantityMatched]);
     applied.push({
       invoiceItemId: proposal.invoiceItemId,
       orderItemId: proposal.orderItemId,
@@ -380,7 +396,7 @@ export async function applyDeterministicItemMatches(
 
   const { data: invoiceLines, error: linesError } = await supabase
     .from("invoice_items")
-    .select("id, invoice_id, empresa_id, product_description, quantity, unit")
+    .select("id, invoice_id, empresa_id, product_description, quantity::text, unit")
     .eq("invoice_id", args.invoiceId)
     .eq("empresa_id", args.empresaId)
     .order("sort_order");
@@ -389,7 +405,7 @@ export async function applyDeterministicItemMatches(
 
   const { data: orderLines, error: orderError } = await supabase
     .from("authorized_order_items")
-    .select("id, order_id, empresa_id, product, quantity, unit, quantity_invoiced")
+    .select("id, order_id, empresa_id, product, quantity::text, unit, quantity_invoiced::text")
     .eq("order_id", args.orderId)
     .eq("empresa_id", args.empresaId)
     .order("sort_order");

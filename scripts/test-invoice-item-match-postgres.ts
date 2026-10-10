@@ -30,6 +30,9 @@ type Fixture = {
   orderItemApproval: string;
   orderItemPrecision: string;
   orderItemBadScale: string;
+  orderItemFractionalRace: string;
+  orderItemFractionalLineRaceA: string;
+  orderItemFractionalLineRaceB: string;
   orderItemDeadlock: string;
   orderItemDelete: string;
   sharedAttachmentId: string;
@@ -93,6 +96,9 @@ async function seed(): Promise<Fixture> {
   const orderItemApproval = randomUUID();
   const orderItemPrecision = randomUUID();
   const orderItemBadScale = randomUUID();
+  const orderItemFractionalRace = randomUUID();
+  const orderItemFractionalLineRaceA = randomUUID();
+  const orderItemFractionalLineRaceB = randomUUID();
   const orderItemDeadlock = randomUUID();
   const orderItemDelete = randomUUID();
   const sharedAttachmentId = randomUUID();
@@ -100,7 +106,7 @@ async function seed(): Promise<Fixture> {
   const foreignPrefixAttachmentId = randomUUID();
   const attachmentB = randomUUID();
   const providerAttachmentId = randomUUID();
-  const invoices = Array.from({ length: 12 }, () => ({ id: randomUUID(), lineId: randomUUID(), linkId: randomUUID() }));
+  const invoices = Array.from({ length: 15 }, () => ({ id: randomUUID(), lineId: randomUUID(), linkId: randomUUID() }));
   const invoiceB = { id: randomUUID(), lineId: randomUUID(), linkId: randomUUID() };
 
   await withClient(async (client) => {
@@ -130,10 +136,14 @@ async function seed(): Promise<Fixture> {
         `INSERT INTO public.authorized_order_items (id,order_id,empresa_id,product,quantity,unit,unit_price,total_price)
          VALUES ($1,$3,$5,'Ladrillo común',1000,'un',1,1000),($2,$4,$6,'Ladrillo común',1000,'un',1,1000),
                 ($7,$3,$5,'Ladrillo común',1000,'un',1,1000),($8,$3,$5,'Ladrillo común',1000,'un',1,1000),($9,$3,$5,'Ladrillo común',1000,'un',1,1000),
-                ($10,$3,$5,'Ladrillo común',1000,'un',1,1000),($11,$3,$5,'Ladrillo común',1000,'un',1,1000),($12,$3,$5,'Ladrillo común',1000,'un',1,1000),($13,$3,$5,'Ladrillo común',1000,'un',1,1000)`,
-        [orderItemA, orderItemB, orderA, orderB, companyA, companyB, orderItemIdem, orderItemUnmatch, orderItemApproval, orderItemPrecision, orderItemBadScale, orderItemDeadlock, orderItemDelete],
+                ($10,$3,$5,'Ladrillo común',60.0000,'un',1,60),($11,$3,$5,'Ladrillo común',1000,'un',1,1000),($12,$3,$5,'Ladrillo común',1000,'un',1,1000),($13,$3,$5,'Ladrillo común',1000,'un',1,1000),
+                ($14,$3,$5,'Ladrillo común',0.0001,'un',1,0.01),
+                ($15,$3,$5,'Ladrillo común',0.0001,'un',1,0.01),($16,$3,$5,'Ladrillo común',0.0001,'un',1,0.01)`,
+        [orderItemA, orderItemB, orderA, orderB, companyA, companyB, orderItemIdem, orderItemUnmatch, orderItemApproval, orderItemPrecision, orderItemBadScale, orderItemDeadlock, orderItemDelete, orderItemFractionalRace, orderItemFractionalLineRaceA, orderItemFractionalLineRaceB],
       );
       for (const [index, inv] of invoices.entries()) {
+        const quantity = index >= 12 ? "0.0001" : "800";
+        const subtotal = index >= 12 ? "0.01" : "800";
         await client.query(
           `INSERT INTO public.invoices (id,provider_id,invoice_number,invoice_date,currency,total,created_by,empresa_id,status)
            VALUES ($1,$2,$3,CURRENT_DATE,'PYG',800,$4,$5,$6::public.invoice_status)`,
@@ -141,8 +151,8 @@ async function seed(): Promise<Fixture> {
         );
         await client.query(
           `INSERT INTO public.invoice_items (id,invoice_id,empresa_id,product_description,quantity,unit,unit_price,subtotal)
-           VALUES ($1,$2,$3,'Ladrillo común',800,'un',1,800)`,
-          [inv.lineId, inv.id, companyA],
+           VALUES ($1,$2,$3,'Ladrillo común',$4::numeric,'un',1,$5::numeric)`,
+          [inv.lineId, inv.id, companyA, quantity, subtotal],
         );
         await client.query(
           `INSERT INTO public.invoice_order_matches (id,invoice_id,authorized_order_id,empresa_id) VALUES ($1,$2,$3,$4)`,
@@ -184,7 +194,7 @@ async function seed(): Promise<Fixture> {
       throw error;
     }
   });
-  return { companyA, companyB, adminA, adminB, commercialA, providerA, providerB, orderA, orderItemA, orderItemIdem, orderItemUnmatch, orderItemApproval, orderItemPrecision, orderItemBadScale, orderItemDeadlock, orderItemDelete, sharedAttachmentId, unsafeBucketAttachmentId, foreignPrefixAttachmentId, attachmentB, providerAttachmentId, invoices, invoiceB };
+  return { companyA, companyB, adminA, adminB, commercialA, providerA, providerB, orderA, orderItemA, orderItemIdem, orderItemUnmatch, orderItemApproval, orderItemPrecision, orderItemBadScale, orderItemFractionalRace, orderItemFractionalLineRaceA, orderItemFractionalLineRaceB, orderItemDeadlock, orderItemDelete, sharedAttachmentId, unsafeBucketAttachmentId, foreignPrefixAttachmentId, attachmentB, providerAttachmentId, invoices, invoiceB };
 }
 
 async function createMatch(client: Client, f: Fixture, invoiceIndex: number, orderItemId: string, qty: string) {
@@ -192,6 +202,14 @@ async function createMatch(client: Client, f: Fixture, invoiceIndex: number, ord
   return client.query(
     "SELECT public.create_invoice_item_match($1,$2,$3,$4,$5,$6) AS result",
     [f.companyA, inv.id, f.orderA, inv.lineId, orderItemId, qty],
+  );
+}
+
+async function createMatchForLine(client: Client, f: Fixture, invoiceIndex: number, lineId: string, orderItemId: string, qty: string) {
+  const inv = f.invoices[invoiceIndex];
+  return client.query(
+    "SELECT public.create_invoice_item_match($1,$2,$3,$4,$5,$6) AS result",
+    [f.companyA, inv.id, f.orderA, lineId, orderItemId, qty],
   );
 }
 
@@ -547,15 +565,16 @@ async function main() {
   // INSERT as the tenant admin to prove the guards receive the original numeric
   // value before PostgreSQL can silently coerce it to a typmod scale.
   const precisionLineId = randomUUID();
+  const trailingZeroLineId = randomUUID();
   const invalidSourceLines = [
-    { id: randomUUID(), quantity: "1.236", unitPrice: "1.0000", subtotal: "1.00" },
+    { id: randomUUID(), quantity: "1.23456", unitPrice: "1.0000", subtotal: "1.00" },
     { id: randomUUID(), quantity: "1.00", unitPrice: "1.00001", subtotal: "1.00" },
     { id: randomUUID(), quantity: "1.00", unitPrice: "1.0000", subtotal: "1.001" },
   ];
   await withClient(async (client) => asActor(client, f.adminA, async () => {
     await client.query(
       `INSERT INTO public.invoice_items(id,invoice_id,empresa_id,product_description,quantity,unit,unit_price,subtotal)
-       VALUES($1,$2,$3,'raw numeric precision valid',0.01,'un',1.0000,0.01)`,
+       VALUES($1,$2,$3,'raw numeric precision valid',1.2345,'un',1.0000,1.23)`,
       [precisionLineId, f.invoices[5].id, f.companyA],
     );
     for (const source of invalidSourceLines) {
@@ -574,9 +593,9 @@ async function main() {
   assert.equal(rawSourceCheck.rows.length, 1);
   assert.equal(rawSourceCheck.rows[0].id, precisionLineId);
   assert.equal(rawSourceCheck.rows[0].empresa_id, f.companyA);
-  assert.equal(rawSourceCheck.rows[0].quantity, "0.01");
+  assert.equal(rawSourceCheck.rows[0].quantity, "1.2345");
   assert.equal(rawSourceCheck.rows[0].unit_price, "1.0000");
-  assert.equal(rawSourceCheck.rows[0].subtotal, "0.01");
+  assert.equal(rawSourceCheck.rows[0].subtotal, "1.23");
 
   // Service-role source edits are authorized for this fixture; the unbounded
   // numeric CHECK constraints must still reject each original over-scale value.
@@ -584,7 +603,7 @@ async function main() {
     await client.query("SET ROLE service_role");
     await client.query("SELECT set_config('request.jwt.claim.role','service_role',false), set_config('request.jwt.claim.sub','',false)");
     try {
-      for (const [column, value] of [["quantity", "1.236"], ["unit_price", "1.00001"], ["total_price", "1.001"]] as const) {
+      for (const [column, value] of [["quantity", "1.23456"], ["unit_price", "1.00001"], ["total_price", "1.001"]] as const) {
         await assert.rejects(client.query(`UPDATE public.authorized_order_items SET ${column}=$2 WHERE id=$1`, [f.orderItemBadScale, value]),
           (error: unknown) => pgErrorCode(error) === "23514");
       }
@@ -595,12 +614,78 @@ async function main() {
     [f.orderItemBadScale],
   ));
   assert.deepEqual(sourceOrderItemCheck.rows[0], { quantity: "1000", unit_price: "1", total_price: "1000", quantity_invoiced: "0.00" });
-  checks.push("raw tenant-admin invoice-item INSERT accepts 0.01 and rejects quantity 1.236, price 1.00001, subtotal 1.001 without rounded rows; AOI precision CHECKs reject the same over-scale sources without counter changes");
+  checks.push("raw tenant-admin invoice-item INSERT preserves 1.2345, rejects 1.23456, price 1.00001 and subtotal 1.001 without rounded rows; AOI precision CHECKs reject the same over-scale sources without counter changes");
+
+  await withClient(async (client) => asActor(client, f.adminA, async () => {
+    await client.query(
+      `INSERT INTO public.invoice_items(id,invoice_id,empresa_id,product_description,quantity,unit,unit_price,subtotal)
+       VALUES($1,$2,$3,'Ladrillo común', $4::numeric,'un',1,1.23)`,
+      [trailingZeroLineId, f.invoices[5].id, f.companyA, "1.230000"],
+    );
+    const source = await client.query("SELECT quantity::text FROM public.invoice_items WHERE id=$1", [trailingZeroLineId]);
+    assert.equal(source.rows[0].quantity, "1.230000");
+    const applied = await createMatchForLine(client, f, 5, trailingZeroLineId, f.orderItemBadScale, "1.230000");
+    assert.equal(applied.rows[0].result.ok, true);
+  }));
+  const trailingZeroPersisted = await withClient(async (client) => client.query(
+    `SELECT l.quantity::text AS documented,m.quantity_matched::text AS matched,oi.quantity_invoiced::text AS invoiced
+       FROM public.invoice_items l
+       JOIN public.invoice_item_matches m ON m.invoice_item_id=l.id
+       JOIN public.authorized_order_items oi ON oi.id=m.order_item_id
+      WHERE l.id=$1`, [trailingZeroLineId],
+  ));
+  assert.deepEqual(trailingZeroPersisted.rows[0], { documented: "1.230000", matched: "1.230000", invoiced: "1.230000" });
+  checks.push("real PostgreSQL accepts equivalent trailing-zero input 1.230000 end-to-end and preserves the source, match and derived counter scales exactly");
+
+  const largeFraction = await withClient(async (client) => asActor(client, f.adminA, async () => {
+    await client.query(
+      "UPDATE public.authorized_order_items SET quantity=3000.0000,total_price=3000.00 WHERE id=$1",
+      [f.orderItemPrecision],
+    );
+    const result = await client.query(
+      "SELECT quantity::text,total_price::text,quantity_invoiced::text FROM public.authorized_order_items WHERE id=$1",
+      [f.orderItemPrecision],
+    );
+    await client.query(
+      "UPDATE public.authorized_order_items SET quantity=60.0000,total_price=60.00 WHERE id=$1",
+      [f.orderItemPrecision],
+    );
+    return result;
+  }));
+  assert.deepEqual(largeFraction.rows[0], { quantity: "3000.0000", total_price: "3000.00", quantity_invoiced: "0.00" });
+  checks.push("real PostgreSQL preserves 3000.0000 physical quantity and 3000.00 money scale, then restores the fixture before matching");
+
+  const exactMatch = await withClient((client) => asActor(client, f.adminA, async () => {
+    const created = await createMatchForLine(client, f, 5, precisionLineId, f.orderItemPrecision, "1.2345");
+    assert.equal(created.rows[0].result.ok, true);
+    const second = await createMatch(client, f, 6, f.orderItemPrecision, "0.0001");
+    assert.equal(second.rows[0].result.ok, true);
+    const correction = await client.query(
+      "SELECT public.correct_invoice_item($1,$2,$3,$4,$5,$6,$7) AS result",
+      [f.companyA, precisionLineId, "Ladrillo común", "1.2345", "un", "1.0000", "1.23"],
+    );
+    assert.equal(correction.rows[0].result.ok, true);
+    await assert.rejects(client.query(
+      "SELECT public.correct_invoice_item($1,$2,$3,$4,$5,$6,$7)",
+      [f.companyA, precisionLineId, "Ladrillo común", "1.23456", "un", "1.0000", "1.23"],
+    ), /4 decimales/i);
+    return client.query(
+      `SELECT oi.quantity::text AS ordered,oi.quantity_invoiced::text AS invoiced,
+              (SELECT sum(m.quantity_matched)::text FROM public.invoice_item_matches m WHERE m.order_item_id=oi.id) AS matched,
+              (SELECT sum(m.quantity_matched)::text FROM public.invoice_item_matches m WHERE m.invoice_item_id=$2) AS first_line_matched,
+              (SELECT (l.quantity-coalesce(sum(m.quantity_matched),0))::text
+                 FROM public.invoice_items l LEFT JOIN public.invoice_item_matches m ON m.invoice_item_id=l.id
+                WHERE l.id=$3 GROUP BY l.quantity) AS second_line_remaining
+         FROM public.authorized_order_items oi WHERE oi.id=$1`, [f.orderItemPrecision, precisionLineId, f.invoices[6].lineId],
+    );
+  }));
+  assert.deepEqual(exactMatch.rows[0], { ordered: "60.0000", invoiced: "1.2346", matched: "1.2346", first_line_matched: "1.2345", second_line_remaining: "799.9999" });
+  checks.push("real PostgreSQL preserves 60.0000, documents and matches 1.2345 exactly, keeps 799.9999 after a partial 0.0001 allocation, and rejects an over-scale correction atomically");
 
   const oneCent = await withClient((client) => asActor(client, f.adminA, () => createMatch(client, f, 5, f.orderItemPrecision, "0.01")));
   assert.equal(oneCent.rows[0].result.ok, true);
   await withClient(async (client) => asActor(client, f.adminA, async () => {
-    await assert.rejects(createMatch(client, f, 5, f.orderItemBadScale, "0.001"), /decimal|precisi|cent[eé]sima|redonde|mayor a cero/i);
+    await assert.rejects(createMatch(client, f, 5, f.orderItemBadScale, "0.00001"), /4 decimales/i);
     await assert.rejects(createMatch(client, f, 5, f.orderItemBadScale, "NaN"), /finito|num[eé]rico|cantidad/i);
     await assert.rejects(createMatch(client, f, 5, f.orderItemBadScale, "Infinity"), /finito|num[eé]rico|cantidad/i);
   }));
@@ -618,7 +703,7 @@ async function main() {
   assert.equal(workerAudit.rows[0].empresa_id, f.companyA);
   assert.equal(workerAudit.rows[0].actor_type, "system");
   assert.equal(workerAudit.rows[0].actor_label, "invoice-reconciliation-worker");
-  checks.push("exact 0.01 quantity accepted; 0.001, NaN, Infinity rejected; worker uses explicit tenant and attributed audit");
+  checks.push("exact 0.01 quantity accepted; fifth effective decimal, NaN and Infinity rejected; worker uses explicit tenant and attributed audit");
 
   // Atomic full deletion removes the invoice graph, item allocations, audit and exception rows together.
   await withClient((client) => asActor(client, f.adminA, () => createMatch(client, f, 7, f.orderItemDelete, "50")));
@@ -700,6 +785,42 @@ async function main() {
   const orderTotal = await withClient(async (client) => client.query("SELECT quantity_invoiced FROM public.authorized_order_items WHERE id=$1", [f.orderItemA]));
   assert.equal(Number(orderTotal.rows[0].quantity_invoiced), 800);
   checks.push("concurrent different-invoice allocation serializes at the order item and preserves the 1,000 cap");
+
+  const fractionalRace = await Promise.all([
+    withClient((client) => asActor(client, f.adminA, () => createMatch(client, f, 12, f.orderItemFractionalRace, "0.0001")))
+      .then((value) => ({ ok: true as const, value }), (error) => ({ ok: false as const, error })),
+    withClient((client) => asActor(client, f.adminA, () => createMatch(client, f, 13, f.orderItemFractionalRace, "0.0001")))
+      .then((value) => ({ ok: true as const, value }), (error) => ({ ok: false as const, error })),
+  ]);
+  assert.equal(fractionalRace.filter((result) => result.ok).length, 1);
+  assert.equal(fractionalRace.filter((result) => !result.ok).length, 1);
+  const fractionalRaceState = await withClient((client) => client.query(
+    `SELECT oi.quantity::text AS ordered,oi.quantity_invoiced::text AS invoiced,
+            coalesce(sum(m.quantity_matched),0)::text AS matched,count(m.id)::int AS matches
+       FROM public.authorized_order_items oi LEFT JOIN public.invoice_item_matches m ON m.order_item_id=oi.id
+      WHERE oi.id=$1 GROUP BY oi.id`, [f.orderItemFractionalRace],
+  ));
+  assert.deepEqual(fractionalRaceState.rows[0], { ordered: "0.0001", invoiced: "0.0001", matched: "0.0001", matches: 1 });
+  checks.push("two real PostgreSQL invoice sessions racing for the final 0.0001 OC remainder commit exactly one match and preserve the exact counter");
+
+  const fractionalLineRace = await Promise.all([
+    withClient((client) => asActor(client, f.adminA, () => createMatch(client, f, 14, f.orderItemFractionalLineRaceA, "0.0001")))
+      .then((value) => ({ ok: true as const, value }), (error) => ({ ok: false as const, error })),
+    withClient((client) => asActor(client, f.adminA, () => createMatch(client, f, 14, f.orderItemFractionalLineRaceB, "0.0001")))
+      .then((value) => ({ ok: true as const, value }), (error) => ({ ok: false as const, error })),
+  ]);
+  assert.equal(fractionalLineRace.filter((result) => result.ok).length, 1);
+  assert.equal(fractionalLineRace.filter((result) => !result.ok).length, 1);
+  const fractionalLineRaceState = await withClient((client) => client.query(
+    `SELECT l.quantity::text AS documented,
+            coalesce(sum(m.quantity_matched),0)::text AS matched,
+            (l.quantity-coalesce(sum(m.quantity_matched),0))::text AS remaining,
+            count(m.id)::int AS matches
+       FROM public.invoice_items l LEFT JOIN public.invoice_item_matches m ON m.invoice_item_id=l.id
+      WHERE l.id=$1 GROUP BY l.id`, [f.invoices[14].lineId],
+  ));
+  assert.deepEqual(fractionalLineRaceState.rows[0], { documented: "0.0001", matched: "0.0001", remaining: "0.0000", matches: 1 });
+  checks.push("two real PostgreSQL imputations racing for one documented 0.0001 quantity serialize at the source line; only one persists and the exact line remainder is zero");
 
   // Same request concurrently is idempotent and returns the same match id.
   const idem = await Promise.all([

@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { formatNumber } from "@/lib/format";
+import { compareInvoiceQuantitySum, formatInvoiceQuantity, subtractInvoiceQuantitySumExact, type PhysicalQuantity } from "@/lib/invoice-item-reconcile";
 import {
   addInvoiceItem,
   createInvoiceItemMatch,
@@ -17,20 +18,20 @@ import {
 export type InvoiceLineView = {
   id: string;
   product_description: string;
-  quantity: number | null;
+  quantity: PhysicalQuantity | null;
   unit: string | null;
   unit_price: number | null;
   subtotal: number | null;
-  matches: Array<{ id: string; orderItemId: string; orderCode: string; orderProduct: string; quantityMatched: number }>;
+  matches: Array<{ id: string; orderItemId: string; orderCode: string; orderProduct: string; quantityMatched: PhysicalQuantity }>;
 };
 
 export type OrderLineView = {
   id: string;
   code: string;
   product: string;
-  quantity: number;
+  quantity: PhysicalQuantity;
   unit: string;
-  quantity_invoiced: number;
+  quantity_invoiced: PhysicalQuantity;
 };
 
 function LineForm({
@@ -43,7 +44,7 @@ function LineForm({
   initial: { description: string; quantity: string; unit: string; unit_price: string };
   pending: boolean;
   error: string | null;
-  onSubmit: (values: { description: string; quantity: number | null; unit: string | null; unit_price: number | null }) => void;
+  onSubmit: (values: { description: string; quantity: string | null; unit: string | null; unit_price: number | null }) => void;
   submitLabel: string;
 }) {
   const formId = useId();
@@ -58,7 +59,7 @@ function LineForm({
         e.preventDefault();
         onSubmit({
           description,
-          quantity: quantity.trim() === "" ? null : Number(quantity),
+          quantity: quantity.trim() === "" ? null : quantity.trim(),
           unit: unit.trim() === "" ? null : unit.trim(),
           unit_price: unitPrice.trim() === "" ? null : Number(unitPrice),
         });
@@ -76,7 +77,7 @@ function LineForm({
       <div className="grid grid-cols-3 gap-2">
         <div>
           <Label htmlFor={`${formId}-quantity`}>Cantidad</Label>
-          <Input id={`${formId}-quantity`} type="number" step="any" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+          <Input id={`${formId}-quantity`} type="number" step="0.0001" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
         </div>
         <div>
           <Label htmlFor={`${formId}-unit`}>Unidad</Label>
@@ -186,12 +187,13 @@ export function InvoiceLinesSection({
           </thead>
           <tbody>
             {lines.map((line) => {
-              const matchedQty = line.matches.reduce((s, m) => s + Number(m.quantityMatched), 0);
-              const unmatched = line.quantity != null && matchedQty < Number(line.quantity);
+              const matchedQuantities = line.matches.map((match) => match.quantityMatched);
+              const unmatched = line.quantity != null && compareInvoiceQuantitySum(matchedQuantities, line.quantity) === -1;
+              const unmatchedQuantity = line.quantity != null ? subtractInvoiceQuantitySumExact(line.quantity, matchedQuantities) : null;
               return (
                 <tr key={line.id}>
                   <td className="font-medium">{line.product_description}</td>
-                  <td className="num">{line.quantity != null ? formatNumber(line.quantity, 2) : "—"}</td>
+                  <td className="num">{line.quantity != null ? formatInvoiceQuantity(line.quantity) : "—"}</td>
                   <td className="text-[var(--muted)]">{line.unit ?? "—"}</td>
                   <td className="num">{line.unit_price != null ? formatNumber(line.unit_price, 2) : "—"}</td>
                   <td>
@@ -202,7 +204,7 @@ export function InvoiceLinesSection({
                         {line.matches.map((m) => (
                           <div key={m.id} className="text-[11px] flex items-center gap-1.5">
                             <span>
-                              {formatNumber(m.quantityMatched, 2)} → {m.orderCode} ({m.orderProduct})
+                              {formatInvoiceQuantity(m.quantityMatched)} → {m.orderCode} ({m.orderProduct})
                             </span>
                             {canMutate ? (
                               <button
@@ -225,7 +227,7 @@ export function InvoiceLinesSection({
                         ))}
                         {unmatched ? (
                           <div className="text-[11px] text-[var(--muted)]">
-                            Resta {formatNumber(Number(line.quantity) - matchedQty, 2)} sin imputar
+                            Resta {formatInvoiceQuantity(unmatchedQuantity)} sin imputar
                           </div>
                         ) : null}
                       </div>
@@ -261,8 +263,8 @@ export function InvoiceLinesSection({
                                     </option>
                                     {orderLines.map((o) => (
                                       <option key={o.id} value={o.id}>
-                                        {o.code} · {o.product} ({formatNumber(o.quantity, 2)} {o.unit}; facturado{" "}
-                                        {formatNumber(o.quantity_invoiced, 2)})
+                                        {o.code} · {o.product} ({formatInvoiceQuantity(o.quantity)} {o.unit}; facturado{" "}
+                                        {formatInvoiceQuantity(o.quantity_invoiced)})
                                       </option>
                                     ))}
                                   </Select>
@@ -272,7 +274,7 @@ export function InvoiceLinesSection({
                                   <Input
                                     id={`match-quantity-${line.id}`}
                                     type="number"
-                                    step="any"
+                                    step="0.0001"
                                     value={matchQty}
                                     onChange={(e) => setMatchQty(e.target.value)}
                                   />
@@ -287,7 +289,7 @@ export function InvoiceLinesSection({
                                         invoiceId,
                                         invoiceItemId: line.id,
                                         orderItemId: matchOrderItem,
-                                        quantity: Number(matchQty),
+                                        quantity: matchQty.trim(),
                                       });
                                       setPending(false);
                                       if (result.error) {

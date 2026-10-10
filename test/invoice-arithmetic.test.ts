@@ -39,10 +39,41 @@ describe("prompts de extracción: null ante ilegible, sin estimación", () => {
 
   it("el schema permite total null", () => {
     expect(source).toContain('total: { type: ["number", "null"]');
+    expect(source).toContain('quantity: { type: ["string", "null"]');
   });
 });
 
 describe("validateInvoiceArithmetic", () => {
+  it("accepts four-decimal physical quantities and rejects a fifth effective decimal", () => {
+    const precise = validateInvoiceArithmetic({
+      ...base,
+      subtotal: 12_340,
+      vat: 0,
+      total: 12_340,
+      items: [{ description: "Cable", quantity: "0.1234", unit: "m", unit_price: 100_000, subtotal: 12_340 }],
+    });
+    expect(precise).toEqual({ status: "VALIDA", issues: [] });
+
+    const excessive = validateInvoiceArithmetic({
+      ...base,
+      subtotal: 123_456,
+      vat: 0,
+      total: 123_456,
+      items: [{ description: "Cable", quantity: "1.23456", unit: "m", unit_price: 100_000, subtotal: 123_456 }],
+    });
+    expect(excessive.status).toBe("REVISION");
+    expect(excessive.issues.join(" ")).toContain("cuatro decimales");
+  });
+
+  it("rejects the fifth decimal before JavaScript can erase it at the invoice limit", () => {
+    const result = validateInvoiceArithmetic({
+      ...base,
+      items: [{ description: "Cable", quantity: "999999999999.00001", unit: "m", unit_price: 0, subtotal: 0 }],
+    });
+    expect(result.status).toBe("REVISION");
+    expect(result.issues.join(" ")).toContain("cuatro decimales");
+  });
+
   it("acepta extracción válida (60 × 68000 = 4080000; 3709091 + 370909 = 4080000)", () => {
     expect(validateInvoiceArithmetic(base)).toEqual({ status: "VALIDA", issues: [] });
   });

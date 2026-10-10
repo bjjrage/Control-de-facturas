@@ -3,21 +3,49 @@
 ## Scope and compatibility
 
 The application and bulk worker use the same PostgreSQL reconciliation boundary.
-`20261010040051_invoice_item_match_integrity.sql` installs create, correct, delete
-and unmatch RPCs, source guards, and restricted table privileges.
-`20261010043627_atomic_invoice_job_creation_and_attachment_cleanup.sql` adds
-atomic job ingestion and restricts physical attachment cleanup to owned paths. No historical
-rows are repaired or removed by installation. The old pending SQL is historical
-design material and must not be installed separately.
-`20261010045001_reject_source_numeric_rounding.sql` removes numeric typmods from
-editable source quantities/prices and replaces them with explicit scale/range
-constraints, preserving the former numeric limits while rejecting excess
-decimals before rounding. It also protects monotonic job attempts and invoice
-checkpoints and denies job truncation. Source numeric text may omit trailing
-zeroes; financial values and the derived order counter remain unchanged.
-The source-type migration takes exclusive locks and preserves the original
-column-trigger definitions and enable modes, including the confirmed-receipt
-quantity guard. Release maintenance must remain active until it commits.
+`20261010040050_reject_source_numeric_rounding.sql` first removes numeric typmods from
+editable invoice/order quantities and prices, item-match quantities, and the
+derived `quantity_invoiced` counter. It replaces them with explicit finite,
+range, and exact-value checks. Physical quantities retain up to four decimal
+places end to end (`authorized_order_items.quantity` → `invoice_items.quantity`
+→ `invoice_item_matches.quantity_matched` → `quantity_invoiced`). A value passes
+when it equals its four-decimal representation, so insignificant trailing zeroes
+remain valid; a value such as `1.23456` is rejected before storage, never rounded.
+The nine production order quantities that blocked the earlier preflight contain
+only trailing zeroes and therefore pass the corrected predicate without any row
+update. Existing source ranges remain: `< 10^14` for order quantity/counter and
+`< 10^12` for invoice-line/match quantity.
+
+This four-decimal contract is limited to invoice reconciliation quantities.
+Receipt lines retain their existing `numeric(18,2)` storage and inventory movement
+rules; this release does not alter receipt acceptance or stock valuation. Order
+and invoiced quantities in the order detail and receipt summary are nevertheless
+read/formatted exactly, so a fractional remainder is not displayed as complete.
+
+At the application boundary, OCR and editable quantity fields retain decimal
+text; the extraction schema asks for a string such as `"1.2345"`. The shared
+validator parses it into scaled `BigInt` units without passing through
+`Number`. Reconciliation reads physical numeric columns as PostgREST `::text`
+and compares sums/remnants as integers. The semantic matcher selects products
+only; the match quantity always comes from the documented invoice-line value.
+The UI formats and submits the exact decimal text. Prices, subtotals, taxes and
+invoice totals keep their existing monetary parsing and precision policy.
+
+This schema migration deliberately precedes `20261010040051_invoice_item_match_integrity.sql`,
+which installs create, correct, delete and unmatch RPCs, source guards, and
+restricted table privileges. Therefore no four-decimal writer is exposed while
+the old two-decimal typmods remain. `20261010043627_atomic_invoice_job_creation_and_attachment_cleanup.sql`
+adds atomic job ingestion and restricts physical attachment cleanup to owned
+paths. No historical rows are repaired or removed by installation. The old
+pending SQL is historical design material and must not be installed separately.
+
+Unit prices remain limited to four decimals and their existing range; subtotals,
+order totals, IVA, and other monetary values retain their existing two-decimal
+rules and ranges. The migration also protects monotonic job attempts and invoice
+checkpoints and denies job truncation. It locks all three quantity source tables
+and preserves their original column-trigger definitions and enable modes,
+including the confirmed-receipt quantity guard. Release maintenance must remain
+active until it commits.
 
 This is a coordinated application/worker/database release. The former application
 at `a56c787` uses direct writes that the new database intentionally rejects. An
@@ -78,12 +106,17 @@ as executed tests.
    Migration files commit separately. Record which of the three R3 versions
    actually committed; a failed later file does not undo earlier files. Keep
    maintenance active whenever the first R3 boundary is already installed.
+   Apply the numeric widening migration (`40050`) before the RPC migration
+   (`40051`) and the job-ingestion migration (`43627`); do not reorder them.
 4. Deploy the matching app and worker artifacts while writers remain stopped.
    Confirm the seven financial RPC signatures exist, anonymous EXECUTE is denied, and raw
    item-match writes and truncation remain denied. Refresh the PostgREST schema
    cache through the normal migration/reload mechanism if needed.
-5. In an authorized QA tenant, verify a 2,500-unit invoice against a 3,000-unit OC
-   reports 2,500 invoiced and 500 remaining. Repeat the same request and confirm
+5. In an authorized QA tenant, verify a `1.2345`-unit invoice against a `60.0000`
+   unit OC displays and persists the documented, matched, invoiced, and remaining
+   quantities exactly. Verify `1.23456` is rejected without a row write. Also
+   verify a 2,500-unit invoice against a 3,000-unit OC reports 2,500 invoiced and
+   500 remaining. Repeat the same request and confirm
    no extra quantity or audit mutation. Correct without changing the line ID;
    a reduction below its allocations must fail with the original line and matches
    intact. Unmatch must remove both the header link and allocations together.
@@ -121,7 +154,9 @@ worker as a writer. That would reopen the races this release closes.
   worker stopped. Retain the installed schema and all rows. Redeploy the last
   certified artifact that uses these RPC adapters, or prepare a forward fix on
   top of this release. The old application can serve read-only pages only while
-  invoice writes remain disabled.
+  invoice writes remain disabled. Retain the widened numeric quantity columns;
+  never cast them back to scale two because that could silently change stored
+  quantities.
 - After reopening writers: stop and drain writers again before changing the app.
   Keep all committed invoices, matches, job references and audit rows. Revert an
   application/UI regression only to an artifact that retains the RPC adapters;

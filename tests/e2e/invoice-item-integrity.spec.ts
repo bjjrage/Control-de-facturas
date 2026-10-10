@@ -30,13 +30,13 @@ test.beforeAll(async () => {
   const provider = (await db.query("INSERT INTO public.providers(empresa_id,name) VALUES($1,'R3 Supplier') RETURNING id", [ids.empresa])).rows[0].id;
   await db.query(`INSERT INTO public.authorized_orders(id,empresa_id,provider_id,code,provider_name,product,quantity,unit,
       unit_price,total_price,currency,vat_included,authorized_by,created_from)
-    VALUES($1,$2,$3,'R3-E2E-OC','R3 Supplier','Ladrillo comun',3000,'un',1400,4200000,'PYG',true,$4,'invoice')`, [ids.order, ids.empresa, provider, userId]);
+    VALUES($1,$2,$3,'R3-E2E-OC','R3 Supplier','Ladrillo comun',60.0000,'un',1400,84000,'PYG',true,$4,'invoice')`, [ids.order, ids.empresa, provider, userId]);
   await db.query(`INSERT INTO public.authorized_order_items(id,order_id,empresa_id,product,quantity,unit,unit_price,total_price)
-    VALUES($1,$2,$3,'Ladrillo comun',3000,'un',1400,4200000)`, [ids.orderLine, ids.order, ids.empresa]);
+    VALUES($1,$2,$3,'Ladrillo comun',60.0000,'un',1400,84000)`, [ids.orderLine, ids.order, ids.empresa]);
   await db.query(`INSERT INTO public.invoices(id,empresa_id,provider_id,invoice_number,invoice_date,total,currency,created_by)
-    VALUES($1,$2,$3,'R3-E2E-001',CURRENT_DATE,3500000,'PYG',$4)`, [ids.invoice, ids.empresa, provider, userId]);
+    VALUES($1,$2,$3,'R3-E2E-001',CURRENT_DATE,1728.30,'PYG',$4)`, [ids.invoice, ids.empresa, provider, userId]);
   await db.query(`INSERT INTO public.invoice_items(id,invoice_id,empresa_id,product_description,quantity,unit,unit_price,subtotal)
-    VALUES($1,$2,$3,'Ladrillo comun',2500,'un',1400,3500000)`, [ids.line, ids.invoice, ids.empresa]);
+    VALUES($1,$2,$3,'Ladrillo comun',1.2345,'un',1400,1728.30)`, [ids.line, ids.invoice, ids.empresa]);
   await db.query("INSERT INTO public.invoice_order_matches(invoice_id,authorized_order_id,empresa_id) VALUES($1,$2,$3)", [ids.invoice, ids.order, ids.empresa]);
 });
 
@@ -63,14 +63,21 @@ test("browser actions preserve quantities, roll back invalid corrections and unl
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("combobox", { name: "Ítem de OC" }).click();
     await page.getByRole("option", { name: /Ladrillo comun/ }).click();
-    await dialog.getByLabel("Cantidad imputada", { exact: true }).fill("2500");
+    await dialog.getByLabel("Cantidad imputada", { exact: true }).fill("1.0000");
     await dialog.getByRole("button", { name: "Confirmar imputación", exact: true }).click();
     await expect(dialog).not.toBeVisible();
-    await expect.poll(async () => (await quantities()).invoiced).toBe(2500);
+    await expect.poll(async () => (await quantities()).invoiced).toBe(1);
     await expect(page.getByRole("button", { name: /^Quitar imputación / })).toBeVisible();
   };
   await impute();
-  expect(await quantities()).toMatchObject({ documented: 2500, matches: 1 });
+  expect(await quantities()).toMatchObject({ documented: 1.2345, matches: 1 });
+  await expect(page.getByText("1,2345", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/Resta\s+0,2345\s+sin imputar/)).toBeVisible();
+  await page.getByRole("button", { name: "Imputar", exact: true }).click();
+  const precisionDialog = page.getByRole("dialog");
+  await precisionDialog.getByRole("combobox", { name: "Ítem de OC" }).click();
+  await expect(page.locator("option").filter({ hasText: /60,0000.*facturado\s+1,0000/ })).toHaveCount(1);
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: /^Quitar imputación / }).click();
   await expect.poll(async () => (await quantities()).matches).toBe(0);
   expect((await quantities()).invoiced).toBe(0);
@@ -78,10 +85,10 @@ test("browser actions preserve quantities, roll back invalid corrections and unl
 
   await page.getByRole("button", { name: "Corregir", exact: true }).click();
   let dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Cantidad", { exact: true }).fill("2000");
+  await dialog.getByLabel("Cantidad", { exact: true }).fill("0.5000");
   await dialog.getByRole("button", { name: "Guardar corrección", exact: true }).click();
   await expect(dialog.getByText(/sobre.imputada|quitá imputaciones/)).toBeVisible();
-  expect(await quantities()).toMatchObject({ documented: 2500, invoiced: 2500, matches: 1 });
+  expect(await quantities()).toMatchObject({ documented: 1.2345, invoiced: 1, matches: 1 });
   await page.keyboard.press("Escape");
   await page.reload();
 
@@ -91,7 +98,7 @@ test("browser actions preserve quantities, roll back invalid corrections and unl
   await dialog.getByLabel("Unidad", { exact: true }).fill("kg");
   await dialog.getByRole("button", { name: "Guardar corrección", exact: true }).click();
   await expect.poll(async () => (await quantities()).matches).toBe(0);
-  expect(await quantities()).toMatchObject({ unit: "kg", invoiced: 0, documented: 2500 });
+  expect(await quantities()).toMatchObject({ unit: "kg", invoiced: 0, documented: 1.2345 });
   await page.keyboard.press("Escape");
   await page.reload();
   await expect(page.getByText("Sin conciliar", { exact: true })).toBeVisible();

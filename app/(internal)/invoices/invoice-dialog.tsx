@@ -437,9 +437,9 @@ export function InvoiceDialog({
                     <Input
                       aria-label={`Cantidad línea ${i + 1}`}
                       type="number"
-                      step="any"
+                      step="0.0001"
                       value={line.quantity ?? ""}
-                      onChange={(e) => setLines((prev) => prev.map((l, j) => (j === i ? { ...l, quantity: e.target.value === "" ? null : Number(e.target.value) } : l)))}
+                      onChange={(e) => setLines((prev) => prev.map((l, j) => (j === i ? { ...l, quantity: e.target.value === "" ? null : e.target.value } : l)))}
                     />
                     <Input
                       aria-label={`Unidad línea ${i + 1}`}

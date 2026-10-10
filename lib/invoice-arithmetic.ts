@@ -10,6 +10,7 @@
  */
 
 import type { ExtractedInvoiceFields, ExtractedInvoiceItem } from "./invoice-extraction";
+import { INVOICE_QUANTITY_ERROR, isValidInvoiceQuantity } from "./invoice-item-reconcile";
 
 export type ArithmeticStatus = "VALIDA" | "REVISION";
 
@@ -30,15 +31,19 @@ function closeEnough(a: number, b: number): boolean {
 
 export function validateInvoiceLine(item: ExtractedInvoiceItem, index: number): string[] {
   const issues: string[] = [];
-  const qty = num(item.quantity);
+  const quantityValid = item.quantity === null || isValidInvoiceQuantity(item.quantity);
+  const qty = quantityValid && item.quantity !== null ? Number(item.quantity) : null;
   const pu = num(item.unit_price);
   const sub = num(item.subtotal);
+  if (item.quantity !== null && !quantityValid) {
+    issues.push(`Línea ${index + 1} ("${item.description}"): ${INVOICE_QUANTITY_ERROR}`);
+  }
   if (qty !== null && pu !== null && sub !== null) {
     if (!closeEnough(qty * pu, sub)) {
       issues.push(`Línea ${index + 1} ("${item.description}"): ${qty} × ${pu} = ${qty * pu}, pero el documento indica ${sub}.`);
     }
   }
-  if (qty !== null && qty <= 0) issues.push(`Línea ${index + 1} ("${item.description}"): cantidad no positiva.`);
+  if (qty !== null && (!Number.isFinite(qty) || qty <= 0) && quantityValid) issues.push(`Línea ${index + 1} ("${item.description}"): cantidad no positiva.`);
   if (pu !== null && pu < 0) issues.push(`Línea ${index + 1} ("${item.description}"): precio unitario negativo.`);
   if (sub !== null && sub < 0) issues.push(`Línea ${index + 1} ("${item.description}"): subtotal negativo.`);
   return issues;

@@ -309,10 +309,10 @@ BEGIN
     RAISE EXCEPTION 'Quite la imputación por producto único antes de agregar otra línea a la factura';
   END IF;
   IF TG_OP <> 'DELETE' AND (
-      (NEW.quantity IS NOT NULL AND NEW.quantity <> round(NEW.quantity,2))
+      (NEW.quantity IS NOT NULL AND NEW.quantity <> round(NEW.quantity,4))
       OR (NEW.unit_price IS NOT NULL AND NEW.unit_price <> round(NEW.unit_price,4))
       OR (NEW.subtotal IS NOT NULL AND NEW.subtotal <> round(NEW.subtotal,2))) THEN
-    RAISE EXCEPTION 'La cantidad admite hasta 2 decimales, el precio 4 y el subtotal 2';
+    RAISE EXCEPTION 'La cantidad admite hasta 4 decimales, el precio 4 y el subtotal 2';
   END IF;
   IF TG_OP='DELETE' THEN RETURN OLD; END IF;
   RETURN NEW;
@@ -498,12 +498,12 @@ BEGIN
   -- 0. Actor y tenant (gate B11 canónico; service_role = worker con empresa explícita).
   PERFORM private.b11_require_financial_actor(p_empresa_id);
 
-  IF p_quantity IS NULL OR p_quantity <= 0
+  IF p_quantity IS NULL OR p_quantity <= 0 OR p_quantity >= 1000000000000::numeric
      OR p_quantity IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric) THEN
     RAISE EXCEPTION 'La cantidad imputada debe ser mayor a cero';
   END IF;
-  IF p_quantity <> round(p_quantity,2) THEN
-    RAISE EXCEPTION 'La cantidad imputada admite hasta 2 decimales';
+  IF p_quantity <> round(p_quantity,4) THEN
+    RAISE EXCEPTION 'La cantidad imputada admite hasta 4 decimales';
   END IF;
 
   -- 1. Lock factura (orden #1): empresa + estado DESPUÉS del lock.
@@ -673,7 +673,7 @@ BEGIN
   IF v_new_desc = '' OR char_length(v_new_desc) > 500 THEN
     RAISE EXCEPTION 'La línea necesita una descripción válida';
   END IF;
-  IF p_quantity IS NOT NULL AND p_quantity <= 0 THEN
+  IF p_quantity IS NOT NULL AND (p_quantity <= 0 OR p_quantity >= 1000000000000::numeric) THEN
     RAISE EXCEPTION 'La cantidad de la línea debe ser mayor a cero';
   END IF;
   IF p_quantity IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric)
@@ -681,10 +681,10 @@ BEGIN
      OR p_subtotal IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric) THEN
     RAISE EXCEPTION 'La cantidad y los importes deben ser valores numéricos finitos';
   END IF;
-  IF (p_quantity IS NOT NULL AND p_quantity <> round(p_quantity,2))
+  IF (p_quantity IS NOT NULL AND p_quantity <> round(p_quantity,4))
      OR (p_unit_price IS NOT NULL AND p_unit_price <> round(p_unit_price,4))
      OR (p_subtotal IS NOT NULL AND p_subtotal <> round(p_subtotal,2)) THEN
-    RAISE EXCEPTION 'La cantidad admite hasta 2 decimales, el precio 4 y el subtotal 2';
+    RAISE EXCEPTION 'La cantidad admite hasta 4 decimales, el precio 4 y el subtotal 2';
   END IF;
   v_new_unit := NULLIF(btrim(COALESCE(p_unit, '')), '');
   IF v_new_unit IS NOT NULL AND char_length(v_new_unit) > 60 THEN

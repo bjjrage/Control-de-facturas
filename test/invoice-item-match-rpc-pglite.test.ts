@@ -3,9 +3,9 @@
  * sobre PGlite (WASM, efímero). El lock/concurrency verdict viene solo de
  * scripts/test-invoice-item-match-postgres.ts contra PostgreSQL 17 real.
  *
- * Migraciones: 20261010040051_invoice_item_match_integrity.sql,
- * 20261010043627_atomic_invoice_job_creation_and_attachment_cleanup.sql y
- * 20261010045001_reject_source_numeric_rounding.sql.
+ * Migraciones: 20261010040050_reject_source_numeric_rounding.sql,
+ * 20261010040051_invoice_item_match_integrity.sql y
+ * 20261010043627_atomic_invoice_job_creation_and_attachment_cleanup.sql.
  *
  * ALCANCE: invariantes secuenciales (documental / OC / relacional),
  * idempotencia, aislamiento multitenant, freeze por estado, rollback ante
@@ -122,14 +122,14 @@ beforeAll(async () => {
     CREATE TABLE public.invoice_exceptions (invoice_id uuid NOT NULL, empresa_id uuid NOT NULL);
     CREATE TABLE public.invoices (id uuid PRIMARY KEY, empresa_id uuid NOT NULL, status public.invoice_status NOT NULL DEFAULT 'PENDIENTE', provider_id uuid, invoice_number text, invoice_date date, currency public.currency_code, subtotal numeric, vat numeric, total numeric, timbrado text, attachment_id uuid, created_by uuid);
     CREATE TABLE public.invoice_items (id uuid PRIMARY KEY, invoice_id uuid NOT NULL REFERENCES public.invoices(id) ON DELETE CASCADE, empresa_id uuid NOT NULL, product_description text NOT NULL, quantity numeric(14,2), unit text, unit_price numeric(14,4), subtotal numeric(14,2), sort_order integer DEFAULT 0 NOT NULL);
-    CREATE TABLE public.authorized_order_items (id uuid PRIMARY KEY, order_id uuid NOT NULL REFERENCES public.authorized_orders(id), empresa_id uuid NOT NULL, product text NOT NULL, quantity numeric(14,2) NOT NULL CHECK (quantity>0), unit text NOT NULL, unit_price numeric(14,4) NOT NULL CHECK (unit_price>=0), total_price numeric(14,2) NOT NULL CHECK (total_price>0), quantity_invoiced numeric(14,2) NOT NULL DEFAULT 0, sort_order integer DEFAULT 0 NOT NULL);
+    CREATE TABLE public.authorized_order_items (id uuid PRIMARY KEY, order_id uuid NOT NULL REFERENCES public.authorized_orders(id), empresa_id uuid NOT NULL, product text NOT NULL, quantity numeric(18,4) NOT NULL CHECK (quantity>0), unit text NOT NULL, unit_price numeric(14,4) NOT NULL CHECK (unit_price>=0), total_price numeric(14,2) NOT NULL CHECK (total_price>0), quantity_invoiced numeric(14,2) NOT NULL DEFAULT 0, sort_order integer DEFAULT 0 NOT NULL);
     CREATE OR REPLACE FUNCTION public.test_receipt_quantity_guard() RETURNS trigger
     LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'receipt quantity guard preserved'; END $$;
     CREATE TRIGGER trg_prevent_order_quantity_below_confirmed_receipts
       BEFORE UPDATE OF quantity ON public.authorized_order_items
       FOR EACH ROW EXECUTE FUNCTION public.test_receipt_quantity_guard();
     CREATE TABLE public.invoice_order_matches (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), invoice_id uuid NOT NULL UNIQUE REFERENCES public.invoices(id) ON DELETE CASCADE, authorized_order_id uuid NOT NULL REFERENCES public.authorized_orders(id), empresa_id uuid NOT NULL);
-    CREATE TABLE public.invoice_item_matches (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), invoice_item_id uuid NOT NULL REFERENCES public.invoice_items(id) ON DELETE CASCADE, order_item_id uuid NOT NULL REFERENCES public.authorized_order_items(id), empresa_id uuid NOT NULL, quantity_matched numeric NOT NULL, CONSTRAINT m_qty CHECK (quantity_matched > 0));
+    CREATE TABLE public.invoice_item_matches (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), invoice_item_id uuid NOT NULL REFERENCES public.invoice_items(id) ON DELETE CASCADE, order_item_id uuid NOT NULL REFERENCES public.authorized_order_items(id), empresa_id uuid NOT NULL, quantity_matched numeric(14,2) NOT NULL, CONSTRAINT m_qty CHECK (quantity_matched > 0));
     CREATE TABLE public.audit_logs (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), empresa_id uuid, actor_id uuid, actor_type text NOT NULL, actor_label text, action text NOT NULL, rfq_id uuid, rfq_provider_id uuid, invoice_id uuid, authorized_order_id uuid, detail jsonb);
     CREATE TABLE public.invoice_jobs (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), empresa_id uuid NOT NULL, created_by uuid NOT NULL, storage_bucket text NOT NULL DEFAULT 'invoice-files', storage_path text NOT NULL, file_name text NOT NULL, mime_type text NOT NULL, batch_date date NOT NULL DEFAULT current_date, status public.invoice_job_status NOT NULL DEFAULT 'queued', attempts integer NOT NULL DEFAULT 0, extracted jsonb, provider_id uuid, invoice_id uuid, outcome text, message text, error text, locked_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
     CREATE OR REPLACE FUNCTION public.test_recompute_invoice_status(p_invoice_id uuid) RETURNS void
@@ -146,6 +146,14 @@ beforeAll(async () => {
     CREATE TRIGGER trg_iom_recompute AFTER INSERT OR DELETE OR UPDATE ON public.invoice_order_matches
       FOR EACH ROW EXECUTE FUNCTION public.test_recompute_on_iom_change();
   `);
+  const legacyOrderItemIds = Array.from({ length: 9 }, (_, index) => `90000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`);
+  await db.query("INSERT INTO public.authorized_orders(id,empresa_id) VALUES($1,$2)", [OC, A]);
+  for (const id of legacyOrderItemIds) {
+    await db.query(
+      `INSERT INTO public.authorized_order_items(id,order_id,empresa_id,product,quantity,unit,unit_price,total_price,quantity_invoiced)
+       VALUES($1,$2,$3,'Legacy trailing zeroes',60.0000,'un',0,1,0.00)`, [id, OC, A],
+    );
+  }
   // Gate B11 + auditoría + trigger canónico (copias del schema real).
   await db.exec(`
     CREATE OR REPLACE FUNCTION public.current_empresa_id() RETURNS uuid
@@ -186,9 +194,9 @@ beforeAll(async () => {
   `);
   // Migración bajo prueba (byte-idéntica salvo GRANT/REVOKE/OWNER/EXTENSION).
   const migrationPaths = [
+    "../supabase/migrations/20261010040050_reject_source_numeric_rounding.sql",
     "../supabase/migrations/20261010040051_invoice_item_match_integrity.sql",
     "../supabase/migrations/20261010043627_atomic_invoice_job_creation_and_attachment_cleanup.sql",
-    "../supabase/migrations/20261010045001_reject_source_numeric_rounding.sql",
   ];
   let skippingEnvironmentStatement = false;
   const sql = migrationPaths.map((path) => readFileSync(new URL(path, import.meta.url), "utf8")
@@ -207,6 +215,13 @@ beforeAll(async () => {
     .join("\n"))
     .join("\n");
   await db.exec(sql);
+  const legacyRows = await db.query(
+    "SELECT count(*)::int AS n, bool_and(quantity::text='60.0000') AS exact, bool_and(quantity_invoiced=0) AS counter_unchanged FROM public.authorized_order_items WHERE id=ANY($1::uuid[])",
+    [legacyOrderItemIds],
+  );
+  expect(legacyRows.rows[0]).toEqual({ n: 9, exact: true, counter_unchanged: true });
+  await db.query("DELETE FROM public.authorized_order_items WHERE id=ANY($1::uuid[])", [legacyOrderItemIds]);
+  await db.query("DELETE FROM public.authorized_orders WHERE id=$1", [OC]);
 }, T.timeout);
 
 beforeEach(async () => {
@@ -243,20 +258,20 @@ describe("precisión de columnas fuente sin redondeo implícito", () => {
     // para que el trigger/CHECK reciba el valor original, antes del redondeo.
     await throwsWith(db.exec(`INSERT INTO public.invoice_items
       (id,invoice_id,empresa_id,product_description,quantity,unit,unit_price,subtotal)
-      VALUES ('10000000-0000-4000-8000-000000000001','${INV}','${A}','Exceso cantidad',1.236,'un',1,1)`),
-      "La cantidad admite hasta 2 decimales");
+      VALUES ('10000000-0000-4000-8000-000000000001','${INV}','${A}','Exceso cantidad',1.23456,'un',1,1)`),
+      "La cantidad admite hasta 4 decimales");
     await throwsWith(db.exec(`INSERT INTO public.invoice_items
       (id,invoice_id,empresa_id,product_description,quantity,unit,unit_price,subtotal)
       VALUES ('10000000-0000-4000-8000-000000000002','${INV}','${A}','Exceso precio',1,'un',1.00001,1)`),
-      "La cantidad admite hasta 2 decimales");
+      "La cantidad admite hasta 4 decimales");
     await throwsWith(db.exec(`INSERT INTO public.invoice_items
       (id,invoice_id,empresa_id,product_description,quantity,unit,unit_price,subtotal)
       VALUES ('10000000-0000-4000-8000-000000000003','${INV}','${A}','Exceso subtotal',1,'un',1,1.001)`),
-      "La cantidad admite hasta 2 decimales");
+      "La cantidad admite hasta 4 decimales");
 
     await throwsWith(db.exec(`INSERT INTO public.authorized_order_items
       (id,order_id,empresa_id,product,quantity,unit,unit_price,total_price)
-      VALUES ('10000000-0000-4000-8000-000000000004','${OC}','${A}','Exceso cantidad',1.236,'un',0,1)`),
+      VALUES ('10000000-0000-4000-8000-000000000004','${OC}','${A}','Exceso cantidad',1.23456,'un',0,1)`),
       "r3_aoi_quantity_precision_check");
     await throwsWith(db.exec(`INSERT INTO public.authorized_order_items
       (id,order_id,empresa_id,product,quantity,unit,unit_price,total_price)
@@ -289,6 +304,38 @@ describe("precisión de columnas fuente sin redondeo implícito", () => {
 });
 
 describe("create_invoice_item_match (H2 funcional)", () => {
+  it("preserva cuatro decimales de OC a línea, imputación y contador", T, async () => {
+    const preciseLine = "10000000-0000-4000-8000-000000000021";
+    const preciseOrderItem = "10000000-0000-4000-8000-000000000022";
+    await db.exec(`INSERT INTO public.invoice_items
+      (id,invoice_id,empresa_id,product_description,quantity,unit,unit_price,subtotal)
+      VALUES ('${preciseLine}','${INV}','${A}','Ladrillo común',1.2345,'un',1.0000,1.23)`);
+    await db.exec(`INSERT INTO public.authorized_order_items
+      (id,order_id,empresa_id,product,quantity,unit,unit_price,total_price)
+      VALUES ('${preciseOrderItem}','${OC}','${A}','Ladrillo común',60.0000,'un',1,60)`);
+    const created = await callCreate(A, INV, preciseLine, preciseOrderItem, 1.2345);
+    expect((created.rows[0] as { r: { ok: boolean } }).r.ok).toBe(true);
+    const exact = await db.query(
+      `SELECT l.quantity::text AS documented,m.quantity_matched::text AS matched,oi.quantity_invoiced::text AS invoiced,oi.quantity::text AS ordered
+         FROM public.invoice_items l JOIN public.invoice_item_matches m ON m.invoice_item_id=l.id
+         JOIN public.authorized_order_items oi ON oi.id=m.order_item_id WHERE l.id=$1`, [preciseLine],
+    );
+    expect(exact.rows[0]).toEqual({ documented: "1.2345", matched: "1.2345", invoiced: "1.2345", ordered: "60.0000" });
+    const matchId = ((await db.query("SELECT id FROM public.invoice_item_matches WHERE invoice_item_id=$1", [preciseLine])).rows[0] as { id: string }).id;
+    const corrected = await callCorrect(A, preciseLine, "Ladrillo común", 1.2345, "un", 1, 1.23);
+    expect((corrected.rows[0] as { r: { ok: boolean; matches_kept: number } }).r).toMatchObject({ ok: true, matches_kept: 1 });
+    await throwsWith(callCorrect(A, preciseLine, "Ladrillo común", 1.23456, "un", 1, 1.23), "4 decimales");
+    const afterCorrection = await db.query(
+      `SELECT l.quantity::text AS documented,m.quantity_matched::text AS matched,oi.quantity_invoiced::text AS invoiced,m.id
+         FROM public.invoice_items l JOIN public.invoice_item_matches m ON m.invoice_item_id=l.id
+         JOIN public.authorized_order_items oi ON oi.id=m.order_item_id WHERE l.id=$1`, [preciseLine],
+    );
+    expect(afterCorrection.rows[0]).toEqual({ documented: "1.2345", matched: "1.2345", invoiced: "1.2345", id: matchId });
+    await throwsWith(callCreate(A, INV, IL2, preciseOrderItem, 1.23456), "4 decimales");
+    const count = await db.query("SELECT count(*)::int AS n FROM public.invoice_item_matches WHERE order_item_id=$1", [preciseOrderItem]);
+    expect((count.rows[0] as { n: number }).n).toBe(1);
+  });
+
   it("caso válido: inserta, el trigger recalcula y audita", T, async () => {
     const r = await callCreate(A, INV, IL1, OL1, 2500);
     const out = (r.rows[0] as { r: { ok: boolean; match_id: string; duplicate: boolean } }).r;
