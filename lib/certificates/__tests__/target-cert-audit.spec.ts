@@ -1,34 +1,39 @@
-import fs from "node:fs";
-import path from "node:path";
 import * as XLSX from "xlsx";
 import { describe, expect, it } from "vitest";
 import { parseWorkbook } from "@/lib/workbook-interpretation/parser";
 import { reconcileImportPlan } from "@/lib/workbook-interpretation/import-plan";
 import { extractCertificateWorkbookData, matchCertificateRows, type CertificateBudgetItem } from "@/lib/certificates/workbook-import";
-import { buildCanonicalImportCandidate } from "@/lib/workbook-interpretation/canonical-import";
 
-const filePath = path.join(process.env.USERPROFILE ?? "", "Downloads", "P05 - ID14 - SIPP 3458 - CERTIFICADO Nro. 6.-(2).xlsx");
-
-describe("target certificate workbook audit", () => {
-  it("audits parser, certificate extraction and matching against golden budget", () => {
-    expect(fs.existsSync(filePath)).toBe(true);
-    const bytes = fs.readFileSync(filePath);
-    const workbook = parseWorkbook(new Uint8Array(bytes), path.basename(filePath));
-
-    const candidates = workbook.sheets.flatMap((sheet) =>
-      sheet.blocks.map((block) => ({ ...block, sheetName: sheet.sheetName, sheetIndex: sheet.sheetIndex }))
-    );
-    for (const c of candidates) {
-      const sheet = workbook.sheets.find((s) => s.sheetName === c.sheetName);
-      const sampleCells = sheet?.cells.filter((cell) => cell.row >= c.rowStart && cell.row <= Math.min(c.rowEnd, c.rowStart + 25)) ?? [];
-      const text = (c.sheetName + " " + (c.title ?? "") + " " + c.candidateHeaders.join(" ") + " " + sampleCells.map((cell) => String(cell.raw ?? cell.formatted ?? "")).join(" "))
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9%]+/g, " ").trim();
-      let score = (/(certificado|contractual|presente|acumulado)/.test(text) ? 4 : 0)
-        + (/codigo|cod|^item\b|\bitem\b/.test(text) ? 1 : 0)
-        + (/descripcion|descrip|rubro|partida/.test(text) ? 1 : 0);
-      if (/^certificado/i.test(c.sheetName)) score += 5; // Sheet explicitly named CERTIFICADO
-      console.log(`Sheet "${c.sheetName}" Block ${c.id}: score=${score}`);
+describe("certificate workbook import audit", () => {
+  it("parses, infers, extracts and matches all 53 certificate rows reproducibly", () => {
+    const baseRows: Array<Array<string | number>> = [
+      ["COD", "RUBRO", "UND", "CANT", "P.U."],
+    ];
+    const certificateRows: Array<Array<string | number | null>> = [
+      ["CERTIFICADO Nro. 6 - Auditoria reproducible", null, null, null, null, null, null, null],
+      ["Periodo: desde 01/01/2026 hasta 31/01/2026", null, null, null, null, null, null, null],
+      ["COD", "RUBRO", "UND", "CONTRACTUAL", "ANTERIOR", "PRESENTE", "ACUMULADO", "P.U."],
+    ];
+    for (let index = 1; index <= 53; index++) {
+      const code = String(index);
+      const description = `Rubro de prueba ${index}`;
+      const unit = index % 2 === 0 ? "m2" : "gl";
+      const quantity = index * 2;
+      const previous = index;
+      const current = index;
+      const price = index * 100;
+      baseRows.push([code, description, unit, quantity, price]);
+      certificateRows.push([code, description, unit, quantity, previous, current, previous + current, price]);
     }
+
+    const bytes = XLSX.write({
+      SheetNames: ["base", "CERTIFICADO"],
+      Sheets: {
+        base: XLSX.utils.aoa_to_sheet(baseRows),
+        CERTIFICADO: XLSX.utils.aoa_to_sheet(certificateRows),
+      },
+    }, { type: "buffer", bookType: "xlsx" });
+    const workbook = parseWorkbook(new Uint8Array(bytes), "certificate-audit-fixture.xlsx");
     const inferred = reconcileImportPlan(workbook, {
       workbookType: "CONSTRUCTION_PROJECT",
       overallConfidence: 1,
@@ -36,60 +41,29 @@ describe("target certificate workbook audit", () => {
       unresolvedRegions: [],
       warnings: [],
     }, ["CERTIFICATE"]);
-
     const plan = { ...inferred.plan, warnings: [...inferred.plan.warnings, ...inferred.warnings] };
-    const certBlock = plan.blocks.find((b) => b.target === "CERTIFICATE");
-    console.log("Inferred CERTIFICATE block:", certBlock);
-    expect(certBlock).toBeDefined();
+    expect(plan.blocks.filter((block) => block.target === "CERTIFICATE")).toHaveLength(1);
 
     const certificate = extractCertificateWorkbookData(workbook, plan);
+    expect(certificate.number).toBe(6);
+    expect(certificate.periodStart).toBe("2026-01-01");
+    expect(certificate.periodEnd).toBe("2026-01-31");
+    expect(certificate.rows).toHaveLength(53);
 
-    console.log("Extracted Certificate Summary:", {
-      number: certificate.number,
-      periodStart: certificate.periodStart,
-      periodEnd: certificate.periodEnd,
-      rowCount: certificate.rows.length,
-      warnings: certificate.warnings,
-    });
-    expect(certificate.rows.length).toBe(53);
-
-    // Extract budget items from sheet 'base'
-    const baseSheet = workbook.sheets.find((s) => s.sheetName === "base")!;
-    const budgetRows: CertificateBudgetItem[] = [];
-    for (let r = 12; r <= 64; r++) {
-      const rowCells = baseSheet.cells.filter((c) => c.row === r);
-      const code = rowCells.find((c) => c.column === 1)?.raw ?? String(r - 11);
-      const desc = rowCells.find((c) => c.column === 2)?.raw;
-      const unit = rowCells.find((c) => c.column === 3)?.raw;
-      const qty = rowCells.find((c) => c.column === 4)?.raw;
-      const price = rowCells.find((c) => c.column === 5)?.raw;
-      if (desc && typeof desc === "string" && !desc.toLowerCase().includes("total")) {
-        budgetRows.push({
-          id: `budget-item-${r}`,
-          project_id: "test-project",
-          code: String(code).trim(),
-          description: desc.trim(),
-          unit: unit ? String(unit).trim() : null,
-          quantity: Number(qty) || 0,
-          unit_price: Number(price) || 0,
-          sort_order: budgetRows.length,
-        });
-      }
-    }
-
-    console.log("Extracted Budget Items from 'base':", budgetRows.length);
-    expect(budgetRows.length).toBe(53);
-
-    const matches = matchCertificateRows(certificate.rows, budgetRows, "test-project");
-    const matchedCount = matches.filter((m) => m.match === "MATCHED").length;
-    const reviewCount = matches.filter((m) => m.match === "NEEDS_REVIEW").length;
-    console.log("Matching results:", {
-      totalCertificateRows: certificate.rows.length,
-      matchedCount,
-      reviewCount,
-    });
-
-    expect(matchedCount).toBe(53);
-    expect(reviewCount).toBe(0);
+    const budgetItems: CertificateBudgetItem[] = baseRows.slice(1).map((row, index) => ({
+      id: `budget-item-${index + 1}`,
+      project_id: "test-project",
+      code: String(row[0]),
+      description: String(row[1]),
+      unit: String(row[2]),
+      quantity: Number(row[3]),
+      unit_price: Number(row[4]),
+      sort_order: index,
+    }));
+    const matches = matchCertificateRows(certificate.rows, budgetItems, "test-project");
+    expect(matches).toHaveLength(53);
+    expect(matches.filter((row) => row.match === "MATCHED")).toHaveLength(53);
+    expect(matches.filter((row) => row.match === "NEEDS_REVIEW")).toHaveLength(0);
+    expect(new Set(matches.map((row) => row.budgetItemId)).size).toBe(53);
   });
 });

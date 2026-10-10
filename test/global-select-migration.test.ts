@@ -19,8 +19,18 @@ function controls(file: string) {
 describe("global operational Select migration contracts", () => {
   it("covers all 51 audited controls", () => { expect(before).toHaveLength(51); });
   it.each([...new Set(before.map(control => control.file))])("preserves every authored prop, enum, option, handler and default in %s", file => {
-    const expected = before.filter(control => control.file === file).map(control => ({ ...control, opening: control.opening.replace(/^<select\b/, "<Select").replace("(e.target as HTMLSelectElement).value", "e.target.value") }));
-    expect(controls(file)).toEqual(expected);
+    const normalizeNewlines = (value: string) => value.replace(/\r\n?/g, "\n");
+    const expected = before.filter(control => control.file === file).map(control => ({
+      ...control,
+      opening: normalizeNewlines(control.opening.replace(/^<select\b/, "<Select").replace("(e.target as HTMLSelectElement).value", "e.target.value")),
+      children: normalizeNewlines(control.children),
+    }));
+    const actual = controls(file).map(control => ({
+      ...control,
+      opening: normalizeNewlines(control.opening),
+      children: normalizeNewlines(control.children),
+    }));
+    expect(actual).toEqual(expected);
     expect(readFileSync(file, "utf8")).toMatch(/import\s*\{\s*Select\s*\}\s*from\s*["']@\/components\/ui\/select["']/);
   });
   it("contains zero operational native JSX dropdowns across app and components", () => {
