@@ -45,6 +45,7 @@ export function RevisionDialog({
               setError(result.error);
               return;
             }
+            if (result?.warning) alert(result.warning);
             setError(null);
             setOpen(false);
           }}
@@ -116,6 +117,10 @@ export function RevisionDialog({
             <Label htmlFor="r_timbrado">Timbrado</Label>
             <Input id="r_timbrado" name="timbrado" defaultValue={d?.timbrado ?? ""} />
           </div>
+          <label className="flex items-start gap-2 cursor-pointer text-[12px] text-[var(--muted)]">
+            <input type="checkbox" name="arithmetic_confirmed" value="on" className="mt-0.5" />
+            <span>Verifiqué subtotal, IVA, total y líneas contra el documento y asumo las diferencias.</span>
+          </label>
 
           <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>

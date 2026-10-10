@@ -1,3 +1,5 @@
+import { isValidInvoiceQuantity, type PhysicalQuantity } from "./invoice-item-reconcile";
+
 /**
  * Matching semántico de líneas de factura contra líneas de OC.
  *
@@ -13,22 +15,22 @@
 export type OrderItemInput = {
   id: string;
   product: string;
-  quantity: number;
+  quantity: PhysicalQuantity;
   unit: string;
-  quantity_invoiced: number;
+  quantity_invoiced: PhysicalQuantity;
 };
 
 export type InvoiceItemInput = {
   id: string;
   description: string;
-  quantity: number | null;
+  quantity: PhysicalQuantity | null;
   unit: string | null;
 };
 
 export type ItemMatch = {
   invoice_item_id: string;
   order_item_id: string;
-  quantity_matched: number;
+  quantity_matched: PhysicalQuantity;
 };
 
 const MATCH_SCHEMA = {
@@ -41,10 +43,9 @@ const MATCH_SCHEMA = {
         properties: {
           invoice_item_index: { type: "number", description: "Índice (0-based) del ítem de la factura" },
           order_item_index: { type: "number", description: "Índice (0-based) del ítem de la OC que corresponde" },
-          quantity_matched: { type: "number", description: "Cantidad entregada en esta línea de factura" },
           confidence: { type: "string", enum: ["high", "medium", "low"] },
         },
-        required: ["invoice_item_index", "order_item_index", "quantity_matched", "confidence"],
+        required: ["invoice_item_index", "order_item_index", "confidence"],
         additionalProperties: false,
       },
     },
@@ -90,8 +91,9 @@ ${invoiceList}
 Para cada ítem de la factura indicá:
 - invoice_item_index: su índice en la lista de factura
 - order_item_index: el índice del ítem de la OC que corresponde
-- quantity_matched: la cantidad que llega en esta línea de factura (usá la cantidad de la factura si está disponible)
 - confidence: "high" si el match es claro, "medium" si es probable, "low" si es una suposición
+
+No devuelvas ni estimes cantidades. El sistema toma la cantidad exacta directamente de la línea documentada de la factura.
 
 Si un ítem de la factura no tiene match claro en la OC, no lo incluyas.
 `.trim();
@@ -130,7 +132,6 @@ Si un ítem de la factura no tiene match claro en la OC, no lo incluyas.
       matches: Array<{
         invoice_item_index: number;
         order_item_index: number;
-        quantity_matched: number;
         confidence: "high" | "medium" | "low";
       }>;
     };
@@ -143,12 +144,12 @@ Si un ítem de la factura no tiene match claro en la OC, no lo incluyas.
           m.invoice_item_index < invoiceItems.length &&
           m.order_item_index >= 0 &&
           m.order_item_index < orderItems.length &&
-          m.quantity_matched > 0
+          isValidInvoiceQuantity(invoiceItems[m.invoice_item_index].quantity)
       )
       .map((m) => ({
         invoice_item_id: invoiceItems[m.invoice_item_index].id,
         order_item_id: orderItems[m.order_item_index].id,
-        quantity_matched: m.quantity_matched,
+        quantity_matched: invoiceItems[m.invoice_item_index].quantity as PhysicalQuantity,
       }));
   } catch {
     return [];

@@ -62,7 +62,7 @@ export default defineConfig({
     {
       name: "e2e",
       testMatch: /.*\.spec\.ts/,
-      testIgnore: /bim-certification\.spec\.ts/,
+      testIgnore: /(?:bim-certification|invoice-item-integrity)\.spec\.ts/,
       dependencies: ["setup"],
       use: {
         storageState: "tests/e2e/.auth/admin.json",

@@ -8,9 +8,15 @@ import {
   extractInvoiceFieldsFromFile,
   ExtractedInvoiceFields,
 } from "@/lib/invoice-extraction";
+import { validateInvoiceArithmetic, type ArithmeticValidation } from "@/lib/invoice-arithmetic";
 import { findProviderByTaxId } from "@/lib/provider-lookup";
 
 export type ExtractedInvoiceData = ExtractedInvoiceFields & { provider_id: string | null };
+
+export type ExtractionResult = {
+  data: (ExtractedInvoiceData & { validation: ArithmeticValidation }) | null;
+  error: string | null;
+};
 
 function fail(error: string): { data: null; error: string } {
   return { data: null, error };
@@ -18,7 +24,7 @@ function fail(error: string): { data: null; error: string } {
 
 export async function extractInvoiceFromPhoto(
   formData: FormData
-): Promise<{ data: ExtractedInvoiceData | null; error: string | null }> {
+): Promise<ExtractionResult> {
   const profile = await requireProfile(["administracion", "admin"]);
 
   const file = formData.get("file") as File | null;
@@ -35,5 +41,8 @@ export async function extractInvoiceFromPhoto(
   const supabase = await createClient();
   const provider = await findProviderByTaxId(supabase, parsed.provider_tax_id, profile.empresa_id);
 
-  return { data: { ...parsed, provider_id: provider?.id ?? null }, error: null };
+  return {
+    data: { ...parsed, provider_id: provider?.id ?? null, validation: validateInvoiceArithmetic(parsed) },
+    error: null,
+  };
 }

@@ -6,8 +6,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { AuthorizedOrder, AuthorizedOrderItem, Invoice, Provider } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
-import { formatDate, formatMoney, formatNumber } from "@/lib/format";
+import { formatDate, formatMoney } from "@/lib/format";
 import { orderRemaining, isOverbilled } from "@/lib/reconciliation";
+import { compareInvoiceQuantitySum, formatInvoiceQuantity, subtractInvoiceQuantitySumExact } from "@/lib/invoice-item-reconcile";
 import { UnmatchOrderButton } from "@/app/(internal)/invoices/[id]/unmatch-button";
 import { InvoiceDialog } from "@/app/(internal)/invoices/invoice-dialog";
 import { LinkInvoiceDialog } from "./link-invoice-dialog";
@@ -25,9 +26,9 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
   const { data: order } = await supabase
     .from("authorized_orders")
-    .select("*")
+    .select("*, quantity_text:quantity::text")
     .eq("id", id)
-    .single<AuthorizedOrder>();
+    .single<AuthorizedOrder & { quantity_text: string }>();
   if (!order) notFound();
 
   const [{ data: provider }, { data: matches }, { data: candidateInvoices }, { data: orderItems }, { data: recepciones }, { data: products }] =
@@ -46,11 +47,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         .returns<Pick<Invoice, "id" | "invoice_number" | "invoice_date" | "total" | "currency">[]>(),
       supabase
         .from("authorized_order_items")
-        .select("*")
+        .select("*, quantity_text:quantity::text, quantity_invoiced_text:quantity_invoiced::text")
         .eq("order_id", id)
         .eq("empresa_id", profile.empresa_id)
         .order("sort_order")
-        .returns<AuthorizedOrderItem[]>(),
+        .returns<Array<AuthorizedOrderItem & { quantity_text: string; quantity_invoiced_text: string }>>(),
       supabase
         .from("oc_recepciones")
         .select("*, oc_recepcion_items(*)")
@@ -111,21 +112,21 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     ? orderItems!.map((it) => ({
         key: it.id,
         product: it.product,
-        quantity: it.quantity,
+        quantity: it.quantity_text,
         unit: it.unit,
         unit_price: it.unit_price,
         total_price: it.total_price,
-        quantity_invoiced: it.quantity_invoiced as number,
+        quantity_invoiced: it.quantity_invoiced_text,
       }))
     : [
         {
           key: "header",
           product: order.product,
-          quantity: order.quantity,
+          quantity: order.quantity_text,
           unit: order.unit,
           unit_price: order.unit_price,
           total_price: order.total_price,
-          quantity_invoiced: null as number | null,
+          quantity_invoiced: null as string | null,
         },
       ];
   const itemsSum = lines.reduce((s, l) => s + l.total_price, 0);
@@ -184,19 +185,20 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             </thead>
             <tbody>
               {lines.map((l) => {
-                const inv = l.quantity_invoiced ?? 0;
-                const pendiente = Math.max(0, l.quantity - inv);
-                const overItem = inv > l.quantity;
+                const inv = l.quantity_invoiced ?? "0";
+                const invoiceComparison = compareInvoiceQuantitySum([inv], l.quantity);
+                const pendiente = subtractInvoiceQuantitySumExact(l.quantity, [inv]);
+                const overItem = invoiceComparison === 1;
                 return (
                   <tr key={l.key}>
                     <td className="font-medium">{l.product}</td>
-                    <td className="num">{formatNumber(l.quantity, 2)}</td>
+                    <td className="num">{formatInvoiceQuantity(l.quantity)}</td>
                     <td className="text-[var(--muted)]">{l.unit}</td>
                     <td className="num">{formatMoney(l.unit_price, order.currency)}</td>
                     <td className="num">{formatMoney(l.total_price, order.currency)}</td>
                     {hasLineItems ? (
                       <td className={`num ${overItem ? "text-[var(--error)]" : ""}`}>
-                        {formatNumber(inv, 2)}
+                        {formatInvoiceQuantity(inv)}
                       </td>
                     ) : null}
                     {hasLineItems ? (
@@ -204,12 +206,12 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                         className={`num ${
                           overItem
                             ? "text-[var(--error)]"
-                            : pendiente === 0
+                            : invoiceComparison === 0
                               ? "text-[var(--muted)]"
                               : ""
                         }`}
                       >
-                        {overItem ? "Excedido" : pendiente === 0 ? "Completo" : formatNumber(pendiente, 2)}
+                        {overItem ? "Excedido" : invoiceComparison === 0 ? "Completo" : formatInvoiceQuantity(pendiente)}
                       </td>
                     ) : null}
                   </tr>

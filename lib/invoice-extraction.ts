@@ -21,7 +21,8 @@ export const ACCEPTED_INVOICE_FILE_TYPES = [...ACCEPTED_INVOICE_IMAGE_TYPES, "ap
 
 export type ExtractedInvoiceItem = {
   description: string;
-  quantity: number | null;
+  /** Kept textual so large quantities cannot lose decimals in IEEE-754 parsing. */
+  quantity: string | number | null;
   unit: string | null;
   unit_price: number | null;
   subtotal: number | null;
@@ -50,7 +51,7 @@ const EXTRACTION_SCHEMA = {
     invoice_date: { type: ["string", "null"], description: "Formato YYYY-MM-DD" },
     subtotal: { type: ["number", "null"] },
     vat: { type: ["number", "null"] },
-    total: { type: "number", description: "Monto total en guaraníes, sin puntos ni separadores de miles" },
+    total: { type: ["number", "null"], description: "Monto total en guaraníes, sin puntos ni separadores de miles. Null si es ilegible o no aparece: nunca estimar." },
     timbrado: { type: ["string", "null"] },
     order_reference: { type: ["string", "null"], description: "Número de orden de compra mencionado en la descripción, ej: 'OC-2026-0008'. Null si no aparece." },
     product_description: { type: ["string", "null"], description: "Descripción del producto o servicio principal (primera línea del detalle)." },
@@ -61,7 +62,7 @@ const EXTRACTION_SCHEMA = {
         type: "object",
         properties: {
           description: { type: "string", description: "Descripción del ítem tal como aparece en la factura" },
-          quantity: { type: ["number", "null"], description: "Cantidad. Null si no aparece." },
+          quantity: { type: ["string", "null"], description: "Cantidad física exacta como cadena decimal con punto (ej. \"1.2345\"). Preservá todos los dígitos impresos, incluidos ceros finales. Se admiten hasta cuatro decimales efectivos; nunca redondear ni inferir decimales. Null si no aparece." },
           unit: { type: ["string", "null"], description: "Unidad de medida (kg, m², unid, bolsa…). Null si no aparece." },
           unit_price: { type: ["number", "null"], description: "Precio unitario en guaraníes, sin separadores de miles. Null si no aparece." },
           subtotal: { type: ["number", "null"], description: "Subtotal de la línea (qty × unit_price) en guaraníes. Null si no aparece." },
@@ -88,13 +89,13 @@ const EXTRACTION_SCHEMA = {
 };
 
 const PHOTO_SYSTEM_PROMPT = `Sos un asistente que lee facturas de papel paraguayas (muchas veces manuscritas o de talonario) a partir de una foto.
-Extraé los datos exactamente como aparecen. Convertí montos a números planos en guaraníes, sin puntos de miles (ej: "1.500.000" -> 1500000).
-Si un dato no aparece o es ilegible, devolvé null en ese campo (excepto "total", que es obligatorio: si no podés leerlo con confianza, poné tu mejor estimación).
+Extraé los datos exactamente como aparecen. Devolvé cantidades físicas como cadenas decimales con punto, preservando todos los dígitos y ceros finales (ej: "1,2345" -> "1.2345"); no las conviertas a número. Convertí montos a números planos en guaraníes, sin puntos de miles (ej: "1.500.000" -> 1500000).
+Si un dato no aparece o es ilegible, devolvé null en ese campo, INCLUIDO el total. Nunca estimes, inventes ni completes un valor: un campo ilegible siempre es null.
 Respondé únicamente con el JSON pedido, sin texto adicional.`;
 
 const PDF_SYSTEM_PROMPT = `Sos un asistente que lee el texto extraído de una factura electrónica paraguaya (PDF con texto real, no una foto).
-Extraé los datos exactamente como aparecen. Convertí montos a números planos en guaraníes, sin puntos de miles (ej: "1.500.000" -> 1500000).
-Si un dato no aparece en el texto, devolvé null en ese campo (excepto "total", que es obligatorio).
+Extraé los datos exactamente como aparecen. Devolvé cantidades físicas como cadenas decimales con punto, preservando todos los dígitos y ceros finales (ej: "1,2345" -> "1.2345"); no las conviertas a número. Convertí montos a números planos en guaraníes, sin puntos de miles (ej: "1.500.000" -> 1500000).
+Si un dato no aparece en el texto, devolvé null en ese campo, INCLUIDO el total. Nunca estimes, inventes ni completes un valor: un campo ilegible siempre es null.
 Respondé únicamente con el JSON pedido, sin texto adicional.`;
 
 async function callOpenAI(

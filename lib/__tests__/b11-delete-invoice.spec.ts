@@ -9,9 +9,9 @@ const mocks = vi.hoisted(() => ({
   selectedInvoice: { attachment_id: null as string | null, status: "MATCH", invoice_number: "001-001-0001" } as {
     attachment_id: string | null; status: string; invoice_number: string;
   } | null,
-  deleteErrors: {} as Record<string, string | undefined>,
+  rpcError: null as string | null,
   events: [] as string[],
-  deleteCalls: [] as string[],
+  rpcCalls: [] as Array<{ name: string; args: Record<string, unknown> }>,
   storageRemove: vi.fn(),
   attachment: null as { bucket: string; path: string } | null,
 }));
@@ -20,7 +20,27 @@ vi.mock("@/lib/auth", () => ({ requireEmpresaId: mocks.requireEmpresaId, require
 vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn(), useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
-vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: () => ({
+    rpc: async (name: string, args: Record<string, unknown>) => {
+      mocks.events.push(`${name}.rpc`);
+      mocks.rpcCalls.push({ name, args });
+      if (mocks.rpcError) return { data: null, error: { message: mocks.rpcError } };
+      if (mocks.selectedInvoice?.status === "APTO_PARA_PAGO" || mocks.selectedInvoice?.status === "PAGADO") {
+        return { data: null, error: { message: "No se puede eliminar la factura aprobada o pagada." } };
+      }
+      return {
+        data: {
+          ok: true,
+          attachment_id: mocks.selectedInvoice?.attachment_id ?? null,
+          cleanup_bucket: mocks.attachment?.bucket ?? null,
+          cleanup_path: mocks.attachment?.path ?? null,
+        },
+        error: null,
+      };
+    },
+  }),
+}));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: (table: string) => {
@@ -31,7 +51,6 @@ vi.mock("@/lib/supabase/admin", () => ({
         eq: () => query,
         maybeSingle: async () => {
           mocks.events.push(`${table}.select`);
-          if (table === "invoices") return { data: mocks.selectedInvoice, error: null };
           if (table === "attachments") return { data: mocks.attachment, error: null };
           return { data: null, error: null };
         },
@@ -39,18 +58,15 @@ vi.mock("@/lib/supabase/admin", () => ({
           rejectResult?: (error: unknown) => unknown) => {
           if (operation === "delete") {
             mocks.events.push(`${table}.delete`);
-            mocks.deleteCalls.push(table);
           }
-          const message = operation === "delete" ? mocks.deleteErrors[table] : undefined;
-          return Promise.resolve({ data: [], error: message ? { message } : null }).then(resolveResult, rejectResult);
+          return Promise.resolve({ data: [], error: null }).then(resolveResult, rejectResult);
         },
       };
       return query;
     },
     storage: { from: (bucket: string) => ({ remove: async (paths: string[]) => {
       mocks.events.push("storage.remove");
-      mocks.storageRemove(bucket, paths);
-      return { data: [], error: null };
+      return await mocks.storageRemove(bucket, paths) ?? { data: [], error: null };
     } }) },
   }),
 }));
@@ -64,67 +80,66 @@ const protectedInvoice = (status: "APTO_PARA_PAGO" | "PAGADO") => {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.events = [];
-  mocks.deleteCalls = [];
-  mocks.deleteErrors = {};
+  mocks.rpcCalls = [];
+  mocks.rpcError = null;
   mocks.attachment = null;
   mocks.selectedInvoice = { attachment_id: null, status: "MATCH", invoice_number: "001-001-0001" };
   mocks.requireEmpresaId.mockResolvedValue("authorized-local-company");
 });
 
-describe("B11 hard invoice delete — protected status and fail-fast cleanup", () => {
-  it.each(["APTO_PARA_PAGO", "PAGADO"] as const)("%s rejects before every child/storage mutation", async (status) => {
+describe("B11 hard invoice delete — atomic database delete and post-commit storage cleanup", () => {
+  it.each(["APTO_PARA_PAGO", "PAGADO"] as const)("%s is rejected by the atomic RPC before storage cleanup", async (status) => {
     protectedInvoice(status);
     const result = await deleteInvoice("invoice-1");
     expect(result.error).toMatch(/No se puede eliminar la factura/);
-    expect(mocks.deleteCalls).toEqual([]);
+    expect(mocks.rpcCalls).toEqual([{ name: "delete_invoice", args: { p_empresa_id: "authorized-local-company", p_invoice_id: "invoice-1" } }]);
     expect(mocks.storageRemove).not.toHaveBeenCalled();
   });
 
-  it("race: guarded relationship DELETE stops exceptions, audit, OP and parent cleanup", async () => {
-    mocks.deleteErrors.invoice_order_matches = "No se puede modificar el vínculo OC de una factura apta para pago o pagada.";
+  it("a rejected atomic transaction performs no post-commit storage cleanup", async () => {
+    mocks.rpcError = "No se puede eliminar una factura vinculada a una OP ejecutada.";
     const result = await deleteInvoice("invoice-1");
-    expect(result).toEqual({ error: mocks.deleteErrors.invoice_order_matches });
-    expect(mocks.deleteCalls).toEqual(["invoice_order_matches"]);
-    expect(mocks.events).not.toContain("invoice_exceptions.delete");
-    expect(mocks.events).not.toContain("audit_logs.delete");
-    expect(mocks.events).not.toContain("payment_order_invoices.delete");
-    expect(mocks.events).not.toContain("invoices.delete");
+    expect(result).toEqual({ error: mocks.rpcError });
+    expect(mocks.rpcCalls).toHaveLength(1);
+    expect(mocks.rpcCalls[0].name).toBe("delete_invoice");
     expect(mocks.events).not.toContain("storage.remove");
   });
 
-  it.each([
-    ["invoice_exceptions", ["invoice_order_matches", "invoice_exceptions"]],
-    ["audit_logs", ["invoice_order_matches", "invoice_exceptions", "audit_logs"]],
-    ["payment_order_invoices", ["invoice_order_matches", "invoice_exceptions", "audit_logs", "payment_order_invoices"]],
-    ["invoices", ["invoice_order_matches", "invoice_exceptions", "audit_logs", "payment_order_invoices", "invoices"]],
-  ] as const)("%s delete error stops every later destructive step", async (failedTable, expectedCalls) => {
-    mocks.deleteErrors[failedTable] = `${failedTable} delete denied`;
-    const result = await deleteInvoice("invoice-1");
-    expect(result).toEqual({ error: `${failedTable} delete denied` });
-    expect(mocks.deleteCalls).toEqual(expectedCalls);
-    expect(mocks.storageRemove).not.toHaveBeenCalled();
-  });
-
-  it("normal MATCH hard delete succeeds and still removes its attachment", async () => {
+  it("normal MATCH hard delete makes one atomic RPC, then removes its attachment", async () => {
     mocks.selectedInvoice!.attachment_id = "attachment";
     mocks.attachment = { bucket: "invoice-files", path: "company/invoice.pdf" };
     expect(await deleteInvoice("invoice-1")).toEqual({ error: null });
-    expect(mocks.deleteCalls).toEqual([
-      "invoice_order_matches", "invoice_exceptions", "audit_logs", "payment_order_invoices", "invoices", "attachments",
-    ]);
+    expect(mocks.rpcCalls).toEqual([{ name: "delete_invoice", args: { p_empresa_id: "authorized-local-company", p_invoice_id: "invoice-1" } }]);
     expect(mocks.storageRemove).toHaveBeenCalledWith("invoice-files", ["company/invoice.pdf"]);
-    expect(mocks.events.indexOf("invoice_order_matches.delete")).toBeLessThan(mocks.events.indexOf("invoice_exceptions.delete"));
-    expect(mocks.events.indexOf("invoice_exceptions.delete")).toBeLessThan(mocks.events.indexOf("audit_logs.delete"));
-    expect(mocks.events.indexOf("audit_logs.delete")).toBeLessThan(mocks.events.indexOf("payment_order_invoices.delete"));
-    expect(mocks.events.indexOf("payment_order_invoices.delete")).toBeLessThan(mocks.events.indexOf("invoices.delete"));
-    expect(mocks.events.indexOf("invoices.delete")).toBeLessThan(mocks.events.indexOf("storage.remove"));
+    expect(mocks.events).toEqual(["delete_invoice.rpc", "storage.remove"]);
+  });
+
+  it("reports attachment cleanup failure as warning after invoice deletion commits", async () => {
+    mocks.selectedInvoice!.attachment_id = "attachment";
+    mocks.attachment = { bucket: "invoice-files", path: "company/invoice.pdf" };
+    mocks.storageRemove.mockImplementation(async () => ({ error: { message: "storage unavailable" } }));
+    const result = await deleteInvoice("invoice-1");
+    expect(result.error).toBeNull();
+    expect(result.warning).toMatch(/factura se eliminó/);
+    expect(mocks.rpcCalls).toHaveLength(1);
+    expect(mocks.events).not.toContain("attachments.delete");
+  });
+
+  it("does not throw if storage fails after the database deletion commits", async () => {
+    mocks.selectedInvoice!.attachment_id = "attachment";
+    mocks.attachment = { bucket: "invoice-files", path: "company/invoice.pdf" };
+    mocks.storageRemove.mockRejectedValue(new Error("network unavailable"));
+    const result = await deleteInvoice("invoice-1");
+    expect(result.error).toBeNull();
+    expect(result.warning).toMatch(/factura se eliminó/);
+    expect(mocks.events).not.toContain("attachments.delete");
   });
 
   it("non-admin is denied before the privileged client is created", async () => {
     mocks.requireEmpresaId.mockRejectedValue(new Error("admin only"));
     await expect(deleteInvoice("invoice-1")).rejects.toThrow("admin only");
     expect(mocks.events).toEqual([]);
-    expect(mocks.deleteCalls).toEqual([]);
+    expect(mocks.rpcCalls).toEqual([]);
   });
 });
 

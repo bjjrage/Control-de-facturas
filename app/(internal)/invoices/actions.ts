@@ -6,9 +6,17 @@ import { requireProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { sanitizeFileName } from "@/lib/storage";
 import { autoMatchInvoice } from "@/lib/invoice-auto-match";
+import { validateInvoiceArithmetic } from "@/lib/invoice-arithmetic";
+import { INVOICE_QUANTITY_ERROR, isValidInvoiceQuantity } from "@/lib/invoice-item-reconcile";
+import type { ExtractedInvoiceItem } from "@/lib/invoice-extraction";
+import { applyDeterministicItemMatches, insertInvoiceItems, parseInvoiceLinesInput } from "@/lib/invoice-items";
 import { revalidatePath } from "next/cache";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
+
+type CreateInvoiceResult =
+  | { error: string; id?: undefined; autoMatched?: undefined; warning?: undefined; arithmeticIssues?: string[]; invoiceId?: string }
+  | { error: null; id: string; autoMatched: boolean; warning?: string };
 
 /**
  * Reintenta la conciliación automática sobre todas las facturas pendientes de
@@ -51,7 +59,7 @@ function num(formData: FormData, key: string) {
   return Number.isFinite(n) ? n : null;
 }
 
-export async function createInvoice(formData: FormData) {
+export async function createInvoice(formData: FormData): Promise<CreateInvoiceResult> {
   const profile = await requireProfile(["administracion", "admin"]);
 
   const providerId = str(formData, "provider_id");
@@ -68,6 +76,42 @@ export async function createInvoice(formData: FormData) {
     return { error: "Completá proveedor, número, fecha y moneda." };
   }
   if (total === null || total <= 0) return { error: "El total debe ser mayor a cero." };
+
+  // R3-04: validación aritmética sobre los valores FINALES que se intentan
+  // guardar (nunca se confía en un estado enviado por el cliente: se recalcula
+  // en el servidor). Si hay discrepancias verificables, la creación exige la
+  // confirmación explícita de un humano autorizado (checkbox del diálogo), que
+  // queda auditada. La carga manual legítima sigue funcionando: con valores
+  // consistentes no se pide nada extra.
+  const dialogLines = parseInvoiceLinesInput(formData.get("items_json"));
+  if (dialogLines.some((line) => line.quantity !== null && !isValidInvoiceQuantity(line.quantity))) {
+    return { error: INVOICE_QUANTITY_ERROR };
+  }
+  const arithmetic = validateInvoiceArithmetic({
+    provider_name: null,
+    provider_tax_id: null,
+    invoice_number: invoiceNumber,
+    invoice_date: invoiceDate,
+    subtotal: num(formData, "subtotal"),
+    vat: num(formData, "vat"),
+    total,
+    timbrado: str(formData, "timbrado"),
+    order_reference: str(formData, "order_reference"),
+    product_description: str(formData, "product_description"),
+    items: dialogLines.map((l): ExtractedInvoiceItem => ({
+      description: l.description,
+      quantity: l.quantity,
+      unit: l.unit,
+      unit_price: l.unit_price,
+      subtotal: l.subtotal,
+    })),
+  });
+  if (arithmetic.status !== "VALIDA" && formData.get("arithmetic_confirmed") !== "on") {
+    return {
+      error: `Revisión aritmética: ${arithmetic.issues[0] ?? "datos inconsistentes."} Corregí los importes o confirmá explícitamente que los verificaste contra el documento.`,
+      arithmeticIssues: arithmetic.issues,
+    };
+  }
 
   const admin = createAdminClient();
   const empresaId = profile.empresa_id;
@@ -207,12 +251,39 @@ export async function createInvoice(formData: FormData) {
       .eq("empresa_id", empresaId);
   }
 
-  await logAudit(supabase, { action: "invoice.created", invoiceId: invoice.id });
+  await logAudit(supabase, {
+    action: "invoice.created",
+    invoiceId: invoice.id,
+    detail: arithmetic.status !== "VALIDA" ? { arithmetic_review: "confirmed" } : undefined,
+  });
+
+  // Líneas de detalle (revisadas por el humano en el diálogo): se persisten
+  // juntas en una sola sentencia, antes de cualquier conciliación automática.
+  if (dialogLines.length > 0) {
+    const { error: linesError } = await insertInvoiceItems(supabase, {
+      empresaId,
+      invoiceId: invoice.id as string,
+      items: dialogLines,
+    });
+    if (linesError) {
+      await logAudit(supabase, {
+        action: "invoice.lines_save_failed",
+        invoiceId: invoice.id,
+        detail: { error: linesError },
+      });
+      revalidatePath("/invoices");
+      return {
+        error: "La factura se creó, pero no se guardaron sus líneas. No se vinculó ni concilió; revisá la factura antes de continuar.",
+        invoiceId: invoice.id as string,
+      };
+    }
+  }
 
   // Si viene de "Cargar factura para esta orden", se vincula directo a esa OC;
   // si no, se intenta la conciliación automática por monto.
   const linkOrderId = str(formData, "link_order_id");
   let autoMatchedOrderId: string | null = null;
+  let itemMatchWarning: string | undefined;
   if (linkOrderId) {
     const { error: matchError } = await supabase
       .from("invoice_order_matches")
@@ -220,6 +291,8 @@ export async function createInvoice(formData: FormData) {
     if (!matchError) {
       autoMatchedOrderId = linkOrderId;
       revalidatePath(`/orders/${linkOrderId}`);
+    } else {
+      itemMatchWarning = "La factura se creó, pero no pudo vincularse a la orden elegida. Revisá el vínculo antes de aprobar el pago.";
     }
   } else {
     autoMatchedOrderId = await autoMatchInvoice(supabase, {
@@ -232,8 +305,28 @@ export async function createInvoice(formData: FormData) {
     });
   }
 
+  // Conciliación por ítem determinística sobre el vínculo autorizado: solo el
+  // caso inequívoco crea matches; lo demás queda pendiente de revisión manual.
+  if (autoMatchedOrderId) {
+    const { error: itemError, pending } = await applyDeterministicItemMatches(supabase, {
+      empresaId,
+      invoiceId: invoice.id as string,
+      orderId: autoMatchedOrderId,
+    });
+    if (itemError) {
+      itemMatchWarning = "La factura se creó y vinculó, pero no se completó la conciliación por línea. Revisala antes de aprobar el pago.";
+      await logAudit(supabase, {
+        action: "invoice.item_match_failed",
+        invoiceId: invoice.id,
+        detail: { error: itemError },
+      });
+    } else if (pending > 0) {
+      itemMatchWarning = `${pending} línea(s) quedaron sin imputación. Revisalas antes de aprobar el pago.`;
+    }
+  }
+
   // Cost Engine Flywheel: Alimentar observaciones de costo real si la factura se vinculó a una OC
-  const activeOrderId = linkOrderId || autoMatchedOrderId;
+  const activeOrderId = autoMatchedOrderId;
   if (activeOrderId) {
     try {
       const { recordCostObservationFromInvoice } = await import("@/lib/procurement/flywheel");
@@ -254,7 +347,12 @@ export async function createInvoice(formData: FormData) {
 
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoice.id}`);
-  return { error: null, id: invoice.id as string, autoMatched: autoMatchedOrderId !== null };
+  return {
+    error: null,
+    id: invoice.id as string,
+    autoMatched: autoMatchedOrderId !== null,
+    ...(itemMatchWarning ? { warning: itemMatchWarning } : {}),
+  };
 }
 
 export type OrderCandidate = {
@@ -358,7 +456,12 @@ export async function getCandidateOrders(invoiceId: string): Promise<{
 }
 
 /** Vincula manualmente una factura PENDIENTE a una OC y la pasa a MATCH. */
-export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Promise<{ error: string | null }> {
+export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Promise<{
+  error: string | null;
+  itemMatched?: number;
+  itemPending?: number;
+  warning?: string;
+}> {
   const profile = await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
   const empresaId = profile.empresa_id;
@@ -386,6 +489,21 @@ export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Pr
 
   // The match trigger performs canonical reconciliation, including overbilling review.
 
+  // Conciliación por ítem determinística: solo el caso inequívoco crea matches.
+  const { error: itemError, applied, pending } = await applyDeterministicItemMatches(supabase, {
+    empresaId,
+    invoiceId,
+    orderId,
+  });
+  if (itemError) {
+    await logAudit(supabase, {
+      action: "invoice.item_match_failed",
+      invoiceId,
+      authorizedOrderId: orderId,
+      detail: { error: itemError },
+    });
+  }
+
   // Cost Engine Flywheel: Alimentar observaciones de costo real
   try {
     const { recordCostObservationFromInvoice } = await import("@/lib/procurement/flywheel");
@@ -395,7 +513,7 @@ export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Pr
       providerId: invoice.provider_id || "",
       orderId,
       currency: invoice.currency || "PYG",
-      exchangeRate: (invoice as any).exchange_rate ?? undefined,
+      exchangeRate: (invoice as { exchange_rate?: number | null }).exchange_rate ?? undefined,
       invoiceDate: invoice.invoice_date || undefined
     });
   } catch {
@@ -407,5 +525,14 @@ export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Pr
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoiceId}`);
   revalidatePath(`/orders/${orderId}`);
-  return { error: null };
+  return {
+    error: null,
+    itemMatched: applied.length,
+    itemPending: pending,
+    ...(itemError || pending > 0 ? {
+      warning: itemError
+        ? "La factura quedó vinculada, pero no se completó la conciliación por línea. Revisala antes de aprobar el pago."
+        : `${pending} línea(s) quedaron sin imputación. Revisalas antes de aprobar el pago.`,
+    } : {}),
+  };
 }

@@ -8,6 +8,8 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Provider } from "@/lib/types";
 import { createInvoice } from "./actions";
 import { extractInvoiceFromPhoto } from "./extract-actions";
+import type { ArithmeticValidation } from "@/lib/invoice-arithmetic";
+import type { ExtractedInvoiceItem } from "@/lib/invoice-extraction";
 import { ScanButton } from "@/components/scanner/scan-button";
 import type { ReceivedDocument } from "@/components/scanner/scan-modal";
 import { Upload, Eye, RefreshCw, CheckCircle2, FileText } from "lucide-react";
@@ -48,6 +50,8 @@ export function InvoiceDialog({
   const router = useRouter();
 
   const [providerId, setProviderId] = useState(defaultProviderId ?? "");
+  const [lines, setLines] = useState<ExtractedInvoiceItem[]>([]);
+  const [arithmetic, setArithmetic] = useState<ArithmeticValidation | null>(null);
   const invoiceNumberRef = useRef<HTMLInputElement>(null);
   const invoiceDateRef = useRef<HTMLInputElement>(null);
   const dueDateRef = useRef<HTMLInputElement>(null);
@@ -61,6 +65,8 @@ export function InvoiceDialog({
 
   async function handleFileChange(file: File | null) {
     setScanNotice(null);
+    setLines([]);
+    setArithmetic(null);
     if (!file || !READABLE_TYPES.includes(file.type)) return;
 
     setScanning(true);
@@ -82,6 +88,8 @@ export function InvoiceDialog({
       if (timbradoRef.current && d.timbrado) timbradoRef.current.value = d.timbrado;
       if (orderReferenceRef.current) orderReferenceRef.current.value = d.order_reference ?? "";
       if (productDescriptionRef.current) productDescriptionRef.current.value = d.product_description ?? "";
+      setLines((d.items ?? []).map((item) => ({ ...item })));
+      setArithmetic(d.validation ?? null);
 
       if (d.provider_id) {
         setProviderId(d.provider_id);
@@ -139,6 +147,8 @@ export function InvoiceDialog({
   function handleReplaceDocument() {
     setAttachedDoc(null);
     setScanNotice(null);
+    setLines([]);
+    setArithmetic(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -160,6 +170,8 @@ export function InvoiceDialog({
         if (!next) {
           setScanNotice(null);
           setAttachedDoc(null);
+          setLines([]);
+          setArithmetic(null);
         }
       }}
     >
@@ -175,6 +187,7 @@ export function InvoiceDialog({
               setError(result.error);
               return;
             }
+            if (result.warning) alert(result.warning);
             setError(null);
             setOpen(false);
             router.push(`/invoices/${result.id}?${result.autoMatched ? "autoMatched=1" : "created=1"}`);
@@ -188,6 +201,18 @@ export function InvoiceDialog({
           {linkOrderId ? <input type="hidden" name="link_order_id" value={linkOrderId} /> : null}
           <input type="hidden" name="order_reference" ref={orderReferenceRef} />
           <input type="hidden" name="product_description" ref={productDescriptionRef} />
+          <input type="hidden" name="items_json" value={JSON.stringify(lines)} />
+          {arithmetic && arithmetic.status !== "VALIDA" ? (
+            <div className="rounded border border-[var(--warn)]/40 bg-[var(--warn-bg)] px-2.5 py-1.5 text-[12px] text-[var(--warn)]">
+              Revisión aritmética: {arithmetic.issues[0]}
+              {arithmetic.issues.length > 1 ? ` (+${arithmetic.issues.length - 1} más)` : ""} Verificá
+              los importes contra el documento antes de crear.
+              <label className="mt-1.5 flex items-start gap-2 cursor-pointer">
+                <input type="checkbox" name="arithmetic_confirmed" value="on" className="mt-0.5" />
+                <span>Verifiqué los importes contra el documento y asumo la discrepancia.</span>
+              </label>
+            </div>
+          ) : null}
 
           <div>
             <Label htmlFor="file">Documento / Comprobante</Label>
@@ -398,6 +423,52 @@ export function InvoiceDialog({
             <Label htmlFor="observations">Observaciones</Label>
             <Textarea id="observations" name="observations" />
           </div>
+          {lines.length > 0 ? (
+            <div>
+              <Label>Líneas detectadas (revisalas antes de crear)</Label>
+              <div className="mt-1 space-y-1.5">
+                {lines.map((line, i) => (
+                  <div key={i} className="grid grid-cols-[1fr_64px_64px_80px_24px] gap-1.5 items-center">
+                    <Input
+                      aria-label={`Descripción línea ${i + 1}`}
+                      value={line.description}
+                      onChange={(e) => setLines((prev) => prev.map((l, j) => (j === i ? { ...l, description: e.target.value } : l)))}
+                    />
+                    <Input
+                      aria-label={`Cantidad línea ${i + 1}`}
+                      type="number"
+                      step="0.0001"
+                      value={line.quantity ?? ""}
+                      onChange={(e) => setLines((prev) => prev.map((l, j) => (j === i ? { ...l, quantity: e.target.value === "" ? null : e.target.value } : l)))}
+                    />
+                    <Input
+                      aria-label={`Unidad línea ${i + 1}`}
+                      value={line.unit ?? ""}
+                      onChange={(e) => setLines((prev) => prev.map((l, j) => (j === i ? { ...l, unit: e.target.value || null } : l)))}
+                    />
+                    <Input
+                      aria-label={`Precio línea ${i + 1}`}
+                      type="number"
+                      step="any"
+                      value={line.unit_price ?? ""}
+                      onChange={(e) => setLines((prev) => prev.map((l, j) => (j === i ? { ...l, unit_price: e.target.value === "" ? null : Number(e.target.value) } : l)))}
+                    />
+                    <button
+                      type="button"
+                      aria-label={`Quitar línea ${i + 1}`}
+                      className="text-[var(--error)] text-[14px]"
+                      onClick={() => setLines((prev) => prev.filter((_, j) => j !== i))}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-[var(--muted)] mt-1">
+                Se guardan con la factura para conciliar cantidades por ítem. Podés corregirlas o quitarlas.
+              </p>
+            </div>
+          ) : null}
           <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
               Cancelar

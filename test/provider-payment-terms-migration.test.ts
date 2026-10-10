@@ -4,7 +4,8 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("provider payment terms additive migration", () => {
-  it("applies to the baseline provider table, preserves existing rows and bounds new terms", async () => {
+  // Initializing the PostgreSQL WASM engine can exceed Vitest's 5s default.
+  it("applies to the baseline provider table, preserves existing rows and bounds new terms", { timeout: 30_000 }, async () => {
     const pg = new PGlite();
     try {
       const baseline = readFileSync(resolve("supabase/migrations/20261002231537_production_schema_baseline.sql"), "utf8");

@@ -170,9 +170,35 @@ export function BulkUploadForm({ empresaId, userId }: { empresaId: string; userI
     if (idsToCancel.length === 0) return;
     setCancelling(true);
     try {
-      await supabase.from("invoice_jobs").delete().in("id", idsToCancel);
-      setJobs((prev) => prev.filter((j) => !idsToCancel.includes(j.id)));
-      setJobIds((prev) => prev.filter((id) => !idsToCancel.includes(id)));
+      const { data: deleted, error } = await supabase.from("invoice_jobs")
+        .delete()
+        .in("id", idsToCancel)
+        .in("status", ["queued", "processing"])
+        .is("invoice_id", null)
+        .select("id, storage_bucket, storage_path");
+      if (error) {
+        setUploadError(`No se pudieron cancelar los trabajos: ${error.message}`);
+        return;
+      }
+      const deletedIds = (deleted ?? []).map((job) => job.id);
+      for (const job of deleted ?? []) {
+        const prefix = `${empresaId}/inbox/`;
+        if (job.storage_bucket === "invoice-files" && job.storage_path.startsWith(prefix)
+          && job.storage_path.length > prefix.length && !job.storage_path.slice(prefix.length).includes("..")
+          && !job.storage_path.includes("\\") && !job.storage_path.includes("//")) {
+          try {
+            const { error: storageError } = await supabase.storage.from("invoice-files").remove([job.storage_path]);
+            if (storageError) setUploadError(`Un trabajo se canceló, pero su archivo no se pudo borrar: ${storageError.message}`);
+          } catch {
+            setUploadError("Un trabajo se canceló, pero falló la limpieza de su archivo. El trabajo no se restauró.");
+          }
+        }
+      }
+      setJobs((prev) => prev.filter((j) => !deletedIds.includes(j.id)));
+      setJobIds((prev) => prev.filter((id) => !deletedIds.includes(id)));
+      if (deletedIds.length !== idsToCancel.length) {
+        setUploadError("Algunos trabajos ya cambiaron de estado o crearon una factura y no se cancelaron.");
+      }
     } finally {
       setCancelling(false);
     }

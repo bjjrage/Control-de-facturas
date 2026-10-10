@@ -150,7 +150,8 @@ describe("schedule sheet interpretation", () => {
 });
 
 describe("schedule persistence safety (temporal columns only)", () => {
-  it("updates dates/depends_on without touching quantities or prices", async () => {
+  // Includes cold initialization of the PostgreSQL WASM engine.
+  it("updates dates/depends_on without touching quantities or prices", { timeout: 30_000 }, async () => {
     const db = new PGlite();
     await db.exec(`
       CREATE TABLE public.budget_items (
