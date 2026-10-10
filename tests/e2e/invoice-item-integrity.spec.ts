@@ -78,6 +78,8 @@ test("browser actions preserve quantities, roll back invalid corrections and unl
   await precisionDialog.getByRole("combobox", { name: "Ítem de OC" }).click();
   await expect(page.getByRole("option", { name: /Ladrillo comun \(60 un; facturado 1\)/ })).toHaveCount(1);
   await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await expect(precisionDialog).not.toBeVisible();
   await page.getByRole("button", { name: /^Quitar imputación / }).click();
   await expect.poll(async () => (await quantities()).matches).toBe(0);
   expect((await quantities()).invoiced).toBe(0);
