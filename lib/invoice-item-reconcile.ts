@@ -119,7 +119,7 @@ function descriptionWords(value: string): string[] {
 }
 
 /** true si las descripciones coinciden exacto (normalizado) o el overlap léxico es total en un sentido. */
-function descriptionsMatch(invoiceDesc: string, orderDesc: string): boolean {
+export function descriptionsMatch(invoiceDesc: string, orderDesc: string): boolean {
   const a = normalizeDescription(invoiceDesc);
   const b = normalizeDescription(orderDesc);
   if (!a || !b) return false;

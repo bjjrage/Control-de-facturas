@@ -178,6 +178,7 @@ import {
   deleteInvoice,
   updateInvoiceItem,
 } from "@/app/(internal)/invoices/[id]/actions";
+import { insertValidatedItemMatches } from "@/lib/invoice-items";
 
 const INV = UID(1);
 const INV2 = UID(12);
@@ -647,6 +648,41 @@ describe("R3-03: corrección sin pérdida (insert-first)", () => {
     }
   });
 
+  it("fallo en DELETE + fallo en compensación: no miente, pide revisión humana", async () => {
+    await linkInvoiceToOrder(INV2, OC);
+    const origFrom = mocks.db!.client.from.bind(mocks.db!.client);
+    mocks.db!.client.from = ((table: string) => {
+      const q = origFrom(table) as Record<string, (...args: never[]) => unknown> & {
+        then?: unknown;
+      };
+      if (table === "invoice_items") {
+        const origDelete = q.delete as () => Record<string, (...args: never[]) => unknown> & {
+          then?: unknown;
+        };
+        q.delete = (() => {
+          const sub = origDelete();
+          // Todos los DELETE de líneas fallan (original y compensación).
+          sub.then = ((onF: (v: unknown) => unknown, onR?: (e: unknown) => unknown) =>
+            Promise.resolve({ data: [], error: { message: "DB caída", code: "XX000" } }).then(onF, onR)) as never;
+          return sub;
+        }) as never;
+      }
+      return q;
+    }) as never;
+    try {
+      const result = await updateInvoiceItem(IL2, { description: "Ladrillo común", quantity: 2000, unit: "un" });
+      // H3: no declara éxito ni afirma restauración no comprobada.
+      expect(result.error).toContain("revisión humana");
+      expect(result.error).not.toContain("se restauró el estado original");
+      // Estado real: ambas líneas coexisten, el match original sigue, nada válido.
+      expect(mocks.db!.tables.invoice_items.some((l) => l.id === IL2)).toBe(true);
+      expect(mocks.db!.tables.invoice_item_matches).toHaveLength(1);
+      expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(2500);
+    } finally {
+      mocks.db!.client.from = origFrom as never;
+    }
+  });
+
   it("error de validación no toca nada", async () => {
     await linkInvoiceToOrder(INV2, OC);
     const result = await updateInvoiceItem(IL2, { description: "   " });
@@ -680,5 +716,216 @@ describe("R3-03: corrección sin pérdida (insert-first)", () => {
     expect(result.error).toContain("congeladas");
     expect(mocks.db!.tables.invoice_items.some((l) => l.id === IL2)).toBe(true);
     expect(mocks.db!.tables.invoice_item_matches).toHaveLength(1);
+  });
+});
+
+describe("H1: servicio compartido insertValidatedItemMatches (invariantes propias)", () => {
+  const svc = (proposals: Array<{ invoiceItemId: string; orderItemId: string; quantityMatched: number }>, invoiceId = INV, orderId = OC) =>
+    insertValidatedItemMatches(mocks.db!.client as never, {
+      empresaId: TENANT,
+      invoiceId,
+      expectedOrderId: orderId,
+      proposals,
+    });
+
+  it("H1-4: línea de otra factura (misma empresa) se omite aunque exista", async () => {
+    const r = await svc([{ invoiceItemId: IL2, orderItemId: OL1, quantityMatched: 100 }]);
+    expect(r.error).toBeNull();
+    expect(r.applied).toHaveLength(0);
+    expect(r.skippedNoLink).toBe(1);
+    expect(mocks.db!.tables.invoice_item_matches).toHaveLength(0);
+  });
+
+  it("H1-2: línea de otra empresa se omite (filtro empresa_id, no confía en el id)", async () => {
+    mocks.db!.tables.invoice_items.push(
+      { id: UID(40), invoice_id: UID(41), empresa_id: OTHER_TENANT, product_description: "Ladrillo común", quantity: 100, unit: "un", sort_order: 0 },
+    );
+    const r = await svc([{ invoiceItemId: UID(40), orderItemId: OL1, quantityMatched: 100 }]);
+    expect(r.error).toBeNull();
+    expect(r.applied).toHaveLength(0);
+    expect(r.skippedNoLink).toBe(1);
+    expect(mocks.db!.tables.invoice_item_matches).toHaveLength(0);
+  });
+
+  it("H1-6: ítem de otra OC (misma empresa) se omite", async () => {
+    const r = await svc([{ invoiceItemId: IL1, orderItemId: OL_B1, quantityMatched: 100 }]);
+    expect(r.error).toBeNull();
+    expect(r.applied).toHaveLength(0);
+    expect(r.skippedNoLink).toBe(1);
+    expect(mocks.db!.tables.invoice_item_matches).toHaveLength(0);
+    expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL_B1)!.quantity_invoiced).toBe(0);
+  });
+
+  it("H1-5: sin vínculo de cabecera todo se omite (nada se contabiliza)", async () => {
+    mocks.db!.tables.invoice_order_matches = [];
+    const r = await svc([{ invoiceItemId: IL1, orderItemId: OL1, quantityMatched: 100 }]);
+    expect(r.error).toBeNull();
+    expect(r.applied).toHaveLength(0);
+    expect(r.skippedNoLink).toBe(1);
+    expect(mocks.db!.tables.invoice_item_matches).toHaveLength(0);
+  });
+
+  it("H1-3: factura aprobada congela el servicio (error fuerte, no skip silencioso)", async () => {
+    mocks.db!.tables.invoices.find((i) => i.id === INV)!.status = "PAGADO";
+    const r = await svc([{ invoiceItemId: IL1, orderItemId: OL1, quantityMatched: 100 }]);
+    expect(r.error).toContain("congelada");
+    expect(r.applied).toHaveLength(0);
+    expect(mocks.db!.tables.invoice_item_matches).toHaveLength(0);
+  });
+
+  it("H1-1: factura sin vínculo falla cerrado (nada se contabiliza)", async () => {
+    const r = await svc([{ invoiceItemId: IL1, orderItemId: OL1, quantityMatched: 100 }], UID(99));
+    expect(r.error).toBeNull();
+    expect(r.applied).toHaveLength(0);
+    expect(r.skippedNoLink).toBe(1);
+    expect(mocks.db!.tables.invoice_item_matches).toHaveLength(0);
+  });
+
+  it("H1-9a: línea parcialmente imputada acepta completar hasta lo documentado", async () => {
+    mocks.db!.tables.authorized_order_items.push(
+      { id: UID(51), order_id: OC, empresa_id: TENANT, product: "Ladrillo común", quantity: 5000, unit: "un", quantity_invoiced: 0, sort_order: 1 },
+    );
+    const first = await svc([{ invoiceItemId: IL1, orderItemId: OL1, quantityMatched: 1000 }]);
+    expect(first.error).toBeNull();
+    expect(first.applied).toHaveLength(1);
+    // 1000 ya imputados + 1500 nuevos = 2500 documentados: se aplica.
+    const second = await svc([{ invoiceItemId: IL1, orderItemId: UID(51), quantityMatched: 1500 }]);
+    expect(second.error).toBeNull();
+    expect(second.applied).toHaveLength(1);
+    expect(mocks.db!.tables.invoice_item_matches).toHaveLength(2);
+    expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(1000);
+    expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === UID(51))!.quantity_invoiced).toBe(1500);
+  });
+
+  it("H1-9b: matches previos persistidos + nueva propuesta respetan el tope documentado", async () => {
+    mocks.db!.tables.authorized_order_items.push(
+      { id: UID(51), order_id: OC, empresa_id: TENANT, product: "Ladrillo común", quantity: 9000, unit: "un", quantity_invoiced: 0, sort_order: 1 },
+      { id: UID(52), order_id: OC, empresa_id: TENANT, product: "Ladrillo común", quantity: 9000, unit: "un", quantity_invoiced: 0, sort_order: 2 },
+    );
+    const first = await svc([{ invoiceItemId: IL1, orderItemId: UID(51), quantityMatched: 2000 }]);
+    expect(first.error).toBeNull();
+    expect(first.applied).toHaveLength(1);
+    // 2000 previos + 1000 no caben, pero 500 sí (tope exacto 2500).
+    const over = await svc([{ invoiceItemId: IL1, orderItemId: UID(52), quantityMatched: 1000 }]);
+    expect(over.error).toBeNull();
+    expect(over.applied).toHaveLength(0);
+    expect(over.skippedOverDocumented).toBe(1);
+    const exact = await svc([{ invoiceItemId: IL1, orderItemId: UID(52), quantityMatched: 500 }]);
+    expect(exact.error).toBeNull();
+    expect(exact.applied).toHaveLength(1);
+    expect(mocks.db!.tables.invoice_item_matches).toHaveLength(2);
+  });
+
+  it("H1-9c: segunda imputación que excede lo documentado se omite", async () => {
+    mocks.db!.tables.authorized_order_items.push(
+      { id: UID(51), order_id: OC, empresa_id: TENANT, product: "Ladrillo común", quantity: 9000, unit: "un", quantity_invoiced: 0, sort_order: 1 },
+      { id: UID(52), order_id: OC, empresa_id: TENANT, product: "Ladrillo común", quantity: 9000, unit: "un", quantity_invoiced: 0, sort_order: 2 },
+    );
+    const first = await svc([{ invoiceItemId: IL1, orderItemId: UID(51), quantityMatched: 2000 }]);
+    expect(first.error).toBeNull();
+    expect(first.applied).toHaveLength(1);
+    // 2000 previos + 600 nuevos = 2600 > 2500 documentados.
+    const second = await svc([{ invoiceItemId: IL1, orderItemId: UID(52), quantityMatched: 600 }]);
+    expect(second.error).toBeNull();
+    expect(second.applied).toHaveLength(0);
+    expect(second.skippedOverDocumented).toBe(1);
+    expect(mocks.db!.tables.invoice_item_matches).toHaveLength(1);
+  });
+
+  it("H1-batch: dos propuestas válidas en el mismo batch se aplican", async () => {
+    mocks.db!.tables.invoice_items.push(
+      { id: UID(53), invoice_id: INV, empresa_id: TENANT, product_description: "Ladrillo común segunda entrega", quantity: 800, unit: "un", sort_order: 1 },
+    );
+    const r = await svc([
+      { invoiceItemId: IL1, orderItemId: OL1, quantityMatched: 1000 },
+      { invoiceItemId: UID(53), orderItemId: OL1, quantityMatched: 800 },
+    ]);
+    expect(r.error).toBeNull();
+    expect(r.applied).toHaveLength(2);
+    expect(mocks.db!.tables.invoice_item_matches).toHaveLength(2);
+    expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(1800);
+  });
+
+  it("H1-batch: dos propuestas cuya suma excede el documento aplican solo la primera", async () => {
+    mocks.db!.tables.invoice_items.push(
+      { id: UID(53), invoice_id: INV, empresa_id: TENANT, product_description: "Ladrillo común", quantity: 1000, unit: "un", sort_order: 1 },
+    );
+    mocks.db!.tables.authorized_order_items.push(
+      { id: UID(54), order_id: OC, empresa_id: TENANT, product: "Ladrillo común", quantity: 9000, unit: "un", quantity_invoiced: 0, sort_order: 1 },
+      { id: UID(55), order_id: OC, empresa_id: TENANT, product: "Ladrillo común", quantity: 9000, unit: "un", quantity_invoiced: 0, sort_order: 2 },
+    );
+    const r = await svc([
+      { invoiceItemId: UID(53), orderItemId: UID(54), quantityMatched: 600 },
+      { invoiceItemId: UID(53), orderItemId: UID(55), quantityMatched: 600 },
+    ]);
+    expect(r.error).toBeNull();
+    expect(r.applied).toHaveLength(1);
+    expect(r.skippedOverDocumented).toBe(1);
+    expect(mocks.db!.tables.invoice_item_matches).toHaveLength(1);
+  });
+
+  it("H1-10: error consultando matches previos falla cerrado (sin escritura)", async () => {
+    const client = mocks.db!.client as unknown as { from: (t: string) => unknown };
+    const origFrom = client.from.bind(client);
+    client.from = ((table: string) => {
+      if (table !== "invoice_item_matches") return origFrom(table);
+      return {
+        select: () => ({
+          eq: () => ({
+            in: async () => ({ data: null, error: { message: "DB caída", code: "XX000" } }),
+          }),
+        }),
+      };
+    }) as never;
+    try {
+      const r = await svc([{ invoiceItemId: IL1, orderItemId: OL1, quantityMatched: 100 }]);
+      expect(r.error).toContain("ya imputado");
+      expect(r.applied).toHaveLength(0);
+      expect(mocks.db!.tables.invoice_item_matches).toHaveLength(0);
+      expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(0);
+    } finally {
+      client.from = origFrom as never;
+    }
+  });
+
+  it("H1-11: reintento idéntico no duplica", async () => {
+    const first = await svc([{ invoiceItemId: IL1, orderItemId: OL1, quantityMatched: 2500 }]);
+    expect(first.error).toBeNull();
+    expect(first.applied).toHaveLength(1);
+    const retry = await svc([{ invoiceItemId: IL1, orderItemId: OL1, quantityMatched: 2500 }]);
+    expect(retry.error).toBeNull();
+    expect(retry.applied).toHaveLength(0);
+    expect(retry.skippedDuplicate).toBe(1);
+    expect(mocks.db!.tables.invoice_item_matches).toHaveLength(1);
+    expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(2500);
+  });
+
+  it("H1-7/12: worker con referencias inconsistentes (unidad y producto) se omite todo", async () => {
+    // Simula propuestas GPT alucinadas: unidad incompatible y producto ajeno.
+    mocks.db!.tables.authorized_order_items.push(
+      { id: UID(60), order_id: OC, empresa_id: TENANT, product: "Cemento puzolánico", quantity: 5000, unit: "bolsa", quantity_invoiced: 0, sort_order: 1 },
+    );
+    const r = await svc([
+      { invoiceItemId: IL1, orderItemId: UID(60), quantityMatched: 100 },
+      { invoiceItemId: IL1, orderItemId: OL1, quantityMatched: 0 },
+    ]);
+    expect(r.error).toBeNull();
+    expect(r.applied).toHaveLength(0);
+    // unidad incompatible → mismatch; cantidad no positiva → documentado.
+    expect(r.skippedMismatch).toBe(1);
+    expect(r.skippedOverDocumented).toBe(1);
+    expect(mocks.db!.tables.invoice_item_matches).toHaveLength(0);
+    expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(0);
+  });
+
+  it("H1-12b: producto ajeno a la OC se omite aunque la unidad coincida", async () => {
+    mocks.db!.tables.authorized_order_items.push(
+      { id: UID(61), order_id: OC, empresa_id: TENANT, product: "Cemento puzolánico", quantity: 5000, unit: "un", quantity_invoiced: 0, sort_order: 1 },
+    );
+    const r = await svc([{ invoiceItemId: IL1, orderItemId: UID(61), quantityMatched: 100 }]);
+    expect(r.error).toBeNull();
+    expect(r.applied).toHaveLength(0);
+    expect(r.skippedMismatch).toBe(1);
+    expect(mocks.db!.tables.invoice_item_matches).toHaveLength(0);
   });
 });

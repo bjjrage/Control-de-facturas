@@ -1,7 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  descriptionsMatch,
   orderLineRemaining,
   suggestInvoiceItemMatches,
+  unitsCompatible,
   type ReconcilableInvoiceLine,
   type ReconcilableOrderLine,
 } from "./invoice-item-reconcile";
@@ -106,12 +108,41 @@ export async function getHeaderLink(
 export type ValidatedProposal = { invoiceItemId: string; orderItemId: string; quantityMatched: number };
 
 /**
- * Inserción validada compartida (diálogo + worker): respeta las mismas
- * invariantes en ambas vías. Cada propuesta debe traer:
- * - vínculo de cabecera vigente === orderId esperado (R3-01);
- * - cantidad ≤ cantidad documentada de la línea (R3-02 regla A);
- * - cantidad ≤ remanente de la OC (R3-02 regla B; el exceso se omite, nunca se contabiliza);
- * - sin duplicados (idempotencia ante reintentos).
+ * Inserción validada compartida (diálogo + conciliación + worker bulk + corrección):
+ * el servicio —no cada llamador— garantiza las invariantes en cada propuesta.
+ *
+ * Verificaciones (H1, todas fail-closed ante error de consulta):
+ *  1. Factura existente (por id).
+ *  2. Empresa correcta (todas las lecturas filtran por empresa_id).
+ *  3. Estado editable (APTO_PARA_PAGO/PAGADO congela la conciliación).
+ *  4. Línea perteneciente exactamente a esa factura (line.invoice_id === invoiceId;
+ *     NO basta que la línea exista en la empresa).
+ *  5. OC vinculada a la cabecera de esa factura (getHeaderLink === expectedOrderId).
+ *  6. Ítem perteneciente exactamente a esa OC (order.order_id === expectedOrderId).
+ *  7. Unidad compatible (misma regla que la vía manual/determinística).
+ *  8. Cantidad documentada válida (finita; null = sin conciliar).
+ *  9. Cantidad acumulada ya imputada de la línea: se suman los matches
+ *     PREVIAMENTE PERSISTIDOS más los del batch en curso; la suma nunca supera
+ *     lo documentado (invariante documental).
+ * 10. Remanente de la OC: nunca se contabiliza por encima (invariante de OC).
+ * 11. Ausencia de duplicación (chequeo + UNIQUE contraint 23505).
+ * 12. Correspondencia del producto (descriptionsMatch, salvo caso 1:1 inequívoco).
+ *
+ * Invariante documental:
+ *   SUM(invoice_item_matches.quantity_matched WHERE invoice_item_id = X)
+ *     <= invoice_items.quantity
+ * Invariante de OC:
+ *   SUM(invoice_item_matches.quantity_matched WHERE order_item_id = Y)
+ *     <= authorized_order_items.quantity
+ * Invariante relacional: la línea de OC pertenece a la OC vinculada a la
+ * factura propietaria de la línea. No se aceptan referencias cruzadas.
+ *
+ * NOTA DE CONCURRENCIA (H2): la lectura del remanente y la inserción son dos
+ * operaciones separadas; bajo concurrencia real dos inserciones pueden exceder
+ * el remanente. La atomicidad fuerte requiere la RPC `create_invoice_item_match`
+ * (migración PENDIENTE, no aplicada). Este servicio es defensa en profundidad,
+ * no garantía transaccional.
+ *
  * Devuelve lo aplicado y lo omitido con su motivo; nunca inventa cantidades.
  */
 export async function insertValidatedItemMatches(
@@ -129,80 +160,144 @@ export async function insertValidatedItemMatches(
   skippedOverDocumented: number;
   skippedOverRemaining: number;
   skippedDuplicate: number;
+  skippedMismatch: number;
 }> {
   const applied: AppliedItemMatch[] = [];
   let skippedNoLink = 0;
   let skippedOverDocumented = 0;
   let skippedOverRemaining = 0;
   let skippedDuplicate = 0;
+  let skippedMismatch = 0;
+  const bail = (error: string | null) => ({
+    error,
+    applied,
+    skippedNoLink,
+    skippedOverDocumented,
+    skippedOverRemaining,
+    skippedDuplicate,
+    skippedMismatch,
+  });
 
   const link = await getHeaderLink(supabase, { empresaId: args.empresaId, invoiceId: args.invoiceId });
   if (!link.ok || link.orderId !== args.expectedOrderId) {
-    return {
-      error: null,
-      applied,
-      skippedNoLink: args.proposals.length,
-      skippedOverDocumented,
-      skippedOverRemaining,
-      skippedDuplicate,
-    };
+    skippedNoLink = args.proposals.length;
+    return bail(null);
+  }
+
+  // H1-1/2/3: factura existente, de la empresa y en estado editable.
+  const { data: invoiceHead, error: headError } = await supabase
+    .from("invoices")
+    .select("id, status")
+    .eq("id", args.invoiceId)
+    .eq("empresa_id", args.empresaId)
+    .maybeSingle();
+  if (headError) return bail(`No se pudo verificar la factura: ${headError.message}`);
+  if (!invoiceHead) return bail("Factura no encontrada: no se puede imputar por ítem.");
+  // H1-3: misma regla que itemMutationsAllowed en las acciones: solo
+  // PENDIENTE/MATCH/REQUIERE_REVISION admiten conciliación por ítem.
+  if (!["PENDIENTE", "MATCH", "REQUIERE_REVISION"].includes((invoiceHead as { status: string }).status)) {
+    return bail("La factura ya no está en estado editable; la conciliación por ítem queda congelada.");
   }
 
   const invoiceItemIds = [...new Set(args.proposals.map((p) => p.invoiceItemId))];
   const orderItemIds = [...new Set(args.proposals.map((p) => p.orderItemId))];
-  const [{ data: invoiceLines, error: linesError }, { data: orderLines, error: orderError }] = await Promise.all([
-    supabase.from("invoice_items").select("id, quantity").eq("empresa_id", args.empresaId).in("id", invoiceItemIds.length ? invoiceItemIds : ["00000000-0000-0000-0000-000000000000"]),
-    supabase.from("authorized_order_items").select("id, order_id, quantity, unit, quantity_invoiced").eq("empresa_id", args.empresaId).in("id", orderItemIds.length ? orderItemIds : ["00000000-0000-0000-0000-000000000000"]),
+  const emptyId = "00000000-0000-0000-0000-000000000000";
+  const [
+    { data: invoiceLines, error: linesError },
+    { data: orderLines, error: orderError },
+    { data: priorMatches, error: priorError },
+    { count: invoiceLineCount, error: ilCountError },
+    { count: orderLineCount, error: olCountError },
+  ] = await Promise.all([
+    supabase.from("invoice_items").select("id, invoice_id, product_description, quantity, unit").eq("empresa_id", args.empresaId).in("id", invoiceItemIds.length ? invoiceItemIds : [emptyId]),
+    supabase.from("authorized_order_items").select("id, order_id, product, quantity, unit, quantity_invoiced").eq("empresa_id", args.empresaId).in("id", orderItemIds.length ? orderItemIds : [emptyId]),
+    // H1-9: matches previamente persistidos de estas líneas (la invariante
+    // documental cubre TODO lo imputado, no solo el batch en curso).
+    supabase.from("invoice_item_matches").select("invoice_item_id, quantity_matched").eq("empresa_id", args.empresaId).in("invoice_item_id", invoiceItemIds.length ? invoiceItemIds : [emptyId]),
+    supabase.from("invoice_items").select("id", { count: "exact", head: true }).eq("invoice_id", args.invoiceId).eq("empresa_id", args.empresaId),
+    supabase.from("authorized_order_items").select("id", { count: "exact", head: true }).eq("order_id", args.expectedOrderId).eq("empresa_id", args.empresaId),
   ]);
-  if (linesError) return { error: linesError.message, applied, skippedNoLink, skippedOverDocumented, skippedOverRemaining, skippedDuplicate };
-  if (orderError) return { error: orderError.message, applied, skippedNoLink, skippedOverDocumented, skippedOverRemaining, skippedDuplicate };
+  if (linesError) return bail(`No se pudieron verificar las líneas: ${linesError.message}`);
+  if (orderError) return bail(`No se pudieron verificar los ítems de OC: ${orderError.message}`);
+  if (priorError) return bail(`No se pudo verificar lo ya imputado: ${priorError.message}`);
+  if (ilCountError || olCountError) return bail("No se pudo verificar la imputación. Intentá nuevamente.");
 
   const lineById = new Map((invoiceLines ?? []).map((l) => [l.id as string, l]));
   const orderById = new Map((orderLines ?? []).map((l) => [l.id as string, l]));
+  // H1-9: semilla con lo ya persistido (fail-closed arriba si la consulta falló).
   const matchedByLine = new Map<string, number>();
+  for (const m of priorMatches ?? []) {
+    const lid = (m as { invoice_item_id: string }).invoice_item_id;
+    matchedByLine.set(lid, (matchedByLine.get(lid) ?? 0) + Number((m as { quantity_matched: number }).quantity_matched));
+  }
+  // H1-12: el bypass por caso inequívoco exige 1 línea y 1 ítem reales.
+  const singleToSingle = (invoiceLineCount ?? 0) === 1 && (orderLineCount ?? 0) === 1;
 
   for (const proposal of args.proposals) {
     if (!Number.isFinite(proposal.quantityMatched) || proposal.quantityMatched <= 0) {
       skippedOverDocumented++;
       continue;
     }
-    const line = lineById.get(proposal.invoiceItemId);
-    const order = orderById.get(proposal.orderItemId);
+    const line = lineById.get(proposal.invoiceItemId) as unknown as {
+      id: string; invoice_id: string; product_description: string; quantity: number | null; unit: string | null;
+    } | undefined;
+    const order = orderById.get(proposal.orderItemId) as unknown as {
+      id: string; order_id: string; product: string; quantity: number; unit: string; quantity_invoiced: number;
+    } | undefined;
     if (!line || !order) {
       skippedNoLink++;
       continue;
     }
-    // R3-01: el ítem debe pertenecer a la OC vinculada (no a otra OC del tenant).
-    if ((order as { order_id: string }).order_id !== args.expectedOrderId) {
+    // H1-4: la línea debe pertenecer EXACTAMENTE a esta factura.
+    if (line.invoice_id !== args.invoiceId) {
       skippedNoLink++;
       continue;
     }
-    const lineQty = Number((line as { quantity: number | null }).quantity);
-    if (!Number.isFinite(lineQty)) {
-      skippedOverDocumented++;
+    // H1-5/6: el ítem debe pertenecer a la OC vinculada (no a otra OC del tenant).
+    if (order.order_id !== args.expectedOrderId) {
+      skippedNoLink++;
       continue;
     }
-    const already = matchedByLine.get(proposal.invoiceItemId) ?? 0;
-    // R3-02 regla A: la suma por línea nunca supera lo documentado.
-    if (already + proposal.quantityMatched > lineQty + 1e-9) {
-      skippedOverDocumented++;
+    // H1-7: unidad compatible (misma regla que vía manual/determinística).
+    if (!unitsCompatible(line.unit, order.unit)) {
+      skippedMismatch++;
       continue;
     }
-    // R3-02 regla B: nunca se contabiliza por encima del remanente.
-    const remaining = Number((order as { quantity: number }).quantity) - Number((order as { quantity_invoiced: number }).quantity_invoiced ?? 0);
-    if (proposal.quantityMatched > remaining + 1e-9) {
-      skippedOverRemaining++;
+    // H1-12: correspondencia del producto (salvo 1:1 inequívoco).
+    if (!singleToSingle && !descriptionsMatch(line.product_description, order.product)) {
+      skippedMismatch++;
       continue;
     }
+    // H1-11: ausencia de duplicación (antes que los topes: un reintento
+    // idéntico es idempotencia, no exceso; igual orden que la vía manual).
     const { data: dup, error: dupError } = await supabase
       .from("invoice_item_matches")
       .select("id")
       .eq("invoice_item_id", proposal.invoiceItemId)
       .eq("order_item_id", proposal.orderItemId)
       .maybeSingle();
-    if (dupError) return { error: dupError.message, applied, skippedNoLink, skippedOverDocumented, skippedOverRemaining, skippedDuplicate };
+    if (dupError) return bail(`No se pudo verificar duplicados: ${dupError.message}`);
     if (dup) {
       skippedDuplicate++;
+      continue;
+    }
+    // H1-8: cantidad documentada válida.
+    const lineQty = Number(line.quantity);
+    if (!Number.isFinite(lineQty)) {
+      skippedOverDocumented++;
+      continue;
+    }
+    const already = matchedByLine.get(proposal.invoiceItemId) ?? 0;
+    // H1-9 (regla A): persistido + batch nunca supera lo documentado.
+    if (already + proposal.quantityMatched > lineQty + 1e-9) {
+      skippedOverDocumented++;
+      continue;
+    }
+    // H1-10 (regla B): nunca se contabiliza por encima del remanente.
+    // (Lectura no bloqueante: ver NOTA DE CONCURRENCIA arriba.)
+    const remaining = orderLineRemaining(order);
+    if (proposal.quantityMatched > remaining + 1e-9) {
+      skippedOverRemaining++;
       continue;
     }
     const { error } = await supabase.from("invoice_item_matches").insert({
@@ -216,7 +311,7 @@ export async function insertValidatedItemMatches(
         skippedDuplicate++;
         continue;
       }
-      return { error: error.message, applied, skippedNoLink, skippedOverDocumented, skippedOverRemaining, skippedDuplicate };
+      return bail(error.message);
     }
     matchedByLine.set(proposal.invoiceItemId, already + proposal.quantityMatched);
     applied.push({
@@ -225,7 +320,7 @@ export async function insertValidatedItemMatches(
       quantityMatched: proposal.quantityMatched,
     });
   }
-  return { error: null, applied, skippedNoLink, skippedOverDocumented, skippedOverRemaining, skippedDuplicate };
+  return bail(null);
 }
 
 /**
@@ -300,9 +395,10 @@ export async function applyDeterministicItemMatches(
     proposals: insertable,
   });
   if (result.error) return { error: result.error, applied, pending, heldOverRemaining };
-  // insertValidatedItemMatches re-verifica vínculo, topes y duplicados: lo que
-  // omite vuelve a pendiente (nunca se contabiliza de más).
-  pending += result.skippedNoLink + result.skippedOverDocumented + result.skippedOverRemaining + result.skippedDuplicate;
+  // insertValidatedItemMatches re-verifica factura, vínculo, titularidad,
+  // unidad, producto, topes y duplicados: lo que omite vuelve a pendiente
+  // (nunca se contabiliza de más).
+  pending += result.skippedNoLink + result.skippedOverDocumented + result.skippedOverRemaining + result.skippedDuplicate + result.skippedMismatch;
   heldOverRemaining += result.skippedOverRemaining;
   return { error: null, applied: result.applied, pending, heldOverRemaining };
 }
