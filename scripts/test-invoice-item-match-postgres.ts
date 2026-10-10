@@ -594,7 +594,7 @@ async function main() {
     "SELECT quantity::text,unit_price::text,total_price::text,quantity_invoiced::text FROM public.authorized_order_items WHERE id=$1",
     [f.orderItemBadScale],
   ));
-  assert.deepEqual(sourceOrderItemCheck.rows[0], { quantity: "1000", unit_price: "1", total_price: "1000", quantity_invoiced: "0" });
+  assert.deepEqual(sourceOrderItemCheck.rows[0], { quantity: "1000", unit_price: "1", total_price: "1000", quantity_invoiced: "0.00" });
   checks.push("raw tenant-admin invoice-item INSERT accepts 0.01 and rejects quantity 1.236, price 1.00001, subtotal 1.001 without rounded rows; AOI precision CHECKs reject the same over-scale sources without counter changes");
 
   const oneCent = await withClient((client) => asActor(client, f.adminA, () => createMatch(client, f, 5, f.orderItemPrecision, "0.01")));
