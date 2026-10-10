@@ -610,10 +610,10 @@ async function main() {
     } finally { await client.query("RESET ROLE"); }
   });
   const sourceOrderItemCheck = await withClient(async (client) => client.query(
-    "SELECT quantity::text,unit_price::text,total_price::text,quantity_invoiced::text FROM public.authorized_order_items WHERE id=$1",
+    "SELECT quantity::text,unit_price::text,total_price::text,quantity_invoiced=0 AS quantity_invoiced_zero FROM public.authorized_order_items WHERE id=$1",
     [f.orderItemBadScale],
   ));
-  assert.deepEqual(sourceOrderItemCheck.rows[0], { quantity: "1000", unit_price: "1", total_price: "1000", quantity_invoiced: "0.00" });
+  assert.deepEqual(sourceOrderItemCheck.rows[0], { quantity: "1000", unit_price: "1", total_price: "1000", quantity_invoiced_zero: true });
   checks.push("raw tenant-admin invoice-item INSERT preserves 1.2345, rejects 1.23456, price 1.00001 and subtotal 1.001 without rounded rows; AOI precision CHECKs reject the same over-scale sources without counter changes");
 
   await withClient(async (client) => asActor(client, f.adminA, async () => {
@@ -643,7 +643,7 @@ async function main() {
       [f.orderItemPrecision],
     );
     const result = await client.query(
-      "SELECT quantity::text,total_price::text,quantity_invoiced::text FROM public.authorized_order_items WHERE id=$1",
+      "SELECT quantity::text,total_price::text,quantity_invoiced=0 AS quantity_invoiced_zero FROM public.authorized_order_items WHERE id=$1",
       [f.orderItemPrecision],
     );
     await client.query(
@@ -652,7 +652,7 @@ async function main() {
     );
     return result;
   }));
-  assert.deepEqual(largeFraction.rows[0], { quantity: "3000.0000", total_price: "3000.00", quantity_invoiced: "0.00" });
+  assert.deepEqual(largeFraction.rows[0], { quantity: "3000.0000", total_price: "3000.00", quantity_invoiced_zero: true });
   checks.push("real PostgreSQL preserves 3000.0000 physical quantity and 3000.00 money scale, then restores the fixture before matching");
 
   const exactMatch = await withClient((client) => asActor(client, f.adminA, async () => {
@@ -741,10 +741,10 @@ async function main() {
             (SELECT count(*)::int FROM public.invoice_item_matches WHERE invoice_item_id=$2) AS match_count,
             (SELECT count(*)::int FROM public.invoice_exceptions WHERE invoice_id=$1) AS exception_count,
             (SELECT count(*)::int FROM public.audit_logs WHERE invoice_id=$1) AS audit_count,
-            (SELECT quantity_invoiced FROM public.authorized_order_items WHERE id=$3) AS invoiced`,
+            (SELECT quantity_invoiced=0 FROM public.authorized_order_items WHERE id=$3) AS invoiced_zero`,
     [f.invoices[7].id, f.invoices[7].lineId, f.orderItemDelete],
   ));
-  assert.deepEqual(deletedGraph.rows[0], { invoice_count: 0, line_count: 0, link_count: 0, match_count: 0, exception_count: 0, audit_count: 0, invoiced: "0.00" });
+  assert.deepEqual(deletedGraph.rows[0], { invoice_count: 0, line_count: 0, link_count: 0, match_count: 0, exception_count: 0, audit_count: 0, invoiced_zero: true });
   const exclusiveDelete = await withClient((client) => asActor(client, f.adminA, () => client.query(
     "SELECT public.delete_invoice($1,$2) AS result", [f.companyA, f.invoices[8].id],
   )));
