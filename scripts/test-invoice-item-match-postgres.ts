@@ -174,7 +174,7 @@ async function seed(): Promise<Fixture> {
       );
       await client.query(
         `UPDATE public.invoices SET attachment_id=CASE id
-           WHEN $2 THEN $1 WHEN $3 THEN $1 WHEN $4 THEN $5 WHEN $6 THEN $7 WHEN $8 THEN $9 END
+           WHEN $2 THEN $1::uuid WHEN $3 THEN $1::uuid WHEN $4 THEN $5::uuid WHEN $6 THEN $7::uuid WHEN $8 THEN $9::uuid END
          WHERE id=ANY($10::uuid[])`,
         [sharedAttachmentId, invoices[7].id, invoices[8].id, invoices[9].id, unsafeBucketAttachmentId, invoices[10].id, foreignPrefixAttachmentId, invoices[11].id, providerAttachmentId, [invoices[7].id, invoices[8].id, invoices[9].id, invoices[10].id, invoices[11].id]],
       );
