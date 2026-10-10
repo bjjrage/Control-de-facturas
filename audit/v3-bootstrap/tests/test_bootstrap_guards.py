@@ -12,12 +12,17 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import runner_gate
+import baseline_from_github_tree
 import safe_log
 import npm_lock_guard
 import evidence_manifest
 import source_signal_inventory
 
 class BootstrapGuards(unittest.TestCase):
+    def test_rest_tree_url_uses_tree_object_not_commit(self):
+        self.assertTrue(baseline_from_github_tree.API_URL.endswith(
+            f"/git/trees/{baseline_from_github_tree.EXPECTED_TREE}?recursive=1"))
+        self.assertNotIn(baseline_from_github_tree.FROZEN_COMMIT, baseline_from_github_tree.API_URL)
     def test_loopback_strict(self):
         result=runner_gate.assert_local_url(
             "postgresql://postgres:postgres@127.0.0.1:54322/postgres","local",54322)

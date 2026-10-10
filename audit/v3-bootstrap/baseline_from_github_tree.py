@@ -29,7 +29,7 @@ EXPECTED_TREE = "a91c8c54dd9d80b7f63a86015eff2e516b21b98f"
 EXPECTED_TOTAL = 1877
 EXPECTED_FILES = 1584
 EXPECTED_DIRS = 293
-API_URL = f"https://api.github.com/repos/{OWNER}/{REPO}/git/trees/{FROZEN_COMMIT}?recursive=1"
+API_URL = f"https://api.github.com/repos/{OWNER}/{REPO}/git/trees/{EXPECTED_TREE}?recursive=1"
 E0 = "E0_METADATA_ONLY"
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
 EXEC = {".ts", ".tsx", ".js", ".jsx", ".mts", ".mjs", ".cjs", ".py", ".sh",
