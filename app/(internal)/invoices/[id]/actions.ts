@@ -382,6 +382,10 @@ export async function updateInvoiceItem(itemId: string, raw: {
     .eq("empresa_id", profile.empresa_id);
   if (delError) {
     // Compensar: borrar la versión nueva para restaurar el estado original.
+    // H3 (regla de errores): si la compensación también falla, NO se afirma
+    // restauración — se informa el estado real (duplicada pendiente de
+    // revisión) y queda auditado para intervención humana. Vía transaccional
+    // real: correct_invoice_item (migración PENDING).
     const { error: rollbackError } = await supabase
       .from("invoice_items")
       .delete()
@@ -390,8 +394,11 @@ export async function updateInvoiceItem(itemId: string, raw: {
     await logAudit(supabase, {
       action: "invoice.item_correction_failed",
       invoiceId,
-      detail: { error: delError.message, rollback: rollbackError?.message ?? null },
+      detail: { error: delError.message, rollback: rollbackError?.message ?? "ok" },
     });
+    if (rollbackError) {
+      return { error: "No se pudo corregir la línea y la restauración automática también falló: la corrección quedó como línea duplicada pendiente de revisión humana. Nada se dio por válido." };
+    }
     return { error: "No se pudo corregir la línea y se restauró el estado original. Reintentá." };
   }
 

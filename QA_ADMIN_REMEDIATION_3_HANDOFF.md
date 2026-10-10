@@ -8,9 +8,33 @@ pusheada, esperando revisión humana. **Sin merge, deploy ni migraciones.**
 - Base `origin/main`: `a56c0e199deda4a35a658b290d19d7b17ee4efa3` (verificado con
   `git fetch origin` + `git rev-parse`; incluye PR #34, #35, #36; sin drift).
 - Branch creada desde esa base; no se trabajó en `main`; no se reutilizaron branches.
-- Commits: `a8d2af8` implementación + `8194005` documental + revisión de seguridad
-  R3-01…R3-04 (HEAD final informado en el chat).
+- Commits: `a8d2af8` implementación + `8194005` documental + `f7b997c`
+  seguridad R3-01…R3-04 + hardening H1…H4 (HEAD final informado en el chat).
 - Untracked/stashes ajenos preservados (audit-artifacts, planillas-ejemplo, MAGY temporal).
+
+## FINAL INTEGRITY HARDENING (H1…H4) — ver REPORT §12
+
+- **H1:** `insertValidatedItemMatches` con 12 invariantes propias (factura,
+  empresa, estado PENDIENTE/MATCH/REQUIERE_REVISION, titularidad línea→factura,
+  vínculo, ítem→OC, unidad, producto con bypass 1:1 real, documentada con
+  previos persistidos, remanente, duplicado-antes-que-topes) + `skippedMismatch`
+  + 15 tests directos con persistencia real.
+- **H2:** sin mecanismo transaccional reutilizable (verificado); migración
+  **PENDING** en `supabase/migrations_pending/` (NO auto-aplicable, NO aplicada):
+  `create_invoice_item_match` (locks invoices→vínculo→línea→ítem, lecturas
+  post-lock, idempotencia + handler unique_violation, gate B11, auditoría
+  en-txn) + helpers SQL de unidad/producto. Reutiliza `FOR UPDATE` de approve
+  (exclusión mutua) y evita ciclo con unmatch por orden de locks. Funcional
+  23/23 en PG real local (PGlite). **Contención real BLOCKED** (sin PG
+  multitono: sin binarios, docker daemon caído >4 min, PGlite monoproceso).
+- **H3:** UPDATE runtime imposible (sin policy UPDATE en invoice_items);
+  mensaje TS exacto ante compensación fallida (test nuevo) + `correct_invoice_item`
+  RPC (in-place, revalidación, rollback total) validada 6/6 en PGlite.
+- **H4:** 7 tests fallan idéntico en `a56c0e1` y rama (worktree limpio, mismo
+  env) → preexistentes ambientales + 1 flaky; rama no toca esos archivos.
+  **0 regresiones.** En serial: **2091 PASS / 16 skipped / 0 FAIL**.
+- **Veredicto: NO READY FOR PR** (falta contención real + aprobación de
+  migración). `REQUIRES MIGRATION APPROVAL: SÍ`. `ATOMICITY VERIFIED: NO`.
 
 ## Qué se hizo y por qué
 
@@ -38,10 +62,11 @@ pusheada, esperando revisión humana. **Sin merge, deploy ni migraciones.**
 git fetch origin
 git checkout fix/qa-admin-remediation-3
 npx tsc --noEmit
-npm test                    # 2044 PASS / 16 skipped; 8 FAIL preexistentes (verificados en HEAD limpio)
+npx vitest run --no-file-parallelism   # 2091 PASS / 16 skipped / 0 FAIL esperados
 npm run build
 npx eslint "app/(internal)/invoices/**/*.{ts,tsx}" "lib/invoice-*.ts" "worker/index.ts" "test/invoice-*.test.ts"
-                            # 0 errores (2 warnings preexistentes en invoices-section.tsx)
+                                       # 0 errores (2 warnings preexistentes en invoices-section.tsx)
+npx vitest run --no-file-parallelism test/invoice-item-match-rpc-pglite.test.ts  # 23/23 (migración PENDING)
 ```
 
 Nota: los 8 FAIL de la suite corresponden a 7 archivos de migraciones/schedule/
