@@ -107,8 +107,9 @@ test("browser actions preserve quantities, roll back invalid corrections and unl
   await expect(page.getByRole("button", { name: /^Quitar imputación / })).toBeVisible();
 
   await page.getByRole("button", { name: "Desvincular", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Desvincular", exact: true })).not.toBeVisible();
-  expect(await quantities()).toMatchObject({ invoiced: 0, matches: 0 });
+  await expect.poll(quantities).toMatchObject({ invoiced: 0, matches: 0 });
+  await expect(page.getByRole("button", { name: /Desvincular|Desvinculando/ })).not.toBeVisible();
+  await expect(page.getByText("Sin conciliar", { exact: true })).toBeVisible();
   expect((await db.query("SELECT count(*)::int AS n FROM public.invoice_order_matches WHERE invoice_id=$1", [ids.invoice])).rows[0].n).toBe(0);
   const audits = (await db.query("SELECT action,empresa_id FROM public.audit_logs WHERE invoice_id=$1", [ids.invoice])).rows;
   expect(audits.some((a) => a.action === "invoice.item_matched")).toBe(true);
