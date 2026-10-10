@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { Client } from "pg";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
@@ -10,13 +11,14 @@ if (!["127.0.0.1", "localhost", "::1"].includes(host)) {
   throw new Error(`Refusing non-loopback PostgreSQL target: ${host}`);
 }
 
+async function main() {
 const client = new Client({ connectionString: databaseUrl });
 const companyId = randomUUID();
 const userId = randomUUID();
 const providerId = randomUUID();
 const orderId = randomUUID();
 const itemIds = Array.from({ length: 9 }, () => randomUUID());
-const migration = readFileSync(new URL("../supabase/migrations/20261010040050_reject_source_numeric_rounding.sql", import.meta.url), "utf8");
+const migration = readFileSync(resolve(process.cwd(), "supabase/migrations/20261010040050_reject_source_numeric_rounding.sql"), "utf8");
 
 await client.connect();
 try {
@@ -169,3 +171,9 @@ try {
 } finally {
   await client.end();
 }
+}
+
+void main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
