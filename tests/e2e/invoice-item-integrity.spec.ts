@@ -76,7 +76,7 @@ test("browser actions preserve quantities, roll back invalid corrections and unl
   await page.getByRole("button", { name: "Imputar", exact: true }).click();
   const precisionDialog = page.getByRole("dialog");
   await precisionDialog.getByRole("combobox", { name: "Ítem de OC" }).click();
-  await expect(page.locator("option").filter({ hasText: /60,0000.*facturado\s+1,0000/ })).toHaveCount(1);
+  await expect(page.getByRole("option", { name: /Ladrillo comun \(60 un; facturado 1\)/ })).toHaveCount(1);
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: /^Quitar imputación / }).click();
   await expect.poll(async () => (await quantities()).matches).toBe(0);
