@@ -1,6 +1,8 @@
 # Remediation 3 independent review record
 
-Status: review and exact-head CI certification in progress. This record does not
+Status: material review findings resolved. The implementation passed full
+certification at `9a2b719`; the final PR head must retain a successful exact-head
+run. See [verified evidence](remediation-3-certification.md). This record does not
 grant production migration, merge or deployment authorization.
 
 Three independent subagents reviewed SQL, runtime/worker and real-PostgreSQL test
@@ -29,7 +31,11 @@ of a passing release gate.
 
 PGlite tests cover sequential SQL behavior only. PostgreSQL 17 independent-session
 tests, full Vitest, production build, TypeScript, scoped lint and browser actions
-must all pass on the final PR head before this record becomes a closure verdict.
+all passed in run 38066922109. The final documentation commit is also subject to
+the full exact-head gate. The SQL reviewer corrected and retested cascaded invoice
+deletion; the runtime reviewer independently confirmed both installed definitions
+retain the same tenant filters and OP-first lock order. The test reviewer checked
+full-schema fixtures and the evidence. No material review finding remains open.
 
 An automatic approval review rejected a proposed unscoped audit-row deletion
 because an invoice ID could also appear in another tenant's audit metadata. The

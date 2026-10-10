@@ -1,5 +1,14 @@
 # QA ADMIN REMEDIATION 3 — REPORT
 
+> Transactional completion certified on 2026-10-10: PostgreSQL 17.11 real
+> concurrency/security checks, 2,107 passing regression tests, production build,
+> types, scoped lint and authenticated browser workflow passed in
+> [run 38066922109](https://github.com/bjjrage/Control-de-facturas/actions/runs/38066922109).
+> See [the current certificate](docs/remediation-3-certification.md),
+> [review closure](docs/remediation-3-review.md) and
+> [release/rollback runbook](docs/remediation-3-release.md). The final PR head must
+> pass the same gate. The historical scope and verdict below are superseded.
+
 > Historical implementation report. The autonomous transactional completion in
 > `docs/remediation-3-release.md` and the exact-head Release Certification workflow
 > supersede the former pending-migration and check-then-insert limitations below.
