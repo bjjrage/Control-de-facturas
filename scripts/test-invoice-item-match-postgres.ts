@@ -230,7 +230,7 @@ async function main() {
   assert.deepEqual(argsByRpc.create_invoice_from_job, ["p_empresa_id", "p_job_id", "p_expected_attempts", "p_invoice"]);
   const receiptGuard = await withClient(async (client) => client.query(
     `SELECT t.tgname,t.tgenabled,p.proname,pn.nspname AS function_schema,
-            ARRAY(SELECT a.attname FROM unnest(t.tgattr::smallint[]) AS target(attnum)
+            ARRAY(SELECT a.attname::text FROM unnest(t.tgattr::smallint[]) AS target(attnum)
                     JOIN pg_attribute a ON a.attrelid=t.tgrelid AND a.attnum=target.attnum
                    ORDER BY a.attnum) AS update_columns
        FROM pg_trigger t
