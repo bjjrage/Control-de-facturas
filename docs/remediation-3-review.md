@@ -15,6 +15,7 @@ of a passing release gate.
 | Header unlink races with allocation | Expected relationship identity and canonical lock ordering |
 | Raw writes bypass the invariants | Privilege revocation, source guards and negative role/tenant tests |
 | Invoice deletion cleans metadata before paid-state rejection | One OP-first transactional delete RPC and payment-execution race |
+| FK cascades invoke actor/recompute guards after the invoice disappears | Explicit child cleanup while the locked invoice remains visible, then parent deletion; full-schema PostgreSQL regression |
 | Shared or forged attachment metadata deletes unrelated Storage | Last-reference metadata deletion, owned bucket/path cleanup contract, adversarial fixtures |
 | Retry/manual resolution races reopen processing jobs | Conditional state claims and negative race tests |
 | Expired worker can overwrite newer work | Attempt-fenced creation/finish and stale-recovery assertions |

@@ -279,6 +279,7 @@ BEGIN
     -- An unpaid invoice may be deleted; its FK cascade runs after the parent
     -- row has become invisible. The B11 BEFORE DELETE trigger already blocks
     -- APTO_PARA_PAGO/PAGADO invoices.
+    v_empresa_id := OLD.empresa_id;
     PERFORM private.b11_require_financial_actor(v_empresa_id);
     RETURN OLD;
   END IF;
@@ -1059,8 +1060,34 @@ BEGIN
     RAISE EXCEPTION 'No se puede eliminar una factura vinculada a una OP ejecutada' USING ERRCODE='55000';
   END IF;
 
-  -- All cleanup and the parent deletion share this transaction. Cascaded line,
-  -- header-match, item-match and exception deletion also completes atomically.
+  -- Lock child source rows in invoice -> authorized-order -> invoice-line ->
+  -- order-line order. Delete them while the invoice is still visible so their
+  -- guards and recompute triggers can validate the tenant and update counters.
+  PERFORM o.id
+  FROM public.authorized_orders o
+  JOIN public.invoice_order_matches iom ON iom.authorized_order_id=o.id
+  WHERE iom.invoice_id=p_invoice_id AND iom.empresa_id=p_empresa_id AND o.empresa_id=p_empresa_id
+  ORDER BY o.id FOR UPDATE OF o;
+  PERFORM l.id FROM public.invoice_items l
+  WHERE l.invoice_id=p_invoice_id AND l.empresa_id=p_empresa_id
+  ORDER BY l.id FOR UPDATE;
+  PERFORM oi.id
+  FROM public.authorized_order_items oi
+  JOIN public.invoice_item_matches m ON m.order_item_id=oi.id
+  JOIN public.invoice_items l ON l.id=m.invoice_item_id
+  WHERE l.invoice_id=p_invoice_id AND l.empresa_id=p_empresa_id
+    AND m.empresa_id=p_empresa_id AND oi.empresa_id=p_empresa_id
+  ORDER BY oi.order_id,oi.id FOR UPDATE OF oi;
+
+  -- All child cleanup and the parent deletion share this transaction.
+  DELETE FROM public.invoice_item_matches m
+  USING public.invoice_items l
+  WHERE m.invoice_item_id=l.id AND m.empresa_id=p_empresa_id
+    AND l.invoice_id=p_invoice_id AND l.empresa_id=p_empresa_id;
+  DELETE FROM public.invoice_order_matches iom
+  WHERE iom.invoice_id=p_invoice_id AND iom.empresa_id=p_empresa_id;
+  DELETE FROM public.invoice_items l
+  WHERE l.invoice_id=p_invoice_id AND l.empresa_id=p_empresa_id;
   DELETE FROM public.payment_order_invoices poi
   WHERE poi.invoice_id=p_invoice_id AND poi.empresa_id=p_empresa_id;
   DELETE FROM public.invoice_exceptions e

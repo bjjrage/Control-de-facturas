@@ -121,17 +121,30 @@ beforeAll(async () => {
     CREATE TABLE public.payment_order_invoices (payment_order_id uuid NOT NULL, invoice_id uuid NOT NULL, empresa_id uuid NOT NULL);
     CREATE TABLE public.invoice_exceptions (invoice_id uuid NOT NULL, empresa_id uuid NOT NULL);
     CREATE TABLE public.invoices (id uuid PRIMARY KEY, empresa_id uuid NOT NULL, status public.invoice_status NOT NULL DEFAULT 'PENDIENTE', provider_id uuid, invoice_number text, invoice_date date, currency public.currency_code, subtotal numeric, vat numeric, total numeric, timbrado text, attachment_id uuid, created_by uuid);
-    CREATE TABLE public.invoice_items (id uuid PRIMARY KEY, invoice_id uuid NOT NULL, empresa_id uuid NOT NULL, product_description text NOT NULL, quantity numeric(14,2), unit text, unit_price numeric(14,4), subtotal numeric(14,2), sort_order integer DEFAULT 0 NOT NULL);
-    CREATE TABLE public.authorized_order_items (id uuid PRIMARY KEY, order_id uuid NOT NULL, empresa_id uuid NOT NULL, product text NOT NULL, quantity numeric(14,2) NOT NULL CHECK (quantity>0), unit text NOT NULL, unit_price numeric(14,4) NOT NULL CHECK (unit_price>=0), total_price numeric(14,2) NOT NULL CHECK (total_price>0), quantity_invoiced numeric(14,2) NOT NULL DEFAULT 0, sort_order integer DEFAULT 0 NOT NULL);
+    CREATE TABLE public.invoice_items (id uuid PRIMARY KEY, invoice_id uuid NOT NULL REFERENCES public.invoices(id) ON DELETE CASCADE, empresa_id uuid NOT NULL, product_description text NOT NULL, quantity numeric(14,2), unit text, unit_price numeric(14,4), subtotal numeric(14,2), sort_order integer DEFAULT 0 NOT NULL);
+    CREATE TABLE public.authorized_order_items (id uuid PRIMARY KEY, order_id uuid NOT NULL REFERENCES public.authorized_orders(id), empresa_id uuid NOT NULL, product text NOT NULL, quantity numeric(14,2) NOT NULL CHECK (quantity>0), unit text NOT NULL, unit_price numeric(14,4) NOT NULL CHECK (unit_price>=0), total_price numeric(14,2) NOT NULL CHECK (total_price>0), quantity_invoiced numeric(14,2) NOT NULL DEFAULT 0, sort_order integer DEFAULT 0 NOT NULL);
     CREATE OR REPLACE FUNCTION public.test_receipt_quantity_guard() RETURNS trigger
     LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'receipt quantity guard preserved'; END $$;
     CREATE TRIGGER trg_prevent_order_quantity_below_confirmed_receipts
       BEFORE UPDATE OF quantity ON public.authorized_order_items
       FOR EACH ROW EXECUTE FUNCTION public.test_receipt_quantity_guard();
-    CREATE TABLE public.invoice_order_matches (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), invoice_id uuid NOT NULL UNIQUE, authorized_order_id uuid NOT NULL, empresa_id uuid NOT NULL);
-    CREATE TABLE public.invoice_item_matches (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), invoice_item_id uuid NOT NULL, order_item_id uuid NOT NULL, empresa_id uuid NOT NULL, quantity_matched numeric NOT NULL, CONSTRAINT m_qty CHECK (quantity_matched > 0));
+    CREATE TABLE public.invoice_order_matches (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), invoice_id uuid NOT NULL UNIQUE REFERENCES public.invoices(id) ON DELETE CASCADE, authorized_order_id uuid NOT NULL REFERENCES public.authorized_orders(id), empresa_id uuid NOT NULL);
+    CREATE TABLE public.invoice_item_matches (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), invoice_item_id uuid NOT NULL REFERENCES public.invoice_items(id) ON DELETE CASCADE, order_item_id uuid NOT NULL REFERENCES public.authorized_order_items(id), empresa_id uuid NOT NULL, quantity_matched numeric NOT NULL, CONSTRAINT m_qty CHECK (quantity_matched > 0));
     CREATE TABLE public.audit_logs (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), empresa_id uuid, actor_id uuid, actor_type text NOT NULL, actor_label text, action text NOT NULL, rfq_id uuid, rfq_provider_id uuid, invoice_id uuid, authorized_order_id uuid, detail jsonb);
     CREATE TABLE public.invoice_jobs (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), empresa_id uuid NOT NULL, created_by uuid NOT NULL, storage_bucket text NOT NULL DEFAULT 'invoice-files', storage_path text NOT NULL, file_name text NOT NULL, mime_type text NOT NULL, batch_date date NOT NULL DEFAULT current_date, status public.invoice_job_status NOT NULL DEFAULT 'queued', attempts integer NOT NULL DEFAULT 0, extracted jsonb, provider_id uuid, invoice_id uuid, outcome text, message text, error text, locked_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+    CREATE OR REPLACE FUNCTION public.test_recompute_invoice_status(p_invoice_id uuid) RETURNS void
+    LANGUAGE plpgsql AS $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM public.invoices WHERE id=p_invoice_id) THEN
+        RAISE EXCEPTION 'invoice parent missing during header match recompute';
+      END IF;
+    END $$;
+    CREATE OR REPLACE FUNCTION public.test_recompute_on_iom_change() RETURNS trigger
+    LANGUAGE plpgsql AS $$ BEGIN
+      PERFORM public.test_recompute_invoice_status(CASE WHEN TG_OP='DELETE' THEN OLD.invoice_id ELSE NEW.invoice_id END);
+      RETURN CASE WHEN TG_OP='DELETE' THEN OLD ELSE NEW END;
+    END $$;
+    CREATE TRIGGER trg_iom_recompute AFTER INSERT OR DELETE OR UPDATE ON public.invoice_order_matches
+      FOR EACH ROW EXECUTE FUNCTION public.test_recompute_on_iom_change();
   `);
   // Gate B11 + auditoría + trigger canónico (copias del schema real).
   await db.exec(`
@@ -197,9 +210,9 @@ beforeAll(async () => {
 }, T.timeout);
 
 beforeEach(async () => {
+  await setActor("authenticated", ADMIN_A);
   await db.exec(`TRUNCATE public.invoice_item_matches, public.invoice_order_matches, public.invoice_items, public.authorized_order_items, public.authorized_orders, public.invoices, public.profiles, public.empresas, public.audit_logs, public.invoice_jobs`);
   await seed();
-  await setActor("authenticated", ADMIN_A);
 }, T.timeout);
 
 describe("helpers de correspondencia (réplica SQL de reconcile.ts)", () => {
@@ -387,14 +400,24 @@ describe("create_invoice_item_match (H2 funcional)", () => {
 });
 
 describe("delete_invoice (B11, factura sin adjunto)", () => {
-  it("elimina una factura editable aunque no tenga attachment y retorna cleanup nulo", T, async () => {
-    await setActor("authenticated", ADMIN_B);
-    const result = await db.query("SELECT public.delete_invoice($1,$2) AS r", [B, INV_B]);
+  it("elimina líneas, imputaciones y vínculo antes del padre con attachment nulo", T, async () => {
+    await db.exec(`INSERT INTO public.invoice_item_matches (invoice_item_id,order_item_id,empresa_id,quantity_matched)
+      VALUES ('${IL1}','${OL1}','${A}',1)`);
+    const result = await db.query("SELECT public.delete_invoice($1,$2) AS r", [A, INV]);
     const out = (result.rows[0] as { r: { ok: boolean; attachment_id: string | null; cleanup_bucket: string | null; cleanup_path: string | null } }).r;
     expect(out).toEqual({ ok: true, attachment_id: null, cleanup_bucket: null, cleanup_path: null });
-    const persisted = await db.query("SELECT count(*) AS c FROM public.invoices WHERE id=$1", [INV_B]);
+    const persisted = await db.query("SELECT count(*) AS c FROM public.invoices WHERE id=$1", [INV]);
     expect(Number((persisted.rows[0] as { c: string }).c)).toBe(0);
-    await setActor("authenticated", ADMIN_A);
+    const children = await db.query(`SELECT
+      (SELECT count(*) FROM public.invoice_items WHERE invoice_id=$1) AS lines,
+      (SELECT count(*) FROM public.invoice_order_matches WHERE invoice_id=$1) AS links,
+      (SELECT count(*) FROM public.invoice_item_matches WHERE invoice_item_id=$2) AS matches,
+      (SELECT quantity_invoiced FROM public.authorized_order_items WHERE id=$3) AS counter`, [INV, IL1, OL1]);
+    const row = children.rows[0] as { lines: string; links: string; matches: string; counter: string };
+    expect(Number(row.lines)).toBe(0);
+    expect(Number(row.links)).toBe(0);
+    expect(Number(row.matches)).toBe(0);
+    expect(Number(row.counter)).toBe(0);
   });
 });
 
