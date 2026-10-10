@@ -1,7 +1,8 @@
 /**
- * Validación funcional de la migración PENDING
- * supabase/migrations_pending/20261010000000_invoice_item_match_atomic_PENDING.sql
- * sobre PostgreSQL real local (PGlite, WASM, efímero).
+ * Validación funcional de la migración final
+ * supabase/migrations/20261010040051_invoice_item_match_integrity.sql
+ * sobre PGlite (WASM, efímero). El lock/concurrency verdict viene solo de
+ * scripts/test-invoice-item-match-postgres.ts contra PostgreSQL 17 real.
  *
  * ALCANCE: invariantes secuenciales (documental / OC / relacional),
  * idempotencia, aislamiento multitenant, freeze por estado, rollback ante
@@ -10,9 +11,10 @@
  * GRANT/REVOKE/OWNER/EXTENSION y se inyectan shims mínimos: auth.uid,
  * auth.role, extensions.unaccent vía translate, gen_random_uuid vía md5).
  *
- * NO CUBRE: contención real de locks entre dos transacciones simultáneas
- * (PGlite es monoproceso: no puede bloquearse de verdad). Veredicto de
- * concurrencia: BLOCKED/NOT VERIFIED (README en migrations_pending/).
+ * NO CERTIFICA: contención real de locks entre dos transacciones simultáneas
+ * (PGlite es monoproceso: no puede bloquearse de verdad). La concurrencia se
+ * certifica aparte con scripts/test-invoice-item-match-postgres.ts contra
+ * PostgreSQL 17 real, ejecutado por el workflow Remediation 3.
  *
  * NOTA OPERATIVA: PGlite inicializa WASM; correr en modo serial
  * (npx vitest run --no-file-parallelism). Bajo paralelismo la carga WASM
@@ -36,6 +38,7 @@ const OC_B = "00000000-0000-4000-8000-000000000004";
 const IL1 = "00000000-0000-4000-8000-000000000005";
 const OL1 = "00000000-0000-4000-8000-000000000006";
 const OL_B1 = "00000000-0000-4000-8000-000000000007";
+const IL2 = "00000000-0000-4000-8000-000000000008";
 
 let db: PGlite;
 
@@ -55,7 +58,7 @@ async function throwsWith(p: Promise<unknown>, needle: string) {
 }
 
 const callCreate = (empresa: string, invoice: string, line: string, orderItem: string, qty: number | null) =>
-  db.query("SELECT public.create_invoice_item_match($1,$2,$3,$4,$5) AS r", [empresa, invoice, line, orderItem, qty]);
+  db.query("SELECT public.create_invoice_item_match($1,$2,$3,$4,$5,$6) AS r", [empresa, invoice, OC, line, orderItem, qty]);
 
 const callCorrect = (empresa: string, item: string, desc: string, qty: number | null, unit: string | null, price: number | null, sub: number | null) =>
   db.query("SELECT public.correct_invoice_item($1,$2,$3,$4,$5,$6,$7) AS r", [empresa, item, desc, qty, unit, price, sub]);
@@ -70,8 +73,10 @@ async function seed() {
     INSERT INTO public.invoices (id, empresa_id, status) VALUES
       ('${INV}', '${A}', 'PENDIENTE'),
       ('${INV_B}', '${B}', 'PENDIENTE');
+    INSERT INTO public.authorized_orders (id, empresa_id) VALUES ('${OC}', '${A}'), ('${OC_B}', '${A}');
     INSERT INTO public.invoice_items (id, invoice_id, empresa_id, product_description, quantity, unit) VALUES
-      ('${IL1}', '${INV}', '${A}', 'Ladrillo común', 2500, 'un');
+      ('${IL1}', '${INV}', '${A}', 'Ladrillo común', 2500, 'un'),
+      ('${IL2}', '${INV}', '${A}', 'Ladrillo común', 2500, 'un');
     INSERT INTO public.authorized_order_items (id, order_id, empresa_id, product, quantity, unit, quantity_invoiced) VALUES
       ('${OL1}', '${OC}', '${A}', 'Ladrillo común', 3000, 'un', 0),
       ('${OL_B1}', '${OC_B}', '${A}', 'Cemento puzolánico', 700, 'bolsa', 0);
@@ -104,12 +109,13 @@ beforeAll(async () => {
     CREATE TYPE public.invoice_status AS ENUM ('PENDIENTE','MATCH','REQUIERE_REVISION','APROBADO_EXCEPCION','APTO_PARA_PAGO','PAGADO');
     CREATE TABLE public.empresas (id uuid PRIMARY KEY, active boolean NOT NULL DEFAULT true);
     CREATE TABLE public.profiles (id uuid PRIMARY KEY, empresa_id uuid, role public.user_role, active boolean DEFAULT true, is_super_admin boolean DEFAULT false);
+    CREATE TABLE public.authorized_orders (id uuid PRIMARY KEY, empresa_id uuid NOT NULL);
     CREATE TABLE public.invoices (id uuid PRIMARY KEY, empresa_id uuid NOT NULL, status public.invoice_status NOT NULL DEFAULT 'PENDIENTE');
     CREATE TABLE public.invoice_items (id uuid PRIMARY KEY, invoice_id uuid NOT NULL, empresa_id uuid NOT NULL, product_description text NOT NULL, quantity numeric, unit text, unit_price numeric, subtotal numeric, sort_order integer DEFAULT 0 NOT NULL);
-    CREATE TABLE public.authorized_order_items (id uuid PRIMARY KEY, order_id uuid NOT NULL, empresa_id uuid NOT NULL, product text NOT NULL, quantity numeric NOT NULL, unit text NOT NULL, quantity_invoiced numeric NOT NULL DEFAULT 0, sort_order integer DEFAULT 0 NOT NULL);
+    CREATE TABLE public.authorized_order_items (id uuid PRIMARY KEY, order_id uuid NOT NULL, empresa_id uuid NOT NULL, product text NOT NULL, quantity numeric NOT NULL, unit text NOT NULL, unit_price numeric NOT NULL DEFAULT 0, total_price numeric NOT NULL DEFAULT 0, quantity_invoiced numeric NOT NULL DEFAULT 0, sort_order integer DEFAULT 0 NOT NULL);
     CREATE TABLE public.invoice_order_matches (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), invoice_id uuid NOT NULL UNIQUE, authorized_order_id uuid NOT NULL, empresa_id uuid NOT NULL);
-    CREATE TABLE public.invoice_item_matches (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), invoice_item_id uuid NOT NULL, order_item_id uuid NOT NULL, empresa_id uuid NOT NULL, quantity_matched numeric NOT NULL, CONSTRAINT m_qty CHECK (quantity_matched > 0), CONSTRAINT m_uniq UNIQUE (invoice_item_id, order_item_id));
-    CREATE TABLE public.audit_logs (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), actor_id uuid, actor_type text NOT NULL, actor_label text, action text NOT NULL, rfq_id uuid, rfq_provider_id uuid, invoice_id uuid, authorized_order_id uuid, detail jsonb);
+    CREATE TABLE public.invoice_item_matches (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), invoice_item_id uuid NOT NULL, order_item_id uuid NOT NULL, empresa_id uuid NOT NULL, quantity_matched numeric NOT NULL, CONSTRAINT m_qty CHECK (quantity_matched > 0));
+    CREATE TABLE public.audit_logs (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), empresa_id uuid, actor_id uuid, actor_type text NOT NULL, actor_label text, action text NOT NULL, rfq_id uuid, rfq_provider_id uuid, invoice_id uuid, authorized_order_id uuid, detail jsonb);
   `);
   // Gate B11 + auditoría + trigger canónico (copias del schema real).
   await db.exec(`
@@ -150,16 +156,27 @@ beforeAll(async () => {
     FOR EACH ROW EXECUTE FUNCTION public.recompute_order_item_quantity_invoiced();
   `);
   // Migración bajo prueba (byte-idéntica salvo GRANT/REVOKE/OWNER/EXTENSION).
-  const url = new URL("../supabase/migrations_pending/20261010000000_invoice_item_match_atomic_PENDING.sql", import.meta.url);
+  const url = new URL("../supabase/migrations/20261010040051_invoice_item_match_integrity.sql", import.meta.url);
+  let skippingEnvironmentStatement = false;
   const sql = readFileSync(url, "utf8")
     .split("\n")
-    .filter((l) => !/^\s*(GRANT|REVOKE|ALTER FUNCTION|CREATE EXTENSION)\b/i.test(l))
+    .filter((line) => {
+      if (skippingEnvironmentStatement) {
+        if (line.includes(";")) skippingEnvironmentStatement = false;
+        return false;
+      }
+      if (/^\s*(GRANT|REVOKE|ALTER FUNCTION|CREATE EXTENSION)\b/i.test(line)) {
+        skippingEnvironmentStatement = !line.includes(";");
+        return false;
+      }
+      return true;
+    })
     .join("\n");
   await db.exec(sql);
 }, T.timeout);
 
 beforeEach(async () => {
-  await db.exec(`TRUNCATE public.invoice_item_matches, public.invoice_order_matches, public.invoice_items, public.authorized_order_items, public.invoices, public.profiles, public.empresas, public.audit_logs`);
+  await db.exec(`TRUNCATE public.invoice_item_matches, public.invoice_order_matches, public.invoice_items, public.authorized_order_items, public.authorized_orders, public.invoices, public.profiles, public.empresas, public.audit_logs`);
   await seed();
   await setActor("authenticated", ADMIN_A);
 }, T.timeout);
@@ -205,10 +222,12 @@ describe("create_invoice_item_match (H2 funcional)", () => {
   });
 
   it("supera remanente: revierte sin escribir", T, async () => {
-    await db.exec(`UPDATE public.authorized_order_items SET quantity_invoiced = 2000 WHERE id='${OL1}'`);
+    await db.exec(`INSERT INTO public.invoice_item_matches (invoice_item_id,order_item_id,empresa_id,quantity_matched) VALUES ('${IL2}','${OL1}','${A}',2000)`);
     await throwsWith(callCreate(A, INV, IL1, OL1, 1500), "remanente");
     const n = await db.query("SELECT count(*) AS c FROM public.invoice_item_matches");
-    expect(Number((n.rows[0] as { c: string }).c)).toBe(0);
+    expect(Number((n.rows[0] as { c: string }).c)).toBe(1);
+    const counter = await db.query("SELECT quantity_invoiced AS q FROM public.authorized_order_items WHERE id=$1", [OL1]);
+    expect(Number((counter.rows[0] as { q: string }).q)).toBe(2000);
   });
 
   it("línea de otra factura: rechazada", T, async () => {

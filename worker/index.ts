@@ -176,13 +176,14 @@ async function processJob(job: InvoiceJob) {
 
   // Guardar líneas de detalle extraídas por el AI.
   const invoiceItemIds: { id: string; idx: number }[] = [];
-  if (parsed.items && parsed.items.length > 0) {
-    for (let i = 0; i < parsed.items.length; i++) {
-      const item = parsed.items[i];
-      if (!item.description?.trim()) continue;
-      const { data: ii } = await db
-        .from("invoice_items")
-        .insert({
+  let itemSaveError: string | null = null;
+  const indexedItems = (parsed.items ?? [])
+    .map((item, idx) => ({ item, idx }))
+    .filter(({ item }) => Boolean(item.description?.trim()));
+  if (indexedItems.length > 0) {
+    const { data: insertedItems, error: itemError } = await db
+      .from("invoice_items")
+      .insert(indexedItems.map(({ item, idx }) => ({
           invoice_id: invoice.id,
           empresa_id: job.empresa_id,
           product_description: item.description.trim(),
@@ -190,15 +191,29 @@ async function processJob(job: InvoiceJob) {
           unit: item.unit,
           unit_price: item.unit_price,
           subtotal: item.subtotal,
-          sort_order: i,
-        })
-        .select("id")
-        .single();
-      if (ii) invoiceItemIds.push({ id: ii.id as string, idx: i });
+          sort_order: idx,
+        })))
+      .select("id, sort_order");
+    if (itemError || !insertedItems || insertedItems.length !== indexedItems.length) {
+      itemSaveError = itemError?.message ?? "La base de datos no devolvió todas las líneas creadas.";
+    } else {
+      for (const inserted of insertedItems) {
+        invoiceItemIds.push({ id: inserted.id as string, idx: Number(inserted.sort_order) });
+      }
     }
   }
 
-  const matchedOrderId = await autoMatchInvoice(db, {
+  if (itemSaveError) {
+    await logAudit(db, {
+      action: "invoice.lines_save_failed",
+      invoiceId: invoice.id,
+      detail: { error: itemSaveError, source: "bulk_worker", saved_lines: invoiceItemIds.length },
+    });
+  }
+
+  // A partially or wholly failed line batch must remain review-only: even a
+  // header-level auto-match could make an incomplete invoice look reconciled.
+  const matchedOrderId = itemSaveError ? null : await autoMatchInvoice(db, {
     invoiceId: invoice.id,
     providerId: provider.id,
     total: parsed.total,
@@ -211,7 +226,7 @@ async function processJob(job: InvoiceJob) {
   // líneas. Las propuestas del motor semántico pasan por el mismo control
   // validado que la vía del diálogo (vínculo de cabecera, tope documentado,
   // remanente, duplicados): lo que excede queda pendiente, nunca se contabiliza.
-  if (matchedOrderId && invoiceItemIds.length > 0) {
+  if (!itemSaveError && matchedOrderId && invoiceItemIds.length > 0) {
     const { data: orderItems } = await db
       .from("authorized_order_items")
       .select("id, product, quantity, unit, quantity_invoiced")
@@ -258,12 +273,15 @@ async function processJob(job: InvoiceJob) {
   }
 
   return finish(job.id, {
-    status: "done",
-    outcome: matchedOrderId ? "matched" : "created_unmatched",
+    status: itemSaveError ? "needs_review" : "done",
+    outcome: itemSaveError ? "needs_manual" : matchedOrderId ? "matched" : "created_unmatched",
     extracted: parsed,
     provider_id: provider.id,
     invoice_id: invoice.id,
-    message: matchedOrderId
+    error: itemSaveError,
+    message: itemSaveError
+      ? "La factura se creó, pero no se pudieron guardar todas sus líneas. Revisá manualmente antes de conciliar."
+      : matchedOrderId
       ? "Conciliada automáticamente."
       : "Cargada, pero ninguna orden pendiente coincide — vinculala a mano.",
   });

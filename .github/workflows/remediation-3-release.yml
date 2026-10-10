@@ -1,0 +1,120 @@
+name: Remediation 3 Release Certification
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - fix/qa-admin-remediation-3
+
+concurrency:
+  group: remediation-3-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-certification:
+    name: PostgreSQL 17 + regression + browser certification
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start disposable local Supabase stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start
+          eval "$(supabase status -o env)"
+          echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY" >> "$GITHUB_ENV"
+          echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY" >> "$GITHUB_ENV"
+          echo "TEST_DATABASE_URL=$DB_URL" >> "$GITHUB_ENV"
+          echo "::add-mask::$ANON_KEY"
+          echo "::add-mask::$SERVICE_ROLE_KEY"
+          case "$API_URL" in
+            http://127.0.0.1:*|http://localhost:*) echo "Disposable loopback Supabase confirmed" ;;
+            *) echo "Unexpected non-loopback Supabase URL"; exit 1 ;;
+          esac
+
+      - name: Reset full production-baseline migration stack
+        run: supabase db reset
+
+      - name: Verify PostgreSQL 17 and migration version
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql "$TEST_DATABASE_URL" -Atc "select current_setting('server_version_num')" | tee remediation3-postgres-version.txt
+          awk '$1 < 170000 || $1 >= 180000 { exit 1 }' remediation3-postgres-version.txt
+          psql "$TEST_DATABASE_URL" -Atc "select version from supabase_migrations.schema_migrations order by version desc limit 1" | tee remediation3-migration-head.txt
+          mkdir -p remediation3-evidence
+          cp remediation3-postgres-version.txt remediation3-migration-head.txt remediation3-evidence/
+
+      - name: Run real PostgreSQL financial and concurrency certification
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx tsx scripts/test-invoice-item-match-postgres.ts | tee remediation3-evidence/postgres-integrity.json
+
+      - name: Run full Vitest regression suite serially
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test -- --no-file-parallelism 2>&1 | tee remediation3-evidence/vitest.log
+
+      - name: Run ESLint
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run lint 2>&1 | tee remediation3-evidence/eslint.log
+
+      - name: Build production app
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build 2>&1 | tee remediation3-evidence/build.log
+
+      - name: Typecheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx tsc --noEmit 2>&1 | tee remediation3-evidence/typecheck.log
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run financial workflow browser certification
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx playwright test --config playwright.remediation3.config.ts 2>&1 | tee remediation3-evidence/playwright.log
+
+      - name: Upload certification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: remediation-3-certification
+          path: |
+            remediation3-evidence/
+            test-results/
+            playwright-report/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Stop disposable Supabase stack
+        if: always()
+        run: supabase stop || true

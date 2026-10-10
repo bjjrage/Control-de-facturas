@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,7 @@ function LineForm({
   onSubmit: (values: { description: string; quantity: number | null; unit: string | null; unit_price: number | null }) => void;
   submitLabel: string;
 }) {
+  const formId = useId();
   const [description, setDescription] = useState(initial.description);
   const [quantity, setQuantity] = useState(initial.quantity);
   const [unit, setUnit] = useState(initial.unit);
@@ -69,21 +70,21 @@ function LineForm({
         </div>
       ) : null}
       <div>
-        <Label>Descripción</Label>
-        <Input value={description} onChange={(e) => setDescription(e.target.value)} required />
+        <Label htmlFor={`${formId}-description`}>Descripción</Label>
+        <Input id={`${formId}-description`} value={description} onChange={(e) => setDescription(e.target.value)} required />
       </div>
       <div className="grid grid-cols-3 gap-2">
         <div>
-          <Label>Cantidad</Label>
-          <Input type="number" step="any" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+          <Label htmlFor={`${formId}-quantity`}>Cantidad</Label>
+          <Input id={`${formId}-quantity`} type="number" step="any" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
         </div>
         <div>
-          <Label>Unidad</Label>
-          <Input value={unit} onChange={(e) => setUnit(e.target.value)} />
+          <Label htmlFor={`${formId}-unit`}>Unidad</Label>
+          <Input id={`${formId}-unit`} value={unit} onChange={(e) => setUnit(e.target.value)} />
         </div>
         <div>
-          <Label>Precio unit.</Label>
-          <Input type="number" step="any" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} />
+          <Label htmlFor={`${formId}-unit-price`}>Precio unit.</Label>
+          <Input id={`${formId}-unit-price`} type="number" step="any" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} />
         </div>
       </div>
       <div className="flex justify-end">
@@ -253,8 +254,8 @@ export function InvoiceLinesSection({
                             <DialogContent title={`Imputar línea a ${linkedOrderCode}`}>
                               <div className="space-y-2">
                                 <div>
-                                  <Label>Ítem de OC</Label>
-                                  <Select value={matchOrderItem} onChange={(e) => setMatchOrderItem(e.target.value)}>
+                                  <Label htmlFor={`match-order-${line.id}`}>Ítem de OC</Label>
+                                  <Select id={`match-order-${line.id}`} value={matchOrderItem} onChange={(e) => setMatchOrderItem(e.target.value)}>
                                     <option value="" disabled>
                                       Elegí un ítem…
                                     </option>
@@ -267,8 +268,9 @@ export function InvoiceLinesSection({
                                   </Select>
                                 </div>
                                 <div>
-                                  <Label>Cantidad imputada</Label>
+                                  <Label htmlFor={`match-quantity-${line.id}`}>Cantidad imputada</Label>
                                   <Input
+                                    id={`match-quantity-${line.id}`}
                                     type="number"
                                     step="any"
                                     value={matchQty}
@@ -334,7 +336,7 @@ export function InvoiceLinesSection({
                               }}
                             />
                             <p className="text-[11px] text-[var(--muted)] mt-2">
-                              Corregir elimina las imputaciones de la línea (vuelve a sin conciliar).
+                              La corrección conserva la línea. Se mantienen solo las imputaciones compatibles con los nuevos datos; no se permite dejar imputada una cantidad mayor a la documentada.
                             </p>
                           </DialogContent>
                         </Dialog>

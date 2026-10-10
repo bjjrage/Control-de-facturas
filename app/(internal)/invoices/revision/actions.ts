@@ -36,6 +36,12 @@ export async function resolveInvoiceJob(jobId: string, formData: FormData) {
     .maybeSingle();
   if (!job) return { error: "Job no encontrado." };
   if (job.status === "done") return { error: "Este archivo ya fue procesado." };
+  if (job.invoice_id) {
+    return {
+      error: "Este job ya creó una factura. No se generó otra; revisá o corregí la factura existente.",
+      invoiceId: job.invoice_id as string,
+    };
+  }
 
   const providerId = str(formData, "provider_id");
   const invoiceNumber = str(formData, "invoice_number");
@@ -136,10 +142,10 @@ export async function resolveInvoiceJob(jobId: string, formData: FormData) {
       ...(arithmetic.status !== "VALIDA" ? { arithmetic_review: "confirmed" } : {}),
     },
   });
-  const matchedOrderId = await autoMatchInvoiceByAmount(supabase, { invoiceId: invoice.id, providerId, total, empresaId });
-
   // Líneas del job revisado (si la extracción las trajo): habilitan la
-  // conciliación por ítem sin cambiar el flujo de revisión existente.
+  // conciliación por ítem sin cambiar el flujo de revisión existente. Un
+  // multi-row INSERT garantiza todo-o-nada; ante error el job conserva el
+  // invoice_id para impedir duplicarlo en un retry.
   const jobLines = parseInvoiceLinesInput(
     (job.extracted as { items?: unknown } | null)?.items ?? []
   );
@@ -155,7 +161,21 @@ export async function resolveInvoiceJob(jobId: string, formData: FormData) {
         invoiceId: invoice.id,
         detail: { error: linesError },
       });
-    } else if (matchedOrderId) {
+      await supabase.from("invoice_jobs").update({
+        status: "needs_review",
+        outcome: "needs_manual",
+        invoice_id: invoice.id,
+        error: linesError,
+        message: "La factura se creó, pero sus líneas no se guardaron. Revisá la factura existente antes de continuar.",
+      }).eq("id", jobId).eq("empresa_id", empresaId);
+      revalidatePath("/invoices/revision");
+      revalidatePath("/invoices");
+      return { error: "La factura se creó, pero no se guardaron sus líneas. No se vinculó ni concilió.", invoiceId: invoice.id as string };
+    }
+  }
+
+  const matchedOrderId = await autoMatchInvoiceByAmount(supabase, { invoiceId: invoice.id, providerId, total, empresaId });
+  if (jobLines.length > 0 && matchedOrderId) {
       const { error: itemError } = await applyDeterministicItemMatches(supabase, {
         empresaId,
         invoiceId: invoice.id as string,
@@ -168,7 +188,6 @@ export async function resolveInvoiceJob(jobId: string, formData: FormData) {
           detail: { error: itemError },
         });
       }
-    }
   }
 
   await supabase
@@ -185,12 +204,23 @@ export async function resolveInvoiceJob(jobId: string, formData: FormData) {
 export async function retryInvoiceJob(jobId: string) {
   const profile = await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
-  await supabase
+  const { data: job, error: lookupError } = await supabase
+    .from("invoice_jobs")
+    .select("id, invoice_id")
+    .eq("id", jobId)
+    .eq("empresa_id", profile.empresa_id)
+    .maybeSingle();
+  if (lookupError) return { error: lookupError.message };
+  if (!job) return { error: "Job no encontrado." };
+  if (job.invoice_id) return { error: "Este job ya creó una factura y no se puede reencolar. Revisá la factura existente." };
+  const { error } = await supabase
     .from("invoice_jobs")
     .update({ status: "queued", attempts: 0, error: null, message: null, outcome: null })
     .eq("id", jobId)
     .eq("empresa_id", profile.empresa_id);
+  if (error) return { error: error.message };
   revalidatePath("/invoices/revision");
+  return { error: null };
 }
 
 /** Descarta un job (y borra su archivo del inbox). */

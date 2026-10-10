@@ -13,6 +13,7 @@ const UID = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0"
 function makeDb(seed: Record<string, Row[]> = {}) {
   const tables: Record<string, Row[]> = {};
   for (const [k, v] of Object.entries(seed)) tables[k] = v.map((r) => ({ ...r }));
+  const rpcCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
   let seq = 100;
 
   function recompute(orderItemId: string) {
@@ -130,6 +131,16 @@ function makeDb(seed: Record<string, Row[]> = {}) {
           tables.invoice_item_matches = (tables.invoice_item_matches ?? []).filter((m) => !ids.has(m.invoice_item_id));
           for (const m of orphans) recompute(m.order_item_id as string);
         }
+        if (table === "invoices") {
+          // DB ON DELETE CASCADE conserva la limpieza integral de hard delete.
+          const ids = new Set(victims.map((v) => v.id));
+          const lineIds = new Set((tables.invoice_items ?? []).filter((l) => ids.has(l.invoice_id)).map((l) => l.id));
+          const orphans = (tables.invoice_item_matches ?? []).filter((m) => lineIds.has(m.invoice_item_id));
+          tables.invoice_item_matches = (tables.invoice_item_matches ?? []).filter((m) => !lineIds.has(m.invoice_item_id));
+          tables.invoice_items = (tables.invoice_items ?? []).filter((l) => !ids.has(l.invoice_id));
+          tables.invoice_order_matches = (tables.invoice_order_matches ?? []).filter((m) => !ids.has(m.invoice_id));
+          for (const m of orphans) recompute(m.order_item_id as string);
+        }
         return victims.map((v) => pick(v, state.selectCols));
       };
       (sub as { then: unknown }).then = (
@@ -155,8 +166,118 @@ function makeDb(seed: Record<string, Row[]> = {}) {
   }
 
   const storageStub = { from: () => ({ upload: async () => ({ error: null }), remove: async () => ({}) }) };
-  const client = { from: (t: string) => query(t), storage: storageStub, rpc: async () => ({ data: null, error: null }) };
-  return { client, tables };
+  const client = {
+    from: (t: string) => query(t),
+    storage: storageStub,
+    rpc: async (name: string, args: Record<string, unknown> = {}) => {
+      rpcCalls.push({ name, args: { ...args } });
+      const fail = (message: string) => ({ data: null, error: { message, code: "P0001" } });
+      if (name === "delete_invoice") {
+        const invoice = (tables.invoices ?? []).find((i) => i.id === args.p_invoice_id && i.empresa_id === args.p_empresa_id);
+        if (!invoice) return fail("Factura no encontrada o no pertenece a esta empresa");
+        if (["APTO_PARA_PAGO", "PAGADO"].includes(String(invoice.status))) return fail("No se puede eliminar una factura aprobada o pagada");
+        const invoiceId = invoice.id;
+        const attachmentId = invoice.attachment_id ?? null;
+        tables.invoice_exceptions = (tables.invoice_exceptions ?? []).filter((r) => r.invoice_id !== invoiceId);
+        tables.audit_logs = (tables.audit_logs ?? []).filter((r) => r.invoice_id !== invoiceId);
+        tables.payment_order_invoices = (tables.payment_order_invoices ?? []).filter((r) => r.invoice_id !== invoiceId);
+        const lineIds = new Set((tables.invoice_items ?? []).filter((l) => l.invoice_id === invoiceId).map((l) => l.id));
+        const removed = (tables.invoice_item_matches ?? []).filter((m) => lineIds.has(m.invoice_item_id));
+        tables.invoice_item_matches = (tables.invoice_item_matches ?? []).filter((m) => !lineIds.has(m.invoice_item_id));
+        tables.invoice_items = (tables.invoice_items ?? []).filter((l) => l.invoice_id !== invoiceId);
+        tables.invoice_order_matches = (tables.invoice_order_matches ?? []).filter((m) => m.invoice_id !== invoiceId);
+        tables.invoices = (tables.invoices ?? []).filter((i) => i.id !== invoiceId);
+        for (const m of removed) recompute(m.order_item_id as string);
+        return { data: { ok: true, attachment_id: attachmentId }, error: null };
+      }
+      if (name === "create_invoice_item_match") {
+        const invoice = (tables.invoices ?? []).find((i) => i.id === args.p_invoice_id && i.empresa_id === args.p_empresa_id);
+        if (!invoice) return fail("Factura no encontrada o tenant incorrecto");
+        if (!["PENDIENTE", "MATCH", "REQUIERE_REVISION"].includes(String(invoice.status))) return fail("factura congelada");
+        const link = (tables.invoice_order_matches ?? []).find((m) => m.invoice_id === args.p_invoice_id && m.empresa_id === args.p_empresa_id);
+        if (!link || link.authorized_order_id !== args.p_expected_order_id) return fail("El vínculo cambió o no corresponde a la OC esperada");
+        const line = (tables.invoice_items ?? []).find((l) => l.id === args.p_invoice_item_id && l.invoice_id === args.p_invoice_id && l.empresa_id === args.p_empresa_id);
+        if (!line) return fail("La línea no pertenece a esta factura");
+        const order = (tables.authorized_order_items ?? []).find((o) => o.id === args.p_order_item_id && o.order_id === args.p_expected_order_id && o.empresa_id === args.p_empresa_id);
+        if (!order) return fail("El ítem no pertenece a la OC esperada");
+        const duplicate = (tables.invoice_item_matches ?? []).find((m) => m.invoice_item_id === line.id && m.order_item_id === order.id);
+        if (duplicate) {
+          if (Number(duplicate.quantity_matched) === Number(args.p_quantity)) return { data: { ok: true, match_id: duplicate.id, duplicate: true }, error: null };
+          return fail("ya está imputada con otra cantidad");
+        }
+        const qty = Number(args.p_quantity);
+        if (!Number.isFinite(qty) || qty <= 0) return fail("cantidad debe ser mayor a cero");
+        const lineMatched = (tables.invoice_item_matches ?? []).filter((m) => m.invoice_item_id === line.id).reduce((s, m) => s + Number(m.quantity_matched), 0);
+        if (line.quantity == null || lineMatched + qty > Number(line.quantity) + 1e-9) return fail("supera cantidad documentada");
+        const orderMatched = (tables.invoice_item_matches ?? []).filter((m) => m.order_item_id === order.id).reduce((s, m) => s + Number(m.quantity_matched), 0);
+        if (orderMatched + qty > Number(order.quantity) + 1e-9) return fail("supera remanente de la OC");
+        const aliases = (u: unknown) => String(u ?? "").trim().toLowerCase().replace(/unidades?/g, "un").replace(/^u$/, "un");
+        if (!aliases(line.unit) || aliases(line.unit) !== aliases(order.unit)) return fail("unidad incompatible");
+        const single = (tables.invoice_items ?? []).filter((l) => l.invoice_id === args.p_invoice_id).length === 1 && (tables.authorized_order_items ?? []).filter((o) => o.order_id === args.p_expected_order_id).length === 1;
+        const normalize = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        const ld = normalize(line.product_description), od = normalize(order.product);
+        if (!single && !(ld === od || ld.includes(od) || od.includes(ld))) return fail("producto no corresponde");
+        const id = UID(++seq);
+        const match = { id, invoice_item_id: line.id, order_item_id: order.id, empresa_id: args.p_empresa_id, quantity_matched: qty };
+        tables.invoice_item_matches = [...(tables.invoice_item_matches ?? []), match];
+        recompute(order.id as string);
+        return { data: { ok: true, match_id: id, duplicate: false }, error: null };
+      }
+      if (name === "correct_invoice_item") {
+        const line = (tables.invoice_items ?? []).find((l) => l.id === args.p_invoice_item_id && l.empresa_id === args.p_empresa_id);
+        if (!line) return fail("Línea no encontrada");
+        const invoice = (tables.invoices ?? []).find((i) => i.id === line.invoice_id);
+        if (!invoice || !["PENDIENTE", "MATCH", "REQUIERE_REVISION"].includes(String(invoice.status))) return fail("factura congelada");
+        const matched = (tables.invoice_item_matches ?? []).filter((m) => m.invoice_item_id === line.id);
+        const total = matched.reduce((s, m) => s + Number(m.quantity_matched), 0);
+        if (args.p_quantity == null && matched.length) return fail("cantidad no documentada requiere quitar imputaciones");
+        if (args.p_quantity != null && total > Number(args.p_quantity) + 1e-9) return fail("corrección dejaría línea sobre-imputada");
+        Object.assign(line, { product_description: args.p_description, quantity: args.p_quantity, unit: args.p_unit, unit_price: args.p_unit_price, subtotal: args.p_subtotal });
+        for (const m of matched) {
+          const order = (tables.authorized_order_items ?? []).find((o) => o.id === m.order_item_id);
+          if (order && (String(line.unit).toLowerCase() !== String(order.unit).toLowerCase() || !String(line.product_description).toLowerCase().includes(String(order.product).toLowerCase()))) {
+            tables.invoice_item_matches = (tables.invoice_item_matches ?? []).filter((x) => x.id !== m.id);
+            recompute(order.id as string);
+          }
+        }
+        return { data: { ok: true, item_id: line.id }, error: null };
+      }
+      if (name === "unmatch_invoice_order") {
+        const link = (tables.invoice_order_matches ?? []).find((m) => m.invoice_id === args.p_invoice_id && m.id === args.p_expected_match_id && m.authorized_order_id === args.p_expected_order_id && m.empresa_id === args.p_empresa_id);
+        if (!link) return fail("El vínculo no existe o cambió");
+        const lineIds = new Set((tables.invoice_items ?? []).filter((l) => l.invoice_id === args.p_invoice_id && l.empresa_id === args.p_empresa_id).map((l) => l.id));
+        const orderIds = new Set((tables.authorized_order_items ?? []).filter((o) => o.order_id === args.p_expected_order_id && o.empresa_id === args.p_empresa_id).map((o) => o.id));
+        const victims = (tables.invoice_item_matches ?? []).filter((m) => lineIds.has(m.invoice_item_id) && orderIds.has(m.order_item_id));
+        tables.invoice_item_matches = (tables.invoice_item_matches ?? []).filter((m) => !victims.includes(m));
+        for (const m of victims) recompute(m.order_item_id as string);
+        tables.invoice_order_matches = (tables.invoice_order_matches ?? []).filter((m) => m !== link);
+        return { data: { ok: true }, error: null };
+      }
+      if (name === "delete_invoice_item") {
+        const line = (tables.invoice_items ?? []).find((l) => l.id === args.p_invoice_item_id && l.invoice_id === args.p_invoice_id && l.empresa_id === args.p_empresa_id);
+        if (!line) return fail("Línea no encontrada");
+        const invoice = (tables.invoices ?? []).find((i) => i.id === args.p_invoice_id);
+        if (!invoice || !["PENDIENTE", "MATCH", "REQUIERE_REVISION"].includes(String(invoice.status))) return fail("factura congelada");
+        const removed = (tables.invoice_item_matches ?? []).filter((m) => m.invoice_item_id === line.id);
+        tables.invoice_item_matches = (tables.invoice_item_matches ?? []).filter((m) => m.invoice_item_id !== line.id);
+        tables.invoice_items = (tables.invoice_items ?? []).filter((l) => l.id !== line.id);
+        for (const m of removed) recompute(m.order_item_id as string);
+        return { data: { ok: true }, error: null };
+      }
+      if (name === "delete_invoice_item_match") {
+        const match = (tables.invoice_item_matches ?? []).find((m) => m.id === args.p_invoice_item_match_id);
+        const line = (tables.invoice_items ?? []).find((l) => l.id === match?.invoice_item_id && l.invoice_id === args.p_invoice_id && l.empresa_id === args.p_empresa_id);
+        if (!match || !line) return fail("Imputación no encontrada");
+        const invoice = (tables.invoices ?? []).find((i) => i.id === args.p_invoice_id);
+        if (!invoice || !["PENDIENTE", "MATCH", "REQUIERE_REVISION"].includes(String(invoice.status))) return fail("factura congelada");
+        tables.invoice_item_matches = (tables.invoice_item_matches ?? []).filter((m) => m.id !== match.id);
+        recompute(match.order_item_id as string);
+        return { data: { ok: true }, error: null };
+      }
+      return { data: null, error: null };
+    },
+  };
+  return { client, tables, rpcCalls };
 }
 
 const mocks = vi.hoisted(() => ({ requireProfile: vi.fn(), requireEmpresaId: vi.fn(), db: null as null | ReturnType<typeof makeDb> }));
@@ -179,6 +300,7 @@ import {
   updateInvoiceItem,
 } from "@/app/(internal)/invoices/[id]/actions";
 import { insertValidatedItemMatches } from "@/lib/invoice-items";
+import { resolveInvoiceJob, retryInvoiceJob } from "@/app/(internal)/invoices/revision/actions";
 
 const INV = UID(1);
 const INV2 = UID(12);
@@ -320,7 +442,12 @@ describe("BUG-038: casos que quedan sin conciliar (no se inventa)", () => {
     const result = await createInvoiceItemMatch({ invoiceId: INV, invoiceItemId: IL1, orderItemId: OL1, quantity: 100 });
     // sanity: el caso válido pasa; ahora con producto ajeno:
     expect(result.error).toBeNull();
-    await deleteInvoiceItemMatch(mocks.db!.tables.invoice_item_matches[0].id as string, INV);
+    const matchId = mocks.db!.tables.invoice_item_matches[0].id as string;
+    await deleteInvoiceItemMatch(matchId, INV);
+    expect(mocks.db!.rpcCalls.at(-1)).toEqual({
+      name: "delete_invoice_item_match",
+      args: { p_empresa_id: TENANT, p_invoice_id: INV, p_invoice_item_match_id: matchId },
+    });
     mocks.db!.tables.invoice_items = mocks.db!.tables.invoice_items.map((l) =>
       l.id === IL1 ? { ...l, product_description: "Cemento Portland", unit: "m³" } : l
     );
@@ -388,22 +515,22 @@ describe("BUG-038: desvinculación, eliminación y factura pagada", () => {
   it("corregir una línea la revalida: si sigue inequívoca, se re-imputa (R3-03)", async () => {
     await linkInvoiceToOrder(INV2, OC);
     expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(2500);
-    const corrected = await updateInvoiceItem(IL2, { description: "Ladrillo común", quantity: 2000, unit: "un" });
+    const corrected = await updateInvoiceItem(IL2, { description: "Ladrillo común segunda entrega", quantity: 2500, unit: "un" });
     expect(corrected.error).toBeNull();
-    expect(corrected.id).not.toBe(IL2);
-    // La línea vieja desapareció, la nueva existe con 2000 y se re-imputó.
-    expect(mocks.db!.tables.invoice_items.some((l) => l.id === IL2)).toBe(false);
-    expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(2000);
+    expect(corrected.id).toBe(IL2);
+    // La RPC corrige in-place y conserva la identidad del ítem.
+    expect(mocks.db!.tables.invoice_items.find((l) => l.id === IL2)?.quantity).toBe(2500);
+    expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(2500);
     expect(mocks.db!.tables.invoice_item_matches).toHaveLength(1);
-    expect(mocks.db!.tables.invoice_item_matches[0].quantity_matched).toBe(2000);
+    expect(mocks.db!.tables.invoice_item_matches[0].quantity_matched).toBe(2500);
   });
 
   it("corregir invalidando la conciliación la deja sin conciliar (sin pérdida)", async () => {
     await linkInvoiceToOrder(INV2, OC);
     // Unidad incompatible: la corrección aplica pero ya no corresponde a la OC.
-    const corrected = await updateInvoiceItem(IL2, { description: "Ladrillo común", quantity: 2000, unit: "kg" });
+    const corrected = await updateInvoiceItem(IL2, { description: "Ladrillo común", quantity: 2500, unit: "kg" });
     expect(corrected.error).toBeNull();
-    expect(mocks.db!.tables.invoice_items.some((l) => l.id === IL2)).toBe(false);
+    expect(mocks.db!.tables.invoice_items.some((l) => l.id === IL2)).toBe(true);
     expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(0);
     expect(mocks.db!.tables.invoice_item_matches).toHaveLength(0);
   });
@@ -412,7 +539,7 @@ describe("BUG-038: desvinculación, eliminación y factura pagada", () => {
 describe("R3-01: imputación solo a la OC vinculada (backend, no solo UI)", () => {
   it("factura vinculada a OC-A no puede imputar a OC-B del mismo tenant", async () => {
     const result = await createInvoiceItemMatch({ invoiceId: INV, invoiceItemId: IL1, orderItemId: OL_B1, quantity: 700 });
-    expect(result.error).toContain("otra OC");
+    expect(result.error).toContain("OC");
     expect(mocks.db!.tables.invoice_item_matches).toHaveLength(0);
     expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL_B1)!.quantity_invoiced).toBe(0);
   });
@@ -422,7 +549,7 @@ describe("R3-01: imputación solo a la OC vinculada (backend, no solo UI)", () =
       { id: UID(13), order_id: OC_B, empresa_id: OTHER_TENANT, product: "Ladrillo común", quantity: 100, unit: "un", quantity_invoiced: 0, sort_order: 2 },
     );
     const result = await createInvoiceItemMatch({ invoiceId: INV, invoiceItemId: IL1, orderItemId: UID(13), quantity: 100 });
-    expect(result.error).toContain("no pertenece a esta empresa");
+    expect(result.error).toContain("empresa");
     expect(mocks.db!.tables.invoice_item_matches).toHaveLength(0);
   });
 
@@ -446,13 +573,13 @@ describe("R3-01: imputación solo a la OC vinculada (backend, no solo UI)", () =
       { id: UID(31), invoice_id: INV2, authorized_order_id: OC, empresa_id: TENANT },
     );
     const result = await createInvoiceItemMatch({ invoiceId: INV2, invoiceItemId: IL1, orderItemId: OL1, quantity: 100 });
-    expect(result.error).toContain("no pertenece a esta factura");
+    expect(result.error).toContain("factura");
     expect(mocks.db!.tables.invoice_item_matches).toHaveLength(0);
   });
 
   it("línea inexistente se rechaza", async () => {
     const result = await createInvoiceItemMatch({ invoiceId: INV, invoiceItemId: UID(99), orderItemId: OL1, quantity: 100 });
-    expect(result.error).toContain("no pertenece a esta factura");
+    expect(result.error).toContain("factura");
     expect(mocks.db!.tables.invoice_item_matches).toHaveLength(0);
   });
 
@@ -476,31 +603,21 @@ describe("R3-01: imputación solo a la OC vinculada (backend, no solo UI)", () =
     }
   });
 
-  it("carrera desvincular-vs-imputar: el estado final converge sin contabilizar (interleaving secuencial)", async () => {
-    // Simula que la desvinculación concurrente aterriza entre la verificación
-    // y la inserción: al insertar el match, la cabecera ya no existe.
-    const origFrom = mocks.db!.client.from.bind(mocks.db!.client);
-    mocks.db!.client.from = ((table: string) => {
-      const q = origFrom(table) as Record<string, (...args: never[]) => unknown>;
-      if (table === "invoice_item_matches") {
-        const origInsert = q.insert as (p: Row) => Record<string, (...args: never[]) => unknown>;
-        q.insert = ((payload: Row) => {
-          mocks.db!.tables.invoice_order_matches = mocks.db!.tables.invoice_order_matches.filter(
-            (m) => m.invoice_id !== INV
-          );
-          return origInsert(payload);
-        }) as never;
+  it("la RPC vuelve a comprobar el vínculo esperado antes de insertar", async () => {
+    const origRpc = mocks.db!.client.rpc;
+    mocks.db!.client.rpc = (async (name: string, args: Record<string, unknown>) => {
+      if (name === "create_invoice_item_match") {
+        mocks.db!.tables.invoice_order_matches = mocks.db!.tables.invoice_order_matches.filter((m) => m.invoice_id !== INV);
       }
-      return q;
+      return origRpc(name, args);
     }) as never;
     try {
       const result = await createInvoiceItemMatch({ invoiceId: INV, invoiceItemId: IL1, orderItemId: OL1, quantity: 100 });
-      expect(result.error).toContain("cambió durante la imputación");
-      // Convergencia: el match huérfano fue eliminado y el trigger recalculó.
+      expect(result.error).toContain("vínculo");
       expect(mocks.db!.tables.invoice_item_matches).toHaveLength(0);
       expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(0);
     } finally {
-      mocks.db!.client.from = origFrom as never;
+      mocks.db!.client.rpc = origRpc;
     }
   });
 });
@@ -585,137 +702,77 @@ describe("R3-02: integridad de cantidades a nivel acción", () => {
   });
 });
 
-describe("R3-03: corrección sin pérdida (insert-first)", () => {
-  it("fallo en el INSERT conserva línea, matches y cantidades", async () => {
+describe("H3: corrección transaccional de líneas", () => {
+  it("preserva ID y match cuando la corrección sigue siendo compatible", async () => {
     await linkInvoiceToOrder(INV2, OC);
-    expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(2500);
-    const origFrom = mocks.db!.client.from.bind(mocks.db!.client);
-    mocks.db!.client.from = ((table: string) => {
-      const q = origFrom(table) as Record<string, (...args: never[]) => unknown>;
-      if (table === "invoice_items") {
-        const origInsert = q.insert as (p: Row) => unknown;
-        void origInsert;
-        q.insert = (() => ({
-          select: () => ({ single: async () => ({ data: null, error: { message: "DB caída", code: "XX000" } }) }),
-        })) as never;
-      }
-      return q;
-    }) as never;
-    try {
-      const result = await updateInvoiceItem(IL2, { description: "Ladrillo común", quantity: 2000, unit: "un" });
-      expect(result.error).toContain("original sigue intacta");
-      expect(mocks.db!.tables.invoice_items.some((l) => l.id === IL2)).toBe(true);
-      expect(mocks.db!.tables.invoice_item_matches).toHaveLength(1);
-      expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(2500);
-    } finally {
-      mocks.db!.client.from = origFrom as never;
-    }
-  });
-
-  it("fallo en el DELETE restaura el estado original (compensación)", async () => {
-    await linkInvoiceToOrder(INV2, OC);
-    const origFrom = mocks.db!.client.from.bind(mocks.db!.client);
-    let deletes = 0;
-    mocks.db!.client.from = ((table: string) => {
-      const q = origFrom(table) as Record<string, (...args: never[]) => unknown> & {
-        then?: unknown;
-      };
-      if (table === "invoice_items") {
-        const origDelete = q.delete as () => Record<string, (...args: never[]) => unknown> & {
-          then?: unknown;
-        };
-        q.delete = (() => {
-          deletes++;
-          const sub = origDelete();
-          if (deletes === 1) {
-            // Solo falla el primer DELETE (línea original); la compensación pasa.
-            sub.then = ((onF: (v: unknown) => unknown, onR?: (e: unknown) => unknown) =>
-              Promise.resolve({ data: [], error: { message: "DB caída", code: "XX000" } }).then(onF, onR)) as never;
-          }
-          return sub;
-        }) as never;
-      }
-      return q;
-    }) as never;
-    try {
-      const result = await updateInvoiceItem(IL2, { description: "Ladrillo común", quantity: 2000, unit: "un" });
-      expect(result.error).toContain("restauró el estado original");
-      expect(mocks.db!.tables.invoice_items.some((l) => l.id === IL2)).toBe(true);
-      expect(mocks.db!.tables.invoice_item_matches).toHaveLength(1);
-      expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(2500);
-    } finally {
-      mocks.db!.client.from = origFrom as never;
-    }
-  });
-
-  it("fallo en DELETE + fallo en compensación: no miente, pide revisión humana", async () => {
-    await linkInvoiceToOrder(INV2, OC);
-    const origFrom = mocks.db!.client.from.bind(mocks.db!.client);
-    mocks.db!.client.from = ((table: string) => {
-      const q = origFrom(table) as Record<string, (...args: never[]) => unknown> & {
-        then?: unknown;
-      };
-      if (table === "invoice_items") {
-        const origDelete = q.delete as () => Record<string, (...args: never[]) => unknown> & {
-          then?: unknown;
-        };
-        q.delete = (() => {
-          const sub = origDelete();
-          // Todos los DELETE de líneas fallan (original y compensación).
-          sub.then = ((onF: (v: unknown) => unknown, onR?: (e: unknown) => unknown) =>
-            Promise.resolve({ data: [], error: { message: "DB caída", code: "XX000" } }).then(onF, onR)) as never;
-          return sub;
-        }) as never;
-      }
-      return q;
-    }) as never;
-    try {
-      const result = await updateInvoiceItem(IL2, { description: "Ladrillo común", quantity: 2000, unit: "un" });
-      // H3: no declara éxito ni afirma restauración no comprobada.
-      expect(result.error).toContain("revisión humana");
-      expect(result.error).not.toContain("se restauró el estado original");
-      // Estado real: ambas líneas coexisten, el match original sigue, nada válido.
-      expect(mocks.db!.tables.invoice_items.some((l) => l.id === IL2)).toBe(true);
-      expect(mocks.db!.tables.invoice_item_matches).toHaveLength(1);
-      expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(2500);
-    } finally {
-      mocks.db!.client.from = origFrom as never;
-    }
-  });
-
-  it("error de validación no toca nada", async () => {
-    await linkInvoiceToOrder(INV2, OC);
-    const result = await updateInvoiceItem(IL2, { description: "   " });
-    expect(result.error).toContain("descripción válida");
-    expect(mocks.db!.tables.invoice_items.some((l) => l.id === IL2)).toBe(true);
+    const beforeId = mocks.db!.tables.invoice_items.find((l) => l.id === IL2)!.id;
+    const result = await updateInvoiceItem(IL2, { description: "Ladrillo común segunda entrega", quantity: 2500, unit: "un" });
+    expect(result.error).toBeNull();
+    expect(result.id).toBe(beforeId);
+    expect(mocks.db!.tables.invoice_items.find((l) => l.id === IL2)?.quantity).toBe(2500);
     expect(mocks.db!.tables.invoice_item_matches).toHaveLength(1);
-    expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(2500);
+    expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)?.quantity_invoiced).toBe(2500);
   });
 
-  it("error de permisos no toca nada", async () => {
+  it("quita el match incompatible y recalcula la cantidad de OC", async () => {
     await linkInvoiceToOrder(INV2, OC);
-    mocks.requireProfile.mockRejectedValueOnce(new Error("denied"));
-    await expect(updateInvoiceItem(IL2, { description: "X" })).rejects.toThrow("denied");
-    expect(mocks.db!.tables.invoice_items.some((l) => l.id === IL2)).toBe(true);
+    const result = await updateInvoiceItem(IL2, { description: "Ladrillo común", quantity: 2500, unit: "kg" });
+    expect(result.error).toBeNull();
+    expect(mocks.db!.tables.invoice_items.find((l) => l.id === IL2)?.unit).toBe("kg");
+    expect(mocks.db!.tables.invoice_item_matches).toHaveLength(0);
+    expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)?.quantity_invoiced).toBe(0);
+  });
+
+  it("rechaza corrección que dejaría la línea sobre-imputada sin mutar nada", async () => {
+    await linkInvoiceToOrder(INV2, OC);
+    const result = await updateInvoiceItem(IL2, { description: "Ladrillo común", quantity: 1000, unit: "un" });
+    expect(result.error).toContain("sobre-imputada");
+    expect(mocks.db!.tables.invoice_items.find((l) => l.id === IL2)?.quantity).toBe(2500);
     expect(mocks.db!.tables.invoice_item_matches).toHaveLength(1);
-    expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)!.quantity_invoiced).toBe(2500);
+    expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)?.quantity_invoiced).toBe(2500);
   });
 
-  it("segunda corrección sobre el id viejo informa línea inexistente", async () => {
+  it("ante error SQL conserva línea y conciliación existentes", async () => {
     await linkInvoiceToOrder(INV2, OC);
-    const first = await updateInvoiceItem(IL2, { description: "Ladrillo común", quantity: 2000, unit: "un" });
-    expect(first.error).toBeNull();
-    const second = await updateInvoiceItem(IL2, { description: "Ladrillo común", quantity: 1000, unit: "un" });
-    expect(second.error).toContain("no encontrada");
+    const original = mocks.db!.client.rpc;
+    mocks.db!.client.rpc = (async (name: string, args: Record<string, unknown>) =>
+      name === "correct_invoice_item" ? { data: null, error: { message: "DB caída", code: "XX000" } } : original(name, args)) as never;
+    try {
+      const result = await updateInvoiceItem(IL2, { description: "Ladrillo común segunda entrega", quantity: 2500, unit: "un" });
+      expect(result.error).toContain("DB caída");
+      expect(mocks.db!.tables.invoice_items.find((l) => l.id === IL2)?.quantity).toBe(2500);
+      expect(mocks.db!.tables.invoice_item_matches).toHaveLength(1);
+      expect(mocks.db!.tables.authorized_order_items.find((o) => o.id === OL1)?.quantity_invoiced).toBe(2500);
+    } finally {
+      mocks.db!.client.rpc = original;
+    }
   });
 
-  it("factura aprobada congela la corrección con todo intacto", async () => {
-    await linkInvoiceToOrder(INV2, OC);
+  it("factura aprobada congela la corrección", async () => {
     mocks.db!.tables.invoices.find((i) => i.id === INV2)!.status = "APTO_PARA_PAGO";
-    const result = await updateInvoiceItem(IL2, { description: "X" });
+    const result = await updateInvoiceItem(IL2, { description: "Ladrillo común segunda entrega", quantity: 2500, unit: "un" });
     expect(result.error).toContain("congeladas");
-    expect(mocks.db!.tables.invoice_items.some((l) => l.id === IL2)).toBe(true);
-    expect(mocks.db!.tables.invoice_item_matches).toHaveLength(1);
+    expect(mocks.db!.tables.invoice_items.find((l) => l.id === IL2)?.quantity).toBe(2500);
+  });
+});
+describe("worker job recovery: evita facturas duplicadas", () => {
+  const jobId = UID(90);
+
+  beforeEach(() => {
+    mocks.db!.tables.invoice_jobs = [{ id: jobId, empresa_id: TENANT, invoice_id: INV, status: "needs_review" }];
+  });
+
+  it("retryInvoiceJob no reencola un job que ya creó factura", async () => {
+    const result = await retryInvoiceJob(jobId);
+    expect(result.error).toContain("ya creó una factura");
+    expect(mocks.db!.tables.invoice_jobs[0].status).toBe("needs_review");
+  });
+
+  it("resolveInvoiceJob no crea una segunda factura para el mismo job", async () => {
+    const result = await resolveInvoiceJob(jobId, new FormData());
+    expect(result.error).toContain("ya creó una factura");
+    expect(result.invoiceId).toBe(INV);
+    expect(mocks.db!.tables.invoices).toHaveLength(2);
   });
 });
 

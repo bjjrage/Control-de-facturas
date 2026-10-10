@@ -41,6 +41,7 @@ export function DeleteInvoiceButton({
       setPending(false);
       return;
     }
+    if (result?.warning) alert(result.warning);
     if (redirectTo) {
       router.push(redirectTo);
     } else if (onDeleted) {

@@ -249,8 +249,8 @@ export async function createInvoice(formData: FormData) {
     detail: arithmetic.status !== "VALIDA" ? { arithmetic_review: "confirmed" } : undefined,
   });
 
-  // Líneas de detalle (revisadas por el humano en el diálogo): se persisten para
-  // habilitar la conciliación por ítem. Best-effort: la factura vale sin líneas.
+  // Líneas de detalle (revisadas por el humano en el diálogo): se persisten
+  // juntas en una sola sentencia, antes de cualquier conciliación automática.
   if (dialogLines.length > 0) {
     const { error: linesError } = await insertInvoiceItems(supabase, {
       empresaId,
@@ -263,6 +263,11 @@ export async function createInvoice(formData: FormData) {
         invoiceId: invoice.id,
         detail: { error: linesError },
       });
+      revalidatePath("/invoices");
+      return {
+        error: "La factura se creó, pero no se guardaron sus líneas. No se vinculó ni concilió; revisá la factura antes de continuar.",
+        invoiceId: invoice.id as string,
+      };
     }
   }
 

@@ -5,11 +5,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireProfile, requireEmpresaId } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { differenceAmount, differencePct } from "@/lib/reconciliation";
-import { validateManualItemMatch, suggestInvoiceItemMatches, type ReconcilableInvoiceLine, type ReconcilableOrderLine } from "@/lib/invoice-item-reconcile";
+import { suggestInvoiceItemMatches, type ReconcilableInvoiceLine, type ReconcilableOrderLine } from "@/lib/invoice-item-reconcile";
 import {
   applyDeterministicItemMatches,
-  deleteInvoiceItems,
-  deleteItemMatchesForLink,
   getHeaderLink,
   insertValidatedItemMatches,
   parseInvoiceLinesInput,
@@ -89,19 +87,16 @@ export async function matchOrder(invoiceId: string, authorizedOrderId: string) {
 export async function unmatchOrder(invoiceId: string, matchId: string, authorizedOrderId: string) {
   const profile = await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
-  const { data, error } = await supabase.from("invoice_order_matches")
-    .delete().eq("id", matchId).eq("invoice_id", invoiceId)
-    .eq("authorized_order_id", authorizedOrderId).select("id");
-  if (error) return { error: error.message };
-  if (!data?.length) return { error: "El vínculo no existe o no tenés permiso para desvincularlo." };
-  // Limpiar también la conciliación por ítem del vínculo (el trigger recalcula
-  // las cantidades; sin esto quedarían cantidades fantasma).
-  const { error: itemError } = await deleteItemMatchesForLink(supabase, {
-    empresaId: profile.empresa_id,
-    invoiceId,
-    orderId: authorizedOrderId,
+  const { data, error } = await supabase.rpc("unmatch_invoice_order", {
+    p_empresa_id: profile.empresa_id,
+    p_invoice_id: invoiceId,
+    p_expected_match_id: matchId,
+    p_expected_order_id: authorizedOrderId,
   });
-  if (itemError) return { error: itemError };
+  if (error) return { error: error.message };
+  if (!(data as { ok?: boolean } | null)?.ok) {
+    return { error: (data as { error?: string } | null)?.error ?? "El vínculo no existe o cambió; no se desvinculó." };
+  }
   await logAudit(supabase, { action: "invoice.order_unmatched", invoiceId, authorizedOrderId });
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoiceId}`);
@@ -205,73 +200,49 @@ export async function markAptoYCrearOp(invoiceId: string) {
  * cancel/void pattern used elsewhere in this system, kept around specifically
  * so test/duplicate data can be cleared without needing DB access.
  */
-export async function deleteInvoice(invoiceId: string) {
+export async function deleteInvoice(invoiceId: string): Promise<{ error: string | null; warning?: string }> {
   const empresaId = await requireEmpresaId(["admin"]);
-  const admin = createAdminClient();
-
-  // Scope the lookup to the caller's empresa — the admin client bypasses RLS,
-  // so without this an admin could delete another tenant's invoice by id.
-  const { data: invoice, error: invoiceLookupError } = await admin
-    .from("invoices")
-    .select("attachment_id, status, invoice_number")
-    .eq("id", invoiceId)
-    .eq("empresa_id", empresaId)
-    .maybeSingle();
-  if (invoiceLookupError) return { error: invoiceLookupError.message };
-  if (!invoice) return { error: "Factura no encontrada." };
-
-  if (invoice.status === "APTO_PARA_PAGO" || invoice.status === "PAGADO") {
-    const reason = invoice.status === "PAGADO" ? "ya fue pagada" : "ya está aprobada para pago";
-    return { error: `No se puede eliminar la factura ${invoice.invoice_number ?? ""} porque ${reason} (integridad contable).` };
-  }
-
-  // Verificar si está en una orden de pago ejecutada
-  const { data: inExecutedOp, error: executedOpLookupError } = await admin
-    .from("payment_order_invoices")
-    .select("payment_orders(status)")
-    .eq("invoice_id", invoiceId)
-    .eq("empresa_id", empresaId);
-  if (executedOpLookupError) return { error: executedOpLookupError.message };
-
-  const hasExecutedOp = (inExecutedOp ?? []).some(
-    (row: unknown) => (row as { payment_orders: { status: string } | null })?.payment_orders?.status === "EJECUTADA"
-  );
-  if (hasExecutedOp) {
-    return { error: "No se puede eliminar una factura vinculada a una orden de pago ejecutada." };
-  }
-
-  // Stop on the first failure: the relationship guard also closes the race
-  // between the status read above and the start of this privileged cleanup.
-  const { error: matchDeleteError } = await admin.from("invoice_order_matches").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
-  if (matchDeleteError) return { error: matchDeleteError.message };
-  // Líneas y sus matches por ítem (CASCADE + trigger recalculan; sin esto
-  // quedarían cantidades fantasma).
-  const { error: itemsDeleteError } = await deleteInvoiceItems(admin, { empresaId, invoiceId });
-  if (itemsDeleteError) return { error: itemsDeleteError };
-  const { error: exceptionDeleteError } = await admin.from("invoice_exceptions").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
-  if (exceptionDeleteError) return { error: exceptionDeleteError.message };
-  const { error: auditDeleteError } = await admin.from("audit_logs").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
-  if (auditDeleteError) return { error: auditDeleteError.message };
-  // payment_order_invoices tiene FK NO ACTION — solo se remueve si la OP no fue ejecutada
-  const { error: paymentOrderLinkDeleteError } = await admin.from("payment_order_invoices").delete().eq("invoice_id", invoiceId).eq("empresa_id", empresaId);
-  if (paymentOrderLinkDeleteError) return { error: paymentOrderLinkDeleteError.message };
-
-  const { error } = await admin.from("invoices").delete().eq("id", invoiceId).eq("empresa_id", empresaId);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("delete_invoice", {
+    p_empresa_id: empresaId,
+    p_invoice_id: invoiceId,
+  });
   if (error) return { error: error.message };
+  const result = data as { ok?: boolean; attachment_id?: string | null; error?: string } | null;
+  if (!result?.ok) return { error: result?.error ?? "No se pudo eliminar la factura." };
 
-  if (invoice.attachment_id) {
-    const { data: attachment } = await admin
-      .from("attachments")
-      .select("bucket, path")
-      .eq("id", invoice.attachment_id)
-      .eq("empresa_id", empresaId)
-      .maybeSingle();
-    if (attachment) await admin.storage.from(attachment.bucket).remove([attachment.path]);
-    await admin.from("attachments").delete().eq("id", invoice.attachment_id).eq("empresa_id", empresaId);
+  // The invoice and its financial metadata are already committed as deleted.
+  // Storage is outside PostgreSQL, so a cleanup failure is reported as a
+  // warning and never presented as if the invoice deletion had rolled back.
+  let warning: string | undefined;
+  if (result.attachment_id) {
+    try {
+      const admin = createAdminClient();
+      const { data: attachment, error: attachmentLookupError } = await admin
+        .from("attachments")
+        .select("bucket, path")
+        .eq("id", result.attachment_id)
+        .eq("empresa_id", empresaId)
+        .maybeSingle();
+      if (attachmentLookupError) {
+        warning = "La factura se eliminó, pero no se pudo comprobar la limpieza de su archivo adjunto.";
+      } else if (attachment) {
+        const { error: storageError } = await admin.storage.from(attachment.bucket).remove([attachment.path]);
+        if (storageError) {
+          warning = "La factura se eliminó, pero no se pudo borrar su archivo adjunto.";
+        } else {
+          const { error: attachmentDeleteError } = await admin.from("attachments").delete()
+            .eq("id", result.attachment_id).eq("empresa_id", empresaId);
+          if (attachmentDeleteError) warning = "La factura se eliminó, pero quedó pendiente limpiar el registro de su archivo adjunto.";
+        }
+      }
+    } catch {
+      warning = "La factura se eliminó, pero falló la limpieza de su archivo adjunto.";
+    }
   }
 
   revalidatePath("/invoices");
-  return { error: null };
+  return { error: null, ...(warning ? { warning } : {}) };
 }
 
 export async function getSignedInvoiceAttachmentUrl(bucket: string, path: string) {
@@ -325,16 +296,7 @@ export async function addInvoiceItem(invoiceId: string, raw: {
   return { error: null, id: data.id as string };
 }
 
-/**
- * Corrige una línea pre-APTO sin pérdida de datos (R3-03): inserta primero la
- * versión corregida y recién después elimina la original (CASCADE + trigger).
- * - Si el INSERT falla, la línea original sigue intacta con sus matches.
- * - Si el DELETE falla, se intenta compensar borrando la versión nueva para
- *   restaurar el estado original; nunca se informa éxito parcial silencioso.
- * - Tras una corrección exitosa se intenta revalidar la conciliación de forma
- *   determinística (solo caso inequívoco); si ya no corresponde, la línea queda
- *   sin conciliar y las cantidades se recalculan por trigger. Todo auditado.
- */
+/** Corrige una línea pre-APTO en una transacción, preservando su ID. */
 export async function updateInvoiceItem(itemId: string, raw: {
   description: string; quantity?: number | null; unit?: string | null; unit_price?: number | null; subtotal?: number | null;
 }): Promise<{ error: string | null; id?: string }> {
@@ -355,61 +317,29 @@ export async function updateInvoiceItem(itemId: string, raw: {
   const [parsed] = parseInvoiceLinesInput([raw]);
   if (!parsed) return { error: "La línea necesita al menos una descripción válida." };
   const invoiceId = (line as unknown as { invoice_id: string }).invoice_id;
-
-  // 1. Insertar primero la versión corregida (la original sigue existiendo).
-  const { data, error } = await supabase
-    .from("invoice_items")
-    .insert({
-      invoice_id: invoiceId,
-      empresa_id: profile.empresa_id,
-      product_description: parsed.description,
-      quantity: parsed.quantity,
-      unit: parsed.unit,
-      unit_price: parsed.unit_price,
-      subtotal: parsed.subtotal,
-      sort_order: (line as unknown as { sort_order: number }).sort_order ?? 0,
-    })
-    .select("id")
-    .single();
-  if (error || !data) return { error: `No se pudo corregir la línea${error?.message ? ` (${error.message})` : ""}: la original sigue intacta, reintentá.` };
-  const newId = data.id as string;
-
-  // 2. Eliminar la original (CASCADE quita sus matches; el trigger recalcula).
-  const { error: delError } = await supabase
-    .from("invoice_items")
-    .delete()
-    .eq("id", itemId)
-    .eq("empresa_id", profile.empresa_id);
-  if (delError) {
-    // Compensar: borrar la versión nueva para restaurar el estado original.
-    // H3 (regla de errores): si la compensación también falla, NO se afirma
-    // restauración — se informa el estado real (duplicada pendiente de
-    // revisión) y queda auditado para intervención humana. Vía transaccional
-    // real: correct_invoice_item (migración PENDING).
-    const { error: rollbackError } = await supabase
-      .from("invoice_items")
-      .delete()
-      .eq("id", newId)
-      .eq("empresa_id", profile.empresa_id);
-    await logAudit(supabase, {
-      action: "invoice.item_correction_failed",
-      invoiceId,
-      detail: { error: delError.message, rollback: rollbackError?.message ?? "ok" },
-    });
-    if (rollbackError) {
-      return { error: "No se pudo corregir la línea y la restauración automática también falló: la corrección quedó como línea duplicada pendiente de revisión humana. Nada se dio por válido." };
-    }
-    return { error: "No se pudo corregir la línea y se restauró el estado original. Reintentá." };
+  const { data: correction, error } = await supabase.rpc("correct_invoice_item", {
+    p_empresa_id: profile.empresa_id,
+    p_invoice_item_id: itemId,
+    p_description: parsed.description,
+    p_quantity: parsed.quantity,
+    p_unit: parsed.unit,
+    p_unit_price: parsed.unit_price,
+    p_subtotal: parsed.subtotal,
+  });
+  if (error) return { error: error.message };
+  if (!(correction as { ok?: boolean } | null)?.ok) {
+    return { error: (correction as { error?: string } | null)?.error ?? "No se pudo corregir la línea." };
   }
 
-  // 3. Revalidar la conciliación de forma determinística (solo caso inequívoco).
+  // La RPC preserva/revalida los matches existentes. Si la corrección aún no
+  // tenía match, conserva el comportamiento anterior de propuesta determinística.
   const link = await getHeaderLink(supabase, { empresaId: profile.empresa_id, invoiceId });
   let revalidated = 0;
   if (link.ok) {
     const { data: corrected } = await supabase
       .from("invoice_items")
       .select("id, invoice_id, empresa_id, product_description, quantity, unit")
-      .eq("id", newId)
+      .eq("id", itemId)
       .eq("empresa_id", profile.empresa_id)
       .maybeSingle();
     const { data: orderLines } = await supabase
@@ -429,7 +359,7 @@ export async function updateInvoiceItem(itemId: string, raw: {
           empresaId: profile.empresa_id,
           invoiceId,
           expectedOrderId: link.orderId,
-          proposals: [{ invoiceItemId: newId, orderItemId: single.orderItemId, quantityMatched: single.quantityMatched }],
+          proposals: [{ invoiceItemId: itemId, orderItemId: single.orderItemId, quantityMatched: single.quantityMatched }],
         });
         revalidated = applied.applied.length;
         if (applied.error) {
@@ -442,9 +372,9 @@ export async function updateInvoiceItem(itemId: string, raw: {
       }
     }
   }
-  await logAudit(supabase, { action: "invoice.item_corrected", invoiceId, detail: { revalidated } });
+  await logAudit(supabase, { action: "invoice.item_corrected_runtime", invoiceId, detail: { revalidated } });
   revalidatePath(`/invoices/${invoiceId}`);
-  return { error: null, id: newId };
+  return { error: null, id: itemId };
 }
 
 /** Elimina una línea pre-APTO (CASCADE elimina sus matches; el trigger recalcula). */
@@ -462,27 +392,21 @@ export async function deleteInvoiceItem(itemId: string): Promise<{ error: string
   if (!itemMutationsAllowed(typed.invoices.status)) {
     return { error: "La factura ya está aprobada o pagada; sus líneas quedan congeladas." };
   }
-  const { error } = await supabase
-    .from("invoice_items")
-    .delete()
-    .eq("id", itemId)
-    .eq("empresa_id", profile.empresa_id);
+  const { data, error } = await supabase.rpc("delete_invoice_item", {
+    p_empresa_id: profile.empresa_id,
+    p_invoice_id: typed.invoice_id,
+    p_invoice_item_id: itemId,
+  });
   if (error) return { error: error.message };
+  if (!(data as { ok?: boolean } | null)?.ok) {
+    return { error: (data as { error?: string } | null)?.error ?? "No se pudo borrar la línea." };
+  }
   await logAudit(supabase, { action: "invoice.item_deleted", invoiceId: typed.invoice_id });
   revalidatePath(`/invoices/${typed.invoice_id}`);
   return { error: null };
 }
 
-/**
- * Imputación manual explícita de una línea de factura a una línea de OC.
- * R3-01: el ítem debe pertenecer a la OC vinculada a la factura (verificado en
- * backend contra `invoice_order_matches`; el selector de UI no basta).
- * R3-02: la cantidad nunca supera lo documentado de la línea (sumando todos sus
- * matches) ni el remanente de la OC; no existe mecanismo que autorice excesos,
- * así que se rechazan (sin warnings que contabilicen).
- * Frente a una desvinculación concurrente, el match recién creado se revalida y,
- * si el vínculo ya no existe, se elimina (convergencia por trigger).
- */
+/** Match manual validado localmente y confirmado atómicamente por la RPC. */
 export async function createInvoiceItemMatch(args: {
   invoiceId: string;
   invoiceItemId: string;
@@ -493,85 +417,42 @@ export async function createInvoiceItemMatch(args: {
   const supabase = await createClient();
   const invoice = await loadInvoiceForItems(supabase, args.invoiceId, profile.empresa_id);
   if (!invoice) return { error: "Factura no encontrada." };
-
-  // R3-01 paso 1-3: vínculo de cabecera vigente (falla cerrado ante error).
+  if (!Number.isFinite(args.quantity) || args.quantity <= 0) {
+    return { error: "La cantidad imputada debe ser mayor a cero." };
+  }
   const link = await getHeaderLink(supabase, { empresaId: profile.empresa_id, invoiceId: args.invoiceId });
   if (!link.ok) return { error: link.error };
-
-  const [{ data: invoiceLine, error: invoiceLineError }, { data: orderLine, error: orderLineError }, { data: dup, error: dupError }] = await Promise.all([
-    supabase.from("invoice_items").select("id, invoice_id, product_description, quantity, unit").eq("id", args.invoiceItemId).eq("empresa_id", profile.empresa_id).maybeSingle(),
-    supabase.from("authorized_order_items").select("id, order_id, empresa_id, product, quantity, unit, quantity_invoiced").eq("id", args.orderItemId).eq("empresa_id", profile.empresa_id).maybeSingle(),
-    supabase.from("invoice_item_matches").select("id").eq("invoice_item_id", args.invoiceItemId).eq("order_item_id", args.orderItemId).maybeSingle(),
+  const [{ data: line, error: lineError }, { data: orderLine, error: orderError }] = await Promise.all([
+    supabase.from("invoice_items").select("id, invoice_id").eq("id", args.invoiceItemId).eq("empresa_id", profile.empresa_id).maybeSingle(),
+    supabase.from("authorized_order_items").select("id, order_id").eq("id", args.orderItemId).eq("empresa_id", profile.empresa_id).maybeSingle(),
   ]);
-  if (invoiceLineError || orderLineError || dupError) {
-    return { error: "No se pudo verificar la imputación. Intentá nuevamente." };
-  }
-  const il = invoiceLine as unknown as { id: string; invoice_id: string; product_description: string; quantity: number | null; unit: string | null } | null;
-  const ol = orderLine as unknown as { id: string; order_id: string; empresa_id: string; product: string; quantity: number; unit: string; quantity_invoiced: number } | null;
-  if (!il || il.invoice_id !== args.invoiceId) return { error: "La línea no pertenece a esta factura." };
-  if (!ol) return { error: "El ítem de OC no existe o no pertenece a esta empresa." };
-  // R3-01 paso 4-5: igualdad exacta con la OC vinculada.
-  if (ol.order_id !== link.orderId) {
-    return { error: "El ítem pertenece a otra OC: solo se puede imputar a la OC vinculada a esta factura." };
-  }
-
-  const [{ count: invoiceLineCount, error: ilCountError }, { count: orderLineCount, error: olCountError }, { data: lineMatches, error: lineMatchesError }] = await Promise.all([
-    supabase.from("invoice_items").select("id", { count: "exact", head: true }).eq("invoice_id", args.invoiceId).eq("empresa_id", profile.empresa_id),
-    supabase.from("authorized_order_items").select("id", { count: "exact", head: true }).eq("order_id", ol.order_id).eq("empresa_id", profile.empresa_id),
-    supabase.from("invoice_item_matches").select("quantity_matched").eq("invoice_item_id", il.id).eq("empresa_id", profile.empresa_id),
-  ]);
-  if (ilCountError || olCountError || lineMatchesError) {
-    return { error: "No se pudo verificar la imputación. Intentá nuevamente." };
-  }
-  const existingLineMatched = (lineMatches ?? []).reduce((s, m) => s + Number((m as { quantity_matched: number }).quantity_matched), 0);
-
-  const check = validateManualItemMatch({
-    invoiceEmpresaId: profile.empresa_id,
-    orderEmpresaId: ol.empresa_id,
-    invoiceStatus: invoice.status,
-    invoiceLine: { id: il.id, invoice_id: il.invoice_id, description: il.product_description, quantity: il.quantity, unit: il.unit },
-    orderLine: { id: ol.id, product: ol.product, quantity: Number(ol.quantity), unit: ol.unit, quantity_invoiced: Number(ol.quantity_invoiced ?? 0) },
-    invoiceLineCount: invoiceLineCount ?? 0,
-    orderLineCount: orderLineCount ?? 0,
-    quantity: args.quantity,
-    existingLineMatched,
-    duplicateExists: !!dup,
+  if (lineError || orderError) return { error: "No se pudo verificar la imputación. Intentá nuevamente." };
+  if (!line || line.invoice_id !== args.invoiceId) return { error: "La línea no pertenece a esta factura." };
+  if (!orderLine) return { error: "El ítem de OC no existe o no pertenece a esta empresa." };
+  if (orderLine.order_id !== link.orderId) return { error: "El ítem pertenece a otra OC: solo se puede imputar a la OC vinculada a esta factura." };
+  const result = await insertValidatedItemMatches(supabase, {
+    empresaId: profile.empresa_id,
+    invoiceId: args.invoiceId,
+    expectedOrderId: link.orderId,
+    proposals: [{ invoiceItemId: args.invoiceItemId, orderItemId: args.orderItemId, quantityMatched: args.quantity }],
   });
-  if (!check.ok) return { error: check.error };
-
-  const { data, error } = await supabase
-    .from("invoice_item_matches")
-    .insert({
-      invoice_item_id: il.id,
-      order_item_id: ol.id,
-      empresa_id: profile.empresa_id,
-      quantity_matched: args.quantity,
-    })
-    .select("id")
-    .single();
-  if (error) {
-    if (error.code === "23505") return { error: "Esa línea ya está imputada a ese ítem de OC." };
-    return { error: error.message };
-  }
-
-  // R3-01 concurrencia: si el vínculo se eliminó entre la verificación y la
-  // inserción, el match recién creado se elimina para converger al estado
-  // correcto (el trigger recalcula). Sin transacción real no hay atomicidad
-  // estricta: ver documentación (garantía documentada, no simulada).
-  const recheck = await getHeaderLink(supabase, { empresaId: profile.empresa_id, invoiceId: args.invoiceId });
-  if (!recheck.ok || recheck.orderId !== ol.order_id) {
-    await supabase.from("invoice_item_matches").delete().eq("id", data.id as string).eq("empresa_id", profile.empresa_id);
-    await logAudit(supabase, { action: "invoice.item_match_voided_race", invoiceId: args.invoiceId });
-    return { error: "El vínculo con la OC cambió durante la imputación; no se contabilizó nada. Reintentá." };
+  if (result.error) return { error: result.error };
+  if (!result.applied.length) {
+    if (result.skippedDuplicate) return { error: "Esa línea ya está imputada a ese ítem de OC." };
+    if (result.skippedNoLink) return { error: "La línea, el ítem o el vínculo con la OC cambiaron; actualizá e intentá nuevamente." };
+    if (result.skippedOverDocumented) return { error: "La cantidad supera la cantidad documentada en la línea de factura." };
+    if (result.skippedOverRemaining) return { error: "La cantidad supera el remanente de la OC." };
+    if (result.skippedMismatch) return { error: "La unidad no es compatible o el producto no corresponde al ítem de la OC." };
+    return { error: "No se pudo validar la imputación." };
   }
 
   await logAudit(supabase, { action: "invoice.item_matched", invoiceId: args.invoiceId });
   revalidatePath(`/invoices/${args.invoiceId}`);
-  revalidatePath(`/orders/${ol.order_id}`);
-  return { error: null, id: data.id as string };
+  revalidatePath(`/orders/${link.orderId}`);
+  return { error: null };
 }
 
-/** Quita una imputación manual pre-APTO (el trigger recalcula la cantidad facturada). */
+/** Quita una imputación manual pre-APTO mediante la RPC transaccional. */
 export async function deleteInvoiceItemMatch(matchId: string, invoiceId: string): Promise<{ error: string | null }> {
   const profile = await requireProfile(["administracion", "admin"]);
   const supabase = await createClient();
@@ -595,12 +476,15 @@ export async function deleteInvoiceItemMatch(matchId: string, invoiceId: string)
     .eq("empresa_id", profile.empresa_id)
     .maybeSingle();
   if (!line) return { error: "La imputación no pertenece a esta factura." };
-  const { error } = await supabase
-    .from("invoice_item_matches")
-    .delete()
-    .eq("id", matchId)
-    .eq("empresa_id", profile.empresa_id);
+  const { data, error } = await supabase.rpc("delete_invoice_item_match", {
+    p_empresa_id: profile.empresa_id,
+    p_invoice_id: invoiceId,
+    p_invoice_item_match_id: matchId,
+  });
   if (error) return { error: error.message };
+  if (!(data as { ok?: boolean } | null)?.ok) {
+    return { error: (data as { error?: string } | null)?.error ?? "No se pudo quitar la imputación." };
+  }
   await logAudit(supabase, { action: "invoice.item_unmatched", invoiceId });
   revalidatePath(`/invoices/${invoiceId}`);
   return { error: null };

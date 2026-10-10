@@ -59,10 +59,9 @@ export async function insertInvoiceItems(
   supabase: SupabaseClient,
   args: { empresaId: string; invoiceId: string; items: InvoiceLineInput[] }
 ): Promise<{ error: string | null; count: number }> {
-  let count = 0;
-  for (let i = 0; i < args.items.slice(0, MAX_LINES).length; i++) {
-    const item = args.items[i];
-    const { error } = await supabase.from("invoice_items").insert({
+  const items = args.items.slice(0, MAX_LINES);
+  if (!items.length) return { error: null, count: 0 };
+  const rows = items.map((item, i) => ({
       invoice_id: args.invoiceId,
       empresa_id: args.empresaId,
       product_description: item.description,
@@ -71,11 +70,13 @@ export async function insertInvoiceItems(
       unit_price: item.unit_price,
       subtotal: item.subtotal,
       sort_order: i,
-    });
-    if (error) return { error: error.message, count };
-    count++;
-  }
-  return { error: null, count };
+    }));
+  // One multi-row INSERT is one database statement: all reviewed lines persist,
+  // or none do. Per-line inserts could leave a partial invoice that later looks
+  // like a genuine 1:1 match to the deterministic reconciler.
+  const { error } = await supabase.from("invoice_items").insert(rows);
+  if (error) return { error: error.message, count: 0 };
+  return { error: null, count: rows.length };
 }
 
 export type AppliedItemMatch = { invoiceItemId: string; orderItemId: string; quantityMatched: number };
@@ -124,8 +125,9 @@ export type ValidatedProposal = { invoiceItemId: string; orderItemId: string; qu
  *  9. Cantidad acumulada ya imputada de la línea: se suman los matches
  *     PREVIAMENTE PERSISTIDOS más los del batch en curso; la suma nunca supera
  *     lo documentado (invariante documental).
- * 10. Remanente de la OC: nunca se contabiliza por encima (invariante de OC).
- * 11. Ausencia de duplicación (chequeo + UNIQUE contraint 23505).
+ * 10. Remanente de la OC: el RPC la vuelve a comprobar después de adquirir
+ *     locks y aplica la inserción en la misma transacción.
+ * 11. Ausencia de duplicación (RPC idempotente + UNIQUE constraint).
  * 12. Correspondencia del producto (descriptionsMatch, salvo caso 1:1 inequívoco).
  *
  * Invariante documental:
@@ -137,11 +139,10 @@ export type ValidatedProposal = { invoiceItemId: string; orderItemId: string; qu
  * Invariante relacional: la línea de OC pertenece a la OC vinculada a la
  * factura propietaria de la línea. No se aceptan referencias cruzadas.
  *
- * NOTA DE CONCURRENCIA (H2): la lectura del remanente y la inserción son dos
- * operaciones separadas; bajo concurrencia real dos inserciones pueden exceder
- * el remanente. La atomicidad fuerte requiere la RPC `create_invoice_item_match`
- * (migración PENDIENTE, no aplicada). Este servicio es defensa en profundidad,
- * no garantía transaccional.
+ * La validación local mejora los errores para el usuario. La RPC
+ * `create_invoice_item_match` es la autoridad final: revalida el vínculo
+ * esperado, documento, tenant, cantidades y duplicado bajo locks y persiste
+ * cada match atómicamente.
  *
  * Devuelve lo aplicado y lo omitido con su motivo; nunca inventa cantidades.
  */
@@ -294,17 +295,20 @@ export async function insertValidatedItemMatches(
       continue;
     }
     // H1-10 (regla B): nunca se contabiliza por encima del remanente.
-    // (Lectura no bloqueante: ver NOTA DE CONCURRENCIA arriba.)
+    // This is only a fast local filter; the RPC rechecks the current remainder
+    // after locking the invoice, header link, order, line, and order item.
     const remaining = orderLineRemaining(order);
     if (proposal.quantityMatched > remaining + 1e-9) {
       skippedOverRemaining++;
       continue;
     }
-    const { error } = await supabase.from("invoice_item_matches").insert({
-      invoice_item_id: proposal.invoiceItemId,
-      order_item_id: proposal.orderItemId,
-      empresa_id: args.empresaId,
-      quantity_matched: proposal.quantityMatched,
+    const { data: rpcResult, error } = await supabase.rpc("create_invoice_item_match", {
+      p_empresa_id: args.empresaId,
+      p_invoice_id: args.invoiceId,
+      p_expected_order_id: args.expectedOrderId,
+      p_invoice_item_id: proposal.invoiceItemId,
+      p_order_item_id: proposal.orderItemId,
+      p_quantity: proposal.quantityMatched,
     });
     if (error) {
       if (error.code === "23505") {
@@ -312,6 +316,20 @@ export async function insertValidatedItemMatches(
         continue;
       }
       return bail(error.message);
+    }
+    const result = rpcResult as { ok?: boolean; duplicate?: boolean; match_id?: string; error?: string } | null;
+    if (!result?.ok) {
+      // The RPC may report a validation rejection as JSON instead of raising.
+      // Treat it as un-applied and fail closed; do not count it as persisted.
+      if (result?.duplicate) {
+        skippedDuplicate++;
+        continue;
+      }
+      return bail(result?.error ?? "La RPC rechazó la imputación sin confirmar su causa.");
+    }
+    if (result.duplicate) {
+      skippedDuplicate++;
+      continue;
     }
     matchedByLine.set(proposal.invoiceItemId, already + proposal.quantityMatched);
     applied.push({
@@ -401,59 +419,6 @@ export async function applyDeterministicItemMatches(
   pending += result.skippedNoLink + result.skippedOverDocumented + result.skippedOverRemaining + result.skippedDuplicate + result.skippedMismatch;
   heldOverRemaining += result.skippedOverRemaining;
   return { error: null, applied: result.applied, pending, heldOverRemaining };
-}
-
-/** Limpia los matches por ítem de un vínculo factura↔OC (el trigger recalcula). */
-export async function deleteItemMatchesForLink(
-  supabase: SupabaseClient,
-  args: { empresaId: string; invoiceId: string; orderId: string }
-): Promise<{ error: string | null; deleted: number }> {
-  const { data: invoiceLines } = await supabase
-    .from("invoice_items")
-    .select("id")
-    .eq("invoice_id", args.invoiceId)
-    .eq("empresa_id", args.empresaId);
-  const { data: orderLines } = await supabase
-    .from("authorized_order_items")
-    .select("id")
-    .eq("order_id", args.orderId)
-    .eq("empresa_id", args.empresaId);
-  const invoiceIds = (invoiceLines ?? []).map((l) => l.id as string);
-  const orderIds = new Set((orderLines ?? []).map((l) => l.id as string));
-  if (!invoiceIds.length || !orderIds.size) return { error: null, deleted: 0 };
-
-  const { data: matches, error: matchError } = await supabase
-    .from("invoice_item_matches")
-    .select("id, invoice_item_id, order_item_id")
-    .eq("empresa_id", args.empresaId)
-    .in("invoice_item_id", invoiceIds);
-  if (matchError) return { error: matchError.message, deleted: 0 };
-  const toDelete = (matches ?? [])
-    .filter((m) => orderIds.has(m.order_item_id as string))
-    .map((m) => m.id as string);
-  if (!toDelete.length) return { error: null, deleted: 0 };
-  const { error } = await supabase
-    .from("invoice_item_matches")
-    .delete()
-    .eq("empresa_id", args.empresaId)
-    .in("id", toDelete);
-  if (error) return { error: error.message, deleted: 0 };
-  return { error: null, deleted: toDelete.length };
-}
-
-/** Borra las líneas de una factura (CASCADE elimina sus matches; el trigger recalcula). */
-export async function deleteInvoiceItems(
-  supabase: SupabaseClient,
-  args: { empresaId: string; invoiceId: string }
-): Promise<{ error: string | null; deleted: number }> {
-  const { data, error } = await supabase
-    .from("invoice_items")
-    .delete()
-    .eq("invoice_id", args.invoiceId)
-    .eq("empresa_id", args.empresaId)
-    .select("id");
-  if (error) return { error: error.message, deleted: 0 };
-  return { error: null, deleted: data?.length ?? 0 };
 }
 
 export { orderLineRemaining };

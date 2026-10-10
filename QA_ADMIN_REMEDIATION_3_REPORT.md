@@ -1,5 +1,11 @@
 # QA ADMIN REMEDIATION 3 — REPORT
 
+> Historical implementation report. The autonomous transactional completion in
+> `docs/remediation-3-release.md` and the exact-head Release Certification workflow
+> supersede the former pending-migration and check-then-insert limitations below.
+> PGlite results below are sequential WASM PostgreSQL tests, not independent-session
+> concurrency evidence. Production has not been modified.
+
 **Branch:** `fix/qa-admin-remediation-3` (base: `origin/main` = `a56c0e199deda4a35a658b290d19d7b17ee4efa3`)
 
 - COMMITS CONOCIDOS:
