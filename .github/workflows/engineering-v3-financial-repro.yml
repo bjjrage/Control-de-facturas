@@ -1,0 +1,71 @@
+name: Engineering V3 - adversarial financial repro (frozen SHA)
+on:
+  push:
+    branches: [audit/engineering-v3-bootstrap]
+    paths:
+      - ".github/workflows/engineering-v3-financial-repro.yml"
+      - "audit/v3-findings/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  financial-repro:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Checkout audit branch (test-only)
+        uses: actions/checkout@v4
+        with:
+          path: audit-src
+          persist-credentials: false
+      - name: Checkout exact production source commit
+        uses: actions/checkout@v4
+        with:
+          ref: 953ebba505b38313bd3e18e6cb9fbf31b7e1eb89
+          path: frozen-src
+          persist-credentials: false
+      - name: Verify exact source identity and prohibit production environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git -C frozen-src rev-parse HEAD)" = "953ebba505b38313bd3e18e6cb9fbf31b7e1eb89" ]]
+          [[ "$(git -C frozen-src rev-parse HEAD^{tree})" = "a91c8c54dd9d80b7f63a86015eff2e516b21b98f" ]]
+          env | grep -Ei '^(SUPABASE_SERVICE_ROLE_KEY|DATABASE_URL|DIRECT_URL|OPENAI_API_KEY|NEXT_PUBLIC_SUPABASE_URL)=' && { echo 'Production-capable environment variable present - REFUSE' >&2; exit 1; } || true
+          test -f audit-src/audit/v3-findings/financial-negative-contracts.test.ts
+          mkdir -p frozen-src/test
+          cp audit-src/audit/v3-findings/financial-negative-contracts.test.ts frozen-src/test/audit-v3-financial-negative-contracts.test.ts
+          mkdir -p evidence-v3
+          echo "source_sha=953ebba505b38313bd3e18e6cb9fbf31b7e1eb89" > evidence-v3/source.txt
+          echo "source_tree=a91c8c54dd9d80b7f63a86015eff2e516b21b98f" >> evidence-v3/source.txt
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frozen-src/package-lock.json
+      - name: Install frozen lockfile without install scripts
+        working-directory: frozen-src
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run negative contracts (expected to fail if bugs are present)
+        working-directory: frozen-src
+        shell: bash
+        run: |
+          set -uo pipefail
+          npx vitest run test/audit-v3-financial-negative-contracts.test.ts --no-file-parallelism --reporter=verbose > "$GITHUB_WORKSPACE/evidence-v3/vitest.log" 2>&1
+          result=$?
+          cat "$GITHUB_WORKSPACE/evidence-v3/vitest.log"
+          echo "$result" > "$GITHUB_WORKSPACE/evidence-v3/exit-code.txt"
+          exit "$result"
+      - name: Upload reproducible findings evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AUDIT-V3-FINANCIAL-NEGATIVE
+          path: evidence-v3/
+          retention-days: 30
+          if-no-files-found: warn
