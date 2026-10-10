@@ -23,6 +23,7 @@ of a passing release gate.
 | Discard races with manual resolution | Conditional delete before Storage work, no deletion of processing/known-invoice jobs |
 | Partial reconciliation appears complete | Explicit warnings/review state for failed or skipped allocations |
 | Non-finite or silently rounded numeric values | Finite validation and exact persisted decimal precision |
+| Numeric type change conflicts with the existing receipt trigger | Preserve exact column-trigger definitions and enable modes within the exclusive-lock migration transaction; canary and real catalog assertions |
 | Two uploads use the same millisecond destination | UUID destinations and confirmed metadata cleanup before deleting Storage |
 
 PGlite tests cover sequential SQL behavior only. PostgreSQL 17 independent-session

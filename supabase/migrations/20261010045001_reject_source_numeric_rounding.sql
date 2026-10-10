@@ -25,7 +25,7 @@ BEGIN
        OR oi.quantity>=1000000000000::numeric OR pg_catalog.scale(oi.quantity)>2
        OR oi.unit_price::text IN ('NaN','Infinity','-Infinity') OR oi.unit_price<0
        OR oi.unit_price>=10000000000::numeric OR pg_catalog.scale(oi.unit_price)>4
-       OR oi.total_price::text IN ('NaN','Infinity','-Infinity') OR oi.total_price<0
+       OR oi.total_price::text IN ('NaN','Infinity','-Infinity') OR oi.total_price<=0
        OR oi.total_price>=1000000000000::numeric OR pg_catalog.scale(oi.total_price)>2
   ) THEN
     RAISE EXCEPTION 'Source numeric precision preflight failed; inspect and explicitly repair invoice/order item data before retrying';
@@ -40,6 +40,34 @@ BEGIN
   END IF;
 END;
 $invoice_job_fencing_preflight$;
+
+-- PostgreSQL records UPDATE OF column triggers as dependencies of their
+-- source columns and refuses ALTER TYPE while those triggers exist. Preserve
+-- their exact pg_get_triggerdef output and enable mode, then drop/recreate
+-- them only while this transaction holds ACCESS EXCLUSIVE locks on both
+-- source tables. Row-level financial guards remain installed throughout.
+CREATE TEMP TABLE _r3_source_numeric_trigger_backup (
+  relid oid NOT NULL,
+  trigger_name name NOT NULL,
+  trigger_def text NOT NULL,
+  enabled "char" NOT NULL
+) ON COMMIT DROP;
+
+INSERT INTO _r3_source_numeric_trigger_backup(relid,trigger_name,trigger_def,enabled)
+SELECT t.tgrelid,t.tgname,pg_catalog.pg_get_triggerdef(t.oid),t.tgenabled
+FROM pg_catalog.pg_trigger t
+WHERE t.tgrelid IN ('public.invoice_items'::regclass,'public.authorized_order_items'::regclass)
+  AND NOT t.tgisinternal
+  AND t.tgattr::text <> '';
+
+DO $drop_column_triggers$
+DECLARE r record;
+BEGIN
+  FOR r IN SELECT relid,trigger_name FROM _r3_source_numeric_trigger_backup LOOP
+    EXECUTE pg_catalog.format('DROP TRIGGER %I ON %s',r.trigger_name,r.relid::regclass);
+  END LOOP;
+END;
+$drop_column_triggers$;
 
 ALTER TABLE public.invoice_items
   ALTER COLUMN quantity TYPE numeric USING quantity::numeric,
@@ -76,8 +104,27 @@ ALTER TABLE public.authorized_order_items
   ),
   ADD CONSTRAINT r3_aoi_total_price_precision_check CHECK (
     total_price::text NOT IN ('NaN','Infinity','-Infinity')
-      AND total_price>=0 AND total_price<1000000000000::numeric AND pg_catalog.scale(total_price)<=2
+      AND total_price>0 AND total_price<1000000000000::numeric AND pg_catalog.scale(total_price)<=2
   );
+
+DO $restore_column_triggers$
+DECLARE r record; v_enable_sql text;
+BEGIN
+  FOR r IN SELECT relid,trigger_name,trigger_def,enabled
+           FROM _r3_source_numeric_trigger_backup ORDER BY relid,trigger_name LOOP
+    EXECUTE r.trigger_def;
+    v_enable_sql := CASE r.enabled
+      WHEN 'D' THEN 'DISABLE'
+      WHEN 'R' THEN 'ENABLE REPLICA'
+      WHEN 'A' THEN 'ENABLE ALWAYS'
+      ELSE NULL
+    END;
+    IF v_enable_sql IS NOT NULL THEN
+      EXECUTE pg_catalog.format('ALTER TABLE %s %s TRIGGER %I',r.relid::regclass,v_enable_sql,r.trigger_name);
+    END IF;
+  END LOOP;
+END;
+$restore_column_triggers$;
 
 -- Keep the attempt counter monotonic and fence every new processing lease.
 -- Invoice checkpoints are writable only inside SECURITY DEFINER RPCs owned by

@@ -228,6 +228,25 @@ async function main() {
   assert.deepEqual(argsByRpc.delete_invoice_item_match, ["p_empresa_id", "p_invoice_id", "p_invoice_item_match_id"]);
   assert.deepEqual(argsByRpc.delete_invoice, ["p_empresa_id", "p_invoice_id"]);
   assert.deepEqual(argsByRpc.create_invoice_from_job, ["p_empresa_id", "p_job_id", "p_expected_attempts", "p_invoice"]);
+  const receiptGuard = await withClient(async (client) => client.query(
+    `SELECT t.tgname,t.tgenabled,p.proname,pn.nspname AS function_schema,
+            ARRAY(SELECT a.attname FROM unnest(t.tgattr::smallint[]) AS target(attnum)
+                    JOIN pg_attribute a ON a.attrelid=t.tgrelid AND a.attnum=target.attnum
+                   ORDER BY a.attnum) AS update_columns
+       FROM pg_trigger t
+       JOIN pg_class c ON c.oid=t.tgrelid
+       JOIN pg_namespace rn ON rn.oid=c.relnamespace
+       JOIN pg_proc p ON p.oid=t.tgfoid
+       JOIN pg_namespace pn ON pn.oid=p.pronamespace
+      WHERE rn.nspname='public' AND c.relname='authorized_order_items'
+        AND t.tgname='trg_prevent_order_quantity_below_confirmed_receipts'
+        AND NOT t.tgisinternal`,
+  ));
+  assert.equal(receiptGuard.rows.length, 1, "confirmed-receipt quantity guard trigger must remain installed");
+  assert.equal(receiptGuard.rows[0].tgenabled, "O", "confirmed-receipt trigger must remain enabled for origin sessions");
+  assert.equal(receiptGuard.rows[0].function_schema, "public");
+  assert.equal(receiptGuard.rows[0].proname, "prevent_order_quantity_below_confirmed_receipts");
+  assert.deepEqual(receiptGuard.rows[0].update_columns, ["quantity"], "receipt guard must remain scoped to quantity updates");
   const f = await seed();
 
   // Tenant boundary, role boundary, anon privilege, and direct-write privilege.

@@ -15,6 +15,9 @@ constraints, preserving the former numeric limits while rejecting excess
 decimals before rounding. It also protects monotonic job attempts and invoice
 checkpoints and denies job truncation. Source numeric text may omit trailing
 zeroes; financial values and the derived order counter remain unchanged.
+The source-type migration takes exclusive locks and preserves the original
+column-trigger definitions and enable modes, including the confirmed-receipt
+quantity guard. Release maintenance must remain active until it commits.
 
 This is a coordinated application/worker/database release. The former application
 at `a56c787` uses direct writes that the new database intentionally rejects. An
@@ -72,6 +75,9 @@ as executed tests.
    The migration's transactional preflight must pass. If it reports historical
    inconsistency, stop the release: the transaction aborts and requires a reviewed
    data-repair proposal. Do not disable guards or erase matches to get past it.
+   Migration files commit separately. Record which of the three R3 versions
+   actually committed; a failed later file does not undo earlier files. Keep
+   maintenance active whenever the first R3 boundary is already installed.
 4. Deploy the matching app and worker artifacts while writers remain stopped.
    Confirm the seven financial RPC signatures exist, anonymous EXECUTE is denied, and raw
    item-match writes and truncation remain denied. Refresh the PostgREST schema
@@ -104,8 +110,13 @@ table write grants, drop the guards, install the pending SQL, or deploy the old
 worker as a writer. That would reopen the races this release closes.
 
 - Before migration: cancel the release and resume the existing app/worker.
-- If preflight fails: its transaction leaves no partial installation. Keep the
-  existing version; inspect the reported historical data separately.
+- If the first R3 preflight fails before any R3 migration commits: its transaction
+  leaves the original schema intact. Keep the existing version and inspect the
+  reported historical data separately.
+- If a later R3 file fails: that file rolls back, but earlier migration files
+  remain committed. Keep maintenance active and the old worker stopped. Record
+  installed versions, preserve data and finish a reviewed forward repair before
+  reopening writers. Do not resume the old direct-write application.
 - After migration, before reopening writers: keep maintenance active and the
   worker stopped. Retain the installed schema and all rows. Redeploy the last
   certified artifact that uses these RPC adapters, or prepare a forward fix on

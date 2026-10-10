@@ -3,8 +3,9 @@
  * sobre PGlite (WASM, efímero). El lock/concurrency verdict viene solo de
  * scripts/test-invoice-item-match-postgres.ts contra PostgreSQL 17 real.
  *
- * Migraciones: 20261010040051_invoice_item_match_integrity.sql y
- * 20261010043627_atomic_invoice_job_creation_and_attachment_cleanup.sql.
+ * Migraciones: 20261010040051_invoice_item_match_integrity.sql,
+ * 20261010043627_atomic_invoice_job_creation_and_attachment_cleanup.sql y
+ * 20261010045001_reject_source_numeric_rounding.sql.
  *
  * ALCANCE: invariantes secuenciales (documental / OC / relacional),
  * idempotencia, aislamiento multitenant, freeze por estado, rollback ante
@@ -79,9 +80,9 @@ async function seed() {
     INSERT INTO public.invoice_items (id, invoice_id, empresa_id, product_description, quantity, unit) VALUES
       ('${IL1}', '${INV}', '${A}', 'Ladrillo común', 2500, 'un'),
       ('${IL2}', '${INV}', '${A}', 'Ladrillo común', 2500, 'un');
-    INSERT INTO public.authorized_order_items (id, order_id, empresa_id, product, quantity, unit, quantity_invoiced) VALUES
-      ('${OL1}', '${OC}', '${A}', 'Ladrillo común', 3000, 'un', 0),
-      ('${OL_B1}', '${OC_B}', '${A}', 'Cemento puzolánico', 700, 'bolsa', 0);
+    INSERT INTO public.authorized_order_items (id, order_id, empresa_id, product, quantity, unit, unit_price, total_price, quantity_invoiced) VALUES
+      ('${OL1}', '${OC}', '${A}', 'Ladrillo común', 3000, 'un', 0, 1, 0),
+      ('${OL_B1}', '${OC_B}', '${A}', 'Cemento puzolánico', 700, 'bolsa', 0, 1, 0);
     INSERT INTO public.invoice_order_matches (invoice_id, authorized_order_id, empresa_id) VALUES
       ('${INV}', '${OC}', '${A}');
   `);
@@ -121,7 +122,12 @@ beforeAll(async () => {
     CREATE TABLE public.invoice_exceptions (invoice_id uuid NOT NULL, empresa_id uuid NOT NULL);
     CREATE TABLE public.invoices (id uuid PRIMARY KEY, empresa_id uuid NOT NULL, status public.invoice_status NOT NULL DEFAULT 'PENDIENTE', provider_id uuid, invoice_number text, invoice_date date, currency public.currency_code, subtotal numeric, vat numeric, total numeric, timbrado text, attachment_id uuid, created_by uuid);
     CREATE TABLE public.invoice_items (id uuid PRIMARY KEY, invoice_id uuid NOT NULL, empresa_id uuid NOT NULL, product_description text NOT NULL, quantity numeric(14,2), unit text, unit_price numeric(14,4), subtotal numeric(14,2), sort_order integer DEFAULT 0 NOT NULL);
-    CREATE TABLE public.authorized_order_items (id uuid PRIMARY KEY, order_id uuid NOT NULL, empresa_id uuid NOT NULL, product text NOT NULL, quantity numeric(14,2) NOT NULL, unit text NOT NULL, unit_price numeric(14,4) NOT NULL DEFAULT 0, total_price numeric(14,2) NOT NULL DEFAULT 0, quantity_invoiced numeric(14,2) NOT NULL DEFAULT 0, sort_order integer DEFAULT 0 NOT NULL);
+    CREATE TABLE public.authorized_order_items (id uuid PRIMARY KEY, order_id uuid NOT NULL, empresa_id uuid NOT NULL, product text NOT NULL, quantity numeric(14,2) NOT NULL CHECK (quantity>0), unit text NOT NULL, unit_price numeric(14,4) NOT NULL CHECK (unit_price>=0), total_price numeric(14,2) NOT NULL CHECK (total_price>0), quantity_invoiced numeric(14,2) NOT NULL DEFAULT 0, sort_order integer DEFAULT 0 NOT NULL);
+    CREATE OR REPLACE FUNCTION public.test_receipt_quantity_guard() RETURNS trigger
+    LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'receipt quantity guard preserved'; END $$;
+    CREATE TRIGGER trg_prevent_order_quantity_below_confirmed_receipts
+      BEFORE UPDATE OF quantity ON public.authorized_order_items
+      FOR EACH ROW EXECUTE FUNCTION public.test_receipt_quantity_guard();
     CREATE TABLE public.invoice_order_matches (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), invoice_id uuid NOT NULL UNIQUE, authorized_order_id uuid NOT NULL, empresa_id uuid NOT NULL);
     CREATE TABLE public.invoice_item_matches (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), invoice_item_id uuid NOT NULL, order_item_id uuid NOT NULL, empresa_id uuid NOT NULL, quantity_matched numeric NOT NULL, CONSTRAINT m_qty CHECK (quantity_matched > 0));
     CREATE TABLE public.audit_logs (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), empresa_id uuid, actor_id uuid, actor_type text NOT NULL, actor_label text, action text NOT NULL, rfq_id uuid, rfq_provider_id uuid, invoice_id uuid, authorized_order_id uuid, detail jsonb);
@@ -260,7 +266,12 @@ describe("precisión de columnas fuente sin redondeo implícito", () => {
       VALUES ('10000000-0000-4000-8000-000000000011','${INV}','${A}','Escala válida',0.01,'un',1.0001,0.01)`);
     await db.exec(`INSERT INTO public.authorized_order_items
       (id,order_id,empresa_id,product,quantity,unit,unit_price,total_price)
-      VALUES ('10000000-0000-4000-8000-000000000012','${OC}','${A}','Escala válida',0.01,'un',0,0)`);
+      VALUES ('10000000-0000-4000-8000-000000000012','${OC}','${A}','Escala válida',0.01,'un',0,1)`);
+    await db.exec(`INSERT INTO public.invoice_items
+      (id,invoice_id,empresa_id,product_description,quantity,unit,unit_price,subtotal)
+      VALUES ('10000000-0000-4000-8000-000000000013','${INV}','${A}','Importes cero válidos',0.01,'un',0,0)`);
+    await throwsWith(db.exec(`UPDATE public.authorized_order_items SET quantity=3001 WHERE id='${OL1}'`),
+      "receipt quantity guard preserved");
   });
 });
 
@@ -316,7 +327,7 @@ describe("create_invoice_item_match (H2 funcional)", () => {
   });
 
   it("unidad incompatible: rechazada", T, async () => {
-    await db.exec(`INSERT INTO public.authorized_order_items (id, order_id, empresa_id, product, quantity, unit) VALUES ('00000000-0000-4000-8000-000000000013', '${OC}', '${A}', 'Ladrillo común', 5000, 'bolsa')`);
+    await db.exec(`INSERT INTO public.authorized_order_items (id, order_id, empresa_id, product, quantity, unit, unit_price, total_price) VALUES ('00000000-0000-4000-8000-000000000013', '${OC}', '${A}', 'Ladrillo común', 5000, 'bolsa', 0, 1)`);
     await throwsWith(callCreate(A, INV, IL1, "00000000-0000-4000-8000-000000000013", 100), "unidad");
   });
 
@@ -340,7 +351,7 @@ describe("create_invoice_item_match (H2 funcional)", () => {
   });
 
   it("segunda imputación acumulada respeta el tope documentado", T, async () => {
-    await db.exec(`INSERT INTO public.authorized_order_items (id, order_id, empresa_id, product, quantity, unit) VALUES ('00000000-0000-4000-8000-000000000012', '${OC}', '${A}', 'Ladrillo común', 9000, 'un')`);
+    await db.exec(`INSERT INTO public.authorized_order_items (id, order_id, empresa_id, product, quantity, unit, unit_price, total_price) VALUES ('00000000-0000-4000-8000-000000000012', '${OC}', '${A}', 'Ladrillo común', 9000, 'un', 0, 1)`);
     await callCreate(A, INV, IL1, OL1, 2000);
     await throwsWith(callCreate(A, INV, IL1, "00000000-0000-4000-8000-000000000012", 600), "documentada");
     const ok = await callCreate(A, INV, IL1, "00000000-0000-4000-8000-000000000012", 500);
