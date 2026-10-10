@@ -61,8 +61,9 @@ test("browser actions preserve quantities, roll back invalid corrections and unl
   const impute = async () => {
     await page.getByRole("button", { name: "Imputar", exact: true }).click();
     const dialog = page.getByRole("dialog");
-    await dialog.locator("select").selectOption(ids.orderLine);
-    await dialog.locator('input[type="number"]').fill("2500");
+    await dialog.getByRole("combobox", { name: "Ítem de OC" }).click();
+    await page.getByRole("option", { name: /Ladrillo comun/ }).click();
+    await dialog.getByLabel("Cantidad imputada", { exact: true }).fill("2500");
     await dialog.getByRole("button", { name: "Confirmar imputación", exact: true }).click();
     await expect(dialog).not.toBeVisible();
     await expect.poll(async () => (await quantities()).invoiced).toBe(2500);
@@ -77,7 +78,7 @@ test("browser actions preserve quantities, roll back invalid corrections and unl
 
   await page.getByRole("button", { name: "Corregir", exact: true }).click();
   let dialog = page.getByRole("dialog");
-  await dialog.locator('input[type="number"]').first().fill("2000");
+  await dialog.getByLabel("Cantidad", { exact: true }).fill("2000");
   await dialog.getByRole("button", { name: "Guardar corrección", exact: true }).click();
   await expect(dialog.getByText(/sobre.imputada|quitá imputaciones/)).toBeVisible();
   expect(await quantities()).toMatchObject({ documented: 2500, invoiced: 2500, matches: 1 });
@@ -87,7 +88,7 @@ test("browser actions preserve quantities, roll back invalid corrections and unl
   // An incompatible unit explicitly removes the old match in the same txn.
   await page.getByRole("button", { name: "Corregir", exact: true }).click();
   dialog = page.getByRole("dialog");
-  await dialog.locator('input:not([type="number"])').nth(1).fill("kg");
+  await dialog.getByLabel("Unidad", { exact: true }).fill("kg");
   await dialog.getByRole("button", { name: "Guardar corrección", exact: true }).click();
   await expect.poll(async () => (await quantities()).matches).toBe(0);
   expect(await quantities()).toMatchObject({ unit: "kg", invoiced: 0, documented: 2500 });
@@ -97,7 +98,7 @@ test("browser actions preserve quantities, roll back invalid corrections and unl
 
   await page.getByRole("button", { name: "Corregir", exact: true }).click();
   dialog = page.getByRole("dialog");
-  await dialog.locator('input:not([type="number"])').nth(1).fill("un");
+  await dialog.getByLabel("Unidad", { exact: true }).fill("un");
   await dialog.getByRole("button", { name: "Guardar corrección", exact: true }).click();
   await expect.poll(async () => (await quantities()).unit).toBe("un");
   await expect.poll(async () => (await quantities()).matches).toBe(1);
