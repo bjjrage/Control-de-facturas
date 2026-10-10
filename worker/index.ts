@@ -17,6 +17,7 @@ import { config } from "dotenv";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { extractInvoiceFieldsFromFile } from "../lib/invoice-extraction";
 import { validateInvoiceArithmetic } from "../lib/invoice-arithmetic";
+import { insertValidatedItemMatches } from "../lib/invoice-items";
 import { findProviderByTaxId } from "../lib/provider-lookup";
 import { autoMatchInvoice } from "../lib/invoice-auto-match";
 import { matchInvoiceItemsToOrderItems } from "../lib/invoice-item-match";
@@ -206,7 +207,10 @@ async function processJob(job: InvoiceJob) {
     productDescription: parsed.product_description,
   });
 
-  // Si se matcheó la OC y hay ítems en ambos lados, hacer matching semántico de líneas.
+  // Si se matcheó la OC y hay ítems en ambos lados, hacer matching semántico de
+  // líneas. Las propuestas del motor semántico pasan por el mismo control
+  // validado que la vía del diálogo (vínculo de cabecera, tope documentado,
+  // remanente, duplicados): lo que excede queda pendiente, nunca se contabiliza.
   if (matchedOrderId && invoiceItemIds.length > 0) {
     const { data: orderItems } = await db
       .from("authorized_order_items")
@@ -233,12 +237,21 @@ async function processJob(job: InvoiceJob) {
         invoiceItemsForMatch
       );
 
-      for (const m of itemMatches) {
-        await db.from("invoice_item_matches").insert({
-          invoice_item_id: m.invoice_item_id,
-          order_item_id: m.order_item_id,
-          empresa_id: job.empresa_id,
-          quantity_matched: m.quantity_matched,
+      const validated = await insertValidatedItemMatches(db, {
+        empresaId: job.empresa_id,
+        invoiceId: invoice.id as string,
+        expectedOrderId: matchedOrderId,
+        proposals: itemMatches.map((m) => ({
+          invoiceItemId: m.invoice_item_id,
+          orderItemId: m.order_item_id,
+          quantityMatched: m.quantity_matched,
+        })),
+      });
+      if (validated.error) {
+        await logAudit(db, {
+          action: "invoice.item_match_failed",
+          invoiceId: invoice.id as string,
+          detail: { error: validated.error, source: "bulk_worker" },
         });
       }
     }

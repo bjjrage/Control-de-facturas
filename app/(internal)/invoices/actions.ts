@@ -6,6 +6,8 @@ import { requireProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { sanitizeFileName } from "@/lib/storage";
 import { autoMatchInvoice } from "@/lib/invoice-auto-match";
+import { validateInvoiceArithmetic } from "@/lib/invoice-arithmetic";
+import type { ExtractedInvoiceItem } from "@/lib/invoice-extraction";
 import { applyDeterministicItemMatches, insertInvoiceItems, parseInvoiceLinesInput } from "@/lib/invoice-items";
 import { revalidatePath } from "next/cache";
 
@@ -69,6 +71,39 @@ export async function createInvoice(formData: FormData) {
     return { error: "Completá proveedor, número, fecha y moneda." };
   }
   if (total === null || total <= 0) return { error: "El total debe ser mayor a cero." };
+
+  // R3-04: validación aritmética sobre los valores FINALES que se intentan
+  // guardar (nunca se confía en un estado enviado por el cliente: se recalcula
+  // en el servidor). Si hay discrepancias verificables, la creación exige la
+  // confirmación explícita de un humano autorizado (checkbox del diálogo), que
+  // queda auditada. La carga manual legítima sigue funcionando: con valores
+  // consistentes no se pide nada extra.
+  const dialogLines = parseInvoiceLinesInput(formData.get("items_json"));
+  const arithmetic = validateInvoiceArithmetic({
+    provider_name: null,
+    provider_tax_id: null,
+    invoice_number: invoiceNumber,
+    invoice_date: invoiceDate,
+    subtotal: num(formData, "subtotal"),
+    vat: num(formData, "vat"),
+    total,
+    timbrado: str(formData, "timbrado"),
+    order_reference: str(formData, "order_reference"),
+    product_description: str(formData, "product_description"),
+    items: dialogLines.map((l): ExtractedInvoiceItem => ({
+      description: l.description,
+      quantity: l.quantity,
+      unit: l.unit,
+      unit_price: l.unit_price,
+      subtotal: l.subtotal,
+    })),
+  });
+  if (arithmetic.status !== "VALIDA" && formData.get("arithmetic_confirmed") !== "on") {
+    return {
+      error: `Revisión aritmética: ${arithmetic.issues[0] ?? "datos inconsistentes."} Corregí los importes o confirmá explícitamente que los verificaste contra el documento.`,
+      arithmeticIssues: arithmetic.issues,
+    };
+  }
 
   const admin = createAdminClient();
   const empresaId = profile.empresa_id;
@@ -208,11 +243,14 @@ export async function createInvoice(formData: FormData) {
       .eq("empresa_id", empresaId);
   }
 
-  await logAudit(supabase, { action: "invoice.created", invoiceId: invoice.id });
+  await logAudit(supabase, {
+    action: "invoice.created",
+    invoiceId: invoice.id,
+    detail: arithmetic.status !== "VALIDA" ? { arithmetic_review: "confirmed" } : undefined,
+  });
 
   // Líneas de detalle (revisadas por el humano en el diálogo): se persisten para
   // habilitar la conciliación por ítem. Best-effort: la factura vale sin líneas.
-  const dialogLines = parseInvoiceLinesInput(formData.get("items_json"));
   if (dialogLines.length > 0) {
     const { error: linesError } = await insertInvoiceItems(supabase, {
       empresaId,
@@ -450,7 +488,7 @@ export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Pr
       providerId: invoice.provider_id || "",
       orderId,
       currency: invoice.currency || "PYG",
-      exchangeRate: (invoice as any).exchange_rate ?? undefined,
+      exchangeRate: (invoice as { exchange_rate?: number | null }).exchange_rate ?? undefined,
       invoiceDate: invoice.invoice_date || undefined
     });
   } catch {

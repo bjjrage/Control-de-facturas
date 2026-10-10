@@ -206,6 +206,10 @@ export function InvoiceDialog({
               Revisión aritmética: {arithmetic.issues[0]}
               {arithmetic.issues.length > 1 ? ` (+${arithmetic.issues.length - 1} más)` : ""} Verificá
               los importes contra el documento antes de crear.
+              <label className="mt-1.5 flex items-start gap-2 cursor-pointer">
+                <input type="checkbox" name="arithmetic_confirmed" value="on" className="mt-0.5" />
+                <span>Verifiqué los importes contra el documento y asumo la discrepancia.</span>
+              </label>
             </div>
           ) : null}
 

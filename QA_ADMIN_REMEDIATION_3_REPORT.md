@@ -4,8 +4,8 @@
 
 - COMMITS CONOCIDOS:
   - `a8d2af8` — implementación (fix: item-level invoice reconciliation and invoice parser hardening).
-  - Puede existir un commit documental posterior: el HEAD final exacto se verifica con
-    `git rev-parse HEAD` y se informa en el chat (sin autorreferencia obsoleta).
+  - `8194005` — documental (report + handoff).
+  - Revisión de seguridad R3-01…R3-04 (commiteada en este ciclo).
 - **Estado:** listo para revisión. NO merge, NO deploy, NO migraciones. Se espera autorización.
 
 ---
@@ -71,62 +71,122 @@ tablas; (10) solo 1:1 con producto+cantidad+unidad compatibles y datos aritméti
   las líneas; el worker deriva a `needs_review` con motivo explícito ante inconsistencia
   (los mixtos/exentos sin desglose ahora van a revisión en vez de crearse).
 
-## 5. Tests (§10 + parser)
+## 6. Revisión de seguridad R3-01…R3-04
 
-- `test/invoice-item-reconcile.test.ts` (21): unidades, 1:1 3000/2500, parciales
-  acumulados, dos productos, sin líneas, unidad incompatible, ambiguo, over-remanente,
-  no-división, manual (válido/tenant/unidad/producto/duplicado/over/cantidad/congelado).
-- `test/invoice-item-matches-actions.test.ts` (13): vínculo→2500/pendiente 500,
+Auditoría posterior a la implementación inicial: cuatro debilidades detectadas y
+corregidas sobre el mismo modelo (sin migraciones, sin RLS, sin SQL).
+
+### R3-01 — Imputación solo a la OC vinculada (backend)
+
+- **Debilidad:** `createInvoiceItemMatch` validaba el ítem de OC por `empresa_id`, pero
+  no exigía que perteneciera a la OC **vinculada** a la factura: un usuario podría
+  imputar a cualquier OC del tenant.
+- **Fix:** `getHeaderLink` (`lib/invoice-items.ts`) verifica el vínculo vigente
+  `invoice_order_matches` (falla cerrado ante error de consulta); la acción exige
+  `order_item.order_id === link.orderId` antes de insertar; se revalida el vínculo
+  tras insertar y, si cambió (carrera con desvinculación), se elimina el match huérfano
+  y se auditа `invoice.item_match_voided_race` (convergencia por trigger).
+- **Límite documentado:** sin transacción/RPC no hay atomicidad estricta check↔insert;
+  la garantía es convergencia + auditoría, no aislamiento fuerte.
+
+### R3-02 — Integridad de cantidades a nivel acción
+
+- **Debilidad:** el validador solo avisaba (warning) cuando la cantidad superaba el
+  remanente de la OC; no existía tope por cantidad **documentada** de la línea ni
+  consideraba matches existentes de la misma línea hacia otros ítems.
+- **Fix (`validateManualItemMatch`):** cantidad nula/no finita rechazada; suma de
+  matches existentes de la línea + nueva imputación ≤ cantidad documentada; nueva
+  imputación ≤ remanente de OC; unidad incompatible rechazada; duplicados rechazados.
+  No se encontró mecanismo que autorice exceder cantidades (`invoice_exceptions` solo
+  cubre sobrefacturación financiera), así que el exceso **se rechaza**, no se avisa.
+- **Insert compartido:** `insertValidatedItemMatches` (usado por diálogo, corrección y
+  worker bulk) re-verifica vínculo, topes documentado/remanente y duplicados en cada
+  propuesta; lo omitido vuelve a pendiente, nunca se contabiliza.
+- **Esquema:** el tipo es `numeric` sin regla de enteros; se aceptan fracciones
+  finitas (p. ej. 2500.5) y se rechazan NaN/Infinity/negativas/cero.
+
+### R3-03 — Corrección de líneas sin pérdida (insert-first)
+
+- **Debilidad:** `updateInvoiceItem` implementaba baja+alta: si el INSERT posterior
+  fallaba, la línea original ya se había eliminado (pérdida irreversible + matches
+  CASCADE borrados).
+- **Fix:** inserta primero la versión corregida; recién entonces elimina la original;
+  si el DELETE falla, compensa borrando la versión nueva y auditа
+  `invoice.item_correction_failed` (nunca informa éxito parcial). Tras corrección
+  exitosa se revalida la conciliación de forma determinística (solo caso inequívoco):
+  si sigue correspondiendo, se re-imputa automáticamente; si no, queda sin conciliar
+  (el trigger recalcula).
+
+### R3-04 — Confirmación aritmética explícita y auditada
+
+- **Debilidad:** el diálogo y `resolveInvoiceJob` confiaban en el estado del cliente:
+  no se recalculaba la aritmética server-side al momento de crear la factura.
+- **Fix:** `createInvoice` y `resolveInvoiceJob` recalculan `validateInvoiceArithmetic`
+  sobre los valores **finales** que se intentan guardar; ante discrepancias exigen
+  checkbox `arithmetic_confirmed` (enviado por el diálogo), y la confirmación queda
+  auditada en `invoice.created` (`detail.arithmetic_review: "confirmed"`). La carga
+  manual legítima con valores consistentes no pide nada extra.
+
+## 7. Tests (§10 + parser + R3)
+
+- `test/invoice-item-reconcile.test.ts` (36): unidades, 1:1 3000/2500, parciales
+  acumulados, dos productos, sin líneas, unidad incompatible, ambiguo, over-remanente
+  ahora **rechazado** (R3-02), no-división, manual (válido/tenant/unidad/producto/
+  duplicado/over-documentado/over-remanente/cantidad/congelado).
+- `test/invoice-item-matches-actions.test.ts` (39): vínculo→2500/pendiente 500,
   parciales, no-duplicar, sin líneas, unidad incompatible, over pendiente, producto ajeno,
   tenant ajeno, desvincular sin residuos, eliminar sin fantasmas, pagada congelada,
-  corrección→sin conciliar, auto-match congelado en APTO.
+  corrección→re-imputa automáticamente, auto-match congelado en APTO, más R3-01 (OC
+  vinculada/otra OC/empresa ajena/sin vínculo/vínculo eliminado/línea de otra factura/
+  error de consulta fail-closed/carrera desvincular-vs-imputar) y R3-02 (exacta/menor/
+  mayor/mayor por acción/fracción finita/dos matches sumados/dos facturas compiten/
+  reintento idéntico/congelada) y R3-03 (fallo INSERT conserva todo/fallo DELETE
+  compensa/error de validación intacto/error de permisos intacto/segunda corrección/
+  factura aprobada congelada).
 - `test/invoice-arithmetic.test.ts` (14): prompts, línea/total inconsistentes, total null,
   ±1 PYG, mixto válido, subtotal fusionado erróneo, exentos/descuento, ausentes, no positivos.
 - `test/invoice-extract-validation.test.ts` (4): validación adjunta, INV-12, null total, errores.
 - `lib/__tests__/b11-unmatch-action.spec.ts`: extendido (allowlist + filtros de limpieza).
 - Sin correcciones retroactivas: facturas históricas sin desglose muestran «Sin conciliar».
 
-## 6. Validación
+## 8. Validación
 
 | Control | Resultado |
 |---|---|
-| Suite completa serial | **2019 PASS / 16 skipped / 0 FAIL** (1959 baseline + 60 nuevos) |
-| Typecheck | PASS |
+| Suite completa | **2044 PASS / 16 skipped / 8 FAIL** — los 8 FAIL preexistentes (7 archivos de migraciones/schedule/certificados verificados iguales en worktree limpio de HEAD `8194005`; `final-recovery-integrity` flaky bajo carga paralela, pasa solo 11/11) |
+| Typecheck | PASS (`npx tsc --noEmit` exit 0) |
 | Build | PASS (compiled successfully) |
-| Lint comparativo | 0 regresiones nuevas (1 error preexistente en `invoices/actions.ts:453` `any`, idéntico en baseline) |
+| Lint (archivos del diff) | **0 errores** (2 warnings preexistentes en `invoices-section.tsx`, archivo no modificado; el error `any` preexistente en `actions.ts:491` fue corregido como parte del diff) |
 | E2E 61 pasos | No repetido (según misión) |
 
-## 7. Infraestructura
+## 9. Infraestructura
 
 - Producción DB modificada: NO · Migraciones: NO (0 archivos) · Nuevas Supabase branches: 0
-- Deploy: NO · SIFEN: NO · Commits: 1 (+ este documental)
+- Deploy: NO · SIFEN: NO · Commits: `a8d2af8` + `8194005` + revisión de seguridad (este ciclo)
 
-## 8. Archivos
+## 10. Archivos (estado actual del diff de la revisión de seguridad)
 
 ```
 M  app/(internal)/invoices/[id]/actions.ts
-M  app/(internal)/invoices/[id]/page.tsx
+M  app/(internal)/invoices/[id]/invoice-lines-section.tsx
 M  app/(internal)/invoices/actions.ts
-M  app/(internal)/invoices/extract-actions.ts
 M  app/(internal)/invoices/invoice-dialog.tsx
 M  app/(internal)/invoices/revision/actions.ts
-M  lib/__tests__/b11-unmatch-action.spec.ts
-M  lib/invoice-extraction.ts
+M  app/(internal)/invoices/revision/revision-dialog.tsx
+M  lib/invoice-item-reconcile.ts
+M  lib/invoice-items.ts
+M  test/invoice-item-matches-actions.test.ts
+M  test/invoice-item-reconcile.test.ts
 M  worker/index.ts
-A  app/(internal)/invoices/[id]/invoice-lines-section.tsx
-A  lib/invoice-arithmetic.ts
-A  lib/invoice-item-reconcile.ts
-A  lib/invoice-items.ts
-A  test/invoice-arithmetic.test.ts
-A  test/invoice-extract-validation.test.ts
-A  test/invoice-item-matches-actions.test.ts
-A  test/invoice-item-reconcile.test.ts
 ```
 
-## 9. Riesgos residuales
+## 11. Riesgos residuales
 
+- Concurrencia check↔insert sin transacción/RPC: convergencia por revalidación +
+  auditoría, no atomicidad fuerte (documentado; requiere esquema autorizado para RPC).
 - La conciliación automática solo cubre el caso inequívoco; facturas multi-producto con
   descripciones distintas requieren imputación manual explícita (por diseño).
 - Exentos/mixtos/descuentos sin desglose van a revisión (brecha de schema documentada).
-- `matchInvoiceItemsToOrderItems` (GPT) sigue sin llamadores fuera del worker.
+- `matchInvoiceItemsToOrderItems` (GPT) pasa por `insertValidatedItemMatches` (validado);
+  el motor semántico en sí no fue auditado en profundidad.
 - Ground truth QA de 40 documentos intacto (sin modificar).

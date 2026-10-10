@@ -111,7 +111,6 @@ export function InvoiceLinesSection({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [warning, setWarning] = useState<string | null>(null);
   const [matchFor, setMatchFor] = useState<string | null>(null);
   const [matchOrderItem, setMatchOrderItem] = useState("");
   const [matchQty, setMatchQty] = useState("");
@@ -167,11 +166,6 @@ export function InvoiceLinesSection({
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-[14px] font-semibold">Líneas y conciliación por ítem</h2>
       </div>
-      {warning ? (
-        <div className="rounded border border-[var(--warn)]/40 bg-[var(--warn-bg)] px-2.5 py-1.5 text-[12px] text-[var(--warn)] mb-2">
-          {warning}
-        </div>
-      ) : null}
       {error ? (
         <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)] mb-2">
           {error}
@@ -245,7 +239,6 @@ export function InvoiceLinesSection({
                             onOpenChange={(next) => {
                               setMatchFor(next ? line.id : null);
                               setError(null);
-                              setWarning(null);
                               if (next) {
                                 setMatchOrderItem("");
                                 setMatchQty(line.quantity != null ? String(line.quantity) : "");
@@ -300,7 +293,6 @@ export function InvoiceLinesSection({
                                         return;
                                       }
                                       setError(null);
-                                      setWarning(result.warning ?? null);
                                       setMatchFor(null);
                                       await refresh();
                                     }}

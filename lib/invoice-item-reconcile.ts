@@ -178,10 +178,22 @@ export function suggestInvoiceItemMatches(
 }
 
 export type ManualMatchCheck =
-  | { ok: true; overRemaining: boolean }
+  | { ok: true; overRemaining: false }
   | { ok: false; error: string };
 
-/** Validación para creación manual explícita por un humano (nunca silenciosa). */
+/**
+ * Validación para creación manual explícita por un humano (nunca silenciosa).
+ *
+ * Reglas R3-02 (integridad de cantidades):
+ * - La imputación nunca supera la cantidad DOCUMENTADA de la línea: se suma
+ *   TODOS los matches existentes de la línea (existingLineMatched).
+ * - La imputación nunca supera el REMANENTE de la OC. No hay warning que
+ *   autorice excesos: no existe mecanismo que autorice exceder cantidades
+ *   (invoice_exceptions solo cubre sobrefacturación financiera, no cantidades).
+ * - Línea sin cantidad documentada (null) no admite imputación: sin conciliar.
+ * - Fracciones finitas se aceptan tal cual (el esquema es numeric, sin regla
+ *   de enteros por unidad); no finitas se rechazan.
+ */
 export function validateManualItemMatch(args: {
   invoiceEmpresaId: string;
   orderEmpresaId: string;
@@ -191,6 +203,7 @@ export function validateManualItemMatch(args: {
   invoiceLineCount: number;
   orderLineCount: number;
   quantity: number;
+  existingLineMatched: number;
   duplicateExists: boolean;
 }): ManualMatchCheck {
   if (args.invoiceEmpresaId !== args.orderEmpresaId) {
@@ -212,5 +225,15 @@ export function validateManualItemMatch(args: {
   if (args.duplicateExists) {
     return { ok: false, error: "Esa línea ya está imputada a ese ítem de OC." };
   }
-  return { ok: true, overRemaining: args.quantity > orderLineRemaining(args.orderLine) };
+  const lineQty = args.invoiceLine.quantity;
+  if (lineQty === null || !Number.isFinite(lineQty)) {
+    return { ok: false, error: "La línea no tiene cantidad documentada; no se puede imputar." };
+  }
+  if (args.existingLineMatched + args.quantity > lineQty + 1e-9) {
+    return { ok: false, error: `La imputación supera la cantidad documentada de la línea (${lineQty}): ya hay ${args.existingLineMatched} imputados.` };
+  }
+  if (args.quantity > orderLineRemaining(args.orderLine) + 1e-9) {
+    return { ok: false, error: `La cantidad supera el remanente de la OC (${orderLineRemaining(args.orderLine)} pendientes). Queda sin conciliar.` };
+  }
+  return { ok: true, overRemaining: false };
 }

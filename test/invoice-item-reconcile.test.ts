@@ -116,11 +116,45 @@ describe("validateManualItemMatch (confirmación humana explícita)", () => {
     invoiceLine: { id: "il-1", invoice_id: "inv-1", description: "Ladrillo común", quantity: 2500, unit: "un" },
     orderLine: { id: "ol-1", product: "Ladrillo común", quantity: 3000, unit: "un", quantity_invoiced: 0 },
     invoiceLineCount: 1, orderLineCount: 1,
-    quantity: 2500, duplicateExists: false,
+    quantity: 2500, existingLineMatched: 0, duplicateExists: false,
   };
 
-  it("acepta el caso válido", () => {
+  it("acepta el caso válido (cantidad exacta documentada)", () => {
     expect(validateManualItemMatch(base)).toEqual({ ok: true, overRemaining: false });
+  });
+
+  it("acepta cantidad menor a la documentada", () => {
+    expect(validateManualItemMatch({ ...base, quantity: 1000 }).ok).toBe(true);
+  });
+
+  it("acepta fracción finita válida (el esquema es numeric, sin regla de enteros)", () => {
+    expect(validateManualItemMatch({ ...base, quantity: 2500.5, invoiceLine: { ...base.invoiceLine, quantity: 2500.5 } }).ok).toBe(true);
+  });
+
+  it("rechaza cantidad no finita (NaN)", () => {
+    expect(validateManualItemMatch({ ...base, quantity: NaN }).ok).toBe(false);
+  });
+
+  it("rechaza cantidad mayor a la documentada", () => {
+    const result = validateManualItemMatch({ ...base, quantity: 2501 });
+    expect(result.ok).toBe(false);
+  });
+
+  it("rechaza la segunda imputación que supera el acumulado documentado", () => {
+    // Línea de 2500 con 1000 ya imputados: 1000 + 1600 > 2500.
+    const result = validateManualItemMatch({ ...base, quantity: 1600, existingLineMatched: 1000 });
+    expect(result.ok).toBe(false);
+    expect(result).toEqual({ ok: false, error: expect.stringContaining("documentada") });
+    // En cambio 1000 + 1500 = 2500 es válido.
+    expect(validateManualItemMatch({ ...base, quantity: 1500, existingLineMatched: 1000 }).ok).toBe(true);
+  });
+
+  it("rechaza línea sin cantidad documentada (sin conciliar, no cero)", () => {
+    const result = validateManualItemMatch({
+      ...base,
+      invoiceLine: { ...base.invoiceLine, quantity: null },
+    });
+    expect(result).toEqual({ ok: false, error: "La línea no tiene cantidad documentada; no se puede imputar." });
   });
 
   it("rechaza producto de otra empresa", () => {
@@ -149,10 +183,12 @@ describe("validateManualItemMatch (confirmación humana explícita)", () => {
   });
 
   it("rechaza unidad incompatible", () => {
-    expect(validateManualItemMatch({
+    const result = validateManualItemMatch({
       ...base,
       invoiceLine: { ...base.invoiceLine, unit: "kg" },
-    }).ok).toBe(false);
+    });
+    expect(result.ok).toBe(false);
+    expect(result).toEqual({ ok: false, error: "La unidad de la línea de factura no coincide con la de la OC." });
   });
 
   it("rechaza duplicados", () => {
@@ -160,9 +196,18 @@ describe("validateManualItemMatch (confirmación humana explícita)", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("avisa (no bloquea) cuando supera el remanente: alerta para revisión", () => {
-    const result = validateManualItemMatch({ ...base, quantity: 3500 });
-    expect(result).toEqual({ ok: true, overRemaining: true });
+  it("rechaza (no solo avisa) cuando supera el remanente: R3-02 regla B", () => {
+    // Línea documentada por 3500, remanente 3000: excede el remanente.
+    const result = validateManualItemMatch({
+      ...base,
+      invoiceLine: { ...base.invoiceLine, quantity: 3500 },
+      quantity: 3500,
+    });
+    expect(result.ok).toBe(false);
+    expect(result).toEqual({
+      ok: false,
+      error: "La cantidad supera el remanente de la OC (3000 pendientes). Queda sin conciliar.",
+    });
   });
 
   it("rechaza cantidad no positiva", () => {

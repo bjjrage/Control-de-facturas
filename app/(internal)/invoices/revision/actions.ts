@@ -6,6 +6,7 @@ import { requireProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { sanitizeFileName } from "@/lib/storage";
 import { autoMatchInvoiceByAmount } from "@/lib/invoice-auto-match";
+import { validateInvoiceArithmetic } from "@/lib/invoice-arithmetic";
 import { applyDeterministicItemMatches, insertInvoiceItems, parseInvoiceLinesInput } from "@/lib/invoice-items";
 import { revalidatePath } from "next/cache";
 
@@ -46,6 +47,36 @@ export async function resolveInvoiceJob(jobId: string, formData: FormData) {
     return { error: "Completá proveedor, número y fecha." };
   }
   if (total === null || total <= 0) return { error: "El total debe ser mayor a cero." };
+
+  // R3-04: misma validación server-side que el diálogo (los valores finales se
+  // recalculan; ante discrepancia se exige confirmación explícita auditada).
+  const jobLinesPreview = parseInvoiceLinesInput(
+    (job.extracted as { items?: unknown } | null)?.items ?? []
+  );
+  const arithmetic = validateInvoiceArithmetic({
+    provider_name: null,
+    provider_tax_id: null,
+    invoice_number: invoiceNumber,
+    invoice_date: invoiceDate,
+    subtotal: num(formData, "subtotal"),
+    vat: num(formData, "vat"),
+    total,
+    timbrado: str(formData, "timbrado"),
+    order_reference: null,
+    product_description: null,
+    items: jobLinesPreview.map((l) => ({
+      description: l.description,
+      quantity: l.quantity,
+      unit: l.unit,
+      unit_price: l.unit_price,
+      subtotal: l.subtotal,
+    })),
+  });
+  if (arithmetic.status !== "VALIDA" && formData.get("arithmetic_confirmed") !== "on") {
+    return {
+      error: `Revisión aritmética: ${arithmetic.issues[0] ?? "datos inconsistentes."} Corregí los importes o confirmá explícitamente que los verificaste contra el documento.`,
+    };
+  }
 
   const { data: provider, error: providerError } = await supabase.from("providers")
     .select("id").eq("id", providerId).eq("empresa_id", empresaId).maybeSingle();
@@ -97,7 +128,14 @@ export async function resolveInvoiceJob(jobId: string, formData: FormData) {
     };
   }
 
-  await logAudit(supabase, { action: "invoice.created", invoiceId: invoice.id, detail: { source: "bulk_review" } });
+  await logAudit(supabase, {
+    action: "invoice.created",
+    invoiceId: invoice.id,
+    detail: {
+      source: "bulk_review",
+      ...(arithmetic.status !== "VALIDA" ? { arithmetic_review: "confirmed" } : {}),
+    },
+  });
   const matchedOrderId = await autoMatchInvoiceByAmount(supabase, { invoiceId: invoice.id, providerId, total, empresaId });
 
   // Líneas del job revisado (si la extracción las trajo): habilitan la
