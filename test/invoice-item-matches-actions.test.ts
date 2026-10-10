@@ -16,6 +16,9 @@ function makeDb(seed: Record<string, Row[]> = {}) {
   const rpcCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
   let seq = 100;
   let beforeNextJobUpdate: (() => void) | null = null;
+  let failNextAttachmentDelete = false;
+  let createInvoiceRpcError: { message: string; code: string } | null = null;
+  let throwNextStorageRemove = false;
 
   function recompute(orderItemId: string) {
     const sum = (tables.invoice_item_matches ?? [])
@@ -134,6 +137,10 @@ function makeDb(seed: Record<string, Row[]> = {}) {
         delFilters.push((r) => vals.includes(r[col]));
         return sub;
       }) as never;
+      sub.is = ((col: string, val: unknown) => {
+        delFilters.push((r) => r[col] === val);
+        return sub;
+      }) as never;
       sub.select = ((_cols?: string) => {
         if (typeof _cols === "string") state.selectCols = _cols;
         return sub;
@@ -168,6 +175,10 @@ function makeDb(seed: Record<string, Row[]> = {}) {
         onR?: (e: unknown) => unknown
       ) => Promise.resolve({ data: run(), error: null }).then(onF, onR);
       sub.maybeSingle = (async () => {
+        if (table === "attachments" && failNextAttachmentDelete) {
+          failNextAttachmentDelete = false;
+          return { data: null, error: { message: "attachment still referenced", code: "23503" } };
+        }
         const vs = run();
         return { data: vs.length ? vs[0] : null, error: null };
       }) as never;
@@ -185,13 +196,36 @@ function makeDb(seed: Record<string, Row[]> = {}) {
     return api;
   }
 
-  const storageStub = { from: () => ({ upload: async () => ({ error: null }), remove: async () => ({}) }) };
+  const removedStoragePaths: string[] = [];
+  const storageStub = { from: () => ({
+    upload: async () => ({ error: null }),
+    copy: async () => ({ error: null }),
+    remove: async (paths: string[]) => {
+      removedStoragePaths.push(...paths);
+      if (throwNextStorageRemove) { throwNextStorageRemove = false; throw new Error("storage transport failed"); }
+      return { error: null };
+    },
+  }) };
   const client = {
     from: (t: string) => query(t),
     storage: storageStub,
     rpc: async (name: string, args: Record<string, unknown> = {}) => {
       rpcCalls.push({ name, args: { ...args } });
       const fail = (message: string) => ({ data: null, error: { message, code: "P0001" } });
+      if (name === "create_invoice_from_job") {
+        if (createInvoiceRpcError) {
+          const error = createInvoiceRpcError;
+          createInvoiceRpcError = null;
+          return { data: null, error };
+        }
+        const job = (tables.invoice_jobs ?? []).find((row) => row.id === args.p_job_id && row.empresa_id === args.p_empresa_id);
+        if (!job || job.status !== "processing" || job.attempts !== args.p_expected_attempts || job.invoice_id != null) return fail("lease stale");
+        const id = UID(++seq);
+        const payload = args.p_invoice as Row;
+        tables.invoices = [...(tables.invoices ?? []), { id, empresa_id: args.p_empresa_id, status: "PENDIENTE", ...payload }];
+        Object.assign(job, { invoice_id: id, provider_id: payload.provider_id });
+        return { data: { ok: true, invoice_id: id, duplicate: false }, error: null };
+      }
       if (name === "delete_invoice") {
         const invoice = (tables.invoices ?? []).find((i) => i.id === args.p_invoice_id && i.empresa_id === args.p_empresa_id);
         if (!invoice) return fail("Factura no encontrada o no pertenece a esta empresa");
@@ -297,7 +331,13 @@ function makeDb(seed: Record<string, Row[]> = {}) {
       return { data: null, error: null };
     },
   };
-  return { client, tables, rpcCalls, beforeNextJobUpdate: (fn: () => void) => { beforeNextJobUpdate = fn; } };
+  return {
+    client, tables, rpcCalls, removedStoragePaths,
+    beforeNextJobUpdate: (fn: () => void) => { beforeNextJobUpdate = fn; },
+    failNextAttachmentDelete: () => { failNextAttachmentDelete = true; },
+    setCreateInvoiceRpcError: (error: { message: string; code: string }) => { createInvoiceRpcError = error; },
+    throwNextStorageRemove: () => { throwNextStorageRemove = true; },
+  };
 }
 
 const mocks = vi.hoisted(() => ({ requireProfile: vi.fn(), requireEmpresaId: vi.fn(), db: null as null | ReturnType<typeof makeDb> }));
@@ -320,7 +360,7 @@ import {
   updateInvoiceItem,
 } from "@/app/(internal)/invoices/[id]/actions";
 import { insertValidatedItemMatches } from "@/lib/invoice-items";
-import { resolveInvoiceJob, retryInvoiceJob } from "@/app/(internal)/invoices/revision/actions";
+import { discardInvoiceJob, resolveInvoiceJob, retryInvoiceJob } from "@/app/(internal)/invoices/revision/actions";
 
 const INV = UID(1);
 const INV2 = UID(12);
@@ -811,7 +851,10 @@ describe("worker job recovery: evita facturas duplicadas", () => {
   });
 
   it("resolveInvoiceJob usa CAS antes de crear y pierde si otra solicitud reclamó el job", async () => {
-    mocks.db!.tables.invoice_jobs[0] = { id: jobId, empresa_id: TENANT, invoice_id: null, status: "needs_review" };
+    mocks.db!.tables.invoice_jobs[0] = {
+      id: jobId, empresa_id: TENANT, invoice_id: null, status: "needs_review", attempts: 2,
+      storage_bucket: "invoice-files", storage_path: `${TENANT}/inbox/test.pdf`,
+    };
     mocks.db!.tables.providers = [{ id: UID(9), empresa_id: TENANT }];
     mocks.db!.beforeNextJobUpdate(() => { mocks.db!.tables.invoice_jobs[0].status = "processing"; });
     const form = new FormData();
@@ -827,11 +870,101 @@ describe("worker job recovery: evita facturas duplicadas", () => {
     expect(mocks.db!.tables.invoice_jobs[0].status).toBe("processing");
   });
 
+  it("resolveInvoiceJob no reutiliza el contador si el job cambió tras la lectura", async () => {
+    mocks.db!.tables.invoice_jobs[0] = {
+      id: jobId, empresa_id: TENANT, invoice_id: null, status: "needs_review", attempts: 2,
+      storage_bucket: "invoice-files", storage_path: `${TENANT}/inbox/test.pdf`,
+    };
+    mocks.db!.tables.providers = [{ id: UID(9), empresa_id: TENANT }];
+    mocks.db!.beforeNextJobUpdate(() => { mocks.db!.tables.invoice_jobs[0].attempts = 3; });
+    const form = new FormData();
+    form.set("provider_id", UID(9));
+    form.set("invoice_number", "MANUAL-STALE-ATTEMPT");
+    form.set("invoice_date", "2026-10-10");
+    form.set("currency", "PYG");
+    form.set("total", "100");
+    form.set("arithmetic_confirmed", "on");
+    const result = await resolveInvoiceJob(jobId, form);
+    expect(result.error).toContain("ya está siendo procesado");
+    expect(mocks.db!.rpcCalls.filter((call) => call.name === "create_invoice_from_job")).toHaveLength(0);
+    expect(mocks.db!.tables.invoice_jobs[0]).toMatchObject({ status: "needs_review", attempts: 3 });
+  });
+
+  it("resolveInvoiceJob crea y referencia la factura con una sola RPC y su lease exacto", async () => {
+    mocks.db!.tables.invoice_jobs[0] = {
+      id: jobId, empresa_id: TENANT, invoice_id: null, status: "needs_review", attempts: 2,
+      storage_bucket: "invoice-files", storage_path: `${TENANT}/inbox/test.pdf`, file_name: "test.pdf",
+      mime_type: "application/pdf", extracted: { items: [] },
+    };
+    mocks.db!.tables.providers = [{ id: UID(9), empresa_id: TENANT }];
+    const form = new FormData();
+    form.set("provider_id", UID(9));
+    form.set("invoice_number", "MANUAL-ATOMIC-1");
+    form.set("invoice_date", "2026-10-10");
+    form.set("currency", "PYG");
+    form.set("total", "100");
+    form.set("arithmetic_confirmed", "on");
+    const result = await resolveInvoiceJob(jobId, form);
+    expect(result.error).toBeNull();
+    expect(mocks.db!.rpcCalls.filter((call) => call.name === "create_invoice_from_job")).toHaveLength(1);
+    const rpc = mocks.db!.rpcCalls.find((call) => call.name === "create_invoice_from_job")!;
+    expect(rpc.args).toMatchObject({ p_empresa_id: TENANT, p_job_id: jobId, p_expected_attempts: 3 });
+    expect(rpc.args.p_invoice).not.toHaveProperty("created_by");
+    expect(mocks.db!.tables.invoice_jobs[0].invoice_id).toBe(result.invoiceId);
+    expect(mocks.db!.tables.invoice_jobs[0].status).toBe("done");
+  });
+
+  it("no borra el objeto si no pudo confirmar que la metadata del adjunto se eliminó", async () => {
+    mocks.db!.tables.invoice_jobs[0] = {
+      id: jobId, empresa_id: TENANT, invoice_id: null, status: "needs_review", attempts: 2,
+      storage_bucket: "invoice-files", storage_path: `${TENANT}/inbox/test.pdf`, file_name: "test.pdf",
+      mime_type: "application/pdf", extracted: { items: [] },
+    };
+    mocks.db!.tables.providers = [{ id: UID(9), empresa_id: TENANT }];
+    mocks.db!.failNextAttachmentDelete();
+    mocks.db!.setCreateInvoiceRpcError({ message: "duplicate invoice number", code: "23505" });
+    const form = new FormData();
+    form.set("provider_id", UID(9));
+    form.set("invoice_number", "MANUAL-DUPLICATE");
+    form.set("invoice_date", "2026-10-10");
+    form.set("currency", "PYG");
+    form.set("total", "100");
+    form.set("arithmetic_confirmed", "on");
+    const result = await resolveInvoiceJob(jobId, form);
+    expect(result.error).toContain("Ya existe una factura");
+    expect(result.warning).toContain("se conservó");
+    expect(mocks.db!.removedStoragePaths).toHaveLength(0);
+    expect(mocks.db!.tables.attachments).toHaveLength(1);
+    expect(mocks.db!.tables.invoice_jobs[0].status).toBe("needs_review");
+  });
+
+  it("conserva archivo y lease ante una respuesta RPC cuyo commit es incierto", async () => {
+    mocks.db!.tables.invoice_jobs[0] = {
+      id: jobId, empresa_id: TENANT, invoice_id: null, status: "needs_review", attempts: 2,
+      storage_bucket: "invoice-files", storage_path: `${TENANT}/inbox/test.pdf`, file_name: "test.pdf",
+      mime_type: "application/pdf", extracted: { items: [] },
+    };
+    mocks.db!.tables.providers = [{ id: UID(9), empresa_id: TENANT }];
+    mocks.db!.setCreateInvoiceRpcError({ message: "response lost", code: "FETCH_ERROR" });
+    const form = new FormData();
+    form.set("provider_id", UID(9));
+    form.set("invoice_number", "MANUAL-UNCERTAIN");
+    form.set("invoice_date", "2026-10-10");
+    form.set("currency", "PYG");
+    form.set("total", "100");
+    form.set("arithmetic_confirmed", "on");
+    const result = await resolveInvoiceJob(jobId, form);
+    expect(result.error).toContain("No se pudo confirmar");
+    expect(mocks.db!.tables.invoice_jobs[0].status).toBe("processing");
+    expect(mocks.db!.tables.attachments).toHaveLength(1);
+    expect(mocks.db!.removedStoragePaths).toHaveLength(0);
+  });
+
   it("retryInvoiceJob hace compare-and-set failed + invoice_id NULL", async () => {
-    mocks.db!.tables.invoice_jobs[0] = { id: jobId, empresa_id: TENANT, invoice_id: null, status: "failed" };
+    mocks.db!.tables.invoice_jobs[0] = { id: jobId, empresa_id: TENANT, invoice_id: null, status: "failed", attempts: 5 };
     const result = await retryInvoiceJob(jobId);
     expect(result.error).toBeNull();
-    expect(mocks.db!.tables.invoice_jobs[0].status).toBe("queued");
+    expect(mocks.db!.tables.invoice_jobs[0]).toMatchObject({ status: "queued", attempts: 5 });
   });
 
   it("retryInvoiceJob no sobreescribe processing si el estado cambia tras leer", async () => {
@@ -840,6 +973,57 @@ describe("worker job recovery: evita facturas duplicadas", () => {
     const result = await retryInvoiceJob(jobId);
     expect(result.error).toContain("cambió de estado");
     expect(mocks.db!.tables.invoice_jobs[0].status).toBe("processing");
+  });
+});
+
+describe("discardInvoiceJob: borra condicionalmente antes del archivo", () => {
+  const jobId = UID(91);
+
+  it("no borra un job processing ni su archivo", async () => {
+    mocks.db!.tables.invoice_jobs = [{
+      id: jobId, empresa_id: TENANT, status: "processing", invoice_id: null,
+      storage_bucket: "invoice-files", storage_path: `${TENANT}/inbox/pending.pdf`,
+    }];
+    const result = await discardInvoiceJob(jobId);
+    expect(result.error).toContain("cambió de estado");
+    expect(mocks.db!.tables.invoice_jobs).toHaveLength(1);
+    expect(mocks.db!.removedStoragePaths).toHaveLength(0);
+  });
+
+  it("elimina primero un job revisable y luego solo su ruta propia de inbox", async () => {
+    const ownPath = `${TENANT}/inbox/review.pdf`;
+    mocks.db!.tables.invoice_jobs = [{
+      id: jobId, empresa_id: TENANT, status: "needs_review", invoice_id: null,
+      storage_bucket: "invoice-files", storage_path: ownPath,
+    }];
+    const result = await discardInvoiceJob(jobId);
+    expect(result.error).toBeNull();
+    expect(mocks.db!.tables.invoice_jobs).toHaveLength(0);
+    expect(mocks.db!.removedStoragePaths).toEqual([ownPath]);
+  });
+
+  it("reporta cleanup Storage fallido sin fingir que restauró el job eliminado", async () => {
+    const ownPath = `${TENANT}/inbox/throw.pdf`;
+    mocks.db!.tables.invoice_jobs = [{
+      id: jobId, empresa_id: TENANT, status: "failed", invoice_id: null,
+      storage_bucket: "invoice-files", storage_path: ownPath,
+    }];
+    mocks.db!.throwNextStorageRemove();
+    const result = await discardInvoiceJob(jobId);
+    expect(result.error).toBeNull();
+    expect(result.warning).toContain("falló la limpieza");
+    expect(mocks.db!.tables.invoice_jobs).toHaveLength(0);
+  });
+
+  it("conserva un objeto cuyo path no está bajo el tenant aunque elimine el job", async () => {
+    mocks.db!.tables.invoice_jobs = [{
+      id: jobId, empresa_id: TENANT, status: "failed", invoice_id: null,
+      storage_bucket: "invoice-files", storage_path: `${OTHER_TENANT}/inbox/other.pdf`,
+    }];
+    const result = await discardInvoiceJob(jobId);
+    expect(result.error).toBeNull();
+    expect(result.warning).toContain("se conservó");
+    expect(mocks.db!.removedStoragePaths).toHaveLength(0);
   });
 });
 

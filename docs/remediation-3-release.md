@@ -3,10 +3,18 @@
 ## Scope and compatibility
 
 The application and bulk worker use the same PostgreSQL reconciliation boundary.
-`20261010040051_invoice_item_match_integrity.sql` installs create, correct, delete,
-and unmatch RPCs, source guards, and restricted table privileges. No historical
+`20261010040051_invoice_item_match_integrity.sql` installs create, correct, delete
+and unmatch RPCs, source guards, and restricted table privileges.
+`20261010043627_atomic_invoice_job_creation_and_attachment_cleanup.sql` adds
+atomic job ingestion and restricts physical attachment cleanup to owned paths. No historical
 rows are repaired or removed by installation. The old pending SQL is historical
 design material and must not be installed separately.
+`20261010045001_reject_source_numeric_rounding.sql` removes numeric typmods from
+editable source quantities/prices and replaces them with explicit scale/range
+constraints, preserving the former numeric limits while rejecting excess
+decimals before rounding. It also protects monotonic job attempts and invoice
+checkpoints and denies job truncation. Source numeric text may omit trailing
+zeroes; financial values and the derived order counter remain unchanged.
 
 This is a coordinated application/worker/database release. The former application
 at `a56c787` uses direct writes that the new database intentionally rejects. An
@@ -22,6 +30,16 @@ typechecks the app, then tests browser actions against that stack. It has no
 production credentials, preview branches, paid service provisioning, or deploy
 steps. Production migration, merge, and production deploy require separate human
 authorization.
+
+Two other Git-linked Vercel projects (`control-facturas-surface-recovery` and
+`control-scanner-detection-v2`) currently report `MISSING_SERVICES`: their platform
+framework is configured as `services` while this repository is a Next.js app.
+These are external project-configuration checks, not failures of this app build.
+The ERP project's own Vercel check is skipped by its existing Ignored Build Step.
+This PR does not change those project settings or represent a skipped deployment
+as a tested preview. The isolated build and browser certification below are the
+application release evidence. GitHub currently reports no required status checks
+on `main`; the certification gate is still mandatory for this handoff.
 
 ## Release gates
 
@@ -55,7 +73,7 @@ as executed tests.
    inconsistency, stop the release: the transaction aborts and requires a reviewed
    data-repair proposal. Do not disable guards or erase matches to get past it.
 4. Deploy the matching app and worker artifacts while writers remain stopped.
-   Confirm the six RPC signatures exist, anonymous EXECUTE is denied, and raw
+   Confirm the seven financial RPC signatures exist, anonymous EXECUTE is denied, and raw
    item-match writes and truncation remain denied. Refresh the PostgREST schema
    cache through the normal migration/reload mechanism if needed.
 5. In an authorized QA tenant, verify a 2,500-unit invoice against a 3,000-unit OC
@@ -71,7 +89,13 @@ as executed tests.
 7. Monitor RPC errors, jobs in `needs_review`, duplicate invoice failures, and
    discrepancies between `quantity_invoiced` and the sum of stored matches.
    Existing partial jobs that already reference an invoice must be reviewed on
-   that invoice; requeueing them as fresh invoices is blocked.
+   that invoice; requeueing them as fresh invoices is blocked. Invoice creation
+   from a job and the invoice checkpoint commit in one RPC transaction. Stale
+   workers cannot create invoices or finish jobs using an expired attempt.
+   Attempts are cumulative fencing tokens. An explicit retry preserves the
+   counter; the next claim increments it. It never restarts at zero. A retry
+   above the automatic retry budget still receives one explicit new attempt;
+   another extraction failure returns to review rather than looping.
 
 ## Safe rollback
 
@@ -98,3 +122,8 @@ allocations, stale relationships cannot be removed, repeated matches do not
 double-count, and forbidden old raw writes fail. The full workflow also exercises
 the installed migration against the baseline schema. Production recovery itself
 is an operator action and is not claimed as executed by this PR.
+
+The browser test covers human reconciliation against the real application and
+local Supabase API. Worker database protocols are exercised through independent
+PostgreSQL sessions and runtime tests; external OCR/model calls are mocked, and
+no paid OCR/model end-to-end execution is claimed.

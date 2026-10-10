@@ -1,8 +1,10 @@
 /**
- * Validación funcional de la migración final
- * supabase/migrations/20261010040051_invoice_item_match_integrity.sql
+ * Validación funcional de las migraciones finales de Remediation 3
  * sobre PGlite (WASM, efímero). El lock/concurrency verdict viene solo de
  * scripts/test-invoice-item-match-postgres.ts contra PostgreSQL 17 real.
+ *
+ * Migraciones: 20261010040051_invoice_item_match_integrity.sql y
+ * 20261010043627_atomic_invoice_job_creation_and_attachment_cleanup.sql.
  *
  * ALCANCE: invariantes secuenciales (documental / OC / relacional),
  * idempotencia, aislamiento multitenant, freeze por estado, rollback ante
@@ -108,12 +110,18 @@ beforeAll(async () => {
     CREATE TYPE public.user_role AS ENUM ('comercial', 'administracion', 'admin');
     CREATE TYPE public.invoice_status AS ENUM ('PENDIENTE','MATCH','REQUIERE_REVISION','APROBADO_EXCEPCION','APTO_PARA_PAGO','PAGADO');
     CREATE TYPE public.invoice_job_status AS ENUM ('queued','processing','needs_review','failed');
+    CREATE TYPE public.currency_code AS ENUM ('PYG','USD','EUR','BRL','ARS');
     CREATE TABLE public.empresas (id uuid PRIMARY KEY, active boolean NOT NULL DEFAULT true);
     CREATE TABLE public.profiles (id uuid PRIMARY KEY, empresa_id uuid, role public.user_role, active boolean DEFAULT true, is_super_admin boolean DEFAULT false);
     CREATE TABLE public.authorized_orders (id uuid PRIMARY KEY, empresa_id uuid NOT NULL);
-    CREATE TABLE public.invoices (id uuid PRIMARY KEY, empresa_id uuid NOT NULL, status public.invoice_status NOT NULL DEFAULT 'PENDIENTE');
-    CREATE TABLE public.invoice_items (id uuid PRIMARY KEY, invoice_id uuid NOT NULL, empresa_id uuid NOT NULL, product_description text NOT NULL, quantity numeric, unit text, unit_price numeric, subtotal numeric, sort_order integer DEFAULT 0 NOT NULL);
-    CREATE TABLE public.authorized_order_items (id uuid PRIMARY KEY, order_id uuid NOT NULL, empresa_id uuid NOT NULL, product text NOT NULL, quantity numeric NOT NULL, unit text NOT NULL, unit_price numeric NOT NULL DEFAULT 0, total_price numeric NOT NULL DEFAULT 0, quantity_invoiced numeric NOT NULL DEFAULT 0, sort_order integer DEFAULT 0 NOT NULL);
+    CREATE TABLE public.providers (id uuid PRIMARY KEY, empresa_id uuid NOT NULL);
+    CREATE TABLE public.attachments (id uuid PRIMARY KEY, empresa_id uuid NOT NULL, bucket text NOT NULL, path text NOT NULL);
+    CREATE TABLE public.payment_orders (id uuid PRIMARY KEY, status text NOT NULL);
+    CREATE TABLE public.payment_order_invoices (payment_order_id uuid NOT NULL, invoice_id uuid NOT NULL, empresa_id uuid NOT NULL);
+    CREATE TABLE public.invoice_exceptions (invoice_id uuid NOT NULL, empresa_id uuid NOT NULL);
+    CREATE TABLE public.invoices (id uuid PRIMARY KEY, empresa_id uuid NOT NULL, status public.invoice_status NOT NULL DEFAULT 'PENDIENTE', provider_id uuid, invoice_number text, invoice_date date, currency public.currency_code, subtotal numeric, vat numeric, total numeric, timbrado text, attachment_id uuid, created_by uuid);
+    CREATE TABLE public.invoice_items (id uuid PRIMARY KEY, invoice_id uuid NOT NULL, empresa_id uuid NOT NULL, product_description text NOT NULL, quantity numeric(14,2), unit text, unit_price numeric(14,4), subtotal numeric(14,2), sort_order integer DEFAULT 0 NOT NULL);
+    CREATE TABLE public.authorized_order_items (id uuid PRIMARY KEY, order_id uuid NOT NULL, empresa_id uuid NOT NULL, product text NOT NULL, quantity numeric(14,2) NOT NULL, unit text NOT NULL, unit_price numeric(14,4) NOT NULL DEFAULT 0, total_price numeric(14,2) NOT NULL DEFAULT 0, quantity_invoiced numeric(14,2) NOT NULL DEFAULT 0, sort_order integer DEFAULT 0 NOT NULL);
     CREATE TABLE public.invoice_order_matches (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), invoice_id uuid NOT NULL UNIQUE, authorized_order_id uuid NOT NULL, empresa_id uuid NOT NULL);
     CREATE TABLE public.invoice_item_matches (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), invoice_item_id uuid NOT NULL, order_item_id uuid NOT NULL, empresa_id uuid NOT NULL, quantity_matched numeric NOT NULL, CONSTRAINT m_qty CHECK (quantity_matched > 0));
     CREATE TABLE public.audit_logs (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), empresa_id uuid, actor_id uuid, actor_type text NOT NULL, actor_label text, action text NOT NULL, rfq_id uuid, rfq_provider_id uuid, invoice_id uuid, authorized_order_id uuid, detail jsonb);
@@ -158,9 +166,13 @@ beforeAll(async () => {
     FOR EACH ROW EXECUTE FUNCTION public.recompute_order_item_quantity_invoiced();
   `);
   // Migración bajo prueba (byte-idéntica salvo GRANT/REVOKE/OWNER/EXTENSION).
-  const url = new URL("../supabase/migrations/20261010040051_invoice_item_match_integrity.sql", import.meta.url);
+  const migrationPaths = [
+    "../supabase/migrations/20261010040051_invoice_item_match_integrity.sql",
+    "../supabase/migrations/20261010043627_atomic_invoice_job_creation_and_attachment_cleanup.sql",
+    "../supabase/migrations/20261010045001_reject_source_numeric_rounding.sql",
+  ];
   let skippingEnvironmentStatement = false;
-  const sql = readFileSync(url, "utf8")
+  const sql = migrationPaths.map((path) => readFileSync(new URL(path, import.meta.url), "utf8")
     .split("\n")
     .filter((line) => {
       if (skippingEnvironmentStatement) {
@@ -173,6 +185,7 @@ beforeAll(async () => {
       }
       return true;
     })
+    .join("\n"))
     .join("\n");
   await db.exec(sql);
 }, T.timeout);
@@ -202,6 +215,52 @@ describe("helpers de correspondencia (réplica SQL de reconcile.ts)", () => {
     expect(await q("Ladrillo común segunda entrega", "Ladrillo común")).toBe(true);
     expect(await q("Ladrillo común", "Cemento puzolánico")).toBe(false);
     expect(await q("", "Ladrillo")).toBe(false);
+  });
+});
+
+describe("precisión de columnas fuente sin redondeo implícito", () => {
+  it("rechaza INSERT raw con escala excesiva en invoice_items y authorized_order_items", T, async () => {
+    // El fixture parte de los typmods de producción; la migración los elimina
+    // para que el trigger/CHECK reciba el valor original, antes del redondeo.
+    await throwsWith(db.exec(`INSERT INTO public.invoice_items
+      (id,invoice_id,empresa_id,product_description,quantity,unit,unit_price,subtotal)
+      VALUES ('10000000-0000-4000-8000-000000000001','${INV}','${A}','Exceso cantidad',1.236,'un',1,1)`),
+      "La cantidad admite hasta 2 decimales");
+    await throwsWith(db.exec(`INSERT INTO public.invoice_items
+      (id,invoice_id,empresa_id,product_description,quantity,unit,unit_price,subtotal)
+      VALUES ('10000000-0000-4000-8000-000000000002','${INV}','${A}','Exceso precio',1,'un',1.00001,1)`),
+      "La cantidad admite hasta 2 decimales");
+    await throwsWith(db.exec(`INSERT INTO public.invoice_items
+      (id,invoice_id,empresa_id,product_description,quantity,unit,unit_price,subtotal)
+      VALUES ('10000000-0000-4000-8000-000000000003','${INV}','${A}','Exceso subtotal',1,'un',1,1.001)`),
+      "La cantidad admite hasta 2 decimales");
+
+    await throwsWith(db.exec(`INSERT INTO public.authorized_order_items
+      (id,order_id,empresa_id,product,quantity,unit,unit_price,total_price)
+      VALUES ('10000000-0000-4000-8000-000000000004','${OC}','${A}','Exceso cantidad',1.236,'un',0,1)`),
+      "r3_aoi_quantity_precision_check");
+    await throwsWith(db.exec(`INSERT INTO public.authorized_order_items
+      (id,order_id,empresa_id,product,quantity,unit,unit_price,total_price)
+      VALUES ('10000000-0000-4000-8000-000000000005','${OC}','${A}','Exceso precio',1,'un',1.00001,1)`),
+      "r3_aoi_unit_price_precision_check");
+    await throwsWith(db.exec(`INSERT INTO public.authorized_order_items
+      (id,order_id,empresa_id,product,quantity,unit,unit_price,total_price)
+      VALUES ('10000000-0000-4000-8000-000000000006','${OC}','${A}','Exceso total',1,'un',1,1.001)`),
+      "r3_aoi_total_price_precision_check");
+
+    const invRows = await db.query("SELECT count(*) AS n FROM public.invoice_items WHERE id::text LIKE '10000000-%'");
+    const orderRows = await db.query("SELECT count(*) AS n FROM public.authorized_order_items WHERE id::text LIKE '10000000-%'");
+    expect(Number((invRows.rows[0] as { n: string }).n)).toBe(0);
+    expect(Number((orderRows.rows[0] as { n: string }).n)).toBe(0);
+  });
+
+  it("acepta los límites de escala declarados, incluidos importes cero", T, async () => {
+    await db.exec(`INSERT INTO public.invoice_items
+      (id,invoice_id,empresa_id,product_description,quantity,unit,unit_price,subtotal)
+      VALUES ('10000000-0000-4000-8000-000000000011','${INV}','${A}','Escala válida',0.01,'un',1.0001,0.01)`);
+    await db.exec(`INSERT INTO public.authorized_order_items
+      (id,order_id,empresa_id,product,quantity,unit,unit_price,total_price)
+      VALUES ('10000000-0000-4000-8000-000000000012','${OC}','${A}','Escala válida',0.01,'un',0,0)`);
   });
 });
 
@@ -312,6 +371,18 @@ describe("create_invoice_item_match (H2 funcional)", () => {
   it("worker con empresa errónea falla cerrado", T, async () => {
     await setActor("service_role", "");
     await throwsWith(callCreate(B, INV, IL1, OL1, 100), "esta empresa");
+    await setActor("authenticated", ADMIN_A);
+  });
+});
+
+describe("delete_invoice (B11, factura sin adjunto)", () => {
+  it("elimina una factura editable aunque no tenga attachment y retorna cleanup nulo", T, async () => {
+    await setActor("authenticated", ADMIN_B);
+    const result = await db.query("SELECT public.delete_invoice($1,$2) AS r", [B, INV_B]);
+    const out = (result.rows[0] as { r: { ok: boolean; attachment_id: string | null; cleanup_bucket: string | null; cleanup_path: string | null } }).r;
+    expect(out).toEqual({ ok: true, attachment_id: null, cleanup_bucket: null, cleanup_path: null });
+    const persisted = await db.query("SELECT count(*) AS c FROM public.invoices WHERE id=$1", [INV_B]);
+    expect(Number((persisted.rows[0] as { c: string }).c)).toBe(0);
     await setActor("authenticated", ADMIN_A);
   });
 });

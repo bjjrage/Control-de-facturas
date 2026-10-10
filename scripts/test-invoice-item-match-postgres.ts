@@ -22,6 +22,7 @@ type Fixture = {
   adminB: string;
   commercialA: string;
   providerA: string;
+  providerB: string;
   orderA: string;
   orderItemA: string;
   orderItemIdem: string;
@@ -32,6 +33,10 @@ type Fixture = {
   orderItemDeadlock: string;
   orderItemDelete: string;
   sharedAttachmentId: string;
+  unsafeBucketAttachmentId: string;
+  foreignPrefixAttachmentId: string;
+  attachmentB: string;
+  providerAttachmentId: string;
   invoices: Array<{ id: string; lineId: string; linkId: string }>;
   invoiceB: { id: string; lineId: string; linkId: string };
 };
@@ -61,6 +66,16 @@ async function asActor<T>(client: Client, userId: string, fn: () => Promise<T>):
   }
 }
 
+async function asService<T>(client: Client, fn: () => Promise<T>): Promise<T> {
+  await client.query("SET ROLE service_role");
+  await client.query("SELECT set_config('request.jwt.claim.role','service_role',false), set_config('request.jwt.claim.sub','',false)");
+  try {
+    return await fn();
+  } finally {
+    await client.query("RESET ROLE");
+  }
+}
+
 async function seed(): Promise<Fixture> {
   const companyA = randomUUID();
   const companyB = randomUUID();
@@ -81,7 +96,11 @@ async function seed(): Promise<Fixture> {
   const orderItemDeadlock = randomUUID();
   const orderItemDelete = randomUUID();
   const sharedAttachmentId = randomUUID();
-  const invoices = Array.from({ length: 9 }, () => ({ id: randomUUID(), lineId: randomUUID(), linkId: randomUUID() }));
+  const unsafeBucketAttachmentId = randomUUID();
+  const foreignPrefixAttachmentId = randomUUID();
+  const attachmentB = randomUUID();
+  const providerAttachmentId = randomUUID();
+  const invoices = Array.from({ length: 12 }, () => ({ id: randomUUID(), lineId: randomUUID(), linkId: randomUUID() }));
   const invoiceB = { id: randomUUID(), lineId: randomUUID(), linkId: randomUUID() };
 
   await withClient(async (client) => {
@@ -146,12 +165,18 @@ async function seed(): Promise<Fixture> {
       );
       await client.query(
         `INSERT INTO public.attachments(id,bucket,path,file_name,uploaded_by,empresa_id)
-         VALUES($1,'invoices','r3/shared.pdf','shared.pdf',$2,$3)`,
-        [sharedAttachmentId, adminA, companyA],
+         VALUES($1,'invoice-files',$4,'shared.pdf',$2,$3),
+               ($5,'private-bucket',$6,'unsafe-bucket.pdf',$2,$3),
+               ($7,'invoice-files',$8,'foreign-prefix.pdf',$2,$3),
+               ($9,'invoice-files',$10,'tenant-b.pdf',$11,$12),
+               ($13,'invoice-files',$14,'provider-prefix.pdf',$2,$3)`,
+        [sharedAttachmentId, adminA, companyA, `${companyA}/shared.pdf`, unsafeBucketAttachmentId, `${companyA}/unsafe.pdf`, foreignPrefixAttachmentId, `${companyB}/foreign.pdf`, attachmentB, `${companyB}/tenant.pdf`, adminB, companyB, providerAttachmentId, `${providerA}/provider.pdf`],
       );
       await client.query(
-        "UPDATE public.invoices SET attachment_id=$1 WHERE id=ANY($2::uuid[])",
-        [sharedAttachmentId, [invoices[7].id, invoices[8].id]],
+        `UPDATE public.invoices SET attachment_id=CASE id
+           WHEN $2 THEN $1 WHEN $3 THEN $1 WHEN $4 THEN $5 WHEN $6 THEN $7 WHEN $8 THEN $9 END
+         WHERE id=ANY($10::uuid[])`,
+        [sharedAttachmentId, invoices[7].id, invoices[8].id, invoices[9].id, unsafeBucketAttachmentId, invoices[10].id, foreignPrefixAttachmentId, invoices[11].id, providerAttachmentId, [invoices[7].id, invoices[8].id, invoices[9].id, invoices[10].id, invoices[11].id]],
       );
       await client.query("COMMIT");
     } catch (error) {
@@ -159,7 +184,7 @@ async function seed(): Promise<Fixture> {
       throw error;
     }
   });
-  return { companyA, companyB, adminA, adminB, commercialA, providerA, orderA, orderItemA, orderItemIdem, orderItemUnmatch, orderItemApproval, orderItemPrecision, orderItemBadScale, orderItemDeadlock, orderItemDelete, sharedAttachmentId, invoices, invoiceB };
+  return { companyA, companyB, adminA, adminB, commercialA, providerA, providerB, orderA, orderItemA, orderItemIdem, orderItemUnmatch, orderItemApproval, orderItemPrecision, orderItemBadScale, orderItemDeadlock, orderItemDelete, sharedAttachmentId, unsafeBucketAttachmentId, foreignPrefixAttachmentId, attachmentB, providerAttachmentId, invoices, invoiceB };
 }
 
 async function createMatch(client: Client, f: Fixture, invoiceIndex: number, orderItemId: string, qty: string) {
@@ -193,7 +218,7 @@ async function main() {
   const rpcArguments = await withClient(async (client) => client.query(
     `SELECT p.proname,p.proargnames FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
       WHERE n.nspname='public' AND p.proname = ANY($1::text[]) ORDER BY p.proname`,
-    [["create_invoice_item_match", "correct_invoice_item", "unmatch_invoice_order", "delete_invoice_item", "delete_invoice_item_match", "delete_invoice"]],
+    [["create_invoice_item_match", "correct_invoice_item", "unmatch_invoice_order", "delete_invoice_item", "delete_invoice_item_match", "delete_invoice", "create_invoice_from_job"]],
   ));
   const argsByRpc = Object.fromEntries(rpcArguments.rows.map((row) => [row.proname, row.proargnames]));
   assert.deepEqual(argsByRpc.create_invoice_item_match, ["p_empresa_id", "p_invoice_id", "p_expected_order_id", "p_invoice_item_id", "p_order_item_id", "p_quantity"]);
@@ -202,6 +227,7 @@ async function main() {
   assert.deepEqual(argsByRpc.delete_invoice_item, ["p_empresa_id", "p_invoice_id", "p_invoice_item_id"]);
   assert.deepEqual(argsByRpc.delete_invoice_item_match, ["p_empresa_id", "p_invoice_id", "p_invoice_item_match_id"]);
   assert.deepEqual(argsByRpc.delete_invoice, ["p_empresa_id", "p_invoice_id"]);
+  assert.deepEqual(argsByRpc.create_invoice_from_job, ["p_empresa_id", "p_job_id", "p_expected_attempts", "p_invoice"]);
   const f = await seed();
 
   // Tenant boundary, role boundary, anon privilege, and direct-write privilege.
@@ -213,7 +239,13 @@ async function main() {
       await assert.rejects(client.query("SELECT public.create_invoice_item_match($1,$2,$3,$4,$5,$6)", [f.companyB, f.invoices[0].id, f.orderA, f.invoices[0].lineId, f.orderItemA, "10"]), (error: unknown) => pgErrorCode(error) === "42501");
     });
     await asActor(client, f.adminB, async () => {
-      await assert.rejects(client.query("SELECT public.create_invoice_item_match($1,$2,$3,$4,$5,$6)", [f.companyB, f.invoices[0].id, f.orderA, f.invoices[0].lineId, f.orderItemA, "10"]), (error: unknown) => ["42501", "23514"].includes(pgErrorCode(error) ?? ""));
+      await assert.rejects(
+        client.query("SELECT public.create_invoice_item_match($1,$2,$3,$4,$5,$6)", [f.companyB, f.invoices[0].id, f.orderA, f.invoices[0].lineId, f.orderItemA, "10"]),
+        (error: unknown) => pgErrorCode(error) === "42501"
+          || (pgErrorCode(error) === "P0001" && /no pertenece a esta empresa/i.test(String(error))),
+      );
+      const untouched = await client.query("SELECT count(*)::int AS count FROM public.invoice_item_matches WHERE invoice_item_id=$1", [f.invoices[0].lineId]);
+      assert.equal(untouched.rows[0].count, 0, "cross-tenant resource rejection must not write a match");
     });
     await asActor(client, f.commercialA, async () => {
       await assert.rejects(createMatch(client, f, 0, f.orderItemA, "10"), (error: unknown) => pgErrorCode(error) === "42501");
@@ -290,11 +322,266 @@ async function main() {
   assert.equal(stateById.get(queuedWithoutInvoice)?.status, "processing", "claim must transition the eligible job to processing");
   checks.push("worker-only invoice job RPCs; claim skips invoice-checkpoint jobs; stale checkpoint moves to needs_review preserving invoice_id while retryable/exhausted jobs follow their own branches");
 
+  // Atomic worker create/checkpoint: one exact lease attempt can create one invoice, checkpoint, and tenant-scoped audit row.
+  const createdInvoiceNumber = `R3-ATOMIC-${randomUUID()}`;
+  const invoicePayload = {
+    provider_id: f.providerA,
+    invoice_number: createdInvoiceNumber,
+    invoice_date: new Date().toISOString().slice(0, 10),
+    currency: "PYG",
+    subtotal: 100,
+    vat: 0,
+    total: 100,
+    timbrado: null,
+    attachment_id: null,
+  };
+  const workerCreate = (client: Client, jobId: string, tenant: string, attempts: number, payload: Record<string, unknown>) =>
+    client.query("SELECT public.create_invoice_from_job($1,$2,$3,$4::jsonb) AS result", [tenant, jobId, attempts, JSON.stringify(payload)]);
+  const atomicAttempts = await Promise.all([
+    withClient(async (client) => {
+      await client.query("SET ROLE service_role");
+      await client.query("SELECT set_config('request.jwt.claim.role','service_role',false), set_config('request.jwt.claim.sub','',false)");
+      try { return await workerCreate(client, queuedWithoutInvoice, f.companyA, 1, invoicePayload); }
+      finally { await client.query("RESET ROLE"); }
+    }).then((value) => ({ ok: true as const, value }), (error) => ({ ok: false as const, error })),
+    withClient(async (client) => {
+      await client.query("SET ROLE service_role");
+      await client.query("SELECT set_config('request.jwt.claim.role','service_role',false), set_config('request.jwt.claim.sub','',false)");
+      try { return await workerCreate(client, queuedWithoutInvoice, f.companyA, 1, invoicePayload); }
+      finally { await client.query("RESET ROLE"); }
+    }).then((value) => ({ ok: true as const, value }), (error) => ({ ok: false as const, error })),
+  ]);
+  assert.equal(atomicAttempts.filter((attempt) => attempt.ok).length, 1, "only one concurrent create for the same lease may win");
+  assert.equal(atomicAttempts.filter((attempt) => !attempt.ok).length, 1, "the stale concurrent create must lose the row-lock/CAS race");
+  const createdResult = atomicAttempts.find((attempt) => attempt.ok);
+  assert.ok(createdResult?.ok);
+  assert.equal(createdResult.value.rows[0].result.ok, true);
+  const atomicState = await withClient(async (client) => client.query(
+    `SELECT j.status::text,j.attempts,j.invoice_id,i.empresa_id,i.created_by,
+            (SELECT count(*)::int FROM public.invoices x WHERE x.invoice_number=$2 AND x.empresa_id=$3) AS invoice_count,
+            (SELECT count(*)::int FROM public.audit_logs a WHERE a.invoice_id=j.invoice_id AND a.action='invoice.created' AND a.empresa_id=$3 AND a.actor_type='system') AS audit_count
+       FROM public.invoice_jobs j LEFT JOIN public.invoices i ON i.id=j.invoice_id WHERE j.id=$1`,
+    [queuedWithoutInvoice, createdInvoiceNumber, f.companyA],
+  ));
+  assert.equal(atomicState.rows[0].invoice_count, 1);
+  assert.equal(atomicState.rows[0].status, "processing");
+  assert.equal(atomicState.rows[0].attempts, 1);
+  assert.equal(atomicState.rows[0].empresa_id, f.companyA);
+  assert.equal(atomicState.rows[0].created_by, f.adminA);
+  assert.equal(atomicState.rows[0].audit_count, 1, "atomic worker creation must write one tenant-scoped system audit");
+  checks.push("concurrent same-job invoice creation has a single CAS winner and atomically persists invoice, checkpoint, and tenant audit");
+
+  // Exact attempt and tenant fencing reject stale workers and cross-company jobs without creating invoices.
+  const fencedJobId = randomUUID();
+  const crossTenantJobId = randomUUID();
+  await withClient(async (client) => {
+    await client.query(
+      `INSERT INTO public.invoice_jobs(id,empresa_id,created_by,storage_path,file_name,mime_type,status,attempts,locked_at)
+       VALUES($1,$2,$3,'r3/fenced.pdf','fenced.pdf','application/pdf','processing',2,now()-interval '1 hour'),
+             ($4,$5,$6,'r3/other-tenant.pdf','other-tenant.pdf','application/pdf','processing',1,now())`,
+      [fencedJobId, f.companyA, f.adminA, crossTenantJobId, f.companyB, f.adminB],
+    );
+  });
+  const beforeFencedInvoices = await withClient(async (client) => client.query("SELECT count(*)::int AS count FROM public.invoices WHERE invoice_number=$1", [createdInvoiceNumber]));
+  await withClient(async (client) => {
+    await client.query("SET ROLE service_role");
+    await client.query("SELECT set_config('request.jwt.claim.role','service_role',false), set_config('request.jwt.claim.sub','',false)");
+    try {
+      await assert.rejects(workerCreate(client, fencedJobId, f.companyA, 1, { ...invoicePayload, invoice_number: `${createdInvoiceNumber}-STALE` }), (error: unknown) => pgErrorCode(error) === "40001");
+      await assert.rejects(workerCreate(client, crossTenantJobId, f.companyA, 1, { ...invoicePayload, provider_id: f.providerB, invoice_number: `${createdInvoiceNumber}-TENANT` }), (error: unknown) => pgErrorCode(error) === "42501");
+      await assert.rejects(workerCreate(client, fencedJobId, f.companyA, 2, { ...invoicePayload, provider_id: f.providerB, invoice_number: `${createdInvoiceNumber}-PROVIDER` }), /tenant|empresa|proveedor|pertenece/i);
+      await assert.rejects(workerCreate(client, fencedJobId, f.companyA, 2, { ...invoicePayload, attachment_id: f.attachmentB, invoice_number: `${createdInvoiceNumber}-ATTACHMENT` }), /tenant|empresa|adjunto|pertenece/i);
+      await assert.rejects(workerCreate(client, fencedJobId, f.companyA, 2, { ...invoicePayload, invoice_number: `${createdInvoiceNumber}-UNKNOWN`, untrusted_column: true }), /unexpected|allowlist|field|column/i);
+      await assert.rejects(workerCreate(client, fencedJobId, f.companyA, 2, { ...invoicePayload, invoice_number: `${createdInvoiceNumber}-NAN`, total: "NaN" }), (error: unknown) => pgErrorCode(error) === "22023");
+      await assert.rejects(workerCreate(client, fencedJobId, f.companyA, 2, { ...invoicePayload, invoice_number: `${createdInvoiceNumber}-INFINITY`, total: "Infinity" }), (error: unknown) => pgErrorCode(error) === "22023");
+      await assert.rejects(workerCreate(client, fencedJobId, f.companyA, 2, { ...invoicePayload, invoice_number: `${createdInvoiceNumber}-SUBSCALE`, subtotal: 1.001 }), (error: unknown) => pgErrorCode(error) === "22023");
+      await assert.rejects(workerCreate(client, fencedJobId, f.companyA, 2, { ...invoicePayload, invoice_number: `${createdInvoiceNumber}-VATSCALE`, vat: 1.001 }), (error: unknown) => pgErrorCode(error) === "22023");
+    } finally { await client.query("RESET ROLE"); }
+  });
+  const fencedInvoiceCount = await withClient(async (client) => client.query("SELECT count(*)::int AS count FROM public.invoices WHERE invoice_number LIKE $1", [`${createdInvoiceNumber}-%`]));
+  assert.equal(Number(fencedInvoiceCount.rows[0].count), 0);
+  assert.equal(Number(beforeFencedInvoices.rows[0].count), 1);
+  checks.push("atomic worker RPC rejects stale attempt, cross-tenant job/provider/attachment, unexpected payload keys, non-finite totals and excessive amount scales without side effects");
+
+  // Authenticated admins may create only their own company's invoice/job; commercial and cross-tenant users fail closed.
+  const authenticatedJobId = randomUUID();
+  const deniedJobId = randomUUID();
+  await withClient(async (client) => client.query(
+    `INSERT INTO public.invoice_jobs(id,empresa_id,created_by,storage_path,file_name,mime_type,status,attempts,locked_at)
+     VALUES($1,$3,$4,'r3/authenticated.pdf','authenticated.pdf','application/pdf','processing',1,now()),
+           ($2,$3,$4,'r3/auth-denied.pdf','auth-denied.pdf','application/pdf','processing',1,now())`,
+    [authenticatedJobId, deniedJobId, f.companyA, f.adminA],
+  ));
+  const authenticatedPayload = { ...invoicePayload, invoice_number: `${createdInvoiceNumber}-AUTH` };
+  await withClient(async (client) => {
+    await asActor(client, f.commercialA, async () => {
+      await assert.rejects(workerCreate(client, deniedJobId, f.companyA, 1, { ...authenticatedPayload, invoice_number: `${createdInvoiceNumber}-NONADMIN` }), (error: unknown) => pgErrorCode(error) === "42501");
+    });
+    await asActor(client, f.adminB, async () => {
+      await assert.rejects(workerCreate(client, deniedJobId, f.companyA, 1, { ...authenticatedPayload, invoice_number: `${createdInvoiceNumber}-AUTH-TENANT` }), (error: unknown) => pgErrorCode(error) === "42501");
+    });
+    await asActor(client, f.adminA, async () => {
+      const created = await workerCreate(client, authenticatedJobId, f.companyA, 1, authenticatedPayload);
+      assert.equal(created.rows[0].result.ok, true);
+    });
+  });
+  const authenticatedAudit = await withClient(async (client) => client.query(
+    `SELECT j.invoice_id,i.empresa_id,i.created_by,
+            (SELECT count(*)::int FROM public.audit_logs a WHERE a.invoice_id=j.invoice_id AND a.action='invoice.created' AND a.empresa_id=$2 AND a.actor_id=$3) AS audit_count
+       FROM public.invoice_jobs j JOIN public.invoices i ON i.id=j.invoice_id WHERE j.id=$1`,
+    [authenticatedJobId, f.companyA, f.adminA],
+  ));
+  assert.equal(authenticatedAudit.rows[0].empresa_id, f.companyA);
+  assert.equal(authenticatedAudit.rows[0].created_by, f.adminA);
+  assert.equal(authenticatedAudit.rows[0].audit_count, 1);
+  checks.push("authenticated admin RPC is tenant-scoped and audited; authenticated commercial and cross-tenant admin are rejected");
+
+  // Fail after the invoice INSERT at checkpoint UPDATE; the single RPC transaction must roll back invoice, checkpoint and audit.
+  const rollbackJobId = randomUUID();
+  const rollbackInvoiceNumber = `${createdInvoiceNumber}-ROLLBACK`;
+  await withClient(async (client) => {
+    await client.query(
+      `INSERT INTO public.invoice_jobs(id,empresa_id,created_by,storage_path,file_name,mime_type,status,attempts,locked_at)
+       VALUES($1,$2,$3,$4,'rollback.pdf','application/pdf','processing',4,now())`,
+      [rollbackJobId, f.companyA, f.adminA, `r3/rollback-${rollbackJobId}.pdf`],
+    );
+    await client.query(`CREATE OR REPLACE FUNCTION public.r3_fail_invoice_job_checkpoint() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN IF OLD.storage_path LIKE 'r3/rollback-%' AND OLD.invoice_id IS NULL AND NEW.invoice_id IS NOT NULL THEN
+        RAISE EXCEPTION 'R3 forced checkpoint failure'; END IF; RETURN NEW; END; $$`);
+    await client.query("CREATE TRIGGER r3_fail_invoice_job_checkpoint BEFORE UPDATE ON public.invoice_jobs FOR EACH ROW EXECUTE FUNCTION public.r3_fail_invoice_job_checkpoint()");
+  });
+  const auditCountBeforeFailure = await withClient(async (client) => client.query(
+    "SELECT count(*)::int AS count FROM public.audit_logs WHERE action='invoice.created' AND actor_type='system' AND actor_id=$1",
+    [f.adminA],
+  ));
+  try {
+    await withClient(async (client) => {
+      await client.query("SET ROLE service_role");
+      await client.query("SELECT set_config('request.jwt.claim.role','service_role',false), set_config('request.jwt.claim.sub','',false)");
+      try {
+        await assert.rejects(workerCreate(client, rollbackJobId, f.companyA, 4, { ...invoicePayload, invoice_number: rollbackInvoiceNumber }), /R3 forced checkpoint failure/);
+      } finally { await client.query("RESET ROLE"); }
+    });
+  } finally {
+    await withClient(async (client) => {
+      await client.query("DROP TRIGGER IF EXISTS r3_fail_invoice_job_checkpoint ON public.invoice_jobs");
+      await client.query("DROP FUNCTION IF EXISTS public.r3_fail_invoice_job_checkpoint()");
+    });
+  }
+  const rolledBackCreate = await withClient(async (client) => client.query(
+    `SELECT j.invoice_id,(SELECT count(*)::int FROM public.invoices WHERE invoice_number=$2 AND empresa_id=$3) AS invoice_count
+       FROM public.invoice_jobs j WHERE j.id=$1`, [rollbackJobId, rollbackInvoiceNumber, f.companyA],
+  ));
+  const auditCountAfterFailure = await withClient(async (client) => client.query(
+    "SELECT count(*)::int AS count FROM public.audit_logs WHERE action='invoice.created' AND actor_type='system' AND actor_id=$1",
+    [f.adminA],
+  ));
+  assert.equal(rolledBackCreate.rows[0].invoice_id, null);
+  assert.equal(rolledBackCreate.rows[0].invoice_count, 0);
+  assert.equal(auditCountAfterFailure.rows[0].count, auditCountBeforeFailure.rows[0].count);
+  checks.push("forced post-insert checkpoint trigger failure rolls back invoice/checkpoint/audit atomically");
+
+  // The table guard fences direct writes even for service_role; only the owned
+  // transactional RPC may create invoice checkpoints; new leases require a higher attempt.
+  const reentryJobId = randomUUID();
+  await withClient(async (client) => client.query(
+    `INSERT INTO public.invoice_jobs(id,empresa_id,created_by,storage_path,file_name,mime_type,status,attempts)
+     VALUES($1,$2,$3,$4,'reentry.pdf','application/pdf','needs_review',2)`,
+    [reentryJobId, f.companyA, f.adminA, `r3/reentry-${reentryJobId}.pdf`],
+  ));
+  await withClient(async (client) => {
+    for (const actor of [
+      (fn: () => Promise<unknown>) => asActor(client, f.adminA, fn),
+      (fn: () => Promise<unknown>) => asService(client, fn),
+    ]) {
+      await actor(async () => {
+        await assert.rejects(client.query("UPDATE public.invoice_jobs SET attempts=attempts-1 WHERE id=$1", [fencedJobId]),
+          (error: unknown) => pgErrorCode(error) === "40001");
+        await assert.rejects(client.query("UPDATE public.invoice_jobs SET status='processing' WHERE id=$1", [reentryJobId]),
+          (error: unknown) => pgErrorCode(error) === "40001");
+        await assert.rejects(client.query("UPDATE public.invoice_jobs SET invoice_id=$2 WHERE id=$1", [fencedJobId, f.invoices[0].id]),
+          (error: unknown) => pgErrorCode(error) === "42501");
+        await assert.rejects(client.query("TRUNCATE public.invoice_jobs"),
+          (error: unknown) => pgErrorCode(error) === "42501");
+      });
+    }
+    await asActor(client, f.adminA, async () => {
+      const insertedJobId = randomUUID();
+      await assert.rejects(client.query(
+        `INSERT INTO public.invoice_jobs(id,empresa_id,created_by,storage_path,file_name,mime_type,status,attempts,invoice_id)
+         VALUES($1,$2,$3,$4,'forged-checkpoint.pdf','application/pdf','queued',0,$5)`,
+        [insertedJobId, f.companyA, f.adminA, `r3/forged-${insertedJobId}.pdf`, f.invoices[0].id],
+      ), (error: unknown) => pgErrorCode(error) === "42501");
+    });
+  });
+  const fencedState = await withClient(async (client) => client.query(
+    "SELECT id,status::text,attempts,invoice_id FROM public.invoice_jobs WHERE id=ANY($1::uuid[]) ORDER BY id",
+    [[fencedJobId, reentryJobId]],
+  ));
+  assert.deepEqual(fencedState.rows, [
+    { id: fencedJobId, status: "processing", attempts: 2, invoice_id: null },
+    { id: reentryJobId, status: "needs_review", attempts: 2, invoice_id: null },
+  ].sort((a, b) => a.id.localeCompare(b.id)));
+  checks.push("authenticated and service roles cannot decrement attempts, re-enter processing without a new attempt, forge invoice checkpoints, insert pre-checkpointed jobs, or TRUNCATE invoice_jobs");
+
   // Exact numeric precision, non-finite rejection, and worker audit attribution.
+  // INSERT as the tenant admin to prove the guards receive the original numeric
+  // value before PostgreSQL can silently coerce it to a typmod scale.
+  const precisionLineId = randomUUID();
+  const invalidSourceLines = [
+    { id: randomUUID(), quantity: "1.236", unitPrice: "1.0000", subtotal: "1.00" },
+    { id: randomUUID(), quantity: "1.00", unitPrice: "1.00001", subtotal: "1.00" },
+    { id: randomUUID(), quantity: "1.00", unitPrice: "1.0000", subtotal: "1.001" },
+  ];
+  await withClient(async (client) => asActor(client, f.adminA, async () => {
+    await client.query(
+      `INSERT INTO public.invoice_items(id,invoice_id,empresa_id,product_description,quantity,unit,unit_price,subtotal)
+       VALUES($1,$2,$3,'raw numeric precision valid',0.01,'un',1.0000,0.01)`,
+      [precisionLineId, f.invoices[5].id, f.companyA],
+    );
+    for (const source of invalidSourceLines) {
+      await assert.rejects(client.query(
+        `INSERT INTO public.invoice_items(id,invoice_id,empresa_id,product_description,quantity,unit,unit_price,subtotal)
+         VALUES($1,$2,$3,'raw numeric precision invalid',$4,'un',$5,$6)`,
+        [source.id, f.invoices[5].id, f.companyA, source.quantity, source.unitPrice, source.subtotal],
+      ), (error: unknown) => pgErrorCode(error) === "P0001");
+    }
+  }));
+  const rawSourceCheck = await withClient(async (client) => client.query(
+    `SELECT id,empresa_id,quantity::text,unit_price::text,subtotal::text
+       FROM public.invoice_items WHERE id=ANY($1::uuid[]) ORDER BY id`,
+    [[precisionLineId, ...invalidSourceLines.map(({ id }) => id)]],
+  ));
+  assert.equal(rawSourceCheck.rows.length, 1);
+  assert.equal(rawSourceCheck.rows[0].id, precisionLineId);
+  assert.equal(rawSourceCheck.rows[0].empresa_id, f.companyA);
+  assert.equal(rawSourceCheck.rows[0].quantity, "0.01");
+  assert.equal(rawSourceCheck.rows[0].unit_price, "1.0000");
+  assert.equal(rawSourceCheck.rows[0].subtotal, "0.01");
+
+  // Service-role source edits are authorized for this fixture; the unbounded
+  // numeric CHECK constraints must still reject each original over-scale value.
+  await withClient(async (client) => {
+    await client.query("SET ROLE service_role");
+    await client.query("SELECT set_config('request.jwt.claim.role','service_role',false), set_config('request.jwt.claim.sub','',false)");
+    try {
+      for (const [column, value] of [["quantity", "1.236"], ["unit_price", "1.00001"], ["total_price", "1.001"]] as const) {
+        await assert.rejects(client.query(`UPDATE public.authorized_order_items SET ${column}=$2 WHERE id=$1`, [f.orderItemBadScale, value]),
+          (error: unknown) => pgErrorCode(error) === "23514");
+      }
+    } finally { await client.query("RESET ROLE"); }
+  });
+  const sourceOrderItemCheck = await withClient(async (client) => client.query(
+    "SELECT quantity::text,unit_price::text,total_price::text,quantity_invoiced::text FROM public.authorized_order_items WHERE id=$1",
+    [f.orderItemBadScale],
+  ));
+  assert.deepEqual(sourceOrderItemCheck.rows[0], { quantity: "1000", unit_price: "1", total_price: "1000", quantity_invoiced: "0" });
+  checks.push("raw tenant-admin invoice-item INSERT accepts 0.01 and rejects quantity 1.236, price 1.00001, subtotal 1.001 without rounded rows; AOI precision CHECKs reject the same over-scale sources without counter changes");
+
   const oneCent = await withClient((client) => asActor(client, f.adminA, () => createMatch(client, f, 5, f.orderItemPrecision, "0.01")));
   assert.equal(oneCent.rows[0].result.ok, true);
   await withClient(async (client) => asActor(client, f.adminA, async () => {
-    await assert.rejects(createMatch(client, f, 5, f.orderItemBadScale, "0.001"), /precisi|cent[eé]sima|redonde|mayor a cero/i);
+    await assert.rejects(createMatch(client, f, 5, f.orderItemBadScale, "0.001"), /decimal|precisi|cent[eé]sima|redonde|mayor a cero/i);
     await assert.rejects(createMatch(client, f, 5, f.orderItemBadScale, "NaN"), /finito|num[eé]rico|cantidad/i);
     await assert.rejects(createMatch(client, f, 5, f.orderItemBadScale, "Infinity"), /finito|num[eé]rico|cantidad/i);
   }));
@@ -337,6 +624,12 @@ async function main() {
   assert.equal(deleteResult.rows[0].result.cleanup_path, null);
   const sharedAttachment = await withClient(async (client) => client.query("SELECT count(*)::int AS count FROM public.attachments WHERE id=$1", [f.sharedAttachmentId]));
   assert.equal(sharedAttachment.rows[0].count, 1, "shared attachment metadata must remain while another invoice references it");
+  await withClient(async (client) => {
+    await assert.rejects(client.query(
+      "INSERT INTO public.attachments(id,bucket,path,file_name,empresa_id) VALUES($1,'invoice-files',$2,'duplicate.pdf',$3)",
+      [randomUUID(), `${f.companyA}/shared.pdf`, f.companyA],
+    ), (error: unknown) => pgErrorCode(error) === "23505");
+  });
   const deletedGraph = await withClient(async (client) => client.query(
     `SELECT (SELECT count(*)::int FROM public.invoices WHERE id=$1) AS invoice_count,
             (SELECT count(*)::int FROM public.invoice_items WHERE invoice_id=$1) AS line_count,
@@ -351,11 +644,28 @@ async function main() {
   const exclusiveDelete = await withClient((client) => asActor(client, f.adminA, () => client.query(
     "SELECT public.delete_invoice($1,$2) AS result", [f.companyA, f.invoices[8].id],
   )));
-  assert.equal(exclusiveDelete.rows[0].result.cleanup_bucket, "invoices");
-  assert.equal(exclusiveDelete.rows[0].result.cleanup_path, "r3/shared.pdf");
+  assert.equal(exclusiveDelete.rows[0].result.cleanup_bucket, "invoice-files");
+  assert.equal(exclusiveDelete.rows[0].result.cleanup_path, `${f.companyA}/shared.pdf`);
   const removedAttachment = await withClient(async (client) => client.query("SELECT count(*)::int AS count FROM public.attachments WHERE id=$1", [f.sharedAttachmentId]));
   assert.equal(removedAttachment.rows[0].count, 0, "exclusive attachment metadata should be removed atomically");
-  checks.push("delete_invoice atomically removes editable invoice graphs and audit rows, preserves shared attachment metadata, and reports/deletes the final attachment reference for storage cleanup");
+  const forgedCleanup = await withClient(async (client) => {
+    const unsafeBucket = await asActor(client, f.adminA, () => client.query("SELECT public.delete_invoice($1,$2) AS result", [f.companyA, f.invoices[9].id]));
+    const foreignPrefix = await asActor(client, f.adminA, () => client.query("SELECT public.delete_invoice($1,$2) AS result", [f.companyA, f.invoices[10].id]));
+    return [unsafeBucket.rows[0].result, foreignPrefix.rows[0].result];
+  });
+  assert.ok(forgedCleanup.every((result) => result.ok && result.cleanup_bucket === null && result.cleanup_path === null), "untrusted bucket or another tenant's path must never be returned for physical cleanup");
+  const providerScopedCleanup = await withClient((client) => asActor(client, f.adminA, () => client.query(
+    "SELECT public.delete_invoice($1,$2) AS result", [f.companyA, f.invoices[11].id],
+  )));
+  assert.equal(providerScopedCleanup.rows[0].result.cleanup_bucket, "invoice-files");
+  assert.equal(providerScopedCleanup.rows[0].result.cleanup_path, `${f.providerA}/provider.pdf`);
+  const noAttachmentDelete = await withClient((client) => asActor(client, f.adminB, () => client.query(
+    "SELECT public.delete_invoice($1,$2) AS result", [f.companyB, f.invoiceB.id],
+  )));
+  assert.equal(noAttachmentDelete.rows[0].result.ok, true);
+  assert.equal(noAttachmentDelete.rows[0].result.cleanup_bucket, null);
+  assert.equal(noAttachmentDelete.rows[0].result.cleanup_path, null);
+  checks.push("delete_invoice atomically removes editable invoice graphs/audit rows with and without attachments, preserves shared attachments, returns only the final safe company/provider-scoped storage object, denies forged bucket/prefix cleanup, and duplicate physical metadata paths are blocked by the unique index");
 
   // Two different invoices race for the same 1,000-unit order item. Exactly one 800-unit allocation can commit.
   const raceResults = await Promise.all([

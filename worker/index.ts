@@ -15,6 +15,7 @@
  */
 import { config } from "dotenv";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { randomUUID } from "node:crypto";
 import { extractInvoiceFieldsFromFile } from "../lib/invoice-extraction";
 import { validateInvoiceArithmetic } from "../lib/invoice-arithmetic";
 import { insertValidatedItemMatches } from "../lib/invoice-items";
@@ -23,6 +24,7 @@ import { autoMatchInvoice } from "../lib/invoice-auto-match";
 import { matchInvoiceItemsToOrderItems } from "../lib/invoice-item-match";
 import { logAudit } from "../lib/audit";
 import { sanitizeFileName } from "../lib/storage";
+import { finishInvoiceJobLease, invoiceJobCreationDisposition, invoiceJobMatchingOutcome } from "../lib/invoice-job-worker";
 
 // Local: toma las credenciales de .env.local. En Railway vienen de las env vars
 // del servicio y esto es no-op.
@@ -66,25 +68,36 @@ process.on("SIGINT", () => { stopping = true; });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const log = (...a: unknown[]) => console.log(new Date().toISOString(), ...a);
 
-async function finish(jobId: string, patch: Record<string, unknown>) {
-  const { data, error } = await db.from("invoice_jobs")
-    .update({ locked_at: null, ...patch })
-    .eq("id", jobId)
-    .select("id")
-    .maybeSingle();
-  if (error) throw new Error(`No se pudo guardar el estado del job ${jobId}: ${error.message}`);
-  if (!data) throw new Error(`El job ${jobId} desapareció antes de guardar su estado.`);
+function isOwnedInboxObject(job: InvoiceJob) {
+  const prefix = `${job.empresa_id}/inbox/`;
+  const tail = job.storage_path.slice(prefix.length);
+  return job.storage_bucket === "invoice-files" && job.storage_path.startsWith(prefix)
+    && tail.length > 0 && !tail.includes("..") && !tail.includes("\\") && !tail.includes("//");
+}
+
+async function finish(jobId: string, expectedAttempts: number, expectedInvoiceId: string | null, patch: Record<string, unknown>) {
+  const result = await finishInvoiceJobLease(db, { id: jobId, attempts: expectedAttempts, invoice_id: expectedInvoiceId }, patch);
+  if (result.error) throw new Error(`No se pudo guardar el estado del job ${jobId}: ${result.error}`);
+  if (!result.updated) throw new Error(`El job ${jobId} perdió su lease o cambió de factura; no se sobrescribió el estado más reciente.`);
 }
 
 async function processJob(job: InvoiceJob) {
   log(`job ${job.id} — ${job.file_name} (intento ${job.attempts})`);
 
   if (job.invoice_id) {
-    return finish(job.id, {
+    return finish(job.id, job.attempts, job.invoice_id ?? null, {
       status: "needs_review",
       outcome: "needs_manual",
       error: "El job ya referencia una factura creada; no se volverá a procesar como una factura nueva.",
       message: "Este job ya creó una factura. Revisá la factura existente antes de continuar.",
+    });
+  }
+  if (!isOwnedInboxObject(job)) {
+    return finish(job.id, job.attempts, null, {
+      status: "needs_review",
+      outcome: "needs_manual",
+      error: "La ruta del archivo no pertenece a la bandeja de esta empresa.",
+      message: "El archivo no se procesó porque su ubicación no pertenece a la bandeja de esta empresa.",
     });
   }
 
@@ -92,16 +105,16 @@ async function processJob(job: InvoiceJob) {
     .from(job.storage_bucket)
     .download(job.storage_path);
   if (dlError || !blob) {
-    return finish(job.id, { status: "failed", error: `No se pudo bajar el archivo: ${dlError?.message ?? "?"}` });
+    return finish(job.id, job.attempts, job.invoice_id ?? null, { status: "failed", error: `No se pudo bajar el archivo: ${dlError?.message ?? "?"}` });
   }
   const bytes = Buffer.from(await blob.arrayBuffer());
 
   const { data: parsed, error: extractError } = await extractInvoiceFieldsFromFile(bytes, job.mime_type);
   if (extractError || !parsed) {
     if (job.attempts < MAX_ATTEMPTS) {
-      return finish(job.id, { status: "queued", error: extractError ?? "Lectura fallida" });
+      return finish(job.id, job.attempts, job.invoice_id ?? null, { status: "queued", error: extractError ?? "Lectura fallida" });
     }
-    return finish(job.id, {
+    return finish(job.id, job.attempts, job.invoice_id ?? null, {
       status: "needs_review",
       outcome: "needs_manual",
       error: extractError ?? "No se pudo leer la factura",
@@ -118,7 +131,7 @@ async function processJob(job: InvoiceJob) {
       : !parsed.invoice_number
         ? "Número de factura no legible."
         : "Monto no legible.";
-    return finish(job.id, {
+    return finish(job.id, job.attempts, job.invoice_id ?? null, {
       status: "needs_review",
       outcome: "needs_manual",
       extracted: parsed,
@@ -131,7 +144,7 @@ async function processJob(job: InvoiceJob) {
   // avanza silenciosamente; queda en revisión con el motivo explícito.
   const arithmetic = validateInvoiceArithmetic(parsed);
   if (arithmetic.status !== "VALIDA") {
-    return finish(job.id, {
+    return finish(job.id, job.attempts, job.invoice_id ?? null, {
       status: "needs_review",
       outcome: "needs_manual",
       extracted: { ...parsed, validation: arithmetic },
@@ -141,10 +154,16 @@ async function processJob(job: InvoiceJob) {
   }
 
   // Adjunto: copiar el archivo del inbox a su ubicación definitiva por proveedor.
-  const finalPath = `${provider.id}/${Date.now()}-${sanitizeFileName(job.file_name)}`;
-  await db.storage.from("invoice-files").copy(job.storage_path, finalPath);
+  const finalPath = `${provider.id}/${randomUUID()}-${sanitizeFileName(job.file_name)}`;
+  const { error: copyError } = await db.storage.from("invoice-files").copy(job.storage_path, finalPath);
+  if (copyError) {
+    return finish(job.id, job.attempts, null, {
+      status: "needs_review", outcome: "needs_manual", extracted: parsed, provider_id: provider.id,
+      error: copyError.message, message: "No se pudo preparar el archivo adjunto; el original se conservó para revisión.",
+    });
+  }
 
-  const { data: attachment } = await db
+  const { data: attachment, error: attachmentError } = await db
     .from("attachments")
     .insert({
       empresa_id: job.empresa_id,
@@ -157,11 +176,32 @@ async function processJob(job: InvoiceJob) {
     })
     .select("id")
     .single();
+  if (attachmentError || !attachment) {
+    let cleanupWarning: string | null = null;
+    if (attachmentError?.code && /^[0-9A-Z]{5}$/.test(attachmentError.code)) {
+      try {
+        const { error: cleanupError } = await db.storage.from("invoice-files").remove([finalPath]);
+        cleanupWarning = cleanupError?.message ?? null;
+      } catch (error) {
+        cleanupWarning = (error as Error).message;
+      }
+    }
+    return finish(job.id, job.attempts, null, {
+      status: "needs_review", outcome: "needs_manual", extracted: parsed, provider_id: provider.id,
+      error: attachmentError?.message ?? "No se registró el adjunto.",
+      message: cleanupWarning
+        ? "No se pudo registrar el archivo adjunto; el original se conservó para revisión y la copia requiere limpieza."
+        : !attachmentError || !attachmentError.code
+        ? "No se pudo confirmar el registro del archivo adjunto; no se borró la copia por seguridad y el job requiere revisión."
+        : "No se pudo registrar el archivo adjunto; el original se conservó para revisión.",
+    });
+  }
 
-  const { data: invoice, error: invoiceError } = await db
-    .from("invoices")
-    .insert({
-      empresa_id: job.empresa_id,
+  const { data: createResult, error: invoiceError } = await db.rpc("create_invoice_from_job", {
+    p_empresa_id: job.empresa_id,
+    p_job_id: job.id,
+    p_expected_attempts: job.attempts,
+    p_invoice: {
       provider_id: provider.id,
       invoice_number: parsed.invoice_number,
       invoice_date: parsed.invoice_date ?? job.batch_date,
@@ -171,47 +211,34 @@ async function processJob(job: InvoiceJob) {
       total: parsed.total,
       timbrado: parsed.timbrado,
       attachment_id: attachment?.id ?? null,
-      created_by: job.created_by,
-    })
-    .select("id")
-    .single();
-
-  if (invoiceError || !invoice) {
-    const dup = invoiceError?.code === "23505";
-    return finish(job.id, {
-      status: "needs_review",
-      outcome: dup ? "duplicate" : "error",
-      extracted: parsed,
-      provider_id: provider.id,
-      error: invoiceError?.message,
-      message: dup ? `Ya existe una factura con ese número para ${providerName}.` : (invoiceError?.message ?? "No se pudo crear la factura."),
-    });
-  }
-
-  // Checkpoint the generated invoice reference before doing more work. Stale
-  // recovery protects jobs after this write; a crash between invoice INSERT
-  // and this checkpoint still needs manual reconciliation.
-  job.invoice_id = invoice.id as string;
-  const { data: linkedJob, error: linkJobError } = await db.from("invoice_jobs")
-    .update({ invoice_id: job.invoice_id })
-    .eq("id", job.id)
-    .eq("status", "processing")
-    .is("invoice_id", null)
-    .select("id")
-    .maybeSingle();
-  if (linkJobError || !linkedJob) {
-    const message = linkJobError?.message ?? "El job cambió antes de guardar la referencia de la factura creada.";
-    await logAudit(db, { action: "invoice.job_reference_failed", invoiceId: invoice.id, detail: { error: message, job_id: job.id } });
-    return finish(job.id, {
+    },
+  });
+  const creation = invoiceJobCreationDisposition(createResult, invoiceError);
+  if (creation.kind === "existing") {
+    job.invoice_id = creation.invoiceId;
+    return finish(job.id, job.attempts, job.invoice_id, {
       status: "needs_review",
       outcome: "needs_manual",
       invoice_id: job.invoice_id,
-      error: message,
-      message: "La factura se creó, pero el job no pudo registrar su referencia. Revisá manualmente antes de continuar.",
+      extracted: parsed,
+      provider_id: provider.id,
+      message: "Este job ya creó una factura. Se conservó la referencia existente y no se duplicaron líneas ni conciliaciones.",
+    });
+  }
+  if (creation.kind === "failed") {
+    return finish(job.id, job.attempts, job.invoice_id ?? null, {
+      status: "needs_review",
+      outcome: creation.duplicateNumber ? "duplicate" : "error",
+      extracted: parsed,
+      provider_id: provider.id,
+      error: creation.error,
+      message: creation.duplicateNumber ? `Ya existe una factura con ese número para ${providerName}.` : (creation.error ?? "No se pudo crear la factura."),
     });
   }
 
-  await logAudit(db, { action: "invoice.created", invoiceId: invoice.id, detail: { source: "bulk_worker" } });
+  // The RPC inserts the invoice and checkpoints invoice_jobs.invoice_id in one transaction.
+  const invoice = { id: creation.invoiceId };
+  job.invoice_id = invoice.id;
 
   // Guardar líneas de detalle extraídas por el AI.
   const invoiceItemIds: { id: string; idx: number }[] = [];
@@ -266,14 +293,18 @@ async function processJob(job: InvoiceJob) {
   // validado que la vía del diálogo (vínculo de cabecera, tope documentado,
   // remanente, duplicados): lo que excede queda pendiente, nunca se contabiliza.
   let itemMatchError: string | null = null;
+  let itemMatchPending = 0;
+  let itemMatchSkipped = 0;
   if (!itemSaveError && matchedOrderId && invoiceItemIds.length > 0) {
-    const { data: orderItems } = await db
+    const { data: orderItems, error: orderItemsError } = await db
       .from("authorized_order_items")
       .select("id, product, quantity, unit, quantity_invoiced")
       .eq("order_id", matchedOrderId)
       .order("sort_order");
 
-    if (orderItems && orderItems.length > 0) {
+    if (orderItemsError) {
+      itemMatchError = orderItemsError.message;
+    } else if (orderItems && orderItems.length > 0) {
       const invoiceItemsForMatch = invoiceItemIds.map(({ id, idx }) => ({
         id,
         description: parsed.items[idx].description,
@@ -292,16 +323,19 @@ async function processJob(job: InvoiceJob) {
         invoiceItemsForMatch
       );
 
+      const proposals = itemMatches.map((m) => ({
+        invoiceItemId: m.invoice_item_id,
+        orderItemId: m.order_item_id,
+        quantityMatched: m.quantity_matched,
+      }));
       const validated = await insertValidatedItemMatches(db, {
         empresaId: job.empresa_id,
         invoiceId: invoice.id as string,
         expectedOrderId: matchedOrderId,
-        proposals: itemMatches.map((m) => ({
-          invoiceItemId: m.invoice_item_id,
-          orderItemId: m.order_item_id,
-          quantityMatched: m.quantity_matched,
-        })),
+        proposals,
       });
+      itemMatchSkipped = validated.skippedNoLink + validated.skippedOverDocumented
+        + validated.skippedOverRemaining + validated.skippedDuplicate + validated.skippedMismatch;
       if (validated.error) {
         itemMatchError = validated.error;
         await logAudit(db, {
@@ -310,23 +344,54 @@ async function processJob(job: InvoiceJob) {
           detail: { error: validated.error, source: "bulk_worker" },
         });
       }
+      if (!validated.error) {
+        const { data: persisted, error: persistedError } = await db.from("invoice_item_matches")
+          .select("invoice_item_id, quantity_matched")
+          .eq("empresa_id", job.empresa_id)
+          .in("invoice_item_id", invoiceItemIds.map(({ id }) => id));
+        if (persistedError) itemMatchError = `No se pudo verificar el resultado de conciliación: ${persistedError.message}`;
+        else {
+          const matchedByLine = new Map<string, number>();
+          for (const match of persisted ?? []) {
+            const lineId = match.invoice_item_id as string;
+            matchedByLine.set(lineId, (matchedByLine.get(lineId) ?? 0) + Number(match.quantity_matched));
+          }
+          for (const { id, idx } of invoiceItemIds) {
+            const documented = Number(parsed.items[idx].quantity);
+            if (!Number.isFinite(documented) || documented <= 0
+              || (matchedByLine.get(id) ?? 0) + 1e-9 < documented) itemMatchPending++;
+          }
+        }
+      }
+    } else {
+      itemMatchPending = invoiceItemIds.length;
     }
   }
 
-  return finish(job.id, {
-    status: itemSaveError || itemMatchError ? "needs_review" : "done",
-    outcome: itemSaveError || itemMatchError ? "needs_manual" : matchedOrderId ? "matched" : "created_unmatched",
+  if (itemMatchPending > 0 || itemMatchSkipped > 0) {
+    await logAudit(db, {
+      action: "invoice.item_match_pending",
+      invoiceId: invoice.id as string,
+      detail: { pending_lines: itemMatchPending, skipped_proposals: itemMatchSkipped, source: "bulk_worker" },
+    });
+  }
+
+  const matchingOutcome = invoiceJobMatchingOutcome({
+    lineSaveError: itemSaveError,
+    matchError: itemMatchError,
+    pendingLines: itemMatchPending,
+    skippedProposals: itemMatchSkipped,
+    matchedOrderId,
+    lineCount: invoiceItemIds.length,
+  });
+  return finish(job.id, job.attempts, job.invoice_id ?? null, {
+    status: matchingOutcome.status,
+    outcome: matchingOutcome.outcome,
     extracted: parsed,
     provider_id: provider.id,
     invoice_id: invoice.id,
     error: itemSaveError ?? itemMatchError,
-    message: itemSaveError
-      ? "La factura se creó, pero no se pudieron guardar todas sus líneas. Revisá manualmente antes de conciliar."
-      : itemMatchError
-      ? "La factura se creó, pero falló una imputación de línea. Revisá las imputaciones antes de aprobar el pago."
-      : matchedOrderId
-      ? "Conciliada automáticamente."
-      : "Cargada, pero ninguna orden pendiente coincide — vinculala a mano.",
+    message: matchingOutcome.message,
   });
 }
 
@@ -364,7 +429,7 @@ async function main() {
     } catch (e) {
       log(`job ${job.id} throw:`, (e as Error).message);
       try {
-        await finish(job.id, job.invoice_id
+        await finish(job.id, job.attempts, job.invoice_id ?? null, job.invoice_id
           ? {
               status: "needs_review",
               outcome: "needs_manual",

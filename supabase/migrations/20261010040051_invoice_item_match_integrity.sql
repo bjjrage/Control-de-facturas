@@ -989,9 +989,10 @@ DECLARE
   v_attachment_id uuid;
   v_cleanup_bucket text;
   v_cleanup_path text;
-  v_attachment record;
+  v_attachment public.attachments;
   v_op record;
   v_locked_ops uuid[] := ARRAY[]::uuid[];
+  v_owned_path boolean := false;
 BEGIN
   PERFORM private.b11_require_financial_actor(p_empresa_id);
   IF auth.role() IS DISTINCT FROM 'service_role'
@@ -1031,7 +1032,7 @@ BEGIN
   -- attachments remain present, and the caller removes Storage only if this
   -- transaction reports that it actually deleted the metadata row.
   IF v_attachment_id IS NOT NULL THEN
-    SELECT a.id,a.bucket,a.path INTO v_attachment
+    SELECT a.* INTO v_attachment
     FROM public.attachments a
     WHERE a.id=v_attachment_id AND a.empresa_id=p_empresa_id
     FOR UPDATE;
@@ -1083,6 +1084,30 @@ BEGIN
       v_cleanup_bucket := NULL;
       v_cleanup_path := NULL;
     END;
+    IF v_cleanup_bucket IS NOT NULL THEN
+      v_owned_path := v_cleanup_bucket='invoice-files'
+        AND pg_catalog.strpos(v_cleanup_path,pg_catalog.chr(92))=0
+        AND NOT EXISTS (
+          SELECT 1
+          FROM pg_catalog.unnest(pg_catalog.string_to_array(v_cleanup_path,'/')) AS path_segment(part)
+          WHERE path_segment.part IN ('','.','..')
+        )
+        AND (
+          pg_catalog.split_part(v_cleanup_path,'/',1)=p_empresa_id::text
+          OR EXISTS (
+            SELECT 1 FROM public.providers p
+            WHERE p.empresa_id=p_empresa_id
+              AND p.id::text=pg_catalog.split_part(v_cleanup_path,'/',1)
+          )
+        );
+      IF NOT v_owned_path OR EXISTS (
+        SELECT 1 FROM public.attachments a
+        WHERE a.bucket=v_cleanup_bucket AND a.path=v_cleanup_path
+      ) THEN
+        v_cleanup_bucket := NULL;
+        v_cleanup_path := NULL;
+      END IF;
+    END IF;
   END IF;
 
   RETURN jsonb_build_object('ok',true,'attachment_id',v_attachment_id,

@@ -43,9 +43,10 @@ test.beforeAll(async () => {
 test.afterAll(async () => { await db?.end(); });
 
 async function quantities() {
-  return (await db.query(`SELECT oi.quantity_invoiced::text AS invoiced,l.quantity::text AS documented,l.unit,
+  const state = (await db.query(`SELECT oi.quantity_invoiced::text AS invoiced,l.quantity::text AS documented,l.unit,
     (SELECT count(*)::int FROM public.invoice_item_matches WHERE invoice_item_id=l.id) AS matches
     FROM public.authorized_order_items oi CROSS JOIN public.invoice_items l WHERE oi.id=$1 AND l.id=$2`, [ids.orderLine, ids.line])).rows[0];
+  return { ...state, documented: Number(state.documented), invoiced: Number(state.invoiced) };
 }
 
 test("browser actions preserve quantities, roll back invalid corrections and unlink atomically", async ({ page }) => {
@@ -64,14 +65,14 @@ test("browser actions preserve quantities, roll back invalid corrections and unl
     await dialog.locator('input[type="number"]').fill("2500");
     await dialog.getByRole("button", { name: "Confirmar imputación", exact: true }).click();
     await expect(dialog).not.toBeVisible();
-    await expect.poll(async () => (await quantities()).invoiced).toBe("2500.00");
+    await expect.poll(async () => (await quantities()).invoiced).toBe(2500);
     await expect(page.getByRole("button", { name: /^Quitar imputación / })).toBeVisible();
   };
   await impute();
-  expect(await quantities()).toMatchObject({ documented: "2500.00", matches: 1 });
+  expect(await quantities()).toMatchObject({ documented: 2500, matches: 1 });
   await page.getByRole("button", { name: /^Quitar imputación / }).click();
   await expect.poll(async () => (await quantities()).matches).toBe(0);
-  expect((await quantities()).invoiced).toBe("0.00");
+  expect((await quantities()).invoiced).toBe(0);
   await impute();
 
   await page.getByRole("button", { name: "Corregir", exact: true }).click();
@@ -79,7 +80,7 @@ test("browser actions preserve quantities, roll back invalid corrections and unl
   await dialog.locator('input[type="number"]').first().fill("2000");
   await dialog.getByRole("button", { name: "Guardar corrección", exact: true }).click();
   await expect(dialog.getByText(/sobre.imputada|quitá imputaciones/)).toBeVisible();
-  expect(await quantities()).toMatchObject({ documented: "2500.00", invoiced: "2500.00", matches: 1 });
+  expect(await quantities()).toMatchObject({ documented: 2500, invoiced: 2500, matches: 1 });
   await page.keyboard.press("Escape");
   await page.reload();
 
@@ -89,7 +90,7 @@ test("browser actions preserve quantities, roll back invalid corrections and unl
   await dialog.locator('input:not([type="number"])').nth(1).fill("kg");
   await dialog.getByRole("button", { name: "Guardar corrección", exact: true }).click();
   await expect.poll(async () => (await quantities()).matches).toBe(0);
-  expect(await quantities()).toMatchObject({ unit: "kg", invoiced: "0.00", documented: "2500.00" });
+  expect(await quantities()).toMatchObject({ unit: "kg", invoiced: 0, documented: 2500 });
   await page.keyboard.press("Escape");
   await page.reload();
   await expect(page.getByText("Sin conciliar", { exact: true })).toBeVisible();
@@ -106,7 +107,7 @@ test("browser actions preserve quantities, roll back invalid corrections and unl
 
   await page.getByRole("button", { name: "Desvincular", exact: true }).click();
   await expect(page.getByRole("button", { name: "Desvincular", exact: true })).not.toBeVisible();
-  expect(await quantities()).toMatchObject({ invoiced: "0.00", matches: 0 });
+  expect(await quantities()).toMatchObject({ invoiced: 0, matches: 0 });
   expect((await db.query("SELECT count(*)::int AS n FROM public.invoice_order_matches WHERE invoice_id=$1", [ids.invoice])).rows[0].n).toBe(0);
   const audits = (await db.query("SELECT action,empresa_id FROM public.audit_logs WHERE invoice_id=$1", [ids.invoice])).rows;
   expect(audits.some((a) => a.action === "invoice.item_matched")).toBe(true);

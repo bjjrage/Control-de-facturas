@@ -90,6 +90,8 @@ jobs:
             'app/(internal)/invoices/**/*.tsx' \
             'lib/__tests__/b11-delete-invoice.spec.ts' \
             'lib/__tests__/b11-unmatch-action.spec.ts' \
+            'lib/__tests__/invoice-job-worker.spec.ts' \
+            'lib/invoice-job-worker.ts' \
             'lib/invoice-items.ts' \
             'lib/schedule/__tests__/schedule-import.spec.ts' \
             'playwright.config.ts' \
