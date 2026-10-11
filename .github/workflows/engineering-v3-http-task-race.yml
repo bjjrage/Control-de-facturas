@@ -1,0 +1,83 @@
+name: Engineering V3 - live JWT PostgREST and task race (frozen SHA)
+on:
+  push:
+    branches: [audit/engineering-v3-bootstrap]
+    paths:
+      - ".github/workflows/engineering-v3-http-task-race.yml"
+      - "audit/v3-http-task-race/**"
+permissions:
+  contents: read
+jobs:
+  v3-auth-and-state:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 80
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+    steps:
+      - name: Checkout audit-only scripts
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          path: audit-src
+          persist-credentials: false
+      - name: Checkout immutable ERP code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: 953ebba505b38313bd3e18e6cb9fbf31b7e1eb89
+          path: frozen-src
+          persist-credentials: false
+      - name: Frozen SHA and security preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git -C frozen-src rev-parse HEAD)" == "953ebba505b38313bd3e18e6cb9fbf31b7e1eb89" ]]
+          [[ "$(git -C frozen-src rev-parse HEAD^{tree})" == "a91c8c54dd9d80b7f63a86015eff2e516b21b98f" ]]
+          if env | grep -Eq '^(DATABASE_URL|DIRECT_URL|SUPABASE_URL|SUPABASE_SERVICE_ROLE_KEY|NEXT_PUBLIC_SUPABASE_URL|NEXT_PUBLIC_SUPABASE_ANON_KEY)='; then
+            echo 'Non-isolated configuration refused' >&2
+            exit 1
+          fi
+          mkdir -p evidence-v3 frozen-src/audit/v3-http-task-race
+          cp audit-src/audit/v3-http-task-race/authorization-and-race.mjs frozen-src/audit/v3-http-task-race/
+          printf 'source_sha=953ebba505b38313bd3e18e6cb9fbf31b7e1eb89\nsource_tree=a91c8c54dd9d80b7f63a86015eff2e516b21b98f\n' > evidence-v3/identity.txt
+      - name: Block container egress before database operations
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash audit-src/audit/v3-bootstrap/docker_egress_guard.sh "$GITHUB_WORKSPACE/evidence-v3"
+      - name: Setup Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Install frozen node dependencies
+        working-directory: frozen-src
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Supabase CLI 2.114.0
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.114.0
+      - name: Rebuild isolated PostgreSQL 17 / local Supabase services
+        working-directory: frozen-src
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start
+          supabase db reset --local --no-seed
+          psql "$TEST_DATABASE_URL" -Atc "select current_setting('server_version_num')" > "$GITHUB_WORKSPACE/evidence-v3/pg-version.txt"
+      - name: Run GoTrue-issued JWT, PostgREST and two-session PostgreSQL adversarial probes
+        working-directory: frozen-src
+        shell: bash
+        run: |
+          set -o pipefail
+          node audit/v3-http-task-race/authorization-and-race.mjs 2>&1 | tee "$GITHUB_WORKSPACE/evidence-v3/runner.log"
+      - name: Stop isolated Supabase (discard data)
+        if: always()
+        working-directory: frozen-src
+        shell: bash
+        run: supabase stop --no-backup || true
+      - name: Publish audit evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: SENTINEL-V3-AUTH-HTTP-TASK-RACE
+          path: evidence-v3/
+          if-no-files-found: warn
+          retention-days: 30
