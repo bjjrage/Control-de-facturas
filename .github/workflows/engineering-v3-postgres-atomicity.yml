@@ -1,0 +1,82 @@
+name: Engineering V3 - PostgreSQL financial race reproduction
+on:
+  push:
+    branches: [audit/engineering-v3-bootstrap]
+    paths:
+      - ".github/workflows/engineering-v3-postgres-atomicity.yml"
+      - "audit/v3-postgres/**"
+permissions:
+  contents: read
+jobs:
+  postgres-reproduction:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+    steps:
+      - name: Checkout audit-only scripts
+        uses: actions/checkout@v4
+        with:
+          path: audit-src
+          persist-credentials: false
+      - name: Checkout frozen ERP SHA
+        uses: actions/checkout@v4
+        with:
+          ref: 953ebba505b38313bd3e18e6cb9fbf31b7e1eb89
+          path: frozen-src
+          persist-credentials: false
+      - name: Check source and refuse production variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git -C frozen-src rev-parse HEAD)" == "953ebba505b38313bd3e18e6cb9fbf31b7e1eb89" ]]
+          [[ "$(git -C frozen-src rev-parse HEAD^{tree})" == "a91c8c54dd9d80b7f63a86015eff2e516b21b98f" ]]
+          if env | grep -Eq '^(DATABASE_URL|SUPABASE_URL|SUPABASE_SERVICE_ROLE_KEY|DIRECT_URL|NEXT_PUBLIC_SUPABASE_URL)='; then
+            echo 'Production-capable env refused' >&2
+            exit 1
+          fi
+          mkdir -p evidence-v3 frozen-src/audit/v3-postgres
+          cp audit-src/audit/v3-postgres/financial-atomicity.ts frozen-src/audit/v3-postgres/financial-atomicity.ts
+          echo 'frozen_sha=953ebba505b38313bd3e18e6cb9fbf31b7e1eb89' > evidence-v3/identity.txt
+      - name: Apply Docker egress guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash audit-src/audit/v3-bootstrap/docker_egress_guard.sh "$GITHUB_WORKSPACE/evidence-v3"
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install frozen dependencies
+        working-directory: frozen-src
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Supabase local CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.114.0
+      - name: Start disposable Supabase and apply all migrations
+        working-directory: frozen-src
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start
+          supabase db reset --local --no-seed
+          psql "$TEST_DATABASE_URL" -Atc "SELECT current_setting('server_version_num')" > "$GITHUB_WORKSPACE/evidence-v3/pg-version.txt"
+      - name: Execute real PostgreSQL adversarial repro
+        working-directory: frozen-src
+        shell: bash
+        run: |
+          set -o pipefail
+          npx tsx audit/v3-postgres/financial-atomicity.ts 2>&1 | tee "$GITHUB_WORKSPACE/evidence-v3/results.log"
+      - name: Stop disposable Supabase
+        if: always()
+        working-directory: frozen-src
+        run: supabase stop --no-backup || true
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AUDIT-V3-POSTGRES-ATOMICITY
+          path: evidence-v3/
+          retention-days: 30
+          if-no-files-found: warn
