@@ -1,5 +1,6 @@
 ﻿"use server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { revalidatePath } from "next/cache";
 import {
   resolveSupplierInvitation,
   submitOfferForm,
@@ -7,6 +8,8 @@ import {
 export async function submitMultiItemQuote(token: string, formData: FormData) {
   try {
     const result = await submitOfferForm(createAdminClient(), token, formData);
+    revalidatePath("/rfqs");
+    revalidatePath("/rfqs/[id]", "page");
     return { error: null, ...result };
   } catch (e) {
     return {

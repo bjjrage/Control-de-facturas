@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveSupplierInvitation } from "@/lib/rfq/offer-submission";
 import { MultiItemQuoteForm } from "./multi-item-quote-form";
 import { markOpened } from "./actions";
+import { formatDateTime } from "@/lib/format";
 export const dynamic = "force-dynamic";
 export default async function CotizarPage({
   params,
@@ -47,7 +48,7 @@ export default async function CotizarPage({
       <p>{rp.rfqs.specifications}</p>
       {rp.rfqs.mostrar_cliente_al_proveedor && <p>{rp.rfqs.client_name}</p>}
       <p>
-        Link válido hasta {rp.token_expires_at ?? rp.rfqs.expires_at}. Una
+        Link válido hasta {formatDateTime(rp.token_expires_at ?? rp.rfqs.expires_at)}. Una
         oferta no implica adjudicación ni una orden de compra.
       </p>
       {files.map((f, i) =>
@@ -70,8 +71,8 @@ export default async function CotizarPage({
         />
       ) : (
         <p>
-          Solicitud histórica sin ítems estructurados. Contactá al comprador
-          para recibir una nueva solicitud.
+          Solicitud histórica sin ítems estructurados. Su documento y sus datos se conservan;
+          contactá al comprador para revisar este caso.
         </p>
       )}
     </main>

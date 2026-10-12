@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { formatDateTime } from "@/lib/format";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
@@ -25,6 +26,7 @@ import {
   saveAllocationAction,
 } from "./workflow-actions";
 import { setProjectCostPriceAction } from "@/app/(internal)/projects/[id]/costeo-actions";
+import type { QuoteDocumentAnalysisResult } from "@/lib/rfq/document-analysis";
 
 export function RfqWorkspace({
   rfqId,
@@ -32,6 +34,7 @@ export function RfqWorkspace({
   projectId,
   items,
   offers,
+  analyses,
   allocations,
   canAdopt,
 }: {
@@ -40,6 +43,7 @@ export function RfqWorkspace({
   projectId: string | null;
   items: RfqItem[];
   offers: ComparativeLine[];
+  analyses: Record<string, QuoteDocumentAnalysisResult>;
   allocations: RfqAllocation[];
   canAdopt: boolean;
 }) {
@@ -74,6 +78,7 @@ export function RfqWorkspace({
         scenarios: proposeAllocations(items, offers, {
           weights,
           termScores: Object.keys(terms).length ? terms : undefined,
+          preliminary: true,
         }),
         error: null,
       };
@@ -167,7 +172,7 @@ export function RfqWorkspace({
                   <br />
                   {o.observations}
                   <br />
-                  {o.valid_until ?? "Sin vigencia verificable"}
+                  {o.valid_until ? formatDateTime(o.valid_until) : "Sin vigencia verificable"}
                   {o.revoked && <strong> Revocada</strong>}
                 </td>
                 <td>
@@ -186,7 +191,7 @@ export function RfqWorkspace({
                   {o.review_resolution && <p>Resolución humana: {o.review_resolution}</p>}
                   {canAdopt &&
                     o.currency === "PYG" &&
-                    eligibleLine(o, Date.now(), false) &&
+                    eligibleLine(o, undefined, false) &&
                     projectId &&
                     items.find((i) => i.id === o.rfq_item_id)?.producto_id && (
                       <Button
@@ -224,12 +229,13 @@ export function RfqWorkspace({
           versionId={version}
           items={items}
           offers={offers.filter((o) => o.quote_version_id === version)}
+          initialAnalysis={analyses[version]}
         />
       ))}
       {purpose === null ? (
         <p>
-          RFQ histórica con propósito sin definir. No se puede generar OC. Creá
-          una solicitud nueva eligiendo explícitamente el propósito.
+          RFQ histórica con propósito sin definir. Sus datos y documentos se conservan.
+          No se puede generar OC sin resolver explícitamente su propósito; no se infiere ni se modifica el histórico.
         </p>
       ) : purpose === "COST_DISCOVERY" ? (
         <div className="rounded border p-4">
@@ -582,20 +588,22 @@ function QuoteReview({
   versionId,
   items,
   offers,
+  initialAnalysis,
 }: {
   rfqId: string;
   versionId: string;
   items: RfqItem[];
   offers: ComparativeLine[];
+  initialAnalysis: QuoteDocumentAnalysisResult | undefined;
 }) {
   const router = useRouter();
   const [extraction, setExtraction] =
     useState<Awaited<ReturnType<typeof extractQuoteDocumentAction>>["data"]>(
-      null,
+      initialAnalysis?.data ?? null,
     );
-  const [facts, setFacts] = useState<DocumentFact[]>([]);
+  const [facts, setFacts] = useState<DocumentFact[]>(initialAnalysis?.data?.facts ?? []);
   const [resolution, setResolution] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(initialAnalysis?.error ?? "");
   const [pending, setPending] = useState(false);
   return (
     <details className="border rounded p-3">
@@ -607,7 +615,7 @@ function QuoteReview({
         El documento y la oferta se conservan. Diferencias o campos no extraídos
         requieren revisión humana; no se corrigen precios automáticamente.
       </p>
-      <Button
+      {!extraction && <Button
         disabled={pending}
         onClick={async () => {
           setPending(true);
@@ -618,13 +626,15 @@ function QuoteReview({
               setFacts(r.data.facts);
             }
             setMessage(r.error ?? "Documento extraído; revisá las diferencias");
+          } catch (e) {
+            setMessage(e instanceof Error ? e.message : "No se pudo analizar el documento");
           } finally {
             setPending(false);
           }
         }}
       >
-        Extraer y comparar documento
-      </Button>
+        Reintentar análisis del documento
+      </Button>}
       {extraction && (
         <>
           <pre className="whitespace-pre-wrap max-h-64 overflow-auto">
@@ -641,7 +651,7 @@ function QuoteReview({
                       .join("\n")}`,
                 )
                 .join("\n") ??
-              "Documento visual: abrir original y transcribir manualmente"}
+              "El lector no pudo extraer datos de este documento; requiere revisión del original"}
           </pre>
           <p>{extraction.extraction.warnings.join(" · ")}</p>
           {extraction.comparison.map((d, i) => (
@@ -652,8 +662,9 @@ function QuoteReview({
             </p>
           ))}
           <p>
-            Transcripción humana del documento (campos vacíos conservan ausencia
-            de evidencia):
+            Datos extraídos automáticamente. Revisá las diferencias y completá
+            solamente las excepciones verificables en el original. Los campos
+            vacíos conservan ausencia de evidencia:
           </p>
           {offers.map((o) => (
             <div key={o.id} className="grid grid-cols-3 gap-2 border p-2">
@@ -743,6 +754,8 @@ function QuoteReview({
                   r.error ?? "Revisión registrada sin modificar la oferta",
                 );
                 if (!r.error) router.refresh();
+              } catch (e) {
+                setMessage(e instanceof Error ? e.message : "No se pudo registrar la revisión");
               } finally {
                 setPending(false);
               }

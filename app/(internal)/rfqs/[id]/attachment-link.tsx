@@ -13,20 +13,25 @@ export function AttachmentLink({
   fileName: string;
 }) {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   return (
-    <button
+    <><button
       type="button"
       disabled={loading}
       className="text-[12px] text-[var(--primary)] underline hover:no-underline disabled:opacity-50"
       onClick={async () => {
         setLoading(true);
-        const result = await getSignedAttachmentUrl(bucket, path);
-        setLoading(false);
-        if (result.url) window.open(result.url, "_blank", "noopener,noreferrer");
+        setError(null);
+        try {
+          const result = await getSignedAttachmentUrl(bucket, path);
+          if (result.error || !result.url) { setError(result.error ?? "No se pudo abrir el archivo."); return; }
+          window.open(result.url, "_blank", "noopener,noreferrer");
+        } catch (e) { setError(e instanceof Error ? e.message : "No se pudo abrir el archivo."); }
+        finally { setLoading(false); }
       }}
     >
       {loading ? "Abriendo…" : fileName}
-    </button>
+    </button>{error && <span role="alert" className="block text-[var(--error)]">{error}</span>}</>
   );
 }

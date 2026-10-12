@@ -9,11 +9,8 @@ import {
   type DocumentFact,
   type OrderPreview,
 } from "@/lib/rfq/domain";
-import { readDocumentContent } from "@/lib/documents/reader";
-import {
-  extractDocumentFacts,
-  documentFactsSchema,
-} from "@/lib/rfq/reconciliation";
+import { documentFactsSchema } from "@/lib/rfq/reconciliation";
+import { analyzeQuoteDocument } from "@/lib/rfq/document-analysis";
 import { submitOfferForm } from "@/lib/rfq/offer-submission";
 
 async function internal() {
@@ -153,26 +150,9 @@ export async function extractQuoteDocumentAction(
     const offers = workspace.offers.filter(
       (o) => o.quote_version_id === versionId,
     );
-    if (!offers.length || !offers[0].attachment_id)
-      throw new Error("Versión/documento no disponible");
-    const extraction = await readDocumentContent({
-      db: createAdminClient(),
-      empresaId: profile.empresa_id,
-      documentId: offers[0].attachment_id,
-      maxChars: 50000,
-      maxRows: 1000,
-      maxSheets: 5,
-    });
-    if (
-      extraction.warnings.some((w) =>
-        w.startsWith("Error accediendo al storage:"),
-      )
-    )
-      throw new Error(extraction.warnings.join(" · "));
-    const facts = extractDocumentFacts(extraction, workspace.items);
     return {
       error: null,
-      data: { extraction, facts, comparison: reconcileOffer(offers, facts) },
+      data: await analyzeQuoteDocument(createAdminClient(), profile.empresa_id, workspace.items, offers),
     };
   } catch (e) {
     return failure(e);

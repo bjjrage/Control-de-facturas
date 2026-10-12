@@ -101,7 +101,7 @@ export async function loadRfqWorkspace(
       .order("sort_order"),
     db
       .from("rfq_providers")
-      .select("*, providers(name, active)")
+      .select("*, providers(name, active, phone)")
       .eq("rfq_id", rfqId)
       .eq("empresa_id", empresaId),
     db
@@ -136,7 +136,7 @@ export async function loadRfqWorkspace(
         )
         .order("version_number", { ascending: false });
       assertResult(versions);
-      const current = new Map<string, Record<string, any>>();
+      const current = new Map<string, NonNullable<typeof versions.data>[number]>();
       for (const v of versions.data ?? []) {
         history.push(v);
         if (!current.has(v.quote_id)) current.set(v.quote_id, v);

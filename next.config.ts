@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["pdf-parse"],
   outputFileTracingIncludes: {
     "/rfqs/*": pdfRuntimeFiles,
+    "/cotizar/*": pdfRuntimeFiles,
     "/api/agent/chat": pdfRuntimeFiles,
   },
   experimental: {
