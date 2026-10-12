@@ -60,7 +60,7 @@ import { SubcontratistasTable } from "./subcontratistas-table";
 import { ProyectoFacturasTable } from "./proyecto-facturas-table";
 import { ProyectoPagosTable } from "./proyecto-pagos-table";
 import { ProyectoRfqsTable } from "./proyecto-rfqs-table";
-import { RfqDialog } from "@/app/(internal)/rfqs/rfq-dialog";
+import { AdministrativeRfqDialog as RfqDialog } from "@/app/(internal)/rfqs/administrative-rfq-dialog";
 import { ConsumoMaterialesSection, type ConsumoRow } from "./consumo-materiales-section";
 import { InventarioObraSection, type StockObraRow, type ConsumoCanonicoRow } from "./inventario-obra-section";
 import { RecepcionesObraSection, type RecepcionRow } from "./recepciones-obra-section";

@@ -18,6 +18,7 @@ import { AddAttachmentDialog } from "./add-attachment-dialog";
 import { InternalQuoteDialog } from "./internal-quote-dialog";
 import { InviteDialog } from "./invite-dialog";
 import { RfqWorkspace } from "./rfq-workspace";
+import { AdministrativeRfqDetail } from "./administrative-rfq-detail";
 import { HumanAction } from "./human-action";
 import { cancelRfq, reopenRfq } from "./actions";
 import {
@@ -47,6 +48,9 @@ export default async function RfqDetailPage({
   if (!header) notFound();
   const data = await loadRfqWorkspace(db, profile.empresa_id, id);
   const analyses = await analyzeRfqDocuments(createAdminClient(), profile.empresa_id, data.items, data.offers);
+  if (data.rfq.purpose === "PROCUREMENT") {
+    return <AdministrativeRfqDetail params={Promise.resolve({ id })} canonical={data} analyses={analyses} />;
+  }
   const [referenceFiles, supplierFiles, orders] = await Promise.all([
     db.from("attachments").select("id,bucket,path,file_name").eq("rfq_id", id).eq("empresa_id", profile.empresa_id).eq("bucket", "rfq-attachments"),
     data.providers.length ? db.from("attachments").select("id,bucket,path,file_name,rfq_provider_id").eq("empresa_id", profile.empresa_id).in("rfq_provider_id", data.providers.map((p) => p.id)) : Promise.resolve({ data: [], error: null }),

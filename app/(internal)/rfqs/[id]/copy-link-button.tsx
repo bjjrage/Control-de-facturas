@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { Check, Copy } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export function CopyLinkButton({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <span><button
+    <span><Button
       type="button"
-      className="text-[12px] text-[var(--primary)] underline hover:no-underline"
+      variant="secondary" size="sm"
       onClick={async () => {
         setError(null);
         try {
@@ -19,7 +21,8 @@ export function CopyLinkButton({ url }: { url: string }) {
         } catch { setError("No se pudo copiar. Abrí el portal y copiá su dirección."); }
       }}
     >
+      {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
       {copied ? "Copiado" : "Copiar enlace"}
-    </button>{error && <span role="alert" className="block text-[var(--error)]">{error}</span>}</span>
+    </Button>{error && <span role="alert" className="block text-[var(--error)]">{error}</span>}</span>
   );
 }

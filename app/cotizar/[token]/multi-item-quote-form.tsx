@@ -1,9 +1,11 @@
 ﻿"use client";
 import { useRef, useState } from "react";
+import { Upload, FileCheck2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { submitMultiItemQuote } from "./actions";
+import { PaymentTermsFields } from "./payment-terms-fields";
 import { submitInternalQuoteAction } from "@/app/(internal)/rfqs/[id]/workflow-actions";
 export interface PortalRfqItem {
   id: string;
@@ -27,6 +29,8 @@ export function MultiItemQuoteForm({
   const submitting = useRef(false);
   const [values, setValues] = useState<Record<string, string>>({});
   const [analysisMessage, setAnalysisMessage] = useState("");
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState("");
   const field = (name: string) => ({
     value: values[name] ?? "",
     onChange: (event: { target: { value: string } }) => setValues((v) => ({ ...v, [name]: event.target.value })),
@@ -71,8 +75,16 @@ export function MultiItemQuoteForm({
         analiza el documento y lo contrasta con la oferta para revisión de Administración.
         Cada envío conserva el historial. Para no cotizar una línea, dejá el precio vacío y disponibilidad 0.
       </p>
-      <Label htmlFor={`quote-file-${token}`}>Documento original (PDF, foto, Excel o CSV)</Label>
-      <Input id={`quote-file-${token}`} name="attachment" type="file" accept="application/pdf,image/png,image/jpeg,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" required />
+      <div className="flex flex-wrap items-center gap-3">
+        <input ref={fileInput} id={`quote-file-${token}`} name="attachment" type="file" className="sr-only" aria-label="Documento original (PDF, foto, Excel o CSV)" accept="application/pdf,image/png,image/jpeg,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" required
+          onInvalid={e => { e.preventDefault(); setError("Adjuntá el presupuesto original antes de enviar la oferta."); }}
+          onChange={e => setFileName(e.target.files?.[0]?.name ?? "")} />
+        <Button type="button" variant="secondary" onClick={() => fileInput.current?.click()}>
+          {fileName ? <FileCheck2 size={16} aria-hidden="true" /> : <Upload size={16} aria-hidden="true" />}
+          {fileName ? "Cambiar documento" : "Subir presupuesto"}
+        </Button>
+        <span className="text-[13px] text-[var(--muted)]" role="status">{fileName || "PDF, imagen, Excel o CSV"}</span>
+      </div>
       {done && (
         <p role="status">
           Versión enviada. {analysisMessage} Podés enviar una corrección como versión nueva.
@@ -183,8 +195,7 @@ export function MultiItemQuoteForm({
       <label className="block">
         <input type="checkbox" name="invoice_available" /> Emite factura
       </label>
-      <Label>Condiciones de pago</Label>
-      <Textarea aria-label="Condiciones de pago" name="payment_terms" {...field("payment_terms")} required />
+      <PaymentTermsFields />
       <Label>Observaciones</Label>
       <Textarea aria-label="Observaciones" name="observations" {...field("observations")} />
       <Button disabled={pending || done}>

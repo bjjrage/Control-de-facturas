@@ -1,0 +1,50 @@
+.page {
+  --panel: #1b1e25;
+  --border: #3b414c;
+  --muted: #afb7c4;
+  background: #111318;
+  color: #edf0f5;
+  border: 1px solid #303640;
+  border-radius: 18px;
+  padding: 24px;
+  max-width: 1180px;
+  margin-inline: auto;
+}
+.page h1 { font-size: 26px; line-height: 1.3; }
+.page h2 { font-size: 18px; line-height: 1.4; }
+.page th { color: #b9c2d0; font-size: 12px; }
+.page td { font-size: 13px; padding-block: 14px; }
+.page tbody tr { transition: background 150ms ease; }
+.page tbody tr:hover { background: #ffffff06; }
+.page button, .page a { transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease; }
+.page :is(button, a, summary, input, textarea):focus-visible { outline: 2px solid #e5b75c; outline-offset: 3px; }
+.page summary { cursor: pointer; }
+.page summary:hover { color: #f3ca7a; }
+.progress {
+  border: 1px solid #665635;
+  border-left: 4px solid #e5b75c;
+  background: #242119;
+  border-radius: 12px;
+  padding: 20px;
+}
+.steps { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.step { border: 1px solid #4b4d51; border-radius: 20px; padding: 5px 12px; font-size: 12px; color: #bfc5ce; }
+.current { background: #e5b75c; color: #191713; border-color: #e5b75c; font-weight: 700; }
+.section { border: 1px solid #3b414c; background: #1b1e25; border-radius: 14px; padding: 20px; scroll-margin-top: 80px; }
+.sectionTitle { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; font-size: 18px; font-weight: 650; }
+.number { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 9px; background: #393e48; color: #f1ca7f; font-size: 14px; flex-shrink: 0; }
+.muted { color: #b5bdca; font-size: 13px; line-height: 1.6; }
+.notice { border-left: 3px solid #e5b75c; background: #e5b75c0c; color: #f2d393; border-radius: 6px; padding: 12px 14px; font-size: 13px; line-height: 1.6; }
+.review { border: 1px solid #515967; background: #15181e; border-radius: 10px; padding: 16px; scroll-margin-top: 80px; }
+.review > summary { font-size: 14px; font-weight: 650; padding-block: 4px; }
+.review[open] > summary { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #3b414c; }
+.reviewBody { display: grid; gap: 16px; }
+.reviewBody pre { background: #0f1116; padding: 14px; border-radius: 8px; font-size: 12px; }
+.proposal { border: 1px solid #424a57; border-radius: 10px; background: #14171d; padding: 16px; display: grid; gap: 10px; }
+.proposal:hover { border-color: #8a7653; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+@media (max-width: 640px) {
+  .page { padding: 14px; border-radius: 12px; }
+  .section, .progress { padding: 14px; }
+  .page h1 { font-size: 22px; }
+}

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input, Label, Select } from "@/components/ui/input";
 import { formatDate } from "@/lib/format";
 import { isRfqOpen, rfqClosedReason } from "@/lib/rfq-status";
-import { RfqDialog } from "./rfq-dialog";
+import { AdministrativeRfqDialog as RfqDialog } from "./administrative-rfq-dialog";
 import { RfqsSectionData } from "./section-action";
 
 function getParam(key: string) {

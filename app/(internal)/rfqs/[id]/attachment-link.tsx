@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { getSignedAttachmentUrl } from "./actions";
+import { Button } from "@/components/ui/button";
+import { FileText } from "lucide-react";
 
 export function AttachmentLink({
   bucket,
@@ -16,10 +18,10 @@ export function AttachmentLink({
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <><button
+    <><Button
       type="button"
       disabled={loading}
-      className="text-[12px] text-[var(--primary)] underline hover:no-underline disabled:opacity-50"
+      variant="secondary" size="sm" className="max-w-full whitespace-normal text-left"
       onClick={async () => {
         setLoading(true);
         setError(null);
@@ -31,7 +33,7 @@ export function AttachmentLink({
         finally { setLoading(false); }
       }}
     >
-      {loading ? "Abriendo…" : fileName}
-    </button>{error && <span role="alert" className="block text-[var(--error)]">{error}</span>}</>
+      <FileText size={14} aria-hidden="true" className="shrink-0" /> {loading ? "Abriendo…" : fileName}
+    </Button>{error && <span role="alert" className="block text-[var(--error)]">{error}</span>}</>
   );
 }

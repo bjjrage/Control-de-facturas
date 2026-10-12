@@ -40,7 +40,7 @@ export default async function CotizarPage({
     })),
   );
   return (
-    <main className="mx-auto max-w-4xl p-6 space-y-5">
+    <main className="mx-auto my-6 max-w-4xl rounded-2xl border border-white/15 bg-[#111318] p-6 space-y-5">
       <h1 className="text-xl font-semibold">
         Solicitud {rp.rfqs.code} — {rp.providers.name}
       </h1>

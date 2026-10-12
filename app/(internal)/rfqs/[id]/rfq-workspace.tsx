@@ -27,6 +27,8 @@ import {
 } from "./workflow-actions";
 import { setProjectCostPriceAction } from "@/app/(internal)/projects/[id]/costeo-actions";
 import type { QuoteDocumentAnalysisResult } from "@/lib/rfq/document-analysis";
+import styles from "./procurement-panel.module.css";
+import { WorkflowJump } from "./workflow-jump";
 
 export function RfqWorkspace({
   rfqId,
@@ -37,6 +39,7 @@ export function RfqWorkspace({
   analyses,
   allocations,
   canAdopt,
+  administrative = false,
 }: {
   rfqId: string;
   purpose: RfqPurpose | null;
@@ -46,6 +49,7 @@ export function RfqWorkspace({
   analyses: Record<string, QuoteDocumentAnalysisResult>;
   allocations: RfqAllocation[];
   canAdopt: boolean;
+  administrative?: boolean;
 }) {
   const router = useRouter();
   const latest = allocations[0];
@@ -90,9 +94,17 @@ export function RfqWorkspace({
     }
   }, [items, offers, weights, terms]);
   const scenarios = proposalResult.scenarios;
+  function applyProposal(proposalLines: AllocationLine[]) {
+    setQuantities(Object.fromEntries(proposalLines.map(l => [l.quote_version_item_id, String(l.quantity)])));
+    setPreview(null);
+    setAuthorizationConfirmed(false);
+    setOrderConfirmed(false);
+  }
   const lines: AllocationLine[] = Object.entries(quantities)
     .filter(([, q]) => q.trim() !== "" && Number(q) !== 0)
     .map(([id, q]) => ({ quote_version_item_id: id, quantity: Number(q) }));
+  const pendingReview = offers.find(o => !o.review_id && lines.some(l => l.quote_version_item_id === o.id))
+    ?? (!lines.length && !offers.some(o => o.review_id) ? offers.find(o => !o.review_id) : undefined);
   let remaining: ReturnType<typeof validateAllocation> | null = null;
   let validation = "";
   try {
@@ -118,6 +130,7 @@ export function RfqWorkspace({
   }
   return (
     <section className="space-y-6">
+      {!administrative && <>
       <h2 className="text-lg font-semibold">
         Comparativo — señales de mercado
       </h2>
@@ -222,6 +235,10 @@ export function RfqWorkspace({
           </tbody>
         </table>
       </div>
+      </>}
+      <section className={styles.section} aria-label="Revisión documental">
+        <h2 className={styles.sectionTitle}><span className={styles.number}>1</span> Revisar presupuestos</h2>
+        <p className={`${styles.muted} mb-4`}>Revisá el análisis y confirmá las discrepancias antes de adjudicar. La oferta y el documento original se conservan.</p>
       {[...new Set(offers.map((o) => o.quote_version_id))].map((version) => (
         <QuoteReview
           key={version}
@@ -232,6 +249,7 @@ export function RfqWorkspace({
           initialAnalysis={analyses[version]}
         />
       ))}
+      </section>
       {purpose === null ? (
         <p>
           RFQ histórica con propósito sin definir. Sus datos y documentos se conservan.
@@ -247,7 +265,9 @@ export function RfqWorkspace({
         </div>
       ) : (
         <>
-          <h2 className="font-semibold">Propuestas del sistema</h2>
+          <details className={styles.section}>
+          <summary className="font-semibold text-base">Propuestas del sistema y criterios de comparación</summary>
+          <div className="space-y-4 mt-4">
           <p>
             Aplicar una propuesta solamente carga el editor. Guardar, autorizar
             y confirmar son decisiones humanas separadas.
@@ -312,7 +332,7 @@ export function RfqWorkspace({
           {proposalResult.error && <p role="alert">{proposalResult.error}</p>}
           <div className="grid gap-3 md:grid-cols-2">
             {scenarios.map((s, index) => (
-              <div key={index} className="border rounded p-3">
+              <div key={index} className={styles.proposal}>
                 <strong>
                   {s.label} — {s.currency}
                 </strong>
@@ -321,17 +341,7 @@ export function RfqWorkspace({
                   variant="secondary"
                   disabled={busy}
                   onClick={() => {
-                    setQuantities(
-                      Object.fromEntries(
-                        s.lines.map((l) => [
-                          l.quote_version_item_id,
-                          String(l.quantity),
-                        ]),
-                      ),
-                    );
-                    setPreview(null);
-                    setAuthorizationConfirmed(false);
-                    setOrderConfirmed(false);
+                    applyProposal(s.lines);
                   }}
                 >
                   Usar como propuesta editable
@@ -339,11 +349,20 @@ export function RfqWorkspace({
               </div>
             ))}
           </div>
-          <h2 className="font-semibold">Asignación humana</h2>
-          <p>
-            Podés dividir cantidades entre proveedores o dejar cantidades sin
-            asignar.
-          </p>
+          </div>
+          </details>
+          <section id="adjudication" tabIndex={-1} className={`${styles.section} space-y-4`}>
+          <h2 className={styles.sectionTitle}><span className={styles.number}>2</span> Adjudicar oferta</h2>
+          <p className={styles.muted}>Elegí un proveedor para preparar la adjudicación o repartí las cantidades entre varios. Guardar este paso todavía no autoriza ni emite una OC.</p>
+          {pendingReview && <div className={styles.notice}>
+            <p className="mb-2">Falta registrar la revisión del presupuesto de {pendingReview.provider_name}. Por eso todavía no podés guardar la adjudicación.</p>
+            <WorkflowJump targetId={`review-${pendingReview.quote_version_id}`}>Revisar presupuesto pendiente</WorkflowJump>
+          </div>}
+          {!latest?.confirmed_at && <div className={styles.actions}>
+            {scenarios.filter(s => s.kind === "ONE_SUPPLIER").map((s, index) => <Button key={index} variant="secondary" disabled={busy} onClick={() => applyProposal(s.lines)}>
+              Elegir {offers.find(o => o.id === s.lines[0]?.quote_version_item_id)?.provider_name ?? "proveedor"} · {s.currency}
+            </Button>)}
+          </div>}
           {offers.map((o) => (
             <label key={o.id} className="flex gap-3 items-center">
               {items.find((i) => i.id === o.rfq_item_id)?.descripcion} —{" "}
@@ -369,8 +388,9 @@ export function RfqWorkspace({
             </p>
           ))}
           {validation && <p role="alert">{validation}</p>}
-          <Label>Justificación humana de la asignación</Label>
+          <Label htmlFor={`allocation-reason-${rfqId}`}>Justificación de la adjudicación (mínimo 10 caracteres)</Label>
           <Textarea
+            id={`allocation-reason-${rfqId}`}
             value={justification}
             onChange={(e) => setJustification(e.target.value)}
             minLength={10}
@@ -396,10 +416,13 @@ export function RfqWorkspace({
               )
             }
           >
-            Guardar nueva revisión de asignación
+            Guardar adjudicación
           </Button>
+          {!latest?.confirmed_at && <p className={styles.muted}>{validation || (!lines.length ? "Elegí un proveedor o ingresá las cantidades a adjudicar." : justification.trim().length < 10 ? "Completá la justificación para habilitar Guardar adjudicación." : "La adjudicación está lista para guardar.")}</p>}
+          </section>
           {latest && !latest.confirmed_at && (
-            <div className="border rounded p-4 space-y-3">
+            <div id="authorization" tabIndex={-1} className={`${styles.section} space-y-4`}>
+              <h2 className={styles.sectionTitle}><span className={styles.number}>3</span> Autorizar adjudicación</h2>
               <p>
                 Revisión guardada {latest.revision}. Las acciones siguientes
                 operan sobre esa revisión guardada.
@@ -430,7 +453,7 @@ export function RfqWorkspace({
                       )
                     }
                   >
-                    Autorizar asignación guardada
+                    Autorizar adjudicación
                   </Button>
                 </>
               ) : (
@@ -449,16 +472,16 @@ export function RfqWorkspace({
                       }, "Preview preparado; ninguna OC creada")
                     }
                   >
-                    Generar preview de OCs
+                    Revisar órdenes antes de emitir
                   </Button>
                 </>
               )}
             </div>
           )}
           {preview && (
-            <div className="border rounded p-4 space-y-4">
-              <h2 className="font-semibold">
-                Preview exacto — {preview.orders.length} OC(s)
+            <div className={`${styles.section} space-y-4`}>
+              <h2 className={styles.sectionTitle}>
+                <span className={styles.number}>4</span> Revisar y emitir — {preview.orders.length} OC(s)
               </h2>
               {preview.orders.map((o) => (
                 <div
@@ -544,7 +567,7 @@ export function RfqWorkspace({
                   }, "OCs confirmadas")
                 }
               >
-                Confirmar y crear OCs
+                Confirmar y emitir órdenes de compra
               </Button>
             </div>
           )}
@@ -606,12 +629,12 @@ function QuoteReview({
   const [message, setMessage] = useState(initialAnalysis?.error ?? "");
   const [pending, setPending] = useState(false);
   return (
-    <details className="border rounded p-3">
+    <details id={`review-${versionId}`} tabIndex={-1} className={`${styles.review} mb-3`}>
       <summary>
-        Reconciliación {offers[0]?.provider_name} v{offers[0]?.version_number} —{" "}
-        {offers[0]?.review_id ? "revisada" : "pendiente"}
+        {offers[0]?.review_id ? "✓ Presupuesto revisado" : "Revisar presupuesto"} · {offers[0]?.provider_name} · versión {offers[0]?.version_number}
       </summary>
-      <p>
+      <div className={styles.reviewBody}>
+      <p className={styles.muted}>
         El documento y la oferta se conservan. Diferencias o campos no extraídos
         requieren revisión humana; no se corrigen precios automáticamente.
       </p>
@@ -637,6 +660,8 @@ function QuoteReview({
       </Button>}
       {extraction && (
         <>
+          <details>
+          <summary className="text-sm font-medium">Ver contenido leído del documento original</summary>
           <pre className="whitespace-pre-wrap max-h-64 overflow-auto">
             {extraction.extraction.text ??
               extraction.extraction.structured?.sheets
@@ -653,7 +678,10 @@ function QuoteReview({
                 .join("\n") ??
               "El lector no pudo extraer datos de este documento; requiere revisión del original"}
           </pre>
-          <p>{extraction.extraction.warnings.join(" · ")}</p>
+          </details>
+          {extraction.extraction.warnings.length > 0 && <p className={styles.notice}>{extraction.extraction.warnings.join(" · ")}</p>}
+          <div className={extraction.comparison.length ? styles.notice : styles.muted}>
+          <h3 className="font-semibold mb-2">{extraction.comparison.length ? "Diferencias que necesitan tu revisión" : "Sin diferencias detectadas en los campos verificables"}</h3>
           {extraction.comparison.map((d, i) => (
             <p key={i}>
               {items.find((it) => it.id === d.itemId)?.descripcion}: {d.field} —
@@ -661,14 +689,18 @@ function QuoteReview({
               {String(d.document ?? "desconocido")} ({d.reason})
             </p>
           ))}
+          {!extraction.facts.length && <p>No se identificaron datos de esta oferta en el documento. Revisá el original y justificá la falta de evidencia antes de continuar.</p>}
+          </div>
+          <details>
+          <summary className="text-sm font-medium">Datos extraídos y excepciones verificables</summary>
           <p>
             Datos extraídos automáticamente. Revisá las diferencias y completá
             solamente las excepciones verificables en el original. Los campos
             vacíos conservan ausencia de evidencia:
           </p>
           {offers.map((o) => (
-            <div key={o.id} className="grid grid-cols-3 gap-2 border p-2">
-              <p>{items.find((i) => i.id === o.rfq_item_id)?.descripcion}</p>
+            <div key={o.id} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 border border-white/10 rounded-lg p-4 mt-3">
+              <p className="col-span-full font-medium">{items.find((i) => i.id === o.rfq_item_id)?.descripcion}</p>
               {(
                 [
                   "precio_unitario",
@@ -731,11 +763,13 @@ function QuoteReview({
               ))}
             </div>
           ))}
-          <Label>
-            Resolución / justificación de discrepancias y campos no verificables
-            (mínimo 10 caracteres)
+          </details>
+          <Label htmlFor={`review-reason-${versionId}`}>
+            Resolución de diferencias o falta de evidencia (mínimo 10 caracteres)
           </Label>
           <Textarea
+            id={`review-reason-${versionId}`}
+            placeholder="Dejá constancia de qué verificaste en el original y cómo resolvés las diferencias."
             value={resolution}
             onChange={(e) => setResolution(e.target.value)}
           />
@@ -766,6 +800,8 @@ function QuoteReview({
         </>
       )}
       {message && <p role="status">{message}</p>}
+      {offers[0]?.review_id && <WorkflowJump targetId="adjudication">Continuar a adjudicar</WorkflowJump>}
+      </div>
     </details>
   );
 }

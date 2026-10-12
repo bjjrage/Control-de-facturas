@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { CopyLinkButton } from "./copy-link-button";
+import { Button, buttonClassName } from "@/components/ui/button";
+import { QrCode, MessageCircle, Download } from "lucide-react";
 
 /**
  * Link del portal de cotización para un proveedor: copiar, QR y WhatsApp.
@@ -36,13 +38,11 @@ export function QuoteShareButtons({
   const waUrl = `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
 
   return (
-    <span className="inline-flex items-center gap-2 whitespace-nowrap">
+    <span className="inline-flex flex-wrap items-center gap-2">
       <CopyLinkButton url={url} />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <button type="button" className="text-[12px] text-[var(--primary)] underline hover:no-underline">
-            QR
-          </button>
+          <Button type="button" variant="secondary" size="sm"><QrCode size={14} aria-hidden="true" /> QR</Button>
         </DialogTrigger>
         <DialogContent title={`QR de cotización — ${providerName}`}>
           <div className="space-y-3">
@@ -58,9 +58,9 @@ export function QuoteShareButtons({
               <a
                 href={qrDataUrl}
                 download={`cotizacion-${rfqCode}-${providerName.replace(/[^\w-]/g, "")}.png`}
-                className="flex w-full items-center justify-center h-9 rounded-md border border-[var(--border)] bg-[var(--panel)] hover:bg-[var(--hover)] text-[13px] font-medium"
+                className={buttonClassName({variant: "secondary", className: "w-full"})}
               >
-                Descargar QR
+                <Download size={15} aria-hidden="true" /> Descargar QR
               </a>
             ) : null}
           </div>
@@ -70,10 +70,10 @@ export function QuoteShareButtons({
         href={waUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-[12px] text-[var(--primary)] underline hover:no-underline"
+        className={buttonClassName({variant: "secondary", size: "sm", className: "hover:border-emerald-400/60 hover:text-emerald-200"})}
         title={digits ? `Abrir WhatsApp con ${phone}` : "El proveedor no tiene teléfono: elegís el contacto en WhatsApp"}
       >
-        WhatsApp
+        <MessageCircle size={14} aria-hidden="true" /> WhatsApp
       </a>
     </span>
   );
