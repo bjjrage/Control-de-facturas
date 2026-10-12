@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-12",
+  "validatedCodeSha": "e39c12b348793d0a6f213df825deddd16b8c6112",
+  "baseSha": "953ebba505b38313bd3e18e6cb9fbf31b7e1eb89",
+  "typecheck": {
+    "status": "PASS",
+    "command": "node node_modules/typescript/bin/tsc --noEmit --incremental false",
+    "note": "Run after build; an initial concurrent run collided with regenerated .next/types."
+  },
+  "build": {
+    "status": "PASS",
+    "command": "node node_modules/next/dist/bin/next build --webpack",
+    "endpoint": "http://127.0.0.1:54321",
+    "credentials": "test-only-no-access placeholders",
+    "appStarted": false
+  },
+  "unitSuite": {
+    "status": "PASS",
+    "passed": 2140,
+    "skipped": 16,
+    "failed": 0,
+    "filesPassed": 194,
+    "filesSkipped": 2,
+    "command": "node node_modules/vitest/vitest.mjs run --maxWorkers=1"
+  },
+  "lintChanged": {
+    "status": "PASS",
+    "errors": 0,
+    "preexistingWarnings": 2
+  },
+  "lintBroadBase": {
+    "status": "FAIL_PREEXISTING",
+    "errors": 4,
+    "warnings": 9
+  },
+  "browserComponents": {
+    "status": "PASS",
+    "cases": 36,
+    "browsers": [
+      "chromium",
+      "firefox"
+    ],
+    "viewports": [
+      "1440x1000",
+      "390x844"
+    ],
+    "kind": "COMPONENT_FIXTURE_NOT_E2E",
+    "baseCases": 24,
+    "baseCasesPassingAllRetentionChecks": 0
+  },
+  "realPortalE2E": {
+    "status": "BLOCKED",
+    "reason": "No compatible active local Auth/Storage/PostgREST/DB stack detected; no remote substitute used."
+  },
+  "fullPdfImageSupplierExtraction": {
+    "status": "NOT_DEMONSTRATED",
+    "reason": "Original automatic caller/full PDF-image mapping not located in inspected Git; existing XLSX chain demonstrated."
+  }
+}

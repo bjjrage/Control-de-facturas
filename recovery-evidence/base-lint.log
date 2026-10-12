@@ -1,0 +1,62 @@
+
+C:\Users\User\.codex\visualizations\2026\10\12\01a130f7-9ff0-7490-9a7a-97c7ad71bc0e\erp-base\app\(internal)\rfqs\[id]\actions.ts
+   9:3   warning  'isRfqOpen' is defined but never used  @typescript-eslint/no-unused-vars
+  42:47  warning  'params' is defined but never used     @typescript-eslint/no-unused-vars
+
+C:\Users\User\.codex\visualizations\2026\10\12\01a130f7-9ff0-7490-9a7a-97c7ad71bc0e\erp-base\app\(internal)\rfqs\[id]\page.tsx
+  51:39  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\User\.codex\visualizations\2026\10\12\01a130f7-9ff0-7490-9a7a-97c7ad71bc0e\erp-base\app\(internal)\rfqs\[id]\page.tsx:51:39
+  49 |   const open =
+  50 |     ["BORRADOR", "COTIZANDO", "OFERTAS_RECIBIDAS"].includes(data.rfq.status) &&
+> 51 |     Date.parse(data.rfq.expires_at) > Date.now();
+     |                                       ^^^^^^^^^^ Cannot call impure function
+  52 |   return (
+  53 |     <main className="max-w-7xl space-y-5">
+  54 |       <Link href="/rfqs" className="underline">  react-hooks/purity
+
+C:\Users\User\.codex\visualizations\2026\10\12\01a130f7-9ff0-7490-9a7a-97c7ad71bc0e\erp-base\app\(internal)\rfqs\[id]\rfq-workspace.tsx
+  189:37  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\User\.codex\visualizations\2026\10\12\01a130f7-9ff0-7490-9a7a-97c7ad71bc0e\erp-base\app\(internal)\rfqs\[id]\rfq-workspace.tsx:189:37
+  187 |                   {canAdopt &&
+  188 |                     o.currency === "PYG" &&
+> 189 |                     eligibleLine(o, Date.now(), false) &&
+      |                                     ^^^^^^^^^^ Cannot call impure function
+  190 |                     projectId &&
+  191 |                     items.find((i) => i.id === o.rfq_item_id)?.producto_id && (
+  192 |                       <Button  react-hooks/purity
+
+C:\Users\User\.codex\visualizations\2026\10\12\01a130f7-9ff0-7490-9a7a-97c7ad71bc0e\erp-base\app\(internal)\rfqs\actions.ts
+   6:10  warning  'logAudit' is defined but never used          @typescript-eslint/no-unused-vars
+  60:9   warning  'profile' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\User\.codex\visualizations\2026\10\12\01a130f7-9ff0-7490-9a7a-97c7ad71bc0e\erp-base\app\(internal)\rfqs\rfqs-section.tsx
+   5:10  warning  'Rfq' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+  28:3   error    Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\User\.codex\visualizations\2026\10\12\01a130f7-9ff0-7490-9a7a-97c7ad71bc0e\erp-base\app\(internal)\rfqs\rfqs-section.tsx:28:3
+  26 |
+  27 |   const filtersRef = useRef({ q, filterProduct, filterOpen, filterFrom, filterTo });
+> 28 |   filtersRef.current = { q, filterProduct, filterOpen, filterFrom, filterTo };
+     |   ^^^^^^^^^^^^^^^^^^ Cannot update ref during render
+  29 |
+  30 |   function buildParams(f: typeof filtersRef.current) {
+  31 |     const p = new URLSearchParams();  react-hooks/refs
+
+C:\Users\User\.codex\visualizations\2026\10\12\01a130f7-9ff0-7490-9a7a-97c7ad71bc0e\erp-base\lib\documents\reader.ts
+  118:11  warning  'db' is assigned a value but never used         @typescript-eslint/no-unused-vars
+  118:38  warning  'maxChars' is assigned a value but never used   @typescript-eslint/no-unused-vars
+  118:65  warning  'maxRows' is assigned a value but never used    @typescript-eslint/no-unused-vars
+  118:90  warning  'maxSheets' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\User\.codex\visualizations\2026\10\12\01a130f7-9ff0-7490-9a7a-97c7ad71bc0e\erp-base\lib\rfq\service.ts
+  139:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 13 problems (4 errors, 9 warnings)

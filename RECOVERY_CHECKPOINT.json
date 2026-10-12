@@ -1,0 +1,122 @@
+{
+  "status": "PARTIAL",
+  "date": "2026-10-12",
+  "branch": "recovery/compras-ventas-approved",
+  "workspace": "C:/Users/User/.codex/visualizations/2026/10/12/01a130f7-9ff0-7490-9a7a-97c7ad71bc0e/erp-recovery",
+  "baseSha": "953ebba505b38313bd3e18e6cb9fbf31b7e1eb89",
+  "witnessSha": "a61c6550e21e5fd12f6655e1a382b346305221dc",
+  "witnessTree": "e657315797afe49559cea269d2eb60fb3e45e6e0",
+  "validatedCodeSha": "e39c12b348793d0a6f213df825deddd16b8c6112",
+  "codeCommits": [
+    "873f030d63687365e22c043e8cac24a50309a6a5",
+    "e39c12b348793d0a6f213df825deddd16b8c6112"
+  ],
+  "handoffCommit": "Subsequent documentation/evidence-only commit; inspect git log.",
+  "changedCodeFiles": [
+    "app/(internal)/orders/order-dialog.tsx",
+    "app/(internal)/rfqs/[id]/add-attachment-dialog.tsx",
+    "app/(internal)/rfqs/[id]/attachment-link.tsx",
+    "app/(internal)/rfqs/[id]/copy-link-button.tsx",
+    "app/(internal)/rfqs/[id]/internal-quote-dialog.tsx",
+    "app/(internal)/rfqs/[id]/page.tsx",
+    "app/(internal)/rfqs/[id]/rfq-workspace.tsx",
+    "app/(internal)/rfqs/[id]/workflow-actions.ts",
+    "app/(internal)/rfqs/actions.ts",
+    "app/(internal)/rfqs/rfq-dialog.tsx",
+    "app/(internal)/ventas/[id]/receipt-dialog.tsx",
+    "app/(internal)/ventas/sales-form.tsx",
+    "app/cotizar/[token]/actions.ts",
+    "app/cotizar/[token]/multi-item-quote-form.tsx",
+    "app/cotizar/[token]/page.tsx",
+    "lib/rfq/__tests__/automatic-analysis.spec.ts",
+    "lib/rfq/__tests__/creation-recovery.spec.ts",
+    "lib/rfq/__tests__/domain.spec.ts",
+    "lib/rfq/document-analysis.ts",
+    "lib/rfq/domain.ts",
+    "lib/rfq/offer-submission.ts",
+    "lib/rfq/service.ts",
+    "next.config.ts"
+  ],
+  "ownerContract": "Administration: RFQ -> Magic Link -> structured supplier offer + original -> automatic extraction/comparison -> comparative/preliminary proposals -> human review/selection/authorization -> preview/confirmation -> 1..N orders. Operational Costing manual history is distinct.",
+  "checks": {
+    "date": "2026-10-12",
+    "validatedCodeSha": "e39c12b348793d0a6f213df825deddd16b8c6112",
+    "baseSha": "953ebba505b38313bd3e18e6cb9fbf31b7e1eb89",
+    "typecheck": {
+      "status": "PASS",
+      "command": "node node_modules/typescript/bin/tsc --noEmit --incremental false",
+      "note": "Run after build; an initial concurrent run collided with regenerated .next/types."
+    },
+    "build": {
+      "status": "PASS",
+      "command": "node node_modules/next/dist/bin/next build --webpack",
+      "endpoint": "http://127.0.0.1:54321",
+      "credentials": "test-only-no-access placeholders",
+      "appStarted": false
+    },
+    "unitSuite": {
+      "status": "PASS",
+      "passed": 2140,
+      "skipped": 16,
+      "failed": 0,
+      "filesPassed": 194,
+      "filesSkipped": 2,
+      "command": "node node_modules/vitest/vitest.mjs run --maxWorkers=1"
+    },
+    "lintChanged": {
+      "status": "PASS",
+      "errors": 0,
+      "preexistingWarnings": 2
+    },
+    "lintBroadBase": {
+      "status": "FAIL_PREEXISTING",
+      "errors": 4,
+      "warnings": 9
+    },
+    "browserComponents": {
+      "status": "PASS",
+      "cases": 36,
+      "browsers": [
+        "chromium",
+        "firefox"
+      ],
+      "viewports": [
+        "1440x1000",
+        "390x844"
+      ],
+      "kind": "COMPONENT_FIXTURE_NOT_E2E",
+      "baseCases": 24,
+      "baseCasesPassingAllRetentionChecks": 0
+    },
+    "realPortalE2E": {
+      "status": "BLOCKED",
+      "reason": "No compatible active local Auth/Storage/PostgREST/DB stack detected; no remote substitute used."
+    },
+    "fullPdfImageSupplierExtraction": {
+      "status": "NOT_DEMONSTRATED",
+      "reason": "Original automatic caller/full PDF-image mapping not located in inspected Git; existing XLSX chain demonstrated."
+    }
+  },
+  "preservedContracts": [
+    "Current RFQ RPCs/tenant/roles/tokens/checksum/version guards",
+    "No automatic human review/allocation/authorization/order",
+    "COST_DISCOVERY never creates OC; historical purpose not inferred",
+    "Current R3 numeric/integrity/atomicity/jobs contracts and receipt scale",
+    "Sales client acceptance/snapshot/OT/post-OT provenance/fiscal guards/receipts"
+  ],
+  "blocked": [
+    "Real external supplier portal E2E with persisted Auth/Storage/DB results and no seeded extracted facts",
+    "Original historic automatic caller and full PDF/image supplier mapping not demonstrated",
+    "Historical no-line/no-purpose operational adaptation not authorized",
+    "Complete purchases continuation and sales customer->OT->documents/receipts E2E",
+    "Full approved visual equivalence/dynamic witness comparison"
+  ],
+  "nextAction": "Continue this branch: locate/reuse compatible disposable local full stack, then execute A-J from real UI/external sessions with readback. Locate original supplier PDF/image analysis connection and automatic caller; do not replace by manual transcription or new parser under recovery. Preserve main/production/witness/auditor.",
+  "restrictions": [
+    "No push/PR/merge/deploy",
+    "No production/real data/messages/paid calls",
+    "No migrations/dependency updates",
+    "Witness and original worktree untouched"
+  ],
+  "independentReview": false
+}

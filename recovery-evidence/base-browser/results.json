@@ -1,0 +1,242 @@
+{
+  "kind": "COMPONENT_FIXTURE_NOT_E2E",
+  "source": "C:\\Users\\User\\.codex\\visualizations\\2026\\10\\12\\01a130f7-9ff0-7490-9a7a-97c7ad71bc0e\\erp-base",
+  "results": [
+    {
+      "browser": "chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "rfq",
+      "kept": false,
+      "project": null
+    },
+    {
+      "browser": "chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "project",
+      "kept": false,
+      "project": "obra-1"
+    },
+    {
+      "browser": "chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "quote",
+      "kept": false,
+      "fileKept": false
+    },
+    {
+      "browser": "chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "sales",
+      "kept": false,
+      "clientKept": false
+    },
+    {
+      "browser": "chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "receipt",
+      "kept": false
+    },
+    {
+      "browser": "chromium",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "direct",
+      "kept": false,
+      "providerKept": false
+    },
+    {
+      "browser": "chromium",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "mode": "rfq",
+      "kept": false,
+      "project": null
+    },
+    {
+      "browser": "chromium",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "mode": "project",
+      "kept": false,
+      "project": "obra-1"
+    },
+    {
+      "browser": "chromium",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "mode": "quote",
+      "kept": false,
+      "fileKept": false
+    },
+    {
+      "browser": "chromium",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "mode": "sales",
+      "kept": false,
+      "clientKept": false
+    },
+    {
+      "browser": "chromium",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "mode": "receipt",
+      "kept": false
+    },
+    {
+      "browser": "chromium",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "mode": "direct",
+      "kept": false,
+      "providerKept": false
+    },
+    {
+      "browser": "firefox",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "rfq",
+      "kept": false,
+      "project": null
+    },
+    {
+      "browser": "firefox",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "project",
+      "kept": false,
+      "project": "obra-1"
+    },
+    {
+      "browser": "firefox",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "quote",
+      "kept": false,
+      "fileKept": false
+    },
+    {
+      "browser": "firefox",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "sales",
+      "kept": false,
+      "clientKept": false
+    },
+    {
+      "browser": "firefox",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "receipt",
+      "kept": false
+    },
+    {
+      "browser": "firefox",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "mode": "direct",
+      "kept": false,
+      "providerKept": false
+    },
+    {
+      "browser": "firefox",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "mode": "rfq",
+      "kept": false,
+      "project": null
+    },
+    {
+      "browser": "firefox",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "mode": "project",
+      "kept": false,
+      "project": "obra-1"
+    },
+    {
+      "browser": "firefox",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "mode": "quote",
+      "kept": false,
+      "fileKept": false
+    },
+    {
+      "browser": "firefox",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "mode": "sales",
+      "kept": false,
+      "clientKept": false
+    },
+    {
+      "browser": "firefox",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "mode": "receipt",
+      "kept": false
+    },
+    {
+      "browser": "firefox",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "mode": "direct",
+      "kept": false,
+      "providerKept": false
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+b269e0d 2026-10-02 feat(rfq): implement RFQ 2.0 human procurement workflow
+edd3f12 2026-09-19 feat(agent): preserve document and spreadsheet tools before consolidation
+9f95583 2026-09-15 feat(agent): complete real voice transport and integrate agent eyes (BATCH 4 + 5)
+b70dccd 2026-10-07 fix: remediate administrative QA PDF, refresh and unit defects
+b269e0d 2026-10-02 feat(rfq): implement RFQ 2.0 human procurement workflow
+3bc27b5 2026-09-22 recovery: integrate agent eyes capabilities
+edd3f12 2026-09-19 feat(agent): preserve document and spreadsheet tools before consolidation
+31a18b6 2026-09-16 fix(ts): llevar TSC a 0 en nucleo agent sin cambios funcionales (29->0)
+9f95583 2026-09-15 feat(agent): complete real voice transport and integrate agent eyes (BATCH 4 + 5)

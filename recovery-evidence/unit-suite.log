@@ -1,0 +1,8 @@
+
+ RUN  v4.1.10 C:/Users/User/.codex/visualizations/2026/10/12/01a130f7-9ff0-7490-9a7a-97c7ad71bc0e/erp-recovery
+
+
+ Test Files  194 passed | 2 skipped (196)
+      Tests  2140 passed | 16 skipped (2156)
+   Start at  17:33:28
+   Duration  262.54s (transform 6.89s, setup 0ms, import 30.05s, tests 171.79s, environment 44ms)
