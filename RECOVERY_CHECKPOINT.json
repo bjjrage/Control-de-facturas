@@ -1,5 +1,29 @@
 {
   "status": "PARTIAL",
+  "latestPreviewVerification": {
+    "date": "2026-10-12",
+    "acceptedHistoricalUi": true,
+    "url": "http://localhost:3002",
+    "supabaseRef": "kyiihlkncatojvlasoag",
+    "runtime": "../erp-before-live (historical surface plus current branch adapters)",
+    "uncommittedSourceChanges": false,
+    "validatedCodeSha": "e697fe9e471f01be64948a6d041b0293fbcae01b",
+    "realUiE2E": "RFQ-2026-0006 > external Chrome Magic Link > compact document upload plus structured offer > automatic XLSX discrepancy 21000 vs 20000 > explicit human review > choose supplier > save adjudication > authorization > preview > confirmation > OC-2026-0002",
+    "orderId": "78526982-055b-4bd6-bd0e-5a0c2307f508",
+    "orderTotalPYG": 46700,
+    "paymentTermsReadback": "Crédito a 160 días",
+    "previousVerifiedOrder": "RFQ-2026-0002 > OC-2026-0001, 61600 PYG",
+    "panelChanges": ["Neutral panels and clear numbered stages", "Visible review/adjudication calls to action", "Compact document upload", "Consistent icon buttons for copy, QR, WhatsApp and original", "Contado / Crédito: 30, 60, 90, 120, 160, 180 days"],
+    "pdfRuntimeFix": "Disposable live copy now includes existing recovery next.config.ts serverExternalPackages/pdf-parse tracing. User RFQ-2026-0005 original PDF reads without Object.defineProperty error; no matching offer facts are invented and its review remains pending.",
+    "preservedFixtures": ["RFQ-2026-0001 BORRADOR", "V-00001 BORRADOR / 5500000 PYG", "RFQ-2026-0003 Arena", "RFQ-2026-0004 Arena", "RFQ-2026-0005 Arena OFERTAS_RECIBIDAS / human review untouched"],
+    "typecheck": "PASS",
+    "focusedTests": "40 PASS: creation-recovery, actions, domain",
+    "focusedLint": "PASS; broader pre-existing refs error remains",
+    "remaining": ["Multiple suppliers/orders E2E", "Scanned/image OCR evidence", "Full sales lifecycle E2E", "Orders link navigation", "Owner visual review and integration approval"],
+    "fullBuildAfterPanelChanges": "NOT_RUN; earlier checks below belong to their pinned SHA",
+    "productionChanges": false,
+    "correctiveSQL": false
+  },
   "date": "2026-10-12",
   "branch": "recovery/compras-ventas-approved",
   "workspace": "C:/Users/User/.codex/visualizations/2026/10/12/01a130f7-9ff0-7490-9a7a-97c7ad71bc0e/erp-recovery",
@@ -105,13 +129,13 @@
     "Sales client acceptance/snapshot/OT/post-OT provenance/fiscal guards/receipts"
   ],
   "blocked": [
-    "Real external supplier portal E2E with persisted Auth/Storage/DB results and no seeded extracted facts",
+    "Multiple suppliers/orders and complete downstream lifecycle E2E; one-supplier real portal path verified twice in latestPreviewVerification",
     "Original historic automatic caller and full PDF/image supplier mapping not demonstrated",
     "Historical no-line/no-purpose operational adaptation not authorized",
     "Complete purchases continuation and sales customer->OT->documents/receipts E2E",
-    "Full approved visual equivalence/dynamic witness comparison"
+    "Owner review of corrected administrative panel and full remaining surface equivalence"
   ],
-  "nextAction": "Continue this branch: locate/reuse compatible disposable local full stack, then execute A-J from real UI/external sessions with readback. Locate original supplier PDF/image analysis connection and automatic caller; do not replace by manual transcription or new parser under recovery. Preserve main/production/witness/auditor.",
+  "nextAction": "Keep isolated localhost:3002 preview running for owner review of code commit e697fe9. Integrate only after owner approval. Remaining complete lifecycle/multiple supplier/OCR/historical attribution evidence is not certified by the two verified single-supplier purchase journeys. Preserve main/production/witness/auditor.",
   "restrictions": [
     "No push/PR/merge/deploy",
     "No production/real data/messages/paid calls",

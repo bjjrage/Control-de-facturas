@@ -1,6 +1,44 @@
 # Handoff de recovery — PARCIAL
 
-El trabajo queda local en `recovery/compras-ventas-approved`. No push, PR, merge, deploy, cambios de infraestructura ni operaciones productivas. La auditoría SENTINEL y su SHA congelado no fueron retomados ni certificados.
+## Panel corregido y verificado — 12/10/2026, 20:00 Paraguay
+
+Cambios solicitados por el propietario, aplicados sólo en `erp-recovery`, rama `recovery/compras-ventas-approved`, y reflejados en la preview `http://localhost:3002`: paneles neutros, títulos y etapas numeradas, acción visible para revisar/adjudicar, propuestas avanzadas plegadas, hover/focus, subida del original mediante botón compacto, botones con iconos para copiar/QR/WhatsApp/ver documento y condiciones Contado / Crédito a 30, 60, 90, 120, 160 o 180 días. Se conserva el contrato de texto `payment_terms` y todas las guardas humanas/RPC actuales.
+
+El error técnico de PDF observado en la RFQ-2026-0005 era `Object.defineProperty called on non-object`. La copia desechable histórica `erp-before-live` no tenía la configuración de `pdf-parse` ya existente en esta rama. Se copió su `next.config.ts` con externalización/tracing al runtime; Next reinició (PID observado 17588). No se escribió otro parser ni se modificaron dependencias. El PDF de esa RFQ ya se lee, pero no identifica datos de Arena: el panel conserva la ausencia de evidencia y exige revisión/justificación. No se registró revisión ni adjudicación en esa RFQ del propietario.
+
+Prueba completa del panel nuevo mediante UI real y portal Chrome externo, sin hechos extraídos precargados:
+
+- RFQ-2026-0006 (`e1c44e5f-b65b-4158-a557-5a0a2e1eb04a`), producto sintético, 2 bolsas y proveedor ficticio A. Botones Copiar y QR comprobados; WhatsApp no se envió.
+- Original Excel sintético con 20.000 PYG frente a oferta estructurada de 21.000 PYG. La extracción y discrepancia aparecieron automáticamente al enviar y al abrir Administración. Subida con el botón nuevo y selección Crédito / 160 días desde los controles nuevos.
+- Revisión humana justificada → Elegir proveedor → Guardar adjudicación → autorización explícita → preview → confirmación. Total 46.700 PYG: base 42.000 + IVA 4.200 + flete 500.
+- UI confirmó OCs emitidas. SELECT sólo lectura en `kyiihlkncatojvlasoag` confirmó **OC-2026-0002** (`78526982-055b-4bd6-bd0e-5a0c2307f508`), AUTORIZADO, 46.700 PYG y snapshot `Crédito a 160 días`.
+- SELECT confirmó RFQ-2026-0001 BORRADOR, V-00001 BORRADOR / 5.500.000 PYG y RFQ-2026-0005 OFERTAS_RECIBIDAS. No limpieza, reset ni SQL correctivo. RFQs Arena del propietario preservadas.
+
+Validación actual: typecheck PASS; 40 tests focales PASS (`creation-recovery`, `actions`, `domain`); lint focal PASS; `git diff --check` PASS. No se ejecutó un build completo después de estos cambios: los resultados de build/suite general más abajo corresponden al SHA histórico allí indicado. Capturas locales en el directorio padre: `recovery-panel-jerarquia.jpg` y `recovery-adjudicacion-credito160.jpg`.
+
+Código guardado en commit local `e697fe9e471f01be64948a6d041b0293fbcae01b`. La preview queda funcionando para revisión. Integración pendiente de aprobación del propietario; sin push, PR, merge, despliegue, migración ni cambios productivos. El estado global sigue PARCIAL por los alcances de múltiples proveedores/OCs, OCR, Ventas completo y atribución histórica ya documentados. Las secciones siguientes conservan evidencia de etapas anteriores; los bloqueos de stack/E2E anteriores quedaron superados para los dos ensayos de Compras aquí registrados.
+
+## Actualización de preview — 12/10/2026, 19:23 Paraguay
+
+El propietario confirmó la interfaz histórica visible: «acabo de ver.. esto si corresponde». Se conserva esa superficie de Administración, tomada de `a61c6550`, y se conecta a las acciones/RPC actuales. No equivale a restaurar sin cambios todo ese commit.
+
+Cambios locales sin commit en `erp-recovery`: formulario administrativo separado de Costeo, entradas de creación y detalle histórico de Compras con revisión documental, propuestas, autorización, preview y confirmación actuales. El formulario declara `PROCUREMENT` para nuevas compras; no reclasifica históricos ni elimina guardas MRP. Corrección del error observado «purpose explícito obligatorio» demostrada creando RFQ-2026-0002 desde el formulario real. Testigo `erp-before-rfq2` intacto.
+
+Preview activa: `http://localhost:3002`, proceso Next 16724, ejecutada en copia desechable `../erp-before-live` del testigo con los adaptadores de esta rama. Port 3001 sigue sirviendo el build anterior y no acredita estos cambios. Mantener 3002 mientras el propietario revisa. La configuración aislada valida URL y claves contra Supabase `kyiihlkncatojvlasoag` / `recovery-compras-ventas-20261012`; rama paga autorizada expresamente. No se ejecutó SQL correctivo, migración ni operación productiva en esta actualización.
+
+E2E real de un proveedor / un ítem, mediante UI y DB/Storage aislados:
+
+- RFQ-2026-0002 (`846486c3-36e9-4d1f-afc0-f4dd766334dc`), 3,5 bolsas; invitación desde Administración y Magic Link abierto en Chrome externo.
+- Oferta estructurada 16.000 PYG + Excel sintético original con 15.000 PYG; análisis automático al enviar y al abrir Administración. No se precargaron hechos, revisiones, asignaciones ni extracción mediante SQL o mocks.
+- UI mostró precio extraído 15.000 y discrepancia con 16.000, además de diferencia de representación de vigencia. Revisión justificada por UI; oferta original preservada.
+- Propuesta editable → asignación guardada → autorización explícita → preview de 61.600 PYG (56.000 + 5.600 IVA) → confirmación → OC-2026-0001 (`fce6d32a-93db-4e00-9f81-19c2fb4d0b32`). SELECT y listado UI confirmaron una OC autorizada de esa RFQ. No se enviaron mensajes a terceros.
+- RFQ-2026-0001 sigue BORRADOR; V-00001 sigue BORRADOR / 5.500.000 PYG. RFQ-2026-0003 Arena creada por el propietario no fue modificada. No reset ni limpieza de fixtures.
+
+Validación de los cambios: typecheck PASS; 16 tests focales PASS; lint de los cuatro archivos nuevos/modificados de formulario y rutas PASS. Lint ampliado conserva el error previo de ref durante render en `rfqs-section.tsx` y dos warnings de imports previos; allí sólo cambió la importación del diálogo. `git diff --check` PASS.
+
+Alcance pendiente: este ensayo no prueba múltiples proveedores/OCs, OCR de escaneos/imágenes ni el ciclo completo de Ventas. El lector existente no incluye OCR y no se construyó otro parser. Se observa duplicación visual de discrepancias al combinar análisis derivado y revisión guardada; no altera el original. La navegación de «Ver órdenes» necesitó apertura directa de `/orders` en el ensayo; no se declara ese enlace verificado. Estado global continúa PARCIAL.
+
+El trabajo queda local en `recovery/compras-ventas-approved`. No push, PR, merge, deploy ni operaciones productivas. La infraestructura de preview temporal fue autorizada posteriormente por el propietario, como se registra arriba. La auditoría SENTINEL y su SHA congelado no fueron retomados ni certificados.
 
 ## Copias y referencias
 
