@@ -81,17 +81,18 @@ export async function createRfq(formData: FormData) {
       internal_reference:str(formData,"internal_reference"),observations:str(formData,"observations"),project_id:str(formData,"project_id")},items);
   } catch(e) { return {error:e instanceof Error?e.message:"RFQ inválida",id:null}; }
 
-  const files = formData.getAll("attachments").filter((f): f is File => f instanceof File && f.size > 0);
-  if (files.length > 0) {
-    const uploadResult = await uploadRfqAttachments(data.id, files);
-    if (uploadResult.error) {
-      revalidatePath("/rfqs");
-      return { error: `Solicitud creada, pero falló la subida del archivo: ${uploadResult.error}`, id: data.id as string };
-    }
-  }
-
   revalidatePath("/rfqs");
   const projectId = str(formData, "project_id");
   if (projectId) revalidatePath(`/projects/${projectId}`);
+  const files = formData.getAll("attachments").filter((f): f is File => f instanceof File && f.size > 0);
+  if (files.length > 0) {
+    try {
+      const uploadResult = await uploadRfqAttachments(data.id, files);
+      if (uploadResult.error) return { error: `Solicitud creada, pero falló la subida del archivo: ${uploadResult.error}`, id: data.id };
+    } catch (e) {
+      return { error: `Solicitud creada, pero falló la subida del archivo: ${e instanceof Error ? e.message : "Error de carga"}`, id: data.id };
+    }
+  }
+
   return { error: null, id: data.id as string };
 }
