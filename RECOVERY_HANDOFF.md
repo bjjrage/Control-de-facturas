@@ -1,6 +1,14 @@
 # Handoff de recovery — PARCIAL
 
-## Panel simplificado y verificado — 12/10/2026, 21:10 Paraguay
+## Ofertas en filas compactas — revisión posterior del 12/10/2026
+
+El propietario rechazó los grandes cards y pidió comparación vertical con contraste. Commit local `f36fe01ba1d8ccc8a9adb97a531b5634341b245e` modifica sólo `purchasing-offers.tsx` y su CSS: tabla compacta, una fila por proveedor; total, precio unitario, entrega, disponibilidad, pago y acciones alineados. Fondo pizarra claramente más claro que la página, encabezado diferenciado, filas alternadas y hover. Selector por menor total (predeterminado), menor entrega o mayor disponibilidad/cobertura. Precio se compara dentro de una moneda, priorizando cobertura completa y ofertas utilizables; ordenar no selecciona ni autoriza proveedores.
+
+UI real: RFQ-0005 muestra A 10.100 PYG arriba de B 50.100 PYG; Adjudicar B abre su diálogo de 50.100 PYG / crédito 120, cerrado sin guardar. RFQ-0007 existente muestra B primero por precio (49.000 frente a 50.500), A primero por entrega (2 frente a 5 días); selector de disponibilidad comprobado con ambas coberturas de 100 kg. Sin nuevas ofertas, revisiones, asignaciones, OCs ni SQL en esta iteración. Flujo del diálogo/RPC no modificado.
+
+Typecheck y lint focal PASS; diff limpio. Los 47 tests y E2E de emisión registrados más abajo conservan el SHA anterior `12ded69`; no se repitió emisión ni suite en esta iteración visual. Ambos archivos reflejados en runtime aislado `../erp-before-live`; localhost:3002 continúa activo. Captura actual: `../recovery-ofertas-filas.png`. Sólo recovery, sin integración ni producción. Las secciones siguientes describen las iteraciones reemplazadas.
+
+## Panel simplificado anterior — 12/10/2026, 21:10 Paraguay
 
 Esta actualización reemplaza el tratamiento visual anterior rechazado por el propietario. Sólo se modificaron `administrative-rfq-detail.tsx`, `purchasing-offers.tsx` (nuevo) y `procurement-panel.module.css`, en `erp-recovery`, rama `recovery/compras-ventas-approved`. Commit local de código: `12ded69c4e6171a2410ad6c694e9f867ea9d3dd6`. Los tres archivos se reflejaron en el runtime desechable `../erp-before-live`; preview `http://localhost:3002`, Supabase aislado `kyiihlkncatojvlasoag`, proceso Next observado 17588.
 
