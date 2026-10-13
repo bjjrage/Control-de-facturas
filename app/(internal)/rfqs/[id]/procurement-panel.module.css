@@ -1,12 +1,4 @@
 .page {
-  --panel: #1b1e25;
-  --border: #3b414c;
-  --muted: #afb7c4;
-  background: #111318;
-  color: #edf0f5;
-  border: 1px solid #303640;
-  border-radius: 18px;
-  padding: 24px;
   max-width: 1180px;
   margin-inline: auto;
 }
@@ -44,7 +36,45 @@
 .proposal:hover { border-color: #8a7653; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 @media (max-width: 640px) {
-  .page { padding: 14px; border-radius: 12px; }
   .section, .progress { padding: 14px; }
   .page h1 { font-size: 22px; }
 }
+.heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.back { color: var(--muted); font-size: 12px; }
+.request { font-size: 18px; margin-block: 8px 3px; font-weight: 500; }
+.page .muted, .dialog .muted { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.offerGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 18px; }
+.offerCard { border: 1px solid var(--border); border-top: 3px solid rgba(153,180,222,.28); background: var(--panel); border-radius: 14px; padding: 22px; box-shadow: var(--surface-shadow-soft); transition: border-color 160ms, box-shadow 160ms; }
+.offerCard:hover { border-color: rgba(153,180,222,.42); box-shadow: var(--surface-shadow); }
+.offerHeader { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
+.offerHeader h3 { font-size: 17px; font-weight: 650; }
+.totalLabel { display: block; margin-top: 20px; font-size: 12px; color: var(--muted); }
+.total { font-size: 30px; line-height: 1.4; font-weight: 700; letter-spacing: -.025em; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 18px 22px; }
+.facts dt { color: var(--muted); font-size: 12px; margin-bottom: 5px; }
+.facts dd { font-size: 14px; font-weight: 550; overflow-wrap: anywhere; }
+.offerFooter { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
+.detail { margin-top: 16px; font-size: 13px; }
+.detail summary, .secondarySection summary { cursor: pointer; color: var(--muted); }
+.detail summary:hover, .secondarySection summary:hover { color: var(--text); }
+.secondarySection { border-top: 1px solid var(--border); padding-top: 18px; font-size: 13px; }
+.invitedList { display: grid; gap: 14px; margin-top: 18px; }
+.invitedRow { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.purchaseStatus { border: 1px solid var(--border); border-left: 3px solid var(--ok); background: var(--panel); border-radius: 12px; padding: 18px; display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 14px; }
+.dialog { font-size: 13px; }
+.dialog h3 { font-size: 15px; font-weight: 650; }
+.selectionSummary { border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px; }
+.selectionSummary ul { display: grid; gap: 6px; margin-top: 10px; }
+.selectionSummary li { display: flex; justify-content: space-between; gap: 12px; }
+.reviewCompact { padding: 14px 0; border-top: 1px solid var(--border); }
+.reviewCompact textarea { min-height: 70px; }
+.check { display: flex; gap: 9px; align-items: flex-start; margin-top: 12px; line-height: 1.6; }
+.check input { margin-top: 4px; flex-shrink: 0; }
+.reasonOptions { display: flex; flex-wrap: wrap; gap: 8px; }
+.reasonOptions label { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; display: flex; align-items: center; gap: 7px; }
+.reasonOptions label:has(input:checked) { border-color: var(--accent); background: var(--surface-highlight); }
+.modalFooter { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); }
+.businessNotice { border-left: 3px solid var(--warn, #e5b75c); background: var(--surface-highlight); padding: 10px 12px; border-radius: 5px; font-size: 12px; line-height: 1.6; margin-block: 10px; }
+.success { color: var(--ok); font-size: 12px; }
+.quantityRow { display: grid; grid-template-columns: 1fr 110px; gap: 12px; align-items: center; margin-top: 10px; }
+@media (max-width: 640px) { .heading { flex-direction: column; } .offerCard { padding: 16px; } .total { font-size: 26px; } }
