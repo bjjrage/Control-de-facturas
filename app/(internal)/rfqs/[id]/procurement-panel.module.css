@@ -43,17 +43,32 @@
 .back { color: var(--muted); font-size: 12px; }
 .request { font-size: 18px; margin-block: 8px 3px; font-weight: 500; }
 .page .muted, .dialog .muted { color: var(--muted); font-size: 12px; line-height: 1.5; }
-.offerGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 18px; }
-.offerCard { border: 1px solid var(--border); border-top: 3px solid rgba(153,180,222,.28); background: var(--panel); border-radius: 14px; padding: 22px; box-shadow: var(--surface-shadow-soft); transition: border-color 160ms, box-shadow 160ms; }
-.offerCard:hover { border-color: rgba(153,180,222,.42); box-shadow: var(--surface-shadow); }
-.offerHeader { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
-.offerHeader h3 { font-size: 17px; font-weight: 650; }
-.totalLabel { display: block; margin-top: 20px; font-size: 12px; color: var(--muted); }
-.total { font-size: 30px; line-height: 1.4; font-weight: 700; letter-spacing: -.025em; }
+.offerToolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.offerToolbar > div { display: flex; align-items: baseline; gap: 12px; }
+.sortControl { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; }
+.sortControl select { background: #263a52; color: #f4f7fc; border: 1px solid #60738c; border-radius: 7px; padding: 7px 28px 7px 10px; }
+.offerTableWrap { overflow-x: auto; border: 1px solid #60738c; border-radius: 10px; box-shadow: 0 8px 24px #0003; }
+.page .offerTable { width: 100%; min-width: 860px; border-collapse: collapse; color: #f4f7fc; }
+.page .offerTable thead th { background: #354b65; color: #e0e8f3; padding: 11px 14px; font-size: 12px; text-align: left; font-weight: 500; }
+.page .offerTable tbody tr { background: #20334b; transition: background 150ms; }
+.page .offerTable tbody tr:nth-child(even) { background: #263a52; }
+.page .offerTable tbody tr:hover, .page .offerTable tbody tr:focus-within { background: #30475f; }
+.page .offerTable tbody :is(th, td) { padding: 15px 14px; border-top: 1px solid #4b617a; text-align: left; vertical-align: top; font-size: 13px; font-weight: 400; }
+.page .offerTable tbody th { min-width: 190px; max-width: 290px; }
+.providerCell { display: flex; gap: 10px; align-items: flex-start; }
+.providerCell strong { font-size: 14px; font-weight: 650; }
+.offerRank { color: #b6c6db; min-width: 15px; font-size: 12px; padding-top: 2px; }
+.rowTotal { display: block; white-space: nowrap; font-size: 18px; line-height: 1.25; font-weight: 700; }
+.rowSecondary { display: block; color: #c2cfe0; font-size: 11px; margin-top: 5px; }
+.lowestLabel { display: inline-block; margin-left: 7px; padding: 2px 6px; border-radius: 4px; background: #184b40; color: #b5f5d8; font-size: 10px; font-weight: 500; }
+.rowDetail { margin-top: 5px; font-size: 12px; line-height: 1.5; }
+.rowDetail summary { color: #c2cfe0; font-size: 11px; cursor: pointer; }
+.rowActions { display: flex; justify-content: flex-end; align-items: center; gap: 7px; white-space: nowrap; }
+.rowActions :is(button, a) { font-size: 11px; }
+.rowWarning { display: block; color: #ffdc93; font-size: 11px; margin-top: 5px; }
 .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 18px 22px; }
 .facts dt { color: var(--muted); font-size: 12px; margin-bottom: 5px; }
 .facts dd { font-size: 14px; font-weight: 550; overflow-wrap: anywhere; }
-.offerFooter { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
 .detail { margin-top: 16px; font-size: 13px; }
 .detail summary, .secondarySection summary { cursor: pointer; color: var(--muted); }
 .detail summary:hover, .secondarySection summary:hover { color: var(--text); }
@@ -77,4 +92,4 @@
 .businessNotice { border-left: 3px solid var(--warn, #e5b75c); background: var(--surface-highlight); padding: 10px 12px; border-radius: 5px; font-size: 12px; line-height: 1.6; margin-block: 10px; }
 .success { color: var(--ok); font-size: 12px; }
 .quantityRow { display: grid; grid-template-columns: 1fr 110px; gap: 12px; align-items: center; margin-top: 10px; }
-@media (max-width: 640px) { .heading { flex-direction: column; } .offerCard { padding: 16px; } .total { font-size: 26px; } }
+@media (max-width: 640px) { .heading { flex-direction: column; } .sortControl { width: 100%; justify-content: space-between; } }

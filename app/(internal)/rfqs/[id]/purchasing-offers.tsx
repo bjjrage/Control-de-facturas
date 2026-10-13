@@ -67,6 +67,25 @@ export function PurchasingOffers({ rfqId, items, offers, analyses: initialAnalys
   const lock = useRef(false);
   const [now] = useState(() => Date.now());
   const groups = groupOffers(offers, versions);
+  const [sort, setSort] = useState<"price" | "delivery" | "availability">("price");
+  const coversRequest = (g: OfferGroup) => items.every(i => g.lines.some(o => o.rfq_item_id === i.id && o.available_quantity >= i.cantidad && eligibleLine(o, now, false)));
+  const usableOffer = (g: OfferGroup) => g.lines.some(o => eligibleLine(o, now, false));
+  const deliveryDays = (g: OfferGroup) => Math.max(...g.lines.filter(o => eligibleLine(o, now, false)).map(o => o.lead_time_days), 0);
+  const coverage = (g: OfferGroup) => items.reduce((sum, i) => sum + Math.min(1, Math.max(0, g.lines.find(o => o.rfq_item_id === i.id && eligibleLine(o, now, false))?.available_quantity ?? 0) / (i.cantidad || 1)), 0);
+  const rankedGroups = [...groups].sort((a, b) => {
+    const usableDifference = Number(usableOffer(b)) - Number(usableOffer(a));
+    if (usableDifference) return usableDifference;
+    if (sort === "delivery" && deliveryDays(a) !== deliveryDays(b)) return deliveryDays(a) - deliveryDays(b);
+    if (sort === "availability" && coverage(a) !== coverage(b)) return coverage(b) - coverage(a);
+    // Price rankings stay within a currency and compare full coverage first.
+    const currencyDifference = a.offer.currency.localeCompare(b.offer.currency);
+    if (currencyDifference) return currencyDifference;
+    const fullDifference = Number(coversRequest(b)) - Number(coversRequest(a));
+    if (fullDifference) return fullDifference;
+    if (a.version && b.version && a.version.total !== b.version.total) return a.version.total - b.version.total;
+    if (!!a.version !== !!b.version) return a.version ? -1 : 1;
+    return a.offer.provider_name.localeCompare(b.offer.provider_name);
+  });
   const [allocation, setAllocation] = useState<RfqAllocation | null>(allocations[0] ?? null);
   const [quantities, setQuantities] = useState<Record<string, string>>(() => Object.fromEntries((allocations[0]?.lines ?? []).map(l => [String(l.quote_version_item_id), String(l.quantity)])));
   const [analyses, setAnalyses] = useState(initialAnalyses);
@@ -134,37 +153,41 @@ export function PurchasingOffers({ rfqId, items, offers, analyses: initialAnalys
       <div><strong>{allocation.authorized_at ? "Compra autorizada" : "Proveedor seleccionado"}</strong><p className={styles.muted}>{allocation.authorized_at ? "Revisá la orden antes de emitirla." : "Falta autorizar y emitir la orden."}</p></div>
       <Button onClick={() => { setOpen(true); setError(""); setAuthorized(false); if (allocation.authorized_at) void run(() => loadPreview(allocation.id)); else setStage("authorize"); }}>Continuar compra</Button>
     </div>}
-    <div className="flex items-center justify-between gap-3"><h2>Ofertas recibidas</h2><span className={styles.muted}>{groups.length} proveedor{groups.length === 1 ? "" : "es"}</span></div>
+    <div className={styles.offerToolbar}><div><h2>Ofertas recibidas</h2><span className={styles.muted}>{groups.length} proveedor{groups.length === 1 ? "" : "es"}</span></div>
+      {groups.length > 1 && <label className={styles.sortControl}>Ordenar por<select value={sort} onChange={e => setSort(e.target.value as typeof sort)}><option value="price">Menor total</option><option value="delivery">Menor plazo de entrega</option><option value="availability">Mayor disponibilidad</option></select></label>}
+    </div>
+    {new Set(groups.map(g => g.offer.currency)).size > 1 && <p className={styles.muted}>Los totales se comparan dentro de cada moneda.</p>}
     {!groups.length && <p className={styles.muted}>Todavía no recibiste ofertas.</p>}
-    <div className={styles.offerGrid}>
-      {groups.map(g => {
+    {groups.length > 0 && <div className={styles.offerTableWrap}><table className={styles.offerTable}>
+      <caption className="sr-only">Ofertas ordenadas por {sort === "price" ? "menor total dentro de cada moneda, con cobertura completa primero" : sort === "delivery" ? "menor plazo de entrega" : "mayor cobertura de lo solicitado"}</caption>
+      <thead><tr><th scope="col">Proveedor</th><th scope="col">Total con IVA y flete</th><th scope="col">Entrega</th><th scope="col">Disponible</th><th scope="col">Pago</th><th scope="col"><span className="sr-only">Acciones</span></th></tr></thead>
+      <tbody>{rankedGroups.map((g, index) => {
         const first = g.offer;
         const lead = [...new Set(g.lines.filter(o => o.available_quantity > 0).map(o => o.lead_time_days))];
-        const full = items.every(i => g.lines.some(o => o.rfq_item_id === i.id && o.available_quantity >= i.cantidad && o.precio_unitario != null));
-        const usable = g.lines.some(o => eligibleLine(o, now, false));
-        const peers = groups.filter(p => p.offer.currency === first.currency && items.every(i => p.lines.some(o => o.rfq_item_id === i.id && o.available_quantity >= i.cantidad && eligibleLine(o, now, false))));
+        const full = coversRequest(g);
+        const usable = usableOffer(g);
+        const peers = groups.filter(p => p.offer.currency === first.currency && coversRequest(p));
         const lowest = full && usable && peers.length > 1 && g.version && peers.every(p => p.version && g.version!.total <= p.version.total);
-        return <article key={g.id} className={styles.offerCard}>
-          <div className={styles.offerHeader}><h3>{first.provider_name}</h3>{lowest && <span className={styles.success}>Menor total · {first.currency}</span>}</div>
-          <span className={styles.totalLabel}>Total con IVA y flete{!full ? " · oferta parcial" : ""}</span>
-          <p className={styles.total}>{g.version ? money(g.version.total, first.currency) : "Sin importe"}</p>
-          <p className={`${styles.muted} mb-5`}>{first.vat_included ? "IVA incluido" : "Incluye el IVA adicional"} · Flete {money(first.freight ?? 0, first.currency)}</p>
-          <dl className={styles.facts}>
-            {items.length === 1 && <div><dt>Precio unitario</dt><dd>{g.lines[0].precio_unitario == null ? "Sin cotizar" : `${money(g.lines[0].precio_unitario, first.currency)} / ${items[0].unidad}`}</dd></div>}
-            <div><dt>Entrega</dt><dd>{lead.length === 1 ? lead[0] === 0 ? "Inmediata" : `${lead[0]} días` : "Según ítem"}</dd></div>
-            <div><dt>Disponible</dt><dd>{items.length === 1 ? `${quantity(g.lines[0].available_quantity)} ${items[0].unidad}` : full ? "Todo lo solicitado" : "Cobertura parcial"}</dd></div>
-            <div><dt>Pago</dt><dd>{payment(first.payment_terms)}</dd></div>
-          </dl>
-          <details className={styles.detail}><summary>Detalle de la oferta</summary><div className="space-y-2 mt-3">
+        return <tr key={g.id}>
+          <th scope="row"><div className={styles.providerCell}><span className={styles.offerRank} aria-hidden="true">{index + 1}</span><div><strong>{first.provider_name}</strong>{lowest && <span className={styles.lowestLabel}>Menor total</span>}
+          <details className={styles.rowDetail}><summary>Ver detalle</summary><div className="space-y-2 mt-3">
             {g.lines.map(o => <p key={o.id}>{items.find(i => i.id === o.rfq_item_id)?.descripcion} · {o.precio_unitario == null ? "Sin cotizar" : money(o.precio_unitario, o.currency)} · {quantity(o.available_quantity)} {items.find(i => i.id === o.rfq_item_id)?.unidad} disponibles · {o.lead_time_days} días</p>)}
             <p>Válida hasta {formatDate(first.valid_until)} · {g.version?.invoiceAvailable ? "Con factura" : "Sin factura"}</p>
             {g.version?.budgetNumber && <p>Presupuesto {g.version.budgetNumber}</p>}{first.observations && <p>{first.observations}</p>}
-          </div></details>
-          <div className={styles.offerFooter}><BudgetButton attachmentId={first.attachment_id} />{!completed && <Button disabled={!usable} onClick={() => choose(g)}>Adjudicar</Button>}</div>
-          {!usable && !completed && <p className={`${styles.muted} mt-2`}>{first.revoked ? "Oferta revocada" : first.valid_until && Date.parse(first.valid_until) <= now ? "Oferta vencida" : "Oferta incompleta o sin disponibilidad"}</p>}
-        </article>;
-      })}
-    </div>
+            <p>{first.vat_included ? "IVA incluido" : "IVA adicional incluido en el total"} · Flete {money(first.freight ?? 0, first.currency)}</p>
+          </div></details></div></div>
+          {!usable && !completed && <p className={styles.rowWarning}>{first.revoked ? "Oferta revocada" : first.valid_until && Date.parse(first.valid_until) <= now ? "Oferta vencida" : "Oferta incompleta o sin disponibilidad"}</p>}</th>
+          <td><strong className={styles.rowTotal}>{g.version ? money(g.version.total, first.currency) : "Sin importe"}</strong>
+            {items.length === 1 && <small className={styles.rowSecondary}>{g.lines[0].precio_unitario == null ? "Sin cotizar" : `${money(g.lines[0].precio_unitario, first.currency)} / ${items[0].unidad}`}</small>}
+            {!full && <small className={styles.rowWarning}>Cobertura parcial</small>}
+          </td>
+          <td>{lead.length === 1 ? lead[0] === 0 ? "Inmediata" : `${lead[0]} días` : "Según ítem"}</td>
+          <td>{items.length === 1 ? `${quantity(g.lines[0].available_quantity)} ${items[0].unidad}` : full ? "Todo lo solicitado" : "Parcial"}</td>
+          <td>{payment(first.payment_terms)}</td>
+          <td><div className={styles.rowActions}><BudgetButton attachmentId={first.attachment_id} />{!completed && <Button size="sm" disabled={!usable} onClick={() => choose(g)}>Adjudicar<span className="sr-only"> a {first.provider_name}</span></Button>}</div></td>
+        </tr>;
+      })}</tbody>
+    </table></div>}
     <Dialog open={open} onOpenChange={value => { if (!busy) setOpen(value); }}>
       <DialogContent title={stage === "choose" ? "Adjudicar compra" : stage === "authorize" ? "Autorizar compra" : "Confirmar orden de compra"} className={`${styles.dialog} max-w-2xl`}>
         {stage !== "preview" && selected.map(g => <div className={styles.selectionSummary} key={g.id}>
