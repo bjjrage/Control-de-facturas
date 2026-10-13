@@ -44,10 +44,18 @@
     "next.config.ts",
     "app/cotizacion/[token]/accept-form.tsx",
     "lib/__tests__/quotation-code-generation-db.spec.ts",
-    "supabase/migrations/20261013153336_fix_accept_quotation_ot_code.sql"
+    "supabase/migrations/20261013153336_fix_accept_quotation_ot_code.sql",
+    "app/(internal)/orders/[id]/page.tsx",
+    "app/(internal)/projects/[id]/costeo-actions.ts",
+    "app/(internal)/projects/[id]/costeo-checklist.tsx",
+    "app/(internal)/projects/[id]/costeo-section.tsx",
+    "app/(internal)/projects/[id]/cost-rfq-dialog.tsx",
+    "app/(internal)/projects/[id]/need-to-buy.tsx",
+    "app/(internal)/projects/[id]/project-tabs-client.tsx",
+    "app/(internal)/rfqs/purchase-dialog.module.css",
+    "app/(internal)/rfqs/section-action.ts"
   ],
   "excluded": [
-    "app/(internal)/projects/[id]/project-tabs-client.tsx",
     "components/layout/app-shell-client.tsx",
     "app/globals.css",
     "components/ui",
@@ -58,6 +66,8 @@
   "integrationFixes": [
     "Preserve client acceptance/rejection fields across confirmation and errors",
     "Compare date-only document validity at day precision; preserve exact timestamp comparisons",
-    "Allocate OT code inside existing validated-token transaction; preserve guards, grants and idempotency"
+    "Allocate OT code inside existing validated-token transaction; preserve guards, grants and idempotency",
+    "Shared purchase form for Administration/worksite/weekly need; preserve project to OC",
+    "Costeo owns Cotizar insumos; remove mixed purpose/mode controls from purchasing"
   ]
 }

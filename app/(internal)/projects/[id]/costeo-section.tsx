@@ -17,6 +17,7 @@ import {
   type CostBudgetInsumo,
 } from "./costeo-actions";
 import { CosteoChecklist } from "./costeo-checklist";
+import { CostRfqDialog } from "./cost-rfq-dialog";
 
 const FUENTE_LABEL: Record<string, string> = {
   COTIZACION: "Cotización",
@@ -91,6 +92,7 @@ export function CosteoSection({ projectId, isCaterpillar }: { projectId: string;
       ) : null}
 
       <Section title="Solicitudes de precio de la obra">
+        <div className="flex justify-end"><CostRfqDialog projectId={projectId} onCreated={load} /></div>
         {data.rfqs.length === 0 ? (
           <p className="text-[12px] text-[var(--muted)]">Todavía no generaste RFQ de costeo para esta obra.</p>
         ) : (
@@ -116,7 +118,7 @@ export function CosteoSection({ projectId, isCaterpillar }: { projectId: string;
       </Section>
 
       <Section title="Insumos (materiales)">
-        <p className="text-[11px] text-[var(--muted)]">Para pedir precios de estos materiales: Comprar → Cotizaciones → Nueva cotización → Desde una obra.</p>
+        <p className="text-[11px] text-[var(--muted)]">Usá «Cotizar insumos» para pedir precios de los materiales del presupuesto.</p>
         {data.insumos.length === 0 ? (
           <p className="text-[12px] text-[var(--muted)]">Sin materiales en el APU de las partidas.</p>
         ) : (

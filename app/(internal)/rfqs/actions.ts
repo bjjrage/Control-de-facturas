@@ -16,6 +16,29 @@ function str(formData: FormData, key: string) {
   return typeof v === "string" && v.trim() !== "" ? v.trim() : null;
 }
 
+export type PurchaseFormOptions = {
+  projects: { id: string; name: string; code: string }[];
+  products: { id: string; nombre: string; unidad: string }[];
+  central: { id: string; name: string } | null;
+};
+
+export async function getPurchaseFormOptions(): Promise<{ data: PurchaseFormOptions | null; error: string | null }> {
+  const profile = await requireProfile(["comercial", "administracion", "admin"]);
+  const db = await createClient();
+  try {
+    const [projects, products, central] = await Promise.all([
+      db.from("projects").select("id,name,code").eq("empresa_id", profile.empresa_id).order("name"),
+      db.from("productos").select("id,nombre,unidad").eq("empresa_id", profile.empresa_id).eq("activo", true).order("nombre"),
+      db.from("inventory_locations").select("id,name").eq("empresa_id", profile.empresa_id)
+        .eq("location_type", "CENTRAL").eq("active", true).eq("is_primary", true).limit(1).maybeSingle(),
+    ]);
+    for (const result of [projects, products, central]) if (result.error) throw new Error(result.error.message);
+    return { data: { projects: projects.data ?? [], products: products.data ?? [], central: central.data }, error: null };
+  } catch (e) {
+    return { data: null, error: e instanceof Error ? e.message : "No se pudieron cargar los destinos de compra." };
+  }
+}
+
 export async function uploadRfqAttachments(rfqId: string, files: File[]) {
   const profile = await requireProfile(["comercial", "administracion", "admin"]);
   const admin = createAdminClient();
@@ -74,6 +97,20 @@ export async function createRfq(formData: FormData) {
     const itemsRaw=str(formData,"items");
     const items=itemsRaw ? JSON.parse(itemsRaw) : [{descripcion:product,cantidad:quantity,unidad:unit,producto_id:null}];
     const origin = str(formData,"need_origin");
+    // A weekly need gets its project from the locked server snapshot. Manual
+    // purchases choose a project, or the configured primary central location.
+    if (!origin) {
+      const destination = str(formData, "purchase_destination");
+      if (destination && !["PROJECT", "CENTRAL"].includes(destination)) throw new Error("Destino de compra inválido.");
+      if (destination === "PROJECT" && !str(formData, "project_id")) throw new Error("Elegí la obra de esta compra.");
+      if (destination === "CENTRAL") {
+        if (str(formData, "project_id")) throw new Error("La compra central no puede tener una obra asignada.");
+        const central = await supabase.from("inventory_locations").select("id").eq("empresa_id", profile.empresa_id)
+          .eq("location_type", "CENTRAL").eq("active", true).eq("is_primary", true).limit(1).maybeSingle();
+        if (central.error) throw new Error(central.error.message);
+        if (!central.data) throw new Error("Configurá un depósito central antes de comprar para ese destino.");
+      }
+    }
     if (origin) {
       data=await rpc<{id:string}>(supabase,"weekly_plan_need_rfq",{...needOriginArgs(JSON.parse(origin)),p_header:{specifications:str(formData,"specifications"),internal_reference:str(formData,"internal_reference"),observations:str(formData,"observations")}});
     } else data=await createCanonicalRfq(supabase,{purpose:str(formData,"purpose"),quote_type:quoteType,product,

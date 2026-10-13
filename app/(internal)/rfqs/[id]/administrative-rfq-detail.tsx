@@ -28,12 +28,13 @@ export async function AdministrativeRfqDetail({ params, canonical, analyses }: {
   const profile = await requireProfile(["comercial", "administracion", "admin"]);
   const db = await createClient();
   const rfq = canonical.rfq;
-  const [vendors, files, orders] = await Promise.all([
+  const [vendors, files, orders, project] = await Promise.all([
     db.from("providers").select("*").eq("empresa_id", profile.empresa_id).eq("active", true).order("name"),
     db.from("attachments").select("id,bucket,path,file_name").eq("empresa_id", profile.empresa_id).eq("rfq_id", id).eq("bucket", "rfq-attachments"),
     db.from("authorized_orders").select("id,code,provider_name,total_price,currency").eq("empresa_id", profile.empresa_id).eq("rfq_id", id).order("created_at"),
+    rfq.project_id ? db.from("projects").select("id,name,code").eq("empresa_id", profile.empresa_id).eq("id", rfq.project_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
   ]);
-  for (const result of [vendors, files, orders]) if (result.error) throw new Error(result.error.message);
+  for (const result of [vendors, files, orders, project]) if (result.error) throw new Error(result.error.message);
   const invited = new Set(canonical.providers.map(p => p.provider_id));
   const appUrl = await getAppOrigin();
   const open = isRfqOpen(rfq);
@@ -51,6 +52,9 @@ export async function AdministrativeRfqDetail({ params, canonical, analyses }: {
           ? `${formatNumber(canonical.items[0].cantidad, Number.isInteger(canonical.items[0].cantidad) ? 0 : 4)} ${canonical.items[0].unidad} de ${canonical.items[0].descripcion}`
           : `${rfq.product} · ${canonical.items.length} ítems`}</p>
         {open && <p className={styles.muted}>Recibe ofertas hasta {formatDateTime(rfq.expires_at)}</p>}
+        <p className="mt-2 text-[13px] font-medium">{project.data
+          ? <Link className="text-action" href={`/projects/${project.data.id}?tab=cotizaciones`}>Obra: {project.data.code} · {project.data.name} · Entrega en obra</Link>
+          : "Compra sin obra asignada"}</p>
       </div>
       <div className={styles.actions}>
         {open && <InviteDialog rfqId={id} availableProviders={(vendors.data ?? []).filter(v => !invited.has(v.id)) as Provider[]}

@@ -224,6 +224,7 @@ export async function getCostBudgetAction(projectId: string): Promise<{ data: Co
         .select("id, code, product, status, expires_at, rfq_providers(status), rfq_items(id)")
         .eq("empresa_id", empresaId)
         .eq("project_id", projectId)
+        .or("purpose.eq.COST_DISCOVERY,purpose.is.null")
         .order("created_at", { ascending: false }),
     ]);
     for (const r of [itemsRes, materialsRes, laborRes, equipmentRes, subcontractsRes]) {

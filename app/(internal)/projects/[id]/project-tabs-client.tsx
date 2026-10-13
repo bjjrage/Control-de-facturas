@@ -60,7 +60,7 @@ import { SubcontratistasTable } from "./subcontratistas-table";
 import { ProyectoFacturasTable } from "./proyecto-facturas-table";
 import { ProyectoPagosTable } from "./proyecto-pagos-table";
 import { ProyectoRfqsTable } from "./proyecto-rfqs-table";
-import { RfqDialog } from "@/app/(internal)/rfqs/rfq-dialog";
+import { AdministrativeRfqDialog } from "@/app/(internal)/rfqs/administrative-rfq-dialog";
 import { ConsumoMaterialesSection, type ConsumoRow } from "./consumo-materiales-section";
 import { InventarioObraSection, type StockObraRow, type ConsumoCanonicoRow } from "./inventario-obra-section";
 import { RecepcionesObraSection, type RecepcionRow } from "./recepciones-obra-section";
@@ -412,11 +412,12 @@ export function ProjectTabsClient({
 
       {tab === "cotizaciones" ? (
         <div className="space-y-3">
-          <RfqDialog
+          <AdministrativeRfqDialog
             projectId={project.id}
-            trigger={<Button>+ Nueva cotización</Button>}
+            projectName={project.name}
+            trigger={<Button>+ Nueva compra</Button>}
           />
-          <ProyectoRfqsTable rows={projectRfqs} />
+          <ProyectoRfqsTable rows={projectRfqs.filter((rfq) => rfq.purpose !== "COST_DISCOVERY")} />
         </div>
       ) : null}
 

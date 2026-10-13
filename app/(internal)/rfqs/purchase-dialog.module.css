@@ -1,0 +1,24 @@
+.dialog { padding: 0 !important; overflow: hidden !important; display: flex; flex-direction: column; width: min(620px, calc(100vw - 24px)); max-width: 620px; border: 2px solid #66839e; background: #14263a; }
+.dialog > h2 { margin: 0; padding: 16px 20px; flex-shrink: 0; background: #304962; border-bottom: 2px solid #66839e; }
+.form { display: flex; flex-direction: column; min-height: 0; }
+.body { padding: 18px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; min-height: 0; }
+.block { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 2px solid #526f89; border-radius: 10px; background: #263e55; transition: border-color 150ms ease; }
+.block:hover { border-color: #90b4d1; }
+.caption { display: block; font-size: 12px; color: #c4d3e3; overflow-wrap: anywhere; }
+.types { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.type { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 2px solid #58738d; border-radius: 9px; background: #20364b; text-align: left; font-size: 13px; transition: border-color 150ms ease; }
+.type span { font-size: 12px; color: #c4d3e3; }
+.type:hover { border-color: #90b4d1; }
+.type[aria-pressed="true"] { border-color: #e9bc59; background: #334254; }
+.type:focus-visible { outline: 2px solid #e9bc59; outline-offset: 3px; }
+.items { display: flex; flex-direction: column; gap: 10px; }
+.line { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.details { padding: 10px 12px; border: 2px solid #526f89; border-radius: 9px; background: #20364b; }
+.details:hover { border-color: #90b4d1; }
+.details summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+.attachments { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.footer { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-top: 2px solid #66839e; background: #0e1c2d; }
+.footer p { max-width: 240px; font-size: 11px; color: #c4d3e3; }
+.footer > div { display: flex; gap: 8px; }
+.error { border: 1px solid var(--error); background: var(--error-bg); color: var(--error); padding: 8px; border-radius: 8px; font-size: 13px; }
+@media (max-width: 480px) { .line { grid-template-columns: 1fr 1fr; } .line > div:first-child { grid-column: 1 / -1; } .footer { flex-wrap: wrap; } .footer > div { margin-left: auto; } }

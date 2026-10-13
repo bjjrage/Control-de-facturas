@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { RfqDialog } from "@/app/(internal)/rfqs/rfq-dialog";
+import { AdministrativeRfqDialog } from "@/app/(internal)/rfqs/administrative-rfq-dialog";
 import { OrderDialog } from "@/app/(internal)/orders/order-dialog";
 import { createClient } from "@/lib/supabase/browser";
 import type { Provider } from "@/lib/types";
@@ -47,7 +47,7 @@ export function NeedToBuy({projectId,planId,disabled,seen}: {
       </p>})}
       {current.history?.map(d=><p key={d.id}>Decisión anterior: {d.kind}. {d.rfq_id && <a href={"/rfqs/"+d.rfq_id}>RFQ</a>} {d.order_id && <a href={"/orders/"+d.order_id}>OC confirmada</a>}</p>)}
       {origin && <>
-        <RfqDialog key={"rfq-"+current.snapshot_id} projectId={projectId} initialItems={items} needOrigin={origin}
+        <AdministrativeRfqDialog key={"rfq-"+current.snapshot_id} projectId={projectId} initialItems={items} needOrigin={origin}
           trigger={<Button variant="secondary">COTIZAR</Button>}/>
         <Button variant="secondary" disabled={pending} onClick={async()=>{
           setPending(true);setError("");

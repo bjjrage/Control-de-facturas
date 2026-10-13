@@ -31,7 +31,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     .single<AuthorizedOrder & { quantity_text: string }>();
   if (!order) notFound();
 
-  const [{ data: provider }, { data: matches }, { data: candidateInvoices }, { data: orderItems }, { data: recepciones }, { data: products }] =
+  const [{ data: provider }, { data: matches }, { data: candidateInvoices }, { data: orderItems }, { data: recepciones }, { data: products }, project] =
     await Promise.all([
       supabase.from("providers").select("*").eq("id", order.provider_id).single<Provider>(),
       supabase
@@ -66,7 +66,9 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         .order("nombre")
         .limit(1000)
         .returns<{ id: string; nombre: string; unidad: string; activo: boolean }[]>(),
+      order.project_id ? supabase.from("projects").select("id,name,code").eq("empresa_id", profile.empresa_id).eq("id", order.project_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
     ]);
+  if (project.error) throw new Error(project.error.message);
 
   const evidenceByReceipt: Record<string, ReceiptEvidenceView[]> = {};
   const receiptIds = (recepciones ?? []).map((receipt) => receipt.id);
@@ -151,6 +153,9 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             <StatusBadge status={order.status} />
           </div>
           <p className="text-[13px] mt-1">{order.provider_name}</p>
+          <p className="text-[13px] mt-2 font-medium">{project.data
+            ? <Link className="text-action" href={`/projects/${project.data.id}?tab=compras`}>Obra: {project.data.code} · {project.data.name} · Entrega en obra</Link>
+            : "Compra sin obra asignada"}</p>
           <p className="text-[11px] text-[var(--muted)] mt-0.5">
             {ORIGIN_LABEL[order.created_from]}
             {order.rfq_id ? (

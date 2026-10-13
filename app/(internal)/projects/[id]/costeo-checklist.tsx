@@ -88,7 +88,7 @@ export function CosteoChecklist({
           ? "Todavía no hay materiales: se calculan a partir de las recetas."
           : `${insumosConPrecio} de ${insumosTotal} materiales tienen precio.` +
             (insumosSinRubro > 0 ? ` ${insumosSinRubro} sin rubro.` : ""),
-      help: "El precio de un material sale, en este orden, de: el que elijas para esta obra, la cotización más barata de tus proveedores, el historial de compras, o el costo promedio del stock. Para conseguirlo: pedí cotizaciones (Comprar → Cotizaciones → Nueva cotización → Desde una obra) o cargá un precio a mano con «Cambiar» en la lista de insumos de abajo. Los materiales sin rubro no se pueden pedir a proveedores: asignales categoría en Stock.",
+      help: "El precio de un material sale, en este orden, de: el que elijas para esta obra, la cotización más barata de tus proveedores, el historial de compras, o el costo promedio del stock. Para conseguirlo: usá «Cotizar insumos» en Costeo o cargá un precio a mano con «Cambiar» en la lista de insumos de abajo. Los materiales sin rubro necesitan una categoría en Stock para pedir precios a proveedores.",
       actions: (
         <div className="flex flex-wrap gap-x-4 gap-y-1">
           <Link href="/precios" className="text-action text-[12px]">
