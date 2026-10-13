@@ -1,6 +1,26 @@
 # Handoff de recovery — PARCIAL
 
-## Panel corregido y verificado — 12/10/2026, 20:00 Paraguay
+## Panel simplificado y verificado — 12/10/2026, 21:10 Paraguay
+
+Esta actualización reemplaza el tratamiento visual anterior rechazado por el propietario. Sólo se modificaron `administrative-rfq-detail.tsx`, `purchasing-offers.tsx` (nuevo) y `procurement-panel.module.css`, en `erp-recovery`, rama `recovery/compras-ventas-approved`. Commit local de código: `12ded69c4e6171a2410ad6c694e9f867ea9d3dd6`. Los tres archivos se reflejaron en el runtime desechable `../erp-before-live`; preview `http://localhost:3002`, Supabase aislado `kyiihlkncatojvlasoag`, proceso Next observado 17588.
+
+Administración muestra una tarjeta por proveedor: total, precio unitario, entrega, disponibilidad, pago, documento original y Adjudicar. Se restauraron los colores originales de la app y la jerarquía usa tipografía, espacio, bordes y hover. Se retiraron de esta superficie las comparativas duplicadas, ponderaciones, puntajes, escenarios repetidos, texto crudo y formularios técnicos de extracción. Invitaciones/datos de solicitud quedan plegados. Costeo conserva su recorrido separado.
+
+Adjudicar abre un diálogo corto para revisar la oferta elegida, elegir un motivo comercial, guardar selección, autorizar y confirmar la preview exacta. Las discrepancias o ausencia de evidencia siguen exigiendo aclaración humana. Cantidades y reparto entre proveedores siguen disponibles como controles opcionales. Se reutilizan acciones, lector, análisis y RPC existentes; no cambios de contratos DB ni adjudicación automática. Una compra emitida muestra su OC y deja de ofrecer edición de adjudicación.
+
+E2E real por UI en la base aislada, sin precargar hechos documentales, revisiones ni asignaciones:
+
+- RFQ-2026-0007 (`67133fd7-be78-49f7-b290-7cc4713f5623`), 100 kg de Arena sintética. Dos proveedores ficticios enviaron oferta estructurada y Excel original desde Magic Links en Chrome externo. Extracción y contraste automáticos.
+- A: 50.500 PYG, entrega 2 días. B: 49.000 PYG, entrega 5 días, Contado. Se eligió B desde su tarjeta, se confirmó explícitamente su revisión y se seleccionó el motivo Precio conveniente.
+- Selección guardada → autorización humana → preview 100 × 480 = 48.000 PYG con IVA incluido + flete 1.000 = 49.000 → confirmación explícita → **OC-2026-0003** (`e0a100b4-6da9-48b6-9824-668048ecf64e`), AUTORIZADO.
+- SELECT de sólo lectura confirmó cero órdenes para esa RFQ antes de la confirmación y exactamente una después. El botón Ver OC-2026-0003 abrió la página real de la orden. No se agregó recepción ni factura.
+- RFQ-2026-0001, V-00001 y RFQs del propietario preservadas. RFQ-2026-0005 permanece OFERTAS_RECIBIDAS, sin registrar revisión ni adjudicación. Su pago histórico `30` se presenta como Crédito a 30 días sin reescribirlo.
+
+Validación: typecheck final PASS; lint de los componentes modificados PASS; 47 tests focales PASS (`creation-recovery`, `actions`, `domain`, `automatic-analysis`); diff sin errores. No se ejecutó build completo de este SHA. Capturas en el directorio padre: `recovery-arena-panel-simple.jpg` (RFQ del propietario), `recovery-ofertas-simples.jpg` (dos ofertas) y `recovery-confirmacion-simple.jpg` (preview final).
+
+Sin cambios en main, producción, esquema, SQL correctivo, dependencias, push o despliegues. Preview encendida para revisión del propietario; integración pendiente. Estado global PARCIAL: no certifica múltiples OCs en una asignación, OCR, ciclo completo de Ventas ni atribución histórica exacta. Las secciones siguientes conservan evidencia anterior, no describen la interfaz vigente.
+
+## Panel anterior, reemplazado por la simplificación — 12/10/2026, 20:00 Paraguay
 
 Cambios solicitados por el propietario, aplicados sólo en `erp-recovery`, rama `recovery/compras-ventas-approved`, y reflejados en la preview `http://localhost:3002`: paneles neutros, títulos y etapas numeradas, acción visible para revisar/adjudicar, propuestas avanzadas plegadas, hover/focus, subida del original mediante botón compacto, botones con iconos para copiar/QR/WhatsApp/ver documento y condiciones Contado / Crédito a 30, 60, 90, 120, 160 o 180 días. Se conserva el contrato de texto `payment_terms` y todas las guardas humanas/RPC actuales.
 
