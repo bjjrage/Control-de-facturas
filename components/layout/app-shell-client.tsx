@@ -254,6 +254,10 @@ export function AppShellClient({ children, warmPaths }: { children: ReactNode; w
   // Pre-warm ALL sections in background on first mount — first-click on any
   // section will be instant. We load the current path first, then the rest.
   useEffect(() => {
+    // Dev compiles server-action routes on demand. Warming every module here
+    // competes with the screen being reviewed and keeps the dev indicator busy.
+    // Opened sections still load normally through the navigation handlers.
+    if (process.env.NODE_ENV === "development") return;
     const currentPath = window.location.pathname as SectionKey;
 
     async function warmAll() {

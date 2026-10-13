@@ -1,0 +1,458 @@
+diff --git a/app/(internal)/invoices/invoice-dialog.tsx b/../erp-before-live/app/(internal)/invoices/invoice-dialog.tsx
+index ad97e5f..deaad0c 100644
+--- a/app/(internal)/invoices/invoice-dialog.tsx
++++ b/../erp-before-live/app/(internal)/invoices/invoice-dialog.tsx
+@@ -10,8 +10,6 @@ import { createInvoice } from "./actions";
+ import { extractInvoiceFromPhoto } from "./extract-actions";
+ import { calculateInvoiceVat, type InvoiceAmounts } from "@/lib/invoice-vat";
+ import { formatMoney } from "@/lib/format";
+-import type { ArithmeticValidation } from "@/lib/invoice-arithmetic";
+-import type { ExtractedInvoiceItem } from "@/lib/invoice-extraction";
+ import { ScanButton } from "@/components/scanner/scan-button";
+ import type { ReceivedDocument } from "@/components/scanner/scan-modal";
+ import { Upload, Eye, RefreshCw, CheckCircle2, FileText } from "lucide-react";
+@@ -59,8 +57,6 @@ export function InvoiceDialog({
+   const router = useRouter();
+ 
+   const [providerId, setProviderId] = useState(defaultProviderId ?? "");
+-  const [lines, setLines] = useState<ExtractedInvoiceItem[]>([]);
+-  const [arithmetic, setArithmetic] = useState<ArithmeticValidation | null>(null);
+   const invoiceNumberRef = useRef<HTMLInputElement>(null);
+   const invoiceDateRef = useRef<HTMLInputElement>(null);
+   const dueDateRef = useRef<HTMLInputElement>(null);
+@@ -71,8 +67,6 @@ export function InvoiceDialog({
+ 
+   async function handleFileChange(file: File | null) {
+     setScanNotice(null);
+-    setLines([]);
+-    setArithmetic(null);
+     if (!file || !READABLE_TYPES.includes(file.type)) return;
+ 
+     setScanning(true);
+@@ -101,8 +95,6 @@ export function InvoiceDialog({
+       if (timbradoRef.current && d.timbrado) timbradoRef.current.value = d.timbrado;
+       if (orderReferenceRef.current) orderReferenceRef.current.value = d.order_reference ?? "";
+       if (productDescriptionRef.current) productDescriptionRef.current.value = d.product_description ?? "";
+-      setLines((d.items ?? []).map((item) => ({ ...item })));
+-      setArithmetic(d.validation ?? null);
+ 
+       if (d.provider_id) {
+         setProviderId(d.provider_id);
+@@ -162,8 +154,6 @@ export function InvoiceDialog({
+   function handleReplaceDocument() {
+     setAttachedDoc(null);
+     setScanNotice(null);
+-    setLines([]);
+-    setArithmetic(null);
+     if (fileInputRef.current) {
+       fileInputRef.current.value = "";
+     }
+@@ -190,8 +180,6 @@ export function InvoiceDialog({
+           setDocumentAmounts(null);
+           setScanNotice(null);
+           setAttachedDoc(null);
+-          setLines([]);
+-          setArithmetic(null);
+         }
+       }}
+     >
+@@ -234,18 +222,6 @@ export function InvoiceDialog({
+           {linkOrderId ? <input type="hidden" name="link_order_id" value={linkOrderId} /> : null}
+           <input type="hidden" name="order_reference" ref={orderReferenceRef} />
+           <input type="hidden" name="product_description" ref={productDescriptionRef} />
+-          <input type="hidden" name="items_json" value={JSON.stringify(lines)} />
+-          {arithmetic && arithmetic.status !== "VALIDA" ? (
+-            <div className="rounded border border-[var(--warn)]/40 bg-[var(--warn-bg)] px-2.5 py-1.5 text-[12px] text-[var(--warn)]">
+-              Revisión aritmética: {arithmetic.issues[0]}
+-              {arithmetic.issues.length > 1 ? ` (+${arithmetic.issues.length - 1} más)` : ""} Verificá
+-              los importes contra el documento antes de crear.
+-              <label className="mt-1.5 flex items-start gap-2 cursor-pointer">
+-                <input type="checkbox" name="arithmetic_confirmed" value="on" className="mt-0.5" />
+-                <span>Verifiqué los importes contra el documento y asumo la discrepancia.</span>
+-              </label>
+-            </div>
+-          ) : null}
+ 
+           <div>
+             <Label htmlFor="file">Documento / Comprobante</Label>
+@@ -473,52 +449,6 @@ export function InvoiceDialog({
+             <Label htmlFor="observations">Observaciones</Label>
+             <Textarea id="observations" name="observations" />
+           </div>
+-          {lines.length > 0 ? (
+-            <div>
+-              <Label>Líneas detectadas (revisalas antes de crear)</Label>
+-              <div className="mt-1 space-y-1.5">
+-                {lines.map((line, i) => (
+-                  <div key={i} className="grid grid-cols-[1fr_64px_64px_80px_24px] gap-1.5 items-center">
+-                    <Input
+-                      aria-label={`Descripción línea ${i + 1}`}
+-                      value={line.description}
+-                      onChange={(e) => setLines((prev) => prev.map((l, j) => (j === i ? { ...l, description: e.target.value } : l)))}
+-                    />
+-                    <Input
+-                      aria-label={`Cantidad línea ${i + 1}`}
+-                      type="number"
+-                      step="0.0001"
+-                      value={line.quantity ?? ""}
+-                      onChange={(e) => setLines((prev) => prev.map((l, j) => (j === i ? { ...l, quantity: e.target.value === "" ? null : e.target.value } : l)))}
+-                    />
+-                    <Input
+-                      aria-label={`Unidad línea ${i + 1}`}
+-                      value={line.unit ?? ""}
+-                      onChange={(e) => setLines((prev) => prev.map((l, j) => (j === i ? { ...l, unit: e.target.value || null } : l)))}
+-                    />
+-                    <Input
+-                      aria-label={`Precio línea ${i + 1}`}
+-                      type="number"
+-                      step="any"
+-                      value={line.unit_price ?? ""}
+-                      onChange={(e) => setLines((prev) => prev.map((l, j) => (j === i ? { ...l, unit_price: e.target.value === "" ? null : Number(e.target.value) } : l)))}
+-                    />
+-                    <button
+-                      type="button"
+-                      aria-label={`Quitar línea ${i + 1}`}
+-                      className="text-[var(--error)] text-[14px]"
+-                      onClick={() => setLines((prev) => prev.filter((_, j) => j !== i))}
+-                    >
+-                      ×
+-                    </button>
+-                  </div>
+-                ))}
+-              </div>
+-              <p className="text-[11px] text-[var(--muted)] mt-1">
+-                Se guardan con la factura para conciliar cantidades por ítem. Podés corregirlas o quitarlas.
+-              </p>
+-            </div>
+-          ) : null}
+           </div>
+           <div className="flex shrink-0 justify-end gap-2 border-t border-[var(--border)] bg-[var(--panel-2)] px-5 py-3">
+             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+diff --git a/app/(internal)/invoices/actions.ts b/../erp-before-live/app/(internal)/invoices/actions.ts
+index c635aed..ebd7a6f 100644
+--- a/app/(internal)/invoices/actions.ts
++++ b/../erp-before-live/app/(internal)/invoices/actions.ts
+@@ -1,24 +1,17 @@
+ "use server";
+ 
++import { calculateInvoiceVat } from "@/lib/invoice-vat";
++
+ import { createClient } from "@/lib/supabase/server";
+ import { createAdminClient } from "@/lib/supabase/admin";
+ import { requireProfile } from "@/lib/auth";
+ import { logAudit } from "@/lib/audit";
+ import { sanitizeFileName } from "@/lib/storage";
+ import { autoMatchInvoice } from "@/lib/invoice-auto-match";
+-import { validateInvoiceArithmetic } from "@/lib/invoice-arithmetic";
+-import { calculateInvoiceVat } from "@/lib/invoice-vat";
+-import { INVOICE_QUANTITY_ERROR, isValidInvoiceQuantity } from "@/lib/invoice-item-reconcile";
+-import type { ExtractedInvoiceItem } from "@/lib/invoice-extraction";
+-import { applyDeterministicItemMatches, insertInvoiceItems, parseInvoiceLinesInput } from "@/lib/invoice-items";
+ import { revalidatePath } from "next/cache";
+ 
+ const MAX_FILE_BYTES = 20 * 1024 * 1024;
+ 
+-type CreateInvoiceResult =
+-  | { error: string; id?: undefined; autoMatched?: undefined; warning?: undefined; arithmeticIssues?: string[]; invoiceId?: string }
+-  | { error: null; id: string; autoMatched: boolean; warning?: string };
+-
+ /**
+  * Reintenta la conciliación automática sobre todas las facturas pendientes de
+  * vincular. Útil después de autorizar órdenes nuevas, o de corregir montos.
+@@ -60,7 +53,7 @@ function num(formData: FormData, key: string) {
+   return Number.isFinite(n) ? n : null;
+ }
+ 
+-export async function createInvoice(formData: FormData): Promise<CreateInvoiceResult> {
++export async function createInvoice(formData: FormData) {
+   const profile = await requireProfile(["administracion", "admin"]);
+ 
+   const vatRate = str(formData, "vat_rate");
+@@ -92,48 +85,8 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
+   }
+   if (total === null || total <= 0) return { error: "El total debe ser mayor a cero." };
+ 
+-  // R3-04: validación aritmética sobre los valores FINALES que se intentan
+-  // guardar (nunca se confía en un estado enviado por el cliente: se recalcula
+-  // en el servidor). Si hay discrepancias verificables, la creación exige la
+-  // confirmación explícita de un humano autorizado (checkbox del diálogo), que
+-  // queda auditada. La carga manual legítima sigue funcionando: con valores
+-  // consistentes no se pide nada extra.
+-  const dialogLines = parseInvoiceLinesInput(formData.get("items_json"));
+-  if (dialogLines.some((line) => line.quantity !== null && !isValidInvoiceQuantity(line.quantity))) {
+-    return { error: INVOICE_QUANTITY_ERROR };
+-  }
+-  const arithmetic = validateInvoiceArithmetic({
+-    provider_name: null,
+-    provider_tax_id: null,
+-    invoice_number: invoiceNumber,
+-    invoice_date: invoiceDate,
+-    subtotal: num(formData, "subtotal"),
+-    vat: num(formData, "vat"),
+-    total,
+-    timbrado: str(formData, "timbrado"),
+-    order_reference: str(formData, "order_reference"),
+-    product_description: str(formData, "product_description"),
+-    items: dialogLines.map((l): ExtractedInvoiceItem => ({
+-      description: l.description,
+-      quantity: l.quantity,
+-      unit: l.unit,
+-      unit_price: l.unit_price,
+-      subtotal: l.subtotal,
+-    })),
+-  });
+-  if (arithmetic.status !== "VALIDA" && formData.get("arithmetic_confirmed") !== "on") {
+-    return {
+-      error: `Revisión aritmética: ${arithmetic.issues[0] ?? "datos inconsistentes."} Corregí los importes o confirmá explícitamente que los verificaste contra el documento.`,
+-      arithmeticIssues: arithmetic.issues,
+-    };
+-  }
+-
+   const admin = createAdminClient();
+   const empresaId = profile.empresa_id;
+-  const { data: provider, error: providerError } = await admin.from("providers")
+-    .select("id").eq("id", providerId).eq("empresa_id", empresaId).maybeSingle();
+-  if (providerError || !provider) return { error: "Proveedor no disponible para esta empresa." };
+-
+   let attachmentId: string | null = null;
+   let newlyCreatedScannerAttachmentId: string | null = null;
+ 
+@@ -266,39 +219,12 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
+       .eq("empresa_id", empresaId);
+   }
+ 
+-  await logAudit(supabase, {
+-    action: "invoice.created",
+-    invoiceId: invoice.id,
+-    detail: arithmetic.status !== "VALIDA" ? { arithmetic_review: "confirmed" } : undefined,
+-  });
+-
+-  // Líneas de detalle (revisadas por el humano en el diálogo): se persisten
+-  // juntas en una sola sentencia, antes de cualquier conciliación automática.
+-  if (dialogLines.length > 0) {
+-    const { error: linesError } = await insertInvoiceItems(supabase, {
+-      empresaId,
+-      invoiceId: invoice.id as string,
+-      items: dialogLines,
+-    });
+-    if (linesError) {
+-      await logAudit(supabase, {
+-        action: "invoice.lines_save_failed",
+-        invoiceId: invoice.id,
+-        detail: { error: linesError },
+-      });
+-      revalidatePath("/invoices");
+-      return {
+-        error: "La factura se creó, pero no se guardaron sus líneas. No se vinculó ni concilió; revisá la factura antes de continuar.",
+-        invoiceId: invoice.id as string,
+-      };
+-    }
+-  }
++  await logAudit(supabase, { action: "invoice.created", invoiceId: invoice.id });
+ 
+   // Si viene de "Cargar factura para esta orden", se vincula directo a esa OC;
+   // si no, se intenta la conciliación automática por monto.
+   const linkOrderId = str(formData, "link_order_id");
+   let autoMatchedOrderId: string | null = null;
+-  let itemMatchWarning: string | undefined;
+   if (linkOrderId) {
+     const { error: matchError } = await supabase
+       .from("invoice_order_matches")
+@@ -306,8 +232,6 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
+     if (!matchError) {
+       autoMatchedOrderId = linkOrderId;
+       revalidatePath(`/orders/${linkOrderId}`);
+-    } else {
+-      itemMatchWarning = "La factura se creó, pero no pudo vincularse a la orden elegida. Revisá el vínculo antes de aprobar el pago.";
+     }
+   } else {
+     autoMatchedOrderId = await autoMatchInvoice(supabase, {
+@@ -320,28 +244,8 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
+     });
+   }
+ 
+-  // Conciliación por ítem determinística sobre el vínculo autorizado: solo el
+-  // caso inequívoco crea matches; lo demás queda pendiente de revisión manual.
+-  if (autoMatchedOrderId) {
+-    const { error: itemError, pending } = await applyDeterministicItemMatches(supabase, {
+-      empresaId,
+-      invoiceId: invoice.id as string,
+-      orderId: autoMatchedOrderId,
+-    });
+-    if (itemError) {
+-      itemMatchWarning = "La factura se creó y vinculó, pero no se completó la conciliación por línea. Revisala antes de aprobar el pago.";
+-      await logAudit(supabase, {
+-        action: "invoice.item_match_failed",
+-        invoiceId: invoice.id,
+-        detail: { error: itemError },
+-      });
+-    } else if (pending > 0) {
+-      itemMatchWarning = `${pending} línea(s) quedaron sin imputación. Revisalas antes de aprobar el pago.`;
+-    }
+-  }
+-
+   // Cost Engine Flywheel: Alimentar observaciones de costo real si la factura se vinculó a una OC
+-  const activeOrderId = autoMatchedOrderId;
++  const activeOrderId = linkOrderId || autoMatchedOrderId;
+   if (activeOrderId) {
+     try {
+       const { recordCostObservationFromInvoice } = await import("@/lib/procurement/flywheel");
+@@ -362,12 +266,7 @@ export async function createInvoice(formData: FormData): Promise<CreateInvoiceRe
+ 
+   revalidatePath("/invoices");
+   revalidatePath(`/invoices/${invoice.id}`);
+-  return {
+-    error: null,
+-    id: invoice.id as string,
+-    autoMatched: autoMatchedOrderId !== null,
+-    ...(itemMatchWarning ? { warning: itemMatchWarning } : {}),
+-  };
++  return { error: null, id: invoice.id as string, autoMatched: autoMatchedOrderId !== null };
+ }
+ 
+ export type OrderCandidate = {
+@@ -471,12 +370,7 @@ export async function getCandidateOrders(invoiceId: string): Promise<{
+ }
+ 
+ /** Vincula manualmente una factura PENDIENTE a una OC y la pasa a MATCH. */
+-export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Promise<{
+-  error: string | null;
+-  itemMatched?: number;
+-  itemPending?: number;
+-  warning?: string;
+-}> {
++export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Promise<{ error: string | null }> {
+   const profile = await requireProfile(["administracion", "admin"]);
+   const supabase = await createClient();
+   const empresaId = profile.empresa_id;
+@@ -502,22 +396,7 @@ export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Pr
+     .insert({ invoice_id: invoiceId, authorized_order_id: orderId, empresa_id: empresaId });
+   if (matchError) return { error: "No se pudo vincular: " + matchError.message };
+ 
+-  // The match trigger performs canonical reconciliation, including overbilling review.
+-
+-  // Conciliación por ítem determinística: solo el caso inequívoco crea matches.
+-  const { error: itemError, applied, pending } = await applyDeterministicItemMatches(supabase, {
+-    empresaId,
+-    invoiceId,
+-    orderId,
+-  });
+-  if (itemError) {
+-    await logAudit(supabase, {
+-      action: "invoice.item_match_failed",
+-      invoiceId,
+-      authorizedOrderId: orderId,
+-      detail: { error: itemError },
+-    });
+-  }
++  await supabase.from("invoices").update({ status: "MATCH" }).eq("id", invoiceId).eq("empresa_id", empresaId);
+ 
+   // Cost Engine Flywheel: Alimentar observaciones de costo real
+   try {
+@@ -528,7 +407,7 @@ export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Pr
+       providerId: invoice.provider_id || "",
+       orderId,
+       currency: invoice.currency || "PYG",
+-      exchangeRate: (invoice as { exchange_rate?: number | null }).exchange_rate ?? undefined,
++      exchangeRate: (invoice as any).exchange_rate ?? undefined,
+       invoiceDate: invoice.invoice_date || undefined
+     });
+   } catch {
+@@ -540,14 +419,5 @@ export async function linkInvoiceToOrder(invoiceId: string, orderId: string): Pr
+   revalidatePath("/invoices");
+   revalidatePath(`/invoices/${invoiceId}`);
+   revalidatePath(`/orders/${orderId}`);
+-  return {
+-    error: null,
+-    itemMatched: applied.length,
+-    itemPending: pending,
+-    ...(itemError || pending > 0 ? {
+-      warning: itemError
+-        ? "La factura quedó vinculada, pero no se completó la conciliación por línea. Revisala antes de aprobar el pago."
+-        : `${pending} línea(s) quedaron sin imputación. Revisalas antes de aprobar el pago.`,
+-    } : {}),
+-  };
++  return { error: null };
+ }
+diff --git a/app/(internal)/invoices/extract-actions.ts b/../erp-before-live/app/(internal)/invoices/extract-actions.ts
+index 41797ab..03ce938 100644
+--- a/app/(internal)/invoices/extract-actions.ts
++++ b/../erp-before-live/app/(internal)/invoices/extract-actions.ts
+@@ -8,23 +8,17 @@ import {
+   extractInvoiceFieldsFromFile,
+   ExtractedInvoiceFields,
+ } from "@/lib/invoice-extraction";
+-import { validateInvoiceArithmetic, type ArithmeticValidation } from "@/lib/invoice-arithmetic";
+ import { findProviderByTaxId } from "@/lib/provider-lookup";
+ 
+ export type ExtractedInvoiceData = ExtractedInvoiceFields & { provider_id: string | null };
+ 
+-export type ExtractionResult = {
+-  data: (ExtractedInvoiceData & { validation: ArithmeticValidation }) | null;
+-  error: string | null;
+-};
+-
+ function fail(error: string): { data: null; error: string } {
+   return { data: null, error };
+ }
+ 
+ export async function extractInvoiceFromPhoto(
+   formData: FormData
+-): Promise<ExtractionResult> {
++): Promise<{ data: ExtractedInvoiceData | null; error: string | null }> {
+   const profile = await requireProfile(["administracion", "admin"]);
+ 
+   const file = formData.get("file") as File | null;
+@@ -41,8 +35,5 @@ export async function extractInvoiceFromPhoto(
+   const supabase = await createClient();
+   const provider = await findProviderByTaxId(supabase, parsed.provider_tax_id, profile.empresa_id);
+ 
+-  return {
+-    data: { ...parsed, provider_id: provider?.id ?? null, validation: validateInvoiceArithmetic(parsed) },
+-    error: null,
+-  };
++  return { data: { ...parsed, provider_id: provider?.id ?? null }, error: null };
+ }
+diff --git a/app/(internal)/invoices/bulk/bulk-form.tsx b/../erp-before-live/app/(internal)/invoices/bulk/bulk-form.tsx
+index 8bee1bf..8cb77a7 100644
+--- a/app/(internal)/invoices/bulk/bulk-form.tsx
++++ b/../erp-before-live/app/(internal)/invoices/bulk/bulk-form.tsx
+@@ -170,35 +170,9 @@ export function BulkUploadForm({ empresaId, userId }: { empresaId: string; userI
+     if (idsToCancel.length === 0) return;
+     setCancelling(true);
+     try {
+-      const { data: deleted, error } = await supabase.from("invoice_jobs")
+-        .delete()
+-        .in("id", idsToCancel)
+-        .in("status", ["queued", "processing"])
+-        .is("invoice_id", null)
+-        .select("id, storage_bucket, storage_path");
+-      if (error) {
+-        setUploadError(`No se pudieron cancelar los trabajos: ${error.message}`);
+-        return;
+-      }
+-      const deletedIds = (deleted ?? []).map((job) => job.id);
+-      for (const job of deleted ?? []) {
+-        const prefix = `${empresaId}/inbox/`;
+-        if (job.storage_bucket === "invoice-files" && job.storage_path.startsWith(prefix)
+-          && job.storage_path.length > prefix.length && !job.storage_path.slice(prefix.length).includes("..")
+-          && !job.storage_path.includes("\\") && !job.storage_path.includes("//")) {
+-          try {
+-            const { error: storageError } = await supabase.storage.from("invoice-files").remove([job.storage_path]);
+-            if (storageError) setUploadError(`Un trabajo se canceló, pero su archivo no se pudo borrar: ${storageError.message}`);
+-          } catch {
+-            setUploadError("Un trabajo se canceló, pero falló la limpieza de su archivo. El trabajo no se restauró.");
+-          }
+-        }
+-      }
+-      setJobs((prev) => prev.filter((j) => !deletedIds.includes(j.id)));
+-      setJobIds((prev) => prev.filter((id) => !deletedIds.includes(id)));
+-      if (deletedIds.length !== idsToCancel.length) {
+-        setUploadError("Algunos trabajos ya cambiaron de estado o crearon una factura y no se cancelaron.");
+-      }
++      await supabase.from("invoice_jobs").delete().in("id", idsToCancel);
++      setJobs((prev) => prev.filter((j) => !idsToCancel.includes(j.id)));
++      setJobIds((prev) => prev.filter((id) => !idsToCancel.includes(id)));
+     } finally {
+       setCancelling(false);
+     }

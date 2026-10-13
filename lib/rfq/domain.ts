@@ -406,6 +406,7 @@ export interface DocumentFact {
   precio_unitario?: number | null;
   currency?: string;
   tax_rate?: number;
+  vat_included?: boolean;
   available_quantity?: number;
   lead_time_days?: number;
   freight?: number;
@@ -440,6 +441,7 @@ export function reconcileOffer(
         "precio_unitario",
         "currency",
         "tax_rate",
+        "vat_included",
         "available_quantity",
         "lead_time_days",
         "freight",

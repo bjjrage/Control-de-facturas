@@ -8,6 +8,7 @@ export const documentFactsSchema = z
       precio_unitario: z.number().finite().nonnegative().nullable().optional(),
       currency: z.string().max(10).optional(),
       tax_rate: z.number().finite().min(0).max(100).optional(),
+      vat_included: z.boolean().optional(),
       available_quantity: z.number().finite().nonnegative().optional(),
       lead_time_days: z.number().int().nonnegative().optional(),
       freight: z.number().finite().nonnegative().optional(),
@@ -26,6 +27,15 @@ const normal = (s: string) =>
 function numeric(x: unknown): number | undefined {
   if (typeof x === "number" && Number.isFinite(x)) return x;
   if (typeof x === "string" && /^\d+(\.\d+)?$/.test(x.trim())) return Number(x);
+  return undefined;
+}
+function booleanValue(x: unknown): boolean | undefined {
+  if (typeof x === "boolean") return x;
+  if (typeof x === "string") {
+    if (["si", "true", "1"].includes(normal(x))) return true;
+    if (["no", "false", "0"].includes(normal(x))) return false;
+  }
+  if (x === 1 || x === 0) return x === 1;
   return undefined;
 }
 export function extractDocumentFacts(
@@ -64,6 +74,7 @@ export function extractDocumentFacts(
                 .toUpperCase()
             : undefined,
         tax_rate: numeric(fields["impuesto %"] ?? fields["tax_rate"]),
+        vat_included: booleanValue(fields["iva incluido"] ?? fields["vat_included"]),
         available_quantity: numeric(
           fields["disponibilidad"] ?? fields["available_quantity"],
         ),

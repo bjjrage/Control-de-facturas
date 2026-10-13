@@ -87,7 +87,7 @@ describe("automatic Administration supplier document analysis", () => {
   it("external submit runs the real reader/mapper/comparison after committing; never reviews or purchases", async () => {
     const f = fixture(); m.admin.mockReturnValue(f.db);
     const result = await submitMultiItemQuote(token, f.fd);
-    expect(result).toMatchObject({ error: null, versionId, analysis: { status: "REVIEW_REQUIRED", discrepancies: 7 } });
+    expect(result).toMatchObject({ error: null, versionId, analysis: { status: "REVIEW_REQUIRED", discrepancies: 8 } });
     expect(f.storage.download).toHaveBeenCalledOnce();
     expect(m.submit.mock.invocationCallOrder[0]).toBeLessThan(f.storage.download.mock.invocationCallOrder[0]);
     const data = await analyzeQuoteDocument(f.db, id, items, [offer]);

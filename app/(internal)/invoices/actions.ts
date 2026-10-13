@@ -7,6 +7,7 @@ import { logAudit } from "@/lib/audit";
 import { sanitizeFileName } from "@/lib/storage";
 import { autoMatchInvoice } from "@/lib/invoice-auto-match";
 import { validateInvoiceArithmetic } from "@/lib/invoice-arithmetic";
+import { calculateInvoiceVat } from "@/lib/invoice-vat";
 import { INVOICE_QUANTITY_ERROR, isValidInvoiceQuantity } from "@/lib/invoice-item-reconcile";
 import type { ExtractedInvoiceItem } from "@/lib/invoice-extraction";
 import { applyDeterministicItemMatches, insertInvoiceItems, parseInvoiceLinesInput } from "@/lib/invoice-items";
@@ -61,6 +62,20 @@ function num(formData: FormData, key: string) {
 
 export async function createInvoice(formData: FormData): Promise<CreateInvoiceResult> {
   const profile = await requireProfile(["administracion", "admin"]);
+
+  const vatRate = str(formData, "vat_rate");
+  if (vatRate && vatRate !== "document") {
+    const amounts = calculateInvoiceVat(
+      num(formData, "invoice_amount") ?? NaN,
+      Number(vatRate),
+      formData.get("vat_included") === "on",
+      str(formData, "currency") ?? "PYG",
+    );
+    if (!amounts) return { error: "Ingresá un importe positivo y elegí IVA de 5%, 10% o exento." };
+    formData.set("subtotal", String(amounts.subtotal));
+    formData.set("vat", String(amounts.vat));
+    formData.set("total", String(amounts.total));
+  }
 
   const providerId = str(formData, "provider_id");
   const invoiceNumber = str(formData, "invoice_number");

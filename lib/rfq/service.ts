@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isResolvedReview } from "./quote-review";
 import {
   allocationSchema,
   offerSchema,
@@ -181,7 +182,7 @@ export async function loadRfqWorkspace(
             valid_until: v.valid_until,
             observations: v.observations,
             attachment_id: v.pdf_attachment_id,
-            review_id: review?.id ?? null,
+            review_id: header.data.purpose === "PROCUREMENT" && !isResolvedReview(review) ? null : review?.id ?? null,
             review_resolution: review?.resolution ?? null,
             review_discrepancies: [
               ...(Array.isArray(review?.comparison?.automatic)

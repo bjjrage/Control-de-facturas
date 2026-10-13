@@ -1,0 +1,43 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 539 >>
+stream
+BT /F1 12 Tf 50 780 Td (FACTURA SINTETICA - NO VALIDA FISCALMENTE) Tj
+0 -24 Td (Emisor: Proveedor QA No Registrado) Tj
+0 -24 Td (RUC: 99999998-0) Tj
+0 -24 Td (Factura: 001-001-0000092) Tj
+0 -24 Td (Fecha: 13/10/2026) Tj
+0 -24 Td (Orden de compra: OC-2026-0005) Tj
+0 -24 Td (Detalle: Arena - Cantidad 100 kg - Precio unitario IVA incluido 1000 PYG) Tj
+0 -24 Td (Importe total linea: 100000 PYG) Tj
+0 -24 Td (Subtotal sin IVA: 90909 PYG) Tj
+0 -24 Td (IVA 10%: 9091 PYG) Tj
+0 -24 Td (Total a pagar: 100000 PYG) Tj
+0 -24 Td (Moneda: PYG) Tj ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000311 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+901
+%%EOF
