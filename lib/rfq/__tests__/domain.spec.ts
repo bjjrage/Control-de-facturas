@@ -36,6 +36,21 @@ const offer: ComparativeLine = {
   revoked: false,
 };
 describe("RFQ domain invariants", () => {
+  it("prepares scenarios before review without authorizing an allocation", () => {
+    const unreviewed = { ...offer, review_id: null };
+    expect(proposeAllocations(items, [unreviewed])).toEqual([]);
+    const proposals = proposeAllocations(items, [unreviewed], { preliminary: true });
+    expect(proposals.length).toBeGreaterThan(0);
+    expect(proposals.every((p) => !p.decision && p.warnings.some((w) => w.includes("revisión humana")))).toBe(true);
+    expect(() => validateAllocation(proposals[0].lines, items, [unreviewed])).toThrow(/sin revisión/);
+    expect(unreviewed.review_id).toBeNull();
+  });
+  it.each([
+    { revoked: true }, { valid_until: "2000-01-01" }, { attachment_id: null },
+    { tax_rate: null }, { precio_unitario: null }, { freight: null },
+  ])("preliminary scenarios still reject revoked/expired/incomplete offers %j", (invalid) => {
+    expect(proposeAllocations(items, [{ ...offer, review_id: null, ...invalid } as ComparativeLine], { preliminary: true })).toEqual([]);
+  });
   it.each([
     { token_revoked_at: "2026-01-01" },
     { token_expires_at: "2000-01-01" },
@@ -178,5 +193,16 @@ describe("RFQ domain invariants", () => {
         [{ rfq_item_id: id, valid_until: "2099-01-01T00:00:00.000+00:00" }],
       ).some((d) => d.field === "valid_until"),
     ).toBe(false);
+  });
+  it.each([
+    ["2099-01-01", "2099-01-01T23:59:59.000Z", false],
+    ["2099-01-02", "2099-01-01T23:59:59.000Z", true],
+    ["2099-01-01T00:00:00Z", "2099-01-01T23:59:59.000Z", true],
+    ["2099-02-30", "2099-03-02T23:59:59.000Z", true],
+  ])("compares validity using documentary precision: %s / %s", (document, structured, difference) => {
+    expect(reconcileOffer(
+      [{ ...offer, valid_until: structured }],
+      [{ rfq_item_id: id, valid_until: document }],
+    ).some((d) => d.field === "valid_until")).toBe(difference);
   });
 });

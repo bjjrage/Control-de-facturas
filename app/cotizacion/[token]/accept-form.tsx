@@ -22,21 +22,30 @@ export function AcceptForm({ token }: { token: string }) {
   return (
     <form
       className="space-y-3"
-      action={async (fd: FormData) => {
+      onSubmit={async (event) => {
+        event.preventDefault();
+        if (pending) return;
+        const fd = new FormData(event.currentTarget);
         if (!confirming) {
           setConfirming(true);
           return;
         }
         setPending(true);
-        const res = await acceptQuotationAction(token, fd);
-        setPending(false);
-        if (res?.error) {
-          setError(res.error);
+        try {
+          const res = await acceptQuotationAction(token, fd);
+          if (res?.error) {
+            setError(res.error);
+            setConfirming(false);
+            return;
+          }
+          setError(null);
+          setDone(true);
+        } catch {
+          setError("No se pudo registrar la aceptación. Tus datos se conservan; volvé a intentar.");
           setConfirming(false);
-          return;
+        } finally {
+          setPending(false);
         }
-        setError(null);
-        setDone(true);
       }}
     >
       {error ? (
@@ -115,16 +124,24 @@ export function RejectForm({ token }: { token: string }) {
   return (
     <form
       className="space-y-3 rounded-lg border border-[var(--border)] p-3"
-      action={async (fd: FormData) => {
+      onSubmit={async (event) => {
+        event.preventDefault();
+        if (pending) return;
+        const fd = new FormData(event.currentTarget);
         setPending(true);
-        const res = await rejectQuotationAction(token, fd);
-        setPending(false);
-        if (res?.error) {
-          setError(res.error);
-          return;
+        try {
+          const res = await rejectQuotationAction(token, fd);
+          if (res?.error) {
+            setError(res.error);
+            return;
+          }
+          setError(null);
+          setDone(true);
+        } catch {
+          setError("No se pudo registrar la respuesta. Tus datos se conservan; volvé a intentar.");
+        } finally {
+          setPending(false);
         }
-        setError(null);
-        setDone(true);
       }}
     >
       {error ? (

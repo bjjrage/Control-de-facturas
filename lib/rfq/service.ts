@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isResolvedReview } from "./quote-review";
 import {
   allocationSchema,
   offerSchema,
@@ -101,7 +102,7 @@ export async function loadRfqWorkspace(
       .order("sort_order"),
     db
       .from("rfq_providers")
-      .select("*, providers(name, active)")
+      .select("*, providers(name, active, phone)")
       .eq("rfq_id", rfqId)
       .eq("empresa_id", empresaId),
     db
@@ -136,7 +137,7 @@ export async function loadRfqWorkspace(
         )
         .order("version_number", { ascending: false });
       assertResult(versions);
-      const current = new Map<string, Record<string, any>>();
+      const current = new Map<string, NonNullable<typeof versions.data>[number]>();
       for (const v of versions.data ?? []) {
         history.push(v);
         if (!current.has(v.quote_id)) current.set(v.quote_id, v);
@@ -181,7 +182,7 @@ export async function loadRfqWorkspace(
             valid_until: v.valid_until,
             observations: v.observations,
             attachment_id: v.pdf_attachment_id,
-            review_id: review?.id ?? null,
+            review_id: header.data.purpose === "PROCUREMENT" && !isResolvedReview(review) ? null : review?.id ?? null,
             review_resolution: review?.resolution ?? null,
             review_discrepancies: [
               ...(Array.isArray(review?.comparison?.automatic)

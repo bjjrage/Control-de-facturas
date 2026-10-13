@@ -1,0 +1,88 @@
+{
+  "base": "953ebba505b38313bd3e18e6cb9fbf31b7e1eb89",
+  "baseline": {
+    "compile": true,
+    "typecheck": true,
+    "staticGeneration": true,
+    "buildFinal": true,
+    "navigation": true,
+    "routes": [
+      "/rfqs",
+      "/projects",
+      "/invoices"
+    ],
+    "note": "Prebuilt main rendered all three surfaces; chart size warning preexists."
+  },
+  "integration": {
+    "ported": true,
+    "build": true,
+    "navigation": true,
+    "typecheck": true,
+    "buildId": "bahCjUWl6_gBUPuG8DcK8",
+    "runtime": "next start, port 3003",
+    "devCompilingHangObserved": false
+  },
+  "database": "kyiihlkncatojvlasoag",
+  "productionTouched": false,
+  "baselineBuildId": "zi4oAFvPGDkPZSxrRJCW9",
+  "unitTests": {
+    "files": 19,
+    "passed": 319
+  },
+  "lint": {
+    "passed": false,
+    "errors": 6,
+    "warnings": 3,
+    "allExistingInMain": true
+  },
+  "outsideScopeMatchesMain": true,
+  "procurement": {
+    "rfq": "RFQ-2026-0010",
+    "rfqId": "3aabc573-0fb0-4fb1-aa2c-6c408ae7c811",
+    "order": "OC-2026-0007",
+    "orderId": "855727e3-9364-4f68-9e56-5bb6215b7af7",
+    "invoice": "001-001-0000093",
+    "invoiceId": "68738ed4-3e0f-4496-8de4-d8064e040ad5",
+    "paymentOrder": "OP-2026-0001",
+    "paymentOrderId": "239bffe2-88ca-4419-9a88-4c17acf4be51",
+    "invoiceStatus": "PAGADO",
+    "paymentStatus": "EJECUTADA",
+    "value": 15000,
+    "realMoneyMoved": false,
+    "treasuryAccount": null,
+    "receiptStockTested": false
+  },
+  "sales": {
+    "proforma": "V-00002",
+    "id": "d6097783-846f-4f25-84bf-2f5cd18a1a7a",
+    "accepted": true,
+    "acceptanceFormPreservesFields": true,
+    "workOrder": "OT-2026-0001",
+    "workOrderId": "c65650a6-e029-462e-8315-a0d8a1ce6452",
+    "internallyApproved": true,
+    "invoice": "V-00003",
+    "invoiceId": "b0c557f7-0e6a-4dc5-9e1a-146ef3e44098",
+    "invoiceStatus": "COBRADA",
+    "total": 22000,
+    "collected": 22000,
+    "balance": 0,
+    "fiscalEmissionTested": false,
+    "realMoneyMoved": false
+  },
+  "approvedSchemaChange": {
+    "function": "public.accept_quotation(text,text,text,text,text,text)",
+    "appliedOnlyTo": "kyiihlkncatojvlasoag",
+    "migration": "20261013153336_fix_accept_quotation_ot_code.sql",
+    "grants": "postgres and service_role only; unchanged",
+    "searchPath": "public; unchanged",
+    "regressionTestsPassed": 6,
+    "recordsDeleted": 0
+  },
+  "limits": [
+    "Single supplier XLSX offer; not a general PDF/image quotation OCR certification",
+    "Receipt/stock, partial payments and fiscal emission not exercised",
+    "Bulk invoice upload not rerun in this integration preview",
+    "Security advisors still report unrelated database findings; see CHECKPOINT.md",
+    "Broad lint retains 6 preexisting errors and 3 warnings"
+  ]
+}

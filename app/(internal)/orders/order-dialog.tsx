@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -208,6 +208,7 @@ export function OrderDialog({
   const [open, setOpen] = useState(defaultOpen ?? false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const submitting = useRef(false);
   const [currency, setCurrency] = useState<CurrencyCode>("PYG");
   const [items, setItems] = useState<ItemRow[]>(
     () =>
@@ -286,7 +287,10 @@ export function OrderDialog({
       <DialogContent title="Nueva orden de compra" className="max-w-4xl">
         <form
           className="space-y-4"
-          action={async (formData: FormData) => {
+          onSubmit={async (event) => {
+            event.preventDefault();
+            if (submitting.current) return;
+            const formData = new FormData(event.currentTarget);
             if(needOrigin) formData.set("need_origin",JSON.stringify(needOrigin));
             // Validate
             for (const r of items) {
@@ -331,15 +335,19 @@ export function OrderDialog({
               return;
             }
             setPending(true);
-            const result = await previewDirectPurchaseAction(formData);
-            setPending(false);
-            if (result?.error) {
-              setError(result.error);
-              return;
-            }
+            submitting.current = true;
             setError(null);
-            setPreview(result.data);
-            setConfirmed(false);
+            try {
+              const result = await previewDirectPurchaseAction(formData);
+              if (result.error) { setError(result.error); return; }
+              setPreview(result.data);
+              setConfirmed(false);
+            } catch (e) {
+              setError(e instanceof Error ? e.message : "No se pudo preparar la compra.");
+            } finally {
+              submitting.current = false;
+              setPending(false);
+            }
           }}
         >
           {preview ? (
@@ -416,7 +424,7 @@ export function OrderDialog({
           ) : null}
 
           {error ? (
-            <div className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
+            <div role="alert" className="rounded border border-[var(--error)]/30 bg-[var(--error-bg)] px-2.5 py-1.5 text-[12px] text-[var(--error)]">
               {error}
             </div>
           ) : null}

@@ -8,6 +8,7 @@ import { Input, Label, Select } from "@/components/ui/input";
 import { formatDate, formatNumber } from "@/lib/format";
 import { isRfqOpen, rfqClosedReason } from "@/lib/rfq-status";
 import { RfqDialog } from "./rfq-dialog";
+import { AdministrativeRfqDialog } from "./administrative-rfq-dialog";
 import { BackButton } from "@/components/ui/back-button";
 
 type Filters = {
@@ -62,12 +63,16 @@ export default async function RfqsPage({ searchParams }: { searchParams: Promise
       <BackButton />
       <div className="flex items-center justify-between mt-1 mb-4">
         <h1 className="text-[17px] font-semibold">Cotizaciones</h1>
-        <RfqDialog
+        {filters.nueva === "obra" ? <RfqDialog
           key={filters.nueva ? `open-${filters.obra ?? ""}` : "closed"}
           trigger={<Button>+ Nueva cotización</Button>}
-          defaultOpen={filters.nueva === "1" || filters.nueva === "obra"}
-          defaultFromProject={filters.nueva === "obra" ? filters.obra : undefined}
-        />
+          defaultOpen
+          defaultFromProject={filters.obra}
+        /> : <AdministrativeRfqDialog
+          key={filters.nueva ? "open-admin" : "closed-admin"}
+          trigger={<Button>+ Nueva cotización</Button>}
+          defaultOpen={filters.nueva === "1"}
+        />}
       </div>
 
       <form className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-3 mb-4 space-y-3" method="get">
