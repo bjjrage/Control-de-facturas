@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Circle, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClassName } from "@/components/ui/button";
 import type { CostBudgetData } from "./costeo-actions";
 import { ApuTemplatesDialog } from "./apu-templates-dialog";
 import { LaborRatesDialog } from "./labor-rates-dialog";
 import { ApplyApuTemplatesButton } from "./apply-apu-templates-button";
+import { CosteoHelp } from "./costeo-help";
+import styles from "./costeo-checklist.module.css";
 
 type StepState = "done" | "pending" | "warn";
 
@@ -51,15 +53,16 @@ export function CosteoChecklist({
 
   const steps: Step[] = [
     {
-      title: "1. Partidas con cantidad",
+      title: "Partidas",
       state: total > 0 ? "done" : "pending",
-      detail: total > 0 ? `${total} partidas con cantidad.` : "La obra no tiene partidas con cantidad.",
+      detail: total > 0 ? `${total} con cantidad` : "Sin cantidades",
       help: "Salen del presupuesto o del cómputo métrico (Preparar → Presupuesto / BIM).",
+      actions: <Link href={`/projects/${projectId}?tab=presupuesto`} className={buttonClassName({ variant: "secondary", size: "sm" })}>Presupuesto</Link>,
     },
     {
-      title: "2. Receta (APU) de cada partida",
+      title: "Recetas APU",
       state: total > 0 && conApu === total ? "done" : conApu > 0 ? "warn" : "pending",
-      detail: `${conApu} de ${total} partidas tienen receta.`,
+      detail: `${conApu} de ${total} con receta`,
       help: "La receta dice qué materiales, horas de mano de obra, equipos y subcontratos lleva UNA unidad de cada partida. La carga la constructora una sola vez: subí su planilla en Plantillas de APU y después tocá Aplicar.",
       actions: (
         <div className="flex flex-wrap items-start gap-2">
@@ -69,41 +72,41 @@ export function CosteoChecklist({
       ),
     },
     {
-      title: "3. Costo por hora de la mano de obra",
+      title: "Mano de obra",
       state: data.manoObra.length > 0 ? "done" : conApu > 0 ? "warn" : "pending",
       detail:
         data.manoObra.length > 0
-          ? `${data.manoObra.length} categorías con costo por hora (${data.manoObra.filter((m) => m.vinculadoAJornal).length} vinculadas a Jornales).`
+          ? `${data.manoObra.length} categorías · ${data.manoObra.filter((m) => m.vinculadoAJornal).length} vinculadas a jornales`
           : conApu > 0
-            ? "Las recetas cargadas no traen mano de obra."
-            : "Se define con las recetas.",
+            ? "Sin mano de obra en las recetas"
+            : "Pendiente de recetas",
       help: "El costo por hora de cada categoría (oficial, ayudante…) con sus cargas sociales sale de la tabla de Jornales, que se carga una sola vez para toda la empresa.",
       actions: <LaborRatesDialog />,
     },
     {
-      title: "4. Precio de cada material",
+      title: "Materiales",
       state: insumosTotal === 0 ? "pending" : insumosConPrecio === insumosTotal ? "done" : "warn",
       detail:
         insumosTotal === 0
-          ? "Todavía no hay materiales: se calculan a partir de las recetas."
-          : `${insumosConPrecio} de ${insumosTotal} materiales tienen precio.` +
-            (insumosSinRubro > 0 ? ` ${insumosSinRubro} sin rubro.` : ""),
+          ? "Pendiente de recetas"
+          : `${insumosConPrecio} de ${insumosTotal} con precio` +
+            (insumosSinRubro > 0 ? ` · ${insumosSinRubro} sin rubro` : ""),
       help: "El precio de un material sale, en este orden, de: el que elijas para esta obra, la cotización más barata de tus proveedores, el historial de compras, o el costo promedio del stock. Para conseguirlo: usá «Cotizar insumos» en Costeo o cargá un precio a mano con «Cambiar» en la lista de insumos de abajo. Los materiales sin rubro necesitan una categoría en Stock para pedir precios a proveedores.",
       actions: (
-        <div className="flex flex-wrap gap-x-4 gap-y-1">
-          <Link href="/precios" className="text-action text-[12px]">
-            Lista de precios de materiales →
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/precios" className={buttonClassName({ variant: "secondary", size: "sm" })}>
+            Precios
           </Link>
-          <Link href={`/projects/${projectId}?tab=cotizaciones`} className="text-action text-[12px]">
-            Cotizaciones de esta obra →
+          <Link href={`/projects/${projectId}?tab=cotizaciones`} className={buttonClassName({ variant: "secondary", size: "sm" })}>
+            Cotizaciones
           </Link>
         </div>
       ),
     },
     {
-      title: "5. Costo final por partida",
+      title: "Costo final",
       state: total > 0 && costeadas === total ? "done" : costeadas > 0 ? "warn" : "pending",
-      detail: `${costeadas} de ${total} partidas con costo completo.`,
+      detail: `${costeadas} de ${total} completas`,
       help: "Una partida tiene costo completo cuando tiene receta y todos sus materiales tienen precio. Recién ahí se calcula su costo, su margen contra el precio de venta y el total de la obra.",
     },
   ];
@@ -111,19 +114,19 @@ export function CosteoChecklist({
   const next = steps.find((s) => s.state !== "done");
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4 space-y-3">
+    <section className={styles.panel} aria-label="Estado del costeo">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-[13px] font-semibold">Qué falta para el costeo final</h3>
-          <p className="text-[12px] text-[var(--muted)]">
+          <h3 className={styles.heading}>Estado del costeo</h3>
+          <p className={styles.subtitle}>
             {progress === 100 && total > 0
               ? "Todas las partidas tienen costo completo."
               : next
-                ? `Siguiente paso: ${next.title.replace(/^\d\.\s/, "")}.`
+                ? `Siguiente: ${next.title}`
                 : ""}
           </p>
         </div>
-        <Button type="button" variant="ghost" onClick={onChanged} className="gap-1.5" title="Recalcular">
+        <Button type="button" variant="secondary" size="icon" onClick={onChanged} disabled={loading} aria-label="Recalcular costeo" title="Recalcular">
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
         </Button>
       </div>
@@ -140,19 +143,15 @@ export function CosteoChecklist({
         </div>
       </div>
 
-      <ol className="space-y-3">
+      <ol className={styles.rows}>
         {steps.map((s) => (
-          <li key={s.title} className="flex gap-2.5">
-            <StateIcon state={s.state} />
-            <div className="min-w-0 flex-1 space-y-1">
-              <div className="text-[13px] font-medium">{s.title}</div>
-              <div className={`text-[12px] ${s.state === "warn" ? "text-amber-500" : s.state === "done" ? "text-emerald-500" : "text-[var(--muted)]"}`}>{s.detail}</div>
-              {s.state !== "done" ? <p className="text-[11px] text-[var(--muted)] max-w-3xl">{s.help}</p> : null}
-              {s.actions ? <div className="pt-0.5">{s.actions}</div> : null}
-            </div>
+          <li key={s.title} className={styles.row} data-next={s === next || undefined}>
+            <div className={styles.identity}><StateIcon state={s.state} /><span className={styles.title}>{s.title}</span><CosteoHelp title={s.title}>{s.help}</CosteoHelp></div>
+            <p className={styles.status} data-state={s.state}>{s.detail}</p>
+            <div className={styles.actions}>{s.actions ?? <span className={styles.passive}>Cálculo automático</span>}</div>
           </li>
         ))}
       </ol>
-    </div>
+    </section>
   );
 }

@@ -1,0 +1,35 @@
+{
+  "branch": "codex/compras-ventas-integration",
+  "database": "kyiihlkncatojvlasoag",
+  "buildId": "3y8NfMZn9kIoS8ecKrZmZ",
+  "build": true,
+  "typecheck": true,
+  "lint": true,
+  "scope": "Costeo checklist only: short titles, status, actions, contextual glass help",
+  "projectId": "86b8a8d7-0b15-4e30-b623-c1d3cfe260f8",
+  "runtime": {
+    "port": 3003,
+    "pid": 13452
+  },
+  "verified": {
+    "fiveCompactRows": true,
+    "realPointerHoverWithoutFocus": true,
+    "keyboardTabFocus": true,
+    "clickPins": true,
+    "escapeCloses": true,
+    "outsideClickCloses": true
+  },
+  "unchanged": [
+    "cost calculations",
+    "APU engine",
+    "prices",
+    "business validations",
+    "global CSS",
+    "other ERP panels"
+  ],
+  "dataWrites": false,
+  "schemaChanges": false,
+  "mainTouched": false,
+  "productionTouched": false,
+  "pushed": false
+}
