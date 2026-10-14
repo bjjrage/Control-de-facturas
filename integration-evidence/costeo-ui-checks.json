@@ -1,15 +1,18 @@
 {
   "branch": "codex/compras-ventas-integration",
   "database": "kyiihlkncatojvlasoag",
-  "buildId": "3y8NfMZn9kIoS8ecKrZmZ",
+  "buildId": "pDyTEMSlbILaoTlfNlGU7",
   "build": true,
   "typecheck": true,
-  "lint": true,
+  "lint": {
+    "checklistPassed": true,
+    "sectionPreexistingError": "react-hooks/set-state-in-effect at load() useEffect; unchanged"
+  },
   "scope": "Costeo checklist only: short titles, status, actions, contextual glass help",
   "projectId": "86b8a8d7-0b15-4e30-b623-c1d3cfe260f8",
   "runtime": {
     "port": 3003,
-    "pid": 13452
+    "pid": 4060
   },
   "verified": {
     "fiveCompactRows": true,
@@ -31,5 +34,22 @@
   "schemaChanges": false,
   "mainTouched": false,
   "productionTouched": false,
-  "pushed": false
+  "pushed": false,
+  "layout": {
+    "previousHeightPx": 459,
+    "currentHeightPx": 336,
+    "reductionPercent": 27,
+    "rowsHeightPx": [
+      40,
+      44,
+      44,
+      40,
+      36
+    ],
+    "markerWidthPx": 3,
+    "markersOnAllFiveRows": true,
+    "markersOnKpisWarningAndTables": true,
+    "helpWidthPx": 300,
+    "apuHelpHeightPx": 106
+  }
 }

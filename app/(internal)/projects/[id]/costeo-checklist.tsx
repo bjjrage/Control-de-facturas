@@ -63,7 +63,7 @@ export function CosteoChecklist({
       title: "Recetas APU",
       state: total > 0 && conApu === total ? "done" : conApu > 0 ? "warn" : "pending",
       detail: `${conApu} de ${total} con receta`,
-      help: "La receta dice qué materiales, horas de mano de obra, equipos y subcontratos lleva UNA unidad de cada partida. La carga la constructora una sola vez: subí su planilla en Plantillas de APU y después tocá Aplicar.",
+      help: "Define materiales, horas de trabajo, equipos y subcontratos por unidad. Cargá la planilla en Plantillas de APU y aplicala a las partidas.",
       actions: (
         <div className="flex flex-wrap items-start gap-2">
           <ApuTemplatesDialog />
@@ -80,7 +80,7 @@ export function CosteoChecklist({
           : conApu > 0
             ? "Sin mano de obra en las recetas"
             : "Pendiente de recetas",
-      help: "El costo por hora de cada categoría (oficial, ayudante…) con sus cargas sociales sale de la tabla de Jornales, que se carga una sola vez para toda la empresa.",
+      help: "El costo por hora, incluidas las cargas sociales, sale de Jornales. Se configura por categoría para toda la empresa.",
       actions: <LaborRatesDialog />,
     },
     {
@@ -91,7 +91,7 @@ export function CosteoChecklist({
           ? "Pendiente de recetas"
           : `${insumosConPrecio} de ${insumosTotal} con precio` +
             (insumosSinRubro > 0 ? ` · ${insumosSinRubro} sin rubro` : ""),
-      help: "El precio de un material sale, en este orden, de: el que elijas para esta obra, la cotización más barata de tus proveedores, el historial de compras, o el costo promedio del stock. Para conseguirlo: usá «Cotizar insumos» en Costeo o cargá un precio a mano con «Cambiar» en la lista de insumos de abajo. Los materiales sin rubro necesitan una categoría en Stock para pedir precios a proveedores.",
+      help: "Usa primero el precio elegido para la obra; después, la oferta más barata, el historial de compras o el costo promedio del stock. Pedí ofertas con Cotizar insumos o ajustá el precio con Cambiar. Para cotizar, el material necesita rubro.",
       actions: (
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/precios" className={buttonClassName({ variant: "secondary", size: "sm" })}>
@@ -107,7 +107,7 @@ export function CosteoChecklist({
       title: "Costo final",
       state: total > 0 && costeadas === total ? "done" : costeadas > 0 ? "warn" : "pending",
       detail: `${costeadas} de ${total} completas`,
-      help: "Una partida tiene costo completo cuando tiene receta y todos sus materiales tienen precio. Recién ahí se calcula su costo, su margen contra el precio de venta y el total de la obra.",
+      help: "Se calcula cuando la partida tiene receta y todos sus materiales tienen precio. Incluye costo, margen y total de la obra.",
     },
   ];
 
@@ -145,7 +145,7 @@ export function CosteoChecklist({
 
       <ol className={styles.rows}>
         {steps.map((s) => (
-          <li key={s.title} className={styles.row} data-next={s === next || undefined}>
+          <li key={s.title} className={styles.row} data-state={s.state}>
             <div className={styles.identity}><StateIcon state={s.state} /><span className={styles.title}>{s.title}</span><CosteoHelp title={s.title}>{s.help}</CosteoHelp></div>
             <p className={styles.status} data-state={s.state}>{s.detail}</p>
             <div className={styles.actions}>{s.actions ?? <span className={styles.passive}>Cálculo automático</span>}</div>

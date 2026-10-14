@@ -18,6 +18,7 @@ import {
 } from "./costeo-actions";
 import { CosteoChecklist } from "./costeo-checklist";
 import { CostRfqDialog } from "./cost-rfq-dialog";
+import styles from "./costeo-checklist.module.css";
 
 const FUENTE_LABEL: Record<string, string> = {
   COTIZACION: "Cotización",
@@ -80,7 +81,7 @@ export function CosteoSection({ projectId, isCaterpillar }: { projectId: string;
       </div>
 
       {!totals.completo ? (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-[12px]">
+        <div className={`${styles.card} flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-[12px]`} data-state="warn">
           <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
           <div>
             {totals.partidasSinApu > 0 ? <p>{totals.partidasSinApu} partida(s) sin APU: su costo no está incluido.</p> : null}
@@ -346,7 +347,7 @@ function RealVsBudgetSection({ projectId }: { projectId: string }) {
 
 function Kpi({ label, value, note, warn }: { label: string; value: string; note: string; warn?: boolean }) {
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3.5">
+    <div className={`${styles.card} rounded-xl border border-[var(--border)] bg-[var(--panel)] p-3`} data-state={warn ? "warn" : "pending"}>
       <div className="text-[11px] text-[var(--muted)] uppercase tracking-wide">{label}</div>
       <div className="text-[16px] font-bold mt-1">{value}</div>
       <div className={`text-[11px] mt-0.5 ${warn ? "text-amber-500" : "text-[var(--muted)]"}`}>{note}</div>
@@ -365,7 +366,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-x-auto">
+    <div className={`${styles.card} rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-x-auto`}>
       <table>
         <thead>
           <tr>
