@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CloudRain, FileImage, RefreshCw } from "lucide-react";
-import { EditProjectDialog } from "./edit-project-dialog";
+import { ClimateConfigDialog } from "./climate-config-dialog";
 import { ClimateLibroCalendar } from "./climate-libro-calendar";
 import { ContractClimateDialog } from "./contract-climate-dialog";
 import { ExecutionLinkDialog } from "./execution-link-dialog";
@@ -69,7 +69,7 @@ export function ClimateWorkdaysPanel({
 }) {
   const router = useRouter();
   const today = localDateIso();
-  const [date, setDate] = useState(() => project.start_date && (!historicalOnly || project.start_date <= today) ? project.start_date : today);
+  const [date, setDate] = useState(() => project.start_date && project.start_date <= today ? project.start_date : today);
   const [effectDate, setEffectDate] = useState("");
   const [reason, setReason] = useState<ClimateReasonCode>("TERRAIN_SATURATED");
   const [parentId, setParentId] = useState<string | null>(null);
@@ -84,6 +84,9 @@ export function ClimateWorkdaysPanel({
   const [transitionPending, startTransition] = useTransition();
   const [marking, setMarking] = useState(false);
   const pending = transitionPending || marking;
+  const locationReady = isValidProjectCoords(project.latitude, project.longitude);
+  const configurationIssue = !locationReady ? "Falta configurar la ubicación de la obra." : project.weather_tracking_enabled === false ? "El seguimiento climático está desactivado." : null;
+  const dateIssue = project.start_date && project.start_date > today ? `La obra comienza el ${project.start_date}. La evaluación de jornadas estará disponible desde su inicio.` : date > today ? "No se pueden evaluar jornadas futuras." : project.start_date && date < project.start_date ? "Elegí una fecha desde el inicio de la obra." : null;
   const fileInputByEvent = useRef<Record<string, HTMLInputElement | null>>({});
   const eventById = useMemo(() => new Map(events.map((event) => [event.id, event])), [events]);
   const rows = useMemo(
@@ -91,12 +94,12 @@ export function ClimateWorkdaysPanel({
     [workdays],
   );
 
-  const run = (action: () => Promise<{ error: string | null }>) => {
+  const run = (action: () => Promise<{ error: string | null; summary?: string }>) => {
     setMessage(null);
     startTransition(async () => {
       try {
         const result = await action();
-        setMessage(result.error ?? "Listo.");
+        setMessage(result.error ?? result.summary ?? "Listo.");
         if (!result.error) router.refresh();
       } catch { setMessage("No se pudo guardar. Revisá los datos y reintentá."); }
     });
@@ -133,7 +136,9 @@ export function ClimateWorkdaysPanel({
 
   return (
     <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-4 space-y-4" aria-label="Climate Workdays">
-      <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--muted)]"><span>{isValidProjectCoords(project.latitude,project.longitude)?"Ubicación climática configurada. La evaluación propone una jornada; una persona confirma el hecho.":"Configurá latitud y longitud para consultar evidencia meteorológica."}</span><EditProjectDialog project={project} focusLocation trigger={<Button size="sm" variant="secondary">Configurar ubicación</Button>}/></div>
+      <div className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border-2 p-3 text-sm ${configurationIssue ? "border-amber-400/50 bg-amber-400/10" : "border-emerald-400/40 bg-emerald-400/10"}`}>
+        <span>{configurationIssue ?? "Clima habilitado. Consultá una fecha y revisá la evidencia antes de confirmar la jornada."}</span><ClimateConfigDialog project={project} />
+      </div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -146,15 +151,13 @@ export function ClimateWorkdaysPanel({
           <p className="mt-1 text-xs text-[var(--muted)]">Evaluá una fecha por vez; las propuestas automáticas requieren confirmación humana.{historicalOnly ? " El Libro muestra fechas históricas, hasta hoy." : ""}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Input aria-label={historicalOnly ? "Fecha histórica a evaluar" : "Fecha a evaluar"} type="date" max={historicalOnly ? today : undefined} value={date} onChange={(event) => setDate(event.target.value)} className="h-8 w-auto text-xs" />
+          <Input aria-label={historicalOnly ? "Fecha histórica a evaluar" : "Fecha a evaluar"} type="date" min={project.start_date ?? undefined} max={today} value={date} onChange={(event) => setDate(event.target.value)} className="h-8 w-auto text-xs" />
           <Button
             type="button"
             className="h-8 gap-1.5 text-xs"
-            disabled={pending || !date || (historicalOnly && date > today) || !isValidProjectCoords(project.latitude,project.longitude)}
-            onClick={() => run(async () => {
-              const result = await evaluateProjectWeatherDayAction(project.id, date);
-              return { error: result.error };
-            })}
+            disabled={pending || !date || !!dateIssue || !!configurationIssue}
+            title={configurationIssue ?? dateIssue ?? undefined}
+            onClick={() => run(() => evaluateProjectWeatherDayAction(project.id, date))}
           >
             {pending ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : null}
             Evaluar clima
@@ -164,6 +167,7 @@ export function ClimateWorkdaysPanel({
         </div>
       </div>
 
+      {dateIssue && <p role="status" className="rounded-lg border border-amber-400/50 bg-amber-400/10 p-3 text-sm">{dateIssue}</p>}
       {message ? <p className="text-xs text-[var(--muted)]" role="status">{message}</p> : null}
 
       <ClimateLibroCalendar project={project} events={events} workdays={workdays} evidence={evidence} pending={pending} onSelectDate={setDate}

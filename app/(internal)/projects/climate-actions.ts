@@ -1,6 +1,7 @@
 "use server";
 
 import { locateLocalClimateEvent, validClimateDate } from "@/lib/procurement/climate-entry";
+import { isValidProjectCoords } from "@/lib/projects/location-fields";
 import { libroDecision } from "@/lib/procurement/climate-calendar";
 import { saveClimateDraftEntries, type ClimateDraftEntry, type ClimateSelectionResult } from "@/lib/projects/climate-selection";
 
@@ -44,11 +45,11 @@ async function ownedProject(projectId: string, empresaId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("projects")
-    .select("id")
+    .select("id,start_date")
     .eq("id", projectId)
     .eq("empresa_id", empresaId)
     .single();
-  return { supabase, exists: !!data };
+  return { supabase, exists: !!data, startDate: data?.start_date as string | null | undefined };
 }
 
 /** One explicit save for the calendar draft. No new persistence or authority.
@@ -89,11 +90,20 @@ export async function updateProjectClimateConfig(
     weatherStationId?: string | null;
     weatherStationName?: string | null;
     weatherSource?: string;
+    latitude?: number | null;
+    longitude?: number | null;
   },
 ): Promise<{ error: string | null }> {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
   const { supabase, exists } = await ownedProject(projectId, profile.empresa_id);
   if (!exists) return { error: "Proyecto no encontrado." };
+  const hasCoordinates = input.latitude !== undefined || input.longitude !== undefined;
+  if (hasCoordinates && !isValidProjectCoords(input.latitude, input.longitude)) return { error: "Ingresá latitud y longitud válidas." };
+  if (typeof input.weatherTrackingEnabled !== "boolean") return { error: "Indicá si el seguimiento está activo." };
+  if (input.weatherTrackingEnabled && !hasCoordinates) {
+    const location = await supabase.from("projects").select("latitude,longitude").eq("id", projectId).eq("empresa_id", profile.empresa_id).maybeSingle();
+    if (location.error || !isValidProjectCoords(location.data?.latitude, location.data?.longitude)) return { error: "Configurá la ubicación antes de activar el seguimiento." };
+  }
   if (!Number.isFinite(input.precipitationThresholdMm) || input.precipitationThresholdMm < 0) {
     return { error: "El umbral debe ser un número mayor o igual a cero." };
   }
@@ -108,6 +118,7 @@ export async function updateProjectClimateConfig(
       weather_station_id: input.weatherStationId?.trim() || null,
       weather_station_name: input.weatherStationName?.trim() || null,
       weather_source: weatherSource,
+      ...(hasCoordinates ? { latitude: input.latitude, longitude: input.longitude } : {}),
     })
     .eq("id", projectId)
     .eq("empresa_id", profile.empresa_id);
@@ -124,12 +135,12 @@ export async function updateProjectClimateConfig(
 export async function evaluateProjectWeatherDayAction(
   projectId: string,
   date: string,
-): Promise<{ error: string | null; thresholdExceeded: boolean }> {
+): Promise<{ error: string | null; thresholdExceeded: boolean; summary?: string }> {
   const profile = await requirePlan("pro", ["administracion", "admin"]);
-  const { supabase, exists } = await ownedProject(projectId, profile.empresa_id);
+  const { supabase, exists, startDate } = await ownedProject(projectId, profile.empresa_id);
   if (!exists) return { error: "Proyecto no encontrado.", thresholdExceeded: false };
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    return { error: "La fecha no es válida.", thresholdExceeded: false };
+  if (!validClimateDate(date, startDate)) {
+    return { error: "Elegí una fecha válida, desde el inicio de la obra hasta hoy. No se registran jornadas futuras.", thresholdExceeded: false };
   }
 
   try {
@@ -158,7 +169,9 @@ export async function evaluateProjectWeatherDayAction(
       });
     }
     revalidatePath(`/projects/${projectId}`);
-    return { error: null, thresholdExceeded: result.threshold_exceeded };
+    const measurement = `${result.event.external_precipitation_mm ?? "Sin dato"} mm · Fuente: ${result.event.source}`;
+    const decision = result.preserved_confirmation ? "Se conserva la jornada ya confirmada." : result.threshold_exceeded ? "Supera el umbral: revisá la propuesta de jornada de lluvia antes de confirmarla." : "No supera el umbral; no se propone una jornada perdida por lluvia.";
+    return { error: null, thresholdExceeded: result.threshold_exceeded, summary: `${measurement}. ${decision}${result.event.provider_fallback_reason ? ` ${result.event.provider_fallback_reason}` : ""}` };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "No se pudo evaluar el clima." , thresholdExceeded: false };
   }
