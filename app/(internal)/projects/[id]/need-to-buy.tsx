@@ -45,7 +45,7 @@ export function NeedToBuy({projectId,planId,disabled,seen}: {
         {n?.decision?.rfq_id && <> RFQ existente: <a href={"/rfqs/"+n.decision.rfq_id}>Abrir</a>.</>}
         {n?.decision?.direct_purchase_preview_id && <> Compra directa iniciada. Reabrí el preview con COMPRA DIRECTA o revisá la OC en Compras.</>}
       </p>})}
-      {current.history?.map(d=><p key={d.id}>Decisión anterior: {d.kind}. {d.rfq_id && <a href={"/rfqs/"+d.rfq_id}>RFQ</a>} {d.order_id && <a href={"/orders/"+d.order_id}>OC confirmada</a>}</p>)}
+      {current.history?.map(d=><p key={d.id}>Decisión anterior: {d.kind}. {d.rfq_id && <a href={"/projects/"+projectId+"/rfqs/"+d.rfq_id}>RFQ</a>} {d.order_id && <a href={"/projects/"+projectId+"/orders/"+d.order_id}>OC confirmada</a>}</p>)}
       {origin && <>
         <AdministrativeRfqDialog key={"rfq-"+current.snapshot_id} projectId={projectId} initialItems={items} needOrigin={origin}
           trigger={<Button variant="secondary">COTIZAR</Button>}/>

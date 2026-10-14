@@ -486,7 +486,7 @@ export function PanolObraSection({
           <h3 className="text-sm font-semibold">Recepciones de mercadería confirmadas</h3>
           <p className="mt-1 text-[12px] text-[var(--muted)]">Ingresos de órdenes de compra confirmados en los depósitos de esta obra.</p>
         </div>
-        <RecepcionesObraSection rows={recepciones} />
+        <RecepcionesObraSection rows={recepciones} projectId={projectId} />
       </section>
 
       <section className="space-y-3">

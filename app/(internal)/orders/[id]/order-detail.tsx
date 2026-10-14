@@ -1,0 +1,359 @@
+import Link from "next/link";
+import { belongsToPurchaseContext, purchaseDetailPath } from "@/lib/projects/purchase-navigation";
+import { notFound } from "next/navigation";
+import { requireProfile } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { AuthorizedOrder, AuthorizedOrderItem, Invoice, Provider } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/badge";
+import { formatDate, formatMoney } from "@/lib/format";
+import { orderRemaining, isOverbilled } from "@/lib/reconciliation";
+import { compareInvoiceQuantitySum, formatInvoiceQuantity, subtractInvoiceQuantitySumExact } from "@/lib/invoice-item-reconcile";
+import { UnmatchOrderButton } from "@/app/(internal)/invoices/[id]/unmatch-button";
+import { InvoiceDialog } from "@/app/(internal)/invoices/invoice-dialog";
+import { LinkInvoiceDialog } from "./link-invoice-dialog";
+import { OrderPipeline } from "../order-pipeline";
+import { DeleteOrderButton } from "../delete-order-button";
+import { RecepcionSection, type ReceiptEvidenceView } from "./recepcion-section";
+import type { OcRecepcion } from "@/lib/types";
+
+const ORIGIN_LABEL = { rfq: "Desde solicitud", manual: "Carga manual", invoice: "Desde factura" } as const;
+
+export async function OrderDetail({ id, projectId }: { id: string; projectId?: string }) {
+  const profile = await requireProfile(["comercial", "administracion", "admin"]);
+  const supabase = await createClient();
+
+  const { data: order } = await supabase
+    .from("authorized_orders")
+    .select("*, quantity_text:quantity::text")
+    .eq("id", id)
+    .single<AuthorizedOrder & { quantity_text: string }>();
+  if (!order || !belongsToPurchaseContext(order, profile.empresa_id, projectId)) notFound();
+
+  const [{ data: provider }, { data: matches }, { data: candidateInvoices }, { data: orderItems }, { data: recepciones }, { data: products }, project] =
+    await Promise.all([
+      supabase.from("providers").select("*").eq("id", order.provider_id).single<Provider>(),
+      supabase
+        .from("invoice_order_matches")
+        .select("id, invoices(*)")
+        .eq("authorized_order_id", id)
+        .returns<{ id: string; invoices: Invoice }[]>(),
+      supabase
+        .from("invoices")
+        .select("id, invoice_number, invoice_date, total, currency")
+        .eq("provider_id", order.provider_id)
+        .eq("status", "PENDIENTE")
+        .returns<Pick<Invoice, "id" | "invoice_number" | "invoice_date" | "total" | "currency">[]>(),
+      supabase
+        .from("authorized_order_items")
+        .select("*, quantity_text:quantity::text, quantity_invoiced_text:quantity_invoiced::text")
+        .eq("order_id", id)
+        .eq("empresa_id", profile.empresa_id)
+        .order("sort_order")
+        .returns<Array<AuthorizedOrderItem & { quantity_text: string; quantity_invoiced_text: string }>>(),
+      supabase
+        .from("oc_recepciones")
+        .select("*, oc_recepcion_items(*)")
+        .eq("order_id", id)
+        .eq("empresa_id", profile.empresa_id)
+        .order("created_at", { ascending: false })
+        .returns<OcRecepcion[]>(),
+      supabase
+        .from("productos")
+        .select("id, nombre, unidad, activo")
+        .eq("empresa_id", profile.empresa_id)
+        .order("nombre")
+        .limit(1000)
+        .returns<{ id: string; nombre: string; unidad: string; activo: boolean }[]>(),
+      order.project_id ? supabase.from("projects").select("id,name,code").eq("empresa_id", profile.empresa_id).eq("id", order.project_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
+    ]);
+  if (project.error) throw new Error(project.error.message);
+
+  const evidenceByReceipt: Record<string, ReceiptEvidenceView[]> = {};
+  const receiptIds = (recepciones ?? []).map((receipt) => receipt.id);
+  if (receiptIds.length > 0) {
+    const { data: evidenceRows } = await supabase
+      .from("inventory_receipt_evidence")
+      .select("id, receipt_id, storage_bucket, storage_path, file_name, size_bytes")
+      .eq("empresa_id", profile.empresa_id)
+      .in("receipt_id", receiptIds)
+      .order("created_at");
+    const admin = createAdminClient();
+    const evidenceViews = await Promise.all((evidenceRows ?? []).map(async (row) => {
+      if (row.storage_bucket !== "warehouse-evidence") return null;
+      const { data: signed } = await admin.storage
+        .from("warehouse-evidence")
+        .createSignedUrl(row.storage_path, 600);
+      return {
+        receiptId: row.receipt_id as string,
+        evidence: {
+          id: row.id as string,
+          fileName: row.file_name as string,
+          sizeBytes: row.size_bytes == null ? null : Number(row.size_bytes),
+          url: signed?.signedUrl ?? null,
+        } satisfies ReceiptEvidenceView,
+      };
+    }));
+    for (const view of evidenceViews) {
+      if (!view) continue;
+      (evidenceByReceipt[view.receiptId] ??= []).push(view.evidence);
+    }
+  }
+
+  const saldo = orderRemaining(order.total_price, order.facturado_amount);
+  const over = isOverbilled(order.total_price, order.facturado_amount);
+  const pct =
+    order.total_price > 0 ? Math.min(100, Math.round((order.facturado_amount / order.total_price) * 100)) : 0;
+  const canDelete = !order.rfq_allocation_id && !order.direct_purchase_preview_id && profile.role === "admin" && order.facturado_amount === 0 && (matches ?? []).length === 0;
+
+  // Ítems: si la OC tiene detalle (authorized_order_items) lo usamos; si no,
+  // una única línea sintética con los campos del encabezado (OCs viejas).
+  const hasLineItems = !!(orderItems && orderItems.length > 0);
+  const lines = hasLineItems
+    ? orderItems!.map((it) => ({
+        key: it.id,
+        product: it.product,
+        quantity: it.quantity_text,
+        unit: it.unit,
+        unit_price: it.unit_price,
+        total_price: it.total_price,
+        quantity_invoiced: it.quantity_invoiced_text,
+      }))
+    : [
+        {
+          key: "header",
+          product: order.product,
+          quantity: order.quantity_text,
+          unit: order.unit,
+          unit_price: order.unit_price,
+          total_price: order.total_price,
+          quantity_invoiced: null as string | null,
+        },
+      ];
+  const itemsSum = lines.reduce((s, l) => s + l.total_price, 0);
+
+  return (
+    <div className="max-w-3xl space-y-5">
+      <div className="flex items-start justify-between">
+        <div>
+          {order.procurement_snapshot && (
+            <section className="border rounded p-4">
+              <h2>Condiciones confirmadas</h2>
+              <p>Pago: {String(order.procurement_snapshot.payment_terms ?? "Sin dato")} · Flete final: {String(order.procurement_snapshot.freight ?? 0)} {order.currency}</p>
+              <p>Observaciones: {String(order.procurement_snapshot.observations ?? "Sin observaciones")}</p>
+              <p>Asignación: {order.rfq_allocation_id ?? "Compra directa"} · Cotización: {order.quote_version_id ?? "No aplica"}</p>
+            </section>
+          )}
+      <Link href={projectId ? `/projects/${projectId}?tab=compras` : "/orders"} className="text-action text-[12px] text-[var(--muted)]">
+            ← Volver a Órdenes
+          </Link>
+          <div className="flex items-center gap-2 mt-1">
+            <h1 className="text-[17px] font-semibold">{order.code}</h1>
+            <StatusBadge status={order.status} />
+          </div>
+          <p className="text-[13px] mt-1">{order.provider_name}</p>
+          <p className="text-[13px] mt-2 font-medium">{project.data
+            ? <Link className="text-action" href={`/projects/${project.data.id}?tab=compras`}>Obra: {project.data.code} · {project.data.name} · Entrega en obra</Link>
+            : "Compra sin obra asignada"}</p>
+          <p className="text-[11px] text-[var(--muted)] mt-0.5">
+            {ORIGIN_LABEL[order.created_from]}
+            {order.rfq_id ? (
+              <>
+                {" · "}
+                <Link href={purchaseDetailPath("rfqs", order.rfq_id, projectId)} className="text-action">
+                  ver solicitud
+                </Link>
+              </>
+            ) : null}
+            {" · autorizada el "}
+            {formatDate(order.authorized_at)}
+          </p>
+        </div>
+        {canDelete ? <DeleteOrderButton orderId={order.id} redirectTo="/orders" /> : null}
+      </div>
+
+      {/* Detalle de la orden — lo primero que se ve, formato factura */}
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+        <div className="overflow-x-auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Producto / Servicio</th>
+                <th className="num">Cant.</th>
+                <th>Unidad</th>
+                <th className="num">P. Unitario</th>
+                <th className="num">Total</th>
+                {hasLineItems ? <th className="num">Facturado</th> : null}
+                {hasLineItems ? <th className="num">Pendiente</th> : null}
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((l) => {
+                const inv = l.quantity_invoiced ?? "0";
+                const invoiceComparison = compareInvoiceQuantitySum([inv], l.quantity);
+                const pendiente = subtractInvoiceQuantitySumExact(l.quantity, [inv]);
+                const overItem = invoiceComparison === 1;
+                return (
+                  <tr key={l.key}>
+                    <td className="font-medium">{l.product}</td>
+                    <td className="num">{formatInvoiceQuantity(l.quantity)}</td>
+                    <td className="text-[var(--muted)]">{l.unit}</td>
+                    <td className="num">{formatMoney(l.unit_price, order.currency)}</td>
+                    <td className="num">{formatMoney(l.total_price, order.currency)}</td>
+                    {hasLineItems ? (
+                      <td className={`num ${overItem ? "text-[var(--error)]" : ""}`}>
+                        {formatInvoiceQuantity(inv)}
+                      </td>
+                    ) : null}
+                    {hasLineItems ? (
+                      <td
+                        className={`num ${
+                          overItem
+                            ? "text-[var(--error)]"
+                            : invoiceComparison === 0
+                              ? "text-[var(--muted)]"
+                              : ""
+                        }`}
+                      >
+                        {overItem ? "Excedido" : invoiceComparison === 0 ? "Completo" : formatInvoiceQuantity(pendiente)}
+                      </td>
+                    ) : null}
+                  </tr>
+                );
+              })}
+              <tr className="border-t-2 border-[var(--border)] font-semibold">
+                <td colSpan={4}>Total de la orden</td>
+                <td className="num">{formatMoney(itemsSum, order.currency)}</td>
+                {hasLineItems ? <td colSpan={2} /> : null}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Resumen financiero */}
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+        <div className="grid grid-cols-3 gap-3 text-[13px]">
+          <div>
+            <div className="text-[11px] text-[var(--muted)] mb-0.5">Monto de la orden</div>
+            <div className="num">{formatMoney(order.total_price, order.currency)}</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-[var(--muted)] mb-0.5">Facturado</div>
+            <div className="num">{formatMoney(order.facturado_amount, order.currency)}</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-[var(--muted)] mb-0.5">Saldo</div>
+            <div className={`num ${over ? "text-[var(--error)]" : ""}`}>{formatMoney(saldo, order.currency)}</div>
+          </div>
+        </div>
+        <div className="mt-3 h-2 rounded-full bg-[var(--hover)] overflow-hidden">
+          <div
+            className={`h-full rounded-full ${over ? "bg-[var(--error)]" : "bg-[var(--primary)]"}`}
+            style={{ width: `${over ? 100 : pct}%` }}
+          />
+        </div>
+        {over ? (
+          <p className="mt-2 text-[12px] text-[var(--error)]">
+            Lo facturado supera el monto de la orden más la tolerancia — revisá las facturas.
+          </p>
+        ) : null}
+      </div>
+
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4">
+        <OrderPipeline
+          status={order.status}
+          totalPrice={order.total_price}
+          facturadoAmount={order.facturado_amount}
+          size="full"
+        />
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-[14px] font-semibold">Facturas de esta orden</h2>
+          <div className="flex gap-2">
+            {candidateInvoices && candidateInvoices.length > 0 ? (
+              <LinkInvoiceDialog
+                orderId={order.id}
+                candidates={candidateInvoices}
+                trigger={
+                  <Button variant="secondary" className="h-7 px-2.5 text-[12px]">
+                    Vincular factura existente
+                  </Button>
+                }
+              />
+            ) : null}
+            {provider ? (
+              <InvoiceDialog
+                providers={[provider]}
+                linkOrderId={order.id}
+                defaultProviderId={provider.id}
+                trigger={
+                  <Button className="h-7 px-2.5 text-[12px]">Cargar factura</Button>
+                }
+              />
+            ) : null}
+          </div>
+        </div>
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] overflow-hidden">
+          <table>
+            <thead>
+              <tr>
+                <th>N° Factura</th>
+                <th>Fecha</th>
+                <th className="num">Total</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {(matches ?? []).map((m) => (
+                <tr key={m.id}>
+                  <td>
+                    <Link href={`/invoices/${m.invoices.id}`} className="text-action font-medium">
+                      {m.invoices.invoice_number}
+                    </Link>
+                  </td>
+                  <td className="text-[var(--muted)]">{formatDate(m.invoices.invoice_date)}</td>
+                  <td className="num">{formatMoney(m.invoices.total, m.invoices.currency)}</td>
+                  <td>
+                    <StatusBadge status={m.invoices.status} />
+                  </td>
+                  <td>
+                    {!['APTO_PARA_PAGO', 'PAGADO'].includes(m.invoices.status)
+                      && !['APTO_PARA_PAGO', 'PAGADO'].includes(order.status) ? (
+                      <UnmatchOrderButton invoiceId={m.invoices.id} matchId={m.id} orderId={order.id} />
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+              {(matches ?? []).length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center text-[var(--muted)] py-6">
+                    Todavía no hay facturas para esta orden.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <RecepcionSection
+        orderId={order.id}
+        orderItems={orderItems ?? []}
+        recepciones={recepciones ?? []}
+        canDelete={profile.role === "administracion" || profile.role === "admin"}
+        canConfirm={["comercial", "administracion", "admin"].includes(profile.role)}
+        canCreatePortal={profile.role === "administracion" || profile.role === "admin"}
+        canMap={profile.role === "administracion" || profile.role === "admin"}
+        currentUserId={profile.id}
+        canDiscardOwnDraft={profile.role === "comercial"}
+        products={products ?? []}
+        evidenceByReceipt={evidenceByReceipt}
+      />
+    </div>
+  );
+}

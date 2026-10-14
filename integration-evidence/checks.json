@@ -18,7 +18,7 @@
     "build": true,
     "navigation": true,
     "typecheck": true,
-    "buildId": "g6NFUqwu9kTHryiQEToAV",
+    "buildId": "iegU9VoMmMgZ2MzzMZ3GU",
     "runtime": "next start, port 3003",
     "devCompilingHangObserved": false
   },
@@ -108,5 +108,38 @@
     "Bulk invoice upload not rerun in this integration preview",
     "Security advisors still report unrelated database findings; see CHECKPOINT.md",
     "Broad lint retains 6 preexisting errors and 3 warnings"
-  ]
+  ],
+  "quoteFormHierarchy": {
+    "build": true,
+    "typecheck": true,
+    "changedComponentLint": true,
+    "focusedTests": 15,
+    "internalDialogVerified": "RFQ-2026-0013",
+    "externalPortalVerified": true,
+    "footerVisibleAtTopAndBottom": true,
+    "cancelVerified": true,
+    "submissionRepeated": false,
+    "databaseSchemaChanged": false
+  },
+  "worksiteReceipts": {
+    "build": true,
+    "focusedTests": 61,
+    "testFiles": 8,
+    "changedComponentLint": true,
+    "projectId": "86b8a8d7-0b15-4e30-b623-c1d3cfe260f8",
+    "order": "OC-2026-0009",
+    "orderId": "fb4133a5-0976-47f6-bdb8-29835844734e",
+    "receiptId": "a3abcf51-92fd-4936-a31b-ad738acde351",
+    "status": "CONFIRMED",
+    "received": 2,
+    "pending": 98,
+    "stock": 2,
+    "remito": "QA-RECEPCION-OBRA-001",
+    "receiptDate": "2026-10-14",
+    "projectNavigationVerified": true,
+    "adminReadbackVerified": true,
+    "wrongProject404Verified": true,
+    "inventoryUiVerified": true,
+    "newSchema": false
+  }
 }

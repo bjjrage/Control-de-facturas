@@ -19,8 +19,9 @@ import styles from "./procurement-panel.module.css";
 import type { loadRfqWorkspace } from "@/lib/rfq/service";
 import type { QuoteDocumentAnalysisResult } from "@/lib/rfq/document-analysis";
 
-export async function AdministrativeRfqDetail({ params, canonical, analyses }: {
+export async function AdministrativeRfqDetail({ params, canonical, analyses, projectId }: {
   params: Promise<{ id: string }>;
+  projectId?: string;
   canonical: Awaited<ReturnType<typeof loadRfqWorkspace>>;
   analyses: Record<string, QuoteDocumentAnalysisResult>;
 }) {
@@ -46,7 +47,7 @@ export async function AdministrativeRfqDetail({ params, canonical, analyses }: {
   return <div className={`${styles.page} space-y-6`}>
     <header className={styles.heading}>
       <div>
-        <Link href="/rfqs" className={styles.back}>← Cotizaciones</Link>
+        <Link href={projectId ? `/projects/${projectId}?tab=cotizaciones` : "/rfqs"} className={styles.back}>← Cotizaciones</Link>
         <div className="flex flex-wrap items-center gap-3 mt-3"><h1>{rfq.code}</h1><Badge tone={open ? "warn" : "neutral"}>{open ? "Abierta" : closedReason || "Cerrada"}</Badge></div>
         <p className={styles.request}>{canonical.items.length === 1
           ? `${formatNumber(canonical.items[0].cantidad, Number.isInteger(canonical.items[0].cantidad) ? 0 : 4)} ${canonical.items[0].unidad} de ${canonical.items[0].descripcion}`
@@ -62,7 +63,7 @@ export async function AdministrativeRfqDetail({ params, canonical, analyses }: {
         {canReopenRfq(rfq) && <form action={async () => { "use server"; await reopenRfq(id); }}><Button variant="secondary">Reabrir solicitud</Button></form>}
       </div>
     </header>
-    <PurchasingOffers key={id} rfqId={id} items={canonical.items} offers={canonical.offers} analyses={analyses}
+    <PurchasingOffers key={id} rfqId={id} projectId={projectId} items={canonical.items} offers={canonical.offers} analyses={analyses}
       allocations={canonical.allocations} versions={versions} orders={orders.data ?? []} />
     <details className={styles.secondarySection} open={!canonical.offers.length}>
       <summary>Proveedores invitados <span className={styles.muted}>({canonical.providers.length})</span></summary>

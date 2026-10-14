@@ -21,7 +21,7 @@ export type RecepcionRow = {
 // dominio canónico, siempre OC/proveedor → ubicación de la obra. Son las
 // que ya pasaron por confirmCanonicalReceipt (RPC inventory_confirm_receipt);
 // no hay una segunda lógica de recepción acá, solo lectura.
-export function RecepcionesObraSection({ rows }: { rows: RecepcionRow[] }) {
+export function RecepcionesObraSection({ rows, projectId }: { rows: RecepcionRow[]; projectId?: string }) {
   if (rows.length === 0) {
     return (
       <div className="rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 text-[13px] text-[var(--muted)]">
@@ -48,7 +48,7 @@ export function RecepcionesObraSection({ rows }: { rows: RecepcionRow[] }) {
             <tr key={r.id}>
               <td>
                 {r.order_id ? (
-                  <Link href={`/orders/${r.order_id}`} className="text-action font-medium">
+                  <Link href={projectId ? `/projects/${projectId}/orders/${r.order_id}` : `/orders/${r.order_id}`} className="text-action font-medium">
                     {r.order_code ?? "OC"}
                   </Link>
                 ) : (

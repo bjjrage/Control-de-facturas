@@ -18,6 +18,7 @@ import {
   updateReceiptProductMapping,
 } from "../oc-recepcion-actions";
 import { ReceiptPortalLink } from "../receipt-portal-link";
+import styles from "./receipt-dialog.module.css";
 
 type ProductoLite = { id: string; nombre: string; unidad: string; activo: boolean };
 type OrderItemWithExactQuantity = AuthorizedOrderItem & { quantity_text: string };
@@ -25,19 +26,24 @@ export type ReceiptEvidenceView = { id: string; fileName: string; sizeBytes: num
 
 // ─── RegistrarDialog ────────────────────────────────────────────────────────
 
-function RegistrarDialog({
+export function RegisterReceiptDialog({
   orderId,
   orderItems,
   onDone,
+  orderCode,
+  receivedTotals = {},
 }: {
   orderId: string;
   orderItems: OrderItemWithExactQuantity[];
   onDone: () => void;
+  orderCode?: string;
+  receivedTotals?: Record<string, number>;
 }) {
   const [open, setOpen] = useState(false);
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [recibidoPor, setRecibidoPor] = useState("");
   const [notas, setNotas] = useState("");
+  const [remisionNumber, setRemisionNumber] = useState("");
   const [cantidades, setCantidades] = useState<Record<string, string>>({});
   const [productoPorItem, setProductoPorItem] = useState<Record<string, string>>({});
   const [productos, setProductos] = useState<ProductoLite[]>([]);
@@ -62,6 +68,7 @@ function RegistrarDialog({
     setFecha(new Date().toISOString().slice(0, 10));
     setRecibidoPor("");
     setNotas("");
+    setRemisionNumber("");
     setCantidades({});
     setProductoPorItem({});
     setAttemptLocked(false);
@@ -99,6 +106,7 @@ function RegistrarDialog({
         items,
         notas || undefined,
         idempotencyKey.current,
+        remisionNumber || undefined,
       );
       if (res.error) {
         setError(res.error);
@@ -128,13 +136,15 @@ function RegistrarDialog({
       <DialogTrigger asChild>
         <Button className="h-8 px-3 text-[12px]">Registrar recepción</Button>
       </DialogTrigger>
-      <DialogContent title="Registrar recepción de mercadería" className="max-w-lg">
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <DialogContent title={orderCode ? `Recibir mercadería · ${orderCode}` : "Registrar recepción de mercadería"} className={styles.dialog}>
+        <form onSubmit={handleSubmit} className={styles.form}>
+          <div className={styles.body}>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[12px] text-[var(--muted)] mb-1">Fecha *</label>
               <input
                 type="date"
+                aria-label="Fecha de recepción"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
                 disabled={pending || attemptLocked}
@@ -146,6 +156,7 @@ function RegistrarDialog({
               <label className="block text-[12px] text-[var(--muted)] mb-1">Recibido por *</label>
               <input
                 type="text"
+                aria-label="Recibido por"
                 value={recibidoPor}
                 onChange={(e) => setRecibidoPor(e.target.value)}
                 disabled={pending || attemptLocked}
@@ -176,10 +187,12 @@ function RegistrarDialog({
                       <td className="text-[13px]">{it.product}</td>
                       <td className="num text-[var(--muted)]">
                         {formatInvoiceQuantity(it.quantity_text)} {it.unit}
+                        <p className="text-[11px]">Pendiente: {formatInvoiceQuantity(subtractInvoiceQuantitySumExact(it.quantity_text, [(receivedTotals[it.id] ?? 0).toFixed(4)]))} {it.unit}</p>
                       </td>
                       <td className="num">
                         <input
                           type="number"
+                          aria-label={`Cantidad recibida de ${it.product}`}
                           min="0"
                           step="any"
                           value={cantidades[it.id] ?? ""}
@@ -225,6 +238,10 @@ function RegistrarDialog({
           </div>
 
           <div>
+            <label htmlFor={`receipt-remito-${orderId}`} className="block text-[12px] text-[var(--muted)] mb-1">N° de remito (opcional)</label>
+            <input id={`receipt-remito-${orderId}`} value={remisionNumber} onChange={event => setRemisionNumber(event.target.value)} disabled={pending || attemptLocked} className="w-full h-8 rounded border border-[var(--border)] bg-[var(--panel-2)] px-2.5 text-[13px]" />
+          </div>
+          <div>
             <label className="block text-[12px] text-[var(--muted)] mb-1">Notas</label>
             <input
               type="text"
@@ -242,7 +259,8 @@ function RegistrarDialog({
             </div>
           ) : null}
 
-          <div className="flex justify-end gap-2 pt-1">
+          </div>
+          <div className={styles.footer}>
             <Button type="button" variant="secondary" onClick={() => setOpen(false)} disabled={pending}>
               Cancelar
             </Button>
@@ -355,6 +373,7 @@ function RecepcionCard({
           {recepcion.notas ? (
             <div className="text-[12px] text-[var(--muted)] mt-0.5">{recepcion.notas}</div>
           ) : null}
+          {recepcion.remision_number ? <p className="text-[12px] text-[var(--muted)]">Remito: {recepcion.remision_number}</p> : null}
         </div>
         {canConfirm && recepcion.status === "DRAFT" && recepcion.idempotency_key ? (
           <div className="text-right">
@@ -475,6 +494,7 @@ export function RecepcionSection({
   canMap = false,
   products = [],
   evidenceByReceipt = {},
+  showRegistration = true,
 }: {
   orderId: string;
   orderItems: OrderItemWithExactQuantity[];
@@ -487,6 +507,7 @@ export function RecepcionSection({
   canMap?: boolean;
   products?: ProductoLite[];
   evidenceByReceipt?: Record<string, ReceiptEvidenceView[]>;
+  showRegistration?: boolean;
 }) {
   const [key, setKey] = useState(0);
 
@@ -501,12 +522,13 @@ export function RecepcionSection({
         <h2 className="text-[14px] font-semibold">Recepción de mercadería</h2>
         <div className="flex flex-wrap gap-2">
           {canCreatePortal ? <ReceiptPortalLink orderId={orderId} /> : null}
-          <RegistrarDialog
+          {showRegistration && <RegisterReceiptDialog
             key={key}
             orderId={orderId}
             orderItems={orderItems}
+            receivedTotals={totalesRecibidos}
             onDone={() => setKey((k) => k + 1)}
-          />
+          />}
         </div>
       </div>
 

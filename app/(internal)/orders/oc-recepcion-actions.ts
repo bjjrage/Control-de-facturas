@@ -19,7 +19,8 @@ export async function registrarRecepcion(
   recibido_por: string,
   items: RecepcionItemInput[],
   notas?: string,
-  idempotency_key?: string
+  idempotency_key?: string,
+  remision_number?: string
 ): Promise<{ error?: string; receiptId?: string }> {
   const supabase = await createClient();
   const profile = await requireProfile(["comercial", "administracion", "admin"]);
@@ -31,6 +32,7 @@ export async function registrarRecepcion(
   if (typeof recibido_por !== "string" || !recibido_por.trim()) {
     return { error: "Ingresá quién recibió la mercadería." };
   }
+  if (remision_number != null && typeof remision_number !== "string") return { error: "El número de remito no es válido." };
   if (typeof idempotency_key !== "string" || !idempotency_key.trim() || idempotency_key.length > 200) {
     return { error: "Falta una clave idempotente de recepción válida." };
   }
@@ -57,6 +59,7 @@ export async function registrarRecepcion(
     orderId: order_id,
     fecha,
     recibidoPor: recibido_por.trim(),
+    remisionNumber: remision_number?.trim() || null,
     idempotencyKey: idempotency_key.trim(),
     createdBy: profile.id,
     notes: notas?.trim() || null,

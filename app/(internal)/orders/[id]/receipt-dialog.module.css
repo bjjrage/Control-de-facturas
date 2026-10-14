@@ -1,0 +1,7 @@
+.dialog { padding: 0 !important; overflow: hidden !important; display: flex; flex-direction: column; width: min(700px, calc(100vw - 24px)); max-width: 700px; border: 2px solid #66839e; background: #14263a; }
+.dialog > h2 { margin: 0; padding: 16px 20px; flex-shrink: 0; background: #304962; border-bottom: 2px solid #66839e; }
+.form { display: flex; flex-direction: column; min-height: 0; }
+.body { padding: 18px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; min-height: 0; }
+.body > div { padding: 12px; border: 2px solid #526f89; border-radius: 10px; background: #263e55; transition: border-color 150ms ease; }
+.body > div:hover { border-color: #a9d3ef; }
+.footer { flex-shrink: 0; display: flex; justify-content: flex-end; gap: 8px; padding: 14px 18px; border-top: 2px solid #66839e; background: #0e1c2d; }

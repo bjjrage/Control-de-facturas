@@ -7,6 +7,7 @@ import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { submitMultiItemQuote } from "./actions";
 import { PaymentTermsFields } from "./payment-terms-fields";
 import { submitInternalQuoteAction } from "@/app/(internal)/rfqs/[id]/workflow-actions";
+import styles from "./quote-form.module.css";
 export interface PortalRfqItem {
   id: string;
   descripcion: string;
@@ -17,10 +18,12 @@ export function MultiItemQuoteForm({
   token,
   items,
   internal = false,
+  onClose,
 }: {
   token: string;
   items: PortalRfqItem[];
   internal?: boolean;
+  onClose?: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -37,7 +40,7 @@ export function MultiItemQuoteForm({
   });
   return (
     <form
-      className="space-y-4"
+      className={internal ? `${styles.form} ${styles.modalForm}` : styles.form}
       onSubmit={async (event) => {
         event.preventDefault();
         if (submitting.current || done) return;
@@ -70,12 +73,11 @@ export function MultiItemQuoteForm({
         }
       }}
     >
-      <p>
-        Cargá tu oferta y adjuntá el presupuesto original. Al enviarla, el sistema
-        analiza el documento y lo contrasta con la oferta para revisión de Administración.
-        Cada envío conserva el historial. Para no cotizar una línea, dejá el precio vacío y disponibilidad 0.
-      </p>
-      <div className="flex flex-wrap items-center gap-3">
+      <div className={styles.body}>
+      <section className={styles.section} aria-label="Presupuesto original">
+      <h3>1. Documento original</h3>
+      <p className={styles.hint}>Al enviar, se analiza el documento y se compara con estos datos.</p>
+      <div className={styles.upload}>
         <input ref={fileInput} id={`quote-file-${token}`} name="attachment" type="file" className="sr-only" aria-label="Documento original (PDF, foto, Excel o CSV)" accept="application/pdf,image/png,image/jpeg,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" required
           onInvalid={e => { e.preventDefault(); setError("Adjuntá el presupuesto original antes de enviar la oferta."); }}
           onChange={e => setFileName(e.target.files?.[0]?.name ?? "")} />
@@ -85,26 +87,30 @@ export function MultiItemQuoteForm({
         </Button>
         <span className="text-[13px] text-[var(--muted)]" role="status">{fileName || "PDF, imagen, Excel o CSV"}</span>
       </div>
+      </section>
       {done && (
-        <p role="status">
+        <p role="status" className={styles.success}>
           Versión enviada. {analysisMessage} Podés enviar una corrección como versión nueva.
           <Button type="button" variant="secondary" onClick={() => setDone(false)}>Preparar una corrección</Button>
         </p>
       )}
       {error && (
-        <p role="alert" className="text-red-600">
+        <p role="alert" className={styles.error}>
           {error}
         </p>
       )}
-      <div className="overflow-x-auto">
+      <section className={styles.section} aria-label="Precios y entrega">
+      <h3>2. Precios y entrega</h3>
+      <p className={styles.hint}>Para omitir un ítem: precio vacío y disponibilidad 0.</p>
+      <div className={styles.tableScroll}>
         <table className="w-full text-sm">
           <thead>
             <tr>
-              <th>Ítem / solicitado</th>
-              <th>Precio unitario</th>
-              <th>Disponible</th>
-              <th>Impuesto %</th>
-              <th>Entrega (días)</th>
+              <th scope="col">Ítem / solicitado</th>
+              <th scope="col">Precio unitario</th>
+              <th scope="col">Disponible</th>
+              <th scope="col">IVA %</th>
+              <th scope="col">Entrega (días)</th>
             </tr>
           </thead>
           <tbody>
@@ -165,7 +171,10 @@ export function MultiItemQuoteForm({
           </tbody>
         </table>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      </section>
+      <section className={styles.section} aria-label="Condiciones de la oferta">
+      <h3>3. Condiciones de la oferta</h3>
+      <div className={styles.grid}>
         <div>
           <Label>Número de presupuesto</Label>
           <Input aria-label="Número de presupuesto" name="budget_number" {...field("budget_number")} required />
@@ -196,11 +205,21 @@ export function MultiItemQuoteForm({
         <input type="checkbox" name="invoice_available" /> Emite factura
       </label>
       <PaymentTermsFields />
-      <Label>Observaciones</Label>
+      </section>
+      <details className={styles.details}>
+      <summary>Observaciones (opcional)</summary>
       <Textarea aria-label="Observaciones" name="observations" {...field("observations")} />
-      <Button disabled={pending || done}>
-        {pending ? "Procesando…" : "Confirmar y enviar"}
-      </Button>
+      </details>
+      </div>
+      <footer className={styles.footer}>
+        <span role="status">{pending ? "Analizando el presupuesto…" : done ? "Presupuesto registrado" : "La adjudicación se realiza después de revisar la oferta."}</span>
+        <div>
+          {onClose && <Button type="button" variant="secondary" disabled={pending} onClick={onClose}>{done ? "Cerrar" : "Cancelar"}</Button>}
+          <Button type="submit" disabled={pending || done}>
+            {pending ? "Procesando…" : internal ? "Guardar presupuesto" : "Confirmar y enviar"}
+          </Button>
+        </div>
+      </footer>
     </form>
   );
 }

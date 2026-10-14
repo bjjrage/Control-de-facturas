@@ -118,6 +118,7 @@ type Props = {
   consumoCanonico: ConsumoCanonicoRow[];
   budgetItemLabelById: Record<string, string>;
   recepciones: RecepcionRow[];
+  receiptsPanel: React.ReactNode;
   panolSubmissions: PanolSubmissionRow[];
   warehouseLocations: { id: string; name: string }[];
   warehousePortalLinks: WarehousePortalLinkRow[];
@@ -169,6 +170,7 @@ export function ProjectTabsClient({
   consumoCanonico,
   budgetItemLabelById: budgetItemLabelByIdRecord,
   recepciones,
+  receiptsPanel,
   panolSubmissions,
   warehouseLocations,
   warehousePortalLinks,
@@ -448,7 +450,9 @@ export function ProjectTabsClient({
         <InventarioObraSection stock={stockObra} consumo={consumoCanonico} budgetItemLabelById={budgetItemLabelById} />
       ) : null}
 
-      {tab === "panol" || tab === "recepciones" ? (
+      {tab === "recepciones" ? receiptsPanel : null}
+
+      {tab === "panol" ? (
         <PanolObraSection
           projectId={project.id}
           locations={warehouseLocations}

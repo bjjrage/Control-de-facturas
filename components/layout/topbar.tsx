@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, HelpCircle, Building2, HardHat, Gavel, FolderOpen, LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { projectTabForPath } from "@/lib/projects/purchase-navigation";
 import { PROJECT_FEATURES } from "@/lib/projects/project-features";
 import { Workspace, WORKSPACE_HOME, WORKSPACE_LABEL, workspaceForPath } from "./workspace";
 import { getProjectNavInfo } from "@/app/(internal)/projects/actions";
@@ -18,7 +19,6 @@ const PROJECT_TAB_CONTEXT: Record<string, { group: string; label: string }> = Ob
 );
 // Keep old bookmarks understandable without advertising this renderer as a canonical tab.
 PROJECT_TAB_CONTEXT.stock = { group: "Avance de obra", label: "Catálogo de materiales (legado)" };
-PROJECT_TAB_CONTEXT.recepciones = { group: "Avance de obra", label: "Depósito de obra" };
 
 const WORKSPACE_ITEMS: WorkspaceItem[] = [
   { key: "administracion", icon: Building2 },
@@ -82,7 +82,7 @@ export function Topbar({
   const [projectTab, setProjectTab] = useState("presupuesto");
 
   useEffect(() => {
-    const syncTab = () => setProjectTab(new URLSearchParams(window.location.search).get("tab") ?? "presupuesto");
+    const syncTab = () => setProjectTab(projectTabForPath(pathname, window.location.search));
     syncTab();
     const onTab = (event: Event) => setProjectTab((event as CustomEvent<string>).detail);
     window.addEventListener("niupack:tab", onTab);

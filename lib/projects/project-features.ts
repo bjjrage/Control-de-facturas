@@ -13,6 +13,7 @@ export type ProjectFeatureKey =
   | "proveedores"
   | "cotizaciones"
   | "compras"
+  | "recepciones"
   | "facturas"
   | "pagos"
   | "ejecucion"
@@ -50,6 +51,7 @@ export const PROJECT_FEATURES = [
   { key: "proveedores", label: "Proveedores", group: "Comprar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "cotizaciones", label: "Cotizaciones", group: "Comprar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "compras", label: "OC", group: "Comprar", minPlan: "pro", roles: PROJECT_ROLES },
+  { key: "recepciones", label: "Recepciones", group: "Comprar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "facturas", label: "Facturas", group: "Comprar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "pagos", label: "Pagos", group: "Comprar", minPlan: "pro", roles: PROJECT_ROLES },
   { key: "ejecucion", label: "Registro de avance", group: "Avance de obra", minPlan: "pro", roles: PROJECT_ROLES },

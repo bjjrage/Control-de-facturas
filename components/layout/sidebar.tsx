@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { projectTabForPath } from "@/lib/projects/purchase-navigation";
 import {
   LayoutDashboard,
   FileText,
@@ -75,6 +76,7 @@ const PROJECT_TAB_ICONS: Record<ProjectFeatureKey, typeof LayoutDashboard> = {
   proveedores: Truck,
   cotizaciones: MessagesSquare,
   compras: Package,
+  recepciones: PackageCheck,
   facturas: Receipt,
   pagos: Wallet,
   ejecucion: Hammer,
@@ -250,6 +252,7 @@ export function Sidebar({
   plan?: EmpresaPlan;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const workspace = workspaceForPath(pathname);
   const [collapsed, setCollapsed] = useState(false);
   const [openSection, setOpenSection] = useState<{
@@ -319,7 +322,7 @@ export function Sidebar({
   useEffect(() => {
     // The tab is initialized from the URL whenever the route changes.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCurrentTab(new URLSearchParams(window.location.search).get("tab") ?? "presupuesto");
+    setCurrentTab(projectTabForPath(pathname, window.location.search));
   }, [pathname]);
   useEffect(() => {
     const handler = (e: Event) => setCurrentTab((e as CustomEvent<string>).detail);
@@ -758,6 +761,10 @@ export function Sidebar({
                     onClick={() => {
                       setOpenProjectSection(null);
                       const url = `/projects/${activeProjectId}?tab=${t.key}`;
+                      if (pathname !== `/projects/${activeProjectId}`) {
+                        router.push(url);
+                        return;
+                      }
                       window.history.pushState({}, "", url);
                       window.dispatchEvent(new CustomEvent("niupack:tab", { detail: t.key }));
                     }}

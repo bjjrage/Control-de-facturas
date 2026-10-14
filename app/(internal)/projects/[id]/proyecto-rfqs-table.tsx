@@ -100,7 +100,7 @@ export function ProyectoRfqsTable({ rows }: { rows: Rfq[] }) {
               filtered.map((r) => (
                 <tr key={r.id}>
                   <td>
-                    <Link href={`/rfqs/${r.id}`} className="text-action font-medium">
+                    <Link href={`/projects/${r.project_id}/rfqs/${r.id}`} className="text-action font-medium">
                       {r.code}
                     </Link>
                   </td>

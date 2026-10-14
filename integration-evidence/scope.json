@@ -53,7 +53,28 @@
     "app/(internal)/projects/[id]/need-to-buy.tsx",
     "app/(internal)/projects/[id]/project-tabs-client.tsx",
     "app/(internal)/rfqs/purchase-dialog.module.css",
-    "app/(internal)/rfqs/section-action.ts"
+    "app/(internal)/rfqs/section-action.ts",
+    "app/cotizar/[token]/quote-form.module.css",
+    "app/(internal)/orders/[id]/recepcion-section.tsx",
+    "app/(internal)/orders/oc-recepcion-actions.ts",
+    "app/(internal)/projects/[id]/page.tsx",
+    "app/(internal)/projects/[id]/panol-obra-section.tsx",
+    "app/(internal)/projects/[id]/proyecto-compras-table.tsx",
+    "app/(internal)/projects/[id]/proyecto-rfqs-table.tsx",
+    "app/(internal)/projects/[id]/recepciones-obra-section.tsx",
+    "components/layout/sidebar.tsx",
+    "components/layout/topbar.tsx",
+    "lib/projects/project-features.test.ts",
+    "lib/projects/project-features.ts",
+    "app/(internal)/orders/[id]/order-detail.tsx",
+    "app/(internal)/orders/[id]/receipt-dialog.module.css",
+    "app/(internal)/projects/[id]/orders/[orderId]/page.tsx",
+    "app/(internal)/projects/[id]/project-receipts-list.tsx",
+    "app/(internal)/projects/[id]/project-receipts-section.tsx",
+    "app/(internal)/projects/[id]/rfqs/[rfqId]/page.tsx",
+    "app/(internal)/rfqs/[id]/rfq-detail.tsx",
+    "lib/projects/purchase-navigation.test.ts",
+    "lib/projects/purchase-navigation.ts"
   ],
   "excluded": [
     "components/layout/app-shell-client.tsx",
@@ -68,6 +89,7 @@
     "Compare date-only document validity at day precision; preserve exact timestamp comparisons",
     "Allocate OT code inside existing validated-token transaction; preserve guards, grants and idempotency",
     "Shared purchase form for Administration/worksite/weekly need; preserve project to OC",
-    "Costeo owns Cotizar insumos; remove mixed purpose/mode controls from purchasing"
+    "Costeo owns Cotizar insumos; remove mixed purpose/mode controls from purchasing",
+    "Keep worksite RFQ and OC routes inside project context; expose direct canonical receiving under Comprar > Recepciones"
   ]
 }

@@ -134,11 +134,11 @@ describe("project surface contract", () => {
       "bim",
     ]));
     expect((PROJECT_FEATURES as readonly { key: string }[]).some((feature) => feature.key === "stock")).toBe(false);
-    expect((PROJECT_FEATURES as readonly { key: string }[]).some((feature) => feature.key === "recepciones")).toBe(false);
+    expect((PROJECT_FEATURES as readonly { key: string }[]).some((feature) => feature.key === "recepciones")).toBe(true);
   });
 
-  it("keeps all 18 canonical project surfaces visible through the shared registry", () => {
-    expect(PROJECT_FEATURES).toHaveLength(18);
+  it("keeps all 19 canonical project surfaces visible through the shared registry", () => {
+    expect(PROJECT_FEATURES).toHaveLength(19);
     expect(getProjectFeature("costeo").group).toBe("Preparar");
     expect(getProjectFeature("costeo").minPlan).toBe("pro");
     expect(getProjectFeature("inventario").label).toBe("Inventario");

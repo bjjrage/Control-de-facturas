@@ -103,7 +103,7 @@ export function AdministrativeRfqDialog({ trigger, defaultOpen, projectId, proje
           setLines(makeLines(initialItems));
           setFileNames([]);
           router.refresh();
-          router.push("/rfqs/" + result.id);
+          router.push(projectId ? `/projects/${projectId}/rfqs/${result.id}` : "/rfqs/" + result.id);
         } catch (e) {
           setError(e instanceof Error ? e.message : "No se pudo crear la solicitud.");
         } finally {

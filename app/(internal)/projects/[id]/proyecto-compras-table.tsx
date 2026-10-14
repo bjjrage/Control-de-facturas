@@ -105,7 +105,7 @@ export function ProyectoComprasTable({ rows }: { rows: AuthorizedOrder[] }) {
               filtered.map((o) => (
                 <tr key={o.id}>
                   <td>
-                    <Link href={`/orders/${o.id}`} className="text-action font-medium">{o.code}</Link>
+                    <Link href={`/projects/${o.project_id}/orders/${o.id}`} className="text-action font-medium">{o.code}</Link>
                   </td>
                   <td>{o.product}</td>
                   <td>{o.provider_name}</td>

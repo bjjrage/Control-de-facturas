@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { purchaseDetailPath } from "@/lib/projects/purchase-navigation";
 import { useRouter } from "next/navigation";
 import { FileText, Check } from "lucide-react";
 import { Button, buttonClassName } from "@/components/ui/button";
@@ -52,8 +53,8 @@ function BudgetButton({ attachmentId }: { attachmentId: string | null }) {
   </div>;
 }
 
-export function PurchasingOffers({ rfqId, items, offers, analyses: initialAnalyses, allocations, versions, orders }: {
-  rfqId: string; items: RfqItem[]; offers: ComparativeLine[]; analyses: Record<string, QuoteDocumentAnalysisResult>;
+export function PurchasingOffers({ rfqId, projectId, items, offers, analyses: initialAnalyses, allocations, versions, orders }: {
+  rfqId: string; projectId?: string; items: RfqItem[]; offers: ComparativeLine[]; analyses: Record<string, QuoteDocumentAnalysisResult>;
   allocations: RfqAllocation[]; versions: Version[]; orders: SavedOrder[];
 }) {
   const router = useRouter();
@@ -145,8 +146,8 @@ export function PurchasingOffers({ rfqId, items, offers, analyses: initialAnalys
     {completed ? <div className={styles.purchaseStatus}>
       <div><h2><Check size={18} className="inline mr-2" aria-hidden="true" />Compra adjudicada</h2><p className={styles.muted}>La orden de compra ya fue emitida.</p></div>
       <div className={styles.actions}>
-        {orders.map(o => <Link key={o.id} href={`/orders/${o.id}`} className={buttonClassName()}>Ver {o.code}</Link>)}
-        {!orders.length && createdIds.map((id, index) => <Link key={id} href={`/orders/${id}`} className={buttonClassName()}>Ver orden de compra{createdIds.length > 1 ? ` ${index + 1}` : ""}</Link>)}
+        {orders.map(o => <Link key={o.id} href={purchaseDetailPath("orders", o.id, projectId)} className={buttonClassName()}>Ver {o.code}</Link>)}
+        {!orders.length && createdIds.map((id, index) => <Link key={id} href={purchaseDetailPath("orders", id, projectId)} className={buttonClassName()}>Ver orden de compra{createdIds.length > 1 ? ` ${index + 1}` : ""}</Link>)}
       </div>
     </div> : allocation && <div className={styles.purchaseStatus}>
       <div><strong>{allocation.authorized_at ? "Compra autorizada" : "Proveedor seleccionado"}</strong><p className={styles.muted}>{allocation.authorized_at ? "Revisá la orden antes de emitirla." : "Falta autorizar y emitir la orden."}</p></div>

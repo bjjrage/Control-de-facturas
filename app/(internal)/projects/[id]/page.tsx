@@ -37,6 +37,7 @@ import {
   PROJECT_FEATURE_KEYS,
 } from "@/lib/projects/project-features";
 import { ProjectTabsClient } from "./project-tabs-client";
+import { ProjectReceiptsSection } from "./project-receipts-section";
 
 const ALL_TABS = PROJECT_FEATURE_KEYS;
 
@@ -57,7 +58,7 @@ export default async function ProjectDetailPage({
   const isCaterpillar = profile.plan === "caterpillar" || profile.is_super_admin;
   const featurePlan = isCaterpillar ? "caterpillar" : "pro";
   const appUrl = await getAppOrigin();
-  const normalizedTab = rawTab === "recepciones" ? "panol" : rawTab;
+  const normalizedTab = rawTab;
   const initialTab =
     isProjectFeatureKey(normalizedTab) &&
     ALL_TABS.includes(normalizedTab) &&
@@ -762,6 +763,7 @@ export default async function ProjectDetailPage({
       consumoCanonico={consumoCanonico}
       budgetItemLabelById={Object.fromEntries(budgetItemLabelById)}
       recepciones={recepciones}
+      receiptsPanel={<ProjectReceiptsSection projectId={id} />}
       panolSubmissions={panolSubmissions}
       warehouseLocations={warehouseLocations}
       warehousePortalLinks={warehousePortalLinks}
