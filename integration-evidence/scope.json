@@ -74,7 +74,9 @@
     "app/(internal)/projects/[id]/rfqs/[rfqId]/page.tsx",
     "app/(internal)/rfqs/[id]/rfq-detail.tsx",
     "lib/projects/purchase-navigation.test.ts",
-    "lib/projects/purchase-navigation.ts"
+    "lib/projects/purchase-navigation.ts",
+    "app/(internal)/orders/receipt-portal-link.tsx",
+    "app/(internal)/orders/receipt-share.module.css"
   ],
   "excluded": [
     "components/layout/app-shell-client.tsx",
@@ -90,6 +92,7 @@
     "Allocate OT code inside existing validated-token transaction; preserve guards, grants and idempotency",
     "Shared purchase form for Administration/worksite/weekly need; preserve project to OC",
     "Costeo owns Cotizar insumos; remove mixed purpose/mode controls from purchasing",
-    "Keep worksite RFQ and OC routes inside project context; expose direct canonical receiving under Comprar > Recepciones"
+    "Keep worksite RFQ and OC routes inside project context; expose direct canonical receiving under Comprar > Recepciones",
+    "Expose receipt QR directly beside each pending worksite OC; reuse canonical token service and receipt portal"
   ]
 }

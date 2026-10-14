@@ -18,7 +18,7 @@
     "build": true,
     "navigation": true,
     "typecheck": true,
-    "buildId": "iegU9VoMmMgZ2MzzMZ3GU",
+    "buildId": "CKcHmOytKCJ3RtykVQuMx",
     "runtime": "next start, port 3003",
     "devCompilingHangObserved": false
   },
@@ -104,7 +104,7 @@
   },
   "limits": [
     "Single supplier XLSX offer; not a general PDF/image quotation OCR certification",
-    "Receipt/stock, partial payments and fiscal emission not exercised",
+    "Worksite manual receipt/stock exercised separately; external receipt submission, partial payments and fiscal emission not rerun",
     "Bulk invoice upload not rerun in this integration preview",
     "Security advisors still report unrelated database findings; see CHECKPOINT.md",
     "Broad lint retains 6 preexisting errors and 3 warnings"
@@ -141,5 +141,25 @@
     "wrongProject404Verified": true,
     "inventoryUiVerified": true,
     "newSchema": false
+  },
+  "receiptSharing": {
+    "build": true,
+    "typecheck": true,
+    "changedComponentLint": true,
+    "focusedTests": 61,
+    "testFiles": 8,
+    "entryPoint": "Obra > Comprar > Recepciones > QR para recibir",
+    "order": "OC-2026-0009",
+    "generatedQr": true,
+    "copyLinkVerified": true,
+    "actualPortalVerified": true,
+    "portalPendingQuantity": 98,
+    "externalSubmissionRepeated": false,
+    "localhostOnly": true,
+    "phoneAccessTested": false,
+    "serverPid": 2456,
+    "workerPid": 4640,
+    "newSchema": false,
+    "productionTouched": false
   }
 }
